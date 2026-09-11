@@ -1,0 +1,2 @@
+mutation estimate: 2 mutation(s) x 180.000s, baseline=1 run(s), total=3 run(s)/540.000s; actual execution requires an outer-limit-free detached path
+mutation worktree aborted: 共有木の事後検査に失敗: source/main 共有木の観測 bytes が変化した

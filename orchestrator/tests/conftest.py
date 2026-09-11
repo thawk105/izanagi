@@ -258,6 +258,18 @@ def _declare_default_test_site(request, monkeypatch):
 # 親 working tree (P) と共有 ccbench (S) に触る node の分類正本。値は
 # ``test_file.py::test_function``（parametrize suffix なし）で固定する。
 _REAL_REPO_NODE_INVENTORY = frozenset({
+    "test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads",
+    "test_s1_known_axes_freeze.py::test_historical_option_keeps_new_document_strict",
+    "test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
+    "test_s1_known_axes_freeze.py::test_historical_view_does_not_consult_current_semantics_or_head",
+    "test_s1_known_axes_freeze.py::test_historical_cli_selects_view",
+    "test_s1_known_axes_freeze.py::test_historical_path_identity_uses_original_bytes",
+    "test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound",
+    "test_s1_known_axes_freeze.py::test_historical_current_use_matches_real_reconstruction",
+    "test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference",
+    "test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison",
+    "test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics",
+    "test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics",
     # X/P/I assessment の現行 pin 正負対は共有 CCBench source を読む。
     "test_verifier.py::test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace",
     # 親 working tree の tracked + untracked snapshot。
@@ -518,6 +530,18 @@ _REAL_REPO_CCBENCH_WRITER_NODES_LITERAL = frozenset({
     "test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding",
 })
 _REAL_REPO_BOTH_READER_NODES = frozenset({
+    "test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads",
+    "test_s1_known_axes_freeze.py::test_historical_option_keeps_new_document_strict",
+    "test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
+    "test_s1_known_axes_freeze.py::test_historical_view_does_not_consult_current_semantics_or_head",
+    "test_s1_known_axes_freeze.py::test_historical_cli_selects_view",
+    "test_s1_known_axes_freeze.py::test_historical_path_identity_uses_original_bytes",
+    "test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound",
+    "test_s1_known_axes_freeze.py::test_historical_current_use_matches_real_reconstruction",
+    "test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference",
+    "test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison",
+    "test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics",
+    "test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics",
     "test_campaign.py::test_evolve_block_markers_structure_and_inert",
     "test_codex_reasoning_ab.py::test_agent_sandbox_binds_exclude_attempt_receipt_directory",
     "test_codex_reasoning_ab.py::test_attempt_four_is_rejected_before_launch",

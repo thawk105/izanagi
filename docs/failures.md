@@ -2186,6 +2186,8 @@
   親側の是正は、出力形式へ `見出し level 2 (##) で書く` と `fence の外に置く` を併記すること。
   再投入は prompt を直して別 job-id で行い、初回の出力は非採用として artifact dir へ保全した
   (2 本目は `check_codex_output.py` rc=0 で採用)。
+
+- **再発: 2026-09-11** — T-2528のfix子は必須の総括見出しを欠き、CLI rc=0でもlauncherがf43_fragmentとして未受理にした。親は別のread-only focus子に未受理差分を独立監査させて採用した。既存の検収経路を使用し、新しい防壁は追加しない。原報告と検証記録は `output/insights/2026-09-11/t2528-role-input/README.md`。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
@@ -13464,6 +13466,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 次に role file (`.claude/agents/*.md`) を変更する wave が受入全走で
   `test_reflux_originless_compatibility.py` の赤を踏んだ時点で顕在化する (lint 化は未実装)。
 
+
+- **再発: 2026-09-11** — T-2528で親がplanner source hashの追随だけを指定し、trigger-gating側の固定baseline 7箇所を落とした。単独走job991683の1FAILで検出し、D95 authorが両roleの固定hashだけを追随。修正後2 passed、既存helper・比較集合・assertionを維持した。検証記録は `output/insights/2026-09-11/t2528-role-input/README.md`。
 ### F434. real-corpus テストがアクティブな task_id を fixture anchor にすると、その task の実体更新で追随なしに陳腐化する [ドリフト] [手順漏れ]
 
 - 事象: `orchestrator/tests/test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed`

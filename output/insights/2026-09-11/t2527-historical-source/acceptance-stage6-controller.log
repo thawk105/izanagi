@@ -1,0 +1,5 @@
+acceptance-command argv=["python3", "tools/run_tests.py"]
+acceptance-command timeout=none (long-running acceptance is intentional)
+IZANAGI_ACCEPTANCE_ATTEMPT_V1 {"archived_log_path":null,"attempt":1,"claimed_main":"4cfda49e0f38b2a87c9e08c107ebeb50d077e769","classification":"child-green","log_sha256":"ca5bf46f1fb50bcbdc55fb73b79eff47e5274d913cdef275b708cadd7585d626","normalized_child_rc":0,"raw_child_rc":0,"reason":"child-verdict","retry":false}
+acceptance succeeded; lease was not acquired
+known limitation: no fencing token is provided

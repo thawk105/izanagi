@@ -1,0 +1,116 @@
+bringing up nodes...
+bringing up nodes...
+
+F.                                                                       [100%]
+=================================== FAILURES ===================================
+_________ test_historical_oracle_nonadapter_reaches_current_semantics __________
+[gw0] linux -- Python 3.10.12 /bin/python3.10
+
+    def test_historical_oracle_nonadapter_reaches_current_semantics():
+        from orchestrator.campaign import s8b_oracle_driver as oracle
+        from orchestrator.campaign import t080_freeze_migration as migration
+
+        # The real old holdout still has unrelated refusals; this is a known-axes
+        # call-site control, not a successful oracle run or an unheld artifact.
+        loaded = oracle._load_verified_freeze(oracle.DEFAULT_FREEZE_PATH)
+        resolution = migration.ReceiptResolution(
+            state="absent", refusals=(),
+            t080_freeze_migration_observation=None, validation_head="")
+        kwargs = dict(
+            freeze_path=oracle.DEFAULT_FREEZE_PATH, root=M.ROOT,
+            t080_resolution=resolution, approved_spec=None,
+            manifest_verification_error=None, standalone_manifest_verification=True,
+            verified=loaded)
+        assert oracle._t080_adapter_refusals(
+            resolution=resolution, freeze=loaded.document, freeze_sha256=loaded.sha256,
+            freeze_path=oracle.DEFAULT_FREEZE_PATH, root=M.ROOT) is None
+        with mock.patch.object(M, "verify", wraps=M.verify) as verifier:
+            baseline = oracle._gate_check_core(**kwargs)
+        assert verifier.call_count == 1
+        assert not any(r.startswith("known-axes-freeze-verify:") for r in baseline.refusals)
+        assert not baseline.allowed  # unrelated old holdout refusal is not hidden
+        builder = M.build_document
+        calls = []
+
+        def changed_builder(**options):
+            rebuilt = builder(**options)
+            rebuilt["entries"]["balanced"]["backoff_fixed_best"]["flags"]["BACK_OFF"] += 1
+            calls.append(rebuilt)
+            return rebuilt
+
+        with mock.patch.object(M, "build_document", side_effect=changed_builder):
+            M.verify(historical=True)
+            changed = oracle._gate_check_core(**kwargs)
+        expected = (
+            "known-axes-freeze-verify: FreezeError: "
+            "freeze JSON の内容が現行 generator による機械再構成と不一致")
+>       assert [r for r in changed.refusals if r.startswith("known-axes-freeze-verify:")] == [expected]
+E       AssertionError: assert [] == ['known-axes-...による機械再構成と不一致']
+E
+E         Right contains one more item: 'known-axes-freeze-verify: FreezeError: freeze JSON の内容が現行 generator による機械再構成と不一致'
+E         Use -v to get more diff
+
+orchestrator/tests/test_s1_known_axes_freeze.py:1173: AssertionError
+----------------------------- Captured stderr call -----------------------------
+IZANAGI_FREEZE_HOLD {"check_id": "s8b-holdout.design_source-implementation-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+IZANAGI_FREEZE_HOLD {"check_id": "s8b-holdout.known_axes_freeze-implementation-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+IZANAGI_FREEZE_HOLD {"check_id": "s8b-holdout.generator-implementation-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+IZANAGI_FREEZE_HOLD {"check_id": "s8b-holdout.frozen-head-current-head", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+IZANAGI_FREEZE_HOLD {"check_id": "s1-known-axes.ccbench-submodule-head-pin", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+=========================== short test summary info ============================
+FAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics
+1 failed, 1 passed in 44.87s
+IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+=== IZANAGI FAILURE DIGEST v1 BEGIN ===
+IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=2594 retained_bytes=2594 omitted_bytes=0 rendered_excerpt_bytes=2833 sha256=83bddae7f1acd0bdd3ca2972b5c18b91c6c5cd32d55f1c46a8fa6ae86f16babf
+--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+> [gw0] linux -- Python 3.10.12 /bin/python3.10
+>
+>     def test_historical_oracle_nonadapter_reaches_current_semantics():
+>         from orchestrator.campaign import s8b_oracle_driver as oracle
+>         from orchestrator.campaign import t080_freeze_migration as migration
+>
+>         # The real old holdout still has unrelated refusals; this is a known-axes
+>         # call-site control, not a successful oracle run or an unheld artifact.
+>         loaded = oracle._load_verified_freeze(oracle.DEFAULT_FREEZE_PATH)
+>         resolution = migration.ReceiptResolution(
+>             state="absent", refusals=(),
+>             t080_freeze_migration_observation=None, validation_head="")
+>         kwargs = dict(
+>             freeze_path=oracle.DEFAULT_FREEZE_PATH, root=M.ROOT,
+>             t080_resolution=resolution, approved_spec=None,
+>             manifest_verification_error=None, standalone_manifest_verification=True,
+>             verified=loaded)
+>         assert oracle._t080_adapter_refusals(
+>             resolution=resolution, freeze=loaded.document, freeze_sha256=loaded.sha256,
+>             freeze_path=oracle.DEFAULT_FREEZE_PATH, root=M.ROOT) is None
+>         with mock.patch.object(M, "verify", wraps=M.verify) as verifier:
+>             baseline = oracle._gate_check_core(**kwargs)
+>         assert verifier.call_count == 1
+>         assert not any(r.startswith("known-axes-freeze-verify:") for r in baseline.refusals)
+>         assert not baseline.allowed  # unrelated old holdout refusal is not hidden
+>         builder = M.build_document
+>         calls = []
+>
+>         def changed_builder(**options):
+>             rebuilt = builder(**options)
+>             rebuilt["entries"]["balanced"]["backoff_fixed_best"]["flags"]["BACK_OFF"] += 1
+>             calls.append(rebuilt)
+>             return rebuilt
+>
+>         with mock.patch.object(M, "build_document", side_effect=changed_builder):
+>             M.verify(historical=True)
+>             changed = oracle._gate_check_core(**kwargs)
+>         expected = (
+>             "known-axes-freeze-verify: FreezeError: "
+>             "freeze JSON \u306e\u5185\u5bb9\u304c\u73fe\u884c generator \u306b\u3088\u308b\u6a5f\u68b0\u518d\u69cb\u6210\u3068\u4e0d\u4e00\u81f4")
+> >       assert [r for r in changed.refusals if r.startswith("known-axes-freeze-verify:")] == [expected]
+> E       AssertionError: assert [] == ['known-axes-...\u306b\u3088\u308b\u6a5f\u68b0\u518d\u69cb\u6210\u3068\u4e0d\u4e00\u81f4']
+> E
+> E         Right contains one more item: 'known-axes-freeze-verify: FreezeError: freeze JSON \u306e\u5185\u5bb9\u304c\u73fe\u884c generator \u306b\u3088\u308b\u6a5f\u68b0\u518d\u69cb\u6210\u3068\u4e0d\u4e00\u81f4'
+> E         Use -v to get more diff
+>
+> orchestrator/tests/test_s1_known_axes_freeze.py:1173: AssertionError
+--- IZANAGI FAILURE EXCERPT rank=1 END ---
+IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2594 retained_bytes=2594 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3569 omitted_manifest_sha256=-
+=== IZANAGI FAILURE DIGEST v1 END ===

@@ -1,0 +1,14 @@
+{
+  "binary_sha256": "e7f4a8b732768f3158de8e0f419d37de94d78d61ccccb257fef792d7fa07b856",
+  "calibrate_rc": 0,
+  "calibration": {
+    "protocol": "mocc",
+    "workload": {
+      "ycsb_rratio": "50"
+    }
+  },
+  "completed_epoch": 1789064483,
+  "job_script_sha256": "d278a9afbb6736ee82a9859e6224ef69dd8fedc7c50c68bc12a0e1f4d176d3e4",
+  "pbs_jobid": "0:991694.nqsv",
+  "schema_version": "pegasus-job-result/v1"
+}

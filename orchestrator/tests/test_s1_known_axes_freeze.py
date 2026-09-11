@@ -905,6 +905,277 @@ def test_silo_cmake_rel_matches_source_digest_template():
         "済みのため、揃え直しは freeze migration の裁定を経ること"
 
 
+def test_historical_real_artifact_is_readable():
+    original = M.FREEZE_PATH.read_bytes()
+    doc = json.loads(original)
+    result = M.verify(historical=True)
+    assert result == doc
+    markers = M.verify_document(doc, historical=True)
+    assert [m["check_id"] for m in markers] == [
+        "s1-known-axes.ccbench-submodule-head-pin"]
+    assert result.held_checks == markers
+    assert M.FREEZE_PATH.read_bytes() == original
+
+
+def test_historical_real_artifact_without_live_code_reads(tmp_path):
+    original = M.FREEZE_PATH.read_bytes()
+    doc = json.loads(original)
+    code_paths = {
+        "orchestrator/campaign/axis_trigger_gating.py",
+        "orchestrator/campaign/s8a_trigger_sweep.py",
+        "orchestrator/campaign/genome.py",
+        "orchestrator/campaign/backoff_sweep.py",
+        "orchestrator/campaign/s6_sort_sweep.py",
+        "orchestrator/campaign/p3_s4_loop_sort.py",
+    }
+    assert {s["path"] for s in M._iter_sources(doc)
+            if s["path"].endswith(".py")} == code_paths
+    missing = tmp_path / "missing-code"
+    assert not missing.exists()
+
+    def resolver(relative):
+        return missing if relative in code_paths else M.ROOT / relative
+
+    resolve = mock.Mock(wraps=resolver)
+    with mock.patch.object(M, "_sha256", wraps=M._sha256) as sha:
+        # Both public APIs must accept the unchanged historical artifact.
+        result = M.verify(historical=True, source_resolver=resolve)
+        markers = M.verify_document(doc, historical=True, source_resolver=resolve)
+    assert result == doc
+    assert result.held_checks == markers
+    assert not code_paths.intersection(call.args[0] for call in resolve.call_args_list)
+    read_paths = [call.args[0] for call in sha.call_args_list]
+    assert read_paths
+    assert M.ROOT / M.SCRIPT_REL not in read_paths
+    assert missing not in read_paths
+    assert not {M.ROOT / relative for relative in code_paths}.intersection(read_paths)
+    assert M.FREEZE_PATH.read_bytes() == original
+
+
+def test_historical_view_does_not_consult_current_semantics_or_head():
+    # No resolver seam controls semantics/Git: fail on any such access.
+    doc = _current_frozen_document()
+    unexpected = AssertionError("historical view consulted current semantics/HEAD")
+    with mock.patch.object(M, "_validate_schema", side_effect=unexpected), \
+            mock.patch.object(M, "assert_s1b_pairing", side_effect=unexpected), \
+            mock.patch.object(M, "build_document", side_effect=unexpected), \
+            mock.patch.object(M, "_run_git", side_effect=unexpected):
+        M.verify_document(doc, historical=True)
+
+
+def test_historical_cli_selects_view():
+    with mock.patch.object(M, "verify", wraps=M.verify) as verifier:
+        assert M.main(["verify"]) == 0
+    assert verifier.call_args == mock.call(historical=True)
+
+
+def test_historical_content_and_identifiers_are_bound(tmp_path):
+    doc = _current_frozen_document()
+    mutations = []
+    for field in ("what", "generator"):
+        changed = copy.deepcopy(doc)
+        if field == "what":
+            changed[field] = "TAMPERED"
+        else:
+            changed[field]["sha256"] = "0" * 64
+        mutations.append(changed)
+    seen = set()
+    for index, source in enumerate(M._iter_sources(doc)):
+        path = source["path"]
+        if path.endswith(".py") and path not in seen:
+            seen.add(path)
+            changed = copy.deepcopy(doc)
+            list(M._iter_sources(changed))[index]["sha256"] = "0" * 64
+            mutations.append(changed)
+    assert len(seen) == 6
+    assert len(mutations) == 8
+    path = tmp_path / "changed.json"
+    for changed in mutations:
+        path.write_text(json.dumps(changed, ensure_ascii=False, indent=2) + "\n")
+        for historical in (True, False):
+            with pytest.raises(M.FreezeError, match="generator sha256 不一致"):
+                M.verify(path, historical=historical)
+            with pytest.raises(M.FreezeError, match="generator sha256 不一致"):
+                M.verify_document(changed, historical=historical)
+
+
+def test_historical_path_identity_uses_original_bytes(tmp_path):
+    doc = _current_frozen_document()
+    path = tmp_path / "reformatted.json"
+    path.write_text(json.dumps(doc, ensure_ascii=False))
+    with pytest.raises(M.FreezeError, match="generator sha256 不一致"):
+        M.verify(path, historical=True)
+    M.verify_document(doc, historical=True)
+
+
+def test_historical_input_copy_sha_and_existence_remain_bound(tmp_path):
+    doc = _current_frozen_document()
+    target = doc["entries"]["balanced"]["system_gate"]["sources"][0]["path"]
+    assert not target.endswith(".py")
+    copied = tmp_path / "input-copy"
+    shutil.copyfile(M.ROOT / target, copied)
+
+    def resolver(relative):
+        return copied if relative == target else M.ROOT / relative
+
+    M.verify_document(doc, historical=True, source_resolver=resolver)
+    copied.write_bytes(copied.read_bytes() + b" ")
+    for historical in (True, False):
+        with pytest.raises(M.FreezeError) as error:
+            M.verify_document(doc, historical=historical, source_resolver=resolver)
+        assert str(error.value).startswith(f"source sha256 不一致: {target} ")
+    copied.unlink()
+    with pytest.raises(M.FreezeError) as error:
+        M.verify_document(doc, historical=True, source_resolver=resolver)
+    assert str(error.value).startswith(f"source が存在しない: {target} -> ")
+
+
+def test_historical_option_keeps_new_document_strict():
+    doc = M.build_document()
+    for historical in (False, True):
+        M.verify_document(doc, historical=historical)
+        for field, reason in (
+                ("what", "機械再構成と不一致"),
+                ("generator", "generator sha256 不一致"),
+                ("source", "source sha256 不一致"),
+                ("frozen_at_head", "commit ancestor でない")):
+            changed = copy.deepcopy(doc)
+            if field == "generator":
+                changed[field]["sha256"] = "0" * 64
+            elif field == "source":
+                next(M._iter_sources(changed))["sha256"] = "0" * 64
+            elif field == "frozen_at_head":
+                changed[field] = "0" * 40
+            else:
+                changed[field] = "TAMPERED"
+            with pytest.raises(M.FreezeError, match=reason):
+                M.verify_document(changed, historical=historical)
+
+
+def test_historical_current_use_matches_real_reconstruction():
+    doc = _current_frozen_document()
+    before = copy.deepcopy(doc)
+    M.verify_document(doc)
+    result = M.verify()
+    assert result == doc == before
+    assert [m["check_id"] for m in result.held_checks] == [
+        "s1-known-axes.ccbench-submodule-head-pin"]
+
+
+def test_historical_current_use_rejects_single_flags_difference():
+    doc = _current_frozen_document()
+    M.verify_document(doc)
+    builder = M.build_document
+    calls = []
+
+    def changed_builder(**kwargs):
+        rebuilt = builder(**kwargs)
+        rebuilt["entries"]["balanced"]["backoff_fixed_best"]["flags"]["BACK_OFF"] += 1
+        calls.append(rebuilt)
+        return rebuilt
+
+    # Real builder plus one injected mismatch, separate from old artifact viewing.
+    with mock.patch.object(M, "build_document", side_effect=changed_builder):
+        M.verify_document(doc, historical=True)
+        assert calls == []
+        with pytest.raises(M.FreezeError, match="機械再構成と不一致"):
+            M.verify_document(doc)
+    assert len(calls) == 1
+
+
+def test_historical_current_use_preserves_source_key_comparison():
+    doc = _current_frozen_document()
+    M.verify_document(doc)
+    builder = M.build_document
+    calls = []
+
+    def changed_builder(**kwargs):
+        rebuilt = builder(**kwargs)
+        source = next(s for s in M._iter_sources(rebuilt) if s["path"].endswith(".py"))
+        source["key"] += " changed"
+        calls.append(rebuilt)
+        return rebuilt
+
+    with mock.patch.object(M, "build_document", side_effect=changed_builder):
+        with pytest.raises(M.FreezeError, match="機械再構成と不一致"):
+            M.verify_document(doc)
+    assert len(calls) == 1
+    assert next(s for s in M._iter_sources(calls[0])
+                if s["path"].endswith(".py"))["key"].endswith(" changed")
+
+
+def test_historical_measurement_and_calibration_keep_current_semantics():
+    from orchestrator.campaign import s1_measurement_freeze as measurement
+    from orchestrator.campaign import s1_verify_extime_calibration as calibration
+
+    doc = _current_frozen_document()
+    assert measurement._verify_known_axes(M.FREEZE_PATH, None) == doc
+    assert calibration.validated_target(doc)["name"] == "g_rl"
+    builder = M.build_document
+    calls = []
+
+    def changed_builder(**kwargs):
+        rebuilt = builder(**kwargs)
+        # Outside read-heavy so the later calibration target check cannot mask it.
+        rebuilt["entries"]["balanced"]["backoff_fixed_best"]["flags"]["BACK_OFF"] += 1
+        calls.append(rebuilt)
+        return rebuilt
+
+    with mock.patch.object(M, "build_document", side_effect=changed_builder):
+        M.verify_document(doc, historical=True)
+        with pytest.raises(measurement.FreezeError) as error:
+            measurement._verify_known_axes(M.FREEZE_PATH, None)
+        assert str(error.value) == (
+            "known_axes_freeze 照合失敗: freeze JSON の内容が現行 generator による機械再構成と不一致")
+        with pytest.raises(M.FreezeError, match="機械再構成と不一致"):
+            calibration.validated_target(doc)
+    assert len(calls) == 2
+
+
+def test_historical_oracle_nonadapter_reaches_current_semantics():
+    from orchestrator.campaign import s8b_oracle_driver as oracle
+    from orchestrator.campaign import t080_freeze_migration as migration
+
+    # The real old holdout still has unrelated refusals; this is a known-axes
+    # call-site control, not a successful oracle run or an unheld artifact.
+    loaded = oracle._load_verified_freeze(oracle.DEFAULT_FREEZE_PATH)
+    resolution = migration.ReceiptResolution(
+        state="absent", refusals=(),
+        t080_freeze_migration_observation=None, validation_head="")
+    kwargs = dict(
+        freeze_path=oracle.DEFAULT_FREEZE_PATH, root=M.ROOT,
+        t080_resolution=resolution, approved_spec=None,
+        manifest_verification_error=None, standalone_manifest_verification=True,
+        verified=loaded)
+    assert oracle._t080_adapter_refusals(
+        resolution=resolution, freeze=loaded.document, freeze_sha256=loaded.sha256,
+        freeze_path=oracle.DEFAULT_FREEZE_PATH, root=M.ROOT) is None
+    with mock.patch.object(M, "verify", wraps=M.verify) as verifier:
+        baseline = oracle._gate_check_core(**kwargs)
+    assert verifier.call_count == 1
+    assert not any(r.startswith("known-axes-freeze-verify:") for r in baseline.refusals)
+    assert not baseline.allowed  # unrelated old holdout refusal is not hidden
+    builder = M.build_document
+    calls = []
+
+    def changed_builder(**options):
+        rebuilt = builder(**options)
+        rebuilt["entries"]["balanced"]["backoff_fixed_best"]["flags"]["BACK_OFF"] += 1
+        calls.append(rebuilt)
+        return rebuilt
+
+    with mock.patch.object(M, "build_document", side_effect=changed_builder):
+        M.verify(historical=True)
+        changed = oracle._gate_check_core(**kwargs)
+    expected = (
+        "known-axes-freeze-verify: FreezeError: "
+        "freeze JSON の内容が現行 generator による機械再構成と不一致")
+    assert [r for r in changed.refusals if r.startswith("known-axes-freeze-verify:")] == [expected]
+    assert [r for r in changed.refusals if r != expected] == baseline.refusals
+    assert len(changed.refusals) == len(baseline.refusals) + 1
+    assert len(calls) == 1
+
+
 # ---- 素の runner (二重 runner 契約: pytest 非依存で走る) ----
 #
 # tmp_path fixture を要するテストには tempfile ベースの一時 dir を供給する。これが無いと

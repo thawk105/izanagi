@@ -1,0 +1,22 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 60,
+  "mutations": [
+    {
+      "id": "M1-disable-closure-input",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "old": "free_variables = set(matches[0].get_frees())",
+          "new": "free_variables = set()"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

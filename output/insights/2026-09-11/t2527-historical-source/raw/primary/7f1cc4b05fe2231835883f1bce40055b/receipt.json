@@ -1,0 +1,133 @@
+{
+  "f49_compute_marker": {
+    "hostname": "bnode001",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7f1cc4b05fe2231835883f1bce40055b/compute-visible.json",
+    "pbs_jobid": "0:991812.nqsv",
+    "present": true,
+    "valid": true
+  },
+  "f49_immediate": {
+    "qstat_succeeded": true,
+    "qstat_visible": true
+  },
+  "immediate_qstat": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "Request ID: 991812.nqsv\n    Request Name = izdw-7f1cc4b05f\n    User  Name = tanab\n    Group Name = SFC\n    User  ID   = 31609\n    Group ID   = 30410\n    Current State           = Staging\n    Previous State          = Queued\n    State Transition Time   = Fri Sep 11 06:45:21 2026\n    State Transition Reason = STAGEIN\n    Queue = gen_S@nqsv (Execution Queue)\n    Job Topology = Distribute Job\n    Request Priority  = 0\n    Request Loglevel  = 0\n    Rerunable    = No\n    Holdable     = Yes\n    Hold Type    = (none)\n    Migratable   = Yes\n    Suspend Type = (none)\n    Account Code = SFC\n    Stdout = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7f1cc4b05fe2231835883f1bce40055b/izdw-7f1cc4b05f.o%s\n    Stderr = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7f1cc4b05fe2231835883f1bce40055b/izdw-7f1cc4b05f.e%s\n    Reqlog = (none)\n    Shell = (none)\n    Mail Address = tanab@pegasus02\n    Mail Option  = (none)\n    Job Condition:\n        Job NO: 0 \"\"\n    Number of Jobs = 1\n    Created Request Time = Fri Sep 11 06:45:21 2026\n    Entered Queue Time   = Fri Sep 11 06:45:21 2026\n    Planned Start Time   = (none)\n    Execute Request Time = (none)\n    Started Request Time = (none)\n    Ended Request Time   = (none)\n    Requested Start Time = (none)\n    Deadline Time        = (none)\n    UMASK = 022\n    Reservation ID      = (none)\n    qattach command = Enable\n    Attach = No\n    Cluster Type Select = NONE\n    UserPP Script = (none)\n    Exclusive = (none)\n    HCA Number = (none)\n    Accept Sigterm = No\n    Enable Cloud Bursting = No\n  Custom Resources:\n    Share           = 1\n  Execution Hosts(JSVNO):\n    bnode001(1)\n  Resources Information:\n    Memory    = 0.000000B\n    CPU Time  = 0.000000S\n    Accumulated CPU Time = 0.000000S\n    Elapse    = 0S\n    Remaining Elapse = 3600S\n    Virtual Memory = 0.000000B\n  Logical Host Resources:\n    VE Node Number        = Max:         0 Warn:       --- \n    CPU Number            = Max:        48 Warn:       --- \n    GPU Number            = Max:         0 Warn:       --- \n    CPU Time              = Max: UNLIMITED Warn: UNLIMITED \n    Memory Size           = Max: UNLIMITED Warn: UNLIMITED \n    Virtual Memory Size   = Max: UNLIMITED Warn: UNLIMITED \n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n    Stdout Size           = Max: UNLIMITED Warn: UNLIMITED \n    Stderr Size           = Max: UNLIMITED Warn: UNLIMITED \n  VE Node Resources:\n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n  Resources Limits:\n    (Per-Req) Elapse Time Limit       = Max:     3600S Warn:     3600S \n    (Per-Job) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) CPU Number              = Max:        48 Warn:       --- \n    (Per-Job) Memory Size             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) GPU Number              = Max:         0 Warn:       --- \n    (Per-Prc) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Open File Number        = Max:    262144 Warn:       --- \n    (Per-Prc) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Data Segment Size       = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Stack Segment Size      = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Core File Size          = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Permanent File Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE CPU Time             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE Memory Size          = Max: UNLIMITED Warn: UNLIMITED \n  Kernel Parameter:\n    Resource Sharing Group     = 0\n    Nice Value                 = 0\n  User Attributes:\n    (none)\n\n"
+  },
+  "immediate_qstat_attempts": [
+    {
+      "attempt": 1,
+      "classification": "success-request-visible",
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "Request ID: 991812.nqsv\n    Request Name = izdw-7f1cc4b05f\n    User  Name = tanab\n    Group Name = SFC\n    User  ID   = 31609\n    Group ID   = 30410\n    Current State           = Staging\n    Previous State          = Queued\n    State Transition Time   = Fri Sep 11 06:45:21 2026\n    State Transition Reason = STAGEIN\n    Queue = gen_S@nqsv (Execution Queue)\n    Job Topology = Distribute Job\n    Request Priority  = 0\n    Request Loglevel  = 0\n    Rerunable    = No\n    Holdable     = Yes\n    Hold Type    = (none)\n    Migratable   = Yes\n    Suspend Type = (none)\n    Account Code = SFC\n    Stdout = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7f1cc4b05fe2231835883f1bce40055b/izdw-7f1cc4b05f.o%s\n    Stderr = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7f1cc4b05fe2231835883f1bce40055b/izdw-7f1cc4b05f.e%s\n    Reqlog = (none)\n    Shell = (none)\n    Mail Address = tanab@pegasus02\n    Mail Option  = (none)\n    Job Condition:\n        Job NO: 0 \"\"\n    Number of Jobs = 1\n    Created Request Time = Fri Sep 11 06:45:21 2026\n    Entered Queue Time   = Fri Sep 11 06:45:21 2026\n    Planned Start Time   = (none)\n    Execute Request Time = (none)\n    Started Request Time = (none)\n    Ended Request Time   = (none)\n    Requested Start Time = (none)\n    Deadline Time        = (none)\n    UMASK = 022\n    Reservation ID      = (none)\n    qattach command = Enable\n    Attach = No\n    Cluster Type Select = NONE\n    UserPP Script = (none)\n    Exclusive = (none)\n    HCA Number = (none)\n    Accept Sigterm = No\n    Enable Cloud Bursting = No\n  Custom Resources:\n    Share           = 1\n  Execution Hosts(JSVNO):\n    bnode001(1)\n  Resources Information:\n    Memory    = 0.000000B\n    CPU Time  = 0.000000S\n    Accumulated CPU Time = 0.000000S\n    Elapse    = 0S\n    Remaining Elapse = 3600S\n    Virtual Memory = 0.000000B\n  Logical Host Resources:\n    VE Node Number        = Max:         0 Warn:       --- \n    CPU Number            = Max:        48 Warn:       --- \n    GPU Number            = Max:         0 Warn:       --- \n    CPU Time              = Max: UNLIMITED Warn: UNLIMITED \n    Memory Size           = Max: UNLIMITED Warn: UNLIMITED \n    Virtual Memory Size   = Max: UNLIMITED Warn: UNLIMITED \n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n    Stdout Size           = Max: UNLIMITED Warn: UNLIMITED \n    Stderr Size           = Max: UNLIMITED Warn: UNLIMITED \n  VE Node Resources:\n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n  Resources Limits:\n    (Per-Req) Elapse Time Limit       = Max:     3600S Warn:     3600S \n    (Per-Job) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) CPU Number              = Max:        48 Warn:       --- \n    (Per-Job) Memory Size             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) GPU Number              = Max:         0 Warn:       --- \n    (Per-Prc) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Open File Number        = Max:    262144 Warn:       --- \n    (Per-Prc) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Data Segment Size       = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Stack Segment Size      = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Core File Size          = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Permanent File Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE CPU Time             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE Memory Size          = Max: UNLIMITED Warn: UNLIMITED \n  Kernel Parameter:\n    Resource Sharing Group     = 0\n    Nice Value                 = 0\n  User Attributes:\n    (none)\n\n"
+    }
+  ],
+  "normalized_request_id": "991812.nqsv",
+  "outcome": {
+    "accounting_verified": true,
+    "kind": "child",
+    "rc": 1
+  },
+  "preflight": {
+    "qstat_Q": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "[EXECUTION QUEUE] Batch Server Host: nqsv\n=========================================\nQueueName       SCH JSVs ENA STS  PRI  TOT ARR WAI QUE PRR RUN POR EXT HLD HOL SUS MIG STG\n--------------- --- ---- ------- ---- ----------------------------------------------------\ngen_L             1  149 ENA ACT   30    0   0   0   0   0   0   0   0   0   0   0   0   0 \ngen_M             1  149 ENA ACT   30    0   0   0   0   0   0   0   0   0   0   0   0   0 \ngen_S             1  149 ENA ACT   30   43   0   0  14   1  26   0   0   2   0   0   0   0 \n--------------- --- ---- ------- ---- ----------------------------------------------------\n <TOTAL>                                43   0   0  14   1  26   0   0   2   0   0   0   0\n--------------- --- ---- ------- ---- ----------------------------------------------------\n\n[INTERACTIVE QUEUE] Batch Server Host: nqsv\n===========================================\nQueueName       SCH JSVs ENA STS  PRI  TOT ARR WAI QUE PRR RUN POR EXT HLD SUS\n--------------- --- ---- ------- ---- ----------------------------------------\ndebug             1  149 ENA ACT   60    0   0   0   0   0   0   0   0   0   0 \ninteractive       1  149 ENA ACT   20    0   0   0   0   0   0   0   0   0   0 \n--------------- --- ---- ------- ---- ----------------------------------------\n <TOTAL>                                 0   0   0   0   0   0   0   0   0   0\n--------------- --- ---- ------- ---- ----------------------------------------\n\nRouting Queue does not exist on nqsv.\n\n[NETWORK QUEUE] Batch Server Host: nqsv\n=======================================\nQueueName       StagingMachine       ENA STS PRI RLM  TOT WAI QUE RUN\n--------------- -------------------- --------------- ----------------\nDefaultNetQue    (any)               ENA ACT   0   4    0   0   0   0 \n--------------- -------------------- --------------- ----------------\n <TOTAL>                                        1000    0   0   0   0\n--------------- -------------------- --------------- ----------------\n\n"
+    }
+  },
+  "qdel": {
+    "attempted": false
+  },
+  "qsub": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "Request 991812.nqsv submitted to queue: gen_S.\n"
+  },
+  "queue_wait_observed": true,
+  "queue_wait_s": 5.202898037969135,
+  "request": {
+    "args": [
+      "-q",
+      "-rf",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_content_and_identifiers_are_bound",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "job_name": "izdw-7f1cc4b05f",
+    "nodes": 1,
+    "project": "SFC",
+    "queue": "gen_S",
+    "sha256": "fd537493c7d8672460ffb71de40e108e50c0b4bc55d24182b63e83b4300753a4",
+    "task": "tests",
+    "walltime": "01:00:00"
+  },
+  "request_id": "991812.nqsv",
+  "result": {
+    "child_rc": 1,
+    "error": null,
+    "hostname": "bnode001",
+    "interpreter": "/usr/bin/python3.10",
+    "pbs_jobid": "0:991812.nqsv",
+    "request_sha256": "fd537493c7d8672460ffb71de40e108e50c0b4bc55d24182b63e83b4300753a4",
+    "schema_version": "pegasus-dispatch-result/v1",
+    "stage": "child"
+  },
+  "scheduler_logs": {
+    "accounting_present": true,
+    "stderr": {
+      "omitted_bytes": 0,
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7f1cc4b05fe2231835883f1bce40055b/izdw-7f1cc4b05f.e991812",
+      "size": 654,
+      "tail": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\n\n============================================================\nRequest ID:             991812.nqsv\nRequest Name:           izdw-7f1cc4b05f\nQueue:                  gen_S@nqsv\nNumber of Jobs:         1\nUser Name:              tanab\nGroup Name:             SFC\nCreated Request Time:   Fri Sep 11 06:45:21 2026\nStarted Request Time:   Fri Sep 11 06:45:28 2026\nEnded Request Time:     Fri Sep 11 06:45:34 2026\nResources Information:\n  Elapse:               10S\n  Remaining Elapse:     3590S\n============================================================\n"
+    },
+    "stdout": {
+      "omitted_bytes": 0,
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7f1cc4b05fe2231835883f1bce40055b/izdw-7f1cc4b05f.o991812",
+      "size": 9545,
+      "tail": "bringing up nodes...\nbringing up nodes...\n\n...F...                                                                  [100%]\n=================================== FAILURES ===================================\n____________ test_historical_real_artifact_without_live_code_reads _____________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_historical_real_artifact_0')\n\n    def test_historical_real_artifact_without_live_code_reads(tmp_path):\n        original = M.FREEZE_PATH.read_bytes()\n        doc = json.loads(original)\n        code_paths = {\n            \"orchestrator/campaign/axis_trigger_gating.py\",\n            \"orchestrator/campaign/s8a_trigger_sweep.py\",\n            \"orchestrator/campaign/genome.py\",\n            \"orchestrator/campaign/backoff_sweep.py\",\n            \"orchestrator/campaign/s6_sort_sweep.py\",\n            \"orchestrator/campaign/p3_s4_loop_sort.py\",\n        }\n        assert {s[\"path\"] for s in M._iter_sources(doc)\n                if s[\"path\"].endswith(\".py\")} == code_paths\n        missing = tmp_path / \"missing-code\"\n        assert not missing.exists()\n    \n        def resolver(relative):\n            return missing if relative in code_paths else M.ROOT / relative\n    \n        resolve = mock.Mock(wraps=resolver)\n        with mock.patch.object(M, \"_sha256\", wraps=M._sha256) as sha:\n            # Both public APIs must accept the unchanged historical artifact.\n>           result = M.verify(historical=True, source_resolver=resolve)\n\norchestrator/tests/test_s1_known_axes_freeze.py:942: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s1_known_axes_freeze.py:993: in verify\n    held_checks = _verify_document(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ndoc = {'what': 'S-1 既知軸基準点 + 系側構成の凍結 (D52 §2.1 の実体化)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}\nhistorical = True\nraw = b'{\\n  \"what\": \"S-1 \\xe6\\x97\\xa2\\xe7\\x9f\\xa5\\xe8\\xbb\\xb8\\xe5\\x9f\\xba\\xe6\\xba\\x96\\xe7\\x82\\xb9 + \\xe7\\xb3\\xbb\\xe5\\x81\\xb...e5\\xae\\x9f\\xe6\\xb8\\xac\\xe3\\x81\\xaf\\xe5\\x8f\\x82\\xe8\\x80\\x83\\xe4\\xbd\\xb5\\xe8\\xa8\\x98 \\xe2\\x80\\x94 D52 \\xc2\\xa72.1)\"\\n}\\n'\nsource_resolver = <Mock id='22704828718464'>\n\n    def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,\n                         source_resolver: Optional[Callable[[str], Path]] = None\n                        ) -> Tuple[Mapping[str, object], ...]:\n        held_checks: List[Mapping[str, object]] = []\n        # Reuse the existing root only to identify this historical document; this\n        # does not execute or release the held T-080 artifact check.\n        from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256\n    \n        known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256\n        if not (known_historical and historical):\n            _validate_schema(doc)\n        generator_doc = doc[\"generator\"]\n        if generator_doc[\"path\"] != SCRIPT_REL:\n            raise FreezeError(f\"generator.path 不一致: {generator_doc['path']}\")\n        if not known_historical:\n            actual_generator = _sha256(ROOT / SCRIPT_REL)\n            if generator_doc[\"sha256\"] != actual_generator:\n                raise FreezeError(\n                    f\"generator sha256 不一致: recorded={generator_doc['sha256']} actual={actual_generator}\")\n    \n        resolver = source_resolver or (lambda rel: ROOT / rel)\n        source_count = 0\n        for source in _iter_sources(doc):\n            path_rel, expected = source.get(\"path\"), source.get(\"sha256\")\n            if not isinstance(path_rel, str) or not isinstance(expected, str):\n                raise FreezeError(\"source path/sha256 が文字列でない\")\n            if False:\n                continue\n            path = resolver(path_rel)\n            if not path.is_file():\n>               raise FreezeError(f\"source が存在しない: {path_rel} -> {path}\")\nE               orchestrator.campaign.s1_known_axes_freeze.FreezeError: source が存在しない: orchestrator/campaign/axis_trigger_gating.py -> /tmp/pytest-of-tanab/pytest-0/popen-gw6/test_historical_real_artifact_0/missing-code\n\norchestrator/campaign/s1_known_axes_freeze.py:913: FreezeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads\n1 failed, 6 passed in 4.72s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=4143 retained_bytes=3685 omitted_bytes=458 rendered_excerpt_bytes=4096 sha256=eb5ce65cd4809faf42228d6ad7c22fcba5b66b63e738f2ae4f678b2f1ac1efb1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> trator/campaign/genome.py\",\n>             \"orchestrator/campaign/backoff_sweep.py\",\n>             \"orchestrator/campaign/s6_sort_sweep.py\",\n>             \"orchestrator/campaign/p3_s4_loop_sort.py\",\n>         }\n>         assert {s[\"path\"] for s in M._iter_sources(doc)\n>                 if s[\"path\"].endswith(\".py\")} == code_paths\n>         missing = tmp_path / \"missing-code\"\n>         assert not missing.exists()\n>     \n>         def resolver(relative):\n>             return missing if relative in code_paths else M.ROOT / relative\n>     \n>         resolve = mock.Mock(wraps=resolver)\n>         with mock.patch.object(M, \"_sha256\", wraps=M._sha256) as sha:\n>             # Both public APIs must accept the unchanged historical artifact.\n> >           result = M.verify(historical=True, source_resolver=resolve)\n> \n> orchestrator/tests/test_s1_known_axes_freeze.py:942: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s1_known_axes_freeze.py:993: in verify\n>     held_checks = _verify_document(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> doc = {'what': 'S-1 \\u65e2\\u77e5\\u8ef8\\u57fa\\u6e96\\u70b9 + \\u7cfb\\u5074\\u69cb\\u6210\\u306e\\u51cd\\u7d50 (D52 \\xa72.1 \\u306e\\u5b9f\\u4f53\\u5316)', 'frozen_at_head': '2066ce6b47c6a5d43ca2c8ab3cc7728d32336be1', 'ccbenc.../campaign/s1_known_axes_freeze.py', 'sha256': '1d4d45a3de4926c6aae76906f7b4b72d3fead51e9cdf62ff03f80a0379c364e0'}, ...}\n> historical = True\n> raw = b'{\\x5cn  \"what\": \"S-1 \\x5cxe6\\x5cx97\\x5cxa2\\x5cxe7\\x5cx9f\\x5cxa5\\x5cxe8\\x5cxbb\\x5cxb8\\x5cxe5\\x5cx9f\\x5cxba\\x5cxe6\\x5cxba\\x5cx96\\x5cxe7\\x5cx82\\x5cxb9 + \\x5cxe7\\x5cxb3\\x5cxbb\\x5cxe5\\x5cx81\\x5cxb...e5\\x5cxae\\x5cx9f\\x5cxe6\\x5cxb8\\x5cxac\\x5cxe3\\x5cx81\\x5cxaf\\x5cxe5\\x5cx8f\\x5cx82\\x5cxe8\\x5cx80\\x5cx83\\x5cxe4\\x5cxbd\\x5cxb5\\x5cxe8\\x5cxa8\\x5cx98 \\x5cxe2\\x5cx80\\x5cx94 D52 \\x5cxc2\\x5cxa72.1)\"\\x5cn}\\x5cn'\n> source_resolver = <Mock id='22704828718464'>\n> \n>     def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,\n>                          source_resolver: Optional[Callable[[str], Path]] = None\n>                         ) -> Tuple[Mapping[str, object], ...]:\n>         held_checks: List[Mapping[str, object]] = []\n>         # Reuse the existing root only to identify this historical document; this\n>         # does not execute or release the held T-080 artifact check.\n>         from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256\n>     \n>         known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256\n>         if not (known_historical and historical):\n>             _validate_schema(doc)\n>         generator_doc = doc[\"generator\"]\n>         if generator_doc[\"path\"] != SCRIPT_REL:\n>             raise FreezeError(f\"generator.path \\u4e0d\\u4e00\\u81f4: {generator_doc['path']}\")\n>         if not known_historical:\n>             actual_generator = _sha256(ROOT / SCRIPT_REL)\n>             if generator_doc[\"sha256\"] != actual_generator:\n>                 raise FreezeError(\n>                     f\"generator sha256 \\u4e0d\\u4e00\\u81f4: recorded={generator_doc['sha256']} actual={actual_generator}\")\n>     \n>         resolver = source_resolver or (lambda rel: ROOT / rel)\n>         source_count = 0\n>         for source in _iter_sources(doc):\n>             path_rel, expected = source.get(\"path\"), source.get(\"sha256\")\n>             if not isinstance(path_rel, str) or not isinstance(expected, str):\n>                 raise FreezeError(\"source path/sha256 \\u304c\\u6587\\u5b57\\u5217\\u3067\\u306a\\u3044\")\n>             if False:\n>                 continue\n>             path = resolver(path_rel)\n>             if not path.is_file():\n> >               raise FreezeError(f\"source \\u304c\\u5b58\\u5728\\u3057\\u306a\\u3044: {path_rel} -> {path}\")\n> E               orchestrator.campaign.s1_known_axes_freeze.FreezeError: source \\u304c\\u5b58\\u5728\\u3057\\u306a\\u3044: orchestrator/campaign/axis_trigger_gating.py -> /tmp/pytest-of-tanab/pytest-0/popen-gw6/test_historical_real_artifact_0/missing-code\n> \n> orchestrator/campaign/s1_known_axes_freeze.py:913: FreezeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4143 retained_bytes=3685 omitted_bytes=458 budget_bytes=49152 rendered_bytes=4830 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n"
+    }
+  },
+  "schema_version": "pegasus-dispatch-receipt/v2",
+  "state_history": [
+    {
+      "elapsed_s": 1.3108917829813436,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "QUE"
+    },
+    {
+      "elapsed_s": 6.413289244985208,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 11.517357920994982,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 16.61722924094647,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 21.725336918025278,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "END"
+    }
+  ],
+  "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2527-historical-source/scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7f1cc4b05fe2231835883f1bce40055b",
+  "terminal_reason": "scheduler-end-state"
+}

@@ -1,0 +1,58 @@
+bringing up nodes...
+bringing up nodes...
+
+.....F.                                                                  [100%]
+=================================== FAILURES ===================================
+_________ test_historical_current_use_preserves_source_key_comparison __________
+[gw4] linux -- Python 3.10.12 /bin/python3.10
+
+    def test_historical_current_use_preserves_source_key_comparison():
+        doc = _current_frozen_document()
+        M.verify_document(doc)
+        builder = M.build_document
+        calls = []
+
+        def changed_builder(**kwargs):
+            rebuilt = builder(**kwargs)
+            source = next(s for s in M._iter_sources(rebuilt) if s["path"].endswith(".py"))
+            source["key"] += " changed"
+            calls.append(rebuilt)
+            return rebuilt
+
+        with mock.patch.object(M, "build_document", side_effect=changed_builder):
+>           with pytest.raises(M.FreezeError, match="機械再構成と不一致"):
+E           Failed: DID NOT RAISE FreezeError
+
+orchestrator/tests/test_s1_known_axes_freeze.py:1100: Failed
+----------------------------- Captured stderr call -----------------------------
+IZANAGI_FREEZE_HOLD {"check_id": "s1-known-axes.ccbench-submodule-head-pin", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+=========================== short test summary info ============================
+FAILED orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison
+1 failed, 6 passed in 4.72s
+IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+=== IZANAGI FAILURE DIGEST v1 BEGIN ===
+IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=799 retained_bytes=799 omitted_bytes=0 rendered_excerpt_bytes=867 sha256=6ca84814bdc99aa1a781d3a69a1c4a3a91c23c965900a80ffb23624cd0abd25d
+--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+> [gw4] linux -- Python 3.10.12 /bin/python3.10
+>
+>     def test_historical_current_use_preserves_source_key_comparison():
+>         doc = _current_frozen_document()
+>         M.verify_document(doc)
+>         builder = M.build_document
+>         calls = []
+>
+>         def changed_builder(**kwargs):
+>             rebuilt = builder(**kwargs)
+>             source = next(s for s in M._iter_sources(rebuilt) if s["path"].endswith(".py"))
+>             source["key"] += " changed"
+>             calls.append(rebuilt)
+>             return rebuilt
+>
+>         with mock.patch.object(M, "build_document", side_effect=changed_builder):
+> >           with pytest.raises(M.FreezeError, match="\u6a5f\u68b0\u518d\u69cb\u6210\u3068\u4e0d\u4e00\u81f4"):
+> E           Failed: DID NOT RAISE FreezeError
+>
+> orchestrator/tests/test_s1_known_axes_freeze.py:1100: Failed
+--- IZANAGI FAILURE EXCERPT rank=1 END ---
+IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=799 retained_bytes=799 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1598 omitted_manifest_sha256=-
+=== IZANAGI FAILURE DIGEST v1 END ===

@@ -1,0 +1,25 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 60,
+  "mutations": [
+    {
+      "id": "M1-disable-closure-input",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "old": "free_variables = set(matches[0].get_frees())",
+          "new": "free_variables = set()"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

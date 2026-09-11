@@ -1,0 +1,32 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 60,
+  "mutations": [
+    {
+      "id": "M1-old-condition15",
+      "category": "negative",
+      "replacements": [{
+        "file": ".claude/commands/dev-wave.md",
+        "old": "| 15 | 変異を走らせる直前 |",
+        "new": "| 15 | fix 後に変異を走らせる直前 |"
+      }],
+      "expected_nodes": ["orchestrator/tests/test_check_docs.py::test_real_repo_clean"],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-old-checker-pin",
+      "category": "negative",
+      "replacements": [{
+        "file": "tools/check_docs.py",
+        "old": "    \"15\": \"変異を走らせる直前\",",
+        "new": "    \"15\": \"fix 後に変異を走らせる直前\","
+      }],
+      "expected_nodes": ["orchestrator/tests/test_check_docs.py::test_real_repo_clean"],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

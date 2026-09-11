@@ -1,0 +1,294 @@
+[
+  {
+    "path": "output/insights/2026-09-11/t2563-calibration-runtime/after/build.stdout",
+    "original_sha256": "a86c0b036b122bcd40ca7a54d899185066fc2f84a0c2686c596a94a153851ab8",
+    "original_bytes": 7182,
+    "removed_line_suffix_hex": [
+      [
+        29,
+        "20"
+      ]
+    ],
+    "original_ends_with_lf": true
+  },
+  {
+    "path": "output/insights/2026-09-11/t2563-calibration-runtime/after/configure.stdout",
+    "original_sha256": "7925c36c228ff8678599aded2446a49d8f6a351fd0bbe214552b48d593b4b18b",
+    "original_bytes": 1894,
+    "removed_line_suffix_hex": [
+      [
+        9,
+        "2020"
+      ],
+      [
+        10,
+        "2020"
+      ],
+      [
+        11,
+        "2020"
+      ],
+      [
+        12,
+        "20"
+      ],
+      [
+        19,
+        "20"
+      ],
+      [
+        27,
+        "20"
+      ],
+      [
+        36,
+        "20"
+      ],
+      [
+        37,
+        "20"
+      ]
+    ],
+    "original_ends_with_lf": true
+  },
+  {
+    "path": "output/insights/2026-09-11/t2563-calibration-runtime/after/gflags-configure.stdout",
+    "original_sha256": "9ab7344c7981982467795970cc1ff505e8ca4118d604e253eedc32f38be07d84",
+    "original_bytes": 1272,
+    "removed_line_suffix_hex": [
+      [
+        27,
+        "2020"
+      ]
+    ],
+    "original_ends_with_lf": true
+  },
+  {
+    "path": "output/insights/2026-09-11/t2563-calibration-runtime/after/glog-configure.stdout",
+    "original_sha256": "7e8fb4f6b801039c8502994ef31d6d69c92783406efc57c2fb79fc65694dd07f",
+    "original_bytes": 5592,
+    "removed_line_suffix_hex": [
+      [
+        11,
+        "2020"
+      ]
+    ],
+    "original_ends_with_lf": true
+  },
+  {
+    "path": "output/insights/2026-09-11/t2563-calibration-runtime/before/build.stdout",
+    "original_sha256": "e1814e6d2aca74f371e806930ae1aa722d382195b768e6df956f92e7ee26b172",
+    "original_bytes": 7182,
+    "removed_line_suffix_hex": [
+      [
+        29,
+        "20"
+      ]
+    ],
+    "original_ends_with_lf": true
+  },
+  {
+    "path": "output/insights/2026-09-11/t2563-calibration-runtime/before/configure.stdout",
+    "original_sha256": "2ce41b1cc8205ada523082ec0a6082c89fba7a1476d4e919218a98a7a1765fea",
+    "original_bytes": 1894,
+    "removed_line_suffix_hex": [
+      [
+        9,
+        "2020"
+      ],
+      [
+        10,
+        "2020"
+      ],
+      [
+        11,
+        "2020"
+      ],
+      [
+        12,
+        "20"
+      ],
+      [
+        19,
+        "20"
+      ],
+      [
+        27,
+        "20"
+      ],
+      [
+        36,
+        "20"
+      ],
+      [
+        37,
+        "20"
+      ]
+    ],
+    "original_ends_with_lf": true
+  },
+  {
+    "path": "output/insights/2026-09-11/t2563-calibration-runtime/before/gflags-configure.stdout",
+    "original_sha256": "2c69445b6be22a557b25947986236f11f68b3cc203b25869d546eebc456ce7b1",
+    "original_bytes": 1272,
+    "removed_line_suffix_hex": [
+      [
+        27,
+        "2020"
+      ]
+    ],
+    "original_ends_with_lf": true
+  },
+  {
+    "path": "output/insights/2026-09-11/t2563-calibration-runtime/before/glog-configure.stdout",
+    "original_sha256": "bd209a4f8c238f7c336124fcdef44e853101407fec0221324b7e846c6b6604ec",
+    "original_bytes": 5592,
+    "removed_line_suffix_hex": [
+      [
+        11,
+        "2020"
+      ]
+    ],
+    "original_ends_with_lf": true
+  },
+  {
+    "path": "output/insights/2026-09-11/t2563-calibration-runtime/verbatim/consult-a-result.md",
+    "original_sha256": "a28b1664f71c6d40280e0d3aca13cd2cbe9ce444bc23ee1f46347856080c19b5",
+    "original_bytes": 5068,
+    "removed_line_suffix_hex": [
+      [
+        5,
+        "2020"
+      ],
+      [
+        6,
+        "2020"
+      ],
+      [
+        9,
+        "2020"
+      ],
+      [
+        10,
+        "2020"
+      ],
+      [
+        11,
+        "2020"
+      ],
+      [
+        14,
+        "2020"
+      ],
+      [
+        15,
+        "2020"
+      ],
+      [
+        16,
+        "2020"
+      ],
+      [
+        19,
+        "2020"
+      ],
+      [
+        20,
+        "2020"
+      ],
+      [
+        23,
+        "2020"
+      ],
+      [
+        24,
+        "2020"
+      ]
+    ],
+    "original_ends_with_lf": false
+  },
+  {
+    "path": "output/insights/2026-09-11/t2563-calibration-runtime/verbatim/plan-result.md",
+    "original_sha256": "899abc2aa6bbdb857bf10c6fbaa9c02e8a7e2eabaaa4cc19a322287d5fd3f993",
+    "original_bytes": 5592,
+    "removed_line_suffix_hex": [
+      [
+        13,
+        "2020"
+      ],
+      [
+        14,
+        "2020"
+      ],
+      [
+        17,
+        "2020"
+      ],
+      [
+        18,
+        "2020"
+      ],
+      [
+        21,
+        "2020"
+      ],
+      [
+        22,
+        "2020"
+      ]
+    ],
+    "original_ends_with_lf": false
+  },
+  {
+    "path": "output/insights/2026-09-11/t2563-calibration-runtime/verbatim/review-a-result.md",
+    "original_sha256": "adc476c9ed32534ff5cf5b12b01aa85fcfa0fff1bd9674a2c3cb12543f9b76ae",
+    "original_bytes": 3217,
+    "removed_line_suffix_hex": [
+      [
+        5,
+        "2020"
+      ],
+      [
+        6,
+        "2020"
+      ],
+      [
+        9,
+        "2020"
+      ],
+      [
+        12,
+        "2020"
+      ],
+      [
+        15,
+        "2020"
+      ]
+    ],
+    "original_ends_with_lf": false
+  },
+  {
+    "path": "output/insights/2026-09-11/t2563-calibration-runtime/verbatim/review-b-result.md",
+    "original_sha256": "d1e240bf36c9168452546e35648519558b008f8bb7621cf21285f71915383949",
+    "original_bytes": 2736,
+    "removed_line_suffix_hex": [
+      [
+        5,
+        "2020"
+      ],
+      [
+        8,
+        "2020"
+      ],
+      [
+        11,
+        "2020"
+      ],
+      [
+        14,
+        "2020"
+      ]
+    ],
+    "original_ends_with_lf": false
+  }
+]

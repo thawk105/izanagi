@@ -247,6 +247,7 @@ def _assert_static_job_contract(source: str) -> None:
             'IZANAGI_S4_PROPOSAL_PATH"'
         ),
         "canonical-repo": 'repo=$(cd -- "$IZANAGI_S4_REPO_ROOT" && pwd -P)',
+        "canonical-evidence-export": 'export IZANAGI_S4_EVIDENCE_ROOT="$evidence_root"',
         "worktree-container": '*"/.claude/worktrees/"*|*"/.codex/worktrees/"*',
         "git-common-root": (
             'git -C "$repo" rev-parse --path-format=absolute --git-common-dir'
@@ -1153,7 +1154,11 @@ def test_set_empty_optional_k2_declaration_is_refused_by_actual_job_body(
 def _run_actual_job_body_through_driver(
     tmp_path: Path,
     k2_environment: dict[str, str],
+    *,
+    relative_evidence: bool = False,
 ) -> list[str]:
+    # Scheduler/build/driver work is simulated; shell path conversion and the
+    # Python driver's environment/path observation and file write are real.
     binary_dir = tmp_path / "bin"
     repo_root = tmp_path / "repo"
     evidence_root = tmp_path / "evidence"
@@ -1226,6 +1231,11 @@ def _run_actual_job_body_through_driver(
         "if '-m' in args:\n"
         "    Path(os.environ['IZANAGI_TEST_DRIVER_ARGV']).write_text(\n"
         "        json.dumps(args), encoding='utf-8')\n"
+        "    root = os.environ['IZANAGI_S4_EVIDENCE_ROOT']\n"
+        "    Path(root, 'driver-evidence.json').write_text(\n"
+        "        json.dumps({'root': root, 'cwd': str(Path.cwd()),\n"
+        "                    'resolved_root': str(Path(root).resolve())}),\n"
+        "        encoding='utf-8')\n"
         "elif '-c' in args:\n"
         "    code = args[-1]\n"
         "    if 'print(os.path.realpath(sys.executable))' in code:\n"
@@ -1300,13 +1310,32 @@ def _run_actual_job_body_through_driver(
         "IZANAGI_TEST_GLOG_HEAD": glog_head,
         **k2_environment,
     })
+    input_root = "./evidence" if relative_evidence else str(evidence_root)
+    environment["IZANAGI_S4_EVIDENCE_ROOT"] = input_root
+    expected_root = (tmp_path / input_root).resolve()
     completed = subprocess.run(
-        [str(job)], cwd=repo_root, env=environment,
+        [str(job)], cwd=tmp_path, env=environment,
         capture_output=True, text=True, check=False,
     )
     assert completed.returncode == 0, completed.stderr
     assert (evidence_root / "compute-result.json").is_file()
+    assert json.loads((expected_root / "driver-evidence.json").read_text(
+        encoding="utf-8",
+    )) == {
+        "root": str(expected_root),
+        "cwd": str(repo_root.resolve()),
+        "resolved_root": str(expected_root),
+    }
     return json.loads(driver_argv.read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize("relative_evidence", [True, False], ids=["relative", "absolute"])
+def test_evidence_root_reaches_actual_job_driver_as_canonical_path(
+    tmp_path: Path, relative_evidence: bool,
+) -> None:
+    _run_actual_job_body_through_driver(
+        tmp_path, {}, relative_evidence=relative_evidence,
+    )
 
 
 def test_complete_k2_environment_reaches_actual_job_driver_argv(

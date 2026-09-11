@@ -4396,12 +4396,15 @@ def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):
         target = root / record["path"]
         target.write_bytes(historical_bytes(record["path"], record["sha256"]))
     known = json.loads((root / migration.KNOWN_AXES_REL).read_text(encoding="utf-8"))
-    known_generator = known["generator"]
-    known_generator_path = root / known_generator["path"]
-    known_generator_path.write_bytes(historical_bytes(
-        known_generator["path"], known_generator["sha256"]))
-    assert hashlib.sha256(known_generator_path.read_bytes()).hexdigest() == (
-        known_generator["sha256"])
+    # ROOT identifies live modules/reconstruction; root resolves copied inputs.
+    # Releasing the shared hold also checks the live ccbench pin, independently
+    # of the historical code-source differences accepted by D1936 item 22.
+    actual_pin = _run_git(ROOT / "external/ccbench", "rev-parse", "HEAD")
+    assert actual_pin != known["ccbench_pin"]
+    known_pin_refusal = (
+        "known-axes-freeze-verify: FreezeError: ccbench_pin 不一致: "
+        f"recorded={known['ccbench_pin']} actual={actual_pin}"
+    )
     generator = root / freeze["generator"]["path"]
     generator.write_bytes(generator.read_bytes() + b"# driver-gate-generator-tamper\n")
     generator_refusal = (
@@ -4414,9 +4417,7 @@ def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):
     with mock.patch.object(
             driver.s8b_holdout_freeze, "verify",
             side_effect=driver.s8b_holdout_freeze.FreezeError(verifier_sentinel),
-            ) as sentinel_verify, mock.patch.object(
-            driver.s1_known_axes_freeze, "ROOT", root,
-            ):
+            ) as sentinel_verify:
         sentinel_decision = driver.gate_check(
             freeze_path=root / migration.HOLDOUT_REL, root=root,
         )
@@ -4427,9 +4428,7 @@ def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):
     holdout_verify = driver.s8b_holdout_freeze.verify
     with mock.patch.object(
             driver.s8b_holdout_freeze, "verify", wraps=holdout_verify,
-            ) as verify_witness, mock.patch.object(
-            driver.s1_known_axes_freeze, "ROOT", root,
-            ):
+            ) as verify_witness:
         decision = driver.gate_check(
             freeze_path=root / migration.HOLDOUT_REL, root=root,
         )
@@ -4439,37 +4438,19 @@ def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):
                 freeze_path=root / migration.HOLDOUT_REL, root=root,
             )
 
-    known_prefix = (
-        "known-axes-freeze-verify: FreezeError: source sha256 不一致: "
-    )
-    known_matches = [
-        refusal for refusal in decision.refusals
-        if refusal.startswith(known_prefix)
-    ]
+    # Held positive control: live known-axes semantic reconstruction succeeds;
+    # only the existing floor/budget prerequisites refuse the public gate.
     assert decision.allowed is False
-    assert len(known_matches) == 1, decision.refusals
-    _assert_structural_source_mismatch_refusal(
-        known_matches[0], document=known, root=root,
-        prefix="known-axes-freeze-verify",
-    )
     _assert_exact_refusals(decision.refusals, {
-        known_matches[0],
         _FLOOR_REFUSAL,
         _BUDGET_REFUSAL,
     })
 
-    released_known_matches = [
-        refusal for refusal in released.refusals
-        if refusal.startswith(known_prefix)
-    ]
     assert released.allowed is False
-    assert len(released_known_matches) == 1, released.refusals
-    _assert_structural_source_mismatch_refusal(
-        released_known_matches[0], document=known, root=root,
-        prefix="known-axes-freeze-verify",
-    )
+    # M8: disabling the holdout generator check must remove generator_refusal
+    # and fail this exact set, even though floor/budget still forbid execution.
     _assert_exact_refusals(released.refusals, {
-        released_known_matches[0],
+        known_pin_refusal,
         generator_refusal,
         _FLOOR_REFUSAL,
         _BUDGET_REFUSAL,
@@ -4479,17 +4460,7 @@ def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):
         mock.call(root / migration.HOLDOUT_REL, root=root),
     ]
 
-    sentinel_known_matches = [
-        refusal for refusal in sentinel_decision.refusals
-        if refusal.startswith(known_prefix)
-    ]
-    assert len(sentinel_known_matches) == 1, sentinel_decision.refusals
-    _assert_structural_source_mismatch_refusal(
-        sentinel_known_matches[0], document=known, root=root,
-        prefix="known-axes-freeze-verify",
-    )
     _assert_exact_refusals(sentinel_decision.refusals, {
-        sentinel_known_matches[0],
         "holdout-freeze-verify: FreezeError: " + verifier_sentinel,
         _FLOOR_REFUSAL,
         _BUDGET_REFUSAL,

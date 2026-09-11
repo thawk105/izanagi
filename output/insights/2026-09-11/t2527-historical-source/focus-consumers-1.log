@@ -1,0 +1,241 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-f64c08a20b)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2527-historical-source/output/pegasus-dispatch/orphan-holds/unknown-20977b728a661b645dd906e4.json
+[Pegasus dispatch] request ID 991730.nqsv を受理しました
+[Pegasus dispatch] request 991730.nqsv の状態: QUE
+[Pegasus dispatch] request 991730.nqsv の状態: RUN
+[Pegasus dispatch] request 991730.nqsv の状態: END
+[Pegasus dispatch] request 991730.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2527-historical-source/output/pegasus-dispatch/orphan-holds/unknown-20977b728a661b645dd906e4.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2527-historical-source/output/pegasus-dispatch/f64c08a20b787a7a073634fddb5d9b92/receipt.json へ保存しました (child rc=1)
+[Pegasus dispatch] request 991730.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+|
+| ss...................................................................... [ 17%]
+| ........................................................................ [ 34%]
+| ........................................................................ [ 52%]
+| ........................................................................ [ 69%]
+| .....................sssssssssss..sssss................................. [ 87%]
+| ..........................F.........................                     [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {"collected_hold_functions":17,"opted_in":false}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root","reason":"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_measurement_freeze.py::test_build_document_rejects_tampered_known_axes_semantics","reason":"Consumes the module-scoped real known-axes fixture, which globs and parses campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_measurement_freeze.py::test_generate_builds_registered_cells_comparisons_and_schedule","reason":"Consumes the module-scoped real known-axes fixture, which globs and parses campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_measurement_freeze.py::test_generate_refuses_existing_freeze","reason":"Consumes the module-scoped real known-axes fixture, which globs and parses campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_measurement_freeze.py::test_receipt_exists_but_measurement_verify_stays_legacy_strict","reason":"Consumes the module-scoped real known-axes fixture, which globs and parses campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_measurement_freeze.py::test_recorded_ccbench_pin_hold_and_release_positive_control","reason":"Consumes the module-scoped real known-axes fixture, which globs and parses campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_measurement_freeze.py::test_s1b_pairing_rejects_mismatched_flags","reason":"Consumes the module-scoped real known-axes fixture, which globs and parses campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_measurement_freeze.py::test_schedule_is_balanced_and_reproducible","reason":"Consumes the module-scoped real known-axes fixture, which globs and parses campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_measurement_freeze.py::test_verify_rejects_known_axes_material_tamper","reason":"Consumes the module-scoped real known-axes fixture, which globs and parses campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_measurement_freeze.py::test_verify_rejects_one_byte_freeze_tamper","reason":"Consumes the module-scoped real known-axes fixture, which globs and parses campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_measurement_freeze.py::test_verify_rejects_one_byte_workload_flag_tamper","reason":"Consumes the module-scoped real known-axes fixture, which globs and parses campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"output_artifacts","node_id":"test_s1_measurement_freeze.py::test_verify_rejects_stats_implementation_tamper","reason":"Consumes the module-scoped real known-axes fixture, which globs and parses campaign artifacts, so cost grows with output artifacts.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated","reason":"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused","reason":"Runs the real repository freeze/history gate whose cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused","reason":"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null","reason":"Runs the real repository freeze/history gate whose cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing","reason":"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+|
+| =================================== FAILURES ===================================
+| _______ test_never_issued_generator_tamper_reaches_public_driver_gate_g7 _______
+| [gw14] linux -- Python 3.10.12 /bin/python3.10
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_never_issued_generator_ta0')
+|
+|     def test_never_issued_generator_tamper_reaches_public_driver_gate_g7(tmp_path):
+|         root, _receipt_path, _document = _t080_stub_free_e2e_repo(
+|             tmp_path, issue_receipt=False,
+|         )
+|         freeze = json.loads((root / migration.HOLDOUT_REL).read_text(encoding="utf-8"))
+|
+|         def historical_bytes(relative: str, expected: str) -> bytes:
+|             commits = _run_git(ROOT, "log", "--format=%H", "--", relative).splitlines()
+|             for commit in commits:
+|                 completed = subprocess.run(
+|                     ["git", "show", f"{commit}:{relative}"], cwd=ROOT,
+|                     stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+|                     env=_sanitized_git_env(),
+|                 )
+|                 if (completed.returncode == 0
+|                         and hashlib.sha256(completed.stdout).hexdigest() == expected):
+|                     return completed.stdout
+|             raise AssertionError(f"recorded bytes が Git 履歴にない: {relative} {expected}")
+|
+|         for field in ("design_source", "generator"):
+|             record = freeze[field]
+|             target = root / record["path"]
+|             target.write_bytes(historical_bytes(record["path"], record["sha256"]))
+|         known = json.loads((root / migration.KNOWN_AXES_REL).read_text(encoding="utf-8"))
+|         known_generator = known["generator"]
+|         known_generator_path = root / known_generator["path"]
+|         known_generator_path.write_bytes(historical_bytes(
+|             known_generator["path"], known_generator["sha256"]))
+|         assert hashlib.sha256(known_generator_path.read_bytes()).hexdigest() == (
+|             known_generator["sha256"])
+|         generator = root / freeze["generator"]["path"]
+|         generator.write_bytes(generator.read_bytes() + b"# driver-gate-generator-tamper\n")
+|         generator_refusal = (
+|             "holdout-freeze-verify: FreezeError: generator sha256 不一致: "
+|             f"recorded={freeze['generator']['sha256']} "
+|             f"actual={hashlib.sha256(generator.read_bytes()).hexdigest()}"
+|         )
+|
+|         verifier_sentinel = "t080-holdout-verifier-sentinel"
+|         with mock.patch.object(
+|                 driver.s8b_holdout_freeze, "verify",
+|                 side_effect=driver.s8b_holdout_freeze.FreezeError(verifier_sentinel),
+|                 ) as sentinel_verify, mock.patch.object(
+|                 driver.s1_known_axes_freeze, "ROOT", root,
+|                 ):
+|             sentinel_decision = driver.gate_check(
+|                 freeze_path=root / migration.HOLDOUT_REL, root=root,
+|             )
+|         assert sentinel_verify.call_args_list == [
+|             mock.call(root / migration.HOLDOUT_REL, root=root),
+|         ]
+|
+|         holdout_verify = driver.s8b_holdout_freeze.verify
+|         with mock.patch.object(
+|                 driver.s8b_holdout_freeze, "verify", wraps=holdout_verify,
+|                 ) as verify_witness, mock.patch.object(
+|                 driver.s1_known_axes_freeze, "ROOT", root,
+|                 ):
+|             decision = driver.gate_check(
+|                 freeze_path=root / migration.HOLDOUT_REL, root=root,
+|             )
+|             with mock.patch.object(
+|                     driver.s8b_holdout_freeze._freeze_hold, "HELD", False):
+|                 released = driver.gate_check(
+|                     freeze_path=root / migration.HOLDOUT_REL, root=root,
+|                 )
+|
+|         known_prefix = (
+|             "known-axes-freeze-verify: FreezeError: source sha256 不一致: "
+|         )
+|         known_matches = [
+|             refusal for refusal in decision.refusals
+|             if refusal.startswith(known_prefix)
+|         ]
+|         assert decision.allowed is False
+| >       assert len(known_matches) == 1, decision.refusals
+| E       AssertionError: ['known-axes-freeze-verify: FreezeError: repo 外 module は source にできない: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-...orical-source/orchestrator/campaign/genome.py', 'floor-null: freeze.floor が null', 'budget-null: freeze.budget が null']
+| E       assert 0 == 1
+| E        +  where 0 = len([])
+|
+| orchestrator/tests/test_s8b_oracle_driver.py:4450: AssertionError
+| ----------------------------- Captured stderr call -----------------------------
+| IZANAGI_FREEZE_HOLD {"check_id": "s1-known-axes.ccbench-submodule-head-pin", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+| IZANAGI_FREEZE_HOLD {"check_id": "s8b-holdout.design_source-implementation-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+| IZANAGI_FREEZE_HOLD {"check_id": "s8b-holdout.known_axes_freeze-implementation-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+| IZANAGI_FREEZE_HOLD {"check_id": "s8b-holdout.generator-implementation-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+| IZANAGI_FREEZE_HOLD {"check_id": "s8b-holdout.frozen-head-current-head", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+| =========================== short test summary info ============================
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7
+| 1 failed, 393 passed, 18 skipped in 168.56s (0:02:48)
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+| === IZANAGI FAILURE DIGEST v1 BEGIN ===
+| IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=4282 retained_bytes=3875 omitted_bytes=407 rendered_excerpt_bytes=4096 sha256=1a2cd712c17453e78a77f681996da6d15f047a45bdf8f45f562b8c01c474989c
+| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+| > ).read_text(encoding="utf-8"))
+| >
+| >         def historical_bytes(relative: str, expected: str) -> bytes:
+| >             commits = _run_git(ROOT, "log", "--format=%H", "--", relative).splitlines()
+| >             for commit in commits:
+| >                 completed = subprocess.run(
+| >                     ["git", "show", f"{commit}:{relative}"], cwd=ROOT,
+| >                     stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+| >                     env=_sanitized_git_env(),
+| >                 )
+| >                 if (completed.returncode == 0
+| >                         and hashlib.sha256(completed.stdout).hexdigest() == expected):
+| >                     return completed.stdout
+| >             raise AssertionError(f"recorded bytes \u304c Git \u5c65\u6b74\u306b\u306a\u3044: {relative} {expected}")
+| >
+| >         for field in ("design_source", "generator"):
+| >             record = freeze[field]
+| >             target = root / record["path"]
+| >             target.write_bytes(historical_bytes(record["path"], record["sha256"]))
+| >         known = json.loads((root / migration.KNOWN_AXES_REL).read_text(encoding="utf-8"))
+| >         known_generator = known["generator"]
+| >         known_generator_path = root / known_generator["path"]
+| >         known_generator_path.write_bytes(historical_bytes(
+| >             known_generator["path"], known_generator["sha256"]))
+| >         assert hashlib.sha256(known_generator_path.read_bytes()).hexdigest() == (
+| >             known_generator["sha256"])
+| >         generator = root / freeze["generator"]["path"]
+| >         generator.write_bytes(generator.read_bytes() + b"# driver-gate-generator-tamper\x5cn")
+| >         generator_refusal = (
+| >             "holdout-freeze-verify: FreezeError: generator sha256 \u4e0d\u4e00\u81f4: "
+| >             f"recorded={freeze['generator']['sha256']} "
+| >             f"actual={hashlib.sha256(generator.read_bytes()).hexdigest()}"
+| >         )
+| >
+| >         verifier_sentinel = "t080-holdout-verifier-sentinel"
+| >         with mock.patch.object(
+| >                 driver.s8b_holdout_freeze, "verify",
+| >                 side_effect=driver.s8b_holdout_freeze.FreezeError(verifier_sentinel),
+| >                 ) as sentinel_verify, mock.patch.object(
+| >                 driver.s1_known_axes_freeze, "ROOT", root,
+| >                 ):
+| >             sentinel_decision = driver.gate_check(
+| >                 freeze_path=root / migration.HOLDOUT_REL, root=root,
+| >             )
+| >         assert sentinel_verify.call_args_list == [
+| >             mock.call(root / migration.HOLDOUT_REL, root=root),
+| >         ]
+| >
+| >         holdout_verify = driver.s8b_holdout_freeze.verify
+| >         with mock.patch.object(
+| >                 driver.s8b_holdout_freeze, "verify", wraps=holdout_verify,
+| >                 ) as verify_witness, mock.patch.object(
+| >                 driver.s1_known_axes_freeze, "ROOT", root,
+| >                 ):
+| >             decision = driver.gate_check(
+| >                 freeze_path=root / migration.HOLDOUT_REL, root=root,
+| >             )
+| >             with mock.patch.object(
+| >                     driver.s8b_holdout_freeze._freeze_hold, "HELD", False):
+| >                 released = driver.gate_check(
+| >                     freeze_path=root / migration.HOLDOUT_REL, root=root,
+| >                 )
+| >
+| >         known_prefix = (
+| >             "known-axes-freeze-verify: FreezeError: source sha256 \u4e0d\u4e00\u81f4: "
+| >         )
+| >         known_matches = [
+| >             refusal for refusal in decision.refusals
+| >             if refusal.startswith(known_prefix)
+| >         ]
+| >         assert decision.allowed is False
+| > >       assert len(known_matches) == 1, decision.refusals
+| > E       AssertionError: ['known-axes-freeze-verify: FreezeError: repo \u5916 module \u306f source \u306b\u3067\u304d\u306a\u3044: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-...orical-source/orchestrator/campaign/genome.py', 'floor-null: freeze.floor \u304c null', 'budget-null: freeze.budget \u304c null']
+| > E       assert 0 == 1
+| > E        +  where 0 = len([])
+| >
+| > orchestrator/tests/test_s8b_oracle_driver.py:4450: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=1 END ---
+| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4282 retained_bytes=3875 omitted_bytes=407 budget_bytes=49152 rendered_bytes=4838 omitted_manifest_sha256=-
+| === IZANAGI FAILURE DIGEST v1 END ===
+[Pegasus dispatch] request 991730.nqsv child stdout end
+[Pegasus dispatch] request 991730.nqsv child stderr begin
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_FREEZE_HOLD {"check_id": "t080.live-known-axes-artifact-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+| IZANAGI_FREEZE_HOLD {"check_id": "t080.live-holdout-artifact-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+| IZANAGI_FREEZE_HOLD {"check_id": "t080.live-known-axes-ccbench-current-pin", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+|
+| ============================================================
+| Request ID:             991730.nqsv
+| Request Name:           izdw-f64c08a20b
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Fri Sep 11 03:36:36 2026
+| Started Request Time:   Fri Sep 11 03:36:43 2026
+| Ended Request Time:     Fri Sep 11 03:39:33 2026
+| Resources Information:
+|   Elapse:               175S
+|   Remaining Elapse:     3425S
+| ============================================================
+[Pegasus dispatch] request 991730.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid

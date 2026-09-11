@@ -861,18 +861,44 @@ def _validate_schema(doc: Mapping) -> None:
         raise FreezeError("generator schema が不一致")
 
 
+_HISTORICAL_CODE_PATHS = frozenset({
+    "orchestrator/campaign/axis_trigger_gating.py",
+    "orchestrator/campaign/s8a_trigger_sweep.py",
+    "orchestrator/campaign/genome.py",
+    "orchestrator/campaign/backoff_sweep.py",
+    "orchestrator/campaign/s6_sort_sweep.py",
+    "orchestrator/campaign/p3_s4_loop_sort.py",
+})
+
+
 def verify_document(doc: Mapping, *,
-                    source_resolver: Optional[Callable[[str], Path]] = None
+                    source_resolver: Optional[Callable[[str], Path]] = None,
+                    historical: bool = False) -> Tuple[Mapping[str, object], ...]:
+    """Verify current semantics by default, or view the identified old record."""
+    raw = (json.dumps(doc, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+    return _verify_document(
+        doc, source_resolver=source_resolver, historical=historical, raw=raw)
+
+
+def _verify_document(doc: Mapping, *, historical: bool, raw: bytes,
+                     source_resolver: Optional[Callable[[str], Path]] = None
                     ) -> Tuple[Mapping[str, object], ...]:
     held_checks: List[Mapping[str, object]] = []
-    _validate_schema(doc)
+    # Reuse the existing root only to identify this historical document; this
+    # does not execute or release the held T-080 artifact check.
+    from .t080_freeze_migration import KNOWN_AXES_RAW_SHA256
+
+    known_historical = hashlib.sha256(raw).hexdigest() == KNOWN_AXES_RAW_SHA256
+    if not (known_historical and historical):
+        _validate_schema(doc)
     generator_doc = doc["generator"]
     if generator_doc["path"] != SCRIPT_REL:
         raise FreezeError(f"generator.path 不一致: {generator_doc['path']}")
-    actual_generator = _sha256(ROOT / SCRIPT_REL)
-    if generator_doc["sha256"] != actual_generator:
-        raise FreezeError(
-            f"generator sha256 不一致: recorded={generator_doc['sha256']} actual={actual_generator}")
+    if not known_historical:
+        actual_generator = _sha256(ROOT / SCRIPT_REL)
+        if generator_doc["sha256"] != actual_generator:
+            raise FreezeError(
+                f"generator sha256 不一致: recorded={generator_doc['sha256']} actual={actual_generator}")
 
     resolver = source_resolver or (lambda rel: ROOT / rel)
     source_count = 0
@@ -880,26 +906,31 @@ def verify_document(doc: Mapping, *,
         path_rel, expected = source.get("path"), source.get("sha256")
         if not isinstance(path_rel, str) or not isinstance(expected, str):
             raise FreezeError("source path/sha256 が文字列でない")
+        if known_historical and historical and path_rel in _HISTORICAL_CODE_PATHS:
+            continue
         path = resolver(path_rel)
         if not path.is_file():
             raise FreezeError(f"source が存在しない: {path_rel} -> {path}")
         actual = _sha256(path)
-        if actual != expected:
+        if actual != expected and not (known_historical and path_rel in _HISTORICAL_CODE_PATHS):
             raise FreezeError(
                 f"source sha256 不一致: {path_rel} recorded={expected} actual={actual}")
         source_count += 1
     if source_count == 0:
         raise FreezeError("sources が 1 件もない")
 
-    assert_s1b_pairing(doc)
-    frozen_head = doc.get("frozen_at_head")
-    if not isinstance(frozen_head, str) or not re.fullmatch(r"[0-9a-f]{40}", frozen_head):
-        raise FreezeError("frozen_at_head が 40 桁 git SHA でない")
-    try:
-        _run_git(["cat-file", "-e", f"{frozen_head}^{{commit}}"])
-        _run_git(["merge-base", "--is-ancestor", frozen_head, "HEAD"])
-    except FreezeError as e:
-        raise FreezeError(f"frozen_at_head が現行 HEAD の commit ancestor でない: {frozen_head}") from e
+    if not (known_historical and historical):
+        assert_s1b_pairing(doc)
+        frozen_head = doc.get("frozen_at_head")
+        if not isinstance(frozen_head, str) or not re.fullmatch(r"[0-9a-f]{40}", frozen_head):
+            raise FreezeError("frozen_at_head が 40 桁 git SHA でない")
+        if not known_historical:
+            try:
+                _run_git(["cat-file", "-e", f"{frozen_head}^{{commit}}"])
+                _run_git(["merge-base", "--is-ancestor", frozen_head, "HEAD"])
+            except FreezeError as e:
+                raise FreezeError(f"frozen_at_head が現行 HEAD の commit ancestor でない: {frozen_head}") from e
+
     if _freeze_hold.HELD:
         held_checks.append(_freeze_hold.held_marker(
             "s1-known-axes.ccbench-submodule-head-pin",
@@ -911,12 +942,21 @@ def verify_document(doc: Mapping, *,
                 f"ccbench_pin 不一致: recorded={doc.get('ccbench_pin')} actual={actual_pin}"
             )
 
+    if known_historical and historical:
+        return tuple(held_checks)
+
     expected_doc = build_document(
         frozen_at_head=frozen_head,
         ccbench_pin=doc["ccbench_pin"],
         python_version=doc.get("python_version"),
         generator_sha=generator_doc["sha256"],
     )
+    if known_historical:
+        expected_doc = copy.deepcopy(expected_doc)
+        for recorded, current in zip(_iter_sources(doc), _iter_sources(expected_doc)):
+            if (recorded["path"] in _HISTORICAL_CODE_PATHS
+                    and current.get("path") == recorded["path"]):
+                current["sha256"] = recorded["sha256"]
     if doc != expected_doc:
         raise FreezeError("freeze JSON の内容が現行 generator による機械再構成と不一致")
     return tuple(held_checks)
@@ -939,11 +979,19 @@ def generate(output_path: Path = FREEZE_PATH) -> Dict:
 
 
 def verify(path: Path = FREEZE_PATH, *,
-           source_resolver: Optional[Callable[[str], Path]] = None) -> Dict:
+           source_resolver: Optional[Callable[[str], Path]] = None,
+           historical: bool = False) -> Dict:
     if not path.is_file():
         raise FreezeError(f"freeze が存在しない: {path}")
-    doc = _load_json(path)
-    held_checks = verify_document(doc, source_resolver=source_resolver)
+    try:
+        raw = path.read_bytes()
+        doc = json.loads(raw)
+    except (OSError, ValueError) as e:
+        raise FreezeError(f"JSON を読めない: {path}: {e}") from e
+    if not isinstance(doc, dict):
+        raise FreezeError(f"JSON top-level が object ではない: {path}")
+    held_checks = _verify_document(
+        doc, source_resolver=source_resolver, historical=historical, raw=raw)
     return _freeze_hold.result_with_markers(doc, held_checks)
 
 
@@ -957,7 +1005,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             generate()
             print(f"generated: {FREEZE_REL}")
         else:
-            result = verify()
+            result = verify(historical=True)
             if result.held_checks:
                 print(json.dumps({
                     "status": "held", "path": FREEZE_REL,

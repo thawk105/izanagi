@@ -1,0 +1,231 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2520-nested-sink/output/pegasus-dispatch/0e5e66ff6b08f0d5a860c5d22841f7ec/izdw-0e5e66ff6b.o991719",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2520-nested-sink/output/pegasus-dispatch/0e5e66ff6b08f0d5a860c5d22841f7ec/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "...............................................                          [100%]\n47 passed in 140.05s (0:02:20)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+      "stdout_sha256": "1922fa9f6bf1a6cd9b491e2e401ed939ca7e287849f9afc9f387757ee4bb8a2d"
+    },
+    "artifact_error": null,
+    "collection_sha256": "81fc9bbdc42d93ecf1538bc01c464059094afca632af24884a59d4db47ef4bdd",
+    "duration_s": 164.839,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "150a613aba537b952ee979dfb0c3293b2d4019ee8362e37cc767d23fd34faf9c",
+    "repo_head": "f5e3315b8fbe6383551cd9c3829518871b564067",
+    "runner_sha256": "b2d5105719c1e5aa47721eb86811a398f78b9e4e4d9223919ed3a1344b412ff4",
+    "spec_sha256": "f93ade6e7ff688e838592dc4fee326f4bbea4b5b35a9a0dcfc47d8a8b2bb7597",
+    "status": "PASSED",
+    "test_output_sha256": "1922fa9f6bf1a6cd9b491e2e401ed939ca7e287849f9afc9f387757ee4bb8a2d",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "ab7783266faac5ba039606512a057fd471faa53a797d9732c63902f42f4fdbc9"
+  },
+  "date": "2026-09-10T18:30:33.723957+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2520-nested-sink/output/pegasus-dispatch/fdc0e8bb96f20c3e168146eeafe57fdf/izdw-fdc0e8bb96.o991728",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2520-nested-sink/output/pegasus-dispatch/fdc0e8bb96f20c3e168146eeafe57fdf/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": ".............FF................................                          [100%]\n=================================== FAILURES ===================================\n__________ test_define_sink_cross_product_t2520_certify_entry_removal __________\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14dcd252fd90>\n\n    def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):\n        sources = _production_build_sources()\n        patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()\n        patch_macros = frozenset(patch_sources)\n        target = _BuildSink(\n            \"tools/pegasus/probes/t2187_adaptive_const_probe.py\",\n            \"<module>._certify_main._build_trace_binary\", 3910, \"buildcache\",\n        )\n        assert target in _benchmark_build_sinks(sources)\n        member = _deferred_member(target)\n        assert member is not None\n        # The existing source inventory is independent of the new closure check.\n        expected_macros = _source_macro_tokens(\n            target.relative_path, sources[target.relative_path], patch_macros, sources,\n        )\n        assert len(expected_macros) == 14\n        before, failures = _define_sink_cross_product_classification(\n            sources, patch_macros,\n        )\n        assert failures == []\n>       assert before[target] == Counter({\"deferred\": 14, \"proven-unreachable\": 24})\nE       AssertionError: assert Counter({'pro...achable': 38}) == Counter({'pro...eferred': 14})\nE         \nE         Differing items:\nE         {'proven-unreachable': 38} != {'proven-unreachable': 24}\nE         Right contains 1 more item:\nE         {'deferred': 14}\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:2970: AssertionError\n______ test_define_sink_cross_product_t2520_opaque_closure_is_unresolved _______\n\n    def test_define_sink_cross_product_t2520_opaque_closure_is_unresolved():\n        relative = \"orchestrator/campaign/synthetic_t2520_opaque_closure.py\"\n        sources = {relative: (\n            \"from orchestrator.campaign import buildcache\\n\"\n            \"def outer(genome):\\n\"\n            \"    def build():\\n\"\n            \"        return buildcache.build(genome)\\n\"\n            \"    return build()\\n\"\n        )}\n        target = _BuildSink(relative, \"<module>.outer.build\", 4, \"buildcache\")\n        assert \"BACKOFF_FIXED\" not in sources[relative]\n        assert _benchmark_build_sinks(sources) == {target}\n        classifications, failures = _define_sink_cross_product_classification(\n            sources, frozenset({\"BACKOFF_FIXED\"}),\n        )\n>       assert classifications == {target: Counter({\"failure-unresolved\": 1})}\nE       AssertionError: assert {_BuildSink(r...achable': 1})} == {_BuildSink(r...esolved': 1})}\nE         \nE         Differing items:\nE         {_BuildSink(relative_path='orchestrator/campaign/synthetic_t2520_opaque_closure.py', scope='<module>.outer.build', lineno=4, kind='buildcache'): Counter({'proven-unreachable': 1})} != {_BuildSink(relative_path='orchestrator/campaign/synthetic_t2520_opaque_closure.py', scope='<module>.outer.build', lineno=4, kind='buildcache'): Counter({'failure-unresolved': 1})}\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:3001: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved\n2 failed, 45 passed in 119.17s (0:01:59)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=1509 retained_bytes=1509 omitted_bytes=0 rendered_excerpt_bytes=1574 sha256=cc03ee98235d9ac400e57c7509bb013f673d1844869a9df5b5d972f634873f45\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14dcd252fd90>\n> \n>     def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):\n>         sources = _production_build_sources()\n>         patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()\n>         patch_macros = frozenset(patch_sources)\n>         target = _BuildSink(\n>             \"tools/pegasus/probes/t2187_adaptive_const_probe.py\",\n>             \"<module>._certify_main._build_trace_binary\", 3910, \"buildcache\",\n>         )\n>         assert target in _benchmark_build_sinks(sources)\n>         member = _deferred_member(target)\n>         assert member is not None\n>         # The existing source inventory is independent of the new closure check.\n>         expected_macros = _source_macro_tokens(\n>             target.relative_path, sources[target.relative_path], patch_macros, sources,\n>         )\n>         assert len(expected_macros) == 14\n>         before, failures = _define_sink_cross_product_classification(\n>             sources, patch_macros,\n>         )\n>         assert failures == []\n> >       assert before[target] == Counter({\"deferred\": 14, \"proven-unreachable\": 24})\n> E       AssertionError: assert Counter({'pro...achable': 38}) == Counter({'pro...eferred': 14})\n> E         \n> E         Differing items:\n> E         {'proven-unreachable': 38} != {'proven-unreachable': 24}\n> E         Right contains 1 more item:\n> E         {'deferred': 14}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:2970: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=1436 retained_bytes=1436 omitted_bytes=0 rendered_excerpt_bytes=1498 sha256=5050d36f016dd0f5764c6b497cd56ed218e10994d128536776b366d7ff3e4c1a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> def test_define_sink_cross_product_t2520_opaque_closure_is_unresolved():\n>         relative = \"orchestrator/campaign/synthetic_t2520_opaque_closure.py\"\n>         sources = {relative: (\n>             \"from orchestrator.campaign import buildcache\\x5cn\"\n>             \"def outer(genome):\\x5cn\"\n>             \"    def build():\\x5cn\"\n>             \"        return buildcache.build(genome)\\x5cn\"\n>             \"    return build()\\x5cn\"\n>         )}\n>         target = _BuildSink(relative, \"<module>.outer.build\", 4, \"buildcache\")\n>         assert \"BACKOFF_FIXED\" not in sources[relative]\n>         assert _benchmark_build_sinks(sources) == {target}\n>         classifications, failures = _define_sink_cross_product_classification(\n>             sources, frozenset({\"BACKOFF_FIXED\"}),\n>         )\n> >       assert classifications == {target: Counter({\"failure-unresolved\": 1})}\n> E       AssertionError: assert {_BuildSink(r...achable': 1})} == {_BuildSink(r...esolved': 1})}\n> E         \n> E         Differing items:\n> E         {_BuildSink(relative_path='orchestrator/campaign/synthetic_t2520_opaque_closure.py', scope='<module>.outer.build', lineno=4, kind='buildcache'): Counter({'proven-unreachable': 1})} != {_BuildSink(relative_path='orchestrator/campaign/synthetic_t2520_opaque_closure.py', scope='<module>.outer.build', lineno=4, kind='buildcache'): Counter({'failure-unresolved': 1})}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:3001: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2945 retained_bytes=2945 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4260 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6e681e6c23e10fdd00e9ae2dcaa3dcaa0eae23c3ba22bf30dbd475a437ae9307"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "81fc9bbdc42d93ecf1538bc01c464059094afca632af24884a59d4db47ef4bdd",
+      "duration_s": 139.085,
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved"
+      ],
+      "hang_risk": false,
+      "id": "M1-disable-closure-input",
+      "injection_diff_sha256": "b00b1de868a0749c0007f34edd5b882c36ac65af1d2d092173b1c762c3ad20e9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6b7390eae08f8910d1c611e94340358039bdeee43406152bf0656ef069a241f8",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "new": "free_variables = set()",
+          "old": "free_variables = set(matches[0].get_frees())"
+        }
+      ],
+      "repo_head": "f5e3315b8fbe6383551cd9c3829518871b564067",
+      "runner_sha256": "b2d5105719c1e5aa47721eb86811a398f78b9e4e4d9223919ed3a1344b412ff4",
+      "spec_sha256": "f93ade6e7ff688e838592dc4fee326f4bbea4b5b35a9a0dcfc47d8a8b2bb7597",
+      "status": "KILLED",
+      "test_output_sha256": "6e681e6c23e10fdd00e9ae2dcaa3dcaa0eae23c3ba22bf30dbd475a437ae9307",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ab7783266faac5ba039606512a057fd471faa53a797d9732c63902f42f4fdbc9"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2520-nested-sink/output/pegasus-dispatch/5ebbab04456aa0e45ccde3cd69276a6e/izdw-5ebbab0445.o991717",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2520-nested-sink/output/pegasus-dispatch/5ebbab04456aa0e45ccde3cd69276a6e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact\norchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_local_fixed_shadow_is_unreachable\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro\norchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site\norchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites\norchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes\norchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible\norchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]\n\n47 tests collected in 0.56s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "24f40dd575135aa700ff5fd0e3639391e62f0176b58fdaf410a735b97193d000"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_local_fixed_shadow_is_unreachable",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]"
+      ],
+      "duration_s": 21.874,
+      "rc": 0,
+      "repo_head": "f5e3315b8fbe6383551cd9c3829518871b564067",
+      "runner_sha256": "b2d5105719c1e5aa47721eb86811a398f78b9e4e4d9223919ed3a1344b412ff4",
+      "spec_sha256": "f93ade6e7ff688e838592dc4fee326f4bbea4b5b35a9a0dcfc47d8a8b2bb7597",
+      "status": "PASSED",
+      "tool_sha256": "ab7783266faac5ba039606512a057fd471faa53a797d9732c63902f42f4fdbc9"
+    },
+    "hang_timeout_seconds": 60.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-disable-closure-input": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal",
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b00b1de868a0749c0007f34edd5b882c36ac65af1d2d092173b1c762c3ad20e9",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+            "new": "free_variables = set()",
+            "old": "free_variables = set(matches[0].get_frees())"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "150a613aba537b952ee979dfb0c3293b2d4019ee8362e37cc767d23fd34faf9c",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "-n",
+      "0",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "f5e3315b8fbe6383551cd9c3829518871b564067",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "-n",
+      "0",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2520-nested-sink/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2520-nested-sink/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "6a43a50f03258e49c287cceb1d0b947573028891",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "b2d5105719c1e5aa47721eb86811a398f78b9e4e4d9223919ed3a1344b412ff4",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "f93ade6e7ff688e838592dc4fee326f4bbea4b5b35a9a0dcfc47d8a8b2bb7597",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 1,
+    "recorded": 1,
+    "registered": 1
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2520-nested-sink/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "ab7783266faac5ba039606512a057fd471faa53a797d9732c63902f42f4fdbc9",
+  "updated_at": "2026-09-10T18:35:53.063580+00:00"
+}

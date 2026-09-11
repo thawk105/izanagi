@@ -49,7 +49,7 @@ coder に推理させる)。
   },
   "baseline": {"throughput_ops_sec": <本ループ campaign 自身の実測>, "abort_rate_pct": <同>},
   "whiteboard": [
-    { "iteration": 1, "result": "fail", "delta_pct": null }
+    { "iteration": 1, "direction": "increase", "magnitude": "small", "result": "fail", "delta_pct": null }
   ]
 }
 ```

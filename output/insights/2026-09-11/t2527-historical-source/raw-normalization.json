@@ -1,0 +1,1178 @@
+{
+  "restoration": "Remove a final LF if added_final_newline, append each removed_trailing suffix to its 1-based line, UTF-8 encode, then verify original_bytes and original_sha256. Receipt/log digests refer to the restored originals.",
+  "files": [
+    {
+      "path": "provenance-anchor.log",
+      "original_sha256": "eb46acf1df13691a85a3ae43749e30560121ecb16e90939e75be85f6c6b9cbda",
+      "original_bytes": 5956,
+      "normalized_sha256": "92e8b1306aad7d8ae637f6c5537f7e1957760d9d3dcfe56d5697cb3fc0c0f4ca",
+      "removed_trailing": [
+        {
+          "line": 23,
+          "suffix": " "
+        }
+      ],
+      "added_final_newline": false
+    },
+    {
+      "path": "focus-r1-2.log",
+      "original_sha256": "b4bb2d95d5e39dc00b361230558553622edbed2beddb8ee55267f11cad33f8cf",
+      "original_bytes": 6247,
+      "normalized_sha256": "f3acd22e5afe86887f65dcb053d3eb785754adc69f0d31787be27afd77eca039",
+      "removed_trailing": [
+        {
+          "line": 23,
+          "suffix": " "
+        },
+        {
+          "line": 29,
+          "suffix": " "
+        }
+      ],
+      "added_final_newline": false
+    },
+    {
+      "path": "focus-known-1.log",
+      "original_sha256": "644e85a4380ae35cc7da7db87f451efd138710a9c0c3e27a83fc2b1008187810",
+      "original_bytes": 6620,
+      "normalized_sha256": "1bf613486e2b92b869e2a41d0216a98165cd1e9f88744461a8d143ad31cd7360",
+      "removed_trailing": [
+        {
+          "line": 21,
+          "suffix": " "
+        },
+        {
+          "line": 32,
+          "suffix": " "
+        },
+        {
+          "line": 38,
+          "suffix": " "
+        }
+      ],
+      "added_final_newline": false
+    },
+    {
+      "path": "focus-consumers-1.log",
+      "original_sha256": "f2d44f57ad20299151be0c2e955e850a58dfdb3113c4da324ba139fc523be461",
+      "original_bytes": 21354,
+      "normalized_sha256": "8969cede3f7c6ec1f55b48f72a3a4b9a7f30a91f6e08b7b431d3be976d9f37a4",
+      "removed_trailing": [
+        {
+          "line": 14,
+          "suffix": " "
+        },
+        {
+          "line": 38,
+          "suffix": " "
+        },
+        {
+          "line": 42,
+          "suffix": " "
+        },
+        {
+          "line": 44,
+          "suffix": " "
+        },
+        {
+          "line": 50,
+          "suffix": "     "
+        },
+        {
+          "line": 63,
+          "suffix": "     "
+        },
+        {
+          "line": 82,
+          "suffix": "     "
+        },
+        {
+          "line": 96,
+          "suffix": "     "
+        },
+        {
+          "line": 111,
+          "suffix": "     "
+        },
+        {
+          "line": 124,
+          "suffix": " "
+        },
+        {
+          "line": 140,
+          "suffix": "     "
+        },
+        {
+          "line": 153,
+          "suffix": "     "
+        },
+        {
+          "line": 172,
+          "suffix": "     "
+        },
+        {
+          "line": 186,
+          "suffix": "     "
+        },
+        {
+          "line": 201,
+          "suffix": "     "
+        },
+        {
+          "line": 214,
+          "suffix": " "
+        },
+        {
+          "line": 225,
+          "suffix": " "
+        }
+      ],
+      "added_final_newline": false
+    },
+    {
+      "path": "focus-oracle-2.log",
+      "original_sha256": "0356cb84dff8abcae8d58d0f538d8cbbfe823762ec20633cfd3d37bc00d6a0dc",
+      "original_bytes": 5083,
+      "normalized_sha256": "5955119ff0905d4fea10f660392a66fe6165a41d8cbdb4905813ddcd8fc332fb",
+      "removed_trailing": [
+        {
+          "line": 14,
+          "suffix": " "
+        },
+        {
+          "line": 22,
+          "suffix": " "
+        },
+        {
+          "line": 31,
+          "suffix": " "
+        }
+      ],
+      "added_final_newline": false
+    },
+    {
+      "path": "raw/diagnostic-retry/90e88248a23f0e45136b0540f960cfae/izdw-90e88248a2.o991831",
+      "original_sha256": "01feb3fa43d5edee46f9000507a1f469ab2e0379b14a712c6221a7468ce3cec5",
+      "original_bytes": 7887,
+      "normalized_sha256": "397bf77acb4bf3a972158e1062b5ddf474bb9ca69813c44485721d4b41065693",
+      "removed_trailing": [
+        {
+          "line": 12,
+          "suffix": "    "
+        },
+        {
+          "line": 34,
+          "suffix": "    "
+        },
+        {
+          "line": 40,
+          "suffix": "    "
+        },
+        {
+          "line": 49,
+          "suffix": "         "
+        },
+        {
+          "line": 68,
+          "suffix": " "
+        },
+        {
+          "line": 72,
+          "suffix": "     "
+        },
+        {
+          "line": 94,
+          "suffix": "     "
+        },
+        {
+          "line": 100,
+          "suffix": "     "
+        },
+        {
+          "line": 109,
+          "suffix": "         "
+        },
+        {
+          "line": 112,
+          "suffix": " "
+        }
+      ],
+      "added_final_newline": false
+    },
+    {
+      "path": "raw/diagnostic-retry/8dc827fa9a97ef59585afc76a68b0efb/izdw-8dc827fa9a.o991832",
+      "original_sha256": "b3992d66bcb61556007f786ab31876ec42504d138530b3ffecbe3e6af4822ead",
+      "original_bytes": 12806,
+      "normalized_sha256": "1b7272d07f239563cffb876f9fa65fc3f53cec716ead3c69da6409dabc54d67d",
+      "removed_trailing": [
+        {
+          "line": 16,
+          "suffix": "    "
+        },
+        {
+          "line": 29,
+          "suffix": "    "
+        },
+        {
+          "line": 51,
+          "suffix": "    "
+        },
+        {
+          "line": 63,
+          "suffix": "    "
+        },
+        {
+          "line": 76,
+          "suffix": "    "
+        },
+        {
+          "line": 84,
+          "suffix": "    "
+        },
+        {
+          "line": 95,
+          "suffix": " "
+        },
+        {
+          "line": 96,
+          "suffix": " "
+        },
+        {
+          "line": 103,
+          "suffix": "    "
+        },
+        {
+          "line": 111,
+          "suffix": "         "
+        },
+        {
+          "line": 141,
+          "suffix": "     "
+        },
+        {
+          "line": 154,
+          "suffix": "     "
+        },
+        {
+          "line": 162,
+          "suffix": "     "
+        },
+        {
+          "line": 172,
+          "suffix": " "
+        },
+        {
+          "line": 173,
+          "suffix": " "
+        },
+        {
+          "line": 174,
+          "suffix": " "
+        },
+        {
+          "line": 175,
+          "suffix": " "
+        },
+        {
+          "line": 178,
+          "suffix": " "
+        },
+        {
+          "line": 181,
+          "suffix": "     "
+        },
+        {
+          "line": 189,
+          "suffix": "         "
+        },
+        {
+          "line": 195,
+          "suffix": " "
+        }
+      ],
+      "added_final_newline": false
+    },
+    {
+      "path": "raw/diagnostic-first/11c267442905836270ae0f8ee4c6ea9a/izdw-11c2674429.o991822",
+      "original_sha256": "9442d9b8148724074ec0b197319eaf070dc237afdb9c894f668963d508b18d77",
+      "original_bytes": 12806,
+      "normalized_sha256": "aa17c06c59f2a5ae5043bd0e9dfb2480ae0680ecfb6b88d0b25eb58b89f69d87",
+      "removed_trailing": [
+        {
+          "line": 16,
+          "suffix": "    "
+        },
+        {
+          "line": 29,
+          "suffix": "    "
+        },
+        {
+          "line": 51,
+          "suffix": "    "
+        },
+        {
+          "line": 63,
+          "suffix": "    "
+        },
+        {
+          "line": 76,
+          "suffix": "    "
+        },
+        {
+          "line": 84,
+          "suffix": "    "
+        },
+        {
+          "line": 95,
+          "suffix": " "
+        },
+        {
+          "line": 96,
+          "suffix": " "
+        },
+        {
+          "line": 103,
+          "suffix": "    "
+        },
+        {
+          "line": 111,
+          "suffix": "         "
+        },
+        {
+          "line": 141,
+          "suffix": "     "
+        },
+        {
+          "line": 154,
+          "suffix": "     "
+        },
+        {
+          "line": 162,
+          "suffix": "     "
+        },
+        {
+          "line": 172,
+          "suffix": " "
+        },
+        {
+          "line": 173,
+          "suffix": " "
+        },
+        {
+          "line": 174,
+          "suffix": " "
+        },
+        {
+          "line": 175,
+          "suffix": " "
+        },
+        {
+          "line": 178,
+          "suffix": " "
+        },
+        {
+          "line": 181,
+          "suffix": "     "
+        },
+        {
+          "line": 189,
+          "suffix": "         "
+        },
+        {
+          "line": 195,
+          "suffix": " "
+        }
+      ],
+      "added_final_newline": false
+    },
+    {
+      "path": "raw/diagnostic-first/0822b0b3bb40235723c59105a3f65dc2/izdw-0822b0b3bb.o991821",
+      "original_sha256": "0a6518cf743640864402652665589f1871ba3d338849c5fbb790e4b5ca0fc9a7",
+      "original_bytes": 7887,
+      "normalized_sha256": "05516df5e19132a3ac5cb8004d229086b8791e266e4e1305eb65b4867b62a7a5",
+      "removed_trailing": [
+        {
+          "line": 12,
+          "suffix": "    "
+        },
+        {
+          "line": 34,
+          "suffix": "    "
+        },
+        {
+          "line": 40,
+          "suffix": "    "
+        },
+        {
+          "line": 49,
+          "suffix": "         "
+        },
+        {
+          "line": 68,
+          "suffix": " "
+        },
+        {
+          "line": 72,
+          "suffix": "     "
+        },
+        {
+          "line": 94,
+          "suffix": "     "
+        },
+        {
+          "line": 100,
+          "suffix": "     "
+        },
+        {
+          "line": 109,
+          "suffix": "         "
+        },
+        {
+          "line": 112,
+          "suffix": " "
+        }
+      ],
+      "added_final_newline": false
+    },
+    {
+      "path": "raw/primary/53eb226845acea20dc9e180916b5ae4b/izdw-53eb226845.o991806",
+      "original_sha256": "b4ab10813684dd6bda1071c8daaeb6469d903205d25356436d7816bef8b2c480",
+      "original_bytes": 3481,
+      "normalized_sha256": "d9b7eddda3d5c0cc75fcee65ab62886f53a874299c6ae833c8492949254bf940",
+      "removed_trailing": [
+        {
+          "line": 17,
+          "suffix": "    "
+        },
+        {
+          "line": 20,
+          "suffix": "    "
+        },
+        {
+          "line": 38,
+          "suffix": " "
+        },
+        {
+          "line": 40,
+          "suffix": " "
+        },
+        {
+          "line": 47,
+          "suffix": "     "
+        },
+        {
+          "line": 50,
+          "suffix": "     "
+        },
+        {
+          "line": 56,
+          "suffix": " "
+        }
+      ],
+      "added_final_newline": false
+    },
+    {
+      "path": "raw/primary/0ba938b05219f2cdfebc1661f3c3e160/izdw-0ba938b052.o991808",
+      "original_sha256": "cd69bef57e7d09e1c166390ec42e29c690aa9c22974c2947b46ac545cd920ce0",
+      "original_bytes": 9467,
+      "normalized_sha256": "bb96359981ec955c5b1298b257eabfe2e96e57d84777c4aee877a5ae90db9496",
+      "removed_trailing": [
+        {
+          "line": 14,
+          "suffix": "    "
+        },
+        {
+          "line": 21,
+          "suffix": "    "
+        },
+        {
+          "line": 37,
+          "suffix": "    "
+        },
+        {
+          "line": 43,
+          "suffix": "    "
+        },
+        {
+          "line": 60,
+          "suffix": "    "
+        },
+        {
+          "line": 66,
+          "suffix": "    "
+        },
+        {
+          "line": 73,
+          "suffix": "    "
+        },
+        {
+          "line": 92,
+          "suffix": " "
+        },
+        {
+          "line": 96,
+          "suffix": "     "
+        },
+        {
+          "line": 102,
+          "suffix": "     "
+        },
+        {
+          "line": 109,
+          "suffix": "     "
+        },
+        {
+          "line": 114,
+          "suffix": " "
+        },
+        {
+          "line": 120,
+          "suffix": " "
+        },
+        {
+          "line": 126,
+          "suffix": "     "
+        },
+        {
+          "line": 132,
+          "suffix": "     "
+        },
+        {
+          "line": 139,
+          "suffix": " "
+        },
+        {
+          "line": 145,
+          "suffix": " "
+        },
+        {
+          "line": 151,
+          "suffix": "     "
+        },
+        {
+          "line": 158,
+          "suffix": "     "
+        },
+        {
+          "line": 162,
+          "suffix": " "
+        }
+      ],
+      "added_final_newline": false
+    },
+    {
+      "path": "raw/primary/974103372255a9672e69b0643bf844ad/izdw-9741033722.o991811",
+      "original_sha256": "ea05ceadd160f486a9904376d0b1f116369594cacaf9c1b2613d24fedcfd475f",
+      "original_bytes": 4747,
+      "normalized_sha256": "d13b5e4832b63fa38553d2c58df553a9d716c658ed2a0cd8dcda26d89aa82628",
+      "removed_trailing": [
+        {
+          "line": 12,
+          "suffix": "    "
+        },
+        {
+          "line": 18,
+          "suffix": "    "
+        },
+        {
+          "line": 25,
+          "suffix": "    "
+        },
+        {
+          "line": 46,
+          "suffix": " "
+        },
+        {
+          "line": 50,
+          "suffix": "     "
+        },
+        {
+          "line": 56,
+          "suffix": "     "
+        },
+        {
+          "line": 63,
+          "suffix": "     "
+        },
+        {
+          "line": 72,
+          "suffix": " "
+        }
+      ],
+      "added_final_newline": false
+    },
+    {
+      "path": "raw/primary/c64fe71cb41c26ec3c3a80c812f52299/izdw-c64fe71cb4.o991810",
+      "original_sha256": "d1d8474efca36f83c8d1a9d03f631b93a63954f1e6e2beaac123049a3ad58f17",
+      "original_bytes": 4002,
+      "normalized_sha256": "77b6ff6c62ca23aa005f56b10cae62b0421dc15e22e29e5861d6fa2617c14d95",
+      "removed_trailing": [
+        {
+          "line": 12,
+          "suffix": "    "
+        },
+        {
+          "line": 18,
+          "suffix": "    "
+        },
+        {
+          "line": 25,
+          "suffix": "    "
+        },
+        {
+          "line": 42,
+          "suffix": " "
+        },
+        {
+          "line": 46,
+          "suffix": "     "
+        },
+        {
+          "line": 52,
+          "suffix": "     "
+        },
+        {
+          "line": 59,
+          "suffix": "     "
+        },
+        {
+          "line": 64,
+          "suffix": " "
+        }
+      ],
+      "added_final_newline": false
+    },
+    {
+      "path": "raw/primary/7f1cc4b05fe2231835883f1bce40055b/izdw-7f1cc4b05f.o991812",
+      "original_sha256": "39445c5b0b6285b5eb5af5fafa73867cb8a14b60608a5b34a3e9c9f2b8585b5d",
+      "original_bytes": 9545,
+      "normalized_sha256": "729cd57c292317fc28134362160d23d202b236634ce10ed8eed1247e621ff9da",
+      "removed_trailing": [
+        {
+          "line": 26,
+          "suffix": "    "
+        },
+        {
+          "line": 29,
+          "suffix": "    "
+        },
+        {
+          "line": 35,
+          "suffix": " "
+        },
+        {
+          "line": 36,
+          "suffix": " "
+        },
+        {
+          "line": 39,
+          "suffix": " "
+        },
+        {
+          "line": 53,
+          "suffix": "    "
+        },
+        {
+          "line": 65,
+          "suffix": "    "
+        },
+        {
+          "line": 96,
+          "suffix": "     "
+        },
+        {
+          "line": 99,
+          "suffix": "     "
+        },
+        {
+          "line": 104,
+          "suffix": " "
+        },
+        {
+          "line": 105,
+          "suffix": " "
+        },
+        {
+          "line": 106,
+          "suffix": " "
+        },
+        {
+          "line": 109,
+          "suffix": " "
+        },
+        {
+          "line": 110,
+          "suffix": " "
+        },
+        {
+          "line": 115,
+          "suffix": " "
+        },
+        {
+          "line": 123,
+          "suffix": "     "
+        },
+        {
+          "line": 135,
+          "suffix": "     "
+        },
+        {
+          "line": 148,
+          "suffix": " "
+        }
+      ],
+      "added_final_newline": false
+    },
+    {
+      "path": "raw/primary/c440529871c2d37779b863df80fabf8b/izdw-c440529871.o991805",
+      "original_sha256": "3164361bdd0e086ee3f5a7ab9725482097d23bf94f7ab2bb95d8f0d14db2f235",
+      "original_bytes": 4425,
+      "normalized_sha256": "7bc0417c57fb13f2556c46c65a1cb3bd1732ac1dad14555486c668dcf7d75240",
+      "removed_trailing": [
+        {
+          "line": 49,
+          "suffix": " "
+        },
+        {
+          "line": 51,
+          "suffix": " "
+        },
+        {
+          "line": 78,
+          "suffix": " "
+        }
+      ],
+      "added_final_newline": false
+    },
+    {
+      "path": "raw/primary/11f00cfe2a731a88bbab604d5613a3ab/izdw-11f00cfe2a.o991804",
+      "original_sha256": "11f5639aba39b27784aa78a0530c1712c3df7fc8ed7c15be044199fc687aa040",
+      "original_bytes": 42907,
+      "normalized_sha256": "7030f6af8f03ce0aaa75110beceddfa4719dfc9b7a716e2d788111e3725b87db",
+      "removed_trailing": [
+        {
+          "line": 13,
+          "suffix": " "
+        },
+        {
+          "line": 14,
+          "suffix": " "
+        },
+        {
+          "line": 17,
+          "suffix": " "
+        },
+        {
+          "line": 31,
+          "suffix": "    "
+        },
+        {
+          "line": 66,
+          "suffix": "    "
+        },
+        {
+          "line": 69,
+          "suffix": "    "
+        },
+        {
+          "line": 75,
+          "suffix": " "
+        },
+        {
+          "line": 76,
+          "suffix": " "
+        },
+        {
+          "line": 79,
+          "suffix": " "
+        },
+        {
+          "line": 93,
+          "suffix": "    "
+        },
+        {
+          "line": 115,
+          "suffix": " "
+        },
+        {
+          "line": 116,
+          "suffix": " "
+        },
+        {
+          "line": 119,
+          "suffix": " "
+        },
+        {
+          "line": 133,
+          "suffix": "    "
+        },
+        {
+          "line": 156,
+          "suffix": " "
+        },
+        {
+          "line": 157,
+          "suffix": " "
+        },
+        {
+          "line": 160,
+          "suffix": " "
+        },
+        {
+          "line": 174,
+          "suffix": "    "
+        },
+        {
+          "line": 200,
+          "suffix": "    "
+        },
+        {
+          "line": 203,
+          "suffix": "    "
+        },
+        {
+          "line": 206,
+          "suffix": " "
+        },
+        {
+          "line": 207,
+          "suffix": " "
+        },
+        {
+          "line": 210,
+          "suffix": " "
+        },
+        {
+          "line": 224,
+          "suffix": "    "
+        },
+        {
+          "line": 251,
+          "suffix": " "
+        },
+        {
+          "line": 252,
+          "suffix": " "
+        },
+        {
+          "line": 255,
+          "suffix": " "
+        },
+        {
+          "line": 269,
+          "suffix": "    "
+        },
+        {
+          "line": 290,
+          "suffix": "    "
+        },
+        {
+          "line": 294,
+          "suffix": " "
+        },
+        {
+          "line": 295,
+          "suffix": " "
+        },
+        {
+          "line": 322,
+          "suffix": " "
+        },
+        {
+          "line": 325,
+          "suffix": " "
+        },
+        {
+          "line": 326,
+          "suffix": " "
+        },
+        {
+          "line": 331,
+          "suffix": " "
+        },
+        {
+          "line": 339,
+          "suffix": "     "
+        },
+        {
+          "line": 352,
+          "suffix": " "
+        },
+        {
+          "line": 354,
+          "suffix": " "
+        },
+        {
+          "line": 356,
+          "suffix": " "
+        },
+        {
+          "line": 360,
+          "suffix": "     "
+        },
+        {
+          "line": 363,
+          "suffix": " "
+        },
+        {
+          "line": 364,
+          "suffix": " "
+        },
+        {
+          "line": 365,
+          "suffix": " "
+        },
+        {
+          "line": 366,
+          "suffix": " "
+        },
+        {
+          "line": 369,
+          "suffix": " "
+        },
+        {
+          "line": 378,
+          "suffix": " "
+        },
+        {
+          "line": 384,
+          "suffix": " "
+        },
+        {
+          "line": 386,
+          "suffix": " "
+        },
+        {
+          "line": 402,
+          "suffix": "     "
+        },
+        {
+          "line": 405,
+          "suffix": "     "
+        },
+        {
+          "line": 410,
+          "suffix": " "
+        },
+        {
+          "line": 411,
+          "suffix": " "
+        },
+        {
+          "line": 412,
+          "suffix": " "
+        },
+        {
+          "line": 415,
+          "suffix": " "
+        },
+        {
+          "line": 416,
+          "suffix": " "
+        },
+        {
+          "line": 421,
+          "suffix": " "
+        },
+        {
+          "line": 429,
+          "suffix": "     "
+        },
+        {
+          "line": 442,
+          "suffix": " "
+        },
+        {
+          "line": 448,
+          "suffix": " "
+        },
+        {
+          "line": 450,
+          "suffix": " "
+        },
+        {
+          "line": 457,
+          "suffix": "     "
+        },
+        {
+          "line": 460,
+          "suffix": "     "
+        },
+        {
+          "line": 462,
+          "suffix": " "
+        },
+        {
+          "line": 463,
+          "suffix": " "
+        },
+        {
+          "line": 464,
+          "suffix": " "
+        },
+        {
+          "line": 467,
+          "suffix": " "
+        },
+        {
+          "line": 468,
+          "suffix": " "
+        },
+        {
+          "line": 473,
+          "suffix": " "
+        },
+        {
+          "line": 481,
+          "suffix": "     "
+        },
+        {
+          "line": 494,
+          "suffix": " "
+        },
+        {
+          "line": 500,
+          "suffix": " "
+        },
+        {
+          "line": 505,
+          "suffix": " "
+        },
+        {
+          "line": 506,
+          "suffix": " "
+        },
+        {
+          "line": 507,
+          "suffix": " "
+        },
+        {
+          "line": 510,
+          "suffix": " "
+        },
+        {
+          "line": 511,
+          "suffix": " "
+        },
+        {
+          "line": 516,
+          "suffix": " "
+        },
+        {
+          "line": 524,
+          "suffix": "     "
+        },
+        {
+          "line": 537,
+          "suffix": " "
+        },
+        {
+          "line": 543,
+          "suffix": " "
+        },
+        {
+          "line": 547,
+          "suffix": " "
+        },
+        {
+          "line": 548,
+          "suffix": " "
+        },
+        {
+          "line": 549,
+          "suffix": " "
+        },
+        {
+          "line": 552,
+          "suffix": " "
+        },
+        {
+          "line": 553,
+          "suffix": " "
+        },
+        {
+          "line": 558,
+          "suffix": " "
+        },
+        {
+          "line": 566,
+          "suffix": "     "
+        },
+        {
+          "line": 579,
+          "suffix": " "
+        },
+        {
+          "line": 585,
+          "suffix": " "
+        },
+        {
+          "line": 589,
+          "suffix": " "
+        },
+        {
+          "line": 590,
+          "suffix": " "
+        },
+        {
+          "line": 591,
+          "suffix": " "
+        },
+        {
+          "line": 594,
+          "suffix": " "
+        },
+        {
+          "line": 595,
+          "suffix": " "
+        },
+        {
+          "line": 600,
+          "suffix": " "
+        },
+        {
+          "line": 608,
+          "suffix": "     "
+        },
+        {
+          "line": 621,
+          "suffix": " "
+        }
+      ],
+      "added_final_newline": false
+    },
+    {
+      "path": "raw/primary/18541bccde98e7f44fe2f4bf6f36b359/izdw-18541bccde.o991809",
+      "original_sha256": "f0263936f270e200651061827093f93422ba09e3baf188e66b588472d21d0dad",
+      "original_bytes": 3266,
+      "normalized_sha256": "fdba5fc7912e12a6fc7fde2c52a1a67f569c8a415c31cd3aa3ff5b5b56d5920e",
+      "removed_trailing": [
+        {
+          "line": 14,
+          "suffix": "    "
+        },
+        {
+          "line": 21,
+          "suffix": "    "
+        },
+        {
+          "line": 37,
+          "suffix": " "
+        },
+        {
+          "line": 43,
+          "suffix": "     "
+        },
+        {
+          "line": 50,
+          "suffix": "     "
+        },
+        {
+          "line": 54,
+          "suffix": " "
+        }
+      ],
+      "added_final_newline": false
+    }
+  ]
+}

@@ -50,6 +50,18 @@ from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
 # conftest の付与正本から意図的に重複させる独立 oracle。ここを conftest から
 # import / 導出すると、正本の node 増減が付与側と期待側へ同時伝播して恒真化する。
 _REAL_REPO_CLASSIFIED_NODES_GOLDEN = frozenset({
+    "test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads",
+    "test_s1_known_axes_freeze.py::test_historical_option_keeps_new_document_strict",
+    "test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
+    "test_s1_known_axes_freeze.py::test_historical_view_does_not_consult_current_semantics_or_head",
+    "test_s1_known_axes_freeze.py::test_historical_cli_selects_view",
+    "test_s1_known_axes_freeze.py::test_historical_path_identity_uses_original_bytes",
+    "test_s1_known_axes_freeze.py::test_historical_input_copy_sha_and_existence_remain_bound",
+    "test_s1_known_axes_freeze.py::test_historical_current_use_matches_real_reconstruction",
+    "test_s1_known_axes_freeze.py::test_historical_current_use_rejects_single_flags_difference",
+    "test_s1_known_axes_freeze.py::test_historical_current_use_preserves_source_key_comparison",
+    "test_s1_known_axes_freeze.py::test_historical_measurement_and_calibration_keep_current_semantics",
+    "test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics",
     "test_verifier.py::test_current_pin_proof_surfaces_accept_silo_and_reject_mocc_same_trace",
     "test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged",
     # T1259 probe の module fixture が親 working tree の snapshot を読む reader。
