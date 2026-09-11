@@ -1,0 +1,19 @@
+{
+  "args": [
+    "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2397-a1-attempt4/orchestrator/tests/test_real_repo_serialization.py",
+    "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2397-a1-attempt4/orchestrator/tests/test_plain_runner_coverage.py",
+    "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2397-a1-attempt4/orchestrator/tests/test_official_perf_closure.py",
+    "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2397-a1-attempt4/orchestrator/tests/test_ccbench_spawn_sites.py",
+    "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2397-a1-attempt4/orchestrator/manual_probes/test_t2397_a1_source.py",
+    "-q",
+    "-rf",
+    "-s"
+  ],
+  "environment": {
+    "IZANAGI_TASK_RUN_AUTO_RECORD": "0"
+  },
+  "repo_root": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2397-a1-attempt4",
+  "request_binding": "sha256-job-script/v1",
+  "schema_version": "pegasus-dispatch-request/v2",
+  "task": "tests"
+}

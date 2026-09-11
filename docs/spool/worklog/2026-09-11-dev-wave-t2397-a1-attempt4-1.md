@@ -33,6 +33,8 @@ title: [T-2397] A-1の二停止原因を閉じ、attempt-0004を全3 workload va
   sizing-pilot.jsonを生成。性能優劣の結論・正式結果への昇格・追加試行はしていない。
   実装/相談/検査/生証拠の所在 = output/insights/2026-09-11/t2397-a1-attempt4/README.md。
 - 最終受入は記録commit固定後に既存acceptance経路で実行し、耐久receiptを共通landが検証する。
+  初回はmain取込のphase文書競合で子テスト前に停止。両checkpointを残し、自動結合testの
+  2親統合を別Codex authorが作成してbyte一致を確認した後、同waveで受入を再開する。
   改善候補は、並行waveの変異開始時に既存F785の独立clone手順へ導く参照の明確化を1件記録した。
   改善実装・次wave起動・pushは行わない。
 

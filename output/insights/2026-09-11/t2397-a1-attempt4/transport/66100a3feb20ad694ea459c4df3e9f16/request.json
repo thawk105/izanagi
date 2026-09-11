@@ -1,0 +1,14 @@
+{
+  "args": [
+    "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2397-a1-attempt4/orchestrator/tests/test_campaign.py",
+    "-q",
+    "-rf"
+  ],
+  "environment": {
+    "IZANAGI_TASK_RUN_AUTO_RECORD": "0"
+  },
+  "repo_root": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2397-a1-attempt4",
+  "request_binding": "sha256-job-script/v1",
+  "schema_version": "pegasus-dispatch-request/v2",
+  "task": "tests"
+}
