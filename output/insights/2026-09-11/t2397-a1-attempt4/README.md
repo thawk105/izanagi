@@ -3,7 +3,8 @@
 - authority: none
 - default_effect: no-state-change
 - D1936項3、source追補は output/insights/2026-09-11/t2397-a1-source-amendment/README.md。
-- この記録は進行中。pilotの投入・完走・main landを先取りしない。
+- attempt-0004は全3 workload validで完走し、complete/materializeを完了した。
+- mainへの取り込みは最終記録commitに対する受入・land手順で行う。
 
 ## 実装と独立検査
 
@@ -63,3 +64,55 @@ test nodeを失敗させた。ただしwrapperの共有木事後比較がfalse�
 wrapperの拒否はunit-probe-wrapper.jsonに保存する。
 F785の既存手順に従い、最終走のsource-repoはmainから独立したcloneにし、
 共有木検査を弱めずに並行セッションの状態変化を分離する。
+
+最終単体群はrequest991859、code3124f65c5でbaseline通過、M3〜M8の全6件がKILLED・期待node完全一致、
+wrapper rc0/shared_snapshot_matches=true/teardown_completed=true。
+このうちM3/M5/M6/M8は判定の挙動、M4は構造、M7は診断の感度である。
+
+実機群の初回request991860はclean環境のPBS_JOBID欠落でbaseline FAILED、変異未開始。
+既存task markerのvalidatorが確認した実IDをprobeへ渡す8行だけを追加し、
+不正markerの拒否と共通environment allowlistを維持した。focus4の独立確認は指摘なし。
+出力は同じjob内の呼出しごとにcreate-onlyなrun-*へ分離し、過去の出力を保存する。
+
+新scratchでのrequest991865（code a9d20d701）はbaseline PASSED、M1/M2ともKILLED・期待node完全一致。
+wrapper rc0/shared_snapshot_matches=true/teardown_completed=true。M1はprefix欠落による
+supply configure-failed、M2は未patch rootによるconfigure-failedとdecoder/branch-invalidを観測した。
+基準のrun-bynq05p0は全arm成功、run-d5ckwgi3がM1、run-pej5ii46がM2。
+rawはsource-probe/0_991865.nqsv配下。生台帳・attempt・wrapperを本directoryへ保存した。
+
+## attempt-0004 投入
+
+既存submit経路、source a9d20d7016794fb60df1926e71747a7353210eaf、
+同study、既存hydrate出力だけを使って投入した。親rc0、stderr空、group submission発行、
+submission-failureなし。intent SHAは7432ff68fd725f5319083baa8c54c4cd1b130fbee8fda7a7477150ef4f1c579a。
+
+| workload | request | node |
+|---|---|---|
+| write-heavy | 991875.nqsv | bnode023 |
+| balanced | 991876.nqsv | bnode026 |
+| read-heavy | 991877.nqsv | bnode027 |
+
+全jobのreadyとbench-startを確認した。build/verifyが揃ってから登録済み測定へ進んだ。
+全3jobはdriver_rc0で終了。complete/materializeもrc0で、
+complete=true、all_workloads_terminal=true、各workloadのvalid=true/errors=[]を確認した。
+各workload60対、全体180対であり、既存のsizing-pilot.jsonを生成した。
+成果物は output/insights/2026-09-01_paper-story-a1-balanced5-pilot/。
+pilotから性能の優劣やheadlineを主張せず、sizing入力に用途を限定する。
+投入元submit-treeは記録用waveと分離し、実行中のsourceは変更していない。
+
+## 逐語の保存
+
+reviews/にauthor・独立review・fix・焦点reviewを保存した。review-b.mdだけ表示用に行末spaceを除去。
+原文はreview-b.original.gzに保持し、gzip -dcで復元できる。原文1657 bytes、
+SHA-256は647417b98f69e3f08c9b1c1fe31814829d2b893202244119ef0ab540a428f603。
+このreviewのescape所見は上記のとおり反証され、実装変更には採用していない。
+
+## 終端
+
+sourceの二原因を実機で閉じ、登録済みattempt-0004だけを投入した。追加試行・次wave・pushなし。
+最終受入は記録commit固定後の既存acceptance経路で行い、その耐久receiptをlandが検証する。
+スキル自己改善は候補の記録だけとし、改善実装はしない。
+
+改善候補: DW-O19から既存F785の独立clone手順へ、並行waveの変異開始前に辿れる参照を明確にする。
+今回は共有木事後比較の拒否を実測してからF785を引いた。新しいgateやframeworkではなく既存手順の導線候補であり、
+本waveではskill/command/operationsを変更していない。

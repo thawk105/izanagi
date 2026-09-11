@@ -1,0 +1,3622 @@
+{
+  "final_estimate_eligible": false,
+  "schema_version": "paper-story-a1-balanced-sizing-pilot/v1",
+  "study_id": "paper-story-a1-20260901-balanced5-pilot-v1",
+  "workloads": [
+    {
+      "observations": [
+        {
+          "arm": "fixed10",
+          "block": 0,
+          "block_position": 0,
+          "ended_at_ns": 1789085298868464945,
+          "group": 0,
+          "pair_index": 0,
+          "started_at_ns": 1789085295439869032,
+          "tps": 3880120.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 0,
+          "block_position": 1,
+          "ended_at_ns": 1789085302232214424,
+          "group": 0,
+          "pair_index": 1,
+          "started_at_ns": 1789085298868503649,
+          "tps": 3935037.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 0,
+          "block_position": 2,
+          "ended_at_ns": 1789085305594608813,
+          "group": 0,
+          "pair_index": 2,
+          "started_at_ns": 1789085302232242369,
+          "tps": 3958849.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 0,
+          "block_position": 3,
+          "ended_at_ns": 1789085308994607727,
+          "group": 0,
+          "pair_index": 3,
+          "started_at_ns": 1789085305594636921,
+          "tps": 3953275.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 0,
+          "block_position": 4,
+          "ended_at_ns": 1789085312346719579,
+          "group": 0,
+          "pair_index": 4,
+          "started_at_ns": 1789085308994633171,
+          "tps": 3945820.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 0,
+          "block_position": 0,
+          "ended_at_ns": 1789085315719436233,
+          "group": 0,
+          "pair_index": 0,
+          "started_at_ns": 1789085312362173798,
+          "tps": 2429228.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 0,
+          "block_position": 1,
+          "ended_at_ns": 1789085319100620176,
+          "group": 0,
+          "pair_index": 1,
+          "started_at_ns": 1789085315719462877,
+          "tps": 2443504.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 0,
+          "block_position": 2,
+          "ended_at_ns": 1789085322459668376,
+          "group": 0,
+          "pair_index": 2,
+          "started_at_ns": 1789085319100648748,
+          "tps": 2448126.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 0,
+          "block_position": 3,
+          "ended_at_ns": 1789085325815198807,
+          "group": 0,
+          "pair_index": 3,
+          "started_at_ns": 1789085322459698115,
+          "tps": 2422195.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 0,
+          "block_position": 4,
+          "ended_at_ns": 1789085329169331383,
+          "group": 0,
+          "pair_index": 4,
+          "started_at_ns": 1789085325815225401,
+          "tps": 2383663.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 1,
+          "block_position": 0,
+          "ended_at_ns": 1789085332543692552,
+          "group": 0,
+          "pair_index": 5,
+          "started_at_ns": 1789085329185584871,
+          "tps": 2384182.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 1,
+          "block_position": 1,
+          "ended_at_ns": 1789085335899675154,
+          "group": 0,
+          "pair_index": 6,
+          "started_at_ns": 1789085332543718964,
+          "tps": 2435156.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 1,
+          "block_position": 2,
+          "ended_at_ns": 1789085339255991580,
+          "group": 0,
+          "pair_index": 7,
+          "started_at_ns": 1789085335899702322,
+          "tps": 2402332.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 1,
+          "block_position": 3,
+          "ended_at_ns": 1789085342625354059,
+          "group": 0,
+          "pair_index": 8,
+          "started_at_ns": 1789085339256019465,
+          "tps": 2465514.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 1,
+          "block_position": 4,
+          "ended_at_ns": 1789085345995226699,
+          "group": 0,
+          "pair_index": 9,
+          "started_at_ns": 1789085342625382529,
+          "tps": 2351346.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 1,
+          "block_position": 0,
+          "ended_at_ns": 1789085349373764187,
+          "group": 0,
+          "pair_index": 5,
+          "started_at_ns": 1789085346010822769,
+          "tps": 3939719.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 1,
+          "block_position": 1,
+          "ended_at_ns": 1789085352727806598,
+          "group": 0,
+          "pair_index": 6,
+          "started_at_ns": 1789085349373793337,
+          "tps": 3938171.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 1,
+          "block_position": 2,
+          "ended_at_ns": 1789085356103763903,
+          "group": 0,
+          "pair_index": 7,
+          "started_at_ns": 1789085352727833631,
+          "tps": 3946279.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 1,
+          "block_position": 3,
+          "ended_at_ns": 1789085359470846590,
+          "group": 0,
+          "pair_index": 8,
+          "started_at_ns": 1789085356103790844,
+          "tps": 3937115.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 1,
+          "block_position": 4,
+          "ended_at_ns": 1789085362830166257,
+          "group": 0,
+          "pair_index": 9,
+          "started_at_ns": 1789085359470873484,
+          "tps": 3929821.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 2,
+          "block_position": 0,
+          "ended_at_ns": 1789085366199593753,
+          "group": 1,
+          "pair_index": 10,
+          "started_at_ns": 1789085362845642875,
+          "tps": 2340878.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 2,
+          "block_position": 1,
+          "ended_at_ns": 1789085369588018909,
+          "group": 1,
+          "pair_index": 11,
+          "started_at_ns": 1789085366199619884,
+          "tps": 2391949.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 2,
+          "block_position": 2,
+          "ended_at_ns": 1789085372965816852,
+          "group": 1,
+          "pair_index": 12,
+          "started_at_ns": 1789085369588047583,
+          "tps": 2433989.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 2,
+          "block_position": 3,
+          "ended_at_ns": 1789085376361402704,
+          "group": 1,
+          "pair_index": 13,
+          "started_at_ns": 1789085372965845707,
+          "tps": 2429215.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 2,
+          "block_position": 4,
+          "ended_at_ns": 1789085379721192855,
+          "group": 1,
+          "pair_index": 14,
+          "started_at_ns": 1789085376361433693,
+          "tps": 2450786.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 2,
+          "block_position": 0,
+          "ended_at_ns": 1789085383111341791,
+          "group": 1,
+          "pair_index": 10,
+          "started_at_ns": 1789085379737305866,
+          "tps": 3934015.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 2,
+          "block_position": 1,
+          "ended_at_ns": 1789085386475597078,
+          "group": 1,
+          "pair_index": 11,
+          "started_at_ns": 1789085383111368137,
+          "tps": 3975257.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 2,
+          "block_position": 2,
+          "ended_at_ns": 1789085389864365780,
+          "group": 1,
+          "pair_index": 12,
+          "started_at_ns": 1789085386475625234,
+          "tps": 3918251.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 2,
+          "block_position": 3,
+          "ended_at_ns": 1789085393222759925,
+          "group": 1,
+          "pair_index": 13,
+          "started_at_ns": 1789085389864392599,
+          "tps": 3971830.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 2,
+          "block_position": 4,
+          "ended_at_ns": 1789085396587074595,
+          "group": 1,
+          "pair_index": 14,
+          "started_at_ns": 1789085393222786611,
+          "tps": 3936327.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 3,
+          "block_position": 0,
+          "ended_at_ns": 1789085399958659593,
+          "group": 1,
+          "pair_index": 15,
+          "started_at_ns": 1789085396602876572,
+          "tps": 3932625.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 3,
+          "block_position": 1,
+          "ended_at_ns": 1789085403352757391,
+          "group": 1,
+          "pair_index": 16,
+          "started_at_ns": 1789085399958686429,
+          "tps": 3931040.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 3,
+          "block_position": 2,
+          "ended_at_ns": 1789085406715676429,
+          "group": 1,
+          "pair_index": 17,
+          "started_at_ns": 1789085403352785383,
+          "tps": 3924804.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 3,
+          "block_position": 3,
+          "ended_at_ns": 1789085410087930377,
+          "group": 1,
+          "pair_index": 18,
+          "started_at_ns": 1789085406715702409,
+          "tps": 3905397.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 3,
+          "block_position": 4,
+          "ended_at_ns": 1789085413456704909,
+          "group": 1,
+          "pair_index": 19,
+          "started_at_ns": 1789085410087957451,
+          "tps": 3931714.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 3,
+          "block_position": 0,
+          "ended_at_ns": 1789085416819976303,
+          "group": 1,
+          "pair_index": 15,
+          "started_at_ns": 1789085413472023794,
+          "tps": 2411958.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 3,
+          "block_position": 1,
+          "ended_at_ns": 1789085420173307097,
+          "group": 1,
+          "pair_index": 16,
+          "started_at_ns": 1789085416820002838,
+          "tps": 2415980.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 3,
+          "block_position": 2,
+          "ended_at_ns": 1789085423543393684,
+          "group": 1,
+          "pair_index": 17,
+          "started_at_ns": 1789085420173333944,
+          "tps": 2388591.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 3,
+          "block_position": 3,
+          "ended_at_ns": 1789085426926723073,
+          "group": 1,
+          "pair_index": 18,
+          "started_at_ns": 1789085423543418416,
+          "tps": 2396686.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 3,
+          "block_position": 4,
+          "ended_at_ns": 1789085430279144963,
+          "group": 1,
+          "pair_index": 19,
+          "started_at_ns": 1789085426926749480,
+          "tps": 2425052.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 4,
+          "block_position": 0,
+          "ended_at_ns": 1789085433647320791,
+          "group": 2,
+          "pair_index": 20,
+          "started_at_ns": 1789085430295054735,
+          "tps": 3968611.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 4,
+          "block_position": 1,
+          "ended_at_ns": 1789085436989526097,
+          "group": 2,
+          "pair_index": 21,
+          "started_at_ns": 1789085433647347748,
+          "tps": 3949439.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 4,
+          "block_position": 2,
+          "ended_at_ns": 1789085440346484741,
+          "group": 2,
+          "pair_index": 22,
+          "started_at_ns": 1789085436989552086,
+          "tps": 3921618.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 4,
+          "block_position": 3,
+          "ended_at_ns": 1789085443705057257,
+          "group": 2,
+          "pair_index": 23,
+          "started_at_ns": 1789085440346511372,
+          "tps": 3955995.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 4,
+          "block_position": 4,
+          "ended_at_ns": 1789085447083014848,
+          "group": 2,
+          "pair_index": 24,
+          "started_at_ns": 1789085443705086478,
+          "tps": 3981586.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 4,
+          "block_position": 0,
+          "ended_at_ns": 1789085450463338956,
+          "group": 2,
+          "pair_index": 20,
+          "started_at_ns": 1789085447099043427,
+          "tps": 2387388.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 4,
+          "block_position": 1,
+          "ended_at_ns": 1789085453852006044,
+          "group": 2,
+          "pair_index": 21,
+          "started_at_ns": 1789085450463365938,
+          "tps": 2372797.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 4,
+          "block_position": 2,
+          "ended_at_ns": 1789085457240064751,
+          "group": 2,
+          "pair_index": 22,
+          "started_at_ns": 1789085453852037627,
+          "tps": 2475282.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 4,
+          "block_position": 3,
+          "ended_at_ns": 1789085460626222313,
+          "group": 2,
+          "pair_index": 23,
+          "started_at_ns": 1789085457240093786,
+          "tps": 2404571.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 4,
+          "block_position": 4,
+          "ended_at_ns": 1789085463975961811,
+          "group": 2,
+          "pair_index": 24,
+          "started_at_ns": 1789085460626250856,
+          "tps": 2367838.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 5,
+          "block_position": 0,
+          "ended_at_ns": 1789085467376138023,
+          "group": 2,
+          "pair_index": 25,
+          "started_at_ns": 1789085463992517732,
+          "tps": 2437500.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 5,
+          "block_position": 1,
+          "ended_at_ns": 1789085470742901609,
+          "group": 2,
+          "pair_index": 26,
+          "started_at_ns": 1789085467376164233,
+          "tps": 2344432.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 5,
+          "block_position": 2,
+          "ended_at_ns": 1789085474103233290,
+          "group": 2,
+          "pair_index": 27,
+          "started_at_ns": 1789085470742928965,
+          "tps": 2360877.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 5,
+          "block_position": 3,
+          "ended_at_ns": 1789085477464964740,
+          "group": 2,
+          "pair_index": 28,
+          "started_at_ns": 1789085474103263985,
+          "tps": 2457297.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 5,
+          "block_position": 4,
+          "ended_at_ns": 1789085480823932602,
+          "group": 2,
+          "pair_index": 29,
+          "started_at_ns": 1789085477464995504,
+          "tps": 2385807.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 5,
+          "block_position": 0,
+          "ended_at_ns": 1789085484195688919,
+          "group": 2,
+          "pair_index": 25,
+          "started_at_ns": 1789085480840155551,
+          "tps": 3927422.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 5,
+          "block_position": 1,
+          "ended_at_ns": 1789085487547317123,
+          "group": 2,
+          "pair_index": 26,
+          "started_at_ns": 1789085484195716533,
+          "tps": 3929378.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 5,
+          "block_position": 2,
+          "ended_at_ns": 1789085490898732949,
+          "group": 2,
+          "pair_index": 27,
+          "started_at_ns": 1789085487547342904,
+          "tps": 3964681.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 5,
+          "block_position": 3,
+          "ended_at_ns": 1789085494262043267,
+          "group": 2,
+          "pair_index": 28,
+          "started_at_ns": 1789085490898759404,
+          "tps": 3946662.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 5,
+          "block_position": 4,
+          "ended_at_ns": 1789085497619549323,
+          "group": 2,
+          "pair_index": 29,
+          "started_at_ns": 1789085494262071041,
+          "tps": 3907591.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 6,
+          "block_position": 0,
+          "ended_at_ns": 1789085500983451180,
+          "group": 3,
+          "pair_index": 30,
+          "started_at_ns": 1789085497635157159,
+          "tps": 3945581.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 6,
+          "block_position": 1,
+          "ended_at_ns": 1789085504334438753,
+          "group": 3,
+          "pair_index": 31,
+          "started_at_ns": 1789085500983479257,
+          "tps": 3943998.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 6,
+          "block_position": 2,
+          "ended_at_ns": 1789085507723993363,
+          "group": 3,
+          "pair_index": 32,
+          "started_at_ns": 1789085504334465563,
+          "tps": 3938345.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 6,
+          "block_position": 3,
+          "ended_at_ns": 1789085511076275665,
+          "group": 3,
+          "pair_index": 33,
+          "started_at_ns": 1789085507724019838,
+          "tps": 3911059.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 6,
+          "block_position": 4,
+          "ended_at_ns": 1789085514429155159,
+          "group": 3,
+          "pair_index": 34,
+          "started_at_ns": 1789085511076301833,
+          "tps": 3956218.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 6,
+          "block_position": 0,
+          "ended_at_ns": 1789085517796246638,
+          "group": 3,
+          "pair_index": 30,
+          "started_at_ns": 1789085514445034997,
+          "tps": 2402504.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 6,
+          "block_position": 1,
+          "ended_at_ns": 1789085521183201853,
+          "group": 3,
+          "pair_index": 31,
+          "started_at_ns": 1789085517796276857,
+          "tps": 2442759.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 6,
+          "block_position": 2,
+          "ended_at_ns": 1789085524531934631,
+          "group": 3,
+          "pair_index": 32,
+          "started_at_ns": 1789085521183227091,
+          "tps": 2364409.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 6,
+          "block_position": 3,
+          "ended_at_ns": 1789085527899248022,
+          "group": 3,
+          "pair_index": 33,
+          "started_at_ns": 1789085524531962849,
+          "tps": 2352804.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 6,
+          "block_position": 4,
+          "ended_at_ns": 1789085531259742800,
+          "group": 3,
+          "pair_index": 34,
+          "started_at_ns": 1789085527899275037,
+          "tps": 2326646.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 7,
+          "block_position": 0,
+          "ended_at_ns": 1789085534641669384,
+          "group": 3,
+          "pair_index": 35,
+          "started_at_ns": 1789085531276445633,
+          "tps": 2371290.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 7,
+          "block_position": 1,
+          "ended_at_ns": 1789085538021630384,
+          "group": 3,
+          "pair_index": 36,
+          "started_at_ns": 1789085534641698201,
+          "tps": 2367943.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 7,
+          "block_position": 2,
+          "ended_at_ns": 1789085541399533924,
+          "group": 3,
+          "pair_index": 37,
+          "started_at_ns": 1789085538021660834,
+          "tps": 2403280.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 7,
+          "block_position": 3,
+          "ended_at_ns": 1789085544768060872,
+          "group": 3,
+          "pair_index": 38,
+          "started_at_ns": 1789085541399559885,
+          "tps": 2337191.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 7,
+          "block_position": 4,
+          "ended_at_ns": 1789085548144527630,
+          "group": 3,
+          "pair_index": 39,
+          "started_at_ns": 1789085544768095708,
+          "tps": 2368591.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 7,
+          "block_position": 0,
+          "ended_at_ns": 1789085551518672858,
+          "group": 3,
+          "pair_index": 35,
+          "started_at_ns": 1789085548160107112,
+          "tps": 3918707.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 7,
+          "block_position": 1,
+          "ended_at_ns": 1789085554868442478,
+          "group": 3,
+          "pair_index": 36,
+          "started_at_ns": 1789085551518698068,
+          "tps": 3943719.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 7,
+          "block_position": 2,
+          "ended_at_ns": 1789085558230608078,
+          "group": 3,
+          "pair_index": 37,
+          "started_at_ns": 1789085554868468007,
+          "tps": 3934606.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 7,
+          "block_position": 3,
+          "ended_at_ns": 1789085561593417456,
+          "group": 3,
+          "pair_index": 38,
+          "started_at_ns": 1789085558230633990,
+          "tps": 3965965.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 7,
+          "block_position": 4,
+          "ended_at_ns": 1789085564959799895,
+          "group": 3,
+          "pair_index": 39,
+          "started_at_ns": 1789085561593445727,
+          "tps": 3959272.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 8,
+          "block_position": 0,
+          "ended_at_ns": 1789085568328825541,
+          "group": 4,
+          "pair_index": 40,
+          "started_at_ns": 1789085564975698278,
+          "tps": 2358160.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 8,
+          "block_position": 1,
+          "ended_at_ns": 1789085571700491617,
+          "group": 4,
+          "pair_index": 41,
+          "started_at_ns": 1789085568328851661,
+          "tps": 2443726.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 8,
+          "block_position": 2,
+          "ended_at_ns": 1789085575068041485,
+          "group": 4,
+          "pair_index": 42,
+          "started_at_ns": 1789085571700521465,
+          "tps": 2460461.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 8,
+          "block_position": 3,
+          "ended_at_ns": 1789085578426868052,
+          "group": 4,
+          "pair_index": 43,
+          "started_at_ns": 1789085575068069884,
+          "tps": 2432239.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 8,
+          "block_position": 4,
+          "ended_at_ns": 1789085581819709466,
+          "group": 4,
+          "pair_index": 44,
+          "started_at_ns": 1789085578426896225,
+          "tps": 2385570.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 8,
+          "block_position": 0,
+          "ended_at_ns": 1789085585190619269,
+          "group": 4,
+          "pair_index": 40,
+          "started_at_ns": 1789085581835221688,
+          "tps": 3962282.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 8,
+          "block_position": 1,
+          "ended_at_ns": 1789085588554315218,
+          "group": 4,
+          "pair_index": 41,
+          "started_at_ns": 1789085585190645830,
+          "tps": 3966266.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 8,
+          "block_position": 2,
+          "ended_at_ns": 1789085591921185871,
+          "group": 4,
+          "pair_index": 42,
+          "started_at_ns": 1789085588554341078,
+          "tps": 3974703.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 8,
+          "block_position": 3,
+          "ended_at_ns": 1789085595275283049,
+          "group": 4,
+          "pair_index": 43,
+          "started_at_ns": 1789085591921213473,
+          "tps": 3962965.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 8,
+          "block_position": 4,
+          "ended_at_ns": 1789085598652458797,
+          "group": 4,
+          "pair_index": 44,
+          "started_at_ns": 1789085595275310046,
+          "tps": 3921459.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 9,
+          "block_position": 0,
+          "ended_at_ns": 1789085602012820317,
+          "group": 4,
+          "pair_index": 45,
+          "started_at_ns": 1789085598668485147,
+          "tps": 3937568.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 9,
+          "block_position": 1,
+          "ended_at_ns": 1789085605367816895,
+          "group": 4,
+          "pair_index": 46,
+          "started_at_ns": 1789085602012845998,
+          "tps": 3925792.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 9,
+          "block_position": 2,
+          "ended_at_ns": 1789085608735553856,
+          "group": 4,
+          "pair_index": 47,
+          "started_at_ns": 1789085605367843407,
+          "tps": 3926502.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 9,
+          "block_position": 3,
+          "ended_at_ns": 1789085612092394988,
+          "group": 4,
+          "pair_index": 48,
+          "started_at_ns": 1789085608735580894,
+          "tps": 3950987.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 9,
+          "block_position": 4,
+          "ended_at_ns": 1789085615449996708,
+          "group": 4,
+          "pair_index": 49,
+          "started_at_ns": 1789085612092421507,
+          "tps": 3922472.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 9,
+          "block_position": 0,
+          "ended_at_ns": 1789085618816992497,
+          "group": 4,
+          "pair_index": 45,
+          "started_at_ns": 1789085615465836857,
+          "tps": 2391510.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 9,
+          "block_position": 1,
+          "ended_at_ns": 1789085622198857244,
+          "group": 4,
+          "pair_index": 46,
+          "started_at_ns": 1789085618817020336,
+          "tps": 2378089.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 9,
+          "block_position": 2,
+          "ended_at_ns": 1789085625560404896,
+          "group": 4,
+          "pair_index": 47,
+          "started_at_ns": 1789085622198883417,
+          "tps": 2355277.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 9,
+          "block_position": 3,
+          "ended_at_ns": 1789085628906053015,
+          "group": 4,
+          "pair_index": 48,
+          "started_at_ns": 1789085625560431882,
+          "tps": 2345123.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 9,
+          "block_position": 4,
+          "ended_at_ns": 1789085632293054861,
+          "group": 4,
+          "pair_index": 49,
+          "started_at_ns": 1789085628906080183,
+          "tps": 2415551.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 10,
+          "block_position": 0,
+          "ended_at_ns": 1789085635666365986,
+          "group": 5,
+          "pair_index": 50,
+          "started_at_ns": 1789085632309033230,
+          "tps": 3946404.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 10,
+          "block_position": 1,
+          "ended_at_ns": 1789085639028923496,
+          "group": 5,
+          "pair_index": 51,
+          "started_at_ns": 1789085635666392497,
+          "tps": 3972028.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 10,
+          "block_position": 2,
+          "ended_at_ns": 1789085642399363260,
+          "group": 5,
+          "pair_index": 52,
+          "started_at_ns": 1789085639028950020,
+          "tps": 3950139.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 10,
+          "block_position": 3,
+          "ended_at_ns": 1789085645770621447,
+          "group": 5,
+          "pair_index": 53,
+          "started_at_ns": 1789085642399389766,
+          "tps": 3942823.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 10,
+          "block_position": 4,
+          "ended_at_ns": 1789085649132116472,
+          "group": 5,
+          "pair_index": 54,
+          "started_at_ns": 1789085645770647499,
+          "tps": 3949831.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 10,
+          "block_position": 0,
+          "ended_at_ns": 1789085652499501479,
+          "group": 5,
+          "pair_index": 50,
+          "started_at_ns": 1789085649147893004,
+          "tps": 2386593.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 10,
+          "block_position": 1,
+          "ended_at_ns": 1789085655850862451,
+          "group": 5,
+          "pair_index": 51,
+          "started_at_ns": 1789085652499527825,
+          "tps": 2389826.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 10,
+          "block_position": 2,
+          "ended_at_ns": 1789085659219589528,
+          "group": 5,
+          "pair_index": 52,
+          "started_at_ns": 1789085655850887968,
+          "tps": 2361627.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 10,
+          "block_position": 3,
+          "ended_at_ns": 1789085662578217494,
+          "group": 5,
+          "pair_index": 53,
+          "started_at_ns": 1789085659219616068,
+          "tps": 2384583.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 10,
+          "block_position": 4,
+          "ended_at_ns": 1789085665955591469,
+          "group": 5,
+          "pair_index": 54,
+          "started_at_ns": 1789085662578245335,
+          "tps": 2444342.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 11,
+          "block_position": 0,
+          "ended_at_ns": 1789085669331329865,
+          "group": 5,
+          "pair_index": 55,
+          "started_at_ns": 1789085665971615579,
+          "tps": 2343912.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 11,
+          "block_position": 1,
+          "ended_at_ns": 1789085672697874321,
+          "group": 5,
+          "pair_index": 56,
+          "started_at_ns": 1789085669331355337,
+          "tps": 2397518.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 11,
+          "block_position": 2,
+          "ended_at_ns": 1789085676047877208,
+          "group": 5,
+          "pair_index": 57,
+          "started_at_ns": 1789085672697902257,
+          "tps": 2339238.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 11,
+          "block_position": 3,
+          "ended_at_ns": 1789085679437797593,
+          "group": 5,
+          "pair_index": 58,
+          "started_at_ns": 1789085676047904403,
+          "tps": 2413472.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 11,
+          "block_position": 4,
+          "ended_at_ns": 1789085682799643011,
+          "group": 5,
+          "pair_index": 59,
+          "started_at_ns": 1789085679437825064,
+          "tps": 2388305.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 11,
+          "block_position": 0,
+          "ended_at_ns": 1789085686176242523,
+          "group": 5,
+          "pair_index": 55,
+          "started_at_ns": 1789085682815000967,
+          "tps": 3915941.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 11,
+          "block_position": 1,
+          "ended_at_ns": 1789085689537452993,
+          "group": 5,
+          "pair_index": 56,
+          "started_at_ns": 1789085686176269103,
+          "tps": 3914145.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 11,
+          "block_position": 2,
+          "ended_at_ns": 1789085692931294421,
+          "group": 5,
+          "pair_index": 57,
+          "started_at_ns": 1789085689537479765,
+          "tps": 3949761.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 11,
+          "block_position": 3,
+          "ended_at_ns": 1789085696282892735,
+          "group": 5,
+          "pair_index": 58,
+          "started_at_ns": 1789085692931321416,
+          "tps": 3955376.0
+        },
+        {
+          "arm": "fixed10",
+          "block": 11,
+          "block_position": 4,
+          "ended_at_ns": 1789085699650636804,
+          "group": 5,
+          "pair_index": 59,
+          "started_at_ns": 1789085696282919523,
+          "tps": 3932432.0
+        }
+      ],
+      "workload": "write-heavy"
+    },
+    {
+      "observations": [
+        {
+          "arm": "fixed5",
+          "block": 0,
+          "block_position": 0,
+          "ended_at_ns": 1789084896404957605,
+          "group": 0,
+          "pair_index": 0,
+          "started_at_ns": 1789084893046090238,
+          "tps": 4431806.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 0,
+          "block_position": 1,
+          "ended_at_ns": 1789084899742957545,
+          "group": 0,
+          "pair_index": 1,
+          "started_at_ns": 1789084896404995183,
+          "tps": 4387774.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 0,
+          "block_position": 2,
+          "ended_at_ns": 1789084903064132863,
+          "group": 0,
+          "pair_index": 2,
+          "started_at_ns": 1789084899742984442,
+          "tps": 4317820.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 0,
+          "block_position": 3,
+          "ended_at_ns": 1789084906435862186,
+          "group": 0,
+          "pair_index": 3,
+          "started_at_ns": 1789084903064159424,
+          "tps": 4350322.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 0,
+          "block_position": 4,
+          "ended_at_ns": 1789084909767433873,
+          "group": 0,
+          "pair_index": 4,
+          "started_at_ns": 1789084906435887227,
+          "tps": 4366751.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 0,
+          "block_position": 0,
+          "ended_at_ns": 1789084913116019754,
+          "group": 0,
+          "pair_index": 0,
+          "started_at_ns": 1789084909783307708,
+          "tps": 3881169.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 0,
+          "block_position": 1,
+          "ended_at_ns": 1789084916467390174,
+          "group": 0,
+          "pair_index": 1,
+          "started_at_ns": 1789084913116052166,
+          "tps": 3837854.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 0,
+          "block_position": 2,
+          "ended_at_ns": 1789084919812285492,
+          "group": 0,
+          "pair_index": 2,
+          "started_at_ns": 1789084916467418274,
+          "tps": 3917722.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 0,
+          "block_position": 3,
+          "ended_at_ns": 1789084923159276510,
+          "group": 0,
+          "pair_index": 3,
+          "started_at_ns": 1789084919812313545,
+          "tps": 3808499.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 0,
+          "block_position": 4,
+          "ended_at_ns": 1789084926533051716,
+          "group": 0,
+          "pair_index": 4,
+          "started_at_ns": 1789084923159308828,
+          "tps": 3855530.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 1,
+          "block_position": 0,
+          "ended_at_ns": 1789084929935958306,
+          "group": 0,
+          "pair_index": 5,
+          "started_at_ns": 1789084926548973450,
+          "tps": 3790279.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 1,
+          "block_position": 1,
+          "ended_at_ns": 1789084933288924594,
+          "group": 0,
+          "pair_index": 6,
+          "started_at_ns": 1789084929935984452,
+          "tps": 3817820.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 1,
+          "block_position": 2,
+          "ended_at_ns": 1789084936625554930,
+          "group": 0,
+          "pair_index": 7,
+          "started_at_ns": 1789084933288950422,
+          "tps": 3849146.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 1,
+          "block_position": 3,
+          "ended_at_ns": 1789084939974163712,
+          "group": 0,
+          "pair_index": 8,
+          "started_at_ns": 1789084936625581794,
+          "tps": 3808709.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 1,
+          "block_position": 4,
+          "ended_at_ns": 1789084943326916552,
+          "group": 0,
+          "pair_index": 9,
+          "started_at_ns": 1789084939974191857,
+          "tps": 3816066.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 1,
+          "block_position": 0,
+          "ended_at_ns": 1789084946675567154,
+          "group": 0,
+          "pair_index": 5,
+          "started_at_ns": 1789084943342708477,
+          "tps": 4324104.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 1,
+          "block_position": 1,
+          "ended_at_ns": 1789084949997732658,
+          "group": 0,
+          "pair_index": 6,
+          "started_at_ns": 1789084946675592984,
+          "tps": 4332524.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 1,
+          "block_position": 2,
+          "ended_at_ns": 1789084953348046668,
+          "group": 0,
+          "pair_index": 7,
+          "started_at_ns": 1789084949997760237,
+          "tps": 4326828.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 1,
+          "block_position": 3,
+          "ended_at_ns": 1789084956688238009,
+          "group": 0,
+          "pair_index": 8,
+          "started_at_ns": 1789084953348072841,
+          "tps": 4313380.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 1,
+          "block_position": 4,
+          "ended_at_ns": 1789084960038193642,
+          "group": 0,
+          "pair_index": 9,
+          "started_at_ns": 1789084956688265308,
+          "tps": 4284713.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 2,
+          "block_position": 0,
+          "ended_at_ns": 1789084963414896729,
+          "group": 1,
+          "pair_index": 10,
+          "started_at_ns": 1789084960054253631,
+          "tps": 4309989.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 2,
+          "block_position": 1,
+          "ended_at_ns": 1789084966751650388,
+          "group": 1,
+          "pair_index": 11,
+          "started_at_ns": 1789084963414923426,
+          "tps": 4319950.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 2,
+          "block_position": 2,
+          "ended_at_ns": 1789084970081680094,
+          "group": 1,
+          "pair_index": 12,
+          "started_at_ns": 1789084966751676034,
+          "tps": 4307408.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 2,
+          "block_position": 3,
+          "ended_at_ns": 1789084973419722558,
+          "group": 1,
+          "pair_index": 13,
+          "started_at_ns": 1789084970081704358,
+          "tps": 4282260.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 2,
+          "block_position": 4,
+          "ended_at_ns": 1789084976779867063,
+          "group": 1,
+          "pair_index": 14,
+          "started_at_ns": 1789084973419749172,
+          "tps": 4252612.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 2,
+          "block_position": 0,
+          "ended_at_ns": 1789084980145665894,
+          "group": 1,
+          "pair_index": 10,
+          "started_at_ns": 1789084976795328706,
+          "tps": 3845280.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 2,
+          "block_position": 1,
+          "ended_at_ns": 1789084983509845563,
+          "group": 1,
+          "pair_index": 11,
+          "started_at_ns": 1789084980145692624,
+          "tps": 3796311.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 2,
+          "block_position": 2,
+          "ended_at_ns": 1789084986865909321,
+          "group": 1,
+          "pair_index": 12,
+          "started_at_ns": 1789084983509873723,
+          "tps": 3759142.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 2,
+          "block_position": 3,
+          "ended_at_ns": 1789084990224420536,
+          "group": 1,
+          "pair_index": 13,
+          "started_at_ns": 1789084986865941175,
+          "tps": 3764901.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 2,
+          "block_position": 4,
+          "ended_at_ns": 1789084993566625436,
+          "group": 1,
+          "pair_index": 14,
+          "started_at_ns": 1789084990224450941,
+          "tps": 3819007.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 3,
+          "block_position": 0,
+          "ended_at_ns": 1789084996909313088,
+          "group": 1,
+          "pair_index": 15,
+          "started_at_ns": 1789084993582117649,
+          "tps": 3814850.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 3,
+          "block_position": 1,
+          "ended_at_ns": 1789085000266190646,
+          "group": 1,
+          "pair_index": 16,
+          "started_at_ns": 1789084996909341301,
+          "tps": 3841528.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 3,
+          "block_position": 2,
+          "ended_at_ns": 1789085003640510576,
+          "group": 1,
+          "pair_index": 17,
+          "started_at_ns": 1789085000266217643,
+          "tps": 3735392.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 3,
+          "block_position": 3,
+          "ended_at_ns": 1789085006981948952,
+          "group": 1,
+          "pair_index": 18,
+          "started_at_ns": 1789085003640537197,
+          "tps": 3843486.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 3,
+          "block_position": 4,
+          "ended_at_ns": 1789085010349539203,
+          "group": 1,
+          "pair_index": 19,
+          "started_at_ns": 1789085006981974208,
+          "tps": 3726686.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 3,
+          "block_position": 0,
+          "ended_at_ns": 1789085013714002236,
+          "group": 1,
+          "pair_index": 15,
+          "started_at_ns": 1789085010365686653,
+          "tps": 4313320.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 3,
+          "block_position": 1,
+          "ended_at_ns": 1789085017055196996,
+          "group": 1,
+          "pair_index": 16,
+          "started_at_ns": 1789085013714031826,
+          "tps": 4297109.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 3,
+          "block_position": 2,
+          "ended_at_ns": 1789085020406185470,
+          "group": 1,
+          "pair_index": 17,
+          "started_at_ns": 1789085017055226043,
+          "tps": 4266438.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 3,
+          "block_position": 3,
+          "ended_at_ns": 1789085023743138557,
+          "group": 1,
+          "pair_index": 18,
+          "started_at_ns": 1789085020406212910,
+          "tps": 4280105.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 3,
+          "block_position": 4,
+          "ended_at_ns": 1789085027080648349,
+          "group": 1,
+          "pair_index": 19,
+          "started_at_ns": 1789085023743164820,
+          "tps": 4245097.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 4,
+          "block_position": 0,
+          "ended_at_ns": 1789085030449200404,
+          "group": 2,
+          "pair_index": 20,
+          "started_at_ns": 1789085027096275682,
+          "tps": 3775225.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 4,
+          "block_position": 1,
+          "ended_at_ns": 1789085033797127498,
+          "group": 2,
+          "pair_index": 21,
+          "started_at_ns": 1789085030449228659,
+          "tps": 3767771.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 4,
+          "block_position": 2,
+          "ended_at_ns": 1789085037153614284,
+          "group": 2,
+          "pair_index": 22,
+          "started_at_ns": 1789085033797152899,
+          "tps": 3739348.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 4,
+          "block_position": 3,
+          "ended_at_ns": 1789085040506898744,
+          "group": 2,
+          "pair_index": 23,
+          "started_at_ns": 1789085037153641314,
+          "tps": 3747889.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 4,
+          "block_position": 4,
+          "ended_at_ns": 1789085043874075579,
+          "group": 2,
+          "pair_index": 24,
+          "started_at_ns": 1789085040506929514,
+          "tps": 3769833.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 4,
+          "block_position": 0,
+          "ended_at_ns": 1789085047229596591,
+          "group": 2,
+          "pair_index": 20,
+          "started_at_ns": 1789085043890692473,
+          "tps": 4248847.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 4,
+          "block_position": 1,
+          "ended_at_ns": 1789085050572376292,
+          "group": 2,
+          "pair_index": 21,
+          "started_at_ns": 1789085047229624133,
+          "tps": 4255201.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 4,
+          "block_position": 2,
+          "ended_at_ns": 1789085053924127027,
+          "group": 2,
+          "pair_index": 22,
+          "started_at_ns": 1789085050572403546,
+          "tps": 4253574.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 4,
+          "block_position": 3,
+          "ended_at_ns": 1789085057288876877,
+          "group": 2,
+          "pair_index": 23,
+          "started_at_ns": 1789085053924154166,
+          "tps": 4280405.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 4,
+          "block_position": 4,
+          "ended_at_ns": 1789085060661720060,
+          "group": 2,
+          "pair_index": 24,
+          "started_at_ns": 1789085057288904050,
+          "tps": 4269069.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 5,
+          "block_position": 0,
+          "ended_at_ns": 1789085064028641917,
+          "group": 2,
+          "pair_index": 25,
+          "started_at_ns": 1789085060677694707,
+          "tps": 4248135.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 5,
+          "block_position": 1,
+          "ended_at_ns": 1789085067398750604,
+          "group": 2,
+          "pair_index": 26,
+          "started_at_ns": 1789085064028670659,
+          "tps": 4277453.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 5,
+          "block_position": 2,
+          "ended_at_ns": 1789085070735685703,
+          "group": 2,
+          "pair_index": 27,
+          "started_at_ns": 1789085067398777158,
+          "tps": 4271900.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 5,
+          "block_position": 3,
+          "ended_at_ns": 1789085074075890718,
+          "group": 2,
+          "pair_index": 28,
+          "started_at_ns": 1789085070735709981,
+          "tps": 4276211.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 5,
+          "block_position": 4,
+          "ended_at_ns": 1789085077422219510,
+          "group": 2,
+          "pair_index": 29,
+          "started_at_ns": 1789085074075919436,
+          "tps": 4292509.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 5,
+          "block_position": 0,
+          "ended_at_ns": 1789085080787082599,
+          "group": 2,
+          "pair_index": 25,
+          "started_at_ns": 1789085077438457157,
+          "tps": 3828031.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 5,
+          "block_position": 1,
+          "ended_at_ns": 1789085084142516781,
+          "group": 2,
+          "pair_index": 26,
+          "started_at_ns": 1789085080787113996,
+          "tps": 3846095.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 5,
+          "block_position": 2,
+          "ended_at_ns": 1789085087502721863,
+          "group": 2,
+          "pair_index": 27,
+          "started_at_ns": 1789085084142546934,
+          "tps": 3768731.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 5,
+          "block_position": 3,
+          "ended_at_ns": 1789085090844726924,
+          "group": 2,
+          "pair_index": 28,
+          "started_at_ns": 1789085087502750126,
+          "tps": 3823114.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 5,
+          "block_position": 4,
+          "ended_at_ns": 1789085094176384177,
+          "group": 2,
+          "pair_index": 29,
+          "started_at_ns": 1789085090844754741,
+          "tps": 3788791.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 6,
+          "block_position": 0,
+          "ended_at_ns": 1789085097550234908,
+          "group": 3,
+          "pair_index": 30,
+          "started_at_ns": 1789085094192165210,
+          "tps": 3756004.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 6,
+          "block_position": 1,
+          "ended_at_ns": 1789085100903967605,
+          "group": 3,
+          "pair_index": 31,
+          "started_at_ns": 1789085097550266031,
+          "tps": 3823208.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 6,
+          "block_position": 2,
+          "ended_at_ns": 1789085104253036887,
+          "group": 3,
+          "pair_index": 32,
+          "started_at_ns": 1789085100903993258,
+          "tps": 3750165.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 6,
+          "block_position": 3,
+          "ended_at_ns": 1789085107596580497,
+          "group": 3,
+          "pair_index": 33,
+          "started_at_ns": 1789085104253063463,
+          "tps": 3776748.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 6,
+          "block_position": 4,
+          "ended_at_ns": 1789085110928545827,
+          "group": 3,
+          "pair_index": 34,
+          "started_at_ns": 1789085107596608487,
+          "tps": 3725212.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 6,
+          "block_position": 0,
+          "ended_at_ns": 1789085114288375899,
+          "group": 3,
+          "pair_index": 30,
+          "started_at_ns": 1789085110944343537,
+          "tps": 4270642.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 6,
+          "block_position": 1,
+          "ended_at_ns": 1789085117669939452,
+          "group": 3,
+          "pair_index": 31,
+          "started_at_ns": 1789085114288404509,
+          "tps": 4259993.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 6,
+          "block_position": 2,
+          "ended_at_ns": 1789085121013136526,
+          "group": 3,
+          "pair_index": 32,
+          "started_at_ns": 1789085117669967988,
+          "tps": 4269643.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 6,
+          "block_position": 3,
+          "ended_at_ns": 1789085124367582232,
+          "group": 3,
+          "pair_index": 33,
+          "started_at_ns": 1789085121013163759,
+          "tps": 4288982.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 6,
+          "block_position": 4,
+          "ended_at_ns": 1789085127703559846,
+          "group": 3,
+          "pair_index": 34,
+          "started_at_ns": 1789085124367607218,
+          "tps": 4287295.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 7,
+          "block_position": 0,
+          "ended_at_ns": 1789085131061532716,
+          "group": 3,
+          "pair_index": 35,
+          "started_at_ns": 1789085127719183095,
+          "tps": 4262087.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 7,
+          "block_position": 1,
+          "ended_at_ns": 1789085134403408145,
+          "group": 3,
+          "pair_index": 36,
+          "started_at_ns": 1789085131061559964,
+          "tps": 4262355.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 7,
+          "block_position": 2,
+          "ended_at_ns": 1789085137748724659,
+          "group": 3,
+          "pair_index": 37,
+          "started_at_ns": 1789085134403435849,
+          "tps": 4302936.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 7,
+          "block_position": 3,
+          "ended_at_ns": 1789085141098371658,
+          "group": 3,
+          "pair_index": 38,
+          "started_at_ns": 1789085137748753510,
+          "tps": 4282464.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 7,
+          "block_position": 4,
+          "ended_at_ns": 1789085144441928222,
+          "group": 3,
+          "pair_index": 39,
+          "started_at_ns": 1789085141098399374,
+          "tps": 4265178.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 7,
+          "block_position": 0,
+          "ended_at_ns": 1789085147792209121,
+          "group": 3,
+          "pair_index": 35,
+          "started_at_ns": 1789085144457416752,
+          "tps": 3792386.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 7,
+          "block_position": 1,
+          "ended_at_ns": 1789085151125673406,
+          "group": 3,
+          "pair_index": 36,
+          "started_at_ns": 1789085147792235898,
+          "tps": 3742829.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 7,
+          "block_position": 2,
+          "ended_at_ns": 1789085154488055432,
+          "group": 3,
+          "pair_index": 37,
+          "started_at_ns": 1789085151125700217,
+          "tps": 3707746.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 7,
+          "block_position": 3,
+          "ended_at_ns": 1789085157858705780,
+          "group": 3,
+          "pair_index": 38,
+          "started_at_ns": 1789085154488082744,
+          "tps": 3784176.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 7,
+          "block_position": 4,
+          "ended_at_ns": 1789085161203460433,
+          "group": 3,
+          "pair_index": 39,
+          "started_at_ns": 1789085157858734095,
+          "tps": 3795166.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 8,
+          "block_position": 0,
+          "ended_at_ns": 1789085164547243081,
+          "group": 4,
+          "pair_index": 40,
+          "started_at_ns": 1789085161217676040,
+          "tps": 4253415.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 8,
+          "block_position": 1,
+          "ended_at_ns": 1789085167905520924,
+          "group": 4,
+          "pair_index": 41,
+          "started_at_ns": 1789085164547268440,
+          "tps": 4244559.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 8,
+          "block_position": 2,
+          "ended_at_ns": 1789085171261907257,
+          "group": 4,
+          "pair_index": 42,
+          "started_at_ns": 1789085167905548289,
+          "tps": 4278677.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 8,
+          "block_position": 3,
+          "ended_at_ns": 1789085174620862145,
+          "group": 4,
+          "pair_index": 43,
+          "started_at_ns": 1789085171261937187,
+          "tps": 4287492.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 8,
+          "block_position": 4,
+          "ended_at_ns": 1789085177972374729,
+          "group": 4,
+          "pair_index": 44,
+          "started_at_ns": 1789085174620889901,
+          "tps": 4278206.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 8,
+          "block_position": 0,
+          "ended_at_ns": 1789085181316284447,
+          "group": 4,
+          "pair_index": 40,
+          "started_at_ns": 1789085177988234472,
+          "tps": 3823358.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 8,
+          "block_position": 1,
+          "ended_at_ns": 1789085184659894561,
+          "group": 4,
+          "pair_index": 41,
+          "started_at_ns": 1789085181316311927,
+          "tps": 3809771.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 8,
+          "block_position": 2,
+          "ended_at_ns": 1789085187999665118,
+          "group": 4,
+          "pair_index": 42,
+          "started_at_ns": 1789085184659920654,
+          "tps": 3767174.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 8,
+          "block_position": 3,
+          "ended_at_ns": 1789085191371585863,
+          "group": 4,
+          "pair_index": 43,
+          "started_at_ns": 1789085187999695381,
+          "tps": 3765712.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 8,
+          "block_position": 4,
+          "ended_at_ns": 1789085194735461101,
+          "group": 4,
+          "pair_index": 44,
+          "started_at_ns": 1789085191371618115,
+          "tps": 3814423.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 9,
+          "block_position": 0,
+          "ended_at_ns": 1789085198094213797,
+          "group": 4,
+          "pair_index": 45,
+          "started_at_ns": 1789085194751447722,
+          "tps": 3735902.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 9,
+          "block_position": 1,
+          "ended_at_ns": 1789085201476775882,
+          "group": 4,
+          "pair_index": 46,
+          "started_at_ns": 1789085198094241113,
+          "tps": 3789410.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 9,
+          "block_position": 2,
+          "ended_at_ns": 1789085204824116203,
+          "group": 4,
+          "pair_index": 47,
+          "started_at_ns": 1789085201476801641,
+          "tps": 3761035.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 9,
+          "block_position": 3,
+          "ended_at_ns": 1789085208184353300,
+          "group": 4,
+          "pair_index": 48,
+          "started_at_ns": 1789085204824145814,
+          "tps": 3727234.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 9,
+          "block_position": 4,
+          "ended_at_ns": 1789085211553552479,
+          "group": 4,
+          "pair_index": 49,
+          "started_at_ns": 1789085208184380550,
+          "tps": 3735745.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 9,
+          "block_position": 0,
+          "ended_at_ns": 1789085214910060159,
+          "group": 4,
+          "pair_index": 45,
+          "started_at_ns": 1789085211569457365,
+          "tps": 4257923.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 9,
+          "block_position": 1,
+          "ended_at_ns": 1789085218273443524,
+          "group": 4,
+          "pair_index": 46,
+          "started_at_ns": 1789085214910088787,
+          "tps": 4275447.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 9,
+          "block_position": 2,
+          "ended_at_ns": 1789085221617408522,
+          "group": 4,
+          "pair_index": 47,
+          "started_at_ns": 1789085218273470819,
+          "tps": 4222544.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 9,
+          "block_position": 3,
+          "ended_at_ns": 1789085224955555168,
+          "group": 4,
+          "pair_index": 48,
+          "started_at_ns": 1789085221617435368,
+          "tps": 4216191.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 9,
+          "block_position": 4,
+          "ended_at_ns": 1789085228296722005,
+          "group": 4,
+          "pair_index": 49,
+          "started_at_ns": 1789085224955583209,
+          "tps": 4266285.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 10,
+          "block_position": 0,
+          "ended_at_ns": 1789085231657451339,
+          "group": 5,
+          "pair_index": 50,
+          "started_at_ns": 1789085228312553698,
+          "tps": 3773509.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 10,
+          "block_position": 1,
+          "ended_at_ns": 1789085235002802051,
+          "group": 5,
+          "pair_index": 51,
+          "started_at_ns": 1789085231657479663,
+          "tps": 3717123.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 10,
+          "block_position": 2,
+          "ended_at_ns": 1789085238356675483,
+          "group": 5,
+          "pair_index": 52,
+          "started_at_ns": 1789085235002836997,
+          "tps": 3798400.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 10,
+          "block_position": 3,
+          "ended_at_ns": 1789085241700510430,
+          "group": 5,
+          "pair_index": 53,
+          "started_at_ns": 1789085238356700832,
+          "tps": 3799980.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 10,
+          "block_position": 4,
+          "ended_at_ns": 1789085245057709545,
+          "group": 5,
+          "pair_index": 54,
+          "started_at_ns": 1789085241700539533,
+          "tps": 3751164.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 10,
+          "block_position": 0,
+          "ended_at_ns": 1789085248417909255,
+          "group": 5,
+          "pair_index": 50,
+          "started_at_ns": 1789085245073577530,
+          "tps": 4293996.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 10,
+          "block_position": 1,
+          "ended_at_ns": 1789085251780737598,
+          "group": 5,
+          "pair_index": 51,
+          "started_at_ns": 1789085248417937215,
+          "tps": 4278716.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 10,
+          "block_position": 2,
+          "ended_at_ns": 1789085255141901487,
+          "group": 5,
+          "pair_index": 52,
+          "started_at_ns": 1789085251780764518,
+          "tps": 4265036.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 10,
+          "block_position": 3,
+          "ended_at_ns": 1789085258489782104,
+          "group": 5,
+          "pair_index": 53,
+          "started_at_ns": 1789085255141928809,
+          "tps": 4270613.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 10,
+          "block_position": 4,
+          "ended_at_ns": 1789085261838699693,
+          "group": 5,
+          "pair_index": 54,
+          "started_at_ns": 1789085258489810879,
+          "tps": 4284822.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 11,
+          "block_position": 0,
+          "ended_at_ns": 1789085265198736090,
+          "group": 5,
+          "pair_index": 55,
+          "started_at_ns": 1789085261854735880,
+          "tps": 4272366.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 11,
+          "block_position": 1,
+          "ended_at_ns": 1789085268541870051,
+          "group": 5,
+          "pair_index": 56,
+          "started_at_ns": 1789085265198761550,
+          "tps": 4228986.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 11,
+          "block_position": 2,
+          "ended_at_ns": 1789085271909364282,
+          "group": 5,
+          "pair_index": 57,
+          "started_at_ns": 1789085268541897682,
+          "tps": 4294816.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 11,
+          "block_position": 3,
+          "ended_at_ns": 1789085275269717722,
+          "group": 5,
+          "pair_index": 58,
+          "started_at_ns": 1789085271909392666,
+          "tps": 4275303.0
+        },
+        {
+          "arm": "fixed5",
+          "block": 11,
+          "block_position": 4,
+          "ended_at_ns": 1789085278611953359,
+          "group": 5,
+          "pair_index": 59,
+          "started_at_ns": 1789085275269746770,
+          "tps": 4250359.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 11,
+          "block_position": 0,
+          "ended_at_ns": 1789085282010730221,
+          "group": 5,
+          "pair_index": 55,
+          "started_at_ns": 1789085278628237837,
+          "tps": 3726369.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 11,
+          "block_position": 1,
+          "ended_at_ns": 1789085285385601722,
+          "group": 5,
+          "pair_index": 56,
+          "started_at_ns": 1789085282010759333,
+          "tps": 3782973.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 11,
+          "block_position": 2,
+          "ended_at_ns": 1789085288738440451,
+          "group": 5,
+          "pair_index": 57,
+          "started_at_ns": 1789085285385629233,
+          "tps": 3726398.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 11,
+          "block_position": 3,
+          "ended_at_ns": 1789085292083461918,
+          "group": 5,
+          "pair_index": 58,
+          "started_at_ns": 1789085288738470261,
+          "tps": 3725904.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 11,
+          "block_position": 4,
+          "ended_at_ns": 1789085295422067514,
+          "group": 5,
+          "pair_index": 59,
+          "started_at_ns": 1789085292083490320,
+          "tps": 3784404.0
+        }
+      ],
+      "workload": "balanced"
+    },
+    {
+      "observations": [
+        {
+          "arm": "fixed2",
+          "block": 0,
+          "block_position": 0,
+          "ended_at_ns": 1789084493118808108,
+          "group": 0,
+          "pair_index": 0,
+          "started_at_ns": 1789084489783759194,
+          "tps": 9979163.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 0,
+          "block_position": 1,
+          "ended_at_ns": 1789084496453762238,
+          "group": 0,
+          "pair_index": 1,
+          "started_at_ns": 1789084493118843861,
+          "tps": 9742946.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 0,
+          "block_position": 2,
+          "ended_at_ns": 1789084499794414511,
+          "group": 0,
+          "pair_index": 2,
+          "started_at_ns": 1789084496453790014,
+          "tps": 9707755.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 0,
+          "block_position": 3,
+          "ended_at_ns": 1789084503157512373,
+          "group": 0,
+          "pair_index": 3,
+          "started_at_ns": 1789084499794444551,
+          "tps": 9673205.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 0,
+          "block_position": 4,
+          "ended_at_ns": 1789084506515825795,
+          "group": 0,
+          "pair_index": 4,
+          "started_at_ns": 1789084503157544426,
+          "tps": 9702615.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 0,
+          "block_position": 0,
+          "ended_at_ns": 1789084509861753468,
+          "group": 0,
+          "pair_index": 0,
+          "started_at_ns": 1789084506531455306,
+          "tps": 10239258.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 0,
+          "block_position": 1,
+          "ended_at_ns": 1789084513249272688,
+          "group": 0,
+          "pair_index": 1,
+          "started_at_ns": 1789084509861783611,
+          "tps": 10243194.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 0,
+          "block_position": 2,
+          "ended_at_ns": 1789084516603098165,
+          "group": 0,
+          "pair_index": 2,
+          "started_at_ns": 1789084513249302026,
+          "tps": 10334393.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 0,
+          "block_position": 3,
+          "ended_at_ns": 1789084519981663240,
+          "group": 0,
+          "pair_index": 3,
+          "started_at_ns": 1789084516603126467,
+          "tps": 10279566.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 0,
+          "block_position": 4,
+          "ended_at_ns": 1789084523317232915,
+          "group": 0,
+          "pair_index": 4,
+          "started_at_ns": 1789084519981690566,
+          "tps": 10277007.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 1,
+          "block_position": 0,
+          "ended_at_ns": 1789084526673442860,
+          "group": 0,
+          "pair_index": 5,
+          "started_at_ns": 1789084523332241663,
+          "tps": 10141659.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 1,
+          "block_position": 1,
+          "ended_at_ns": 1789084530061093127,
+          "group": 0,
+          "pair_index": 6,
+          "started_at_ns": 1789084526673471772,
+          "tps": 10222696.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 1,
+          "block_position": 2,
+          "ended_at_ns": 1789084533405162658,
+          "group": 0,
+          "pair_index": 7,
+          "started_at_ns": 1789084530061124054,
+          "tps": 10307623.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 1,
+          "block_position": 3,
+          "ended_at_ns": 1789084536756689718,
+          "group": 0,
+          "pair_index": 8,
+          "started_at_ns": 1789084533405189297,
+          "tps": 10122911.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 1,
+          "block_position": 4,
+          "ended_at_ns": 1789084540111841278,
+          "group": 0,
+          "pair_index": 9,
+          "started_at_ns": 1789084536756721385,
+          "tps": 10254650.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 1,
+          "block_position": 0,
+          "ended_at_ns": 1789084543466895781,
+          "group": 0,
+          "pair_index": 5,
+          "started_at_ns": 1789084540127280517,
+          "tps": 9680656.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 1,
+          "block_position": 1,
+          "ended_at_ns": 1789084546837087219,
+          "group": 0,
+          "pair_index": 6,
+          "started_at_ns": 1789084543466924028,
+          "tps": 9618376.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 1,
+          "block_position": 2,
+          "ended_at_ns": 1789084550191194350,
+          "group": 0,
+          "pair_index": 7,
+          "started_at_ns": 1789084546837112762,
+          "tps": 9703053.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 1,
+          "block_position": 3,
+          "ended_at_ns": 1789084553545575268,
+          "group": 0,
+          "pair_index": 8,
+          "started_at_ns": 1789084550191223652,
+          "tps": 9721901.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 1,
+          "block_position": 4,
+          "ended_at_ns": 1789084556884086215,
+          "group": 0,
+          "pair_index": 9,
+          "started_at_ns": 1789084553545601200,
+          "tps": 9650655.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 2,
+          "block_position": 0,
+          "ended_at_ns": 1789084560278920018,
+          "group": 1,
+          "pair_index": 10,
+          "started_at_ns": 1789084556900478477,
+          "tps": 10238206.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 2,
+          "block_position": 1,
+          "ended_at_ns": 1789084563647399297,
+          "group": 1,
+          "pair_index": 11,
+          "started_at_ns": 1789084560278950929,
+          "tps": 10115644.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 2,
+          "block_position": 2,
+          "ended_at_ns": 1789084567010783251,
+          "group": 1,
+          "pair_index": 12,
+          "started_at_ns": 1789084563647428611,
+          "tps": 10280935.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 2,
+          "block_position": 3,
+          "ended_at_ns": 1789084570358588776,
+          "group": 1,
+          "pair_index": 13,
+          "started_at_ns": 1789084567010809940,
+          "tps": 10184901.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 2,
+          "block_position": 4,
+          "ended_at_ns": 1789084573696928422,
+          "group": 1,
+          "pair_index": 14,
+          "started_at_ns": 1789084570358617396,
+          "tps": 10153073.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 2,
+          "block_position": 0,
+          "ended_at_ns": 1789084577052848857,
+          "group": 1,
+          "pair_index": 10,
+          "started_at_ns": 1789084573712258733,
+          "tps": 9663212.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 2,
+          "block_position": 1,
+          "ended_at_ns": 1789084580394677359,
+          "group": 1,
+          "pair_index": 11,
+          "started_at_ns": 1789084577052874968,
+          "tps": 9611584.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 2,
+          "block_position": 2,
+          "ended_at_ns": 1789084583745845784,
+          "group": 1,
+          "pair_index": 12,
+          "started_at_ns": 1789084580394708031,
+          "tps": 9649311.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 2,
+          "block_position": 3,
+          "ended_at_ns": 1789084587095775496,
+          "group": 1,
+          "pair_index": 13,
+          "started_at_ns": 1789084583745873078,
+          "tps": 9658466.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 2,
+          "block_position": 4,
+          "ended_at_ns": 1789084590497927606,
+          "group": 1,
+          "pair_index": 14,
+          "started_at_ns": 1789084587095809361,
+          "tps": 9638807.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 3,
+          "block_position": 0,
+          "ended_at_ns": 1789084593866049957,
+          "group": 1,
+          "pair_index": 15,
+          "started_at_ns": 1789084590512812379,
+          "tps": 9636848.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 3,
+          "block_position": 1,
+          "ended_at_ns": 1789084597229728438,
+          "group": 1,
+          "pair_index": 16,
+          "started_at_ns": 1789084593866082431,
+          "tps": 9634987.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 3,
+          "block_position": 2,
+          "ended_at_ns": 1789084600584553446,
+          "group": 1,
+          "pair_index": 17,
+          "started_at_ns": 1789084597229756318,
+          "tps": 9644415.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 3,
+          "block_position": 3,
+          "ended_at_ns": 1789084603966444374,
+          "group": 1,
+          "pair_index": 18,
+          "started_at_ns": 1789084600584583805,
+          "tps": 9640099.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 3,
+          "block_position": 4,
+          "ended_at_ns": 1789084607323523786,
+          "group": 1,
+          "pair_index": 19,
+          "started_at_ns": 1789084603966472706,
+          "tps": 9634903.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 3,
+          "block_position": 0,
+          "ended_at_ns": 1789084610707583505,
+          "group": 1,
+          "pair_index": 15,
+          "started_at_ns": 1789084607340096271,
+          "tps": 10257829.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 3,
+          "block_position": 1,
+          "ended_at_ns": 1789084614070349061,
+          "group": 1,
+          "pair_index": 16,
+          "started_at_ns": 1789084610707615147,
+          "tps": 10180917.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 3,
+          "block_position": 2,
+          "ended_at_ns": 1789084617422654892,
+          "group": 1,
+          "pair_index": 17,
+          "started_at_ns": 1789084614070381497,
+          "tps": 10159353.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 3,
+          "block_position": 3,
+          "ended_at_ns": 1789084620765543884,
+          "group": 1,
+          "pair_index": 18,
+          "started_at_ns": 1789084617422680999,
+          "tps": 10098918.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 3,
+          "block_position": 4,
+          "ended_at_ns": 1789084624129064089,
+          "group": 1,
+          "pair_index": 19,
+          "started_at_ns": 1789084620765570808,
+          "tps": 10201211.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 4,
+          "block_position": 0,
+          "ended_at_ns": 1789084627495215203,
+          "group": 2,
+          "pair_index": 20,
+          "started_at_ns": 1789084624145411863,
+          "tps": 9627465.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 4,
+          "block_position": 1,
+          "ended_at_ns": 1789084630857433029,
+          "group": 2,
+          "pair_index": 21,
+          "started_at_ns": 1789084627495244402,
+          "tps": 9606553.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 4,
+          "block_position": 2,
+          "ended_at_ns": 1789084634220186173,
+          "group": 2,
+          "pair_index": 22,
+          "started_at_ns": 1789084630857462480,
+          "tps": 9632117.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 4,
+          "block_position": 3,
+          "ended_at_ns": 1789084637578175102,
+          "group": 2,
+          "pair_index": 23,
+          "started_at_ns": 1789084634220218097,
+          "tps": 9656261.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 4,
+          "block_position": 4,
+          "ended_at_ns": 1789084640926703825,
+          "group": 2,
+          "pair_index": 24,
+          "started_at_ns": 1789084637578203515,
+          "tps": 9607919.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 4,
+          "block_position": 0,
+          "ended_at_ns": 1789084644282277360,
+          "group": 2,
+          "pair_index": 20,
+          "started_at_ns": 1789084640941943459,
+          "tps": 10139554.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 4,
+          "block_position": 1,
+          "ended_at_ns": 1789084647641166918,
+          "group": 2,
+          "pair_index": 21,
+          "started_at_ns": 1789084644282306633,
+          "tps": 10129915.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 4,
+          "block_position": 2,
+          "ended_at_ns": 1789084650998994577,
+          "group": 2,
+          "pair_index": 22,
+          "started_at_ns": 1789084647641200284,
+          "tps": 10147025.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 4,
+          "block_position": 3,
+          "ended_at_ns": 1789084654352756354,
+          "group": 2,
+          "pair_index": 23,
+          "started_at_ns": 1789084650999021755,
+          "tps": 10170244.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 4,
+          "block_position": 4,
+          "ended_at_ns": 1789084657700549271,
+          "group": 2,
+          "pair_index": 24,
+          "started_at_ns": 1789084654352783024,
+          "tps": 10103448.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 5,
+          "block_position": 0,
+          "ended_at_ns": 1789084661103523971,
+          "group": 2,
+          "pair_index": 25,
+          "started_at_ns": 1789084657715889425,
+          "tps": 10150659.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 5,
+          "block_position": 1,
+          "ended_at_ns": 1789084664470969975,
+          "group": 2,
+          "pair_index": 26,
+          "started_at_ns": 1789084661103559965,
+          "tps": 10184909.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 5,
+          "block_position": 2,
+          "ended_at_ns": 1789084667827495821,
+          "group": 2,
+          "pair_index": 27,
+          "started_at_ns": 1789084664471000575,
+          "tps": 10169857.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 5,
+          "block_position": 3,
+          "ended_at_ns": 1789084671206870086,
+          "group": 2,
+          "pair_index": 28,
+          "started_at_ns": 1789084667827531943,
+          "tps": 10157140.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 5,
+          "block_position": 4,
+          "ended_at_ns": 1789084674557904900,
+          "group": 2,
+          "pair_index": 29,
+          "started_at_ns": 1789084671206900812,
+          "tps": 10133801.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 5,
+          "block_position": 0,
+          "ended_at_ns": 1789084677918346548,
+          "group": 2,
+          "pair_index": 25,
+          "started_at_ns": 1789084674573185129,
+          "tps": 9607051.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 5,
+          "block_position": 1,
+          "ended_at_ns": 1789084681276603494,
+          "group": 2,
+          "pair_index": 26,
+          "started_at_ns": 1789084677918378026,
+          "tps": 9652844.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 5,
+          "block_position": 2,
+          "ended_at_ns": 1789084684656954557,
+          "group": 2,
+          "pair_index": 27,
+          "started_at_ns": 1789084681276633769,
+          "tps": 9557992.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 5,
+          "block_position": 3,
+          "ended_at_ns": 1789084688014197456,
+          "group": 2,
+          "pair_index": 28,
+          "started_at_ns": 1789084684656987587,
+          "tps": 9636624.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 5,
+          "block_position": 4,
+          "ended_at_ns": 1789084691388889552,
+          "group": 2,
+          "pair_index": 29,
+          "started_at_ns": 1789084688014226986,
+          "tps": 9625751.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 6,
+          "block_position": 0,
+          "ended_at_ns": 1789084694757856811,
+          "group": 3,
+          "pair_index": 30,
+          "started_at_ns": 1789084691404793663,
+          "tps": 10135092.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 6,
+          "block_position": 1,
+          "ended_at_ns": 1789084698108454353,
+          "group": 3,
+          "pair_index": 31,
+          "started_at_ns": 1789084694757883282,
+          "tps": 10139508.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 6,
+          "block_position": 2,
+          "ended_at_ns": 1789084701498679326,
+          "group": 3,
+          "pair_index": 32,
+          "started_at_ns": 1789084698108490383,
+          "tps": 10134681.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 6,
+          "block_position": 3,
+          "ended_at_ns": 1789084704855940145,
+          "group": 3,
+          "pair_index": 33,
+          "started_at_ns": 1789084701498707628,
+          "tps": 10209112.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 6,
+          "block_position": 4,
+          "ended_at_ns": 1789084708222714042,
+          "group": 3,
+          "pair_index": 34,
+          "started_at_ns": 1789084704855974645,
+          "tps": 10154678.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 6,
+          "block_position": 0,
+          "ended_at_ns": 1789084711587139258,
+          "group": 3,
+          "pair_index": 30,
+          "started_at_ns": 1789084708238054721,
+          "tps": 9598915.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 6,
+          "block_position": 1,
+          "ended_at_ns": 1789084714930269968,
+          "group": 3,
+          "pair_index": 31,
+          "started_at_ns": 1789084711587168682,
+          "tps": 9549245.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 6,
+          "block_position": 2,
+          "ended_at_ns": 1789084718275223830,
+          "group": 3,
+          "pair_index": 32,
+          "started_at_ns": 1789084714930297702,
+          "tps": 9630705.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 6,
+          "block_position": 3,
+          "ended_at_ns": 1789084721629894602,
+          "group": 3,
+          "pair_index": 33,
+          "started_at_ns": 1789084718275256788,
+          "tps": 9654883.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 6,
+          "block_position": 4,
+          "ended_at_ns": 1789084724991497499,
+          "group": 3,
+          "pair_index": 34,
+          "started_at_ns": 1789084721629924101,
+          "tps": 9608310.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 7,
+          "block_position": 0,
+          "ended_at_ns": 1789084728359868332,
+          "group": 3,
+          "pair_index": 35,
+          "started_at_ns": 1789084725006824855,
+          "tps": 9574823.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 7,
+          "block_position": 1,
+          "ended_at_ns": 1789084731749312691,
+          "group": 3,
+          "pair_index": 36,
+          "started_at_ns": 1789084728359895979,
+          "tps": 9598163.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 7,
+          "block_position": 2,
+          "ended_at_ns": 1789084735104294886,
+          "group": 3,
+          "pair_index": 37,
+          "started_at_ns": 1789084731749343134,
+          "tps": 9640123.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 7,
+          "block_position": 3,
+          "ended_at_ns": 1789084738495022080,
+          "group": 3,
+          "pair_index": 38,
+          "started_at_ns": 1789084735104321211,
+          "tps": 9615596.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 7,
+          "block_position": 4,
+          "ended_at_ns": 1789084741839810428,
+          "group": 3,
+          "pair_index": 39,
+          "started_at_ns": 1789084738495051794,
+          "tps": 9575191.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 7,
+          "block_position": 0,
+          "ended_at_ns": 1789084745182999091,
+          "group": 3,
+          "pair_index": 35,
+          "started_at_ns": 1789084741854806025,
+          "tps": 10068448.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 7,
+          "block_position": 1,
+          "ended_at_ns": 1789084748521954058,
+          "group": 3,
+          "pair_index": 36,
+          "started_at_ns": 1789084745183025933,
+          "tps": 10079582.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 7,
+          "block_position": 2,
+          "ended_at_ns": 1789084751855549005,
+          "group": 3,
+          "pair_index": 37,
+          "started_at_ns": 1789084748521980231,
+          "tps": 10115331.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 7,
+          "block_position": 3,
+          "ended_at_ns": 1789084755216746794,
+          "group": 3,
+          "pair_index": 38,
+          "started_at_ns": 1789084751855576940,
+          "tps": 10199202.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 7,
+          "block_position": 4,
+          "ended_at_ns": 1789084758605466978,
+          "group": 3,
+          "pair_index": 39,
+          "started_at_ns": 1789084755216777447,
+          "tps": 10139610.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 8,
+          "block_position": 0,
+          "ended_at_ns": 1789084761962999805,
+          "group": 4,
+          "pair_index": 40,
+          "started_at_ns": 1789084758620129912,
+          "tps": 9607434.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 8,
+          "block_position": 1,
+          "ended_at_ns": 1789084765335104607,
+          "group": 4,
+          "pair_index": 41,
+          "started_at_ns": 1789084761963033826,
+          "tps": 9605137.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 8,
+          "block_position": 2,
+          "ended_at_ns": 1789084768725355969,
+          "group": 4,
+          "pair_index": 42,
+          "started_at_ns": 1789084765335133436,
+          "tps": 9603836.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 8,
+          "block_position": 3,
+          "ended_at_ns": 1789084772126417925,
+          "group": 4,
+          "pair_index": 43,
+          "started_at_ns": 1789084768725390200,
+          "tps": 9657289.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 8,
+          "block_position": 4,
+          "ended_at_ns": 1789084775479005087,
+          "group": 4,
+          "pair_index": 44,
+          "started_at_ns": 1789084772126444856,
+          "tps": 9612265.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 8,
+          "block_position": 0,
+          "ended_at_ns": 1789084778865366459,
+          "group": 4,
+          "pair_index": 40,
+          "started_at_ns": 1789084775494954417,
+          "tps": 10181362.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 8,
+          "block_position": 1,
+          "ended_at_ns": 1789084782225163985,
+          "group": 4,
+          "pair_index": 41,
+          "started_at_ns": 1789084778865402091,
+          "tps": 10154028.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 8,
+          "block_position": 2,
+          "ended_at_ns": 1789084785593129209,
+          "group": 4,
+          "pair_index": 42,
+          "started_at_ns": 1789084782225190129,
+          "tps": 10141270.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 8,
+          "block_position": 3,
+          "ended_at_ns": 1789084788943017665,
+          "group": 4,
+          "pair_index": 43,
+          "started_at_ns": 1789084785593156475,
+          "tps": 10155651.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 8,
+          "block_position": 4,
+          "ended_at_ns": 1789084792295235871,
+          "group": 4,
+          "pair_index": 44,
+          "started_at_ns": 1789084788943047900,
+          "tps": 10109637.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 9,
+          "block_position": 0,
+          "ended_at_ns": 1789084795664215521,
+          "group": 4,
+          "pair_index": 45,
+          "started_at_ns": 1789084792310554496,
+          "tps": 10134727.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 9,
+          "block_position": 1,
+          "ended_at_ns": 1789084799016834467,
+          "group": 4,
+          "pair_index": 46,
+          "started_at_ns": 1789084795664246127,
+          "tps": 10067992.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 9,
+          "block_position": 2,
+          "ended_at_ns": 1789084802396249264,
+          "group": 4,
+          "pair_index": 47,
+          "started_at_ns": 1789084799016865160,
+          "tps": 10154213.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 9,
+          "block_position": 3,
+          "ended_at_ns": 1789084805765512533,
+          "group": 4,
+          "pair_index": 48,
+          "started_at_ns": 1789084802396278717,
+          "tps": 10131619.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 9,
+          "block_position": 4,
+          "ended_at_ns": 1789084809125300298,
+          "group": 4,
+          "pair_index": 49,
+          "started_at_ns": 1789084805765543389,
+          "tps": 10100284.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 9,
+          "block_position": 0,
+          "ended_at_ns": 1789084812520743989,
+          "group": 4,
+          "pair_index": 45,
+          "started_at_ns": 1789084809141143655,
+          "tps": 9678088.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 9,
+          "block_position": 1,
+          "ended_at_ns": 1789084815898841474,
+          "group": 4,
+          "pair_index": 46,
+          "started_at_ns": 1789084812520779896,
+          "tps": 9616754.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 9,
+          "block_position": 2,
+          "ended_at_ns": 1789084819251829853,
+          "group": 4,
+          "pair_index": 47,
+          "started_at_ns": 1789084815898869121,
+          "tps": 9564949.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 9,
+          "block_position": 3,
+          "ended_at_ns": 1789084822598731517,
+          "group": 4,
+          "pair_index": 48,
+          "started_at_ns": 1789084819251860822,
+          "tps": 9656579.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 9,
+          "block_position": 4,
+          "ended_at_ns": 1789084825943253341,
+          "group": 4,
+          "pair_index": 49,
+          "started_at_ns": 1789084822598759546,
+          "tps": 9625921.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 10,
+          "block_position": 0,
+          "ended_at_ns": 1789084829301895886,
+          "group": 5,
+          "pair_index": 50,
+          "started_at_ns": 1789084825958427256,
+          "tps": 10122548.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 10,
+          "block_position": 1,
+          "ended_at_ns": 1789084832657537910,
+          "group": 5,
+          "pair_index": 51,
+          "started_at_ns": 1789084829301927253,
+          "tps": 10200346.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 10,
+          "block_position": 2,
+          "ended_at_ns": 1789084835994237832,
+          "group": 5,
+          "pair_index": 52,
+          "started_at_ns": 1789084832657566420,
+          "tps": 10058590.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 10,
+          "block_position": 3,
+          "ended_at_ns": 1789084839334008090,
+          "group": 5,
+          "pair_index": 53,
+          "started_at_ns": 1789084835994265767,
+          "tps": 10121295.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 10,
+          "block_position": 4,
+          "ended_at_ns": 1789084842700010957,
+          "group": 5,
+          "pair_index": 54,
+          "started_at_ns": 1789084839334035372,
+          "tps": 10073934.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 10,
+          "block_position": 0,
+          "ended_at_ns": 1789084846084604210,
+          "group": 5,
+          "pair_index": 50,
+          "started_at_ns": 1789084842715479877,
+          "tps": 9593359.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 10,
+          "block_position": 1,
+          "ended_at_ns": 1789084849430679062,
+          "group": 5,
+          "pair_index": 51,
+          "started_at_ns": 1789084846084634741,
+          "tps": 9680453.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 10,
+          "block_position": 2,
+          "ended_at_ns": 1789084852769183117,
+          "group": 5,
+          "pair_index": 52,
+          "started_at_ns": 1789084849430708761,
+          "tps": 9596129.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 10,
+          "block_position": 3,
+          "ended_at_ns": 1789084856118211179,
+          "group": 5,
+          "pair_index": 53,
+          "started_at_ns": 1789084852769210244,
+          "tps": 9523715.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 10,
+          "block_position": 4,
+          "ended_at_ns": 1789084859462227267,
+          "group": 5,
+          "pair_index": 54,
+          "started_at_ns": 1789084856118238291,
+          "tps": 9583195.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 11,
+          "block_position": 0,
+          "ended_at_ns": 1789084862827595108,
+          "group": 5,
+          "pair_index": 55,
+          "started_at_ns": 1789084859478020508,
+          "tps": 9460640.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 11,
+          "block_position": 1,
+          "ended_at_ns": 1789084866174658732,
+          "group": 5,
+          "pair_index": 56,
+          "started_at_ns": 1789084862827623418,
+          "tps": 9590566.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 11,
+          "block_position": 2,
+          "ended_at_ns": 1789084869512448459,
+          "group": 5,
+          "pair_index": 57,
+          "started_at_ns": 1789084866174687743,
+          "tps": 9629630.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 11,
+          "block_position": 3,
+          "ended_at_ns": 1789084872881171016,
+          "group": 5,
+          "pair_index": 58,
+          "started_at_ns": 1789084869512479698,
+          "tps": 9606693.0
+        },
+        {
+          "arm": "fixed2",
+          "block": 11,
+          "block_position": 4,
+          "ended_at_ns": 1789084876242783213,
+          "group": 5,
+          "pair_index": 59,
+          "started_at_ns": 1789084872881198346,
+          "tps": 9637734.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 11,
+          "block_position": 0,
+          "ended_at_ns": 1789084879603246582,
+          "group": 5,
+          "pair_index": 55,
+          "started_at_ns": 1789084876257763973,
+          "tps": 10099527.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 11,
+          "block_position": 1,
+          "ended_at_ns": 1789084882971900906,
+          "group": 5,
+          "pair_index": 56,
+          "started_at_ns": 1789084879603279914,
+          "tps": 10184147.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 11,
+          "block_position": 2,
+          "ended_at_ns": 1789084886323291338,
+          "group": 5,
+          "pair_index": 57,
+          "started_at_ns": 1789084882971930734,
+          "tps": 10128720.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 11,
+          "block_position": 3,
+          "ended_at_ns": 1789084889680057691,
+          "group": 5,
+          "pair_index": 58,
+          "started_at_ns": 1789084886323320814,
+          "tps": 10127465.0
+        },
+        {
+          "arm": "no-backoff",
+          "block": 11,
+          "block_position": 4,
+          "ended_at_ns": 1789084893029982416,
+          "group": 5,
+          "pair_index": 59,
+          "started_at_ns": 1789084889680086056,
+          "tps": 10171946.0
+        }
+      ],
+      "workload": "read-heavy"
+    }
+  ]
+}

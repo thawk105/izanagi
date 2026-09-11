@@ -1,0 +1,74 @@
+{
+  "attempts": [
+    {
+      "artifact_error": null,
+      "console_sha256": "6a7ffcf8043ae50a561b913bae7c63bafef5d6a81fdf2085b3211536bb5d4211",
+      "finished_at": "2026-09-10T23:44:22.519275+00:00",
+      "mutation_id": null,
+      "phase": "collection",
+      "rc": 0,
+      "request": null,
+      "run_attempt_ordinal": 1,
+      "started_at": "2026-09-10T23:44:20.873561+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "4cfc3afe7a5205cf8f49fd71b3bfafbe98f4e1cf9b204344465b38f44bc6fafe",
+      "finished_at": "2026-09-10T23:47:55.829466+00:00",
+      "mutation_id": null,
+      "phase": "baseline",
+      "rc": 0,
+      "request": null,
+      "run_attempt_ordinal": 2,
+      "started_at": "2026-09-10T23:44:25.575339+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "dad43d8ae81c27533e807575b498830aaf2c7b716bb3eea749d063861aa7017b",
+      "finished_at": "2026-09-10T23:48:25.535638+00:00",
+      "mutation_id": "M1-live-prefix",
+      "phase": "mutation",
+      "rc": 1,
+      "request": null,
+      "run_attempt_ordinal": 3,
+      "started_at": "2026-09-10T23:47:58.963212+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "6fbfef1eca6b727fca25e437fb8cb8e71c27f15dd6e9aa683ffa0258ade3a14d",
+      "finished_at": "2026-09-10T23:48:56.045279+00:00",
+      "mutation_id": "M2-live-materialized-root",
+      "phase": "mutation",
+      "rc": 1,
+      "request": null,
+      "run_attempt_ordinal": 4,
+      "started_at": "2026-09-10T23:48:28.671062+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    }
+  ],
+  "expected_initial_requests": 4,
+  "local_authorization": {
+    "dispatch_root": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2397-a1-attempt4/output/pegasus-dispatch",
+    "hostname": "bnode015",
+    "pbs_jobid": "0:991865.nqsv",
+    "request_sha256": "669ed0e235912c2641c35ca0826b0776e50009d9be6488a6dd430e12c4f7a4e8",
+    "schema_version": "izanagi-dev-wave-mutation-attempt-marker/v1",
+    "submission_dir": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2397-a1-attempt4/output/pegasus-dispatch/9f1cde117fcf6ee073d5394cdeb64a8c"
+  },
+  "repo_head": "a9d20d7016794fb60df1926e71747a7353210eaf",
+  "runner_sha256": "2ce16ed504592ad73c1a4d6f3cd4393125e390a82e7190ea12cf89dd33d86ad1",
+  "schema": "izanagi-dev-wave-mutation-attempts-local/v1",
+  "spec_sha256": "b6c48ca4da2c2ce08ca026143737bc73c76f2e77779edcf2508db901191062e8",
+  "tool_sha256": "40521a96b5e65bf8ed92db6f67e5e43611e33d39795e4373b20f1b26144f6c76"
+}

@@ -1,0 +1,28 @@
+{
+  "destination": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2397-a1-attempt4/submit-tree/output/insights/2026-09-01_paper-story-a1-balanced5-pilot",
+  "files": {
+    "README.md": "21ad43bacfdac9db39790532bc4de317a7c1779531f02e016dee05757f4952ef",
+    "receipt.json": "e0c150d86fcac2ab37b263877ceb1d27e38a82ab44bebef7a987daf66a423d3b",
+    "result.json": "a5ac58e9771512b8c1721febd342af7d4e476cfea0184e63f7cf320f9f799517",
+    "sizing-pilot.json": "b4201083cc02434b6b300eb24b6916304bfcadc17c7259257e5cf2ee5a7451ed"
+  },
+  "publish": {
+    "guarantees": [
+      "A destination present at the fallback existence check is refused without publication.",
+      "Cooperating A-1 publishers cannot hold the same exclusive sibling claim.",
+      "Every materialized file and the completion marker exist in staging before publish.",
+      "No file is written below destination after directory publish."
+    ],
+    "limitations": [
+      "Fallback publication is not atomic no-replace against a non-cooperating writer.",
+      "An empty type-compatible destination created after the existence check and before the flags-zero renameat2 call may be replaced."
+    ],
+    "schema_version": "paper-story-a1-paired-materialization-publish/v1",
+    "selected_mechanism": "a1-exclusive-claim-check-then-renameat2",
+    "selection_observation": {
+      "errno": "EINVAL",
+      "rename_noreplace_attempted": true
+    }
+  },
+  "schema_version": "paper-story-a1-paired-materialization-complete/v1"
+}
