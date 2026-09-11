@@ -20914,6 +20914,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `layout.py` の `official output_root は repository 外でなければならない` が
   複数 test file で同時多発したら、失敗した `raw = ...` の path から祖先を辿って `.git` を探す。
 
+
+- **再発: 2026-09-11** — A-1実装waveのcampaign関連走で46件が/tmp/.gitにより出力先をrepo内と判定して赤になった。directoryは他者所有で非接触とし、Git祖先のない専用TMPDIRとrun_tests.pyの実行場所判定で再実行した。request991839の子は414passed/3skipped。親の取消要求はPRRで見送られinfra終了したため、子の終端・request hash・source cleanを確認してversioned/旧形式の両holdを解除した。記録はoutput/insights/2026-09-11/t2397-a1-attempt4/README.md。
 ### F764. 閉包 member を未 commit のまま検査すると全域が drift で赤になる [手順漏れ]
 
 - 事象: [T-2061] wave で `orchestrator/campaign/artifact_admission.py` を編集した直後の焦点走が
@@ -20928,6 +20930,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `CONTRACT_LOADER_RELATIVE_PATHS` に載っており、かつ `git status` でその path が未 commit なら本件。
   **実装の回帰ではない。**
 
+
+- **再発: 2026-09-11** — 未commitのloop.pyを含む状態でA-1関連走を始め、30件がcontract-loader-driftで拒否された。検査を緩めずcommit固定後に同じfileを再走し203passed。実装差分の失敗と未固定状態の拒否を区別した。
 ### F765. 待ち手が生存中の子に対して完了を返した [恒真ゲート]
 
 - 事象: 1 wave の中で 8 回以上、背景の待ちが「完了」を返したのに、待っていた `.done` が
@@ -21451,6 +21455,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (main worktree 側は入れ子 submodule が未初期化なので、引き元は wave worktree にする)。
 - 再発検知: 走行前に source と primary が同一 (= 独立 clone) であることを確認する。
 
+
+- **再発: 2026-09-11** — 変異probeはbaselineと6変異を記録したが、wrapperの共有木事後比較がfalseとなりrc125。同一の判定コードを独立cloneへ移した最終走では全期待nodeが一致し、shared_snapshot_matchesとteardown_completedがtrue、rc0となった。共有木検査を無効化せず、既存の独立clone手順を使った。
 ### F786. 変異 harness の `--resume` は赤い baseline から復帰できない [道具の前提ずれ]
 
 - 事象: 変異本走の baseline が 1 件の赤 (`test_codex_worker_launch.py::test_limit_stop_is_never_accepted`、
