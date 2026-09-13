@@ -7631,12 +7631,14 @@ def supervise_pair(
     frozen_schedule = run_root / "schedule.json"
     source_schedule_bytes = schedule_path.read_bytes()
     if frozen_schedule.exists():
-        if frozen_schedule.read_bytes() != source_schedule_bytes:
+        schedule_bytes = frozen_schedule.read_bytes()
+        if schedule_bytes != source_schedule_bytes:
             raise ValidationError("run-root schedule bytes changed", RC_ROUTING)
     else:
         frozen_schedule.write_bytes(source_schedule_bytes)
-    schedule_sha = _sha256(frozen_schedule.read_bytes())
-    schedule = _load_json_object(frozen_schedule)
+        schedule_bytes = frozen_schedule.read_bytes()
+    schedule_sha = _sha256(schedule_bytes)
+    schedule = _load_json_object(frozen_schedule, data=schedule_bytes)
     task_manifest_sha256 = _task_manifest_sha256(task_manifest)
     _require_task_manifest_sha256(
         schedule,
@@ -8968,9 +8970,10 @@ def _apply_score_failure(
     return joined
 
 
-def _load_json_object(path: Path) -> dict[str, Any]:
+def _load_json_object(path: Path, *, data: bytes | None = None) -> dict[str, Any]:
+    """data は同じ操作で path から読んだ bytes でなければならない。"""
     try:
-        value = json.loads(path.read_bytes())
+        value = json.loads(path.read_bytes() if data is None else data)
     except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
         raise ValidationError(f"cannot read JSON object {path}: {exc}", RC_AGGREGATE) from exc
     if not isinstance(value, dict):
@@ -9029,6 +9032,36 @@ def _artifact_path(
             f"{label} sha mismatch: {actual_sha} != {expected_sha}", RC_AGGREGATE
         )
     return path
+
+
+def _artifact_path_with_bytes(
+    manifest_path: Path,
+    descriptor: Any,
+    label: str,
+    *,
+    root: Path | None = None,
+) -> tuple[Path, bytes]:
+    if not isinstance(descriptor, dict):
+        raise ValidationError(f"{label} descriptor missing", RC_AGGREGATE)
+    path = _resolve_artifact(manifest_path, descriptor.get("path"))
+    if root is not None:
+        try:
+            path.relative_to(root.resolve())
+        except ValueError as exc:
+            raise ValidationError(f"{label} escapes artifact root", RC_AGGREGATE) from exc
+    expected_sha = descriptor.get("sha256")
+    if not isinstance(expected_sha, str) or len(expected_sha) != 64:
+        raise ValidationError(f"{label} sha256 missing", RC_AGGREGATE)
+    try:
+        data = path.read_bytes()
+        actual_sha = _sha256(data)
+    except OSError as exc:
+        raise ValidationError(f"{label} cannot be read: {exc}", RC_AGGREGATE) from exc
+    if actual_sha != expected_sha:
+        raise ValidationError(
+            f"{label} sha mismatch: {actual_sha} != {expected_sha}", RC_AGGREGATE
+        )
+    return path, data
 
 
 def _scan_session_rows(
@@ -11134,8 +11167,10 @@ def _replay_manifest(
         "material manifest",
         rc=RC_AGGREGATE,
     )
-    schedule_path = _artifact_path(manifest_path, manifest.get("schedule"), "schedule")
-    schedule = _load_json_object(schedule_path)
+    schedule_path, schedule_bytes = _artifact_path_with_bytes(
+        manifest_path, manifest.get("schedule"), "schedule"
+    )
+    schedule = _load_json_object(schedule_path, data=schedule_bytes)
     _require_task_manifest_sha256(
         schedule,
         task_manifest,
@@ -11149,7 +11184,7 @@ def _replay_manifest(
         slots.has_material_schedule_descriptor = manifest.get("schedule") is not None
         slots.material_manifest_sha256 = material_manifest_sha256
     reasons.extend(schedule_reasons)
-    schedule_sha = _sha256(schedule_path.read_bytes())
+    schedule_sha = _sha256(schedule_bytes)
     if manifest.get("schedule_sha256") != schedule_sha:
         reasons.append("manifest schedule_sha256 mismatch")
     attempts_raw = manifest.get("attempts")
@@ -11697,10 +11732,10 @@ def make_packets(
         if isinstance(schedule_descriptor, Mapping) and "slots" in schedule_descriptor:
             schedule = dict(schedule_descriptor)
         else:
-            schedule_path = _artifact_path(
+            schedule_path, schedule_bytes = _artifact_path_with_bytes(
                 manifest_path.resolve(), schedule_descriptor, "schedule"
             )
-            schedule = _load_json_object(schedule_path)
+            schedule = _load_json_object(schedule_path, data=schedule_bytes)
         _require_task_manifest_sha256(
             schedule,
             task_manifest,
