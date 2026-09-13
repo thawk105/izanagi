@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from orchestrator.tests.s8b_v2_freeze_fixture import in_sealed_fixture_process
+
 import copy
 import hashlib
 import json
@@ -218,12 +220,14 @@ def _validate(
     )
 
 
+@in_sealed_fixture_process
 def test_issue_and_validate_binary_admission_receipt_round_trip(tmp_path: Path):
     record = _honest_record(tmp_path, issuer=A.issue_binary_admission_receipt)
     assert _validate(record) == record["admission_receipt"]
     assert set(record) == set(A.PORTABLE_BUILT_KEYS)
 
 
+@in_sealed_fixture_process
 def test_issue_v2_receipt_rechecks_current_fetchcontent_root(
         tmp_path: Path, monkeypatch):
     original_validate = A.s8b_compiler_input.validate_compiler_input_manifest
@@ -267,6 +271,7 @@ def test_issue_v2_receipt_rechecks_current_fetchcontent_root(
         )
 
 
+@in_sealed_fixture_process
 def test_issue_v3_receipt_rechecks_current_dependency_prefix_roots(
         tmp_path: Path):
     def drift(root):
@@ -281,6 +286,7 @@ def test_issue_v3_receipt_rechecks_current_dependency_prefix_roots(
 
 
 @pytest.mark.parametrize("mutation", ["missing", "ambiguous"])
+@in_sealed_fixture_process
 def test_issue_v3_receipt_rejects_missing_and_ambiguous_dependency_root(
         tmp_path: Path, mutation):
     def mutate(root):
@@ -301,6 +307,7 @@ def test_issue_v3_receipt_rejects_missing_and_ambiguous_dependency_root(
         )
 
 
+@in_sealed_fixture_process
 def test_issue_v3_receipt_rejects_unpresented_dependency_context(tmp_path: Path):
     with pytest.raises(A.BinaryAdmissionError, match="compiler input manifest"):
         _honest_record(
@@ -686,6 +693,7 @@ def test_issuer_requires_source_protection_argument(tmp_path):
         A.issue_binary_admission_receipt(**arguments)
 
 
+@in_sealed_fixture_process
 def test_issuer_rejects_pickle_reconstruction_of_issued_capability(tmp_path):
     def reconstructed_issuer(**arguments):
         original = arguments["source_protection"]

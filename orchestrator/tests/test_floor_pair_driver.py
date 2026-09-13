@@ -135,6 +135,13 @@ def _portable_build_record(
         "proof": {
             "compiler_input_manifest": compiler_input,
             "materialization_binding": binding,
+            "source_protection": {
+                "kind": "sealed-build",
+                "source_snapshot_sha256": materialization_sha256,
+                "expected_materialization_sha256": materialization_sha256,
+                "binary_sha256": binary_sha256,
+                "compiler_input_manifest_sha256": compiler_input_sha256,
+            },
         },
     }
     receipt["receipt_sha256"] = _map_sha256(receipt, ensure_ascii=True)

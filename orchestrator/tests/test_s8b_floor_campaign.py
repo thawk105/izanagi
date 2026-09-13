@@ -16,6 +16,8 @@ manifest.schedule 権威 + attempt registry / env contract 結線 / duration 台
 """
 from __future__ import annotations
 
+from orchestrator.tests.s8b_v2_freeze_fixture import in_sealed_fixture_process
+
 import ast
 import copy
 import contextlib
@@ -671,7 +673,9 @@ def _bind_fixture_payload_policy(repo_root: Path, binding: object) -> object:
 
 
 def _fixture_floor_build_result(**kwargs) -> SimpleNamespace:
+    # Dependency-postflight unit tests stop before successful receipt issuance.
     return SimpleNamespace(
+        source_protection=None,
         toolchain_manifest=dict(_FIXTURE_TOOLCHAIN_MANIFEST),
         toolchain_manifest_sha256=_fixture_toolchain_manifest_sha256(),
         **kwargs,
@@ -1151,6 +1155,7 @@ def test_assemble_manifest_has_independent_official_available_gate(monkeypatch):
         )
 
 
+@in_sealed_fixture_process
 def test_perf_unavailable_continues_and_records_one_run_receipt(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -1193,6 +1198,7 @@ def test_perf_unavailable_continues_and_records_one_run_receipt(tmp_path):
     ]
 
 
+@in_sealed_fixture_process
 def test_fresh_build_failure_persists_perf_preflight_journal_receipt(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -1219,6 +1225,7 @@ def test_fresh_build_failure_persists_perf_preflight_journal_receipt(
     assert not (journals[0].parent / "result.json").exists()
 
 
+@in_sealed_fixture_process
 def test_pilot_available_build_failure_persists_perf_preflight_journal_receipt(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -1243,6 +1250,7 @@ def test_pilot_available_build_failure_persists_perf_preflight_journal_receipt(
     ]
 
 
+@in_sealed_fixture_process
 def test_fresh_build_failure_persists_perf_preflight_with_external_checkpoint_binding(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -1290,6 +1298,7 @@ def test_fresh_build_failure_persists_perf_preflight_with_external_checkpoint_bi
     ]
 
 
+@in_sealed_fixture_process
 def test_perf_preflight_journal_record_is_outside_certified_artifacts(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -1347,6 +1356,7 @@ def test_perf_preflight_journal_record_is_outside_certified_artifacts(tmp_path):
         )
 
 
+@in_sealed_fixture_process
 def test_perf_preflight_journal_record_is_trace_lane_agnostic(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -1376,6 +1386,7 @@ def test_perf_preflight_journal_record_is_trace_lane_agnostic(tmp_path):
     assert not {"trace", "use_perf", "claim_scope"} & set(journal_record)
 
 
+@in_sealed_fixture_process
 def test_perf_preflight_journal_record_has_no_lane_fields_after_success(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -1399,6 +1410,7 @@ def test_perf_preflight_journal_record_has_no_lane_fields_after_success(tmp_path
     assert not {"trace", "use_perf", "claim_scope"} & set(journal_record)
 
 
+@in_sealed_fixture_process
 def test_perf_preflight_journal_record_has_no_lane_fields_after_build_failure(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -1424,6 +1436,7 @@ def test_perf_preflight_journal_record_has_no_lane_fields_after_build_failure(
     assert not {"trace", "use_perf", "claim_scope"} & set(journal_record)
 
 
+@in_sealed_fixture_process
 def test_official_unavailable_preflight_reaches_measurement_once(tmp_path, monkeypatch):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -1454,6 +1467,7 @@ def test_official_unavailable_preflight_reaches_measurement_once(tmp_path, monke
     )
 
 
+@in_sealed_fixture_process
 def test_perf_available_records_receipt_and_preserves_perf_shape(tmp_path):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -1483,6 +1497,7 @@ def test_perf_available_records_receipt_and_preserves_perf_shape(tmp_path):
     ]
 
 
+@in_sealed_fixture_process
 def test_pilot_default_perf_preflight_delegate_is_resolved_once_at_call_time(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -1513,6 +1528,7 @@ def test_pilot_default_perf_preflight_delegate_is_resolved_once_at_call_time(
     assert seen[0]["perf_candidates"]
 
 
+@in_sealed_fixture_process
 def test_perf_probe_error_aborts_before_build_or_manifest(tmp_path):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -1528,6 +1544,7 @@ def test_perf_probe_error_aborts_before_build_or_manifest(tmp_path):
     assert not (tmp_path / "bin").exists()
 
 
+@in_sealed_fixture_process
 def test_resume_reuses_manifest_perf_preflight_without_reprobing(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -2803,6 +2820,7 @@ class TestFloorToolchainBinding:
             )
 
 
+@in_sealed_fixture_process
 def test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -2898,6 +2916,7 @@ def test_build_cells_resolves_site_compilers_and_binding_once_before_cell_loop(
     assert len(list(marker_root.glob("phase-build-*.json"))) == 2
 
 
+@in_sealed_fixture_process
 def test_floor_sort_cell_injects_verified_cxx_and_dependency_into_oracle(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -2995,6 +3014,7 @@ def test_floor_sort_cell_injects_verified_cxx_and_dependency_into_oracle(
     )
 
 
+@in_sealed_fixture_process
 def test_real_floor_prepare_material_oracle_and_capability_series_when_configured(
         tmp_path, monkeypatch):
     configured = os.environ.get("IZANAGI_SORT_SWO_REAL_MASSTREE_ROOT")
@@ -3294,6 +3314,7 @@ def test_dependency_bound_sort_best_rejects_nonexact_builder_before_call(
     assert build_calls == []
 
 
+@in_sealed_fixture_process
 def test_dependency_bound_sort_best_default_builder_receives_literal_capability(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -3444,6 +3465,7 @@ def test_production_floor_requires_staging_before_toolchain_or_oracle_or_build(
     assert calls == []
 
 
+@in_sealed_fixture_process
 def test_production_floor_preflight_marker_precedes_toolchain_and_dependency_probes(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -3525,6 +3547,7 @@ def test_production_floor_preflight_marker_precedes_toolchain_and_dependency_pro
     ]
 
 
+@in_sealed_fixture_process
 def test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -5222,6 +5245,7 @@ def test_floor_oracle_dependency_rejects_postbuild_tracked_source_drift(
         ),
     ],
 )
+@in_sealed_fixture_process
 def test_build_cells_production_postflight_rejects_dependency_drift(
         tmp_path, monkeypatch, mutation, detail_code):
     freeze = _freeze_document()
@@ -5944,6 +5968,7 @@ def test_floor_dependency_base_creation_failure_persists_before_oracle_or_build(
 
 
 @pytest.mark.parametrize("cached", [False, True], ids=["fresh", "cache-hit"])
+@in_sealed_fixture_process
 def test_floor_postflight_failure_persists_unavailable_before_binary_admission(
         tmp_path, monkeypatch, cached):
     freeze = _freeze_document()
@@ -6679,6 +6704,7 @@ def _floor_claim_subprocess_worker(
     return 2
 
 
+@in_sealed_fixture_process
 def test_two_floor_subprocesses_same_protocol_different_runs_never_both_succeed(
         tmp_path):
     """MUT-E1: two real floor subprocesses contend on one durable claim root."""
@@ -7279,6 +7305,7 @@ def test_legacy_resume_manifest_without_perf_preflight_is_not_backfilled(tmp_pat
     assert path.read_bytes() == raw
 
 
+@in_sealed_fixture_process
 def test_legacy_resume_manifest_with_perf_preflight_event_is_rejected(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -7359,6 +7386,7 @@ def test_assemble_manifest_records_official_degraded_observation(tmp_path):
     }
 
 
+@in_sealed_fixture_process
 def test_official_result_rejects_perf_preflight_receipt_fail_closed(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -7404,6 +7432,7 @@ def test_official_result_rejects_perf_preflight_receipt_fail_closed(tmp_path):
     assert official_assembled["eligible_for_refreeze"] is False
 
 
+@in_sealed_fixture_process
 def test_official_degraded_result_records_strict_perf_observation(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -8515,6 +8544,7 @@ def test_floor_driver_rejects_removed_confirmation_option():
     assert exc_info.value.code == 2
 
 
+@in_sealed_fixture_process
 def test_private_core_claims_only_after_nonmeasurement_preflight(tmp_path):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -8559,6 +8589,7 @@ def test_private_core_claims_only_after_nonmeasurement_preflight(tmp_path):
     assert order.index("perf") < order.index("measure")
 
 
+@in_sealed_fixture_process
 def test_private_signature_source_keeps_real_claim_ledger_and_tickets(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -8621,6 +8652,7 @@ def _forbid_measure(*_a, **_kw):
 # 4. env contract 結線 (F4) — lookup fail-closed + machine-pin                  #
 # =========================================================================== #
 
+@in_sealed_fixture_process
 def test_run_campaign_rejects_unknown_env_tag(tmp_path):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze), env_tag="pegasus-unknown")
@@ -8795,6 +8827,7 @@ def test_machine_env_tag_for_site_rejects_unhandled_site(monkeypatch):
         )
 
 
+@in_sealed_fixture_process
 def test_run_campaign_machine_pin_rejects_contract_tag_mismatch(tmp_path):
     """契約の env_tag が registry-derived machine tag と一致しなければ拒否する。"""
     freeze = _freeze_document()
@@ -8821,6 +8854,7 @@ def test_run_campaign_machine_pin_rejects_contract_tag_mismatch(tmp_path):
                           probe_fn=lambda: (1, "", ""))
 
 
+@in_sealed_fixture_process
 def test_non_single_process_contract_does_not_require_floor_submit_receipt(
         tmp_path, monkeypatch):
     """POS-7: a non-single-process contract keeps the receipt gate out of path."""
@@ -8846,6 +8880,7 @@ def test_non_single_process_contract_does_not_require_floor_submit_receipt(
     assert outcome["status"] == "completed"
 
 
+@in_sealed_fixture_process
 def test_required_binding_missing_rejected_by_production_entry_without_side_effects(
         tmp_path, monkeypatch):
     ctx = _install_required_contract(tmp_path, monkeypatch)
@@ -8864,6 +8899,7 @@ def test_required_binding_missing_rejected_by_production_entry_without_side_effe
     assert not out_root.exists()
 
 
+@in_sealed_fixture_process
 def test_required_script_sha_receipt_mismatch_is_zero_side_effect_production_refusal(
         tmp_path, monkeypatch):
     """MUT-C1 / MUT-E2: production entry must consume the canonical receipt."""
@@ -8890,6 +8926,7 @@ def test_required_script_sha_receipt_mismatch_is_zero_side_effect_production_ref
     assert _tree_snapshot(ctx["out_root"]) == before
 
 
+@in_sealed_fixture_process
 def test_required_nonce_receipt_mismatch_is_zero_side_effect_refusal(
         tmp_path, monkeypatch):
     """MUT-C2: expected nonce must come from ReservationBinding, not receipt."""
@@ -8916,6 +8953,7 @@ def test_required_nonce_receipt_mismatch_is_zero_side_effect_refusal(
     assert _tree_snapshot(ctx["out_root"]) == before
 
 
+@in_sealed_fixture_process
 def test_required_v1_receipt_mode_mismatch_rejected_without_side_effects(
         tmp_path, monkeypatch):
     ctx = _install_required_contract(tmp_path, monkeypatch)
@@ -8936,6 +8974,7 @@ def test_required_v1_receipt_mode_mismatch_rejected_without_side_effects(
     assert not ctx["out_root"].exists()
 
 
+@in_sealed_fixture_process
 def test_required_attestation_comparison_failure_has_zero_side_effects(
         tmp_path, monkeypatch):
     ctx = _install_required_contract(tmp_path, monkeypatch)
@@ -8959,6 +8998,7 @@ def test_required_attestation_comparison_failure_has_zero_side_effects(
     assert not ctx["out_root"].exists()
 
 
+@in_sealed_fixture_process
 def test_required_calibration_sha_mismatch_has_zero_side_effects(tmp_path, monkeypatch):
     ctx = _install_required_contract(tmp_path, monkeypatch)
     bad_contract = dataclasses.replace(
@@ -8986,6 +9026,7 @@ def test_required_calibration_sha_mismatch_has_zero_side_effects(tmp_path, monke
     assert not ctx["out_root"].exists()
 
 
+@in_sealed_fixture_process
 def test_required_existing_claim_reports_owner_and_changes_nothing(
         tmp_path, monkeypatch):
     ctx = _install_required_contract(tmp_path, monkeypatch)
@@ -9018,6 +9059,7 @@ def test_required_existing_claim_reports_owner_and_changes_nothing(
     assert _tree_snapshot(ctx["out_root"]) == before
 
 
+@in_sealed_fixture_process
 def test_required_same_protocol_different_run_is_rejected_without_new_side_effects(
         tmp_path, monkeypatch):
     """MUT-C3: floor claim digest is protocol SHA, while identity remains per-run."""
@@ -9055,6 +9097,7 @@ def test_required_same_protocol_different_run_is_rejected_without_new_side_effec
     assert _tree_snapshot(ctx["out_root"]) == before
 
 
+@in_sealed_fixture_process
 def test_required_missing_preprovisioned_claim_root_is_side_effect_free(
         tmp_path, monkeypatch):
     ctx = _install_required_contract(tmp_path, monkeypatch)
@@ -9070,6 +9113,7 @@ def test_required_missing_preprovisioned_claim_root_is_side_effect_free(
     assert not ctx["out_root"].exists()
 
 
+@in_sealed_fixture_process
 def test_required_reservation_loss_is_typed_campaign_terminal_with_no_values(
         tmp_path, monkeypatch, _activate_synthetic_env_authority):
     ctx = _install_required_contract(tmp_path, monkeypatch)
@@ -9103,6 +9147,7 @@ def test_required_reservation_loss_is_typed_campaign_terminal_with_no_values(
     assert not (journals[0].parent / "result.json").exists()
 
 
+@in_sealed_fixture_process
 def test_required_recheck_pins_remaining_budget_margin_and_injected_monotonic_clock(
         tmp_path, monkeypatch, _activate_synthetic_env_authority):
     ctx = _install_required_contract(tmp_path, monkeypatch)
@@ -9158,6 +9203,7 @@ def test_required_recheck_pins_remaining_budget_margin_and_injected_monotonic_cl
     assert captured == [(expected_required, 600, clock)]
 
 
+@in_sealed_fixture_process
 def test_required_mode_happy_path_pins_journal_claim_and_receipt_shape(
         tmp_path, monkeypatch, _activate_synthetic_env_authority):
     ctx = _install_required_contract(tmp_path, monkeypatch)
@@ -9219,6 +9265,7 @@ def test_required_mode_happy_path_pins_journal_claim_and_receipt_shape(
     assert journal[-1] == {"event": "terminal", "status": "completed"}
 
 
+@in_sealed_fixture_process
 def test_floor_legacy_build_fallback_hits_contract_provenance_assert(
         tmp_path, monkeypatch):
     ctx = _install_required_contract(tmp_path, monkeypatch)
@@ -9241,6 +9288,7 @@ def test_floor_legacy_build_fallback_hits_contract_provenance_assert(
         )
 
 
+@in_sealed_fixture_process
 def test_run_campaign_rejects_freeze_byte_hash_mismatch(tmp_path):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -9252,6 +9300,7 @@ def test_run_campaign_rejects_freeze_byte_hash_mismatch(tmp_path):
                       probe_fn=lambda: (1, "", ""))
 
 
+@in_sealed_fixture_process
 def test_measure_fn_default_uses_contract_clocks_and_numactl(tmp_path):
     """measure_fn=None 経路の既定 closure が contract.clocks_per_us / contract.numactl を
     measure_point に渡す (CLK/NUMA の p2_2 直 import 除去, F4)。"""
@@ -9292,6 +9341,7 @@ def test_measure_fn_default_uses_contract_clocks_and_numactl(tmp_path):
     assert seen["holdout_observation_admission"].permitted_run_once_calls == 5
 
 
+@in_sealed_fixture_process
 def test_measure_fn_default_passes_use_perf_false_only_for_unavailable_pilot(
         tmp_path):
     freeze = _freeze_document()
@@ -9324,6 +9374,7 @@ def test_measure_fn_default_passes_use_perf_false_only_for_unavailable_pilot(
 
 
 @pytest.mark.parametrize("mutation", ["clean", "nonzero_rc", "missing_cycles", "no_perf"])
+@in_sealed_fixture_process
 def test_rep_integrity_positive_control_default_measure_point(tmp_path, monkeypatch, mutation):
     """M1/M2/P3: default closure で中央 101 の資格だけを機械証跡から決める。"""
     freeze = _freeze_document()
@@ -9725,6 +9776,7 @@ def test_rep_integrity_precedes_partial_in_runner_branch_order():
     )
 
 
+@in_sealed_fixture_process
 def test_floor_default_durable_policy_rejects_external_output_without_side_effects(tmp_path):
     freeze = _freeze_document()
     out_root = tmp_path / "outside-default-approval"
@@ -9739,6 +9791,7 @@ def test_floor_default_durable_policy_rejects_external_output_without_side_effec
     assert not out_root.exists()
 
 
+@in_sealed_fixture_process
 def test_floor_journal_manifest_and_binary_store_open_through_capability(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -9769,6 +9822,7 @@ def test_floor_journal_manifest_and_binary_store_open_through_capability(
 # 5. session 有効性 → retry → floor 未確定の伝播                                #
 # =========================================================================== #
 
+@in_sealed_fixture_process
 def test_partial_reps_invalidates_session_and_burns_retry_then_nulls_pair(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -9802,6 +9856,7 @@ def test_partial_reps_invalidates_session_and_burns_retry_then_nulls_pair(tmp_pa
     assert result["floors"]["rr23"]["scalar_alt"] is not None
 
 
+@in_sealed_fixture_process
 def test_stock_flaky_nulls_entire_holdout_including_scale_ref(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -9822,6 +9877,7 @@ def test_stock_flaky_nulls_entire_holdout_including_scale_ref(tmp_path):
         assert floor is not None, cfg  # 無関係 holdout は無傷
 
 
+@in_sealed_fixture_process
 def test_retry_sequence_is_metamorphic_to_other_cells_values(tmp_path):
     """他セルの性能値を変えても、失敗セルの retry 列 (attempt_id/ordinal) は不変 (β-4)。"""
     freeze = _freeze_document()
@@ -9855,6 +9911,7 @@ def test_retry_sequence_is_metamorphic_to_other_cells_values(tmp_path):
 # 6. probe 臨界区間 (競合 → 無効 + 生出力 / 実行不能 → abort / post-probe finally) #
 # =========================================================================== #
 
+@in_sealed_fixture_process
 def test_probe_competing_invalidates_session_with_raw_stdout_in_journal(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -9874,6 +9931,7 @@ def test_probe_competing_invalidates_session_with_raw_stdout_in_journal(tmp_path
     assert sample["probe_before"]["competing"]
 
 
+@in_sealed_fixture_process
 def test_post_probe_runs_on_launch_error_and_competing_takes_precedence(tmp_path):
     """measure が例外 (全 rep 起動不能) の経路でも post-probe を実行し、post-probe 競合が
     launch_failure より優先される (β-7 の precedence)。"""
@@ -9916,6 +9974,7 @@ def test_post_probe_runs_on_launch_error_and_competing_takes_precedence(tmp_path
     (lambda: (_ for _ in ()).throw(subprocess.TimeoutExpired("pgrep", 120)),
      "有限時間"),
 ])
+@in_sealed_fixture_process
 def test_probe_unexecutable_or_inconsistent_aborts_campaign(tmp_path, probe_fn, match):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -9953,6 +10012,7 @@ def test_default_probe_uses_frozen_verify_timeout(monkeypatch):
     }
 
 
+@in_sealed_fixture_process
 def test_probe_unparseable_pid_line_invalidates_session_not_abort(tmp_path):
     """rc==0 で先頭 token が PID 形でない行は、共有分類器が fails-closed で競合側に
     残す (素性不明を non-competing 扱いにしない)。floor では abort ではなく
@@ -9971,6 +10031,7 @@ def test_probe_unparseable_pid_line_invalidates_session_not_abort(tmp_path):
     assert all(s["excluded_reason"] == "competing_process" for s in result["sessions"])
 
 
+@in_sealed_fixture_process
 def test_probe_own_descendant_pid_detected_as_competing_b2(tmp_path):
     """B-2 回帰: floor 側でも子孫除外への逆戻りを検出する。自プロセス (= pytest プロセス)
     の実子 PID を probe が返しても、own-PID-only 縮小の下では競合として検出され session が
@@ -10012,6 +10073,7 @@ def test_probe_classifier_own_pid_kwarg_is_injectable_and_fail_closed():
 # 7. performance_anomaly (session 内 CV>10%) / machine_anomaly (セル間 CV>15%)   #
 # =========================================================================== #
 
+@in_sealed_fixture_process
 def test_performance_anomaly_invalidates_session_and_nulls_pair(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -10035,6 +10097,7 @@ def test_performance_anomaly_invalidates_session_and_nulls_pair(tmp_path):
     assert result["floors"]["rr79"]["pairs"]["ident_all"] is None
 
 
+@in_sealed_fixture_process
 def test_machine_anomaly_valid_cell_but_pair_null(tmp_path):
     """セル間 CV>15% のセルは統計的には有効 (n_valid=8) だが当該 pair は machine_anomaly で null。"""
     freeze = _freeze_document()
@@ -10067,6 +10130,7 @@ def test_machine_anomaly_valid_cell_but_pair_null(tmp_path):
 # 8. create-only + journal append + 冪等 finalization (β-11)                    #
 # =========================================================================== #
 
+@in_sealed_fixture_process
 def test_create_only_rejects_overwrite_journal_appends(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -10120,6 +10184,7 @@ def test_manifest_atomic_publish_never_exposes_partial_destination(tmp_path, mon
     assert pending.is_file() and pending.stat().st_size > 0
 
 
+@in_sealed_fixture_process
 def test_idempotent_finalization_after_result_json_crash(tmp_path):
     """completed terminal 後・publish 前 crash を模し、resume は publish だけ完遂する。"""
     freeze = _freeze_document()
@@ -10151,6 +10216,7 @@ def test_idempotent_finalization_after_result_json_crash(tmp_path):
     assert not any(r.get("event") == "resume-start" for r in journal)
 
 
+@in_sealed_fixture_process
 def test_official_finalize_pending_resume_reassembles_refreeze_ineligible(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -10209,6 +10275,7 @@ def test_official_finalize_pending_resume_reassembles_refreeze_ineligible(
     assert resume_measure.calls == []
 
 
+@in_sealed_fixture_process
 def test_result_json_stays_hidden_when_publish_stops_after_markdown(
         tmp_path, monkeypatch):
     """Default-policy True staging の途中停止でも権威 result を露出しない。"""
@@ -10296,6 +10363,7 @@ def test_result_json_stays_hidden_when_publish_stops_after_markdown(
     assert not (run_dir / "result.json").exists()
 
 
+@in_sealed_fixture_process
 def test_finalize_pending_resume_rejects_tampered_staged_result(tmp_path, monkeypatch):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -10327,6 +10395,7 @@ def test_finalize_pending_resume_rejects_tampered_staged_result(tmp_path, monkey
         )
 
 
+@in_sealed_fixture_process
 def test_finalize_pending_resume_rejects_tampered_published_result(tmp_path):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -10371,6 +10440,7 @@ def test_finalize_completed_terminal_recheck_fires_when_called_without_classify(
 @pytest.mark.parametrize("crash_point", [
     "result-write-after", "self-check-after", "terminal-before", "terminal-after",
 ])
+@in_sealed_fixture_process
 def test_two_phase_finalize_crash_injection_recovers_at_all_four_boundaries(
         tmp_path, monkeypatch, crash_point):
     freeze = _freeze_document()
@@ -10521,6 +10591,7 @@ def test_journal_resume_state_rejects_nonresumable_terminals(
         )
 
 
+@in_sealed_fixture_process
 def test_pilot_pre_manifest_perf_preflight_resume_remains_l_rejected(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -10555,6 +10626,7 @@ def test_pilot_pre_manifest_perf_preflight_resume_remains_l_rejected(
         )
 
 
+@in_sealed_fixture_process
 def test_pilot_m_prestart_perf_preflight_resume_rebuilds_and_runs(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -10592,6 +10664,7 @@ def test_pilot_m_prestart_perf_preflight_resume_rebuilds_and_runs(
 
 
 @pytest.mark.parametrize("mutation", ["malformed", "duplicate", "manifest-mismatch"])
+@in_sealed_fixture_process
 def test_m_running_rejects_invalid_perf_preflight_event(
         tmp_path, mutation):
     freeze = _freeze_document()
@@ -10645,6 +10718,7 @@ def _crash_at(n_crash: int):
     return measure_fn, call_count
 
 
+@in_sealed_fixture_process
 def test_resume_forward_only_skips_completed_and_crashed_seqs(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -10694,6 +10768,7 @@ def test_resume_forward_only_skips_completed_and_crashed_seqs(tmp_path):
     assert result["cells"][crashed_cell]["valid"] is False
 
 
+@in_sealed_fixture_process
 def test_resume_runner_replays_only_admission_proved_cut6_m_plus_a_minus(
     tmp_path, monkeypatch,
 ):
@@ -10758,6 +10833,7 @@ def test_resume_runner_replays_only_admission_proved_cut6_m_plus_a_minus(
     assert len(resumed_measure.calls) == len(outcome["result"]["sessions"])
 
 
+@in_sealed_fixture_process
 def test_certified_cut6_existing_marker_competing_probe_aborts_without_result(
     tmp_path, monkeypatch,
 ):
@@ -10832,6 +10908,7 @@ def test_certified_cut6_existing_marker_competing_probe_aborts_without_result(
     assert not (run_dir / "result.md").exists()
 
 
+@in_sealed_fixture_process
 def test_resume_rejects_tampered_binary_but_succeeds_when_untampered(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -10866,6 +10943,7 @@ def test_resume_rejects_tampered_binary_but_succeeds_when_untampered(tmp_path):
     assert outcome["status"] == "completed"
 
 
+@in_sealed_fixture_process
 def test_resume_rejects_tampered_manifest_schedule(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -10892,6 +10970,7 @@ def test_resume_rejects_tampered_manifest_schedule(tmp_path):
                       resume_dir=run_dir, measure_fn=resume_fn, probe_fn=lambda: (1, "", ""))
 
 
+@in_sealed_fixture_process
 def test_resume_rejects_duplicate_session_start(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -10917,6 +10996,7 @@ def test_resume_rejects_duplicate_session_start(tmp_path):
                       resume_dir=run_dir, measure_fn=resume_fn, probe_fn=lambda: (1, "", ""))
 
 
+@in_sealed_fixture_process
 def test_resume_does_not_reissue_retry_slot_after_retry_start_crash(tmp_path):
     """retry の session-start (authorization) 後・完了前で crash した枠は resume で再発行しない
     (β-5: 枠消費は authorization の fsync 時点)。"""
@@ -10974,6 +11054,7 @@ def test_resume_does_not_reissue_retry_slot_after_retry_start_crash(tmp_path):
 # 10. end-to-end golden floor 値 + verify 改竄検出 + duration 台帳               #
 # =========================================================================== #
 
+@in_sealed_fixture_process
 def test_end_to_end_golden_floor_values_and_tamper_detection(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -11023,6 +11104,7 @@ def test_end_to_end_golden_floor_values_and_tamper_detection(tmp_path):
     )
 
 
+@in_sealed_fixture_process
 def test_result_json_records_per_attempt_duration_and_no_absolute_monotonic(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -11057,6 +11139,7 @@ def test_result_json_records_per_attempt_duration_and_no_absolute_monotonic(tmp_
     assert "除外 session (理由別件数)" in md
 
 
+@in_sealed_fixture_process
 def test_floor_manifest_binary_sha256_matches_real_file_bytes(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -11740,6 +11823,7 @@ def test_floor_preflight_rejects_duplicate_key_in_journal(tmp_path):
         )
 
 
+@in_sealed_fixture_process
 def test_pilot_does_not_apply_official_freeze_allowlist_scan(tmp_path):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -11763,6 +11847,7 @@ def test_pilot_does_not_apply_official_freeze_allowlist_scan(tmp_path):
     assert rogue.read_bytes() == b"pilot must not run official preflight"
 
 
+@in_sealed_fixture_process
 def test_repo_root_seam_runs_production_clean_scan_on_real_tmp_repo(tmp_path):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -11804,6 +11889,7 @@ def test_repo_root_seam_runs_production_clean_scan_on_real_tmp_repo(tmp_path):
     assert cert["clean_scan_digest"] == expected
 
 
+@in_sealed_fixture_process
 def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
     """固定 seal の consumer replay を official core test seam で通す。
 
@@ -12369,6 +12455,7 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
     assert source_before == clone_before
 
 
+@in_sealed_fixture_process
 def test_deterministic_artifacts_across_roots_and_subprocess_environments(tmp_path):
     roots = [
         tmp_path / "短",
@@ -12408,6 +12495,7 @@ def test_deterministic_artifacts_across_roots_and_subprocess_environments(tmp_pa
         assert observations[0]["inodes"][name] != observations[1]["inodes"][name]
 
 
+@in_sealed_fixture_process
 def test_each_determinism_seam_reaches_its_expected_json_pointer(tmp_path):
     observation = _deterministic_official_artifacts(tmp_path / "sentinel-root")
     run_dir = Path(observation["run_dir"])
@@ -12445,6 +12533,7 @@ def test_each_determinism_seam_reaches_its_expected_json_pointer(tmp_path):
     assert result["eligible_for_refreeze"] is False
 
 
+@in_sealed_fixture_process
 def test_new_seam_defaults_delegate_to_production_functions(tmp_path, monkeypatch):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -12798,6 +12887,7 @@ def test_cut6_replay_rejects_truthy_non_bool_verdict():
     assert replayed == []
 
 
+@in_sealed_fixture_process
 def test_resume_runner_produces_one_retry_from_admission_selected_recovery(
     tmp_path, monkeypatch,
 ):
@@ -13397,6 +13487,7 @@ def test_revalidate_issued_certificate_rejects_tampered_clean_digest(tmp_path):
         )
 
 
+@in_sealed_fixture_process
 def test_official_fresh_issues_certificate_and_binds_wall_ledger(tmp_path, monkeypatch):
     repo_before = _real_output_snapshot()
     freeze = _freeze_document()
@@ -13428,6 +13519,7 @@ def test_official_fresh_issues_certificate_and_binds_wall_ledger(tmp_path, monke
     assert repo_before == _real_output_snapshot()
 
 
+@in_sealed_fixture_process
 def test_checkpoint_callback_is_after_cert_validation_and_before_launch_start(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -13486,6 +13578,7 @@ def test_checkpoint_raw_hash_recheck_fires_before_launch_start(tmp_path, monkeyp
     assert not (run_dir / "journal.jsonl").exists()
 
 
+@in_sealed_fixture_process
 def test_official_scan_rejection_has_zero_filesystem_side_effects(tmp_path, monkeypatch):
     repo_before = _real_output_snapshot()
     freeze = _freeze_document()
@@ -13505,6 +13598,7 @@ def test_official_scan_rejection_has_zero_filesystem_side_effects(tmp_path, monk
     assert repo_before == _real_output_snapshot()
 
 
+@in_sealed_fixture_process
 def test_official_build_failure_leaves_durable_launch_start(tmp_path, monkeypatch):
     repo_before = _real_output_snapshot()
     freeze = _freeze_document()
@@ -13547,6 +13641,7 @@ def test_official_build_failure_leaves_durable_launch_start(tmp_path, monkeypatc
     assert repo_before == _real_output_snapshot()
 
 
+@in_sealed_fixture_process
 def test_l_resume_rejects_extra_run_dir_file(tmp_path, monkeypatch):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -13572,6 +13667,7 @@ def test_l_resume_rejects_extra_run_dir_file(tmp_path, monkeypatch):
         )
 
 
+@in_sealed_fixture_process
 def test_l_resume_rejects_symlinked_launch_certificate(tmp_path, monkeypatch):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -13604,6 +13700,7 @@ def test_l_resume_rejects_symlinked_launch_certificate(tmp_path, monkeypatch):
             )
 
 
+@in_sealed_fixture_process
 def test_m_prestart_resume_starts_runner_fresh_without_resume_start(tmp_path, monkeypatch):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -13639,6 +13736,7 @@ def test_m_prestart_resume_starts_runner_fresh_without_resume_start(tmp_path, mo
     assert not any(r.get("event") == "resume-start" for r in journal)
 
 
+@in_sealed_fixture_process
 def test_official_resume_validates_certificate_and_completes(tmp_path, monkeypatch):
     repo_before = _real_output_snapshot()
     freeze = _freeze_document()
@@ -13888,6 +13986,7 @@ def test_fresh_run_rejects_recorded_g1_when_current_contract_is_g2_before_io(
     assert not out_root.exists()
 
 
+@in_sealed_fixture_process
 def test_current_admission_reuses_exact_contract_across_successful_run(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -13965,6 +14064,7 @@ def test_current_admission_reuses_exact_contract_across_successful_run(
     assert all(candidate is contract for calls in seen.values() for candidate in calls)
 
 
+@in_sealed_fixture_process
 def test_resume_under_unchanged_current_contract_generation_completes(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -13993,6 +14093,7 @@ def test_resume_under_unchanged_current_contract_generation_completes(
     assert resume_measure.call_details
 
 
+@in_sealed_fixture_process
 def test_resume_rejects_recorded_g1_when_current_contract_is_g2_before_calibration(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -14042,6 +14143,7 @@ def test_resume_rejects_recorded_g1_when_current_contract_is_g2_before_calibrati
         assert journal_path.read_bytes() == journal_before
 
 
+@in_sealed_fixture_process
 def test_official_resume_rejects_tampered_certificate(tmp_path, monkeypatch):
     repo_before = _real_output_snapshot()
     freeze = _freeze_document()
@@ -14067,6 +14169,7 @@ def test_official_resume_rejects_tampered_certificate(tmp_path, monkeypatch):
     assert repo_before == _real_output_snapshot()
 
 
+@in_sealed_fixture_process
 def test_official_resume_rejects_launch_start_utc_not_bound_to_certificate(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -14099,6 +14202,7 @@ def test_official_resume_rejects_launch_start_utc_not_bound_to_certificate(
             )
 
 
+@in_sealed_fixture_process
 def test_official_resume_rejects_extra_launch_start_key(tmp_path, monkeypatch):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -14130,6 +14234,7 @@ def test_official_resume_rejects_extra_launch_start_key(tmp_path, monkeypatch):
             )
 
 
+@in_sealed_fixture_process
 def test_official_resume_rejects_renamed_run_dir(tmp_path, monkeypatch):
     repo_before = _real_output_snapshot()
     freeze = _freeze_document()
@@ -14155,6 +14260,7 @@ def test_official_resume_rejects_renamed_run_dir(tmp_path, monkeypatch):
     assert repo_before == _real_output_snapshot()
 
 
+@in_sealed_fixture_process
 def test_official_resume_rejects_certificate_time_not_bound_to_run_id(
         tmp_path, monkeypatch):
     repo_before = _real_output_snapshot()
@@ -14199,6 +14305,7 @@ def test_official_resume_rejects_certificate_time_not_bound_to_run_id(
 
 
 @pytest.mark.parametrize("contamination", ["certificate-file", "launch-start", "campaign-key"])
+@in_sealed_fixture_process
 def test_pilot_resume_rejects_launch_certificate_contamination(
         tmp_path, contamination):
     repo_before = _real_output_snapshot()
@@ -14234,6 +14341,7 @@ def test_pilot_resume_rejects_launch_certificate_contamination(
     assert repo_before == _real_output_snapshot()
 
 
+@in_sealed_fixture_process
 def test_pilot_path_has_no_launch_certificate_changes(tmp_path):
     repo_before = _real_output_snapshot()
     freeze = _freeze_document()
@@ -14282,6 +14390,7 @@ def test_binary_receipt_mismatch_aborts(tmp_path):
                             retry_ordinal=None, trigger=None)
 
 
+@in_sealed_fixture_process
 def test_binary_receipt_recorded_in_session_journal(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -14305,6 +14414,7 @@ def test_resume_store_missing_store_path_rejected(tmp_path):
         s8b_floor_campaign._verify_resume_store(built, tmp_path)
 
 
+@in_sealed_fixture_process
 def test_content_addressed_store_create_only(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -14334,6 +14444,7 @@ def test_content_addressed_store_create_only(tmp_path):
     )  # 例外なし
 
 
+@in_sealed_fixture_process
 def test_sort_best_swo_pass_receipt_reaches_manifest_and_result(tmp_path):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -14359,6 +14470,7 @@ def test_sort_best_swo_pass_receipt_reaches_manifest_and_result(tmp_path):
             assert "sort_swo_oracle" not in result["binaries"][cell_id]
 
 
+@in_sealed_fixture_process
 def test_public_artifacts_omit_raw_swo_host_values(tmp_path):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -14388,6 +14500,7 @@ def test_public_artifacts_omit_raw_swo_host_values(tmp_path):
             assert "dependency_root_realpath" not in receipt
 
 
+@in_sealed_fixture_process
 def test_configured_marker_root_keeps_raw_swo_attempt_private(tmp_path):
     freeze = _freeze_document()
     cells = s8b_floor_campaign.enumerate_cells(
@@ -14423,6 +14536,7 @@ def test_configured_marker_root_keeps_raw_swo_attempt_private(tmp_path):
         assert path.stat().st_mode & 0o777 == 0o600
 
 
+@in_sealed_fixture_process
 def test_sort_best_cell_without_swo_receipt_is_rejected(tmp_path):
     @contextlib.contextmanager
     def missing_sort_receipt(cell, ccbench_pin, *, cxx):
@@ -14443,6 +14557,7 @@ def test_sort_best_cell_without_swo_receipt_is_rejected(tmp_path):
         )
 
 
+@in_sealed_fixture_process
 def test_non_sort_cell_with_swo_receipt_is_rejected(tmp_path):
     @contextlib.contextmanager
     def extra_non_sort_receipt(cell, ccbench_pin, *, cxx):
@@ -14476,6 +14591,7 @@ def test_non_sort_cell_with_swo_receipt_is_rejected(tmp_path):
         ),
     ],
 )
+@in_sealed_fixture_process
 def test_admission_failure_creates_no_result_pending_bytes(
         tmp_path, monkeypatch, category, cause):
     def reject_inspection(**_kwargs):
@@ -14512,6 +14628,7 @@ def test_admission_failure_creates_no_result_pending_bytes(
     assert terminal["cause"] == cause
 
 
+@in_sealed_fixture_process
 def test_sort_receipt_identity_transplant_is_rejected(tmp_path):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -14653,6 +14770,7 @@ def test_producer_binary_coverage_rejects_cell_invariants(
         s8b_floor_campaign._validate_binaries_cover_cells(binaries, cells)
 
 
+@in_sealed_fixture_process
 def test_verify_floor_artifact_binaries_positive_and_negative(tmp_path):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)
@@ -15081,6 +15199,7 @@ def test_journal_emits_launcher_terminal_record_byte_identically(
     assert launched.terminal.campaign_record is case["runner"].records[-1]
 
 
+@in_sealed_fixture_process
 def test_default_production_result_is_v5(tmp_path, monkeypatch):
     freeze = _freeze_document()
     protocol = _protocol(freeze_sha=_freeze_sha(freeze))
@@ -15138,6 +15257,7 @@ def test_production_v5_self_check_rejects_prefix_head_mismatch(
     assert captured.value.reason == "attempt-registry-prefix-head-mismatch"
 
 
+@in_sealed_fixture_process
 def test_v5_prefix_covers_every_consumed_non_competing_session(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -15180,6 +15300,7 @@ def test_v5_prefix_covers_every_consumed_non_competing_session(
     assert proof["chain_head_sha256"] == live["chain_head_sha256"]
 
 
+@in_sealed_fixture_process
 def test_v5_prefix_assertions_kill_first_terminal_stale_result_proof(
         tmp_path, monkeypatch):
     freeze = _freeze_document()
@@ -15267,6 +15388,7 @@ def test_campaign_has_no_indirect_registry_profile_or_core_attributes():
     assert references == []
 
 
+@in_sealed_fixture_process
 def test_injected_measurement_core_retains_noncertifying_legacy_path(
         tmp_path):
     freeze = _freeze_document()
@@ -15283,6 +15405,7 @@ def test_injected_measurement_core_retains_noncertifying_legacy_path(
     assert "attempt_registry" not in outcome["result"]
 
 
+@in_sealed_fixture_process
 def test_finalize_pending_replays_live_v5_prefix(tmp_path, monkeypatch):
     freeze = _freeze_document()
     verified = _verified_freeze(freeze)

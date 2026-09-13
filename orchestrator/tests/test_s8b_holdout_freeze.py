@@ -2951,6 +2951,8 @@ def test_v2_candidate_rejects_result_only_binary_and_swo_identity_tamper(
     record["sort_swo_oracle"]["binary_sha256"] = forged_sha256
     receipt = record["admission_receipt"]
     receipt["subject"]["binary_sha256"] = forged_sha256
+    # Keep the result's receipt internally coherent so sibling comparison fires.
+    receipt["proof"]["source_protection"]["binary_sha256"] = forged_sha256
     unsigned = dict(receipt)
     unsigned.pop("receipt_sha256")
     receipt["receipt_sha256"] = hashlib.sha256(

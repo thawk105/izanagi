@@ -7,6 +7,10 @@
 """
 from __future__ import annotations
 
+from orchestrator.tests.s8b_v2_freeze_fixture import in_sealed_fixture_process
+
+from orchestrator.tests.s8b_v2_freeze_fixture import sealed_source_protection_fixture
+
 import contextlib
 import dataclasses
 import datetime as dt
@@ -529,11 +533,15 @@ def _make_emitter_build():
             compiler_input_manifest, ensure_ascii=True, sort_keys=True,
             separators=(",", ":"),
         ).encode("utf-8"))
-        expected_materialization_sha256 = _sha(
-            f"fixture-expected-materialization\0{ccbench_commit}\0"
-            f"{genome.canonical()}\0{src_token}".encode("utf-8")
+        source_protection = sealed_source_protection_fixture(
+            source=source_evidence, binary_sha256=sha,
+            compiler_input_manifest_sha256=compiler_input_manifest_sha256,
+        )
+        expected_materialization_sha256 = (
+            source_protection.expected_materialization_sha256
         )
         return SimpleNamespace(
+            source_protection=source_protection,
             genome=genome, trace=False, binary=str(binary), bin_sha256=sha,
             bin_hash=sha[:16], build_dir=str(cell_dir), cached=False,
             configure_argv=["cmake", "-S", str(source_root), "-B", str(cell_dir)],
@@ -1486,6 +1494,7 @@ def build_valid_semantic_g1(tmp_path: Path, *, mutate_g1=None, extra_closure=Non
 # 正常系
 # --------------------------------------------------------------------------
 
+@in_sealed_fixture_process
 def test_happy_path_resolves_and_loads(tmp_path):
     if not _REAL_V1.is_file():
         pytest.fail("実 v1 freeze が無い (trust root 不在 — skip すると攻撃 matrix が緑化する。failures F9 型)")
@@ -1532,6 +1541,7 @@ def test_happy_path_resolves_and_loads(tmp_path):
     assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
 
 
+@in_sealed_fixture_process
 def test_launch_accepts_live_v5_registry_prefix_with_later_append(tmp_path):
     root, freeze, topology = load_emitter_g1(
         tmp_path, result_schema=FC.RESULT_SCHEMA_V5,
@@ -1552,6 +1562,7 @@ def test_launch_accepts_live_v5_registry_prefix_with_later_append(tmp_path):
 
 
 @pytest.mark.parametrize("schema", [[], {}], ids=["list", "object"])
+@in_sealed_fixture_process
 def test_launch_rejects_unhashable_result_schema_with_controlled_error(
         tmp_path, schema):
     def mutate(state):
@@ -1584,6 +1595,7 @@ def test_launch_rejects_unhashable_result_schema_with_controlled_error(
         *(f"invalid:{field}" for field in _ATTEMPT_REGISTRY_PROOF_KEYS),
     ],
 )
+@in_sealed_fixture_process
 def test_launch_rejects_invalid_v5_registry_proof(tmp_path, mutation):
     root, freeze, _topology = load_emitter_g1(
         tmp_path, result_schema=FC.RESULT_SCHEMA_V5,
@@ -1604,6 +1616,7 @@ def test_launch_rejects_invalid_v5_registry_proof(tmp_path, mutation):
         ("shortened", "attempt-registry-prefix-too-short"),
     ),
 )
+@in_sealed_fixture_process
 def test_launch_rejects_invalid_live_v5_registry(
         tmp_path, ledger_mutation, expected_cause):
     root, freeze, topology = load_emitter_g1(
@@ -1628,6 +1641,7 @@ def test_launch_rejects_invalid_live_v5_registry(
     assert error.value.cause == expected_cause
 
 
+@in_sealed_fixture_process
 def test_loader_rejects_floor_source_projection_mismatch(tmp_path):
     def mutate_g1(g1):
         holdout_id = sorted(g1["floor"]["by_holdout"])[0]
@@ -1642,6 +1656,7 @@ def test_loader_rejects_floor_source_projection_mismatch(tmp_path):
     assert caught.value.cause == "floor-source-projection"
 
 
+@in_sealed_fixture_process
 def test_degraded_launch_threads_expected_use_perf_to_every_consumer(tmp_path):
     """M8: journal/stats/result/axis の一箇所でも旧 True へ戻れば拒否する。"""
     root, freeze, topology = load_emitter_g1(tmp_path, perf_available=False)
@@ -1682,6 +1697,7 @@ def test_degraded_launch_threads_expected_use_perf_to_every_consumer(tmp_path):
         ("extra-event-key", "schema-keys"),
     ),
 )
+@in_sealed_fixture_process
 def test_ratified_journal_rejects_invalid_perf_preflight_event(
         tmp_path, mutation, expected_cause,
 ):
@@ -1836,6 +1852,7 @@ def _emitter_observation(tmp_path: Path) -> dict:
     }
 
 
+@in_sealed_fixture_process
 def test_production_emitter_staged_builder_is_git_deterministic_across_roots(tmp_path):
     """長さ・空白・非 ASCII の異なる root でも bytes/blob/tree/commit/mode が一致する。"""
     observations = [
@@ -1871,6 +1888,7 @@ def test_root_bytes_scan_rejects_a_leaked_root() -> None:
         _assert_no_root_bytes([b"prefix:" + needle], [needle])
 
 
+@in_sealed_fixture_process
 def test_journal_manifest_may_precede_generation_and_executable_mode_is_accepted(tmp_path):
     """C→J(journal+manifest)→G→A→X と 100755 は裁定どおり受理される。"""
     root, freeze, topology = load_emitter_g1(

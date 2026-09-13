@@ -2,6 +2,8 @@
 """8b oracle driver の gate、binding、budget、WAL 契約を検査する。"""
 from __future__ import annotations
 
+from orchestrator.tests.s8b_v2_freeze_fixture import in_sealed_fixture_process
+
 import ast
 import atexit
 import contextlib
@@ -4222,6 +4224,7 @@ def test_probe_error_reason_is_fail_closed_unknown_abort(tmp_path, reason):
     assert len(evaluate_fn.calls) == 1
 
 
+@in_sealed_fixture_process
 def test_transient_prepare_failure_retries_once(tmp_path):
     root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(
         tmp_path,
@@ -5404,6 +5407,7 @@ def _assert_extime_launch_refusal(decision):
     })
 
 
+@in_sealed_fixture_process
 def test_v2_standalone_gate_check_requires_full_floor_validation(tmp_path):
     """standalone v2 gate は self-load / injected static freeze を full validate する。"""
     real_load = driver.s8b_ratified_freeze.load_ratified_freeze
@@ -5488,6 +5492,7 @@ def test_private_validated_gate_has_only_run_block_as_production_caller():
     assert callers == ["run_block"]
 
 
+@in_sealed_fixture_process
 def test_v2_gate_happy_path_completes_and_binds_env_store_receipt(tmp_path):
     """v2 正常系: freeze==active 世代 + launch_validate 成立 + store 全一致 →
     gate 通過・completed。expected_perf_sha256 が cell の store binary sha と一致して
@@ -5521,6 +5526,7 @@ def test_v2_gate_happy_path_completes_and_binds_env_store_receipt(tmp_path):
     )
 
 
+@in_sealed_fixture_process
 def test_v2_foreign_cell_admission_receipt_is_refused_before_store_read(tmp_path):
     root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(tmp_path)
     out_root = root.parent / "output"
@@ -5558,6 +5564,7 @@ def test_v2_foreign_cell_admission_receipt_is_refused_before_store_read(tmp_path
             )
 
 
+@in_sealed_fixture_process
 def test_oracle_driver_accepts_conditional_sort_receipt_and_rejects_its_absence(
         tmp_path):
     root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(tmp_path)
@@ -5588,6 +5595,7 @@ def test_oracle_driver_accepts_conditional_sort_receipt_and_rejects_its_absence(
         )
 
 
+@in_sealed_fixture_process
 def test_v2_store_bytes_are_checked_against_admission_subject_independently(tmp_path):
     """M5 の独立性は主張せず、実 store 改変が既存 record SHA gate で拒否される。"""
     root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
@@ -5606,6 +5614,7 @@ def test_v2_store_bytes_are_checked_against_admission_subject_independently(tmp_
         )
 
 
+@in_sealed_fixture_process
 def test_v2_completed_driver_adapter_campaign_is_accepted_by_report(tmp_path):
     """driver adapter の completed WAL は report で 5 個の bench 証拠として読める。"""
     root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(tmp_path)
@@ -5671,6 +5680,7 @@ def test_v2_completed_driver_adapter_campaign_is_accepted_by_report(tmp_path):
 
 
 @pytest.mark.parametrize("change", ["replaced", "removed"])
+@in_sealed_fixture_process
 def test_v2_post_run_store_change_is_reported_and_refused(tmp_path, change):
     root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
     out_root = root.parent / "output"
@@ -6065,6 +6075,7 @@ def test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2(tmp_path):
                for item in built)
 
 
+@in_sealed_fixture_process
 def test_v2_floor_disk_swap_after_launch_uses_same_validated_object(tmp_path):
     """launch 後の floor disk 差替えを無視し、旧 blob reader も呼ばない。"""
     root, freeze_path, _gen_sha, _binaries, topology = _build_v2_repo(tmp_path)
@@ -6103,6 +6114,7 @@ def test_v2_floor_disk_swap_after_launch_uses_same_validated_object(tmp_path):
     assert result_path.read_bytes() != original_raw
 
 
+@in_sealed_fixture_process
 def test_v2_freeze_bytes_not_active_generation_is_refused(tmp_path):
     """与えられた freeze bytes が active 世代と 1 byte でも違えば
     freeze-not-active-generation で拒否 (何も書かない)。"""
@@ -6128,6 +6140,7 @@ def test_v2_freeze_bytes_not_active_generation_is_refused(tmp_path):
     })
 
 
+@in_sealed_fixture_process
 def test_v2_launch_validate_failure_is_refused(tmp_path):
     """launch_validate 失敗 (closure 外の未申告 hit) は v2-execution refusal に翻訳。"""
     root, freeze_path, _gen_sha, _bin, _topology = _build_v2_repo(tmp_path)
@@ -6146,6 +6159,7 @@ def test_v2_launch_validate_failure_is_refused(tmp_path):
     })
 
 
+@in_sealed_fixture_process
 def test_v2_launch_validate_non_ratified_error_is_refused(tmp_path):
     """launch_validate が RatifiedFreezeError 以外 (内部 _hf の git/os 走査由来の
     FreezeError 等) を投げても、stack trace を漏らさず v2-execution refusal に翻訳する
@@ -6180,6 +6194,7 @@ def test_v2_launch_validate_non_ratified_error_is_refused(tmp_path):
     assert not (tmp_path / "v2-markers").exists()
 
 
+@in_sealed_fixture_process
 def test_v2_store_missing_is_refused(tmp_path):
     """store 実体が欠落していれば refusal (再ビルド fallback は書かない)。"""
     root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
@@ -6210,6 +6225,7 @@ def test_v2_store_missing_is_refused(tmp_path):
     assert not (tmp_path / "v2-markers").exists()
 
 
+@in_sealed_fixture_process
 def test_v2_store_hash_mismatch_is_refused(tmp_path):
     """store 実体の bytes が floor receipt の binary_sha256 と不一致なら refusal。"""
     root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
@@ -6239,6 +6255,7 @@ def test_v2_store_hash_mismatch_is_refused(tmp_path):
     assert not (tmp_path / "v2-markers").exists()
 
 
+@in_sealed_fixture_process
 def test_v2_contract_sha256_mismatch_is_refused(tmp_path):
     """run_contract.contract_sha256 が env 契約 lookup 結果と不一致なら refusal。"""
     global _ACTIVE_APPROVED
@@ -6292,6 +6309,7 @@ def test_v2_contract_sha256_mismatch_is_refused(tmp_path):
     })
 
 
+@in_sealed_fixture_process
 def test_v2_binary_mismatch_abort_maps_to_binary_mismatch_outcome(tmp_path):
     """pipeline の bench-binary-mismatch abort (TOCTOU 第二防壁) が driver の
     binary-mismatch terminal outcome に射影される。"""

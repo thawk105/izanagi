@@ -3247,7 +3247,17 @@ def test_v2_without_source_snapshot_preserves_legacy_completion_and_skips_manife
     assert snapshot_checks == []
 
 
-def test_v2_descriptor_runs_gate_inside_build_and_returns_both_digests(
+def test_v2_descriptor_runs_gate_inside_build_and_returns_both_digests(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_v2_descriptor_runs_gate_inside_build_and_returns_both_digests_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _v2_descriptor_runs_gate_inside_build_and_returns_both_digests_case(
         tmp_path, monkeypatch):
     _install_toolchain(tmp_path, monkeypatch)
     _fake_build_environment(monkeypatch, tmp_path)
@@ -3324,7 +3334,17 @@ def test_v2_descriptor_runs_gate_inside_build_and_returns_both_digests(
     assert events == ["gate-enter", "gate-exit", "gate-enter", "gate-exit"]
 
 
-def test_v2_descriptor_rejects_rederived_evidence_before_build(
+def test_v2_descriptor_rejects_rederived_evidence_before_build(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_v2_descriptor_rejects_rederived_evidence_before_build_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _v2_descriptor_rejects_rederived_evidence_before_build_case(
         tmp_path, monkeypatch):
     _install_toolchain(tmp_path, monkeypatch)
     _fake_build_environment(monkeypatch, tmp_path)
@@ -3864,7 +3884,17 @@ def _v2_fetchcontent_rebind_fixture(tmp_path, monkeypatch):
     return first, base_b, receipt, descriptor
 
 
-def test_v2_hit_rebinds_fetchcontent_inputs_to_current_root(
+def test_v2_hit_rebinds_fetchcontent_inputs_to_current_root(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_v2_hit_rebinds_fetchcontent_inputs_to_current_root_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _v2_hit_rebinds_fetchcontent_inputs_to_current_root_case(
         tmp_path, monkeypatch):
     first, base_b, receipt, descriptor = _v2_fetchcontent_rebind_fixture(
         tmp_path, monkeypatch,
@@ -3890,7 +3920,17 @@ def test_v2_hit_rebinds_fetchcontent_inputs_to_current_root(
 
 
 @pytest.mark.parametrize("mutation", ["missing", "hash", "symlink"])
-def test_v2_hit_validation_failure_never_rebuilds(
+def test_v2_hit_validation_failure_never_rebuilds(tmp_path, mutation):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_v2_hit_validation_failure_never_rebuilds_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path, mutation=mutation,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _v2_hit_validation_failure_never_rebuilds_case(
         tmp_path, monkeypatch, mutation):
     _first, base_b, receipt, descriptor = _v2_fetchcontent_rebind_fixture(
         tmp_path, monkeypatch,
@@ -5515,6 +5555,16 @@ def _publication_capability(session, pending, *, cached=False):
 
 
 def test_real_session_publish_then_hit_issues_distinct_capabilities(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_real_session_publish_then_hit_issues_distinct_capabilities_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _real_session_publish_then_hit_issues_distinct_capabilities_case(tmp_path):
     root = _publication_source(tmp_path)
     pending = _real_pending_publication(tmp_path)
     fds = pending.copied._owned_fds() + [pending.clean_fd, pending.parent_fd]
@@ -5557,6 +5607,16 @@ def test_real_session_publish_then_hit_issues_distinct_capabilities(tmp_path):
 
 @pytest.mark.parametrize("attack", ["persistent-drift", "root-replacement"])
 def test_real_session_parent_drift_or_exit_failure_never_publishes(tmp_path, attack):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_real_session_parent_drift_or_exit_failure_never_publishes_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path, attack=attack,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _real_session_parent_drift_or_exit_failure_never_publishes_case(tmp_path, attack):
     root = _publication_source(tmp_path)
     pending = _real_pending_publication(tmp_path)
     fds = pending.copied._owned_fds() + [pending.clean_fd, pending.parent_fd]
@@ -5604,6 +5664,16 @@ def test_real_session_parent_drift_or_exit_failure_never_publishes(tmp_path, att
 
 @pytest.mark.parametrize("entry", ["binary", "candidate", "destination"])
 def test_pending_final_rename_rechecks_real_entries(tmp_path, entry):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_pending_final_rename_rechecks_real_entries_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path, entry=entry,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _pending_final_rename_rechecks_real_entries_case(tmp_path, entry):
     root = _publication_source(tmp_path)
     pending = _real_pending_publication(tmp_path)
     try:
@@ -5630,6 +5700,16 @@ def test_pending_final_rename_rechecks_real_entries(tmp_path, entry):
 
 
 def test_sealed_child_obeys_parent_d1755_protection_without_freezing_base(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_child_obeys_parent_d1755_protection_without_freezing_base_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_child_obeys_parent_d1755_protection_without_freezing_base_case(tmp_path):
     root = _publication_source(tmp_path)
     base = tmp_path / "base"
     dependency = base / "masstree-src"
@@ -5678,7 +5758,17 @@ def test_descriptorless_build_never_enters_sealed_session(tmp_path, monkeypatch)
     )
 
 
-def test_descriptor_build_result_carries_real_fresh_and_hit_capabilities(tmp_path, monkeypatch):
+def test_descriptor_build_result_carries_real_fresh_and_hit_capabilities(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_descriptor_build_result_carries_real_fresh_and_hit_capabilities_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _descriptor_build_result_carries_real_fresh_and_hit_capabilities_case(tmp_path, monkeypatch):
     # Reuse the existing admission/compiler fixture and all its expectations.
     # The sealed context, run/issue, cache validator and publication stay real.
     original = buildcache.build_v2
@@ -5690,7 +5780,7 @@ def test_descriptor_build_result_carries_real_fresh_and_hit_capabilities(tmp_pat
         return result
 
     monkeypatch.setattr(buildcache, "build_v2", observe)
-    test_v2_descriptor_runs_gate_inside_build_and_returns_both_digests(tmp_path, monkeypatch)
+    _v2_descriptor_runs_gate_inside_build_and_returns_both_digests_case(tmp_path, monkeypatch)
     fresh, hit = results
     materialization = buildcache.s8b_expected_materialization
     assert fresh.source_protection.kind is materialization.SealedSnapshotProtectionKind.SEALED_BUILD
@@ -5706,7 +5796,17 @@ def test_descriptor_build_result_carries_real_fresh_and_hit_capabilities(tmp_pat
 
 
 @pytest.mark.parametrize("attack", ["persistent-drift", "root-replacement"])
-def test_descriptor_build_failure_cannot_become_second_build_hit(tmp_path, monkeypatch, attack):
+def test_descriptor_build_failure_cannot_become_second_build_hit(tmp_path, attack):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_descriptor_build_failure_cannot_become_second_build_hit_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path, attack=attack,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _descriptor_build_failure_cannot_become_second_build_hit_case(tmp_path, monkeypatch, attack):
     # These observers inject a filesystem attack at an actual production seam;
     # they call the original operation and do not replace any protection gate.
     original_build = buildcache.build_v2
@@ -5748,7 +5848,7 @@ def test_descriptor_build_failure_cannot_become_second_build_hit(tmp_path, monke
         monkeypatch.setattr(buildcache, "_collect_compiler_inputs", leave_drift)
         reason = "source snapshot tree digest"
     with pytest.raises(buildcache.BuildCacheError, match=reason):
-        test_v2_descriptor_runs_gate_inside_build_and_returns_both_digests(tmp_path, monkeypatch)
+        _v2_descriptor_runs_gate_inside_build_and_returns_both_digests_case(tmp_path, monkeypatch)
     assert len(attacked) == 1
     cache = tmp_path / "cache"
     assert not list(cache.rglob("completion.json"))

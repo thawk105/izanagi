@@ -7,6 +7,8 @@ pytest 専用 (tmp_path fixture 依存、README allowlist 記載)。
 """
 from __future__ import annotations
 
+from orchestrator.tests.s8b_v2_freeze_fixture import in_sealed_fixture_process
+
 import copy
 import json
 import dataclasses
@@ -743,6 +745,7 @@ def _mutate_portable_binary_island(state: dict, case_id: str) -> None:
     state["repair_manifest"] = True
 
 
+@in_sealed_fixture_process
 def test_historical_reverify_rejects_cross_cell_policy_mixture(tmp_path):
     """historical は current policy 非依存だが、記録 policy の cell 間混在は拒否する。"""
     def mutate(state):
@@ -820,6 +823,7 @@ def test_equality_chain_each_edge_coherent_island_rejected(edge):
 # 正常系
 # --------------------------------------------------------------------------
 
+@in_sealed_fixture_process
 def test_semantic_happy_path_loads_and_launch_validates(tmp_path):
     _need_v1()
     root, freeze, topology = _build_launch_repo(tmp_path)
@@ -996,6 +1000,7 @@ def _install_real_earlier_official_run(
     return earlier_rel, inspection.derived_eligible_for_refreeze
 
 
+@in_sealed_fixture_process
 def test_launch_validate_rejects_floor_selection_rule_mismatch(
         tmp_path, monkeypatch):
     root, freeze, _topology = _build_launch_repo(tmp_path)
@@ -1014,6 +1019,7 @@ def test_launch_validate_rejects_floor_selection_rule_mismatch(
     assert calls == [earlier_rel]
 
 
+@in_sealed_fixture_process
 def test_g1_selection_helper_rejects_rule_mismatch(tmp_path, monkeypatch):
     root, freeze, _topology = _build_launch_repo(tmp_path)
     freeze, earlier_rel = _with_earlier_floor_result_at_head(root, freeze)
@@ -1031,6 +1037,7 @@ def test_g1_selection_helper_rejects_rule_mismatch(tmp_path, monkeypatch):
     assert calls == [earlier_rel]
 
 
+@in_sealed_fixture_process
 def test_launch_validate_rejects_genuine_eligible_earlier_official_run(
         tmp_path):
     root, _freeze, topology = _build_launch_repo(tmp_path)
@@ -1046,6 +1053,7 @@ def test_launch_validate_rejects_genuine_eligible_earlier_official_run(
     assert caught.value.cause == "earliest-eligible-official-run-id/v1"
 
 
+@in_sealed_fixture_process
 def test_launch_validate_accepts_genuine_ineligible_earlier_resume(
         tmp_path):
     root, _freeze, topology = _build_launch_repo(tmp_path)
@@ -1060,6 +1068,7 @@ def test_launch_validate_accepts_genuine_ineligible_earlier_resume(
     assert validated.ratified is loaded
 
 
+@in_sealed_fixture_process
 def test_g1_selection_helper_rejects_genuine_eligible_earlier_official_run(
         tmp_path):
     root, _freeze, topology = _build_launch_repo(tmp_path)
@@ -1075,6 +1084,7 @@ def test_g1_selection_helper_rejects_genuine_eligible_earlier_official_run(
     assert caught.value.cause == "earliest-eligible-official-run-id/v1"
 
 
+@in_sealed_fixture_process
 def test_g1_selection_helper_accepts_genuine_ineligible_earlier_resume(
         tmp_path):
     root, _freeze, topology = _build_launch_repo(tmp_path)
@@ -1087,6 +1097,7 @@ def test_g1_selection_helper_accepts_genuine_ineligible_earlier_resume(
     assert M.assert_g1_floor_selection_identity(loaded, root) is None
 
 
+@in_sealed_fixture_process
 def test_g1_selection_helper_rejects_foreign_env_namespace(
         tmp_path, monkeypatch):
     original_paths = {}
@@ -1130,6 +1141,7 @@ def test_g1_selection_helper_rejects_foreign_env_namespace(
     assert calls == []
 
 
+@in_sealed_fixture_process
 def test_g1_selection_helper_rejects_protocol_hash_prefix_mismatch(tmp_path):
     def move_selected_result_to_wrong_proto8(state):
         selected_rel = state["paths"]["result"]
@@ -1150,11 +1162,13 @@ def test_g1_selection_helper_rejects_protocol_hash_prefix_mismatch(tmp_path):
     assert caught.value.cause == "selection-path-proto8"
 
 
+@in_sealed_fixture_process
 def test_g1_selection_helper_accepts_valid_selection(tmp_path):
     root, freeze, _topology = _build_launch_repo(tmp_path)
     assert M.assert_g1_floor_selection_identity(freeze, root) is None
 
 
+@in_sealed_fixture_process
 def test_launch_validate_preserves_floor_selection_path_failure_reason(
         tmp_path, monkeypatch):
     root, freeze, _topology = _build_launch_repo(tmp_path)
@@ -1173,6 +1187,7 @@ def test_launch_validate_preserves_floor_selection_path_failure_reason(
     )
 
 
+@in_sealed_fixture_process
 def test_historical_reverify_does_not_apply_current_floor_selection(
         tmp_path):
     root, freeze, _topology = _build_launch_repo(tmp_path)
@@ -1221,6 +1236,7 @@ def test_reverify_rejects_reported_true_when_live_basis_is_disqualified(tmp_path
     assert caught.value.cause == "refreeze-eligibility-mismatch"
 
 
+@in_sealed_fixture_process
 def test_public_reverify_accepts_recorded_g1_under_g2_current_while_live_refuses(
         tmp_path):
     """read-only public 入口だけが記録 g1 を解決し、live admission は current g2 に留まる。"""
@@ -1279,6 +1295,7 @@ def test_public_reverify_accepts_recorded_g1_under_g2_current_while_live_refuses
     "case_id",
     ["malformed", "unknown", "ambiguous", "cross-env", "dishonest-resolver"],
 )
+@in_sealed_fixture_process
 def test_public_reverify_resolver_refusals_do_not_fallback_to_current(
         tmp_path, case_id):
     """public read-only 入口は resolver 拒否・不正返却を current lookup で救済しない。
@@ -1323,6 +1340,7 @@ def test_public_reverify_resolver_refusals_do_not_fallback_to_current(
     current_fallback.assert_not_called()
 
 
+@in_sealed_fixture_process
 def test_public_reverify_rejects_dishonest_same_env_wrong_hash_resolver(tmp_path):
     """same-env/wrong-hash 返却は patch-only の構造防御であり、
     production artifact から到達しない。"""
@@ -1364,6 +1382,7 @@ def test_public_reverify_rejects_dishonest_same_env_wrong_hash_resolver(tmp_path
     "case_id",
     ["missing-calibration", "calibration-hash-mismatch"],
 )
+@in_sealed_fixture_process
 def test_public_reverify_calibration_refusals_do_not_fallback_to_current(
         tmp_path, case_id):
     """解決世代の calibration が読めなければ public read-only 入口全体を拒否する。"""
@@ -1400,6 +1419,7 @@ def test_public_reverify_calibration_refusals_do_not_fallback_to_current(
 # V1 — source blob + G^==frozen_at_head + closure
 # --------------------------------------------------------------------------
 
+@in_sealed_fixture_process
 def test_source_blob_mismatch_rejected(tmp_path):
     _need_v1()
     _assert_emitter_baseline(tmp_path / "baseline")
@@ -1409,6 +1429,7 @@ def test_source_blob_mismatch_rejected(tmp_path):
     _assert_registered_refusal("source", lambda: M.load_ratified_freeze(root))
 
 
+@in_sealed_fixture_process
 def test_design_source_worktree_drift_still_loads(tmp_path):
     _need_v1()
     # V5 (陽性テスト): design_source が指す docs 系 file の worktree copy を未 commit で
@@ -1432,6 +1453,7 @@ def test_design_source_worktree_drift_still_loads(tmp_path):
     assert freeze.generation_number == 1
 
 
+@in_sealed_fixture_process
 def test_frozen_at_head_not_generation_parent_rejected(tmp_path):
     _need_v1()
     _assert_emitter_baseline(tmp_path / "baseline")
@@ -1451,6 +1473,7 @@ def test_generation_commit_merge_rejected(tmp_path):
     assert ei.value.reason == "generation-commit-merge"
 
 
+@in_sealed_fixture_process
 def test_closure_entry_absent_from_generation_tree_rejected(tmp_path):
     _need_v1()
     _assert_emitter_baseline(tmp_path / "baseline")
@@ -1462,6 +1485,7 @@ def test_closure_entry_absent_from_generation_tree_rejected(tmp_path):
     _assert_registered_refusal("closure-missing", lambda: M.load_ratified_freeze(root))
 
 
+@in_sealed_fixture_process
 def test_closure_bytes_sha_mismatch_rejected(tmp_path):
     _need_v1()
     _assert_emitter_baseline(tmp_path / "baseline")
@@ -1471,6 +1495,7 @@ def test_closure_bytes_sha_mismatch_rejected(tmp_path):
     _assert_registered_refusal("closure-sha", lambda: M.load_ratified_freeze(root))
 
 
+@in_sealed_fixture_process
 def test_env_tag_unknown_rejected(tmp_path):
     _need_v1()
     _assert_emitter_baseline(tmp_path / "baseline")
@@ -1491,6 +1516,7 @@ def test_env_tag_unknown_rejected(tmp_path):
     lambda g1: g1.__setitem__("scope_note", "tampered scope"),    # protected
     lambda g1: g1["derangement"].__setitem__("rr80", "rr80"),     # protected nested
 ])
+@in_sealed_fixture_process
 def test_transition_out_of_enumeration_diff_rejected(tmp_path, mut):
     _need_v1()
     _assert_emitter_baseline(tmp_path / "baseline")
@@ -1549,6 +1575,7 @@ def test_transition_gn_to_gn1_forbids_measurement_field_rewrite_unit(field):
     assert ei.value.reason == "transition-violation"
 
 
+@in_sealed_fixture_process
 def test_chain_g2_env_tag_unchanged_loads(tmp_path):
     _need_v1()
     # env_tag を保ち、新 C2 と新 run artifacts を持つ g2 は静的 load までは正常。
@@ -1575,6 +1602,7 @@ def test_layer1_snapshot_tamper_rejected_unit():
     assert ei.value.reason == "layer1-snapshot-mismatch"
 
 
+@in_sealed_fixture_process
 def test_undeclared_hit_outside_closure_rejected(tmp_path):
     _need_v1()
     root, freeze, _ = _build_launch_repo(tmp_path)
@@ -1584,6 +1612,7 @@ def test_undeclared_hit_outside_closure_rejected(tmp_path):
     _assert_registered_refusal("scan-undeclared", lambda: M.launch_validate(freeze, root))
 
 
+@in_sealed_fixture_process
 def test_declared_closure_hit_absent_from_search_rejected(tmp_path, monkeypatch):
     _need_v1()
     # 正しい G bytes から導出した declared closure path を scan report だけから 1 件落とす。
@@ -1602,6 +1631,7 @@ def test_declared_closure_hit_absent_from_search_rejected(tmp_path, monkeypatch)
     _assert_registered_refusal("scan-missing", lambda: M.launch_validate(freeze, root))
 
 
+@in_sealed_fixture_process
 def test_extra_closure_in_freeze_namespace_rejected_without_broad_closed_world(tmp_path):
     _need_v1()
     root, _gen_sha, _gen_rel, _g1, _topology = B.build_production_emitter_g1(
@@ -1613,6 +1643,7 @@ def test_extra_closure_in_freeze_namespace_rejected_without_broad_closed_world(t
         "closure-namespace", lambda: M.launch_validate(freeze, root))
 
 
+@in_sealed_fixture_process
 def test_per_holdout_no_crosstalk(tmp_path):
     _need_v1()
     # V1: per-holdout の hit 集合比較が「どの holdout が不一致か」を正しく帰属することを固定する。
@@ -1641,6 +1672,7 @@ def test_per_holdout_no_crosstalk(tmp_path):
     assert "extra_conflict.txt" in message, message
 
 
+@in_sealed_fixture_process
 def test_enumeration_digest_shift_rejected(tmp_path, monkeypatch):
     _need_v1()
     root, freeze, _ = _build_launch_repo(tmp_path)
@@ -1656,6 +1688,7 @@ def test_enumeration_digest_shift_rejected(tmp_path, monkeypatch):
     _assert_registered_refusal("scan-enumeration", lambda: M.launch_validate(freeze, root))
 
 
+@in_sealed_fixture_process
 def test_positive_control_not_hit_rejected(tmp_path):
     _need_v1()
     # 陽性対照 (rr50) file の内容を無害化する (rr50 params を含まない bytes に差し替える)。
@@ -1674,6 +1707,7 @@ def test_positive_control_not_hit_rejected(tmp_path):
         _assert_registered_refusal("scan-positive", lambda: M.launch_validate(freeze, root))
 
 
+@in_sealed_fixture_process
 def test_activation_head_moved_rejected(tmp_path):
     _need_v1()
     root, freeze, _ = _build_launch_repo(tmp_path)
@@ -1685,6 +1719,7 @@ def test_activation_head_moved_rejected(tmp_path):
     assert ei.value.reason == "activation-head-moved"
 
 
+@in_sealed_fixture_process
 def test_generation_two_rejected_before_artifact_io(tmp_path, monkeypatch):
     _need_v1()
     root, g1_sha, _g1_rel, g1, topology = B.build_production_emitter_g1(
@@ -1722,6 +1757,7 @@ def test_generation_two_rejected_before_artifact_io(tmp_path, monkeypatch):
     assert isinstance(M.launch_validate(forced, root), M.LaunchValidatedFreeze)
 
 
+@in_sealed_fixture_process
 def test_g1_only_selection_helper_is_noop_for_g2(tmp_path, monkeypatch):
     _need_v1()
     root, g1_sha, _g1_rel, g1, topology = B.build_production_emitter_g1(
@@ -1742,6 +1778,7 @@ def test_g1_only_selection_helper_is_noop_for_g2(tmp_path, monkeypatch):
     assert M.assert_g1_floor_selection_identity(loaded_g2, root) is None
 
 
+@in_sealed_fixture_process
 def test_g1_only_selection_helper_skips_earlier_eligible_run_for_g2(
         tmp_path, monkeypatch):
     _need_v1()
@@ -1773,6 +1810,7 @@ def test_g1_only_selection_helper_skips_earlier_eligible_run_for_g2(
     assert calls == [earlier_rel]
 
 
+@in_sealed_fixture_process
 def test_manifest_cells_independent_derivation_rejects_ghost_cell(tmp_path):
     _need_v1()
     def mutate(state):
@@ -1787,6 +1825,7 @@ def test_manifest_cells_independent_derivation_rejects_ghost_cell(tmp_path):
     assert ei.value.cause == "cells-derivation"
 
 
+@in_sealed_fixture_process
 def test_manifest_schedule_independent_derivation_rejected(tmp_path):
     _need_v1()
     def mutate(state):
@@ -1800,6 +1839,7 @@ def test_manifest_schedule_independent_derivation_rejected(tmp_path):
     assert ei.value.cause == "schedule-derivation"
 
 
+@in_sealed_fixture_process
 def test_session_start_schedule_bijection_rejected(tmp_path):
     _need_v1()
     def mutate(state):
@@ -1812,6 +1852,7 @@ def test_session_start_schedule_bijection_rejected(tmp_path):
     assert ei.value.cause == "planned-schedule"
 
 
+@in_sealed_fixture_process
 def test_retry_authorization_outside_frozen_budget_rejected(tmp_path):
     _need_v1()
     def mutate(state):
@@ -1827,6 +1868,7 @@ def test_retry_authorization_outside_frozen_budget_rejected(tmp_path):
     assert ei.value.cause == "retry-authorization"
 
 
+@in_sealed_fixture_process
 def test_round_start_complete_state_machine_rejects_duplicate(tmp_path):
     _need_v1()
     def mutate(state):
@@ -1848,6 +1890,7 @@ def test_round_start_complete_state_machine_rejects_duplicate(tmp_path):
                                     "utc": "2026-07-18T12:00:00+00:00"}),
     lambda journal: journal[-1].__setitem__("status", "aborted"),
 ])
+@in_sealed_fixture_process
 def test_terminal_unique_final_completed_required(tmp_path, terminal_mutation):
     _need_v1()
     def mutate(state):
@@ -1861,6 +1904,7 @@ def test_terminal_unique_final_completed_required(tmp_path, terminal_mutation):
     assert ei.value.reason == "journal-state-invalid"
 
 
+@in_sealed_fixture_process
 def test_result_unknown_key_strict_schema_rejected(tmp_path):
     _need_v1()
     def mutate(state):
@@ -1872,6 +1916,7 @@ def test_result_unknown_key_strict_schema_rejected(tmp_path):
     assert ei.value.cause == "schema-keys"
 
 
+@in_sealed_fixture_process
 def test_eligible_requires_bool_true_not_integer_one(tmp_path):
     _need_v1()
     def mutate(state):
@@ -1883,6 +1928,7 @@ def test_eligible_requires_bool_true_not_integer_one(tmp_path):
     assert ei.value.cause == "eligible-flag"
 
 
+@in_sealed_fixture_process
 def test_verified_floor_artifact_and_binary_index_are_deep_frozen(tmp_path):
     _need_v1()
     root, freeze, topology = _build_launch_repo(tmp_path)
@@ -1900,6 +1946,7 @@ def test_verified_floor_artifact_and_binary_index_are_deep_frozen(tmp_path):
     "case_id",
     ["binaries-cell-set", "binary-cell-binding", "binary-hash", "binding-sha"],
 )
+@in_sealed_fixture_process
 def test_portable_binary_coherent_island_rejected_by_exact_cause(tmp_path, case_id):
     _need_v1()
     _assert_emitter_baseline(tmp_path / "baseline")
@@ -1910,6 +1957,7 @@ def test_portable_binary_coherent_island_rejected_by_exact_cause(tmp_path, case_
     _assert_registered_refusal(case_id, lambda: M.launch_validate(freeze, root))
 
 
+@in_sealed_fixture_process
 def test_production_shape_run_cmd_calls_exact_portable_matcher(tmp_path):
     _need_v1()
     root, freeze, topology = _build_launch_repo(tmp_path)
@@ -1922,6 +1970,7 @@ def test_production_shape_run_cmd_calls_exact_portable_matcher(tmp_path):
     assert M.launch_validate(freeze, root).floor_artifact.document["sessions"][0]["run_cmd"]
 
 
+@in_sealed_fixture_process
 def test_run_cmd_projection_uses_passed_contract_as_structural_pin(tmp_path):
     """これは構造 pin であって受理正例ではない。正当な successor では
     clocks_per_us / numactl は世代間で同値になるため、この unit でしか検出できない。"""
@@ -1985,6 +2034,7 @@ def _mutate_run_cmd(state, mutation: str, *, result_only: bool = False) -> None:
 @pytest.mark.parametrize(
     "mutation", ["prefix", "binary", "flag-order", "other-holdout-axis"],
 )
+@in_sealed_fixture_process
 def test_run_cmd_projection_tamper_rejected_end_to_end(tmp_path, mutation):
     _need_v1()
     root, freeze, _ = _build_launch_repo(
@@ -1995,6 +2045,7 @@ def test_run_cmd_projection_tamper_rejected_end_to_end(tmp_path, mutation):
     assert ei.value.cause == "run-cmd-projection"
 
 
+@in_sealed_fixture_process
 def test_result_run_cmd_projection_is_independently_rejected(tmp_path):
     _need_v1()
     root, freeze, _ = _build_launch_repo(
@@ -2006,6 +2057,7 @@ def test_result_run_cmd_projection_is_independently_rejected(tmp_path):
     assert ei.value.cause == "run-cmd-projection"
 
 
+@in_sealed_fixture_process
 def test_valid_session_requires_run_cmd_even_when_journal_and_result_agree(tmp_path):
     _need_v1()
     _assert_emitter_baseline(tmp_path / "baseline")
@@ -2045,6 +2097,7 @@ def test_certificate_to_launch_start_time_wiring_rejects_single_field(tmp_path):
     assert ei.value.cause == "equality-edge:cert.started_utc->journal.launch-start.utc"
 
 
+@in_sealed_fixture_process
 def test_result_raw_sha_to_floor_source_wiring_rejects_semantic_island(tmp_path):
     """同じ parsed result を保つ trailing whitespace tamper でも raw hash anchor が拒否する。"""
     _need_v1()
@@ -2079,6 +2132,7 @@ def test_closure_raw_sha_to_generation_record_wiring_rejects_semantic_island(tmp
     assert ei.value.cause == "closure-record-sha"
 
 
+@in_sealed_fixture_process
 def test_journal_result_equality_rejects_rehashed_coherent_island(tmp_path):
     """result と generation SHA を再計算しても、独立 journal anchor が差分を拒否する。"""
     _need_v1()
@@ -2102,6 +2156,7 @@ def _rehash_selector_prediction(document: dict) -> None:
     document["body_sha256"] = hashlib.sha256(raw).hexdigest()
 
 
+@in_sealed_fixture_process
 def test_selector_exact_exemption_accepts_declared_three_axis_evidence(tmp_path):
     _need_v1()
     root, freeze, topology = _build_launch_repo(
@@ -2124,6 +2179,7 @@ def test_selector_exact_exemption_accepts_declared_three_axis_evidence(tmp_path)
     assert isinstance(M.launch_validate(freeze, root), M.LaunchValidatedFreeze)
 
 
+@in_sealed_fixture_process
 def test_selector_parser_classification_boundary_at_ratified_launch(
         tmp_path, monkeypatch):
     _need_v1()
@@ -2339,6 +2395,7 @@ def test_selector_exact_exemption_absent_prediction_is_noop(tmp_path):
     assert M._selector_evidence_exempt_exact(head=head, root=root) == {}
 
 
+@in_sealed_fixture_process
 def test_selector_exact_exemption_rejects_undeclared_selector_run_hit(tmp_path):
     _need_v1()
     orphan = "output/s8b-freeze/selector-runs/envelope_orphan.json"
@@ -2352,6 +2409,7 @@ def test_selector_exact_exemption_rejects_undeclared_selector_run_hit(tmp_path):
     )
 
 
+@in_sealed_fixture_process
 def test_selector_payload_is_not_exempt_and_conjunction_is_scanned(tmp_path):
     _need_v1()
     payload = "output/s8b-freeze/selector-runs/payload_rr20_on.json"
@@ -2365,6 +2423,7 @@ def test_selector_payload_is_not_exempt_and_conjunction_is_scanned(tmp_path):
     )
 
 
+@in_sealed_fixture_process
 def test_selector_exact_exemption_rejects_declared_sha_mismatch(tmp_path):
     _need_v1()
     root, _freeze, topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
@@ -2380,6 +2439,7 @@ def test_selector_exact_exemption_rejects_declared_sha_mismatch(tmp_path):
     assert caught.value.cause == "selector-evidence-hash"
 
 
+@in_sealed_fixture_process
 def test_selector_exact_exemption_rejects_coherent_wrong_raw_sha(tmp_path):
     _need_v1()
     root, _freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
@@ -2405,6 +2465,7 @@ def test_selector_exact_exemption_rejects_coherent_wrong_raw_sha(tmp_path):
     assert caught.value.cause == "selector-evidence-hash"
 
 
+@in_sealed_fixture_process
 def test_selector_exact_exemption_rejects_prediction_source_blob_hash_mismatch(
         tmp_path):
     _need_v1()
@@ -2421,6 +2482,7 @@ def test_selector_exact_exemption_rejects_prediction_source_blob_hash_mismatch(
     assert caught.value.cause == "selector-evidence-hash"
 
 
+@in_sealed_fixture_process
 def test_selector_exact_exemption_rejects_self_declared_wrong_protocol_sha(tmp_path):
     _need_v1()
     root, _freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
@@ -2435,6 +2497,7 @@ def test_selector_exact_exemption_rejects_self_declared_wrong_protocol_sha(tmp_p
     assert caught.value.cause == "selector-declaration-invalid"
 
 
+@in_sealed_fixture_process
 def test_selector_launch_rejects_wrong_journal_schema_value(tmp_path):
     """M11: key 集合と他の束縛が正しい journal でも schema 値 drift は拒否する。"""
     _need_v1()
@@ -2462,6 +2525,7 @@ def test_selector_launch_rejects_wrong_journal_schema_value(tmp_path):
     ],
     ids=("claim-decision-method", "static-decision-method", "static-choice-id"),
 )
+@in_sealed_fixture_process
 def test_selector_launch_rejects_journal_row_decision_drift(
         tmp_path, record_type, field, replacement):
     """M12: 非空で shape-valid な journal 値も封印 prediction row と違えば拒否する。"""
@@ -2482,6 +2546,7 @@ def test_selector_launch_rejects_journal_row_decision_drift(
     assert caught.value.cause == "selector-declaration-invalid"
 
 
+@in_sealed_fixture_process
 def test_selector_launch_projection_ignores_current_choice_semantics(
         tmp_path, monkeypatch):
     _need_v1()
@@ -2504,6 +2569,7 @@ def test_selector_launch_projection_ignores_current_choice_semantics(
     ) == baseline
 
 
+@in_sealed_fixture_process
 def test_selector_exact_exemption_rejects_nonancestor_pre_oracle_head(tmp_path):
     _need_v1()
     root, _freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
@@ -2527,6 +2593,7 @@ def test_selector_exact_exemption_rejects_nonancestor_pre_oracle_head(tmp_path):
     assert caught.value.cause == "selector-declaration-invalid"
 
 
+@in_sealed_fixture_process
 def test_selector_exact_exemption_rejects_journal_rows_mismatch(tmp_path):
     _need_v1()
     root, _freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
@@ -2542,6 +2609,7 @@ def test_selector_exact_exemption_rejects_journal_rows_mismatch(tmp_path):
     assert caught.value.cause == "selector-declaration-invalid"
 
 
+@in_sealed_fixture_process
 def test_selector_exact_exemption_rejects_duplicate_key_document(tmp_path):
     _need_v1()
     root, _freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
@@ -2559,6 +2627,7 @@ def test_selector_exact_exemption_rejects_duplicate_key_document(tmp_path):
     assert caught.value.cause == "selector-declaration-invalid"
 
 
+@in_sealed_fixture_process
 def test_selector_exact_exemption_rejects_h_worktree_bytes_mismatch(tmp_path):
     _need_v1()
     root, freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
@@ -2570,6 +2639,7 @@ def test_selector_exact_exemption_rejects_h_worktree_bytes_mismatch(tmp_path):
     assert caught.value.cause == "selector-evidence-bytes"
 
 
+@in_sealed_fixture_process
 def test_selector_exact_exemption_rejects_worktree_symlink(tmp_path):
     _need_v1()
     root, freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
@@ -2582,6 +2652,7 @@ def test_selector_exact_exemption_rejects_worktree_symlink(tmp_path):
     assert caught.value.cause == "selector-evidence-bytes"
 
 
+@in_sealed_fixture_process
 def test_selector_exact_exemption_rejects_executable_h_mode(tmp_path):
     _need_v1()
     root, _freeze, _topology = _build_launch_repo(tmp_path, selector_valid_cell=True)
@@ -2594,6 +2665,7 @@ def test_selector_exact_exemption_rejects_executable_h_mode(tmp_path):
     assert caught.value.cause == "selector-evidence-mode"
 
 
+@in_sealed_fixture_process
 def test_single_axis_occurrence_in_free_field_rejected(tmp_path):
     _need_v1()
     token = _first_axis_tokens()[0]
@@ -2610,6 +2682,7 @@ def test_single_axis_occurrence_in_free_field_rejected(tmp_path):
     assert ei.value.cause == "axis-occurrence"
 
 
+@in_sealed_fixture_process
 def test_three_axes_distributed_across_free_fields_rejected(tmp_path):
     _need_v1()
     tokens = _first_axis_tokens()
@@ -2629,6 +2702,7 @@ def test_three_axes_distributed_across_free_fields_rejected(tmp_path):
     assert ei.value.cause == "axis-occurrence"
 
 
+@in_sealed_fixture_process
 def test_untracked_symlink_fails_closed_before_scan(tmp_path):
     _need_v1()
     root, freeze, _ = _build_launch_repo(tmp_path)
@@ -2720,6 +2794,7 @@ def test_axis_scanner_does_not_allow_sort_receipt_subtree():
     assert caught.value.cause == "axis-occurrence"
 
 
+@in_sealed_fixture_process
 def test_closure_role_collision_with_result_rejected(tmp_path):
     _need_v1()
     root, freeze, topology = _build_launch_repo(tmp_path)
@@ -2760,6 +2835,7 @@ def test_certificate_same_commit_as_generation_rejected(tmp_path):
     assert ei.value.cause == "cert-lineage"
 
 
+@in_sealed_fixture_process
 def test_floor_source_introduction_must_be_exact_generation_commit(tmp_path):
     _need_v1()
     root, freeze, topology = _build_launch_repo(tmp_path)
@@ -2773,6 +2849,7 @@ def test_floor_source_introduction_must_be_exact_generation_commit(tmp_path):
     assert ei.value.cause == "generation-introduction"
 
 
+@in_sealed_fixture_process
 def test_validation_head_artifact_change_rejected_even_if_worktree_matches_h(tmp_path):
     _need_v1()
     root, freeze, topology = _build_launch_repo(tmp_path)
@@ -2789,6 +2866,7 @@ def test_validation_head_artifact_change_rejected_even_if_worktree_matches_h(tmp
     assert ei.value.cause == "g-h-worktree-mismatch"
 
 
+@in_sealed_fixture_process
 def test_worktree_executable_mode_drift_rejected(tmp_path):
     _need_v1()
     root, freeze, topology = _build_launch_repo(tmp_path)
@@ -2800,6 +2878,7 @@ def test_worktree_executable_mode_drift_rejected(tmp_path):
     assert ei.value.cause == "g-h-worktree-mismatch"
 
 
+@in_sealed_fixture_process
 def test_manifest_mode_100755_accepted_when_g_h_worktree_match(tmp_path):
     _need_v1()
     root, freeze, topology = _build_launch_repo(tmp_path, executable_role="manifest")
@@ -2809,6 +2888,7 @@ def test_manifest_mode_100755_accepted_when_g_h_worktree_match(tmp_path):
     assert validated.ratified is freeze
 
 
+@in_sealed_fixture_process
 def test_worktree_parent_symlink_rejected_component_walk(tmp_path):
     _need_v1()
     root, freeze, topology = _build_launch_repo(tmp_path)
@@ -2822,6 +2902,7 @@ def test_worktree_parent_symlink_rejected_component_walk(tmp_path):
     assert ei.value.cause == "worktree-symlink"
 
 
+@in_sealed_fixture_process
 def test_namespace_exemption_requires_exact_h_worktree_bytes(tmp_path):
     _need_v1()
     root, freeze, _ = _build_launch_repo(tmp_path)
@@ -2844,6 +2925,7 @@ def test_strict_jsonl_rejects_duplicate_nan_truncated_and_blank(raw):
         M._strict_jsonl(raw)
 
 
+@in_sealed_fixture_process
 def test_binary_receipt_is_derived_from_journal_not_result(tmp_path):
     _need_v1()
     def mutate(state):
@@ -2858,6 +2940,7 @@ def test_binary_receipt_is_derived_from_journal_not_result(tmp_path):
     assert ei.value.cause == "binary-receipt"
 
 
+@in_sealed_fixture_process
 def test_result_excluded_projection_rederived_from_journal(tmp_path):
     _need_v1()
     def mutate(state):
@@ -2875,6 +2958,7 @@ def test_result_excluded_projection_rederived_from_journal(tmp_path):
     assert ei.value.cause == "result-excluded"
 
 
+@in_sealed_fixture_process
 def test_ratified_journal_required_consumer_passes_contract_mode_and_verified(tmp_path):
     """required receipt dispatch は validate_receipt_v2 単独でなく契約再検算 API を通る。"""
     _need_v1()

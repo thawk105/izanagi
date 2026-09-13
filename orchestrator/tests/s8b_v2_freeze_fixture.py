@@ -89,6 +89,47 @@ def canonical_bytes(value) -> bytes:
     ).encode("utf-8")
 
 
+def in_sealed_fixture_process(test):
+    """Keep real seal issuance and all test assertions in one single-thread child.
+
+    Fork the test body, not the capability: issuance records are PID-bound and
+    must never be transported back into the xdist worker. Fixture arguments and
+    installed monkeypatches are inherited; assertions and spies run in the child.
+    Only the failure traceback returns to pytest. No skip/xfail conversion.
+    """
+    import functools
+    import os
+    import traceback
+
+    @functools.wraps(test)
+    def run(*args, **kwargs):
+        read_fd, write_fd = os.pipe()
+        try:
+            pid = os.fork()
+        except BaseException:
+            os.close(read_fd)
+            os.close(write_fd)
+            raise
+        if pid == 0:
+            os.close(read_fd)
+            status = 0
+            with os.fdopen(write_fd, "w", encoding="utf-8") as report:
+                try:
+                    test(*args, **kwargs)
+                except BaseException:
+                    status = 1
+                    report.write(traceback.format_exc())
+            os._exit(status)
+        os.close(write_fd)
+        try:
+            with os.fdopen(read_fd, encoding="utf-8") as report:
+                failure = report.read()
+        finally:
+            _, status = os.waitpid(pid, 0)
+        assert status == 0, failure or f"sealed fixture child wait status: {status}"
+    return run
+
+
 def sealed_source_protection_fixture(
         *, source, binary_sha256, compiler_input_manifest_sha256):
     """Issue through a real tiny sealed session; no issuer/registry bypass.

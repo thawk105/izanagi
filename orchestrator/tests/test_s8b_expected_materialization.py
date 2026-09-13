@@ -701,6 +701,43 @@ def _python_command(code, *args):
     return [sys.executable, "-I", "-B", "-c", code, *map(str, args)]
 
 
+def _run_sealed_case(module, case, tmp_path, **parameters):
+    """Exec a fresh interpreter: xdist workers may have multiple OS threads.
+
+    The case retains every assertion and real protection operation. Only its
+    completion report crosses processes; capabilities stay with their issuer.
+    Five seconds follows the existing tiny-session command/control timeout.
+    """
+    import json
+    import subprocess
+    code = """
+import contextlib, importlib, inspect, io, json, sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+module = importlib.import_module(sys.argv[2])
+case = getattr(module, sys.argv[3])
+parameters = json.loads(sys.argv[5])
+parameters['tmp_path'] = Path(sys.argv[4])
+# Import pytest without starting pytest.main, plugins, or xdist workers.
+import pytest
+output = io.StringIO()
+try:
+    with contextlib.redirect_stdout(output), pytest.MonkeyPatch.context() as patch:
+        if 'monkeypatch' in inspect.signature(case).parameters:
+            parameters['monkeypatch'] = patch
+        case(**parameters)
+finally:
+    print(output.getvalue(), file=sys.stderr, end='')
+print(json.dumps({'case': sys.argv[3], 'completed': True}))
+"""
+    result = subprocess.run(
+        _python_command(code, Path(__file__).resolve().parents[2], module,
+                        case, tmp_path, json.dumps(parameters)),
+        capture_output=True, text=True, check=True, timeout=5,
+    )
+    return json.loads(result.stdout)
+
+
 def _session_python(session, code, *args):
     return session.run(_python_command(code, *args), cwd="/", env=None, timeout_s=5)
 
@@ -751,6 +788,14 @@ print(json.dumps([results, original, path.read_bytes().hex()]))
 
 
 def test_sealed_snapshot_owner_chmod_write_erofs_with_writable_control(tmp_path):
+    case = "_sealed_snapshot_owner_chmod_write_erofs_with_writable_control_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_s8b_expected_materialization", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_snapshot_owner_chmod_write_erofs_with_writable_control_case(tmp_path):
     import errno
     import json
     import subprocess
@@ -758,7 +803,7 @@ def test_sealed_snapshot_owner_chmod_write_erofs_with_writable_control(tmp_path)
     source = root / "src" / "main.cc"
     original = source.read_bytes()
     control = subprocess.run(_python_command(_SOURCE_ATTACK, source),
-                             capture_output=True, text=True, check=True)
+                             capture_output=True, text=True, check=True, timeout=5)
     assert json.loads(control.stdout) == [[0, 0], original.hex(), b"changed".hex()]
     source.write_bytes(original)
     source.chmod(0o644)
@@ -833,6 +878,14 @@ assert os.waitstatus_to_exitcode(os.waitpid(pid, 0)[1]) == 0
 
 
 def test_sealed_snapshot_shares_late_staging_and_base_inodes(tmp_path):
+    case = "_sealed_snapshot_shares_late_staging_and_base_inodes_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_s8b_expected_materialization", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_snapshot_shares_late_staging_and_base_inodes_case(tmp_path):
     import json
     root = _sealed_test_tree(tmp_path)
     ancestor = root.parent.parent
@@ -858,6 +911,14 @@ print(json.dumps([p.stat().st_dev, p.stat().st_ino]))
 
 
 def test_sealed_session_root_replacement_refuses_issue_and_restores_original(tmp_path):
+    case = "_sealed_session_root_replacement_refuses_issue_and_restores_original_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_s8b_expected_materialization", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_session_root_replacement_refuses_issue_and_restores_original_case(tmp_path):
     root = _sealed_test_tree(tmp_path)
     original = (root / "src/main.cc").read_bytes()
     old_mode = _mode(root)
@@ -881,6 +942,14 @@ def test_sealed_session_root_replacement_refuses_issue_and_restores_original(tmp
 
 
 def test_sealed_session_abnormal_worker_refuses_issue_without_poisoning_parent(tmp_path):
+    case = "_sealed_session_abnormal_worker_refuses_issue_without_poisoning_parent_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_s8b_expected_materialization", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_session_abnormal_worker_refuses_issue_without_poisoning_parent_case(tmp_path):
     root = _sealed_test_tree(tmp_path)
     with pytest.raises(E.ExpectedMaterializationError):
         with _running_tiny_session(root) as session:
@@ -893,6 +962,14 @@ def test_sealed_session_abnormal_worker_refuses_issue_without_poisoning_parent(t
 
 
 def test_sealed_session_reaps_detached_descendants_before_issue(tmp_path):
+    case = "_sealed_session_reaps_detached_descendants_before_issue_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_s8b_expected_materialization", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_session_reaps_detached_descendants_before_issue_case(tmp_path):
     root = _sealed_test_tree(tmp_path)
     marker = root.parent.parent / "cache" / "pid"
     with _running_tiny_session(root) as session:
@@ -916,6 +993,14 @@ Path(sys.argv[1]).write_text(str(pid))
 
 
 def test_sealed_capability_exact_identity_and_binary_manifest_bindings(tmp_path):
+    case = "_sealed_capability_exact_identity_and_binary_manifest_bindings_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_s8b_expected_materialization", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_capability_exact_identity_and_binary_manifest_bindings_case(tmp_path):
     import dataclasses
     import json
     import pickle
@@ -1016,6 +1101,14 @@ def test_sealed_session_requires_one_real_os_thread(tmp_path):
 
 
 def test_sealed_session_permission_restore_failure_refuses_issue(tmp_path):
+    case = "_sealed_session_permission_restore_failure_refuses_issue_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_s8b_expected_materialization", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_session_permission_restore_failure_refuses_issue_case(tmp_path):
     root = _sealed_test_tree(tmp_path)
     originals = [(path, _mode(path)) for path in (root.parent, root, *root.rglob("*"))]
     session = _tiny_session(root)

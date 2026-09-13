@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from orchestrator.tests.s8b_v2_freeze_fixture import in_sealed_fixture_process
+
 import contextlib
 import copy
 import hashlib
@@ -147,6 +149,7 @@ def _producer_fixture(
     }
 
 
+@in_sealed_fixture_process
 def test_producer_proof_reaches_pre_measurement_consumer(tmp_path, monkeypatch):
     fixture = _producer_fixture(tmp_path, monkeypatch)
     built = fixture["built"]()
@@ -196,6 +199,7 @@ def test_producer_proof_reaches_pre_measurement_consumer(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("missing", ["snapshot", "manifest"])
+@in_sealed_fixture_process
 def test_campaign_forwards_missing_proof_to_unconditional_issuer(
         tmp_path, monkeypatch, missing):
     fixture = _producer_fixture(
@@ -242,6 +246,7 @@ def test_campaign_forwards_missing_proof_to_unconditional_issuer(
         ),
     ],
 )
+@in_sealed_fixture_process
 def test_consumer_rejects_resealed_reverse_proof_mismatch(
         tmp_path, monkeypatch, field, message):
     fixture = _producer_fixture(tmp_path, monkeypatch)

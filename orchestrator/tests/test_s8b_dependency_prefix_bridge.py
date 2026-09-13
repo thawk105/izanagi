@@ -2,6 +2,8 @@
 """Runtime dependency-prefix roots bridge from floor build to real issuer."""
 from __future__ import annotations
 
+from orchestrator.tests.s8b_v2_freeze_fixture import in_sealed_fixture_process
+
 import hashlib
 import json
 from pathlib import Path
@@ -79,6 +81,7 @@ def _dependency_build(
     return build, dependency_root.resolve()
 
 
+@in_sealed_fixture_process
 def test_build_cells_passes_build_result_dependency_roots_to_real_receipt_issuer(
         tmp_path, monkeypatch):
     _install_floor_seams(monkeypatch)
@@ -120,6 +123,7 @@ def test_build_cells_passes_build_result_dependency_roots_to_real_receipt_issuer
     assert str(dependency_root) not in json.dumps(receipt, sort_keys=True)
 
 
+@in_sealed_fixture_process
 def test_build_cells_real_receipt_issuer_rejects_wrong_dependency_root_context(
         tmp_path, monkeypatch):
     _install_floor_seams(monkeypatch)
