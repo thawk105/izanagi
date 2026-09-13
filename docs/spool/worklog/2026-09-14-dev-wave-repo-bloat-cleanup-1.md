@@ -59,6 +59,14 @@ title: リポジトリ膨張を実測し、tracked file の削除確定が 0 件
   相手が 112 走で shard-0 103 走 (92%) を示し、**親も独立に直近 53 走を数えて shard-0 49 走
   (92.5%)、最遅 shard の wall が 300 秒超 53 走中 52 走を確認した。** D1918 の前提は失効している。
   この記録は相手の wave が残す。
+- **受入 attempt 1 が、この wave の主題を実演して赤になった。** 23,308 passed / 68 skipped /
+  6 error、子 rc=1、受領証未発行 (待ち手 rc=70)。6 件はすべて
+  `test_t1259_qsub_env_delivery_probe.py` の setup error で、
+  `git -C <wave worktree> ls-files --others --exclude-standard -z` の 30.0 秒 TimeoutExpired。
+  同 tip・同 file の単独再走は 51 passed / 16.67 秒 / rc=0 で非再現。
+  **親が同 argv を 3 連続実行した wall は 34.60 / 24.96 / 15.90 秒**で、30 秒の境界を跨いでいた
+  (load average 68.35〜88.49)。F945 の 3 度目の観測として再発を追記し、恒久対応は変えず
+  `DW-O18` に従って受入を再走した。**膨張が受入 gate を間欠的に壊す段階に来ていることの実測である。**
 - 段 2 に codex plan 1 本、段 3 に consult 2 本 (sol / luna) を使った。実装子は起動していない。
 
 ## 次の一手差分

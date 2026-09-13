@@ -224,7 +224,30 @@ failure 型にはしない。
 3. **重複 test 1 件の削除。** §3.2 の形で着手可能。本 wave では実施しない。
 4. **受入 fixture の全件複製。** §5。別 session の系列が扱う。
 
-## 7. 本監査が確かめていないこと
+## 7. 膨張が研究を止めた実例 — 受入 attempt 1 の setup error
+
+本 wave の受入全走そのものが、膨張の実害を実演した。
+
+- 受入 attempt 1 (docs のみの tip `741e27283`) は
+  **23,308 passed / 68 skipped / 6 error**、子 rc=1、受領証未発行 (待ち手 rc=70)。
+- 6 件はすべて `test_t1259_qsub_env_delivery_probe.py` の setup error で、traceback の Git argv は
+  `git -C <wave worktree> ls-files --others --exclude-standard -z` の **30.0 秒 TimeoutExpired**。
+- 同 tip・同 file の単独再走 (996322.nqsv) は **51 passed / 16.67 秒、rc=0** で非再現。
+- **親が同じ worktree で同 argv を 3 連続実行した wall は 34.60 / 24.96 / 15.90 秒**
+  (load average 68.35〜88.49)。**30 秒の timeout を跨いでいる。**
+
+つまり「24,684 件 / 約 690 MB の作業ツリーに対する未追跡走査」が、テスト側が置いた 30 秒の境界に
+届いてしまっている。F945 が同型を既に記録しており、本 wave は 3 度目の観測である。
+
+**ただし遅延の I/O 要因は分離していない。** 新規 worktree の cold cache と login node 負荷が
+交絡しており、どちらがどれだけ効くかは測っていない。走査時間の分布を与えただけである。
+恒久対応は F945 のまま変えない (timeout 拡大・fixture の stub 化・除外・汎用 gate の新設はしない)。
+
+この観測は §1 の「ディスク容量は制約でない」と矛盾しない。**制約になっているのは容量ではなく
+file 件数に対する metadata 走査の所要**である。§5 の fixture 全件複製と同じ層の話であり、
+削除ではなく「走査・複製の対象を減らすか、境界を実測に合わせるか」が打ち手になる。
+
+## 8. 本監査が確かめていないこと
 
 - `output/` 全件の `FROZEN_MANIFEST` / generator source hash / key→canonical path /
   role・xdist group pin の完全閉包。任意 path を引数で受ける汎用 reader の全呼出経路。
