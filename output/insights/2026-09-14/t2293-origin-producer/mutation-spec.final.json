@@ -1,0 +1,94 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "MUT-T2293-MX1-PATH-MATCH",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[wrong-query]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "            if relative.as_posix() != member.evidence_path:\n",
+          "new": "            if False:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2293-MX2-DERIVE-SWAP",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_public_path_preserves_capability_identity_and_projects_terminal",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_public_result_distinguishes_partial_from_completed",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_registered_slot_is_reserved_before_first_performance_observation",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[caller-path]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[missing-record]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[query-order]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[wrong-query]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[caller-root]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[missing-member]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[duplicate-path]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[symlink-record]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[symlink-parent]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "        \"reports\", \"reflux-result-evidence\", origin, batch, f\"{query_ordinal}.json\"\n",
+          "new": "        \"reports\", \"reflux-result-evidence\", batch, origin, f\"{query_ordinal}.json\"\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2293-MX3-EVIDENCE-ROOT",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_public_path_preserves_capability_identity_and_projects_terminal",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[caller-path]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[caller-root]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "        evidence_root=runtime.campaign_output_root,\n",
+          "new": "        evidence_root=Path(runtime.campaign_output_root).parent,\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2293-MX4-ORDINAL-OVERREJECT",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_public_result_distinguishes_partial_from_completed",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_public_path_preserves_capability_identity_and_projects_terminal",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_registered_slot_is_reserved_before_first_performance_observation",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[caller-path]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[caller-root]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[missing-record]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[wrong-query]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[duplicate-path]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[symlink-record]",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_origin_runtime_collects_only_producer_owned_evidence[symlink-parent]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "        or tuple(member.query_ordinal for member in members) != tuple(range(count))\n",
+          "new": "        or tuple(member.query_ordinal for member in members) != tuple(range(1, count + 1))\n"
+        }
+      ]
+    }
+  ]
+}
