@@ -21,6 +21,19 @@ title: [T-758] 既存 docs の誤り 3 件を現物で裏取りして訂正し�
   `KEY_SORT` の live site を取り逃し、死にフラグと誤判定した。切らずに数え直して是正した。
 - 子エージェントは起動していない (docs のみ・実装面の差分ゼロ)。DW-S04 により変異 matrix は免除、
   受入全走は実施した。
+- **受入の経過。** 1 回目 (tested_main 75bea8e5f) は 23310 passed / 68 skipped で完全緑 (verdict
+  child-green)。land は 2 手で止まった — 1 手目が rc=29 だが理由は provenance 違反ではなく
+  「監査中に main/wave head が動いた」、2 手目が `stale-main` で、並行 wave (dev-wave-t1875) が先に
+  main を abbef52d5 へ進めた。新 main を取り込んで受入をやり直した 2 回目は 6 error + 1 failed
+  (`test_t1259_qsub_env_delivery_probe.py` の 6 件は setup error、
+  `test_env_contract_activation.py::test_historical_calibration_is_verified_only_when_resolved_in_source_stage[modified]`
+  が 1 failed) で戻った。
+- **この赤は非帰属と判定した (DW-O18)。** 根拠は 3 つ。(i) merged main に対する本 wave の変更面は
+  docs 4 file だけで、落ちた 2 つの test file はそのいずれも参照しない (path 検索で hit 0)。
+  (ii) 同じ wave tip と旧 main の組で受入は赤 0 だった。(iii) 7 件を単独再走すると 53 passed で
+  rc=0、全件が非再現だった。t1259 の 6 件は受入並列で毎回別の test が setup error になる既知型で、
+  単独では毎回緑になる。よって DW-O18 の「非再現なら受入再走」に従い、同一 tip で受入を 1 回だけ
+  やり直した。テストの弱体化・deselect・hold 登録はしていない。
 - 設計択一は生じなかったため decisions への追記はない。
 
 ## 次の一手差分
