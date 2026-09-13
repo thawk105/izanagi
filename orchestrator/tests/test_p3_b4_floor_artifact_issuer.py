@@ -1427,6 +1427,76 @@ def test_aggregate_public_rejects_individually_valid_identity_mismatch(tmp_path,
     assert not list((tmp_path / "out").glob("b4-floor-aggregate__*.json"))
 
 
+@pytest.mark.parametrize("window_count", (1, 3), ids=("one-window", "three-windows"))
+def test_aggregate_public_rejects_non_two_window_spec(tmp_path, monkeypatch, window_count):
+    pins, paths, summaries, _ = _aggregate_public_sources(tmp_path, monkeypatch)
+    spec = json.loads((tmp_path / pins[0][0]).read_bytes())
+    summary = summaries[0]
+    if window_count == 1:
+        spec["windows"] = spec["windows"][:1]
+    else:
+        third = copy.deepcopy(spec["windows"][0])
+        third.update(
+            window_id="window-c", campaign_id="campaign-0-c",
+            not_before="2030-01-03T00:00:00Z",
+            not_after="2030-01-03T01:00:00Z",
+            artifact_relpath="out/window-c.jsonl",
+        )
+        spec["windows"].append(third)
+        _write_bytes(tmp_path, third["artifact_relpath"], b"synthetic window artifact\n")
+    spec["statistics"]["closed_strata"] = [
+        {"window_id": window["window_id"], "pair_id": pair}
+        for window in spec["windows"] for pair in window["pair_ids"]
+    ]
+
+    # Reuse complete per-window records, including both cells and dropped sides.
+    # Calibration identity/workload is unchanged, so the helper's seam still fits.
+    collections = [
+        summary["window_artifacts"], summary["campaigns"], summary["dropped"],
+        summary["derivation"][0]["samples"], summary["derivation"][0]["strata"],
+    ]
+    for rows in collections:
+        if window_count == 1:
+            rows[:] = [row for row in rows if row["window_id"] == "window-a"]
+        else:
+            for original in list(rows):
+                if original["window_id"] != "window-a":
+                    continue
+                row = copy.deepcopy(original)
+                row["window_id"] = "window-c"
+                if "campaign_id" in row:
+                    row["campaign_id"] = "campaign-0-c"
+                if "artifact_relpath" in row:
+                    row["artifact_relpath"] = "out/window-c.jsonl"
+                if "strata" in row:
+                    for stratum in row["strata"]:
+                        stratum["window_id"] = "window-c"
+                rows.append(row)
+    summary["dropped_sample_count"] = window_count
+    summary["dropped_record_count"] = 2 * window_count
+    digest = _write_bytes(tmp_path, pins[0][0], _canonical(spec))
+    pins[0] = (pins[0][0], digest)
+    summary["spec_sha256"] = digest
+    _write_bytes(tmp_path, paths[0].as_posix(), _canonical(summary))
+
+    # Prove admission and closure independently of the aggregate count guard.
+    loaded_spec = floor_pair_driver.load_frozen_spec(
+        Path(pins[0][0]), digest, repo_root=tmp_path,
+    )
+    assert len(loaded_spec.windows) == window_count
+    loaded_summary = issuer.load_floor_pair_summary(
+        repo_root=tmp_path, summary_path=paths[0],
+    )
+    issuer._validate_aggregate_summary_coverage(loaded_spec, loaded_summary, summary)
+    with pytest.raises(issuer.B4FloorArtifactError) as caught:
+        issuer.issue_aggregate_authoritative_floor(
+            repo_root=tmp_path, summary_paths=paths, expected_specs=pins,
+            output_dir=Path("out"),
+        )
+    assert caught.value.code == "aggregate_window_count_error"
+    assert not list((tmp_path / "out").glob("b4-floor-aggregate__*.json"))
+
+
 def _run() -> int:
     """pytest fixtures/parametrize を含む全 node を素の runner からも実行する。"""
     return int(pytest.main(["-q", str(Path(__file__).resolve())]))
