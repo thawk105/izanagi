@@ -1,0 +1,170 @@
+{
+  "attempts": [
+    {
+      "artifact_error": null,
+      "console_sha256": "602cc24f5e2cd5dfc2b1044d5c4e6daa9b8d4fabbafa3eaae3071898f33bc62c",
+      "finished_at": "2026-09-13T15:03:01.184265+00:00",
+      "mutation_id": null,
+      "phase": "collection",
+      "rc": 0,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/446b8e3394cd6786b6c7541da4970d7a/izdw-446b8e3394.o995841",
+        "outcome_rc": 0,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/446b8e3394cd6786b6c7541da4970d7a/receipt.json",
+        "request_id": "995841.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/446b8e3394cd6786b6c7541da4970d7a"
+      },
+      "run_attempt_ordinal": 1,
+      "started_at": "2026-09-13T15:02:34.192351+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "401ec870609fa78374be9c99e7078d870195876f372987381b775b1d300f4bcd",
+      "finished_at": "2026-09-13T15:04:42.402428+00:00",
+      "mutation_id": null,
+      "phase": "baseline",
+      "rc": 0,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/f3ecd1d5e9ffc1999bafaf91d27941dc/izdw-f3ecd1d5e9.o995842",
+        "outcome_rc": 0,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/f3ecd1d5e9ffc1999bafaf91d27941dc/receipt.json",
+        "request_id": "995842.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/f3ecd1d5e9ffc1999bafaf91d27941dc"
+      },
+      "run_attempt_ordinal": 2,
+      "started_at": "2026-09-13T15:03:08.870539+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "0c30b33f0da8118aec5008a9649baee2a96ee8fc18014fb805242ad0b56bdcfa",
+      "finished_at": "2026-09-13T15:05:54.030518+00:00",
+      "mutation_id": "MUT-T2515-M1-READD-DEFINE",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/8c0a71d54209495691b63da90eefd66e/izdw-8c0a71d542.o995843",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/8c0a71d54209495691b63da90eefd66e/receipt.json",
+        "request_id": "995843.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/8c0a71d54209495691b63da90eefd66e"
+      },
+      "run_attempt_ordinal": 3,
+      "started_at": "2026-09-13T15:04:46.024954+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "ca1e23422f0fcaf9cbc1bcda5525d6797d1a3a6daad8479da05abf78fc07eb08",
+      "finished_at": "2026-09-13T15:07:41.360982+00:00",
+      "mutation_id": "MUT-T2515-M2-BACKOFF-VALUE",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/88028a9fa84d847d9b9b7d99e80ad9a7/izdw-88028a9fa8.o995844",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/88028a9fa84d847d9b9b7d99e80ad9a7/receipt.json",
+        "request_id": "995844.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/88028a9fa84d847d9b9b7d99e80ad9a7"
+      },
+      "run_attempt_ordinal": 4,
+      "started_at": "2026-09-13T15:05:57.549627+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "2ebcddadf470fe0d9ef025ae5f1729f7aaf81b185ae6da6cbd1ef7c522a0231a",
+      "finished_at": "2026-09-13T15:09:26.260473+00:00",
+      "mutation_id": "MUT-T2515-M3-DROP-WAL-AXIS",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/26543489514e815e3dfe19fd26004cd8/izdw-2654348951.o995845",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/26543489514e815e3dfe19fd26004cd8/receipt.json",
+        "request_id": "995845.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/26543489514e815e3dfe19fd26004cd8"
+      },
+      "run_attempt_ordinal": 5,
+      "started_at": "2026-09-13T15:07:47.569964+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "214aa9137089599af114e8806786ff533cea94224e8d9b2294b6f693d4b95228",
+      "finished_at": "2026-09-13T15:11:10.021458+00:00",
+      "mutation_id": "MUT-T2515-M4-WEAKEN-EXACT-TABLE",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/fbb4c457a1c68dad9450635b8addccd2/izdw-fbb4c457a1.o995846",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/fbb4c457a1c68dad9450635b8addccd2/receipt.json",
+        "request_id": "995846.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/fbb4c457a1c68dad9450635b8addccd2"
+      },
+      "run_attempt_ordinal": 6,
+      "started_at": "2026-09-13T15:09:31.355960+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "d2f6b5b157e42fbe9e82be861f3f02876c2adbe5475d731110b731bda3565f53",
+      "finished_at": "2026-09-13T15:12:48.661606+00:00",
+      "mutation_id": "MUT-T2515-M5-TMPDIR-COLON",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/60958d1a5ece989daae3713aba193675/izdw-60958d1a5e.o995847",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/60958d1a5ece989daae3713aba193675/receipt.json",
+        "request_id": "995847.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/60958d1a5ece989daae3713aba193675"
+      },
+      "run_attempt_ordinal": 7,
+      "started_at": "2026-09-13T15:11:15.056645+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "3e1805e87048f3d26759e2d09b34ea29a126ac999107adb2fabd865b6c045166",
+      "finished_at": "2026-09-13T15:14:38.392798+00:00",
+      "mutation_id": "MUT-T2515-M6-README-REVERT",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/5d9e88101309e7ecb6ff55cf4139a445/izdw-5d9e881013.o995851",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/5d9e88101309e7ecb6ff55cf4139a445/receipt.json",
+        "request_id": "995851.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/5d9e88101309e7ecb6ff55cf4139a445"
+      },
+      "run_attempt_ordinal": 8,
+      "started_at": "2026-09-13T15:12:54.543428+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    }
+  ],
+  "expected_initial_requests": 8,
+  "repo_head": "931eee3c3b7b3122af020a96e675bdf3628b5644",
+  "runner_sha256": "66f497d77bd0939c6baa39b089323c80db835aa2760a8fa6d7dddb1a60d3629f",
+  "schema": "izanagi-dev-wave-mutation-attempts/v1",
+  "spec_sha256": "cd40e36408f94eef2b9896ed664cebad9c1aa44e3336fdabe13a38859cff222f",
+  "tool_sha256": "de45c671da4682a0c168e520d4fd1c1c61474f5891d6c6d9857f46fc0c8d9f83"
+}

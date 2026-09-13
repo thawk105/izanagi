@@ -529,6 +529,11 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    - **(8b 着手済み — 現在地・着手順は現行チェックポイントが正本) workload 次元のループ入力化 (次の主経路)** — 「ワークロード特化」のシステム主張に必須。
      - [x] [T-2515] rr5/rr95 の較正投入対応と条件関門の interpreter 修正、既存失敗実測を回収。
        accepted calibration の取得自体は未完。正本 = `output/insights/2026-09-10/t2515-rr95-rr5-calibration/README.md`。
+     - [x] [T-2534] D1936 項 6 に従い、供給されていない BACKOFF_FIXED=-1 の configure argv と
+       専用条件関門を同時に取り下げた。rr95 は accepted calibration を取得
+       (`output/env/pegasus/calibration/registered/calibration-5c836a22eff9ab40.json`)。
+       rr5 は cache floor による `selection-invalid` で未取得のまま、迂回せず裁定へ返した。
+       正本 = `output/insights/2026-09-13/t2515-t2534-backoff-withdraw/README.md`。
      - [x] 認定較正jobの3依存コピー並行化を1対比較し、効果帰属不能として候補を全撤回。
        186→182秒だが未変更工程に3秒差、コピー周辺は約1秒のまま。時間式再凍結は未完。
        記録 = `output/insights/2026-09-11/t2563-calibration-runtime/README.md`。

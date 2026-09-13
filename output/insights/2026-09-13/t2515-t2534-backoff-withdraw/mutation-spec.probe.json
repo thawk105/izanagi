@@ -1,0 +1,92 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 400,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "MUT-T2515-M1-READD-DEFINE",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "      -DCCBENCH_BACK_OFF=0\n",
+          "new": "      -DCCBENCH_BACK_OFF=0\n      -DCCBENCH_BACKOFF_FIXED=-1\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2515-M2-BACKOFF-VALUE",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "      -DCCBENCH_BACK_OFF=0\n",
+          "new": "      -DCCBENCH_BACK_OFF=1\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2515-M3-DROP-WAL-AXIS",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "      -DCCBENCH_WAL=0\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2515-M4-WEAKEN-EXACT-TABLE",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_pegasus_calibration_workload.py",
+          "old": "            \"BACK_OFF\": \"0\",\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2515-M5-TMPDIR-COLON",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "export TMPDIR=\"/scr/${PBS_JOBID//:/_}\"\n",
+          "new": "export TMPDIR=\"/scr/${PBS_JOBID}\"\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2515-M6-README-REVERT",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/README.md",
+          "old": "認定較正は stock を対象とする。D1936 項 6 により、供給されていない BACKOFF_FIXED=-1 の指定と専用\n",
+          "new": "認定較正は stock を対象とする。D1936 項 6 により、不要になった指定と専用\n"
+        }
+      ]
+    }
+  ]
+}
