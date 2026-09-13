@@ -1081,6 +1081,14 @@ def _screening_disabled_payload(**extra):
     return payload
 
 
+_LEGACY_BENCH_PAYLOAD_KEYS = frozenset({
+    "build_attempt_id", "median_tps", "cv", "bench_wall_s", "high_variance",
+    "unstable", "rounds", "cv_history", "tps", "settled", "leading_indicators",
+    "rep_notes", "run_cmd", "perf_observation", "screening", "rep_returncodes",
+    "screening_disabled",
+})
+
+
 def test_run_bench_ast_assignments_exactly_match_declared_payload_keys():
     """Close only pipeline._run_bench; guided.py's producer stays out of scope."""
     source = textwrap.dedent(inspect.getsource(pipeline._run_bench))
@@ -1092,7 +1100,9 @@ def test_run_bench_ast_assignments_exactly_match_declared_payload_keys():
     assert conditional == pipeline._BENCH_DONE_CONDITIONAL_PAYLOAD_KEYS
     assert extra_routes == ["bench_payload_extra"]
     assert len(unconditional) == 13
-    assert len(conditional) == 3
+    assert len(conditional) == 4
+    assert pipeline._BENCH_PAYLOAD_EXTRA_KEYS == {"screening_disabled"}
+    assert pipeline._BENCH_DONE_PAYLOAD_KEYS == _LEGACY_BENCH_PAYLOAD_KEYS | {"reps"}
     assert pipeline._BENCH_DONE_PAYLOAD_KEYS == (
         unconditional
         | conditional
@@ -1241,7 +1251,22 @@ def test_run_bench_emits_exact_declared_payload_key_set(monkeypatch):
     assert bench is not None
     assert len(emitted) == 1
     assert emitted[0][2] == model.STAGE_BENCH_DONE
-    assert set(emitted[0][4]) == pipeline._BENCH_DONE_PAYLOAD_KEYS
+    assert set(emitted[0][4]) == _LEGACY_BENCH_PAYLOAD_KEYS
+
+
+def test_formal_reps_are_conditional_and_rejected_by_legacy_layer3_schema():
+    payload = {key: None for key in pipeline._BENCH_DONE_REQUIRED_PAYLOAD_KEYS}
+    pipeline._assert_bench_done_payload_keys(payload)
+    payload["reps"] = [{
+        "rep_index": 0, "abort_counts_": 1, "commit_counts_": 2,
+        "throughput_tps": 100,
+    }]
+    pipeline._assert_bench_done_payload_keys(payload)
+    row = layer3_report._view_row(_bench())
+    row["reps"] = payload["reps"]
+    with pytest.raises(jsonschema.ValidationError) as caught:
+        jsonschema.Draft7Validator(_bench_run_schema()).validate(row)
+    assert caught.value.validator == "additionalProperties"
 
 
 def test_bench_done_runtime_allowlist_reports_missing_and_unexpected_separately():
@@ -1364,7 +1389,7 @@ def test_pipeline_bench_payload_closure_uses_real_view_row():
     assert "build_attempt_id" not in row
     assert "build_admission_receipt_sha256" not in row
     assert set(row) == (
-        (pipeline._BENCH_DONE_PAYLOAD_KEYS - {"build_attempt_id"})
+        (_LEGACY_BENCH_PAYLOAD_KEYS - {"build_attempt_id"})
         | {"variant", "source_ref"}
     )
     assert set(row) == set(_bench_run_schema()["properties"])

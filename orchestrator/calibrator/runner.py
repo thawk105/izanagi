@@ -36,7 +36,7 @@ from orchestrator.holdout_observation import (
     normalized_direct_gflags,
 )
 
-from .benchparse import (_num, abort_rate as parse_abort_rate, latency_ns as
+from .benchparse import (integer_abort_commit_counts, _num, abort_rate as parse_abort_rate, latency_ns as
                          parse_latency_ns, parse_bench_stdout, throughput_tps)
 from .model import PerfCounters, ScalePoint
 from .perfparse import parse_perf_stat
@@ -813,6 +813,7 @@ def capture_measure_point(
         subprocess_runner: Callable[..., object] = subprocess.run,
         rep_returncodes: Optional[List[int]] = None,
         rep_observations: Optional[List[Dict[str, object]]] = None, *,
+                  record_rep_integer_counters: bool = False,
         use_perf: bool = True,
         holdout_observation_admission: Optional[
             HoldoutObservationAdmission
@@ -829,6 +830,8 @@ def capture_measure_point(
     stdout/stderr decode, perf text open, parsers, metric derivation, and
     caller-owned sink updates all begin only inside ``token.open()``.
     """
+    if record_rep_integer_counters and rep_observations is None:
+        rep_observations = []
     if settle_first:
         settle()
 
@@ -1010,6 +1013,11 @@ def capture_measure_point(
             tps = throughput_tps(metrics)
             if rep_observations is not None:
                 rep_observations[index]["throughput"] = tps
+            if record_rep_integer_counters:
+                aborts, commits = integer_abort_commit_counts(metrics)
+                rep_observations[index].update({
+                    "abort_counts_": aborts, "commit_counts_": commits,
+                })
             maxrss = _maxrss_kb(metrics)
             if require_complete_metrics:
                 missing = []
@@ -1073,6 +1081,7 @@ def measure_point(binary: str, records: int, threads: int,
                   subprocess_runner: Callable[..., object] = subprocess.run,
                   rep_returncodes: Optional[List[int]] = None,
                   rep_observations: Optional[List[Dict[str, object]]] = None, *,
+                  record_rep_integer_counters: bool = False,
                   rep_timestamps: Optional[List[Dict[str, int]]] = None,
                   use_perf: bool = True,
                   holdout_observation_admission: Optional[
@@ -1089,6 +1098,8 @@ def measure_point(binary: str, records: int, threads: int,
     public compatibility surface retains its value, exception, sink, cleanup,
     and fail-fast behavior.
     """
+    if record_rep_integer_counters and rep_observations is None:
+        rep_observations = []
     if settle_first:
         settle()
 
@@ -1230,6 +1241,11 @@ def measure_point(binary: str, records: int, threads: int,
         throughput = throughput_tps(metrics)
         if rep_observations is not None:
             rep_observations[index]["throughput"] = throughput
+        if record_rep_integer_counters:
+            aborts, commits = integer_abort_commit_counts(metrics)
+            rep_observations[index].update({
+                "abort_counts_": aborts, "commit_counts_": commits,
+            })
         maxrss = _maxrss_kb(metrics)
         if require_complete_metrics:
             missing = []

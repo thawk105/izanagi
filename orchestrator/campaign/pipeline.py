@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import math
 import json
 import os
 import re
@@ -1205,6 +1206,7 @@ class _PreparedEvaluation:
     active_screening: Optional[ScreeningConfig]
     screening_disabled_payload: Optional[Dict]
     bench: Optional[_BenchResult] = None
+    record_rep_integer_counters: bool = False
 
 
 def derive_balanced_schedule(
@@ -1252,7 +1254,7 @@ _BENCH_DONE_REQUIRED_PAYLOAD_KEYS = frozenset({
     "rep_notes", "run_cmd",
 })
 _BENCH_DONE_CONDITIONAL_PAYLOAD_KEYS = frozenset({
-    "perf_observation", "screening", "rep_returncodes",
+    "perf_observation", "screening", "rep_returncodes", "reps",
 })
 _BENCH_PAYLOAD_EXTRA_KEYS = frozenset({"screening_disabled"})
 _BENCH_DONE_PAYLOAD_KEYS = (
@@ -1315,6 +1317,7 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
                perf_preflight_receipt: Optional[dict] = None,
                *,
                build_attempt_id: str,
+               record_rep_integer_counters: bool = False,
                ) -> Tuple[Optional[EvalResult], Optional[_BenchResult]]:
     """現行の full bench を実行し、成功時は WAL に既測値を残す。"""
     if type(build_attempt_id) is not str or not build_attempt_id:
@@ -1339,6 +1342,10 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
 
     def _measure():
         qualification_kwargs = {}
+        if record_rep_integer_counters:
+            qualification_kwargs["record_rep_integer_counters"] = True
+            qualification_kwargs["rep_observations"] = []
+            qualification_kwargs["require_all_reps"] = True
         if bench_timeout_s is not None:
             qualification_kwargs["timeout_s"] = bench_timeout_s
         if require_all_reps:
@@ -1476,6 +1483,30 @@ def _run_bench(perf_binary: str, perf: PerfConfig, clocks_per_us: int,
         bench_payload["screening"] = True
     if selected_returncodes is not None:
         bench_payload["rep_returncodes"] = selected_returncodes
+    if record_rep_integer_counters:
+        observations = getattr(pt, "rep_observations", None)
+        if (not isinstance(observations, list) or len(observations) != perf.reps
+                or len(pt.throughputs) != perf.reps):
+            raise ValueError("integer counter reps must match requested throughput reps")
+        reps = []
+        for index, observation in enumerate(observations):
+            rep_index = observation.get("rep_index")
+            aborts = observation.get("abort_counts_")
+            commits = observation.get("commit_counts_")
+            throughput = observation.get("throughput")
+            if (type(rep_index) is not int or rep_index != index
+                    or type(aborts) is not int or aborts < 0
+                    or type(commits) is not int or commits < 0
+                    or aborts + commits == 0
+                    or type(throughput) not in (int, float)
+                    or not math.isfinite(throughput) or throughput <= 0
+                    or throughput != pt.throughputs[index]):
+                raise ValueError(f"invalid integer counter observation at rep {index}")
+            reps.append({
+                "rep_index": rep_index, "abort_counts_": aborts,
+                "commit_counts_": commits, "throughput_tps": throughput,
+            })
+        bench_payload["reps"] = reps
     if bench_payload_extra is not None:
         _assert_bench_payload_extra_keys(bench_payload, bench_payload_extra)
         bench_payload.update(bench_payload_extra)
@@ -1543,6 +1574,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
              fetchcontent_dependency_receipt: Optional[
                  Mapping[str, object]
              ] = None, *,
+             record_rep_integer_counters: bool = False,
              authorization_contract: _env_contract.AuthorizedContract,
              build_context: BuildRunContext,
              capability_resolver: Optional[AdmissionCapabilityResolver] = None,
@@ -2322,6 +2354,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
             build_attempt_id=build_attempt_id,
             bench_max_rounds=bench_max_rounds,
             record_rep_returncodes=record_rep_returncodes,
+        record_rep_integer_counters=record_rep_integer_counters,
             holdout_observation_admission=holdout_observation_admission,
             use_perf=use_perf,
             perf_preflight_receipt=perf_preflight_receipt)
@@ -2439,6 +2472,7 @@ def _prepare_evaluation_core(genome: Genome, layout: CampaignLayout, env_tag: st
         receipt_for=_receipt_for,
         bench_max_rounds=bench_max_rounds,
         record_rep_returncodes=record_rep_returncodes,
+        record_rep_integer_counters=record_rep_integer_counters,
         qualification_policy=qualification_policy,
         holdout_observation_admission=holdout_observation_admission,
         use_perf=use_perf,
@@ -2469,6 +2503,8 @@ def _bench_prepared(
         bench_payload_extra=prepared.screening_disabled_payload,
         bench_max_rounds=prepared.bench_max_rounds,
         record_rep_returncodes=prepared.record_rep_returncodes,
+        **({"record_rep_integer_counters": True}
+           if prepared.record_rep_integer_counters else {}),
         bench_timeout_s=(policy.bench_timeout_s if policy is not None else None),
         require_all_reps=policy is not None,
         require_settled=(policy.require_settled if policy is not None else False),
@@ -2568,6 +2604,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
              fetchcontent_dependency_receipt: Optional[
                  Mapping[str, object]
              ] = None, *,
+             record_rep_integer_counters: bool = False,
              authorization_contract: _env_contract.AuthorizedContract,
              build_context: BuildRunContext,
              capability_resolver: Optional[AdmissionCapabilityResolver] = None,
@@ -2644,6 +2681,7 @@ def evaluate(genome: Genome, layout: CampaignLayout, env_tag: str,
         bench_max_rounds=bench_max_rounds,
         expected_perf_sha256=expected_perf_sha256, env_contract=env_contract,
         record_rep_returncodes=record_rep_returncodes,
+        record_rep_integer_counters=record_rep_integer_counters,
         qualification_policy=qualification_policy,
         dependency_prefix=dependency_prefix,
         authorization_contract=authorization_contract,

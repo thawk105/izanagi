@@ -14,6 +14,8 @@
 """
 from __future__ import annotations
 
+import re
+
 from typing import Dict, Optional
 
 
@@ -61,6 +63,20 @@ def throughput_tps(metrics: Dict[str, str]) -> Optional[float]:
     if commits is not None and extime not in (None, 0):
         return commits / extime
     return None
+
+
+def integer_abort_commit_counts(metrics: Dict[str, str]) -> tuple[int, int]:
+    """Read exact decimal counters without passing through floating point."""
+    counts = []
+    for key in ("abort_counts_", "commit_counts_"):
+        value = metrics.get(key)
+        if not isinstance(value, str) or re.fullmatch(r"[0-9]+", value) is None:
+            raise ValueError(f"{key} must be a decimal integer string")
+        counts.append(int(value))
+    aborts, commits = counts
+    if aborts + commits == 0:
+        raise ValueError("abort_counts_ + commit_counts_ must be positive")
+    return aborts, commits
 
 
 def abort_rate(metrics: Dict[str, str]) -> Optional[float]:

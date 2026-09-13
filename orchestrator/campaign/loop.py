@@ -366,6 +366,8 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                  perf_preflight_fn: Optional[Callable[..., object]] = None,
                  perf_preflight_receipt_path: str = "",
                  durable_root_policy=None,
+                 correctness=None,
+                 record_rep_integer_counters: bool = False,
                  bench_max_rounds: int = 3,
                  balanced_schedule: Optional[BalancedScheduleConfig] = None,
                  a1_source_context=None,
@@ -740,6 +742,10 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
                 if not use_perf:
                     # True は pipeline の legacy default に任せ、利用可能時の呼出し形を維持する。
                     evaluate_options["use_perf"] = False
+                if correctness is not None:
+                    evaluate_options["correctness"] = correctness
+                if record_rep_integer_counters:
+                    evaluate_options["record_rep_integer_counters"] = True
                 if bench_max_rounds != 3:
                     evaluate_options["bench_max_rounds"] = bench_max_rounds
                 if backoff_grammar_version is not None:
