@@ -785,6 +785,11 @@ def _private_run_campaign(protocol, freeze_doc, **kwargs):
     )
     if kwargs.get("mode") == "official":
         kwargs.setdefault("confirm_official_floor_run", True)
+        if kwargs.get("resume_dir") is None:
+            kwargs.setdefault(
+                "_protocol_authority",
+                s8b_floor_campaign.resolve_current_floor_protocol(root=authority),
+            )
     return s8b_floor_campaign._run_campaign_core(
         protocol, freeze_doc,
         _holdout_repo_root=authority,
@@ -816,6 +821,12 @@ def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, pro
     )
     kwargs["_holdout_signature_source"] = freeze_doc.document["holdouts"]
     if mode == "official":
+        if resume_dir is None:
+            kwargs["_protocol_authority"] = (
+                s8b_floor_campaign.resolve_current_floor_protocol(
+                    root=kwargs["_holdout_repo_root"],
+                )
+            )
         kwargs["confirm_official_floor_run"] = True
         official_preflight = (
             perf_preflight_fn or (lambda **_kwargs: _perf_receipt(available=True))
@@ -873,7 +884,7 @@ def _live_holdout_admission_for_outcome(
 
 
 def _fixture_floor_preflight(
-        root, *, freeze_path, freeze_sha256, protocol_sha256):
+        root, *, freeze_path, freeze_sha256, protocol_sha256, protocol_relpath=None):
     """prediction 順序以外を検査する private-core テスト用の引数注入 seam。"""
     return {s8b_floor_campaign._HOLDOUT_FREEZE_REL: freeze_sha256}
 
@@ -6713,7 +6724,7 @@ def _official_test_seam(monkeypatch, *, clean_digest="d" * 64):
     with monkeypatch.context() as scoped:
         scoped.setattr(
             s8b_floor_campaign, "clean_scan_digest",
-            lambda root, *, freeze_allowlist: clean_digest,
+            lambda root, *, freeze_allowlist, protocol_relpath=None: clean_digest,
         )
         yield scoped
 
@@ -12214,6 +12225,9 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
         execution_receipt_fn=None,
         repo_root=clone_root, durable_root_policy=_durable_policy(out_root),
         _floor_preflight_fn=None,
+        _protocol_authority=s8b_floor_campaign.resolve_current_floor_protocol(
+            root=clone_root,
+        ),
         confirm_official_floor_run=True,
     )
 
@@ -13280,7 +13294,7 @@ def test_official_preflight_scans_exactly_twice_and_returns_independent_expected
         tmp_path, monkeypatch):
     calls = []
 
-    def scan(root, *, freeze_allowlist):
+    def scan(root, *, freeze_allowlist, protocol_relpath=None):
         calls.append((Path(root), dict(freeze_allowlist)))
         return "b" * 64
 
@@ -13303,7 +13317,7 @@ def test_official_preflight_rejects_digest_shift_between_independent_scans(
     values = iter(("b" * 64, "d" * 64))
     calls = []
 
-    def scan(root, *, freeze_allowlist):
+    def scan(root, *, freeze_allowlist, protocol_relpath=None):
         calls.append(Path(root))
         return next(values)
 
@@ -13327,7 +13341,7 @@ def test_second_scan_digest_shift_persists_claim_but_issues_no_certificate(
     digests = iter(("b" * 64, "d" * 64))
     monkeypatch.setattr(
         s8b_floor_campaign, "clean_scan_digest",
-        lambda root, *, freeze_allowlist: next(digests),
+        lambda root, *, freeze_allowlist, protocol_relpath=None: next(digests),
     )
     with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="clean_scan_digest"):
         _private_run_campaign(
@@ -13468,7 +13482,7 @@ def test_official_scan_rejection_has_zero_filesystem_side_effects(tmp_path, monk
     freeze = _freeze_document()
     out_root = tmp_path / "out"
     with monkeypatch.context() as scoped:
-        def reject_scan(root, *, freeze_allowlist):
+        def reject_scan(root, *, freeze_allowlist, protocol_relpath=None):
             raise s8b_floor_campaign.FloorCampaignError("fixture scan hit")
 
         scoped.setattr(s8b_floor_campaign, "clean_scan_digest", reject_scan)
@@ -15306,6 +15320,270 @@ def test_finalize_pending_replays_live_v5_prefix(tmp_path, monkeypatch):
     assert len(captured_prefixes) == 2
     assert captured_prefixes[0] == captured_prefixes[1]
     assert outcome["result"]["attempt_registry"] == captured_prefixes[-1]
+
+
+class _ProtocolBindingCertificateObserved(Exception):
+    """実 official preflight の certificate 構成・strict 検証後で停止する。"""
+
+
+def _protocol_binding_public_preflight(
+        tmp_path, monkeypatch, observations, *, versioned, drift=None,
+        volatile_payload="first", bypass_drift_gate=False):
+    """実 resolver / prediction / journal / 2 scan を計測前の境界まで通す。
+
+    public official は repo_root と callable seam を拒否するため、既定 root の
+    所在だけを隔離する。attestation は実 calibration 内の観測入力を与え、
+    issuer / consumer は実物を通す。certificate dict の strict 検証で停止し、
+    file 発行・perf preflight・計測へは進まない。
+    """
+    from statistics import median
+    from orchestrator.campaign import layout
+
+    fc = s8b_floor_campaign
+    root = tmp_path / "repository"
+    root.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        ["git", "clone", "--quiet", "--no-hardlinks", str(ROOT), str(root)],
+        check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    subprocess.run(
+        ["git", "clone", "--quiet", "--no-hardlinks",
+         str(ROOT / "external/ccbench"), str(root / "external/ccbench")],
+        check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    if not versioned:
+        legacy = fc.load_protocol(root / fc._FLOOR_PROTOCOL_REL)
+        subprocess.run(
+            ["git", "checkout", "--quiet", "--detach", legacy["ccbench_pin"]],
+            cwd=root / "external/ccbench", check=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        subprocess.run(
+            ["git", "add", "--", "external/ccbench"], cwd=root, check=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        subprocess.run(
+            ["git", "-c", "user.name=fixture", "-c",
+             "user.email=fixture@example.invalid", "commit", "--quiet", "-m",
+             "select legacy protocol gitlink"], cwd=root, check=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+
+    selected = fc.resolve_current_floor_protocol(root=root)
+    assert (selected.path != fc._FLOOR_PROTOCOL_REL) is versioned
+    observations["selected"] = selected.path
+    protocol = fc.load_protocol(root / selected.path)
+    freeze = fc._freeze_io.load_verified_freeze(
+        root / fc._HOLDOUT_FREEZE_REL,
+        expected_hash=protocol["freeze"]["sha256"],
+    )
+    contract = ec.lookup(protocol["env_tag"])
+    calibration = env_attestation.load_verified_calibration(contract, root)
+    profile = calibration.attestation_profile
+    clock = profile.effective_clock
+    center = median(clock.samples_mhz)
+    delta = abs(center) * clock.tolerance_pct / 100.0
+    observed_profile = dataclasses.replace(
+        profile, effective_clock=dataclasses.replace(
+            clock, samples_mhz=[
+                min(max(sample, center - delta), center + delta)
+                for sample in clock.samples_mhz
+            ],
+        ),
+    )
+    monkeypatch.setattr(fc, "ROOT", root)
+    monkeypatch.setattr(layout, "__file__", str(root / "orchestrator/campaign/layout.py"))
+    monkeypatch.setattr(env_attestation, "probe", lambda: _observed(observed_profile))
+    _install_real_seal_reservation(monkeypatch, repo_root=root, env_tag=contract.env_tag)
+    out_root = root / "output" / "protocol-binding-test"
+    (out_root / "claims").mkdir(parents=True)
+    (root / "unrelated-preflight-note.txt").write_text(volatile_payload, encoding="utf-8")
+
+    journal = fc._parse_selector_journal_bytes((root / fc._SELECTOR_JOURNAL_REL).read_bytes())
+    declared = {
+        record[field]
+        for record in journal
+        for kind, field in (
+            ("claim", "payload_path"), ("invocation", "raw_response_path"),
+            ("envelope", "envelope_path"),
+        )
+        if record["record_type"] == kind
+    }
+    assert len(declared) == 12
+    expected_paths = set(fc._PREFLIGHT_FIXED_FILES) | declared | {selected.path}
+    assert len(expected_paths) == (17 if versioned else 16)
+    # working bytes を期待値へ差し込まず、固定 commit の blob を権威にする。
+    expected_namespace = {}
+    for path in (root / "output/s8b-freeze").rglob("*"):
+        if path.is_file():
+            rel = path.relative_to(root).as_posix()
+            raw = subprocess.run(
+                ["git", "show", f"{selected.commit_oid}:{rel}"], cwd=root,
+                check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            ).stdout
+            expected_namespace[rel] = hashlib.sha256(raw).hexdigest()
+    expected_allowlist = {path: expected_namespace[path] for path in expected_paths}
+    assert expected_allowlist[selected.path] == selected.sha256
+    observations.update(authority=[], allowlist=[], scans=[], certificate=[])
+    actual_authority = fc._require_supplied_protocol_authority
+    actual_preflight = fc._floor_preflight_freeze_allowlist
+    actual_scan = fc.clean_scan_digest
+    actual_official = fc._official_launch_preflight
+
+    if bypass_drift_gate:
+        # 単一理由性の対照。実 scan 本体の指定 entry の hash 比較だけを外し、
+        # filesystem / namespace / scope / search の全 gate は同じ実体を通す。
+        # 同じ実関数を 2 scan が呼ぶので、片方だけ拒否が残る対照にしない。
+        assert drift in {"resolved", "legacy"}
+        target = selected.path if drift == "resolved" else fc._FLOOR_PROTOCOL_REL
+        tree = ast.parse(textwrap.dedent(inspect.getsource(fc._assert_freeze_allowlist)))
+        comparisons = [
+            node for node in ast.walk(tree)
+            if isinstance(node, ast.If)
+            and ast.dump(node.test) == ast.dump(ast.parse(
+                "actual_sha256 != expected", mode="eval",
+            ).body)
+        ]
+        assert len(comparisons) == 1
+        comparisons[0].test = ast.BoolOp(op=ast.And(), values=[
+            comparisons[0].test,
+            ast.Compare(
+                left=ast.Name(id="rel", ctx=ast.Load()), ops=[ast.NotEq()],
+                comparators=[ast.Constant(value=target)],
+            ),
+        ])
+        namespace = dict(fc.__dict__)
+        exec(compile(ast.fix_missing_locations(tree), "<entry-hash-control>", "exec"), namespace)
+        monkeypatch.setattr(fc, "_assert_freeze_allowlist", namespace["_assert_freeze_allowlist"])
+
+    def authority_observer(*args, **kwargs):
+        record = actual_authority(*args, **kwargs)
+        observations["authority"].append(record.path)
+        if drift == "resolved":
+            path = root / record.path
+            path.write_bytes(path.read_bytes() + b" ")
+        return record
+
+    def preflight_observer(*args, **kwargs):
+        allowlist = actual_preflight(*args, **kwargs)
+        assert kwargs["protocol_relpath"] == selected.path
+        assert dict(allowlist) == expected_allowlist
+        observations["allowlist"].append(dict(allowlist))
+        if drift == "legacy":
+            path = root / fc._FLOOR_PROTOCOL_REL
+            path.write_bytes(path.read_bytes() + b" ")
+        return allowlist
+
+    def scan_observer(*args, **kwargs):
+        assert kwargs["protocol_relpath"] == selected.path
+        result = actual_scan(*args, **kwargs)
+        observations["scans"].append(result)
+        return result
+
+    def official_observer(*args, **kwargs):
+        certificate, expected = actual_official(*args, **kwargs)
+        expected_digest = _expected_clean_digest(
+            fc._holdout_freeze.enumerate_repository_files(root), expected_namespace,
+        )
+        assert expected == certificate["clean_scan_digest"] == expected_digest
+        assert observations["authority"] == [selected.path]
+        assert observations["allowlist"] == [expected_allowlist]
+        assert observations["scans"] == [expected_digest, expected_digest]
+        assert certificate["protocol_sha256"] == selected.sha256
+        if not versioned:
+            # None の旧経路でも受理され、schema / preimage / digest が同じ。
+            assert actual_scan(root, freeze_allowlist=expected_allowlist) == expected_digest
+        observations["certificate"].append(certificate)
+        raise _ProtocolBindingCertificateObserved
+
+    monkeypatch.setattr(fc, "_require_supplied_protocol_authority", authority_observer)
+    monkeypatch.setattr(fc, "_floor_preflight_freeze_allowlist", preflight_observer)
+    monkeypatch.setattr(fc, "clean_scan_digest", scan_observer)
+    monkeypatch.setattr(fc, "_official_launch_preflight", official_observer)
+    fc.run_campaign(
+        protocol, freeze, out_root=out_root, mode="official",
+        protocol_path=root / selected.path, confirm_official_floor_run=True,
+    )
+    pytest.fail("certificate observation must stop the public campaign")
+
+
+def test_public_official_preflight_accepts_versioned_protocol(tmp_path, monkeypatch):
+    for label, payload in (("first", "first"), ("changed", "changed ordinary bytes")):
+        with monkeypatch.context() as scoped:
+            with pytest.raises(_ProtocolBindingCertificateObserved):
+                _protocol_binding_public_preflight(
+                    tmp_path / label, scoped, {}, versioned=True, volatile_payload=payload,
+                )
+
+
+def test_public_official_preflight_accepts_legacy_protocol(tmp_path, monkeypatch):
+    with pytest.raises(_ProtocolBindingCertificateObserved):
+        _protocol_binding_public_preflight(tmp_path, monkeypatch, {}, versioned=False)
+
+
+def test_public_official_preflight_rejects_resolved_protocol_byte_drift(tmp_path, monkeypatch):
+    observations = {}
+    with monkeypatch.context() as scoped:
+        with pytest.raises(s8b_floor_campaign.FloorCampaignError) as exc_info:
+            _protocol_binding_public_preflight(
+                tmp_path / "negative", scoped, observations,
+                versioned=True, drift="resolved",
+            )
+    assert str(exc_info.value) == (
+        "launch certificate: freeze allowlist hash 不一致: " + observations["selected"]
+    )
+    assert observations["authority"] == [observations["selected"]]
+    assert len(observations["allowlist"]) == 1
+    assert observations["certificate"] == []
+    with monkeypatch.context() as scoped:
+        with pytest.raises(_ProtocolBindingCertificateObserved):
+            _protocol_binding_public_preflight(
+                tmp_path / "control", scoped, {}, versioned=True, drift="resolved",
+                bypass_drift_gate=True,
+            )
+
+
+def test_public_official_preflight_rejects_legacy_byte_drift_after_capture(tmp_path, monkeypatch):
+    observations = {}
+    with monkeypatch.context() as scoped:
+        with pytest.raises(s8b_floor_campaign.FloorCampaignError) as exc_info:
+            _protocol_binding_public_preflight(
+                tmp_path / "negative", scoped, observations,
+                versioned=True, drift="legacy",
+            )
+    assert str(exc_info.value) == (
+        "launch certificate: freeze allowlist hash 不一致: "
+        + s8b_floor_campaign._FLOOR_PROTOCOL_REL
+    )
+    assert len(observations["allowlist"]) == 1
+    assert observations["certificate"] == []
+    with monkeypatch.context() as scoped:
+        with pytest.raises(_ProtocolBindingCertificateObserved):
+            _protocol_binding_public_preflight(
+                tmp_path / "control", scoped, {}, versioned=True, drift="legacy",
+                bypass_drift_gate=True,
+            )
+
+
+def test_freeze_allowlist_path_rejects_unselected_versioned_protocol(tmp_path):
+    fc = s8b_floor_campaign
+    selected = fc._derived_reseal_protocol_relpath("a" * 64, "b" * 40)
+    other = fc._derived_reseal_protocol_relpath("a" * 64, "c" * 40)
+    path = tmp_path / selected
+    path.parent.mkdir(parents=True)
+    raw = b"selected protocol bytes"
+    path.write_bytes(raw)
+    expected = hashlib.sha256(raw).hexdigest()
+    assert fc._validate_freeze_allowlist_path(selected, protocol_relpath=selected) == selected
+    assert fc._assert_freeze_allowlist(
+        tmp_path, {selected: expected}, protocol_relpath=selected,
+    ) == {}
+    with pytest.raises(fc.FloorCampaignError, match="有界範囲外"):
+        fc._validate_freeze_allowlist_path(other, protocol_relpath=selected)
+    with pytest.raises(fc.FloorCampaignError, match="有界範囲外"):
+        fc._assert_freeze_allowlist(tmp_path, {other: expected}, protocol_relpath=selected)
+    with pytest.raises(fc.FloorCampaignError, match="有界範囲外"):
+        fc._validate_freeze_allowlist_path(selected)
 
 
 if __name__ == "__main__":

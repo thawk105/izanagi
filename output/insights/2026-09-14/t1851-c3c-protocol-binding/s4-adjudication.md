@@ -233,3 +233,75 @@ hang 変異は無い。
 
 実装子 1 本。所有 path は `orchestrator/campaign/s8b_floor_campaign.py` と
 `orchestrator/tests/test_s8b_floor_campaign.py` の 2 file だけ。docs・commit・変異・受入は親が担う。
+
+---
+
+## 裁定 8 (2026-09-14 追記) — plan v2 項 3 の fail-closed を撤回する
+
+**この裁定は plan v2 の項 3 を訂正する追記であり、項 3 の元の文面は上に残す。**
+
+### 覆した前提と、それを覆した実測
+
+plan v2 の項 3 は「official 分岐で `_protocol_authority` が `None` なら fail-closed で拒否する
+(official は必ず公開 wrapper 経由で record を持つ)」と書いた。括弧内の前提は**実測で偽である。**
+
+実装子が所有外の衝突として報告し、親が実走で確かめた。
+
+- `orchestrator/tests/test_s8b_ratified_freeze.py:988` の共有 fixture は
+  `FLOOR._run_campaign_core(protocol, verified, mode="official", confirm_official_floor_run=True, **kwargs)`
+  を直接呼び、authority record を渡さない。
+- `orchestrator/tests/test_s8b_ratified_verify.py:2209-2216` も同じ core を monkeypatch 経由で呼ぶ。
+- 親の実走 (`python3 tools/run_tests.py -q orchestrator/tests/test_s8b_ratified_freeze.py`、
+  Pegasus request `996095.nqsv`、Elapse 11S) は **28 failed**。全件の発生源は
+  `orchestrator/campaign/s8b_floor_campaign.py:7526` の fail-closed である。
+
+### 裁定
+
+**official 分岐は、record があればその `.path` を使い、無ければ `_FLOOR_PROTOCOL_REL` を使う。
+新しい fail-closed を置かない。**
+
+理由。
+
+1. **production の保護は増えない。** `_run_campaign_core` の非 test 呼び手は公開 wrapper
+   `run_campaign` の 1 箇所だけである。その wrapper は `_require_supplied_protocol_authority()` を
+   呼び、同関数は解決できないとき**例外を投げる** — `None` を返す経路は monkeypatch だけである。
+   したがって fail-closed は production では決して発火しない。**発火しない assert を置くことは
+   D1194 が却下した「謳うだけで発火しない保証」に当たる。**
+2. **裁定 1 が本当に求めた不変条件は保たれる。** 裁定 1 の禁止は「既定 `None` の挙動を変えてはならない。
+   `None` のとき受理集合は現行と 1 bit も違わない」である。fallback はこの条件をそのまま満たす。
+   fail-closed はむしろこの条件に反していた。
+3. **fixture を配線しても gate は恒真になる。** 28 件を通すには共有 fixture が authority record を
+   捏造することになる。捏造した record を根拠に「resolved path へ束縛した」と主張する形は、
+   規律 2 が禁じる弱体化そのものである。
+4. **規律 2 は緩まない。** official の production 経路 (公開入口 → core → preflight → allowlist) は
+   resolved protocol へ exact に束縛される。これが D1936 項 11 の要求である。fallback が効くのは
+   production が到達しない private core seam だけで、そこでの挙動は変更前と同一である。
+
+### 署名
+
+```
+_run_campaign_core(..., _protocol_authority=None)
+    mode == "official" のとき:
+        protocol_relpath = (
+            _FLOOR_PROTOCOL_REL if _protocol_authority is None
+            else _protocol_authority.path
+        )
+    以後の preflight / _official_launch_preflight へこの値を渡す。
+```
+
+**禁止:** `_protocol_authority is None` を理由に official を拒否してはならない。
+`_protocol_authority` から `.path` 以外を読んではならない。
+公開 wrapper に「record が非 None であること」の assert を新設してはならない (恒真である)。
+
+**通る正例 1 つ:** `test_s8b_ratified_freeze.py` の既存 28 件は、authority record を渡さないまま
+official core を呼び、変更前と同じ allowlist (legacy path → legacy bytes hash) で通る。
+
+**この裁定が守る負の対照:** M1 (公開入口から渡す path を常に legacy へ戻す変異) は P1 で kill される。
+fallback があっても、公開入口が record を渡さなくなれば P1 は赤になる。
+
+### 変異事前登録の更新
+
+M1 の変異位置を `C:7507-7516` から**公開入口の record 引き渡し行** (`run_campaign` が
+`_protocol_authority=protocol_authority` を渡す行) へ再照準する。理由: fallback により、core 側で
+`protocol_relpath` を legacy へ固定する変異は「record を渡さない」変異と等価になり、
+単一理由性 (F820) を立てるには発生源を 1 つに絞る必要がある。M2〜M6 は変更しない。
