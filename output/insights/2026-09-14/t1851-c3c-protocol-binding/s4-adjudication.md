@@ -305,3 +305,119 @@ M1 の変異位置を `C:7507-7516` から**公開入口の record 引き渡し�
 `_protocol_authority=protocol_authority` を渡す行) へ再照準する。理由: fallback により、core 側で
 `protocol_relpath` を legacy へ固定する変異は「record を渡さない」変異と等価になり、
 単一理由性 (F820) を立てるには発生源を 1 つに絞る必要がある。M2〜M6 は変更しない。
+
+---
+
+## 段 6 レビュー所見の裁定 (2026-09-14 追記)
+
+レンズ C (裁定適合と受理集合) とレンズ D (テスト帰属と閉包) を並列で実行した。両者とも採用検査 rc=0。
+
+| # | 所見 | 親の裁定 | 採否 |
+|---|---|---|---|
+| C-1 / D-1 | P1/P2 が certificate file 発行 (`C:7574`) に未到達 | **real** | 採用。ただし是正は**テスト拡張ではなく主張範囲の訂正** (裁定 9) |
+| C-2 / D-5 | 提供差分が既に fix 後なので fix 前後を独立に裏取りできない | **real (低)** | 採用 (裁定 13) |
+| C-3 | exact 以外の追加受理・下位での path 導出 | **refuted** | 不採用 |
+| C-4 | `None` 時の受理・分類・digest が変わる | **refuted** | 不採用 |
+| C-5 | 裁定 8 が production を弱める / `None.path` 参照 | **refuted** | 不採用 |
+| C-6 | 現状維持箇所・禁止事項の変更 | **refuted** | 不採用 |
+| C-7 | hold 比較対象の不一致・拒否の握り潰し | **refuted** | 不採用 |
+| D-2 | M1/M2/M4 の赤が hash gate に帰属しない (過剰決定) | **real** | 採用 (裁定 10) |
+| D-3 | 新規公開経路テストが共有 repo reader 分類に未登録 | **real / must-fix** | 採用。**所有範囲を拡張して登録する** (裁定 11) |
+| D-4 | 変異事前登録に逐語 old がない | **real (低)** | 採用 (裁定 12) |
+| D-6 | N1/N2 の誤帰属・揮発値焼込み・両層 stub の恒真化 | **refuted** | 不採用 |
+
+**scope 外へ広げる real 所見は 0 件。** ユーザーへ返す裁定パッケージは無い。
+
+### レビューが独立に確かめた事実 (親が採用する)
+
+- 受理集合は厳密に `V ∩ (F ∪ S ∪ {p})`。`p=None` なら最後の集合は空で、旧版と同一 (レンズ C-3/C-4)。
+- `_run_campaign_core` の非 test 呼び手は **1 箇所** (`C:7233`)。親の主張を AST Call 集合で数え直した結果も一致 (レンズ C-5/D)。
+- `test_frozen_artifacts.py` の manifest 対象 **23 件すべて HEAD と byte 一致**。
+- テスト関数名集合は **削除 0・改名による消失 0・追加 5**。`-def test_` の差分行は 0。
+- `test_pegasus_floor_tools.py:1380-1393` の source アンカーは維持。
+- 変更 docstring・変更行番号・file 全体 sha256 golden の pin は**いずれも不在** (型別に別検索した)。
+- 新規 5 nodeid は所要台帳に**全件未登録** (親が受入後に登録する)。既存台帳の 0 値 118 件は HEAD と byte 一致で本変更に帰属しない。
+
+## 裁定 9 — P1/P2 の到達範囲は「launch certificate の構成と strict 検証まで」と訂正する
+
+段 4 のテスト計画は「certificate 発行まで到達する」と書いたが、この文言は曖昧だった。**実装が到達するのは
+launch certificate の構成 (`build_launch_certificate`) と 2 回の clean scan と
+`validate_launch_certificate_strict` までであり、`issue_launch_certificate` (`C:7574`) の file 発行には
+到達しない。**
+
+**テストを発行段まで拡張しない。** 理由。
+
+1. 2026-09-09 の実投入 `988501.nqsv` を止めた gate は preflight の allowlist である。そこは公開経路の
+   実関数で正例 2 件・負例 2 件を通している。
+2. 親が `_FLOOR_PROTOCOL_REL` の参照を全数確認した結果、**preflight 以後に legacy 固定 path を束縛する
+   consumer は無い** (残る出現は resolver / index / 書き手のみ)。したがって発行段に本件由来の新しい
+   停止点は無い。
+3. 発行段まで動かす拡張は本題 (項 11 の誤束縛) の外であり、DW-G05 の「要求外の追加実装」に当たる。
+
+**したがって本所見は must-fix ではなく nit とする** (放置しても成果物の値・受理集合・参照は変わらない)。
+**成果物には到達範囲をこの裁定の文言どおりに書き、「file 発行まで検証済み」と書かない。**
+
+## 裁定 10 — 変異の kill は単一理由が立つものだけ数える
+
+レンズ D は M1 / M2 / M4 について、P1 の allowlist assertion が scan の hash 比較より先に赤を出すと
+指摘した。DW-M03 に従い次のようにする。
+
+- **probe 走 (全件 SURVIVED 登録) で実際の失敗 node 集合を採取し**、それを exact な期待集合として
+  本走 spec へ登録する (DW-M07 の「node 空の spec は起動前に中止」を回避する正規手順)。
+- 単一理由が立たない変異は **「冗長 gate」と明記して単独変異の証拠から外す**。kill 数に数えない。
+- **M5 を再照準する。** 旧案 (legacy だけ skip) をやめ、scan の hash 比較そのものを 1 箇所で落とす形に
+  する: `            if actual_sha256 != expected:` → `            if False:`。これは
+  `_assert_freeze_allowlist` の無条件 hash 比較を直接無効化するので、N1 と N2 の両方が赤になり、
+  赤理由は 1 つに絞れる。
+- M1 は「公開配線の検査」として記録し、単一の hash gate の kill として数えない。
+
+## 裁定 11 — 共有 repo reader の登録簿を拡張する (所有範囲を 2 file 増やす)
+
+新規の公開経路テストは `git clone` で**実親 repo と実共有 submodule を clone 元として読む**
+(`orchestrator/tests/test_s8b_floor_campaign.py:15346,15350`)。しかし 4 nodeid は
+`orchestrator/tests/conftest.py` の real-repo 分類に未登録で、P/S lock も `xdist_group("real-repo")` も
+付かない。
+
+**登録する。** 理由。
+
+1. **同じ file の同型テストが既に登録済みである。**
+   `test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e` は
+   `_REAL_REPO_BOTH_READER_NODES` にあり、golden 側にも「helper が実親 repo と実共有 submodule を
+   clone source として直接読む reader」という注記が付いている。**登録が確立した慣例であり、
+   未登録は慣例違反である。**
+2. **登録簿は新 reader を足すときに拡張する運用物である。** golden の拡張は期待値の弱体化ではない。
+3. 受入全走は 2 shard / 8 worker で回る。lock の無い共有 repo 読取りは非帰属赤の源になる
+   (t1259 fixture の実績)。**受入要件として必要**であり、仮想リスク向けの堅牢化ではない。
+
+**追加する所有 path:**
+
+- `orchestrator/tests/conftest.py` — `_REAL_REPO_BOTH_READER_NODES` と `_REAL_REPO_NODE_INVENTORY` へ
+  4 nodeid を追加する。
+- `orchestrator/tests/test_real_repo_serialization.py` — `_REAL_REPO_BOTH_READER_NODES_GOLDEN` ほか、
+  同 file 内で件数・優先順序・inventory を literal で持つ golden を**閉包ごと**更新する。
+
+**禁止:** 登録簿と golden の拡張以外の期待値を変えてはならない。既存 nodeid の分類を動かしてはならない。
+新しい lock 機構・新しい分類軸・新しい gate を作ってはならない。`N3`
+(`test_freeze_allowlist_path_rejects_unselected_versioned_protocol`) は clone しないので登録しない。
+
+**通る正例 1 つ:** `test_real_repo_group_collection_exactly_matches_canonical_nodes` が、拡張後の
+登録簿と golden で緑を維持する。
+
+## 裁定 12 — 変異の逐語は走行前に固定し、一意性を機械検査する
+
+段 4 は変異の**位置と意味**を登録した。置換用の逐語 (old) は実装後にしか確定しないので、
+**いずれの変異走よりも前に**逐語を固定し、対象 file 内の出現が exactly 1 であることを機械検査する。
+
+2026-09-14 に実施した。`verify-anchors.py` で 6/6 が `count=1`。M3 は部分一致 (深いインデント行への
+substring 一致) を避けるため `if not (` から始まる 3 行形を逐語にした。spec の sha256 を記録し、
+harness の `--expected-spec-sha256` へ渡す。**この手順を経ない変異走は行わない。**
+
+## 裁定 13 — fix 前後の証拠は「現物照合」と「時系列監査」を分けて書く
+
+レビューへ渡した差分は既に裁定 8 の fix を含んでいたため、レビューは fix 前後の比較を独立に
+裏取りできなかった。成果物には次の 2 つを**別の主張として**書く。
+
+- **現物照合:** 統合後の現物が、記録した差分と byte 一致する (レビュー 2 本が独立に確認)。
+- **時系列監査:** fix 前 snapshot は `s5-integrated-snapshot.diff`、fix 前後の差分は親が直接
+  `diff -u` で読み、`_run_campaign_core` の official 分岐 1 箇所だけ・テスト file は byte 一致と
+  確認した。**これは親の 1 主体による監査であり、独立主体の裏取りではない。**

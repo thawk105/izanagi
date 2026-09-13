@@ -419,6 +419,10 @@ _REAL_REPO_NODE_INVENTORY = frozenset({
 
     # helper が実親 repo と実共有 submodule を clone source として直接読む reader。
     "test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e",
+    "test_s8b_floor_campaign.py::test_public_official_preflight_accepts_versioned_protocol",
+    "test_s8b_floor_campaign.py::test_public_official_preflight_accepts_legacy_protocol",
+    "test_s8b_floor_campaign.py::test_public_official_preflight_rejects_resolved_protocol_byte_drift",
+    "test_s8b_floor_campaign.py::test_public_official_preflight_rejects_legacy_byte_drift_after_capture",
 
     # root=実 repo の oracle gate が known-axes verify を間接呼出しする reader。
     "test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null",
@@ -588,6 +592,10 @@ _REAL_REPO_BOTH_READER_NODES = frozenset({
     "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
     "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
     "test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e",
+    "test_s8b_floor_campaign.py::test_public_official_preflight_accepts_versioned_protocol",
+    "test_s8b_floor_campaign.py::test_public_official_preflight_accepts_legacy_protocol",
+    "test_s8b_floor_campaign.py::test_public_official_preflight_rejects_resolved_protocol_byte_drift",
+    "test_s8b_floor_campaign.py::test_public_official_preflight_rejects_legacy_byte_drift_after_capture",
     "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
     "test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused",
     "test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused",
