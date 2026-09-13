@@ -900,12 +900,17 @@ import errno, sys
 from pathlib import Path
 root = Path(sys.argv[1])
 for path in list(root.parents)[:-1]:
-    for attack in (lambda: path.chmod(0o777),
-                   lambda: path.rename(path.with_name(path.name + '-moved'))):
+    for operation, attack in (
+            ('chmod', lambda: path.chmod(0o777)),
+            ('rename', lambda: path.rename(path.with_name(path.name + '-moved')))):
         try:
             attack()
         except OSError as exc:
-            assert exc.errno in (errno.EROFS, errno.EBUSY), (path, exc)
+            # Renaming the top mount first needs write access to /, which the
+            # nonroot build does not own. Deeper parents are sealed tmpfs.
+            expected = ((errno.EACCES,) if operation == 'rename' and path.parent == Path('/')
+                        else (errno.EROFS, errno.EBUSY))
+            assert exc.errno in expected, (path, operation, exc)
         else:
             raise AssertionError(str(path))
 """, root)
@@ -1033,6 +1038,8 @@ def _sealed_snapshot_survives_spine_sibling_churn_case(tmp_path):
     sibling.mkdir()
     (sibling / "real-tool").write_bytes(b"toolchain-visible")
     (sibling / "tool").symlink_to("real-tool")
+    hidden = tmp_path / "unshared-sibling"
+    hidden.write_bytes(b"not part of the build")
     # A separate interpreter mutates entries directly in a source ancestor,
     # including during namespace setup. No thread is added to the issuer.
     churn = subprocess.Popen(_python_command("""
@@ -1061,14 +1068,17 @@ while True:
         churn.stdin.flush()
         before = progress()
         assert before > 0
-        with _running_tiny_session(root) as session:
+        with _running_tiny_session(root, shared_directories=[
+                root.parent.parent / "cache", root.parent.parent / "base", sibling,
+        ]) as session:
             result = _session_python(session, """
 from pathlib import Path
 import sys
-root, tool = map(Path, sys.argv[1:])
+root, tool, hidden = map(Path, sys.argv[1:])
 assert (root / 'src/main.cc').is_file()
 assert tool.resolve().read_bytes() == b'toolchain-visible'
-""", root, sibling / "tool")
+assert not hidden.exists()
+""", root, sibling / "tool", hidden)
             assert result.returncode == 0, result.stderr
             churn.stdin.write("count\n")
             churn.stdin.flush()
@@ -1076,10 +1086,65 @@ assert tool.resolve().read_bytes() == b'toolchain-visible'
             binary_sha256 = _tiny_build(session, root)
         _issue_test_capability(session, binary_sha256=binary_sha256)
     finally:
-        churn.terminate()
-        churn.wait(timeout=_SEALED_HELPER_TIMEOUT_S)
+        # The helper's protocol exits on EOF. Close the writer before waiting;
+        # SIGTERM alone can be ignored when inherited from the test launcher.
         churn.stdin.close()
-        churn.stdout.close()
+        try:
+            churn.wait(timeout=_SEALED_HELPER_TIMEOUT_S)
+        finally:
+            if churn.poll() is None:
+                churn.kill()
+                churn.wait(timeout=_SEALED_HELPER_TIMEOUT_S)
+            churn.stdout.close()
+
+
+def test_sealed_snapshot_outside_ancestor_replacement_with_control(tmp_path):
+    case = "_sealed_snapshot_outside_ancestor_replacement_with_control_case"
+    assert _run_sealed_case(
+        "test_s8b_expected_materialization", case, tmp_path,
+    ) == {"case": case, "completed": True}
+
+
+def _sealed_snapshot_outside_ancestor_replacement_with_control_case(tmp_path):
+    import shutil
+    import subprocess
+    root = _sealed_test_tree(tmp_path)
+    original = (root / "src/main.cc").read_bytes()
+    ancestor = root.parent.parent
+    displaced = ancestor.with_name("view-A")
+    reader = "from pathlib import Path; import sys; print(Path(sys.argv[1]).read_bytes().hex())"
+    with _running_tiny_session(root) as session:
+        # Outside the mount namespace, replace an ancestor above source-parent
+        # and the shared branches. The child must retain both source and cache.
+        ancestor.rename(displaced)
+        try:
+            root.parent.mkdir(parents=True)
+            _write_tree(root)
+            (root / "src/main.cc").write_bytes(b"B")
+            control = subprocess.run(
+                _python_command(reader, root / "src/main.cc"),
+                capture_output=True, text=True, check=True,
+                timeout=_SEALED_COMMAND_TIMEOUT_S,
+            )
+            assert control.stdout.strip() == b"B".hex()
+            protected = _session_python(session, reader, root / "src/main.cc")
+            assert protected.returncode == 0, protected.stderr
+            assert protected.stdout.strip() == original.hex()
+            marker = _session_python(session, """
+from pathlib import Path
+import sys
+Path(sys.argv[1]).write_bytes(b'child')
+""", ancestor / "cache/after-rename")
+            assert marker.returncode == 0, marker.stderr
+            assert (displaced / "cache/after-rename").read_bytes() == b"child"
+        finally:
+            try:
+                if ancestor.exists():
+                    shutil.rmtree(ancestor)
+            finally:
+                displaced.rename(ancestor)
+        binary_sha256 = _tiny_build(session, root)
+    _issue_test_capability(session, binary_sha256=binary_sha256)
 
 
 def test_snapshot_mount_and_seal_errors_name_failed_path(tmp_path):

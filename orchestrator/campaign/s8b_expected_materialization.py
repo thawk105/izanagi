@@ -1099,26 +1099,21 @@ def _seal_snapshot_root(root: Path, *, recursive: bool = True) -> None:
 
 def _snapshot_root_view(root: Path, expected: str, mounts: list[Path], *,
                         shared_directories=()) -> None:
-    """Pin each pathname ancestor without enumerating its sibling entries.
+    """Recreate the absolute source spine without enumerating siblings.
 
-    Each ancestor is a nonrecursive self bind, sealed nonrecursively. Its
-    entries remain visible, but the build cannot rename the next component;
-    the top component is itself a mount point. Shared cache/base branches are
-    rebound from writable mounts held before sealing. Only source is copied.
+    Start at a component directly below /: an outside owner cannot rename that
+    component, and everything below it is private, immune to outside renames.
+    Each ancestor gets a tmpfs sealed nonrecursively after construction. Only
+    explicitly shared branches are restored from pre-overmount writable fds.
     """
     if not root.is_absolute() or root == Path("/"):
         raise ExpectedMaterializationError("snapshot needs an absolute source path")
     ancestors = list(reversed(root.parents))[1:]
     source_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
     shared_fds = []
-    ancestor_fds = []
     try:
-        # Pin the original mounts before an ancestor's read-only bind shadows
-        # them. In particular, a later bind from a read-only pathname would
-        # inherit read-only state and silently freeze cache/base too.
-        for path in ancestors:
-            ancestor_fds.append((path, os.open(
-                path, os.O_PATH | os.O_DIRECTORY | os.O_CLOEXEC)))
+        # Hold these before hiding the top component. Reopening by pathname
+        # afterwards would refer to the private view, not the parent's inode.
         for path in sorted(set(map(Path, shared_directories)), key=lambda p: len(p.parts)):
             shared_fds.append((path, os.open(
                 path, os.O_PATH | os.O_DIRECTORY | os.O_CLOEXEC)))
@@ -1127,11 +1122,15 @@ def _snapshot_root_view(root: Path, expected: str, mounts: list[Path], *,
             ((info.st_size + 4095) // 4096 + 2) * 4096
             for _, _, info in _tree_entries(source, source)
         )
-        for path, descriptor in ancestor_fds:
-            _mount_snapshot(path, mounts, source=os.fsencode(f"/proc/self/fd/{descriptor}"),
-                            filesystem=None, flags=4096)
-            _seal_snapshot_root(path, recursive=False)
+        for index, path in enumerate(ancestors):
+            if index:
+                path.mkdir()
+            _mount_snapshot(path, mounts, data=b"size=4m,mode=755")
+        if ancestors:
+            root.mkdir()
         for path, descriptor in shared_fds:
+            # This creates only the named branch's path, never sibling entries.
+            path.mkdir(parents=True, exist_ok=True)
             _mount_snapshot(path, mounts, source=os.fsencode(f"/proc/self/fd/{descriptor}"),
                             filesystem=None, flags=4096 | 16384)
         _mount_snapshot(root, mounts, data=f"size={size}".encode())
@@ -1140,9 +1139,13 @@ def _snapshot_root_view(root: Path, expected: str, mounts: list[Path], *,
         if snapshot_tree_digest(root) != expected:
             raise ExpectedMaterializationError(f"sealed snapshot copy digest mismatch: {root}")
         _seal_snapshot_root(root)
+        # Separate mounts keep shared branches writable. Seal only each spine
+        # mount itself: recursive sealing here would also freeze cache/base.
+        for path in reversed(ancestors):
+            _seal_snapshot_root(path, recursive=False)
     finally:
         os.close(source_fd)
-        for _, descriptor in ancestor_fds + shared_fds:
+        for _, descriptor in shared_fds:
             os.close(descriptor)
 
 
