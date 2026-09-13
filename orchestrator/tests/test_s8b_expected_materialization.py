@@ -689,6 +689,8 @@ def _tiny_session(root):
 @contextlib.contextmanager
 def _running_tiny_session(root, **start_options):
     session = _tiny_session(root)
+    start_options.setdefault("shared_directories",
+                             [root.parent.parent / "cache", root.parent.parent / "base"])
     try:
         session._start(root, **start_options)
         yield session
@@ -731,7 +733,8 @@ finally:
 print(json.dumps({'case': sys.argv[3], 'completed': True}))
 """
     result = subprocess.run(
-        _python_command(code, Path(__file__).resolve().parents[2], module,
+        _python_command(code, Path(__file__).resolve().parents[2],
+                        module if module.startswith("orchestrator.tests.") else "orchestrator.tests." + module,
                         case, tmp_path, json.dumps(parameters)),
         capture_output=True, text=True, check=True, timeout=5, start_new_session=True,
     )
@@ -952,7 +955,7 @@ def _sealed_snapshot_shares_late_staging_and_base_inodes_case(tmp_path):
     cache = ancestor / "cache"
     cache.rmdir()
     assert not cache.exists()
-    with _running_tiny_session(root, shared_directories=[cache]) as session:
+    with _running_tiny_session(root, shared_directories=[cache, ancestor / "base"]) as session:
         assert cache.is_dir()
         staging = ancestor / "cache" / "late-staging"
         staging.mkdir()
@@ -972,6 +975,90 @@ print(json.dumps([p.stat().st_dev, p.stat().st_ino]))
         assert json.loads(result.stdout) == [binary.stat().st_dev, binary.stat().st_ino]
         assert binary.read_bytes() == b"child"
         assert (ancestor / "base" / "new-entry").read_bytes() == b"child"
+
+
+def test_sealed_snapshot_survives_spine_sibling_churn(tmp_path):
+    case = "_sealed_snapshot_survives_spine_sibling_churn_case"
+    assert _run_sealed_case(
+        "test_s8b_expected_materialization", case, tmp_path,
+    ) == {"case": case, "completed": True}
+
+
+def _sealed_snapshot_survives_spine_sibling_churn_case(tmp_path):
+    import select
+    import subprocess
+    root = _sealed_test_tree(tmp_path)
+    sibling = tmp_path / "toolchain"
+    sibling.mkdir()
+    (sibling / "real-tool").write_bytes(b"toolchain-visible")
+    (sibling / "tool").symlink_to("real-tool")
+    # A separate interpreter mutates entries directly in a source ancestor,
+    # including during namespace setup. No thread is added to the issuer.
+    churn = subprocess.Popen(_python_command("""
+import select, sys
+from pathlib import Path
+entry = Path(sys.argv[1]) / 'ephemeral-sibling'
+count = 0
+print(count, flush=True)
+while True:
+    entry.mkdir()
+    entry.rmdir()
+    count += 1
+    if select.select([sys.stdin], [], [], 0)[0]:
+        if not sys.stdin.readline():
+            break
+        print(count, flush=True)
+""", tmp_path), stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+
+    def progress():
+        assert select.select([churn.stdout], [], [], 1)[0], "churn did not respond"
+        return int(churn.stdout.readline())
+
+    try:
+        assert progress() == 0
+        churn.stdin.write("count\n")
+        churn.stdin.flush()
+        before = progress()
+        assert before > 0
+        with _running_tiny_session(root) as session:
+            result = _session_python(session, """
+from pathlib import Path
+import sys
+root, tool = map(Path, sys.argv[1:])
+assert (root / 'src/main.cc').is_file()
+assert tool.resolve().read_bytes() == b'toolchain-visible'
+""", root, sibling / "tool")
+            assert result.returncode == 0, result.stderr
+            churn.stdin.write("count\n")
+            churn.stdin.flush()
+            assert progress() > before
+            binary_sha256 = _tiny_build(session, root)
+        _issue_test_capability(session, binary_sha256=binary_sha256)
+    finally:
+        churn.terminate()
+        churn.wait(timeout=1)
+        churn.stdin.close()
+        churn.stdout.close()
+
+
+def test_snapshot_mount_and_seal_errors_name_failed_path(tmp_path):
+    missing = tmp_path / "missing-target"
+
+    def action():
+        import errno
+        E._enter_snapshot_namespace()
+        for operation in (lambda: E._mount_snapshot(missing, []),
+                          lambda: E._seal_snapshot_root(missing)):
+            with pytest.raises(OSError) as failure:
+                operation()
+            assert failure.value.errno == errno.ENOENT
+            assert str(missing) in str(failure.value)
+        with pytest.raises(E.ExpectedMaterializationError) as failure:
+            E._unmount_snapshot([missing])
+        assert str(missing) in str(failure.value)
+        return "paths reported"
+
+    assert _in_real_child(action) == "paths reported"
 
 
 def test_sealed_session_root_replacement_refuses_issue_and_restores_original(tmp_path):
@@ -1243,6 +1330,8 @@ def test_private_copy_digest_is_checked_before_seal(tmp_path, matching):
                 assert "copy digest mismatch" in str(exc)
                 return "rejected"
             assert matching
+            # Exactly one mount per pathname component, independent of siblings.
+            assert mounts == list(reversed(root.parents))[1:] + [root]
             assert E.snapshot_tree_digest(root) == expected
             return "sealed"
         finally:
@@ -1269,7 +1358,7 @@ def _sealed_session_disconnect_stop_and_supervisor_death_are_contained_case(tmp_
     original_mode = _mode(root)
     for failure in ("disconnect", "stopped", "reaper-stopped", "killed"):
         session = _tiny_session(root)
-        session._start(root)
+        session._start(root, shared_directories=[root.parent.parent / "cache"])
         supervisor = getattr(session, "_supervisor_pid", session._pid)
         guardian = session._pid
         detached = None

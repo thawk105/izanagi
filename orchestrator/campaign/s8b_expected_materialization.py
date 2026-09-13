@@ -1080,76 +1080,70 @@ def _install_snapshot_seccomp() -> None:
 
 def _mount_snapshot(target: Path, mounts: list[Path], *, source=b"tmpfs",
                     filesystem=b"tmpfs", flags=0, data=None) -> None:
-    _linux_call(165, source, os.fsencode(target), filesystem, ctypes.c_ulong(flags), data)
+    try:
+        _linux_call(165, source, os.fsencode(target), filesystem, ctypes.c_ulong(flags), data)
+    except OSError as exc:
+        raise OSError(exc.errno, f"snapshot mount from {os.fsdecode(source)!r}: {exc.strerror}",
+                      os.fspath(target)) from exc
     mounts.append(target)
 
 
 def _seal_snapshot_root(root: Path, *, recursive: bool = True) -> None:
     attributes = (ctypes.c_uint64 * 4)(1, 0, 0, 0)
-    _linux_call(442, -100, os.fsencode(root), 0x8000 if recursive else 0,
-                ctypes.byref(attributes), ctypes.c_size_t(32))
+    try:
+        _linux_call(442, -100, os.fsencode(root), 0x8000 if recursive else 0,
+                    ctypes.byref(attributes), ctypes.c_size_t(32))
+    except OSError as exc:
+        raise OSError(exc.errno, f"snapshot seal: {exc.strerror}", os.fspath(root)) from exc
 
 
-def _snapshot_root_view(root: Path, expected: str, mounts: list[Path]) -> None:
-    """Rebuild the entire pathname spine below /, sharing every other branch.
+def _snapshot_root_view(root: Path, expected: str, mounts: list[Path], *,
+                        shared_directories=()) -> None:
+    """Pin each pathname ancestor without enumerating its sibling entries.
 
-    The top-level component is a mount point (rename returns EBUSY). All its
-    private descendants live on one read-only tmpfs. Nonrecursive sealing of
-    that mount leaves sibling bind mounts, including base/cache, writable.
-    Only source bytes are copied; Git metadata is never copied or consulted.
+    Each ancestor is a nonrecursive self bind, sealed nonrecursively. Its
+    entries remain visible, but the build cannot rename the next component;
+    the top component is itself a mount point. Shared cache/base branches are
+    rebound from writable mounts held before sealing. Only source is copied.
     """
     if not root.is_absolute() or root == Path("/"):
         raise ExpectedMaterializationError("snapshot needs an absolute source path")
-    spine = list(reversed(root.parents))[1:] + [root]
-    ancestor = spine[0]
+    ancestors = list(reversed(root.parents))[1:]
     source_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
-    branches = []
-    spine_modes = {p: stat.S_IMODE(p.stat().st_mode) for p in spine}
+    shared_fds = []
+    ancestor_fds = []
     try:
-        for directory, excluded in zip(spine, spine[1:]):
-            for path in directory.iterdir():
-                if path == excluded:
-                    continue
-                if path.is_symlink():
-                    branches.append((path, -1, False, os.readlink(path)))
-                else:
-                    descriptor = os.open(path, os.O_PATH | os.O_CLOEXEC)
-                    branches.append((path, descriptor, path.is_dir(), None))
-        # Size from the actual source enumeration, including per-node overhead.
+        # Pin the original mounts before an ancestor's read-only bind shadows
+        # them. In particular, a later bind from a read-only pathname would
+        # inherit read-only state and silently freeze cache/base too.
+        for path in ancestors:
+            ancestor_fds.append((path, os.open(
+                path, os.O_PATH | os.O_DIRECTORY | os.O_CLOEXEC)))
+        for path in sorted(set(map(Path, shared_directories)), key=lambda p: len(p.parts)):
+            shared_fds.append((path, os.open(
+                path, os.O_PATH | os.O_DIRECTORY | os.O_CLOEXEC)))
         source = Path(f"/proc/self/fd/{source_fd}")
         size = 4 * 1024 * 1024 + sum(
             ((info.st_size + 4095) // 4096 + 2) * 4096
             for _, _, info in _tree_entries(source, source)
         )
-        _mount_snapshot(ancestor, mounts, data=b"size=4m")
-        for path in spine[1:]:
-            path.mkdir()
-        for path, descriptor, directory, link in branches:
-            if link is not None:
-                path.symlink_to(link)
-                continue
-            if directory:
-                path.mkdir()
-            else:
-                path.touch()
+        for path, descriptor in ancestor_fds:
             _mount_snapshot(path, mounts, source=os.fsencode(f"/proc/self/fd/{descriptor}"),
-                            filesystem=None, flags=4096 | (16384 if directory else 0))
+                            filesystem=None, flags=4096)
+            _seal_snapshot_root(path, recursive=False)
+        for path, descriptor in shared_fds:
+            _mount_snapshot(path, mounts, source=os.fsencode(f"/proc/self/fd/{descriptor}"),
+                            filesystem=None, flags=4096 | 16384)
         _mount_snapshot(root, mounts, data=f"size={size}".encode())
         shutil.copytree(source, root, dirs_exist_ok=True, symlinks=True,
                         ignore=shutil.ignore_patterns(".git"))
         if snapshot_tree_digest(root) != expected:
-            raise ExpectedMaterializationError("sealed snapshot copy digest mismatch")
-        for path, mode in spine_modes.items():
-            path.chmod(mode)
+            raise ExpectedMaterializationError(f"sealed snapshot copy digest mismatch: {root}")
         _seal_snapshot_root(root)
-        # Do not recurse: sibling bind mounts must retain their writable state.
-        if ancestor != root:
-            _seal_snapshot_root(ancestor, recursive=False)
     finally:
         os.close(source_fd)
-        for _, descriptor, _, _ in branches:
-            if descriptor >= 0:
-                os.close(descriptor)
+        for _, descriptor in ancestor_fds + shared_fds:
+            os.close(descriptor)
 
 
 def _unmount_snapshot(mounts: list[Path]) -> None:
@@ -1159,9 +1153,9 @@ def _unmount_snapshot(mounts: list[Path]) -> None:
         try:
             _linux_call(166, os.fsencode(path), 0)
         except OSError as exc:
-            failures.append(exc)
+            failures.append(OSError(exc.errno, exc.strerror, os.fspath(path)))
     if failures:
-        raise ExpectedMaterializationError("snapshot normal unmount failed") from failures[0]
+        raise ExpectedMaterializationError(f"snapshot normal unmount failed: {failures[0]}") from failures[0]
 
 
 def _send_snapshot_message(stream, message) -> None:
@@ -1238,7 +1232,7 @@ def _snapshot_worker(stream) -> None:
             raise ExpectedMaterializationError("snapshot command timed out")
 
 
-def _snapshot_supervisor(connection, root: Path, expected: str) -> None:
+def _snapshot_supervisor(connection, root: Path, expected: str, shared_directories=()) -> None:
     mounts: list[Path] = []
     stream = connection.makefile("rw")
     code = 1
@@ -1254,7 +1248,7 @@ def _snapshot_supervisor(connection, root: Path, expected: str) -> None:
                 except OSError:
                     pass
         _enter_snapshot_namespace()
-        _snapshot_root_view(root, expected, mounts)
+        _snapshot_root_view(root, expected, mounts, shared_directories=shared_directories)
         _linux_call(157, 36, 1, 0, 0, 0)  # PR_SET_CHILD_SUBREAPER
         worker = os.fork()
         if worker == 0:
@@ -1301,7 +1295,7 @@ def _snapshot_supervisor(connection, root: Path, expected: str) -> None:
         os._exit(code)
 
 
-def _snapshot_guardian(connection, root: Path, expected: str) -> None:
+def _snapshot_guardian(connection, root: Path, expected: str, shared_directories=()) -> None:
     """Parent-side alternate owner, outside the supervisor's mount namespace.
 
     This dedicated subreaper owns only this session. Even SIGKILL of the mount
@@ -1320,7 +1314,7 @@ def _snapshot_guardian(connection, root: Path, expected: str) -> None:
                 if os.read(reader, 1) != b"G":
                     os._exit(1)
                 os.close(reader)
-                _snapshot_supervisor(connection, root, expected)
+                _snapshot_supervisor(connection, root, expected, shared_directories)
             finally:
                 os._exit(1)
         os.close(reader)
@@ -1427,7 +1421,7 @@ class SealedBuildSession:
             raise
         if pid == 0:
             parent.close()
-            _snapshot_guardian(child, root, self.source_snapshot_sha256)
+            _snapshot_guardian(child, root, self.source_snapshot_sha256, self._shared_directories)
             os._exit(1)
         child.close()
         self._pid = pid
