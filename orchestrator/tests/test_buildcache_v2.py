@@ -307,8 +307,13 @@ def _fake_build_environment(
     )
 
     def fake_run(cmd, what, timeout_s=None, *, site=None, env=None,
-                 sealed_session=None):
+                 sealed_session=None, build_output=None):
         if sealed_session is not None:
+            if what == "build":
+                staging = Path(cmd[cmd.index("--build") + 1])
+                assert build_output == str(staging / "cc" / "silo" / "ycsb_silo.exe")
+            else:
+                assert build_output is None
             # Run this existing synthetic compiler in the real sealed child,
             # including its metadata/binary writes to the shared staging tree.
             script = (
@@ -322,6 +327,7 @@ def _fake_build_environment(
             completed = sealed_session.run(
                 [sys.executable, "-I", "-B", "-c", script],
                 cwd="/", env=env, timeout_s=timeout_s,
+                **({"build_output": build_output} if build_output is not None else {}),
             )
             assert completed.returncode == 0, completed.stderr
             return
@@ -3293,9 +3299,9 @@ def _v2_descriptor_runs_gate_inside_build_and_returns_both_digests_case(
         assert kwargs["ccbench_commit"] == descriptor.ccbench_commit
         assert kwargs["configuration"] == descriptor.configuration
         assert kwargs["declaration"] == descriptor.declaration
-        # The source parent becomes read-only; the externally shared cache
-        # ancestor must exist before READY, while staging is created afterward.
-        (tmp_path / "cache").mkdir(exist_ok=True)
+        # Production must prepare this before admission; this mock must not
+        # hide an absent cache branch from the sealed worker (M-D).
+        assert (tmp_path / "cache").is_dir()
         events.append("gate-enter")
         yield buildcache.s8b_expected_materialization.AdmittedBuildSnapshot(
             source_snapshot_sha256=digest,
@@ -3323,7 +3329,9 @@ def _v2_descriptor_runs_gate_inside_build_and_returns_both_digests_case(
         cache_root=str(tmp_path / "cache"),
         ccbench_dir=str(source_root),
     )
+    assert not (tmp_path / "cache").exists()
     fresh = buildcache.build_v2(genome, **kwargs)
+    assert Path(fresh.binary).read_bytes() == b"v2-binary"
     hit = buildcache.build_v2(genome, **kwargs)
 
     assert not fresh.cached and hit.cached
@@ -3853,7 +3861,7 @@ def _v2_fetchcontent_rebind_fixture(tmp_path, monkeypatch):
         assert kwargs["ccbench_commit"] == descriptor.ccbench_commit
         assert kwargs["configuration"] == descriptor.configuration
         assert kwargs["declaration"] == descriptor.declaration
-        (tmp_path / "cache").mkdir(exist_ok=True)
+        assert (tmp_path / "cache").is_dir()
         yield buildcache.s8b_expected_materialization.AdmittedBuildSnapshot(
             source_snapshot_sha256=snapshot_sha256,
             expected_materialization_sha256=snapshot_sha256,
@@ -5741,15 +5749,18 @@ def _real_session_publish_then_hit_issues_distinct_capabilities_case(tmp_path):
             )
             # Produce the actual pending bytes in this session. A successful
             # configure/read command alone cannot justify SEALED_BUILD (M-E).
+            output = Path(pending.parent) / "staging" / "fresh-binary"
             buildcache._run(
                 [sys.executable, "-I", "-B", "-c",
                  "from pathlib import Path; import sys; "
-                 "output = Path(sys.argv[2]); output.chmod(0o700); "
+                 "output = Path(sys.argv[2]); "
                  "output.write_bytes(b'candidate binary ' + Path(sys.argv[1]).read_bytes()); "
                  "output.chmod(0o500)",
-                 str(root / "input"), str(Path(pending.clean) / "binary")],
+                 str(root / "input"), str(output)],
                 "build", site=buildcache.site_policy.OTHER, sealed_session=fresh,
+                build_output=str(output),
             )
+            assert output.read_bytes() == (Path(pending.clean) / "binary").read_bytes()
             assert not Path(pending.result.build_dir).exists()
             assert not (Path(pending.clean) / "completion.json").exists()
             with pytest.raises(
@@ -5930,6 +5941,50 @@ def test_descriptor_build_result_carries_real_fresh_and_hit_capabilities(tmp_pat
         "orchestrator.tests.test_buildcache_v2", case, tmp_path,
     )
     assert result == {"case": case, "completed": True}
+
+
+def test_descriptor_build_prepares_missing_cache_root(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_descriptor_build_prepares_missing_cache_root_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _descriptor_build_prepares_missing_cache_root_case(tmp_path, monkeypatch):
+    assert not (tmp_path / "cache").exists()
+    _v2_descriptor_runs_gate_inside_build_and_returns_both_digests_case(tmp_path, monkeypatch)
+
+
+def test_configure_only_session_cannot_issue_sealed_build(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_configure_only_session_cannot_issue_sealed_build_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _configure_only_session_cannot_issue_sealed_build_case(tmp_path):
+    root = _publication_source(tmp_path)
+    binary = tmp_path / "preexisting-binary"
+    binary.write_bytes(b"not built in this session")
+    with _publication_session(root) as session:
+        buildcache._run(
+            [sys.executable, "-I", "-B", "-c", "pass"],
+            "configure", site=buildcache.site_policy.OTHER, sealed_session=session,
+        )
+    with pytest.raises(
+            buildcache.s8b_expected_materialization.ExpectedMaterializationError,
+            match="kind differs from execution"):
+        session.issue(
+            buildcache.s8b_expected_materialization.SealedSnapshotProtectionKind.SEALED_BUILD,
+            binary_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),
+            compiler_input_manifest_sha256=hashlib.sha256(b"fixture manifest").hexdigest(),
+        )
 
 
 def _descriptor_build_result_carries_real_fresh_and_hit_capabilities_case(tmp_path, monkeypatch):

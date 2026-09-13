@@ -2854,6 +2854,9 @@ def _build_v2_impl(
                 _assert_fetchcontent_fully_disconnected_effective(staging)
                 _assert_post_oracle_dependency_material(post_oracle_binding)
 
+            if sealed_session is not None:
+                run_env["build_output"] = os.path.join(staging, binary_relpath)
+
             if post_oracle_binding is not None:
                 # Protection evidence is pre-build only.  Post-build checks
                 # below intentionally re-read their own effective_root.
@@ -3288,6 +3291,12 @@ def build_v2(
     sub = ccbench_dir or _ccbench_dir()
     pending_publications: list[_PendingV2Publication] = []
     pending = None
+    shared_directories = [os.path.realpath(os.path.abspath(cache_root))]
+    shared_base = fetchcontent_base_dir
+    if not shared_base and post_oracle_dependency_binding is not None:
+        shared_base = post_oracle_dependency_binding["fetchcontent_base_dir"]
+    if shared_base:
+        shared_directories.append(shared_base)
     try:
         with s8b_expected_materialization.sealed_build_session(
                 ccbench_commit=descriptor.ccbench_commit,
@@ -3297,6 +3306,7 @@ def build_v2(
                 genome=genome,
                 prepared_src_token=source_evidence.src_token,
                 cxx=cxx,
+                shared_directories=shared_directories,
         ) as admitted:
             if admitted.source_evidence != source_evidence:
                 raise BuildCacheError(
@@ -3726,6 +3736,7 @@ def _run(
         cmd: List[str], what: str, timeout_s: Optional[int] = None,
         *, site: Optional[str] = None, env: Optional[Dict[str, str]] = None,
         sealed_session: Optional[s8b_expected_materialization.SealedBuildSession] = None,
+        build_output: Optional[str] = None,
 ) -> None:
     if what in {"configure", "build"}:
         require_heavy_work_site(site, f"cmake {what}")
@@ -3744,6 +3755,7 @@ def _run(
         r = sealed_session.run(
             cmd, cwd=os.getcwd(), env=os.environ.copy() if env is None else env,
             timeout_s=timeout_s,
+            **({"build_output": build_output} if build_output is not None else {}),
         )
     if r.returncode != 0:
         raise RuntimeError(f"{what} failed (rc={r.returncode}): "

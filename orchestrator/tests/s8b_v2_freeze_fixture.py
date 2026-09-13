@@ -199,7 +199,8 @@ def sealed_source_protection_fixture(
         with _snapshot.sealed_build_session(
                 ccbench_commit=source.ccbench_commit, configuration="stock_common",
                 declaration={}, snapshot_root=root, genome=None,
-                prepared_src_token=source.src_token, cxx="c++") as session:
+                prepared_src_token=source.src_token, cxx="c++",
+                shared_directories=()) as session:
             pass
     return session.issue(
         _snapshot.SealedSnapshotProtectionKind.SEALED_CACHE_HIT,
