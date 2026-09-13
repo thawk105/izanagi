@@ -23963,6 +23963,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`orchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected`)。
 - 再発検知: 各層に対する変異を事前登録し、probe で SURVIVED になった変異は
   「他層の mask」を先に疑う (`docs/dev-wave/mutation.md` の DW-M02)。
+- **supersede: 2026-09-14** — 恒久対応が指す負例 `test_shared_noncanonical_toolchain_digest_is_rejected` は撤去した。守っていた「腕内で canonical digest を再計算して記録値と照合する層」自体が producer の証拠を取り違えた等式で、回収成果物では恒偽だったためである (D1983)。**本項の一般の教訓 (片側だけを変える負例は対称な層に mask される) は有効なままである。** 腕間 digest 一致の負例 `test_toolchain_record_digest_drift_is_rejected` は残し、変異 M3 で KILLED を実測した。経緯は `output/insights/2026-09-14_t2589-consumer-real-artifact-repair/README.md`。
 
 ### F910. 段 5 実装子が model 呼び出し上限で報告を書かずに打ち切られた [手順漏れ] [コンテキスト浪費]
 
