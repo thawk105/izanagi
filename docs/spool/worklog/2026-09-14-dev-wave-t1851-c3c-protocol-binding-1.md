@@ -35,6 +35,17 @@ title: [T-1851] official 床値の許可表を resolver が選んだ protocol �
   固有で、対象 module を一緒に収集すると消える。変更面を基底へ戻しても再現するため本 wave に帰属しない。
 - 工数: codex 子 7 本 (plan 1 / 敵対 2 / 実装 1 / fix 2 / 焦点 1)。うち 1 本が上限死、
   1 本が argv 違反で即死 (`--lane` は consult 専用)。
+- **段 8 の自己改善は候補 2 件とも「実施しない」で閉じた** (D782 が委任する D730 の手順による)。
+  どちらも実測由来だが独立 1 例しかなく、例外収容の 3 例条件を満たさない。上限引き上げはしていない。
+  (a) sandbox の子はテストを実走できない (runner `rc=16`、`pytest` は guard 拒否、使えるのは
+  test file 末尾の自走 harness だけで、growth hold 対象 file はそれも拒む) — 手順として
+  `DW-S05-C` へ足すと L1.5 予算を 195 bytes 超過する。予算の空きは 0 bytes だった。
+  (b) `DW-S05-A` の所有 path 限定 patch の手順 (`git add -A` → `git diff --cached` → `git apply`) は
+  **隔離 session から実行できない** — guard が子 worktree への git を拒む。本 wave は base blob との
+  内容 hash 全数照合 (24676 file) で変更集合を確定し、所有 path だけを byte 等値で複写した。
+  是正文を予算内に収めるには当該段落の書き換えが要るが、`test_dev_wave_launch_authority.py` の
+  独立照合 6 件がその本文を構造的に読むため赤になる (実測: 編集時 6 failed / 58 passed、
+  戻すと 64 passed)。次に同型を 2 回踏んだ wave が D730 の例外条件で収容できるよう証拠を残す。
 
 ## 次の一手差分
 
