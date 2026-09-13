@@ -38,6 +38,12 @@ title: [T-2534] 供給されていないBACKOFF_FIXED指定を取り下げ、rr9
   割り込みを見るもの。差分から到達できない面で、単独再走では再現しなかった。
 - `tools/run_tests.py` が判定を表示した後の後処理で停止する事象を 2 回観測した。
   pytest の判定自体は出ており、この wave の結果には影響していない。
+- 段 8 の自己改善候補は 2 件で、どちらも既存台帳に同型があるため新しい F も docs 編集も作らない。
+  (i) `mutation_worktree.py` の共有木事後検査が並行 wave の churn で rc=125 になり、
+  harness 直接経路へ落とした。型は F383 と同じ。
+  (ii) 変異 harness の preflight が `output/` 配下の untracked も拒否するため、
+  較正の実測成果物を先に commit してから走らせた。これも既存 F と同型。
+  dev-wave docs は byte 予算が満杯で exact pin が脆いので、本 wave では編集しない。
 
 ## 次の一手差分
 
