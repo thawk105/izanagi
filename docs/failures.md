@@ -25004,3 +25004,40 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   明記する。以後の fix 子 4 本はこの指示で実走できた。
 - 再発検知: 子の完了報告に実走 nodeid が 1 件も無いときは、投入経路の失敗を疑って
   親が同じ木で自走 harness を叩き直す。
+
+### F965. 裁定本文が名指す識別子の割り当てを、凍結の権威と逐語照合しないまま確定した [ドリフト] [手順漏れ]
+
+- 事象: D1640 (2026-09-05) が `delta_min` の基準を「H1 = rr20、H2 = rr80」と書いたが、
+  凍結の権威 `s8b_holdout_freeze.HOLDOUTS` は rr80 が H1・rr20 が H2 である。
+  この対応は `31426fb9a` (2026-08-29) から不変で、**D1640 起草時点で既に逆**だった。
+  逐語適用すると各 holdout の実質効果境界が他方の throughput 水準から作られ、片側は
+  境界が過小になって環境ばらつき程度の差を「成立」へ通しうる (規律 2 の面)。
+  2026-09-14 の T-1875 前提実測で発見。ゲートが閉じており測定は起きていないため実害は無い。
+- 根本原因: 裁定を起草するとき、本文が名指す識別子 (H1 / H2) の割り当てを、凍結を生成する
+  producer の現物ではなく周辺の記述から取った。同じ裁定を 4 日後に再確認した D1649 でも
+  割り当ては照合されなかった。`delta_min` の値そのものは検証 consumer が型・符号・有限性を
+  機械検査するが、**どの holdout にどの値を割り当てたかは consumer の検査範囲の外**にある。
+- 恒久対応: memory `ruling-identifiers-must-match-frozen-authority` — 裁定・事前登録が
+  凍結済みの識別子 (holdout label、cell id、candidate id) を名指すときは、起草時に凍結
+  producer の現物へ逐語照合する。
+- 再発検知: 凍結の識別子を名指す裁定を引いて実装・測定へ入る wave の段 1 で、
+  引用元の割り当てを producer の現物と突き合わせる (目視。lint 化は未実装 —
+  裁定本文は自由記述で、識別子と値の対応を機械抽出する経路が無い)。
+
+### F966. local main の commit が同内容・別 SHA へ差し替わると `--ff-only` 追従が不能になる [手順漏れ]
+
+- 事象: wave 開始直後に local main の tip から fresh worktree を作った直後、別 session の land が
+  main の先頭 commit を**同じ件名・同じ親・別 SHA** の commit へ差し替えた。worktree の branch は
+  main から消えた側の commit に載り、`DW-O20` が指示する `git merge --ff-only main` が
+  `fatal: Not possible to fast-forward, aborting.` で失敗した。開始 gate も
+  `NG: HEAD != local main` を返し続けた。
+- 根本原因: `DW-O20` の追従手順は「main が**進んだ**」場合だけを想定している。main の commit が
+  置き換わると worktree の HEAD は main の祖先でなくなるため、ff-only は原理的に成立しない。
+  `git merge-base --is-ancestor <worktree HEAD> main` が偽になることで判別できる。
+- 恒久対応: 手順として残す。ff-only が失敗したら、まず祖先性を検査する。祖先でなければ追従ではなく
+  **branch の作り直し**で復旧する — worktree 内で `git checkout --detach main` →
+  `git branch -D <wave branch>` → `git checkout -b <wave branch>`。
+  `git reset` は使わない (reflog に reset が残ると land が拒否する)。
+  作り直しは wave 側に自前 commit が無い間だけ安全であり、commit 済みなら別手順が要る。
+- 再発検知: 開始 gate の `NG: HEAD != local main` が `--ff-only` 1 回で解消しないこと。
+  併せて `git merge-base --is-ancestor` の偽を確認する。
