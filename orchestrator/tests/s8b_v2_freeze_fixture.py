@@ -133,10 +133,23 @@ def in_sealed_fixture_process(test):
 def run_sealed_fixture_case(module, case, tmp_path, **parameters):
     """Run issuer and assertions in a fresh interpreter, never in an xdist worker."""
     import sys
+    # Current callers each open one cache-hit session, with no session.run().
+    # Budget both startup reads (ownership and READY), finish, normal reap and
+    # fallback reap. Use one existing finish budget for interpreter/imports,
+    # fixture setup and assertions: 2*60 + 30 + 2*30 + 30 = 240 seconds.
+    # This follows session wait policy, not measured fixture latency; the tiny
+    # synthetic-tree probe cannot establish a five-second end-to-end bound.
+    timeout_s = (
+        2 * _snapshot._SNAPSHOT_READY_TIMEOUT_S
+        + 2 * _snapshot._SNAPSHOT_FINISH_TIMEOUT_S
+        + 2 * _snapshot._SNAPSHOT_REAP_TIMEOUT_S
+    )
     code = """
 import contextlib, importlib, inspect, io, json, sys
 from pathlib import Path
-sys.path.insert(0, sys.argv[1])
+# pytest can supply either orchestrator.tests.<module> or bare <module>.
+root = Path(sys.argv[1])
+sys.path[:0] = [str(root), str(root / 'orchestrator' / 'tests')]
 case = inspect.unwrap(getattr(importlib.import_module(sys.argv[2]), sys.argv[3]))
 parameters = json.loads(sys.argv[5])
 parameters['tmp_path'] = Path(sys.argv[4])
@@ -155,7 +168,7 @@ print(json.dumps(result))
         [sys.executable, "-I", "-B", "-c", code,
          str(Path(__file__).resolve().parents[2]), module, case,
          str(tmp_path), json.dumps(parameters)],
-        capture_output=True, text=True, timeout=5,
+        capture_output=True, text=True, timeout=timeout_s,
     )
     assert result.returncode == 0, result.stdout + result.stderr
     return json.loads(result.stdout)
