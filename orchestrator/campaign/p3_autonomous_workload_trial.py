@@ -45,6 +45,7 @@ from . import reflux_origin_binding
 from . import reflux_origin_client
 from . import reflux_origin_ledger
 from . import reflux_origin_topology
+from . import reflux_result_evidence
 from . import s8b_holdout_freeze
 from . import s8b_ratified_freeze
 from . import s8c_arm_inputs
@@ -442,7 +443,6 @@ class OriginMemberPlanInput:
     candidate_salt: str
     result_evidence_salt: str
     constraint_salt: str
-    evidence_path: str
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -463,8 +463,6 @@ class OriginProducerInputs:
     """Closed formal-consumer inputs supplied by the logical producer."""
 
     run_plan_input: OriginRunPlanInput
-    result_record_bytes: tuple[bytes, ...]
-    evidence_root: Path
     verifier_policy_bytes: bytes
     generator_closure: Mapping[str, object]
     terminal_operation_id: str
@@ -1333,6 +1331,27 @@ def _derive_origin_campaign_runs(
     return runs
 
 
+def _origin_result_evidence_path(
+    origin_id: str, batch_id: str, query_ordinal: int,
+) -> str:
+    """Project the record path before a complete result record exists.
+
+    The public result_evidence_relative_path requires a complete validated
+    record, unavailable at planning time. Keep its path rule here only and
+    reuse its token checks; collection checks the public function's result.
+    """
+    try:
+        origin = reflux_result_evidence._safe_path_token(
+            origin_id, label="origin_id"
+        )
+        batch = reflux_result_evidence._safe_path_token(batch_id, label="batch_id")
+    except reflux_result_evidence.ResultEvidenceError as exc:
+        raise AutonomousTrialError(str(exc)) from exc
+    return Path(
+        "reports", "reflux-result-evidence", origin, batch, f"{query_ordinal}.json"
+    ).as_posix()
+
+
 def _build_origin_recovery_envelope(
     *,
     capability: reflux_origin_binding.OriginBindingCapability,
@@ -1376,7 +1395,11 @@ def _build_origin_recovery_envelope(
             candidate_salt=material.candidate_salt,
             result_evidence_salt=material.result_evidence_salt,
             constraint_salt=material.constraint_salt,
-            evidence_path=material.evidence_path,
+            evidence_path=_origin_result_evidence_path(
+                capability.origin_id,
+                run_plan_input.attempt_0_batch_id,
+                run.query_ordinal,
+            ),
             planned_campaign_run_identity=run.campaign_run_identity,
         )
         for material, run in zip(
@@ -1686,10 +1709,6 @@ def _prepare_origin_trial_runtime(
         )
     if type(producer_inputs.run_plan_input) is not OriginRunPlanInput:
         raise TypeError("origin producer run_plan_input must be an OriginRunPlanInput")
-    if type(producer_inputs.result_record_bytes) is not tuple or any(
-        type(raw) is not bytes for raw in producer_inputs.result_record_bytes
-    ):
-        raise TypeError("origin result_record_bytes must be a tuple of bytes")
     if type(producer_inputs.verifier_policy_bytes) is not bytes:
         raise TypeError("origin verifier_policy_bytes must be bytes")
     if (
@@ -1862,6 +1881,41 @@ def _complete_origin_runtime(runtime: OriginTrialRuntime) -> None:
     run_plan = runtime.run_plan
     if type(run_plan) is not reflux_origin_topology.RecoveryEnvelope:
         raise AutonomousTrialError("origin runtime has no producer-derived run plan")
+    members = run_plan.members
+    count = reflux_origin_topology.SOURCE_AND_VALIDATION_MEMBER_COUNT
+    if len(members) != count:
+        raise AutonomousTrialError("origin evidence requires exactly 33 members")
+    if (
+        any(type(member.query_ordinal) is not int for member in members)
+        or tuple(member.query_ordinal for member in members) != tuple(range(count))
+    ):
+        raise AutonomousTrialError(
+            "origin evidence query ordinals must be ascending 0..32"
+        )
+    if len({member.evidence_path for member in members}) != count:
+        raise AutonomousTrialError("origin evidence paths must be distinct")
+    result_records: list[bytes] = []
+    try:
+        for member in members:
+            _root, target = reflux_result_evidence._normalized_reference_target(
+                runtime.campaign_output_root, member.evidence_path
+            )
+            raw, _identity = reflux_result_evidence._read_regular_file_no_follow(
+                target
+            )
+            record = reflux_result_evidence.validate_result_evidence(
+                reflux_result_evidence.parse_result_evidence_bytes(raw)
+            )
+            relative = reflux_result_evidence.result_evidence_relative_path(record)
+            if relative.as_posix() != member.evidence_path:
+                raise AutonomousTrialError(
+                    "origin result evidence path does not match member"
+                )
+            result_records.append(raw)
+    except (reflux_result_evidence.ResultEvidenceError, OSError) as exc:
+        raise AutonomousTrialError(
+            f"origin result evidence collection failed: {exc}"
+        ) from exc
     result = reflux_formal_consumer.evaluate_formal_origin(
         capability=capability,
         source_closure=runtime.binding_request.validated_source_closure,
@@ -1879,8 +1933,8 @@ def _complete_origin_runtime(runtime: OriginTrialRuntime) -> None:
         ),
         origin_snapshot=snapshot,
         sealed_batches=sealed_batches,
-        result_record_bytes=producer.result_record_bytes,
-        evidence_root=Path(producer.evidence_root),
+        result_record_bytes=tuple(result_records),
+        evidence_root=runtime.campaign_output_root,
         verifier_policy_bytes=producer.verifier_policy_bytes,
         enforcement_arm=capability.enforcement_arm,
         arm_binding_digest_sha256=(

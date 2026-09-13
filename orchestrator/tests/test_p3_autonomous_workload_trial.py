@@ -10368,7 +10368,6 @@ def _origin_run_plan_input():
             candidate_salt=item["candidate_salt"],
             result_evidence_salt=item["result_evidence_salt"],
             constraint_salt=item["constraint_salt"],
-            evidence_path=item["evidence_path"],
         )
         for item in raw["members"]
     )
@@ -10691,7 +10690,9 @@ def _materialize_origin_physical_evidence(
             "sha256": hashlib.sha256(provenance_raw).hexdigest(),
         }
         raw = _canonical_origin_test_bytes(record)
-        record_path.write_bytes(raw)
+        target = evidence_root / A.reflux_result_evidence.result_evidence_relative_path(record)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(raw)
         aligned.append(raw)
     return tuple(aligned)
 
@@ -10932,10 +10933,6 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
     )
     provisional_producer = A.OriginProducerInputs(
         run_plan_input=_origin_run_plan_input(),
-        result_record_bytes=tuple(
-            path.read_bytes() for path in frozen.result_evidence_paths
-        ),
-        evidence_root=frozen.evidence_root,
         verifier_policy_bytes=(
             frozen.root / "artifacts" / "verifier-policy.json"
         ).read_bytes(),
@@ -10992,17 +10989,14 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
     assert preliminary_runtime.producer_inputs.enforcement_arm == (
         fresh_arm_execution.resolved_input.arm
     )
-    result_record_bytes = _align_origin_result_records(
+    _align_origin_result_records(
         frozen,
         preliminary_runtime.capability,
         launch_admission_record_sha256=(
             preliminary_runtime.launch_admission_record_sha256
         ),
     )
-    producer = dataclasses.replace(
-        provisional_producer,
-        result_record_bytes=result_record_bytes,
-    )
+    producer = provisional_producer
     original_complete = A._complete_origin_runtime
     sealed = False
 
@@ -11011,11 +11005,6 @@ def _origin_public_inputs(tmp_path, monkeypatch, registered):
         if not sealed:
             materialized = _materialize_origin_physical_evidence(
                 frozen, runtime
-            )
-            runtime.producer_inputs = dataclasses.replace(
-                runtime.producer_inputs,
-                result_record_bytes=materialized,
-                evidence_root=runtime.campaign_output_root,
             )
             _seal_origin_fixture_ledger(
                 client,
@@ -11463,3 +11452,143 @@ def test_originless_lifecycle_start_omits_run_plan_digest(
 
 if __name__ == "__main__":  # pragma: no cover - plain-runner false-green guard
     raise SystemExit(pytest.main([__file__, "-x"]))
+
+
+@pytest.mark.parametrize("case", [
+    "caller-path", "missing-record", "query-order", "wrong-query", "caller-root",
+    "duplicate-path", "missing-member", "symlink-record", "symlink-parent",
+])
+def test_origin_runtime_collects_only_producer_owned_evidence(
+    tmp_path, monkeypatch, t325_registered_trial, case,
+) -> None:
+    """Mutate only after real fixture materialization and ledger sealing."""
+    complete = A._complete_origin_runtime
+    observed = []
+    rejected = []
+    changed = False
+    failures = {
+        "missing-record": "origin result evidence collection failed",
+        "query-order": "query ordinals must be ascending",
+        "wrong-query": "path does not match member",
+        "duplicate-path": "paths must be distinct",
+        "missing-member": "requires exactly 33 members",
+        "symlink-record": "origin result evidence collection failed",
+        "symlink-parent": "origin result evidence collection failed",
+    }
+
+    def inspect_then_complete(runtime):
+        nonlocal changed
+        observed.append(runtime)
+        members = runtime.run_plan.members
+        root = runtime.campaign_output_root
+        if not changed:
+            # All 33 records are valid and at their derived paths before the
+            # single mutation; no consumer or collection mechanism is stubbed.
+            assert len(members) == 33
+            assert tuple(m.query_ordinal for m in members) == tuple(range(33))
+            for member in members:
+                raw = (root / member.evidence_path).read_bytes()
+                record = A.reflux_result_evidence.parse_result_evidence_bytes(raw)
+                assert A.reflux_result_evidence.result_evidence_relative_path(
+                    record
+                ).as_posix() == member.evidence_path
+            if case == "caller-path":
+                material = runtime.producer_inputs.run_plan_input.member_materials[0]
+                with pytest.raises(TypeError, match="evidence_path"):
+                    dataclasses.replace(material, evidence_path="reports/elsewhere.json")
+                for member in members:
+                    assert member.evidence_path == (
+                        f"reports/reflux-result-evidence/{runtime.capability.origin_id}/"
+                        f"{runtime.producer_inputs.run_plan_input.attempt_0_batch_id}/"
+                        f"{member.query_ordinal}.json"
+                    )
+            elif case == "caller-root":
+                with pytest.raises(TypeError, match="evidence_root"):
+                    dataclasses.replace(runtime.producer_inputs, evidence_root=tmp_path / "other")
+                with pytest.raises(TypeError, match="result_record_bytes"):
+                    dataclasses.replace(runtime.producer_inputs, result_record_bytes=())
+            elif case == "missing-record":
+                (root / members[-1].evidence_path).unlink()
+            elif case in {"query-order", "duplicate-path", "missing-member"}:
+                if case == "query-order":
+                    mutant = (members[1], members[0], *members[2:])
+                elif case == "duplicate-path":
+                    mutant = (dataclasses.replace(
+                        members[0], evidence_path=members[1].evidence_path,
+                    ), *members[1:])
+                else:
+                    mutant = members[:-1]
+                # Normal construction already rejects these shapes. Simulate
+                # corruption after construction to exercise the collection guard.
+                with pytest.raises(reflux_origin_topology.TopologyError):
+                    dataclasses.replace(runtime.run_plan, members=mutant)
+                object.__setattr__(runtime.run_plan, "members", mutant)
+            elif case == "wrong-query":
+                (root / members[0].evidence_path).write_bytes(
+                    (root / members[1].evidence_path).read_bytes()
+                )
+            elif case == "symlink-record":
+                path = root / members[0].evidence_path
+                referent = path.with_suffix(".saved")
+                path.rename(referent)
+                path.symlink_to(referent)
+            elif case == "symlink-parent":
+                parent = (root / members[0].evidence_path).parent
+                referent = parent.with_name(parent.name + "-saved")
+                parent.rename(referent)
+                parent.symlink_to(referent, target_is_directory=True)
+            changed = True
+        if case in failures:
+            before = runtime.client.read_origin(runtime.capability)
+            with pytest.raises(A.AutonomousTrialError, match=failures[case]) as caught:
+                complete(runtime)
+            assert runtime.terminal_projection is None
+            assert runtime.client.read_origin(runtime.capability) == before
+            rejected.append(caught.value)
+            raise caught.value
+        return complete(runtime)
+
+    monkeypatch.setattr(A, "_complete_origin_runtime", inspect_then_complete)
+    request, producer = _origin_public_inputs(
+        tmp_path, monkeypatch, t325_registered_trial,
+    )
+    original_evaluate = A.reflux_formal_consumer.evaluate_formal_origin
+    evaluations = []
+
+    def observe_evaluate(**kwargs):
+        evaluations.append(kwargs)
+        assert kwargs["evidence_root"] == observed[-1].campaign_output_root
+        assert kwargs["result_record_bytes"] == tuple(
+            (kwargs["evidence_root"] / member.evidence_path).read_bytes()
+            for member in observed[-1].run_plan.members
+        )
+        return original_evaluate(**kwargs)
+
+    monkeypatch.setattr(
+        A.reflux_formal_consumer, "evaluate_formal_origin", observe_evaluate,
+    )
+    outcome = A.run_origin_trial(
+        origin_binding_request=request,
+        origin_producer_inputs=producer,
+        **_origin_trial_arguments(t325_registered_trial, tmp_path / "collected-origin"),
+    )
+    assert observed
+    if case in failures:
+        assert rejected
+        assert not evaluations
+        assert type(outcome) is A.OriginPartialTrialReport
+        assert outcome.error_type == "AutonomousTrialError"
+    else:
+        assert evaluations
+        assert type(outcome) is A.OriginCompletedTrialReport
+
+
+@pytest.mark.parametrize("token", ["", ".", "..", "a/b", "a\\b", "a\x00b", "\ud800"])
+@pytest.mark.parametrize("field", ["origin_id", "batch_id"])
+def test_origin_evidence_path_reuses_result_evidence_token_rejection(token, field):
+    inputs = {"origin_id": "origin", "batch_id": "batch", "query_ordinal": 0}
+    inputs[field] = token
+    with pytest.raises(A.reflux_result_evidence.ResultEvidenceError):
+        A.reflux_result_evidence._safe_path_token(token, label=field)
+    with pytest.raises(A.AutonomousTrialError):
+        A._origin_result_evidence_path(**inputs)
