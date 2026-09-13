@@ -51,7 +51,7 @@ def test_probe_1_spec_binding_and_production_configuration(spec):
     assert binding.spec_sha256 == "08f5849b7a6b7a7bf98917922e0d06283e4d837d370fb9371fc6282e388e80ef"
     from orchestrator.campaign import env_contract
     for workload in ("write-heavy","balanced","read-heavy"):
-        cfg = formal.config_for(spec,binding,workload,contract=env_contract.GENERATIONS["linux-baremetal"][0].contract,ccbench_source_digest="a"*64,toolchain={"fixture":"compiler"},correctness_mode="legacy")
+        cfg = formal.config_for(spec,binding,workload,contract=env_contract.GENERATIONS["linux-baremetal"][0].contract,ccbench_source_digest=formal.ccbench_checkout_digest(ROOT/"external/ccbench"),toolchain={"fixture":"compiler"},correctness_mode="legacy")
         perf = formal.performance_config(spec,workload)
         assert (perf.records,perf.threads,perf.extime,perf.reps) == (1000000,48,3,5)
         assert cfg.search_config["correctness_reps_per_cell"] == 5
@@ -199,7 +199,8 @@ def test_spec_records_reaches_real_measure_point_argv(spec):
         changed = copy.deepcopy(spec.data)
         changed["execution"]["records"] = records
         config = formal.performance_config(formal.parse_preregistration(_document(changed)),"balanced")
-        runner.measure_point("/fixture/ycsb.exe",config.records,config.threads,1800,extime=config.extime,reps=config.reps,workload=config.workload,subprocess_runner=_subprocess_replay(_saved_stdout(),seen))
+        runner.measure_point("/fixture/ycsb.exe",config.records,config.threads,1800,extime=config.extime,reps=config.reps,workload=config.workload,require_all_reps=True,subprocess_runner=_subprocess_replay(_saved_stdout(),seen))
+    assert len(seen) == 10
     assert all("-ycsb_tuple_num=1000000" in r["argv"] for r in seen[:5])
     assert all("-ycsb_tuple_num=1234567" in r["argv"] for r in seen[5:])
 
@@ -213,7 +214,7 @@ def test_probe_2_deferred_integer_capture_opens_saved_bytes(spec):
     assert (sink[0]["abort_counts_"],sink[0]["commit_counts_"]) == (24435129,2270481)
 
 
-def _emit_campaign(spec,tmp_path,workload,stdout=None):
+def _emit_campaign(spec,tmp_path,workload,stdout=None, *, through_loop=False):
     # test_campaign's external build/trace fixtures are retained; restore actual
     # measurement and stability functions before invoking the writer pipeline.
     import test_campaign as fixture
@@ -227,7 +228,7 @@ def _emit_campaign(spec,tmp_path,workload,stdout=None):
     assert perf_receipt["status"] == "unavailable"
     fixture._refresh_certified_writer_authority()
     binding = formal.load_preregistration(ROOT,"HEAD")
-    cfg = formal.config_for(spec,binding,workload,contract=fixture._AUTH_CONTRACT,ccbench_source_digest="a"*64,toolchain={"fixture":"compiler"},correctness_mode="legacy")
+    cfg = formal.config_for(spec,binding,workload,contract=fixture._AUTH_CONTRACT,ccbench_source_digest=formal.ccbench_checkout_digest(ROOT/"external/ccbench"),toolchain={"fixture":"compiler"},correctness_mode="legacy")
     cfg = ident.bind_admission_policy(cfg,fixture._BUILD_CONTEXT.policy)
     layout = CampaignLayout(root=str(tmp_path/"campaigns"/str(ident.campaign_id(cfg)))).ensure()
     fixture._write_certified_lock(layout,cfg)
@@ -247,8 +248,27 @@ def _emit_campaign(spec,tmp_path,workload,stdout=None):
                 return runner.measure_point(*args,**kwargs,subprocess_runner=_subprocess_replay(stdout or [raw]*5,seen))
             pipeline.measure_point = measure
             pipeline.remeasure_until_stable = remeasure_until_stable
-            result = pipeline.evaluate(genome,layout,fixture._AUTH_CONTRACT.env_tag,pin_commit(spec),formal.performance_config(spec,workload),clocks_per_us=fixture._AUTH_CONTRACT.clocks_per_us,numactl=fixture._AUTH_CONTRACT.numactl,authorization_contract=fixture._AUTHORIZATION,build_context=fixture._BUILD_CONTEXT,correctness=pipeline.CorrectnessWorkload(reps=spec["execution"]["correctness_reps_per_cell"]),record_rep_integer_counters=True,use_perf=False,perf_preflight_receipt=perf_receipt,bench_max_rounds=1,log=lambda *_:None)
-            assert result.certified, result
+            if through_loop:
+                from orchestrator.campaign import loop
+                with pytest.MonkeyPatch.context() as mp:
+                    # External source/build fixture only; loop, evaluate,
+                    # verifier, and WAL writer remain real.
+                    mp.setattr(loop, "source_digest", pipeline.source_digest)
+                    result = loop.run_campaign(
+                        cfg, [genome], formal.performance_config(spec, workload),
+                        fixture._AUTH_CONTRACT.env_tag, fixture._AUTH_CONTRACT.clocks_per_us,
+                        numactl=fixture._AUTH_CONTRACT.numactl,
+                        env_contract=fixture._AUTH_CONTRACT,
+                        authorization_contract=fixture._AUTHORIZATION,
+                        build_context=fixture._BUILD_CONTEXT, declared_use_class="official",
+                        output_root=str(tmp_path), log=lambda *_: None,
+                        correctness=pipeline.CorrectnessWorkload(reps=5),
+                        record_rep_integer_counters=True, bench_max_rounds=1)
+                    assert result.committed == 1 and result.aborted == 0, result
+                    assert result.layout_root == layout.root
+            else:
+                result = pipeline.evaluate(genome,layout,fixture._AUTH_CONTRACT.env_tag,pin_commit(spec),formal.performance_config(spec,workload),clocks_per_us=fixture._AUTH_CONTRACT.clocks_per_us,numactl=fixture._AUTH_CONTRACT.numactl,env_contract=fixture._AUTH_CONTRACT,authorization_contract=fixture._AUTHORIZATION,build_context=fixture._BUILD_CONTEXT,correctness=pipeline.CorrectnessWorkload(reps=spec["execution"]["correctness_reps_per_cell"]),record_rep_integer_counters=True,use_perf=False,perf_preflight_receipt=perf_receipt,bench_max_rounds=1,log=lambda *_:None)
+                assert result.certified, result
             assert len(calls.trace) == 5
     formal._create_json(Path(layout.root)/"reports"/(spec["future_driver_binding"]["artifact_stem"]+"-execution.json"),dict(status="complete",sweep_elapsed_s=10,job_elapsed_s=20,wal_sha256=hashlib.sha256(Path(layout.wal_file).read_bytes()).hexdigest(),campaign_lock_sha256=hashlib.sha256(Path(layout.lock_file).read_bytes()).hexdigest()))
     return binding,layout,seen
@@ -317,7 +337,7 @@ def test_probe_3_provenance_uses_stored_physical_wal_lines(spec,tmp_path):
 def test_probe_4_five_real_verifier_records_and_loop_forwarding(spec,tmp_path):
     from orchestrator.campaign.loop import run_campaign
     assert "correctness" in inspect.signature(run_campaign).parameters, "UNLANDED: loop correctness forwarding"
-    binding,layout,_ = _emit_campaign(spec,tmp_path,"balanced")
+    binding,layout,_ = _emit_campaign(spec,tmp_path,"balanced",through_loop=True)
     loaded = formal.load_formal_campaign(spec,binding,layout,correctness_mode="legacy")
     assert all(len(p["correctness"]) == 5 and all(v["payload"]["certified"] is True for v in p["correctness"]) for p in loaded["points"])
 
@@ -345,8 +365,128 @@ def test_formal_loader_rejects_real_exploration(spec):
         formal.load_formal_campaign(spec,binding,_explore(),correctness_mode="legacy")
 
 
+def test_checkout_source_identity_is_shared_by_real_driver_configs(spec):
+    binding = formal.load_preregistration(ROOT, "HEAD")
+    from orchestrator.campaign import env_contract
+    identities, first_points = [], []
+    for workload in ("write-heavy", "balanced", "read-heavy"):
+        first_points.append(formal.registered_points(spec, workload)[0][0])
+        cfg = formal.config_for(
+            spec, binding, workload,
+            contract=env_contract.GENERATIONS["linux-baremetal"][0].contract,
+            ccbench_source_digest=formal.ccbench_checkout_digest(ROOT/"external/ccbench"),
+            toolchain={"fixture": "compiler"}, correctness_mode="legacy")
+        identities.append(cfg.search_config["ccbench_source_digest"])
+    assert first_points == [2500, 1250, 3535]
+    assert len(set(identities)) == 1 and len(identities[0]) == 64
+
+
+def test_scheduler_parses_saved_nqsv_and_strips_job_prefix(monkeypatch):
+    import time
+    raw = (ROOT/"output/env/pegasus/smoke/0:867860.nqsv/qstat_job.stdout").read_text()
+    parsed = formal.parse_scheduler_coordinates(raw, "0:867860.nqsv")
+    assert parsed["reserved_walltime_s"] == 600
+    assert time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(parsed["job_start_epoch"])) == "2026-07-19 00:53:45"
+    seen = []
+    def replay(argv, **kwargs):
+        seen.append(argv)
+        return subprocess.CompletedProcess(argv, 0, stdout=raw, stderr="")
+    monkeypatch.setenv("PBS_JOBID", "0:867860.nqsv")
+    monkeypatch.setattr(formal.subprocess, "run", replay)
+    assert formal.scheduler_coordinates() == parsed
+    assert seen == [["qstat", "-f", "867860.nqsv"]]
+    for bad in ("NQSV field selection help", raw.replace("600S", "UNLIMITED"),
+                raw.replace("867860.nqsv", "867861.nqsv")):
+        with pytest.raises(ValueError):
+            formal.parse_scheduler_coordinates(bad, "0:867860.nqsv")
+
+
+@pytest.mark.parametrize("damage", ["missing-cell", "missing-counter", "timeout"])
+def test_rejected_campaign_report_preserves_every_observed_wal_value(spec, tmp_path, damage):
+    binding, layout, _ = _emit_campaign(spec, tmp_path, "balanced")
+    path = Path(layout.wal_file)
+    records = [json.loads(line) for line in path.read_text().splitlines()]
+    if damage == "missing-cell":
+        variant = records[0]["variant"]
+        records = [r for r in records if r["variant"] != variant]
+    elif damage == "missing-counter":
+        bench = next(r for r in records if r["stage"] == "bench_done")
+        del bench["payload"]["reps"][0]["abort_counts_"]
+    path.write_text("".join(json.dumps(r)+"\n" for r in records))
+    observed = path.read_text()
+    if damage == "timeout":
+        import time
+        with pytest.raises(formal.SweepDeadline):
+            with formal._deadline(0.01, on_timeout=lambda exc: formal.report_sweep_timeout(spec, tmp_path, "balanced", exc)):
+                time.sleep(0.1)
+        report_path = tmp_path/"reports"/"balanced"/(spec["future_driver_binding"]["artifact_stem"]+".json")
+        report = json.loads(report_path.read_text())
+        assert any("deadline" in reason for reason in report["failures"])
+    else:
+        with pytest.raises(Exception):
+            formal.load_formal_campaign(spec, binding, layout, correctness_mode="legacy")
+        rejected = formal.load_formal_campaign_for_report(spec, binding, layout, correctness_mode="legacy")
+        report = formal.materialize_report(spec, [rejected], tmp_path/"rejected-report")
+    assert report["verdict"] == "invalid" and report["failures"]
+    assert report["campaigns"][0]["descriptive_only"] is True
+    assert report["campaigns"][0]["raw_wal"] == observed
+    assert "1000000" in observed and "commit_counts_" in observed
+
+
+def test_balanced_integer_opt_in_is_rejected_before_work(spec, tmp_path):
+    import test_campaign as fixture
+    from orchestrator.campaign import loop
+    fixture._refresh_certified_writer_authority()
+    config = pipeline.BalancedScheduleConfig("balanced", "0"*64, ("left", "right"))
+    with pytest.raises(ValueError, match="does not support record_rep_integer_counters"):
+        loop.run_campaign(
+            fixture._cfg(), [], formal.performance_config(spec, "balanced"),
+            fixture._AUTH_CONTRACT.env_tag, fixture._AUTH_CONTRACT.clocks_per_us,
+            authorization_contract=fixture._AUTHORIZATION,
+            build_context=fixture._BUILD_CONTEXT, declared_use_class="official",
+            balanced_schedule=config, record_rep_integer_counters=True,
+            output_root=str(tmp_path))
+    arms = [fixture._balanced_prepared_fixture(CampaignLayout(root=str(tmp_path)), arm)[0]
+            for arm in ("A", "B")]
+    arms[0].record_rep_integer_counters = True
+    with pytest.raises(ValueError, match="does not support record_rep_integer_counters"):
+        pipeline._run_balanced_schedule(arms, config)
+    assert not list(tmp_path.iterdir())
+
+
+def test_anomaly_maximum_is_consumed_consistently(spec, tmp_path):
+    campaigns = _positive_cohort(spec, tmp_path)
+    campaigns[0]["points"][0]["correctness"][0]["payload"]["anomalies"] = 1
+    assert formal.analyze_cohort(spec, campaigns)["verdict"] == "invalid"
+    changed = copy.deepcopy(spec.data)
+    changed["correctness"]["maximum_anomalies_per_rep"] = 1
+    alternate = formal.parse_preregistration(_document(changed))
+    for campaign in campaigns:
+        campaign["identity"]["spec_sha256"] = alternate.spec_sha256
+    records = [SimpleNamespace(payload=v["payload"]) for v in campaigns[0]["points"][0]["correctness"]]
+    formal.correctness_records(alternate, records, "legacy")
+    assert formal.analyze_cohort(alternate, campaigns)["verdict"] == "indeterminate-in-region"
+
+
+def test_no_perf_cohort_and_strict_receipt_json_shape(spec, tmp_path):
+    from orchestrator.calibrator import perf_preflight
+    campaigns = _positive_cohort(spec, tmp_path)
+    for campaign in campaigns:
+        for point in campaign["points"]:
+            assert point["use_perf"] is False
+            observation = point["perf_observation"]
+            receipt = observation["preflight"]
+            assert type(receipt["probe_argv"]) is list
+            assert perf_preflight.use_perf_from_receipt(receipt) is False
+            broken = copy.deepcopy(receipt)
+            broken["probe_argv"] = tuple(broken["probe_argv"])
+            with pytest.raises(perf_preflight.PerfPreflightError):
+                perf_preflight.validate_perf_preflight_receipt(broken)
+    _assert_positive(spec, campaigns)
+
+
 def _run():
-    return pytest.main([__file__,"-q"])
+    return pytest.main([__file__,"-v"])
 
 
 if __name__ == "__main__":

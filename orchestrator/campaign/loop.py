@@ -390,6 +390,8 @@ def run_campaign(cfg: CampaignConfig, genomes: Sequence[Genome],
     identity へ束縛し、source ごとの capability resolver は evidence 解決後の pipeline へ渡す。
     `bench_max_rounds` は既定 3 の既存経路では従来の evaluate 呼出し形を維持し、明示的な
     非既定値だけを pipeline へ渡す。`balanced_schedule` は二 arm 専用 opt-in。"""
+    if balanced_schedule is not None and record_rep_integer_counters:
+        raise ValueError("balanced schedule does not support record_rep_integer_counters")
     if a1_source_context is not None and balanced_schedule is None:
         raise ValueError("A1 source context requires balanced schedule")
     _validate_result_evidence_context(

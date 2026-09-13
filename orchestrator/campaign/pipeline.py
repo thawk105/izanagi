@@ -2778,6 +2778,8 @@ def _run_balanced_schedule(
             or len(prepared_arms) != 2
             or any(type(item) is not _PreparedEvaluation for item in prepared_arms)):
         raise ValueError("balanced schedule requires exactly two prepared evaluations")
+    if any(item.record_rep_integer_counters for item in prepared_arms):
+        raise ValueError("balanced schedule does not support record_rep_integer_counters")
     arm_map = {"A": prepared_arms[0], "B": prepared_arms[1]}
     arm_names = dict(zip(("A", "B"), config.arm_names))
     first = prepared_arms[0]

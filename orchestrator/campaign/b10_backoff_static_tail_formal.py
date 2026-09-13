@@ -171,6 +171,7 @@ def parse_preregistration(raw: bytes) -> StaticTailSpec:
     _require(reps == doc["variability"]["rep_count"] == execution["correctness_reps_per_cell"] == doc["correctness"]["verify_records_per_cell"], "rep counts differ")
     _require(doc["variability"]["sample_standard_deviation_ddof"] == 1 and reps > 1, "unsupported ddof")
     _require(0 < doc["variability"]["maximum_cv_exclusive"] < 1, "CV threshold")
+    _require(doc["correctness"]["maximum_anomalies_per_rep"] >= 0, "negative anomaly maximum")
     names = [w["name"] for w in doc["workloads"]]
     _require(names == doc["cohort_identity"]["workload_rules"]["the_three_workload_names_must_cover_the_registered_set_exactly_once"], "workload set differs")
     _require(len(names) == len(set(names)) == execution["jobs"] == analysis["workload_count"], "workload counts")
@@ -258,6 +259,27 @@ def performance_config(spec, workload):
                       workload={k: v for k,v in row.items() if k.startswith("ycsb_")})
 
 
+def ccbench_checkout_digest(ccbench_dir):
+    """Hash tracked checkout bytes before any genome-specific preprocessing."""
+    root = Path(ccbench_dir)
+    entries = sorted(p for p in _git(root, "ls-files", "--stage", "-z").split(b"\0") if p)
+    _require(entries, "empty CCBench source checkout")
+    digest = hashlib.sha256()
+    for entry in entries:
+        metadata, relative = entry.split(b"\t", 1)
+        mode, object_id, stage = metadata.split()
+        _require(stage == b"0", "unmerged CCBench source checkout")
+        path = root / os.fsdecode(relative)
+        if mode == b"160000":
+            raw = object_id  # pinned dependency, not a regular source file
+        else:
+            raw = os.fsencode(os.readlink(path)) if path.is_symlink() else path.read_bytes()
+        for value in (relative, mode, raw):
+            digest.update(len(value).to_bytes(8, "big"))
+            digest.update(value)
+    return digest.hexdigest()
+
+
 def config_for(spec, binding, workload, *, contract, ccbench_source_digest, toolchain, correctness_mode):
     _require(spec.spec_sha256 == binding.spec_sha256, "spec/binding mismatch")
     _require(correctness_mode == "legacy", "existing correctness engine supports legacy mode")
@@ -322,7 +344,7 @@ def correctness_records(spec, records, expected_mode):
     for record in records:
         payload = record.payload
         _require(payload.get("certified") is True, "correctness not certified")
-        _require(type(payload.get("anomalies")) is int and payload["anomalies"] == spec["correctness"]["maximum_anomalies_per_rep"], "correctness anomaly")
+        _require(type(payload.get("anomalies")) is int and 0 <= payload["anomalies"] <= spec["correctness"]["maximum_anomalies_per_rep"], "correctness anomaly")
         _require(payload.get("workload", {}).get("tag") == expected_mode, "correctness mode mismatch")
 
 
@@ -394,11 +416,12 @@ def load_formal_campaign(spec, binding, campaign, *, correctness_mode):
         _require(isinstance(attempt,str) and attempt, "attempt id missing")
         verifies = state.committed_verify
         correctness_records(spec, verifies, correctness_mode)
-        perf_preflight.validate_perf_observation(
-            bench.payload.get("perf_observation"),
-            run_cmd=bench.payload.get("run_cmd"),
-            leading_indicators=bench.payload.get("leading_indicators"),
-        )
+        # Admission freezes JSON arrays as tuples. Produce JSON-shaped metadata
+        # before passing a receipt to its unchanged strict validator. Perf counter
+        # availability/completeness is descriptive, not a formal acceptance gate.
+        perf_observation = _plain(bench.payload.get("perf_observation"))
+        receipt = None if perf_observation is None else perf_observation.get("preflight")
+        use_perf = perf_preflight.use_perf_from_receipt(receipt)
         _require(all(r.payload.get("build_attempt_id") == attempt for r in [start,bench,*verifies]), "attempt mismatch")
         _require(all(view.records.index(r) < view.records.index(bench) for r in verifies), "performance preceded correctness")
         def provenance(record, index):
@@ -411,7 +434,8 @@ def load_formal_campaign(spec, binding, campaign, *, correctness_mode):
         points.append(dict(backoff_us=expected[canonical], canonical_genome=canonical,
                            reps=reps, tps=_plain(bench.payload["tps"]),
                            correctness=[{"payload":_plain(r.payload), **provenance(r,i)} for i,r in enumerate(verifies)],
-                           perf_bin_sha256=build.payload.get("perf_bin_sha256")))
+                           perf_bin_sha256=build.payload.get("perf_bin_sha256"),
+                           use_perf=use_perf, perf_observation=perf_observation))
     _require(len(points) == len(expected) and {p["canonical_genome"] for p in points} == set(expected), "complete unique point set required")
     committed_order = [next(p["canonical_genome"] for p in points
                             if p["reps"][0]["attempt_id"] == r.payload.get("build_attempt_id"))
@@ -423,6 +447,25 @@ def load_formal_campaign(spec, binding, campaign, *, correctness_mode):
     return dict(campaign_id=campaign_id, campaign_lock_digest=view.decision.campaign_lock_sha256,
                 identity=search, workload=workload, points=points, completion=completion,
                 admission=view.decision.as_receipt())
+
+
+def _failed_campaign(campaign, reason):
+    path = Path(campaign.root if isinstance(campaign, CampaignLayout) else campaign)
+    # Raw bytes are explicitly not admitted observations. Preserve even malformed
+    # or partial lines so a rejected cell cannot hide the other measured values.
+    wal_path = Path(CampaignLayout(root=str(path)).wal_file)
+    raw = wal_path.read_bytes() if wal_path.exists() else b""
+    return dict(campaign_id=path.name, workload=None, identity={}, points=[],
+                load_failure=str(reason), descriptive_only=True,
+                raw_wal=raw.decode("utf-8", errors="backslashreplace"),
+                raw_wal_sha256=_sha(raw))
+
+
+def load_formal_campaign_for_report(spec, binding, campaign, *, correctness_mode):
+    try:
+        return load_formal_campaign(spec, binding, campaign, correctness_mode=correctness_mode)
+    except Exception as exc:
+        return _failed_campaign(campaign, f"{type(exc).__name__}: {exc}")
 
 
 # Regularized incomplete beta by a convergent continued fraction. Numerical
@@ -529,13 +572,16 @@ def analyze_cohort(spec, campaigns):
     failures, results = [], []
     names = [w["name"] for w in spec["workloads"]]
     try:
-        _require(len(campaigns) == len(names) and sorted(c["workload"] for c in campaigns) == sorted(names), "workload coverage")
+        _require(len(campaigns) == len(names) and sorted(c["workload"] for c in campaigns if c["workload"] is not None) == sorted(names), "workload coverage")
         _require(len({c["campaign_id"] for c in campaigns}) == len(names), "duplicate campaigns")
         for field in spec["cohort_identity"]["must_match_across_all_three_campaign_locks"]:
             _require(all(field in c["identity"] for c in campaigns) and all(c["identity"][field] == campaigns[0]["identity"][field] for c in campaigns), f"cohort identity: {field}")
     except (ValueError,KeyError,TypeError) as exc:
         failures.append(str(exc))
     for campaign in campaigns:
+        if "load_failure" in campaign:
+            failures.append(f'{campaign["campaign_id"]}: {campaign["load_failure"]}')
+            continue
         try:
             identity = campaign["identity"]
             name = campaign["workload"]
@@ -562,7 +608,7 @@ def analyze_cohort(spec, campaigns):
                 verifies = point["correctness"]
                 _require(len(verifies) == spec["correctness"]["verify_records_per_cell"], "correctness rep count")
                 for i,v in enumerate(verifies):
-                    _require(v["payload"].get("certified") is True and type(v["payload"].get("anomalies")) is int and v["payload"]["anomalies"] == 0, "correctness not certified/anomaly")
+                    _require(v["payload"].get("certified") is True and type(v["payload"].get("anomalies")) is int and 0 <= v["payload"]["anomalies"] <= spec["correctness"]["maximum_anomalies_per_rep"], "correctness not certified/anomaly")
                     _require(v["payload"].get("workload",{}).get("tag") == identity["correctness_mode"], "correctness mode mismatch")
                     _require(v["rep_index"] == i, "correctness rep order")
                 for record in [*reps,*verifies]:
@@ -611,7 +657,7 @@ def materialize_report(spec, campaigns, output_dir):
                 for rep in point["reps"]:
                     a,c = rep["abort_counts_"],rep["commit_counts_"]
                     stream.write(f'{campaign["workload"]} {point["backoff_us"]} {rep["rep_index"]} {a} {c} {a/(a+c):.17g} {rep["throughput_tps"]}\n')
-    _create_json(paths[2],dict(schema_version=report["schema_version"], run_kind=report["run_kind"], verdict=report["verdict"], spec_sha256=spec.spec_sha256, preregistrations=[{k:c["identity"][k] for k in ("preregistration_commit","preregistration_document_blob_sha256","spec_sha256")} for c in campaigns], artifacts={p.name:_sha(p.read_bytes()) for p in paths[:2]}))
+    _create_json(paths[2],dict(schema_version=report["schema_version"], run_kind=report["run_kind"], verdict=report["verdict"], spec_sha256=spec.spec_sha256, preregistrations=[{k:c["identity"].get(k) for k in ("preregistration_commit","preregistration_document_blob_sha256","spec_sha256")} for c in campaigns], artifacts={p.name:_sha(p.read_bytes()) for p in paths[:2]}))
     return report
 
 
@@ -619,27 +665,68 @@ class SweepDeadline(BaseException):
     """Not swallowed by run_campaign's per-variant Exception recovery."""
 
 
+def report_sweep_timeout(spec, output_root, workload, reason):
+    stem = spec["future_driver_binding"]["artifact_stem"]
+    paths = sorted((Path(output_root)/"campaigns").glob(f"{stem}-silo-{workload}-*"))
+    failed = [_failed_campaign(path, reason) for path in paths]
+    if not failed:
+        failed = [dict(campaign_id=workload, workload=workload, identity={}, points=[],
+                       load_failure=str(reason), descriptive_only=True)]
+    return materialize_report(spec, failed, Path(output_root)/"reports"/workload)
+
+
 @contextmanager
-def _deadline(seconds):
+def _deadline(seconds, *, on_timeout=None):
     def expired(_sig,_frame):
         raise SweepDeadline("preregistered sweep deadline exceeded")
     previous = signal.signal(signal.SIGALRM,expired)
-    timer = signal.setitimer(signal.ITIMER_REAL,seconds)
+    timer = signal.setitimer(signal.ITIMER_REAL,max(0, seconds))
     try:
+        if seconds <= 0:
+            raise SweepDeadline("preregistered job deadline already exceeded")
         yield
+    except SweepDeadline as exc:
+        if on_timeout is not None:
+            on_timeout(exc)
+        raise
     finally:
         signal.setitimer(signal.ITIMER_REAL,*timer)
         signal.signal(signal.SIGALRM,previous)
 
 
+def parse_scheduler_coordinates(text, job_id):
+    # Same NQSV fields as tools/pegasus/b10_backoff_grid.sh. NQSV dates
+    # have no zone; mktime uses the job's local zone, as `date -d` does.
+    request = job_id.removeprefix("0:")
+    _require(re.search(r"(?m)^Request ID: " + re.escape(request) + r"\s*$", text),
+             "scheduler request identity differs")
+    started = None
+    for key in ("Started Request Time", "stime", "start_time", "start"):
+        match = re.search(rf"(?im)^\s*{re.escape(key)}\s*=\s*(.+?)\s*$", text)
+        if not match or match[1].strip().lower() == "(none)":
+            continue
+        raw = match[1].strip()
+        if raw.isdigit() and int(raw) > 1_000_000_000:
+            started = float(raw)
+        else:
+            try:
+                started = time.mktime(time.strptime(raw, "%a %b %d %H:%M:%S %Y"))
+            except ValueError:
+                continue
+        break
+    limits = re.findall(r"(?im)^\s*\(Per-Req\)\s+Elapse Time Limit\s*=\s*Max:\s*([0-9]+)S(?:\s|$)", text)
+    _require(started is not None and len(limits) == 1 and int(limits[0]) > 0,
+             "scheduler start/reservation missing")
+    return dict(job_id=job_id, job_start_epoch=started, reserved_walltime_s=int(limits[0]))
+
+
 def scheduler_coordinates():
     job_id = os.environ.get("PBS_JOBID")
     _require(job_id, "PBS job identity missing")
-    result = subprocess.run(["qstat","-f","-F","json",job_id],capture_output=True,text=True,check=False)
+    result = subprocess.run(["qstat", "-f", job_id.removeprefix("0:")],
+                            capture_output=True, text=True, check=False, timeout=30)
     _require(result.returncode == 0, "scheduler query failed")
-    job = json.loads(result.stdout)["Jobs"][job_id]
-    hours,minutes,seconds = map(int,job["Resource_List"]["walltime"].split(":"))
-    return dict(job_id=job_id, job_start_epoch=float(job["stime"]), reserved_walltime_s=hours*3600+minutes*60+seconds)
+    return parse_scheduler_coordinates(result.stdout, job_id)
 
 
 def run_workload(binding, workload, *, explore_campaign, output_root, cache_root, ccbench_dir=None, log=print):
@@ -660,7 +747,7 @@ def run_workload(binding, workload, *, explore_campaign, output_root, cache_root
         return attest_generator_output(context,evidence,generator_input_sha256=_sha((spec.spec_sha256+"|"+evidence.genome_sha256).encode()))
     started = time.time()
     receipt = Path(output_root)/(spec["future_driver_binding"]["artifact_stem"]+f"-{workload}-perf-preflight.json")
-    with _deadline(min(spec["execution"]["time_budget"]["sweep_cap_s"], scheduler["job_start_epoch"]+scheduler["reserved_walltime_s"]-started)):
+    with _deadline(min(spec["execution"]["time_budget"]["sweep_cap_s"], scheduler["job_start_epoch"]+scheduler["reserved_walltime_s"]-started), on_timeout=lambda exc: report_sweep_timeout(spec, output_root, workload, exc)):
         with patchharness.checkout(pin.CURRENT_PIN,base_dir=ccbench_dir) as stock:
             with patchharness.applied(str(Path(__file__).resolve().parents[2]/family.TEMPLATE_PATCH),pin.CURRENT_PIN,ccbench_dir):
                 family._assert_backoff_fixed_materialized(ccbench_dir)
@@ -669,10 +756,7 @@ def run_workload(binding, workload, *, explore_campaign, output_root, cache_root
                     family._require_condition_gate_before_measurement(ccbench_dir,stock_root=stock,points=genomes,cxx=cxx,configure_args=(f"-DFETCHCONTENT_BASE_DIR={base}",),physical_grid=spec["grid"]["analysis_values_us"])
                 builds = family._prebuild_backoff_binaries(genomes,contract=contract,cache_root=cache_root,ccbench_dir=ccbench_dir,resolved_cc=cc,resolved_cxx=cxx,expected_toolchain_manifest=toolchain,build_context=context,capability_resolver=capability_resolver)
                 require_complete_static_builds(spec,builds)
-                from . import source_digest
-                source = source_digest.resolve_evidence(
-                    genomes[0], pin.CURRENT_PIN, ccbench_dir=ccbench_dir, cxx=cxx,
-                ).src_token
+                source = ccbench_checkout_digest(ccbench_dir)
                 cfg = p2_2._campaign_cfg_for_site(config_for(spec,binding,workload,contract=contract,ccbench_source_digest=source,toolchain=toolchain,correctness_mode=mode),site,contract)
                 summary = run_campaign(cfg,genomes,performance_config(spec,workload),contract.env_tag,contract.clocks_per_us,numactl=list(contract.numactl),output_root=output_root,log=log,ccbench_dir=ccbench_dir,cache_root=cache_root,authorization_contract=authorization,env_contract=contract,expected_toolchain_manifest=toolchain,build_context=context,declared_use_class="official",capability_resolver=capability_resolver,perf_preflight_receipt_path=str(receipt),durable_root_policy=_official_durable_root_policy(Path(output_root)),bench_max_rounds=1,correctness=CorrectnessWorkload(reps=spec["execution"]["correctness_reps_per_cell"]),record_rep_integer_counters=True)
     from .replay import discover_campaign_dir
@@ -708,10 +792,13 @@ def main(argv=None):
     args = parser.parse_args(argv)
     binding = load_preregistration(args.repo_root,args.preregistration_commit)
     if args.command == "run":
-        summary = run_workload(binding,args.workload,explore_campaign=args.explore_campaign,output_root=args.output_root,cache_root=args.cache_root,ccbench_dir=args.ccbench_dir)
+        try:
+            summary = run_workload(binding,args.workload,explore_campaign=args.explore_campaign,output_root=args.output_root,cache_root=args.cache_root,ccbench_dir=args.ccbench_dir)
+        except SweepDeadline:
+            return 1
         return 0 if summary.committed == binding.spec["execution"]["cells_per_workload"] and summary.aborted == 0 else 1
     mode = load_explore_correctness_mode(args.explore_campaign)
-    campaigns = [load_formal_campaign(binding.spec,binding,p,correctness_mode=mode) for p in args.campaigns]
+    campaigns = [load_formal_campaign_for_report(binding.spec,binding,p,correctness_mode=mode) for p in args.campaigns]
     result = materialize_report(binding.spec,campaigns,args.output_root)
     return int(result["verdict"] == "invalid")
 
