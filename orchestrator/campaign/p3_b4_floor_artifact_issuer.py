@@ -36,6 +36,18 @@ from .genome import protocol_from_floor_genome
 B4_FLOOR_ARTIFACT_SCHEMA_VERSION: Final[str] = (
     "p3-b4-authoritative-floor/v1"
 )
+B4_FLOOR_AGGREGATE_ARTIFACT_SCHEMA_VERSION: Final[str] = (
+    "p3-b4-authoritative-floor/v2"
+)
+AGGREGATE_MAXIMUM_ID: Final[str] = "exact-fraction-max/v1"
+AGGREGATE_NON_GUARANTEES: Final[tuple[str, ...]] = (
+    "期待 spec 列が結果を見る前に選ばれたこと、§5 の対象集合との意味的一致、"
+    "1 campaign・1 セルあたり n = 62 と 24 時間以上の分離は機械検査しない。",
+    "loader の期待 spec 列は成果物内の記録であり、期待列と source を共に変更して"
+    "外側 pin も再計算した場合の採用責任は §5 pin の確認者に残る。",
+    "平坦な非保証一覧は各入力の原文の転記である。spec と summary の再読込は"
+    "raw window の測定内容や選択時系列を証明しない。",
+)
 ACCEPTED_FLOOR_PAIR_SUMMARY_SCHEMA_VERSION: Final[str] = (
     "floor-pair-summary/v3"
 )
@@ -1015,6 +1027,260 @@ def issue_authoritative_floor(
     )
 
 
+
+def _load_expected_specs(
+    root: Path, expected_specs: Sequence[tuple[str, str]],
+) -> dict[tuple[str, str], floor_pair_driver.FloorPairSpec]:
+    if not isinstance(expected_specs, Sequence) or isinstance(expected_specs, (str, bytes)):
+        _fail("aggregate_expected_specs_error", "expected_specs must be a nonempty sequence")
+    if not expected_specs:
+        _fail("aggregate_expected_specs_error", "expected_specs must not be empty")
+    pins: list[tuple[str, str]] = []
+    for item in expected_specs:
+        if type(item) not in (tuple, list) or len(item) != 2:
+            _fail("aggregate_expected_specs_error", "expected spec must be a path/hash pair")
+        pins.append((
+            _relative_path(item[0], label="expected spec path"),
+            _sha256(item[1], label="expected spec sha256"),
+        ))
+    if len({path for path, _ in pins}) != len(pins):
+        _fail("aggregate_expected_specs_error", "duplicate expected spec path")
+    result = {}
+    for path, digest in sorted(pins):
+        raw = _read_regular(root, path, label="expected spec")
+        if hashlib.sha256(raw).hexdigest() != digest:
+            _fail("spec_hash_mismatch", f"expected spec: {path}")
+        try:
+            spec = floor_pair_driver.load_frozen_spec(Path(path), digest, repo_root=root)
+        except (floor_pair_driver.FloorPairSpecError,
+                floor_pair_driver.FloorPairBindingError) as exc:
+            raise B4FloorArtifactError("spec_rejected_by_producer", str(exc)) from exc
+        if len(spec.windows) != 2:
+            _fail("aggregate_window_count_error", f"{path}: exactly two windows required")
+        result[(path, digest)] = spec
+    return result
+
+
+def _validate_aggregate_summary_coverage(
+    spec: floor_pair_driver.FloorPairSpec,
+    summary: B4ValidatedFloorPairSummary,
+    document: dict[str, object],
+) -> None:
+    """Compare spec expectations with summary observations, in separate units."""
+    if summary.summary_path != spec.outputs.summary_relpath:
+        _fail("aggregate_summary_path_error", "summary path differs from spec output")
+    windows = {w.window_id: w for w in spec.windows}
+    artifacts = document["window_artifacts"]
+    observed = [(r["window_id"], r["campaign_id"], r["artifact_relpath"]) for r in artifacts]
+    expected = {(w.window_id, w.campaign_id, w.artifact_relpath) for w in spec.windows}
+    if len(observed) != len(expected) or set(observed) != expected:
+        _fail("aggregate_window_binding_error", "window artifact closure differs from spec")
+    campaigns = document["campaigns"]
+    observed_campaigns = [(r["window_id"], r["campaign_id"]) for r in campaigns]
+    if (len(observed_campaigns) != len(windows)
+            or set(observed_campaigns) != {(w.window_id, w.campaign_id) for w in spec.windows}):
+        _fail("aggregate_campaign_binding_error", "campaign closure differs from spec")
+    derivation = document["derivation"][0]
+    closed = set(spec.statistics.closed_strata)
+    strata = [(r["window_id"], r["pair_id"]) for r in derivation["strata"]]
+    if len(strata) != len(closed) or set(strata) != closed:
+        _fail("aggregate_strata_error", "derived strata differ from spec closed_strata")
+    pairs = {p.pair_id: p for p in spec.pairs}
+    cells = {c.cell_id for c in spec.cells}
+    for window in spec.windows:
+        observed_cells = {pairs[pair].cell_id for wid, pair in strata if wid == window.window_id}
+        if observed_cells != cells:
+            _fail("aggregate_cell_coverage_error", f"{window.window_id}: cells not covered")
+    planned = {
+        (w.window_id, pair, index)
+        for w in spec.windows for pair in w.pair_ids for index in range(w.sample_count)
+    }
+    retained = {(r["window_id"], r["pair_id"], r["sample_index"])
+                for r in derivation["samples"]}
+    # dropped contains record rows; two sides can refer to the same sample.
+    dropped = {(r["window_id"], r["pair_id"], r["sample_index"])
+               for r in document["dropped"]}
+    if retained & dropped or retained | dropped != planned:
+        _fail("aggregate_sample_partition_error", "retained/dropped must partition planned samples")
+    if (document["dropped_sample_count"] != len(dropped)
+            or document["dropped_record_count"] != len(document["dropped"])):
+        _fail("aggregate_sample_count_error", "summary sample/record counts differ")
+    for campaign in campaigns:
+        wid = campaign["window_id"]
+        window = windows[wid]
+        projection = {key for key in closed if key[0] == wid}
+        rows = campaign["strata"]
+        keys = [(r["window_id"], r["pair_id"]) for r in rows]
+        if len(keys) != len(projection) or set(keys) != projection:
+            _fail("aggregate_strata_error", f"{wid}: campaign strata differ from window projection")
+        planned_count = window.sample_count * len(window.pair_ids)
+        dropped_count = sum(key[0] == wid for key in dropped)
+        if (campaign["planned_sample_count"] != planned_count
+                or campaign["dropped_sample_count"] != dropped_count):
+            _fail("aggregate_sample_count_error", f"{wid}: campaign counts differ")
+        for row in rows:
+            key = (wid, row["pair_id"])
+            drop_count = sum(item[:2] == key for item in dropped)
+            retain_count = sum(item[:2] == key for item in retained)
+            if (row["planned_sample_count"] != window.sample_count
+                    or row["dropped_sample_count"] != drop_count
+                    or row["retained_sample_count"] != retain_count):
+                _fail("aggregate_sample_count_error", f"{key}: stratum counts differ")
+        if (_fraction_wire(campaign["dropped_fraction"], label="campaign.dropped_fraction")
+                != Fraction(dropped_count, planned_count)
+                or campaign["threshold"] != "1/20"
+                or campaign["admissible"] is not True
+                or dropped_count * 20 > planned_count):
+            _fail("aggregate_drop_policy_error", f"{wid}: campaign drop policy differs")
+    expected_statistics = {
+        "reference_measurements_per_pair_sample": spec.statistics.reference_measurements_per_pair_sample,
+        "difference_formula": spec.statistics.difference_formula,
+    }
+    if _canonical_json_bytes(document["statistics"]) != _canonical_json_bytes(expected_statistics):
+        _fail("aggregate_statistics_error", "summary statistics differ from spec")
+
+
+def _aggregate_authority_value(
+    root: Path, summary_paths: Sequence[Path], expected_specs: Sequence[tuple[str, str]],
+) -> dict[str, object]:
+    specs = _load_expected_specs(root, expected_specs)
+    if not isinstance(summary_paths, Sequence) or isinstance(summary_paths, (str, bytes)) or not summary_paths:
+        _fail("aggregate_summary_set_error", "summary_paths must be a nonempty sequence")
+    paths = [_argument_relpath(root, p, label="aggregate summary") for p in summary_paths]
+    if len(set(paths)) != len(paths):
+        _fail("aggregate_summary_set_error", "duplicate summary path")
+    sources = []
+    seen_specs: set[tuple[str, str]] = set()
+    for path in paths:
+        summary = load_floor_pair_summary(repo_root=root, summary_path=Path(path))
+        pin = (summary.spec_relpath, summary.spec_sha256)
+        if pin not in specs or pin in seen_specs:
+            _fail("aggregate_spec_closure_error", "unexpected or duplicate summary-bound spec")
+        seen_specs.add(pin)
+        raw = _read_regular(root, path, label="aggregate summary")
+        if hashlib.sha256(raw).hexdigest() != summary.summary_sha256:
+            _fail("aggregate_source_hash_error", "summary changed during validation")
+        document = _load_json_bytes(raw, label="aggregate summary", require_canonical=True)
+        _validate_aggregate_summary_coverage(specs[pin], summary, document)
+        single = _authority_value(summary)
+        sources.append((summary, document, single))
+    if seen_specs != set(specs):
+        _fail("aggregate_spec_closure_error", "expected spec has no summary")
+    return _compose_aggregate_authority(sources, tuple(specs))
+
+
+def _compose_aggregate_authority(
+    sources: Sequence[tuple[B4ValidatedFloorPairSummary, dict[str, object], dict[str, object]]],
+    expected_specs: Sequence[tuple[str, str]],
+) -> dict[str, object]:
+    sources = sorted(sources, key=lambda item: (
+        item[0].spec_relpath, item[0].spec_sha256,
+        item[0].summary_path, item[0].summary_sha256,
+    ))
+    identities = {(s.identity.env_tag, s.identity.protocol, s.identity.threads) for s, _, _ in sources}
+    if len(identities) != 1:
+        _fail("aggregate_identity_error", "env_tag/protocol/threads must agree across inputs")
+    env, protocol, threads = next(iter(identities))
+    workloads = sorted(
+        {items for s, _, _ in sources for items in s.workload_values},
+        key=lambda items: _canonical_json_bytes(dict(items)),
+    )
+    workload_wire = [dict(items) for items in workloads]
+    campaigns = sorted({cid for s, _, _ in sources for cid in s.campaign_ids})
+    identity = B4FloorArtifactIdentity(
+        env, protocol, threads, _aggregate_identifier("set", workload_wire),
+        campaigns[0] if len(campaigns) == 1 else _aggregate_identifier("set", campaigns),
+    )
+    # Fraction comparison preserves the accepted binary64 values exactly.
+    maximum = max(s.floor_exact for s, _, _ in sources)
+    representative = next(single for s, _, single in sources if s.floor_exact == maximum)
+    return {
+        **representative,
+        "schema": B4_FLOOR_AGGREGATE_ARTIFACT_SCHEMA_VERSION,
+        "artifact_identity": _identity_value(identity),
+        "identity_derivation": {"workloads": workload_wire, "campaign_ids": campaigns},
+        "non_guarantees": [
+            *NON_GUARANTEES,
+            *(item for s, _, _ in sources for item in s.proof_limitations),
+            *AGGREGATE_NON_GUARANTEES,
+        ],
+        "aggregation": {
+            "operation": AGGREGATE_MAXIMUM_ID,
+            "expected_specs": [[path, digest] for path, digest in sorted(expected_specs)],
+            "sources": [{
+                **single["source_summary"],
+                "floor_exact": single["floor_exact"],
+                "source_float_hex": s.source_float_hex,
+                "identity_derivation": single["identity_derivation"],
+                "proof_limitations": document["proof_limitations"],
+            } for s, document, single in sources],
+        },
+    }
+
+
+def _aggregate_artifact_filename(identity: B4FloorArtifactIdentity) -> str:
+    return _artifact_filename(identity).replace("b4-floor__", "b4-floor-aggregate__", 1)
+
+
+def issue_aggregate_authoritative_floor(
+    *, repo_root: Path, summary_paths: Sequence[Path],
+    expected_specs: Sequence[tuple[str, str]], output_dir: Path,
+) -> B4AuthoritativeFloorWrite:
+    """Issue one maximum for an explicitly supplied spec closure, create-only.
+
+    Neither the timing nor the preregistration suitability of the supplied
+    expectation is proved. Every source remains necessary to load v2.
+    """
+    root = _repo_root(repo_root)
+    if not isinstance(output_dir, Path):
+        _fail("path_error", "output_dir must be Path")
+    if output_dir == root or output_dir == Path("."):
+        parent = root
+    else:
+        relpath = _argument_relpath(root, output_dir, label="aggregate output directory")
+        parent = _assert_no_symlink(root, relpath, label="aggregate output directory")
+    if not parent.is_dir():
+        _fail("path_error", "aggregate output directory must be an existing directory")
+    value = _aggregate_authority_value(root, summary_paths, expected_specs)
+    filename = _aggregate_artifact_filename(_parse_identity(value["artifact_identity"]))
+    path = parent / filename
+    raw = _canonical_json_bytes(value)
+    _publish_create_only(path, raw)
+    return B4AuthoritativeFloorWrite(path.relative_to(root).as_posix(), hashlib.sha256(raw).hexdigest())
+
+
+def _load_aggregate_authority(
+    root: Path, relpath: str, digest: str, value: dict[str, object],
+) -> B4AuthoritativeFloor:
+    aggregation = _exact_object(
+        value.get("aggregation"), {"operation", "expected_specs", "sources"},
+        label="authority.aggregation",
+    )
+    sources = _exact_list(aggregation["sources"], label="aggregation.sources", allow_empty=False)
+    paths = []
+    for source in sources:
+        if type(source) is not dict:
+            _fail("schema_error", "aggregation source must be object")
+        path = _relative_path(source.get("artifact_path"), label="aggregation source path")
+        expected = _sha256(source.get("artifact_sha256"), label="aggregation source sha256")
+        raw = _read_regular(root, path, label="aggregation source")
+        if hashlib.sha256(raw).hexdigest() != expected:
+            _fail("aggregate_source_hash_error", f"source hash differs: {path}")
+        paths.append(Path(path))
+    reconstructed = _aggregate_authority_value(root, paths, aggregation["expected_specs"])
+    if _canonical_json_bytes(value) != _canonical_json_bytes(reconstructed):
+        _fail("aggregate_reconstruction_error", "authority differs from full source reconstruction")
+    source = reconstructed["source_summary"]
+    return B4AuthoritativeFloor(
+        floor=Fraction(*reconstructed["floor_exact"]), artifact_path=relpath,
+        artifact_sha256=digest, schema_version=B4_FLOOR_AGGREGATE_ARTIFACT_SCHEMA_VERSION,
+        generator_identity=GENERATOR_IDENTITY, source_float_hex=reconstructed["source_float_hex"],
+        source_summary_path=source["artifact_path"], source_summary_sha256=source["artifact_sha256"],
+        identity=_parse_identity(reconstructed["artifact_identity"]),
+        non_guarantees=tuple(reconstructed["non_guarantees"]),
+    )
+
+
 def _parse_identity(value: object) -> B4FloorArtifactIdentity:
     identity = _exact_object(
         value,
@@ -1055,6 +1321,8 @@ def load_authoritative_floor(
             f"expected={expected}, observed={observed_sha256}",
         )
     value = _load_json_bytes(raw, label="authority artifact", require_canonical=True)
+    if type(value) is dict and value.get("schema") == B4_FLOOR_AGGREGATE_ARTIFACT_SCHEMA_VERSION:
+        return _load_aggregate_authority(root, relpath, observed_sha256, value)
     authority = _exact_object(
         value,
         {
@@ -1252,13 +1520,28 @@ def resolve_preregistered_authoritative_floor(
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", required=True, type=Path)
-    parser.add_argument("--summary", required=True, type=Path)
+    modes = parser.add_mutually_exclusive_group(required=True)
+    modes.add_argument("--summary", type=Path)
+    modes.add_argument("--aggregate-summary", action="append", type=Path)
+    parser.add_argument("--expected-spec", action="append", nargs=2, metavar=("PATH", "SHA256"))
+    parser.add_argument("--aggregate-output-dir", type=Path)
     args = parser.parse_args(argv)
+    if args.summary is not None:
+        if args.expected_spec is not None or args.aggregate_output_dir is not None:
+            parser.error("aggregate-only arguments cannot accompany --summary")
+    elif args.expected_spec is None or args.aggregate_output_dir is None:
+        parser.error("aggregate mode requires --expected-spec and --aggregate-output-dir")
     try:
-        result = issue_authoritative_floor(
-            repo_root=args.repo_root,
-            summary_path=args.summary,
-        )
+        if args.summary is not None:
+            result = issue_authoritative_floor(
+                repo_root=args.repo_root,
+                summary_path=args.summary,
+            )
+        else:
+            result = issue_aggregate_authoritative_floor(
+                repo_root=args.repo_root, summary_paths=args.aggregate_summary,
+                expected_specs=args.expected_spec, output_dir=args.aggregate_output_dir,
+            )
     except B4FloorIdentityError as exc:
         error = {
             "error": exc.code,
