@@ -34,6 +34,11 @@ title: [T-2566] 静的tail本走driverを実装し、投入前条件5件を実�
   実行 file が PATH に無く、`tools/run_tests.py` の投入 preflight が rc=1 になって rc=16 で止まる。
   親が同じ木で自走 harness を叩くと普通に走る。以後の fix 子には自走 harness の叩き方を渡した。
   失敗の型は {{F:codex-sandbox-lacks-scheduler-binary}}。
+- 段 8 の自己改善は 1 件を failures 台帳へ送って閉じた。dev-wave の手順書側へ 1 行入れようとしたが、
+  **L1.5 層の予算に余地が無く (9696 byte 上限に対し追記で 9930〜9998 byte)**、
+  安全記述を削って空ける形は契約が禁じている。独立実例は 2 件で D730 の例外収容 (3 件以上) に
+  届かないため、上限は引き上げず、恒久対応は
+  {{F:codex-sandbox-lacks-scheduler-binary}} の恒久対応欄に残した。
 - 投入経路の配線 (既存投入 script・job script が旧 3 系列しか受理しない、3 走を 1 集団として
   集める入口が無い) は依頼の境界により scope 外とし、裁定パッケージとして返す。
   **「§8.1 の 5 件が外れ、残る blocker は投入経路の配線 1 件になった」**が正しい言い方であり、
