@@ -4507,6 +4507,227 @@ def test_result_replace_fsyncs_parent_directory_after_publish(
     }
 
 
+def _job_trace_records(stderr):
+    prefix = "IZANAGI_DISPATCH_JOB_TRACE "
+    records = [json.loads(line[len(prefix):]) for line in stderr.splitlines()
+               if line.startswith(prefix)]
+    assert records
+    for record in records:
+        assert type(record["time_ns"]) is int and record["time_ns"] > 0
+        assert type(record["pid"]) is int and record["pid"] > 0
+    return records
+
+
+def test_result_trace_brackets_real_file_and_directory_fsync(tmp_path, capfd):
+    payload = {"stage": "child", "child_rc": 23}
+    DC._write_result_replace(tmp_path / "result.json", payload)
+    records = _job_trace_records(capfd.readouterr().err)
+    assert [record["event"] for record in records] == [
+        "result-file-fsync-start", "result-file-fsync-complete",
+        "result-published", "result-dir-fsync-start",
+        "result-dir-fsync-complete", "result-write-return",
+    ]
+    assert json.loads((tmp_path / "result.json").read_text()) == payload
+
+
+def test_result_trace_does_not_claim_failed_directory_fsync_completed(
+    tmp_path, monkeypatch, capfd,
+):
+    real_fsync = DC.os.fsync
+
+    def fail_directory_only(fd):
+        if DC.stat.S_ISDIR(os.fstat(fd).st_mode):
+            raise OSError("injected directory fsync failure")
+        return real_fsync(fd)
+
+    monkeypatch.setattr(DC.os, "fsync", fail_directory_only)
+    with pytest.raises(OSError, match="injected directory fsync failure"):
+        DC._write_result_replace(tmp_path / "result.json", {"child_rc": 23})
+    events = [r["event"] for r in _job_trace_records(capfd.readouterr().err)]
+    assert events == [
+        "result-file-fsync-start", "result-file-fsync-complete",
+        "result-published", "result-dir-fsync-start",
+    ]
+    assert json.loads((tmp_path / "result.json").read_text()) == {"child_rc": 23}
+
+
+def test_job_return_trace_follows_real_supervisor_and_durable_result(tmp_path, capfd):
+    request, digest = _write_bound_job_run_request(
+        tmp_path / "submission", repo_root=_REPO, task="generic",
+        args=[sys.executable, "-c", "raise SystemExit(23)"],
+    )
+    assert _actual_job_run(request, digest) == 23
+    records = _job_trace_records(capfd.readouterr().err)
+    events = [record["event"] for record in records]
+    expected = [
+        "direct-child-wait-start", "direct-child-wait-complete",
+        "descendant-reap-start", "descendant-reap-complete",
+        "supervisor-return", "supervisor-wait-complete",
+        "result-published", "result-dir-fsync-start",
+        "result-dir-fsync-complete", "result-write-return", "job-return",
+    ]
+    assert [event for event in events if event in expected] == expected
+    assert records[-1]["rc"] == 23
+    result = json.loads((request.parent / "result.json").read_text())
+    assert set(result) == {
+        "schema_version", "stage", "child_rc", "pbs_jobid", "hostname",
+        "interpreter", "error", "request_sha256",
+    }
+    assert result["child_rc"] == 23
+
+
+def test_subreaper_setup_failure_leaves_guard_without_launching_child(
+    tmp_path, monkeypatch,
+):
+    marker = tmp_path / "child-started"
+    request, digest = _write_bound_job_run_request(
+        tmp_path / "submission", repo_root=_REPO, task="generic",
+        args=[sys.executable, "-c", f"open({str(marker)!r}, 'w').close()"],
+    )
+    # Exercise the real bootstrap and libc syscall with an invalid operation.
+    original = DC._ISOLATED_CHILD_BOOTSTRAP
+    mutated = original.replace("libc.prctl(36, 1, 0, 0, 0)",
+                               "libc.prctl(-1, 1, 0, 0, 0)")
+    assert mutated != original
+    monkeypatch.setattr(DC, "_ISOLATED_CHILD_BOOTSTRAP", mutated)
+    assert _actual_job_run(request, digest) == DC.INFRA_RC
+    assert not marker.exists()
+    result = json.loads((request.parent / "result.json").read_text())
+    assert result["stage"] == DC._RESULT_GUARD_STAGE
+
+
+def test_subreaper_enumeration_failure_is_infra_and_keeps_guard(
+    tmp_path, monkeypatch, capfd,
+):
+    request, digest = _write_bound_job_run_request(
+        tmp_path / "submission", repo_root=_REPO, task="generic",
+        args=[sys.executable, "-c", "raise SystemExit(23)"],
+    )
+    original = DC._ISOLATED_CHILD_BOOTSTRAP
+    mutated = original.replace(
+        '/proc/self/task/{os.getpid()}/children',
+        '/proc/self/task/{os.getpid()}/missing-children-entry',
+    )
+    assert mutated != original
+    monkeypatch.setattr(DC, "_ISOLATED_CHILD_BOOTSTRAP", mutated)
+    assert _actual_job_run(request, digest) == DC.INFRA_RC
+    result = json.loads((request.parent / "result.json").read_text())
+    assert result["stage"] == DC._RESULT_GUARD_STAGE
+    events = [r["event"] for r in _job_trace_records(capfd.readouterr().err)]
+    assert "descendant-reap-failed" in events
+    assert "descendant-reap-complete" not in events
+    assert "result-published" not in events
+
+
+def test_job_directory_fsync_failure_returns_infra_with_failure_trace(
+    tmp_path, monkeypatch, capfd,
+):
+    request, digest = _write_bound_job_run_request(
+        tmp_path / "submission", repo_root=_REPO, task="generic",
+        args=[sys.executable, "-c", "raise SystemExit(23)"],
+    )
+    real_fsync = DC.os.fsync
+
+    def fail_final_directory_only(fd):
+        if DC.stat.S_ISDIR(os.fstat(fd).st_mode):
+            result = json.loads((request.parent / "result.json").read_text())
+            if result["stage"] == "child":
+                raise OSError("injected final directory fsync failure")
+        return real_fsync(fd)
+
+    monkeypatch.setattr(DC.os, "fsync", fail_final_directory_only)
+    assert _actual_job_run(request, digest) == DC.INFRA_RC
+    records = _job_trace_records(capfd.readouterr().err)
+    events = [r["event"] for r in records]
+    assert "result-dir-fsync-start" in events
+    assert "result-dir-fsync-complete" not in events
+    assert records[-2]["event"] == "result-write-failed"
+    assert records[-1]["event"] == "job-return"
+    assert records[-1]["rc"] == DC.INFRA_RC
+
+
+def test_subreaper_reclaims_detached_grandchild_and_its_child(tmp_path, capfd):
+    import fcntl
+
+    # Each live process owns a different kernel flock. A parent waits for its
+    # child's readiness, so both locks are held before the dispatched argv exits.
+    leaf = (
+        "import fcntl, os, signal, sys\n"
+        "os.setsid()\n"
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+        "lock = open(sys.argv[1], 'w')\n"
+        "fcntl.flock(lock, fcntl.LOCK_EX)\n"
+        "print(os.getpid(), flush=True)\n"
+        "signal.pause()\n"
+    )
+    branch = (
+        "import fcntl, os, signal, subprocess, sys\n"
+        "os.setsid()\n"
+        "lock = open(sys.argv[1], 'w')\n"
+        "fcntl.flock(lock, fcntl.LOCK_EX)\n"
+        f"child = subprocess.Popen([sys.executable, '-c', {leaf!r}, sys.argv[2]], "
+        "stdout=subprocess.PIPE, text=True)\n"
+        "leaf_pid = int(child.stdout.readline())\n"
+        "print(str(os.getpid()) + ' ' + str(leaf_pid), flush=True)\n"
+        "signal.pause()\n"
+    )
+    locks = [tmp_path / "branch-lock", tmp_path / "leaf-lock"]
+    pids_file = tmp_path / "descendant-pids"
+    source = (
+        "import subprocess, sys\n"
+        f"child = subprocess.Popen([sys.executable, '-c', {branch!r}, "
+        f"{str(locks[0])!r}, {str(locks[1])!r}], stdout=subprocess.PIPE, text=True)\n"
+        "ready = child.stdout.readline()\n"
+        f"open({str(pids_file)!r}, 'w').write(ready)\n"
+        "raise SystemExit(23)\n"
+    )
+    request, digest = _write_bound_job_run_request(
+        tmp_path / "submission", repo_root=_REPO, task="generic",
+        args=[sys.executable, "-c", source],
+    )
+    reaped = set()
+    try:
+        assert _actual_job_run(request, digest) == 23
+        pids = [int(value) for value in pids_file.read_text().split()]
+        assert len(pids) == 2
+        records = _job_trace_records(capfd.readouterr().err)
+        reaped = {r["child_pid"] for r in records if r["event"] == "descendant-reaped"}
+        assert set(pids) <= reaped
+        for path in locks:
+            with path.open() as handle:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    finally:
+        # Also clean up when testing the old, leaking implementation.
+        if pids_file.exists():
+            for value in pids_file.read_text().split():
+                if int(value) in reaped:
+                    continue
+                try:
+                    os.kill(int(value), signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+
+
+def test_subreaper_does_not_reclaim_unrelated_process(tmp_path):
+    outsider = subprocess.Popen(
+        [sys.executable, "-c",
+         "import signal; print('ready', flush=True); signal.pause()"],
+        stdout=subprocess.PIPE, text=True,
+    )
+    try:
+        assert outsider.stdout.readline().strip() == "ready"
+        request, digest = _write_bound_job_run_request(
+            tmp_path / "submission", repo_root=_REPO, task="generic",
+            args=[sys.executable, "-c", "raise SystemExit(23)"],
+        )
+        assert _actual_job_run(request, digest) == 23
+        assert outsider.poll() is None
+    finally:
+        outsider.kill()
+        outsider.wait()
+        outsider.stdout.close()
+
+
 def test_guard_create_failure_never_reaches_isolated_launcher(tmp_path):
     submission = tmp_path / "submission"
     request_path, request_sha256 = _write_bound_job_run_request(

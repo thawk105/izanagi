@@ -215,8 +215,10 @@ _ISOLATED_CHILD_BOOTSTRAP = r'''
 import ctypes
 import json
 import os
+import signal
 import subprocess
 import sys
+import time
 
 status_fd = int(sys.argv[1])
 exec_error_fd = int(sys.argv[2])
@@ -242,6 +244,16 @@ def emit(event, **fields):
         pending = pending[written:]
 
 
+def trace(event, **fields):
+    try:
+        print("IZANAGI_DISPATCH_JOB_TRACE " + json.dumps({
+            "event": event, "time_ns": time.time_ns(), "pid": os.getpid(),
+            **fields,
+        }, sort_keys=True), file=sys.stderr, flush=True)
+    except OSError:
+        pass
+
+
 def mount(*args):
     subprocess.run(
         [mount_command, *args],
@@ -257,7 +269,15 @@ def write_mapping(path, text):
         handle.write(text)
 
 
+phase = "outer-subreaper"
 try:
+    # Adopt orphaned descendants even when they leave the child's session.
+    # This process is single-threaded; /proc/.../children names only our children.
+    libc = ctypes.CDLL(None, use_errno=True)
+    if libc.prctl(36, 1, 0, 0, 0) != 0:  # PR_SET_CHILD_SUBREAPER
+        error_number = ctypes.get_errno()
+        raise OSError(error_number, os.strerror(error_number))
+    phase = "outer-mount"
     mount("--make-rprivate", "/")
     ancestor = os.path.dirname(submission_dir)
     ancestors = []
@@ -271,7 +291,7 @@ try:
     child_pid = os.fork()
 except BaseException:
     try:
-        emit("setup-failure", phase="outer-mount")
+        emit("setup-failure", phase=phase)
     finally:
         raise SystemExit(16)
 
@@ -311,6 +331,7 @@ if child_pid == 0:
         os._exit(16)
 
 os.close(exec_error_fd)
+trace("direct-child-wait-start", child_pid=child_pid)
 while True:
     try:
         waited_pid, wait_status = os.waitpid(child_pid, 0)
@@ -320,7 +341,35 @@ while True:
 if waited_pid != child_pid:
     emit("status-failure", phase="waitpid")
     raise SystemExit(16)
+trace("direct-child-wait-complete", child_pid=child_pid)
+trace("descendant-reap-start")
+try:
+    while True:
+        with open(f"/proc/self/task/{os.getpid()}/children", encoding="ascii") as handle:
+            remaining = [int(value) for value in handle.read().split()]
+        if not remaining:
+            break
+        for pid in remaining:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        # Killing an adopted parent can hand us more descendants. Re-enumerate
+        # after every reap rather than assuming a single snapshot is the tree.
+        while True:
+            try:
+                reaped_pid, _ = os.waitpid(-1, 0)
+                trace("descendant-reaped", child_pid=reaped_pid)
+                break
+            except InterruptedError:
+                continue
+except BaseException:
+    trace("descendant-reap-failed")
+    emit("status-failure", phase="descendant-reap")
+    raise SystemExit(16)
+trace("descendant-reap-complete")
 emit("wait-status", status=wait_status)
+trace("supervisor-return", rc=0)
 raise SystemExit(0)
 '''
 # v1 を生成していた a34266d2 の正規 request overlay 集合。現行 tests の
@@ -673,10 +722,15 @@ def _write_result_replace(path: Path, payload: Mapping[str, Any]) -> None:
             json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
             handle.write("\n")
             handle.flush()
+            _job_trace("result-file-fsync-start")
             os.fsync(handle.fileno())
+            _job_trace("result-file-fsync-complete")
         os.replace(temporary, path)
         published = True
+        _job_trace("result-published")
+        _job_trace("result-dir-fsync-start")
         _fsync_dir(path.parent)
+        _job_trace("result-dir-fsync-complete")
     finally:
         if descriptor >= 0:
             os.close(descriptor)
@@ -685,6 +739,19 @@ def _write_result_replace(path: Path, payload: Mapping[str, Any]) -> None:
                 temporary.unlink()
             except OSError:
                 pass
+    _job_trace("result-write-return")
+
+
+def _job_trace(event: str, **fields: Any) -> None:
+    """Job stderr diagnostics only; never an attestation or acceptance input."""
+
+    try:
+        print("IZANAGI_DISPATCH_JOB_TRACE " + json.dumps({
+            "event": event, "time_ns": time.time_ns(), "pid": os.getpid(),
+            **fields,
+        }, sort_keys=True), file=sys.stderr, flush=True)
+    except OSError:
+        pass
 
 
 def _intent_path(registry_root: Path, shard_index: int, suffix: str) -> Path:
@@ -1115,7 +1182,9 @@ def _run_isolated_child(
         status_write_fd = -1
         os.close(exec_write_fd)
         exec_write_fd = -1
+        _job_trace("supervisor-wait-start")
         process.communicate(input=stdin_bytes)
+        _job_trace("supervisor-wait-complete", rc=process.returncode)
         with os.fdopen(status_read_fd, "rb") as status_handle:
             status_read_fd = -1
             raw_status = status_handle.read(_ISOLATED_CHILD_STATUS_LIMIT + 1)
@@ -1156,7 +1225,9 @@ def _run_isolated_child(
             except OSError:
                 pass
         if process is not None and process.returncode is None:
+            _job_trace("supervisor-final-wait-start")
             process.wait()
+            _job_trace("supervisor-final-wait-complete", rc=process.returncode)
 
 
 def _run_bound_tests_child(
@@ -1520,6 +1591,7 @@ def _job_run(
         _write_json_x(result_path, guard_payload)
         _fsync_dir(result_path.parent)
     except Exception:
+        _job_trace("job-return", rc=INFRA_RC, phase="guard-failed")
         return INFRA_RC
     isolation_failed = False
     try:
@@ -1646,6 +1718,7 @@ def _job_run(
         error = None
 
     if isolation_failed:
+        _job_trace("job-return", rc=INFRA_RC, phase="isolation-failed")
         return INFRA_RC
 
     payload = {
@@ -1664,8 +1737,11 @@ def _job_run(
         payload[_BOUND_XDIST_ROOT_RESULT_FIELD] = str(bound_xdist_root)
     try:
         _write_result_replace(result_path, payload)
-    except Exception:
+    except Exception as exc:
+        _job_trace("result-write-failed", error_type=type(exc).__name__)
+        _job_trace("job-return", rc=INFRA_RC, phase="result-write-failed")
         return INFRA_RC
+    _job_trace("job-return", rc=int(child_rc), phase="result-durable")
     return int(child_rc)
 
 
@@ -4445,14 +4521,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     values = list(sys.argv[1:] if argv is None else argv)
     if values[:1] == ["--job-run"]:
         if len(values) == 3:
-            return _job_run(Path(values[1]).resolve(), values[2])
+            rc = _job_run(Path(values[1]).resolve(), values[2])
+            _job_trace("job-run-returned", rc=rc)
+            return rc
         if len(values) == 2:
             # pre-binding in-flight v1/v2 script compatibility is decided by
             # _job_run after parsing the request; new tasks fail closed there.
-            return _job_run(
+            rc = _job_run(
                 Path(values[1]).resolve(),
                 os.environ.get(_REQUEST_SHA256_ENV),
             )
+            _job_trace("job-run-returned", rc=rc)
+            return rc
         print("--job-run は request path と SHA-256 を要求します", file=sys.stderr)
         return INFRA_RC
 
