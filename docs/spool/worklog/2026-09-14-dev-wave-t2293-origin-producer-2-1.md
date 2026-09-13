@@ -52,6 +52,22 @@ title: [T-2293] 起点試行の証拠の所在と bytes を呼び手申告から
 - **手順ミス 1 件:** `dev_wave_codex.py` は author 段で `--reasoning` を受け付けない (rc=2) のに
   付けて 1 回空振りした。DW-C01 に明記がある。再投入は `--job-id` と出力 path を変えた (F953 の再発)。
   段 2 を `--reasoning xhigh` で投げたのも DW-S02 の権威 (medium) からの逸脱である。
+- **受入全走は 4 回走らせ、赤はすべて非帰属だった (DW-O18 の判定根拠)。**
+  1 回目 child-green。2 回目は `test_t1259_qsub_env_delivery_probe.py` 29 件 +
+  `test_s8c_preregistration_predicates.py::test_repository_candidate_uses_real_s8c_budget_module`
+  1 件の計 30 error。両 file の単独走は 269 passed で緑。3 回目 child-green。
+  4 回目は `test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed` 1 件
+  (23336 passed) で、**当該 node 単独では 7.77 秒で緑**だった (負荷 85 下)。F57 (launcher 族の
+  負荷依存フレーク、既載 20 回以上) と同型で、本 wave の差分 (`p3_autonomous_workload_trial.py`) は
+  どちらの file にも到達しない。hold 登録はしていない — 単独緑が観測できるため決定的赤ではない。
+- **land は共有ロックの飢餓に当たった。** local main が 05:43 から 2 時間半動かず、複数 wave が
+  同時に land を叩いていた。lock 待ちの上限 180 秒より全史 provenance 監査 (最大 480 秒) が長いため
+  誰も通らない。私の land は 15 回で rc=11 が 14 回、rc=29 が 1 回。rc=29 の本文は
+  `provenance audit failed: TimeoutExpired after 480 seconds` で `main_before == main_after`、
+  **provenance の赤ではない**。他 2 session から同型の実測と「受入 child-green receipt の mtime 昇順で
+  1 本ずつ」という提案が届き、自分の観測と一致したので合意して降りた (私の mtime は 06:29:08)。
+  rc=29 が残した orphan hold 2 箇所 (`output/pegasus-dispatch/orphan-hold.json` と
+  `orphan-holds/*.json`) は、qstat で対象 job の不在を確認したうえで両方外した。
 - 工数: codex 子 6 本 (plan 1 = xhigh 537.8 s / 21 call、consult 2 = medium 233.1 s / 9 call と
   155.0 s / 7 call、author 1 = medium 322.7 s / 16 call、review 2 = medium 139.9 s / 6 call と
   197.4 s / 9 call)。fix 子は所見が real かつ scope 内のものが無かったため起動していない。
