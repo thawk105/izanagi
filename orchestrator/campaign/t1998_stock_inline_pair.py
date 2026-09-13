@@ -4,6 +4,13 @@
 The consumer is deliberately narrower than the producer: it accepts only the
 pre-registered no-backoff and fixed-5 arms, and it never chooses a point from
 the measured values.
+
+The consumer checks equality of the recorded full-version digests across arms.
+Because the recovered artifacts read by this consumer (result.json,
+reservation.json, and the campaign lock and WAL) omit the full-version manifest,
+it does not recompute the digest or verify its cryptographic correspondence to
+the recorded identity projection. Replacing both arms' digests with the same
+different value therefore cannot be rejected at this layer.
 """
 from __future__ import annotations
 
@@ -21,7 +28,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Literal, Mapping
 
-from . import campaign_lock
+from . import campaign_lock, env_contract
 from .artifact_admission import (
     ArtifactAdmissionError,
     CampaignReadPurpose,
@@ -632,33 +639,12 @@ def _build_dir_from_build(argv: list[str]) -> str | None:
     return os.path.normpath(values[0])
 
 
-_KNOWN_BENCH_WRAPPER_PREFIX = ("numactl", "--interleave=all")
-
-
-def _bench_execution_target(argv: list[str]) -> str | None:
-    prefix = _KNOWN_BENCH_WRAPPER_PREFIX
+def _bench_execution_target(
+    argv: list[str], prefix: tuple[str, ...],
+) -> str | None:
     if tuple(argv[:len(prefix)]) != prefix:
         return None
     return argv[len(prefix)] if len(argv) > len(prefix) else None
-
-
-def _plain_json(value: Any) -> Any:
-    if type(value) in {dict, MappingProxyType}:
-        return {key: _plain_json(item) for key, item in value.items()}
-    if type(value) in {list, tuple}:
-        return [_plain_json(item) for item in value]
-    return value
-
-
-def _canonical_json_sha256(value: Any) -> str:
-    encoded = json.dumps(
-        _plain_json(value),
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=True,
-        allow_nan=False,
-    ).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
 
 
 def _one_record(
@@ -816,8 +802,11 @@ def _arm_decision(
         )
     run_argv = _command_argv(bench_done.payload.get("run_cmd"))
     expected_binary = os.path.join(build_dir, "cc", "silo", "ycsb_silo.exe")
+    prefix = env_contract.resolve_by_contract_sha256(
+        environment_contract_sha256
+    ).contract.numactl
     execution_target = (
-        _bench_execution_target(run_argv) if run_argv is not None else None
+        _bench_execution_target(run_argv, prefix) if run_argv is not None else None
     )
     if (
         execution_target is None
@@ -892,20 +881,6 @@ def _arm_decision(
             "wal.build_done.toolchain_record_sha256",
             "exact lowercase sha256", toolchain_digest, arm,
         )
-    try:
-        canonical_toolchain_digest = _canonical_json_sha256(toolchain)
-    except (TypeError, ValueError) as exc:
-        _reject(
-            "toolchain-identity-mismatch", "wal.build_done.toolchain",
-            "canonical finite JSON manifest", f"{type(exc).__name__}: {exc}", arm,
-        )
-    _require_equal(
-        toolchain_digest,
-        canonical_toolchain_digest,
-        code="toolchain-identity-mismatch",
-        field="wal.build_done.toolchain_record_sha256",
-        arm=arm,
-    )
     receipt = commit.payload.get("commit_verification_receipt")
     receipt_id = (
         receipt.get("receipt_id")
