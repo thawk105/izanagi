@@ -2895,7 +2895,7 @@ def test_legacy_retry_rejects_extra_completion_for_same_trigger(tmp_path):
     assert list(consumed.iterdir()) == []
 
 
-def test_malformed_registry_does_not_disable_existing_failed_session_retry(tmp_path):
+def test_malformed_registry_rejects_existing_failed_session_retry_query(tmp_path):
     root, protocol, cell, admitted, attempt_id, manifest = _issued_cell(tmp_path)
     state = admission._cell_state(admitted)  # noqa: SLF001
     planned_start = json.loads(
@@ -2904,6 +2904,104 @@ def test_malformed_registry_does_not_disable_existing_failed_session_retry(tmp_p
     registry_path = admission._floor_registry_path(state)  # noqa: SLF001
     registry_path.parent.mkdir(parents=True, exist_ok=True)
     registry_path.write_bytes(b"{malformed-registry}\n")
+    retry_id = f"{cell['cell_id']}::retry1"
+    _append_journal_rows(admitted, {
+        "event": "session", "seq": planned_start["seq"],
+        "round": planned_start["round"], "kind": "planned",
+        "cell_id": cell["cell_id"], "attempt_id": attempt_id,
+        "valid": False, "probe_before": {"competing": True},
+    })
+    with pytest.raises(
+        admission.HoldoutAdmissionError,
+        match=r"^fixed registry\.jsonl:1 is not strict JSON$",
+    ):
+        admission.floor_retry_trigger_for_round(
+            admitted, round_no=planned_start["round"],
+        )
+
+
+def test_malformed_registry_rejects_existing_failed_session_retry_consumption(tmp_path):
+    root, protocol, cell, admitted, attempt_id, manifest = _issued_cell(tmp_path)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    registry_path = admission._floor_registry_path(state)  # noqa: SLF001
+    registry_path.parent.mkdir(parents=True, exist_ok=True)
+    registry_path.write_bytes(b"{malformed-registry}\n")
+    retry_id = f"{cell['cell_id']}::retry1"
+    _append_journal_rows(admitted, {
+        "event": "session", "seq": planned_start["seq"],
+        "round": planned_start["round"], "kind": "planned",
+        "cell_id": cell["cell_id"], "attempt_id": attempt_id,
+        "valid": False, "probe_before": {"competing": True},
+    })
+    _append_journal_rows(admitted, {
+        "event": "session-start", "seq": len(state.schedule),
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": 1, "cell_id": cell["cell_id"],
+        "attempt_id": retry_id, "trigger": attempt_id,
+    })
+
+    consumed = state.root / "measurement-generation-consumed"
+    markers_before = tuple(consumed.iterdir())
+    with pytest.raises(
+        admission.HoldoutAdmissionError,
+        match=r"^fixed registry\.jsonl:1 is not strict JSON$",
+    ):
+        admission.consume_attempt_ticket(admitted, attempt_id=retry_id)
+    assert tuple(consumed.iterdir()) == markers_before
+    assert not (state.root / "attempt-ledger.jsonl").exists()
+
+
+def test_malformed_registry_rejects_existing_failed_session_retry_inspection(tmp_path):
+    root, protocol, cell, admitted, attempt_id, manifest = _issued_cell(tmp_path)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    retry_id = f"{cell['cell_id']}::retry1"
+    _append_journal_rows(admitted, {
+        "event": "session", "seq": planned_start["seq"],
+        "round": planned_start["round"], "kind": "planned",
+        "cell_id": cell["cell_id"], "attempt_id": attempt_id,
+        "valid": False, "probe_before": {"competing": True},
+    })
+    _append_journal_rows(admitted, {
+        "event": "session-start", "seq": len(state.schedule),
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": 1, "cell_id": cell["cell_id"],
+        "attempt_id": retry_id, "trigger": attempt_id,
+    })
+
+    token = admission.consume_attempt_ticket(admitted, attempt_id=retry_id)
+    assert token.attempt_id == retry_id
+    assert token.permitted_run_once_calls == protocol["reps"]
+    _append_journal_rows(admitted, {
+        "event": "session", "seq": len(state.schedule),
+        "round": planned_start["round"], "kind": "retry",
+        "retry_ordinal": 1, "cell_id": cell["cell_id"],
+        "attempt_id": retry_id, "trigger": attempt_id,
+        "valid": True, "probe_before": {"competing": False},
+    })
+    registry_path = admission._floor_registry_path(state)  # noqa: SLF001
+    registry_path.parent.mkdir(parents=True, exist_ok=True)
+    registry_path.write_bytes(b"{malformed-registry}\n")
+    with pytest.raises(admission.FloorHoldoutEvidenceError) as caught:
+        admission.inspect_floor_holdout_admission_evidence(
+            **_issued_inspection_kwargs(root, protocol, admitted, manifest)
+        )
+    assert caught.value.category == "mismatch"
+    assert caught.value.reason == "session-start-invalid"
+    assert str(caught.value.__cause__) == "fixed registry.jsonl:1 is not strict JSON"
+
+
+def test_missing_registry_preserves_existing_failed_session_retry(tmp_path):
+    root, protocol, cell, admitted, attempt_id, manifest = _issued_cell(tmp_path)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
     retry_id = f"{cell['cell_id']}::retry1"
     _append_journal_rows(admitted, {
         "event": "session", "seq": planned_start["seq"],
@@ -2938,6 +3036,16 @@ def test_malformed_registry_does_not_disable_existing_failed_session_retry(tmp_p
         **_issued_inspection_kwargs(root, protocol, admitted, manifest)
     )
     assert inspection["attempt_row_count"] == 1
+
+
+def test_dangling_registry_symlink_is_not_treated_as_absent(tmp_path):
+    registry_path = tmp_path / "registry.jsonl"
+    registry_path.symlink_to(tmp_path / "missing-registry.jsonl")
+    with pytest.raises(
+        admission.HoldoutAdmissionError,
+        match=r"^cannot read floor attempt registry$",
+    ):
+        admission._read_floor_registry_candidate_rows(registry_path)  # noqa: SLF001
 
 
 def test_verified_registry_recovery_authorizes_exactly_one_retry_ordinal(
