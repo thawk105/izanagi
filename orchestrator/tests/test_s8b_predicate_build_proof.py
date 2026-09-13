@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from orchestrator.tests.s8b_v2_freeze_fixture import in_sealed_fixture_process
-
 import contextlib
 import copy
 import hashlib
@@ -14,7 +12,7 @@ import pytest
 
 from orchestrator.campaign import s8b_binary_admission as admission_receipt
 from orchestrator.campaign import s8b_expected_materialization as snapshot
-from orchestrator.tests.s8b_v2_freeze_fixture import sealed_source_protection_fixture
+from orchestrator.tests.s8b_v2_freeze_fixture import portable_binary_admission_receipt_fixture
 from orchestrator.campaign import s8b_floor_campaign as floor
 from orchestrator.campaign import s8b_materialization as materialization
 from orchestrator.campaign.build_admission import (
@@ -40,7 +38,12 @@ def _canonical_sha256(value: object) -> str:
 
 def _producer_fixture(
         tmp_path: Path, monkeypatch, *, missing_snapshot: bool = False,
-        missing_manifest: bool = False):
+        missing_manifest: bool = False, portable: bool = True):
+    if portable:
+        monkeypatch.setattr(
+            floor._binary_admission, "issue_binary_admission_receipt",
+            portable_binary_admission_receipt_fixture,
+        )
     source_root = tmp_path / "source-snapshot"
     compiler_input = source_root / "include" / "predicate.hh"
     compiler_input.parent.mkdir(parents=True)
@@ -99,10 +102,7 @@ def _producer_fixture(
         binary.parent.mkdir()
         binary.write_bytes(b"predicate proof binary")
         binary_sha256 = hashlib.sha256(binary.read_bytes()).hexdigest()
-        source_protection = sealed_source_protection_fixture(
-            source=evidence, binary_sha256=binary_sha256,
-            compiler_input_manifest_sha256=manifest_sha256,
-        )
+        source_protection = None
         return SimpleNamespace(
             source_protection=source_protection,
             binary=str(binary), bin_sha256=binary_sha256,
@@ -149,7 +149,6 @@ def _producer_fixture(
     }
 
 
-@in_sealed_fixture_process
 def test_producer_proof_reaches_pre_measurement_consumer(tmp_path, monkeypatch):
     fixture = _producer_fixture(tmp_path, monkeypatch)
     built = fixture["built"]()
@@ -199,13 +198,12 @@ def test_producer_proof_reaches_pre_measurement_consumer(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize("missing", ["snapshot", "manifest"])
-@in_sealed_fixture_process
 def test_campaign_forwards_missing_proof_to_unconditional_issuer(
         tmp_path, monkeypatch, missing):
     fixture = _producer_fixture(
         tmp_path, monkeypatch,
         missing_snapshot=missing == "snapshot",
-        missing_manifest=missing == "manifest",
+        missing_manifest=missing == "manifest", portable=False,
     )
     issued = []
 
@@ -246,7 +244,6 @@ def test_campaign_forwards_missing_proof_to_unconditional_issuer(
         ),
     ],
 )
-@in_sealed_fixture_process
 def test_consumer_rejects_resealed_reverse_proof_mismatch(
         tmp_path, monkeypatch, field, message):
     fixture = _producer_fixture(tmp_path, monkeypatch)

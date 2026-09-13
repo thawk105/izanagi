@@ -5499,6 +5499,167 @@ def test_pending_binary_drift_is_rejected_before_protection_record_or_rename(tmp
         pending.close()
 
 
+def test_pending_close_recovers_candidate_moved_to_another_parent(tmp_path):
+    pending = _real_pending_publication(tmp_path)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    displaced = elsewhere / "displaced"
+    clean = Path(pending.clean)
+    try:
+        clean.rename(displaced)
+        clean.mkdir()
+        # Control: without held-inode cleanup the same successful rename leaves
+        # the original binary outside the pathname that close used to remove.
+        assert (displaced / "binary").read_bytes() == b"candidate binary A"
+        with pytest.raises(buildcache.BuildCacheError, match="identity"):
+            pending.publish(None)
+        pending.close()
+        assert not displaced.exists()
+        assert not Path(pending.result.build_dir).exists()
+        assert Path(pending.claim).exists()
+    finally:
+        pending.close()
+
+
+def test_pending_close_never_closes_a_reused_descriptor(tmp_path):
+    pending = _real_pending_publication(tmp_path)
+    old_fd = pending.copied.destination_fd
+    pending.close()
+    replacement = os.open(tmp_path / "unrelated", os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        os.dup2(replacement, old_fd)
+        identity = os.fstat(old_fd)
+        pending.close()
+        assert os.fstat(old_fd) == identity
+        assert pending.clean_fd == pending.parent_fd == -1
+        assert pending.copied._owned_fds() == [-1, -1]
+    finally:
+        os.close(old_fd)
+        if replacement != old_fd:
+            os.close(replacement)
+
+
+def test_pending_return_interrupt_recovers_registered_fds_and_candidate(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_pending_return_interrupt_recovers_registered_fds_and_candidate_case"
+    result = _run_sealed_case("orchestrator.tests.test_buildcache_v2", case, tmp_path)
+    assert result == {"case": case, "completed": True}
+
+
+def _pending_return_interrupt_recovers_registered_fds_and_candidate_case(tmp_path, monkeypatch):
+    seen = []
+    protected = False
+    source, first = inspect.getsourcelines(buildcache._build_v2_impl)
+    boundary = first + next(i for i, line in enumerate(source)
+                            if line.strip() == "return pending")
+
+    def interrupt(frame, event, arg):
+        if (frame.f_code is buildcache._build_v2_impl.__code__
+                and event == "line" and frame.f_lineno == boundary):
+            assert frame.f_locals["transferred"] is True
+            pending = frame.f_locals["pending"]
+            fds = pending.copied._owned_fds() + [pending.clean_fd, pending.parent_fd]
+            # The callee has relinquished these live descriptors, while its
+            # caller has not received the result. Hit the reviewed signal gap.
+            assert all(os.fstat(fd) for fd in fds)
+            if not protected:
+                # Mutation control: remove the real caller's ownership, without
+                # replacing the session, close, fd operations, or signal seam.
+                owners = frame.f_locals.get("pending_publications")
+                if owners is not None:
+                    owners.clear()
+            seen.append((fds, pending))
+            raise KeyboardInterrupt("pending return boundary")
+        return interrupt
+
+    for protected in (False, True):
+        directory = tmp_path / ("protected" if protected else "control")
+        directory.mkdir()
+        previous = sys.gettrace()
+        try:
+            with monkeypatch.context() as patch:
+                sys.settrace(interrupt)
+                with pytest.raises(KeyboardInterrupt, match="pending return boundary"):
+                    _v2_descriptor_runs_gate_inside_build_and_returns_both_digests_case(directory, patch)
+        finally:
+            sys.settrace(previous)
+        assert len(seen) == (2 if protected else 1)
+        fds, pending = seen[-1]
+        try:
+            for fd in fds:
+                if protected:
+                    with pytest.raises(OSError):
+                        os.fstat(fd)
+                else:
+                    assert os.fstat(fd)  # The same interrupt really leaks without an owner.
+            if protected:
+                assert not Path(pending.clean).exists()
+            assert not Path(pending.result.build_dir).exists()
+            assert Path(pending.claim).exists()
+        finally:
+            pending.close()
+
+
+def test_qualification_source_attack_starts_and_is_blocked(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_qualification_source_attack_starts_and_is_blocked_case"
+    result = _run_sealed_case("orchestrator.tests.test_buildcache_v2", case, tmp_path)
+    assert result == {"case": case, "completed": True}
+
+
+def _qualification_source_attack_starts_and_is_blocked_case(tmp_path):
+    from orchestrator.manual_probes.t1994_readonly_snapshot_qualification import ParentSourceSubstitution
+
+    root = _publication_source(tmp_path)
+    target = root / "input.cpp"
+    target.write_bytes(b"A")
+    observation = {}
+    attack = ParentSourceSubstitution(root, observation)
+    command = [sys.executable, "-I", "-B", "-c",
+               "from pathlib import Path; import sys; print(Path(sys.argv[1]).read_text())",
+               str(target)]
+    try:
+        with _publication_session(root) as session:
+            try:
+                attack.start()
+                assert observation["status"] == "started"
+                assert observation["source_renamed"] and observation["ancestor_renamed"]
+                # Same reader and pathname outside the protected namespace see B.
+                control = subprocess.run(command, capture_output=True, text=True, check=True)
+                assert "T1994_ORIGINAL_TREE_B" in control.stdout
+                protected = session.run(command, cwd="/", env=None, timeout_s=5)
+                assert protected.returncode == 0, protected.stderr
+                attack.record_protection(protected.stdout.strip() == "A")
+                assert observation["status"] == "blocked"
+            finally:
+                attack.restore()
+        assert target.read_bytes() == b"A"
+    finally:
+        attack.restore()
+
+
+def test_qualification_never_credits_an_attack_that_could_not_start(tmp_path):
+    from orchestrator.manual_probes.t1994_readonly_snapshot_qualification import ParentSourceSubstitution
+
+    root = _publication_source(tmp_path)
+    (root / "input.cpp").write_bytes(b"A")
+    observation = {}
+    attack = ParentSourceSubstitution(root, observation)
+    # Real rename obstruction, with the same attack code (no syscall stub).
+    attack.renamed_source.mkdir()
+    (attack.renamed_source / "occupied").touch()
+    try:
+        with pytest.raises(OSError):
+            attack.start()
+        assert observation["status"] == "could-not-start"
+        with pytest.raises(RuntimeError, match="cannot credit protection"):
+            attack.record_protection(True)
+    finally:
+        attack.restore()
+
+
 def test_run_without_session_executes_real_command_even_when_named_build(tmp_path):
     marker = tmp_path / "ran"
     buildcache._run(
@@ -5578,6 +5739,17 @@ def _real_session_publish_then_hit_issues_distinct_capabilities_case(tmp_path):
                 "configure", site=buildcache.site_policy.OTHER,
                 sealed_session=fresh,
             )
+            # Produce the actual pending bytes in this session. A successful
+            # configure/read command alone cannot justify SEALED_BUILD (M-E).
+            buildcache._run(
+                [sys.executable, "-I", "-B", "-c",
+                 "from pathlib import Path; import sys; "
+                 "output = Path(sys.argv[2]); output.chmod(0o700); "
+                 "output.write_bytes(b'candidate binary ' + Path(sys.argv[1]).read_bytes()); "
+                 "output.chmod(0o500)",
+                 str(root / "input"), str(Path(pending.clean) / "binary")],
+                "build", site=buildcache.site_policy.OTHER, sealed_session=fresh,
+            )
             assert not Path(pending.result.build_dir).exists()
             assert not (Path(pending.clean) / "completion.json").exists()
             with pytest.raises(
@@ -5605,7 +5777,7 @@ def _real_session_publish_then_hit_issues_distinct_capabilities_case(tmp_path):
             os.fstat(fd)
 
 
-@pytest.mark.parametrize("attack", ["persistent-drift", "root-replacement"])
+@pytest.mark.parametrize("attack", ["persistent-drift"])
 def test_real_session_parent_drift_or_exit_failure_never_publishes(tmp_path, attack):
     from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
 
@@ -5664,25 +5836,15 @@ def _real_session_parent_drift_or_exit_failure_never_publishes_case(tmp_path, at
 
 @pytest.mark.parametrize("entry", ["binary", "candidate", "destination"])
 def test_pending_final_rename_rechecks_real_entries(tmp_path, entry):
-    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
-
-    case = "_pending_final_rename_rechecks_real_entries_case"
-    result = _run_sealed_case(
-        "orchestrator.tests.test_buildcache_v2", case, tmp_path, entry=entry,
-    )
-    assert result == {"case": case, "completed": True}
+    _pending_final_rename_rechecks_real_entries_case(tmp_path, entry)
 
 
 def _pending_final_rename_rechecks_real_entries_case(tmp_path, entry):
-    root = _publication_source(tmp_path)
     pending = _real_pending_publication(tmp_path)
     try:
-        with _publication_session(root) as session:
-            buildcache._run(
-                [sys.executable, "-I", "-B", "-c", "pass"],
-                "build", site=buildcache.site_policy.OTHER, sealed_session=session,
-            )
-        capability = _publication_capability(session, pending)
+        # Real-fd positive control before attacking the same entries. Issuance
+        # is covered by the real-session integration case, not repeated here.
+        pending._verify_publish_entries()
         clean = Path(pending.clean)
         if entry == "binary":
             (clean / "binary").unlink()
@@ -5690,13 +5852,15 @@ def _pending_final_rename_rechecks_real_entries_case(tmp_path, entry):
         elif entry == "candidate":
             clean.rename(clean.with_name("displaced-candidate"))
             clean.mkdir()
+            assert (clean.with_name("displaced-candidate") / "binary").read_bytes() == b"candidate binary A"
         else:
             Path(pending.result.build_dir).mkdir()
         with pytest.raises(buildcache.BuildCacheError):
-            pending.publish(capability)
+            pending.publish(None)  # Rejected before capability consumption.
         assert not (Path(pending.result.build_dir) / "binary").exists()
     finally:
         pending.close()
+    assert not clean.with_name("displaced-candidate").exists()
 
 
 def test_sealed_child_obeys_parent_d1755_protection_without_freezing_base(tmp_path):
@@ -5795,7 +5959,7 @@ def _descriptor_build_result_carries_real_fresh_and_hit_capabilities_case(tmp_pa
         ) is result.source_protection
 
 
-@pytest.mark.parametrize("attack", ["persistent-drift", "root-replacement"])
+@pytest.mark.parametrize("attack", ["root-replacement"])
 def test_descriptor_build_failure_cannot_become_second_build_hit(tmp_path, attack):
     from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
 

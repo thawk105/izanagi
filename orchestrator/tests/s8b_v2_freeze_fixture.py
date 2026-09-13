@@ -130,15 +130,61 @@ def in_sealed_fixture_process(test):
     return run
 
 
+def run_sealed_fixture_case(module, case, tmp_path, **parameters):
+    """Run issuer and assertions in a fresh interpreter, never in an xdist worker."""
+    import sys
+    code = """
+import contextlib, importlib, inspect, io, json, sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+case = inspect.unwrap(getattr(importlib.import_module(sys.argv[2]), sys.argv[3]))
+parameters = json.loads(sys.argv[5])
+parameters['tmp_path'] = Path(sys.argv[4])
+import pytest
+output = io.StringIO()
+try:
+    with contextlib.redirect_stdout(output), pytest.MonkeyPatch.context() as patch:
+        if 'monkeypatch' in inspect.signature(case).parameters:
+            parameters['monkeypatch'] = patch
+        result = case(**parameters)
+finally:
+    print(output.getvalue(), file=sys.stderr, end='')
+print(json.dumps(result))
+"""
+    result = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", code,
+         str(Path(__file__).resolve().parents[2]), module, case,
+         str(tmp_path), json.dumps(parameters)],
+        capture_output=True, text=True, timeout=5,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    return json.loads(result.stdout)
+
+
+def in_fresh_sealed_fixture_process(test):
+    """Only completion data crosses processes; PID-bound capabilities stay local."""
+    import functools
+    import inspect
+
+    @functools.wraps(test)
+    def run(*args, **kwargs):
+        parameters = dict(inspect.signature(test).bind(*args, **kwargs).arguments)
+        tmp_path = parameters.pop("tmp_path")
+        parameters.pop("monkeypatch", None)
+        return run_sealed_fixture_case(
+            test.__module__, test.__name__, tmp_path, **parameters,
+        )
+    return run
+
+
 def sealed_source_protection_fixture(
         *, source, binary_sha256, compiler_input_manifest_sha256):
     """Issue through a real tiny sealed session; no issuer/registry bypass.
 
     Only Git replay and evidence derivation use synthetic fixture inputs. Restore
     real snapshot checks locally even when a caller mocks declaration admission.
-    The fixture executes a small command, so it reports SEALED_BUILD only.
+    These pre-existing fixture bytes use SEALED_CACHE_HIT: no compile is claimed.
     """
-    import sys
     from unittest.mock import patch
 
     root = Path(source.source_root)
@@ -154,13 +200,9 @@ def sealed_source_protection_fixture(
                 ccbench_commit=source.ccbench_commit, configuration="stock_common",
                 declaration={}, snapshot_root=root, genome=None,
                 prepared_src_token=source.src_token, cxx="c++") as session:
-            result = session.run(
-                [sys.executable, "-I", "-B", "-c", "pass"],
-                cwd="/", env=None, timeout_s=5,
-            )
-            assert result.returncode == 0
+            pass
     return session.issue(
-        _snapshot.SealedSnapshotProtectionKind.SEALED_BUILD,
+        _snapshot.SealedSnapshotProtectionKind.SEALED_CACHE_HIT,
         binary_sha256=binary_sha256,
         compiler_input_manifest_sha256=compiler_input_manifest_sha256,
     )
@@ -170,7 +212,9 @@ def portable_binary_admission_receipt_fixture(
         *, admission, expected_policy, source, cell_id, holdout_id,
         configuration_id, binding, binary, binary_sha256, contract_sha256,
         trace, source_snapshot_sha256, expected_materialization_sha256,
-        compiler_input_manifest, compiler_input_manifest_sha256):
+        compiler_input_manifest, compiler_input_manifest_sha256,
+        source_protection=None, current_compiler_input_masstree_root=None,
+        current_compiler_input_dependency_prefix_roots=None):
     """Portable reader input only; this dict makes no capability issuance claim.
 
     Keep issuer tests on the real API. Consumer fixtures need only the durable

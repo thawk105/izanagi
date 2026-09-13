@@ -442,6 +442,7 @@ def qualify(args, report, log):
     # No custom environment variable is required by generic dispatch.
     with tempfile.TemporaryDirectory(prefix='t1994-qualification-', dir='/tmp') as temporary:
         scratch = Path(temporary)
+        qualify_moved_publication_cases(scratch, checks, report)
         base = scratch / 'base'
         base.mkdir()
         source_dirs = {}
@@ -494,6 +495,92 @@ def qualify(args, report, log):
                 sort_swo_dependency_material.cleanup_canonical_dependency(material)
 
 
+class ParentSourceSubstitution:
+    """Owner-side A→B→A after READY, against the real private snapshot.
+
+    chmod changes the parent's original inode, never the private mounts.
+    """
+
+    def __init__(self, root, observation):
+        self.root = Path(root)
+        self.observation = observation
+        self.parent_mode = stat.S_IMODE(self.root.parent.stat().st_mode)
+        self.old_parent = self.root.parent.with_name(self.root.parent.name + '-original-A')
+        self.renamed_source = self.root.with_name(self.root.name + '-original-A')
+        self.mutated = False
+        observation.update(status='not-started', source_renamed=False, ancestor_renamed=False)
+
+    def start(self):
+        root = self.root
+        try:
+            # Undo advisory modes on the original so the attack actually starts.
+            root.parent.chmod(stat.S_IMODE(root.parent.stat().st_mode) | stat.S_IWUSR)
+            root.rename(self.renamed_source)
+            try:
+                root.parent.rename(self.old_parent)
+            except BaseException:
+                self.renamed_source.rename(root)
+                raise
+            self.mutated = True
+            root.parent.mkdir()
+            shutil.copytree(self.old_parent / self.renamed_source.name, root, symlinks=True)
+            poisoned = []
+            for path in root.rglob('*'):
+                if path.suffix in ('.cc', '.cpp', '.c', '.h', '.hpp') and path.is_file() and not path.is_symlink():
+                    path.chmod(0o600)
+                    path.write_bytes(b'#error T1994_ORIGINAL_TREE_B\n')
+                    poisoned.append(str(path.relative_to(root)))
+            if not poisoned:
+                raise RuntimeError('no compiler input was substituted')
+            self.observation.update(status='started', source_renamed=True,
+                                    ancestor_renamed=True, poisoned_paths=poisoned,
+                                    parent_B_inventory=fd_inventory(root))
+        except BaseException as exc:
+            self.observation.update(status='could-not-start', failure=error(exc))
+            raise
+
+    def record_protection(self, compiler_reads_A):
+        if self.observation['status'] != 'started':
+            raise RuntimeError('attack did not start; cannot credit protection')
+        self.observation['status'] = 'blocked' if compiler_reads_A else 'succeeded'
+        if not compiler_reads_A:
+            raise RuntimeError('compiler source substitution succeeded')
+
+    def restore(self):
+        root = self.root
+        if self.mutated:
+            if root.parent.exists():
+                # copytree preserved the non-writable directory modes of A.
+                for directory, _, _ in os.walk(root.parent):
+                    Path(directory).chmod(0o700)
+                shutil.rmtree(root.parent)
+            self.old_parent.rename(root.parent)
+            self.renamed_source.rename(root)
+            self.mutated = False
+        root.parent.chmod(self.parent_mode)
+
+
+def qualify_moved_publication_cases(scratch, checks, report):
+    """Run removed expansions in fresh Python processes, with all assertions."""
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+    rows = report.setdefault('publication_failure_cases', {})
+    for name, attack in [
+        ('_real_session_parent_drift_or_exit_failure_never_publishes_case', 'root-replacement'),
+        ('_descriptor_build_failure_cannot_become_second_build_hit_case', 'persistent-drift'),
+    ]:
+        directory = scratch / name
+        directory.mkdir()
+        began = time.monotonic()
+        try:
+            result = _run_sealed_case('orchestrator.tests.test_buildcache_v2', name,
+                                      directory, attack=attack)
+            rows[name] = dict(result, attack=attack, elapsed_s=time.monotonic() - began)
+            require(checks, 'moved:' + name, result == {'case': name, 'completed': True})
+        except Exception as exc:
+            rows[name] = dict(error(exc), attack=attack, elapsed_s=time.monotonic() - began)
+            checks['moved:' + name] = error(exc)
+
+
 def build_case(configuration, attack_mode, label, row, checks, args, freeze, pin,
                toolchain, cc, cxx, context, contract, base, source_dirs, shared,
                binding, scratch, log, bc, em, mat, floor, direct, source_digest,
@@ -534,41 +621,32 @@ def build_case(configuration, attack_mode, label, row, checks, args, freeze, pin
             row['post_oracle_binding'] = build_options['post_oracle_dependency_binding']
         original_run = session_type.run
         mutated = build_finished = sealed_seen = False
-        old_parent = root.parent.with_name(root.parent.name + '-original-A')
-        renamed_source = root.with_name(root.name + '-original-A')
+        substitution = ParentSourceSubstitution(root, row.setdefault('rename_attack', {}))
         parent_checks = []
         parent_namespaces = namespaces()
 
         def restore():
             nonlocal mutated
-            if mutated:
-                if root.parent.exists():
-                    shutil.rmtree(root.parent)
-                old_parent.rename(root.parent)
-                renamed_source.rename(root)
-                mutated = False
+            substitution.restore()
+            mutated = False
 
         def mutate():
             nonlocal mutated
-            root.rename(renamed_source)
-            try:
-                root.parent.rename(old_parent)
-            except BaseException:
-                renamed_source.rename(root)
-                raise
+            substitution.start()
             mutated = True
-            root.parent.mkdir()
-            shutil.copytree(old_parent / renamed_source.name, root, symlinks=True)
-            poisoned = []
-            for path in root.rglob('*'):
-                if path.suffix in ('.cc', '.cpp', '.c', '.h', '.hpp') and path.is_file() and not path.is_symlink():
-                    path.chmod(0o600)
-                    path.write_bytes(b'#error T1994_ORIGINAL_TREE_B\n')
-                    poisoned.append(str(path.relative_to(root)))
-            row['rename_attack'] = {'source_renamed': True, 'ancestor_renamed': True,
-                                    'poisoned_paths': poisoned, 'parent_B_inventory': fd_inventory(root)}
-            require(checks, label + ':B_differs', bool(poisoned)
-                    and fd_inventory(root)['copy_domain_sha256'] != inventory['copy_domain_sha256'])
+            require(checks, label + ':B_differs',
+                    row['rename_attack']['parent_B_inventory']['copy_domain_sha256']
+                    != inventory['copy_domain_sha256'])
+            # The real compiler outside the seal must read B at the same path.
+            # Missing includes or tools cannot satisfy this specific marker.
+            target = root / row['rename_attack']['poisoned_paths'][0]
+            argv = [cxx, '-E', '-x', 'c++', str(target)]
+            control = subprocess.run(argv, capture_output=True, text=True, timeout=None)
+            row['rename_attack']['unprotected_compiler'] = {
+                'argv': argv, 'returncode': control.returncode, 'stderr': control.stderr,
+            }
+            require(checks, label + ':unprotected_compiler_reads_B',
+                    control.returncode != 0 and 'T1994_ORIGINAL_TREE_B' in control.stderr)
 
         def observed_run(session, argv, *, cwd, env, timeout_s):
             nonlocal sealed_seen, build_finished
@@ -622,6 +700,10 @@ def build_case(configuration, attack_mode, label, row, checks, args, freeze, pin
                 copied = execute(child_command('inventory', root))
                 observed_inventory = json.loads(copied.stdout)
                 row['compiler_read_view_after_build'] = observed_inventory
+                if attack_mode != 'none' and copied.returncode == 0:
+                    # A failed build is not itself proof that substitution won.
+                    # Record the observed view; compiler success is required below.
+                    substitution.record_protection(observed_inventory == inventory)
                 require(checks, label + ':compiler_A', build_finished
                         and copied.returncode == 0 and observed_inventory == inventory)
                 if attack_mode == 'aba':
@@ -670,6 +752,9 @@ def build_case(configuration, attack_mode, label, row, checks, args, freeze, pin
                 row['parent_inventory_at_return'] = fd_inventory(root)
             finally:
                 restore()
+        if attack_mode != 'none':
+            require(checks, label + ':attack_executed_and_blocked',
+                    row['rename_attack']['status'] == 'blocked', observation=row['rename_attack'])
         require(checks, label + ':session_used', sealed_seen and build_finished)
         if attack_mode == 'persistent':
             rejected = [r for r in parent_checks if r.get('rejected') and r['source_is_B']]

@@ -48,6 +48,7 @@ import socket
 import subprocess
 import time
 import stat
+import weakref
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterator, Mapping, Optional
@@ -951,8 +952,13 @@ class SealedSnapshotProtectionKind(enum.Enum):
 
 
 _CAPABILITY_SEAL = object()
-# Strong references prevent recycled ids from authenticating another object.
-_ISSUED_SNAPSHOT_CAPABILITIES: dict[int, tuple[object, int]] = {}
+# Weak references release discarded capabilities; validation still compares identity.
+_ISSUED_SNAPSHOT_CAPABILITIES: dict[int, tuple[weakref.ReferenceType, int]] = {}
+
+# No new latency measurement: use the existing finish-response budget for reap.
+_SNAPSHOT_READY_TIMEOUT_S = 60
+_SNAPSHOT_FINISH_TIMEOUT_S = 30
+_SNAPSHOT_REAP_TIMEOUT_S = 30
 
 
 @dataclass(frozen=True, init=False)
@@ -992,7 +998,7 @@ def validate_sealed_snapshot_capability(
     """Require the issued object itself and all four exact digest bindings."""
     record = _ISSUED_SNAPSHOT_CAPABILITIES.get(id(value))
     if (type(value) is not SealedSnapshotCapability or record is None
-            or record[0] is not value or record[1] != os.getpid()):
+            or record[0]() is not value or record[1] != os.getpid()):
         raise ExpectedMaterializationError("snapshot capability was not issued")
     for name, expected in (
         ("source_snapshot_sha256", source_snapshot_sha256),
@@ -1078,26 +1084,29 @@ def _mount_snapshot(target: Path, mounts: list[Path], *, source=b"tmpfs",
     mounts.append(target)
 
 
-def _seal_snapshot_root(root: Path) -> None:
+def _seal_snapshot_root(root: Path, *, recursive: bool = True) -> None:
     attributes = (ctypes.c_uint64 * 4)(1, 0, 0, 0)
-    _linux_call(442, -100, os.fsencode(root), 0x8000,
+    _linux_call(442, -100, os.fsencode(root), 0x8000 if recursive else 0,
                 ctypes.byref(attributes), ctypes.c_size_t(32))
 
 
 def _snapshot_root_view(root: Path, expected: str, mounts: list[Path]) -> None:
-    """Rebuild only the two-level source spine; bind its other branches by fd.
+    """Rebuild the entire pathname spine below /, sharing every other branch.
 
-    Holding sibling directory inodes preserves late cache/staging creation.
+    The top-level component is a mount point (rename returns EBUSY). All its
+    private descendants live on one read-only tmpfs. Nonrecursive sealing of
+    that mount leaves sibling bind mounts, including base/cache, writable.
     Only source bytes are copied; Git metadata is never copied or consulted.
     """
-    ancestor = root.parent.parent
-    if ancestor == Path("/"):
-        raise ExpectedMaterializationError("snapshot needs a dedicated source ancestor")
+    if not root.is_absolute() or root == Path("/"):
+        raise ExpectedMaterializationError("snapshot needs an absolute source path")
+    spine = list(reversed(root.parents))[1:] + [root]
+    ancestor = spine[0]
     source_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
     branches = []
-    spine_modes = {p: stat.S_IMODE(p.stat().st_mode) for p in (ancestor, root.parent, root)}
+    spine_modes = {p: stat.S_IMODE(p.stat().st_mode) for p in spine}
     try:
-        for directory, excluded in ((ancestor, root.parent), (root.parent, root)):
+        for directory, excluded in zip(spine, spine[1:]):
             for path in directory.iterdir():
                 if path == excluded:
                     continue
@@ -1113,8 +1122,8 @@ def _snapshot_root_view(root: Path, expected: str, mounts: list[Path]) -> None:
             for _, _, info in _tree_entries(source, source)
         )
         _mount_snapshot(ancestor, mounts, data=b"size=4m")
-        root.parent.mkdir()
-        root.mkdir()
+        for path in spine[1:]:
+            path.mkdir()
         for path, descriptor, directory, link in branches:
             if link is not None:
                 path.symlink_to(link)
@@ -1133,6 +1142,9 @@ def _snapshot_root_view(root: Path, expected: str, mounts: list[Path]) -> None:
         for path, mode in spine_modes.items():
             path.chmod(mode)
         _seal_snapshot_root(root)
+        # Do not recurse: sibling bind mounts must retain their writable state.
+        if ancestor != root:
+            _seal_snapshot_root(ancestor, recursive=False)
     finally:
         os.close(source_fd)
         for _, descriptor, _, _ in branches:
@@ -1201,10 +1213,26 @@ def _snapshot_worker(stream) -> None:
         if request.get("finish"):
             return
         try:
+            output = request.get("build_output")
+            if output is not None and os.path.lexists(output):
+                raise ExpectedMaterializationError("snapshot build output already exists")
             result = subprocess.run(request["argv"], cwd=request["cwd"], env=request["env"],
                                     timeout=request["timeout_s"], capture_output=True, text=True)
+            binary_digest = None
+            if output is not None and result.returncode == 0:
+                # A successful no-op cannot claim a pre-existing binary. Open
+                # without following links and hash this command's fresh output.
+                fd = os.open(output, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+                with os.fdopen(fd, "rb") as binary:
+                    if not stat.S_ISREG(os.fstat(binary.fileno()).st_mode):
+                        raise ExpectedMaterializationError("snapshot build output is not regular")
+                    digest = hashlib.sha256()
+                    for block in iter(lambda: binary.read(1024 * 1024), b""):
+                        digest.update(block)
+                    binary_digest = digest.hexdigest()
             _send_snapshot_message(stream, {"returncode": result.returncode,
-                                           "stdout": result.stdout, "stderr": result.stderr})
+                                           "stdout": result.stdout, "stderr": result.stderr,
+                                           "binary_sha256": binary_digest})
         except subprocess.TimeoutExpired:
             # Exit the worker: the supervisor now owns and kills all descendants.
             raise ExpectedMaterializationError("snapshot command timed out")
@@ -1230,12 +1258,18 @@ def _snapshot_supervisor(connection, root: Path, expected: str) -> None:
         _linux_call(157, 36, 1, 0, 0, 0)  # PR_SET_CHILD_SUBREAPER
         worker = os.fork()
         if worker == 0:
+            worker_code = 1
             try:
                 _snapshot_worker(stream)
-                os._exit(0)
+                worker_code = 0
             except BaseException as exc:
-                _send_snapshot_message(stream, {"error": str(exc)})
-                os._exit(1)
+                try:
+                    _send_snapshot_message(stream, {"error": str(exc)})
+                except BaseException:
+                    pass
+            finally:
+                # Even EOF followed by EPIPE must never reach supervisor cleanup.
+                os._exit(worker_code)
         _, status = os.waitpid(worker, 0)
         worker = None
         _reap_snapshot_descendants()
@@ -1267,6 +1301,75 @@ def _snapshot_supervisor(connection, root: Path, expected: str) -> None:
         os._exit(code)
 
 
+def _snapshot_guardian(connection, root: Path, expected: str) -> None:
+    """Parent-side alternate owner, outside the supervisor's mount namespace.
+
+    This dedicated subreaper owns only this session. Even SIGKILL of the mount
+    supervisor reparents its detached descendants here, before we report exit.
+    """
+    code = 1
+    supervisor = None
+    try:
+        _linux_call(157, 36, 1, 0, 0, 0)
+        # Publish the supervisor pid before allowing namespace setup to start.
+        reader, writer = os.pipe()
+        supervisor = os.fork()
+        if supervisor == 0:
+            os.close(writer)
+            try:
+                if os.read(reader, 1) != b"G":
+                    os._exit(1)
+                os.close(reader)
+                _snapshot_supervisor(connection, root, expected)
+            finally:
+                os._exit(1)
+        os.close(reader)
+        stream = connection.makefile("rw")
+        _send_snapshot_message(stream, {"supervisor": supervisor})
+        os.write(writer, b"G")
+        os.close(writer)
+        _, status = os.waitpid(supervisor, 0)
+        supervisor = None
+        _reap_snapshot_descendants()
+        code = 0 if os.waitstatus_to_exitcode(status) == 0 else 1
+    except BaseException:
+        pass
+    finally:
+        if supervisor is not None:
+            try:
+                os.kill(supervisor, signal.SIGKILL)
+                _wait_snapshot_pid(supervisor, _SNAPSHOT_REAP_TIMEOUT_S)
+            except (OSError, ExpectedMaterializationError):
+                pass
+        try:
+            _reap_snapshot_descendants()
+        except BaseException:
+            code = 1
+        os._exit(code)
+
+
+def _wait_snapshot_pid(pid: int, timeout_s: float) -> int:
+    deadline = time.monotonic() + timeout_s
+    while True:
+        found, status = os.waitpid(pid, os.WNOHANG)
+        if found:
+            return status
+        if time.monotonic() >= deadline:
+            raise ExpectedMaterializationError("snapshot process wait timed out")
+        time.sleep(min(0.01, max(0, deadline - time.monotonic())))
+
+
+def _prepare_snapshot_shared_directories(root: Path, directories) -> tuple[Path, ...]:
+    prepared = []
+    for directory in directories:
+        shared = Path(directory).resolve()
+        if shared == root or root in shared.parents or shared in root.parents:
+            raise ExpectedMaterializationError("shared directory overlaps source spine")
+        shared.mkdir(parents=True, exist_ok=True)
+        prepared.append(shared)
+    return tuple(prepared)
+
+
 class SealedBuildSession:
     """One sealed source session; issue is available only after context exit.
 
@@ -1289,14 +1392,23 @@ class SealedBuildSession:
         self._completed = False
         self._defer_completion = False
         self._ran = False
+        self._build_binary_sha256 = None
+        self._supervisor_pid = None
+        self._supervisor_pidfd = None
         self._owner = os.getpid()
         self._permission_state = None
         self._root = None
         self._root_identity = None
+        self._shared_directories = ()
 
-    def _start(self, root: Path) -> None:
+    def _start(self, root: Path, *, shared_directories=()) -> None:
         if self._finished or self._invalid or self._root is not None:
             raise ExpectedMaterializationError("snapshot session cannot restart")
+        if root != root.resolve(strict=True):
+            raise ExpectedMaterializationError("snapshot source path must be canonical")
+        # Callers must name cache/base roots which may not yet exist. Preparing
+        # them before the fork makes later staging creation visible on both sides.
+        self._shared_directories = _prepare_snapshot_shared_directories(root, shared_directories)
         self._root = root
         self._root_identity = _root_identity(root)
         self._permission_state = make_snapshot_non_writable(root)
@@ -1315,30 +1427,62 @@ class SealedBuildSession:
             raise
         if pid == 0:
             parent.close()
-            _snapshot_supervisor(child, root, self.source_snapshot_sha256)
+            _snapshot_guardian(child, root, self.source_snapshot_sha256)
             os._exit(1)
         child.close()
         self._pid = pid
         self._connection = parent
-        parent.settimeout(60)
+        parent.settimeout(_SNAPSHOT_READY_TIMEOUT_S)
         self._stream = parent.makefile("rw")
+        ownership = _read_snapshot_message(self._stream)
+        if set(ownership) != {"supervisor"} or type(ownership["supervisor"]) is not int:
+            raise ExpectedMaterializationError("snapshot ownership missing")
+        self._supervisor_pid = ownership["supervisor"]
+        self._supervisor_pidfd = os.pidfd_open(self._supervisor_pid)
         if _read_snapshot_message(self._stream) != {"ready": True}:
             raise ExpectedMaterializationError("snapshot did not become ready")
 
-    def run(self, argv, *, cwd, env, timeout_s) -> subprocess.CompletedProcess[str]:
+    def run(self, argv, *, cwd, env, timeout_s,
+            build_output=None) -> subprocess.CompletedProcess[str]:
+        """Run a command, optionally declaring the fresh binary it will build.
+
+        The trusted producer identifies the build command and its output; the
+        worker requires successful execution and a newly created regular file,
+        and hashes it before replying. This is not compiler instrumentation.
+        Configure/inspection commands must omit build_output.
+        """
         if (self._invalid or self._finished or self._stream is None
                 or self._owner != os.getpid()):
             raise ExpectedMaterializationError("snapshot session cannot run")
         try:
             self._connection.settimeout(None if timeout_s is None else timeout_s + 15)
             args = [os.fspath(arg) for arg in argv]
+            command_cwd = os.getcwd() if cwd is None else os.path.abspath(os.fspath(cwd))
+            command_env = dict(os.environ if env is None else env)
+            # If source lives below /tmp, that directory is part of the private
+            # spine too. Compiler temporary files belong on a shared writable
+            # branch, just like staging; do not let this seal break the build.
+            temporary = Path(command_env.get("TMPDIR", "/tmp")).resolve()
+            if self._shared_directories and temporary in self._root.parents:
+                command_env["TMPDIR"] = os.fspath(self._shared_directories[0])
+            output = None
+            if build_output is not None:
+                output_path = Path(build_output)
+                if not output_path.is_absolute():
+                    output_path = Path(command_cwd) / output_path
+                output = os.fspath(output_path)
             _send_snapshot_message(self._stream, {
                 "argv": args,
-                "cwd": os.getcwd() if cwd is None else os.path.abspath(os.fspath(cwd)),
-                "env": dict(os.environ if env is None else env), "timeout_s": timeout_s,
+                "build_output": output,
+                "cwd": command_cwd,
+                "env": command_env, "timeout_s": timeout_s,
             })
             result = _read_snapshot_message(self._stream)
             self._ran = True
+            if output is not None:
+                self._build_binary_sha256 = (
+                    result["binary_sha256"] if result["returncode"] == 0 else None
+                )
             return subprocess.CompletedProcess(args, result["returncode"],
                                                result["stdout"], result["stderr"])
         except BaseException:
@@ -1351,7 +1495,7 @@ class SealedBuildSession:
         try:
             if self._stream is None:
                 raise ExpectedMaterializationError("snapshot never started")
-            self._connection.settimeout(30)
+            self._connection.settimeout(_SNAPSHOT_FINISH_TIMEOUT_S)
             if not self._invalid:
                 _send_snapshot_message(self._stream, {"finish": True})
                 result = _read_snapshot_message(self._stream)
@@ -1360,7 +1504,7 @@ class SealedBuildSession:
             else:
                 # EOF ends the worker and lets the supervisor reap/unmount normally.
                 self._connection.shutdown(socket.SHUT_RDWR)
-            _, status = os.waitpid(self._pid, 0)
+            status = _wait_snapshot_pid(self._pid, _SNAPSHOT_REAP_TIMEOUT_S)
             self._pid = None
             if self._invalid or os.waitstatus_to_exitcode(status) != 0:
                 raise ExpectedMaterializationError("snapshot session failed")
@@ -1382,11 +1526,27 @@ class SealedBuildSession:
                         cleanup_error = exc
             if self._pid is not None:
                 try:
-                    os.waitpid(self._pid, 0)
-                except OSError as exc:
+                    # Kill the mount supervisor, not its alternate reaper.
+                    # pidfd avoids signalling a recycled pid after abnormal exit.
+                    if self._supervisor_pidfd is not None:
+                        try:
+                            signal.pidfd_send_signal(self._supervisor_pidfd, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                    # A stopped alternate reaper must be allowed to finish its
+                    # own cleanup. This pid is still our unreaped direct child.
+                    try:
+                        os.kill(self._pid, signal.SIGCONT)
+                    except ProcessLookupError:
+                        pass
+                    _wait_snapshot_pid(self._pid, _SNAPSHOT_REAP_TIMEOUT_S)
+                except (OSError, ExpectedMaterializationError) as exc:
                     cleanup_error = exc
                 finally:
                     self._pid = None
+            if self._supervisor_pidfd is not None:
+                os.close(self._supervisor_pidfd)
+                self._supervisor_pidfd = None
             try:
                 if self._root is not None:
                     _assert_root_identity(self._root, self._root_identity, stage="after-build")
@@ -1415,7 +1575,12 @@ class SealedBuildSession:
             raise ExpectedMaterializationError("snapshot session is not complete")
         if type(kind) is not SealedSnapshotProtectionKind:
             raise ExpectedMaterializationError("snapshot protection kind must be exact enum")
-        if ((kind is SealedSnapshotProtectionKind.SEALED_BUILD) != self._ran):
+        if kind is SealedSnapshotProtectionKind.SEALED_BUILD:
+            if self._build_binary_sha256 is None:
+                raise ExpectedMaterializationError("snapshot protection kind differs from execution")
+            if binary_sha256 != self._build_binary_sha256:
+                raise ExpectedMaterializationError("snapshot build binary binding mismatch")
+        elif self._ran:
             raise ExpectedMaterializationError("snapshot protection kind differs from execution")
         if not _is_sha256(binary_sha256) or not _is_sha256(compiler_input_manifest_sha256):
             raise ExpectedMaterializationError("snapshot capability digest is invalid")
@@ -1426,7 +1591,12 @@ class SealedBuildSession:
             compiler_input_manifest_sha256=compiler_input_manifest_sha256,
             _seal=_CAPABILITY_SEAL,
         )
-        _ISSUED_SNAPSHOT_CAPABILITIES[id(value)] = (value, os.getpid())
+        identity = id(value)
+        def discard(reference):
+            record = _ISSUED_SNAPSHOT_CAPABILITIES.get(identity)
+            if record is not None and record[0] is reference:
+                del _ISSUED_SNAPSHOT_CAPABILITIES[identity]
+        _ISSUED_SNAPSHOT_CAPABILITIES[identity] = (weakref.ref(value, discard), os.getpid())
         return value
 
 
@@ -1434,7 +1604,7 @@ class SealedBuildSession:
 def sealed_build_session(
         *, ccbench_commit: str, configuration: str,
         declaration: Mapping[str, object], snapshot_root: os.PathLike[str] | str,
-        genome, prepared_src_token: str, cxx: str,
+        genome, prepared_src_token: str, cxx: str, shared_directories,
 ) -> Iterator[SealedBuildSession]:
     """Add a private sealed view to the existing parent-side admission protocol.
 
@@ -1442,8 +1612,14 @@ def sealed_build_session(
     all remain in the parent. The supervisor only mounts and cleans up; compiler
     execution occurs in its capability-free, seccomp-filtered child. No capability
     is issued until both this context and the nested admission context succeed.
+    shared_directories must include the resolved cache root and any not-yet-created
+    shared dependency base. They are prepared before admission removes write bits.
     """
     session = None
+    root = Path(snapshot_root).absolute()
+    if root != root.resolve(strict=True):
+        raise ExpectedMaterializationError("snapshot source path must be canonical")
+    shared_directories = _prepare_snapshot_shared_directories(root, shared_directories)
     try:
         with admitted_build_snapshot(
             ccbench_commit=ccbench_commit, configuration=configuration,
@@ -1455,7 +1631,7 @@ def sealed_build_session(
             # Even an explicit early _finish cannot issue before it restores them.
             session._defer_completion = True
             try:
-                session._start(Path(snapshot_root).absolute())
+                session._start(root, shared_directories=shared_directories)
                 yield session
             finally:
                 session._finish()

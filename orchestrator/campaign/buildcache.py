@@ -2285,13 +2285,20 @@ class _PendingV2Publication:
     claim: str
     published: bool = False
 
-    def publish(self, capability: s8b_expected_materialization.SealedSnapshotCapability) -> BuildResult:
-        # Only build_v2 calls this, with session.issue's completed capability.
+    def _verify_publish_entries(self) -> None:
         self.copied.verify_destination_entry()
         _verify_directory_entry(
             self.parent_fd, self.clean_name, self.clean_fd, self.clean_identity,
             label="v2 clean publish candidate",
         )
+        if _entry_lexists_at(self.parent_fd, self.bdir_name):
+            raise BuildCacheError(
+                f"v2 publish 先が rename 直前に出現した: {self.result.build_dir}"
+            )
+
+    def publish(self, capability: s8b_expected_materialization.SealedSnapshotCapability) -> BuildResult:
+        # Only build_v2 calls this, with session.issue's completed capability.
+        self._verify_publish_entries()
         if _full_sha256_fd(self.copied.destination_fd, self.result.binary) != self.result.bin_sha256:
             raise BuildCacheError("v2 pending binary changed before publish")
         self.completion["source_protection"] = {
@@ -2304,15 +2311,7 @@ class _PendingV2Publication:
         _write_fsynced_json_at(self.clean_fd, _V2_COMPLETION_MANIFEST, self.completion)
         self.copied.fsync_directories()
         os.fsync(self.clean_fd)
-        self.copied.verify_destination_entry()
-        _verify_directory_entry(
-            self.parent_fd, self.clean_name, self.clean_fd, self.clean_identity,
-            label="v2 clean publish candidate",
-        )
-        if _entry_lexists_at(self.parent_fd, self.bdir_name):
-            raise BuildCacheError(
-                f"v2 publish 先が rename 直前に出現した: {self.result.build_dir}"
-            )
+        self._verify_publish_entries()
         try:
             os.rename(
                 self.clean_name, self.bdir_name,
@@ -2325,16 +2324,55 @@ class _PendingV2Publication:
         _release_v2_claim(self.claim, self.parent, parent_fd=self.parent_fd)
         return self.result
 
+    def _discard_held_candidate(self) -> None:
+        # A renamed candidate is still this directory, even outside self.parent.
+        # Walk through held fds; never follow a replacement at self.clean.
+        def empty(fd):
+            for name in os.listdir(fd):
+                entry = os.stat(name, dir_fd=fd, follow_symlinks=False)
+                if stat.S_ISDIR(entry.st_mode):
+                    child = _open_checked_directory_at(fd, name, label="discard candidate")
+                    try:
+                        empty(child)
+                        _verify_directory_entry(fd, name, child, entry,
+                                                label="discard candidate")
+                        os.rmdir(name, dir_fd=fd)
+                    finally:
+                        os.close(child)
+                else:
+                    os.unlink(name, dir_fd=fd)
+
+        empty(self.clean_fd)
+        actual_parent = os.open("..", _secure_dir_flags(), dir_fd=self.clean_fd)
+        try:
+            for name in os.listdir(actual_parent):
+                entry = os.stat(name, dir_fd=actual_parent, follow_symlinks=False)
+                if _stat_identity(entry) == _stat_identity(self.clean_identity):
+                    _verify_directory_entry(actual_parent, name, self.clean_fd,
+                                            self.clean_identity, label="discard candidate")
+                    os.rmdir(name, dir_fd=actual_parent)
+                    break
+            else:
+                if os.fstat(self.clean_fd).st_nlink:
+                    raise BuildCacheError("held candidate directory could not be removed")
+        finally:
+            os.close(actual_parent)
+
     def close(self) -> None:
+        if self.clean_fd < 0:
+            return
         try:
             if not self.published:
-                _discard_build_candidates(self.clean)
-                # Preserve the existing failure-claim policy: no automatic retry
-                # of this identity after an interrupted/failed publication.
+                self._discard_held_candidate()
+                # Preserve the failure claim: no automatic retry of this key.
         finally:
-            _close_fds_best_effort(
-                self.copied._owned_fds() + [self.clean_fd, self.parent_fd]
-            )
+            fds = self.copied._owned_fds() + [self.clean_fd, self.parent_fd]
+            # Relinquish numbers before closing: even a failed close is not retried.
+            self.clean_fd = self.parent_fd = -1
+            self.copied.source_fd = self.copied.destination_fd = -1
+            self.copied.destination_parent_fd = -1
+            self.copied.directory_fds = []
+            _close_fds_best_effort(fds)
 
 
 def _build_v2_impl(
@@ -2342,6 +2380,7 @@ def _build_v2_impl(
         build_context: BuildRunContext, source_evidence: SourceEvidence,
         source_snapshot_sha256: Optional[str] = None,
         sealed_session: Optional[s8b_expected_materialization.SealedBuildSession] = None,
+        pending_publications: Optional[list[_PendingV2Publication]] = None,
         expected_materialization_sha256: Optional[str] = None,
         allow_external_compiler_inputs: bool = False,
         expected_evolve_block_sources: Optional[Mapping[str, str]] = None,
@@ -2664,6 +2703,7 @@ def _build_v2_impl(
     )
     parent_fd = _open_or_create_directory_path(parent)
     transferred = False
+    pending = None
     try:
         claim_name = os.path.basename(claim)
         bdir_name = os.path.basename(bdir)
@@ -3055,6 +3095,8 @@ def _build_v2_impl(
                     compiler_input_dependency_prefix_roots,
                     post_oracle_binding,
                 )
+                if pending_publications is None:
+                    raise BuildCacheError("sealed publication requires a caller-owned cleanup list")
                 pending = _PendingV2Publication(
                     result, completion, parent_fd, clean_fd, clean_identity,
                     copied, parent, clean, clean_name, bdir_name, claim,
@@ -3064,6 +3106,9 @@ def _build_v2_impl(
                 closing_staging_fd = staging_fd
                 staging_fd = -1
                 os.close(closing_staging_fd)
+                # Register while the callee still owns cleanup. The caller's
+                # finally can now recover even if return/assignment is interrupted.
+                pending_publications.append(pending)
                 transferred = True
                 return pending
             try:
@@ -3083,15 +3128,22 @@ def _build_v2_impl(
                 raise
             _discard_build_candidates(*(
                 path for created, path in (
-                    (staging_created, staging), (clean_created, clean),
+                    (staging_created, staging), (clean_created and pending is None, clean),
                 ) if created
             ))
             raise
         finally:
-            owned_fds = [staging_fd] if transferred else [staging_fd, clean_fd]
-            if copied is not None and not transferred:
-                owned_fds = copied._owned_fds() + owned_fds
-            _close_fds_best_effort(owned_fds)
+            if pending is not None:
+                try:
+                    if not transferred:
+                        pending.close()
+                finally:
+                    _close_fds_best_effort([staging_fd])
+            else:
+                owned_fds = [staging_fd, clean_fd]
+                if copied is not None:
+                    owned_fds = copied._owned_fds() + owned_fds
+                _close_fds_best_effort(owned_fds)
 
         binary = os.path.join(bdir, binary_relpath)
         return _v2_result(
@@ -3109,7 +3161,7 @@ def _build_v2_impl(
             post_oracle_binding,
         )
     finally:
-        if not transferred:
+        if pending is None:
             os.close(parent_fd)
 
 
@@ -3234,6 +3286,7 @@ def build_v2(
         )
 
     sub = ccbench_dir or _ccbench_dir()
+    pending_publications: list[_PendingV2Publication] = []
     pending = None
     try:
         with s8b_expected_materialization.sealed_build_session(
@@ -3254,6 +3307,7 @@ def build_v2(
                 genome,
                 source_snapshot_sha256=admitted.source_snapshot_sha256,
                 sealed_session=admitted,
+                pending_publications=pending_publications,
                 expected_materialization_sha256=admitted.expected_materialization_sha256,
                 allow_external_compiler_inputs=True,
                 expected_evolve_block_sources=(
@@ -3285,8 +3339,8 @@ def build_v2(
             f"{type(exc).__name__}: {exc}"
         ) from exc
     finally:
-        if pending is not None:
-            pending.close()
+        for owned in pending_publications:
+            owned.close()
 
 
 def build(genome: Genome, ccbench_commit: str, trace: bool,

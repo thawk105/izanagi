@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from orchestrator.tests.s8b_v2_freeze_fixture import in_sealed_fixture_process
+from orchestrator.tests.s8b_v2_freeze_fixture import run_sealed_fixture_case
 
 import copy
 import hashlib
@@ -149,11 +149,14 @@ def _honest_record(
     snapshot_sha = _EXPECTED_MATERIALIZATION_SHA
     if issuer is not None or before_issue is not None or not provide_dependency_context:
         issue = A.issue_binary_admission_receipt if issuer is None else issuer
-        protection = sealed_source_protection_fixture(
-            source=source, binary_sha256=binary_sha,
-            compiler_input_manifest_sha256=compiler_input_manifest_sha256,
-        )
-        snapshot_sha = protection.source_snapshot_sha256
+        protection = None
+        # Live-material negative cases reject before capability validation.
+        if issuer is not None:
+            protection = sealed_source_protection_fixture(
+                source=source, binary_sha256=binary_sha,
+                compiler_input_manifest_sha256=compiler_input_manifest_sha256,
+            )
+            snapshot_sha = protection.source_snapshot_sha256
         extra = {
             "source_protection": protection,
             "current_compiler_input_masstree_root": current_masstree_root,
@@ -220,14 +223,42 @@ def _validate(
     )
 
 
-@in_sealed_fixture_process
-def test_issue_and_validate_binary_admission_receipt_round_trip(tmp_path: Path):
-    record = _honest_record(tmp_path, issuer=A.issue_binary_admission_receipt)
+def _issued_receipt_and_pickle_control(tmp_path):
+    """One real session covers successful issuance and the reconstructed negative."""
+    def issue_with_pickle_control(**arguments):
+        original = arguments["source_protection"]
+        reconstructed = pickle.loads(pickle.dumps(original))
+        assert type(reconstructed) is type(original)
+        assert reconstructed is not original
+        with pytest.raises(A.BinaryAdmissionError, match="source protection capability") as caught:
+            A.issue_binary_admission_receipt(
+                **{**arguments, "source_protection": reconstructed},
+            )
+        rejection.append(str(caught.value))
+        return A.issue_binary_admission_receipt(**arguments)
+
+    rejection = []
+    record = _honest_record(tmp_path, issuer=issue_with_pickle_control)
+    assert _validate(record) == record["admission_receipt"]
+    assert set(record) == set(A.PORTABLE_BUILT_KEYS)
+    return {"record": record, "pickle_rejection": rejection[0]}
+
+
+@pytest.fixture(scope="module")
+def issued_receipt_control(tmp_path_factory):
+    # One session per participating worker; at most two workers use this fixture.
+    return run_sealed_fixture_case(
+        __name__, "_issued_receipt_and_pickle_control",
+        tmp_path_factory.mktemp("binary-admission-issuer"),
+    )
+
+
+def test_issue_and_validate_binary_admission_receipt_round_trip(issued_receipt_control):
+    record = issued_receipt_control["record"]
     assert _validate(record) == record["admission_receipt"]
     assert set(record) == set(A.PORTABLE_BUILT_KEYS)
 
 
-@in_sealed_fixture_process
 def test_issue_v2_receipt_rechecks_current_fetchcontent_root(
         tmp_path: Path, monkeypatch):
     original_validate = A.s8b_compiler_input.validate_compiler_input_manifest
@@ -271,7 +302,6 @@ def test_issue_v2_receipt_rechecks_current_fetchcontent_root(
         )
 
 
-@in_sealed_fixture_process
 def test_issue_v3_receipt_rechecks_current_dependency_prefix_roots(
         tmp_path: Path):
     def drift(root):
@@ -286,7 +316,6 @@ def test_issue_v3_receipt_rechecks_current_dependency_prefix_roots(
 
 
 @pytest.mark.parametrize("mutation", ["missing", "ambiguous"])
-@in_sealed_fixture_process
 def test_issue_v3_receipt_rejects_missing_and_ambiguous_dependency_root(
         tmp_path: Path, mutation):
     def mutate(root):
@@ -307,7 +336,6 @@ def test_issue_v3_receipt_rejects_missing_and_ambiguous_dependency_root(
         )
 
 
-@in_sealed_fixture_process
 def test_issue_v3_receipt_rejects_unpresented_dependency_context(tmp_path: Path):
     with pytest.raises(A.BinaryAdmissionError, match="compiler input manifest"):
         _honest_record(
@@ -693,18 +721,9 @@ def test_issuer_requires_source_protection_argument(tmp_path):
         A.issue_binary_admission_receipt(**arguments)
 
 
-@in_sealed_fixture_process
-def test_issuer_rejects_pickle_reconstruction_of_issued_capability(tmp_path):
-    def reconstructed_issuer(**arguments):
-        original = arguments["source_protection"]
-        reconstructed = pickle.loads(pickle.dumps(original))
-        assert type(reconstructed) is type(original)
-        assert reconstructed is not original
-        arguments["source_protection"] = reconstructed
-        return A.issue_binary_admission_receipt(**arguments)
-
-    with pytest.raises(A.BinaryAdmissionError, match="source protection capability"):
-        _honest_record(tmp_path, issuer=reconstructed_issuer)
+def test_issuer_rejects_pickle_reconstruction_of_issued_capability(issued_receipt_control):
+    # The child checked exact type, distinct identity, and the real issuer error.
+    assert "source protection capability" in issued_receipt_control["pickle_rejection"]
 
 
 if __name__ == "__main__":

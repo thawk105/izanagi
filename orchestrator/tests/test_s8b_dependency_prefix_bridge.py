@@ -2,7 +2,9 @@
 """Runtime dependency-prefix roots bridge from floor build to real issuer."""
 from __future__ import annotations
 
-from orchestrator.tests.s8b_v2_freeze_fixture import in_sealed_fixture_process
+from orchestrator.tests.s8b_v2_freeze_fixture import (
+    in_fresh_sealed_fixture_process, sealed_source_protection_fixture,
+)
 
 import hashlib
 import json
@@ -71,17 +73,22 @@ def _dependency_build(
             manifest, ensure_ascii=True, sort_keys=True,
             separators=(",", ":"),
         ).encode("utf-8")).hexdigest()
-        result.source_protection = fixture.sealed_source_protection_fixture(
-            source=kwargs["source_evidence"], binary_sha256=result.bin_sha256,
-            compiler_input_manifest_sha256=result.compiler_input_manifest_sha256,
-        )
+        if reported_roots:
+            result.source_protection = sealed_source_protection_fixture(
+                source=kwargs["source_evidence"], binary_sha256=result.bin_sha256,
+                compiler_input_manifest_sha256=result.compiler_input_manifest_sha256,
+            )
+            result.source_snapshot_sha256 = result.source_protection.source_snapshot_sha256
+            result.expected_materialization_sha256 = (
+                result.source_protection.expected_materialization_sha256
+            )
         result.compiler_input_dependency_prefix_roots = reported_roots
         return result
 
     return build, dependency_root.resolve()
 
 
-@in_sealed_fixture_process
+@in_fresh_sealed_fixture_process
 def test_build_cells_passes_build_result_dependency_roots_to_real_receipt_issuer(
         tmp_path, monkeypatch):
     _install_floor_seams(monkeypatch)
@@ -123,7 +130,6 @@ def test_build_cells_passes_build_result_dependency_roots_to_real_receipt_issuer
     assert str(dependency_root) not in json.dumps(receipt, sort_keys=True)
 
 
-@in_sealed_fixture_process
 def test_build_cells_real_receipt_issuer_rejects_wrong_dependency_root_context(
         tmp_path, monkeypatch):
     _install_floor_seams(monkeypatch)
