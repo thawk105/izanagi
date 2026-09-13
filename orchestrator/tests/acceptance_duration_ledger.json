@@ -1,5 +1,6 @@
 {
   "duration_seconds_by_nodeid": {
+    "orchestrator/tests/test_pegasus_calibration_workload.py::test_calibrator_uses_smoke_checked_interpreter_selected_before_call": 0.003,
     "orchestrator/tests/test_axis_b5_search_executor.py::test_arxiv_media_type_parameters_are_ignored_and_malformed_is_unreachable": 0.001,
     "orchestrator/tests/test_axis_b5_search_executor.py::test_condition2_checks_position_only_not_short_page_count": 0.001,
     "orchestrator/tests/test_axis_b5_search_executor.py::test_condition3_accepts_normal_partial_final_despite_capacity_echo": 0.002,
@@ -245,7 +246,6 @@
     "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[serialize]": 0.008,
     "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_save_exception_preserves_rejection[write]": 0.008,
     "orchestrator/tests/test_paper_story_a1_paired.py::test_a1_detail_success_and_omitted_root_have_no_side_effects": 0.008,
-    "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_condition_gate_receives_the_same_fetchcontent_tokens": 0.017,
     "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_configure_use_site_passes_the_complete_configure_argv": 0.011,
     "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[mocc]": 0.007,
     "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[silo]": 0.009,
@@ -257,7 +257,6 @@
     "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[googletest]": 0.47,
     "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[masstree]": 0.46,
     "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[mimalloc]": 0.46,
-    "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_keeps_backoff_fixed_and_condition_gate_silo_only": 0.019,
     "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[mocc]": 0.006,
     "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[tictoc]": 0.006,
     "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_offline_configure_resolves_three_local_sources_and_fails_without_each": 2.3,
@@ -271,7 +270,6 @@
     "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_accepts_real_cache_name_with_distinct_axis_values": 0.001,
     "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name": 0.001,
     "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_unmapped_cicada_suffix_alias": 0.001,
-    "orchestrator/tests/test_pegasus_calibration_workload.py::test_condition_gate_uses_smoke_checked_interpreter_selected_before_call": 0.001,
     "orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract": 0.011,
     "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_keeps_unknown_axis_identity_fallback": 0.001,
     "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[cicada]": 0.001,
@@ -23050,7 +23048,7 @@
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]": 0.0,
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected": 0.0
   },
-  "nodeid_count": 23049,
+  "nodeid_count": 23047,
   "schema_version": 1,
   "unit": "seconds"
 }
