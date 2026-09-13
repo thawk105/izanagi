@@ -4708,6 +4708,126 @@ def test_subreaper_reclaims_detached_grandchild_and_its_child(tmp_path, capfd):
                     pass
 
 
+@pytest.mark.parametrize("direct_only_wait", [False, True])
+def test_subreaper_reaps_dead_orphan_while_direct_child_lives(
+    tmp_path, monkeypatch, direct_only_wait,
+):
+    # The second case restores the faulty wait as a real-process negative
+    # control: the orphan must then remain Z until the direct child exits.
+    if direct_only_wait:
+        original = DC._ISOLATED_CHILD_BOOTSTRAP
+        mutated = original.replace(
+            "waited_pid, wait_status = os.waitpid(-1, 0)",
+            "waited_pid, wait_status = os.waitpid(child_pid, 0)",
+        )
+        assert mutated != original
+        monkeypatch.setattr(DC, "_ISOLATED_CHILD_BOOTSTRAP", mutated)
+    report_path = tmp_path / "orphan-observations.json"
+    branch = r'''
+import os, signal
+for _ in range(2):
+    if os.fork() == 0:
+        os.setsid()
+        signal.alarm(30)
+        print(os.getpid(), flush=True)
+        os.close(1)
+        os.close(2)
+        signal.pause()
+        os._exit(7)
+os._exit(0)
+'''
+    source = r'''
+import json, os, signal, subprocess, sys, time
+from pathlib import Path
+
+def stat_fields(pid):
+    try:
+        raw = Path(f"/proc/{pid}/stat").read_text()
+    except FileNotFoundError:
+        return None
+    return raw[raw.rfind(")") + 2:].split()
+
+def gone_by_signal(pid, group=False):
+    try:
+        (os.killpg if group else os.kill)(pid, 0)
+    except ProcessLookupError:
+        return True
+    return False
+
+dead, live = map(int, subprocess.check_output(
+    [sys.executable, "-c", sys.argv[1]], timeout=5, text=True,
+).split())
+supervisor = os.getppid()
+# check_output waited for the intermediate parent, so both leaves are orphans.
+for pid in (dead, live):
+    fields = stat_fields(pid)
+    assert fields is not None and fields[0] != "Z", (pid, fields)
+    assert int(fields[1]) == supervisor, (pid, fields, supervisor)
+# Establish a dead orphan independently of inherited signal dispositions/masks.
+# SIGTERM left this fixture sleeping until the observation timed out under PBS.
+# SIGKILL cannot be ignored or blocked; it does not reap the resulting zombie.
+os.kill(dead, signal.SIGKILL)
+expected_state = "Z" if sys.argv[3] == "direct-only" else None
+# Signal delivery and exit are asynchronous; wait for the state this case
+# actually requires, and never treat expiry of the watchdog as success.
+deadline = time.monotonic() + 10
+while True:
+    fields = stat_fields(dead)
+    dead_state = None if fields is None else fields[0]
+    if dead_state == expected_state:
+        break
+    remaining = deadline - time.monotonic()
+    assert remaining > 0, (
+        f"orphan state transition timed out after 10s: "
+        f"expected={expected_state!r}, observed={dead_state!r}"
+    )
+    time.sleep(min(0.01, remaining))
+if expected_state == "Z":
+    # The negative control must retain the zombie while this direct child
+    # lives, including a grace interval after first observing its exit.
+    retention_deadline = time.monotonic() + 0.2
+    while True:
+        fields = stat_fields(dead)
+        dead_state = None if fields is None else fields[0]
+        assert dead_state == "Z", (
+            f"orphan did not remain Z: observed={dead_state!r}"
+        )
+        remaining = retention_deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        time.sleep(min(0.01, remaining))
+live_fields = stat_fields(live)
+# Record before this direct child exits: final cleanup cannot satisfy the test.
+Path(sys.argv[2]).write_text(json.dumps({
+    "dead": dead, "live": live,
+    "dead_state": None if fields is None else fields[0],
+    "pid_gone": gone_by_signal(dead),
+    "group_gone": gone_by_signal(dead, group=True),
+    "live_state": None if live_fields is None else live_fields[0],
+    "live_ppid": None if live_fields is None else int(live_fields[1]),
+    "live_signal_exists": not gone_by_signal(live),
+    "supervisor": supervisor,
+}))
+raise SystemExit(23)
+'''
+    request, digest = _write_bound_job_run_request(
+        tmp_path / "submission", repo_root=_REPO, task="generic",
+        args=[sys.executable, "-c", source, branch, str(report_path),
+              "direct-only" if direct_only_wait else "subreaper"],
+    )
+    assert _actual_job_run(request, digest) == 23
+    observed = json.loads(report_path.read_text())
+    assert observed["dead_state"] == ("Z" if direct_only_wait else None)
+    assert observed["pid_gone"] is (not direct_only_wait)
+    assert observed["group_gone"] is (not direct_only_wait)
+    assert observed["live_state"] not in (None, "Z", "X")
+    assert observed["live_ppid"] == observed["supervisor"]
+    assert observed["live_signal_exists"] is True
+    # The live escaped leaf is killed/reaped only after the direct child exits.
+    for pid in (observed["dead"], observed["live"]):
+        assert not Path(f"/proc/{pid}/stat").exists()
+
+
 def test_subreaper_does_not_reclaim_unrelated_process(tmp_path):
     outsider = subprocess.Popen(
         [sys.executable, "-c",

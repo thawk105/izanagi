@@ -334,8 +334,13 @@ os.close(exec_error_fd)
 trace("direct-child-wait-start", child_pid=child_pid)
 while True:
     try:
-        waited_pid, wait_status = os.waitpid(child_pid, 0)
-        break
+        # Reap adopted orphans while the direct child is still running. Waiting
+        # only for child_pid leaves dead orphans visible in /proc and killpg(0).
+        # waitpid does not signal live children; cleanup below starts only once
+        # the direct child's own termination status has been collected.
+        waited_pid, wait_status = os.waitpid(-1, 0)
+        if waited_pid == child_pid:
+            break
     except InterruptedError:
         continue
 if waited_pid != child_pid:
