@@ -12,7 +12,7 @@ CCBench (`external/ccbench` submodule = `thawk105/ccbench`) への Izanagi 由�
 | 診断計器 (例: `BACKOFF_NOINLINE`) | perf 帰属用の計器 (D20 第 5 類)。既定 inert — ただし inert は各 patch が witness (実測・実 TU/binary) で個別に立証する義務であり、default-OFF 構文だけでは導けない | **out-of-tree patch** (このディレクトリ) |
 | mocc 計装 (`instr-mocc-lock-coverage.patch`、mocc の `#if TRACE` lock 被覆・permutation 検査) | Izanagi の verifier 入力 (X/P 行)。D14 契約で perf build から完全除去し、`#line` で TRACE=0 の前処理出力と `.text` を preimage と同一化 | **out-of-tree patch** (preimage = submodule `e9e477ca`。pin 前進 [T-2295] で izanagi-trace 側へ移すかは人間判断) |
 | broken-mocc (わざと壊した mocc 3 本) | mocc 計装の positive control = **テスト用の意図的バグ** | **out-of-tree patch** (このディレクトリ。永久) |
-| 劣化 rung (例: `silo_ladder_rung1`) | **正しさを保ったまま性能だけを意図的に損なう** ability probe (D18 第 4 類 subtype `evaluation_role=ability_probe`)。研究目標に数えず recovery pipeline へ直結しない | **out-of-tree patch** + `ledger.json` 登録必須 |
+| 劣化 rung (例: `silo_ladder_rung1`) | **正しさを保ったまま性能だけを意図的に損なう** ability probe (D18 第 4 類 subtype `evaluation_role=ability_probe`)。研究目標に数えず recovery pipeline へ直結しない | **out-of-tree patch** + `ledger.json` 登録必須 (現行契約は entry 数 1 固定) |
 
 **broken-silo を patch に隔離する理由 (絶対規律2):** 壊した CC をブランチに commit すると
 baseline として誤ビルドされる危険がある。out-of-tree patch なら「赤検出証明をするときだけ
@@ -462,7 +462,10 @@ identity シンボル + REPORT 第 2 マクロ下の per-worker footer)。[T-139
   (correctness/gap-job/collect/verify-result)。通常 campaign・recovery pipeline へ接続しない
 - **`ledger.json`**: 機械可読台帳 (closed schema)。`ability_probe: true` /
   `research_goal_eligible: false` / `projection_policy` (coder/planner 射影からの除外字面) を持ち、
-  新 rung は登録必須。射影 tripwire (`orchestrator/campaign/projection_guard.py`) が
+  新 rung は登録必須。ただし現行契約 (`orchestrator/campaign/silo_ladder_rung1_contract.py`) は
+  entry 数を 1 に固定しており、2 本目の rung を足すだけでは契約検査が違反を記録する —
+  登録は必要条件であって、現行 ledger に新 rung を入れる入口が在るという意味ではない。
+  射影 tripwire (`orchestrator/campaign/projection_guard.py`) が
   3 つの loop loader でこの policy を執行する (字面回帰検知 — origin 保証ではない)
 - 実証 (2026-07-29, request 873917): trace t4 で certified serializable / trace-disabled t48
   N=1m で stock 比 ≈4.4% (W-cal)・≈10.7% (W-hw)、証拠 =
