@@ -47,6 +47,9 @@ from orchestrator.campaign.env_contract import (  # noqa: E402
 from orchestrator.campaign.model import Genome  # noqa: E402
 from orchestrator.campaign.pin import CURRENT_PIN  # noqa: E402
 from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
+from orchestrator.tests.test_s8b_expected_materialization import (  # noqa: E402
+    _SEALED_COMMAND_TIMEOUT_S,
+)
 
 
 _REQUIRED_SECURE_DIR_FD_FUNCTIONS = (
@@ -326,7 +329,9 @@ def _fake_build_environment(
             )
             completed = sealed_session.run(
                 [sys.executable, "-I", "-B", "-c", script],
-                cwd="/", env=env, timeout_s=timeout_s,
+                cwd="/", env=env, timeout_s=(
+                    _SEALED_COMMAND_TIMEOUT_S if timeout_s is None else timeout_s
+                ),
                 **({"build_output": build_output} if build_output is not None else {}),
             )
             assert completed.returncode == 0, completed.stderr
@@ -4189,7 +4194,7 @@ def test_copyout_fresh_publishes_exact_host_set_and_hit_is_executable(
     stat_mode = Path(fresh.binary).stat().st_mode & 0o777
     assert stat_mode == 0o500
     executed = subprocess.run(
-        [fresh.binary], capture_output=True, check=False, timeout=5,
+        [fresh.binary], capture_output=True, check=False, timeout=_SEALED_COMMAND_TIMEOUT_S,
     )
     assert executed.returncode == 0
     assert not fresh.cached and hit.cached
@@ -5635,9 +5640,14 @@ def _qualification_source_attack_starts_and_is_blocked_case(tmp_path):
                 assert observation["status"] == "started"
                 assert observation["source_renamed"] and observation["ancestor_renamed"]
                 # Same reader and pathname outside the protected namespace see B.
-                control = subprocess.run(command, capture_output=True, text=True, check=True)
+                control = subprocess.run(
+                    command, capture_output=True, text=True, check=True,
+                    timeout=_SEALED_COMMAND_TIMEOUT_S,
+                )
                 assert "T1994_ORIGINAL_TREE_B" in control.stdout
-                protected = session.run(command, cwd="/", env=None, timeout_s=5)
+                protected = session.run(
+                    command, cwd="/", env=None, timeout_s=_SEALED_COMMAND_TIMEOUT_S,
+                )
                 assert protected.returncode == 0, protected.stderr
                 attack.record_protection(protected.stdout.strip() == "A")
                 assert observation["status"] == "blocked"
@@ -5745,7 +5755,7 @@ def _real_session_publish_then_hit_issues_distinct_capabilities_case(tmp_path):
                  "from pathlib import Path; import sys; "
                  "assert Path(sys.argv[1]).read_bytes() == b'A'", str(root / "input")],
                 "configure", site=buildcache.site_policy.OTHER,
-                sealed_session=fresh,
+                sealed_session=fresh, timeout_s=_SEALED_COMMAND_TIMEOUT_S,
             )
             # Produce the actual pending bytes in this session. A successful
             # configure/read command alone cannot justify SEALED_BUILD (M-E).
@@ -5758,6 +5768,7 @@ def _real_session_publish_then_hit_issues_distinct_capabilities_case(tmp_path):
                  "output.chmod(0o500)",
                  str(root / "input"), str(output)],
                 "build", site=buildcache.site_policy.OTHER, sealed_session=fresh,
+                timeout_s=_SEALED_COMMAND_TIMEOUT_S,
                 build_output=str(output),
             )
             assert output.read_bytes() == (Path(pending.clean) / "binary").read_bytes()
@@ -5824,6 +5835,7 @@ def _real_session_parent_drift_or_exit_failure_never_publishes_case(tmp_path, at
                      "from pathlib import Path; import sys; "
                      "assert Path(sys.argv[1]).read_bytes() == b'A'", str(root / "input")],
                     "build", site=buildcache.site_policy.OTHER, sealed_session=session,
+                    timeout_s=_SEALED_COMMAND_TIMEOUT_S,
                 )
                 if attack == "persistent-drift":
                     # The real parent gate reads B even though the child reads A.
@@ -5907,7 +5919,8 @@ def _sealed_child_obeys_parent_d1755_protection_without_freezing_base_case(tmp_p
     with _publication_session(root) as session:
         # Same child, same attempted write: succeeds without the D1755 context.
         buildcache._run(command + ["allowed"], "build",
-                        site=buildcache.site_policy.OTHER, sealed_session=session)
+                        site=buildcache.site_policy.OTHER, sealed_session=session,
+                        timeout_s=_SEALED_COMMAND_TIMEOUT_S)
         assert target.read_bytes() == b"B"
         target.write_bytes(b"A")
         (base / "new-entry").unlink()
@@ -5915,7 +5928,8 @@ def _sealed_child_obeys_parent_d1755_protection_without_freezing_base_case(tmp_p
         with sort_swo_dependency_material.protect_post_oracle_dependency_material(
                 dependency, fetchcontent_base_dir=base):
             buildcache._run(command + ["denied"], "build",
-                            site=buildcache.site_policy.OTHER, sealed_session=session)
+                            site=buildcache.site_policy.OTHER, sealed_session=session,
+                            timeout_s=_SEALED_COMMAND_TIMEOUT_S)
             assert target.read_bytes() == b"A"
             assert (base / "new-entry").read_bytes() == b"writable base"
             assert stat.S_IMODE(base.stat().st_mode) == base_mode
@@ -5976,6 +5990,7 @@ def _configure_only_session_cannot_issue_sealed_build_case(tmp_path):
         buildcache._run(
             [sys.executable, "-I", "-B", "-c", "pass"],
             "configure", site=buildcache.site_policy.OTHER, sealed_session=session,
+            timeout_s=_SEALED_COMMAND_TIMEOUT_S,
         )
     with pytest.raises(
             buildcache.s8b_expected_materialization.ExpectedMaterializationError,

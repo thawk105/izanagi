@@ -703,12 +703,37 @@ def _python_command(code, *args):
     return [sys.executable, "-I", "-B", "-c", code, *map(str, args)]
 
 
+# Tiny Python/control/compiler commands use the existing session finish policy,
+# not a measured five-second latency claim. Keep a finite command bound under
+# compute-node load; session.run adds 15 seconds for its response transport.
+_SEALED_COMMAND_TIMEOUT_S = E._SNAPSHOT_FINISH_TIMEOUT_S  # 30 seconds
+# The parent observed SIGTERM/reap exceeding one second on a compute node.
+# No upper latency measurement is available here: adopt the production reap
+# policy (30 seconds), pending the parent's loaded-node acceptance run.
+_SEALED_HELPER_TIMEOUT_S = E._SNAPSHOT_REAP_TIMEOUT_S
+# Current cases open at most four sessions (successful-command/fresh-output
+# rejection case), execute at most seven commands (owner attack: two controls,
+# four protected readers, one compiler), and wait for at most four helper
+# responses/exits (churn: three progress replies and one reap). Sum these maxima
+# rather than putting a single-session deadline around a multi-session case.
+# Each session: ownership + READY, finish, normal reap, fallback reap = 210 s.
+# Commands include run's 15 s response allowance; imports/setup/assertions get
+# one finish budget, as in run_sealed_fixture_case. Total: 1305 seconds.
+_SEALED_CASE_TIMEOUT_S = (
+    4 * (2 * E._SNAPSHOT_READY_TIMEOUT_S + E._SNAPSHOT_FINISH_TIMEOUT_S
+         + 2 * E._SNAPSHOT_REAP_TIMEOUT_S)
+    + 7 * (_SEALED_COMMAND_TIMEOUT_S + 15)
+    + 4 * _SEALED_HELPER_TIMEOUT_S
+    + E._SNAPSHOT_FINISH_TIMEOUT_S
+)
+
+
 def _run_sealed_case(module, case, tmp_path, **parameters):
     """Exec a fresh interpreter: xdist workers may have multiple OS threads.
 
     The case retains every assertion and real protection operation. Only its
     completion report crosses processes; capabilities stay with their issuer.
-    Five seconds follows the existing tiny-session command/control timeout.
+    The finite outer budget includes all session, command and helper waits.
     """
     import json
     import subprocess
@@ -737,18 +762,28 @@ finally:
     print(output.getvalue(), file=sys.stderr, end='')
 print(json.dumps({'case': sys.argv[3], 'completed': True}))
 """
-    result = subprocess.run(
-        [sys.executable, "-E", "-B", "-c", code,
-         str(Path(__file__).resolve().parents[2]),
-         module if module.startswith("orchestrator.tests.") else "orchestrator.tests." + module,
-         case, str(tmp_path), json.dumps(parameters)],
-        capture_output=True, text=True, check=True, timeout=5, start_new_session=True,
-    )
+    try:
+        result = subprocess.run(
+            [sys.executable, "-E", "-B", "-c", code,
+             str(Path(__file__).resolve().parents[2]),
+             module if module.startswith("orchestrator.tests.") else "orchestrator.tests." + module,
+             case, str(tmp_path), json.dumps(parameters)],
+            capture_output=True, text=True, check=True,
+            timeout=_SEALED_CASE_TIMEOUT_S, start_new_session=True,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        raise AssertionError(
+            f"sealed case {module}.{case} failed: {exc}\n"
+            f"stdout:\n{exc.stdout}\nstderr:\n{exc.stderr}"
+        ) from exc
     return json.loads(result.stdout)
 
 
 def _session_python(session, code, *args):
-    return session.run(_python_command(code, *args), cwd="/", env=None, timeout_s=5)
+    return session.run(
+        _python_command(code, *args), cwd="/", env=None,
+        timeout_s=_SEALED_COMMAND_TIMEOUT_S,
+    )
 
 
 def _issue_test_capability(session, *, kind=E.SealedSnapshotProtectionKind.SEALED_BUILD,
@@ -763,7 +798,7 @@ def _tiny_build(session, root):
     binary = root.parent.parent / "cache" / "tiny-binary"
     result = session.run(["c++", str(root / "src/main.cc"), "-o", str(binary)],
                          cwd="/", env=dict(os.environ, TMPDIR=str(binary.parent)),
-                         timeout_s=5, build_output=binary)
+                         timeout_s=_SEALED_COMMAND_TIMEOUT_S, build_output=binary)
     assert result.returncode == 0, result.stderr
     return hashlib.sha256(binary.read_bytes()).hexdigest()
 
@@ -843,7 +878,7 @@ def _sealed_snapshot_owner_chmod_write_erofs_with_writable_control_case(tmp_path
     source = root / "src" / "main.cc"
     original = source.read_bytes()
     control = subprocess.run(_python_command(_SOURCE_ATTACK, source),
-                             capture_output=True, text=True, check=True, timeout=5)
+                             capture_output=True, text=True, check=True, timeout=_SEALED_COMMAND_TIMEOUT_S)
     assert json.loads(control.stdout) == [[0, 0], original.hex(), b"changed".hex()]
     source.write_bytes(original)
     source.chmod(0o644)
@@ -852,7 +887,7 @@ def _sealed_snapshot_owner_chmod_write_erofs_with_writable_control_case(tmp_path
     _write_tree(replacement / root.name)
     (replacement / root.name / "src/main.cc").write_text("B")
     control = subprocess.run(_python_command(_PARENT_ATTACK, root, replacement),
-                             capture_output=True, text=True, check=True, timeout=5)
+                             capture_output=True, text=True, check=True, timeout=_SEALED_COMMAND_TIMEOUT_S)
     assert json.loads(control.stdout) == {"observed": "B"}
     assert source.read_bytes() == original
     namespaces = {name: os.readlink("/proc/self/ns/" + name) for name in ("mnt", "user")}
@@ -934,7 +969,7 @@ pid = os.fork()
 if pid == 0:
     os.execve('/bin/true', ['true'], {})
 assert os.waitstatus_to_exitcode(os.waitpid(pid, 0)[1]) == 0
-"""), capture_output=True, text=True, timeout=5)
+"""), capture_output=True, text=True, timeout=_SEALED_COMMAND_TIMEOUT_S)
         assert result.returncode == 0, result.stderr
         return [write_errno, namespace_errno]
 
@@ -1017,7 +1052,7 @@ while True:
 """, tmp_path), stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
 
     def progress():
-        assert select.select([churn.stdout], [], [], 1)[0], "churn did not respond"
+        assert select.select([churn.stdout], [], [], _SEALED_HELPER_TIMEOUT_S)[0], "churn did not respond"
         return int(churn.stdout.readline())
 
     try:
@@ -1042,7 +1077,7 @@ assert tool.resolve().read_bytes() == b'toolchain-visible'
         _issue_test_capability(session, binary_sha256=binary_sha256)
     finally:
         churn.terminate()
-        churn.wait(timeout=1)
+        churn.wait(timeout=_SEALED_HELPER_TIMEOUT_S)
         churn.stdin.close()
         churn.stdout.close()
 
@@ -1448,7 +1483,7 @@ def _sealed_build_requires_successful_command_and_its_fresh_binary_case(tmp_path
                 result = session.run(_python_command(
                     "from pathlib import Path; import sys; "
                     "Path(sys.argv[1]).write_bytes(b'binary'); raise SystemExit(7)",
-                    failed_binary), cwd="/", env=None, timeout_s=5,
+                    failed_binary), cwd="/", env=None, timeout_s=_SEALED_COMMAND_TIMEOUT_S,
                     build_output=failed_binary)
                 assert failed_binary.read_bytes() == b"binary"
             else:
@@ -1459,7 +1494,7 @@ def _sealed_build_requires_successful_command_and_its_fresh_binary_case(tmp_path
     # Declaring an output does not make a successful no-op into a build.
     with pytest.raises(E.ExpectedMaterializationError):
         with _running_tiny_session(root) as session:
-            session.run(_python_command("pass"), cwd="/", env=None, timeout_s=5,
+            session.run(_python_command("pass"), cwd="/", env=None, timeout_s=_SEALED_COMMAND_TIMEOUT_S,
                         build_output=cache / "missing")
     with pytest.raises(E.ExpectedMaterializationError, match="not complete"):
         _issue_test_capability(session)
@@ -1470,7 +1505,7 @@ def _sealed_build_requires_successful_command_and_its_fresh_binary_case(tmp_path
         with _running_tiny_session(root) as session:
             session.run(_python_command(
                 "from pathlib import Path; import sys; Path(sys.argv[1]).touch()", marker),
-                cwd="/", env=None, timeout_s=5, build_output=binary)
+                cwd="/", env=None, timeout_s=_SEALED_COMMAND_TIMEOUT_S, build_output=binary)
     assert not marker.exists()
     assert binary.read_bytes() == b"binary"
 

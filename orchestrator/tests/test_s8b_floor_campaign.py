@@ -6873,7 +6873,16 @@ def _deterministic_official_artifacts(base: Path) -> dict:
             )
         )
 
+    # This helper also runs via module exec, where pytest's autouse portable
+    # receipt fixture is absent. Supply the same consumer dict at the producer
+    # seam; real portable validation and artifact emission remain exercised.
+    # No capability is constructed and no issuance registry is modified.
     with mock.patch.object(s8b_floor_campaign.buildcache, "build_v2", fake_build), \
+            mock.patch.object(
+                s8b_floor_campaign._binary_admission,
+                "issue_binary_admission_receipt",
+                portable_binary_admission_receipt_fixture,
+            ), \
             mock.patch.object(
                 s8b_floor_campaign, "_bind_current_toolchain",
                 _fixture_toolchain_binding,
