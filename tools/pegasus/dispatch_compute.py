@@ -215,7 +215,6 @@ _ISOLATED_CHILD_BOOTSTRAP = r'''
 import ctypes
 import json
 import os
-import signal
 import subprocess
 import sys
 import time
@@ -269,15 +268,7 @@ def write_mapping(path, text):
         handle.write(text)
 
 
-phase = "outer-subreaper"
 try:
-    # Adopt orphaned descendants even when they leave the child's session.
-    # This process is single-threaded; /proc/.../children names only our children.
-    libc = ctypes.CDLL(None, use_errno=True)
-    if libc.prctl(36, 1, 0, 0, 0) != 0:  # PR_SET_CHILD_SUBREAPER
-        error_number = ctypes.get_errno()
-        raise OSError(error_number, os.strerror(error_number))
-    phase = "outer-mount"
     mount("--make-rprivate", "/")
     ancestor = os.path.dirname(submission_dir)
     ancestors = []
@@ -291,7 +282,7 @@ try:
     child_pid = os.fork()
 except BaseException:
     try:
-        emit("setup-failure", phase=phase)
+        emit("setup-failure", phase="outer-mount")
     finally:
         raise SystemExit(16)
 
@@ -334,45 +325,14 @@ os.close(exec_error_fd)
 trace("direct-child-wait-start", child_pid=child_pid)
 while True:
     try:
-        # Reap adopted orphans while the direct child is still running. Waiting
-        # only for child_pid leaves dead orphans visible in /proc and killpg(0).
-        # waitpid does not signal live children; cleanup below starts only once
-        # the direct child's own termination status has been collected.
-        waited_pid, wait_status = os.waitpid(-1, 0)
-        if waited_pid == child_pid:
-            break
+        waited_pid, wait_status = os.waitpid(child_pid, 0)
+        break
     except InterruptedError:
         continue
 if waited_pid != child_pid:
     emit("status-failure", phase="waitpid")
     raise SystemExit(16)
 trace("direct-child-wait-complete", child_pid=child_pid)
-trace("descendant-reap-start")
-try:
-    while True:
-        with open(f"/proc/self/task/{os.getpid()}/children", encoding="ascii") as handle:
-            remaining = [int(value) for value in handle.read().split()]
-        if not remaining:
-            break
-        for pid in remaining:
-            try:
-                os.kill(pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-        # Killing an adopted parent can hand us more descendants. Re-enumerate
-        # after every reap rather than assuming a single snapshot is the tree.
-        while True:
-            try:
-                reaped_pid, _ = os.waitpid(-1, 0)
-                trace("descendant-reaped", child_pid=reaped_pid)
-                break
-            except InterruptedError:
-                continue
-except BaseException:
-    trace("descendant-reap-failed")
-    emit("status-failure", phase="descendant-reap")
-    raise SystemExit(16)
-trace("descendant-reap-complete")
 emit("wait-status", status=wait_status)
 trace("supervisor-return", rc=0)
 raise SystemExit(0)
