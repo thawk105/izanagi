@@ -46,6 +46,7 @@ _REVIEWED_PERF_FILES = frozenset({
     "orchestrator/calibrator/runner.py",
     "orchestrator/campaign/autonomous_trial_completeness.py",
     "orchestrator/campaign/b10_backoff_shape_sweep.py",
+    "orchestrator/campaign/b10_backoff_static_tail_formal.py",
     # Invokes the certified campaign pipeline, which may launch perf after preflight.
     "orchestrator/campaign/backoff_extended_sweep.py",
     # Consumes producer-recorded perf observations for verdicts; it never launches perf.
@@ -125,6 +126,8 @@ _REVIEWED_PREDICATES = (
     _Predicate("shared", "orchestrator/calibrator/perf_preflight.py",
                "perf_claim_allowed", "validate_perf_observation"),
 
+    _Predicate("R", "orchestrator/campaign/b10_backoff_static_tail_formal.py",
+               "load_formal_campaign", "use_perf_from_receipt"),
     _Predicate("R", "orchestrator/campaign/backoff_extended_sweep.py",
                "_materialize_preflight_stop", "validate_perf_preflight_receipt"),
     _Predicate("R", "orchestrator/campaign/loop.py",

@@ -49,6 +49,9 @@ _DIRECT_SAFE_ALLOWLIST = Counter({
     # Current callers pass only read-only Git worktree identity/status queries;
     # no shell expansion occurs and the argv never names or runs CCBench.
     ("campaign/backoff_extended_sweep.py", "<module>._git_worktree_output"): 1,
+    # Read-only Git root/commit/ancestry/blob/index queries bind formal inputs;
+    # current callers use argv without shell expansion and never run CCBench.
+    ("campaign/b10_backoff_static_tail_formal.py", "<module>._git"): 1,
     # Production passes CALIBRATION_FLAGS, whose frozen read ratio is rr95.
     ("campaign/s1_verify_extime_calibration.py", "<module>._run_once"): 1,
     # Production passes the module-level S2_FLAGS, fixed at rr50.
@@ -81,6 +84,8 @@ _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
 # intentionally a site inventory, not a command-expression heuristic: a new
 # launch must be classified in review before this test can pass.
 _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
+    # Bounded qstat query reads the current job's start and reservation only.
+    ("campaign/b10_backoff_static_tail_formal.py", "<module>.scheduler_coordinates"): 1,
     ("calibrator/cli.py", "<module>._assert_trace_disabled_binary"): 1,
     ("calibrator/perf_preflight.py", "<module>.probe_perf_availability"): 1,
     ("calibrator/runner.py", "<module>.competing_bench_pids"): 1,

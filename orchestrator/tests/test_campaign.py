@@ -5344,6 +5344,7 @@ def test_certified_writer_authorization_caller_inventory_is_closed():
     )
 
     expected_inventory = collections.Counter({
+        ("orchestrator/campaign/b10_backoff_static_tail_formal.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/b10_backoff_shape_sweep.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/backoff_extended_sweep.py", "campaign.loop.run_campaign"): 1,
         ("orchestrator/campaign/backoff_repro.py", "campaign.loop.run_campaign"): 1,
@@ -5367,7 +5368,7 @@ def test_certified_writer_authorization_caller_inventory_is_closed():
         ("orchestrator/qualification/t126_driver.py", "campaign.pipeline.evaluate"): 1,
     })
     assert sum(count for (path, target), count in expected_inventory.items()
-               if target == "campaign.loop.run_campaign") == 20
+               if target == "campaign.loop.run_campaign") == 21
     assert sum(count for (path, target), count in expected_inventory.items()
                if target == "campaign.pipeline.evaluate") == 5
 
@@ -5430,6 +5431,7 @@ def test_certified_writer_authorization_caller_inventory_is_closed():
     # as unrelated.
     campaign_dir = Path(_ORCH) / "campaign"
     expected_run_calls = {
+        "b10_backoff_static_tail_formal.py": 1,
         "backoff_extended_sweep.py": 1,
         "backoff_repro.py": 1, "backoff_sweep.py": 1, "demo.py": 2,
         "p2_2.py": 1, "p3_kickoff.py": 2, "p3_s4_loop.py": 1,
@@ -5456,7 +5458,7 @@ def test_certified_writer_authorization_caller_inventory_is_closed():
                 for keyword in call.keywords)
             for call in calls
         ), name
-    assert sum(expected_run_calls.values()) == 16
+    assert sum(expected_run_calls.values()) == 17
 
     direct_sinks = {
         "loop.py": ("evaluate",),
