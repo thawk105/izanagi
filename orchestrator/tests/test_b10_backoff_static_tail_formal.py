@@ -150,7 +150,8 @@ def test_correctness_accepts_serializable_certified_and_rejects_bad_records(spec
         with pytest.raises(ValueError): formal.correctness_records(spec,bad,"legacy")
 
 
-@pytest.mark.parametrize("p,df,expected",[(0.975,1,12.706204736432095),(0.975,4,2.7764451051977987),(0.975,8,2.306004135204166),(0.99,7.5,2.943099940173)] )
+# df=7.5: independent t-density quadrature and bisection at CDF=0.99.
+@pytest.mark.parametrize("p,df,expected",[(0.975,1,12.706204736432095),(0.975,4,2.7764451051977987),(0.975,8,2.306004135204166),(0.99,7.5,2.9430993234069955)] )
 def test_student_t_independent_reference(p,df,expected):
     assert formal.student_t_quantile(p,df) == pytest.approx(expected,rel=2e-10)
 
@@ -217,6 +218,13 @@ def _emit_campaign(spec,tmp_path,workload,stdout=None):
     # measurement and stability functions before invoking the writer pipeline.
     import test_campaign as fixture
     from orchestrator.calibrator.stability import remeasure_until_stable
+    from orchestrator.calibrator.perf_preflight import probe_perf_availability
+    # Exercise the real unavailable-perf probe in an empty executable search
+    # path. Only this probe sees the PATH change; no perf receipt is fabricated.
+    with pytest.MonkeyPatch.context() as environment:
+        environment.setenv("PATH", "")
+        perf_receipt = probe_perf_availability()
+    assert perf_receipt["status"] == "unavailable"
     fixture._refresh_certified_writer_authority()
     binding = formal.load_preregistration(ROOT,"HEAD")
     cfg = formal.config_for(spec,binding,workload,contract=fixture._AUTH_CONTRACT,ccbench_source_digest="a"*64,toolchain={"fixture":"compiler"},correctness_mode="legacy")
@@ -239,7 +247,7 @@ def _emit_campaign(spec,tmp_path,workload,stdout=None):
                 return runner.measure_point(*args,**kwargs,subprocess_runner=_subprocess_replay(stdout or [raw]*5,seen))
             pipeline.measure_point = measure
             pipeline.remeasure_until_stable = remeasure_until_stable
-            result = pipeline.evaluate(genome,layout,fixture._AUTH_CONTRACT.env_tag,pin_commit(spec),formal.performance_config(spec,workload),clocks_per_us=fixture._AUTH_CONTRACT.clocks_per_us,numactl=fixture._AUTH_CONTRACT.numactl,authorization_contract=fixture._AUTHORIZATION,build_context=fixture._BUILD_CONTEXT,correctness=pipeline.CorrectnessWorkload(reps=spec["execution"]["correctness_reps_per_cell"]),record_rep_integer_counters=True,bench_max_rounds=1,log=lambda *_:None)
+            result = pipeline.evaluate(genome,layout,fixture._AUTH_CONTRACT.env_tag,pin_commit(spec),formal.performance_config(spec,workload),clocks_per_us=fixture._AUTH_CONTRACT.clocks_per_us,numactl=fixture._AUTH_CONTRACT.numactl,authorization_contract=fixture._AUTHORIZATION,build_context=fixture._BUILD_CONTEXT,correctness=pipeline.CorrectnessWorkload(reps=spec["execution"]["correctness_reps_per_cell"]),record_rep_integer_counters=True,use_perf=False,perf_preflight_receipt=perf_receipt,bench_max_rounds=1,log=lambda *_:None)
             assert result.certified, result
             assert len(calls.trace) == 5
     formal._create_json(Path(layout.root)/"reports"/(spec["future_driver_binding"]["artifact_stem"]+"-execution.json"),dict(status="complete",sweep_elapsed_s=10,job_elapsed_s=20,wal_sha256=hashlib.sha256(Path(layout.wal_file).read_bytes()).hexdigest(),campaign_lock_sha256=hashlib.sha256(Path(layout.lock_file).read_bytes()).hexdigest()))

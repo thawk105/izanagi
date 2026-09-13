@@ -35,6 +35,7 @@ from .artifact_admission import (
 from .backoff_sweep import _BASE, _official_durable_root_policy
 from .build_admission import GeneratorId, attest_generator_output, build_run_context
 from .loop import run_campaign
+from .layout import CampaignLayout
 from .model import CampaignConfig, Genome
 from .pipeline import CorrectnessWorkload, PerfConfig
 from ..calibrator import perf_preflight
@@ -364,7 +365,7 @@ def _snapshot(view):
 
 def load_formal_campaign(spec, binding, campaign, *, correctness_mode):
     # Refuse exploration before certified admission; no report-based fallback.
-    path = Path(campaign.root if hasattr(campaign, "root") else campaign)
+    path = Path(campaign.root if isinstance(campaign, CampaignLayout) else campaign)
     initial = campaign_lock.decode_campaign_lock_bytes((path/"campaign.lock").read_bytes())
     _require(initial.identity["search_config"].get("run_kind") == spec["future_driver_binding"]["run_kind"], "source run kind is not formal")
     view = require_certified_campaign_view(require_admitted_campaign(path, purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE))

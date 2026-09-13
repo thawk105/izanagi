@@ -1158,6 +1158,8 @@ def measure_point(binary: str, records: int, threads: int,
                     or rep_observations is not None):
                 run_kwargs["strict_returncode"] = require_all_reps
                 run_kwargs["subprocess_runner"] = subprocess_runner
+            elif subprocess_runner is not subprocess.run:
+                run_kwargs["subprocess_runner"] = subprocess_runner
             if rep_observations is not None:
                 run_kwargs["rep_returncodes"] = local_returncodes
                 run_kwargs["perf_raw_sink"] = perf_raw
