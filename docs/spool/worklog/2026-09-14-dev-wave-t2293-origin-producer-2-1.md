@@ -48,9 +48,9 @@ title: [T-2293] 起点試行の証拠の所在と bytes を呼び手申告から
   wave をその commit の上に作っていたため全史 provenance 監査が新規違反 1 件を出した
   (自分の commit ではない)。rebase も reset も使わず、現行 main から worktree と branch を作り直し、
   実装 patch を当て直して commit した。最初の worktree `dev-wave-t2293-origin-producer` と
-  branch は未着地のまま残してある (撤去はユーザー裁定待ち)。
+  branch は未着地のまま残してある (撤去はユーザー裁定待ち)。記録は {{F:wave-base-commit-amended-away}}。
 - **手順ミス 1 件:** `dev_wave_codex.py` は author 段で `--reasoning` を受け付けない (rc=2) のに
-  付けて 1 回空振りした。DW-C01 に明記がある。再投入は `--job-id` と出力 path を変えた。
+  付けて 1 回空振りした。DW-C01 に明記がある。再投入は `--job-id` と出力 path を変えた (F953 の再発)。
   段 2 を `--reasoning xhigh` で投げたのも DW-S02 の権威 (medium) からの逸脱である。
 - 工数: codex 子 6 本 (plan 1 = xhigh 537.8 s / 21 call、consult 2 = medium 233.1 s / 9 call と
   155.0 s / 7 call、author 1 = medium 322.7 s / 16 call、review 2 = medium 139.9 s / 6 call と
