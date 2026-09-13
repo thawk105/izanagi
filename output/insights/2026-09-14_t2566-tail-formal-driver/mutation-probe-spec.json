@@ -1,0 +1,176 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 70,
+  "timeout_seconds": 3000,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M1-drop-spec-fence-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_static_tail_formal.py",
+          "old": "    _require(inner.startswith(b\"```json\\n\") and inner.endswith(b\"```\\n\"),\n             \"spec fence lines differ\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-document-hash-uses-git-blob-id",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_static_tail_formal.py",
+          "old": "    return PreregistrationBinding(parse_preregistration(raw), resolved, _sha(raw))",
+          "new": "    return PreregistrationBinding(parse_preregistration(raw), resolved, _sha(b\"blob \" + str(len(raw)).encode() + b\"\\0\" + raw))"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-analysis-falls-back-to-printed-rate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_static_tail_formal.py",
+          "old": "        rate = a/(a+c)\n",
+          "new": "        rate = payload.get(\"leading_indicators\", {}).get(\"abort_rate\", a/(a+c))\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-correctness-count-relaxed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_static_tail_formal.py",
+          "old": "    _require(len(records) == spec[\"correctness\"][\"verify_records_per_cell\"], \"correctness rep count\")",
+          "new": "    _require(len(records) >= 1, \"correctness rep count\")"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-cohort-identity-includes-workload",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_static_tail_formal.py",
+          "old": "        for field in spec[\"cohort_identity\"][\"must_match_across_all_three_campaign_locks\"]:",
+          "new": "        for field in [*spec[\"cohort_identity\"][\"must_match_across_all_three_campaign_locks\"], \"workload\"]:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-verdict-always-first-rule",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_static_tail_formal.py",
+          "old": "    verdict = next(rule[\"verdict\"] for rule,condition in zip(spec[\"analysis\"][\"aggregate_verdict\"][\"rules\"],conditions) if condition)",
+          "new": "    verdict = spec[\"analysis\"][\"aggregate_verdict\"][\"rules\"][0][\"verdict\"]"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-records-from-code-constant",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_static_tail_formal.py",
+          "old": "    return PerfConfig(records=execution[\"records\"], threads=execution[\"threads\"],",
+          "new": "    return PerfConfig(records=1000000, threads=execution[\"threads\"],"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-payload-drops-abort-counter",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "                \"rep_index\": rep_index, \"abort_counts_\": aborts,\n                \"commit_counts_\": commits, \"throughput_tps\": throughput,\n",
+          "new": "                \"rep_index\": rep_index,\n                \"commit_counts_\": commits, \"throughput_tps\": throughput,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-payload-always-adds-reps",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "    if record_rep_integer_counters:\n        observations = getattr(pt, \"rep_observations\", None)",
+          "new": "    if True:\n        observations = getattr(pt, \"rep_observations\", None)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-runner-skips-integer-capture",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "        if record_rep_integer_counters:\n            aborts, commits = integer_abort_commit_counts(metrics)\n            rep_observations[index].update({\n                \"abort_counts_\": aborts, \"commit_counts_\": commits,\n            })\n",
+          "new": "        if False:\n            aborts, commits = integer_abort_commit_counts(metrics)\n            rep_observations[index].update({\n                \"abort_counts_\": aborts, \"commit_counts_\": commits,\n            })\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-integer-parser-accepts-decimals",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/benchparse.py",
+          "old": "        if not isinstance(value, str) or re.fullmatch(r\"[0-9]+\", value) is None:",
+          "new": "        if not isinstance(value, str) or re.fullmatch(r\"[0-9.]+\", value) is None:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-loop-drops-correctness-forwarding",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "old": "                if correctness is not None:\n                    evaluate_options[\"correctness\"] = correctness\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

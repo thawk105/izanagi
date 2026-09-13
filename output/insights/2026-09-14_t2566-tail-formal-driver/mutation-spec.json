@@ -1,0 +1,239 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 80,
+  "timeout_seconds": 3000,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M1-drop-spec-fence-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_static_tail_formal.py",
+          "old": "    _require(inner.startswith(b\"```json\\n\") and inner.endswith(b\"```\\n\"),\n             \"spec fence lines differ\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_spec_rejects_same_length_non_json_fence"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-document-hash-uses-git-blob-id",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_static_tail_formal.py",
+          "old": "    return PreregistrationBinding(parse_preregistration(raw), resolved, _sha(raw))",
+          "new": "    return PreregistrationBinding(parse_preregistration(raw), resolved, _sha(b\"blob \" + str(len(raw)).encode() + b\"\\0\" + raw))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_1_spec_binding_and_production_configuration"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-analysis-falls-back-to-printed-rate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_static_tail_formal.py",
+          "old": "        rate = a/(a+c)\n",
+          "new": "        rate = payload.get(\"leading_indicators\", {}).get(\"abort_rate\", a/(a+c))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_integer_ratio_ignores_printed_rate",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_2_integer_counters_production_wal_roundtrip"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-correctness-count-relaxed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_static_tail_formal.py",
+          "old": "    _require(len(records) == spec[\"correctness\"][\"verify_records_per_cell\"], \"correctness rep count\")",
+          "new": "    _require(len(records) >= 1, \"correctness rep count\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_correctness_accepts_serializable_certified_and_rejects_bad_records"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-cohort-identity-includes-workload",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_static_tail_formal.py",
+          "old": "        for field in spec[\"cohort_identity\"][\"must_match_across_all_three_campaign_locks\"]:",
+          "new": "        for field in [*spec[\"cohort_identity\"][\"must_match_across_all_three_campaign_locks\"], \"workload\"]:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_analyze_cohort_complete_production_positive_and_two_mutants",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_anomaly_maximum_is_consumed_consistently",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_no_perf_cohort_and_strict_receipt_json_shape"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-verdict-always-first-rule",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_static_tail_formal.py",
+          "old": "    verdict = next(rule[\"verdict\"] for rule,condition in zip(spec[\"analysis\"][\"aggregate_verdict\"][\"rules\"],conditions) if condition)",
+          "new": "    verdict = spec[\"analysis\"][\"aggregate_verdict\"][\"rules\"][0][\"verdict\"]"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_analyze_cohort_complete_production_positive_and_two_mutants",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_anomaly_maximum_is_consumed_consistently",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_no_perf_cohort_and_strict_receipt_json_shape"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-records-from-code-constant",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/b10_backoff_static_tail_formal.py",
+          "old": "    return PerfConfig(records=execution[\"records\"], threads=execution[\"threads\"],",
+          "new": "    return PerfConfig(records=1000000, threads=execution[\"threads\"],"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_spec_records_reaches_real_measure_point_argv"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-payload-drops-abort-counter",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "                \"rep_index\": rep_index, \"abort_counts_\": aborts,\n                \"commit_counts_\": commits, \"throughput_tps\": throughput,\n",
+          "new": "                \"rep_index\": rep_index,\n                \"commit_counts_\": commits, \"throughput_tps\": throughput,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_analyze_cohort_complete_production_positive_and_two_mutants",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_anomaly_maximum_is_consumed_consistently",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_no_perf_cohort_and_strict_receipt_json_shape",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_2_integer_counters_production_wal_roundtrip",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_3_provenance_uses_stored_physical_wal_lines",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_4_five_real_verifier_records_and_loop_forwarding",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_5_explore_mode_and_formal_report_comparison",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_rejected_campaign_report_preserves_every_observed_wal_value[missing-counter]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-payload-always-adds-reps",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/pipeline.py",
+          "old": "    if record_rep_integer_counters:\n        observations = getattr(pt, \"rep_observations\", None)",
+          "new": "    if True:\n        observations = getattr(pt, \"rep_observations\", None)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_analyze_cohort_complete_production_positive_and_two_mutants",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_anomaly_maximum_is_consumed_consistently",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_no_perf_cohort_and_strict_receipt_json_shape",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_2_integer_counters_production_wal_roundtrip",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_3_provenance_uses_stored_physical_wal_lines",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_4_five_real_verifier_records_and_loop_forwarding",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_5_explore_mode_and_formal_report_comparison"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-runner-skips-integer-capture",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "        if record_rep_integer_counters:\n            aborts, commits = integer_abort_commit_counts(metrics)\n            rep_observations[index].update({\n                \"abort_counts_\": aborts, \"commit_counts_\": commits,\n            })\n",
+          "new": "        if False:\n            aborts, commits = integer_abort_commit_counts(metrics)\n            rep_observations[index].update({\n                \"abort_counts_\": aborts, \"commit_counts_\": commits,\n            })\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_analyze_cohort_complete_production_positive_and_two_mutants",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_anomaly_maximum_is_consumed_consistently",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_no_perf_cohort_and_strict_receipt_json_shape",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_2_integer_counters_production_wal_roundtrip",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_3_provenance_uses_stored_physical_wal_lines",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_4_five_real_verifier_records_and_loop_forwarding",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_5_explore_mode_and_formal_report_comparison",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_rejected_campaign_report_preserves_every_observed_wal_value[missing-cell]",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_rejected_campaign_report_preserves_every_observed_wal_value[missing-counter]",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_rejected_campaign_report_preserves_every_observed_wal_value[timeout]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-integer-parser-accepts-decimals-through-float",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/benchparse.py",
+          "old": "        if not isinstance(value, str) or re.fullmatch(r\"[0-9]+\", value) is None:",
+          "new": "        if not isinstance(value, str) or re.fullmatch(r\"[0-9.]+\", value) is None:"
+        },
+        {
+          "file": "orchestrator/calibrator/benchparse.py",
+          "old": "        counts.append(int(value))",
+          "new": "        counts.append(int(float(value)))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_integer_counters_reject_non_digit_strings[decimal-abort_counts_]",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_integer_counters_reject_non_digit_strings[decimal-commit_counts_]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-loop-drops-correctness-forwarding",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/loop.py",
+          "old": "                if correctness is not None:\n                    evaluate_options[\"correctness\"] = correctness\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_analyze_cohort_complete_production_positive_and_two_mutants",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_anomaly_maximum_is_consumed_consistently",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_no_perf_cohort_and_strict_receipt_json_shape",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_2_integer_counters_production_wal_roundtrip",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_3_provenance_uses_stored_physical_wal_lines",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_4_five_real_verifier_records_and_loop_forwarding",
+        "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_probe_5_explore_mode_and_formal_report_comparison"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

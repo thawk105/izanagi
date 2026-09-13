@@ -556,6 +556,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
        screening へ転送し、T-2418 新走の campaign/report を v2 に整合した。乱択を静的量へ
        変換せず、過去 artifact は保持する。適用範囲は
        `docs/b10-backoff-static-tail-preregistration.md` の 2026-09-10 追補を参照。
+     - [x] [T-2566] (2026-09-14): 同事前登録 §8.1 の投入前条件 5 件を満たす本走 driver を実装し、
+       production の経路を通して実測した。既存 3 系列の受理集合・成果物・report schema は不変。
+       **本走の投入は行っていない。残る blocker は投入経路の配線 1 件**で、次の一手へ独立項目で残した。
+       実測と統合記録は `output/insights/2026-09-14_t2566-tail-formal-driver/README.md`。
    - **(8c bounded MVP 実装済み 2026-07-29、正式実験・resume は未完) 駆動の
      セッション非依存化** — ユーザーの優先度変更を受け、汎用 daemon を先に作らず
      **unattended runner + workload-conditioned generation + 固定 stop + 全件 report** を
