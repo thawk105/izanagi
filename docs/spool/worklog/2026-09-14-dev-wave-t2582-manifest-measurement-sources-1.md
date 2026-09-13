@@ -35,6 +35,14 @@ title: [T-2582] K2 manifestの知識源を測定記録へ絞る規律を正本�
   明示して再投入し、全レンズを回収した。型は {{F:child-stops-whole-review-on-self-invented-path}}。
 - Codex 子 7 本 (plan 1 / consult 3 / review 2 / focus 1)。全て `gpt-6-astra`・effort medium・
   `outcome=accepted`。焦点再レビューは段 6 の 10 所見すべてを closed と判定し、新規 real はゼロ。
+- **受入全走は複数回投入した。いずれの赤も変更に帰属しない。** (1) merge 直後に local main が
+  進み `stage=postcheck` で test 未実行のまま fail-closed。(2) `RuleOps production ledger preflight`
+  の `git ls-tree` が 20 秒 budget 超過 (load average 87.6、他 wave の `run_tests` 22 本同時走行)。
+  (3) t1259 fixture の setup error 2 件 → 単独再走 2 passed で非再現 → (4) 受入再走で
+  23,308 passed・赤 0 の `child-green` 受領証を取得。その後 land が協調 lock の待ちの間に
+  `stale-main` となり、(5) 受入と land を 1 process へ連結して再走したところ同じ fixture が
+  32 件になった (load 110)。F945 の再発として記録した。**同じ tip 世代で緑と 32 件が
+  両方出ることを実測した** — 件数は負荷で決まる。
 - 成果物と生証拠 = `output/insights/2026-09-14_t2582-knowledge-source-selection/`。
 - **裁定パッケージ (未実装):** `docs/agent-architecture.md` の実行境界項が「この role の wrapper が
   実際に consumer を通った成果物は 0 件である」と現在形で断定している。2026-09-02 の走行では
