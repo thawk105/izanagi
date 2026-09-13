@@ -5699,7 +5699,7 @@ def _publication_source(tmp_path):
 
 
 @contextlib.contextmanager
-def _publication_session(root):
+def _publication_session(root, *, shared_directories=()):
     """Exercise S1's real lifecycle on fixed input, without replaying CCBench.
 
     Only the admitted input is a fixture. Mounts, command transport, cleanup,
@@ -5718,7 +5718,7 @@ def _publication_session(root):
         ),
     )
     try:
-        session._start(root)
+        session._start(root, shared_directories=shared_directories)
         yield session
     finally:
         session._finish()
@@ -5748,7 +5748,7 @@ def _real_session_publish_then_hit_issues_distinct_capabilities_case(tmp_path):
     pending = _real_pending_publication(tmp_path)
     fds = pending.copied._owned_fds() + [pending.clean_fd, pending.parent_fd]
     try:
-        with _publication_session(root) as fresh:
+        with _publication_session(root, shared_directories=(Path(pending.parent),)) as fresh:
             # The production command seam executes in the actual sealed child.
             buildcache._run(
                 [sys.executable, "-I", "-B", "-c",
@@ -5916,7 +5916,7 @@ def _sealed_child_obeys_parent_d1755_protection_without_freezing_base_case(tmp_p
             assert not denied
         marker.write_bytes(b'writable base')
     """), str(target), str(base / "new-entry")]
-    with _publication_session(root) as session:
+    with _publication_session(root, shared_directories=(base,)) as session:
         # Same child, same attempted write: succeeds without the D1755 context.
         buildcache._run(command + ["allowed"], "build",
                         site=buildcache.site_policy.OTHER, sealed_session=session,
@@ -6095,6 +6095,14 @@ def _descriptor_build_failure_cannot_become_second_build_hit_case(tmp_path, monk
     root = tmp_path / "ccbench"
     if attack == "root-replacement":
         root.parent.chmod(0o700)
+        # copytree preserved the protected modes on the attacker's copy.
+        # Session restoration follows held fds to displaced-source, not this
+        # replacement inode. This fixture has only compiler-input.hh inside;
+        # unlinking it needs write permission on the copied root directory.
+        assert stat.S_IMODE(attacked[0].stat().st_mode) & stat.S_IWUSR
+        copied_mode = stat.S_IMODE(root.stat().st_mode)
+        assert not copied_mode & 0o222
+        root.chmod(copied_mode | stat.S_IWUSR)
         buildcache._discard_build_dir(str(root))
         attacked[0].rename(root)
     else:
