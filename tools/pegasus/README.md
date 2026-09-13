@@ -146,8 +146,9 @@ commit、job script SHA-256、queue/project/node/walltime を nonce staging に�
 `CCBENCH_INLINE_VERSION_OPT_CICADA` が食い違い、汎用名では値が compiler へ届かないため受理しない。
 現行の軸名のまま届いていない値を genome として記録しないための除外である。
 
-`BACKOFF_FIXED=-1` とその condition gate は、従来 argv を保つ `silo` だけの例外である。
-現行 CCBench pin に macro がないため、供給していない define を mocc / tictoc へ広げない。
+認定較正は stock を対象とする。D1936 項 6 により、供給されていない BACKOFF_FIXED=-1 の指定と専用
+condition gate を取り下げた。現行 CCBench pin に macro が無いため、configure argv にも genome にも
+この指定を載せない。silo / mocc / tictoc のいずれにも広げない。
 
 qsub を実行せず、生成するコマンドだけ確認する場合は `--dry-run` を付ける。
 

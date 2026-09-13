@@ -255,7 +255,10 @@ def _calibrate_timeout_command(source: str) -> str:
 def _calibrate_interpreter_fragment() -> str:
     source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
     selection_start = source.index('CALIBRATE_PYTHON=""')
-    selection_end = source.index("\n\nrun_condition_gate() {", selection_start)
+    failure_start = source.index(
+        'if [[ -z "$CALIBRATE_PYTHON" ]]; then', selection_start,
+    )
+    selection_end = source.index("\nfi", failure_start) + len("\nfi")
     selection = source[selection_start:selection_end]
     shim_start = source.index(
         'CALIBRATE_PATH="$TMPDIR/bin:$(dirname "$CALIBRATE_PYTHON"):$PATH"',
@@ -542,7 +545,6 @@ def test_certify_cmake_paths_derive_from_colon_free_job_tmpdir():
     assert not re.findall(
         r"(?m)^[ \t]*([a-z_]+_argv)=\(cmake(?=[ \n])", source,
     )
-    assert 'for argument in "${configure_argv[@]:5}"; do' in source
     for required in (
         '"-DCMAKE_INSTALL_PREFIX=$GFLAGS_INSTALL_DIR"',
         '"-DCMAKE_INSTALL_PREFIX=$GLOG_INSTALL_DIR"',

@@ -9,7 +9,6 @@ import re
 import shlex
 import shutil
 import subprocess
-import tempfile
 from pathlib import Path
 from typing import Mapping
 
@@ -306,12 +305,11 @@ def test_cicada_receipt_rejects_unmapped_cicada_suffix_alias() -> None:
             [
                 "-DCCBENCH_TRACE=0",
                 "-DCCBENCH_BACK_OFF=11",
-                "-DCCBENCH_BACKOFF_FIXED=-1",
                 "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=22",
                 "-DCCBENCH_NO_WAIT_OF_TICTOC=33",
                 "-DCCBENCH_WAL=44",
             ],
-            "silo|BACKOFF_FIXED=-1,BACK_OFF=11,"
+            "silo|BACK_OFF=11,"
             "NO_WAIT_LOCKING_IN_VALIDATION=22,NO_WAIT_OF_TICTOC=33,WAL=44",
         ),
         (
@@ -425,13 +423,6 @@ def test_job_rechecks_the_submission_workload_and_records_it(
     assert '"protocol": protocol' in source
     assert '"workload": {"ycsb_rratio": rratio}' in source
     assert "ycsb_rratio=50" not in source
-    assert source.index("condition_gate_argv=") < source.index("build_argv=")
-    assert "--macro BACKOFF_FIXED" in source
-    assert "--stock-comparison" in source
-    assert "--meaning-case=-1:branch:stock-adaptive-backoff" in source
-    assert "--use-class certified-selection" in source
-    assert "-DCCBENCH_BACKOFF_FIXED=-1" in source
-    assert '"-DCMAKE_CXX_FLAGS=-DBACKOFF_FIXED=-1"' not in source
 
     fixture_repo = tmp_path / "job-repo"
     fixture_tools = fixture_repo / "tools" / "pegasus"
@@ -557,24 +548,15 @@ def _protocol_shell_observation(
     fetchcontent_source_root: str = "/fixture/fetchcontent-src",
 ) -> dict[str, object]:
     source = JOB.read_text(encoding="utf-8")
-    condition_function_start = source.index("run_condition_gate() {")
-    condition_function_end = (
-        source.index("\n}\n", condition_function_start) + len("\n}")
-    )
-    condition_function = source[
-        condition_function_start:condition_function_end
-    ]
     define_case_start = source.index('case "$CALIBRATION_PROTOCOL" in')
     define_case_end = (
         source.index("\nesac", define_case_start) + len("\nesac")
     )
     configure_start = source.index("configure_argv=(", define_case_end)
-    configure_end = source.index("\n# The current CCBench pin", configure_start)
-    gate_start = source.index(
-        'if [[ "$CALIBRATION_PROTOCOL" == "silo" ]]', configure_end,
+    build_case_start = source.index(
+        'case "$CALIBRATION_PROTOCOL" in', configure_start,
     )
-    gate_end = source.index("\nfi", gate_start) + len("\nfi")
-    build_case_start = source.index('case "$CALIBRATION_PROTOCOL" in', gate_end)
+    configure_end = build_case_start
     build_case_end = source.index("\nesac", build_case_start) + len("\nesac")
     binary_match = re.search(r'^BINARY=.*$', source[build_case_end:], re.MULTILINE)
     assert binary_match is not None
@@ -582,34 +564,14 @@ def _protocol_shell_observation(
     fragment = "\n".join((
         source[define_case_start:define_case_end],
         source[configure_start:configure_end],
-        source[gate_start:gate_end],
         source[build_case_start:build_case_end],
         binary_line,
     ))
-    with tempfile.TemporaryDirectory(prefix="izanagi-condition-gate-") as raw_tmp:
-        fixture_root = Path(raw_tmp)
-        fake_bin = fixture_root / "bin"
-        fake_bin.mkdir()
-        recording_python = fake_bin / "python3.10"
-        recording_python.write_text(
-            "#!/bin/sh\n"
-            ": \"${GATE_ARGV_PATH:?}\"\n"
-            "printf '%s\\n' \"$@\" >\"$GATE_ARGV_PATH\"\n",
-            encoding="utf-8",
-        )
-        recording_python.chmod(0o755)
-        bare_python = fake_bin / "python3"
-        bare_python.write_text("#!/bin/sh\nexit 97\n", encoding="utf-8")
-        bare_python.chmod(0o755)
-        attempt_dir = fixture_root / "attempt"
-        attempt_dir.mkdir()
-        gate_argv_path = fixture_root / "gate.argv"
-        command = f"""set -Eeuo pipefail
+    command = f"""set -Eeuo pipefail
 CALIBRATION_PROTOCOL={shlex.quote(protocol)}
 CMAKE_PATH=/fixture/cmake
 BUILD_SOURCE=/fixture/source
 BUILD_DIR=/fixture/build
-CCBENCH_BASE=/fixture/stock
 FETCHCONTENT_BASE_DIR={shlex.quote(fetchcontent_base_dir)}
 FETCHCONTENT_SOURCE_ROOT={shlex.quote(fetchcontent_source_root)}
 GFLAGS_INSTALL_DIR=/fixture/gflags
@@ -618,50 +580,25 @@ GFLAGS_SOURCE_HEAD={'a' * 40}
 GLOG_SOURCE_HEAD={'b' * 40}
 CC_PATH=/bin/true
 CXX_PATH=/bin/true
-REPO_ROOT={shlex.quote(str(ROOT))}
-ATTEMPT_DIR={shlex.quote(str(attempt_dir))}
-CALIBRATE_PYTHON={shlex.quote(str(recording_python))}
-{condition_function}
 {fragment}
 printf 'binary=%s\n' "$BINARY"
 printf 'configure:'; printf ' %q' "${{configure_argv[@]}}"; printf '\n'
 printf 'build:'; printf ' %q' "${{build_argv[@]}}"; printf '\n'
 """
-        env = dict(os.environ)
-        env["PATH"] = str(fake_bin) + os.pathsep + env.get("PATH", "")
-        env["GATE_ARGV_PATH"] = str(gate_argv_path)
-        completed = subprocess.run(
-            ["bash", "-c", command],
-            capture_output=True,
-            text=True,
-            check=False,
-            env=env,
-        )
-        assert completed.returncode == 0, completed.stderr
-        lines = completed.stdout.splitlines()
-        gate_argv = (
-            gate_argv_path.read_text(encoding="utf-8").splitlines()
-            if gate_argv_path.is_file()
-            else []
-        )
-    if gate_argv:
-        assert gate_argv[:2] == [
-            "-m", "orchestrator.campaign.condition_meaning_gate",
-        ]
-    gate_configure_argv = [
-        argument.removeprefix("--configure-arg=")
-        for argument in gate_argv
-        if argument.startswith("--configure-arg=")
-    ]
+    completed = subprocess.run(
+        ["bash", "-c", command],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr
+    lines = completed.stdout.splitlines()
     build_argv = shlex.split(lines[2].removeprefix("build:"))
     return {
-        "gate_calls": int(bool(gate_argv)),
         "target": build_argv[build_argv.index("--target") + 1],
         "binary": lines[0].removeprefix("binary="),
         "configure_argv": shlex.split(lines[1].removeprefix("configure:")),
         "build_argv": build_argv,
-        "gate_argv": gate_argv,
-        "gate_configure_argv": gate_configure_argv,
     }
 
 
@@ -882,8 +819,6 @@ def test_certify_shell_protocol_axes_match_independent_genome_spaces() -> None:
     for protocol in ("silo", "mocc", "tictoc"):
         assert table[protocol]["TRACE"] == "0"
         excluded = {"TRACE"}
-        if protocol == "silo":
-            excluded.add("BACKOFF_FIXED")
         assert set(table[protocol]) - excluded == set(SPACES[protocol].axes)
 
 
@@ -892,7 +827,6 @@ def test_certify_shell_protocol_defines_match_exact_values() -> None:
         "silo": {
             "TRACE": "0",
             "BACK_OFF": "0",
-            "BACKOFF_FIXED": "-1",
             "NO_WAIT_LOCKING_IN_VALIDATION": "1",
             "NO_WAIT_OF_TICTOC": "0",
             "WAL": "0",
@@ -918,8 +852,6 @@ def test_certify_shell_protocol_axis_values_satisfy_genome_spaces() -> None:
     table = _certify_protocol_define_table()
     for protocol in ("silo", "mocc", "tictoc"):
         excluded = {"TRACE"}
-        if protocol == "silo":
-            excluded.add("BACKOFF_FIXED")
         shell_axis_assignment = {
             name: int(value)
             for name, value in table[protocol].items()
@@ -985,19 +917,7 @@ def test_certify_final_calibrate_binary_matches_built_binary(protocol: str) -> N
     assert calibrate_argv[calibrate_argv.index("--binary") + 1] == binary
 
 
-def test_certify_keeps_backoff_fixed_and_condition_gate_silo_only() -> None:
-    table = _certify_protocol_define_table()
-    assert table["silo"]["BACKOFF_FIXED"] == "-1"
-    for protocol in ("mocc", "tictoc"):
-        assert "BACKOFF_FIXED" not in table[protocol]
-    assert _protocol_shell_observation("silo")["gate_calls"] == 1
-    assert _protocol_shell_observation("mocc")["gate_calls"] == 0
-    assert _protocol_shell_observation("tictoc")["gate_calls"] == 0
-    source = JOB.read_text(encoding="utf-8")
-    assert len(re.findall(r"(?m)^[ \t]*run_condition_gate[ \t]*$", source)) == 1
-
-
-def test_condition_gate_uses_smoke_checked_interpreter_selected_before_call() -> None:
+def test_calibrator_uses_smoke_checked_interpreter_selected_before_call() -> None:
     source = JOB.read_text(encoding="utf-8")
     selection_start = source.index('CALIBRATE_PYTHON=""')
     failure_start = source.index(
@@ -1021,18 +941,17 @@ def test_condition_gate_uses_smoke_checked_interpreter_selected_before_call() ->
         'fi'
     ) in selection
 
-    gate_calls = list(re.finditer(r"(?m)^  run_condition_gate$", source))
-    assert len(gate_calls) == 1
     assert (
         source.index('ATTEMPT_DIR=')
         < source.index("trap on_err ERR")
         < selection_start
     )
-    assert selection_end < gate_calls[0].start()
+    calibrate_start = source.index("calibrate_argv=(")
+    calibrate_end = source.index("\n)", calibrate_start) + len("\n)")
+    assert selection_end < calibrate_start
     assert (
-        'local -a condition_gate_argv=("$CALIBRATE_PYTHON" -m '
-        'orchestrator.campaign.condition_meaning_gate'
-    ) in source
+        '"$CALIBRATE_PYTHON" "$REPO_ROOT/orchestrator/calibrate.py"'
+    ) in source[calibrate_start:calibrate_end]
 
 
 def test_default_silo_build_and_calibrate_argv_match_offline_contract() -> None:
@@ -1047,7 +966,6 @@ def test_default_silo_build_and_calibrate_argv_match_offline_contract() -> None:
         "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/fixture/fetchcontent-src/mimalloc-src",
         "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/fixture/fetchcontent-src/googletest-src",
         "-DCCBENCH_TRACE=0", "-DCCBENCH_BACK_OFF=0",
-        "-DCCBENCH_BACKOFF_FIXED=-1",
         "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
         "-DCCBENCH_NO_WAIT_OF_TICTOC=0", "-DCCBENCH_WAL=0",
         "-DCMAKE_PREFIX_PATH=/fixture/gflags;/fixture/glog",
@@ -1084,27 +1002,6 @@ def test_certify_offline_fetchcontent_contract_is_identical_for_all_protocols() 
             argument for argument in observed["configure_argv"]
             if argument.startswith("-DFETCHCONTENT_")
         ] == expected
-
-
-def test_certify_condition_gate_receives_the_same_fetchcontent_tokens() -> None:
-    expected = _offline_fetchcontent_tokens(
-        source_root="/fixture/fetchcontent-src",
-        base_dir="/fixture/fetchcontent-base",
-    )
-    silo = _protocol_shell_observation("silo")
-    assert [
-        argument for argument in silo["gate_argv"]
-        if argument.startswith("--configure-arg=-DFETCHCONTENT_")
-    ] == [f"--configure-arg={argument}" for argument in expected]
-    assert [
-        argument for argument in silo["gate_configure_argv"]
-        if argument.startswith("-DFETCHCONTENT_")
-    ] == expected
-    for protocol in ("mocc", "tictoc"):
-        observed = _protocol_shell_observation(protocol)
-        assert observed["gate_calls"] == 0
-        assert observed["gate_argv"] == []
-        assert observed["gate_configure_argv"] == []
 
 
 def test_certify_configure_use_site_passes_the_complete_configure_argv(
@@ -1815,5 +1712,5 @@ def test_runbook_shows_ai_driven_h1_h2_submission_path() -> None:
     assert "--protocol mocc" in source
     assert "silo / mocc / tictoc" in source
     assert "INLINE_VERSION_OPT" in source
-    assert "BACKOFF_FIXED" in source
+    assert "供給されていない BACKOFF_FIXED=-1 の指定と専用" in source
     assert "人間が JSON を編集・登録する必要はなく" in source
