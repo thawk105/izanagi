@@ -51,6 +51,12 @@ title: [T-1706] A/B 装置の schedule を 3 入口すべてで一度読みに�
 - **未実測として残すもの。** model・price・slot 集合を任意に変えた schedule が、launch receipt・
   attempt ledger・adjudication の後続照合まで通って certified な集計を成立させることは
   実証していない。負例が実証したのは各入口の validator 通過までである。
+- **段 8 の自己改善候補 1 件は「実施しない」で閉じた。** 候補は「待ち手が出す
+  `/proc/<pid>/stat` 不読の縮退行は失敗ではなく、その後も `.done` を待って正しくブロックする」
+  という 1 行 (本 wave の 7 回の待ちすべてで同じ行が出て、うち 1 回は 2 分 21 秒ブロックしてから
+  戻った)。収容先の `DW-C01` は単節予算 1000 bytes に対し現状 995 bytes で、
+  **安全記述を削らずに収める余地が無い。** D782 に従って D730 の手順を適用したが、
+  独立実例が 1 件で例外収容の 3 件に届かないため上限は引き上げない。
 - Codex 子 8 本 (plan 1 / consult 2 / author 1 / review 2 / fix 1 / focus 1)。全件
   `outcome=accepted`、model=gpt-6-astra、effort=medium。argv 誤りによる即死はゼロ。
 - 成果物と生証拠 = `output/insights/2026-09-14/t1706-schedule-one-read/`。
