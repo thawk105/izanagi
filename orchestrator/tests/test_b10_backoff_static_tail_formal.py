@@ -250,6 +250,21 @@ def _emit_campaign(spec,tmp_path,workload,stdout=None, *, through_loop=False):
             pipeline.remeasure_until_stable = remeasure_until_stable
             if through_loop:
                 from orchestrator.campaign import loop
+                # Match the external build fixture's compiler observations,
+                # including the manifest digest required by the v2 build gate.
+                expected_toolchain_manifest = {
+                    role: {
+                        "requested": compiler,
+                        "realpath": f"/fixture/{compiler}",
+                        "version_first_line": f"{role} fixture",
+                        "version": f"{role} fixture",
+                    }
+                    for role, compiler in (
+                        ("cc", pipeline.buildcache.DEFAULT_CC),
+                        ("cxx", pipeline.buildcache.DEFAULT_CXX),
+                        ("cmake", "cmake"),
+                    )
+                }
                 with pytest.MonkeyPatch.context() as mp:
                     # External source/build fixture only; loop, evaluate,
                     # verifier, and WAL writer remain real.
@@ -259,6 +274,7 @@ def _emit_campaign(spec,tmp_path,workload,stdout=None, *, through_loop=False):
                         fixture._AUTH_CONTRACT.env_tag, fixture._AUTH_CONTRACT.clocks_per_us,
                         numactl=fixture._AUTH_CONTRACT.numactl,
                         env_contract=fixture._AUTH_CONTRACT,
+                        expected_toolchain_manifest=expected_toolchain_manifest,
                         authorization_contract=fixture._AUTHORIZATION,
                         build_context=fixture._BUILD_CONTEXT, declared_use_class="official",
                         output_root=str(tmp_path), log=lambda *_: None,
