@@ -1,0 +1,164 @@
+{
+ "estimated_run_seconds": 180,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_composition_exact_max_sources_and_order",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_public_issue_load_and_preregistration_pin",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_public_rejects_rehashed_artifact[nonmaximum-floor]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_public_rejects_rehashed_artifact[nonmaximum-limitation]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M1",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "new": "    maximum = min(s.floor_exact for s, _, _ in sources)\n",
+     "old": "    maximum = max(s.floor_exact for s, _, _ in sources)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_public_missing_summary_keeps_expected_specs"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M2",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "new": "    if False:\n        _fail(\"aggregate_spec_closure_error\", \"expected spec has no summary\")\n",
+     "old": "    if seen_specs != set(specs):\n        _fail(\"aggregate_spec_closure_error\", \"expected spec has no summary\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_public_rejects_non_two_window_spec[one-window]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_public_rejects_non_two_window_spec[three-windows]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M3",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "new": "        if len(spec.windows) < 1:\n",
+     "old": "        if len(spec.windows) != 2:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_composition_exact_max_sources_and_order",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_coverage_projects_windows_and_counts_drop_records",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_excess_drops_reaches_policy_after_consistent_counts",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_public_issue_load_and_preregistration_pin",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_public_missing_summary_keeps_expected_specs",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_public_rejects_individually_valid_identity_mismatch",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_public_rejects_non_two_window_spec[three-windows]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_public_rejects_rehashed_artifact[nonmaximum-floor]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_public_rejects_rehashed_artifact[nonmaximum-limitation]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_sample_accounting_reaches_named_gate[admissible]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_sample_accounting_reaches_named_gate[campaign-count]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_sample_accounting_reaches_named_gate[fraction]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_sample_accounting_reaches_named_gate[stratum-count]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_sample_accounting_reaches_named_gate[threshold]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_statistics_reaches_spec_comparison"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M4",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "new": "        projection = set(closed)\n",
+     "old": "        projection = {key for key in closed if key[0] == wid}\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_sample_accounting_reaches_named_gate[extra]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_sample_accounting_reaches_named_gate[missing]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_sample_accounting_reaches_named_gate[overlap]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M5",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "new": "    if False:\n",
+     "old": "    if retained & dropped or retained | dropped != planned:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_window_binding_reaches_spec_comparison[campaign]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_window_binding_reaches_spec_comparison[duplicate]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_window_binding_reaches_spec_comparison[extra]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_window_binding_reaches_spec_comparison[missing]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_window_binding_reaches_spec_comparison[path]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M6",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "new": "    if False:\n",
+     "old": "    if len(observed) != len(expected) or set(observed) != expected:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_composition_exact_max_sources_and_order",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_public_issue_load_and_preregistration_pin",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_public_rejects_rehashed_artifact[nonmaximum-floor]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_public_rejects_rehashed_artifact[nonmaximum-limitation]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M7",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "new": "            } for s, document, single in sources if s.floor_exact == maximum],\n",
+     "old": "            } for s, document, single in sources],\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_public_rejects_rehashed_artifact[nonmaximum-floor]",
+    "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_aggregate_public_rejects_rehashed_artifact[nonmaximum-limitation]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M8",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "new": "    if False:\n",
+     "old": "    if _canonical_json_bytes(value) != _canonical_json_bytes(reconstructed):\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 5400
+}

@@ -1015,12 +1015,17 @@ def test_v3_loader_accepts_future_sized_policy_shape(
     """Acceptance: certificate-selected n/k/sigma are accepted exactly.
     Rejection: policy drift or an unavailable certificate is rejected.
     """
+    prereg_raw = b"synthetic sized preregistration\n"
+    prereg_sha = hashlib.sha256(prereg_raw).hexdigest()
+    monkeypatch.setattr(paired, "V3_SIZED_PREREGISTRATION_RELATIVE_PATH", "README.md")
+    monkeypatch.setattr(paired, "V3_SIZED_PREREGISTRATION_SHA256", prereg_sha)
     sized = copy.deepcopy(_v3_pilot_policy())
     sized["preregistration"] = {"path": paired.V3_SIZED_PREREGISTRATION_RELATIVE_PATH, "sha256": paired.V3_SIZED_PREREGISTRATION_SHA256}
     sized["study_id"] = paired.V3_SIZED_STUDY_ID
     sized["final_estimate_eligible"] = True
     repo = tmp_path / "repo"
     repo.mkdir()
+    (repo / "README.md").write_bytes(prereg_raw)
     pilot_relative = "pilot.json"
     certificate_relative = "sizing-certificate.json"
     pilot = {
@@ -1033,6 +1038,14 @@ def test_v3_loader_accepts_future_sized_policy_shape(
     pilot_path.write_text(json.dumps(pilot, sort_keys=True) + "\n", encoding="utf-8")
     pilot_sha = hashlib.sha256(pilot_path.read_bytes()).hexdigest()
     certificate = {
+        "policy": {
+            "search": {"trials": 20000},
+            "certification": {"trials": 100000},
+            "candidate_grid": {"registered_minimum": 28, "maximum": 4096},
+            "root_seed": {
+                "digest": "e72bc005d156caea2c89085c563c72fa04bbeb4afd98160fca968da9a7f6b3b3",
+            },
+        },
         "inputs": {"pilot": {"path": pilot_relative, "sha256": pilot_sha}},
         "schema_version": paired.BALANCED_SIZING_CERTIFICATE_SCHEMA,
         "status": "selected",
@@ -1072,6 +1085,10 @@ def test_v3_loader_accepts_future_sized_policy_shape(
     )
     monkeypatch.setattr(paired, "_repo_root", lambda: repo)
     monkeypatch.setattr(paired, "V3_SIZED_POLICY_PATH", path)
+    monkeypatch.setattr(
+        paired, "V3_SIZED_POLICY_SHA256",
+        hashlib.sha256(path.read_bytes()).hexdigest(),
+    )
     loaded, digest = paired.load_policy(paired.V3_SIZED_STUDY_ID)
     assert loaded == sized
     assert digest == hashlib.sha256(path.read_bytes()).hexdigest()
@@ -1091,6 +1108,239 @@ def test_v3_loader_accepts_future_sized_policy_shape(
     }
     with pytest.raises(paired.PaperStoryError, match="unavailable"):
         paired._validate_policy_semantics(unavailable)
+
+
+@pytest.fixture
+def sized_certificate_copy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Copy frozen inputs; mutations never touch the registered artifacts."""
+    policy, _ = paired.load_policy(paired.V3_SIZED_STUDY_ID)
+    repo = paired._repo_root()
+    for binding in (*policy["sizing_inputs"].values(), policy["preregistration"]):
+        destination = tmp_path / binding["path"]
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes((repo / binding["path"]).read_bytes())
+    certificate_path = tmp_path / policy["sizing_inputs"]["sizing_certificate"]["path"]
+    certificate = json.loads(certificate_path.read_bytes())
+    monkeypatch.setattr(paired, "_repo_root", lambda: tmp_path)
+    return policy, certificate, certificate_path
+
+
+def _rewrite_sized_certificate(policy: dict, certificate: dict, path: Path) -> None:
+    raw = (json.dumps(
+        certificate, ensure_ascii=False, allow_nan=False, sort_keys=True,
+        separators=(",", ":"),
+    ) + "\n").encode("utf-8")
+    path.write_bytes(raw)
+    policy["sizing_inputs"]["sizing_certificate"]["sha256"] = hashlib.sha256(raw).hexdigest()
+
+
+def test_v3_sized_frozen_policy_loads_with_registered_certificate() -> None:
+    policy, digest = paired.load_policy(paired.V3_SIZED_STUDY_ID)
+    assert digest == hashlib.sha256(paired.V3_SIZED_POLICY_PATH.read_bytes()).hexdigest()
+    assert policy["study_id"] == "paper-story-a1-20260901-balanced5-sized-v1"
+    assert policy["authority"] == {
+        "formal": False, "promotion_prohibited": True,
+        "result_authority": "sized-preregistered-descriptive-only",
+    }
+    assert policy["final_estimate_eligible"] is True
+    assert policy["sizing_inputs"] == {
+        "pilot_result": {
+            "path": "output/insights/2026-09-01_paper-story-a1-balanced5-pilot/sizing-pilot.json",
+            "sha256": "b4201083cc02434b6b300eb24b6916304bfcadc17c7259257e5cf2ee5a7451ed",
+        },
+        "sizing_certificate": {
+            "path": "output/insights/2026-09-13/paper-story-a1-balanced5-sized-preregistration/sizing-certificate.json",
+            "sha256": "41d041963c8f3a175b5501810f52ab2619d9285f6f1eeb176790698131fc8299",
+        },
+    }
+    assert [
+        (w["name"], w["reps"], w["df"], w["k"], w["planned_sigma_tps"])
+        for w in policy["workloads"]
+    ] == [
+        ("write-heavy", 30, 29, "2.8315526875186725", "66403.452108019716"),
+        ("balanced", 30, 29, "2.8315526875186725", "56697.435713574683"),
+        ("read-heavy", 30, 29, "2.8315526875186725", "74668.489566274948"),
+    ]
+    for workload in policy["workloads"]:
+        assert workload["pair_indices"] == {"start_inclusive": 0, "stop_exclusive": 30}
+    assert policy["execution"]["durable_measurement_base"] == (
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement"
+    )
+    assert policy["execution"]["materialization_relative_path"] == (
+        "output/insights/2026-09-13/paper-story-a1-balanced5-sized"
+    )
+    pilot = _v3_pilot_policy()
+    for field in ("durable_measurement_base", "materialization_relative_path"):
+        assert policy["execution"][field] != pilot["execution"][field]
+    assert policy["sizing"] == pilot["sizing"]
+
+
+@pytest.mark.parametrize(("section", "field", "value"), [
+    pytest.param("search", "trials", 19999, id="search-trials"),
+    pytest.param("certification", "trials", 99999, id="certification-trials"),
+    pytest.param("candidate_grid", "registered_minimum", 29, id="registered-minimum"),
+    pytest.param("candidate_grid", "maximum", 4095, id="maximum"),
+    pytest.param("root_seed", "digest", "0" * 64, id="root-seed"),
+])
+def test_v3_sized_certificate_requires_registered_parameters(
+    sized_certificate_copy, section: str, field: str, value: object,
+) -> None:
+    policy, certificate, path = sized_certificate_copy
+    paired._validate_policy_semantics(policy)
+    certificate["policy"][section][field] = value
+    _rewrite_sized_certificate(policy, certificate, path)
+    with pytest.raises(
+        paired.PaperStoryError,
+        match=rf"registered policy differs: {section}\.{field}$",
+    ):
+        paired._validate_policy_semantics(policy)
+
+
+@pytest.mark.parametrize(("section", "field", "expected"), [
+    ("search", "trials", 20000),
+    ("certification", "trials", 100000),
+    ("candidate_grid", "registered_minimum", 28),
+    ("candidate_grid", "maximum", 4096),
+    ("root_seed", "digest", "e72bc005d156caea2c89085c563c72fa04bbeb4afd98160fca968da9a7f6b3b3"),
+])
+@pytest.mark.parametrize("mutation", [
+    "missing-policy", "missing-section", "non-object-section", "missing-field",
+    "bool", "float-or-uppercase", "string-or-int",
+])
+def test_v3_sized_certificate_rejects_missing_or_mistyped_registered_parameters(
+    sized_certificate_copy, section: str, field: str, expected: object, mutation: str,
+) -> None:
+    policy, certificate, path = sized_certificate_copy
+    registered = certificate["policy"]
+    if mutation == "missing-policy":
+        del certificate["policy"]
+    elif mutation == "missing-section":
+        del registered[section]
+    elif mutation == "non-object-section":
+        registered[section] = []
+    elif mutation == "missing-field":
+        del registered[section][field]
+    else:
+        registered[section][field] = {
+            "bool": True,
+            "float-or-uppercase": float(expected) if type(expected) is int else expected.upper(),
+            "string-or-int": str(expected) if type(expected) is int else 123,
+        }[mutation]
+    _rewrite_sized_certificate(policy, certificate, path)
+    with pytest.raises(paired.PaperStoryError, match="registered policy differs"):
+        paired._validate_policy_semantics(policy)
+
+
+@pytest.mark.parametrize("index", [0, 1, 2])
+@pytest.mark.parametrize("mutation", ["shortest-float", "last-digit"])
+def test_v3_sized_certificate_preserves_decimal_statistics(
+    sized_certificate_copy, index: int, mutation: str,
+) -> None:
+    policy, certificate, path = sized_certificate_copy
+    sigma = certificate["workloads"][index]["planned_sigma_tps"]
+    changed = str(float(sigma)) if mutation == "shortest-float" else sigma + "1"
+    assert changed != sigma
+    assert float(changed) == float(sigma)
+    policy["workloads"][index]["planned_sigma_tps"] = changed
+    with pytest.raises(paired.PaperStoryError, match="planned sigma differs from certificate"):
+        paired._validate_policy_semantics(policy)
+    policy["workloads"][index]["planned_sigma_tps"] = sigma
+    certificate["workloads"][index]["planned_sigma_tps"] = changed
+    _rewrite_sized_certificate(policy, certificate, path)
+    with pytest.raises(paired.PaperStoryError, match="planned sigma differs from certificate"):
+        paired._validate_policy_semantics(policy)
+
+
+@pytest.mark.parametrize("field", ["k", "planned_sigma_tps"])
+@pytest.mark.parametrize("value", [
+    True, False, None, "not-a-number", "NaN", "Infinity", 0, -1, "0", "-1",
+    "1e-999", "1e999", "2_.8315526875186725",
+])
+def test_v3_sized_statistics_reject_invalid_decimal_values(
+    sized_certificate_copy, field: str, value: object,
+) -> None:
+    policy, certificate, path = sized_certificate_copy
+    policy["workloads"][0][field] = value
+    # Match the certificate too: underflow must fail before exact-value comparison.
+    if field == "k":
+        certificate["workloads"][0]["selected"]["t_critical"] = value
+    else:
+        certificate["workloads"][0][field] = value
+    _rewrite_sized_certificate(policy, certificate, path)
+    with pytest.raises(paired.PaperStoryError, match=f"v3 sized workload {field}: write-heavy"):
+        paired._validate_policy_semantics(policy)
+
+
+@pytest.mark.parametrize("entry", ["load", "validate"])
+def test_v3_sized_policy_bytes_are_pinned(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, entry: str,
+) -> None:
+    policy, digest = paired.load_policy(paired.V3_SIZED_STUDY_ID)
+    assert paired.V3_SIZED_POLICY_SHA256 == digest
+    assert digest == hashlib.sha256(paired.V3_SIZED_POLICY_PATH.read_bytes()).hexdigest()
+    policy["workloads"][0]["schedule_root_seed"] = "0" * 64
+    path = tmp_path / "drifted-sized.json"
+    path.write_text(json.dumps(policy) + "\n", encoding="utf-8")
+    monkeypatch.setattr(paired, "V3_SIZED_POLICY_PATH", path)
+    with pytest.raises(paired.PaperStoryError, match="tracked policy bytes differ"):
+        if entry == "load":
+            paired.load_policy(paired.V3_SIZED_STUDY_ID)
+        else:
+            paired.validate_policy(policy)
+
+
+def test_v3_sized_preregistration_binding_has_no_policy_self_reference(
+    sized_certificate_copy,
+) -> None:
+    policy, _, _ = sized_certificate_copy
+    raw_path = paired._repo_root() / policy["preregistration"]["path"]
+    raw = raw_path.read_bytes()
+    assert hashlib.sha256(raw).hexdigest() == (
+        policy["preregistration"]["sha256"]
+    ) == paired.V3_SIZED_PREREGISTRATION_SHA256 == (
+        "6047eff005fbd94bad8df0313124bd4ca037dedf0f2e3db05224d04ad34fd3c2"
+    )
+    assert policy["preregistration"]["path"] == paired.V3_SIZED_PREREGISTRATION_RELATIVE_PATH
+    assert hashlib.sha256(paired.V3_SIZED_POLICY_PATH.read_bytes()).hexdigest().encode() not in raw
+    raw_path.write_bytes(raw + b"\n")
+    with pytest.raises(paired.PaperStoryError, match="human-readable preregistration bytes differ"):
+        paired.load_policy(paired.V3_SIZED_STUDY_ID)
+
+
+@pytest.mark.parametrize("spread", [10.0, 100000.0])
+def test_v3_sized_consumer_uses_registered_decimal_statistics(spread: float) -> None:
+    policy, _ = paired.load_policy(paired.V3_SIZED_STUDY_ID)
+    baseline = [1000000.0] * 30
+    variant = [1000100.0 - spread, 1000100.0 + spread] * 15
+    result = paired._consumer_positional_statistics(
+        policy, "write-heavy", {"no-backoff": baseline, "fixed10": variant},
+    )
+    expected_sd = spread * math.sqrt(30 / 29)
+    expected_half_width = 2.8315526875186725 * expected_sd / math.sqrt(30)
+    assert result["n"] == 30
+    assert result["df"] == 29
+    assert result["mean_signed_positional_difference_tps"] == 100.0
+    assert result["sample_sd_positional_difference_tps"] == pytest.approx(expected_sd)
+    assert result["k"] == 2.8315526875186725
+    assert result["planned_sigma_tps"] == float("66403.452108019716")
+    assert result["descriptive_half_width_tps"] == pytest.approx(expected_half_width)
+    assert result["descriptive_interval_tps"] == pytest.approx(
+        [100.0 - expected_half_width, 100.0 + expected_half_width]
+    )
+    assert result["floor_boundary_tps"] == 30000.0
+    assert result["variance_plan_breach"] is (spread == 100000.0)
+
+
+def test_v3_sized_schedule_roots_follow_frozen_derivation() -> None:
+    policy, _ = paired.load_policy(paired.V3_SIZED_STUDY_ID)
+    pilot = _v3_pilot_policy()
+    for workload, pilot_workload in zip(policy["workloads"], pilot["workloads"]):
+        preimage = (
+            "paper-story-a1-balanced5-sized-schedule-root/v1|workload=" + workload["name"]
+        ).encode("ascii")
+        assert workload["schedule_root_seed"] == hashlib.sha256(preimage).hexdigest()
+        assert workload["schedule_root_seed"] != pilot_workload["schedule_root_seed"]
+    assert policy["pairing"] == pilot["pairing"]
 
 
 def test_v3_seed_preimage_is_literal_and_excludes_study_and_date_M4() -> None:

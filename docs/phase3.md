@@ -18,6 +18,12 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2164] A-1 balanced5のsizing証明書を凍結値で生成・検証し、本走policyを凍結した。
+  D1452に従い、証明書が申告する試行回数・候補範囲・root seedをconsumerが登録値とexact照合する。
+  成果物は output/insights/2026-09-13/paper-story-a1-balanced5-sized-preregistration/、
+  機械可読の正本は orchestrator/campaign/paper_story_a1_paired.v3-sized.json。
+  本走は未投入で、正式測定の認可は[T-1505]により人間手番のまま。
+
 - [x] [T-2397] A-1 pilot attempt-0004を完走し、全3 workload validとsizing入力を生成した。
   source契約の追補は output/insights/2026-09-11/t2397-a1-source-amendment/README.md、
   成果物は output/insights/2026-09-01_paper-story-a1-balanced5-pilot/。旧登録とT-2514のdetail保存を維持する。
@@ -523,6 +529,11 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    - **(8b 着手済み — 現在地・着手順は現行チェックポイントが正本) workload 次元のループ入力化 (次の主経路)** — 「ワークロード特化」のシステム主張に必須。
      - [x] [T-2515] rr5/rr95 の較正投入対応と条件関門の interpreter 修正、既存失敗実測を回収。
        accepted calibration の取得自体は未完。正本 = `output/insights/2026-09-10/t2515-rr95-rr5-calibration/README.md`。
+     - [x] [T-2534] D1936 項 6 に従い、供給されていない BACKOFF_FIXED=-1 の configure argv と
+       専用条件関門を同時に取り下げた。rr95 は accepted calibration を取得
+       (`output/env/pegasus/calibration/registered/calibration-5c836a22eff9ab40.json`)。
+       rr5 は cache floor による `selection-invalid` で未取得のまま、迂回せず裁定へ返した。
+       正本 = `output/insights/2026-09-13/t2515-t2534-backoff-withdraw/README.md`。
      - [x] 認定較正jobの3依存コピー並行化を1対比較し、効果帰属不能として候補を全撤回。
        186→182秒だが未変更工程に3秒差、コピー周辺は約1秒のまま。時間式再凍結は未完。
        記録 = `output/insights/2026-09-11/t2563-calibration-runtime/README.md`。

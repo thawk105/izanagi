@@ -1,0 +1,120 @@
+{
+ "estimated_run_seconds": 180,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M1",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "new": "    maximum = min(s.floor_exact for s, _, _ in sources)\n",
+     "old": "    maximum = max(s.floor_exact for s, _, _ in sources)\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M2",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "new": "    if False:\n        _fail(\"aggregate_spec_closure_error\", \"expected spec has no summary\")\n",
+     "old": "    if seen_specs != set(specs):\n        _fail(\"aggregate_spec_closure_error\", \"expected spec has no summary\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M3",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "new": "        if len(spec.windows) < 1:\n",
+     "old": "        if len(spec.windows) != 2:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M4",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "new": "        projection = set(closed)\n",
+     "old": "        projection = {key for key in closed if key[0] == wid}\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M5",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "new": "    if False:\n",
+     "old": "    if retained & dropped or retained | dropped != planned:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M6",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "new": "    if False:\n",
+     "old": "    if len(observed) != len(expected) or set(observed) != expected:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M7",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "new": "            } for s, document, single in sources if s.floor_exact == maximum],\n",
+     "old": "            } for s, document, single in sources],\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M8",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+     "new": "    if False:\n",
+     "old": "    if _canonical_json_bytes(value) != _canonical_json_bytes(reconstructed):\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 5400
+}

@@ -8,7 +8,7 @@
 # TSC(10) + cooldown_max(1200) + points(5)*sweep_reps(3)*120
 # + noise_reps(10)*120 + 2*sweep_reps(3)*120
 # + build_cap(CCBench=900 + gflags=60 + glog=120)(1080)
-# + condition_gate(300) + finalize_reserve(600) = 6910。要求 7200 秒はこれを上回る。
+# + finalize_reserve(600) = 6610。要求 7200 秒はこれを上回る。
 set -Eeuo pipefail
 umask 077
 
@@ -427,23 +427,6 @@ if [[ -z "$CALIBRATE_PYTHON" ]]; then
   exit 2
 fi
 
-run_condition_gate() {
-  local -a condition_gate_argv=("$CALIBRATE_PYTHON" -m orchestrator.campaign.condition_meaning_gate
-    --source-root "$BUILD_SOURCE" --stock-root "$CCBENCH_BASE"
-    --driver-id tools.pegasus.certify_calibration
-    --macro BACKOFF_FIXED --requested-value=-1 --stock-comparison
-    --meaning-case=-1:branch:stock-adaptive-backoff
-    --cxx "$(realpath "$CXX_PATH")" --cmake "$CMAKE_PATH"
-    --use-class certified-selection)
-  local argument
-  for argument in "${configure_argv[@]:5}"; do
-    [[ $argument == -DCCBENCH_BACKOFF_FIXED=-1 ]] && continue
-    condition_gate_argv+=("--configure-arg=$argument")
-  done
-  (cd "$REPO_ROOT" && timeout 300 "${condition_gate_argv[@]}") \
-    >"$ATTEMPT_DIR/condition-gate.jsonl" 2>"$ATTEMPT_DIR/condition-gate.stderr"
-}
-
 # (iv-a) pinned-clean gflags を /scr で static build/install。build cache は一切参照しない。
 if [[ ! -d "$GFLAGS_SOURCE_PATH" ]]; then
   write_failure 2 gflags "gflags source path missing"
@@ -648,7 +631,6 @@ case "$CALIBRATION_PROTOCOL" in
     ccbench_define_argv=(
       -DCCBENCH_TRACE=0
       -DCCBENCH_BACK_OFF=0
-      -DCCBENCH_BACKOFF_FIXED=-1
       -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1
       -DCCBENCH_NO_WAIT_OF_TICTOC=0
       -DCCBENCH_WAL=0
@@ -685,13 +667,6 @@ configure_argv=("$CMAKE_PATH" -S "$BUILD_SOURCE" -B "$BUILD_DIR" -DCMAKE_BUILD_T
   "-DIZANAGI_GFLAGS_SRC_HEAD=$GFLAGS_SOURCE_HEAD"
   "-DIZANAGI_GLOG_SRC_HEAD=$GLOG_SOURCE_HEAD"
   "-DCMAKE_C_COMPILER=$(realpath "$CC_PATH")" "-DCMAKE_CXX_COMPILER=$(realpath "$CXX_PATH")")
-# The current CCBench pin does not contain the BACKOFF_FIXED macro.
-# Passing it for a new protocol would declare a define the source does not supply.
-# Therefore the condition gate and define are not extended beyond silo.
-# Silo keeps its existing behavior pending a separate user ruling.
-if [[ "$CALIBRATION_PROTOCOL" == "silo" ]]; then
-  run_condition_gate
-fi
 case "$CALIBRATION_PROTOCOL" in
   silo)
     build_argv=("$CMAKE_PATH" --build "$BUILD_DIR" --target ycsb_silo.exe -j 48)

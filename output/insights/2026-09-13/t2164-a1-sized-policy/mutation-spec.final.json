@@ -1,0 +1,106 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 2400,
+ "hang_timeout_seconds": 600,
+ "mutations": [
+  {
+   "id": "M1-drop-search-trials",
+   "category": "positive",
+   "hang_risk": false,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_rejects_missing_or_mistyped_registered_parameters[bool-search-trials-20000]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_rejects_missing_or_mistyped_registered_parameters[float-or-uppercase-search-trials-20000]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_rejects_missing_or_mistyped_registered_parameters[missing-field-search-trials-20000]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_rejects_missing_or_mistyped_registered_parameters[missing-section-search-trials-20000]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_rejects_missing_or_mistyped_registered_parameters[non-object-section-search-trials-20000]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_rejects_missing_or_mistyped_registered_parameters[string-or-int-search-trials-20000]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_requires_registered_parameters[search-trials]"
+   ],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a1_paired.py",
+     "old": "    (\"search\", \"trials\", 20000),\n",
+     "new": ""
+    }
+   ]
+  },
+  {
+   "id": "M2-drop-candidate-grid-maximum",
+   "category": "positive",
+   "hang_risk": false,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_rejects_missing_or_mistyped_registered_parameters[bool-candidate_grid-maximum-4096]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_rejects_missing_or_mistyped_registered_parameters[float-or-uppercase-candidate_grid-maximum-4096]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_rejects_missing_or_mistyped_registered_parameters[missing-field-candidate_grid-maximum-4096]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_rejects_missing_or_mistyped_registered_parameters[string-or-int-candidate_grid-maximum-4096]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_requires_registered_parameters[maximum]"
+   ],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a1_paired.py",
+     "old": "    (\"candidate_grid\", \"maximum\", 4096),\n",
+     "new": ""
+    }
+   ]
+  },
+  {
+   "id": "M3-drop-root-seed-digest",
+   "category": "positive",
+   "hang_risk": false,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_rejects_missing_or_mistyped_registered_parameters[bool-root_seed-digest-e72bc005d156caea2c89085c563c72fa04bbeb4afd98160fca968da9a7f6b3b3]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_rejects_missing_or_mistyped_registered_parameters[float-or-uppercase-root_seed-digest-e72bc005d156caea2c89085c563c72fa04bbeb4afd98160fca968da9a7f6b3b3]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_rejects_missing_or_mistyped_registered_parameters[missing-field-root_seed-digest-e72bc005d156caea2c89085c563c72fa04bbeb4afd98160fca968da9a7f6b3b3]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_rejects_missing_or_mistyped_registered_parameters[missing-section-root_seed-digest-e72bc005d156caea2c89085c563c72fa04bbeb4afd98160fca968da9a7f6b3b3]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_rejects_missing_or_mistyped_registered_parameters[non-object-section-root_seed-digest-e72bc005d156caea2c89085c563c72fa04bbeb4afd98160fca968da9a7f6b3b3]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_rejects_missing_or_mistyped_registered_parameters[string-or-int-root_seed-digest-e72bc005d156caea2c89085c563c72fa04bbeb4afd98160fca968da9a7f6b3b3]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_certificate_requires_registered_parameters[root-seed]"
+   ],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a1_paired.py",
+     "old": "    (\n        \"root_seed\", \"digest\",\n        \"e72bc005d156caea2c89085c563c72fa04bbeb4afd98160fca968da9a7f6b3b3\",\n    ),\n",
+     "new": ""
+    }
+   ]
+  },
+  {
+   "id": "M4-drop-float-positive-condition",
+   "category": "positive",
+   "hang_risk": false,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_statistics_reject_invalid_decimal_values[1e-999-k]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_statistics_reject_invalid_decimal_values[1e-999-planned_sigma_tps]"
+   ],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a1_paired.py",
+     "old": "                if not math.isfinite(converted) or converted <= 0:",
+     "new": "                if not math.isfinite(converted):"
+    }
+   ]
+  },
+  {
+   "id": "M5-unpin-sized-policy-bytes",
+   "category": "positive",
+   "hang_risk": false,
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_policy_bytes_are_pinned[load]",
+    "orchestrator/tests/test_paper_story_a1_paired.py::test_v3_sized_policy_bytes_are_pinned[validate]"
+   ],
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/paper_story_a1_paired.py",
+     "old": "        return (\n            V3_SIZED_POLICY_PATH,\n            V3_SIZED_POLICY_RELATIVE_PATH,\n            V3_SIZED_POLICY_SHA256,\n        )",
+     "new": "        return V3_SIZED_POLICY_PATH, V3_SIZED_POLICY_RELATIVE_PATH, None"
+    }
+   ]
+  }
+ ]
+}

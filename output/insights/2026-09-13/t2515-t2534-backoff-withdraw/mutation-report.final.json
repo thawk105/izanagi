@@ -1,0 +1,701 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/f3ecd1d5e9ffc1999bafaf91d27941dc/izdw-f3ecd1d5e9.o995842",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/f3ecd1d5e9ffc1999bafaf91d27941dc/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [184 items]\n\n........................................................................ [ 39%]\n........................................................................ [ 78%]\n........................................                                 [100%]\n======================== 184 passed in 72.76s (0:01:12) ========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "90d2ee317d8bc9741cb01dabf085962b62362bd8d3a02318120e1882af5ab84e"
+    },
+    "artifact_error": null,
+    "collection_sha256": "b37cf2279b7111b9f611a24a47e803b4598e460723af213b6ff99014b1f7a908",
+    "duration_s": 93.53,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "977d04575ae83cfaffc66c731dc6b80ce6c31d9035b4d1227d61a998d1fd0ef7",
+    "repo_head": "931eee3c3b7b3122af020a96e675bdf3628b5644",
+    "runner_sha256": "66f497d77bd0939c6baa39b089323c80db835aa2760a8fa6d7dddb1a60d3629f",
+    "spec_sha256": "cd40e36408f94eef2b9896ed664cebad9c1aa44e3336fdabe13a38859cff222f",
+    "status": "PASSED",
+    "test_output_sha256": "90d2ee317d8bc9741cb01dabf085962b62362bd8d3a02318120e1882af5ab84e",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "de45c671da4682a0c168e520d4fd1c1c61474f5891d6c6d9857f46fc0c8d9f83"
+  },
+  "date": "2026-09-13T15:03:01.196425+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/8c0a71d54209495691b63da90eefd66e/izdw-8c0a71d542.o995843",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/8c0a71d54209495691b63da90eefd66e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [184 items]\n\n.......................................................................F [ 39%]\n...F.....................................F......................F....... [ 78%]\n..................................FF..F.                                 [100%]\n=================================== FAILURES ===================================\n_______ test_certify_shell_protocol_axes_match_independent_genome_spaces _______\n[gw43] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certify_shell_protocol_axes_match_independent_genome_spaces() -> None:\n        table = _certify_protocol_define_table()\n        for protocol in (\"silo\", \"mocc\", \"tictoc\"):\n            assert table[protocol][\"TRACE\"] == \"0\"\n            excluded = {\"TRACE\"}\n>           assert set(table[protocol]) - excluded == set(SPACES[protocol].axes)\nE           AssertionError: assert {'BACKOFF_FIX...ICTOC', 'WAL'} == {'BACK_OFF', ...ICTOC', 'WAL'}\nE             \nE             Extra items in the left set:\nE             'BACKOFF_FIXED'\nE             Use -v to get more diff\n\norchestrator/tests/test_pegasus_calibration_workload.py:822: AssertionError\n____________ test_certify_shell_protocol_defines_match_exact_values ____________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certify_shell_protocol_defines_match_exact_values() -> None:\n>       assert _certify_protocol_define_table() == {\n            \"silo\": {\n                \"TRACE\": \"0\",\n                \"BACK_OFF\": \"0\",\n                \"NO_WAIT_LOCKING_IN_VALIDATION\": \"1\",\n                \"NO_WAIT_OF_TICTOC\": \"0\",\n                \"WAL\": \"0\",\n            },\n            \"mocc\": {\n                \"TRACE\": \"0\",\n                \"BACK_OFF\": \"1\",\n                \"KEY_SORT\": \"0\",\n                \"TEMPERATURE_RESET_OPT\": \"1\",\n            },\n            \"tictoc\": {\n                \"TRACE\": \"0\",\n                \"BACK_OFF\": \"1\",\n                \"NO_WAIT_LOCKING_IN_VALIDATION\": \"1\",\n                \"NO_WAIT_OF_TICTOC\": \"0\",\n                \"PREEMPTIVE_ABORTS\": \"1\",\n                \"TIMESTAMP_HISTORY\": \"1\",\n            },\n        }\nE       AssertionError: assert {'silo': {'TR...C': '0', ...}} == {'silo': {'TR...C': '0', ...}}\nE         \nE         Omitting 2 identical items, use -vv to show\nE         Differing items:\nE         {'silo': {'TRACE': '0', 'BACK_OFF': '0', 'BACKOFF_FIXED': '-1', 'NO_WAIT_LOCKING_IN_VALIDATION': '1', ...}} != {'silo': {'TRACE': '0', 'BACK_OFF': '0', 'NO_WAIT_LOCKING_IN_VALIDATION': '1', 'NO_WAIT_OF_TICTOC': '0', ...}}\nE         Use -v to get more diff\n\norchestrator/tests/test_pegasus_calibration_workload.py:826: AssertionError\n________ test_certify_shell_protocol_axis_values_satisfy_genome_spaces _________\n[gw45] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certify_shell_protocol_axis_values_satisfy_genome_spaces() -> None:\n        table = _certify_protocol_define_table()\n        for protocol in (\"silo\", \"mocc\", \"tictoc\"):\n            excluded = {\"TRACE\"}\n            shell_axis_assignment = {\n                name: int(value)\n                for name, value in table[protocol].items()\n                if name not in excluded\n            }\n>           assert any(\n                genome.flags == shell_axis_assignment\n                for genome in SPACES[protocol].enumerate()\n            )\nE           assert False\nE            +  where False = any(<generator object test_certify_shell_protocol_axis_values_satisfy_genome_spaces.<locals>.<genexpr> at 0x149703a25460>)\n\norchestrator/tests/test_pegasus_calibration_workload.py:860: AssertionError\n______ test_default_silo_build_and_calibrate_argv_match_offline_contract _______\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_default_silo_build_and_calibrate_argv_match_offline_contract() -> None:\n        observed = _protocol_shell_observation(\"silo\")\n        true_path = str(Path(\"/bin/true\").resolve())\n>       assert observed[\"configure_argv\"] == [\n            \"/fixture/cmake\", \"-S\", \"/fixture/source\", \"-B\", \"/fixture/build\",\n            \"-DCMAKE_BUILD_TYPE=Release\", \"-DENABLE_SANITIZER=OFF\",\n            \"-DFETCHCONTENT_BASE_DIR=/fixture/fetchcontent-base\",\n            \"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\",\n            \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/fixture/fetchcontent-src/masstree-src\",\n            \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/fixture/fetchcontent-src/mimalloc-src\",\n            \"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/fixture/fetchcontent-src/googletest-src\",\n            \"-DCCBENCH_TRACE=0\", \"-DCCBENCH_BACK_OFF=0\",\n            \"-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1\",\n            \"-DCCBENCH_NO_WAIT_OF_TICTOC=0\", \"-DCCBENCH_WAL=0\",\n            \"-DCMAKE_PREFIX_PATH=/fixture/gflags;/fixture/glog\",\n            f\"-DIZANAGI_GFLAGS_SRC_HEAD={'a' * 40}\",\n            f\"-DIZANAGI_GLOG_SRC_HEAD={'b' * 40}\",\n            f\"-DCMAKE_C_COMPILER={true_path}\",\n            f\"-DCMAKE_CXX_COMPILER={true_path}\",\n        ]\nE       AssertionError: assert ['/fixture/cm...Release', ...] == ['/fixture/cm...Release', ...]\nE         \nE         At index 14 diff: '-DCCBENCH_BACKOFF_FIXED=-1' != '-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1'\nE         Left contains one more item: '-DCMAKE_CXX_COMPILER=/usr/bin/true'\nE         Use -v to get more diff\n\norchestrator/tests/test_pegasus_calibration_workload.py:960: AssertionError\n___ test_define_sink_cross_product_classifies_t2155_production_sinks_exactly ___\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():\n        patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()\n        classifications, failures = _define_sink_cross_product_classification(\n            _production_build_sources(), frozenset(patch_sources),\n        )\n        s1_sink = _BuildSink(\n            \"orchestrator/campaign/s1_direct_comparison.py\",\n            \"<module>.run_role\",\n            1233,\n            \"campaign\",\n        )\n        s8b_sink = _BuildSink(\n            \"orchestrator/campaign/s8b_oracle_driver.py\",\n            \"<module>.run_block\",\n            1793,\n            \"campaign\",\n        )\n        assert classifications[s1_sink] == Counter({\n            \"covered\": 4,\n            # Patches B and C plus the mocc controls cannot reach this sink.\n            \"proven-unreachable\": 34,\n        })\n        # Patch-derived define interfaces are covered by the s8b sink.\n        assert classifications[s8b_sink] == Counter({\"covered\": 38})\n>       assert failures == []\nE       AssertionError: assert [('BACKOFF_FI... 'reachable')] == []\nE         \nE         Left contains 3 more items, first extra item: ('BACKOFF_FIXED', _BuildSink(relative_path='tools/pegasus/certify_calibration.sh', scope='<module>', lineno=673, kind='shell-cmake-target'), 'reachable')\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:2947: AssertionError\n_______ test_define_sink_cross_product_has_no_unreviewed_ungated_member ________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_define_sink_cross_product_has_no_unreviewed_ungated_member():\n        patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()\n        failures = _define_sink_cross_product_failures(\n            _production_build_sources(), frozenset(patch_sources),\n        )\n>       assert failures == []\nE       AssertionError: assert [('BACKOFF_FI... 'reachable')] == []\nE         \nE         Left contains 3 more items, first extra item: ('BACKOFF_FIXED', _BuildSink(relative_path='tools/pegasus/certify_calibration.sh', scope='<module>', lineno=673, kind='shell-cmake-target'), 'reachable')\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:2658: AssertionError\n__________ test_define_sink_cross_product_t2520_certify_entry_removal __________\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1480698354e0>\n\n    def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):\n        sources = _production_build_sources()\n        patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()\n        patch_macros = frozenset(patch_sources)\n        target = _BuildSink(\n            \"tools/pegasus/probes/t2187_adaptive_const_probe.py\",\n            \"<module>._certify_main._build_trace_binary\", 3910, \"buildcache\",\n        )\n        assert target in _benchmark_build_sinks(sources)\n        member = _deferred_member(target)\n        assert member is not None\n        # The existing source inventory is independent of the new closure check.\n        expected_macros = _source_macro_tokens(\n            target.relative_path, sources[target.relative_path], patch_macros, sources,\n        )\n        assert len(expected_macros) == 14\n        before, failures = _define_sink_cross_product_classification(\n            sources, patch_macros,\n        )\n>       assert failures == []\nE       AssertionError: assert [('BACKOFF_FI... 'reachable')] == []\nE         \nE         Left contains 3 more items, first extra item: ('BACKOFF_FIXED', _BuildSink(relative_path='tools/pegasus/certify_calibration.sh', scope='<module>', lineno=673, kind='shell-cmake-target'), 'reachable')\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:2969: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal\n======================== 7 failed, 177 passed in 42.83s ========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=1674 retained_bytes=1674 omitted_bytes=0 rendered_excerpt_bytes=1733 sha256=47887e1c77fe32628a52dd463658230b0bf7ac82c4bb3fcf67ad5a5a5027b3c8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_default_silo_build_and_calibrate_argv_match_offline_contract() -> None:\n>         observed = _protocol_shell_observation(\"silo\")\n>         true_path = str(Path(\"/bin/true\").resolve())\n> >       assert observed[\"configure_argv\"] == [\n>             \"/fixture/cmake\", \"-S\", \"/fixture/source\", \"-B\", \"/fixture/build\",\n>             \"-DCMAKE_BUILD_TYPE=Release\", \"-DENABLE_SANITIZER=OFF\",\n>             \"-DFETCHCONTENT_BASE_DIR=/fixture/fetchcontent-base\",\n>             \"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\",\n>             \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/fixture/fetchcontent-src/masstree-src\",\n>             \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/fixture/fetchcontent-src/mimalloc-src\",\n>             \"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/fixture/fetchcontent-src/googletest-src\",\n>             \"-DCCBENCH_TRACE=0\", \"-DCCBENCH_BACK_OFF=0\",\n>             \"-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1\",\n>             \"-DCCBENCH_NO_WAIT_OF_TICTOC=0\", \"-DCCBENCH_WAL=0\",\n>             \"-DCMAKE_PREFIX_PATH=/fixture/gflags;/fixture/glog\",\n>             f\"-DIZANAGI_GFLAGS_SRC_HEAD={'a' * 40}\",\n>             f\"-DIZANAGI_GLOG_SRC_HEAD={'b' * 40}\",\n>             f\"-DCMAKE_C_COMPILER={true_path}\",\n>             f\"-DCMAKE_CXX_COMPILER={true_path}\",\n>         ]\n> E       AssertionError: assert ['/fixture/cm...Release', ...] == ['/fixture/cm...Release', ...]\n> E         \n> E         At index 14 diff: '-DCCBENCH_BACKOFF_FIXED=-1' != '-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1'\n> E         Left contains one more item: '-DCMAKE_CXX_COMPILER=/usr/bin/true'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:960: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=1495 retained_bytes=1495 omitted_bytes=0 rendered_excerpt_bytes=1556 sha256=48eaa8e5ec9fd54f40fcd0f80003695bd08b6eee22f5194c9c0aa63f3fd5b2ed\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw47] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1480698354e0>\n> \n>     def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):\n>         sources = _production_build_sources()\n>         patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()\n>         patch_macros = frozenset(patch_sources)\n>         target = _BuildSink(\n>             \"tools/pegasus/probes/t2187_adaptive_const_probe.py\",\n>             \"<module>._certify_main._build_trace_binary\", 3910, \"buildcache\",\n>         )\n>         assert target in _benchmark_build_sinks(sources)\n>         member = _deferred_member(target)\n>         assert member is not None\n>         # The existing source inventory is independent of the new closure check.\n>         expected_macros = _source_macro_tokens(\n>             target.relative_path, sources[target.relative_path], patch_macros, sources,\n>         )\n>         assert len(expected_macros) == 14\n>         before, failures = _define_sink_cross_product_classification(\n>             sources, patch_macros,\n>         )\n> >       assert failures == []\n> E       AssertionError: assert [('BACKOFF_FI... 'reachable')] == []\n> E         \n> E         Left contains 3 more items, first extra item: ('BACKOFF_FIXED', _BuildSink(relative_path='tools/pegasus/certify_calibration.sh', scope='<module>', lineno=673, kind='shell-cmake-target'), 'reachable')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:2969: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=1481 retained_bytes=1481 omitted_bytes=0 rendered_excerpt_bytes=1548 sha256=fc47fc149d58ca794ea259a70e6149de8a6ebeed73430268c4b03372d87f888b\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():\n>         patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()\n>         classifications, failures = _define_sink_cross_product_classification(\n>             _production_build_sources(), frozenset(patch_sources),\n>         )\n>         s1_sink = _BuildSink(\n>             \"orchestrator/campaign/s1_direct_comparison.py\",\n>             \"<module>.run_role\",\n>             1233,\n>             \"campaign\",\n>         )\n>         s8b_sink = _BuildSink(\n>             \"orchestrator/campaign/s8b_oracle_driver.py\",\n>             \"<module>.run_block\",\n>             1793,\n>             \"campaign\",\n>         )\n>         assert classifications[s1_sink] == Counter({\n>             \"covered\": 4,\n>             # Patches B and C plus the mocc controls cannot reach this sink.\n>             \"proven-unreachable\": 34,\n>         })\n>         # Patch-derived define interfaces are covered by the s8b sink.\n>         assert classifications[s8b_sink] == Counter({\"covered\": 38})\n> >       assert failures == []\n> E       AssertionError: assert [('BACKOFF_FI... 'reachable')] == []\n> E         \n> E         Left contains 3 more items, first extra item: ('BACKOFF_FIXED', _BuildSink(relative_path='tools/pegasus/certify_calibration.sh', scope='<module>', lineno=673, kind='shell-cmake-target'), 'reachable')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:2947: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1400 retained_bytes=1400 omitted_bytes=0 rendered_excerpt_bytes=1469 sha256=c6eeb9984998e437eee52e333b93402439fb7c156f90a15602d9810f0ea2c314\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certify_shell_protocol_defines_match_exact_values() -> None:\n> >       assert _certify_protocol_define_table() == {\n>             \"silo\": {\n>                 \"TRACE\": \"0\",\n>                 \"BACK_OFF\": \"0\",\n>                 \"NO_WAIT_LOCKING_IN_VALIDATION\": \"1\",\n>                 \"NO_WAIT_OF_TICTOC\": \"0\",\n>                 \"WAL\": \"0\",\n>             },\n>             \"mocc\": {\n>                 \"TRACE\": \"0\",\n>                 \"BACK_OFF\": \"1\",\n>                 \"KEY_SORT\": \"0\",\n>                 \"TEMPERATURE_RESET_OPT\": \"1\",\n>             },\n>             \"tictoc\": {\n>                 \"TRACE\": \"0\",\n>                 \"BACK_OFF\": \"1\",\n>                 \"NO_WAIT_LOCKING_IN_VALIDATION\": \"1\",\n>                 \"NO_WAIT_OF_TICTOC\": \"0\",\n>                 \"PREEMPTIVE_ABORTS\": \"1\",\n>                 \"TIMESTAMP_HISTORY\": \"1\",\n>             },\n>         }\n> E       AssertionError: assert {'silo': {'TR...C': '0', ...}} == {'silo': {'TR...C': '0', ...}}\n> E         \n> E         Omitting 2 identical items, use -vv to show\n> E         Differing items:\n> E         {'silo': {'TRACE': '0', 'BACK_OFF': '0', 'BACKOFF_FIXED': '-1', 'NO_WAIT_LOCKING_IN_VALIDATION': '1', ...}} != {'silo': {'TRACE': '0', 'BACK_OFF': '0', 'NO_WAIT_LOCKING_IN_VALIDATION': '1', 'NO_WAIT_OF_TICTOC': '0', ...}}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:826: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=852 retained_bytes=852 omitted_bytes=0 rendered_excerpt_bytes=891 sha256=e0d303b38b601e9fef8f40a0e9897c891e973e4517b429de007fadfcee183fb6\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw45] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certify_shell_protocol_axis_values_satisfy_genome_spaces() -> None:\n>         table = _certify_protocol_define_table()\n>         for protocol in (\"silo\", \"mocc\", \"tictoc\"):\n>             excluded = {\"TRACE\"}\n>             shell_axis_assignment = {\n>                 name: int(value)\n>                 for name, value in table[protocol].items()\n>                 if name not in excluded\n>             }\n> >           assert any(\n>                 genome.flags == shell_axis_assignment\n>                 for genome in SPACES[protocol].enumerate()\n>             )\n> E           assert False\n> E            +  where False = any(<generator object test_certify_shell_protocol_axis_values_satisfy_genome_spaces.<locals>.<genexpr> at 0x149703a25460>)\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:860: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=753 retained_bytes=753 omitted_bytes=0 rendered_excerpt_bytes=782 sha256=91fa90dec02d175e647d68d777bc0ccd469bafc5f08ccb9c9e913f5b935f5229\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_define_sink_cross_product_has_no_unreviewed_ungated_member():\n>         patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()\n>         failures = _define_sink_cross_product_failures(\n>             _production_build_sources(), frozenset(patch_sources),\n>         )\n> >       assert failures == []\n> E       AssertionError: assert [('BACKOFF_FI... 'reachable')] == []\n> E         \n> E         Left contains 3 more items, first extra item: ('BACKOFF_FIXED', _BuildSink(relative_path='tools/pegasus/certify_calibration.sh', scope='<module>', lineno=673, kind='shell-cmake-target'), 'reachable')\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:2658: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=700 retained_bytes=700 omitted_bytes=0 rendered_excerpt_bytes=731 sha256=85b644f3c5b9d6ede187e165ea08065abf769bbcb5d9e943616a14e8527deded\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw43] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certify_shell_protocol_axes_match_independent_genome_spaces() -> None:\n>         table = _certify_protocol_define_table()\n>         for protocol in (\"silo\", \"mocc\", \"tictoc\"):\n>             assert table[protocol][\"TRACE\"] == \"0\"\n>             excluded = {\"TRACE\"}\n> >           assert set(table[protocol]) - excluded == set(SPACES[protocol].axes)\n> E           AssertionError: assert {'BACKOFF_FIX...ICTOC', 'WAL'} == {'BACK_OFF', ...ICTOC', 'WAL'}\n> E             \n> E             Extra items in the left set:\n> E             'BACKOFF_FIXED'\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:822: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=7 failed=7 errors=0 selected=7 omitted_failures=0 source_bytes=8355 retained_bytes=8355 omitted_bytes=0 budget_bytes=49152 rendered_bytes=12185 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f224be4a813076fbc17c7b053c6af47fc48bdb0a7926d93db40a8391dc7a0dd2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b37cf2279b7111b9f611a24a47e803b4598e460723af213b6ff99014b1f7a908",
+      "duration_s": 68.004,
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2515-M1-READD-DEFINE",
+      "injection_diff_sha256": "5c3824a5dfb8a9e53cfd1f857ddea81f49aae15b5657ea78090107d872ffb812",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2f24e273cd6bce27233640c63101de09f98395be32826fe62f6793ea4e32e53b",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "      -DCCBENCH_BACK_OFF=0\n      -DCCBENCH_BACKOFF_FIXED=-1\n",
+          "old": "      -DCCBENCH_BACK_OFF=0\n"
+        }
+      ],
+      "repo_head": "931eee3c3b7b3122af020a96e675bdf3628b5644",
+      "runner_sha256": "66f497d77bd0939c6baa39b089323c80db835aa2760a8fa6d7dddb1a60d3629f",
+      "spec_sha256": "cd40e36408f94eef2b9896ed664cebad9c1aa44e3336fdabe13a38859cff222f",
+      "status": "KILLED",
+      "test_output_sha256": "f224be4a813076fbc17c7b053c6af47fc48bdb0a7926d93db40a8391dc7a0dd2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "de45c671da4682a0c168e520d4fd1c1c61474f5891d6c6d9857f46fc0c8d9f83"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/88028a9fa84d847d9b9b7d99e80ad9a7/izdw-88028a9fa8.o995844",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/88028a9fa84d847d9b9b7d99e80ad9a7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [184 items]\n\n........................................................................ [ 39%]\n........F....................................................F.......... [ 78%]\n........................................                                 [100%]\n=================================== FAILURES ===================================\n____________ test_certify_shell_protocol_defines_match_exact_values ____________\n[gw45] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certify_shell_protocol_defines_match_exact_values() -> None:\n>       assert _certify_protocol_define_table() == {\n            \"silo\": {\n                \"TRACE\": \"0\",\n                \"BACK_OFF\": \"0\",\n                \"NO_WAIT_LOCKING_IN_VALIDATION\": \"1\",\n                \"NO_WAIT_OF_TICTOC\": \"0\",\n                \"WAL\": \"0\",\n            },\n            \"mocc\": {\n                \"TRACE\": \"0\",\n                \"BACK_OFF\": \"1\",\n                \"KEY_SORT\": \"0\",\n                \"TEMPERATURE_RESET_OPT\": \"1\",\n            },\n            \"tictoc\": {\n                \"TRACE\": \"0\",\n                \"BACK_OFF\": \"1\",\n                \"NO_WAIT_LOCKING_IN_VALIDATION\": \"1\",\n                \"NO_WAIT_OF_TICTOC\": \"0\",\n                \"PREEMPTIVE_ABORTS\": \"1\",\n                \"TIMESTAMP_HISTORY\": \"1\",\n            },\n        }\nE       AssertionError: assert {'silo': {'TR...C': '0', ...}} == {'silo': {'TR...C': '0', ...}}\nE         \nE         Omitting 2 identical items, use -vv to show\nE         Differing items:\nE         {'silo': {'TRACE': '0', 'BACK_OFF': '1', 'NO_WAIT_LOCKING_IN_VALIDATION': '1', 'NO_WAIT_OF_TICTOC': '0', ...}} != {'silo': {'TRACE': '0', 'BACK_OFF': '0', 'NO_WAIT_LOCKING_IN_VALIDATION': '1', 'NO_WAIT_OF_TICTOC': '0', ...}}\nE         Use -v to get more diff\n\norchestrator/tests/test_pegasus_calibration_workload.py:826: AssertionError\n______ test_default_silo_build_and_calibrate_argv_match_offline_contract _______\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_default_silo_build_and_calibrate_argv_match_offline_contract() -> None:\n        observed = _protocol_shell_observation(\"silo\")\n        true_path = str(Path(\"/bin/true\").resolve())\n>       assert observed[\"configure_argv\"] == [\n            \"/fixture/cmake\", \"-S\", \"/fixture/source\", \"-B\", \"/fixture/build\",\n            \"-DCMAKE_BUILD_TYPE=Release\", \"-DENABLE_SANITIZER=OFF\",\n            \"-DFETCHCONTENT_BASE_DIR=/fixture/fetchcontent-base\",\n            \"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\",\n            \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/fixture/fetchcontent-src/masstree-src\",\n            \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/fixture/fetchcontent-src/mimalloc-src\",\n            \"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/fixture/fetchcontent-src/googletest-src\",\n            \"-DCCBENCH_TRACE=0\", \"-DCCBENCH_BACK_OFF=0\",\n            \"-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1\",\n            \"-DCCBENCH_NO_WAIT_OF_TICTOC=0\", \"-DCCBENCH_WAL=0\",\n            \"-DCMAKE_PREFIX_PATH=/fixture/gflags;/fixture/glog\",\n            f\"-DIZANAGI_GFLAGS_SRC_HEAD={'a' * 40}\",\n            f\"-DIZANAGI_GLOG_SRC_HEAD={'b' * 40}\",\n            f\"-DCMAKE_C_COMPILER={true_path}\",\n            f\"-DCMAKE_CXX_COMPILER={true_path}\",\n        ]\nE       AssertionError: assert ['/fixture/cm...Release', ...] == ['/fixture/cm...Release', ...]\nE         \nE         At index 13 diff: '-DCCBENCH_BACK_OFF=1' != '-DCCBENCH_BACK_OFF=0'\nE         Use -v to get more diff\n\norchestrator/tests/test_pegasus_calibration_workload.py:960: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract\n=================== 2 failed, 182 passed in 73.99s (0:01:13) ===================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=1571 retained_bytes=1571 omitted_bytes=0 rendered_excerpt_bytes=1628 sha256=ea9d3099ce870870c97f28753ffe0a9db7914e9b7a5ec4d84541e85d512cb790\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_default_silo_build_and_calibrate_argv_match_offline_contract() -> None:\n>         observed = _protocol_shell_observation(\"silo\")\n>         true_path = str(Path(\"/bin/true\").resolve())\n> >       assert observed[\"configure_argv\"] == [\n>             \"/fixture/cmake\", \"-S\", \"/fixture/source\", \"-B\", \"/fixture/build\",\n>             \"-DCMAKE_BUILD_TYPE=Release\", \"-DENABLE_SANITIZER=OFF\",\n>             \"-DFETCHCONTENT_BASE_DIR=/fixture/fetchcontent-base\",\n>             \"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\",\n>             \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/fixture/fetchcontent-src/masstree-src\",\n>             \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/fixture/fetchcontent-src/mimalloc-src\",\n>             \"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/fixture/fetchcontent-src/googletest-src\",\n>             \"-DCCBENCH_TRACE=0\", \"-DCCBENCH_BACK_OFF=0\",\n>             \"-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1\",\n>             \"-DCCBENCH_NO_WAIT_OF_TICTOC=0\", \"-DCCBENCH_WAL=0\",\n>             \"-DCMAKE_PREFIX_PATH=/fixture/gflags;/fixture/glog\",\n>             f\"-DIZANAGI_GFLAGS_SRC_HEAD={'a' * 40}\",\n>             f\"-DIZANAGI_GLOG_SRC_HEAD={'b' * 40}\",\n>             f\"-DCMAKE_C_COMPILER={true_path}\",\n>             f\"-DCMAKE_CXX_COMPILER={true_path}\",\n>         ]\n> E       AssertionError: assert ['/fixture/cm...Release', ...] == ['/fixture/cm...Release', ...]\n> E         \n> E         At index 13 diff: '-DCCBENCH_BACK_OFF=1' != '-DCCBENCH_BACK_OFF=0'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:960: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1403 retained_bytes=1403 omitted_bytes=0 rendered_excerpt_bytes=1472 sha256=26eec7e4203a2b6d39c3689e1cf720534940980eb4b1a0a6ac665e856ac1d589\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw45] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certify_shell_protocol_defines_match_exact_values() -> None:\n> >       assert _certify_protocol_define_table() == {\n>             \"silo\": {\n>                 \"TRACE\": \"0\",\n>                 \"BACK_OFF\": \"0\",\n>                 \"NO_WAIT_LOCKING_IN_VALIDATION\": \"1\",\n>                 \"NO_WAIT_OF_TICTOC\": \"0\",\n>                 \"WAL\": \"0\",\n>             },\n>             \"mocc\": {\n>                 \"TRACE\": \"0\",\n>                 \"BACK_OFF\": \"1\",\n>                 \"KEY_SORT\": \"0\",\n>                 \"TEMPERATURE_RESET_OPT\": \"1\",\n>             },\n>             \"tictoc\": {\n>                 \"TRACE\": \"0\",\n>                 \"BACK_OFF\": \"1\",\n>                 \"NO_WAIT_LOCKING_IN_VALIDATION\": \"1\",\n>                 \"NO_WAIT_OF_TICTOC\": \"0\",\n>                 \"PREEMPTIVE_ABORTS\": \"1\",\n>                 \"TIMESTAMP_HISTORY\": \"1\",\n>             },\n>         }\n> E       AssertionError: assert {'silo': {'TR...C': '0', ...}} == {'silo': {'TR...C': '0', ...}}\n> E         \n> E         Omitting 2 identical items, use -vv to show\n> E         Differing items:\n> E         {'silo': {'TRACE': '0', 'BACK_OFF': '1', 'NO_WAIT_LOCKING_IN_VALIDATION': '1', 'NO_WAIT_OF_TICTOC': '0', ...}} != {'silo': {'TRACE': '0', 'BACK_OFF': '0', 'NO_WAIT_LOCKING_IN_VALIDATION': '1', 'NO_WAIT_OF_TICTOC': '0', ...}}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:826: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2974 retained_bytes=2974 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4302 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c82cb01fe0fac0b1f5ff703b12ea48ac8e7f2ad03d3caa956c285edf159c348c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b37cf2279b7111b9f611a24a47e803b4598e460723af213b6ff99014b1f7a908",
+      "duration_s": 103.808,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2515-M2-BACKOFF-VALUE",
+      "injection_diff_sha256": "ccfdba1b79fe021f53808a5098f2e214826f92e9a01cd5e2f56acb91fb6c7250",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8a2d4f4287150a7311465bd73f97e7096f4f4d7894eacccffd42aa2875ea62a7",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "      -DCCBENCH_BACK_OFF=1\n",
+          "old": "      -DCCBENCH_BACK_OFF=0\n"
+        }
+      ],
+      "repo_head": "931eee3c3b7b3122af020a96e675bdf3628b5644",
+      "runner_sha256": "66f497d77bd0939c6baa39b089323c80db835aa2760a8fa6d7dddb1a60d3629f",
+      "spec_sha256": "cd40e36408f94eef2b9896ed664cebad9c1aa44e3336fdabe13a38859cff222f",
+      "status": "KILLED",
+      "test_output_sha256": "c82cb01fe0fac0b1f5ff703b12ea48ac8e7f2ad03d3caa956c285edf159c348c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "de45c671da4682a0c168e520d4fd1c1c61474f5891d6c6d9857f46fc0c8d9f83"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/26543489514e815e3dfe19fd26004cd8/izdw-2654348951.o995845",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/26543489514e815e3dfe19fd26004cd8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [184 items]\n\n........................................................................ [ 39%]\n.....F....F.........................F........................F.......... [ 78%]\n........................................                                 [100%]\n=================================== FAILURES ===================================\n____________ test_certify_shell_protocol_defines_match_exact_values ____________\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certify_shell_protocol_defines_match_exact_values() -> None:\n>       assert _certify_protocol_define_table() == {\n            \"silo\": {\n                \"TRACE\": \"0\",\n                \"BACK_OFF\": \"0\",\n                \"NO_WAIT_LOCKING_IN_VALIDATION\": \"1\",\n                \"NO_WAIT_OF_TICTOC\": \"0\",\n                \"WAL\": \"0\",\n            },\n            \"mocc\": {\n                \"TRACE\": \"0\",\n                \"BACK_OFF\": \"1\",\n                \"KEY_SORT\": \"0\",\n                \"TEMPERATURE_RESET_OPT\": \"1\",\n            },\n            \"tictoc\": {\n                \"TRACE\": \"0\",\n                \"BACK_OFF\": \"1\",\n                \"NO_WAIT_LOCKING_IN_VALIDATION\": \"1\",\n                \"NO_WAIT_OF_TICTOC\": \"0\",\n                \"PREEMPTIVE_ABORTS\": \"1\",\n                \"TIMESTAMP_HISTORY\": \"1\",\n            },\n        }\nE       AssertionError: assert {'silo': {'TR...C': '0', ...}} == {'silo': {'TR...C': '0', ...}}\nE         \nE         Omitting 2 identical items, use -vv to show\nE         Differing items:\nE         {'silo': {'TRACE': '0', 'BACK_OFF': '0', 'NO_WAIT_LOCKING_IN_VALIDATION': '1', 'NO_WAIT_OF_TICTOC': '0'}} != {'silo': {'TRACE': '0', 'BACK_OFF': '0', 'NO_WAIT_LOCKING_IN_VALIDATION': '1', 'NO_WAIT_OF_TICTOC': '0', ...}}\nE         Use -v to get more diff\n\norchestrator/tests/test_pegasus_calibration_workload.py:826: AssertionError\n_______ test_certify_shell_protocol_axes_match_independent_genome_spaces _______\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certify_shell_protocol_axes_match_independent_genome_spaces() -> None:\n        table = _certify_protocol_define_table()\n        for protocol in (\"silo\", \"mocc\", \"tictoc\"):\n            assert table[protocol][\"TRACE\"] == \"0\"\n            excluded = {\"TRACE\"}\n>           assert set(table[protocol]) - excluded == set(SPACES[protocol].axes)\nE           AssertionError: assert {'BACK_OFF', ...IT_OF_TICTOC'} == {'BACK_OFF', ...ICTOC', 'WAL'}\nE             \nE             Extra items in the right set:\nE             'WAL'\nE             Use -v to get more diff\n\norchestrator/tests/test_pegasus_calibration_workload.py:822: AssertionError\n________ test_certify_shell_protocol_axis_values_satisfy_genome_spaces _________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certify_shell_protocol_axis_values_satisfy_genome_spaces() -> None:\n        table = _certify_protocol_define_table()\n        for protocol in (\"silo\", \"mocc\", \"tictoc\"):\n            excluded = {\"TRACE\"}\n            shell_axis_assignment = {\n                name: int(value)\n                for name, value in table[protocol].items()\n                if name not in excluded\n            }\n>           assert any(\n                genome.flags == shell_axis_assignment\n                for genome in SPACES[protocol].enumerate()\n            )\nE           assert False\nE            +  where False = any(<generator object test_certify_shell_protocol_axis_values_satisfy_genome_spaces.<locals>.<genexpr> at 0x14fbb48c1460>)\n\norchestrator/tests/test_pegasus_calibration_workload.py:860: AssertionError\n______ test_default_silo_build_and_calibrate_argv_match_offline_contract _______\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_default_silo_build_and_calibrate_argv_match_offline_contract() -> None:\n        observed = _protocol_shell_observation(\"silo\")\n        true_path = str(Path(\"/bin/true\").resolve())\n>       assert observed[\"configure_argv\"] == [\n            \"/fixture/cmake\", \"-S\", \"/fixture/source\", \"-B\", \"/fixture/build\",\n            \"-DCMAKE_BUILD_TYPE=Release\", \"-DENABLE_SANITIZER=OFF\",\n            \"-DFETCHCONTENT_BASE_DIR=/fixture/fetchcontent-base\",\n            \"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\",\n            \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/fixture/fetchcontent-src/masstree-src\",\n            \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/fixture/fetchcontent-src/mimalloc-src\",\n            \"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/fixture/fetchcontent-src/googletest-src\",\n            \"-DCCBENCH_TRACE=0\", \"-DCCBENCH_BACK_OFF=0\",\n            \"-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1\",\n            \"-DCCBENCH_NO_WAIT_OF_TICTOC=0\", \"-DCCBENCH_WAL=0\",\n            \"-DCMAKE_PREFIX_PATH=/fixture/gflags;/fixture/glog\",\n            f\"-DIZANAGI_GFLAGS_SRC_HEAD={'a' * 40}\",\n            f\"-DIZANAGI_GLOG_SRC_HEAD={'b' * 40}\",\n            f\"-DCMAKE_C_COMPILER={true_path}\",\n            f\"-DCMAKE_CXX_COMPILER={true_path}\",\n        ]\nE       AssertionError: assert ['/fixture/cm...Release', ...] == ['/fixture/cm...Release', ...]\nE         \nE         At index 16 diff: '-DCMAKE_PREFIX_PATH=/fixture/gflags;/fixture/glog' != '-DCCBENCH_WAL=0'\nE         Right contains one more item: '-DCMAKE_CXX_COMPILER=/usr/bin/true'\nE         Use -v to get more diff\n\norchestrator/tests/test_pegasus_calibration_workload.py:960: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract\n=================== 4 failed, 180 passed in 73.22s (0:01:13) ===================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=1672 retained_bytes=1672 omitted_bytes=0 rendered_excerpt_bytes=1731 sha256=b0860152f89438c04943d8b914999272db4823baa4344fe7e355b964a3b67b72\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_default_silo_build_and_calibrate_argv_match_offline_contract() -> None:\n>         observed = _protocol_shell_observation(\"silo\")\n>         true_path = str(Path(\"/bin/true\").resolve())\n> >       assert observed[\"configure_argv\"] == [\n>             \"/fixture/cmake\", \"-S\", \"/fixture/source\", \"-B\", \"/fixture/build\",\n>             \"-DCMAKE_BUILD_TYPE=Release\", \"-DENABLE_SANITIZER=OFF\",\n>             \"-DFETCHCONTENT_BASE_DIR=/fixture/fetchcontent-base\",\n>             \"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\",\n>             \"-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/fixture/fetchcontent-src/masstree-src\",\n>             \"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/fixture/fetchcontent-src/mimalloc-src\",\n>             \"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/fixture/fetchcontent-src/googletest-src\",\n>             \"-DCCBENCH_TRACE=0\", \"-DCCBENCH_BACK_OFF=0\",\n>             \"-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1\",\n>             \"-DCCBENCH_NO_WAIT_OF_TICTOC=0\", \"-DCCBENCH_WAL=0\",\n>             \"-DCMAKE_PREFIX_PATH=/fixture/gflags;/fixture/glog\",\n>             f\"-DIZANAGI_GFLAGS_SRC_HEAD={'a' * 40}\",\n>             f\"-DIZANAGI_GLOG_SRC_HEAD={'b' * 40}\",\n>             f\"-DCMAKE_C_COMPILER={true_path}\",\n>             f\"-DCMAKE_CXX_COMPILER={true_path}\",\n>         ]\n> E       AssertionError: assert ['/fixture/cm...Release', ...] == ['/fixture/cm...Release', ...]\n> E         \n> E         At index 16 diff: '-DCMAKE_PREFIX_PATH=/fixture/gflags;/fixture/glog' != '-DCCBENCH_WAL=0'\n> E         Right contains one more item: '-DCMAKE_CXX_COMPILER=/usr/bin/true'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:960: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1398 retained_bytes=1398 omitted_bytes=0 rendered_excerpt_bytes=1467 sha256=1e5e48aa7dcea95f0bc0687cfa11158a84913d31ba6c5e0a00507066724f4811\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw46] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certify_shell_protocol_defines_match_exact_values() -> None:\n> >       assert _certify_protocol_define_table() == {\n>             \"silo\": {\n>                 \"TRACE\": \"0\",\n>                 \"BACK_OFF\": \"0\",\n>                 \"NO_WAIT_LOCKING_IN_VALIDATION\": \"1\",\n>                 \"NO_WAIT_OF_TICTOC\": \"0\",\n>                 \"WAL\": \"0\",\n>             },\n>             \"mocc\": {\n>                 \"TRACE\": \"0\",\n>                 \"BACK_OFF\": \"1\",\n>                 \"KEY_SORT\": \"0\",\n>                 \"TEMPERATURE_RESET_OPT\": \"1\",\n>             },\n>             \"tictoc\": {\n>                 \"TRACE\": \"0\",\n>                 \"BACK_OFF\": \"1\",\n>                 \"NO_WAIT_LOCKING_IN_VALIDATION\": \"1\",\n>                 \"NO_WAIT_OF_TICTOC\": \"0\",\n>                 \"PREEMPTIVE_ABORTS\": \"1\",\n>                 \"TIMESTAMP_HISTORY\": \"1\",\n>             },\n>         }\n> E       AssertionError: assert {'silo': {'TR...C': '0', ...}} == {'silo': {'TR...C': '0', ...}}\n> E         \n> E         Omitting 2 identical items, use -vv to show\n> E         Differing items:\n> E         {'silo': {'TRACE': '0', 'BACK_OFF': '0', 'NO_WAIT_LOCKING_IN_VALIDATION': '1', 'NO_WAIT_OF_TICTOC': '0'}} != {'silo': {'TRACE': '0', 'BACK_OFF': '0', 'NO_WAIT_LOCKING_IN_VALIDATION': '1', 'NO_WAIT_OF_TICTOC': '0', ...}}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:826: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces\" nodeid_bytes=118 nodeid_omitted_bytes=0 source_bytes=852 retained_bytes=852 omitted_bytes=0 rendered_excerpt_bytes=891 sha256=c8643f737188a3c62205dd07ee768a2919488582fce27ea9b0f6a3afaca0fad0\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certify_shell_protocol_axis_values_satisfy_genome_spaces() -> None:\n>         table = _certify_protocol_define_table()\n>         for protocol in (\"silo\", \"mocc\", \"tictoc\"):\n>             excluded = {\"TRACE\"}\n>             shell_axis_assignment = {\n>                 name: int(value)\n>                 for name, value in table[protocol].items()\n>                 if name not in excluded\n>             }\n> >           assert any(\n>                 genome.flags == shell_axis_assignment\n>                 for genome in SPACES[protocol].enumerate()\n>             )\n> E           assert False\n> E            +  where False = any(<generator object test_certify_shell_protocol_axis_values_satisfy_genome_spaces.<locals>.<genexpr> at 0x14fbb48c1460>)\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:860: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=691 retained_bytes=691 omitted_bytes=0 rendered_excerpt_bytes=722 sha256=5360667b0a074d4e0adf5440cc822d5b046025d9bf4060622ea1fdf108bade5f\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw39] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certify_shell_protocol_axes_match_independent_genome_spaces() -> None:\n>         table = _certify_protocol_define_table()\n>         for protocol in (\"silo\", \"mocc\", \"tictoc\"):\n>             assert table[protocol][\"TRACE\"] == \"0\"\n>             excluded = {\"TRACE\"}\n> >           assert set(table[protocol]) - excluded == set(SPACES[protocol].axes)\n> E           AssertionError: assert {'BACK_OFF', ...IT_OF_TICTOC'} == {'BACK_OFF', ...ICTOC', 'WAL'}\n> E             \n> E             Extra items in the right set:\n> E             'WAL'\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:822: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=4613 retained_bytes=4613 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6928 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c52a0bf09c4936e46137fca41552b00ae7375d224d5f8212f765e534df228c5f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b37cf2279b7111b9f611a24a47e803b4598e460723af213b6ff99014b1f7a908",
+      "duration_s": 98.689,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2515-M3-DROP-WAL-AXIS",
+      "injection_diff_sha256": "f51a55bbf83c16dfd76f6065905f5c4a02f47e298ef5564562cc208231ee40e2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3adad9a38e00258fc4bb180475b53191d39f3881d0bb1b4bce8fed4c078826d3",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "",
+          "old": "      -DCCBENCH_WAL=0\n"
+        }
+      ],
+      "repo_head": "931eee3c3b7b3122af020a96e675bdf3628b5644",
+      "runner_sha256": "66f497d77bd0939c6baa39b089323c80db835aa2760a8fa6d7dddb1a60d3629f",
+      "spec_sha256": "cd40e36408f94eef2b9896ed664cebad9c1aa44e3336fdabe13a38859cff222f",
+      "status": "KILLED",
+      "test_output_sha256": "c52a0bf09c4936e46137fca41552b00ae7375d224d5f8212f765e534df228c5f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "de45c671da4682a0c168e520d4fd1c1c61474f5891d6c6d9857f46fc0c8d9f83"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/fbb4c457a1c68dad9450635b8addccd2/izdw-fbb4c457a1.o995846",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/fbb4c457a1c68dad9450635b8addccd2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [184 items]\n\n........................................................................ [ 39%]\n...........................F............................................ [ 78%]\n........................................                                 [100%]\n=================================== FAILURES ===================================\n____________ test_certify_shell_protocol_defines_match_exact_values ____________\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certify_shell_protocol_defines_match_exact_values() -> None:\n>       assert _certify_protocol_define_table() == {\n            \"silo\": {\n                \"TRACE\": \"0\",\n                \"NO_WAIT_LOCKING_IN_VALIDATION\": \"1\",\n                \"NO_WAIT_OF_TICTOC\": \"0\",\n                \"WAL\": \"0\",\n            },\n            \"mocc\": {\n                \"TRACE\": \"0\",\n                \"BACK_OFF\": \"1\",\n                \"KEY_SORT\": \"0\",\n                \"TEMPERATURE_RESET_OPT\": \"1\",\n            },\n            \"tictoc\": {\n                \"TRACE\": \"0\",\n                \"BACK_OFF\": \"1\",\n                \"NO_WAIT_LOCKING_IN_VALIDATION\": \"1\",\n                \"NO_WAIT_OF_TICTOC\": \"0\",\n                \"PREEMPTIVE_ABORTS\": \"1\",\n                \"TIMESTAMP_HISTORY\": \"1\",\n            },\n        }\nE       AssertionError: assert {'silo': {'TR...C': '0', ...}} == {'silo': {'TR...C': '0', ...}}\nE         \nE         Omitting 2 identical items, use -vv to show\nE         Differing items:\nE         {'silo': {'TRACE': '0', 'BACK_OFF': '0', 'NO_WAIT_LOCKING_IN_VALIDATION': '1', 'NO_WAIT_OF_TICTOC': '0', ...}} != {'silo': {'TRACE': '0', 'NO_WAIT_LOCKING_IN_VALIDATION': '1', 'NO_WAIT_OF_TICTOC': '0', 'WAL': '0'}}\nE         Use -v to get more diff\n\norchestrator/tests/test_pegasus_calibration_workload.py:826: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values\n=================== 1 failed, 183 passed in 73.99s (0:01:13) ===================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1360 retained_bytes=1360 omitted_bytes=0 rendered_excerpt_bytes=1427 sha256=d3e92bd065b5e5de97fe0deaab10c155c95330e493df99e2004372c72ce72b06\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw47] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certify_shell_protocol_defines_match_exact_values() -> None:\n> >       assert _certify_protocol_define_table() == {\n>             \"silo\": {\n>                 \"TRACE\": \"0\",\n>                 \"NO_WAIT_LOCKING_IN_VALIDATION\": \"1\",\n>                 \"NO_WAIT_OF_TICTOC\": \"0\",\n>                 \"WAL\": \"0\",\n>             },\n>             \"mocc\": {\n>                 \"TRACE\": \"0\",\n>                 \"BACK_OFF\": \"1\",\n>                 \"KEY_SORT\": \"0\",\n>                 \"TEMPERATURE_RESET_OPT\": \"1\",\n>             },\n>             \"tictoc\": {\n>                 \"TRACE\": \"0\",\n>                 \"BACK_OFF\": \"1\",\n>                 \"NO_WAIT_LOCKING_IN_VALIDATION\": \"1\",\n>                 \"NO_WAIT_OF_TICTOC\": \"0\",\n>                 \"PREEMPTIVE_ABORTS\": \"1\",\n>                 \"TIMESTAMP_HISTORY\": \"1\",\n>             },\n>         }\n> E       AssertionError: assert {'silo': {'TR...C': '0', ...}} == {'silo': {'TR...C': '0', ...}}\n> E         \n> E         Omitting 2 identical items, use -vv to show\n> E         Differing items:\n> E         {'silo': {'TRACE': '0', 'BACK_OFF': '0', 'NO_WAIT_LOCKING_IN_VALIDATION': '1', 'NO_WAIT_OF_TICTOC': '0', ...}} != {'silo': {'TRACE': '0', 'NO_WAIT_LOCKING_IN_VALIDATION': '1', 'NO_WAIT_OF_TICTOC': '0', 'WAL': '0'}}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:826: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1360 retained_bytes=1360 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2166 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "82a38f9f80aba9a99a26bafc534c5f245b18a4b0039fc48eeb31ffcc97211590"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b37cf2279b7111b9f611a24a47e803b4598e460723af213b6ff99014b1f7a908",
+      "duration_s": 98.664,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2515-M4-WEAKEN-EXACT-TABLE",
+      "injection_diff_sha256": "b0c32ead5231badec5f909f07ba7f6640d24b603fcf2c737a9c8fa3eead7744f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a0464e558b6b879384573a76aab6e115a58533e36b99cfac8a9abcb49565d147",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_pegasus_calibration_workload.py",
+          "new": "",
+          "old": "            \"BACK_OFF\": \"0\",\n"
+        }
+      ],
+      "repo_head": "931eee3c3b7b3122af020a96e675bdf3628b5644",
+      "runner_sha256": "66f497d77bd0939c6baa39b089323c80db835aa2760a8fa6d7dddb1a60d3629f",
+      "spec_sha256": "cd40e36408f94eef2b9896ed664cebad9c1aa44e3336fdabe13a38859cff222f",
+      "status": "KILLED",
+      "test_output_sha256": "82a38f9f80aba9a99a26bafc534c5f245b18a4b0039fc48eeb31ffcc97211590",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "de45c671da4682a0c168e520d4fd1c1c61474f5891d6c6d9857f46fc0c8d9f83"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/60958d1a5ece989daae3713aba193675/izdw-60958d1a5e.o995847",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/60958d1a5ece989daae3713aba193675/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [184 items]\n\n.................................................................F...... [ 39%]\n............................................F........................... [ 78%]\n........................................                                 [100%]\n=================================== FAILURES ===================================\n___________ test_certify_colon_job_id_creates_colon_free_job_tmpdir ____________\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_certify_colon_job_id_crea0')\n\n    def test_certify_colon_job_id_creates_colon_free_job_tmpdir(tmp_path):\n        source = (TOOL_DIR / \"certify_calibration.sh\").read_text(encoding=\"utf-8\")\n        fragment = source[:source.index(\"\\nREPO_ROOT=\")]\n        scr_root = tmp_path / \"scr\"\n        scr_root.mkdir()\n        fragment = fragment.replace(\"/scr/\", str(scr_root) + \"/\")\n        fragment += '\\nprintf \"%s\\\\n\" \"$TMPDIR\"\\n'\n        env = os.environ.copy()\n        env.update({\n            \"PBS_JOBID\": \"0:1234.nqsv\",\n            \"PBS_O_WORKDIR\": str(tmp_path),\n        })\n        result = subprocess.run(\n            [\"bash\", \"-c\", fragment], capture_output=True, text=True, env=env,\n        )\n        assert result.returncode == 0, result.stderr\n        job_tmpdir = Path(result.stdout.strip())\n>       assert job_tmpdir == scr_root / \"0_1234.nqsv\"\nE       AssertionError: assert PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_certify_colon_job_id_crea0/scr/0:1234.nqsv') == (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_certify_colon_job_id_crea0/scr') / '0_1234.nqsv')\n\norchestrator/tests/test_pegasus_tools.py:573: AssertionError\n__________ test_certify_cmake_paths_derive_from_colon_free_job_tmpdir __________\n[gw45] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certify_cmake_paths_derive_from_colon_free_job_tmpdir():\n        source = (TOOL_DIR / \"certify_calibration.sh\").read_text(encoding=\"utf-8\")\n>       assert 'export TMPDIR=\"/scr/${PBS_JOBID//:/_}\"' in source\nE       assert 'export TMPDIR=\"/scr/${PBS_JOBID//:/_}\"' in '#!/bin/bash\\n#PBS -A SFC\\n#PBS -q gen_S\\n#PBS -l elapstim_req=02:00:00\\n#PBS -b 1\\n\\n# C3-7 予約式 (秒):\\n# TSC(10) + coo...OURCE\" \\\\\\n  >\"$ATTEMPT_DIR/worktree-remove.stdout\" 2>\"$ATTEMPT_DIR/worktree-remove.stderr\"\\nBUILD_SOURCE=\"\"\\nexit 0\\n'\n\norchestrator/tests/test_pegasus_tools.py:515: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_tools.py::test_certify_colon_job_id_creates_colon_free_job_tmpdir\nFAILED orchestrator/tests/test_pegasus_tools.py::test_certify_cmake_paths_derive_from_colon_free_job_tmpdir\n=================== 2 failed, 182 passed in 72.74s (0:01:12) ===================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_tools.py::test_certify_colon_job_id_creates_colon_free_job_tmpdir\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=1270 retained_bytes=1270 omitted_bytes=0 rendered_excerpt_bytes=1336 sha256=33e443f2ace9c44d380af6c07c45947fc9bd3bd60f09809069b2590d5e189286\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw47] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_certify_colon_job_id_crea0')\n> \n>     def test_certify_colon_job_id_creates_colon_free_job_tmpdir(tmp_path):\n>         source = (TOOL_DIR / \"certify_calibration.sh\").read_text(encoding=\"utf-8\")\n>         fragment = source[:source.index(\"\\x5cnREPO_ROOT=\")]\n>         scr_root = tmp_path / \"scr\"\n>         scr_root.mkdir()\n>         fragment = fragment.replace(\"/scr/\", str(scr_root) + \"/\")\n>         fragment += '\\x5cnprintf \"%s\\x5c\\x5cn\" \"$TMPDIR\"\\x5cn'\n>         env = os.environ.copy()\n>         env.update({\n>             \"PBS_JOBID\": \"0:1234.nqsv\",\n>             \"PBS_O_WORKDIR\": str(tmp_path),\n>         })\n>         result = subprocess.run(\n>             [\"bash\", \"-c\", fragment], capture_output=True, text=True, env=env,\n>         )\n>         assert result.returncode == 0, result.stderr\n>         job_tmpdir = Path(result.stdout.strip())\n> >       assert job_tmpdir == scr_root / \"0_1234.nqsv\"\n> E       AssertionError: assert PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_certify_colon_job_id_crea0/scr/0:1234.nqsv') == (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_certify_colon_job_id_crea0/scr') / '0_1234.nqsv')\n> \n> orchestrator/tests/test_pegasus_tools.py:573: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_tools.py::test_certify_cmake_paths_derive_from_colon_free_job_tmpdir\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=636 retained_bytes=636 omitted_bytes=0 rendered_excerpt_bytes=704 sha256=39994b11ad8b31259e4464947e2ed3d93cbf0cf0cf4b503a31148593f8884400\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw45] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certify_cmake_paths_derive_from_colon_free_job_tmpdir():\n>         source = (TOOL_DIR / \"certify_calibration.sh\").read_text(encoding=\"utf-8\")\n> >       assert 'export TMPDIR=\"/scr/${PBS_JOBID//:/_}\"' in source\n> E       assert 'export TMPDIR=\"/scr/${PBS_JOBID//:/_}\"' in '#!/bin/bash\\x5cn#PBS -A SFC\\x5cn#PBS -q gen_S\\x5cn#PBS -l elapstim_req=02:00:00\\x5cn#PBS -b 1\\x5cn\\x5cn# C3-7 \\u4e88\\u7d04\\u5f0f (\\u79d2):\\x5cn# TSC(10) + coo...OURCE\" \\x5c\\x5c\\x5cn  >\"$ATTEMPT_DIR/worktree-remove.stdout\" 2>\"$ATTEMPT_DIR/worktree-remove.stderr\"\\x5cnBUILD_SOURCE=\"\"\\x5cnexit 0\\x5cn'\n> \n> orchestrator/tests/test_pegasus_tools.py:515: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1906 retained_bytes=1906 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3202 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "80444b7a3b85eb158df2895faa16721db244070377cd192479856a4b8567d437"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b37cf2279b7111b9f611a24a47e803b4598e460723af213b6ff99014b1f7a908",
+      "duration_s": 93.603,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_cmake_paths_derive_from_colon_free_job_tmpdir",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_colon_job_id_creates_colon_free_job_tmpdir"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_colon_job_id_creates_colon_free_job_tmpdir",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_cmake_paths_derive_from_colon_free_job_tmpdir"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2515-M5-TMPDIR-COLON",
+      "injection_diff_sha256": "26ede98014788b35c0d4b3161b79543955b77a4df0e7495386fb15716e96ff3c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "38ca0d3b65fe02b7c965847f0502c21a6e07cd7fa5aef709684457c3eed85d6f",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "export TMPDIR=\"/scr/${PBS_JOBID}\"\n",
+          "old": "export TMPDIR=\"/scr/${PBS_JOBID//:/_}\"\n"
+        }
+      ],
+      "repo_head": "931eee3c3b7b3122af020a96e675bdf3628b5644",
+      "runner_sha256": "66f497d77bd0939c6baa39b089323c80db835aa2760a8fa6d7dddb1a60d3629f",
+      "spec_sha256": "cd40e36408f94eef2b9896ed664cebad9c1aa44e3336fdabe13a38859cff222f",
+      "status": "KILLED",
+      "test_output_sha256": "80444b7a3b85eb158df2895faa16721db244070377cd192479856a4b8567d437",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "de45c671da4682a0c168e520d4fd1c1c61474f5891d6c6d9857f46fc0c8d9f83"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/5d9e88101309e7ecb6ff55cf4139a445/izdw-5d9e881013.o995851",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/5d9e88101309e7ecb6ff55cf4139a445/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [184 items]\n\n........................................................................ [ 39%]\n.......................................F................................ [ 78%]\n........................................                                 [100%]\n=================================== FAILURES ===================================\n______________ test_runbook_shows_ai_driven_h1_h2_submission_path ______________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_runbook_shows_ai_driven_h1_h2_submission_path() -> None:\n        source = README.read_text(encoding=\"utf-8\")\n    \n        assert \"submit_certify.sh --rratio 80\" in source\n        assert \"submit_certify.sh --rratio 20\" in source\n        assert \"submit_certify.sh --rratio 95\" in source\n        assert \"submit_certify.sh --rratio 5\" in source\n        assert \"5 / 20 / 50 / 80 / 95 の固定 whitelist\" in source\n        assert \"skew0p9_rr{5|20|50|80|95}_rmw0\" in source\n        assert \"--protocol mocc\" in source\n        assert \"silo / mocc / tictoc\" in source\n        assert \"INLINE_VERSION_OPT\" in source\n>       assert \"供給されていない BACKOFF_FIXED=-1 の指定と専用\" in source\nE       AssertionError: assert '供給されていない BACKOFF_FIXED=-1 の指定と専用' in '# Pegasus env contract 登録用ジョブ資材\\n\\nこのディレクトリは、Pegasus の計算ノードを実測し、certification calibration の provenance を\\n`output/env...ds` の configure argv まで\\n5 値が届く」ところまで確認した (`output/insights/2026-09-05_t2232-s4-loop-pegasus-job-script/README.md`)。\\n'\n\norchestrator/tests/test_pegasus_calibration_workload.py:1715: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path\n=================== 1 failed, 183 passed in 74.10s (0:01:14) ===================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=1267 retained_bytes=1267 omitted_bytes=0 rendered_excerpt_bytes=1559 sha256=361ea4ed4405ab94df2eef2b2193ffcdacc1accad1c76d99c3749ff637214def\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_runbook_shows_ai_driven_h1_h2_submission_path() -> None:\n>         source = README.read_text(encoding=\"utf-8\")\n>     \n>         assert \"submit_certify.sh --rratio 80\" in source\n>         assert \"submit_certify.sh --rratio 20\" in source\n>         assert \"submit_certify.sh --rratio 95\" in source\n>         assert \"submit_certify.sh --rratio 5\" in source\n>         assert \"5 / 20 / 50 / 80 / 95 \\u306e\\u56fa\\u5b9a whitelist\" in source\n>         assert \"skew0p9_rr{5|20|50|80|95}_rmw0\" in source\n>         assert \"--protocol mocc\" in source\n>         assert \"silo / mocc / tictoc\" in source\n>         assert \"INLINE_VERSION_OPT\" in source\n> >       assert \"\\u4f9b\\u7d66\\u3055\\u308c\\u3066\\u3044\\u306a\\u3044 BACKOFF_FIXED=-1 \\u306e\\u6307\\u5b9a\\u3068\\u5c02\\u7528\" in source\n> E       AssertionError: assert '\\u4f9b\\u7d66\\u3055\\u308c\\u3066\\u3044\\u306a\\u3044 BACKOFF_FIXED=-1 \\u306e\\u6307\\u5b9a\\u3068\\u5c02\\u7528' in '# Pegasus env contract \\u767b\\u9332\\u7528\\u30b8\\u30e7\\u30d6\\u8cc7\\u6750\\x5cn\\x5cn\\u3053\\u306e\\u30c7\\u30a3\\u30ec\\u30af\\u30c8\\u30ea\\u306f\\u3001Pegasus \\u306e\\u8a08\\u7b97\\u30ce\\u30fc\\u30c9\\u3092\\u5b9f\\u6e2c\\u3057\\u3001certification calibration \\u306e provenance \\u3092\\x5cn`output/env...ds` \\u306e configure argv \\u307e\\u3067\\x5cn5 \\u5024\\u304c\\u5c4a\\u304f\\u300d\\u3068\\u3053\\u308d\\u307e\\u3067\\u78ba\\u8a8d\\u3057\\u305f (`output/insights/2026-09-05_t2232-s4-loop-pegasus-job-script/README.md`)\\u3002\\x5cn'\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:1715: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1267 retained_bytes=1267 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2294 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "04d8158578ced453e50ba2619840393db881a55d57a1b1cf6a5c56a0d9d62de1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b37cf2279b7111b9f611a24a47e803b4598e460723af213b6ff99014b1f7a908",
+      "duration_s": 103.847,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2515-M6-README-REVERT",
+      "injection_diff_sha256": "98c80d099d71c575c4af576f6953a8e8287db623e90410924efc5121bd9bba48",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d0e88eb3ac1ae12607c481149d3b6bb371bd68f4cb6bb4e5a2dc921c790dd6bc",
+      "replacements": [
+        {
+          "file": "tools/pegasus/README.md",
+          "new": "認定較正は stock を対象とする。D1936 項 6 により、不要になった指定と専用\n",
+          "old": "認定較正は stock を対象とする。D1936 項 6 により、供給されていない BACKOFF_FIXED=-1 の指定と専用\n"
+        }
+      ],
+      "repo_head": "931eee3c3b7b3122af020a96e675bdf3628b5644",
+      "runner_sha256": "66f497d77bd0939c6baa39b089323c80db835aa2760a8fa6d7dddb1a60d3629f",
+      "spec_sha256": "cd40e36408f94eef2b9896ed664cebad9c1aa44e3336fdabe13a38859cff222f",
+      "status": "KILLED",
+      "test_output_sha256": "04d8158578ced453e50ba2619840393db881a55d57a1b1cf6a5c56a0d9d62de1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "de45c671da4682a0c168e520d4fd1c1c61474f5891d6c6d9857f46fc0c8d9f83"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/446b8e3394cd6786b6c7541da4970d7a/izdw-446b8e3394.o995841",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/pegasus-dispatch/446b8e3394cd6786b6c7541da4970d7a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_matches_ccbench_sources\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_roundtrips_every_declared_entry\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_accepts_empty_cache_default\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_ccbench_side_rename\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_non_cicada_ccbench_side_rename\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_izanagi_side_rename\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[cicada]\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_keeps_unknown_axis_identity_fallback\norchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values\norchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_accepts_real_cache_name_with_distinct_axis_values\norchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name\norchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_unmapped_cicada_suffix_alias\norchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist\norchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_calibrator_uses_smoke_checked_interpreter_selected_before_call\norchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_offline_fetchcontent_contract_is_identical_for_all_protocols\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_configure_use_site_passes_the_complete_configure_argv\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_third_party_verifier_uses_version_checked_interpreter\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_third_party_verifier_interpreter_resolution_fails_closed\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_offline_configure_resolves_three_local_sources_and_fails_without_each\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_copy_leaves_the_staging_sources_untouched_and_writable\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[masstree]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[mimalloc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[googletest]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_a_missing_or_malformed_third_party_staging_root\norchestrator/tests/test_pegasus_calibration_workload.py::test_calibration_shell_scripts_parse\norchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_condition_gate_dominates_first_buildcache_call\norchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_requests_every_genome_value_and_inert_witness\norchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_uses_factory_noinline_and_legacy_backoff_declarations\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[0]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[51]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[100]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[05]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[+5]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[ 5]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[5 ]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[\\uff15]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_unregistered_protocol_before_side_effects[cicada]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_unregistered_protocol_before_side_effects[ermia]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_omitted_protocol_is_silo_without_changing_qsub_argv\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[5]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[20]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[50]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[80]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[95]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_keeps_scheduler_output_outside_the_repository\norchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path\norchestrator/tests/test_pegasus_tools.py::test_shell_syntax[smoke_probe.sh]\norchestrator/tests/test_pegasus_tools.py::test_shell_syntax[submit_certify.sh]\norchestrator/tests/test_pegasus_tools.py::test_shell_syntax[certify_calibration.sh]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directives_match_shared_and_calibration_policies\norchestrator/tests/test_pegasus_tools.py::test_certify_calibration_policy_check_rejects_symlinks[certify_calibration.sh]\norchestrator/tests/test_pegasus_tools.py::test_certify_calibration_policy_check_rejects_symlinks[submit_certify.sh]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash\\n#PBS -A one\\n#PBS -A two\\nset -e\\n]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash\\nset -e\\n#PBS -A late\\n]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash\\n##PBS -A hidden\\nset -e\\n]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash\\n# #PBS -A hidden\\nset -e\\n]\norchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports\norchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_execs_valid_argv\norchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_rejects_missing_or_invalid_json[missing]\norchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_rejects_missing_or_invalid_json[invalid]\norchestrator/tests/test_pegasus_tools.py::test_certify_calibrator_resolves_and_shims_versioned_interpreter\norchestrator/tests/test_pegasus_tools.py::test_certify_calibrator_interpreter_resolution_fails_closed\norchestrator/tests/test_pegasus_tools.py::test_certify_calibrate_timeout_argv_cannot_self_match_ycsb_probe\norchestrator/tests/test_pegasus_tools.py::test_certify_perf_stage_is_policy_driven_fail_closed_and_precedes_calibrate\norchestrator/tests/test_pegasus_tools.py::test_perf_stage_all_candidates_failed_writes_perf_failure\norchestrator/tests/test_pegasus_tools.py::test_perf_stage_rejects_not_supported_smoke_output\norchestrator/tests/test_pegasus_tools.py::test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench\norchestrator/tests/test_pegasus_tools.py::test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench\norchestrator/tests/test_pegasus_tools.py::test_certify_cmake_paths_derive_from_colon_free_job_tmpdir\norchestrator/tests/test_pegasus_tools.py::test_certify_colon_job_id_creates_colon_free_job_tmpdir\norchestrator/tests/test_pegasus_tools.py::test_shell_jobs_normalize_qstat_id_and_capture_system_toolchain\norchestrator/tests/test_pegasus_tools.py::test_qstat_parser_accepts_real_nqsv_867863_output\norchestrator/tests/test_pegasus_tools.py::test_qstat_parser_skips_none_and_tries_next_key\norchestrator/tests/test_pegasus_tools.py::test_qstat_parser_keeps_unavailable_for_none_or_missing_fields[exec_host = (none)\\nexec_vnode = (none)\\nassigned_host = (none)\\nvnode = (none)\\nstime = (none)\\nstart_time = (none)\\nstart = (none)\\nStarted Request Time = (none)\\nExecution Hosts(JSVNO):\\n    (none)\\n]\norchestrator/tests/test_pegasus_tools.py::test_qstat_parser_keeps_unavailable_for_none_or_missing_fields[Request ID: 867863.nqsv\\nCurrent State = Running\\n]\norchestrator/tests/test_pegasus_tools.py::test_smoke_toolchain_capture_detects_nonzero_gcc_version\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[0:0:X-0:X]\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[00:X-00:X]\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[0:X-X]\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[X-X]\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_rejects_empty_string\norchestrator/tests/test_pegasus_tools.py::test_certify_keeps_default_modules_and_uses_system_toolchain\norchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_policy_and_comparison_use_normalized_exact_match\norchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_check_rejects_nearby_sku[Intel Xeon Platinum 8468-True]\norchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_check_rejects_nearby_sku[Intel Xeon Platinum 8468H-False]\norchestrator/tests/test_pegasus_tools.py::test_acquisition_candidate_rejects_schema_valid_duplicate_probe_key\norchestrator/tests/test_pegasus_tools.py::test_run_probe_fixture_to_stdout_shape_and_file\norchestrator/tests/test_pegasus_tools.py::test_run_probe_import_failure_is_structured_and_nonzero\norchestrator/tests/test_pegasus_tools.py::test_run_probe_probe_failure_is_structured_in_file_and_stdout\norchestrator/tests/test_pegasus_tools.py::test_run_probe_write_failure_is_structured_for_stdout\norchestrator/tests/test_pegasus_tools.py::test_run_probe_write_failure_has_nonempty_message_for_empty_exception\norchestrator/tests/test_pegasus_tools.py::test_smoke_probe_calls_v2_producer_and_preserves_stdout_copy\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_fixture_to_final_json\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_preserves_job_script_sha256\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_accepts_raw_zero_subrequest_prefix\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_rejects_other_prefix_and_raw_mismatch[1:12345.scheduler]\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_rejects_other_prefix_and_raw_mismatch[other.scheduler]\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_missing_input_is_nonzero\norchestrator/tests/test_pegasus_tools.py::test_make_acquisition_receipt_round_trip_and_field_drop\norchestrator/tests/test_pegasus_tools.py::test_certify_records_real_cmake_and_fixed_nm_identity\norchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_accepts_real_unstripped_trace_free_binary\norchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_rejects_real_unstripped_trace_binary\norchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_rejects_real_empty_stripped_binary\norchestrator/tests/test_pegasus_tools.py::test_gflags_missing_source_writes_gflags_failure\norchestrator/tests/test_pegasus_tools.py::test_gflags_head_mismatch_writes_gflags_failure\norchestrator/tests/test_pegasus_tools.py::test_glog_head_mismatch_writes_glog_failure\norchestrator/tests/test_pegasus_tools.py::test_calibrate_failure_survives_err_trap_and_writes_job_result\norchestrator/tests/test_pegasus_tools.py::test_certify_job_rejects_legacy_tolerance_environment\norchestrator/tests/test_pegasus_tools.py::test_qstat_failure_reaches_allocation_unavailable_path\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-0:123.server-True]\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-1:123.server-False]\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-124.server-False]\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_requires_matching_calibration_rratio\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_requires_matching_calibration_protocol\norchestrator/tests/test_pegasus_tools.py::test_submit_dry_run_does_not_resolve_cluster_commands\norchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact\norchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_local_fixed_shadow_is_unreachable\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro\norchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site\norchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites\norchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes\norchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible\norchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]\n\n184 tests collected in 0.73s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "2bf706537feafdca893a9d89f80174f292486061b02dad708b156d2c7d09d3f8"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_matches_ccbench_sources",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_roundtrips_every_declared_entry",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_accepts_empty_cache_default",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_ccbench_side_rename",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_non_cicada_ccbench_side_rename",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_izanagi_side_rename",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[cicada]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_keeps_unknown_axis_identity_fallback",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_accepts_real_cache_name_with_distinct_axis_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_unmapped_cicada_suffix_alias",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_calibrator_uses_smoke_checked_interpreter_selected_before_call",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_offline_fetchcontent_contract_is_identical_for_all_protocols",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_configure_use_site_passes_the_complete_configure_argv",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_third_party_verifier_uses_version_checked_interpreter",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_third_party_verifier_interpreter_resolution_fails_closed",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_offline_configure_resolves_three_local_sources_and_fails_without_each",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_copy_leaves_the_staging_sources_untouched_and_writable",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[masstree]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[mimalloc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[googletest]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_a_missing_or_malformed_third_party_staging_root",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_calibration_shell_scripts_parse",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_condition_gate_dominates_first_buildcache_call",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_requests_every_genome_value_and_inert_witness",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_uses_factory_noinline_and_legacy_backoff_declarations",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[0]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[51]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[100]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[05]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[+5]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[ 5]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[5 ]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[/uff15]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_unregistered_protocol_before_side_effects[cicada]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_unregistered_protocol_before_side_effects[ermia]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_omitted_protocol_is_silo_without_changing_qsub_argv",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[5]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[20]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[50]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[80]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[95]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_keeps_scheduler_output_outside_the_repository",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path",
+        "orchestrator/tests/test_pegasus_tools.py::test_shell_syntax[smoke_probe.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_shell_syntax[submit_certify.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_shell_syntax[certify_calibration.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directives_match_shared_and_calibration_policies",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibration_policy_check_rejects_symlinks[certify_calibration.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibration_policy_check_rejects_symlinks[submit_certify.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash/n#PBS -A one/n#PBS -A two/nset -e/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash/nset -e/n#PBS -A late/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash/n##PBS -A hidden/nset -e/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash/n# #PBS -A hidden/nset -e/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports",
+        "orchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_execs_valid_argv",
+        "orchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_rejects_missing_or_invalid_json[missing]",
+        "orchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_rejects_missing_or_invalid_json[invalid]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibrator_resolves_and_shims_versioned_interpreter",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibrator_interpreter_resolution_fails_closed",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibrate_timeout_argv_cannot_self_match_ycsb_probe",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_perf_stage_is_policy_driven_fail_closed_and_precedes_calibrate",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_all_candidates_failed_writes_perf_failure",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_rejects_not_supported_smoke_output",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_cmake_paths_derive_from_colon_free_job_tmpdir",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_colon_job_id_creates_colon_free_job_tmpdir",
+        "orchestrator/tests/test_pegasus_tools.py::test_shell_jobs_normalize_qstat_id_and_capture_system_toolchain",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_parser_accepts_real_nqsv_867863_output",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_parser_skips_none_and_tries_next_key",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_parser_keeps_unavailable_for_none_or_missing_fields[exec_host = (none)/nexec_vnode = (none)/nassigned_host = (none)/nvnode = (none)/nstime = (none)/nstart_time = (none)/nstart = (none)/nStarted Request Time = (none)/nExecution Hosts(JSVNO):/n    (none)/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_parser_keeps_unavailable_for_none_or_missing_fields[Request ID: 867863.nqsv/nCurrent State = Running/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_smoke_toolchain_capture_detects_nonzero_gcc_version",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[0:0:X-0:X]",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[00:X-00:X]",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[0:X-X]",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[X-X]",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_rejects_empty_string",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_keeps_default_modules_and_uses_system_toolchain",
+        "orchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_policy_and_comparison_use_normalized_exact_match",
+        "orchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_check_rejects_nearby_sku[Intel Xeon Platinum 8468-True]",
+        "orchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_check_rejects_nearby_sku[Intel Xeon Platinum 8468H-False]",
+        "orchestrator/tests/test_pegasus_tools.py::test_acquisition_candidate_rejects_schema_valid_duplicate_probe_key",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_fixture_to_stdout_shape_and_file",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_import_failure_is_structured_and_nonzero",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_probe_failure_is_structured_in_file_and_stdout",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_write_failure_is_structured_for_stdout",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_write_failure_has_nonempty_message_for_empty_exception",
+        "orchestrator/tests/test_pegasus_tools.py::test_smoke_probe_calls_v2_producer_and_preserves_stdout_copy",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_fixture_to_final_json",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_preserves_job_script_sha256",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_accepts_raw_zero_subrequest_prefix",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_rejects_other_prefix_and_raw_mismatch[1:12345.scheduler]",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_rejects_other_prefix_and_raw_mismatch[other.scheduler]",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_missing_input_is_nonzero",
+        "orchestrator/tests/test_pegasus_tools.py::test_make_acquisition_receipt_round_trip_and_field_drop",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_records_real_cmake_and_fixed_nm_identity",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_accepts_real_unstripped_trace_free_binary",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_rejects_real_unstripped_trace_binary",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_rejects_real_empty_stripped_binary",
+        "orchestrator/tests/test_pegasus_tools.py::test_gflags_missing_source_writes_gflags_failure",
+        "orchestrator/tests/test_pegasus_tools.py::test_gflags_head_mismatch_writes_gflags_failure",
+        "orchestrator/tests/test_pegasus_tools.py::test_glog_head_mismatch_writes_glog_failure",
+        "orchestrator/tests/test_pegasus_tools.py::test_calibrate_failure_survives_err_trap_and_writes_job_result",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_job_rejects_legacy_tolerance_environment",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_failure_reaches_allocation_unavailable_path",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-0:123.server-True]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-1:123.server-False]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-124.server-False]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_requires_matching_calibration_rratio",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_requires_matching_calibration_protocol",
+        "orchestrator/tests/test_pegasus_tools.py::test_submit_dry_run_does_not_resolve_cluster_commands",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_local_fixed_shadow_is_unreachable",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]"
+      ],
+      "duration_s": 26.989,
+      "rc": 0,
+      "repo_head": "931eee3c3b7b3122af020a96e675bdf3628b5644",
+      "runner_sha256": "66f497d77bd0939c6baa39b089323c80db835aa2760a8fa6d7dddb1a60d3629f",
+      "spec_sha256": "cd40e36408f94eef2b9896ed664cebad9c1aa44e3336fdabe13a38859cff222f",
+      "status": "PASSED",
+      "tool_sha256": "de45c671da4682a0c168e520d4fd1c1c61474f5891d6c6d9857f46fc0c8d9f83"
+    },
+    "hang_timeout_seconds": 2400.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-T2515-M1-READD-DEFINE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5c3824a5dfb8a9e53cfd1f857ddea81f49aae15b5657ea78090107d872ffb812",
+        "replacements": [
+          {
+            "file": "tools/pegasus/certify_calibration.sh",
+            "new": "      -DCCBENCH_BACK_OFF=0\n      -DCCBENCH_BACKOFF_FIXED=-1\n",
+            "old": "      -DCCBENCH_BACK_OFF=0\n"
+          }
+        ]
+      },
+      "MUT-T2515-M2-BACKOFF-VALUE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ccfdba1b79fe021f53808a5098f2e214826f92e9a01cd5e2f56acb91fb6c7250",
+        "replacements": [
+          {
+            "file": "tools/pegasus/certify_calibration.sh",
+            "new": "      -DCCBENCH_BACK_OFF=1\n",
+            "old": "      -DCCBENCH_BACK_OFF=0\n"
+          }
+        ]
+      },
+      "MUT-T2515-M3-DROP-WAL-AXIS": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f51a55bbf83c16dfd76f6065905f5c4a02f47e298ef5564562cc208231ee40e2",
+        "replacements": [
+          {
+            "file": "tools/pegasus/certify_calibration.sh",
+            "new": "",
+            "old": "      -DCCBENCH_WAL=0\n"
+          }
+        ]
+      },
+      "MUT-T2515-M4-WEAKEN-EXACT-TABLE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b0c32ead5231badec5f909f07ba7f6640d24b603fcf2c737a9c8fa3eead7744f",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_pegasus_calibration_workload.py",
+            "new": "",
+            "old": "            \"BACK_OFF\": \"0\",\n"
+          }
+        ]
+      },
+      "MUT-T2515-M5-TMPDIR-COLON": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_tools.py::test_certify_cmake_paths_derive_from_colon_free_job_tmpdir",
+          "orchestrator/tests/test_pegasus_tools.py::test_certify_colon_job_id_creates_colon_free_job_tmpdir"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "26ede98014788b35c0d4b3161b79543955b77a4df0e7495386fb15716e96ff3c",
+        "replacements": [
+          {
+            "file": "tools/pegasus/certify_calibration.sh",
+            "new": "export TMPDIR=\"/scr/${PBS_JOBID}\"\n",
+            "old": "export TMPDIR=\"/scr/${PBS_JOBID//:/_}\"\n"
+          }
+        ]
+      },
+      "MUT-T2515-M6-README-REVERT": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "98c80d099d71c575c4af576f6953a8e8287db623e90410924efc5121bd9bba48",
+        "replacements": [
+          {
+            "file": "tools/pegasus/README.md",
+            "new": "認定較正は stock を対象とする。D1936 項 6 により、不要になった指定と専用\n",
+            "old": "認定較正は stock を対象とする。D1936 項 6 により、供給されていない BACKOFF_FIXED=-1 の指定と専用\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "977d04575ae83cfaffc66c731dc6b80ce6c31d9035b4d1227d61a998d1fd0ef7",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_pegasus_calibration_workload.py",
+      "orchestrator/tests/test_pegasus_tools.py",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 2400.0
+  },
+  "repo_head": "931eee3c3b7b3122af020a96e675bdf3628b5644",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_pegasus_calibration_workload.py",
+      "orchestrator/tests/test_pegasus_tools.py",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "d0f4b2eec32c423129923173ee37554e42afdb8f",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "66f497d77bd0939c6baa39b089323c80db835aa2760a8fa6d7dddb1a60d3629f",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "cd40e36408f94eef2b9896ed664cebad9c1aa44e3336fdabe13a38859cff222f",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "de45c671da4682a0c168e520d4fd1c1c61474f5891d6c6d9857f46fc0c8d9f83",
+  "updated_at": "2026-09-13T15:14:38.415285+00:00"
+}
