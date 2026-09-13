@@ -18,6 +18,12 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2164] A-1 balanced5のsizing証明書を凍結値で生成・検証し、本走policyを凍結した。
+  D1452に従い、証明書が申告する試行回数・候補範囲・root seedをconsumerが登録値とexact照合する。
+  成果物は output/insights/2026-09-13/paper-story-a1-balanced5-sized-preregistration/、
+  機械可読の正本は orchestrator/campaign/paper_story_a1_paired.v3-sized.json。
+  本走は未投入で、正式測定の認可は[T-1505]により人間手番のまま。
+
 - [x] [T-2397] A-1 pilot attempt-0004を完走し、全3 workload validとsizing入力を生成した。
   source契約の追補は output/insights/2026-09-11/t2397-a1-source-amendment/README.md、
   成果物は output/insights/2026-09-01_paper-story-a1-balanced5-pilot/。旧登録とT-2514のdetail保存を維持する。
