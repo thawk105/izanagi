@@ -1,0 +1,79 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "MUT-T1948-QUERY-PARSE-FALLBACK",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_malformed_registry_rejects_existing_failed_session_retry_query"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_holdout_admission.py",
+     "old": "        for start in starts:\n            trigger = str(start[\"attempt_id\"])\n            if trigger in used_recovery_triggers:\n                continue\n            evidence = _floor_registry_recovery_evidence_locked(\n                state, records=records, trigger=trigger,\n            )\n            recoveries.extend(\n                (trigger, evidence) for _candidate in evidence.candidates\n            )\n",
+     "new": "        try:\n            for start in starts:\n                trigger = str(start[\"attempt_id\"])\n                if trigger in used_recovery_triggers:\n                    continue\n                evidence = _floor_registry_recovery_evidence_locked(\n                    state, records=records, trigger=trigger,\n                )\n                recoveries.extend(\n                    (trigger, evidence) for _candidate in evidence.candidates\n                )\n        except HoldoutAdmissionError:\n            if len(legacy) == 1:\n                return FloorRetryAuthorization(\n                    trigger_attempt_id=str(legacy[0][\"attempt_id\"]),\n                    source=\"legacy-failed-session\",\n                )\n            raise\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T1948-SHARED-PARSE-FALLBACK",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_malformed_registry_rejects_existing_failed_session_retry_consumption",
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_malformed_registry_rejects_existing_failed_session_retry_inspection"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_holdout_admission.py",
+     "old": "    recovery = _floor_registry_recovery_evidence_locked(\n        state, records=records, trigger=trigger,\n    )\n",
+     "new": "    try:\n        recovery = _floor_registry_recovery_evidence_locked(\n            state, records=records, trigger=trigger,\n        )\n    except HoldoutAdmissionError:\n        if (\n            len(trigger_sessions) == 1\n            and _is_canonical_failed_planned_trigger(\n                state, row=trigger_sessions[0],\n            )\n        ):\n            return\n        raise\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T1948-READ-ENOENT-AS-ABSENT",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_dangling_registry_symlink_is_not_treated_as_absent"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_holdout_admission.py",
+     "old": "    try:\n        raw = path.read_bytes()\n    except OSError as exc:\n        raise HoldoutAdmissionError(\"cannot read floor attempt registry\") from exc\n",
+     "new": "    try:\n        raw = path.read_bytes()\n    except FileNotFoundError:\n        return b\"\", ()\n    except OSError as exc:\n        raise HoldoutAdmissionError(\"cannot read floor attempt registry\") from exc\n"
+    }
+   ]
+  },
+  {
+   "id": "MUT-T1948-ABSENT-AS-UNREADABLE",
+   "category": "negative",
+   "expected_status": "KILLED",
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_existing_failed_planned_session_retry_still_passes",
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_accepts_nonzero_retry_ordinal_on_use",
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_floor_marker_capability_rejects_wrong_nonzero_retry_ordinal_on_use",
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_legacy_retry_rejects_extra_completion_for_same_trigger",
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_malformed_registry_rejects_existing_failed_session_retry_inspection",
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_missing_registry_preserves_existing_failed_session_retry",
+    "orchestrator/tests/test_s8b_holdout_admission.py::test_retry_ticket_without_failed_planned_trigger_is_rejected"
+   ],
+   "hang_risk": false,
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_holdout_admission.py",
+     "old": "    try:\n        mode = path.lstat().st_mode\n    except FileNotFoundError:\n        return b\"\", ()\n    except OSError as exc:\n",
+     "new": "    try:\n        mode = path.lstat().st_mode\n    except OSError as exc:\n"
+    }
+   ]
+  }
+ ]
+}
