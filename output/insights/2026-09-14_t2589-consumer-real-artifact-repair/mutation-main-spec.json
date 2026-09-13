@@ -1,0 +1,75 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 200,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M1-wrapper-prefix-ignored",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    if tuple(argv[:len(prefix)]) != prefix:\n        return None\n    return argv[len(prefix)] if len(argv) > len(prefix) else None\n",
+          "new": "    if False and tuple(argv[:len(prefix)]) != prefix:\n        return None\n    return argv[0] if argv else None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_bench_execution_target_requires_exact_nonempty_prefix"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-contract-prefix-relittered",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    prefix = env_contract.resolve_by_contract_sha256(\n        environment_contract_sha256\n    ).contract.numactl\n",
+          "new": "    prefix = (\"numactl\", \"--interleave=all\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_baseline_and_target_source_identities_may_normally_differ",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_current_preregistration_sha_mismatch_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/echo]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_decoy_bench_binary_token_is_rejected[/bin/true]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_document_identity_mismatch_is_rejected_after_artifact_checks",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[configure]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_explicit_noinline_one_is_diagnostic_build[typed-configure]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_measurement_commit_without_preregistration_blob_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_measurement_preregistration_sha_mismatch_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_missing_perf_build_command_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_perf_build_directory_must_match_configure",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_preregistered_source_digest_drift_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_real_admission_and_receipts_accept_only_the_fixed_pair",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_result_projection_drift_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_toolchain_record_digest_drift_is_rejected",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_trace_enabled_configure_is_not_performance_evidence",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_typed_trace_disabled_define_is_normalized",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[baseline]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]",
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-cross-arm-digest-equality-vacuous",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    _require_equal(\n        target_toolchain_digest, baseline_toolchain_digest,\n        code=\"toolchain-identity-mismatch\",\n        field=\"target.wal.build_done.toolchain_record_sha256\",\n        arm=\"target\",\n    )\n",
+          "new": "    if False:\n        _require_equal(\n            target_toolchain_digest, baseline_toolchain_digest,\n            code=\"toolchain-identity-mismatch\",\n            field=\"target.wal.build_done.toolchain_record_sha256\",\n            arm=\"target\",\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t1998_stock_inline_pair.py::test_toolchain_record_digest_drift_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
