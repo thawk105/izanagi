@@ -11,6 +11,8 @@ from types import SimpleNamespace
 import pytest
 
 from orchestrator.campaign import s8b_binary_admission as admission_receipt
+from orchestrator.campaign import s8b_expected_materialization as snapshot
+from orchestrator.tests.s8b_v2_freeze_fixture import sealed_source_protection_fixture
 from orchestrator.campaign import s8b_floor_campaign as floor
 from orchestrator.campaign import s8b_materialization as materialization
 from orchestrator.campaign.build_admission import (
@@ -58,9 +60,7 @@ def _producer_fixture(
         "cell_id": "H1::stock_common", "holdout_id": "H1",
         "configuration_id": "stock_common",
     }
-    expected_materialization_sha256 = hashlib.sha256(
-        b"independent-expected-materialization-fixture"
-    ).hexdigest()
+    expected_materialization_sha256 = snapshot.snapshot_tree_digest(source_root)
     identity = materialization.binding_from_prepared(entry, prepared)
     evidence = SourceEvidence(
         schema_version=SOURCE_EVIDENCE_SCHEMA,
@@ -97,7 +97,12 @@ def _producer_fixture(
         binary.parent.mkdir()
         binary.write_bytes(b"predicate proof binary")
         binary_sha256 = hashlib.sha256(binary.read_bytes()).hexdigest()
+        source_protection = sealed_source_protection_fixture(
+            source=evidence, binary_sha256=binary_sha256,
+            compiler_input_manifest_sha256=manifest_sha256,
+        )
         return SimpleNamespace(
+            source_protection=source_protection,
             binary=str(binary), bin_sha256=binary_sha256,
             bin_hash=binary_sha256[:16], cached=False,
             configure_argv=("cmake", "-S", str(source_root)),

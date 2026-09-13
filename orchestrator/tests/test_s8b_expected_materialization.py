@@ -661,6 +661,404 @@ def test_module_docstring_states_the_exact_proof_boundary():
     assert "directory owner can restore" in doc
 
 
+# Production mechanisms below are exercised without replacing dependencies.
+# The low-level session receives a fixed tiny tree's admitted metadata; Git
+# replay is covered above, and no real CMake build is needed here.
+
+
+def _sealed_test_tree(tmp_path):
+    ancestor = tmp_path / "view"
+    ancestor.mkdir()
+    (ancestor / "source-parent").mkdir()
+    root = ancestor / "source-parent" / "source"
+    _write_tree(root)
+    (root / "src" / ".git").write_text("gitdir: /does/not/exist\n")
+    (ancestor / "base").mkdir()
+    (ancestor / "cache").mkdir()
+    return root
+
+
+def _tiny_session(root):
+    digest = E.snapshot_tree_digest(root)
+    return E.SealedBuildSession(E.AdmittedBuildSnapshot(
+        source_snapshot_sha256=digest, expected_materialization_sha256=digest,
+        source_evidence=_snapshot_evidence(root, _SNAPSHOT_TOKEN),
+    ))
+
+
+@contextlib.contextmanager
+def _running_tiny_session(root):
+    session = _tiny_session(root)
+    try:
+        session._start(root)
+        yield session
+    finally:
+        session._finish()
+
+
+def _python_command(code, *args):
+    import sys
+    return [sys.executable, "-I", "-B", "-c", code, *map(str, args)]
+
+
+def _session_python(session, code, *args):
+    return session.run(_python_command(code, *args), cwd="/", env=None, timeout_s=5)
+
+
+def _issue_test_capability(session):
+    kind = (E.SealedSnapshotProtectionKind.SEALED_BUILD if session._ran
+            else E.SealedSnapshotProtectionKind.SEALED_CACHE_HIT)
+    return session.issue(kind, binary_sha256=hashlib.sha256(b"binary").hexdigest(),
+                         compiler_input_manifest_sha256=hashlib.sha256(b"manifest").hexdigest())
+
+
+def _in_real_child(action):
+    """Child setup failures fail tests; unavailable namespaces never skip."""
+    import json
+    reader, writer = os.pipe()
+    pid = os.fork()
+    if pid == 0:
+        os.close(reader)
+        try:
+            row = {"value": action()}
+        except BaseException as exc:
+            row = {"error": repr(exc)}
+        with os.fdopen(writer, "w") as stream:
+            json.dump(row, stream)
+        os._exit(0 if "value" in row else 1)
+    os.close(writer)
+    with os.fdopen(reader) as stream:
+        row = json.load(stream)
+    status = os.waitpid(pid, 0)[1]
+    assert os.waitstatus_to_exitcode(status) == 0, row
+    return row["value"]
+
+
+_SOURCE_ATTACK = """
+import json, sys
+from pathlib import Path
+path = Path(sys.argv[1])
+original = path.read_bytes().hex()
+results = []
+for action in (lambda: path.chmod(0o600), lambda: path.write_bytes(b'changed')):
+    try:
+        action()
+        results.append(0)
+    except OSError as exc:
+        results.append(exc.errno)
+print(json.dumps([results, original, path.read_bytes().hex()]))
+"""
+
+
+def test_sealed_snapshot_owner_chmod_write_erofs_with_writable_control(tmp_path):
+    import errno
+    import json
+    import subprocess
+    root = _sealed_test_tree(tmp_path)
+    source = root / "src" / "main.cc"
+    original = source.read_bytes()
+    control = subprocess.run(_python_command(_SOURCE_ATTACK, source),
+                             capture_output=True, text=True, check=True)
+    assert json.loads(control.stdout) == [[0, 0], original.hex(), b"changed".hex()]
+    source.write_bytes(original)
+    source.chmod(0o644)
+    namespaces = {name: os.readlink("/proc/self/ns/" + name) for name in ("mnt", "user")}
+    with _running_tiny_session(root) as session:
+        protected = _session_python(session, _SOURCE_ATTACK, source)
+        assert protected.returncode == 0, protected.stderr
+        assert json.loads(protected.stdout) == [
+            [errno.EROFS, errno.EROFS], original.hex(), original.hex(),
+        ]
+        result = _session_python(session, """
+from pathlib import Path
+import sys
+root = Path(sys.argv[1])
+assert not list(root.rglob('.git'))
+assert not root.stat().st_mode & 0o222
+assert not (root / 'src/main.cc').stat().st_mode & 0o222
+""", root)
+        assert result.returncode == 0, result.stderr
+        with pytest.raises(E.ExpectedMaterializationError, match="not complete"):
+            _issue_test_capability(session)
+    assert _mode(source) == 0o644
+    assert _issue_test_capability(session).kind is E.SealedSnapshotProtectionKind.SEALED_BUILD
+    assert namespaces == {name: os.readlink("/proc/self/ns/" + name) for name in namespaces}
+
+
+@pytest.mark.parametrize("state", ["capabilities", "dropped", "regained", "filtered"])
+def test_shared_readonly_file_capability_and_userns_controls(tmp_path, state):
+    import errno
+    import subprocess
+    file = tmp_path / "shared"
+    file.write_bytes(b"original")
+    file.chmod(0o444)
+
+    def action():
+        E._enter_snapshot_namespace()
+        mounts = []
+        E._mount_snapshot(file, mounts, source=os.fsencode(file), filesystem=None, flags=4096)
+        assert _mode(file) == 0o444
+        if state != "capabilities":
+            E._drop_snapshot_capabilities()
+        if state == "filtered":
+            E._install_snapshot_seccomp()
+        namespace_errno = None
+        if state in ("regained", "filtered"):
+            try:
+                E._enter_snapshot_namespace()
+                namespace_errno = 0
+            except OSError as exc:
+                namespace_errno = exc.errno
+        try:
+            file.write_bytes(b"changed")
+            write_errno = 0
+        except OSError as exc:
+            write_errno = exc.errno
+        result = subprocess.run(_python_command("""
+import os
+pid = os.fork()
+if pid == 0:
+    os.execve('/bin/true', ['true'], {})
+assert os.waitstatus_to_exitcode(os.waitpid(pid, 0)[1]) == 0
+"""), capture_output=True, text=True, timeout=5)
+        assert result.returncode == 0, result.stderr
+        return [write_errno, namespace_errno]
+
+    result = _in_real_child(action)
+    assert result == {
+        "capabilities": [0, None], "dropped": [errno.EACCES, None],
+        "regained": [0, 0], "filtered": [errno.EACCES, errno.EPERM],
+    }[state]
+    assert file.read_bytes() == (b"changed" if state in ("capabilities", "regained") else b"original")
+
+
+def test_sealed_snapshot_shares_late_staging_and_base_inodes(tmp_path):
+    import json
+    root = _sealed_test_tree(tmp_path)
+    ancestor = root.parent.parent
+    with _running_tiny_session(root) as session:
+        staging = ancestor / "cache" / "late-staging"
+        staging.mkdir()
+        (staging / "marker").write_bytes(b"parent")
+        result = _session_python(session, """
+import json, sys
+from pathlib import Path
+staging, base = map(Path, sys.argv[1:])
+assert (staging / 'marker').read_bytes() == b'parent'
+(staging / 'binary').write_bytes(b'child')
+(base / 'new-entry').write_bytes(b'child')
+p = staging / 'binary'
+print(json.dumps([p.stat().st_dev, p.stat().st_ino]))
+""", staging, ancestor / "base")
+        assert result.returncode == 0, result.stderr
+        binary = staging / "binary"
+        assert json.loads(result.stdout) == [binary.stat().st_dev, binary.stat().st_ino]
+        assert binary.read_bytes() == b"child"
+        assert (ancestor / "base" / "new-entry").read_bytes() == b"child"
+
+
+def test_sealed_session_root_replacement_refuses_issue_and_restores_original(tmp_path):
+    root = _sealed_test_tree(tmp_path)
+    original = (root / "src/main.cc").read_bytes()
+    old_mode = _mode(root)
+    displaced = root.with_name("displaced")
+    with pytest.raises(E.ExpectedMaterializationError, match="root-identity-after-build"):
+        with _running_tiny_session(root) as session:
+            root.parent.chmod(0o700)
+            root.rename(displaced)
+            _write_tree(root)
+            (root / "src/main.cc").write_bytes(b"replacement")
+            result = _session_python(session,
+                "from pathlib import Path; import sys; print(Path(sys.argv[1]).read_bytes().hex())",
+                root / "src/main.cc")
+            assert result.returncode == 0, result.stderr
+            assert result.stdout.strip() == original.hex()
+    assert _mode(displaced) == old_mode
+    with pytest.raises(E.ExpectedMaterializationError, match="not complete"):
+        _issue_test_capability(session)
+    with pytest.raises(E.ExpectedMaterializationError, match="cannot run"):
+        _session_python(session, "pass")
+
+
+def test_sealed_session_abnormal_worker_refuses_issue_without_poisoning_parent(tmp_path):
+    root = _sealed_test_tree(tmp_path)
+    with pytest.raises(E.ExpectedMaterializationError):
+        with _running_tiny_session(root) as session:
+            _session_python(session, "import os, signal; os.kill(os.getppid(), signal.SIGKILL)")
+    with pytest.raises(E.ExpectedMaterializationError, match="not complete"):
+        _issue_test_capability(session)
+    with _running_tiny_session(root) as healthy:
+        assert _session_python(healthy, "pass").returncode == 0
+    _issue_test_capability(healthy)
+
+
+def test_sealed_session_reaps_detached_descendants_before_issue(tmp_path):
+    root = _sealed_test_tree(tmp_path)
+    marker = root.parent.parent / "cache" / "pid"
+    with _running_tiny_session(root) as session:
+        result = _session_python(session, """
+import os, sys, time
+pid = os.fork()
+if pid == 0:
+    os.setsid()
+    for fd in (0, 1, 2):
+        os.close(fd)
+    while True:
+        time.sleep(1)
+from pathlib import Path
+Path(sys.argv[1]).write_text(str(pid))
+""", marker)
+        assert result.returncode == 0, result.stderr
+    pid = int(marker.read_text())
+    with pytest.raises(ProcessLookupError):
+        os.kill(pid, 0)
+    _issue_test_capability(session)
+
+
+def test_sealed_capability_exact_identity_and_binary_manifest_bindings(tmp_path):
+    import dataclasses
+    import json
+    import pickle
+    root = _sealed_test_tree(tmp_path)
+    with _running_tiny_session(root) as session:
+        pass
+    capability = _issue_test_capability(session)
+    assert capability.kind is E.SealedSnapshotProtectionKind.SEALED_CACHE_HIT
+    bindings = {name: getattr(capability, name) for name in (
+        "source_snapshot_sha256", "expected_materialization_sha256",
+        "binary_sha256", "compiler_input_manifest_sha256",
+    )}
+    assert E.validate_sealed_snapshot_capability(capability, **bindings) is capability
+    for field in ("binary_sha256", "compiler_input_manifest_sha256"):
+        altered = dict(bindings, **{field: hashlib.sha256(b"different").hexdigest()})
+        with pytest.raises(E.ExpectedMaterializationError, match=field):
+            E.validate_sealed_snapshot_capability(capability, **altered)
+    with pytest.raises(E.ExpectedMaterializationError, match="requires issue"):
+        E.SealedSnapshotCapability(kind=capability.kind, **bindings)
+    reconstructed = json.loads(json.dumps({**bindings, "kind": capability.kind.value}))
+    for fake in (SimpleNamespace(**dataclasses.asdict(capability)),
+                 pickle.loads(pickle.dumps(capability)), reconstructed):
+        with pytest.raises(E.ExpectedMaterializationError, match="not issued"):
+            E.validate_sealed_snapshot_capability(fake, **bindings)
+    with pytest.raises(E.ExpectedMaterializationError, match="differs from execution"):
+        session.issue(E.SealedSnapshotProtectionKind.SEALED_BUILD,
+                      binary_sha256=bindings["binary_sha256"],
+                      compiler_input_manifest_sha256=bindings["compiler_input_manifest_sha256"])
+
+
+def test_normal_unmount_busy_control_and_session_issue_rejection(tmp_path):
+    """A real busy mount fails; closing the held fd makes unmount succeed.
+
+    The child harness reports that actual failure through the production parent
+    finish/issue protocol. No syscall or dependency is replaced.
+    """
+    import socket
+    root = _sealed_test_tree(tmp_path)
+    session = _tiny_session(root)
+    parent, child = socket.socketpair()
+    pid = os.fork()
+    if pid == 0:
+        parent.close()
+        stream = child.makefile("rw")
+        mounts = []
+        try:
+            assert E._read_snapshot_message(stream) == {"finish": True}
+            E._enter_snapshot_namespace()
+            E._mount_snapshot(root, mounts, data=b"size=1m")
+            held = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
+            try:
+                try:
+                    E._unmount_snapshot(mounts)
+                except E.ExpectedMaterializationError as exc:
+                    import errno
+                    assert isinstance(exc.__cause__, OSError)
+                    assert exc.__cause__.errno == errno.EBUSY
+                else:
+                    raise AssertionError("busy unmount did not fail")
+            finally:
+                os.close(held)
+            E._unmount_snapshot(mounts)
+            E._send_snapshot_message(stream, {"error": "snapshot normal unmount failed"})
+            os._exit(1)
+        except BaseException as exc:
+            E._send_snapshot_message(stream, {"error": "test setup: " + repr(exc)})
+            os._exit(2)
+    child.close()
+    session._pid = pid
+    session._connection = parent
+    session._stream = parent.makefile("rw")
+    with pytest.raises(E.ExpectedMaterializationError, match="child: snapshot normal unmount failed"):
+        session._finish()
+    with pytest.raises(E.ExpectedMaterializationError, match="not complete"):
+        _issue_test_capability(session)
+    with pytest.raises(E.ExpectedMaterializationError, match="cannot run"):
+        _session_python(session, "pass")
+
+
+def test_sealed_session_requires_one_real_os_thread(tmp_path):
+    import threading
+    root = _sealed_test_tree(tmp_path)
+    ready, release = threading.Event(), threading.Event()
+    thread = threading.Thread(target=lambda: (ready.set(), release.wait()))
+    thread.start()
+    ready.wait()
+    session = _tiny_session(root)
+    try:
+        with pytest.raises(E.ExpectedMaterializationError, match="exactly one OS thread"):
+            session._start(root)
+    finally:
+        release.set()
+        thread.join()
+        with pytest.raises(E.ExpectedMaterializationError):
+            session._finish()
+    with pytest.raises(E.ExpectedMaterializationError, match="not complete"):
+        _issue_test_capability(session)
+
+
+def test_sealed_session_permission_restore_failure_refuses_issue(tmp_path):
+    root = _sealed_test_tree(tmp_path)
+    originals = [(path, _mode(path)) for path in (root.parent, root, *root.rglob("*"))]
+    session = _tiny_session(root)
+    try:
+        session._start(root)
+        # A real EBADF from the retained anchor must invalidate completion.
+        os.close(session._permission_state.root_fd)
+        with pytest.raises(E.ExpectedMaterializationError, match="permission-restore"):
+            session._finish()
+        with pytest.raises(E.ExpectedMaterializationError, match="not complete"):
+            _issue_test_capability(session)
+    finally:
+        if not session._finished:
+            session._finish()
+        for path, mode in originals:
+            path.chmod(mode)
+
+
+@pytest.mark.parametrize("matching", [True, False])
+def test_private_copy_digest_is_checked_before_seal(tmp_path, matching):
+    root = _sealed_test_tree(tmp_path)
+    expected = E.snapshot_tree_digest(root)
+
+    def action():
+        E._enter_snapshot_namespace()
+        mounts = []
+        try:
+            digest = expected if matching else hashlib.sha256(b"different").hexdigest()
+            try:
+                E._snapshot_root_view(root, digest, mounts)
+            except E.ExpectedMaterializationError as exc:
+                assert not matching
+                assert "copy digest mismatch" in str(exc)
+                return "rejected"
+            assert matching
+            assert E.snapshot_tree_digest(root) == expected
+            return "sealed"
+        finally:
+            E._unmount_snapshot(mounts)
+
+    assert _in_real_child(action) == ("sealed" if matching else "rejected")
+
+
 def _run() -> int:
     return pytest.main([__file__, "-q"])
 

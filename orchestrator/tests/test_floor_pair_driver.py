@@ -58,7 +58,7 @@ def _portable_build_record(
     tag: str,
     genome_canonical: str | None = None,
 ) -> dict[str, object]:
-    """実 s8b-binary-admission/v2 reader を通る最小 portable record。"""
+    """実 s8b-binary-admission/v3 reader を通る最小 portable record。"""
     admission_module = F.s8b_binary_admission
     genome = (
         json.dumps({"fixture": tag}, sort_keys=True, separators=(",", ":"))

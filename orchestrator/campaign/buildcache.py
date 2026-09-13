@@ -52,6 +52,7 @@ from .source_digest import SourceEvidence
 #     行い、prefix 照合・prefix fallback・現在 disk からの遡及 backfill は禁止する。
 _SHA256_HEX64 = re.compile(r"\A[0-9a-f]{64}\Z")
 _V2_SCHEMA = "buildcache/v2"
+_SEALED_SOURCE_CONTRACT = "sealed-source-snapshot/v1"
 _V2_COMPLETION_MANIFEST = "completion.json"
 _LEGACY_ADMISSION_SCHEMA = "buildcache-legacy-admission/v1"
 _LEGACY_ADMISSION_SIDECAR = "admission.json"
@@ -690,6 +691,7 @@ class BuildResult:
     # floor sort_best 専用の runtime 診断。空の既定 caller は従来どおり。
     fetchcontent_base_dir: str = ""
     masstree_source_root_sha256: str = ""
+    source_protection: Optional[s8b_expected_materialization.SealedSnapshotCapability] = None
 
     @property
     def bin_hash(self) -> str:
@@ -1305,6 +1307,7 @@ def _v2_identity(
         fetchcontent_population_policy: Optional[str] = None,
         fetchcontent_dependency_manifest_sha256: Optional[object] = None,
         compiler_input_policy: Optional[str] = None,
+        expected_materialization_sha256: Optional[str] = None,
 ) -> tuple[Dict[str, Any], str]:
     """完全 pre-image と full build digest (64hex) を返す。"""
     if (source_snapshot_sha256 is not None
@@ -1323,6 +1326,11 @@ def _v2_identity(
         "dependency_prefix": dependency_prefix,
         "admission": admission,
     }
+    if expected_materialization_sha256 is not None:
+        if not is_full_sha256(expected_materialization_sha256) or source_snapshot_sha256 is None:
+            raise BuildCacheError("sealed source identity requires both snapshot digests")
+        preimage["source_protection_contract"] = _SEALED_SOURCE_CONTRACT
+        preimage["expected_materialization_sha256"] = expected_materialization_sha256
     if source_snapshot_sha256 is not None:
         preimage["source_snapshot_sha256"] = source_snapshot_sha256
         preimage["compiler_input_manifest_schema"] = (
@@ -1647,6 +1655,8 @@ def _validate_v2_entry(
             "schema_version", "completion_marker", "full_build_digest",
             "contract_sha256", "preimage", "toolchain", "binary", "admission",
         }
+        if "source_protection_contract" in preimage:
+            expected_keys.add("source_protection")
         snapshot_bound = "source_snapshot_sha256" in preimage
         if snapshot_bound:
             expected_keys.update({
@@ -1798,6 +1808,17 @@ def _validate_v2_entry(
                 f"v2 cached binary sha256 照合失敗: {binary}: "
                 f"expected={binary_record['sha256']} actual={actual}"
             )
+        if "source_protection_contract" in preimage:
+            expected_protection = {
+                "kind": "sealed-build",
+                "source_snapshot_sha256": preimage["source_snapshot_sha256"],
+                "expected_materialization_sha256": preimage["expected_materialization_sha256"],
+                "binary_sha256": actual,
+                "compiler_input_manifest_sha256": compiler_input_manifest_sha256,
+            }
+            if (preimage["source_protection_contract"] != _SEALED_SOURCE_CONTRACT
+                    or manifest["source_protection"] != expected_protection):
+                raise BuildCacheError("v2 sealed source protection record mismatch")
         result_fd = binary_fd
         binary_fd = -1
         return (
@@ -2242,10 +2263,86 @@ def _release_v2_claim(claim: str, parent: str, *, parent_fd: int) -> None:
             os.close(claim_fd)
 
 
+@dataclass
+class _PendingV2Publication:
+    """Own the unpublished candidate until the sealed session has completed.
+
+    This closes source replacement during compilation, not poisoned-cache reuse.
+    Capabilities remain within the trusted Python producer boundary; they are
+    neither kernel attestation nor signatures.
+    """
+
+    result: BuildResult
+    completion: Dict[str, Any]
+    parent_fd: int
+    clean_fd: int
+    clean_identity: os.stat_result
+    copied: _CopiedBinary
+    parent: str
+    clean: str
+    clean_name: str
+    bdir_name: str
+    claim: str
+    published: bool = False
+
+    def publish(self, capability: s8b_expected_materialization.SealedSnapshotCapability) -> BuildResult:
+        # Only build_v2 calls this, with session.issue's completed capability.
+        self.copied.verify_destination_entry()
+        _verify_directory_entry(
+            self.parent_fd, self.clean_name, self.clean_fd, self.clean_identity,
+            label="v2 clean publish candidate",
+        )
+        if _full_sha256_fd(self.copied.destination_fd, self.result.binary) != self.result.bin_sha256:
+            raise BuildCacheError("v2 pending binary changed before publish")
+        self.completion["source_protection"] = {
+            "kind": capability.kind.value,
+            "source_snapshot_sha256": capability.source_snapshot_sha256,
+            "expected_materialization_sha256": capability.expected_materialization_sha256,
+            "binary_sha256": capability.binary_sha256,
+            "compiler_input_manifest_sha256": capability.compiler_input_manifest_sha256,
+        }
+        _write_fsynced_json_at(self.clean_fd, _V2_COMPLETION_MANIFEST, self.completion)
+        self.copied.fsync_directories()
+        os.fsync(self.clean_fd)
+        self.copied.verify_destination_entry()
+        _verify_directory_entry(
+            self.parent_fd, self.clean_name, self.clean_fd, self.clean_identity,
+            label="v2 clean publish candidate",
+        )
+        if _entry_lexists_at(self.parent_fd, self.bdir_name):
+            raise BuildCacheError(
+                f"v2 publish 先が rename 直前に出現した: {self.result.build_dir}"
+            )
+        try:
+            os.rename(
+                self.clean_name, self.bdir_name,
+                src_dir_fd=self.parent_fd, dst_dir_fd=self.parent_fd,
+            )
+        except OSError as exc:
+            raise BuildCacheError(f"v2 clean candidate publish に失敗: {exc}") from exc
+        self.published = True
+        os.fsync(self.parent_fd)
+        _release_v2_claim(self.claim, self.parent, parent_fd=self.parent_fd)
+        return self.result
+
+    def close(self) -> None:
+        try:
+            if not self.published:
+                _discard_build_candidates(self.clean)
+                # Preserve the existing failure-claim policy: no automatic retry
+                # of this identity after an interrupted/failed publication.
+        finally:
+            _close_fds_best_effort(
+                self.copied._owned_fds() + [self.clean_fd, self.parent_fd]
+            )
+
+
 def _build_v2_impl(
         genome: Genome, *, admission: BuildAdmission,
         build_context: BuildRunContext, source_evidence: SourceEvidence,
         source_snapshot_sha256: Optional[str] = None,
+        sealed_session: Optional[s8b_expected_materialization.SealedBuildSession] = None,
+        expected_materialization_sha256: Optional[str] = None,
         allow_external_compiler_inputs: bool = False,
         expected_evolve_block_sources: Optional[Mapping[str, str]] = None,
         contract: ExecutionEnvironmentContract,
@@ -2265,7 +2362,7 @@ def _build_v2_impl(
         fetchcontent_archive_sha256: Optional[object] = None,
         post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
         current_compiler_input_masstree_root: Optional[object] = None,
-) -> BuildResult:
+) -> BuildResult | _PendingV2Publication:
     """contract namespace に staging/claim/manifest 付きで build する v2 API。
 
     copy-out destination は held fd と directory entry の inode を publish 直前まで
@@ -2329,6 +2426,17 @@ def _build_v2_impl(
     には ``renameat2(RENAME_NOREPLACE)`` がないため、directory publish の create-only
     原子性は保証しない。cache publish 時点の inode 厳格化に限定した境界である。
     """
+    if expected_materialization_sha256 is not None:
+        if sealed_session is None:
+            raise BuildCacheError("descriptor build requires an exact sealed session")
+        if type(sealed_session) is not s8b_expected_materialization.SealedBuildSession:
+            raise BuildCacheError("descriptor build requires an exact sealed session")
+        if (sealed_session.expected_materialization_sha256 != expected_materialization_sha256
+                or sealed_session.source_snapshot_sha256 != source_snapshot_sha256):
+            raise BuildCacheError("sealed session snapshot identity mismatch")
+    elif sealed_session is not None:
+        raise BuildCacheError("sealed session requires declaration identity")
+
     _require_secure_fs_contract()
     if type(build_context) is not BuildRunContext:
         raise TypeError("build_context は build_run_context() 由来の exact value が必要")
@@ -2528,6 +2636,7 @@ def _build_v2_impl(
     preimage, digest = _v2_identity(
         genome, ccbench_commit, trace, src_token, cc, cxx, toolchain,
         source_snapshot_sha256=source_snapshot_sha256,
+        expected_materialization_sha256=expected_materialization_sha256,
         site=actual_site, dependency_prefix=effective_dependency_prefix,
         admission=admission_identity,
         binary_path_policy=binary_path_policy,
@@ -2554,6 +2663,7 @@ def _build_v2_impl(
         "cc", genome.protocol, f"ycsb_{genome.protocol}.exe",
     )
     parent_fd = _open_or_create_directory_path(parent)
+    transferred = False
     try:
         claim_name = os.path.basename(claim)
         bdir_name = os.path.basename(bdir)
@@ -2680,6 +2790,8 @@ def _build_v2_impl(
                 post_oracle_dependency_binding=post_oracle_binding,
             )
             run_env = {}
+            if sealed_session is not None:
+                run_env["sealed_session"] = sealed_session
             if configure_dependency_prefix:
                 build_env = os.environ.copy()
                 build_env.pop("CMAKE_PREFIX_PATH", None)
@@ -2914,7 +3026,8 @@ def _build_v2_impl(
                     completion["fetchcontent_dependency"]["archive_sha256"] = (
                         dependency_archive_sha256
                     )
-            _write_fsynced_json_at(clean_fd, _V2_COMPLETION_MANIFEST, completion)
+            if sealed_session is None:
+                _write_fsynced_json_at(clean_fd, _V2_COMPLETION_MANIFEST, completion)
             copied.fsync_directories()
             os.fsync(clean_fd)
             _discard_build_dir(staging)
@@ -2926,6 +3039,33 @@ def _build_v2_impl(
             )
             if _entry_lexists_at(parent_fd, bdir_name):
                 raise BuildCacheError(f"v2 publish 先が rename 直前に出現した: {bdir}")
+            if sealed_session is not None:
+                binary = final_binary
+                result = _v2_result(
+                    genome, trace, binary, bin_sha256, bdir, False, sub, root, toolchain,
+                    contract_sha256, resolved_site, configure_dependency_prefix,
+                    binary_path_policy,
+                    canonical_fetchcontent_base,
+                    source_dirs.get("masstree") if source_dirs else None,
+                    source_dirs.get("mimalloc") if source_dirs else None,
+                    source_dirs.get("googletest") if source_dirs else None,
+                    masstree_source_root_sha256,
+                    complete_toolchain_manifest, complete_toolchain_manifest_sha256,
+                    compiler_input_manifest, compiler_input_manifest_sha256,
+                    compiler_input_dependency_prefix_roots,
+                    post_oracle_binding,
+                )
+                pending = _PendingV2Publication(
+                    result, completion, parent_fd, clean_fd, clean_identity,
+                    copied, parent, clean, clean_name, bdir_name, claim,
+                )
+                # Relinquish before close: close may release the descriptor and
+                # still report an error. Never retry that numeric fd in finally.
+                closing_staging_fd = staging_fd
+                staging_fd = -1
+                os.close(closing_staging_fd)
+                transferred = True
+                return pending
             try:
                 os.rename(
                     clean_name, bdir_name,
@@ -2938,7 +3078,9 @@ def _build_v2_impl(
             clean_created = False
             os.fsync(parent_fd)
             _release_v2_claim(claim, parent, parent_fd=parent_fd)
-        except Exception:
+        except BaseException as exc:
+            if sealed_session is None and not isinstance(exc, Exception):
+                raise
             _discard_build_candidates(*(
                 path for created, path in (
                     (staging_created, staging), (clean_created, clean),
@@ -2946,8 +3088,8 @@ def _build_v2_impl(
             ))
             raise
         finally:
-            owned_fds = [staging_fd, clean_fd]
-            if copied is not None:
+            owned_fds = [staging_fd] if transferred else [staging_fd, clean_fd]
+            if copied is not None and not transferred:
                 owned_fds = copied._owned_fds() + owned_fds
             _close_fds_best_effort(owned_fds)
 
@@ -2967,7 +3109,8 @@ def _build_v2_impl(
             post_oracle_binding,
         )
     finally:
-        os.close(parent_fd)
+        if not transferred:
+            os.close(parent_fd)
 
 
 def build_v2(
@@ -2995,26 +3138,20 @@ def build_v2(
         post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
         current_compiler_input_masstree_root: Optional[object] = None,
 ) -> BuildResult:
-    """Build through the declaration gate only at the real compiler boundary.
+    """Build with a sealed compiler view when a declaration is supplied.
 
-    When ``expected_materialization_descriptor`` is present, this function
-    performs, in fixed order, declaration replay, exact tree comparison,
-    non-writable protection, evidence rederivation from that protected
-    snapshot, and exact equality with ``source_evidence``.  Only then does it
-    enter the existing snapshot-bound cache/build path.  Protection remains in
-    force until that path returns or raises.
+    The parent retains all source and D1755 checks. Only configure/build run in
+    the session's child. A fresh candidate stays private until session cleanup,
+    waitpid, root identity checks and permission restoration succeed; issue then
+    supplies the capability before publication. Hits receive SEALED_CACHE_HIT,
+    which does not assert that this process or a past process compiled safely.
 
-    The descriptor is optional so generic ``build_v2`` callers keep the exact
-    pre-existing behavior and cache schema.  This is not an S8b bypass: the
-    binary-admission receipt issuer unconditionally requires both a compiler
-    input manifest and an expected-materialization digest.  A floor/oracle
-    binary built without this descriptor therefore cannot receive an S8b
-    receipt.  The correctness gate is unconditional at the receipt boundary.
-
-    ``source_snapshot_sha256`` remains the Unit-B compatibility input.  It can
-    bind compiler-input collection for non-S8b callers, but it supplies no
-    expected-materialization digest and therefore cannot substitute for the
-    declaration descriptor at the receipt boundary.
+    This closes build-time source replacement, not poisoned-cache reuse.
+    Capabilities belong to the trusted Python producer boundary, not kernel
+    attestation or signatures. Descriptor-less callers retain their previous
+    argv, cache identity and completion schema, including Unit-B snapshots.
+    The child's clone3/ENOSYS fallback was qualified on glibc 2.35 only;
+    this does not assert compatibility with other libc implementations.
     """
     common = {
         "admission": admission,
@@ -3097,8 +3234,9 @@ def build_v2(
         )
 
     sub = ccbench_dir or _ccbench_dir()
+    pending = None
     try:
-        with s8b_expected_materialization.admitted_build_snapshot(
+        with s8b_expected_materialization.sealed_build_session(
                 ccbench_commit=descriptor.ccbench_commit,
                 configuration=descriptor.configuration,
                 declaration=declaration,
@@ -3115,6 +3253,8 @@ def build_v2(
             result = _build_v2_impl(
                 genome,
                 source_snapshot_sha256=admitted.source_snapshot_sha256,
+                sealed_session=admitted,
+                expected_materialization_sha256=admitted.expected_materialization_sha256,
                 allow_external_compiler_inputs=True,
                 expected_evolve_block_sources=(
                     dict(admitted.evolve_block_sources)
@@ -3122,18 +3262,31 @@ def build_v2(
                 ),
                 **common,
             )
-            return replace(
-                result,
-                source_snapshot_sha256=admitted.source_snapshot_sha256,
-                expected_materialization_sha256=(
-                    admitted.expected_materialization_sha256
-                ),
-            )
+            if type(result) is _PendingV2Publication:
+                pending = result
+                result = pending.result
+        kind = s8b_expected_materialization.SealedSnapshotProtectionKind
+        capability = admitted.issue(
+            kind.SEALED_CACHE_HIT if result.cached else kind.SEALED_BUILD,
+            binary_sha256=result.bin_sha256,
+            compiler_input_manifest_sha256=result.compiler_input_manifest_sha256,
+        )
+        if pending is not None:
+            result = pending.publish(capability)
+        return replace(
+            result,
+            source_snapshot_sha256=admitted.source_snapshot_sha256,
+            expected_materialization_sha256=admitted.expected_materialization_sha256,
+            source_protection=capability,
+        )
     except s8b_expected_materialization.ExpectedMaterializationError as exc:
         raise BuildCacheError(
             "S8b build source snapshot を宣言へ束縛できない: "
             f"{type(exc).__name__}: {exc}"
         ) from exc
+    finally:
+        if pending is not None:
+            pending.close()
 
 
 def build(genome: Genome, ccbench_commit: str, trace: bool,
@@ -3518,6 +3671,7 @@ def _assert_no_trace_symbols(binary: str, *, binary_fd: Optional[int] = None) ->
 def _run(
         cmd: List[str], what: str, timeout_s: Optional[int] = None,
         *, site: Optional[str] = None, env: Optional[Dict[str, str]] = None,
+        sealed_session: Optional[s8b_expected_materialization.SealedBuildSession] = None,
 ) -> None:
     if what in {"configure", "build"}:
         require_heavy_work_site(site, f"cmake {what}")
@@ -3528,7 +3682,15 @@ def _run(
     }
     if env is not None:
         run_kwargs["env"] = env
-    r = subprocess.run(cmd, **run_kwargs)
+    if sealed_session is None:
+        r = subprocess.run(cmd, **run_kwargs)
+    else:
+        if type(sealed_session) is not s8b_expected_materialization.SealedBuildSession:
+            raise BuildCacheError("compiler execution requires an exact sealed session")
+        r = sealed_session.run(
+            cmd, cwd=os.getcwd(), env=os.environ.copy() if env is None else env,
+            timeout_s=timeout_s,
+        )
     if r.returncode != 0:
         raise RuntimeError(f"{what} failed (rc={r.returncode}): "
                            f"{r.stderr[-800:]}")

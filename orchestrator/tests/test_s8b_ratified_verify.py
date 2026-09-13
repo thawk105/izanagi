@@ -26,6 +26,8 @@ _ROOT = os.path.dirname(_ORCH)
 sys.path.insert(0, os.path.dirname(_ORCH))
 sys.path.insert(0, _HERE)
 
+from orchestrator.tests.s8b_v2_freeze_fixture import portable_binary_admission_receipt_fixture
+
 from orchestrator.campaign import s8b_ratified_freeze as M  # noqa: E402
 from orchestrator.campaign import s8b_holdout_freeze as HF  # noqa: E402
 from orchestrator.campaign import env_contract as EC  # noqa: E402
@@ -325,7 +327,7 @@ def _portable_binaries(
             input_sha256=binding["entry_sha256"],
         )
         admission = derive_build_admission(context, source, review_receipt=review)
-        receipt = BA.issue_binary_admission_receipt(
+        receipt = portable_binary_admission_receipt_fixture(
             admission=admission, expected_policy=context.policy, source=source,
             cell_id=cell_id, holdout_id=cell["holdout_id"],
             configuration_id=cell["configuration_id"], binding=binding,

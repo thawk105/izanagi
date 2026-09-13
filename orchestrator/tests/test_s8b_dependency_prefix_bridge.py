@@ -69,6 +69,10 @@ def _dependency_build(
             manifest, ensure_ascii=True, sort_keys=True,
             separators=(",", ":"),
         ).encode("utf-8")).hexdigest()
+        result.source_protection = fixture.sealed_source_protection_fixture(
+            source=kwargs["source_evidence"], binary_sha256=result.bin_sha256,
+            compiler_input_manifest_sha256=result.compiler_input_manifest_sha256,
+        )
         result.compiler_input_dependency_prefix_roots = reported_roots
         return result
 

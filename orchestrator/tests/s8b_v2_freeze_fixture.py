@@ -17,6 +17,14 @@ from pathlib import Path
 from typing import Callable, Mapping, Optional, Sequence
 
 from orchestrator.campaign import s8b_floor_contract as _floor_contract
+from orchestrator.campaign import s8b_expected_materialization as _snapshot
+
+# Save the real protection functions before floor fixtures install their
+# unrelated synthetic declaration-replay seams.
+_REAL_ASSERT_MATERIALIZATION = _snapshot.assert_expected_materialization
+_REAL_PROTECT_SNAPSHOT = _snapshot.make_snapshot_non_writable
+_REAL_RESTORE_SNAPSHOT = _snapshot.restore_snapshot_permissions
+
 
 # manifest verifier のハードコード stock 名と一致させる (両者とも freeze 記録値に
 # stock_common が実在することを別途検査する)。
@@ -79,6 +87,92 @@ def canonical_bytes(value) -> bytes:
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
         allow_nan=False,
     ).encode("utf-8")
+
+
+def sealed_source_protection_fixture(
+        *, source, binary_sha256, compiler_input_manifest_sha256):
+    """Issue through a real tiny sealed session; no issuer/registry bypass.
+
+    Only Git replay and evidence derivation use synthetic fixture inputs. Restore
+    real snapshot checks locally even when a caller mocks declaration admission.
+    The fixture executes a small command, so it reports SEALED_BUILD only.
+    """
+    import sys
+    from unittest.mock import patch
+
+    root = Path(source.source_root)
+    digest = _snapshot.snapshot_tree_digest(root)
+    with patch.object(
+            _snapshot, "produce_expected_materialization_from_declaration",
+            return_value=digest), patch.object(
+            _snapshot.source_digest, "resolve_evidence", return_value=source), patch.object(
+            _snapshot, "assert_expected_materialization", _REAL_ASSERT_MATERIALIZATION), patch.object(
+            _snapshot, "make_snapshot_non_writable", _REAL_PROTECT_SNAPSHOT), patch.object(
+            _snapshot, "restore_snapshot_permissions", _REAL_RESTORE_SNAPSHOT):
+        with _snapshot.sealed_build_session(
+                ccbench_commit=source.ccbench_commit, configuration="stock_common",
+                declaration={}, snapshot_root=root, genome=None,
+                prepared_src_token=source.src_token, cxx="c++") as session:
+            result = session.run(
+                [sys.executable, "-I", "-B", "-c", "pass"],
+                cwd="/", env=None, timeout_s=5,
+            )
+            assert result.returncode == 0
+    return session.issue(
+        _snapshot.SealedSnapshotProtectionKind.SEALED_BUILD,
+        binary_sha256=binary_sha256,
+        compiler_input_manifest_sha256=compiler_input_manifest_sha256,
+    )
+
+
+def portable_binary_admission_receipt_fixture(
+        *, admission, expected_policy, source, cell_id, holdout_id,
+        configuration_id, binding, binary, binary_sha256, contract_sha256,
+        trace, source_snapshot_sha256, expected_materialization_sha256,
+        compiler_input_manifest, compiler_input_manifest_sha256):
+    """Portable reader input only; this dict makes no capability issuance claim.
+
+    Keep issuer tests on the real API. Consumer fixtures need only the durable
+    schema, including its internally consistent source protection projection.
+    """
+    source_body = source.as_receipt()
+    source_body.pop("source_root")
+    admission_body = admission.as_wal_receipt()
+    body = {
+        "schema": "s8b-binary-admission/v3",
+        "admission": {
+            key: admission_body[key] for key in (
+                "schema", "class", "policy_sha256", "review_id", "input_sha256",
+            )
+        },
+        "subject": {
+            "cell_id": cell_id, "holdout_id": holdout_id,
+            "configuration_id": configuration_id,
+            "entry_sha256": binding["entry_sha256"],
+            "binding_sha256": binding["binding_sha256"],
+            "binary_sha256": binary_sha256, "contract_sha256": contract_sha256,
+            "trace": trace, "source_snapshot_sha256": source_snapshot_sha256,
+            "expected_materialization_sha256": expected_materialization_sha256,
+            "compiler_input_manifest_sha256": compiler_input_manifest_sha256,
+        },
+        "proof": {
+            "compiler_input_manifest": compiler_input_manifest,
+            "materialization_binding": dict(binding),
+            "source_protection": {
+                "kind": "sealed-build",
+                "source_snapshot_sha256": source_snapshot_sha256,
+                "expected_materialization_sha256": expected_materialization_sha256,
+                "binary_sha256": binary_sha256,
+                "compiler_input_manifest_sha256": compiler_input_manifest_sha256,
+            },
+        },
+    }
+    body["admission"]["source"] = source_body
+    body["receipt_sha256"] = hashlib.sha256(json.dumps(
+        body, ensure_ascii=True, sort_keys=True, separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")).hexdigest()
+    return body
 
 
 def launch_certificate(*, protocol_sha256: str, campaign_run_id: str) -> dict:
@@ -297,7 +391,7 @@ def _synthetic_floor_result(v1: dict, protocol: dict, *, root: Path) -> dict:
             input_sha256=entry_sha256,
         )
         admission = derive_build_admission(context, source, review_receipt=review)
-        receipt = binary_admission.issue_binary_admission_receipt(
+        receipt = portable_binary_admission_receipt_fixture(
             admission=admission, expected_policy=context.policy, source=source,
             cell_id=cell["cell_id"], holdout_id=cell["holdout_id"],
             configuration_id=cell["configuration_id"], binding=binding,

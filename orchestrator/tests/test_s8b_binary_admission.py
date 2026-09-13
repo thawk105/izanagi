@@ -4,12 +4,17 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import pickle
+from types import SimpleNamespace
 import tempfile
 from pathlib import Path
 
 import pytest
 
 from orchestrator.campaign import s8b_binary_admission as A
+from orchestrator.tests.s8b_v2_freeze_fixture import (
+    portable_binary_admission_receipt_fixture, sealed_source_protection_fixture,
+)
 from orchestrator.campaign.build_admission import (
     GeneratorId,
     ReviewId,
@@ -64,6 +69,7 @@ def _honest_record(
     binary_bytes: bytes = b"honest-s8b-binary",
     compiler_schema: str = "v1", before_issue=None,
     provide_dependency_context: bool = True,
+    issuer=None, issue_arguments=None,
 ) -> dict:
     source_root = Path(tempfile.mkdtemp(prefix=f"{root_name}-", dir=tmp_path))
     compiler_input = source_root / "include" / "fixture.hh"
@@ -133,26 +139,46 @@ def _honest_record(
     binary.write_bytes(binary_bytes)
     binary_sha = hashlib.sha256(binary_bytes).hexdigest()
     binding = _binding()
+    # Portable reader fixtures carry a dict. Issuer coverage keeps the real API
+    # and real seal/cleanup/issue mechanism; only unrelated Git replay/evidence
+    # inputs use this tiny fixed source tree.
+    issue = portable_binary_admission_receipt_fixture
+    extra = {}
+    snapshot_sha = _EXPECTED_MATERIALIZATION_SHA
+    if issuer is not None or before_issue is not None or not provide_dependency_context:
+        issue = A.issue_binary_admission_receipt if issuer is None else issuer
+        protection = sealed_source_protection_fixture(
+            source=source, binary_sha256=binary_sha,
+            compiler_input_manifest_sha256=compiler_input_manifest_sha256,
+        )
+        snapshot_sha = protection.source_snapshot_sha256
+        extra = {
+            "source_protection": protection,
+            "current_compiler_input_masstree_root": current_masstree_root,
+            "current_compiler_input_dependency_prefix_roots": (
+                current_dependency_roots if provide_dependency_context else None
+            ),
+        }
     if before_issue is not None:
         before_issue(
             current_masstree_root
             if current_masstree_root is not None
             else current_dependency_roots[0]
         )
-    receipt = A.issue_binary_admission_receipt(
+    issue_kwargs = dict(
         admission=admission, expected_policy=context.policy, source=source,
         cell_id=cell_id, holdout_id=holdout_id, configuration_id=configuration_id,
         binding=binding, binary=binary, binary_sha256=binary_sha,
         contract_sha256=_CONTRACT_SHA, trace=False,
-        source_snapshot_sha256=_EXPECTED_MATERIALIZATION_SHA,
-        expected_materialization_sha256=_EXPECTED_MATERIALIZATION_SHA,
+        source_snapshot_sha256=snapshot_sha,
+        expected_materialization_sha256=snapshot_sha,
         compiler_input_manifest=compiler_input_manifest,
         compiler_input_manifest_sha256=compiler_input_manifest_sha256,
-        current_compiler_input_masstree_root=current_masstree_root,
-        current_compiler_input_dependency_prefix_roots=(
-            current_dependency_roots if provide_dependency_context else None
-        ),
+        **extra,
     )
+    if issue_arguments is not None:
+        issue_arguments.update(issue_kwargs)
+    receipt = issue(**issue_kwargs)
     record = {
         "cell_id": cell_id,
         "holdout_id": holdout_id,
@@ -193,7 +219,7 @@ def _validate(
 
 
 def test_issue_and_validate_binary_admission_receipt_round_trip(tmp_path: Path):
-    record = _honest_record(tmp_path)
+    record = _honest_record(tmp_path, issuer=A.issue_binary_admission_receipt)
     assert _validate(record) == record["admission_receipt"]
     assert set(record) == set(A.PORTABLE_BUILT_KEYS)
 
@@ -543,6 +569,134 @@ def test_validate_rejects_unknown_missing_and_malformed_receipt_fields(
         receipt["receipt_sha256"] = _canonical_sha(unsigned)
     with pytest.raises(A.BinaryAdmissionError):
         _validate(record)
+
+
+def _reseal_receipt(record):
+    receipt = record["admission_receipt"]
+    unsigned = dict(receipt)
+    unsigned.pop("receipt_sha256")
+    receipt["receipt_sha256"] = _canonical_sha(unsigned)
+
+
+@pytest.mark.parametrize("kind", ["sealed-build", "sealed-cache-hit"])
+def test_portable_validator_accepts_v3_source_protection(tmp_path, kind):
+    record = _honest_record(tmp_path)
+    receipt = record["admission_receipt"]
+    receipt["proof"]["source_protection"]["kind"] = kind
+    _reseal_receipt(record)
+    assert receipt["schema"] == "s8b-binary-admission/v3"
+    assert _validate(record) == receipt
+
+
+@pytest.mark.parametrize("policy", [None, "invalid-policy"])
+def test_portable_validator_rejects_v1_schema_before_policy(tmp_path, policy):
+    record = _honest_record(tmp_path)
+    record["admission_receipt"]["schema"] = "s8b-binary-admission/v1"
+    _reseal_receipt(record)
+    with pytest.raises(A.BinaryAdmissionError, match="receipt schema"):
+        A.validate_portable_binary_record(record, expected_policy=policy)
+
+
+@pytest.mark.parametrize("policy", [None, "invalid-policy"])
+def test_portable_validator_rejects_v2_schema_before_policy(tmp_path, policy):
+    record = _honest_record(tmp_path)
+    record["admission_receipt"]["schema"] = "s8b-binary-admission/v2"
+    _reseal_receipt(record)
+    with pytest.raises(A.BinaryAdmissionError, match="receipt schema"):
+        A.validate_portable_binary_record(record, expected_policy=policy)
+
+
+def test_portable_validator_requires_source_protection(tmp_path):
+    record = _honest_record(tmp_path)
+    del record["admission_receipt"]["proof"]["source_protection"]
+    _reseal_receipt(record)
+    with pytest.raises(A.BinaryAdmissionError, match="receipt proof の exact key"):
+        _validate(record)
+
+
+def test_portable_validator_rejects_none_source_protection(tmp_path):
+    record = _honest_record(tmp_path)
+    record["admission_receipt"]["proof"]["source_protection"] = None
+    _reseal_receipt(record)
+    with pytest.raises(A.BinaryAdmissionError, match="proof.source_protection の exact key"):
+        _validate(record)
+
+
+def test_portable_validator_rejects_unknown_protection_kind(tmp_path):
+    record = _honest_record(tmp_path)
+    record["admission_receipt"]["proof"]["source_protection"]["kind"] = "readonly"
+    _reseal_receipt(record)
+    with pytest.raises(A.BinaryAdmissionError, match="source_protection.kind"):
+        _validate(record)
+
+
+@pytest.mark.parametrize("key", [
+    "kind", "source_snapshot_sha256", "expected_materialization_sha256",
+    "binary_sha256", "compiler_input_manifest_sha256",
+])
+def test_portable_validator_rejects_missing_protection_key(tmp_path, key):
+    record = _honest_record(tmp_path)
+    del record["admission_receipt"]["proof"]["source_protection"][key]
+    _reseal_receipt(record)
+    with pytest.raises(A.BinaryAdmissionError, match="proof.source_protection の exact key"):
+        _validate(record)
+
+
+def test_portable_validator_rejects_extra_protection_key(tmp_path):
+    record = _honest_record(tmp_path)
+    record["admission_receipt"]["proof"]["source_protection"]["extra"] = True
+    _reseal_receipt(record)
+    with pytest.raises(A.BinaryAdmissionError, match="proof.source_protection の exact key"):
+        _validate(record)
+
+
+@pytest.mark.parametrize("key", [
+    "source_snapshot_sha256", "expected_materialization_sha256",
+    "binary_sha256", "compiler_input_manifest_sha256",
+])
+def test_portable_validator_rejects_protection_digest_mismatch(tmp_path, key):
+    record = _honest_record(tmp_path)
+    protection = record["admission_receipt"]["proof"]["source_protection"]
+    replacement = hashlib.sha256(("different:" + key).encode()).hexdigest()
+    assert replacement != protection[key]
+    protection[key] = replacement
+    _reseal_receipt(record)
+    with pytest.raises(A.BinaryAdmissionError, match="source_protection." + key):
+        _validate(record)
+
+
+@pytest.mark.parametrize("case", ["none", "dict", "string", "lookalike", "pickle"])
+def test_issuer_rejects_nonissued_source_protection(tmp_path, case):
+    arguments = {}
+    record = _honest_record(tmp_path, issue_arguments=arguments)
+    projection = record["admission_receipt"]["proof"]["source_protection"]
+    lookalike = SimpleNamespace(**projection)
+    value = {
+        "none": None, "dict": projection, "string": "sealed-build",
+        "lookalike": lookalike, "pickle": pickle.loads(pickle.dumps(lookalike)),
+    }[case]
+    with pytest.raises(A.BinaryAdmissionError, match="source protection capability"):
+        A.issue_binary_admission_receipt(**arguments, source_protection=value)
+
+
+def test_issuer_requires_source_protection_argument(tmp_path):
+    arguments = {}
+    _honest_record(tmp_path, issue_arguments=arguments)
+    with pytest.raises(TypeError, match="source_protection"):
+        A.issue_binary_admission_receipt(**arguments)
+
+
+def test_issuer_rejects_pickle_reconstruction_of_issued_capability(tmp_path):
+    def reconstructed_issuer(**arguments):
+        original = arguments["source_protection"]
+        reconstructed = pickle.loads(pickle.dumps(original))
+        assert type(reconstructed) is type(original)
+        assert reconstructed is not original
+        arguments["source_protection"] = reconstructed
+        return A.issue_binary_admission_receipt(**arguments)
+
+    with pytest.raises(A.BinaryAdmissionError, match="source protection capability"):
+        _honest_record(tmp_path, issuer=reconstructed_issuer)
 
 
 if __name__ == "__main__":

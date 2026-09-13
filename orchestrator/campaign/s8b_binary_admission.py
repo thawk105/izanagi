@@ -33,10 +33,15 @@ from .s8b_sort_swo_receipt import (
     SortSwoReceiptError,
     validate_portable_sort_swo_pass_receipt,
 )
+from .s8b_expected_materialization import (
+    ExpectedMaterializationError,
+    SealedSnapshotCapability,
+    validate_sealed_snapshot_capability,
+)
 from . import s8b_compiler_input
 
 
-RECEIPT_SCHEMA = "s8b-binary-admission/v2"
+RECEIPT_SCHEMA = "s8b-binary-admission/v3"
 
 PORTABLE_BUILT_KEYS = frozenset({
     "cell_id", "holdout_id", "configuration_id", "binary", "binary_sha256",
@@ -49,7 +54,11 @@ _RECEIPT_KEYS = frozenset({
     "schema", "admission", "subject", "proof", "receipt_sha256",
 })
 _PROOF_KEYS = frozenset({
-    "compiler_input_manifest", "materialization_binding",
+    "compiler_input_manifest", "materialization_binding", "source_protection",
+})
+_SOURCE_PROTECTION_KEYS = frozenset({
+    "kind", "source_snapshot_sha256", "expected_materialization_sha256",
+    "binary_sha256", "compiler_input_manifest_sha256",
 })
 _ADMISSION_KEYS = frozenset({
     "schema", "class", "policy_sha256", "review_id", "input_sha256", "source",
@@ -188,10 +197,17 @@ def issue_binary_admission_receipt(
     source_snapshot_sha256: str, expected_materialization_sha256: str,
     compiler_input_manifest: Mapping,
     compiler_input_manifest_sha256: str,
+    source_protection: SealedSnapshotCapability,
     current_compiler_input_masstree_root: Path | str | None = None,
     current_compiler_input_dependency_prefix_roots: object = None,
 ) -> dict[str, object]:
-    """完全検証した sealed admission から root 非依存 receipt を発行する。"""
+    """完全検証した admission と発行済み snapshot capability を射影する。
+
+    保護の射程は build 中の source 差し替え (A→B→A) だけであり、汚染 cache
+    binary の再利用は閉じない。sealed-cache-hit は過去の保護下 build を証明しない。
+    capability は trusted producer 内の実行由来の値であり、kernel attestation や
+    電子署名、敵対的 Python / process memory 改変に対する境界ではない。
+    """
 
     try:
         require_build_admission(
@@ -255,6 +271,17 @@ def issue_binary_admission_receipt(
     if actual_binary_sha256 != binary_sha256:
         raise BinaryAdmissionError("発行対象 binary bytes が build 記録 SHA と不一致")
 
+    try:
+        protection = validate_sealed_snapshot_capability(
+            source_protection,
+            source_snapshot_sha256=source_snapshot_sha256,
+            expected_materialization_sha256=expected_materialization_sha256,
+            binary_sha256=binary_sha256,
+            compiler_input_manifest_sha256=compiler_input_manifest_sha256,
+        )
+    except ExpectedMaterializationError as exc:
+        raise BinaryAdmissionError(f"source protection capability が不正: {exc}") from exc
+
     body: dict[str, object] = {
         "schema": RECEIPT_SCHEMA,
         "admission": {
@@ -281,6 +308,13 @@ def issue_binary_admission_receipt(
         "proof": {
             "compiler_input_manifest": checked_manifest,
             "materialization_binding": dict(checked_binding),
+            "source_protection": {
+                "kind": protection.kind.value,
+                "source_snapshot_sha256": protection.source_snapshot_sha256,
+                "expected_materialization_sha256": protection.expected_materialization_sha256,
+                "binary_sha256": protection.binary_sha256,
+                "compiler_input_manifest_sha256": protection.compiler_input_manifest_sha256,
+            },
         },
     }
     body["receipt_sha256"] = _sha256_map(body)
@@ -388,6 +422,15 @@ def validate_portable_binary_record(
         raise BinaryAdmissionError(
             "receipt subject source snapshot SHA が expected materialization と不一致"
         )
+    protection = _exact_mapping(
+        proof["source_protection"], _SOURCE_PROTECTION_KEYS,
+        "receipt proof.source_protection",
+    )
+    if protection["kind"] not in ("sealed-build", "sealed-cache-hit"):
+        raise BinaryAdmissionError("receipt source_protection.kind が不正")
+    for key in sorted(_SOURCE_PROTECTION_KEYS - {"kind"}):
+        if protection[key] != subject[key]:
+            raise BinaryAdmissionError(f"receipt source_protection.{key} が subject と不一致")
     if expected_ccbench_pin is not None and source["ccbench_commit"] != expected_ccbench_pin:
         raise BinaryAdmissionError("receipt source ccbench pin が外部期待値と不一致")
     if (expected_contract_sha256 is not None

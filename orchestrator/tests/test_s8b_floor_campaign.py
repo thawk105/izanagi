@@ -46,6 +46,10 @@ ORCHESTRATOR = Path(__file__).resolve().parents[1]
 ROOT = ORCHESTRATOR.parent
 sys.path.insert(0, str(ORCHESTRATOR.parent))
 
+from orchestrator.tests.s8b_v2_freeze_fixture import (
+    portable_binary_admission_receipt_fixture, sealed_source_protection_fixture,
+)
+
 from orchestrator.campaign import env_contract as ec  # noqa: E402
 from orchestrator import holdout_observation  # noqa: E402
 from orchestrator.campaign import (  # noqa: E402
@@ -582,8 +586,14 @@ def _make_fake_build(build_root: Path, *, cached: bool = False):
             compiler_input_manifest, ensure_ascii=True, sort_keys=True,
             separators=(",", ":"),
         ).encode("utf-8")).hexdigest()
+        source_protection = sealed_source_protection_fixture(
+            source=source_evidence, binary_sha256=bin_sha256,
+            compiler_input_manifest_sha256=compiler_input_manifest_sha256,
+        )
+        expected_materialization_sha256 = source_protection.expected_materialization_sha256
         return SimpleNamespace(
             genome=genome, trace=trace, binary=str(binary_path),
+            source_protection=source_protection,
             bin_sha256=bin_sha256, bin_hash=bin_sha256[:16],
             build_dir=str(cell_dir), cached=cached,
             configure_cmd=f"# fixture configure {cell_id}",
@@ -3129,8 +3139,17 @@ def test_real_floor_prepare_material_oracle_and_capability_series_when_configure
                 kwargs["expected_materialization_descriptor"].declaration
             )
         )
+        source_protection = sealed_source_protection_fixture(
+            source=kwargs["source_evidence"], binary_sha256=binary_sha256,
+            compiler_input_manifest_sha256=hashlib.sha256(json.dumps(
+                compiler_input_manifest, ensure_ascii=True, sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")).hexdigest(),
+        )
+        expected_materialization_sha256 = source_protection.expected_materialization_sha256
         return SimpleNamespace(
             genome=genome,
+            source_protection=source_protection,
             trace=False,
             binary=str(binary),
             bin_sha256=binary_sha256,
@@ -3585,6 +3604,10 @@ def test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
             result.compiler_input_manifest, ensure_ascii=True, sort_keys=True,
             separators=(",", ":"),
         ).encode("utf-8")).hexdigest()
+        result.source_protection = sealed_source_protection_fixture(
+            source=kwargs["source_evidence"], binary_sha256=result.bin_sha256,
+            compiler_input_manifest_sha256=result.compiler_input_manifest_sha256,
+        )
         return result
 
     monkeypatch.setattr(s8b_floor_campaign, "prepare_cell", production_prepare)
@@ -12571,7 +12594,7 @@ def _honest_portable_built_record(
         review_id=ReviewId.S8B_FLOOR, source=source, input_sha256=entry_sha,
     )
     admission = derive_build_admission(context, source, review_receipt=review)
-    receipt = s8b_binary_admission.issue_binary_admission_receipt(
+    receipt = portable_binary_admission_receipt_fixture(
         admission=admission, expected_policy=context.policy, source=source,
         cell_id="cell", holdout_id="holdout", configuration_id=configuration_id,
         binding=binding, binary=binary, binary_sha256=sha,
