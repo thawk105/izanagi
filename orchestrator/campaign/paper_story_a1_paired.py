@@ -199,6 +199,9 @@ POLICY_SHA256 = "83b9c1a1ca4cce1e6394ce3338b491b14663427259eb3e129560fe5b50b99b5
 V3_PILOT_POLICY_SHA256 = (
     "ed1c942f9d4bc24ab1bc6106caea672262c8634d32b022eca75b125811f7b825"
 )
+V3_SIZED_POLICY_SHA256 = (
+    "a6228bcd5d2db3eca45fed6e148ab7ba92dd4d179f60e9c9c4ed0ffcf4942f1a"
+)
 CANONICAL_CCBENCH_OID = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
 PREREGISTRATION_SHA256 = (
     "c85279e997c7483060f3282836aa4800f473b95fe5f0fc1807431f06a0817fea"
@@ -209,8 +212,24 @@ V3_PILOT_PREREGISTRATION_RELATIVE_PATH: str | None = (
 V3_PILOT_PREREGISTRATION_SHA256: str | None = (
     "8f8d2ad338a7a3193aaee8433c1495cef06b9520425251dd8bef89584ca626fc"
 )
-V3_SIZED_PREREGISTRATION_RELATIVE_PATH: str | None = None
-V3_SIZED_PREREGISTRATION_SHA256: str | None = None
+V3_SIZED_PREREGISTRATION_RELATIVE_PATH: str | None = (
+    "output/insights/2026-09-13/"
+    "paper-story-a1-balanced5-sized-preregistration/README.md"
+)
+V3_SIZED_PREREGISTRATION_SHA256: str | None = (
+    "6047eff005fbd94bad8df0313124bd4ca037dedf0f2e3db05224d04ad34fd3c2"
+)
+# Frozen preregistration §§5.4–5.5; D1452 consumer registration values.
+V3_SIZED_CERTIFICATE_REGISTERED_PARAMETERS = (
+    ("search", "trials", 20000),
+    ("certification", "trials", 100000),
+    ("candidate_grid", "registered_minimum", 28),
+    ("candidate_grid", "maximum", 4096),
+    (
+        "root_seed", "digest",
+        "e72bc005d156caea2c89085c563c72fa04bbeb4afd98160fca968da9a7f6b3b3",
+    ),
+)
 WORKLOAD_DESIGNS = {
     "write-heavy": {
         "reps": 72,
@@ -1014,7 +1033,11 @@ def _policy_identity(study_id: str) -> tuple[Path, str, str | None]:
             V3_PILOT_POLICY_SHA256,
         )
     if study_id == V3_SIZED_STUDY_ID:
-        return V3_SIZED_POLICY_PATH, V3_SIZED_POLICY_RELATIVE_PATH, None
+        return (
+            V3_SIZED_POLICY_PATH,
+            V3_SIZED_POLICY_RELATIVE_PATH,
+            V3_SIZED_POLICY_SHA256,
+        )
     raise PaperStoryError("study ID is not registered")
 
 
@@ -1387,6 +1410,22 @@ def _validate_v3_sized_certificate(
                 f"v3 sized planned sigma differs from certificate: {name}"
             )
 
+    certificate_policy = certificate.get("policy")
+    if type(certificate_policy) is not dict:
+        raise PaperStoryError("v3 sized certificate registered policy differs")
+    for section_name, field, expected in V3_SIZED_CERTIFICATE_REGISTERED_PARAMETERS:
+        section = certificate_policy.get(section_name)
+        if type(section) is not dict:
+            raise PaperStoryError(
+                f"v3 sized certificate registered policy differs: {section_name}"
+            )
+        observed = section.get(field)
+        if type(observed) is not type(expected) or observed != expected:
+            raise PaperStoryError(
+                "v3 sized certificate registered policy differs: "
+                f"{section_name}.{field}"
+            )
+
 
 def _validate_policy_v3_semantics(policy: object) -> dict:
     if type(policy) is not dict:
@@ -1474,15 +1513,25 @@ def _validate_policy_v3_semantics(policy: object) -> dict:
                 "schedule_root_seed", "ycsb_rratio",
             }:
                 raise PaperStoryError(f"v3 pilot workload shape differs: {workload_name}")
-        elif (
-            reps < 30
-            or reps % 10 != 0
-            or not _finite_number(workload.get("k"))
-            or float(workload["k"]) <= 0
-            or not _finite_number(workload.get("planned_sigma_tps"))
-            or float(workload["planned_sigma_tps"]) <= 0
-        ):
-            raise PaperStoryError(f"v3 sized workload plan differs: {workload_name}")
+        else:
+            if reps < 30 or reps % 10 != 0:
+                raise PaperStoryError(
+                    f"v3 sized workload plan differs: {workload_name}"
+                )
+            for field in ("k", "planned_sigma_tps"):
+                value = workload.get(field)
+                label = f"v3 sized workload {field}: {workload_name}"
+                _positive_decimal(value, label)
+                try:
+                    converted = float(value)
+                except (TypeError, ValueError, OverflowError) as exc:
+                    raise PaperStoryError(
+                        f"{label} is not a positive finite float"
+                    ) from exc
+                if not math.isfinite(converted) or converted <= 0:
+                    raise PaperStoryError(
+                        f"{label} is not a positive finite float"
+                    )
         _pair_indices(policy, workload_name)
 
     pairing = policy.get("pairing")
