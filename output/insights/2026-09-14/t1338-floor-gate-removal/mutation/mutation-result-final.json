@@ -1,0 +1,601 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t434-t1709-t1338/output/pegasus-dispatch/e6ac1fc5bbb76bd649f3d1ce655751bb/izdw-e6ac1fc5bb.o996274",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t434-t1709-t1338/output/pegasus-dispatch/e6ac1fc5bbb76bd649f3d1ce655751bb/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\nss...................................................................... [ 31%]\n........................................................................ [ 62%]\n...........ssss......................................................... [ 93%]\n...............                                                          [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":5,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n225 passed, 6 skipped in 173.57s (0:02:53)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "416f07b594a96323ca6663e74d79daa51db644c44e9c17fc026737f0f681f132"
+    },
+    "artifact_error": null,
+    "collection_sha256": "a283152685d8261c0f0fe6753ed5fa9391d288c7e8b46d0052b90d6be0ea8446",
+    "duration_s": 478.117,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "3f2b5d196c959fa174928430c63bc61791fb3966aa08cb2e1547d67e76ea2635",
+    "repo_head": "df4383243cbd1af0ba5a5531def28dd59cadf86e",
+    "runner_sha256": "d741c08adbf207638db01550c567bbe57e849d418548f72907d06dbeff487066",
+    "spec_sha256": "c9945d692b168bb98607ca86d931b53d81e58fb90ed46a46b0b5c8fdbe017f76",
+    "status": "PASSED",
+    "test_output_sha256": "416f07b594a96323ca6663e74d79daa51db644c44e9c17fc026737f0f681f132",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "5dcc42a09438f30ec9dabdca419a0651ba0eb70ec8a727795a5686fc5fb231e6"
+  },
+  "date": "2026-09-13T20:54:05.643561+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t434-t1709-t1338/output/pegasus-dispatch/5c0157225e873e370c3c59fb8347d2f0/izdw-5c0157225e.o996285",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t434-t1709-t1338/output/pegasus-dispatch/5c0157225e873e370c3c59fb8347d2f0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nss...................................................................... [ 31%]\n......................................................F................. [ 62%]\n..........sss.s......................................................... [ 93%]\n...............                                                          [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":5,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n=================================== FAILURES ===================================\n__________________ test_verify_detects_freeze_byte_tampering ___________________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_verify_detects_freeze_byt0')\n\n    def test_verify_detects_freeze_byte_tampering(tmp_path):\n        freeze_path = _freeze_copy(tmp_path)\n        document = _build_manifest(freeze_path)\n        path = tmp_path / \"oracle_manifest.json\"\n        manifest._write_manifest(path, document)\n        freeze_path.write_bytes(freeze_path.read_bytes() + b\"\\n\")\n>       with pytest.raises(manifest.ManifestError, match=\"freeze byte sha256\"):\nE       Failed: DID NOT RAISE ManifestError\n\norchestrator/tests/test_s8b_oracle_manifest.py:827: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_freeze_byte_tampering\n1 failed, 224 passed, 6 skipped in 228.84s (0:03:48)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_freeze_byte_tampering\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=647 retained_bytes=647 omitted_bytes=0 rendered_excerpt_bytes=679 sha256=a2ee290516f36e14cd6b47b2b8ba7d72a9ebdfaf35b2455dfd29bfb405d1bb95\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_verify_detects_freeze_byt0')\n> \n>     def test_verify_detects_freeze_byte_tampering(tmp_path):\n>         freeze_path = _freeze_copy(tmp_path)\n>         document = _build_manifest(freeze_path)\n>         path = tmp_path / \"oracle_manifest.json\"\n>         manifest._write_manifest(path, document)\n>         freeze_path.write_bytes(freeze_path.read_bytes() + b\"\\x5cn\")\n> >       with pytest.raises(manifest.ManifestError, match=\"freeze byte sha256\"):\n> E       Failed: DID NOT RAISE ManifestError\n> \n> orchestrator/tests/test_s8b_oracle_manifest.py:827: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=647 retained_bytes=647 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1390 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "fe567f0cf2adad2454b1c02116100af1992a787825505aa30d810a71570332aa"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a283152685d8261c0f0fe6753ed5fa9391d288c7e8b46d0052b90d6be0ea8446",
+      "duration_s": 253.159,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_freeze_byte_tampering"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_freeze_byte_tampering"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T1338-FREEZE-BYTE-HASH",
+      "injection_diff_sha256": "9d01eb5b45ed68fa4be4d2a9b1a2fdfeb9073f984bbc9f45683a3cacc3d275bc",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "22710dafa3e8ce1c9480118cf6077e4fd4a3e6e9d5428058cd8b83b11fc64114",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+          "new": "    if False:\n        raise ManifestError(\"freeze byte sha256 が manifest と不一致\")\n",
+          "old": "    if freeze_sha256 != freeze_record[\"sha256\"]:\n        raise ManifestError(\"freeze byte sha256 が manifest と不一致\")\n"
+        }
+      ],
+      "repo_head": "df4383243cbd1af0ba5a5531def28dd59cadf86e",
+      "runner_sha256": "d741c08adbf207638db01550c567bbe57e849d418548f72907d06dbeff487066",
+      "spec_sha256": "c9945d692b168bb98607ca86d931b53d81e58fb90ed46a46b0b5c8fdbe017f76",
+      "status": "KILLED",
+      "test_output_sha256": "fe567f0cf2adad2454b1c02116100af1992a787825505aa30d810a71570332aa",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5dcc42a09438f30ec9dabdca419a0651ba0eb70ec8a727795a5686fc5fb231e6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t434-t1709-t1338/output/pegasus-dispatch/4b90268d225e96c2d51f668d2f26930d/izdw-4b90268d22.o996288",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t434-t1709-t1338/output/pegasus-dispatch/4b90268d225e96c2d51f668d2f26930d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nss.......F.............................................................. [ 31%]\n........................................................................ [ 62%]\n........sss...s......................................................... [ 93%]\n...............                                                          [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":5,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n=================================== FAILURES ===================================\n________ test_verify_manifest_rejects_retired_floor_budget_snapshot_key ________\n[gw27] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_verify_manifest_rejects_r0')\n\n    def test_verify_manifest_rejects_retired_floor_budget_snapshot_key(tmp_path):\n        freeze_path = _freeze_copy(tmp_path)\n        document = _build_manifest(freeze_path)\n        approved = _APPROVED_BY_MANIFEST_ID[document[\"manifest_id\"]]\n        freeze_bytes = freeze_path.read_bytes()\n        freeze_document = json.loads(freeze_bytes)\n        document[\"floor_budget_snapshot_sha256\"] = _canonical_sha256({\n            \"floor\": freeze_document[\"floor\"],\n            \"budget\": freeze_document[\"budget\"],\n        })\n        path = tmp_path / \"retired-key-manifest.json\"\n        path.write_text(json.dumps(document), encoding=\"utf-8\")\n    \n>       with pytest.raises(\n                manifest.ManifestError, match=\"^manifest top-level schema が不一致$\"):\nE               AssertionError: \nE               - approved spec が不正: no-approved-spec\nE               + manifest top-level schema が不一致\n\norchestrator/tests/test_s8b_oracle_manifest.py:810: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_retired_floor_budget_snapshot_key\n1 failed, 224 passed, 6 skipped in 207.65s (0:03:27)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_retired_floor_budget_snapshot_key\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=1126 retained_bytes=1126 omitted_bytes=0 rendered_excerpt_bytes=1208 sha256=5b0ed53e11f8cc768bf4a87f63babe4b4e777b9450de99a4d329731483e67068\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw27] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw27/test_verify_manifest_rejects_r0')\n> \n>     def test_verify_manifest_rejects_retired_floor_budget_snapshot_key(tmp_path):\n>         freeze_path = _freeze_copy(tmp_path)\n>         document = _build_manifest(freeze_path)\n>         approved = _APPROVED_BY_MANIFEST_ID[document[\"manifest_id\"]]\n>         freeze_bytes = freeze_path.read_bytes()\n>         freeze_document = json.loads(freeze_bytes)\n>         document[\"floor_budget_snapshot_sha256\"] = _canonical_sha256({\n>             \"floor\": freeze_document[\"floor\"],\n>             \"budget\": freeze_document[\"budget\"],\n>         })\n>         path = tmp_path / \"retired-key-manifest.json\"\n>         path.write_text(json.dumps(document), encoding=\"utf-8\")\n>     \n> >       with pytest.raises(\n>                 manifest.ManifestError, match=\"^manifest top-level schema \\u304c\\u4e0d\\u4e00\\u81f4$\"):\n> E               AssertionError: \n> E               - approved spec \\u304c\\u4e0d\\u6b63: no-approved-spec\n> E               + manifest top-level schema \\u304c\\u4e0d\\u4e00\\u81f4\n> \n> orchestrator/tests/test_s8b_oracle_manifest.py:810: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1126 retained_bytes=1126 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1946 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c59c71472feb678db9ae54ec90c570c688e3b25f4db5d9d7c4993dac5a75c729"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a283152685d8261c0f0fe6753ed5fa9391d288c7e8b46d0052b90d6be0ea8446",
+      "duration_s": 232.979,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_retired_floor_budget_snapshot_key"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_retired_floor_budget_snapshot_key"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T1338-TOPLEVEL-KEY-EXACT",
+      "injection_diff_sha256": "61c05754781add2925b5febd59dbaf707652f325c613166dc1b1a73b64172a93",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "53902e8f0f50fc64fbe1f3cdba0ddfc500246e58c2677f58a43a3d8cc4b55438",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+          "new": "    if not _MANIFEST_KEYS <= set(document):\n        raise ManifestError(\"manifest top-level schema が不一致\")\n",
+          "old": "    if set(document) != _MANIFEST_KEYS:\n        raise ManifestError(\"manifest top-level schema が不一致\")\n"
+        }
+      ],
+      "repo_head": "df4383243cbd1af0ba5a5531def28dd59cadf86e",
+      "runner_sha256": "d741c08adbf207638db01550c567bbe57e849d418548f72907d06dbeff487066",
+      "spec_sha256": "c9945d692b168bb98607ca86d931b53d81e58fb90ed46a46b0b5c8fdbe017f76",
+      "status": "KILLED",
+      "test_output_sha256": "c59c71472feb678db9ae54ec90c570c688e3b25f4db5d9d7c4993dac5a75c729",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5dcc42a09438f30ec9dabdca419a0651ba0eb70ec8a727795a5686fc5fb231e6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t434-t1709-t1338/output/pegasus-dispatch/e85446af17870788d29c0902d131d34f/izdw-e85446af17.o996302",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t434-t1709-t1338/output/pegasus-dispatch/e85446af17870788d29c0902d131d34f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nss...................................................................... [ 31%]\n........................................................................ [ 62%]\n........ssss.................F...............F.......................... [ 93%]\n...............                                                          [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":5,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n=================================== FAILURES ===================================\n___ test_v2_store_bytes_are_checked_against_admission_subject_independently ____\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_v2_store_bytes_are_checke0')\n\n    def test_v2_store_bytes_are_checked_against_admission_subject_independently(tmp_path):\n        \"\"\"M5 の独立性は主張せず、実 store 改変が既存 record SHA gate で拒否される。\"\"\"\n        root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)\n        out_root = root.parent / \"output\"\n        _manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)\n        validated = s8b_ratified_freeze.launch_validate(\n            s8b_ratified_freeze.load_ratified_freeze(root), root,\n        )\n        victim = _unique_store_victim(binaries)\n        (out_root / victim[\"store_path\"]).write_bytes(b\"real-store-corruption\")\n>       with pytest.raises(driver.OracleDriverError, match=\"store-hash-mismatch\"):\nE       Failed: DID NOT RAISE OracleDriverError\n\norchestrator/tests/test_s8b_oracle_driver.py:5582: Failed\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s8b-floor.protocol-bytes-expected-pin\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\n____________________ test_v2_store_hash_mismatch_is_refused ____________________\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_v2_store_hash_mismatch_is0')\n\n    def test_v2_store_hash_mismatch_is_refused(tmp_path):\n        \"\"\"store 実体の bytes が floor receipt の binary_sha256 と不一致なら refusal。\"\"\"\n        root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)\n        out_root = root.parent / \"output\"\n        manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)\n        baseline = s8b_ratified_freeze.launch_validate(\n            s8b_ratified_freeze.load_ratified_freeze(root), root,\n        )\n        assert isinstance(baseline, s8b_ratified_freeze.LaunchValidatedFreeze)\n        victim = _unique_store_victim(binaries)\n        (out_root / victim[\"store_path\"]).write_bytes(b\"corrupted-binary-bytes\")\n        before = _tree_file_snapshot(out_root)\n        prepare_fn = _prepare_factory()\n        evaluate_fn = _fake_evaluate_factory()\n    \n        result = _run_v2(root, freeze_path, manifest_path, prepare_fn,\n                         evaluate_fn, out_root=out_root, tmp_path=tmp_path)\n>       assert result[\"status\"] == \"refused\" and result[\"allowed\"] is False\nE       AssertionError: assert ('completed' == 'refused'\nE         \nE         - refused\nE         + completed)\n\norchestrator/tests/test_s8b_oracle_driver.py:6211: AssertionError\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s8b-floor.protocol-bytes-expected-pin\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_bytes_are_checked_against_admission_subject_independently\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_hash_mismatch_is_refused\n2 failed, 223 passed, 6 skipped in 246.20s (0:04:06)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_hash_mismatch_is_refused\" nodeid_bytes=84 nodeid_omitted_bytes=0 source_bytes=1385 retained_bytes=1385 omitted_bytes=0 rendered_excerpt_bytes=1478 sha256=e11cb4c6b6fda679f251dcb824dcbb75fdcf0aebd52b4872aa3286a8a09c9828\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw24] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_v2_store_hash_mismatch_is0')\n> \n>     def test_v2_store_hash_mismatch_is_refused(tmp_path):\n>         \"\"\"store \\u5b9f\\u4f53\\u306e bytes \\u304c floor receipt \\u306e binary_sha256 \\u3068\\u4e0d\\u4e00\\u81f4\\u306a\\u3089 refusal\\u3002\"\"\"\n>         root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)\n>         out_root = root.parent / \"output\"\n>         manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)\n>         baseline = s8b_ratified_freeze.launch_validate(\n>             s8b_ratified_freeze.load_ratified_freeze(root), root,\n>         )\n>         assert isinstance(baseline, s8b_ratified_freeze.LaunchValidatedFreeze)\n>         victim = _unique_store_victim(binaries)\n>         (out_root / victim[\"store_path\"]).write_bytes(b\"corrupted-binary-bytes\")\n>         before = _tree_file_snapshot(out_root)\n>         prepare_fn = _prepare_factory()\n>         evaluate_fn = _fake_evaluate_factory()\n>     \n>         result = _run_v2(root, freeze_path, manifest_path, prepare_fn,\n>                          evaluate_fn, out_root=out_root, tmp_path=tmp_path)\n> >       assert result[\"status\"] == \"refused\" and result[\"allowed\"] is False\n> E       AssertionError: assert ('completed' == 'refused'\n> E         \n> E         - refused\n> E         + completed)\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:6211: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_bytes_are_checked_against_admission_subject_independently\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=1006 retained_bytes=1006 omitted_bytes=0 rendered_excerpt_bytes=1112 sha256=474805960affd6efab0434a4ebbd6917ccb0771d40e1d0fcaa3b24d2e411919a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_v2_store_bytes_are_checke0')\n> \n>     def test_v2_store_bytes_are_checked_against_admission_subject_independently(tmp_path):\n>         \"\"\"M5 \\u306e\\u72ec\\u7acb\\u6027\\u306f\\u4e3b\\u5f35\\u305b\\u305a\\u3001\\u5b9f store \\u6539\\u5909\\u304c\\u65e2\\u5b58 record SHA gate \\u3067\\u62d2\\u5426\\u3055\\u308c\\u308b\\u3002\"\"\"\n>         root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)\n>         out_root = root.parent / \"output\"\n>         _manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)\n>         validated = s8b_ratified_freeze.launch_validate(\n>             s8b_ratified_freeze.load_ratified_freeze(root), root,\n>         )\n>         victim = _unique_store_victim(binaries)\n>         (out_root / victim[\"store_path\"]).write_bytes(b\"real-store-corruption\")\n> >       with pytest.raises(driver.OracleDriverError, match=\"store-hash-mismatch\"):\n> E       Failed: DID NOT RAISE OracleDriverError\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:5582: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2391 retained_bytes=2391 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3759 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3d5de835b55113b1905df41fa6913a289f436b91ca13d50f469159666c25baf5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a283152685d8261c0f0fe6753ed5fa9391d288c7e8b46d0052b90d6be0ea8446",
+      "duration_s": 408.304,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_bytes_are_checked_against_admission_subject_independently",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_hash_mismatch_is_refused"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_bytes_are_checked_against_admission_subject_independently",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_hash_mismatch_is_refused"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T1338-STORE-BINARY-HASH",
+      "injection_diff_sha256": "c0133efefdaefcd0570b03228600556a42df0e1c18df07f4a8d59c8739358a32",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cfde23dfb72d549392490c722db0ddc1473866ce4a138fc851bdd8fbcbfe97e3",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_driver.py",
+          "new": "        if False:\n            raise OracleDriverError(\n                f\"[store-hash-mismatch] store binary sha256 が floor receipt と不一致: \"\n                f\"{rec['store_path']} (cell={cell})\"\n            )\n",
+          "old": "        if actual != rec[\"binary_sha256\"]:\n            raise OracleDriverError(\n                f\"[store-hash-mismatch] store binary sha256 が floor receipt と不一致: \"\n                f\"{rec['store_path']} (cell={cell})\"\n            )\n"
+        }
+      ],
+      "repo_head": "df4383243cbd1af0ba5a5531def28dd59cadf86e",
+      "runner_sha256": "d741c08adbf207638db01550c567bbe57e849d418548f72907d06dbeff487066",
+      "spec_sha256": "c9945d692b168bb98607ca86d931b53d81e58fb90ed46a46b0b5c8fdbe017f76",
+      "status": "KILLED",
+      "test_output_sha256": "3d5de835b55113b1905df41fa6913a289f436b91ca13d50f469159666c25baf5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5dcc42a09438f30ec9dabdca419a0651ba0eb70ec8a727795a5686fc5fb231e6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t434-t1709-t1338/output/pegasus-dispatch/b6fb19c7a4dc6c5aa1a1d9e70f0d7efd/izdw-b6fb19c7a4.o996313",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t434-t1709-t1338/output/pegasus-dispatch/b6fb19c7a4dc6c5aa1a1d9e70f0d7efd/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nss...................................................................... [ 31%]\n........................................................................ [ 62%]\n..........s.sss.......................F................................. [ 93%]\n...............                                                          [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":5,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n=================================== FAILURES ===================================\n_____ test_v2_foreign_cell_admission_receipt_is_refused_before_store_read ______\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_v2_foreign_cell_admission0')\n\n    def test_v2_foreign_cell_admission_receipt_is_refused_before_store_read(tmp_path):\n        root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(tmp_path)\n        out_root = root.parent / \"output\"\n        _manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)\n        validated = s8b_ratified_freeze.launch_validate(\n            s8b_ratified_freeze.load_ratified_freeze(root), root,\n        )\n        binaries = s8b_ratified_freeze._plain_json(validated.binaries_by_cell)\n        pair = None\n        values = list(binaries.values())\n        for first in values:\n            for second in values:\n                if (first[\"cell_id\"] != second[\"cell_id\"]\n                        and first[\"configuration_id\"] == second[\"configuration_id\"]\n                        and first[\"binary_sha256\"] == second[\"binary_sha256\"]\n                        and first[\"binding\"] == second[\"binding\"]):\n                    pair = (first, second)\n                    break\n            if pair is not None:\n                break\n        assert pair is not None, \"cell/holdout だけが異なる receipt swap fixture が必要\"\n        first, second = pair\n        first[\"admission_receipt\"], second[\"admission_receipt\"] = (\n            second[\"admission_receipt\"], first[\"admission_receipt\"],\n        )\n        swapped = dataclasses.replace(validated, binaries_by_cell=binaries)\n        with mock.patch.object(\n                driver, \"_store_sha256\",\n                side_effect=AssertionError(\"receipt 全件 preflight 前に store を読んだ\")):\n            with pytest.raises(driver.OracleDriverError, match=\"admission-mismatch\"):\n>               driver._prepare_v2_execution(\n                    validated=swapped, run_contract=document[\"run_contract\"],\n                    schedule=document[\"schedule\"][\"rows\"], out_root=out_root,\n                    repo_root=root,\n                )\n\norchestrator/tests/test_s8b_oracle_driver.py:5535: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s8b_oracle_driver.py:1046: in _prepare_v2_execution\n    actual = _store_sha256(out_root, rec[\"store_path\"])\n/usr/lib/python3.10/unittest/mock.py:1114: in __call__\n    return self._mock_call(*args, **kwargs)\n/usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n    return self._execute_mock_call(*args, **kwargs)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <MagicMock name='_store_sha256' id='23150603386400'>\nargs = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_v2_foreign_cell_admission0/output'), 'env/linux-baremetal/binaries/8ae645fa8df8ed3d29436f5b2483a0aff7c245d1032bda74f7b9d7631f01c902')\nkwargs = {}\n\n    def _execute_mock_call(self, /, *args, **kwargs):\n        # separate from _increment_mock_call so that awaited functions are\n        # executed separately from their call, also AsyncMock overrides this method\n    \n        effect = self.side_effect\n        if effect is not None:\n            if _is_exception(effect):\n>               raise effect\nE               AssertionError: receipt 全件 preflight 前に store を読んだ\n\n/usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n----------------------------- Captured stderr call -----------------------------\nIZANAGI_FREEZE_HOLD {\"check_id\": \"s8b-floor.protocol-bytes-expected-pin\", \"decision\": \"freeze-verification-hold\", \"release_condition\": \"explicit-user-command-only\", \"ruling\": \"rulings-4th-batch-2026-08-12\"}\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_oracle_driver.py::test_v2_foreign_cell_admission_receipt_is_refused_before_store_read\n1 failed, 224 passed, 6 skipped in 205.44s (0:03:25)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_oracle_driver.py::test_v2_foreign_cell_admission_receipt_is_refused_before_store_read\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=3371 retained_bytes=3371 omitted_bytes=0 rendered_excerpt_bytes=3577 sha256=8038f709fecf794e6fbdd2087d862c4e65fad9c03aae5f19d76ac2bcff65b665\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_v2_foreign_cell_admission0')\n> \n>     def test_v2_foreign_cell_admission_receipt_is_refused_before_store_read(tmp_path):\n>         root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(tmp_path)\n>         out_root = root.parent / \"output\"\n>         _manifest_path, document = _emitter_manifest(tmp_path, root, freeze_path)\n>         validated = s8b_ratified_freeze.launch_validate(\n>             s8b_ratified_freeze.load_ratified_freeze(root), root,\n>         )\n>         binaries = s8b_ratified_freeze._plain_json(validated.binaries_by_cell)\n>         pair = None\n>         values = list(binaries.values())\n>         for first in values:\n>             for second in values:\n>                 if (first[\"cell_id\"] != second[\"cell_id\"]\n>                         and first[\"configuration_id\"] == second[\"configuration_id\"]\n>                         and first[\"binary_sha256\"] == second[\"binary_sha256\"]\n>                         and first[\"binding\"] == second[\"binding\"]):\n>                     pair = (first, second)\n>                     break\n>             if pair is not None:\n>                 break\n>         assert pair is not None, \"cell/holdout \\u3060\\u3051\\u304c\\u7570\\u306a\\u308b receipt swap fixture \\u304c\\u5fc5\\u8981\"\n>         first, second = pair\n>         first[\"admission_receipt\"], second[\"admission_receipt\"] = (\n>             second[\"admission_receipt\"], first[\"admission_receipt\"],\n>         )\n>         swapped = dataclasses.replace(validated, binaries_by_cell=binaries)\n>         with mock.patch.object(\n>                 driver, \"_store_sha256\",\n>                 side_effect=AssertionError(\"receipt \\u5168\\u4ef6 preflight \\u524d\\u306b store \\u3092\\u8aad\\u3093\\u3060\")):\n>             with pytest.raises(driver.OracleDriverError, match=\"admission-mismatch\"):\n> >               driver._prepare_v2_execution(\n>                     validated=swapped, run_contract=document[\"run_contract\"],\n>                     schedule=document[\"schedule\"][\"rows\"], out_root=out_root,\n>                     repo_root=root,\n>                 )\n> \n> orchestrator/tests/test_s8b_oracle_driver.py:5535: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s8b_oracle_driver.py:1046: in _prepare_v2_execution\n>     actual = _store_sha256(out_root, rec[\"store_path\"])\n> /usr/lib/python3.10/unittest/mock.py:1114: in __call__\n>     return self._mock_call(*args, **kwargs)\n> /usr/lib/python3.10/unittest/mock.py:1118: in _mock_call\n>     return self._execute_mock_call(*args, **kwargs)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = <MagicMock name='_store_sha256' id='23150603386400'>\n> args = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_v2_foreign_cell_admission0/output'), 'env/linux-baremetal/binaries/8ae645fa8df8ed3d29436f5b2483a0aff7c245d1032bda74f7b9d7631f01c902')\n> kwargs = {}\n> \n>     def _execute_mock_call(self, /, *args, **kwargs):\n>         # separate from _increment_mock_call so that awaited functions are\n>         # executed separately from their call, also AsyncMock overrides this method\n>     \n>         effect = self.side_effect\n>         if effect is not None:\n>             if _is_exception(effect):\n> >               raise effect\n> E               AssertionError: receipt \\u5168\\u4ef6 preflight \\u524d\\u306b store \\u3092\\u8aad\\u3093\\u3060\n> \n> /usr/lib/python3.10/unittest/mock.py:1173: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3371 retained_bytes=3371 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4318 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "65667e706ee8b830b74cb3a878d4d18aaf8f7c91983839a38b75dbb64867142a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a283152685d8261c0f0fe6753ed5fa9391d288c7e8b46d0052b90d6be0ea8446",
+      "duration_s": 366.79,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_foreign_cell_admission_receipt_is_refused_before_store_read"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_foreign_cell_admission_receipt_is_refused_before_store_read"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T1338-ADMISSION-EXC-SWALLOW",
+      "injection_diff_sha256": "5267add78fa6d1ddd3a7bb16b1354c50ba993138b1c48e2b1bd816f3d25dcc3a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f7dce3025076c49a6672f98be1c08922c02a5b047f30005779b864992461f775",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_driver.py",
+          "new": "        except (KeyError, TypeError, _binary_admission.BinaryAdmissionError):\n            pass\n",
+          "old": "        except (KeyError, TypeError, _binary_admission.BinaryAdmissionError) as exc:\n            raise OracleDriverError(\n                f\"[admission-mismatch] floor binary admission receipt が不正: {cell}: {exc}\"\n            ) from exc\n"
+        }
+      ],
+      "repo_head": "df4383243cbd1af0ba5a5531def28dd59cadf86e",
+      "runner_sha256": "d741c08adbf207638db01550c567bbe57e849d418548f72907d06dbeff487066",
+      "spec_sha256": "c9945d692b168bb98607ca86d931b53d81e58fb90ed46a46b0b5c8fdbe017f76",
+      "status": "KILLED",
+      "test_output_sha256": "65667e706ee8b830b74cb3a878d4d18aaf8f7c91983839a38b75dbb64867142a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "5dcc42a09438f30ec9dabdca419a0651ba0eb70ec8a727795a5686fc5fb231e6"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t434-t1709-t1338/output/pegasus-dispatch/955f7aa1fb7f993f651d5d5ece00286d/izdw-955f7aa1fb.o996252",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t434-t1709-t1338/output/pegasus-dispatch/955f7aa1fb7f993f651d5d5ece00286d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8b_oracle_manifest.py::test_current_freeze_is_rejected_as_non_executable_manifest\norchestrator/tests/test_s8b_oracle_manifest.py::test_each_replicate_is_complete_product_and_each_cell_occurs_n_times\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_schedule_uses_replicate_major_cell_ordinals\norchestrator/tests/test_s8b_oracle_manifest.py::test_same_seed_is_byte_identical_and_different_seed_changes_hash\norchestrator/tests/test_s8b_oracle_manifest.py::test_schedule_rows_and_manifest_holdout_references_do_not_copy_workload\norchestrator/tests/test_s8b_oracle_manifest.py::test_write_is_create_only_and_valid_manifest_verifies\norchestrator/tests/test_s8b_oracle_manifest.py::test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects\norchestrator/tests/test_s8b_oracle_manifest.py::test_missing_holdout_build_stays_accepted_but_verify_rejects\norchestrator/tests/test_s8b_oracle_manifest.py::test_verified_manifest_public_constructor_is_rejected\norchestrator/tests/test_s8b_oracle_manifest.py::test_verified_manifest_sealed_constructor_rejects_non_lowercase_hash\norchestrator/tests/test_s8b_oracle_manifest.py::test_write_manifest_rejects_exploration_and_legacy_artifact_types\norchestrator/tests/test_s8b_oracle_manifest.py::test_binding_identity_requires_complete_unique_schedule_cell_product[missing-key]\norchestrator/tests/test_s8b_oracle_manifest.py::test_binding_identity_requires_complete_unique_schedule_cell_product[duplicate-cell]\norchestrator/tests/test_s8b_oracle_manifest.py::test_binding_identity_requires_complete_unique_schedule_cell_product[wrong-cell]\norchestrator/tests/test_s8b_oracle_manifest.py::test_campaign_config_preimage_hash_is_bound_and_tampering_is_rejected\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_exact_five_canonical_paths_and_hashes_verify\norchestrator/tests/test_s8b_oracle_manifest.py::test_legacy_three_key_generator_authority_is_rejected_directly_at_build\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[materializer]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[report]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[judge]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[outcome_stage_contract]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[artifacts]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_missing_required_key_is_rejected_at_build_and_verify[outcome_stage_contract-missing=\\\\['outcome_stage_contract'\\\\] extra=\\\\[\\\\]]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_missing_required_key_is_rejected_at_build_and_verify[artifacts-missing=\\\\['artifacts'\\\\] extra=\\\\[\\\\]]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_extra_key_is_rejected_at_build_and_verify\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[swapped-paths]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[unrelated-artifacts]\norchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[absolute-artifacts]\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_rehashes_each_canonical_generator_in_supplied_root\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_retired_floor_budget_snapshot_key\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_freeze_byte_tampering\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_manifest_tampering[schedule-hash-schedule_sha256]\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_manifest_tampering[campaign-empty-campaign ID]\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_manifest_tampering[binding-schema-binding_identity entry schema]\norchestrator/tests/test_s8b_oracle_manifest.py::test_n_and_block_size_mismatch_is_rejected\norchestrator/tests/test_s8b_oracle_manifest.py::test_v1_two_block_manifest_is_rejected_at_build_and_verify\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_rejects_two_blocks_before_approval\norchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_oracle_shared_false\norchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_extra_top_level_floor_key\norchestrator/tests/test_s8b_oracle_manifest.py::test_load_json_object_rejects_duplicate_top_level_key\norchestrator/tests/test_s8b_oracle_manifest.py::test_load_json_object_rejects_duplicate_nested_key\norchestrator/tests/test_s8b_oracle_manifest.py::test_canonical_bytes_rejects_nan_value\norchestrator/tests/test_s8b_oracle_manifest.py::test_load_json_object_rejects_nan_literal\norchestrator/tests/test_s8b_oracle_manifest.py::test_load_json_object_rejects_infinity_literal\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_exact_schema_and_independent_schedule_hash_literal\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_document_and_schedule_are_recursive_immutable\norchestrator/tests/test_s8b_oracle_manifest.py::test_approved_snapshot_requires_canonical_reviewed_spec_exact_type\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_has_independent_canonical_bytes_and_sha_literal\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_none_pin_is_always_no_approved_spec\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_pin_mismatch_is_fail_closed\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_key_sets_are_exact[top]\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_key_sets_are_exact[schedule]\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_key_sets_are_exact[run-contract]\norchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_requires_canonical_bytes_without_trailing_lf\norchestrator/tests/test_s8b_oracle_manifest.py::test_ungated_manifest_apis_are_not_public[build_manifest]\norchestrator/tests/test_s8b_oracle_manifest.py::test_ungated_manifest_apis_are_not_public[build_manifest_from_ratified]\norchestrator/tests/test_s8b_oracle_manifest.py::test_ungated_manifest_apis_are_not_public[write_manifest]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--schedule]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--schedule-path]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--freeze]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--freeze-path]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--campaign-id]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--campaign-ids]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--spec]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--approval]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--approver]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--root]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--n]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--master-seed]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--block-sizes]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--holdout-id]\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--configuration-id]\norchestrator/tests/test_s8b_oracle_manifest.py::test_approved_writer_rejects_outside_candidate_root\norchestrator/tests/test_s8b_oracle_manifest.py::test_approved_writer_rejects_symlink_parent\norchestrator/tests/test_s8b_oracle_manifest.py::test_approved_writer_is_exclusive_create\norchestrator/tests/test_s8b_oracle_manifest.py::test_approved_writer_safely_creates_only_fixed_candidate_root\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_active_without_pin_fails_before_output\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_valid_fixture_output_depends_only_on_spec_pin\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_uses_one_active_snapshot_and_writes_valid_candidate\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_rejects_uniform_configuration_subset_before_output\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_valid_real_g1_reaches_spec_after_actual_selection_gate\norchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_real_g1_rule_mismatch_preserves_selection_reason\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_accepts_exact_approved_spec_projection\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[schedule-schedule \\u304c approved spec]\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[campaign_ids-campaign_ids \\u304c approved spec]\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[run_contract-run_contract \\u304c approved spec]\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[binding_identity-binding_identity \\u304c approved spec]\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[allowed_excluded_reasons-allowed_excluded_reasons \\u304c approved spec]\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[generator_versions-generator_versions \\u304c approved spec]\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[spec_sha256-spec_sha256 \\u304c approved spec]\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[spec_sha256_format-spec_sha256 \\u304c SHA-256]\norchestrator/tests/test_s8b_oracle_manifest.py::test_run_contract_accepts_bench_max_rounds_one\norchestrator/tests/test_s8b_oracle_manifest.py::test_generic_builder_still_accepts_run_contract_extra_key\norchestrator/tests/test_s8b_oracle_manifest.py::test_run_contract_rejects_bench_max_rounds_two\norchestrator/tests/test_s8b_oracle_manifest.py::test_run_contract_rejects_extime_three\norchestrator/tests/test_s8b_oracle_manifest.py::test_run_contract_rejects_reps_999\norchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_requires_freeze_document\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_output_snapshot_detects_git_visible_real_output_changes\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_output_snapshot_excludes_git_ignored_real_output_changes\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_output_snapshot_observes_git_visible_create_and_delete\norchestrator/tests/test_s8b_oracle_driver.py::test_git_ignored_output_prefixes_uses_rule_sources_before_paths_exist\norchestrator/tests/test_s8b_oracle_driver.py::test_git_ignored_output_prefixes_preserve_tracked_rule_descendant\norchestrator/tests/test_s8b_oracle_driver.py::test_git_ignored_output_prefixes_rejects_entire_output_ignore\norchestrator/tests/test_s8b_oracle_driver.py::test_check_rule_candidates_fails_closed_on_git_error\norchestrator/tests/test_s8b_oracle_driver.py::test_check_rule_candidates_rejects_rc1_with_stdout\norchestrator/tests/test_s8b_oracle_driver.py::test_check_rule_candidates_rejects_rc0_without_nul_terminator\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_exact_consumers_and_nodeids_b5\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_output_copy_visibility_matches_production_enumeration\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[holdout-artifact-holdout.artifact_bytes]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[unknownness-layer2-holdout.unknownness_layer2]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_static_adapter_rejects_noncanonical_known_predicate_as_schema\norchestrator/tests/test_s8b_oracle_driver.py::test_oracle_recorded_known_pin_hold_and_release_positive_control\norchestrator/tests/test_s8b_oracle_driver.py::test_oracle_live_known_bytes_hold_and_release_positive_control\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[bad-trailer-receipt.user_commit_trailer]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[extra-r-path-receipt.introduction_diff]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[modify-revert-receipt.history_mutated]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28\norchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_uses_required_registry_contract\norchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_rejects_zero_required_contracts\norchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_rejects_multiple_required_contracts\norchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_rejects_required_lookup_exception\norchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_uses_unique_none_registry_contract\norchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_rejects_zero_none_contracts\norchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_rejects_multiple_none_contracts\norchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_rejects_duplicate_registry_env_tag\norchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_rejects_unhandled_site\norchestrator/tests/test_s8b_oracle_driver.py::test_gate_check_core_rejects_reverified_freeze_token\norchestrator/tests/test_s8b_oracle_driver.py::test_oracle_evaluate_fn_without_condition_records_cannot_complete\norchestrator/tests/test_s8b_oracle_driver.py::test_spec_matching_gate_and_run_reach_execution_but_other_spec_refuses_without_outputs\norchestrator/tests/test_s8b_oracle_driver.py::test_gate_check_rebinds_each_injected_verified_manifest_axis[exact-type-VerifiedManifest exact type]\norchestrator/tests/test_s8b_oracle_driver.py::test_gate_check_rebinds_each_injected_verified_manifest_axis[file-hash-\\u5b9f bytes/document \\u3068\\u4e0d\\u4e00\\u81f4]\norchestrator/tests/test_s8b_oracle_driver.py::test_gate_check_rebinds_each_injected_verified_manifest_axis[document-hash-\\u5b9f bytes/document \\u3068\\u4e0d\\u4e00\\u81f4]\norchestrator/tests/test_s8b_oracle_driver.py::test_gate_check_rebinds_each_injected_verified_manifest_axis[spec-hash-approved spec \\u3068\\u4e0d\\u4e00\\u81f4]\norchestrator/tests/test_s8b_oracle_driver.py::test_cli_output_root_default_is_none_and_run_block_refuses_without_root\norchestrator/tests/test_s8b_oracle_driver.py::test_main_injects_external_policy_and_required_run_writes_claim_wal_and_lock\norchestrator/tests/test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_gate_hermetic_primary_states_exact[never-issued]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_gate_hermetic_primary_states_exact[active-valid]\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_gate_hermetic_primary_states_exact[invalid]\norchestrator/tests/test_s8b_oracle_driver.py::test_gate_decision_is_built_only_by_factory_and_all_run_returns_propagate\norchestrator/tests/test_s8b_oracle_driver.py::test_run_block_resolves_receipt_once_and_propagates_observation_to_wal_and_result[False]\norchestrator/tests/test_s8b_oracle_driver.py::test_run_block_resolves_receipt_once_and_propagates_observation_to_wal_and_result[True]\norchestrator/tests/test_s8b_oracle_driver.py::test_run_block_rejects_receipt_epoch_drift_before_campaign_start_g4\norchestrator/tests/test_s8b_oracle_driver.py::test_t080_epoch_identity_covers_state_introduction_raw_and_head_g4\norchestrator/tests/test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\norchestrator/tests/test_s8b_oracle_driver.py::test_required_binding_missing_refuses_at_production_entry_without_side_effects\norchestrator/tests/test_s8b_oracle_driver.py::test_required_v1_receipt_refuses_at_production_entry_without_side_effects\norchestrator/tests/test_s8b_oracle_driver.py::test_required_verified_calibration_from_other_contract_is_refused_without_side_effects\norchestrator/tests/test_s8b_oracle_driver.py::test_required_secondary_calibration_identity_recheck_fires_with_monkeypatched_loader\norchestrator/tests/test_s8b_oracle_driver.py::test_required_missing_preprovisioned_oracle_claim_root_is_fail_closed\norchestrator/tests/test_s8b_oracle_driver.py::test_required_oracle_claim_root_outside_durable_approval_is_fail_closed\norchestrator/tests/test_s8b_oracle_driver.py::test_required_existing_claim_refuses_production_entry_without_new_side_effects\norchestrator/tests/test_s8b_oracle_driver.py::test_oracle_claim_schema_uses_identity_preimage_as_protocol_digest\norchestrator/tests/test_s8b_oracle_driver.py::test_required_initial_reservation_includes_schedule_attestation_probes\norchestrator/tests/test_s8b_oracle_driver.py::test_required_recheck_includes_remaining_attestation_probe\norchestrator/tests/test_s8b_oracle_driver.py::test_required_recheck_reservation_shortfall_skips_attestation\norchestrator/tests/test_s8b_oracle_driver.py::test_required_recheck_attestation_failure_follows_reservation_check\norchestrator/tests/test_s8b_oracle_driver.py::test_required_recheck_real_reservation_shortfall_writes_aborted_terminal\norchestrator/tests/test_s8b_oracle_driver.py::test_required_recheck_real_receipt_validation_catches_midcampaign_drift\norchestrator/tests/test_s8b_oracle_driver.py::test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim\norchestrator/tests/test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused\norchestrator/tests/test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\norchestrator/tests/test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract\norchestrator/tests/test_s8b_oracle_driver.py::test_campaign_terminal_driver_guard_rejects_second_terminal\norchestrator/tests/test_s8b_oracle_driver.py::test_oracle_pipeline_contract_keyword_is_mandatory_positive_control\norchestrator/tests/test_s8b_oracle_driver.py::test_build_result_contract_mismatch_aborts_campaign_before_measurement\norchestrator/tests/test_s8b_oracle_driver.py::test_binding_mismatch_refuses_only_that_row_before_evaluate\norchestrator/tests/test_s8b_oracle_driver.py::test_v8_bulk_reservation_unavailable_runs_nothing\norchestrator/tests/test_s8b_oracle_driver.py::test_reservation_envelope_exceeded_is_fail_closed\norchestrator/tests/test_s8b_oracle_driver.py::test_verify_inconclusive_and_unknown_abort_reasons_are_fail_closed\norchestrator/tests/test_s8b_oracle_driver.py::test_probe_error_reason_is_fail_closed_unknown_abort[bench-probe-error]\norchestrator/tests/test_s8b_oracle_driver.py::test_probe_error_reason_is_fail_closed_unknown_abort[verify-probe-error]\norchestrator/tests/test_s8b_oracle_driver.py::test_transient_prepare_failure_retries_once\norchestrator/tests/test_s8b_oracle_driver.py::test_tampered_freeze_fails_source_verification\norchestrator/tests/test_s8b_oracle_driver.py::test_perf_for_holdout_accepts_authoritative_freeze_entry\norchestrator/tests/test_s8b_oracle_driver.py::test_perf_for_holdout_rejects_authority_value_tampering\norchestrator/tests/test_s8b_oracle_driver.py::test_perf_for_holdout_rejects_unknown_holdout_id\norchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_legacy_generator_tamper_has_exact_single_refusal_b7\norchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7\norchestrator/tests/test_s8b_oracle_driver.py::test_exit_code_priority_table\norchestrator/tests/test_s8b_oracle_driver.py::test_v3_all_rows_binding_refused_is_protocol_violation\norchestrator/tests/test_s8b_oracle_driver.py::test_v3_partial_binding_refused_is_protocol_violation\norchestrator/tests/test_s8b_oracle_driver.py::test_v3_cli_subprocess_returns_rc_3_on_protocol_violation\norchestrator/tests/test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused\norchestrator/tests/test_s8b_oracle_driver.py::test_load_verified_freeze_single_read_hash_and_strict_parse\norchestrator/tests/test_s8b_oracle_driver.py::test_driver_boundary_wraps_freeze_io_error_as_oracle_driver_error\norchestrator/tests/test_s8b_oracle_driver.py::test_run_block_reuses_launch_validated_and_legacy_loader_is_dead\norchestrator/tests/test_s8b_oracle_driver.py::test_run_block_verifies_manifest_once_and_reuses_object\norchestrator/tests/test_s8b_oracle_driver.py::test_v6_freeze_swap_after_verify_is_not_observed\norchestrator/tests/test_s8b_oracle_driver.py::test_v7_manifest_swap_after_verify_is_not_observed\norchestrator/tests/test_s8b_oracle_driver.py::test_layer3_strict_consumer_accepts_optional_bench_wall_s\norchestrator/tests/test_s8b_oracle_driver.py::test_v2_resume_rejected_at_s1_s2_s3_boundaries\norchestrator/tests/test_s8b_oracle_driver.py::test_atomic_one_shot_lock_rejects_second_start\norchestrator/tests/test_s8b_oracle_driver.py::test_resume_wal_lstat_eio_propagates_fail_closed_from_public_driver\norchestrator/tests/test_s8b_oracle_driver.py::test_driver_full_frame_fsync_eio_is_not_folded_or_followed_up\norchestrator/tests/test_s8b_oracle_driver.py::test_v4_marker_fires_across_output_root_change\norchestrator/tests/test_s8b_oracle_driver.py::test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records[fragment]\norchestrator/tests/test_s8b_oracle_driver.py::test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records[complete-json-without-newline]\norchestrator/tests/test_s8b_oracle_driver.py::test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records[multibyte-partial]\norchestrator/tests/test_s8b_oracle_driver.py::test_session_stage_reexports_shared_model_authority\norchestrator/tests/test_s8b_oracle_driver.py::test_session_issuer_alias_and_append_use_model_authority\norchestrator/tests/test_s8b_oracle_driver.py::test_v2_standalone_gate_check_requires_full_floor_validation\norchestrator/tests/test_s8b_oracle_driver.py::test_private_validated_gate_has_only_run_block_as_production_caller\norchestrator/tests/test_s8b_oracle_driver.py::test_v2_gate_happy_path_completes_and_binds_env_store_receipt\norchestrator/tests/test_s8b_oracle_driver.py::test_v2_foreign_cell_admission_receipt_is_refused_before_store_read\norchestrator/tests/test_s8b_oracle_driver.py::test_oracle_driver_accepts_conditional_sort_receipt_and_rejects_its_absence\norchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_bytes_are_checked_against_admission_subject_independently\norchestrator/tests/test_s8b_oracle_driver.py::test_v2_completed_driver_adapter_campaign_is_accepted_by_report\norchestrator/tests/test_s8b_oracle_driver.py::test_v2_post_run_store_change_is_reported_and_refused[replaced]\norchestrator/tests/test_s8b_oracle_driver.py::test_v2_post_run_store_change_is_reported_and_refused[removed]\norchestrator/tests/test_s8b_oracle_driver.py::test_oracle_admission_uses_verified_manifest_schedule_and_reps\norchestrator/tests/test_s8b_oracle_driver.py::test_oracle_repeated_reservation_is_admitted\norchestrator/tests/test_s8b_oracle_driver.py::test_oracle_attempt_single_use_is_scoped_to_measurement_generation\norchestrator/tests/test_s8b_oracle_driver.py::test_official_driver_records_returncodes_through_real_producer_flow\norchestrator/tests/test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2\norchestrator/tests/test_s8b_oracle_driver.py::test_v2_floor_disk_swap_after_launch_uses_same_validated_object\norchestrator/tests/test_s8b_oracle_driver.py::test_v2_freeze_bytes_not_active_generation_is_refused\norchestrator/tests/test_s8b_oracle_driver.py::test_v2_launch_validate_failure_is_refused\norchestrator/tests/test_s8b_oracle_driver.py::test_v2_launch_validate_non_ratified_error_is_refused\norchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_missing_is_refused\norchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_hash_mismatch_is_refused\norchestrator/tests/test_s8b_oracle_driver.py::test_v2_contract_sha256_mismatch_is_refused\norchestrator/tests/test_s8b_oracle_driver.py::test_v2_binary_mismatch_abort_maps_to_binary_mismatch_outcome\norchestrator/tests/test_s8b_oracle_driver.py::test_unavailable_preflight_creates_bound_measurement_manifest_and_passes_false_kwargs\norchestrator/tests/test_s8b_oracle_driver.py::test_available_preflight_preserves_call_and_artifact_shape\norchestrator/tests/test_s8b_oracle_driver.py::test_probe_error_precedes_claim_marker_wal_and_budget\nIZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":5,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n231 tests collected in 1.31s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "e6386a7e40df11967fb319d540c55da0ed0ec575c83a2a3e32fe9a0997eda0d9"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_current_freeze_is_rejected_as_non_executable_manifest",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_each_replicate_is_complete_product_and_each_cell_occurs_n_times",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_schedule_uses_replicate_major_cell_ordinals",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_same_seed_is_byte_identical_and_different_seed_changes_hash",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_schedule_rows_and_manifest_holdout_references_do_not_copy_workload",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_write_is_create_only_and_valid_manifest_verifies",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_subset_manifest_build_stays_accepted_but_verify_choke_point_rejects",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_missing_holdout_build_stays_accepted_but_verify_rejects",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verified_manifest_public_constructor_is_rejected",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verified_manifest_sealed_constructor_rejects_non_lowercase_hash",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_write_manifest_rejects_exploration_and_legacy_artifact_types",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_binding_identity_requires_complete_unique_schedule_cell_product[missing-key]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_binding_identity_requires_complete_unique_schedule_cell_product[duplicate-cell]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_binding_identity_requires_complete_unique_schedule_cell_product[wrong-cell]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_campaign_config_preimage_hash_is_bound_and_tampering_is_rejected",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_exact_five_canonical_paths_and_hashes_verify",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_legacy_three_key_generator_authority_is_rejected_directly_at_build",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[materializer]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[report]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[judge]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[outcome_stage_contract]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_hash_must_match_real_root_file_at_build_and_verify[artifacts]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_missing_required_key_is_rejected_at_build_and_verify[outcome_stage_contract-missing=//['outcome_stage_contract'//] extra=//[//]]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_missing_required_key_is_rejected_at_build_and_verify[artifacts-missing=//['artifacts'//] extra=//[//]]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_versions_extra_key_is_rejected_at_build_and_verify",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[swapped-paths]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[unrelated-artifacts]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generator_path_must_match_key_canonical_binding_at_build_and_verify[absolute-artifacts]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_rehashes_each_canonical_generator_in_supplied_root",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_retired_floor_budget_snapshot_key",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_freeze_byte_tampering",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_manifest_tampering[schedule-hash-schedule_sha256]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_manifest_tampering[campaign-empty-campaign ID]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_manifest_tampering[binding-schema-binding_identity entry schema]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_n_and_block_size_mismatch_is_rejected",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_v1_two_block_manifest_is_rejected_at_build_and_verify",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_rejects_two_blocks_before_approval",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_oracle_shared_false",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_snapshot_rejects_extra_top_level_floor_key",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_load_json_object_rejects_duplicate_top_level_key",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_load_json_object_rejects_duplicate_nested_key",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_canonical_bytes_rejects_nan_value",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_load_json_object_rejects_nan_literal",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_load_json_object_rejects_infinity_literal",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_exact_schema_and_independent_schedule_hash_literal",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_document_and_schedule_are_recursive_immutable",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_approved_snapshot_requires_canonical_reviewed_spec_exact_type",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_has_independent_canonical_bytes_and_sha_literal",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_none_pin_is_always_no_approved_spec",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_pin_mismatch_is_fail_closed",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_key_sets_are_exact[top]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_key_sets_are_exact[schedule]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_key_sets_are_exact[run-contract]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_reviewed_spec_requires_canonical_bytes_without_trailing_lf",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_ungated_manifest_apis_are_not_public[build_manifest]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_ungated_manifest_apis_are_not_public[build_manifest_from_ratified]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_ungated_manifest_apis_are_not_public[write_manifest]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--schedule]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--schedule-path]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--freeze]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--freeze-path]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--campaign-id]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--campaign-ids]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--spec]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--approval]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--approver]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--root]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--n]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--master-seed]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--block-sizes]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--holdout-id]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_parser_has_output_as_only_value_input[--configuration-id]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_approved_writer_rejects_outside_candidate_root",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_approved_writer_rejects_symlink_parent",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_approved_writer_is_exclusive_create",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_approved_writer_safely_creates_only_fixed_candidate_root",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_active_without_pin_fails_before_output",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_valid_fixture_output_depends_only_on_spec_pin",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_uses_one_active_snapshot_and_writes_valid_candidate",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_rejects_uniform_configuration_subset_before_output",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_valid_real_g1_reaches_spec_after_actual_selection_gate",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_build_approved_real_g1_rule_mismatch_preserves_selection_reason",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_accepts_exact_approved_spec_projection",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[schedule-schedule /u304c approved spec]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[campaign_ids-campaign_ids /u304c approved spec]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[run_contract-run_contract /u304c approved spec]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[binding_identity-binding_identity /u304c approved spec]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[allowed_excluded_reasons-allowed_excluded_reasons /u304c approved spec]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[generator_versions-generator_versions /u304c approved spec]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[spec_sha256-spec_sha256 /u304c approved spec]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_one_spec_divergent_projection[spec_sha256_format-spec_sha256 /u304c SHA-256]",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_run_contract_accepts_bench_max_rounds_one",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_generic_builder_still_accepts_run_contract_extra_key",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_run_contract_rejects_bench_max_rounds_two",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_run_contract_rejects_extime_three",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_run_contract_rejects_reps_999",
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_requires_freeze_document",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_output_snapshot_detects_git_visible_real_output_changes",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_output_snapshot_excludes_git_ignored_real_output_changes",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_output_snapshot_observes_git_visible_create_and_delete",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_git_ignored_output_prefixes_uses_rule_sources_before_paths_exist",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_git_ignored_output_prefixes_preserve_tracked_rule_descendant",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_git_ignored_output_prefixes_rejects_entire_output_ignore",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_check_rule_candidates_fails_closed_on_git_error",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_check_rule_candidates_rejects_rc1_with_stdout",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_check_rule_candidates_rejects_rc0_without_nul_terminator",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_exact_consumers_and_nodeids_b5",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_output_copy_visibility_matches_production_enumeration",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[holdout-artifact-holdout.artifact_bytes]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[unknownness-layer2-holdout.unknownness_layer2]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_static_adapter_rejects_noncanonical_known_predicate_as_schema",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_oracle_recorded_known_pin_hold_and_release_positive_control",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_oracle_live_known_bytes_hold_and_release_positive_control",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[bad-trailer-receipt.user_commit_trailer]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[extra-r-path-receipt.introduction_diff]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[modify-revert-receipt.history_mutated]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_uses_required_registry_contract",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_rejects_zero_required_contracts",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_rejects_multiple_required_contracts",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_rejects_required_lookup_exception",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_uses_unique_none_registry_contract",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_rejects_zero_none_contracts",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_rejects_multiple_none_contracts",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_rejects_duplicate_registry_env_tag",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_machine_env_tag_for_site_rejects_unhandled_site",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_gate_check_core_rejects_reverified_freeze_token",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_oracle_evaluate_fn_without_condition_records_cannot_complete",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_spec_matching_gate_and_run_reach_execution_but_other_spec_refuses_without_outputs",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_gate_check_rebinds_each_injected_verified_manifest_axis[exact-type-VerifiedManifest exact type]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_gate_check_rebinds_each_injected_verified_manifest_axis[file-hash-/u5b9f bytes/document /u3068/u4e0d/u4e00/u81f4]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_gate_check_rebinds_each_injected_verified_manifest_axis[document-hash-/u5b9f bytes/document /u3068/u4e0d/u4e00/u81f4]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_gate_check_rebinds_each_injected_verified_manifest_axis[spec-hash-approved spec /u3068/u4e0d/u4e00/u81f4]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_cli_output_root_default_is_none_and_run_block_refuses_without_root",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_main_injects_external_policy_and_required_run_writes_claim_wal_and_lock",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_gate_hermetic_primary_states_exact[never-issued]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_gate_hermetic_primary_states_exact[active-valid]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_gate_hermetic_primary_states_exact[invalid]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_gate_decision_is_built_only_by_factory_and_all_run_returns_propagate",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_run_block_resolves_receipt_once_and_propagates_observation_to_wal_and_result[False]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_run_block_resolves_receipt_once_and_propagates_observation_to_wal_and_result[True]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_run_block_rejects_receipt_epoch_drift_before_campaign_start_g4",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_epoch_identity_covers_state_introduction_raw_and_head_g4",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_required_binding_missing_refuses_at_production_entry_without_side_effects",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_required_v1_receipt_refuses_at_production_entry_without_side_effects",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_required_verified_calibration_from_other_contract_is_refused_without_side_effects",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_required_secondary_calibration_identity_recheck_fires_with_monkeypatched_loader",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_required_missing_preprovisioned_oracle_claim_root_is_fail_closed",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_required_oracle_claim_root_outside_durable_approval_is_fail_closed",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_required_existing_claim_refuses_production_entry_without_new_side_effects",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_oracle_claim_schema_uses_identity_preimage_as_protocol_digest",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_required_initial_reservation_includes_schedule_attestation_probes",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_required_recheck_includes_remaining_attestation_probe",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_required_recheck_reservation_shortfall_skips_attestation",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_required_recheck_attestation_failure_follows_reservation_check",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_required_recheck_real_reservation_shortfall_writes_aborted_terminal",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_required_recheck_real_receipt_validation_catches_midcampaign_drift",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_campaign_terminal_driver_guard_rejects_second_terminal",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_oracle_pipeline_contract_keyword_is_mandatory_positive_control",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_build_result_contract_mismatch_aborts_campaign_before_measurement",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_binding_mismatch_refuses_only_that_row_before_evaluate",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v8_bulk_reservation_unavailable_runs_nothing",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_reservation_envelope_exceeded_is_fail_closed",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_verify_inconclusive_and_unknown_abort_reasons_are_fail_closed",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_probe_error_reason_is_fail_closed_unknown_abort[bench-probe-error]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_probe_error_reason_is_fail_closed_unknown_abort[verify-probe-error]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_transient_prepare_failure_retries_once",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_tampered_freeze_fails_source_verification",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_perf_for_holdout_accepts_authoritative_freeze_entry",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_perf_for_holdout_rejects_authority_value_tampering",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_perf_for_holdout_rejects_unknown_holdout_id",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_legacy_generator_tamper_has_exact_single_refusal_b7",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_exit_code_priority_table",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v3_all_rows_binding_refused_is_protocol_violation",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v3_partial_binding_refused_is_protocol_violation",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v3_cli_subprocess_returns_rc_3_on_protocol_violation",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_load_verified_freeze_single_read_hash_and_strict_parse",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_driver_boundary_wraps_freeze_io_error_as_oracle_driver_error",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_run_block_reuses_launch_validated_and_legacy_loader_is_dead",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_run_block_verifies_manifest_once_and_reuses_object",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v6_freeze_swap_after_verify_is_not_observed",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v7_manifest_swap_after_verify_is_not_observed",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_layer3_strict_consumer_accepts_optional_bench_wall_s",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_resume_rejected_at_s1_s2_s3_boundaries",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_atomic_one_shot_lock_rejects_second_start",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_resume_wal_lstat_eio_propagates_fail_closed_from_public_driver",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_driver_full_frame_fsync_eio_is_not_folded_or_followed_up",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v4_marker_fires_across_output_root_change",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records[fragment]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records[complete-json-without-newline]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records[multibyte-partial]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_session_stage_reexports_shared_model_authority",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_session_issuer_alias_and_append_use_model_authority",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_standalone_gate_check_requires_full_floor_validation",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_private_validated_gate_has_only_run_block_as_production_caller",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_gate_happy_path_completes_and_binds_env_store_receipt",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_foreign_cell_admission_receipt_is_refused_before_store_read",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_oracle_driver_accepts_conditional_sort_receipt_and_rejects_its_absence",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_bytes_are_checked_against_admission_subject_independently",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_completed_driver_adapter_campaign_is_accepted_by_report",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_post_run_store_change_is_reported_and_refused[replaced]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_post_run_store_change_is_reported_and_refused[removed]",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_oracle_admission_uses_verified_manifest_schedule_and_reps",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_oracle_repeated_reservation_is_admitted",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_oracle_attempt_single_use_is_scoped_to_measurement_generation",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_official_driver_records_returncodes_through_real_producer_flow",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_floor_disk_swap_after_launch_uses_same_validated_object",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_freeze_bytes_not_active_generation_is_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_launch_validate_failure_is_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_launch_validate_non_ratified_error_is_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_missing_is_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_hash_mismatch_is_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_contract_sha256_mismatch_is_refused",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_binary_mismatch_abort_maps_to_binary_mismatch_outcome",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_unavailable_preflight_creates_bound_measurement_manifest_and_passes_false_kwargs",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_available_preflight_preserves_call_and_artifact_shape",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_probe_error_precedes_claim_marker_wal_and_budget",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null\",\"reason\":\"Runs the real repository freeze/history gate whose cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"commits\",\"node_id\":\"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\",\"reason\":\"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}"
+      ],
+      "duration_s": 483.365,
+      "rc": 0,
+      "repo_head": "df4383243cbd1af0ba5a5531def28dd59cadf86e",
+      "runner_sha256": "d741c08adbf207638db01550c567bbe57e849d418548f72907d06dbeff487066",
+      "spec_sha256": "c9945d692b168bb98607ca86d931b53d81e58fb90ed46a46b0b5c8fdbe017f76",
+      "status": "PASSED",
+      "tool_sha256": "5dcc42a09438f30ec9dabdca419a0651ba0eb70ec8a727795a5686fc5fb231e6"
+    },
+    "hang_timeout_seconds": 1500.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-T1338-ADMISSION-EXC-SWALLOW": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_foreign_cell_admission_receipt_is_refused_before_store_read"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5267add78fa6d1ddd3a7bb16b1354c50ba993138b1c48e2b1bd816f3d25dcc3a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_oracle_driver.py",
+            "new": "        except (KeyError, TypeError, _binary_admission.BinaryAdmissionError):\n            pass\n",
+            "old": "        except (KeyError, TypeError, _binary_admission.BinaryAdmissionError) as exc:\n            raise OracleDriverError(\n                f\"[admission-mismatch] floor binary admission receipt が不正: {cell}: {exc}\"\n            ) from exc\n"
+          }
+        ]
+      },
+      "MUT-T1338-FREEZE-BYTE-HASH": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_freeze_byte_tampering"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9d01eb5b45ed68fa4be4d2a9b1a2fdfeb9073f984bbc9f45683a3cacc3d275bc",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+            "new": "    if False:\n        raise ManifestError(\"freeze byte sha256 が manifest と不一致\")\n",
+            "old": "    if freeze_sha256 != freeze_record[\"sha256\"]:\n        raise ManifestError(\"freeze byte sha256 が manifest と不一致\")\n"
+          }
+        ]
+      },
+      "MUT-T1338-STORE-BINARY-HASH": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_bytes_are_checked_against_admission_subject_independently",
+          "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_hash_mismatch_is_refused"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c0133efefdaefcd0570b03228600556a42df0e1c18df07f4a8d59c8739358a32",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_oracle_driver.py",
+            "new": "        if False:\n            raise OracleDriverError(\n                f\"[store-hash-mismatch] store binary sha256 が floor receipt と不一致: \"\n                f\"{rec['store_path']} (cell={cell})\"\n            )\n",
+            "old": "        if actual != rec[\"binary_sha256\"]:\n            raise OracleDriverError(\n                f\"[store-hash-mismatch] store binary sha256 が floor receipt と不一致: \"\n                f\"{rec['store_path']} (cell={cell})\"\n            )\n"
+          }
+        ]
+      },
+      "MUT-T1338-TOPLEVEL-KEY-EXACT": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_retired_floor_budget_snapshot_key"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "61c05754781add2925b5febd59dbaf707652f325c613166dc1b1a73b64172a93",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+            "new": "    if not _MANIFEST_KEYS <= set(document):\n        raise ManifestError(\"manifest top-level schema が不一致\")\n",
+            "old": "    if set(document) != _MANIFEST_KEYS:\n        raise ManifestError(\"manifest top-level schema が不一致\")\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "3f2b5d196c959fa174928430c63bc61791fb3966aa08cb2e1547d67e76ea2635",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_s8b_oracle_manifest.py",
+      "orchestrator/tests/test_s8b_oracle_driver.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "df4383243cbd1af0ba5a5531def28dd59cadf86e",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_s8b_oracle_manifest.py",
+      "orchestrator/tests/test_s8b_oracle_driver.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t434-t1709-t1338/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t434-t1709-t1338/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "9fb8aa19f6967968add963437c61347b1ff02f33",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "d741c08adbf207638db01550c567bbe57e849d418548f72907d06dbeff487066",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "c9945d692b168bb98607ca86d931b53d81e58fb90ed46a46b0b5c8fdbe017f76",
+  "summary": {
+    "KILLED": 4,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 4,
+    "matching": 4,
+    "recorded": 4,
+    "registered": 4
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t434-t1709-t1338/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "5dcc42a09438f30ec9dabdca419a0651ba0eb70ec8a727795a5686fc5fb231e6",
+  "updated_at": "2026-09-13T21:25:03.292243+00:00"
+}
