@@ -1610,6 +1610,23 @@
   dev-wave 段 1 の前提実測 (`DW-S01`) で、子を 1 本も起動する前に止まった。恒久対応 1 は今回も
   投入前の防壁として機能したが、**letter 付き小項目の内容の後退と意味の drift を検出する機械防壁は
   無いままである。**
+
+- **再発: 2026-09-14** — 「機構が存在しない」と主張する carry item が、別 ID の実装 wave に
+  よって 2 日後に事実でなくなり、そのまま 40 エントリ運ばれた。従来の 7 形態と違う新しい角度は
+  **反証が台帳の中に一切現れない**ことである。carry 本文は否定命題 (「precursor hash・
+  on/off receipt・proposal・block id を束縛する manifest と完全性 consumer が要る」) を運ぶが、
+  それを崩す実装は別 ID の wave が自分の次の一手だけを書いて着地させたため、carry 側の本文は
+  無傷で残った。段 1 で初出エントリ (`docs/archive/worklog-phase3-0827-1008.md:901`) の逐語まで
+  当たっても検出できず、崩れたのは段 3 の敵対相談 2 本が実装コードを読んだ後である。
+  被害はユーザーの依頼そのものに及んだ — 依頼は「実装する」ことを前提に立ったが、
+  `orchestrator/campaign/p3_b4_raw_record_producer.py:2322-2333` の `expected_binding` 完全一致
+  要求と `:2366` の照合済み binding からの代入により 4 者の束縛は既に存在し、正例・負例
+  (`orchestrator/tests/test_p3_b4_raw_record_producer.py:2063` ほか) も同じ commit
+  `227ec68923c8a489be28861c4b2566effe140626` (2026-08-29) に着地していた。
+  恒久対応は D1980 — 持ち越し項目を対象とする wave の段 1
+  前提実測に「その項目が無いと主張する機構の名前で実装側を検索し、着地 commit を
+  `git log -S` で確かめる」を含める。**機械防壁は無いままである** — 否定命題の陳腐化を
+  検出する検査は台帳側に置けない。
 ### F36. 受入・検査の結果欄をプレースホルダのまま記録 commit し、恒久対応の実行が空証明になった [恒真ゲート] [手順漏れ]
 
 - 事象: `<受入結果を反映>` `<反映>` というリテラルのプレースホルダが埋められないまま記録 commit に
@@ -25023,3 +25040,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 凍結の識別子を名指す裁定を引いて実装・測定へ入る wave の段 1 で、
   引用元の割り当てを producer の現物と突き合わせる (目視。lint 化は未実装 —
   裁定本文は自由記述で、識別子と値の対応を機械抽出する経路が無い)。
+
+### F966. local main の commit が同内容・別 SHA へ差し替わると `--ff-only` 追従が不能になる [手順漏れ]
+
+- 事象: wave 開始直後に local main の tip から fresh worktree を作った直後、別 session の land が
+  main の先頭 commit を**同じ件名・同じ親・別 SHA** の commit へ差し替えた。worktree の branch は
+  main から消えた側の commit に載り、`DW-O20` が指示する `git merge --ff-only main` が
+  `fatal: Not possible to fast-forward, aborting.` で失敗した。開始 gate も
+  `NG: HEAD != local main` を返し続けた。
+- 根本原因: `DW-O20` の追従手順は「main が**進んだ**」場合だけを想定している。main の commit が
+  置き換わると worktree の HEAD は main の祖先でなくなるため、ff-only は原理的に成立しない。
+  `git merge-base --is-ancestor <worktree HEAD> main` が偽になることで判別できる。
+- 恒久対応: 手順として残す。ff-only が失敗したら、まず祖先性を検査する。祖先でなければ追従ではなく
+  **branch の作り直し**で復旧する — worktree 内で `git checkout --detach main` →
+  `git branch -D <wave branch>` → `git checkout -b <wave branch>`。
+  `git reset` は使わない (reflog に reset が残ると land が拒否する)。
+  作り直しは wave 側に自前 commit が無い間だけ安全であり、commit 済みなら別手順が要る。
+- 再発検知: 開始 gate の `NG: HEAD != local main` が `--ff-only` 1 回で解消しないこと。
+  併せて `git merge-base --is-ancestor` の偽を確認する。
