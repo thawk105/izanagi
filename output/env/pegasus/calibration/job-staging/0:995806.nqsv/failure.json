@@ -1,0 +1,8 @@
+{
+  "message": "certification calibrator rejected the attempt",
+  "pbs_jobid": "0:995806.nqsv",
+  "rc": 1,
+  "recorded_epoch": 1789310581,
+  "schema_version": "pegasus-job-failure/v1",
+  "stage": "calibrate"
+}

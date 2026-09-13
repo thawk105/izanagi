@@ -1,0 +1,122 @@
+[
+  {
+    "argv": [
+      "pgrep",
+      "-af",
+      "ycsb_.*\\.exe"
+    ],
+    "canary_nonce": "fc937ce0b2a08bb5e0d95ba1d753da31",
+    "canary_pid": 1317610,
+    "canary_starttime": "30658161",
+    "status": "passed",
+    "window": "dynamic-pre"
+  },
+  {
+    "argv": [
+      "pgrep",
+      "-af",
+      "ycsb_.*\\.exe"
+    ],
+    "canary_nonce": "111e6b80be19876bb852cc8d9f54ec19",
+    "canary_pid": 1317612,
+    "canary_starttime": "30658164",
+    "status": "passed",
+    "window": "sweep:pre:1000000:48"
+  },
+  {
+    "argv": [
+      "pgrep",
+      "-af",
+      "ycsb_.*\\.exe"
+    ],
+    "canary_nonce": "6d9ad71fea0f0718e151a2e825a54e7a",
+    "canary_pid": 1317903,
+    "canary_starttime": "30659207",
+    "status": "passed",
+    "window": "sweep:post:1000000:48"
+  },
+  {
+    "argv": [
+      "pgrep",
+      "-af",
+      "ycsb_.*\\.exe"
+    ],
+    "canary_nonce": "aa797d1ecea7c3d10af99e1007504f3c",
+    "canary_pid": 1317905,
+    "canary_starttime": "30659210",
+    "status": "passed",
+    "window": "sweep:pre:2000000:48"
+  },
+  {
+    "argv": [
+      "pgrep",
+      "-af",
+      "ycsb_.*\\.exe"
+    ],
+    "canary_nonce": "5c4d7d32c72dc28a77f6acff70a91989",
+    "canary_pid": 1318189,
+    "canary_starttime": "30660363",
+    "status": "passed",
+    "window": "sweep:post:2000000:48"
+  },
+  {
+    "argv": [
+      "pgrep",
+      "-af",
+      "ycsb_.*\\.exe"
+    ],
+    "canary_nonce": "b53da1899bf7283b0d817e7859fea7c2",
+    "canary_pid": 1318191,
+    "canary_starttime": "30660366",
+    "status": "passed",
+    "window": "sweep:pre:4000000:48"
+  },
+  {
+    "argv": [
+      "pgrep",
+      "-af",
+      "ycsb_.*\\.exe"
+    ],
+    "canary_nonce": "28a98a50018a1642037dcd852903c3f5",
+    "canary_pid": 1318463,
+    "canary_starttime": "30661722",
+    "status": "passed",
+    "window": "sweep:post:4000000:48"
+  },
+  {
+    "argv": [
+      "pgrep",
+      "-af",
+      "ycsb_.*\\.exe"
+    ],
+    "canary_nonce": "6459867902c612f4a2dc0ea4ace83c23",
+    "canary_pid": 1318465,
+    "canary_starttime": "30661725",
+    "status": "passed",
+    "window": "noise:pre:1000000:48"
+  },
+  {
+    "argv": [
+      "pgrep",
+      "-af",
+      "ycsb_.*\\.exe"
+    ],
+    "canary_nonce": "085043e2af92b2bf451599b497ded7fd",
+    "canary_pid": 1319427,
+    "canary_starttime": "30665186",
+    "status": "passed",
+    "window": "noise:post:1000000:48"
+  },
+  {
+    "argv": [
+      "pgrep",
+      "-af",
+      "ycsb_.*\\.exe"
+    ],
+    "canary_nonce": "e204e4797b98532649f54a3959abd4c5",
+    "canary_pid": 1319440,
+    "canary_starttime": "30665383",
+    "status": "passed",
+    "window": "post-receipt"
+  }
+]

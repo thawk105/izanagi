@@ -1,0 +1,14 @@
+-- Install configuration: "Release"
+-- Installing: /scr/0_995805.nqsv/glog-install/lib/libglog.a
+-- Installing: /scr/0_995805.nqsv/glog-install/include/glog/export.h
+-- Installing: /scr/0_995805.nqsv/glog-install/include/glog/logging.h
+-- Installing: /scr/0_995805.nqsv/glog-install/include/glog/raw_logging.h
+-- Installing: /scr/0_995805.nqsv/glog-install/include/glog/stl_logging.h
+-- Installing: /scr/0_995805.nqsv/glog-install/include/glog/vlog_is_on.h
+-- Installing: /scr/0_995805.nqsv/glog-install/include/glog/log_severity.h
+-- Installing: /scr/0_995805.nqsv/glog-install/lib/pkgconfig/libglog.pc
+-- Installing: /scr/0_995805.nqsv/glog-install/lib/cmake/glog/glog-modules.cmake
+-- Installing: /scr/0_995805.nqsv/glog-install/lib/cmake/glog/glog-config.cmake
+-- Installing: /scr/0_995805.nqsv/glog-install/lib/cmake/glog/glog-config-version.cmake
+-- Installing: /scr/0_995805.nqsv/glog-install/lib/cmake/glog/glog-targets.cmake
+-- Installing: /scr/0_995805.nqsv/glog-install/lib/cmake/glog/glog-targets-release.cmake

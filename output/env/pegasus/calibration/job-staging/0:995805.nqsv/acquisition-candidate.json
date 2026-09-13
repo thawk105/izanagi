@@ -1,0 +1,74 @@
+{
+  "allocation": {
+    "assigned_host_qstat": "bnode027",
+    "cpuset_size": 48,
+    "hostname_observed": "bnode027",
+    "ht_off": true,
+    "pbs_jobid": "0:995805.nqsv"
+  },
+  "ccbench": {
+    "binary_sha256": "ffba3dd6b5a8f188352c59e9a9c6f93d777d275bbb078a2403cbc2bbedaf7dc5",
+    "build_argv": [
+      "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+      "-S",
+      "/scr/0_995805.nqsv/ccbench-source",
+      "-B",
+      "/scr/0_995805.nqsv/ccbench-build",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DENABLE_SANITIZER=OFF",
+      "-DFETCHCONTENT_BASE_DIR=/scr/0_995805.nqsv/fetchcontent-base",
+      "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+      "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/0_995805.nqsv/fetchcontent-src/masstree-src",
+      "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/0_995805.nqsv/fetchcontent-src/mimalloc-src",
+      "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/0_995805.nqsv/fetchcontent-src/googletest-src",
+      "-DCCBENCH_TRACE=0",
+      "-DCCBENCH_BACK_OFF=0",
+      "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+      "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+      "-DCCBENCH_WAL=0",
+      "-DCMAKE_PREFIX_PATH=/scr/0_995805.nqsv/gflags-install;/scr/0_995805.nqsv/glog-install",
+      "-DIZANAGI_GFLAGS_SRC_HEAD=e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+      "-DIZANAGI_GLOG_SRC_HEAD=8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+      "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+      "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+      "&&",
+      "/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/python3.9/bin/cmake",
+      "--build",
+      "/scr/0_995805.nqsv/ccbench-build",
+      "--target",
+      "ycsb_silo.exe",
+      "-j",
+      "48"
+    ],
+    "head_sha": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+    "pinned_clean": true
+  },
+  "job_script_sha256": "08bbc498e36d1c9361d8f421d3dfce22cff1efc3c2553d22da6c773bc7e754ad",
+  "known_values_check": {
+    "expected_cores": 48,
+    "expected_cpu_model": "Intel Xeon Platinum 8468",
+    "passed": true,
+    "source": "pegasus-runbook §1"
+  },
+  "qsub": {
+    "elapstim_req_s": 7200,
+    "nodes": 1,
+    "project": "SFC",
+    "queue": "gen_S",
+    "request_id": "995805.nqsv",
+    "submit_epoch": 1789310388
+  },
+  "toolchain": {
+    "cmake_version": "cmake version 3.25.0\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).",
+    "compiler_path": "/usr/bin/x86_64-linux-gnu-gcc-11",
+    "compiler_version": "gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "module_list": [
+      "intelpython/2022.3.1"
+    ]
+  },
+  "walltime": {
+    "formula": "TSC(10)+cooldown_max(1200)+points(5)*sweep_reps(3)*120+noise_reps(10)*120+2*sweep_reps(3)*120+build_cap(CCBench=900+gflags=60+glog=120)(1080)+finalize_reserve(600)=6610",
+    "required_s": 6610,
+    "reserve_s": 600
+  }
+}
