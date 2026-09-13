@@ -39,6 +39,14 @@ title: [T-575] silo ladder 証拠の適格性昇格 consumer は確認した閉�
 - 親が段 2 の prompt で候補を列挙した際、`ability_probe` を「false から true へ変える」対象に
   混ぜたのは誤り。同 field は既に `true` である。レンズ A が指摘し、記録では独立した確認事項へ直した。
 - 実装面 (D95 決定 2 = 非 Markdown) の差分はゼロ。変異 matrix は免除。受入全走は免除していない。
+- **その段 8 の作業そのものが受入 1 回目を潰した。** 受入全走の走行中に fragment を worktree へ
+  書いたため preflight の `prerun-clean` で `rc=70` 停止し、テストを 1 件も走らせずに 1 回分を失った。
+  F106 の再発 (2026-09-02 と同型)。commit してから attempt 2 を投入し直した。
+- 段 8 の自己改善は 3 件を failures 台帳へ送った。上記の件数誤りは F287 の**再発** (3 例目)、
+  直前の受入潰しは F106 の再発、残る 1 件は {{F:main-replaced-under-fresh-worktree}} として新規に起こした — wave 立ち上げ時に
+  **並行 session が local main を同じ件名の別 SHA へ置き換え**、起動 gate も `--ff-only` も
+  通らなくなった (near miss)。`DW-O20` は前進の解消手段しか持たないが、本文への追記は
+  `docs/dev-wave/**` の byte 予算に収まらないため、F66 と同じく台帳と memory で担う。
 - Codex 子 4 本 (plan 1 / consult 2 / review 1)。いずれも read-only。子は file を 1 byte も変更していない。
 - 成果物と生証拠 = `output/insights/2026-09-14_t575-silo-promotion-consumer/`。
 
