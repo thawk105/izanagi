@@ -145,3 +145,41 @@ probe も本走も結果を見る前に登録している。この逸脱を隠�
   実測されたが、これは 1 回の観測である。
 - **write-heavy と read-heavy。** 事前登録の対象外であり、本 wave も測っていない。
 - **過去の成果物。** 本 wave の是正は過去の判定を遡って昇格させない。
+
+## 6. 受入全走が緑にならず land できていない
+
+**3 回とも非帰属の資源競合で止まった。いずれも本 wave の変更面から参照関係で到達しない。**
+
+| attempt | 結果 | 赤 | 単独再走 |
+|---|---|---|---|
+| 1 | rc=70 / child rc=1 | `test_codex_worker_launch.py::test_manifest_is_appended_while_correlated_session_is_running` 1 件 (23309 passed) | 1 passed / 5.09 秒 |
+| 2 | rc=70 / child rc=1 | setup error 13 件 (23297 passed)。t1259 が 12 件、s8c が 1 件 | — |
+| 3 | rc=70 / child rc=1 | `test_campaign_claim.py::test_two_real_processes_racing_acquire_have_exactly_one_winner` 1 件 (23313 passed) | 1 passed / 3.71 秒 |
+
+赤の本文はいずれも時間・資源の境界である。attempt 1 は子プロセスが 3 秒の締切に間に合わなかったもの。
+attempt 2 は `git ls-files --others --exclude-standard -z` の 30 秒 TimeoutExpired (**F945 が同一 argv・
+同一 timeout で記録済み**) と、real-repo flock の待ち超過 (READ 保持者 10 件)。attempt 3 は実プロセス
+2 本の競走。**3 回とも赤の node が異なり、単独では緑である。**
+
+原因は実測した。ログインノードの 15 分負荷平均が 47〜86、`run_tests.py` の同時実行が 3〜18 本で、
+並行 wave の受入が重なっている。attempt 3 の前に 90 分待ったが負荷はむしろ上がった。
+
+**hold を登録しなかった。** `orchestrator/tests/flaky_test_holds.py` は「既定の受入走から test を
+除外する」機構であり、一過性の輻輳を理由に恒久的に suite を弱めることになる。F945 という証拠は
+t1259 について実在するが、除外の必要性は満たしていない。3 回で赤の node が毎回違うことも、
+個別除外が対処になっていないことを示す。
+
+### 副次的な発見 — 非帰属受理経路が現行の待ち手から到達しない
+
+`docs/pegasus-runbook.md` §7.3 は受理を 2 経路と説明する。(i) child rc=0 の `child-green`、
+(ii) child rc=1 ちょうどで `tools/check_acceptance_reds.py` が
+`status = "non-attributable-only"` を返す場合である。
+
+**しかし `tools/dev_wave_wait.py` は `red_check` を無条件に `None` で渡す。**
+`tools/acceptance_launcher.py` は `child_rc != 1 or not isinstance(red_check, dict)` で
+受領証を出さないので、経路 (ii) は現行の待ち手からは発火しない。待ち手側に checker を渡す
+flag も無い (`--help` は rc=2、source 走査でも `red_check` の代入は 1 箇所の `None` だけ)。
+したがって現行実装での受理は `child-green` だけである。
+
+これは docs と実装の食い違いであり、本 wave の変更とは無関係の既存状態である。
+是正は別の変更単位に属するので、本 wave では直さず記録に留める。
