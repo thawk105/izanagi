@@ -12397,10 +12397,16 @@ def test_deterministic_artifacts_across_roots_and_subprocess_environments(tmp_pa
         env.update(delta)
         env["TMPDIR"] = str(temp_dir)
         env["PYTHONDONTWRITEBYTECODE"] = "1"
-        completed = subprocess.run(
-            [sys.executable, "-c", script, str(root)], env=env,
-            capture_output=True, text=True, check=True,
-        )
+        try:
+            completed = subprocess.run(
+                [sys.executable, "-c", script, str(root)], env=env,
+                capture_output=True, text=True, check=True,
+            )
+        except subprocess.CalledProcessError as exc:
+            raise AssertionError(
+                f"determinism child exited {exc.returncode}\n"
+                f"stdout:\n{exc.stdout}\nstderr:\n{exc.stderr}"
+            ) from exc
         observations.append(json.loads(completed.stdout))
     assert observations[0]["sha256"] == observations[1]["sha256"]
     for name in observations[0]["inodes"]:

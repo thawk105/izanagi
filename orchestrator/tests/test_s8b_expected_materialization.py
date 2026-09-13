@@ -712,8 +712,13 @@ def _run_sealed_case(module, case, tmp_path, **parameters):
     """
     import json
     import subprocess
+    import sys
     code = """
-import contextlib, importlib, inspect, io, json, sys
+import sys
+# -E ignores PYTHONPATH; discard -c's cwd entry before importing helpers.
+# Keep interpreter/site paths so user-installed pytest remains available.
+sys.path[:] = sys.path[1:]
+import contextlib, importlib, inspect, io, json
 from pathlib import Path
 sys.path.insert(0, sys.argv[1])
 module = importlib.import_module(sys.argv[2])
@@ -733,9 +738,10 @@ finally:
 print(json.dumps({'case': sys.argv[3], 'completed': True}))
 """
     result = subprocess.run(
-        _python_command(code, Path(__file__).resolve().parents[2],
-                        module if module.startswith("orchestrator.tests.") else "orchestrator.tests." + module,
-                        case, tmp_path, json.dumps(parameters)),
+        [sys.executable, "-E", "-B", "-c", code,
+         str(Path(__file__).resolve().parents[2]),
+         module if module.startswith("orchestrator.tests.") else "orchestrator.tests." + module,
+         case, str(tmp_path), json.dumps(parameters)],
         capture_output=True, text=True, check=True, timeout=5, start_new_session=True,
     )
     return json.loads(result.stdout)

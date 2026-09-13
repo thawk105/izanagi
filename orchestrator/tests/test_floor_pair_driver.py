@@ -1346,23 +1346,32 @@ def test_mutation_11_hmac_rank_has_multiple_pair_sample_golden_order(
         Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=tmp_path
     )
     plan = F.make_measurement_plan(spec)
+    # Independently derived from the v3 receipt bytes: spec SHA-256
+    # b1262edcd70aba9ac122ae31bba5f919aabc6616c2d9db4c7f728a2ed46dfa6a.
+    # HMAC-SHA256 key = bytes.fromhex("01" * 32); fields are UTF-8 text
+    # separated by NUL. Prefix = (schema, spec SHA, "window-a", pair, sample).
+    # Ascending ranks with suffix "sample": a0=3a51f851, b1=52eec135,
+    # b0=55f47d50, a1=6a93e4d9. Within each sample, rank sides with
+    # ("side-session", side), then roles with
+    # ("in-session-measurement", side, role). No production rank helper
+    # was used to derive these session IDs or measurement-role goldens.
     assert [session.session_id for session in plan.sessions] == [
         "window-a.pair-a.s000000.candidate_1",
         "window-a.pair-a.s000000.candidate_2",
         "window-a.pair-b.s000001.candidate_2",
         "window-a.pair-b.s000001.candidate_1",
+        "window-a.pair-b.s000000.candidate_2",
+        "window-a.pair-b.s000000.candidate_1",
         "window-a.pair-a.s000001.candidate_1",
         "window-a.pair-a.s000001.candidate_2",
-        "window-a.pair-b.s000000.candidate_1",
-        "window-a.pair-b.s000000.candidate_2",
     ]
     expected_measurement_roles = [
         ("reference", "candidate"),
         ("reference", "candidate"),
-        ("candidate", "reference"),
         ("reference", "candidate"),
         ("candidate", "reference"),
-        ("candidate", "reference"),
+        ("reference", "candidate"),
+        ("reference", "candidate"),
         ("reference", "candidate"),
         ("reference", "candidate"),
     ]

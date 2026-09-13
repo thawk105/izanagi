@@ -145,7 +145,11 @@ def run_sealed_fixture_case(module, case, tmp_path, **parameters):
         + 2 * _snapshot._SNAPSHOT_REAP_TIMEOUT_S
     )
     code = """
-import contextlib, importlib, inspect, io, json, sys
+import sys
+# -E ignores PYTHONPATH; discard -c's cwd entry before importing helpers.
+# Keep interpreter/site paths so user-installed pytest remains available.
+sys.path[:] = sys.path[1:]
+import contextlib, importlib, inspect, io, json
 from pathlib import Path
 # pytest can supply either orchestrator.tests.<module> or bare <module>.
 root = Path(sys.argv[1])
@@ -165,7 +169,7 @@ finally:
 print(json.dumps(result))
 """
     result = subprocess.run(
-        [sys.executable, "-I", "-B", "-c", code,
+        [sys.executable, "-E", "-B", "-c", code,
          str(Path(__file__).resolve().parents[2]), module, case,
          str(tmp_path), json.dumps(parameters)],
         capture_output=True, text=True, timeout=timeout_s,
