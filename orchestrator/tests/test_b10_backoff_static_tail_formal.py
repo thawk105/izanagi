@@ -73,6 +73,14 @@ def test_spec_rejects_marker_fence_json_bytes(change):
         formal.parse_preregistration(change((ROOT/formal.DOCUMENT_PATH).read_bytes()))
 
 
+def test_spec_rejects_same_length_non_json_fence():
+    raw = (ROOT/formal.DOCUMENT_PATH).read_bytes()
+    # Preserve the extraction offsets, so JSON parsing cannot mask the check.
+    malformed = raw.replace(b"```json\n", b"```yaml\n", 1)
+    with pytest.raises(ValueError, match="^spec fence lines differ$"):
+        formal.parse_preregistration(malformed)
+
+
 @pytest.mark.parametrize("mutation",["section","duplicate","nonfinite","type","order","grid","rule","policy"])
 def test_spec_rejects_unsupported_shapes_and_rules(spec,mutation):
     data = copy.deepcopy(spec.data)
@@ -119,6 +127,24 @@ def test_integer_ratio_ignores_printed_rate(spec):
     assert formal.performance_reps(spec,payload) == before
     assert before[0]["abort_rate_recomputed"] == 24435129/(24435129+2270481)
     assert before[0]["abort_rate_recomputed"] != 0.9150
+
+
+@pytest.mark.parametrize("key", ["abort_counts_", "commit_counts_"])
+@pytest.mark.parametrize("value", [
+    pytest.param("1.0", id="decimal"),
+    pytest.param("+1", id="plus-sign"),
+    pytest.param("-1", id="minus-sign"),
+    pytest.param(" 1", id="leading-space"),
+    pytest.param("1 ", id="trailing-space"),
+    pytest.param("1e0", id="exponent"),
+])
+def test_integer_counters_reject_non_digit_strings(key, value):
+    metrics = {"abort_counts_": "100", "commit_counts_": "900"}
+    metrics[key] = value
+    # Require lexical rejection; int("1.0") also raises ValueError after M11.
+    # A permissive int(float(value)) parser would accept these spellings.
+    with pytest.raises(ValueError, match=f"^{key} must be a decimal integer string$"):
+        benchparse.integer_abort_commit_counts(metrics)
 
 
 @pytest.mark.parametrize("mutation",["four","six","duplicate","missing","float","bool","negative","zero","nan","inf","nonpositive","mismatch","extra"])
