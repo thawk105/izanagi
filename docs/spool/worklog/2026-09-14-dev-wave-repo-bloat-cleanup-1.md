@@ -67,6 +67,21 @@ title: リポジトリ膨張を実測し、tracked file の削除確定が 0 件
   **親が同 argv を 3 連続実行した wall は 34.60 / 24.96 / 15.90 秒**で、30 秒の境界を跨いでいた
   (load average 68.35〜88.49)。F945 の 3 度目の観測として再発を追記し、恒久対応は変えず
   `DW-O18` に従って受入を再走した。**膨張が受入 gate を間欠的に壊す段階に来ていることの実測である。**
+- **受入は輻輳で通らず、5 回投げて赤の件数が投入時 load に追従した。** attempt 3 は load
+  117.02/93.60/83.51 で 7 error、attempt 4 は 73.62/61.12/65.59 で 1 error、attempt 5 は走行中に
+  147 まで急騰して 32 error。赤は毎回 `test_t1259_qsub_env_delivery_probe.py` (F945 の Git 未追跡
+  走査 30 秒 timeout) と `test_s8c_preregistration_predicates.py::test_repository_candidate_uses_real_s8c_budget_module`
+  (`real-repo lock deadline exceeded`、parent lock を write 待ちして junit の time で 245.0 秒、
+  READ holder 4 本以上と競合) の 2 族だけで、単独再走は毎回緑だった。
+  **1 走 23,300 件の受入を 10 本前後の wave が同時に回していることが輻輳の主因と考えるが、
+  負荷の内訳を owner 別に分離して測っていないので断定しない。** 投入を止め、
+  `1分 < 5分 < 15分` かつ `1分 <= 50` の窓を待ってから 1 回だけ投げる運用へ切り替えた。
+- **hold 登録は見送った。** `DW-O18` の「F 不在は登録せず裁定送り」に従った。s8c 族の既存 F は
+  `docs/failures.md` と `orchestrator/tests/flaky_test_holds.py` の両方で見つからず、t1259 族の
+  F945 は恒久対応として「timeout 拡大・fixture の stub 化・除外・汎用 gate の新設は行わない」と
+  明記している。**ただし D1347 と D1160 はいずれもユーザー裁定として、既存 F 不在でも
+  placeholder / content hash 付き fragment による hold 登録を許している。** 入口の字句が後続裁定
+  より狭いまま残っており、裁定境界に当たるので本 wave では実装せず裁定パッケージへ返した。
 - 段 2 に codex plan 1 本、段 3 に consult 2 本 (sol / luna) を使った。実装子は起動していない。
 
 ## 次の一手差分
