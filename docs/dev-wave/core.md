@@ -1,6 +1,6 @@
 # dev-wave 親段・計画 gate
 
-親が担う段、計画 gate、context 境界、停止条件の正本。
+親段・計画gate・context境界・停止条件の正本。
 
 ## DW-C00 — manager の範囲
 
@@ -14,7 +14,8 @@ review 子を省ける。実装面があれば段 5 の Codex 実装子と fix �
 親は直接編集しない。docs-only は子ゼロでよい。実測は省かず、全 9 段はユーザー明示時に使う。
 
 待ち手は 1 条件 1 本とし、通知ごとに作り直さず `tools/dev_wave_wait.py` を使う。生産者を止める
-とき待ち手も落とし、その死も待ち条件に含む。完了は`.done`非空で決める。
+とき待ち手も落とし、その死も待ち条件に含む。停止後`ps`全cmdlineで対象worktreeの
+0件実測後に投入。完了は`.done`非空で決める。
 
 ## DW-C01 — 実測で是正した作法
 
@@ -58,22 +59,22 @@ docs は一次資料と一致するまで根拠にしない（F1）。
 
 ## DW-G01 — 生死実験先行
 
-新しい探索軸・大型機構の本格実装前に、既存 driver か 100 行以内の使い捨て driver で
-最安の生死確認を行う。確認前の専用機構・LLM driver 構築は brief で却下する。
+新しい探索軸・大型機構の本格実装前に、既存driverか100行以内の使い捨てdriverで
+最安の生死確認をする。確認前の専用機構・LLM driver構築はbriefで却下する。
 
 ## DW-G02 — 初回 cycle 前 blocker の限定
 
-最初の E2E 1 cycle 前の hardening は、correctness 判定、selected/tie、数値、proof 参照、
-試行欠落を実際に変える欠陥だけ blocker とし、他は 1 cycle 後へ送る。
+最初のE2E 1 cycle前のhardeningは、correctness判定、selected/tie、数値、proof参照、
+試行欠落を実際に変える欠陥だけblockerとし、他は1 cycle後へ送る。
 
 ## DW-G03 — 族一般化には独立 2 例
 
-単発事故は局所修復か一回限りの migration を既定とする。族全体への制度一般化は、
-同型欠陥が異なる producer/consumer で独立に 2 件再現したときだけ許す。
+単発事故の既定は局所修復か一回限りのmigration。族全体への制度一般化は、
+同型欠陥が異なるproducer/consumerで独立に2件再現したときだけ許す。
 
 ## DW-G04 — 条件付き機能の発火 gate
 
-条件付き機能は、発火条件を満たす既存 artifact path か計測 ID を brief に書ける場合だけ実装する。
+条件付き機能は発火条件を満たす既存artifact pathか計測IDをbriefに書ける場合だけ実装し、
 書けなければ設計メモに留める。
 
 ## DW-G05 — 成果物影響

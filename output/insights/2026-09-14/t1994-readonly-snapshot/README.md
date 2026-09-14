@@ -152,3 +152,6 @@ skip・xfail・期待値の反転・機構の stub は行っていない。
 - `verbatim/rootview-login.json` / `rootview-compute-996091.json` — root view と実 CMake
 - `verbatim/capdrop-login.json` / `capdrop-compute-996103.json` — 是正案の 4 状態
 - `verbatim/seccomp-login.json` / `seccomp-compute-996101.json` — nested userns 禁止 filter
+- `verbatim/s8-budget-consult.md` — 段 8 の独立レンズ。親の「docs の byte 予算は削減で
+  捻出できないので上限を上げるしかない」という主張を、意味等価な 67 bytes を 6 箇所示して
+  反証した逐語。親はこれを採り、上限を上げずに収容した
