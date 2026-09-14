@@ -51,11 +51,6 @@ title: [T-1851] official 床値の許可表を resolver が選んだ protocol �
 
 ### 完了
 
-- [T-1851] 起動証明書の許可表を resolver が選んだ protocol の実 path へ束縛し直した。
-  受理する path は呼び手が渡した exact 1 件だけで、族ごとの受理はしない。凍結 23 件の bytes、
-  FORMULA_ID、凍結保留の全体は変えていない。
-  remaining: none
-  base: d76fc88c43199138583a09a863865a28b46800a9e802839613aa5b7bda5b4454
 - [T-1946] 試行台帳の proof chain 束縛は単位 A〜D2 で実装済みで、本 wave の許可表修正をもって
   同一 land 単位が揃った。
   remaining: none
@@ -65,11 +60,18 @@ title: [T-1851] official 床値の許可表を resolver が選んだ protocol �
   remaining: none
   base: a425a0ecf26dacbc7cacd87342f5bf3f1d24669c2b859f9675855912b3934507
 
+### 更新
+
+- [T-1851] **P1・項11 修正着地、実値域は未取得**: 起動証明書の許可表を resolver が選んだ protocol の
+  実 path へ束縛し直した。受理する path は呼び手が渡した exact 1 件だけで、族ごとの受理はしない。
+  凍結 23 件の bytes、FORMULA_ID、凍結保留の全体は変えていない。**official 床値 campaign は
+  投入していない。** 残るのは (a) C3c の実値域取得 — official 床値を投入し、契約 9 節が要求する
+  試行台帳側 gate の実値域を初めて供給する。凍結世代は 1 件も焼けていないので同じ世代で走らせられる。
+  (b) D1909 の後続版整理。
+  base: ef32c26c35f54e52ce306d35e1d73cdd76b061390cdd174835dfa563e3381736
+
 ### 新規
 
-- {{T:official-floor-range-run}} **P1・新規**: official 床値 campaign を投入し、契約 9 節が要求する
-  試行台帳側 gate の実値域を初めて供給する。本 wave で投入を塞いでいた許可表の取り違えは閉じた。
-  凍結世代は 1 件も焼けていないので同じ世代で走らせられる。
 - {{T:runbook-stale-acceptance-path}} **P2・新規**: `docs/pegasus-runbook.md` の受入節から、
   機構から外れた受理経路の記述を消す。`tools/check_acceptance_reds.py` は file として実在するが
   `tools/dev_wave_wait.py` からの参照は 0 件で、受入は `child-green` だけを受理する。
