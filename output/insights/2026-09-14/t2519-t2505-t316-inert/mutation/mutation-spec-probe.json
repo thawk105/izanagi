@@ -1,0 +1,50 @@
+{
+ "estimated_run_seconds": 90,
+ "hang_timeout_seconds": 1500,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M1",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+     "new": "    if False:  # T2519 mutation: drop the condition gate rejection entirely.\n",
+     "old": "    if not admission.admitted:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M2",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+     "new": "        \"stock-inert-root-location-only\",\n    ),\n    (\n        \"stock-inert-mismatch\",\n        \"stock-inert-root-location-only\",\n    ),\n})\n",
+     "old": "        \"stock-inert-root-location-only\",\n    ),\n})\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "M3",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+     "new": "        # T2519 mutation: drop the rejection diagnostics entirely.\n        raise rejection\n",
+     "old": "        try:\n            for arm, record in ((\"supply\", supply), (\"meaning\", meaning)):\n                detail = record.evidence.get(\"detail\")\n                print(\n                    f\"condition gate rejected t316 CCBench build: {arm} detail=\"\n                    f\"{detail if detail else '<no detail>'}\",\n                    file=sys.stderr,\n                )\n        except Exception as diagnostic_error:\n            # Preserve the rejection and retain the output failure for traceback audit.\n            # BaseException control signals must still propagate.\n            raise rejection from diagnostic_error\n        raise rejection\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1200
+}
