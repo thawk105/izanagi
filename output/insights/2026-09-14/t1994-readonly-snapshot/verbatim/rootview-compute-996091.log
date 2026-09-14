@@ -1,0 +1,29 @@
+[Pegasus dispatch] job を gen_S へ投入します (izdw-1e8a07c1ff)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1994-readonly-snapshot/output/pegasus-dispatch/orphan-holds/unknown-6dd1a988f95e363b6ea7e7c3.json
+[Pegasus dispatch] request ID 996091.nqsv を受理しました
+[Pegasus dispatch] request 996091.nqsv の状態: QUE
+[Pegasus dispatch] request 996091.nqsv の状態: RUN
+[Pegasus dispatch] request 996091.nqsv の状態: END
+[Pegasus dispatch] request 996091.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1994-readonly-snapshot/output/pegasus-dispatch/orphan-holds/unknown-6dd1a988f95e363b6ea7e7c3.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1994-readonly-snapshot/output/pegasus-dispatch/1e8a07c1ffd38b2a9b93c2bb23145a45/receipt.json へ保存しました (child rc=1)
+[Pegasus dispatch] request 996091.nqsv child stdout begin
+| {"overall": false, "checks": {"find_cmake": {"result": true, "errno": null}, "find_cc": {"result": true, "errno": null}, "nonroot_x86_64": {"result": true, "errno": null}, "source_A": {"result": true, "errno": null, "digest": "914dce350f99f06931eaf172e6ad1cbdf30c0e5d51f7c2f56a25fcc49aa2fdd9"}, "READY": {"result": true, "errno": null}, "late_staging_create": {"result": true, "errno": null}, "rename_source": {"result": true, "errno": null}, "rename_ancestor": {"result": true, "errno": null}, "unshare": {"result": true, "errno": null}, "setgroups": {"result": true, "errno": null}, "uid_map": {"result": true, "errno": null}, "gid_map": {"result": true, "errno": null}, "private": {"result": true, "errno": null}, "root_view_tmpfs": {"result": true, "errno": null}, "share_base": {"result": true, "errno": null}, "share_cache": {"result": true, "errno": null}, "source_tmpfs": {"result": true, "errno": null}, "seal": {"result": true, "errno": null}, "sealed_digest": {"result": true, "errno": null}, "GO": {"result": true, "errno": null}, "late_staging_marker": {"result": true, "errno": null}, "parent_mutated": {"result": true, "errno": null}, "dependency_chmod_shared": {"result": true, "errno": null}, "dependency_write": {"result": false, "errno": null}, "configure": {"result": true, "errno": null}, "build": {"result": true, "errno": null}, "artifact_inodes": {"result": true, "errno": null, "files": {"CMakeCache.txt": [66311, 15967], "probe": [66311, 15985], "CMakeFiles/probe.dir/main.c.o.d": [66311, 402659178]}}, "binary_A": {"result": true, "errno": null}, "chmod": {"result": true, "errno": 30, "error": "[Errno 30] Read-only file system: '/tmp/t1994-rootview-vvqaoo1y/ancestor/source/main.c'"}, "write": {"result": true, "errno": 30, "error": "[Errno 30] Read-only file system: '/tmp/t1994-rootview-vvqaoo1y/ancestor/source/main.c'"}, "read_A": {"result": true, "errno": null}, "base_writable": {"result": true, "errno": null}, "unmount_ancestor/source": {"result": true, "errno": null}, "unmount_cache": {"result": true, "errno": null}, "unmount_base": {"result": true, "errno": null}, "unmount_.": {"result": true, "errno": null}, "child_exit": {"result": false, "errno": null}, "parent_reads_marker": {"result": true, "errno": null}, "parent_reads_child-marker": {"result": true, "errno": null}, "parent_reads_CMakeCache.txt": {"result": true, "errno": null}, "parent_reads_probe": {"result": true, "errno": null}, "parent_depfiles": {"result": true, "errno": null}, "parent_same_inodes": {"result": true, "errno": null}, "base_shared": {"result": true, "errno": null}, "parent_namespaces_unchanged": {"result": true, "errno": null}, "cleanup": {"result": true, "errno": null}}, "environment": {"kernel": "5.15.0-173-generic", "hostname": "bnode067", "uid": 31609, "TMPDIR": null, "tempfile_root": "/tmp", "cmake": {"path": "/usr/bin/cmake", "version": "cmake version 3.22.1"}, "cc": {"path": "/usr/bin/x86_64-linux-gnu-gcc-11", "version": "cc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"}}}
+[Pegasus dispatch] request 996091.nqsv child stdout end
+[Pegasus dispatch] request 996091.nqsv child stderr begin
+| 
+| ============================================================
+| Request ID:             996091.nqsv
+| Request Name:           izdw-1e8a07c1ff
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Mon Sep 14 04:13:18 2026
+| Started Request Time:   Mon Sep 14 04:13:26 2026
+| Ended Request Time:     Mon Sep 14 04:13:26 2026
+| Resources Information:
+|   Elapse:               4S
+|   Remaining Elapse:     896S
+| ============================================================
+[Pegasus dispatch] request 996091.nqsv child stderr end

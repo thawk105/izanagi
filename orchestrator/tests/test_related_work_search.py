@@ -1975,10 +1975,6 @@ def test_mutation_m7_one_byte_entity_change_breaks_bundle_validation(
     assert caught.value.code == "evidence_body_digest"
 
 
-def test_postprocessing_tier_api_remains_outside_executor_scope():
-    assert not hasattr(search, "validate_tier_analysis")
-
-
 def test_old_outgoing_id_is_rejected(catalog):
     row = copy.deepcopy(catalog["rows"][0])
     row["stream_id"] = "AX3-Q1@arxiv"

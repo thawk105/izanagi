@@ -58,7 +58,7 @@ def _portable_build_record(
     tag: str,
     genome_canonical: str | None = None,
 ) -> dict[str, object]:
-    """実 s8b-binary-admission/v2 reader を通る最小 portable record。"""
+    """実 s8b-binary-admission/v3 reader を通る最小 portable record。"""
     admission_module = F.s8b_binary_admission
     genome = (
         json.dumps({"fixture": tag}, sort_keys=True, separators=(",", ":"))
@@ -135,6 +135,13 @@ def _portable_build_record(
         "proof": {
             "compiler_input_manifest": compiler_input,
             "materialization_binding": binding,
+            "source_protection": {
+                "kind": "sealed-build",
+                "source_snapshot_sha256": materialization_sha256,
+                "expected_materialization_sha256": materialization_sha256,
+                "binary_sha256": binary_sha256,
+                "compiler_input_manifest_sha256": compiler_input_sha256,
+            },
         },
     }
     receipt["receipt_sha256"] = _map_sha256(receipt, ensure_ascii=True)
@@ -1339,23 +1346,32 @@ def test_mutation_11_hmac_rank_has_multiple_pair_sample_golden_order(
         Path("spec.json"), hashlib.sha256(raw).hexdigest(), repo_root=tmp_path
     )
     plan = F.make_measurement_plan(spec)
+    # Independently derived from the v3 receipt bytes: spec SHA-256
+    # b1262edcd70aba9ac122ae31bba5f919aabc6616c2d9db4c7f728a2ed46dfa6a.
+    # HMAC-SHA256 key = bytes.fromhex("01" * 32); fields are UTF-8 text
+    # separated by NUL. Prefix = (schema, spec SHA, "window-a", pair, sample).
+    # Ascending ranks with suffix "sample": a0=3a51f851, b1=52eec135,
+    # b0=55f47d50, a1=6a93e4d9. Within each sample, rank sides with
+    # ("side-session", side), then roles with
+    # ("in-session-measurement", side, role). No production rank helper
+    # was used to derive these session IDs or measurement-role goldens.
     assert [session.session_id for session in plan.sessions] == [
         "window-a.pair-a.s000000.candidate_1",
         "window-a.pair-a.s000000.candidate_2",
         "window-a.pair-b.s000001.candidate_2",
         "window-a.pair-b.s000001.candidate_1",
+        "window-a.pair-b.s000000.candidate_2",
+        "window-a.pair-b.s000000.candidate_1",
         "window-a.pair-a.s000001.candidate_1",
         "window-a.pair-a.s000001.candidate_2",
-        "window-a.pair-b.s000000.candidate_1",
-        "window-a.pair-b.s000000.candidate_2",
     ]
     expected_measurement_roles = [
         ("reference", "candidate"),
         ("reference", "candidate"),
-        ("candidate", "reference"),
         ("reference", "candidate"),
         ("candidate", "reference"),
-        ("candidate", "reference"),
+        ("reference", "candidate"),
+        ("reference", "candidate"),
         ("reference", "candidate"),
         ("reference", "candidate"),
     ]

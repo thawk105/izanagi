@@ -776,6 +776,95 @@ def test_allocator_k3_places_three_exclusive_groups_on_distinct_shards():
     }) == 3
 
 
+def _write_allocator_ledger(monkeypatch, tmp_path, durations):
+    path = tmp_path / "durations.json"
+    path.write_text(json.dumps({
+        "schema_version": 1,
+        "unit": "seconds",
+        "nodeid_count": len(durations),
+        "duration_seconds_by_nodeid": durations,
+    }), encoding="utf-8")
+    monkeypatch.setattr(SH, "_DURATION_LEDGER_PATH", path)
+
+
+def test_allocator_duration_weights_reduce_count_balanced_skew(monkeypatch, tmp_path):
+    records = tuple(SH.ItemRecord(f"{name}.py::test_1", f"{name}.py")
+                    for name in "abcdef")
+    durations = {record.nodeid: seconds for record, seconds in
+                 zip(records, (100.0, 1.0, 1.0, 100.0, 1.0, 1.0))}
+    _write_allocator_ledger(monkeypatch, tmp_path,
+                            {record.nodeid: 1.0 for record in records})
+    count_assignment = SH.allocate(records, 3)
+    assert [len(nodes) for nodes in count_assignment.selected] == [2, 2, 2]
+    count_costs = [sum(durations[node] for node in nodes)
+                   for nodes in count_assignment.selected]
+    assert sorted(count_costs) == [2.0, 2.0, 200.0]
+
+    _write_allocator_ledger(monkeypatch, tmp_path, durations)
+    duration_assignment = SH.allocate(records, 3)
+    duration_costs = [sum(durations[node] for node in nodes)
+                      for nodes in duration_assignment.selected]
+    assert sorted(duration_costs) == [4.0, 100.0, 100.0]
+    assert max(duration_costs) - min(duration_costs) < max(count_costs) - min(count_costs)
+    assert duration_assignment.loads == tuple(duration_costs)
+
+
+def test_allocator_missing_nodeids_each_cost_one_second(monkeypatch, tmp_path):
+    records = (
+        SH.ItemRecord("new.py::test_1", "new.py"),
+        SH.ItemRecord("new.py::test_2", "new.py"),
+        SH.ItemRecord("known.py::test_1", "known.py"),
+    )
+    _write_allocator_ledger(monkeypatch, tmp_path, {"known.py::test_1": 0.25})
+    assignment = SH.allocate(records, 2)
+    weights = {tuple(component["files"]): component["weight"]
+               for component in assignment.components}
+    assert weights == {("new.py",): 2.0, ("known.py",): 0.25}
+    assert sorted(assignment.loads) == [0.25, 2.0]
+
+
+def test_allocator_uses_matching_historical_group_duration(monkeypatch, tmp_path):
+    records = (
+        SH.ItemRecord("a.py::test_1", "a.py", "real-repo"),
+        SH.ItemRecord("b.py::test_1", "b.py", "other"),
+    )
+    _write_allocator_ledger(monkeypatch, tmp_path, {
+        "a.py::test_1@real-repo": 12.5,
+        "b.py::test_1@real-repo": 99.0,
+    })
+    assignment = SH.allocate(records, 2)
+    assert sorted(assignment.loads) == [1.0, 12.5]
+
+
+def test_allocator_canonical_duration_precedes_historical_key(monkeypatch, tmp_path):
+    records = (
+        SH.ItemRecord("a.py::test_1", "a.py", "real-repo"),
+        SH.ItemRecord("b.py::test_1", "b.py"),
+    )
+    _write_allocator_ledger(monkeypatch, tmp_path, {
+        "a.py::test_1": 0.25,
+        "a.py::test_1@real-repo": 99.0,
+    })
+    assert sorted(SH.allocate(records, 2).loads) == [0.25, 1.0]
+
+
+def test_allocator_duration_weights_preserve_components_and_partition(monkeypatch, tmp_path):
+    records = _records() + (
+        SH.ItemRecord("extra.py::test_1", "extra.py", "group-a"),
+    )
+    _write_allocator_ledger(monkeypatch, tmp_path,
+                            {records[0].nodeid: 100.0})
+    for k in (2, 3):
+        assignment = SH.allocate(records, k)
+        flattened = [node for nodes in assignment.selected for node in nodes]
+        assert sorted(flattened) == sorted(record.nodeid for record in records)
+        assert len(flattened) == len(set(flattened))
+        assert SH.assignment_closure_gate(records, assignment.selected)
+        for component in SH._components(records):
+            assert sum(set(component["nodeids"]).issubset(nodes)
+                       for nodes in assignment.selected) == 1
+
+
 def test_loadgroup_suffix_is_removed_only_for_matching_observed_group():
     base = "orchestrator/tests/test_a.py::test_a1"
     groups = {base: "group-a"}

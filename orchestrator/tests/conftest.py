@@ -861,6 +861,10 @@ _ORACLE_ENVIRONMENT_MEMO_NONCE_ACTIVE_ATTR = (
 _ORACLE_ENVIRONMENT_MEMO_ENV_UNSET = object()
 
 
+# Each barrier job marks actual work only after all skip/identity checks.
+_MEMO_PREWARM_TIMING = threading.local()
+
+
 def _prewarm_receipt_memo(config, nodeids, *, run_id: str | None) -> None:
     """consumer がある controller/serial collection だけを一度 prewarm する。"""
     # pytest_collection_finish の外側 guard と意図的に冗長な defense-in-depth。
@@ -881,6 +885,7 @@ def _prewarm_receipt_memo(config, nodeids, *, run_id: str | None) -> None:
     session_id = getattr(config, _RECEIPT_MEMO_SESSION_ID_ATTR, None)
     if session_id is None:
         raise pytest.UsageError("receipt memo prewarm に pytest session ID が無い")
+    _MEMO_PREWARM_TIMING.started = time.monotonic()
     memo_module = _receipt_memo_module()
     try:
         with _real_repo_locks(RealRepoAccess("read", None)):
@@ -939,6 +944,7 @@ def _prewarm_oracle_environment_memo(config, nodeids, *, run_id: str | None) -> 
         raise pytest.UsageError(
             "oracle environment memo prewarm に pytest session ID が無い"
         )
+    _MEMO_PREWARM_TIMING.started = time.monotonic()
     memo_module = _oracle_environment_memo_module()
     try:
         with _real_repo_locks(RealRepoAccess("read", None)):
@@ -2225,23 +2231,79 @@ def pytest_runtest_protocol(item, nextitem):
             return (yield)
 
 
+def _run_memo_prewarm_barrier(receipt, oracle, *, hook: str) -> None:
+    """Join both non-daemon jobs before returning or propagating either failure."""
+    durations = [None, None]
+    errors = [None, None]
+
+    def timed(index, prewarm):
+        _MEMO_PREWARM_TIMING.started = None
+        try:
+            prewarm()
+        except BaseException as exc:
+            errors[index] = exc
+        finally:
+            started = _MEMO_PREWARM_TIMING.started
+            if started is not None:
+                durations[index] = time.monotonic() - started
+
+    started = time.monotonic()
+    threads = [
+        threading.Thread(target=timed, args=(0, receipt), daemon=False),
+        threading.Thread(target=timed, args=(1, oracle), daemon=False),
+    ]
+    started_threads = []
+    try:
+        for thread in threads:
+            thread.start()
+            started_threads.append(thread)
+    finally:
+        for thread in started_threads:
+            thread.join()
+    elapsed = time.monotonic() - started
+    if any(duration is not None for duration in durations):
+        print(
+            "IZANAGI_MEMO_PREWARM_V1 " + json.dumps({
+                "hook": hook,
+                "receipt_memo_s": durations[0],
+                "oracle_environment_memo_s": durations[1],
+                "barrier_s": elapsed,
+            }, ensure_ascii=True, separators=(",", ":"), sort_keys=True),
+            file=sys.stderr,
+            flush=True,
+        )
+    receipt_error, oracle_error = errors
+    if receipt_error is not None:
+        if oracle_error is not None:
+            # Explicit chaining retains both tracebacks; receipt is primary.
+            raise receipt_error from oracle_error
+        raise receipt_error
+    if oracle_error is not None:
+        raise oracle_error
+
+
 @pytest.hookimpl(tryfirst=True)
 def pytest_collection_finish(session) -> None:
     """Prewarm process memos and collect optional task-run stats."""
     # xdist worker もこの hook を通る。内側 helper guard と意図的に冗長な
     # defense-in-depth で、実解決を controller hook だけに限定する。
-    if not hasattr(session.config, "workerinput"):
-        _prewarm_receipt_memo(
-            session.config,
-            (_real_repo_node_id(item) for item in session.items),
-            run_id=None,
-        )
-    if not hasattr(session.config, "workerinput"):
-        _prewarm_oracle_environment_memo(
-            session.config,
-            (_real_repo_node_id(item) for item in session.items),
-            run_id=None,
-        )
+    def receipt():
+        if not hasattr(session.config, "workerinput"):
+            _prewarm_receipt_memo(
+                session.config,
+                (_real_repo_node_id(item) for item in session.items),
+                run_id=None,
+            )
+
+    def oracle():
+        if not hasattr(session.config, "workerinput"):
+            _prewarm_oracle_environment_memo(
+                session.config,
+                (_real_repo_node_id(item) for item in session.items),
+                run_id=None,
+            )
+
+    _run_memo_prewarm_barrier(receipt, oracle, hook="collection_finish")
     if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
         return
     try:
@@ -2311,40 +2373,47 @@ def pytest_xdist_node_collection_finished(node, ids) -> None:
                 node.config,
                 getattr(node.config, _FLAKY_HOLD_MATCHED_IDS_ATTR, ()),
             )
-    if (
-        not hasattr(node.config, "workerinput")
-        and _receipt_memo_prewarm_prerequisites(node.config, ids)
-    ):
-        run_id_available = True
-        try:
-            run_id = getattr(node, "workerinput", {}).get("testrunuid")
-            if run_id is None:
-                run_id = node.config.getoption("testrunuid", None)
-        except Exception:
-            run_id = None
-            run_id_available = False
-        if run_id_available and run_id is None:
-            raise pytest.UsageError("xdist receipt memo consumer に testrunuid が無い")
-        if run_id_available:
-            _prewarm_receipt_memo(node.config, ids, run_id=run_id)
-    if (
-        not hasattr(node.config, "workerinput")
-        and _oracle_environment_memo_prewarm_prerequisites(node.config, ids)
-    ):
-        run_id_available = True
-        try:
-            run_id = getattr(node, "workerinput", {}).get("testrunuid")
-            if run_id is None:
-                run_id = node.config.getoption("testrunuid", None)
-        except Exception:
-            run_id = None
-            run_id_available = False
-        if run_id_available and run_id is None:
-            raise pytest.UsageError(
-                "xdist oracle environment memo consumer に testrunuid が無い"
-            )
-        if run_id_available:
-            _prewarm_oracle_environment_memo(node.config, ids, run_id=run_id)
+    def receipt():
+        if (
+            not hasattr(node.config, "workerinput")
+            and _receipt_memo_prewarm_prerequisites(node.config, ids)
+        ):
+            run_id_available = True
+            try:
+                run_id = getattr(node, "workerinput", {}).get("testrunuid")
+                if run_id is None:
+                    run_id = node.config.getoption("testrunuid", None)
+            except Exception:
+                run_id = None
+                run_id_available = False
+            if run_id_available and run_id is None:
+                raise pytest.UsageError("xdist receipt memo consumer に testrunuid が無い")
+            if run_id_available:
+                _prewarm_receipt_memo(node.config, ids, run_id=run_id)
+
+    def oracle():
+        if (
+            not hasattr(node.config, "workerinput")
+            and _oracle_environment_memo_prewarm_prerequisites(node.config, ids)
+        ):
+            run_id_available = True
+            try:
+                run_id = getattr(node, "workerinput", {}).get("testrunuid")
+                if run_id is None:
+                    run_id = node.config.getoption("testrunuid", None)
+            except Exception:
+                run_id = None
+                run_id_available = False
+            if run_id_available and run_id is None:
+                raise pytest.UsageError(
+                    "xdist oracle environment memo consumer に testrunuid が無い"
+                )
+            if run_id_available:
+                _prewarm_oracle_environment_memo(node.config, ids, run_id=run_id)
+
+    _run_memo_prewarm_barrier(
+        receipt, oracle, hook="xdist_node_collection_finished",
+    )
     if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
         return
     try:
