@@ -1,0 +1,17 @@
+condition gate rejected t316 CCBench build: supply detail=successful process wrote stderr=b'CMake Warning:\n  Manually-specified variables were not used by the project:\n\n    CCBENCH_BACKOFF_FIXED\n    IZANAGI_GFLAGS_SRC_HEAD\n    IZANAGI_GLOG_SRC_HEAD\n    RULE_LAUNCH_COMPILE\n\n\n'; argv=/usr/bin/cmake -S /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2519-t2505-t316-inert/external/ccbench -B /tmp/izanagi_condition_supply_gh4nt2dh/requested -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11 -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCCBENCH_TRACE=0 -DCCBENCH_BACK_OFF=0 -DCCBENCH_NO_WAIT_LOCKING_IN_...<argv truncated; limit=500 bytes; original=1202 bytes; sha256=acb67b71c0ee05ae535d04f057aed96b5340bb10d891c1719e739baa7e6364de>
+condition gate rejected t316 CCBench build: meaning detail=<no detail>
+
+============================================================
+Request ID:             996829.nqsv
+Request Name:           izdw-t316b
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Mon Sep 14 11:42:33 2026
+Started Request Time:   Mon Sep 14 11:42:41 2026
+Ended Request Time:     Mon Sep 14 11:43:07 2026
+Resources Information:
+  Elapse:               31S
+  Remaining Elapse:     5369S
+============================================================
