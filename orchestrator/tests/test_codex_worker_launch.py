@@ -1127,6 +1127,7 @@ def _run_launcher_subprocess(
     env: dict[str, str],
     paths: dict[str, Path],
     expected_returncode: int,
+    timeout: float = 10.0,
 ) -> subprocess.CompletedProcess[str]:
     try:
         completed = subprocess.run(
@@ -1135,7 +1136,7 @@ def _run_launcher_subprocess(
             text=True,
             errors="backslashreplace",
             capture_output=True,
-            timeout=10,
+            timeout=timeout,
         )
     except subprocess.TimeoutExpired as exc:
         _assert_launcher_returncode(
@@ -1153,10 +1154,11 @@ def _communicate_launcher(
     *,
     paths: dict[str, Path],
     expected_returncode: int,
+    timeout: float = 10.0,
     label: str,
 ) -> tuple[str, str]:
     try:
-        stdout, stderr = process.communicate(timeout=10)
+        stdout, stderr = process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired as exc:
         _assert_launcher_returncode(exc, expected_returncode, paths=paths, label=label)
         raise AssertionError("unreachable")
@@ -1563,7 +1565,12 @@ elif mode == "setsid_escape":
     child_sleep(escaped=True)
     time.sleep(0.05)
 elif mode == "manifest_while_running":
-    time.sleep(0.5)
+    release = pid_dir / "manifest-while-running.release"
+    deadline = time.monotonic() + 30
+    while not release.exists():
+        if time.monotonic() >= deadline:
+            raise SystemExit(65)
+        time.sleep(0.01)
 elif mode == "id_change_wait":
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
     time.sleep(30)
@@ -1700,6 +1707,7 @@ def _run_case(
     mode: str,
     *,
     expected_returncode: int,
+    timeout: float = 10.0,
     fake_sequence: str | None = None,
     **kwargs: Any,
 ) -> tuple[subprocess.CompletedProcess[str], dict[str, Any] | None, dict[str, Path]]:
@@ -1713,6 +1721,7 @@ def _run_case(
         env=env,
         paths=paths,
         expected_returncode=expected_returncode,
+        timeout=timeout,
     )
     receipt = (
         json.loads(paths["receipt"].read_text(encoding="utf-8"))
@@ -2781,7 +2790,10 @@ def test_launcher_failure_diagnostic_reports_nonzero_codex_exit_code(
     tmp_path: Path,
 ) -> None:
     with pytest.raises(LauncherReturncodeMismatch) as caught:
-        _run_case(tmp_path, "child_error", expected_returncode=99)
+        _run_case(
+            tmp_path, "child_error", expected_returncode=99,
+            max_wall="30", timeout=60.0,
+        )
 
     message = str(caught.value)
     assert "codex_exit_code=7" in message
@@ -2803,7 +2815,10 @@ def test_launcher_failure_diagnostic_reports_incomplete_evidence(
     tmp_path: Path,
 ) -> None:
     with pytest.raises(LauncherReturncodeMismatch) as caught:
-        _run_case(tmp_path, "no_rollout", expected_returncode=99, max_wall="11")
+        _run_case(
+            tmp_path, "no_rollout", expected_returncode=99,
+            max_wall="30", timeout=60.0,
+        )
 
     message = str(caught.value)
     assert "evidence_status='missing'" in message
@@ -2929,14 +2944,15 @@ def test_launcher_failure_diagnostic_is_wired_to_the_returncode_assertion(
     subprocess_root.mkdir()
     with pytest.raises(LauncherReturncodeMismatch) as run_case:
         _run_case(
-            subprocess_root, "normal", expected_returncode=99, max_wall="11"
+            subprocess_root, "normal", expected_returncode=99,
+            max_wall="30", timeout=60.0,
         )
 
     popen_root = tmp_path / "direct-popen"
     popen_root.mkdir()
     fake = _write_fake_codex(popen_root / "fake-codex")
     command, env, paths = _base_command(
-        popen_root, fake=fake, max_wall="11"
+        popen_root, fake=fake, max_wall="30"
     )
     env["FAKE_MODE"] = "normal"
     process = subprocess.Popen(
@@ -2950,6 +2966,7 @@ def test_launcher_failure_diagnostic_is_wired_to_the_returncode_assertion(
     with pytest.raises(LauncherReturncodeMismatch) as direct_popen:
         _communicate_launcher(
             process,
+            timeout=60.0,
             paths=paths,
             expected_returncode=99,
             label="direct-popen sentinel",
@@ -2959,7 +2976,7 @@ def test_launcher_failure_diagnostic_is_wired_to_the_returncode_assertion(
     in_process_root.mkdir()
     in_process_fake = _write_fake_codex(in_process_root / "fake-codex")
     in_process_command, in_process_env, in_process_paths = _base_command(
-        in_process_root, fake=in_process_fake, max_wall="11"
+        in_process_root, fake=in_process_fake, max_wall="30"
     )
     in_process_env["FAKE_MODE"] = "normal"
     with pytest.raises(LauncherReturncodeMismatch) as in_process:
@@ -3177,7 +3194,7 @@ def test_launcher_failure_diagnostic_preserves_last_of_many_large_attempts(
 
 def test_positive_p1_normal_job_is_accepted(tmp_path: Path) -> None:
     completed, receipt, paths = _run_case(
-        tmp_path, "normal", expected_returncode=0
+        tmp_path, "normal", max_wall="30", timeout=60.0, expected_returncode=0
     )
 
     assert receipt is not None
@@ -3250,8 +3267,9 @@ def test_f43_heading_missing_is_classified(tmp_path: Path) -> None:
     _completed, receipt, _paths = _run_case(
         tmp_path,
         "heading_missing",
+        timeout=60.0,
         expected_returncode=1,
-        max_wall="10",
+        max_wall="30",
         evidence_grace="3",
     )
     assert receipt is not None
@@ -3397,8 +3415,9 @@ def test_failure_class_enum_and_receipt_recomputation_are_closed(
     _completed, receipt, paths = _run_case(
         tmp_path,
         "retry_reject",
+        timeout=60.0,
         expected_returncode=1,
-        max_wall="10",
+        max_wall="30",
         evidence_grace="3",
     )
     assert receipt is not None
@@ -3409,7 +3428,7 @@ def test_failure_class_enum_and_receipt_recomputation_are_closed(
         json.dumps(receipt, separators=(",", ":")) + "\n", encoding="utf-8"
     )
     invalid = subprocess.run(
-        _check_command(paths), text=True, capture_output=True, timeout=10
+        _check_command(paths), text=True, capture_output=True, timeout=60.0
     )
     assert invalid.returncode == 2
 
@@ -3418,7 +3437,7 @@ def test_failure_class_enum_and_receipt_recomputation_are_closed(
         json.dumps(receipt, separators=(",", ":")) + "\n", encoding="utf-8"
     )
     forged = subprocess.run(
-        _check_command(paths), text=True, capture_output=True, timeout=10
+        _check_command(paths), text=True, capture_output=True, timeout=60.0
     )
     assert forged.returncode == 2
     assert "failure_class" in forged.stderr
@@ -3428,7 +3447,7 @@ def test_failure_class_enum_and_receipt_recomputation_are_closed(
         json.dumps(receipt, separators=(",", ":")) + "\n", encoding="utf-8"
     )
     missing = subprocess.run(
-        _check_command(paths), text=True, capture_output=True, timeout=10
+        _check_command(paths), text=True, capture_output=True, timeout=60.0
     )
     assert missing.returncode == 2
 
@@ -3437,8 +3456,9 @@ def test_failure_class_enum_and_receipt_recomputation_are_closed(
     _completed, _accepted_receipt, accepted_paths = _run_case(
         accepted_root,
         "normal",
+        timeout=60.0,
         expected_returncode=0,
-        max_wall="10",
+        max_wall="30",
         evidence_grace="3",
     )
     assert _accepted_receipt is not None
@@ -4154,6 +4174,7 @@ def test_authority_bound_job_rejects_prior_invalid_attempt(
     fake = _write_fake_codex(tmp_path / "fake-codex")
     command, env, paths = _base_command(
         tmp_path,
+        max_wall="30",
         fake=fake,
         stage="review",
         max_attempts=2,
@@ -4161,7 +4182,7 @@ def test_authority_bound_job_rejects_prior_invalid_attempt(
     )
     env["FAKE_SEQUENCE"] = "payload_decoy,normal"
     _run_launcher_subprocess(
-        command, env=env, paths=paths, expected_returncode=1
+        command, timeout=60.0, env=env, paths=paths, expected_returncode=1
     )
     receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
     assert [item["evidence_status"] for item in receipt["attempts"]] == [
@@ -4185,6 +4206,7 @@ def test_all_v3_stages_reject_prior_invalid_attempt(
     fake = _write_fake_codex(tmp_path / "fake-codex")
     command, env, paths = _base_command(
         tmp_path,
+        max_wall="30",
         fake=fake,
         stage=stage,
         lane=lane,
@@ -4193,7 +4215,7 @@ def test_all_v3_stages_reject_prior_invalid_attempt(
     )
     env["FAKE_SEQUENCE"] = "payload_decoy,normal"
     _run_launcher_subprocess(
-        command, env=env, paths=paths, expected_returncode=1
+        command, timeout=60.0, env=env, paths=paths, expected_returncode=1
     )
     receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
     assert [item["evidence_status"] for item in receipt["attempts"]] == [
@@ -4211,6 +4233,7 @@ def test_checker_rejects_v3_acceptance_with_prior_invalid_attempt(
     fake = _write_fake_codex(tmp_path / "fake-codex")
     command, env, paths = _base_command(
         tmp_path,
+        max_wall="30",
         fake=fake,
         stage="author",
         max_attempts=2,
@@ -4218,7 +4241,7 @@ def test_checker_rejects_v3_acceptance_with_prior_invalid_attempt(
     )
     env["FAKE_SEQUENCE"] = "payload_decoy,normal"
     _run_launcher_subprocess(
-        command, env=env, paths=paths, expected_returncode=1
+        command, timeout=60.0, env=env, paths=paths, expected_returncode=1
     )
     receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
     final_attempt = receipt["attempts"][-1]
@@ -4236,7 +4259,7 @@ def test_checker_rejects_v3_acceptance_with_prior_invalid_attempt(
     )
 
     checked = subprocess.run(
-        _check_command(paths), text=True, capture_output=True, timeout=10
+        _check_command(paths), text=True, capture_output=True, timeout=60.0
     )
     assert checked.returncode == 2
     assert "truth table" in checked.stderr
@@ -5180,11 +5203,11 @@ def test_cumulative_limits_do_not_reset_between_attempts(
         max_attempts=2,
         max_calls=2,
         max_tokens=100000,
-        max_wall="11",
+        max_wall="30",
     )
     env["FAKE_SEQUENCE"] = "retry_reject,retry_wait"
     completed = _run_launcher_subprocess(
-        command, env=env, paths=paths, expected_returncode=1
+        command, timeout=60.0, env=env, paths=paths, expected_returncode=1
     )
     receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
 
@@ -5234,11 +5257,11 @@ def test_max_attempts_never_spawns_extra_attempt(tmp_path: Path) -> None:
         max_attempts=2,
         max_calls=100,
         max_tokens=100000,
-        max_wall="11",
+        max_wall="30",
     )
     env["FAKE_MODE"] = "retry_reject"
     completed = _run_launcher_subprocess(
-        command, env=env, paths=paths, expected_returncode=1
+        command, timeout=60.0, env=env, paths=paths, expected_returncode=1
     )
     receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
 
@@ -5961,17 +5984,18 @@ def test_manifest_lock_covers_load_replace_critical_section(
         original_flock(fd, operation)
 
     def wait_for_coordination(reason: str) -> str:
-        # Two seconds matches the existing wait/join watchdogs and only bounds
-        # failure recovery; it is not a scheduling expectation.
+        # These 30-second watchdogs bound failure recovery, not expected order.
+        # Match the local fixture budget: 11 * 2 * 1.25 = 27.5, rounded up
+        # to 30 seconds; this is design headroom, not a measured percentile.
         try:
-            return coordination.get(timeout=2)
+            return coordination.get(timeout=30)
         except queue.Empty:
             pytest.fail(f"timed out waiting for {reason}", pytrace=False)
 
     def first_hook() -> None:
         causal_trace.append("first-critical-enter")
         first_inside.set()
-        assert release_first.wait(2), (
+        assert release_first.wait(30), (
             "job-a timed out waiting for the manifest conflict probe to finish"
         )
         causal_trace.append("first-critical-exit")
@@ -6027,7 +6051,7 @@ def test_manifest_lock_covers_load_replace_critical_section(
     )
     monkeypatch.setattr(LAUNCHER.fcntl, "flock", observe_flock)
     first.start()
-    assert first_inside.wait(2), "job-a did not enter the manifest critical section"
+    assert first_inside.wait(30), "job-a did not enter the manifest critical section"
     second.start()
     assert wait_for_coordination(
         "job-b manifest fd to observe a real lock conflict"
@@ -6047,8 +6071,8 @@ def test_manifest_lock_covers_load_replace_critical_section(
     assert not second_inside.is_set()
     assert not second_done.is_set()
     release_first.set()
-    first.join(2)
-    second.join(2)
+    first.join(30)
+    second.join(30)
 
     assert not first.is_alive(), "job-a did not leave the manifest critical section"
     assert not second.is_alive(), "job-b did not finish after the manifest lock release"
@@ -6363,13 +6387,14 @@ def test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics(
     tmp_path: Path,
     legacy_field_set: bool,
 ) -> None:
+    watchdog = 60.0 if legacy_field_set else 10.0
     completed, receipt, paths = _run_case(
-        tmp_path, "normal", expected_returncode=0, max_wall="100"
+        tmp_path, "normal", timeout=watchdog, expected_returncode=0, max_wall="100"
     )
     assert receipt is not None
-    # 互換テストの admission 上限は判定の律速にせず、全 node 共通の
-    # launcher subprocess watchdog だけを律速にする。
-    assert receipt["limits"]["wall_clock_admission_bound_s"] > 10
+    # 互換テストの admission 上限は判定の律速にせず、この node の
+    # 明示的な launcher subprocess watchdog だけを律速にする。
+    assert receipt["limits"]["wall_clock_admission_bound_s"] > watchdog
     receipt = _write_legacy_v2_evidence(receipt, paths)
     receipt["limits"].pop("preparation_admission_bound_s")
     receipt["limits"].pop("finalization_admission_bound_s")
@@ -6392,7 +6417,7 @@ def test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics(
     )
 
     checked = subprocess.run(
-        _check_command(paths), text=True, capture_output=True, timeout=10
+        _check_command(paths), text=True, capture_output=True, timeout=watchdog
     )
     assert checked.returncode == 0, checked.stderr
     diagnostics = json.loads(checked.stdout)
@@ -6416,13 +6441,14 @@ def test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics(
 def test_check_receipt_reads_v2_parent_attempt_field_sets_without_upgrade(
     tmp_path: Path, include_failure_class: bool,
 ) -> None:
+    watchdog = 10.0 if include_failure_class else 60.0
     completed, receipt, paths = _run_case(
-        tmp_path, "normal", expected_returncode=0, max_wall="100"
+        tmp_path, "normal", timeout=watchdog, expected_returncode=0, max_wall="100"
     )
     assert receipt is not None
-    # 互換テストの admission 上限は判定の律速にせず、全 node 共通の
-    # launcher subprocess watchdog だけを律速にする。
-    assert receipt["limits"]["wall_clock_admission_bound_s"] > 10
+    # 互換テストの admission 上限は判定の律速にせず、この node の
+    # 明示的な launcher subprocess watchdog だけを律速にする。
+    assert receipt["limits"]["wall_clock_admission_bound_s"] > watchdog
     receipt_v2 = _write_legacy_v2_evidence(
         receipt,
         paths,
@@ -6439,7 +6465,7 @@ def test_check_receipt_reads_v2_parent_attempt_field_sets_without_upgrade(
     before = paths["receipt"].read_bytes()
 
     checked = subprocess.run(
-        _check_command(paths), text=True, capture_output=True, timeout=10
+        _check_command(paths), text=True, capture_output=True, timeout=watchdog
     )
 
     assert checked.returncode == 0, checked.stderr
@@ -6500,13 +6526,14 @@ def test_check_receipt_enforces_v2_wall_clock_admission_boundary(
 def test_check_receipt_reads_v3_parent_attempt_field_sets_without_upgrade(
     tmp_path: Path, include_failure_class: bool,
 ) -> None:
+    watchdog = 60.0
     _completed, receipt, paths = _run_case(
-        tmp_path, "normal", expected_returncode=0, max_wall="100"
+        tmp_path, "normal", timeout=watchdog, expected_returncode=0, max_wall="100"
     )
     assert receipt is not None
-    # 互換テストの admission 上限は判定の律速にせず、全 node 共通の
-    # launcher subprocess watchdog だけを律速にする。
-    assert receipt["limits"]["wall_clock_admission_bound_s"] > 10
+    # 互換テストの admission 上限は判定の律速にせず、この node の
+    # 明示的な launcher subprocess watchdog だけを律速にする。
+    assert receipt["limits"]["wall_clock_admission_bound_s"] > watchdog
     receipt["schema_version"] = 3
     receipt["recorded_values_semantics"] = LAUNCHER._RECORDED_VALUES_SEMANTICS
     receipt["limits"].pop("preparation_admission_bound_s")
@@ -6525,7 +6552,7 @@ def test_check_receipt_reads_v3_parent_attempt_field_sets_without_upgrade(
     before = paths["receipt"].read_bytes()
 
     checked = subprocess.run(
-        _check_command(paths), text=True, capture_output=True, timeout=10
+        _check_command(paths), text=True, capture_output=True, timeout=watchdog
     )
 
     assert checked.returncode == 0, checked.stderr
@@ -6535,7 +6562,7 @@ def test_check_receipt_reads_v3_parent_attempt_field_sets_without_upgrade(
 
 def test_check_receipt_reads_v4_without_evidence_issues(tmp_path: Path) -> None:
     _completed, receipt, paths = _run_case(
-        tmp_path, "normal", expected_returncode=0
+        tmp_path, "normal", max_wall="30", timeout=60.0, expected_returncode=0
     )
     assert receipt is not None
     receipt["schema_version"] = 4
@@ -6549,7 +6576,7 @@ def test_check_receipt_reads_v4_without_evidence_issues(tmp_path: Path) -> None:
     before = paths["receipt"].read_bytes()
 
     checked = subprocess.run(
-        _check_command(paths), text=True, capture_output=True, timeout=10
+        _check_command(paths), text=True, capture_output=True, timeout=60.0
     )
 
     assert checked.returncode == 0, checked.stderr
@@ -6624,7 +6651,7 @@ def test_check_receipt_recomputes_usage_actuals_from_sealed_artifacts(
     tmp_path: Path,
 ) -> None:
     completed, receipt, paths = _run_case(
-        tmp_path, "normal", expected_returncode=0
+        tmp_path, "normal", max_wall="30", timeout=60.0, expected_returncode=0
     )
     assert receipt is not None
     receipt["attempts"][0]["model_calls"] = 0
@@ -6635,7 +6662,7 @@ def test_check_receipt_recomputes_usage_actuals_from_sealed_artifacts(
     )
 
     checked = subprocess.run(
-        _check_command(paths), text=True, capture_output=True, timeout=10
+        _check_command(paths), text=True, capture_output=True, timeout=60.0
     )
 
     assert checked.returncode == 2
@@ -6999,7 +7026,7 @@ def test_manifest_is_appended_while_correlated_session_is_running(
     tmp_path: Path,
 ) -> None:
     fake = _write_fake_codex(tmp_path / "fake-codex")
-    command, env, paths = _base_command(tmp_path, fake=fake, max_wall="8")
+    command, env, paths = _base_command(tmp_path, fake=fake, max_wall="30")
     env["FAKE_MODE"] = "manifest_while_running"
     process = subprocess.Popen(
         command,
@@ -7009,58 +7036,79 @@ def test_manifest_is_appended_while_correlated_session_is_running(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-    deadline = time.monotonic() + 3
-    manifest: dict[str, Any] | None = None
-    launcher_output: tuple[str, str] | None = None
-    while time.monotonic() < deadline:
-        if paths["manifest"].exists():
-            manifest = json.loads(
-                paths["manifest"].read_text(encoding="utf-8")
-            )
-            if manifest["sessions"]:
+    release = paths["pid_dir"] / "manifest-while-running.release"
+    try:
+        deadline = time.monotonic() + 30
+        manifest: dict[str, Any] | None = None
+        launcher_output: tuple[str, str] | None = None
+        while time.monotonic() < deadline:
+            if paths["manifest"].exists():
+                manifest = json.loads(
+                    paths["manifest"].read_text(encoding="utf-8")
+                )
+                if manifest["sessions"]:
+                    break
+            if process.poll() is not None:
+                launcher_output = _communicate_launcher(
+                    process,
+                    timeout=60.0,
+                    paths=paths,
+                    expected_returncode=0,
+                    label="correlated-session launcher",
+                )
                 break
-        if process.poll() is not None:
+            time.sleep(0.01)
+
+        if (
+            (manifest is None or not manifest["sessions"])
+            and process.poll() is not None
+            and launcher_output is None
+        ):
             launcher_output = _communicate_launcher(
                 process,
+                timeout=60.0,
                 paths=paths,
                 expected_returncode=0,
                 label="correlated-session launcher",
             )
-            break
-        time.sleep(0.01)
+        if (
+            (manifest is None or not manifest["sessions"])
+            and launcher_output is not None
+            and paths["manifest"].exists()
+        ):
+            manifest = json.loads(paths["manifest"].read_text(encoding="utf-8"))
+        assert manifest is not None and len(manifest["sessions"]) == 1
+        leader_pid = int(
+            next(paths["pid_dir"].glob("leader-*.pid")).read_text(
+                encoding="ascii"
+            )
+        )
+        assert Path(f"/proc/{leader_pid}").exists()
+        release.touch()
+        if launcher_output is None:
+            launcher_output = _communicate_launcher(
+                process,
+                timeout=60.0,
+                paths=paths,
+                expected_returncode=0,
+                label="correlated-session launcher",
+            )
+        stdout, stderr = launcher_output
 
-    if (
-        (manifest is None or not manifest["sessions"])
-        and process.poll() is not None
-        and launcher_output is None
-    ):
-        launcher_output = _communicate_launcher(
-            process,
-            paths=paths,
-            expected_returncode=0,
-            label="correlated-session launcher",
-        )
-    if (
-        (manifest is None or not manifest["sessions"])
-        and launcher_output is not None
-        and paths["manifest"].exists()
-    ):
-        manifest = json.loads(paths["manifest"].read_text(encoding="utf-8"))
-    assert manifest is not None and len(manifest["sessions"]) == 1
-    leader_pid = int(
-        next(paths["pid_dir"].glob("leader-*.pid")).read_text(
-            encoding="ascii"
-        )
-    )
-    assert Path(f"/proc/{leader_pid}").exists()
-    if launcher_output is None:
-        launcher_output = _communicate_launcher(
-            process,
-            paths=paths,
-            expected_returncode=0,
-            label="correlated-session launcher",
-        )
-    stdout, stderr = launcher_output
+    finally:
+        # Release on observation/assertion failure too, then reap the launcher.
+        release.parent.mkdir(parents=True, exist_ok=True)
+        release.touch()
+        try:
+            process.communicate(timeout=60.0)
+        except subprocess.TimeoutExpired:
+            for pid in _leader_pids(paths):
+                try:
+                    os.killpg(pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            process.kill()
+            process.communicate(timeout=60.0)
 
 
 def test_spawned_process_group_is_cleaned_on_manifest_append_failure(
@@ -7237,8 +7285,9 @@ def test_thread_missing_after_grace_kills_process_group(tmp_path: Path) -> None:
     completed, receipt, paths = _run_case(
         tmp_path,
         "no_thread",
+        timeout=60.0,
         expected_returncode=1,
-        max_wall="11",
+        max_wall="30",
         evidence_grace="0.3",
         max_calls=100,
         max_tokens=100000,
@@ -7373,14 +7422,14 @@ def test_check_receipt_detects_executable_identity_change(
     tmp_path: Path,
 ) -> None:
     completed, receipt, paths = _run_case(
-        tmp_path, "normal", expected_returncode=0, max_wall="8"
+        tmp_path, "normal", timeout=60.0, expected_returncode=0, max_wall="30"
     )
     assert receipt is not None
     with (tmp_path / "fake-codex").open("a", encoding="utf-8") as stream:
         stream.write("\n# changed after receipt\n")
 
     checked = subprocess.run(
-        _check_command(paths), text=True, capture_output=True, timeout=10
+        _check_command(paths), text=True, capture_output=True, timeout=60.0
     )
     assert checked.returncode == 2
 

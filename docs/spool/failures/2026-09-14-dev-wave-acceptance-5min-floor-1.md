@@ -142,10 +142,24 @@ seq: 1
   1 発のスナップショットだけで保持時間を測っておらず、提案者自身が撤回した。
   **スナップショットで誰が握っていたかは、握りっぱなしかどうかの証拠にならない。**
 
-- **`rc=29` は provenance 違反ではない。** 実測された本文は
-  `provenance audit failed: TimeoutExpired after 480 seconds` (発生時 load average 75.33) と
-  `main/wave heads or collision paths changed during the provenance audit` であった。
-  監査の timeout と、監査中の head 移動である。誤読しやすいので明記する。
+- **`rc=29` は 3 つの異なる原因で立ち、いずれも provenance の内容違反ではない。**
+  ある wave の land log 40 回の実測では、rc=29 が 8 回出てその内訳は次であった。
+
+  | 件数 | reason |
+  |---|---|
+  | 5 | `provenance full-history audit did not complete authoritatively (rc=16)` |
+  | 2 | `provenance audit failed: TimeoutExpired after 480 seconds` (発生時 load average 75.33) |
+  | 1 | `main/wave heads or collision paths changed during the provenance audit` |
+
+  **主因は「lock 外の全史監査が完走できないこと」であり、head 移動はむしろ少数である。**
+  同 wave は当初、最初に見た 2 回 (どちらも head 移動) から「rc=29 は監査中の head 移動」と
+  一般化して報告し、40 回を数え直して自ら訂正した。**少数例からの一般化に注意する。**
+- **窓の食い潰しの定量値。** 同 wave の `lock-busy` 27 回のうち、`waited_s` が 180 に達したのは
+  **7 回だけ**で、残る **20 回 (74%)** は `window_elapsed_s` が 180 を超えているのに
+  `waited_s` はそれ未満であった。最悪は `waited_s=96.368` / `window_elapsed_s=638.545` で、
+  窓 180 秒に対し 638.5 秒消費し、lock 待ちに使えたのは 96.4 秒である。
+  **`_LAND_LOCK_WAIT_SECONDS` を伸ばすより、監査を lock 取得後へ移すか、
+  結果を invocation 間で再利用できるようにする方が効く。**
 - 根本原因: `tools/dev_wave_land.py:65` の `_LAND_LOCK_WAIT_SECONDS = 180.0` に対し、
   `_audit_provenance_history` は docstring が明記するとおり **lock の外で** wave tip の
   全史 provenance 監査を走らせる。窓の起点が lock 待ち開始ではなく操作開始側にあるため、
@@ -216,6 +230,46 @@ seq: 1
   複数走っていれば本件である。`status=lock-busy` かつ `waited_s << limit_s` かつ
   `window_elapsed_s > limit_s` の組が `post-provenance` 位相の署名、
   `waited_s == window_elapsed_s == limit_s` が `initial` 位相の署名になる。
+
+### {{F:real-repo-lock-deadline-under-concurrency}}. 実 repo ロックの deadline が並行受入で尽き、setup error になる [資源競合] [テスト代表性]
+
+- 事象: 受入全走で `orchestrator/tests/test_s8c_preregistration_predicates.py::test_repository_candidate_uses_real_s8c_budget_module`
+  が setup error になる。本文は
+
+  ```
+  RuntimeError: real-repo lock deadline exceeded; fails-closed: resource=parent mode=write
+  path=/tmp/izanagi-real-repo-<hash>-parent.lock holders=pid=...,mode=READ,...
+  ```
+
+  **待ち時間は junit の `time` で 245.0 秒**、READ holder が 4 本以上いる状態で write を取れずに
+  deadline を超えている。別 session の attempt 3 と 4 の両方でほぼ同値であった。
+- 頻度: 親の集計で、旧構成の受入 44 走のうち **7 走で赤 (16%)**。
+  **並行度が上がるほど再現率が上がる。** 単独再走は毎回緑 (rc=0)。
+- 根本原因: 実 repo ロックは read を共有 (`LOCK_SH`)、write を排他 (`LOCK_EX`) で取る。
+  1 shard あたり 48 worker が走り、実 repo テストは 1 単位として同じ shard に載る (D1594 / D1618) ため、
+  read holder が常時複数いる状況で write が飢餓する。deadline は fails-closed なので
+  **正しく止まっているが、止まる条件が並行度で決まる。**
+- **並行受入そのものが主要な負荷源である。** 別 session の実測では、投入時の load average と
+  setup error 件数が対応していた。
+
+  | 投入時 load (1/5/15 分) | 結果 |
+  |---|---|
+  | 117.02 / 93.60 / 83.51 | 7 error (t1259 6 件 + 本件 1 件) |
+  | 73.62 / 61.12 / 65.59 | 1 error (本件のみ) |
+  | 74.41 / 64.75 / 63.07 で投入、実行中に急騰 | **32 error** |
+
+  1 走が 23,300 件で、これを 10 本前後の wave が同時に回している。
+  **我々が互いのテストを落としている。** ただし負荷の内訳を owner 別に分離して測ってはいないので、
+  断定はしない。
+- 恒久対応: **未実施。** 当座の運用は「`/proc/loadavg` が `1分 < 5分 < 15分` の下降局面で、
+  かつ 1 分値が 50 以下のときだけ受入を 1 回投げる」。これは既存の運用規律
+  (非帰属赤の連発時の投げ直し条件) をこの族へ適用したものである。
+  **機構側の対処 (deadline を伸ばす / write の飢餓を防ぐ / 実 repo テストの同時実行数を絞る) は
+  受理集合と D1594 / D1618 に触れるため、本 wave では決めずユーザー裁定へ返す。**
+  deadline を伸ばすだけでは、並行度が上がれば同じ形で再発する。
+- 再発検知: setup error の本文に `real-repo lock deadline exceeded` が出たら本件である。
+  `holders=` の mode 別内訳と `time` を記録し、投入時の load average と併記する。
+  **単独再走が緑なら実装差分へ帰属させない** (`DW-O18`)。
 
 ## 再発
 

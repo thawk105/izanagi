@@ -201,6 +201,58 @@ F766 の恒久対応は「上界が検査対象の性質ではなく `subprocess
 collection 26.4 秒 + 開始待ちの削減で届く範囲にある。
 **この順序を逆にすると、配分を均した瞬間に 22 件が赤になる。**
 
+## 8c. 「いらないテスト」は探したが、ほぼ無かった (独立 2 調査が同じ 1 件に収束)
+
+ユーザーの指示は次であった。
+
+> まず高速化を頑張るのはいいけど、**いらないテスト消すのも優先度高い**と思いますよ。
+> 技術的負債はなるべく早く消した方がいいよね
+
+**これは「速くするためにテストを削れ」ではない。** D532 と D747 の枠は動いていない。
+技術的負債の話として読み、**所要秒を一切見ずに**「消しても検出力が 1 ミリも落ちないと
+証明できるテスト」を探した。
+
+2 つの独立した調査が走った。本 wave の相談 (lane=luna) と、並行する repo 肥大掃除 wave の
+段 2 plan + 段 3 敵対相談である。**両者は同じ 1 件に収束した。**
+
+| 型 | 掃除 wave | 本 wave (luna) |
+|---|---|---|
+| 死んだ pin | 0 件 | 0 件 |
+| 恒真 | 0 件 | 0 件 |
+| 完全重複 | **1 件** | **1 件 (同じ node)** |
+| 撤回済み機構 | 0 件 | 0 件 |
+
+走査規模は `orchestrator/tests` の **378 Python file / 15,662 個の `test_` 関数** (AST 走査)。
+定数 assertion は 161 か所見つかったが**すべて `assert False`** で、`assert True`、
+非空 tuple/list/set 自体の assertion、空の test 本体は 1 つも無かった。
+
+**唯一の削除候補:**
+
+```
+削除: orchestrator/tests/test_related_work_search.py:1978
+      test_postprocessing_tier_api_remains_outside_executor_scope
+残す: orchestrator/tests/test_related_work_search.py:1581
+      test_tier_enforcement_remains_outside_registration_executor_scope
+```
+
+両者とも引数・decorator・個別 fixture が無く、本文は
+`assert not hasattr(search, "validate_tier_analysis")` の 1 文だけ。assertion 集合が等しいので
+削除側 ⊆ 残存側が等号で成立する。**test 本文 2 行 + 台帳 1 行 = 124 bytes。**
+
+**結論: 受入が遅いのは死んだテストが溜まっているからではない。** 生きたテストが扱う repo が
+育ったからである (§4 の 26 倍)。この 2 調査は「削るものが無い」ことを、件数と走査範囲つきで
+確定させた点に価値がある。
+
+**外した候補 (重要):**
+
+- 環境不足による skip を死んだ pin と数えない。
+- `test_codex_role_runtime.py::test_runtime_commit_prerequisites_are_available` は
+  常時 skip ではなく、D60 が opt-in 発火を規定し、**単純削除を明示的に却下している**。
+- AST 一致群は 22〜23 群あるが、**AST 一致は削除数ではなく調査入口である。**
+  開いた約 11 群のうち非重複が 10 群で、残り群の意味論的検分は誰もやっていない。
+  入力が違う (空白 / 相対 path / NUL)、別モジュールの同名 helper、別の実行入口、といった理由で
+  外れる。
+
 ## 9. 残る打ち手 (すべて裁定が要る)
 
 300 秒に入るには中央値から約 62 秒削る必要がある。
