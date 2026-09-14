@@ -5246,6 +5246,93 @@ def test_diagnostic_sensitivity_m15_git_operational_failure_is_not_non_ancestry(
         R.assert_prereg_ancestor(repo, prereg_commit=head, measurement_commit=head)
 
 
+def test_git_timeout_raises_operational_error_with_cause(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    fake_git = bin_dir / "git"
+    fake_git.write_text("#!/bin/sh\nexec sleep 2\n", encoding="utf-8")
+    fake_git.chmod(0o755)
+    monkeypatch.setenv(
+        "PATH", str(bin_dir) + os.pathsep + os.environ.get("PATH", ""),
+    )
+
+    with pytest.raises(R.TrialRegistryError, match=r"\[git-operational\]") as caught:
+        R._git(tmp_path, ("timeout-sentinel",), timeout_s=0.25)
+
+    assert isinstance(caught.value.__cause__, subprocess.TimeoutExpired)
+    assert caught.value.__cause__.timeout == 0.25
+
+
+def test_git_timeout_preserves_success_result(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    fake_git = bin_dir / "git"
+    fake_git.write_text(
+        "#!/bin/sh\n"
+        "printf 'git stdout sentinel\\n'\n"
+        "printf 'git stderr sentinel\\n' >&2\n"
+        "exit 0\n",
+        encoding="utf-8",
+    )
+    fake_git.chmod(0o755)
+    monkeypatch.setenv(
+        "PATH", str(bin_dir) + os.pathsep + os.environ.get("PATH", ""),
+    )
+
+    result = R._git(tmp_path, ("success-sentinel",))
+
+    assert result.returncode == 0
+    assert result.stdout == b"git stdout sentinel\n"
+    assert result.stderr == b"git stderr sentinel\n"
+
+
+def test_git_timeout_preserves_nonzero_result(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    fake_git = bin_dir / "git"
+    fake_git.write_text(
+        "#!/bin/sh\n"
+        "printf 'git stdout sentinel\\n'\n"
+        "printf 'git stderr sentinel\\n' >&2\n"
+        "exit 23\n",
+        encoding="utf-8",
+    )
+    fake_git.chmod(0o755)
+    monkeypatch.setenv(
+        "PATH", str(bin_dir) + os.pathsep + os.environ.get("PATH", ""),
+    )
+
+    result = R._git(tmp_path, ("nonzero-sentinel",))
+
+    assert result.returncode == 23
+    assert result.stdout == b"git stdout sentinel\n"
+    assert result.stderr == b"git stderr sentinel\n"
+
+
+def test_git_timeout_default_reaches_subprocess_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = []
+
+    def recorder(command, **kwargs):
+        calls.append(kwargs)
+        return subprocess.CompletedProcess(command, 0, b"", b"")
+
+    # The production budget has no other observation seam without waiting 300s.
+    monkeypatch.setattr(R.subprocess, "run", recorder)
+    R._git(tmp_path, ("default-timeout-sentinel",))
+
+    assert R._GIT_TIMEOUT_S == 300.0
+    assert len(calls) == 1
+    assert calls[0]["timeout"] == R._GIT_TIMEOUT_S
+
+
 @pytest.mark.parametrize(
     "mutation", ["missing", "different"], ids=["m16a-missing", "m16b-different"],
 )

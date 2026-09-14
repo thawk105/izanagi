@@ -60526,3 +60526,80 @@ D432 の「取得点ごとに同じ絶対 deadline を渡す」条項を本決�
   dispatch の admission 判定はバイト予算だけを見て CPU 時間を入力にしないため、予算内に収まる限り
   構造的に混雑した login node に留まる。所要は実行場所で 7 倍振れる。これは別の是正項目であり、
   本決定とは救う対象が異なる。
+
+## D1997. A-1 pilot の追加 attempt は投入せず、完了済みの重複項目として閉じる (2026-09-14)
+
+**決定:** A-1 balanced5 pilot (study `paper-story-a1-20260901-balanced5-pilot-v1`) の追加 attempt を
+投入しない。持ち越し項目としての「次の attempt を投入する」は、同じ作業が 2026-09-11 に
+attempt-0004 として実施済みであることを理由に完了として閉じる。後続の本走には本決定で触れず、
+認可 (人間手番) と実行面の整備を持つ既存の 2 項目にそのまま残す。
+
+**理由:**
+
+- pilot は 2026-09-11 の attempt-0004 で 3 workload とも valid で完走した。成果物
+  `output/insights/2026-09-01_paper-story-a1-balanced5-pilot/` が実在し、その README は
+  `All workloads terminal: true` / `All workloads valid: true`、各 workload reps=60 を逐語で記す。
+  request は 991875 / 991876 / 991877 (.nqsv)、source commit は `a9d20d701`。
+- 事前登録は pilot の観測値を最終推定へ入れることを禁じ、用途を sizing 入力に限定している。
+  同じ pilot をもう一度走らせても、新しく主張できる量は増えない。計算ノードの資源だけを消費する。
+- pilot の sizing 入力は既に消費済みである。2026-09-14 に sizing 証明書と本走 policy
+  `orchestrator/campaign/paper_story_a1_paired.v3-sized.json` が凍結された (D1973)。
+  pilot を再走させると、凍結済みの証明書が参照する材料と別の材料が生まれる。
+- 持ち越し項目が閉じられずに残っていたのは記録漏れであって、未実施の作業が残っていたからではない。
+  実体を消化した項目は完了として閉じられたが、同内容の重複項目は bare な参照のまま carry され続け、
+  依頼のたびに済んだ作業を再提案する原因になっていた。
+
+**却下した選択肢:**
+
+- **pilot を再投入して念のため追試する** — 事前登録が pilot 観測値の用途を sizing 入力に限定して
+  いるため、追試から新しい主張は作れない。凍結済み証明書の材料と食い違う材料を作る害だけが残る。
+- **この機会に本走を投入する** — 事前登録の拒否リストが「この走行を認可なしに投入すること」を
+  明示的に禁じており、認可は人間手番である。加えて事前登録は、計測経路に source 契約・hydrate 入力・
+  依存 source の staging・source binding の生成・amended build の受理形が pilot 専用のまま残ると
+  書いている。認可が出ても現状では実行できない。
+- **重複項目を閉じずに残し、本文だけ現況へ書き替える** — 残件が無い項目を active に置き続けると、
+  次の提案が同じ済み作業をまた選ぶ。終端は構造の宣言で示す。
+- **本走の実行面の整備を本 wave で始める** — 依頼が scope を本題の投入だけに限定した。
+  実行面は 1 箇所の限定解除では足りないと段 3 が数え上げており、別の作業単位が所有している。
+
+## D1998. trial registry の git 呼び出しは 1 回ごとに固定 300.0 秒で打ち切り、超過を fail-closed の拒否へ写す (2026-09-14)
+
+**決定:** `orchestrator/campaign/trial_registry.py` の private helper `_git` に
+`_GIT_TIMEOUT_S = 300.0` を既定値とする keyword-only 引数 `timeout_s` を持たせ、
+`subprocess.run` へ渡す。`subprocess.TimeoutExpired` は捕えて
+`TrialRegistryError("[git-operational] ...")` を `from exc` 付きで送出する。
+既存 16 呼び出しは二引数のままとし、0 / 非 0 終了時の rc・stdout・stderr の bytes は変えない。
+retry・部分結果・新しい例外型・subcommand 別予算は作らない。
+
+**保証するのは 1 回の git 呼び出しの上限だけである。** 全 commit × 全 blob を走査する
+履歴 loop、`flock` の待ち、通常の file I/O、`fsync`、孫 process はいずれも縛らない。
+`subprocess.run` の timeout は直接の子を kill するだけである。attempt の予約は
+`started_monotonic` の設定より前に行われる。**`run_trial` 全体が有界になったとは主張しない。**
+
+**300.0 は実測で安全を証明した値ではなく、無期限待ちを打ち切るための暫定運用値である。**
+この checkout (10,369 commit / 24,757 tracked file) の login node、load 57〜81 で測った単一呼び出しの
+最大は `rev-list --all --topo-order --reverse` の 6.954 秒 (4 観測) で、300.0 はその約 43 倍にあたる。
+`tools/ruleops.py` の `GIT_TIMEOUT_CAP_SECONDS` と同じ literal だが、**D265 はその値を ruleops の
+per-call 絶対上限として裁定したのであって、この経路の予算を裁定してはいない。**
+
+**理由:**
+- 止まった git を打ち切る手段が無く、`max_wall_s` は実行中の syscall を中断しない協調的検査である。
+  逐次でも並行でも「node が終わらない」経路が残っていた (entry 1389 の段 6 レンズ B、D1847 の却下項)。
+- 16 呼び出しすべてが `_git` を通る単一の choke point なので、局所修正で全経路を覆える。
+- 例外は受理を広げない。同 module の `except TrialRegistryError` 10 箇所のうち握り潰すのは
+  JSON decode を囲む 1 箇所だけで、そこは `_git` から到達しない。CLI 入口は `parser.error` で
+  fail-closed であり、producer 側も `raise cause` と `fatal_error is None` の complete 条件を通る。
+- 同型の前例が `tools/dev_waves/git_state.py` の `_run` にあり、作法を合わせられる。
+- 小さすぎる予算は間欠赤を生む。実測で `git ls-files --others` の 30 秒 timeout が混雑時に
+  受入を壊した記録がある (F945)。無期限待ちを打ち切ることが目的であり、速く失敗させることではない。
+
+**却下した選択肢:**
+- subcommand 別の作業量比例予算 (D265 と同型) — 作業量の取得と再較正の機構まで要り、
+  「監視 framework を作らない」という依頼の scope を超える。分岐ごとの妥当な予算根拠も今回は無い。
+- 汎用 watchdog・監視 framework・集約 deadline の新設 — 依頼が明示的に scope 外とした。
+  履歴 loop の終端保証は別項として起票する。
+- timeout 専用の例外型を新設する — 呼び出し側はいずれも `TrialRegistryError` を拒否として扱うので、
+  型を増やしても受理判定は変わらず、握り潰しの面だけが増える。
+- timeout 時の retry — 真に固まった git を待つ時間が伸びるだけで、部分結果による受理も作りうる。
+- 予算を module 定数の monkeypatch でテストする — 既定引数に束縛した後の定数差し替えは既定値を
+  変えないため、両方式の混用は検査を恒真にする。テストは引数で渡し、既定値は別 node で束縛する。
