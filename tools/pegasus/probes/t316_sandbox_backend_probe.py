@@ -1965,11 +1965,24 @@ def _require_condition_gate(
         [supply], [meaning], use_class="raw-measurement",
     )
     if not admission.admitted:
-        raise RuntimeError(
+        rejection = RuntimeError(
             "condition gate rejected t316 CCBench build: "
             f"supply={supply.terminal_status}/{supply.reason_code}, "
             f"meaning={meaning.terminal_status}/{meaning.reason_code}"
         )
+        try:
+            for arm, record in (("supply", supply), ("meaning", meaning)):
+                detail = record.evidence.get("detail")
+                print(
+                    f"condition gate rejected t316 CCBench build: {arm} detail="
+                    f"{detail if detail else '<no detail>'}",
+                    file=sys.stderr,
+                )
+        except Exception as diagnostic_error:
+            # Preserve the rejection and retain the output failure for traceback audit.
+            # BaseException control signals must still propagate.
+            raise rejection from diagnostic_error
+        raise rejection
     return supply, meaning, admission
 
 
