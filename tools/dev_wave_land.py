@@ -210,6 +210,9 @@ class LandResult:
         default=None,
         kw_only=True,
     )
+    # 観測時間は判定の同一性に含めず、JSON で別途報告する。
+    waited_s: float | None = field(default=None, kw_only=True, compare=False)
+    window_elapsed_s: float | None = field(default=None, kw_only=True, compare=False)
     tested_tip_sha: str | None = field(default=None, kw_only=True)
     landing_tip_sha: str | None = field(default=None, kw_only=True)
     incorporated_main_shas: tuple[str, ...] = field(default=(), kw_only=True)
@@ -250,6 +253,9 @@ class LandResult:
             "release_safe": self.release_safe,
             "retryable_same_request": self.retryable_same_request,
         }
+        if self.waited_s is not None:
+            payload["waited_s"] = self.waited_s
+            payload["window_elapsed_s"] = self.window_elapsed_s
         if self.fold_gate_uncovered_families is not None:
             payload["fold_gate_uncovered_families"] = list(
                 self.fold_gate_uncovered_families
@@ -2641,6 +2647,11 @@ def _acquire_land_lock(
     lock: _LandLockHandle,
     deadline: float,
 ) -> tuple[bool, float]:
+    """競合時の実待ち時間を返す（取得所要ではなく、無競合成功は 0）。
+
+    競合後の実績には実行再開・取得処理の遅延も含む。期限後も flock は
+    先に試すため成功し得るが、期限後は競合待ちを追加しない。
+    """
     if lock.fd >= 0:
         raise RuntimeError("land lock handle is already open")
     started = _land_lock_now()
@@ -4048,13 +4059,14 @@ def _fold_gate_failed_result(
 def _run_outside_land_lock(
     repository: _Repository,
     lock: _LandLockHandle,
-    deadline: float,
+    remaining_wait_s: float,
     runner,
 ) -> tuple[object, bool, float]:
-    """重い guard を lock 外で実行し、同じ deadline で再取得する。"""
+    """guard 完了後、残りの累積競合待機予算で再取得する。"""
 
     lock.close()
     payload = runner()
+    deadline = _land_lock_now() + max(0.0, remaining_wait_s)
     acquired, waited = _acquire_land_lock(repository, lock, deadline)
     return payload, acquired, waited
 
@@ -4870,13 +4882,24 @@ def _lock_busy_result(
     waited_s: float,
     window_started: float,
     tested_tip: str,
+    budget_exhausted_before_attempt: bool = False,
 ) -> LandResult:
+    """limit_s は絶対窓ではなく累積競合待機予算。field 名は維持する。
+
+    waited_s は実待ち時間の累積、window_elapsed_s は lock 内外の作業を
+    含む経過時間。予算は実績の厳密な上限ではなく、追加待機の判断に使う。
+    """
+    disposition = (
+        "wait budget already exhausted; tried once without waiting"
+        if budget_exhausted_before_attempt
+        else "wait budget exhausted after waiting"
+    )
     window_elapsed = max(0.0, _land_lock_now() - window_started)
     return LandResult(
         RC_LOCK_BUSY,
         "lock-busy",
         "another cooperative land operation holds the common lock "
-        f"(phase={phase}, waited_s={waited_s:.3f}, "
+        f"({disposition}; phase={phase}, waited_s={waited_s:.3f}, "
         f"window_elapsed_s={window_elapsed:.3f}, "
         f"limit_s={_LAND_LOCK_WAIT_SECONDS:.3f})",
         None,
@@ -4896,10 +4919,17 @@ def land(request: LandRequest) -> LandResult:
     acceptance_verification: _AcceptanceVerification | None = None
     fold_gate_receipt: _FoldGateReceipt | None = None
     quiescent_rejection = False
+    lock_window_started: float | None = None
+    waited_s = 0.0
 
     def finish(result: LandResult) -> LandResult:
         decorated = replace(
             result,
+            waited_s=waited_s if lock_window_started is not None else None,
+            window_elapsed_s=(
+                max(0.0, _land_lock_now() - lock_window_started)
+                if lock_window_started is not None else None
+            ),
             tested_tip_sha=tested_tip,
             landing_tip_sha=landing_tip,
             incorporated_main_shas=tuple(
@@ -4947,13 +4977,12 @@ def land(request: LandRequest) -> LandResult:
                 prelocked_forward_main_merges,
             )
         lock_window_started = _land_lock_now()
-        lock_deadline = lock_window_started + _LAND_LOCK_WAIT_SECONDS
-        waited_s = 0.0
+        initial_lock_deadline = lock_window_started + _LAND_LOCK_WAIT_SECONDS
         try:
             acquired, waited = _acquire_land_lock(
                 repository,
                 lock,
-                lock_deadline,
+                initial_lock_deadline,
             )
             waited_s += waited
             if not acquired:
@@ -4987,13 +5016,16 @@ def land(request: LandRequest) -> LandResult:
                 receipt, acquired, waited = _run_outside_land_lock(
                     repository,
                     lock,
-                    lock_deadline,
+                    max(0.0, _LAND_LOCK_WAIT_SECONDS - waited_s),
                     lambda: _audit_provenance_history(repository),
                 )
                 waited_s += waited
                 if not acquired:
                     return finish(_lock_busy_result(
                         phase="post-provenance",
+                        budget_exhausted_before_attempt=(
+                            waited_s - waited >= _LAND_LOCK_WAIT_SECONDS
+                        ),
                         waited_s=waited_s,
                         window_started=lock_window_started,
                         tested_tip=landing_tip,
@@ -5270,7 +5302,7 @@ def land(request: LandRequest) -> LandResult:
                     gate_payload, acquired, waited = _run_outside_land_lock(
                         repository,
                         lock,
-                        lock_deadline,
+                        max(0.0, _LAND_LOCK_WAIT_SECONDS - waited_s),
                         lambda: _run_fold_gate(repository, plan, landing_tip),
                     )
                 except _FoldGateFailure as exc:
@@ -5291,6 +5323,9 @@ def land(request: LandRequest) -> LandResult:
                 if not acquired:
                     return finish(_lock_busy_result(
                         phase="post-fold-gate",
+                        budget_exhausted_before_attempt=(
+                            waited_s - waited >= _LAND_LOCK_WAIT_SECONDS
+                        ),
                         waited_s=waited_s,
                         window_started=lock_window_started,
                         tested_tip=landing_tip,
