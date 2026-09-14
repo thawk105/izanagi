@@ -762,38 +762,63 @@ def _install_scan_neutral_earlier_result(root):
 
 def test_judge_cli_real_g1_rule_mismatch_preserves_selection_reason(
         tmp_path, monkeypatch, capsys):
-    root, manifest_path, source, approved = _real_g1_judge_cli_fixture(tmp_path)
-    earlier_rel = _install_scan_neutral_earlier_result(root)
-    eligibility_calls = []
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
 
-    def derive_eligibility(**kwargs):
-        eligibility_calls.append(kwargs["result_rel"])
-        return kwargs["result_rel"] == earlier_rel
-
-    monkeypatch.setattr(
-        holdout_freeze,
-        "_derive_floor_selection_eligibility",
-        derive_eligibility,
+    case = "_sealed_case_judge_cli_real_g1_rule_mismatch_preserves_selection_reason"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
     )
-    monkeypatch.setattr(oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256)
-    output = tmp_path / "selection-mismatch-must-not-exist.json"
-
-    rc = judge.main([
-        "judge", "--input", str(source),
-        "--manifest", str(manifest_path), "--out", str(output),
-        "--repo-root", str(root),
-    ])
-
-    stderr = capsys.readouterr().err
-    assert rc == 2
-    assert "floor-selection-rule-mismatch" in stderr
-    assert "earliest-eligible-official-run-id/v1" in stderr
-    assert eligibility_calls == [earlier_rel]
-    assert not output.exists()
+    assert result == {"case": case, "completed": True}
 
 
-def test_judge_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate(
-        tmp_path):
+def _sealed_case_judge_cli_real_g1_rule_mismatch_preserves_selection_reason(tmp_path, monkeypatch):
+    import contextlib
+    import io
+    from types import SimpleNamespace
+
+    captured_stderr = io.StringIO()
+    with contextlib.redirect_stderr(captured_stderr):
+        root, manifest_path, source, approved = _real_g1_judge_cli_fixture(tmp_path)
+        earlier_rel = _install_scan_neutral_earlier_result(root)
+        eligibility_calls = []
+
+        def derive_eligibility(**kwargs):
+            eligibility_calls.append(kwargs["result_rel"])
+            return kwargs["result_rel"] == earlier_rel
+
+        monkeypatch.setattr(
+            holdout_freeze,
+            "_derive_floor_selection_eligibility",
+            derive_eligibility,
+        )
+        monkeypatch.setattr(oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256)
+        output = tmp_path / "selection-mismatch-must-not-exist.json"
+
+        rc = judge.main([
+            "judge", "--input", str(source),
+            "--manifest", str(manifest_path), "--out", str(output),
+            "--repo-root", str(root),
+        ])
+
+        stderr = captured_stderr.getvalue()
+        assert rc == 2
+        assert "floor-selection-rule-mismatch" in stderr
+        assert "earliest-eligible-official-run-id/v1" in stderr
+        assert eligibility_calls == [earlier_rel]
+        assert not output.exists()
+
+
+def test_judge_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_judge_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_judge_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate(tmp_path):
     root, manifest_path, source, approved = _real_g1_judge_cli_fixture(tmp_path)
     output = tmp_path / "valid-real-g1-verdict.json"
     real_selection = (
@@ -831,6 +856,16 @@ def test_judge_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate(
 
 
 def test_judge_cli_selection_gate_receives_loaded_ratified_and_root(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_judge_cli_selection_gate_receives_loaded_ratified_and_root"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_judge_cli_selection_gate_receives_loaded_ratified_and_root(tmp_path):
     root, manifest_path, source, approved = _real_g1_judge_cli_fixture(tmp_path)
     output = tmp_path / "selection-arguments-verdict.json"
     real_load = judge.s8b_ratified_freeze.load_ratified_freeze
@@ -883,6 +918,16 @@ def test_judge_cli_selection_gate_receives_loaded_ratified_and_root(tmp_path):
     artifacts.EXPLORATION_ARTIFACT_SCHEMA,
 ])
 def test_judge_cli_rejects_non_observations_schema_without_output(tmp_path, schema):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_judge_cli_rejects_non_observations_schema_without_output"
+    result = _run_sealed_case(
+        __name__, case, tmp_path, schema=schema,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_judge_cli_rejects_non_observations_schema_without_output(tmp_path, schema):
     root, manifest_path, document, approved = (
         report_fixtures._ratified_cli_manifest(tmp_path)
     )

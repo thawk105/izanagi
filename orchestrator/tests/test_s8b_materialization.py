@@ -469,7 +469,7 @@ def test_materialization_does_not_import_oracle_or_floor():
 class _FakeBuildResult:
     def __init__(
             self, canonical: str, contract_sha256: str, *, out_root: Path,
-            ccbench_root: str, expected_materialization_sha256: str):
+            ccbench_root: str, source_evidence):
         raw = canonical.encode("utf-8")
         self.bin_sha256 = hashlib.sha256(raw).hexdigest()
         binary = out_root / "fixed" / "bin" / self.bin_sha256
@@ -501,15 +501,36 @@ class _FakeBuildResult:
             self.compiler_input_manifest, ensure_ascii=True, sort_keys=True,
             separators=(",", ":"),
         ).encode("utf-8")).hexdigest()
-        self.source_snapshot_sha256 = expected_materialization_sha256
-        self.expected_materialization_sha256 = expected_materialization_sha256
+        from orchestrator.tests.s8b_v2_freeze_fixture import sealed_source_protection_fixture
+
+        # The prewritten fixture binary is a cache hit, not a claimed compile.
+        self.source_protection = sealed_source_protection_fixture(
+            source=source_evidence, binary_sha256=self.bin_sha256,
+            compiler_input_manifest_sha256=self.compiler_input_manifest_sha256,
+        )
+        self.source_snapshot_sha256 = self.source_protection.source_snapshot_sha256
+        self.expected_materialization_sha256 = (
+            self.source_protection.expected_materialization_sha256
+        )
 
 
 def test_floor_manifest_golden_stable(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_floor_manifest_golden_stable"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_floor_manifest_golden_stable(tmp_path):
     """固定 path/hash を返す fake build で manifest.json bytes を安定 hash で golden 固定。
 
     binding identity は共有 producer が生成するので、この golden が変われば binding か
     manifest 構造が抽出前後で変化したことを検出する。"""
+    from orchestrator.tests.s8b_v2_freeze_fixture import sealed_source_protection_fixture
+
     from unittest import mock
     from orchestrator.campaign import s8b_floor_campaign as floor
 
@@ -616,11 +637,7 @@ def test_floor_manifest_golden_stable(tmp_path):
             genome.canonical(), kwargs["contract"].contract_sha256,
             out_root=tmp_path / "out",
             ccbench_root=kwargs["ccbench_dir"],
-            expected_materialization_sha256=(
-                fixture_expected_materialization(
-                    declaration=descriptor.declaration,
-                )
-            ),
+            source_evidence=kwargs["source_evidence"],
         )
 
     with mock.patch.object(

@@ -1484,6 +1484,16 @@ def test_build_approved_rejects_uniform_configuration_subset_before_output(
 
 def test_build_approved_valid_real_g1_reaches_spec_after_actual_selection_gate(
         tmp_path, monkeypatch):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_build_approved_valid_real_g1_reaches_spec_after_actual_selection_gate"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_build_approved_valid_real_g1_reaches_spec_after_actual_selection_gate(tmp_path, monkeypatch):
     root, *_ = test_s8b_ratified_freeze.build_production_emitter_g1(tmp_path)
     monkeypatch.setattr(oracle_spec, "APPROVED_SPEC_SHA256", None)
     output = f"{manifest.MANIFEST_CANDIDATE_DIR}/manifest.json"
@@ -1498,6 +1508,16 @@ def test_build_approved_valid_real_g1_reaches_spec_after_actual_selection_gate(
 
 def test_build_approved_real_g1_rule_mismatch_preserves_selection_reason(
         tmp_path, monkeypatch):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_build_approved_real_g1_rule_mismatch_preserves_selection_reason"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_build_approved_real_g1_rule_mismatch_preserves_selection_reason(tmp_path, monkeypatch):
     root, _sha, _rel, _g1, topology = (
         test_s8b_ratified_freeze.build_production_emitter_g1(tmp_path)
     )
