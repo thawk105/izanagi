@@ -32,8 +32,7 @@ equivalent としない。両層変異は kill 期待を必ず事前登録する
 強制する（F32）。独自harnessは同等検査を備えると段4で事前登録する。
 変異中は親の編集とworktreeへ書きうる子の起動を止める。起動前に総所要を見積り、外側の
 実行時間上限内の経路で起動する。この2点はtoolが検証不能な親の自己申告義務。
-生存processの`pgrep -f`照合はEREかliteralを使ってBREの`\|`を避け、待ち手自身/並行waveの子を
-除くようworktree pathで一意化する。
+生存process照合はERE/literalで`\|`を避け、worktree pathで待ち手自身と並行waveの子を除く。
 
 ## DW-M06 — hang 変異
 
@@ -48,9 +47,9 @@ mask 時の再照準と erratum は `DW-M02` に従い台帳へ残す。
 local は spec 不問で login が拒否する。runner 経路を変異させると自壊し収集段が `rc=16`。
 `--attempt-out` と `--wrapper-attempt` は dispatch 専用の同時指定必須ペア。片方のみは中止。後者は整数、実走は `--detached` 必須。再投入は両方を変え、`--resume` は前回 sidecar を
 新 path へ複写して渡す（F453。空 file は中止）。
-KILLED 期待で node 空の spec は起動前に中止するため、probe は全件 SURVIVED で登録し観測 node を
-集める。
-`--out` は `--scratch-root` と同一 device に置く（別 device は evidence 退避の rename が落ちる）。
+KILLED期待でnode空のspecは起動前に中止するのでprobeは全件SURVIVEDで登録し観測nodeを集める。
+`--out`/`--attempt-out`はcheckout外必須(repo内rc=2)、`--out`は`--scratch-root`と同一device
+(別deviceはrename失敗)。
 
 ## DW-M08 — 失敗 node と検出力
 
