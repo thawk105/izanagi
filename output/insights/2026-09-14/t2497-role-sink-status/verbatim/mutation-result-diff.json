@@ -1,0 +1,243 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2497-role-sink-status/output/pegasus-dispatch/13d3af11afb292744550c6527514cf69/izdw-13d3af11af.o997361",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2497-role-sink-status/output/pegasus-dispatch/13d3af11afb292744550c6527514cf69/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2497-role-sink-status\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [1 item]\n\n.                                                                        [100%]\n============================== 1 passed in 9.53s ===============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "bf96b05b58b86b8028d942186f2290f888c79b7bf944ff4be13b22dc60625f1c"
+    },
+    "artifact_error": null,
+    "collection_sha256": "644d6d1c935051caa55e118df2631f8d202fbd05f9f6cb3a93b048c51b1fc67c",
+    "duration_s": 43.637,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "f708912b10faa9e98bd5f40b5a08e616d794113b36861644ed1e4ebb7fa345c4",
+    "repo_head": "6babfe8e07b7743307313d2d6c8a35054050510d",
+    "runner_sha256": "35441a5636535140979116240e667400a48766e3b168fc52949fd6d4b16d2fd0",
+    "spec_sha256": "58d7e4438cfda75e7cb518037b93ac2fe9f4ad5bb81458f47200a94b9a7d7e80",
+    "status": "PASSED",
+    "test_output_sha256": "bf96b05b58b86b8028d942186f2290f888c79b7bf944ff4be13b22dc60625f1c",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "b347293257e6797e1360323d52f16143c6f9ce9f0f82d476d17addc386733d2b"
+  },
+  "date": "2026-09-14T05:16:21.576028+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2497-role-sink-status/output/pegasus-dispatch/06d264857191266663c20677669cf776/izdw-06d2648571.o997363",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2497-role-sink-status/output/pegasus-dispatch/06d264857191266663c20677669cf776/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2497-role-sink-status\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [1 item]\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n_________ test_role_sink_bytes_vary_only_at_declared_declassifications _________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_role_sink_bytes_vary_only0')\n\n    def test_role_sink_bytes_vary_only_at_declared_declassifications(tmp_path) -> None:\n        \"\"\"32 wire の実 trial で wire と role sink bytes の関係を検査する。\n    \n        親裁定により逐次スケジュールは被覆対象に含めない。\n        損失として、逐次時だけ wire を混ぜる欠陥は決定的には捕まらなくなる。\n        \"\"\"\n        # P は S の決定前に固定される descriptor/workload/generation/policy、\n        # planner 入出力、coder 入力、baseline metrics、empty whiteboard だけである。\n        # outcome/metrics/stop/rejection 観測は P に含めず、上の D selector で除外する。\n        sink_bytes = {role: [] for role in (\"planner\", \"coder\", \"auditor\", \"critic\")}\n        trusted_variants = []\n        secret_records = []\n        recorded_binding = _binding_from_recorded_head()\n    \n        def run_wire(value):\n            wire = f\"{value:05b}\"\n            providers = {\n                role: _WireRecordingFixture(role, wire=wire)\n                for role in (\"planner\", \"coder\", \"auditor\", \"critic\")\n            }\n    \n            def preview(coder, *, sub):\n                predicate = emit_predicate(A.parse_wire(coder.wire))\n                working_diff = \"fixture-working-diff\\n\" + predicate\n                return {\n                    \"passed\": True,\n                    \"working_diff\": working_diff,\n                    \"diff_digest\": hashlib.sha256(\n                        working_diff.encode(\"utf-8\")\n                    ).hexdigest(),\n                    \"subtype\": None,\n                    \"reason\": \"\",\n                    \"forbidden_identifiers\": [],\n                }\n    \n            def drive(\n                cfg, perf, planner, coder, auditor, prior, sub, do_build, *, layout,\n                cache_root=\"\", proposal_path=\"\", extra_sources=(),\n            ):\n                assert do_build is False, wire\n                variant = _write_admitted_rejection_digest(\n                    cfg, layout, coder, binding=recorded_binding,\n                )\n                return {\n                    \"outcome\": \"rejected\",\n                    \"variant\": variant,\n                    \"verdict\": \"auditor-pass\",\n                    \"stop_reason\": \"continue\",\n                    \"iteration\": 1,\n                    \"ran\": True,\n                    \"trigger_gate_binding_commitment\": hashlib.sha256(\n                        (\"fixture-binding:\" + coder.wire).encode(\"utf-8\")\n                    ).hexdigest(),\n                    \"critic_digest_generated\": True,\n                }\n    \n            report = A.run_trial(\n                trial_id=\"role-sink-relation\",\n                workloads=[\"ycsb-a\"],\n                generations=1,\n                provider_kind=\"fixture\",\n                run_root=tmp_path / f\"wire-{wire}\",\n                sub=\"/unused\",\n                do_build=False,\n                providers=providers,\n                drive=drive,\n                preview=preview,\n                allow_unregistered_exploratory=True,\n            )\n            cell = _assert_role_sink_report_complete(report, wire)\n            role_payloads = {}\n            for role in (\"planner\", \"coder\", \"auditor\", \"critic\"):\n                assert len(providers[role].payload_bytes) == 1, (wire, role)\n                role_payloads[role] = providers[role].payload_bytes[0]\n    \n            generation = cell[\"generations\"][0]\n            raw_variant = generation[\"harness\"][\"variant\"]\n            predicate = emit_predicate(A.parse_wire(wire))\n            working_diff = \"fixture-working-diff\\n\" + predicate\n            expected_variant = A.loop_core.diffq_variant_id(\n                _RELATION_GENOME, predicate,\n            )\n            assert raw_variant == expected_variant, wire\n            assert raw_variant != providers[\"critic\"].payloads[0][\n                \"harness_result\"\n            ][\"candidate_label\"], wire\n            campaign_layout = A.CampaignLayout(cell[\"campaign_root\"])\n            build_starts = [\n                record\n                for record in wal.read_records(campaign_layout)\n                if record.stage == campaign_model.STAGE_BUILD_START\n            ]\n            assert len(build_starts) == 1, wire\n            raw_build_attempt_id = build_starts[0].payload[\"build_attempt_id\"]\n            assert raw_build_attempt_id.encode(\"ascii\") not in (\n                providers[\"critic\"].payload_bytes[0]\n            ), wire\n            return wire, role_payloads, raw_variant, {\n                \"wire\": wire,\n                \"canonical_predicate\": predicate,\n                \"working_diff\": working_diff,\n                \"diff_digest\": hashlib.sha256(\n                    working_diff.encode(\"utf-8\")\n                ).hexdigest(),\n                \"src_token\": hashlib.sha256(\n                    predicate.encode(\"utf-8\")\n                ).hexdigest(),\n                \"variant\": raw_variant,\n                \"build_attempt_id\": raw_build_attempt_id,\n                \"trigger_gate_binding_commitment\": generation[\"harness\"][\n                    \"trigger_gate_binding_commitment\"\n                ],\n            }\n    \n        with ThreadPoolExecutor(\n            max_workers=_ROLE_SINK_TRIAL_MAX_WORKERS,\n        ) as executor:\n>           for value, result in enumerate(executor.map(run_wire, range(32))):\n\norchestrator/tests/test_p3_autonomous_workload_trial.py:1970: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n/usr/lib/python3.10/concurrent/futures/_base.py:621: in result_iterator\n    yield _result_or_cancel(fs.pop())\n/usr/lib/python3.10/concurrent/futures/_base.py:319: in _result_or_cancel\n    return fut.result(timeout)\n/usr/lib/python3.10/concurrent/futures/_base.py:458: in result\n    return self.__get_result()\n/usr/lib/python3.10/concurrent/futures/_base.py:403: in __get_result\n    raise self._exception\n/usr/lib/python3.10/concurrent/futures/thread.py:58: in run\n    result = self.fn(*self.args, **self.kwargs)\norchestrator/tests/test_p3_autonomous_workload_trial.py:1922: in run_wire\n    cell = _assert_role_sink_report_complete(report, wire)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nreport = {'schema_version': 'p3-autonomous-workload-trial-report/v3', 'trial_id': 'role-sink-relation', 'status': 'partial', 'started_at': '2026-09-14T05:18:17.380633+00:00', ...}\nwire = '00000'\n\n    def _assert_role_sink_report_complete(report, wire):\n>       assert report[\"status\"] == \"complete\", (\n            f\"wire={wire}: expected complete, got status={report['status']}\"\n        )\nE       AssertionError: wire=00000: expected complete, got status=partial\nE       assert 'partial' == 'complete'\nE         \nE         - complete\nE         + partial\n\norchestrator/tests/test_p3_autonomous_workload_trial.py:1847: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications\n============================== 1 failed in 6.73s ===============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=7003 retained_bytes=3922 omitted_bytes=3081 rendered_excerpt_bytes=4096 sha256=aa69074077dfd054bcebd4a8592c11da59800177c3add6d277c94aabb7c4b8fa\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> roviders,\n>                 drive=drive,\n>                 preview=preview,\n>                 allow_unregistered_exploratory=True,\n>             )\n>             cell = _assert_role_sink_report_complete(report, wire)\n>             role_payloads = {}\n>             for role in (\"planner\", \"coder\", \"auditor\", \"critic\"):\n>                 assert len(providers[role].payload_bytes) == 1, (wire, role)\n>                 role_payloads[role] = providers[role].payload_bytes[0]\n>     \n>             generation = cell[\"generations\"][0]\n>             raw_variant = generation[\"harness\"][\"variant\"]\n>             predicate = emit_predicate(A.parse_wire(wire))\n>             working_diff = \"fixture-working-diff\\x5cn\" + predicate\n>             expected_variant = A.loop_core.diffq_variant_id(\n>                 _RELATION_GENOME, predicate,\n>             )\n>             assert raw_variant == expected_variant, wire\n>             assert raw_variant != providers[\"critic\"].payloads[0][\n>                 \"harness_result\"\n>             ][\"candidate_label\"], wire\n>             campaign_layout = A.CampaignLayout(cell[\"campaign_root\"])\n>             build_starts = [\n>                 record\n>                 for record in wal.read_records(campaign_layout)\n>                 if record.stage == campaign_model.STAGE_BUILD_START\n>             ]\n>             assert len(build_starts) == 1, wire\n>             raw_build_attempt_id = build_starts[0].payload[\"build_attempt_id\"]\n>             assert raw_build_attempt_id.encode(\"ascii\") not in (\n>                 providers[\"critic\"].payload_bytes[0]\n>             ), wire\n>             return wire, role_payloads, raw_variant, {\n>                 \"wire\": wire,\n>                 \"canonical_predicate\": predicate,\n>                 \"working_diff\": working_diff,\n>                 \"diff_digest\": hashlib.sha256(\n>                     working_diff.encode(\"utf-8\")\n>                 ).hexdigest(),\n>                 \"src_token\": hashlib.sha256(\n>                     predicate.encode(\"utf-8\")\n>                 ).hexdigest(),\n>                 \"variant\": raw_variant,\n>                 \"build_attempt_id\": raw_build_attempt_id,\n>                 \"trigger_gate_binding_commitment\": generation[\"harness\"][\n>                     \"trigger_gate_binding_commitment\"\n>                 ],\n>             }\n>     \n>         with ThreadPoolExecutor(\n>             max_workers=_ROLE_SINK_TRIAL_MAX_WORKERS,\n>         ) as executor:\n> >           for value, result in enumerate(executor.map(run_wire, range(32))):\n> \n> orchestrator/tests/test_p3_autonomous_workload_trial.py:1970: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> /usr/lib/python3.10/concurrent/futures/_base.py:621: in result_iterator\n>     yield _result_or_cancel(fs.pop())\n> /usr/lib/python3.10/concurrent/futures/_base.py:319: in _result_or_cancel\n>     return fut.result(timeout)\n> /usr/lib/python3.10/concurrent/futures/_base.py:458: in result\n>     return self.__get_result()\n> /usr/lib/python3.10/concurrent/futures/_base.py:403: in __get_result\n>     raise self._exception\n> /usr/lib/python3.10/concurrent/futures/thread.py:58: in run\n>     result = self.fn(*self.args, **self.kwargs)\n> orchestrator/tests/test_p3_autonomous_workload_trial.py:1922: in run_wire\n>     cell = _assert_role_sink_report_complete(report, wire)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> report = {'schema_version': 'p3-autonomous-workload-trial-report/v3', 'trial_id': 'role-sink-relation', 'status': 'partial', 'started_at': '2026-09-14T05:18:17.380633+00:00', ...}\n> wire = '00000'\n> \n>     def _assert_role_sink_report_complete(report, wire):\n> >       assert report[\"status\"] == \"complete\", (\n>             f\"wire={wire}: expected complete, got status={report['status']}\"\n>         )\n> E       AssertionError: wire=00000: expected complete, got status=partial\n> E       assert 'partial' == 'complete'\n> E         \n> E         - complete\n> E         + partial\n> \n> orchestrator/tests/test_p3_autonomous_workload_trial.py:1847: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=7003 retained_bytes=3922 omitted_bytes=3081 budget_bytes=49152 rendered_bytes=4847 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d6066409e7e51b4076616f0b14c901d69fa44a4ac399f915f3ae2875f45316a7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "644d6d1c935051caa55e118df2631f8d202fbd05f9f6cb3a93b048c51b1fc67c",
+      "duration_s": 29.051,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications"
+      ],
+      "hang_risk": false,
+      "id": "M9-genuine-partial-via-post-critic-supervisor-error",
+      "injection_diff_sha256": "739d3fb50a35bc18f68e5c13510f87e5b3ef9037b73f62f7a1f4262505f5e44d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1c426dfec697ad9e0aa5ec4c6f7a905a2c9d7d498fd0b5d77ba0b178f6ceebb9",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "new": "    if not pending_critics:\n        cell.pop(\"_pending_critics\", None)\n        raise RuntimeError(\"mutation M9: post-critic supervisor error\")\n",
+          "old": "    if not pending_critics:\n        cell.pop(\"_pending_critics\", None)\n"
+        }
+      ],
+      "repo_head": "6babfe8e07b7743307313d2d6c8a35054050510d",
+      "runner_sha256": "35441a5636535140979116240e667400a48766e3b168fc52949fd6d4b16d2fd0",
+      "spec_sha256": "58d7e4438cfda75e7cb518037b93ac2fe9f4ad5bb81458f47200a94b9a7d7e80",
+      "status": "KILLED",
+      "test_output_sha256": "d6066409e7e51b4076616f0b14c901d69fa44a4ac399f915f3ae2875f45316a7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b347293257e6797e1360323d52f16143c6f9ce9f0f82d476d17addc386733d2b"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2497-role-sink-status/output/pegasus-dispatch/0d211f821eca5bcadf7e7baa5abf2e90/izdw-0d211f821e.o997368",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2497-role-sink-status/output/pegasus-dispatch/0d211f821eca5bcadf7e7baa5abf2e90/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2497-role-sink-status\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [1 item]\n\n.                                                                        [100%]\n============================== 1 passed in 9.27s ===============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "3752df26c14b2b0cd93effef725ad7cb58f1143becddde6a5ebd232599c4d975"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "644d6d1c935051caa55e118df2631f8d202fbd05f9f6cb3a93b048c51b1fc67c",
+      "duration_s": 33.837,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M9prime-genuine-partial-without-the-new-check",
+      "injection_diff_sha256": "05d187c9631e792c757a928fdb9a2f4e4024c8983d40110d73659c002c263657",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "07cf9398d75a2631f88801b906e6891dde426d29b1ba52051625f55c3cc900f5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "new": "    if not pending_critics:\n        cell.pop(\"_pending_critics\", None)\n        raise RuntimeError(\"mutation M9: post-critic supervisor error\")\n",
+          "old": "    if not pending_critics:\n        cell.pop(\"_pending_critics\", None)\n"
+        },
+        {
+          "file": "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+          "new": "        cell = report[\"cells\"][0]\n",
+          "old": "        cell = _assert_role_sink_report_complete(report, wire)\n"
+        }
+      ],
+      "repo_head": "6babfe8e07b7743307313d2d6c8a35054050510d",
+      "runner_sha256": "35441a5636535140979116240e667400a48766e3b168fc52949fd6d4b16d2fd0",
+      "spec_sha256": "58d7e4438cfda75e7cb518037b93ac2fe9f4ad5bb81458f47200a94b9a7d7e80",
+      "status": "SURVIVED",
+      "test_output_sha256": "3752df26c14b2b0cd93effef725ad7cb58f1143becddde6a5ebd232599c4d975",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b347293257e6797e1360323d52f16143c6f9ce9f0f82d476d17addc386733d2b"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2497-role-sink-status/output/pegasus-dispatch/dbaf492d956a5cd32e016809a79011a1/izdw-dbaf492d95.o997360",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2497-role-sink-status/output/pegasus-dispatch/dbaf492d956a5cd32e016809a79011a1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications\n\n1 test collected in 1.67s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "b081444746096427d81741b680bf56b1c0f74c71ed747f685fe8858b449e8bbe"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications"
+      ],
+      "duration_s": 529.297,
+      "rc": 0,
+      "repo_head": "6babfe8e07b7743307313d2d6c8a35054050510d",
+      "runner_sha256": "35441a5636535140979116240e667400a48766e3b168fc52949fd6d4b16d2fd0",
+      "spec_sha256": "58d7e4438cfda75e7cb518037b93ac2fe9f4ad5bb81458f47200a94b9a7d7e80",
+      "status": "PASSED",
+      "tool_sha256": "b347293257e6797e1360323d52f16143c6f9ce9f0f82d476d17addc386733d2b"
+    },
+    "hang_timeout_seconds": 2400.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M9-genuine-partial-via-post-critic-supervisor-error": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "739d3fb50a35bc18f68e5c13510f87e5b3ef9037b73f62f7a1f4262505f5e44d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+            "new": "    if not pending_critics:\n        cell.pop(\"_pending_critics\", None)\n        raise RuntimeError(\"mutation M9: post-critic supervisor error\")\n",
+            "old": "    if not pending_critics:\n        cell.pop(\"_pending_critics\", None)\n"
+          }
+        ]
+      },
+      "M9prime-genuine-partial-without-the-new-check": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "05d187c9631e792c757a928fdb9a2f4e4024c8983d40110d73659c002c263657",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+            "new": "    if not pending_critics:\n        cell.pop(\"_pending_critics\", None)\n        raise RuntimeError(\"mutation M9: post-critic supervisor error\")\n",
+            "old": "    if not pending_critics:\n        cell.pop(\"_pending_critics\", None)\n"
+          },
+          {
+            "file": "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+            "new": "        cell = report[\"cells\"][0]\n",
+            "old": "        cell = _assert_role_sink_report_complete(report, wire)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "f708912b10faa9e98bd5f40b5a08e616d794113b36861644ed1e4ebb7fa345c4",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3600.0
+  },
+  "repo_head": "6babfe8e07b7743307313d2d6c8a35054050510d",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2497-role-sink-status/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2497-role-sink-status/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "ce2a1ed1d8358ff0d79d2d530095ba9f77ce513c",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "35441a5636535140979116240e667400a48766e3b168fc52949fd6d4b16d2fd0",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "58d7e4438cfda75e7cb518037b93ac2fe9f4ad5bb81458f47200a94b9a7d7e80",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2497-role-sink-status/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "b347293257e6797e1360323d52f16143c6f9ce9f0f82d476d17addc386733d2b",
+  "updated_at": "2026-09-14T05:19:30.141678+00:00"
+}
