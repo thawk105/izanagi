@@ -1,0 +1,499 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/output/pegasus-dispatch/05d85fbf1f8427548da7f4e099589900/izdw-05d85fbf1f.o997075",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/output/pegasus-dispatch/05d85fbf1f8427548da7f4e099589900/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n....                                                                     [100%]\n4 passed in 5.28s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "84be2d76e3ba40d8cfc7b3cea62f3f32231f13b9f0284b5c835d250139eb71cf"
+    },
+    "artifact_error": null,
+    "collection_sha256": "d9837f7cdaf0355393fbdd606a5e7738318d8f97ce1a899ae152d0420b462748",
+    "duration_s": 27.53,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "1143757caf766f020ec4e27fc0a83d1877b3e6a0fd3a2060b60690de3ed0bea4",
+    "repo_head": "1697a5970b6c6c084a10b3c5d13eca73ded656d1",
+    "runner_sha256": "404ad2c0cec23bc0b5ba1a8c69fd15c18e580efa744ee055626bd1b2f9fc6411",
+    "spec_sha256": "584360519324648e3f49445b25efc86f389f637a2e099f952ca6ea207f729760",
+    "status": "PASSED",
+    "test_output_sha256": "84be2d76e3ba40d8cfc7b3cea62f3f32231f13b9f0284b5c835d250139eb71cf",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "49d65278ba5392d884113963e342accf1f1cc298cc8393d3785ad80f164d8d1c"
+  },
+  "date": "2026-09-14T04:19:56.151757+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/output/pegasus-dispatch/271cbc9bd0575a5c3bf16083e14ce58f/izdw-271cbc9bd0.o997182",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/output/pegasus-dispatch/271cbc9bd0575a5c3bf16083e14ce58f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..FF                                                                     [100%]\n=================================== FAILURES ===================================\n_______________ test_git_timeout_default_reaches_subprocess_run ________________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_git_timeout_default_reach0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1499bd9f4e50>\n\n    def test_git_timeout_default_reaches_subprocess_run(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        calls = []\n    \n        def recorder(command, **kwargs):\n            calls.append(kwargs)\n            return subprocess.CompletedProcess(command, 0, b\"\", b\"\")\n    \n        # The production budget has no other observation seam without waiting 300s.\n        monkeypatch.setattr(R.subprocess, \"run\", recorder)\n        R._git(tmp_path, (\"default-timeout-sentinel\",))\n    \n        assert R._GIT_TIMEOUT_S == 300.0\n        assert len(calls) == 1\n>       assert calls[0][\"timeout\"] == R._GIT_TIMEOUT_S\nE       KeyError: 'timeout'\n\norchestrator/tests/test_trial_registry.py:5333: KeyError\n_____________ test_git_timeout_raises_operational_error_with_cause _____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_git_timeout_raises_operat0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14fac73b27a0>\n\n    def test_git_timeout_raises_operational_error_with_cause(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        bin_dir = tmp_path / \"bin\"\n        bin_dir.mkdir()\n        fake_git = bin_dir / \"git\"\n        fake_git.write_text(\"#!/bin/sh\\nexec sleep 2\\n\", encoding=\"utf-8\")\n        fake_git.chmod(0o755)\n        monkeypatch.setenv(\n            \"PATH\", str(bin_dir) + os.pathsep + os.environ.get(\"PATH\", \"\"),\n        )\n    \n>       with pytest.raises(R.TrialRegistryError, match=r\"\\[git-operational\\]\") as caught:\nE       Failed: DID NOT RAISE TrialRegistryError\n\norchestrator/tests/test_trial_registry.py:5261: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run\nFAILED orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause\n2 failed, 2 passed in 7.11s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=934 retained_bytes=934 omitted_bytes=0 rendered_excerpt_bytes=983 sha256=c669b96e3705c9081bfb0169950dd4b19f9c33cac25981f63d94373b723bda10\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_git_timeout_default_reach0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1499bd9f4e50>\n> \n>     def test_git_timeout_default_reaches_subprocess_run(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         calls = []\n>     \n>         def recorder(command, **kwargs):\n>             calls.append(kwargs)\n>             return subprocess.CompletedProcess(command, 0, b\"\", b\"\")\n>     \n>         # The production budget has no other observation seam without waiting 300s.\n>         monkeypatch.setattr(R.subprocess, \"run\", recorder)\n>         R._git(tmp_path, (\"default-timeout-sentinel\",))\n>     \n>         assert R._GIT_TIMEOUT_S == 300.0\n>         assert len(calls) == 1\n> >       assert calls[0][\"timeout\"] == R._GIT_TIMEOUT_S\n> E       KeyError: 'timeout'\n> \n> orchestrator/tests/test_trial_registry.py:5333: KeyError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=863 retained_bytes=863 omitted_bytes=0 rendered_excerpt_bytes=918 sha256=af96efefb7c53c07a2e2f383f33a1e626f6c62dd43b6c614cce19221b1e59be8\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_git_timeout_raises_operat0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14fac73b27a0>\n> \n>     def test_git_timeout_raises_operational_error_with_cause(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         bin_dir = tmp_path / \"bin\"\n>         bin_dir.mkdir()\n>         fake_git = bin_dir / \"git\"\n>         fake_git.write_text(\"#!/bin/sh\\x5cnexec sleep 2\\x5cn\", encoding=\"utf-8\")\n>         fake_git.chmod(0o755)\n>         monkeypatch.setenv(\n>             \"PATH\", str(bin_dir) + os.pathsep + os.environ.get(\"PATH\", \"\"),\n>         )\n>     \n> >       with pytest.raises(R.TrialRegistryError, match=r\"\\x5c[git-operational\\x5c]\") as caught:\n> E       Failed: DID NOT RAISE TrialRegistryError\n> \n> orchestrator/tests/test_trial_registry.py:5261: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1797 retained_bytes=1797 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3047 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d574728ab1f0db16a92072cb2b940c783515b13eb25228af2664470f8aeac206"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d9837f7cdaf0355393fbdd606a5e7738318d8f97ce1a899ae152d0420b462748",
+      "duration_s": 59.891,
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause",
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run",
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause"
+      ],
+      "hang_risk": false,
+      "id": "M1-drop-timeout-kwarg",
+      "injection_diff_sha256": "7f5acf662ffd920c3c38eafc57a1716e27f45f8685df454af9ba707792400c3d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "efe5d3f45d65c54a34ef10210c20fe58ae7b3a5831de4ec22bc007d8309957e4",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "",
+          "old": "            timeout=timeout_s,\n"
+        }
+      ],
+      "repo_head": "1697a5970b6c6c084a10b3c5d13eca73ded656d1",
+      "runner_sha256": "404ad2c0cec23bc0b5ba1a8c69fd15c18e580efa744ee055626bd1b2f9fc6411",
+      "spec_sha256": "584360519324648e3f49445b25efc86f389f637a2e099f952ca6ea207f729760",
+      "status": "KILLED",
+      "test_output_sha256": "d574728ab1f0db16a92072cb2b940c783515b13eb25228af2664470f8aeac206",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "49d65278ba5392d884113963e342accf1f1cc298cc8393d3785ad80f164d8d1c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/output/pegasus-dispatch/4d01210eaeb64eaa72c6c1ddfdadbb4e/izdw-4d01210eae.o997204",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/output/pegasus-dispatch/4d01210eaeb64eaa72c6c1ddfdadbb4e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...F                                                                     [100%]\n=================================== FAILURES ===================================\n_____________ test_git_timeout_raises_operational_error_with_cause _____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_git_timeout_raises_operat0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14997b43a770>\n\n    def test_git_timeout_raises_operational_error_with_cause(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        bin_dir = tmp_path / \"bin\"\n        bin_dir.mkdir()\n        fake_git = bin_dir / \"git\"\n        fake_git.write_text(\"#!/bin/sh\\nexec sleep 2\\n\", encoding=\"utf-8\")\n        fake_git.chmod(0o755)\n        monkeypatch.setenv(\n            \"PATH\", str(bin_dir) + os.pathsep + os.environ.get(\"PATH\", \"\"),\n        )\n    \n>       with pytest.raises(R.TrialRegistryError, match=r\"\\[git-operational\\]\") as caught:\nE       Failed: DID NOT RAISE TrialRegistryError\n\norchestrator/tests/test_trial_registry.py:5261: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause\n1 failed, 3 passed in 5.33s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=863 retained_bytes=863 omitted_bytes=0 rendered_excerpt_bytes=918 sha256=a73236942b1bb711f9461841b1a51f88394743e4179e02894283192cfaa50b74\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_git_timeout_raises_operat0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14997b43a770>\n> \n>     def test_git_timeout_raises_operational_error_with_cause(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         bin_dir = tmp_path / \"bin\"\n>         bin_dir.mkdir()\n>         fake_git = bin_dir / \"git\"\n>         fake_git.write_text(\"#!/bin/sh\\x5cnexec sleep 2\\x5cn\", encoding=\"utf-8\")\n>         fake_git.chmod(0o755)\n>         monkeypatch.setenv(\n>             \"PATH\", str(bin_dir) + os.pathsep + os.environ.get(\"PATH\", \"\"),\n>         )\n>     \n> >       with pytest.raises(R.TrialRegistryError, match=r\"\\x5c[git-operational\\x5c]\") as caught:\n> E       Failed: DID NOT RAISE TrialRegistryError\n> \n> orchestrator/tests/test_trial_registry.py:5261: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=863 retained_bytes=863 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1635 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4a60e76d45f32a44ccd017d6dcc20f139ae7f92217fc35fcec96ba20ee59e29b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d9837f7cdaf0355393fbdd606a5e7738318d8f97ce1a899ae152d0420b462748",
+      "duration_s": 53.6,
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause"
+      ],
+      "hang_risk": false,
+      "id": "M2-swallow-timeout",
+      "injection_diff_sha256": "c2ced0f8c948f7829f4c7c9e8e5a0237ae348c2409b58d91ff938ab6d4245105",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d936fa2907de29fe3beef4fd0efc41167286543331d833cfa616e0675aadfb8e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "    except subprocess.TimeoutExpired:\n        return subprocess.CompletedProcess([], 0, b\"\", b\"\")\n",
+          "old": "    except subprocess.TimeoutExpired as exc:\n        raise TrialRegistryError(\n            f\"[git-operational] git command timed out after {timeout_s:g}s\"\n        ) from exc\n"
+        }
+      ],
+      "repo_head": "1697a5970b6c6c084a10b3c5d13eca73ded656d1",
+      "runner_sha256": "404ad2c0cec23bc0b5ba1a8c69fd15c18e580efa744ee055626bd1b2f9fc6411",
+      "spec_sha256": "584360519324648e3f49445b25efc86f389f637a2e099f952ca6ea207f729760",
+      "status": "KILLED",
+      "test_output_sha256": "4a60e76d45f32a44ccd017d6dcc20f139ae7f92217fc35fcec96ba20ee59e29b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "49d65278ba5392d884113963e342accf1f1cc298cc8393d3785ad80f164d8d1c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/output/pegasus-dispatch/8f153b308f0793b7e4e665ce6634d71a/izdw-8f153b308f.o997209",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/output/pegasus-dispatch/8f153b308f0793b7e4e665ce6634d71a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..F.                                                                     [100%]\n=================================== FAILURES ===================================\n_______________ test_git_timeout_default_reaches_subprocess_run ________________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_git_timeout_default_reach0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ec0ba63010>\n\n    def test_git_timeout_default_reaches_subprocess_run(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        calls = []\n    \n        def recorder(command, **kwargs):\n            calls.append(kwargs)\n            return subprocess.CompletedProcess(command, 0, b\"\", b\"\")\n    \n        # The production budget has no other observation seam without waiting 300s.\n        monkeypatch.setattr(R.subprocess, \"run\", recorder)\n        R._git(tmp_path, (\"default-timeout-sentinel\",))\n    \n        assert R._GIT_TIMEOUT_S == 300.0\n        assert len(calls) == 1\n>       assert calls[0][\"timeout\"] == R._GIT_TIMEOUT_S\nE       assert None == 300.0\nE        +  where 300.0 = R._GIT_TIMEOUT_S\n\norchestrator/tests/test_trial_registry.py:5333: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run\n1 failed, 3 passed in 5.22s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=984 retained_bytes=984 omitted_bytes=0 rendered_excerpt_bytes=1035 sha256=37475a5765163e4201e9f50c170e3e619e087c4b14771e79cdee528c183567cc\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_git_timeout_default_reach0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ec0ba63010>\n> \n>     def test_git_timeout_default_reaches_subprocess_run(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         calls = []\n>     \n>         def recorder(command, **kwargs):\n>             calls.append(kwargs)\n>             return subprocess.CompletedProcess(command, 0, b\"\", b\"\")\n>     \n>         # The production budget has no other observation seam without waiting 300s.\n>         monkeypatch.setattr(R.subprocess, \"run\", recorder)\n>         R._git(tmp_path, (\"default-timeout-sentinel\",))\n>     \n>         assert R._GIT_TIMEOUT_S == 300.0\n>         assert len(calls) == 1\n> >       assert calls[0][\"timeout\"] == R._GIT_TIMEOUT_S\n> E       assert None == 300.0\n> E        +  where 300.0 = R._GIT_TIMEOUT_S\n> \n> orchestrator/tests/test_trial_registry.py:5333: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=984 retained_bytes=984 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1748 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "684a0554fedf351bdfc390d51455ebfad2be685391883ac1454ffb0cb82c6397"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d9837f7cdaf0355393fbdd606a5e7738318d8f97ce1a899ae152d0420b462748",
+      "duration_s": 43.364,
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run"
+      ],
+      "hang_risk": false,
+      "id": "M3-default-disables-budget",
+      "injection_diff_sha256": "38439dfafd1d9c19e46ae21d4f4b58d4393849e11b3d0e353b6e908956ae15c7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "887422acb138e62ddcb7f048e1abb8415b2c903e83f92f1fa4a148a9b57baa9f",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "    timeout_s: float | None = None,\n",
+          "old": "    timeout_s: float = _GIT_TIMEOUT_S,\n"
+        }
+      ],
+      "repo_head": "1697a5970b6c6c084a10b3c5d13eca73ded656d1",
+      "runner_sha256": "404ad2c0cec23bc0b5ba1a8c69fd15c18e580efa744ee055626bd1b2f9fc6411",
+      "spec_sha256": "584360519324648e3f49445b25efc86f389f637a2e099f952ca6ea207f729760",
+      "status": "KILLED",
+      "test_output_sha256": "684a0554fedf351bdfc390d51455ebfad2be685391883ac1454ffb0cb82c6397",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "49d65278ba5392d884113963e342accf1f1cc298cc8393d3785ad80f164d8d1c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/output/pegasus-dispatch/f35a44d4000a9a9d160105daa4854592/izdw-f35a44d400.o997215",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/output/pegasus-dispatch/f35a44d4000a9a9d160105daa4854592/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..F.                                                                     [100%]\n=================================== FAILURES ===================================\n__________________ test_git_timeout_preserves_nonzero_result ___________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_git_timeout_preserves_non0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153ba101a200>\n\n    def test_git_timeout_preserves_nonzero_result(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        bin_dir = tmp_path / \"bin\"\n        bin_dir.mkdir()\n        fake_git = bin_dir / \"git\"\n        fake_git.write_text(\n            \"#!/bin/sh\\n\"\n            \"printf 'git stdout sentinel\\\\n'\\n\"\n            \"printf 'git stderr sentinel\\\\n' >&2\\n\"\n            \"exit 23\\n\",\n            encoding=\"utf-8\",\n        )\n        fake_git.chmod(0o755)\n        monkeypatch.setenv(\n            \"PATH\", str(bin_dir) + os.pathsep + os.environ.get(\"PATH\", \"\"),\n        )\n    \n>       result = R._git(tmp_path, (\"nonzero-sentinel\",))\n\norchestrator/tests/test_trial_registry.py:5311: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/trial_registry.py:975: in _git\n    return subprocess.run(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ninput = None, capture_output = False, timeout = 300.0, check = True\npopenargs = (['git', '-C', '/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_git_timeout_preserves_non0', 'nonzero-sentinel'],)\nkwargs = {'env': {'PATH': '/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_git_timeout_preserves_non0/bin:/usr/bin:/bin:/home/SFC/... 'LC_CTYPE': 'C.UTF-8', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_CONFIG_NOSYSTEM': '1', ...}, 'stdout': -1, 'stderr': -1}\n\n    def run(*popenargs,\n            input=None, capture_output=False, timeout=None, check=False, **kwargs):\n        \"\"\"Run command with arguments and return a CompletedProcess instance.\n    \n        The returned instance will have attributes args, returncode, stdout and\n        stderr. By default, stdout and stderr are not captured, and those attributes\n        will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,\n        or pass capture_output=True to capture both.\n    \n        If check is True and the exit code was non-zero, it raises a\n        CalledProcessError. The CalledProcessError object will have the return code\n        in the returncode attribute, and output & stderr attributes if those streams\n        were captured.\n    \n        If timeout is given, and the process takes too long, a TimeoutExpired\n        exception will be raised.\n    \n        There is an optional argument \"input\", allowing you to\n        pass bytes or a string to the subprocess's stdin.  If you use this argument\n        you may not also use the Popen constructor's \"stdin\" argument, as\n        it will be used internally.\n    \n        By default, all communication is in bytes, and therefore any \"input\" should\n        be bytes, and the stdout and stderr will be bytes. If in text mode, any\n        \"input\" should be a string, and stdout and stderr will be strings decoded\n        according to locale encoding, or by \"encoding\" if set. Text mode is\n        triggered by setting any of text, encoding, errors or universal_newlines.\n    \n        The other arguments are the same as for the Popen constructor.\n        \"\"\"\n        if input is not None:\n            if kwargs.get('stdin') is not None:\n                raise ValueError('stdin and input arguments may not both be used.')\n            kwargs['stdin'] = PIPE\n    \n        if capture_output:\n            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:\n                raise ValueError('stdout and stderr arguments may not be used '\n                                 'with capture_output.')\n            kwargs['stdout'] = PIPE\n            kwargs['stderr'] = PIPE\n    \n        with Popen(*popenargs, **kwargs) as process:\n            try:\n                stdout, stderr = process.communicate(input, timeout=timeout)\n            except TimeoutExpired as exc:\n                process.kill()\n                if _mswindows:\n                    # Windows accumulates the output in a single blocking\n                    # read() call run on child threads, with the timeout\n                    # being done in a join() on those threads.  communicate()\n                    # _after_ kill() is required to collect that and add it\n                    # to the exception.\n                    exc.stdout, exc.stderr = process.communicate()\n                else:\n                    # POSIX _communicate already populated the output so\n                    # far into the TimeoutExpired exception.\n                    process.wait()\n                raise\n            except:  # Including KeyboardInterrupt, communicate handled that.\n                process.kill()\n                # We don't call process.wait() as .__exit__ does that for us.\n                raise\n            retcode = process.poll()\n            if check and retcode:\n>               raise CalledProcessError(retcode, process.args,\n                                         output=stdout, stderr=stderr)\nE               subprocess.CalledProcessError: Command '['git', '-C', '/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_git_timeout_preserves_non0', 'nonzero-sentinel']' returned non-zero exit status 23.\n\n/usr/lib/python3.10/subprocess.py:526: CalledProcessError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_nonzero_result\n1 failed, 3 passed in 5.20s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_nonzero_result\" nodeid_bytes=84 nodeid_omitted_bytes=0 source_bytes=5304 retained_bytes=3951 omitted_bytes=1353 rendered_excerpt_bytes=4096 sha256=593d27310d0b32386f5ca97e5459dca5e3a65892a3abbc33e65daec4cd51e341\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>  {'env': {'PATH': '/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_git_timeout_preserves_non0/bin:/usr/bin:/bin:/home/SFC/... 'LC_CTYPE': 'C.UTF-8', 'GIT_CONFIG_GLOBAL': '/dev/null', 'GIT_CONFIG_NOSYSTEM': '1', ...}, 'stdout': -1, 'stderr': -1}\n> \n>     def run(*popenargs,\n>             input=None, capture_output=False, timeout=None, check=False, **kwargs):\n>         \"\"\"Run command with arguments and return a CompletedProcess instance.\n>     \n>         The returned instance will have attributes args, returncode, stdout and\n>         stderr. By default, stdout and stderr are not captured, and those attributes\n>         will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,\n>         or pass capture_output=True to capture both.\n>     \n>         If check is True and the exit code was non-zero, it raises a\n>         CalledProcessError. The CalledProcessError object will have the return code\n>         in the returncode attribute, and output & stderr attributes if those streams\n>         were captured.\n>     \n>         If timeout is given, and the process takes too long, a TimeoutExpired\n>         exception will be raised.\n>     \n>         There is an optional argument \"input\", allowing you to\n>         pass bytes or a string to the subprocess's stdin.  If you use this argument\n>         you may not also use the Popen constructor's \"stdin\" argument, as\n>         it will be used internally.\n>     \n>         By default, all communication is in bytes, and therefore any \"input\" should\n>         be bytes, and the stdout and stderr will be bytes. If in text mode, any\n>         \"input\" should be a string, and stdout and stderr will be strings decoded\n>         according to locale encoding, or by \"encoding\" if set. Text mode is\n>         triggered by setting any of text, encoding, errors or universal_newlines.\n>     \n>         The other arguments are the same as for the Popen constructor.\n>         \"\"\"\n>         if input is not None:\n>             if kwargs.get('stdin') is not None:\n>                 raise ValueError('stdin and input arguments may not both be used.')\n>             kwargs['stdin'] = PIPE\n>     \n>         if capture_output:\n>             if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:\n>                 raise ValueError('stdout and stderr arguments may not be used '\n>                                  'with capture_output.')\n>             kwargs['stdout'] = PIPE\n>             kwargs['stderr'] = PIPE\n>     \n>         with Popen(*popenargs, **kwargs) as process:\n>             try:\n>                 stdout, stderr = process.communicate(input, timeout=timeout)\n>             except TimeoutExpired as exc:\n>                 process.kill()\n>                 if _mswindows:\n>                     # Windows accumulates the output in a single blocking\n>                     # read() call run on child threads, with the timeout\n>                     # being done in a join() on those threads.  communicate()\n>                     # _after_ kill() is required to collect that and add it\n>                     # to the exception.\n>                     exc.stdout, exc.stderr = process.communicate()\n>                 else:\n>                     # POSIX _communicate already populated the output so\n>                     # far into the TimeoutExpired exception.\n>                     process.wait()\n>                 raise\n>             except:  # Including KeyboardInterrupt, communicate handled that.\n>                 process.kill()\n>                 # We don't call process.wait() as .__exit__ does that for us.\n>                 raise\n>             retcode = process.poll()\n>             if check and retcode:\n> >               raise CalledProcessError(retcode, process.args,\n>                                          output=stdout, stderr=stderr)\n> E               subprocess.CalledProcessError: Command '['git', '-C', '/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_git_timeout_preserves_non0', 'nonzero-sentinel']' returned non-zero exit status 23.\n> \n> /usr/lib/python3.10/subprocess.py:526: CalledProcessError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=5304 retained_bytes=3951 omitted_bytes=1353 budget_bytes=49152 rendered_bytes=4813 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c90aab0c0e7a6b473cb607c39a62acf8ef168e75a038f739f07ba56dd66a3d8f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d9837f7cdaf0355393fbdd606a5e7738318d8f97ce1a899ae152d0420b462748",
+      "duration_s": 28.668,
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_nonzero_result"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_nonzero_result"
+      ],
+      "hang_risk": false,
+      "id": "M4-reject-completed-nonzero",
+      "injection_diff_sha256": "f00d94f9177c543171f60fbb511397372ae0f2a55c2f3fded8e307c622b3f6af",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8317950c8c6cd6be26a2c52dc2a01f702a4227fe1d3a159afe1953fe299fe734",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "            check=True,\n",
+          "old": "            check=False,\n"
+        }
+      ],
+      "repo_head": "1697a5970b6c6c084a10b3c5d13eca73ded656d1",
+      "runner_sha256": "404ad2c0cec23bc0b5ba1a8c69fd15c18e580efa744ee055626bd1b2f9fc6411",
+      "spec_sha256": "584360519324648e3f49445b25efc86f389f637a2e099f952ca6ea207f729760",
+      "status": "KILLED",
+      "test_output_sha256": "c90aab0c0e7a6b473cb607c39a62acf8ef168e75a038f739f07ba56dd66a3d8f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "49d65278ba5392d884113963e342accf1f1cc298cc8393d3785ad80f164d8d1c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/output/pegasus-dispatch/271a49379e4cce17dd05570647538d2d/izdw-271a49379e.o997219",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/output/pegasus-dispatch/271a49379e4cce17dd05570647538d2d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..FF                                                                     [100%]\n=================================== FAILURES ===================================\n_______________ test_git_timeout_default_reaches_subprocess_run ________________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_git_timeout_default_reach0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e2723e4520>\n\n    def test_git_timeout_default_reaches_subprocess_run(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        calls = []\n    \n        def recorder(command, **kwargs):\n            calls.append(kwargs)\n            return subprocess.CompletedProcess(command, 0, b\"\", b\"\")\n    \n        # The production budget has no other observation seam without waiting 300s.\n        monkeypatch.setattr(R.subprocess, \"run\", recorder)\n        R._git(tmp_path, (\"default-timeout-sentinel\",))\n    \n        assert R._GIT_TIMEOUT_S == 300.0\n        assert len(calls) == 1\n>       assert calls[0][\"timeout\"] == R._GIT_TIMEOUT_S\nE       assert 30.0 == 300.0\nE        +  where 300.0 = R._GIT_TIMEOUT_S\n\norchestrator/tests/test_trial_registry.py:5333: AssertionError\n_____________ test_git_timeout_raises_operational_error_with_cause _____________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_git_timeout_raises_operat0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1524859b57b0>\n\n    def test_git_timeout_raises_operational_error_with_cause(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        bin_dir = tmp_path / \"bin\"\n        bin_dir.mkdir()\n        fake_git = bin_dir / \"git\"\n        fake_git.write_text(\"#!/bin/sh\\nexec sleep 2\\n\", encoding=\"utf-8\")\n        fake_git.chmod(0o755)\n        monkeypatch.setenv(\n            \"PATH\", str(bin_dir) + os.pathsep + os.environ.get(\"PATH\", \"\"),\n        )\n    \n>       with pytest.raises(R.TrialRegistryError, match=r\"\\[git-operational\\]\") as caught:\nE       Failed: DID NOT RAISE TrialRegistryError\n\norchestrator/tests/test_trial_registry.py:5261: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run\nFAILED orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause\n2 failed, 2 passed in 7.07s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=984 retained_bytes=984 omitted_bytes=0 rendered_excerpt_bytes=1035 sha256=70a8e5580ee8823b6ab3173d86115f4f4fb01793371a1c39208ed16247265356\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_git_timeout_default_reach0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e2723e4520>\n> \n>     def test_git_timeout_default_reaches_subprocess_run(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         calls = []\n>     \n>         def recorder(command, **kwargs):\n>             calls.append(kwargs)\n>             return subprocess.CompletedProcess(command, 0, b\"\", b\"\")\n>     \n>         # The production budget has no other observation seam without waiting 300s.\n>         monkeypatch.setattr(R.subprocess, \"run\", recorder)\n>         R._git(tmp_path, (\"default-timeout-sentinel\",))\n>     \n>         assert R._GIT_TIMEOUT_S == 300.0\n>         assert len(calls) == 1\n> >       assert calls[0][\"timeout\"] == R._GIT_TIMEOUT_S\n> E       assert 30.0 == 300.0\n> E        +  where 300.0 = R._GIT_TIMEOUT_S\n> \n> orchestrator/tests/test_trial_registry.py:5333: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=863 retained_bytes=863 omitted_bytes=0 rendered_excerpt_bytes=918 sha256=27b29331ea78e99ddb87359580b0cdfee7065613c9cc6ec855120e13b47fa53f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_git_timeout_raises_operat0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1524859b57b0>\n> \n>     def test_git_timeout_raises_operational_error_with_cause(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         bin_dir = tmp_path / \"bin\"\n>         bin_dir.mkdir()\n>         fake_git = bin_dir / \"git\"\n>         fake_git.write_text(\"#!/bin/sh\\x5cnexec sleep 2\\x5cn\", encoding=\"utf-8\")\n>         fake_git.chmod(0o755)\n>         monkeypatch.setenv(\n>             \"PATH\", str(bin_dir) + os.pathsep + os.environ.get(\"PATH\", \"\"),\n>         )\n>     \n> >       with pytest.raises(R.TrialRegistryError, match=r\"\\x5c[git-operational\\x5c]\") as caught:\n> E       Failed: DID NOT RAISE TrialRegistryError\n> \n> orchestrator/tests/test_trial_registry.py:5261: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1847 retained_bytes=1847 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3100 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1ef992e3f809f80e2c32c2bf765b43ebbaf2e5a639a81549abb8db834daf7c6d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d9837f7cdaf0355393fbdd606a5e7738318d8f97ce1a899ae152d0420b462748",
+      "duration_s": 33.118,
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause",
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run",
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause"
+      ],
+      "hang_risk": false,
+      "id": "M5-hardcoded-budget",
+      "injection_diff_sha256": "0a85770a79aa9539378df2721adf11aa70c6676fda5d1d60c7c653f0e0a86c68",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1e3e368a56b60c405b5e92e46d61af75306c6db9e5f501cbc8c7d063d3117842",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "            timeout=30.0,\n",
+          "old": "            timeout=timeout_s,\n"
+        }
+      ],
+      "repo_head": "1697a5970b6c6c084a10b3c5d13eca73ded656d1",
+      "runner_sha256": "404ad2c0cec23bc0b5ba1a8c69fd15c18e580efa744ee055626bd1b2f9fc6411",
+      "spec_sha256": "584360519324648e3f49445b25efc86f389f637a2e099f952ca6ea207f729760",
+      "status": "KILLED",
+      "test_output_sha256": "1ef992e3f809f80e2c32c2bf765b43ebbaf2e5a639a81549abb8db834daf7c6d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "49d65278ba5392d884113963e342accf1f1cc298cc8393d3785ad80f164d8d1c"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/output/pegasus-dispatch/429e1675c7fec65c4200e30e1d377a1a/izdw-429e1675c7.o997223",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/output/pegasus-dispatch/429e1675c7fec65c4200e30e1d377a1a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.FF.                                                                     [100%]\n=================================== FAILURES ===================================\n__________________ test_git_timeout_preserves_nonzero_result ___________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_git_timeout_preserves_non0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x151d891efcd0>\n\n    def test_git_timeout_preserves_nonzero_result(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        bin_dir = tmp_path / \"bin\"\n        bin_dir.mkdir()\n        fake_git = bin_dir / \"git\"\n        fake_git.write_text(\n            \"#!/bin/sh\\n\"\n            \"printf 'git stdout sentinel\\\\n'\\n\"\n            \"printf 'git stderr sentinel\\\\n' >&2\\n\"\n            \"exit 23\\n\",\n            encoding=\"utf-8\",\n        )\n        fake_git.chmod(0o755)\n        monkeypatch.setenv(\n            \"PATH\", str(bin_dir) + os.pathsep + os.environ.get(\"PATH\", \"\"),\n        )\n    \n        result = R._git(tmp_path, (\"nonzero-sentinel\",))\n    \n        assert result.returncode == 23\n>       assert result.stdout == b\"git stdout sentinel\\n\"\nE       AssertionError: assert None == b'git stdout sentinel\\n'\nE        +  where None = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_git_timeout_preserves_non0', 'nonzero-sentinel'], returncode=23, stderr=b'git stderr sentinel\\n').stdout\n\norchestrator/tests/test_trial_registry.py:5314: AssertionError\n----------------------------- Captured stdout call -----------------------------\ngit stdout sentinel\n__________________ test_git_timeout_preserves_success_result ___________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_git_timeout_preserves_suc0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x151a3b4b4850>\n\n    def test_git_timeout_preserves_success_result(\n        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        bin_dir = tmp_path / \"bin\"\n        bin_dir.mkdir()\n        fake_git = bin_dir / \"git\"\n        fake_git.write_text(\n            \"#!/bin/sh\\n\"\n            \"printf 'git stdout sentinel\\\\n'\\n\"\n            \"printf 'git stderr sentinel\\\\n' >&2\\n\"\n            \"exit 0\\n\",\n            encoding=\"utf-8\",\n        )\n        fake_git.chmod(0o755)\n        monkeypatch.setenv(\n            \"PATH\", str(bin_dir) + os.pathsep + os.environ.get(\"PATH\", \"\"),\n        )\n    \n        result = R._git(tmp_path, (\"success-sentinel\",))\n    \n        assert result.returncode == 0\n>       assert result.stdout == b\"git stdout sentinel\\n\"\nE       AssertionError: assert None == b'git stdout sentinel\\n'\nE        +  where None = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_git_timeout_preserves_suc0', 'success-sentinel'], returncode=0, stderr=b'git stderr sentinel\\n').stdout\n\norchestrator/tests/test_trial_registry.py:5289: AssertionError\n----------------------------- Captured stdout call -----------------------------\ngit stdout sentinel\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_nonzero_result\nFAILED orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_success_result\n2 failed, 2 passed in 5.18s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_nonzero_result\" nodeid_bytes=84 nodeid_omitted_bytes=0 source_bytes=1300 retained_bytes=1300 omitted_bytes=0 rendered_excerpt_bytes=1396 sha256=6a180c141235f21522b8024f32d686eec2b9fddcb95394f9e74ea46476b5ee77\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_git_timeout_preserves_non0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x151d891efcd0>\n> \n>     def test_git_timeout_preserves_nonzero_result(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         bin_dir = tmp_path / \"bin\"\n>         bin_dir.mkdir()\n>         fake_git = bin_dir / \"git\"\n>         fake_git.write_text(\n>             \"#!/bin/sh\\x5cn\"\n>             \"printf 'git stdout sentinel\\x5c\\x5cn'\\x5cn\"\n>             \"printf 'git stderr sentinel\\x5c\\x5cn' >&2\\x5cn\"\n>             \"exit 23\\x5cn\",\n>             encoding=\"utf-8\",\n>         )\n>         fake_git.chmod(0o755)\n>         monkeypatch.setenv(\n>             \"PATH\", str(bin_dir) + os.pathsep + os.environ.get(\"PATH\", \"\"),\n>         )\n>     \n>         result = R._git(tmp_path, (\"nonzero-sentinel\",))\n>     \n>         assert result.returncode == 23\n> >       assert result.stdout == b\"git stdout sentinel\\x5cn\"\n> E       AssertionError: assert None == b'git stdout sentinel\\x5cn'\n> E        +  where None = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_git_timeout_preserves_non0', 'nonzero-sentinel'], returncode=23, stderr=b'git stderr sentinel\\x5cn').stdout\n> \n> orchestrator/tests/test_trial_registry.py:5314: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_success_result\" nodeid_bytes=84 nodeid_omitted_bytes=0 source_bytes=1297 retained_bytes=1297 omitted_bytes=0 rendered_excerpt_bytes=1393 sha256=a6dcd7cad80f31167726c623c08a661da9865f4de3138233d9e768ebbabc0b0f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_git_timeout_preserves_suc0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x151a3b4b4850>\n> \n>     def test_git_timeout_preserves_success_result(\n>         tmp_path: Path, monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         bin_dir = tmp_path / \"bin\"\n>         bin_dir.mkdir()\n>         fake_git = bin_dir / \"git\"\n>         fake_git.write_text(\n>             \"#!/bin/sh\\x5cn\"\n>             \"printf 'git stdout sentinel\\x5c\\x5cn'\\x5cn\"\n>             \"printf 'git stderr sentinel\\x5c\\x5cn' >&2\\x5cn\"\n>             \"exit 0\\x5cn\",\n>             encoding=\"utf-8\",\n>         )\n>         fake_git.chmod(0o755)\n>         monkeypatch.setenv(\n>             \"PATH\", str(bin_dir) + os.pathsep + os.environ.get(\"PATH\", \"\"),\n>         )\n>     \n>         result = R._git(tmp_path, (\"success-sentinel\",))\n>     \n>         assert result.returncode == 0\n> >       assert result.stdout == b\"git stdout sentinel\\x5cn\"\n> E       AssertionError: assert None == b'git stdout sentinel\\x5cn'\n> E        +  where None = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_git_timeout_preserves_suc0', 'success-sentinel'], returncode=0, stderr=b'git stderr sentinel\\x5cn').stdout\n> \n> orchestrator/tests/test_trial_registry.py:5289: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2597 retained_bytes=2597 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3924 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5175da55d7b7e3c5cc30b98cc723b1e2fbbccfb33e5f49ca87b25ab77e2a0ed6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "d9837f7cdaf0355393fbdd606a5e7738318d8f97ce1a899ae152d0420b462748",
+      "duration_s": 43.548,
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_success_result",
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_nonzero_result"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_nonzero_result",
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_success_result"
+      ],
+      "hang_risk": false,
+      "id": "M6-drop-stdout-capture",
+      "injection_diff_sha256": "57511b4caff7f1a6927beeeed8d290c53a8962850e861e14da785e2db2a4f0c2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9c485fbaaf83bf4c4ff61dceeabd05987a37f08224e53c277eff30692a71bbc1",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "new": "            stdout=None,\n",
+          "old": "            stdout=subprocess.PIPE,\n"
+        }
+      ],
+      "repo_head": "1697a5970b6c6c084a10b3c5d13eca73ded656d1",
+      "runner_sha256": "404ad2c0cec23bc0b5ba1a8c69fd15c18e580efa744ee055626bd1b2f9fc6411",
+      "spec_sha256": "584360519324648e3f49445b25efc86f389f637a2e099f952ca6ea207f729760",
+      "status": "KILLED",
+      "test_output_sha256": "5175da55d7b7e3c5cc30b98cc723b1e2fbbccfb33e5f49ca87b25ab77e2a0ed6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "49d65278ba5392d884113963e342accf1f1cc298cc8393d3785ad80f164d8d1c"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/output/pegasus-dispatch/56b5e605a3c79b509f7f388aa33c889c/izdw-56b5e605a3.o997071",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/output/pegasus-dispatch/56b5e605a3c79b509f7f388aa33c889c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause\norchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_success_result\norchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_nonzero_result\norchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run\n\n4/252 tests collected (248 deselected) in 1.49s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "2c056de36cdad893ec03a2e434f870fe6660820b867ab5c9e66f96809f79d404"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause",
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_success_result",
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_nonzero_result",
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run"
+      ],
+      "duration_s": 47.616,
+      "rc": 0,
+      "repo_head": "1697a5970b6c6c084a10b3c5d13eca73ded656d1",
+      "runner_sha256": "404ad2c0cec23bc0b5ba1a8c69fd15c18e580efa744ee055626bd1b2f9fc6411",
+      "spec_sha256": "584360519324648e3f49445b25efc86f389f637a2e099f952ca6ea207f729760",
+      "status": "PASSED",
+      "tool_sha256": "49d65278ba5392d884113963e342accf1f1cc298cc8393d3785ad80f164d8d1c"
+    },
+    "hang_timeout_seconds": 300.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-drop-timeout-kwarg": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause",
+          "orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7f5acf662ffd920c3c38eafc57a1716e27f45f8685df454af9ba707792400c3d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/trial_registry.py",
+            "new": "",
+            "old": "            timeout=timeout_s,\n"
+          }
+        ]
+      },
+      "M2-swallow-timeout": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c2ced0f8c948f7829f4c7c9e8e5a0237ae348c2409b58d91ff938ab6d4245105",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/trial_registry.py",
+            "new": "    except subprocess.TimeoutExpired:\n        return subprocess.CompletedProcess([], 0, b\"\", b\"\")\n",
+            "old": "    except subprocess.TimeoutExpired as exc:\n        raise TrialRegistryError(\n            f\"[git-operational] git command timed out after {timeout_s:g}s\"\n        ) from exc\n"
+          }
+        ]
+      },
+      "M3-default-disables-budget": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "38439dfafd1d9c19e46ae21d4f4b58d4393849e11b3d0e353b6e908956ae15c7",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/trial_registry.py",
+            "new": "    timeout_s: float | None = None,\n",
+            "old": "    timeout_s: float = _GIT_TIMEOUT_S,\n"
+          }
+        ]
+      },
+      "M4-reject-completed-nonzero": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_nonzero_result"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f00d94f9177c543171f60fbb511397372ae0f2a55c2f3fded8e307c622b3f6af",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/trial_registry.py",
+            "new": "            check=True,\n",
+            "old": "            check=False,\n"
+          }
+        ]
+      },
+      "M5-hardcoded-budget": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause",
+          "orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0a85770a79aa9539378df2721adf11aa70c6676fda5d1d60c7c653f0e0a86c68",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/trial_registry.py",
+            "new": "            timeout=30.0,\n",
+            "old": "            timeout=timeout_s,\n"
+          }
+        ]
+      },
+      "M6-drop-stdout-capture": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_success_result",
+          "orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_nonzero_result"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "57511b4caff7f1a6927beeeed8d290c53a8962850e861e14da785e2db2a4f0c2",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/trial_registry.py",
+            "new": "            stdout=None,\n",
+            "old": "            stdout=subprocess.PIPE,\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "1143757caf766f020ec4e27fc0a83d1877b3e6a0fd3a2060b60690de3ed0bea4",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_trial_registry.py",
+      "-k",
+      "git_timeout",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 9000.0
+  },
+  "repo_head": "1697a5970b6c6c084a10b3c5d13eca73ded656d1",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_trial_registry.py",
+      "-k",
+      "git_timeout",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "a643f31ef11fafa6e099c0523491096943804cd1",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "404ad2c0cec23bc0b5ba1a8c69fd15c18e580efa744ee055626bd1b2f9fc6411",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "584360519324648e3f49445b25efc86f389f637a2e099f952ca6ea207f729760",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2496-git-timeout/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "49d65278ba5392d884113963e342accf1f1cc298cc8393d3785ad80f164d8d1c",
+  "updated_at": "2026-09-14T04:30:01.009242+00:00"
+}
