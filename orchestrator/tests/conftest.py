@@ -810,7 +810,7 @@ def _receipt_memo_node_id_from_nodeid(nodeid: str) -> str | None:
 
 
 def _receipt_memo_module():
-    """consumer 検出後にだけ canonical memo module を import する。"""
+    """Import for a selected consumer or speculative xdist controller prewarm."""
     from orchestrator.tests import real_repo_receipt_memo
 
     return real_repo_receipt_memo
@@ -865,14 +865,18 @@ _ORACLE_ENVIRONMENT_MEMO_ENV_UNSET = object()
 _MEMO_PREWARM_TIMING = threading.local()
 
 
-def _prewarm_receipt_memo(config, nodeids, *, run_id: str | None) -> None:
-    """consumer がある controller/serial collection だけを一度 prewarm する。"""
+def _prewarm_receipt_memo(
+    config, nodeids, *, run_id: str | None, consumer_unknown: bool = False,
+) -> None:
+    """Controller writer; early xdist may explicitly have unknown consumers."""
     # pytest_collection_finish の外側 guard と意図的に冗長な defense-in-depth。
     # worker payer は両 guard が同時に失われない限り再発しない。
     if hasattr(config, "workerinput"):
         return
     nodeids = tuple(nodeids)
-    if not _receipt_memo_prewarm_prerequisites(config, nodeids):
+    if not _receipt_memo_prewarm_prerequisites(
+        config, nodeids, consumer_unknown=consumer_unknown,
+    ):
         return
     if getattr(config, _RECEIPT_MEMO_PREWARMED_ATTR, False):
         previous = getattr(config, _RECEIPT_MEMO_RUN_ID_ATTR, None)
@@ -907,7 +911,9 @@ def _prewarm_receipt_memo(config, nodeids, *, run_id: str | None) -> None:
     setattr(config, _RECEIPT_MEMO_PREWARMED_ATTR, True)
 
 
-def _receipt_memo_prewarm_prerequisites(config, nodeids) -> bool:
+def _receipt_memo_prewarm_prerequisites(
+    config, nodeids, *, consumer_unknown: bool = False,
+) -> bool:
     """prewarm 前提を読めない pytest 以外の hook 引数は安全側で無視する。"""
     try:
         getoption = getattr(config, "getoption", None)
@@ -915,7 +921,7 @@ def _receipt_memo_prewarm_prerequisites(config, nodeids) -> bool:
             return False
         if getoption("collectonly", False):
             return False
-        return _receipt_memo_consumer_selected(nodeids)
+        return consumer_unknown or _receipt_memo_consumer_selected(nodeids)
     except Exception:
         return False
 
@@ -2240,7 +2246,7 @@ _RECEIPT_MEMO_BACKGROUND_ATTR = "_izanagi_receipt_memo_background"
 _RECEIPT_MEMO_BACKGROUND_RUN_ID_ATTR = "_izanagi_receipt_memo_background_run_id"
 
 
-def _receipt_background_controller(node, ids) -> bool:
+def _receipt_background_controller(node, ids, *, consumer_unknown=False) -> bool:
     config = node.config
     if hasattr(config, "workerinput") or not isinstance(
         getattr(node, "workerinput", None), dict,
@@ -2250,7 +2256,9 @@ def _receipt_background_controller(node, ids) -> bool:
     return (
         manager is not None
         and manager.get_plugin("dsession") is not None
-        and _receipt_memo_prewarm_prerequisites(config, ids)
+        and _receipt_memo_prewarm_prerequisites(
+            config, ids, consumer_unknown=consumer_unknown,
+        )
     )
 
 
@@ -2364,6 +2372,58 @@ def pytest_collection_finish(session) -> None:
         pass
 
 
+def _start_receipt_background(node, ids, *, consumer_unknown=False, hook):
+    """Start once with real worker identity; unknown selection is speculative.
+
+    Shard allocation needs collected items and their group closure. Neither CLI
+    paths nor the consumer registry can predict it. Early xdist therefore pays
+    once per controller, including shards that eventually have no consumers.
+    """
+    background_config = (
+        node.config if _receipt_background_controller(
+            node, ids, consumer_unknown=consumer_unknown,
+        ) else None
+    )
+    if background_config is not None:
+        run_id = node.workerinput.get("testrunuid")
+        if run_id is None:
+            run_id = node.config.getoption("testrunuid", None)
+        if run_id is None:
+            raise pytest.UsageError("xdist receipt memo consumer に testrunuid が無い")
+        identity_attr = _RECEIPT_MEMO_BACKGROUND_RUN_ID_ATTR
+        previous = getattr(node.config, identity_attr, run_id)
+        if previous != run_id:
+            raise pytest.UsageError(
+                "receipt memo prewarm の xdist run ID が worker 間で不一致: "
+                f"first={previous!r} current={run_id!r}"
+            )
+        setattr(node.config, identity_attr, run_id)
+        if not hasattr(node.config, _RECEIPT_MEMO_BACKGROUND_ATTR):
+            pending = _receipt_memo_module().begin_background_prewarm(
+                run_id=run_id,
+                session_id=getattr(node.config, _RECEIPT_MEMO_SESSION_ID_ATTR, None),
+            )
+
+    if background_config is None:
+        return False
+    if not hasattr(node.config, _RECEIPT_MEMO_BACKGROUND_ATTR):
+        def receipt():
+            try:
+                _prewarm_receipt_memo(
+                    node.config, ids, run_id=run_id,
+                    consumer_unknown=consumer_unknown,
+                )
+                pending.unlink()
+            except BaseException:
+                _receipt_memo_module().publish_prewarm_failure(pending)
+                raise
+
+        _run_memo_prewarm_barrier(
+            receipt, lambda: None, hook=hook, background_config=node.config,
+        )
+    return True
+
+
 @pytest.hookimpl(optionalhook=True)
 def pytest_configure_node(node) -> None:
     """controller の session nonce を xdist workerinput へ wire する。"""
@@ -2395,6 +2455,11 @@ def pytest_configure_node(node) -> None:
                 "oracle environment memo controller session nonce が無い"
             )
         workerinput[_ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR] = oracle_session_id
+    # WorkerController.setup calls this hook before remote_exec/channel.send;
+    # testrunuid and the controller nonce are already bound, collection is not.
+    _start_receipt_background(
+        node, (), consumer_unknown=True, hook="configure_node",
+    )
 
 
 @pytest.hookimpl(optionalhook=True)
@@ -2423,32 +2488,14 @@ def pytest_xdist_node_collection_finished(node, ids) -> None:
                 node.config,
                 getattr(node.config, _FLAKY_HOLD_MATCHED_IDS_ATTR, ()),
             )
-    background_config = (
-        node.config if _receipt_background_controller(node, ids) else None
+    background_started = _start_receipt_background(
+        node, ids, hook="xdist_node_collection_finished",
     )
-    if background_config is not None:
-        run_id = node.workerinput.get("testrunuid")
-        if run_id is None:
-            run_id = node.config.getoption("testrunuid", None)
-        if run_id is None:
-            raise pytest.UsageError("xdist receipt memo consumer に testrunuid が無い")
-        identity_attr = _RECEIPT_MEMO_BACKGROUND_RUN_ID_ATTR
-        previous = getattr(node.config, identity_attr, run_id)
-        if previous != run_id:
-            raise pytest.UsageError(
-                "receipt memo prewarm の xdist run ID が worker 間で不一致: "
-                f"first={previous!r} current={run_id!r}"
-            )
-        setattr(node.config, identity_attr, run_id)
-        if not hasattr(node.config, _RECEIPT_MEMO_BACKGROUND_ATTR):
-            pending = _receipt_memo_module().begin_background_prewarm(
-                run_id=run_id,
-                session_id=getattr(node.config, _RECEIPT_MEMO_SESSION_ID_ATTR, None),
-            )
 
     def receipt():
         if (
-            not hasattr(node.config, "workerinput")
+            not background_started
+            and not hasattr(node.config, "workerinput")
             and _receipt_memo_prewarm_prerequisites(node.config, ids)
         ):
             run_id_available = True
@@ -2462,14 +2509,7 @@ def pytest_xdist_node_collection_finished(node, ids) -> None:
             if run_id_available and run_id is None:
                 raise pytest.UsageError("xdist receipt memo consumer に testrunuid が無い")
             if run_id_available:
-                try:
-                    _prewarm_receipt_memo(node.config, ids, run_id=run_id)
-                    if background_config is not None:
-                        pending.unlink()
-                except BaseException:
-                    if background_config is not None:
-                        _receipt_memo_module().publish_prewarm_failure(pending)
-                    raise
+                _prewarm_receipt_memo(node.config, ids, run_id=run_id)
 
     def oracle():
         if (
@@ -2493,7 +2533,6 @@ def pytest_xdist_node_collection_finished(node, ids) -> None:
 
     _run_memo_prewarm_barrier(
         receipt, oracle, hook="xdist_node_collection_finished",
-        background_config=background_config,
     )
     if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
         return

@@ -5419,7 +5419,7 @@ def test_receipt_memo_worker_hook_order_mechanism_rejects_both_mutants():
         raise AssertionError(f"{label} mutant が worker-first 検査を通過した")
 
 
-def test_receipt_memo_real_xdist_order_has_no_worker_payer():
+def _receipt_memo_real_xdist_order_trace():
     """実 xdist 順序を worker collection hook から controller hook まで固定する。"""
     _require_loadgroup_capability()
     with tempfile.TemporaryDirectory(prefix="receipt-xdist-order-") as raw_tmp:
@@ -5470,6 +5470,18 @@ def test_receipt_memo_real_xdist_order_has_no_worker_payer():
                     from orchestrator.tests import conftest as suite_conftest
                     suite_conftest._receipt_memo_module = lambda: FakeMemo
 
+                @pytest.hookimpl(hookwrapper=True, tryfirst=True)
+                def pytest_configure_node(node):
+                    yield
+                    from orchestrator.tests import conftest as suite_conftest
+                    job = getattr(node.config, suite_conftest._RECEIPT_MEMO_BACKGROUND_ATTR, None)
+                    if job is not None and job[0].ident is not None:
+                        record("receipt-thread-started")
+
+                def pytest_collectstart(collector):
+                    if hasattr(collector.config, "workerinput"):
+                        record("worker-collection-start")
+
                 __WORKER_HOOK__
 
                 def pytest_xdist_node_collection_finished(node, ids):
@@ -5510,6 +5522,11 @@ def test_receipt_memo_real_xdist_order_has_no_worker_payer():
             f"xdist order probe failed:\nstdout={result.stdout}\nstderr={result.stderr}"
         )
         trace = events.read_text(encoding="utf-8").splitlines()
+    return trace
+
+
+def test_receipt_memo_real_xdist_order_has_no_worker_payer():
+    trace = _receipt_memo_real_xdist_order_trace()
     assert trace.count("worker-hook") == 1, trace
     assert trace.count("controller-hook") == 1, trace
     assert trace.count("begin-prewarm-controller") == 1, trace
@@ -6377,3 +6394,137 @@ enforce_held_functions(globals(), __file__, plain_runner="manual")
 
 if __name__ == "__main__":
     sys.exit(_run())
+
+
+def test_receipt_configure_node_starts_before_real_worker_collection():
+    """Record actual xdist dispatch and worker collection, not a scripted order."""
+    trace = _receipt_memo_real_xdist_order_trace()
+    assert trace.count("begin-prewarm-controller") == 1
+    assert "worker-collection-start" in trace
+    assert trace.count("receipt-thread-started") == 1
+    assert trace.index("receipt-thread-started") < trace.index("worker-collection-start")
+    assert trace.count("prewarm-controller") == 1
+
+
+def _configure_early_receipt_probe(f, monkeypatch, resolve):
+    suite = _load_suite_conftest()
+    node = _receipt_background_test_node(f.run_id)
+    # The shard spec alone has no selected node IDs before collection.
+    node.config._izanagi_acceptance_shard_spec = SimpleNamespace(shard_index=1)
+    monkeypatch.setattr(f.memo, "_RECEIPT_MEMO", f.memo._make_receipt_memo(resolve))
+    monkeypatch.setattr(suite, "_receipt_memo_module", lambda: f.memo)
+    monkeypatch.setattr(suite, "_real_repo_locks", lambda *_: contextlib.nullcontext())
+    monkeypatch.setattr(suite, "_emit_effective_scheduler_marker", lambda *_: None)
+    return suite, node
+
+
+def _unconfigure_receipt_probe(suite, config):
+    wrapper = suite.pytest_unconfigure(config)
+    next(wrapper)
+    with pytest.raises(StopIteration):
+        next(wrapper)
+
+
+def test_receipt_early_consumer_shard_reads_published_cache(delayed_receipt_cache, monkeypatch):
+    f = delayed_receipt_cache
+    calls = []
+
+    def resolve():
+        calls.append("resolve")
+        return f.resolution
+
+    suite, node = _configure_early_receipt_probe(f, monkeypatch, resolve)
+    try:
+        suite.pytest_configure_node(node)
+        assert hasattr(node.config, suite._RECEIPT_MEMO_BACKGROUND_ATTR)
+        # Further workers must share the same writer/cache identity.
+        suite.pytest_configure_node(node)
+        suite.pytest_xdist_node_collection_finished(node, [
+            "test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract",
+        ])
+        with mock.patch.object(f.memo, "_resolve_now", side_effect=AssertionError("reader resolved")):
+            assert f.memo._make_receipt_memo().get() == f.resolution
+        assert calls == ["resolve"]
+        assert f.path.is_file()
+        assert not f.memo._pending_path(f.path).exists()
+    finally:
+        _unconfigure_receipt_probe(suite, node.config)
+
+
+def test_receipt_early_unused_shard_finishes_without_leaking_session(delayed_receipt_cache, monkeypatch):
+    f = delayed_receipt_cache
+    calls = []
+
+    def resolve():
+        calls.append("resolve")
+        return f.resolution
+
+    suite, node = _configure_early_receipt_probe(f, monkeypatch, resolve)
+    try:
+        suite.pytest_configure_node(node)
+        assert hasattr(node.config, suite._RECEIPT_MEMO_BACKGROUND_ATTR)
+        suite.pytest_xdist_node_collection_finished(node, ["test_unrelated.py::test_ok"])
+    finally:
+        _unconfigure_receipt_probe(suite, node.config)
+    assert calls == ["resolve"]
+    assert f.path.is_file()
+    assert not f.memo._pending_path(f.path).exists()
+    assert not f.memo._failure_path(f.path).exists()
+    assert not f.memo._RECEIPT_MEMO.process_prewarmed
+    # Reentry uses the existing session-key mechanism, never the unused cache.
+    node = _receipt_background_test_node(f.run_id)
+    monkeypatch.setattr(node.config, suite._RECEIPT_MEMO_SESSION_ID_ATTR, "next-session")
+    monkeypatch.setenv(f.memo._SESSION_NONCE_ENV, "next-session")
+    try:
+        suite.pytest_configure_node(node)
+        assert f.memo._make_receipt_memo().get() == f.resolution
+    finally:
+        _unconfigure_receipt_probe(suite, node.config)
+    assert calls == ["resolve", "resolve"]
+
+
+def test_receipt_early_thread_is_joined_by_unconfigure(delayed_receipt_cache, monkeypatch):
+    f = delayed_receipt_cache
+    entered, release = threading.Event(), threading.Event()
+
+    def resolve():
+        entered.set()
+        assert release.wait(5)
+        return f.resolution
+
+    suite, node = _configure_early_receipt_probe(f, monkeypatch, resolve)
+    cleanup = None
+    try:
+        suite.pytest_configure_node(node)
+        assert entered.wait(2)
+        background = getattr(node.config, suite._RECEIPT_MEMO_BACKGROUND_ATTR)[0]
+        assert background.is_alive() and not background.daemon
+        cleanup, done, outcome = _receipt_async_call(
+            lambda: _unconfigure_receipt_probe(suite, node.config),
+        )
+        assert not done.wait(0.1), outcome
+        release.set()
+        assert done.wait(2)
+        assert outcome == [None]
+        assert not background.is_alive()
+        assert not f.memo._RECEIPT_MEMO.process_prewarmed
+    finally:
+        release.set()
+        if cleanup is not None:
+            cleanup.join(6)
+        suite._join_receipt_background(node.config)
+
+
+def test_receipt_early_collectonly_and_worker_do_not_start(delayed_receipt_cache, monkeypatch):
+    f = delayed_receipt_cache
+    suite, node = _configure_early_receipt_probe(
+        f, monkeypatch, lambda: pytest.fail("unexpected resolver"),
+    )
+    node.config = _ReceiptHookConfig({"collectonly": True, "testrunuid": f.run_id})
+    node.config.pluginmanager = SimpleNamespace(get_plugin=lambda _: object())
+    with mock.patch.object(suite, "_receipt_memo_module", side_effect=AssertionError("unexpected import")):
+        suite.pytest_configure_node(node)
+        assert not hasattr(node.config, suite._RECEIPT_MEMO_BACKGROUND_ATTR)
+        node.config = SimpleNamespace(workerinput={})
+        suite.pytest_configure_node(node)
+        assert not hasattr(node.config, suite._RECEIPT_MEMO_BACKGROUND_ATTR)
