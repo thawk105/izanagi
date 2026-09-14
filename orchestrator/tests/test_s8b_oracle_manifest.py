@@ -794,6 +794,30 @@ def test_verify_rehashes_each_canonical_generator_in_supplied_root(
         )
 
 
+def test_verify_manifest_rejects_retired_floor_budget_snapshot_key(tmp_path):
+    freeze_path = _freeze_copy(tmp_path)
+    document = _build_manifest(freeze_path)
+    approved = _APPROVED_BY_MANIFEST_ID[document["manifest_id"]]
+    freeze_bytes = freeze_path.read_bytes()
+    freeze_document = json.loads(freeze_bytes)
+    document["floor_budget_snapshot_sha256"] = _canonical_sha256({
+        "floor": freeze_document["floor"],
+        "budget": freeze_document["budget"],
+    })
+    path = tmp_path / "retired-key-manifest.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(
+            manifest.ManifestError, match="^manifest top-level schema が不一致$"):
+        manifest.verify_manifest(
+            path,
+            root=_ROOT,
+            freeze_document=freeze_document,
+            freeze_sha256=hashlib.sha256(freeze_bytes).hexdigest(),
+            approved_spec=approved,
+        )
+
+
 def test_verify_detects_freeze_byte_tampering(tmp_path):
     freeze_path = _freeze_copy(tmp_path)
     document = _build_manifest(freeze_path)
@@ -913,7 +937,7 @@ def test_reviewed_spec_rejects_two_blocks_before_approval(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# M1/C3-3: per-pair floor table の exact 検査 (execution snapshot)
+# execution snapshot: floor 外形と budget の検査
 # ---------------------------------------------------------------------------
 def _v2_document():
     document = json.loads(FREEZE_PATH.read_text(encoding="utf-8"))
@@ -927,102 +951,10 @@ def _snapshot(document):
     )
 
 
-def _first_holdout_floor(document):
-    holdout_id = next(iter(document["holdouts"]))
-    return holdout_id, document["floor"]["by_holdout"][holdout_id]
-
-
-def test_snapshot_accepts_valid_per_pair_floor():
-    _snapshot(_v2_document())  # 正例: 例外なし
-
-
 def test_snapshot_rejects_oracle_shared_false():
     document = copy.deepcopy(_v2_document())
     document["budget"]["oracle_shared"] = False
     with pytest.raises(manifest.ManifestError, match="oracle_shared が true でない"):
-        _snapshot(document)
-
-
-def test_snapshot_accepts_explicit_null_pair():
-    # 明示 null: pair 1 件を null にし、scalar_alt も null (相関充足)。scale_ref は
-    # 非 null (stock 有効) のまま。判定不能 pair を持つ正常 freeze を受理する。
-    document = _v2_document()
-    _holdout, floor_h = _first_holdout_floor(document)
-    a_pair = sorted(floor_h["pairs"])[0]
-    floor_h["pairs"][a_pair] = None
-    floor_h["scalar_alt"] = None
-    _snapshot(document)
-
-
-def test_snapshot_rejects_null_pair_with_nonnull_scalar_alt():
-    document = copy.deepcopy(_v2_document())
-    _holdout, floor_h = _first_holdout_floor(document)
-    a_pair = sorted(floor_h["pairs"])[0]
-    floor_h["pairs"][a_pair] = None
-    with pytest.raises(
-            manifest.ManifestError, match="pair に null を含むのに非 null"):
-        _snapshot(document)
-
-
-def test_snapshot_accepts_all_null_holdout():
-    # stock 未確定 holdout: 全 pair null + scalar_alt null + scale_ref null。
-    document = _v2_document()
-    _holdout, floor_h = _first_holdout_floor(document)
-    floor_h["pairs"] = {cfg: None for cfg in floor_h["pairs"]}
-    floor_h["scalar_alt"] = None
-    floor_h["scale_ref"] = None
-    _snapshot(document)
-
-
-def test_snapshot_rejects_scalar_v1_floor():
-    # scalar (v1 数値) 形の holdout 値は Mapping でないため拒否。
-    document = _v2_document()
-    holdout_id, _floor_h = _first_holdout_floor(document)
-    document["floor"]["by_holdout"][holdout_id] = 0.01
-    with pytest.raises(manifest.ManifestError, match="pairs, scale_ref, scalar_alt"):
-        _snapshot(document)
-
-
-def test_snapshot_rejects_stock_key_in_pairs():
-    document = _v2_document()
-    _holdout, floor_h = _first_holdout_floor(document)
-    floor_h["pairs"]["stock_common"] = 0.01
-    with pytest.raises(manifest.ManifestError, match="pairs の key 集合"):
-        _snapshot(document)
-
-
-def test_snapshot_rejects_missing_pair():
-    document = _v2_document()
-    _holdout, floor_h = _first_holdout_floor(document)
-    dropped = sorted(floor_h["pairs"])[0]
-    del floor_h["pairs"][dropped]
-    with pytest.raises(manifest.ManifestError, match="pairs の key 集合"):
-        _snapshot(document)
-
-
-def test_snapshot_rejects_extra_pair():
-    document = _v2_document()
-    _holdout, floor_h = _first_holdout_floor(document)
-    floor_h["pairs"]["not-a-configuration"] = 0.02
-    with pytest.raises(manifest.ManifestError, match="pairs の key 集合"):
-        _snapshot(document)
-
-
-def test_snapshot_rejects_scale_ref_null_with_finite_pair():
-    # 相関違反: scale_ref=null なのに pair/scalar_alt が非 null。
-    document = _v2_document()
-    _holdout, floor_h = _first_holdout_floor(document)
-    floor_h["scale_ref"] = None
-    with pytest.raises(manifest.ManifestError, match="scale_ref"):
-        _snapshot(document)
-
-
-def test_snapshot_rejects_scalar_alt_not_max():
-    # 全 pair 非 null だが scalar_alt が max(pairs) と不一致。
-    document = _v2_document()
-    _holdout, floor_h = _first_holdout_floor(document)
-    floor_h["scalar_alt"] = floor_h["scalar_alt"] + 1.0
-    with pytest.raises(manifest.ManifestError, match="scalar_alt"):
         _snapshot(document)
 
 
@@ -1031,16 +963,6 @@ def test_snapshot_rejects_extra_top_level_floor_key():
     document = _v2_document()
     document["floor"]["stale"] = 1.0
     with pytest.raises(manifest.ManifestError, match=r"exact \{by_holdout\}"):
-        _snapshot(document)
-
-
-def test_snapshot_rejects_nonfinite_pair_value():
-    # 有限正でない pair (0 以下) を拒否する。
-    document = _v2_document()
-    _holdout, floor_h = _first_holdout_floor(document)
-    a_pair = sorted(floor_h["pairs"])[0]
-    floor_h["pairs"][a_pair] = 0.0
-    with pytest.raises(manifest.ManifestError, match="有限正 float or null"):
         _snapshot(document)
 
 

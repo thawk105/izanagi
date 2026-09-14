@@ -843,7 +843,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
         freeze_document = verified_freeze.document
         holdout_ids = _holdout_ids(freeze_document)
-        # per-pair floor / budget を manifest と同等の validator で strict 検査する (二重定義回避)。
+        # floor の holdout 集合と budget を manifest と共通の validator で検査する。
         _validate_execution_snapshot(freeze_document, holdout_ids=holdout_ids)
         floor_source = _artifacts.strict_load_json_object(
             s8b_ratified_freeze.read_floor_source_blob(
