@@ -45,6 +45,24 @@ title: [T-1643] `__has_include` 族の実 pair を login と計算ノードで�
   (`--lane は --stage consult でだけ指定できる`)。段 2・3・5 では `--dry-run` で argv を
   先に検査していたのに段 6 で省いたのが原因。`DW-O01` は「段別 flag 違反は rc=2 即死」と
   既に書いている。log path を変えて再投入し、以後は全段で `--dry-run` を先に通した。
+- **受入全走は 4 回投げて 4 回目で緑になった。** 実測は次のとおり。
+  - **attempt 1**: 23309 passed / 68 skipped / **1 error**。赤は
+    `test_t1259_qsub_env_delivery_probe.py::test_r3_records_only_the_observed_ambient_approval_condition[delivered-mismatching-literal]`
+    の 1 件で、entry 1483 と F945 に記録のある族。本 wave の変更は docs のみで差分到達経路が
+    無いため `DW-O18` に従い単独再走 → **51 passed / 15.40s / rc=0 で非再現**。
+  - **attempt 2**: `prerun-clean` で**テストを走らせず停止**。親が走行中に段 8 の docs を編集し、
+    gate が dirty tree を検出した。**親の手順ミスであり、汚染は無い** (gate が正しく働いた)。
+  - **attempt 3**: 23303 passed / 68 skipped / **7 error**。entry 1483 が記録した輻輳パターンと
+    同一の 2 族 (`t1259` 6 件 + `test_s8c_preregistration_predicates.py::test_repository_candidate_uses_real_s8c_budget_module` 1 件)。
+    同 tip の単独再走は **269 passed / rc=0** で両族とも非再現。投入時 load 60.99 → 走行中 69.84。
+  - **attempt 4**: **23314 passed / 68 skipped、`verdict=child-green`、`red_nodeids=[]`**。
+    投入時 load 31.34 (下降局面)。`tested_main=c347c049…` / `tested_tip=6864a2889`。
+  - **非帰属赤に hold 登録で逃げていない。** entry 1483 の運用 (load の窓を待って 1 回だけ投げる) に
+    従っただけである。
+- **land は 2 回弾かれた。** 1 回目は `rc=21` (別 wave `dev-wave-t758-docs-corrections` の撤去中で
+  git admin が一時不整合、`retryable_same_request: true`)、2 回目は `rc=10 stale-main`
+  (main が tested closure の外へ `1b1706a34` まで動いた)。main を merge し直し、
+  **受入と land を 1 本へ連結**して窓を詰めた。
 - **エージェント工数:** codex 子 6 本 (段 2 plan 1、段 3 consult 2、段 5 author 1、段 6 review 2)。
   親は login probe 1 走、compute dispatch 2 回 (1 回目は walltime 形式で rc=16)。実装子は
   `tools/t1643_has_include_pair_probe.py` (475 行) だけを書き、親が実行後に repo 外へ退避した。
