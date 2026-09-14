@@ -1943,6 +1943,18 @@
 - 検出は着地前で実害ゼロ。拾ったのは `DW-O26` の consumer 拡張焦点走 (参照関係で引いた 6 file) で、
   段 6 の敵対レビューも独立に同じものを検出した。**変更 file だけの焦点走なら取り逃していた。**
   挿入点より上にあるもう 1 つの pin (`_build_binary`) は動かず、赤にも出ていない。
+
+- **再発: 2026-09-14** — 床値由来の受入関門を撤去する wave で、production から 10 行消えた結果
+  `orchestrator/tests/test_ccbench_spawn_sites.py` の `_BuildSink` が pin する
+  `s8b_oracle_driver.py` の `pipeline.evaluate` 行が 1793 → 1783 へずれ、
+  `test_define_sink_cross_product_classifies_t2155_production_sinks_exactly` が赤になった。
+  **今回が足す事実は「参照関係で引く consumer 列挙でも漏れる」ことである。** 親は `DW-O26` に
+  従って import・helper・fixture を 2 段辿って consumer を列挙したが、この test は production を
+  **path 文字列と行番号の literal** で参照しており、import にも symbol 参照にも現れない。
+  拾ったのは段 6 の敵対レビュー (レンズ D) で、親の焦点走集合には入っていなかった。
+  恒久対応は F39 から変更しない。`DW-O09` への収容は [T-2480] の予算裁定待ちのままである。
+  運用として、**production の行数を変える wave では、consumer 列挙に「production の path 文字列を
+  literal で持つ test」を symbol 検索とは別に足す**。検出は着地前で実害ゼロ。
 ### F40. 測定のための一時変異ハーネスが部分一致の anchor で tracked file を壊し、実装の退行に見える赤を出した [恒真ゲート] [防壁の射程誤認]
 
 - 事象: [T-120] の A/B 交互測定 (xdist group あり/なしを交互に走らせて wall を比べる) で、親は
@@ -24340,6 +24352,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 段 3 の敵対相談のレンズに「成果物の同定根拠が brief にあるか、無ければ何を根拠に
   その path を選んだか」を含める。今回は親が自力で見つけたため、この検知は未発火である。
 
+
+- **再発: 2026-09-14** — D501 決定 8 が名指した「driver の測定 binary bytes 照合」を、親が段 1 で
+  `orchestrator/campaign/floor_pair_driver.py` の build receipt 検査と同定した。実際の対象は
+  `s8b_oracle_driver.py` が過去床値 campaign の receipt から `expected_perf_sha256` を供給する
+  経路だった。曖昧さを解く鍵は裁定本文が述べる**性質**「照合対象の receipt 自体が過去の床値
+  campaign 由来である」で、親はこれを使わず **module 名が「driver」と「binary」を含むこと**で
+  同定していた。段 3 のレンズ A が指摘し、親が現物で確かめて編集面を差し替えた。
+  誤ったまま進めば、外すべき経路を残したまま無関係な検査 (`sort_best` の SWO PASS receipt 検査を
+  含む) を落としていた。
+- **これで独立 2 例目となり、F928 が置いた「2 例目が出たら共有 docs へ上げる」条件を満たした**
+  (1 例目は成果物名、2 例目は裁定が名指す機構名)。ただし収容先の `DW-S01` を含む
+  `docs/dev-wave/core.md` は 9691 bytes で層の上限 9696 bytes に対し残り 5 bytes しかなく、
+  1 文も入らない。安全記述を削って空ける形は契約が禁じている。**予算の変更は段 8 が実装せず
+  裁定へ返す事項なので、収容は実装しない。** 共有 docs への収容可否は [T-2480] と同じ型の
+  予算裁定として扱う。実害は Codex 子の空費ゼロ (段 3 が段 4 の前に訂正した)。
 ### F929. レビューの是正案をそのまま実装し、根拠の裁定より強い断定を書いた [権限逸脱]
 
 - 事象: 段 6 のレビューが「A-2 の候補段落を現在化した結果、fig5 の恒久 erratum の期限条件
@@ -25049,6 +25076,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 子の完了報告に実走 nodeid が 1 件も無いときは、投入経路の失敗を疑って
   親が同じ木で自走 harness を叩き直す。
 
+
+- **再発: 2026-09-14** — 段 5 の実装子 2 名と段 6 の fix 子 1 名が、いずれも sandbox で
+  `tools/run_tests.py` の投入 preflight が `qstat -Q` rc=1 になり `rc=16` / `child_started=false` で
+  止まった。**3 名とも「実装済み・未実走」と申告し、`closed` や「緑」とは書かなかった** —
+  前回の wave が fix 子の prompt へ入れた指示が効いた。実走はすべて親が行い、全緑を確認した。
+  恒久対応は F964 から変更しない。今回が足す事実は、**prompt へ「rc=16 なら未実走と書け」を
+  明示すると子の申告が正直になる**ことの 2 例目である。
 ### F965. 裁定本文が名指す識別子の割り当てを、凍結の権威と逐語照合しないまま確定した [ドリフト] [手順漏れ]
 
 - 事象: D1640 (2026-09-05) が `delta_min` の基準を「H1 = rr20、H2 = rr80」と書いたが、
@@ -25139,3 +25173,26 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 検出経路: 起票は別 wave の段 6 レビューで、本 wave はその carry を実装した。
   reader の 3 箇所目は本 wave の段 2 プランが、親 brief の「既に分離できている」という前提を
   現物で崩して見つけた。
+
+### F969. 二重読みを一度読みへ直す起草案が、残る 1 回の読み先をすり替えて別の欠陥を作った [誤前提] [防壁の射程誤認]
+
+- 事象: `tools/codex_reasoning_ab.py` の `supervise_pair` は、run root の frozen copy を
+  hash 用と解析用に別々に読んでいた。段 2 の起草案はこれを 1 回読みへ直す際、
+  **読む対象を frozen から source へ移した** (`schedule_sha = _sha256(source_schedule_bytes)`)。
+  依頼の文面 (「一度だけ読み、その同じ bytes から導く」) は満たすが、
+  **現行が持っていた「frozen が壊れていたら拒否する」力を失う。**
+  正当な source を保存した直後に frozen を壊れた JSON へ上書きすると、現行は
+  `cannot read JSON object` で止まるが、起草案は source を hash・解析して launch まで進む。
+  段 3 の敵対レンズ A が、この反例を構成して覆した。
+- 根本原因: 「読み回数を 1 にする」という**数の要件**だけを見て、
+  「その 1 回が何を観測しているか」という**対象の要件**を見なかった。
+  二重読みは (i) 観測の重複と (ii) 観測対象の一致、という 2 つの性質を同時に持っており、
+  (i) だけを直すと (ii) を壊しうる。
+- 実害: なし (near miss)。段 3 の敵対相談で段 5 の実装前に覆り、
+  裁定でプラン v2 を「frozen を 1 回読む」へ差し替えた。
+- 恒久対応: D1988 が supervisor の authority を
+  frozen と明記し、source を authority にしてはならない理由を本文に持つ。
+  機械側の検知は変異 M6 (`_sha256(schedule_bytes)` → `_sha256(frozen_schedule.read_bytes())`)
+  が担い、frozen の read 計数が 2 になることで落ちる。
+- 再発検知: 読み回数を減らす修正では、**減らした後に残る 1 回が元と同じ対象を読むか**を
+  裁定で明示的に確かめる。段 3 の敵対レンズに「この修正が失う観測は何か」を必ず入れる。
