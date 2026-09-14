@@ -443,6 +443,7 @@ def qualify(args, report, log):
     with tempfile.TemporaryDirectory(prefix='t1994-qualification-', dir='/tmp') as temporary:
         scratch = Path(temporary)
         qualify_moved_publication_cases(scratch, checks, report)
+        qualify_capability_states(scratch, checks, report)
         base = scratch / 'base'
         base.mkdir()
         source_dirs = {}
@@ -453,7 +454,12 @@ def qualify(args, report, log):
                 run(['git', 'clone', '--no-hardlinks', '--no-checkout', str(source), str(target)])
                 run(['git', '-C', str(target), 'checkout', '--detach', pins[name]])
                 source_dirs[name] = str(target)
-        shared = scratch / 'shared-0444'
+        # build_options passes base as FETCHCONTENT_BASE_DIR, so buildcache
+        # includes it in the real session's shared_directories. Keep this file
+        # on that branch: scratch itself disappears under the private /tmp.
+        shared_directory = base / 'qualification-shared'
+        shared_directory.mkdir()
+        shared = shared_directory / 'shared-0444'
         shared.write_bytes(b'A')
         shared.chmod(0o444)
         control_row = fork_report(lambda: control(shared))
@@ -581,6 +587,26 @@ def qualify_moved_publication_cases(scratch, checks, report):
             checks['moved:' + name] = error(exc)
 
 
+def qualify_capability_states(scratch, checks, report):
+    """Measure all four states once; acceptance keeps the regain/filter pair."""
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+    rows = report.setdefault('capability_state_cases', {})
+    name = '_shared_readonly_file_capability_and_userns_controls_case'
+    for state in ('capabilities', 'dropped', 'regained', 'filtered'):
+        directory = scratch / ('capability-' + state)
+        directory.mkdir()
+        began = time.monotonic()
+        try:
+            result = _run_sealed_case('orchestrator.tests.test_s8b_expected_materialization',
+                                      name, directory, state=state)
+            rows[state] = dict(result, state=state, elapsed_s=time.monotonic() - began)
+            require(checks, 'capability_state:' + state,
+                    result == {'case': name, 'completed': True})
+        except Exception as exc:
+            rows[state] = dict(error(exc), state=state, elapsed_s=time.monotonic() - began)
+            checks['capability_state:' + state] = error(exc)
+
+
 def build_case(configuration, attack_mode, label, row, checks, args, freeze, pin,
                toolchain, cc, cxx, context, contract, base, source_dirs, shared,
                binding, scratch, log, bc, em, mat, floor, direct, source_digest,
@@ -648,16 +674,20 @@ def build_case(configuration, attack_mode, label, row, checks, args, freeze, pin
             require(checks, label + ':unprotected_compiler_reads_B',
                     control.returncode != 0 and 'T1994_ORIGINAL_TREE_B' in control.stderr)
 
-        def observed_run(session, argv, *, cwd, env, timeout_s):
+        def observed_run(session, argv, *, cwd, env, timeout_s, build_output=None):
             nonlocal sealed_seen, build_finished
 
-            def execute(command):
+            def execute(command, *, build_output=None):
                 record = {'argv': list(map(str, command)), 'cwd': str(cwd), 'timeout_s': None,
                           'ccache_environment': {k: v for k, v in (env or {}).items() if k.startswith('CCACHE_')}}
                 row['session_commands'].append(record)
                 started = time.monotonic()
                 try:
-                    completed = original_run(session, command, cwd=cwd, env=env, timeout_s=None)
+                    # Only the producer's build call supplies an output. The
+                    # seal/inventory/ccache observers omit it even during build.
+                    output_options = {} if build_output is None else {'build_output': build_output}
+                    completed = original_run(session, command, cwd=cwd, env=env, timeout_s=None,
+                                             **output_options)
                 except Exception as exc:
                     record.update(error(exc))
                     raise
@@ -694,7 +724,7 @@ def build_case(configuration, attack_mode, label, row, checks, args, freeze, pin
             is_build = '--build' in argv
             if is_build and attack_mode != 'none' and not mutated:
                 mutate()
-            completed = execute(argv)
+            completed = execute(argv, build_output=build_output)
             if is_build:
                 build_finished = completed.returncode == 0
                 copied = execute(child_command('inventory', root))

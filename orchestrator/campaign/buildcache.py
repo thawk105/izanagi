@@ -3168,6 +3168,47 @@ def _build_v2_impl(
             os.close(parent_fd)
 
 
+def _descriptor_shared_directories(
+        sub, cache_root, shared_base, *, cc, cxx, source_dirs,
+        dependency_prefix):
+    """Restore the build's named inputs hidden by the private top component.
+
+    Keep cwd semantics (including relative argv/environment paths). Source and
+    its spine already exist in the private view and must never be shared back.
+    Cache/base remain the first branches, including when not yet created.
+    """
+    root = Path(sub).resolve()
+    shared = [os.path.realpath(os.path.abspath(cache_root))]
+    if shared_base:
+        shared.append(shared_base)
+    inputs = [os.getcwd(), *source_dirs.values()]
+    prefixes = (
+        _canonical_explicit_dependency_prefix(dependency_prefix)[0]
+        if dependency_prefix else
+        _canonical_ambient_dependency_prefix(os.environ.get("CMAKE_PREFIX_PATH"))
+    )
+    inputs.extend(prefixes)
+    # _tool_version resolves these same names; _v2_commands executes their
+    # realpaths, not the PATH symlinks. Share their containing directories only.
+    for requested in (cc, cxx, "cmake"):
+        found = shutil.which(requested)
+        if found:
+            inputs.append(os.path.dirname(os.path.realpath(found)))
+    for value in inputs:
+        path = Path(value).resolve()
+        if (path == root or root in path.parents or path in root.parents
+                or path.parts[1:2] != root.parts[1:2]):
+            continue
+        # Absent search prefixes were ignored by CMake; don't create them.
+        if not path.is_dir():
+            continue
+        if any(path == Path(branch).resolve()
+               or Path(branch).resolve() in path.parents for branch in shared):
+            continue
+        shared.append(str(path))
+    return shared
+
+
 def build_v2(
         genome: Genome, *, admission: BuildAdmission,
         build_context: BuildRunContext, source_evidence: SourceEvidence,
@@ -3291,12 +3332,18 @@ def build_v2(
     sub = ccbench_dir or _ccbench_dir()
     pending_publications: list[_PendingV2Publication] = []
     pending = None
-    shared_directories = [os.path.realpath(os.path.abspath(cache_root))]
     shared_base = fetchcontent_base_dir
     if not shared_base and post_oracle_dependency_binding is not None:
         shared_base = post_oracle_dependency_binding["fetchcontent_base_dir"]
-    if shared_base:
-        shared_directories.append(shared_base)
+    shared_directories = _descriptor_shared_directories(
+        sub, cache_root, shared_base, cc=cc, cxx=cxx,
+        source_dirs=_normalize_fetchcontent_source_dirs(
+            masstree_source_dir=masstree_source_dir,
+            mimalloc_source_dir=mimalloc_source_dir,
+            googletest_source_dir=googletest_source_dir,
+        ),
+        dependency_prefix=dependency_prefix,
+    )
     try:
         with s8b_expected_materialization.sealed_build_session(
                 ccbench_commit=descriptor.ccbench_commit,

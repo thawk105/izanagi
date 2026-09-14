@@ -939,8 +939,14 @@ assert not (root / 'src/main.cc').stat().st_mode & 0o222
     assert namespaces == {name: os.readlink("/proc/self/ns/" + name) for name in namespaces}
 
 
-@pytest.mark.parametrize("state", ["capabilities", "dropped", "regained", "filtered"])
+@pytest.mark.parametrize("state", ["regained", "filtered"])
 def test_shared_readonly_file_capability_and_userns_controls(tmp_path, state):
+    # Same regain-and-write attack: succeeds without seccomp, denied with it.
+    # The one-shot qualification driver runs the complete four-state matrix.
+    _shared_readonly_file_capability_and_userns_controls_case(tmp_path, state)
+
+
+def _shared_readonly_file_capability_and_userns_controls_case(tmp_path, state):
     import errno
     import subprocess
     file = tmp_path / "shared"

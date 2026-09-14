@@ -5967,6 +5967,129 @@ def test_descriptor_build_prepares_missing_cache_root(tmp_path):
     assert result == {"case": case, "completed": True}
 
 
+def test_descriptor_build_from_hidden_sibling_cwd(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_descriptor_build_from_hidden_sibling_cwd_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _descriptor_build_from_hidden_sibling_cwd_case(tmp_path, monkeypatch):
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "cwd-input").write_bytes(b"parent cwd")
+    monkeypatch.chdir(project)
+    source = tmp_path / "ccbench"
+    assert project.parts[1] == source.parts[1]
+    assert project not in source.parents and source not in project.parents
+    real_run = buildcache._run
+    setup = _fake_build_environment
+    calls = []
+
+    def setup_with_real_cwd_check(patch, directory, *args, **kwargs):
+        setup(patch, directory, *args, **kwargs)
+        synthetic_build = buildcache._run
+
+        def run(cmd, what, timeout_s=None, **options):
+            # The existing synthetic compiler avoids CMake cost. This probe
+            # goes through the production cwd/transport before that compiler;
+            # neither _run nor SealedBuildSession.run is stubbed for the probe.
+            session = options["sealed_session"]
+            program = (
+                "from pathlib import Path; import subprocess, sys; "
+                "assert Path.cwd() == Path(sys.argv[1]); "
+                "assert Path('cwd-input').read_bytes() == b'parent cwd'; "
+                "subprocess.run([sys.argv[2], '--version'], check=True)"
+            )
+            real_run(
+                [sys.executable, "-I", "-B", "-c", program,
+                 str(project), cmd[0]], what,
+                timeout_s=_SEALED_COMMAND_TIMEOUT_S,
+                site=buildcache.site_policy.OTHER, sealed_session=session,
+            )
+            calls.append(what)
+            return synthetic_build(cmd, what, timeout_s, **options)
+
+        patch.setattr(buildcache, "_run", run)
+
+    monkeypatch.setattr(sys.modules[__name__], "_fake_build_environment",
+                        setup_with_real_cwd_check)
+    # Keeps all existing binary, cache-hit, digest and lifecycle assertions.
+    _v2_descriptor_runs_gate_inside_build_and_returns_both_digests_case(
+        tmp_path, monkeypatch,
+    )
+    assert calls == ["configure", "build"]
+    completions = list((tmp_path / "cache").rglob("completion.json"))
+    assert len(completions) == 1
+
+
+def test_descriptor_named_input_branches_visible_in_real_child(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_descriptor_named_input_branches_visible_in_real_child_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _descriptor_named_input_branches_visible_in_real_child_case(tmp_path, monkeypatch):
+    monkeypatch.setenv("PATH", os.defpath)
+    root = _publication_source(tmp_path)
+    base, cache, prefix = (tmp_path / name for name in ("base", "cache", "prefix"))
+    for path in (base, cache, prefix):
+        path.mkdir()
+    source_dirs = {}
+    for name in ("masstree", "mimalloc", "googletest"):
+        path = tmp_path / (name + "-override")
+        path.mkdir()
+        (path / "input").write_text(name)
+        source_dirs[name] = str(path)
+    (prefix / "input").write_text("prefix")
+    tools = tmp_path / "real-tools"
+    tools.mkdir()
+    compiler = tools / "compiler"
+    _write_tool(compiler, "realpath compiler")
+    link = cache / "compiler-link"
+    link.symlink_to(compiler)
+    # A spine cwd needs no sharing; a source input must stay the sealed copy.
+    monkeypatch.chdir(root.parent)
+    shared = buildcache._descriptor_shared_directories(
+        root, cache, base, cc=str(link), cxx=str(link),
+        source_dirs={**source_dirs, "snapshot": str(root)},
+        dependency_prefix=str(prefix),
+    )
+    assert set(map(Path, shared)) == {cache, base, prefix, tools,
+                                    *(Path(p) for p in source_dirs.values())}
+    assert all(root != Path(p) and root not in Path(p).parents
+               and Path(p) not in root.parents for p in shared)
+    program = textwrap.dedent("""
+        import subprocess, sys
+        from pathlib import Path
+        compiler, base, cache, prefix, *dependencies = map(Path, sys.argv[1:])
+        result = subprocess.run([str(compiler)], capture_output=True, text=True, check=True)
+        assert result.stdout.strip() == 'realpath compiler'
+        assert (prefix / 'input').read_text() == 'prefix'
+        for path, name in zip(dependencies, ('masstree', 'mimalloc', 'googletest')):
+            assert (path / 'input').read_text() == name
+        (base / 'new-entry').write_bytes(b'writable base')
+        (cache / 'binary').write_bytes(b'built from named inputs')
+    """)
+    with _publication_session(root, shared_directories=shared) as session:
+        buildcache._run(
+            [sys.executable, "-I", "-B", "-c", program, str(compiler),
+             str(base), str(cache), str(prefix), *source_dirs.values()],
+            "build", site=buildcache.site_policy.OTHER, sealed_session=session,
+            timeout_s=_SEALED_COMMAND_TIMEOUT_S,
+            build_output=str(cache / "binary"),
+        )
+    assert (cache / "binary").read_bytes() == b"built from named inputs"
+    assert (base / "new-entry").read_bytes() == b"writable base"
+
+
 def _descriptor_build_prepares_missing_cache_root_case(tmp_path, monkeypatch):
     assert not (tmp_path / "cache").exists()
     _v2_descriptor_runs_gate_inside_build_and_returns_both_digests_case(tmp_path, monkeypatch)
