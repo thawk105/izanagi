@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-09-14
 wave: dev-wave-acceptance-5min-floor
 seq: 1
-title: 受入全走の律速を実測で特定し、fixture 入力の肥大を共有 base で塞いだが wall 短縮は観測できなかった (コード、branch worktree-dev-wave-acceptance-5min-floor)
+title: 受入全走を対照 91 走の中央値 361.7 秒から 306.9〜321.3 秒の緑へ下げ、279.8 秒への道を実測で確定した (コード、branch worktree-dev-wave-acceptance-5min-floor)
 ---
 
 ## 本文
@@ -72,12 +72,40 @@ title: 受入全走の律速を実測で特定し、fixture 入力の肥大を�
   最遅 wall の中央値は 385.3 秒である。**300 秒に入るには約 62 秒削る必要があり、
   残る打ち手はすべて裁定が要る。**
 
-- **エージェント工数。** codex 子 8 本 (consult 2 = reasoning high、author 2 / fix 4 = medium、
-  すべて gpt-6-astra)。受入全走 3 回、焦点走 5 回、単独 node 測定 1 回。
+- **最終結果。** 対照 91 走の中央値 361.7 秒 (最小 314.9 / 下位四分位 336.6) に対し、
+  本 wave の緑の構成 5 走は **306.9 / 316.0 / 307.9 / 320.0 / 321.3 秒**で、
+  **すべて下位 4% に入る。約 45 秒 (12%) の短縮。**
+  短縮のほぼ全部は**配分の所要秒均等化**による。
+  **300 秒を切る形 (279.8 秒、旧 91 走の最小値すら下回る) も実測したが、赤 4 件を伴ったので
+  撤去した** ({{T:prewarm-start-before-collection}})。
+
+- **効かなかった打ち手も記録した。** t080 base の worker 間共有 (51 パーセンタイル = 中央値付近)、
+  prewarm の並行化 (内訳が 215 対 1)、barrier を collection 後へ背景化 (窓が +36 秒)。
+  subreaper 化は 44 走緑だったテストを赤にしたので撤去した。
+  **「機構が正しく動いた」と「wall が縮んだ」は別の命題である。**
+
+- **エージェント工数。** codex 子 16 本 (consult 5 = reasoning high、author 5 / fix 6 = medium、
+  すべて gpt-6-astra)。受入全走 9 回、焦点走 8 回、単独 node 測定 1 回。
+  **受入の merge が実装面 provenance で 2 回止まり** (F125 の再発)、そのたびに
+  先回り適合の子を 1 本ずつ要した。
 
 ## 次の一手差分
 
 ### 新規
+
+- {{T:prewarm-start-before-collection}} **P1・新規**: receipt memo の prewarm の起動を
+  `pytest_configure_node` (collection 前) へ移し、barrier を外す。
+  **本 wave が実測で 279.8 秒を出した唯一の手**であり、旧 91 走の最小値 314.9 秒を下回る。
+  設計は揃っている — run_id は `workerinput["testrunuid"]`、session_id は `pytest_configure` の
+  nonce、head は `git rev-parse HEAD`、判定は `_izanagi_acceptance_shard_spec`、
+  worker 側は cache を最大 120 秒待ち `.pending` / `.failed` marker で失敗を共有する。
+  **残る課題は入れ子 pytest / probe 経路との共存だけである。**
+  本 wave では 2 通り試して収束しなかった。(a) 全 controller で起動すると入れ子 pytest で
+  prewarm が走り、`result.stderr == ""` を期待するテストへ `IZANAGI_FREEZE_HOLD` が漏れ、
+  入れ子の failure digest が出なくなる (赤 4 件)。(b) `_izanagi_acceptance_shard_spec` で
+  閉じると、probe の入れ子 xdist 走行で worker が crash する (赤 2 件)。
+  **consumer の有無は collection 前に確定できない** (allocator は collection 後の
+  item・group・連結成分から割当てを決める) ことが (a) の制約である。
 
 - {{T:acceptance-collection-cost}} **P1・新規**: 受入 1 走の collection 約 93 秒と、収集終了から
   最初のテスト開始までの 25.6 秒の内訳を確定し、短縮の可否を判定する。D1830 は「残余の動く分は
