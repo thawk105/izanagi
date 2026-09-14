@@ -39,8 +39,10 @@ tools/pegasus/submit_b10_backoff_grid.sh \
 既存 3 系列 (`extended` / `t2266-tail` / `t2418-explore`) にこの 2 つを渡すと拒否される。
 逆に `t2500-tail-formal` でどちらかを省いても拒否される。
 
-投入に成功すると、出力親に `<group id>.submit.jsonl` が 1 本と、workload ごとの
-出力 root・標準出力・標準エラーが作られる。3 本の job はこの group id で結び付く。
+投入に成功した時点で出力親に作られるのは `<group id>.submit.jsonl` の 1 本だけである。
+workload ごとの出力 root は job が計算ノードで動き出してから作られ、標準出力・標準エラーの
+file は scheduler が書く。**したがって、投入直後に出力 root が無いことは投入の失敗を意味しない。**
+3 本の job はこの receipt に記録された group id で結び付く。
 
 ## 3. 完走の確認
 
@@ -69,7 +71,8 @@ python3.10 -I -B \
 - 位置引数は job の出力 root ではなく、**その配下の campaign directory** を 3 つ、明示して渡す。
   glob で自動選択しない。同じ group id の 3 本であることを人が確かめて渡す。
 - driver は 3 つの campaign lock 間で集団の同一性を突き合わせ、食い違えば集団全体を無効にする。
-- 出力先には stem の `.json`、`.dat`、`-complete.json` が作られる。既存の出力先へは再実行できない。
+- 出力先には stem の `.json`、`.dat`、`-complete.json` が作られる。出力先の directory 自体は
+  既に在ってよいが、**その 3 つのいずれかが既に在れば拒否される** (上書きしない)。
 - 判定が invalid のときも報告は作られ、終了コードは 1 になる。
   **成果物が在ることを valid の根拠にしてはならない。**
 

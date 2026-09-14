@@ -10,14 +10,6 @@ usage() {
   echo "The two new flags are required and valid only for t2500-tail-formal." >&2
 }
 
-# Help is unconditional, including after an incomplete or unknown option.
-for argument in "$@"; do
-  if [[ "$argument" == "--help" ]]; then
-    usage
-    exit 0
-  fi
-done
-
 OUTPUT_PARENT=""
 B10_RUN_KIND=extended
 B10_PREREGISTRATION_COMMIT=""
@@ -77,7 +69,10 @@ if [[ "$B10_RUN_KIND" == "t2500-tail-formal" ]]; then
     echo "explore campaign must be an existing safe absolute directory, not a symlink" >&2
     exit 2
   }
-  B10_EXPLORE_CAMPAIGN=$(realpath -e -- "$B10_EXPLORE_CAMPAIGN") || exit 2
+  # Preserve path newlines until validation; remove only realpath's terminator.
+  resolved=$(realpath -e -- "$B10_EXPLORE_CAMPAIGN" && printf 'x') || exit 2
+  resolved=${resolved%x}
+  B10_EXPLORE_CAMPAIGN=${resolved%$'\n'}
   [[ "$B10_EXPLORE_CAMPAIGN" =~ ^[A-Za-z0-9._/-]+$ ]] || {
     echo "resolved explore campaign contains characters unsafe for qsub -v" >&2
     exit 2

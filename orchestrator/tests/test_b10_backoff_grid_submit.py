@@ -1,5 +1,6 @@
 """Exercise the real submission shell with scheduler commands confined to stubs."""
 import hashlib
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -63,8 +64,12 @@ else:
         argv = ["bash", str(SUBMIT)]
         if include_output:
             argv += ["--output-parent", str(output)]
-        return subprocess.run(argv + args, cwd=REPO, env=env,
-                              capture_output=True, text=True, timeout=30)
+        started = datetime.now(timezone.utc).replace(microsecond=0)
+        result = subprocess.run(argv + args, cwd=REPO, env=env,
+                                capture_output=True, text=True, timeout=30)
+        finished = datetime.now(timezone.utc).replace(microsecond=0)
+        result.utc_window = (started, finished)
+        return result
 
     return SimpleNamespace(run=run, output=output, explore=explore, calls=calls,
                            tmp=tmp_path)
@@ -97,6 +102,9 @@ def _assert_submission(submission, result, kind, *, explore=None):
     manifest = events[0]
     group = manifest["group_id"]
     assert re.fullmatch(r"b10-backoff-grid-\d{8}T\d{6}Z-[1-9]\d*", group)
+    timestamp = datetime.strptime(group.rsplit("-", 2)[1], "%Y%m%dT%H%M%SZ").replace(
+        tzinfo=timezone.utc)
+    assert result.utc_window[0] <= timestamp <= result.utc_window[1]
     assert receipts[0].name == group + ".submit.jsonl"
     nonce = manifest["submission_nonce"]
     assert re.fullmatch(r"[0-9a-f]{32}", nonce)
@@ -146,6 +154,24 @@ def test_submit_formal_forwards_both_inputs_to_three_jobs(submission):
     result = submission.run(["--run-kind", FORMAL, "--preregistration-commit", COMMIT,
                              "--explore-campaign", explore])
     _assert_submission(submission, result, FORMAL, explore=str(submission.explore.resolve()))
+
+
+@pytest.mark.parametrize("kind", [None, "extended", "t2266-tail", "t2418-explore", FORMAL])
+def test_submit_repeated_arguments_produce_distinct_group_ids(submission, kind):
+    args = [] if kind is None else ["--run-kind", kind]
+    if kind == FORMAL:
+        args += ["--preregistration-commit", COMMIT,
+                 "--explore-campaign", str(submission.explore)]
+    groups = []
+    for index in range(2):
+        output = submission.tmp / f"repeat-{index}"
+        output.mkdir()
+        result = submission.run(["--output-parent", str(output), *args], include_output=False)
+        assert result.returncode == 0, (result.stdout, result.stderr)
+        receipts = list(output.glob("*.submit.jsonl"))
+        assert len(receipts) == 1
+        groups.append(json.loads(receipts[0].read_text().splitlines()[0])["group_id"])
+    assert groups[0] != groups[1]
 
 
 @pytest.mark.parametrize("commit", ["", "a" * 39, "a" * 41, "A" * 40,
@@ -227,20 +253,53 @@ def test_submit_unknown_kind_still_rejected(submission):
     _rejected(submission, ["--run-kind", "unknown"])
 
 
-@pytest.mark.parametrize("position", range(10))
+@pytest.mark.parametrize("position,expected_rc", [
+    (0, 0),  # Help is the first option.
+    (1, 2),  # run-kind consumes help; the original kind is an unknown option.
+    (2, 0),  # Help follows the complete run-kind option.
+    (3, 2),  # commit consumes help; the empty original value is an unknown option.
+    (4, 0),  # The recognized commit option lets the loop reach help.
+    (5, 2),  # explore consumes help; /missing is an unknown option.
+    (6, 0),  # New explore flag recognition intentionally makes help reachable (old rc=2).
+    (7, 2),  # output-parent consumes help; /missing is an unknown option.
+    (8, 0),  # Help is reached before --unknown.
+    (9, 2),  # --unknown rejects before help can be reached.
+])
 @pytest.mark.parametrize("kind", ["extended", FORMAL, "unknown"])
-def test_submit_help_at_every_argument_position(submission, position, kind):
+def test_submit_help_at_every_argument_position(submission, position, expected_rc, kind):
     args = ["--run-kind", kind, "--preregistration-commit", "",
             "--explore-campaign", "/missing", "--output-parent", "/missing", "--unknown"]
     args.insert(position, "--help")
     result = submission.run(args, include_output=False)
-    assert result.returncode == 0, result.stderr
+    assert result.returncode == expected_rc, result.stderr
     assert "usage:" in result.stderr
     assert FORMAL in result.stderr
     assert "--preregistration-commit" in result.stderr
     assert "--explore-campaign" in result.stderr
     assert _calls(submission) == []
     assert list(submission.output.iterdir()) == []
+
+
+def test_submit_help_after_new_explore_flag_intentionally_returns_zero(submission):
+    result = submission.run(["--run-kind", "extended", "--explore-campaign", "/x", "--help"],
+                            include_output=False)
+    assert result.returncode == 0, result.stderr  # Recognizing the new flag changes old rc=2.
+    assert "usage:" in result.stderr
+    assert _calls(submission) == []
+    assert list(submission.output.iterdir()) == []
+
+
+@pytest.mark.parametrize("alias", [False, True], ids=["direct", "alias-dot"])
+def test_submit_rejects_trailing_newline_explore_before_side_effects(submission, alias):
+    unsafe = submission.tmp / "explore\n"
+    unsafe.mkdir()  # submission.explore is the different directory reached if LF is lost.
+    value = str(unsafe)
+    if alias:
+        link = submission.tmp / "safe-alias"
+        link.symlink_to(unsafe, target_is_directory=True)
+        value = str(link) + "/."  # Pass the lexical and leaf-symlink checks.
+    _rejected(submission, ["--run-kind", FORMAL, "--preregistration-commit", COMMIT,
+                           "--explore-campaign", value])
 
 
 def _documented_argv(section, replacements):

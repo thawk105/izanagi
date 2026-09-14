@@ -136,6 +136,66 @@ def test_job_formal_command_uses_run_cli(tmp_path):
     assert _calls(env) == _expected(env, FORMAL)
 
 
+def test_job_formal_variable_occurrences_are_fixed():
+    # Static source invariant; this does not execute the intervening job stages.
+    source = _source()
+    entry = source.index('REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P)')
+    allocation = source.index("\nCURRENT_STAGE=allocation_reservation", entry)
+    sweep = source.index('if [[ "$B10_RUN_KIND" == "t2266-tail" ]]; then')
+    cleanup = source.index("\nCURRENT_STAGE=ccbench_worktree_cleanup", sweep)
+    regions = {
+        "before-input": source[:entry],
+        "input": source[entry:allocation],
+        "intervening": source[allocation:sweep],
+        "sweep": source[sweep:cleanup],
+        "after-sweep": source[cleanup:],
+    }
+    names = ("B10_PREREGISTRATION_COMMIT", "B10_EXPLORE_CAMPAIGN")
+    # Include every literal occurrence, including diagnostics, so assignment,
+    # unset, export and read cannot introduce an unobserved use of either name.
+    # The ordinal preserves duplicate lines without pinning unrelated line numbers.
+    actual = {
+        (region, ordinal, line)
+        for region, body in regions.items()
+        for ordinal, line in enumerate(
+            line.strip() for line in body.splitlines()
+            if any(name in line for name in names)
+        )
+    }
+    expected_input = r'''
+[[ "${B10_PREREGISTRATION_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] || \
+fail 2 "B10_PREREGISTRATION_COMMIT must be 40 lowercase hex characters"
+[[ "${B10_EXPLORE_CAMPAIGN:-}" == /* \
+&& -d "$B10_EXPLORE_CAMPAIGN" && ! -L "$B10_EXPLORE_CAMPAIGN" ]] || \
+fail 2 "B10_EXPLORE_CAMPAIGN must be an absolute, existing, non-symlink directory"
+"$PY" -I -B - "$REPO_ROOT" "$B10_EXPLORE_CAMPAIGN" <<'PY'
+'''.strip().splitlines()
+    expected_sweep = r'''
+--preregistration-commit "$B10_PREREGISTRATION_COMMIT" \
+--explore-campaign "$B10_EXPLORE_CAMPAIGN" \
+'''.strip().splitlines()
+    expected = {
+        (region, ordinal, line)
+        for region, lines in (("input", expected_input), ("sweep", expected_sweep))
+        for ordinal, line in enumerate(lines)
+    }
+    assert actual == expected
+
+
+@pytest.mark.parametrize("name", ["B10_PREREGISTRATION_COMMIT", "B10_EXPLORE_CAMPAIGN"])
+@pytest.mark.parametrize("mutation", ["{name}=broken", "unset {name}",
+                                     "export {name}=broken", "read -r {name}"])
+def test_job_formal_variable_invariant_rejects_overwrites(monkeypatch, name, mutation):
+    source = _source()
+    marker = "CURRENT_STAGE=allocation_reservation\n"
+    assert source.count(marker) == 1
+    mutated = source.replace(marker, marker + mutation.format(name=name) + "\n", 1)
+    # Inject into the real job source in memory; keep the production file intact.
+    monkeypatch.setattr(sys.modules[__name__], "_source", lambda: mutated)
+    with pytest.raises(AssertionError):
+        test_job_formal_variable_occurrences_are_fixed()
+
+
 def _entry_through_sweep(source):
     case_start = source.index('case "$B10_RUN_KIND" in')
     case_end = source.index("\nesac", case_start) + len("\nesac")
