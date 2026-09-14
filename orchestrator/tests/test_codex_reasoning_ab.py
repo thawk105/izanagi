@@ -1941,6 +1941,232 @@ def _full_manifest(
     return _canonical(root / "manifest.json", manifest), run_root
 
 
+class _ScheduleReadObservation:
+    """Delegate real reads and restore an A→B→A exchange, including teardown."""
+
+    def __init__(self, path: Path, replacement: bytes | None = None):
+        self.path = path.resolve()
+        self.replacement = replacement
+        self.reads = self.exchanges = self.restores = 0
+        self.original_bytes: bytes | None = None
+        self.original_stat: os.stat_result | None = None
+
+    def __enter__(self):
+        self.original_read = Path.read_bytes
+
+        def observed(path: Path) -> bytes:
+            data = self.original_read(path)
+            if path.resolve() == self.path:
+                self.reads += 1
+                if self.reads == 1:
+                    self.original_bytes = data
+                    self.original_stat = path.stat()
+                    if self.replacement is not None:
+                        path.write_bytes(self.replacement)
+                        self.exchanges += 1
+                elif self.reads == 2 and self.replacement is not None:
+                    self._restore()
+            return data
+
+        Path.read_bytes = observed
+        return self
+
+    def _restore(self):
+        if self.restores == 0:
+            assert self.original_bytes is not None
+            assert self.original_stat is not None
+            self.path.write_bytes(self.original_bytes)
+            os.utime(self.path, ns=(
+                self.original_stat.st_atime_ns, self.original_stat.st_mtime_ns,
+            ))
+            self.restores += 1
+
+    def __exit__(self, *exc):
+        try:
+            if self.replacement is not None and self.exchanges:
+                self._restore()
+        finally:
+            Path.read_bytes = self.original_read
+        assert Path.read_bytes is self.original_read
+        if self.original_bytes is not None:
+            assert self.original_read(self.path) == self.original_bytes
+            assert self.path.stat().st_mtime_ns == self.original_stat.st_mtime_ns
+
+
+def _schedule_bytes_entry_fixture(root, benchmark, monkeypatch, entry, invalid):
+    task_manifest = benchmark["task_manifest"]
+    if entry == "replay":
+        manifest_path, run_root = _full_manifest(
+            root, benchmark, monkeypatch, memoize_construction_snapshots=True,
+        )
+        path = run_root / "schedule.json"
+        manifest = json.loads(manifest_path.read_bytes())
+    else:
+        path, slots = _schedule(
+            root / "schedule-source.json", benchmark, task_manifest=task_manifest,
+        )
+        run_root = root / "run-root"
+    valid_bytes = path.read_bytes()
+    if invalid:
+        schedule = json.loads(valid_bytes)
+        schedule["slots"][1]["slot_id"] = schedule["slots"][0]["slot_id"]
+        metadata = path.stat()
+        _canonical(path, schedule)
+        os.utime(path, ns=(metadata.st_atime_ns, metadata.st_mtime_ns))
+    expected_sha = TOOL._sha256(path.read_bytes())
+    if entry == "supervisor":
+        config = root / "config-source.toml"
+        auth = root / "auth-source.json"
+        config.write_text("model='gpt-5.6-sol'\n", encoding="utf-8")
+        auth.write_text('{"token":"synthetic"}\n', encoding="utf-8")
+        codex = _make_fake_codex(root / "fake-codex")
+        bwrap = _make_executable(
+            root / "fake-bwrap",
+            "#!/bin/sh\n[ \"$1\" = \"--version\" ] && printf 'bwrap 0.6.1\\n'\n",
+        )
+        def invoke():
+            return TOOL.supervise_pair(
+                schedule_path=path, run_root=run_root, block_id="b01", attempt=1,
+                snapshot=benchmark["POS"]["snapshot"], prompt=benchmark["POS"]["prompt"],
+                config_source=config, auth_source=auth, codex_binary=codex,
+                bwrap_binary=bwrap, dry_run=True, task_manifest=task_manifest,
+            )
+        observed_path = run_root / "schedule.json"
+    elif entry == "replay":
+        manifest["schedule"] = _descriptor(path, root)
+        manifest["schedule_sha256"] = expected_sha
+        if invalid:
+            # Bind the synthetic receipts to A too: otherwise an unrelated
+            # launch/SHA mismatch would conceal acceptance of B by old replay.
+            ledger_path = run_root / "attempt-ledger.jsonl"
+            ledger = [json.loads(line) for line in ledger_path.read_bytes().splitlines()]
+            for row in manifest["attempts"]:
+                launch_path = root / row["launch_receipt"]["path"]
+                launch = json.loads(launch_path.read_bytes())
+                launch["schedule_sha256"] = expected_sha
+                launch["treatment_identity_sha256"] = TOOL._launch_identity_value(launch)
+                metadata = launch_path.stat()
+                _canonical(launch_path, launch)
+                os.utime(launch_path, ns=(metadata.st_atime_ns, metadata.st_mtime_ns))
+                row["launch_receipt"] = _descriptor(launch_path, root)
+                for completed in ledger:
+                    if completed.get("run_id") == row["run_id"] and completed.get("phase") == "completed":
+                        completed["launch_receipt_sha256"] = row["launch_receipt"]["sha256"]
+                oracle = json.loads((root / row["snapshot_oracle"]["path"]).read_bytes())
+                receipt, rc = TOOL.collect_run(
+                    run_id=row["run_id"], case=launch["case"],
+                    requested_effort=launch["arm"],
+                    events=root / row["events"]["path"],
+                    done=root / row["done"]["path"],
+                    output=root / row["output"]["path"],
+                    prompt=root / row["prompt"]["path"],
+                    sessions_root=run_root, snapshot=Path(oracle["snapshot"]),
+                    launch_receipt=launch_path, expected_requested_model=TOOL.MODEL,
+                    task_manifest=task_manifest,
+                )
+                assert rc == 0, receipt.get("failure_reasons")
+                receipt_path = root / row["receipt"]["path"]
+                _canonical(receipt_path, receipt)
+                row["receipt"] = _descriptor(receipt_path, root)
+            ledger_path.write_bytes(b"".join(TOOL._canonical_bytes(row) for row in ledger))
+            manifest["attempt_ledger"] = _descriptor(ledger_path, root)
+        _canonical(manifest_path, manifest)
+        def invoke():
+            return TOOL.verify_manifest(manifest_path, run_root, task_manifest=task_manifest)
+        observed_path = path
+    else:
+        output = root / "answer.md"
+        output.write_text(_long_output(), encoding="utf-8")
+        manifest_path = _canonical(root / "packet-source.json", {
+            "task_manifest_sha256": TOOL._task_manifest_sha256(task_manifest),
+            "schedule": _descriptor(path, root),
+            "attempts": [
+                {"slot_id": slot["slot_id"], "attempt": 1,
+                 "run_id": slot["slot_id"], "output": _descriptor(output, root)}
+                for slot in slots
+            ],
+        })
+        def invoke():
+            return TOOL.make_packets(
+                manifest_path, root / "new-packets", root / "new-custodian",
+                task_manifest=task_manifest,
+            )
+        observed_path = path
+    return invoke, observed_path, valid_bytes, expected_sha
+
+
+@pytest.mark.parametrize("entry", ("supervisor", "replay", "packets"))
+def test_schedule_authenticated_bytes_reject_swap_restore(
+    tmp_path: Path, benchmark_snapshots: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch, entry: str,
+) -> None:
+    """固定 input に対する受理集合は不変。呼び出し中に変化する input に対しては挙動が変わり、
+    それが本修正の目的である — 認証した bytes を、その後の file の状態から切り離す。
+    確認した3入口の読みと解析の間に正規の resolver / injection point / テスト用 hook は無い。
+    """
+    invoke, path, valid_bytes, _ = _schedule_bytes_entry_fixture(
+        tmp_path, benchmark_snapshots, monkeypatch, entry, True,
+    )
+    before = {p for p in tmp_path.rglob("*") if p.is_file()}
+    error = None
+    with _ScheduleReadObservation(path, valid_bytes) as observation:
+        try:
+            result = invoke()
+        except TOOL.ValidationError as exc:
+            error = exc
+    assert observation.exchanges == 1
+    assert observation.restores == 1
+    assert observation.reads == 1
+    if entry == "replay":
+        assert error is None
+        report, rc = result
+        assert rc == TOOL.RC_AGGREGATE
+        assert report["valid"] is False
+        assert "duplicate slot_id: s01" in report["failure_reasons"]
+        assert {p for p in tmp_path.rglob("*") if p.is_file()} == before
+    else:
+        assert error is not None
+        assert "duplicate slot_id: s01" in error.reasons
+        assert error.rc == (TOOL.RC_ROUTING if entry == "supervisor" else TOOL.RC_AGGREGATE)
+        assert not (tmp_path / "new-packets").exists()
+        assert not (tmp_path / "new-custodian").exists()
+        assert not list((tmp_path / "run-root").rglob("launch.json"))
+        assert not (tmp_path / "run-root" / "attempt-ledger.jsonl").exists()
+
+
+@pytest.mark.parametrize("entry", ("supervisor", "replay", "packets"))
+def test_schedule_authenticated_bytes_accept_static(
+    tmp_path: Path, benchmark_snapshots: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch, entry: str,
+) -> None:
+    invoke, path, valid_bytes, expected_sha = _schedule_bytes_entry_fixture(
+        tmp_path, benchmark_snapshots, monkeypatch, entry, False,
+    )
+    with _ScheduleReadObservation(path) as observation:
+        result = invoke()
+    assert observation.reads == 1
+    assert observation.exchanges == observation.restores == 0
+    assert path.read_bytes() == valid_bytes
+    assert TOOL._sha256(valid_bytes) == expected_sha
+    if entry == "supervisor":
+        assert len(result["runs"]) == 2
+        for row in result["runs"]:
+            launch = json.loads(Path(row["launch_receipt"]).read_bytes())
+            assert launch["schedule_sha256"] == expected_sha
+    elif entry == "replay":
+        report, rc = result
+        assert rc == 0
+        assert report["valid"] is True
+        assert report["failure_reasons"] == []
+        assert len(report["resource_ledger"]) == 10
+        manifest = json.loads((tmp_path / "manifest.json").read_bytes())
+        assert manifest["schedule_sha256"] == expected_sha
+    else:
+        assert result["packet_count"] == 10
+        manifest = json.loads((tmp_path / "packet-source.json").read_bytes())
+        assert manifest["schedule"]["sha256"] == expected_sha
+
+
 def test_corrected_case_allowlists_are_literal() -> None:
     assert TOOL.CASE_ARTIFACTS["POS"] == ("review-a.md", "review-b.md", "fix1.md")
     assert TOOL.CASE_ARTIFACTS["NEG"] == (
