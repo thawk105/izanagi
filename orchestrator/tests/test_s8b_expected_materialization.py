@@ -745,7 +745,9 @@ import sys
 sys.path[:] = sys.path[1:]
 import contextlib, importlib, inspect, io, json
 from pathlib import Path
-sys.path.insert(0, sys.argv[1])
+# pytest can supply either orchestrator.tests.<module> or bare <module>.
+root = Path(sys.argv[1])
+sys.path[:0] = [str(root), str(root / 'orchestrator' / 'tests')]
 module = importlib.import_module(sys.argv[2])
 case = getattr(module, sys.argv[3])
 parameters = json.loads(sys.argv[5])
