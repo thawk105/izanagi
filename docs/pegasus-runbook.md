@@ -611,6 +611,10 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
   **`generic` も計算ノードでしか子を起動しない** — `_job_script` と `_job_run` の
   二重 bnode gate を通る。したがって「login で任意 argv を実行しない」という D103 決定 5 の
   一次層の性質は保たれる。
+  `--walltime` は **`HH:MM:SS` 形式**でなければ投入前に
+  `Pegasus dispatch setup failure: ValueError: walltime は HH:MM:SS 形式で指定してください` と
+  rc=16 (`kind=infra`, `reason=setup-failure`, `child_started=false`) になる。秒数は受理しない
+  (2026-09-14 [T-1643] 実測)。
 - **`mutation` task の射程 (D842)。** 変異 wrapper 1 呼び出しを計算ノードの 1 job へ束ねる。
   **既存の `--runner-mode dispatch` 経路を置き換えるものではなく、並存する。**
   束ねた job の内側は local 実行になるため、**変異対象が runner 実行経路
