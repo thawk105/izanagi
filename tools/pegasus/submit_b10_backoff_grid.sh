@@ -5,11 +5,25 @@ umask 077
 
 usage() {
   echo "usage: submit_b10_backoff_grid.sh --output-parent ABSOLUTE_PATH" \
-    "[--run-kind extended|t2266-tail|t2418-explore]" >&2
+    "[--run-kind extended|t2266-tail|t2418-explore|t2500-tail-formal]" \
+    "[--preregistration-commit SHA40 --explore-campaign ABSOLUTE_PATH]" >&2
+  echo "The two new flags are required and valid only for t2500-tail-formal." >&2
 }
+
+# Help is unconditional, including after an incomplete or unknown option.
+for argument in "$@"; do
+  if [[ "$argument" == "--help" ]]; then
+    usage
+    exit 0
+  fi
+done
 
 OUTPUT_PARENT=""
 B10_RUN_KIND=extended
+B10_PREREGISTRATION_COMMIT=""
+B10_EXPLORE_CAMPAIGN=""
+PREREGISTRATION_COMMIT_SPECIFIED=0
+EXPLORE_CAMPAIGN_SPECIFIED=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --output-parent)
@@ -20,6 +34,18 @@ while [[ $# -gt 0 ]]; do
     --run-kind)
       [[ $# -ge 2 ]] || { usage; exit 2; }
       B10_RUN_KIND=$2
+      shift 2
+      ;;
+    --preregistration-commit)
+      [[ $# -ge 2 ]] || { usage; exit 2; }
+      B10_PREREGISTRATION_COMMIT=$2
+      PREREGISTRATION_COMMIT_SPECIFIED=1
+      shift 2
+      ;;
+    --explore-campaign)
+      [[ $# -ge 2 ]] || { usage; exit 2; }
+      B10_EXPLORE_CAMPAIGN=$2
+      EXPLORE_CAMPAIGN_SPECIFIED=1
       shift 2
       ;;
     -h|--help)
@@ -34,10 +60,32 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$B10_RUN_KIND" in
-  extended|t2266-tail|t2418-explore) ;;
+  extended|t2266-tail|t2418-explore|t2500-tail-formal) ;;
   *) usage; exit 2 ;;
 esac
 export B10_RUN_KIND
+
+if [[ "$B10_RUN_KIND" == "t2500-tail-formal" ]]; then
+  [[ "$PREREGISTRATION_COMMIT_SPECIFIED" == 1 && "$EXPLORE_CAMPAIGN_SPECIFIED" == 1 \
+      && "$B10_PREREGISTRATION_COMMIT" =~ ^[0-9a-f]{40}$ ]] || {
+    echo "t2500-tail-formal requires both inputs and a lowercase 40-digit commit" >&2
+    exit 2
+  }
+  [[ -n "$B10_EXPLORE_CAMPAIGN" && "$B10_EXPLORE_CAMPAIGN" == /* \
+      && -d "$B10_EXPLORE_CAMPAIGN" && ! -L "$B10_EXPLORE_CAMPAIGN" \
+      && "$B10_EXPLORE_CAMPAIGN" =~ ^[A-Za-z0-9._/-]+$ ]] || {
+    echo "explore campaign must be an existing safe absolute directory, not a symlink" >&2
+    exit 2
+  }
+  B10_EXPLORE_CAMPAIGN=$(realpath -e -- "$B10_EXPLORE_CAMPAIGN") || exit 2
+  [[ "$B10_EXPLORE_CAMPAIGN" =~ ^[A-Za-z0-9._/-]+$ ]] || {
+    echo "resolved explore campaign contains characters unsafe for qsub -v" >&2
+    exit 2
+  }
+elif [[ "$PREREGISTRATION_COMMIT_SPECIFIED" == 1 || "$EXPLORE_CAMPAIGN_SPECIFIED" == 1 ]]; then
+  echo "preregistration commit and explore campaign are only valid for t2500-tail-formal" >&2
+  exit 2
+fi
 
 [[ -n "$OUTPUT_PARENT" && "$OUTPUT_PARENT" == /* && -d "$OUTPUT_PARENT" \
     && ! -L "$OUTPUT_PARENT" ]] || {
@@ -67,6 +115,18 @@ if target == repo or repo in target.parents or target in repo.parents:
 if any((parent / ".git").exists() for parent in (target, *target.parents)):
     raise SystemExit("output parent has a repository ancestor")
 PY
+
+if [[ "$B10_RUN_KIND" == "t2500-tail-formal" ]]; then
+  "${PYTHON:-python3}" -I -B - "$REPO_ROOT" "$B10_EXPLORE_CAMPAIGN" <<'PY_EXPLORE'
+import pathlib, sys
+repo = pathlib.Path(sys.argv[1]).resolve(strict=True)
+target = pathlib.Path(sys.argv[2]).resolve(strict=True)
+if (target == repo or repo in target.parents or target in repo.parents
+        or any((parent / ".git").exists() for parent in (target, *target.parents))):
+    print("explore campaign must be outside repositories and their ancestors", file=sys.stderr)
+    raise SystemExit(2)
+PY_EXPLORE
+fi
 
 for command_name in qstat qsub pegasusinfo check_quota sha256sum; do
   command -v -- "$command_name" >/dev/null 2>&1 || {
@@ -185,6 +245,11 @@ for workload in "${WORKLOADS[@]}"; do
   if [[ "$B10_RUN_KIND" == "t2266-tail" \
       || "$B10_RUN_KIND" == "t2418-explore" ]]; then
     QSUB_ENV="$QSUB_ENV,B10_RUN_KIND=$B10_RUN_KIND"
+  fi
+  if [[ "$B10_RUN_KIND" == "t2500-tail-formal" ]]; then
+    QSUB_ENV="$QSUB_ENV,B10_RUN_KIND=$B10_RUN_KIND"
+    QSUB_ENV="$QSUB_ENV,B10_PREREGISTRATION_COMMIT=$B10_PREREGISTRATION_COMMIT"
+    QSUB_ENV="$QSUB_ENV,B10_EXPLORE_CAMPAIGN=$B10_EXPLORE_CAMPAIGN"
   fi
   qsub_rc=0
   job_id=$(qsub \
