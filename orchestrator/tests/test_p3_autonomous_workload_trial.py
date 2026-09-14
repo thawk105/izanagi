@@ -1843,6 +1843,13 @@ def test_critic_relation_oracle_detects_candidate_derived_evidence_leak() -> Non
     assert not _critic_relation_equivalent(payloads)
 
 
+def _assert_role_sink_report_complete(report, wire):
+    assert report["status"] == "complete", (
+        f"wire={wire}: expected complete, got status={report['status']}"
+    )
+    return report["cells"][0]
+
+
 def test_role_sink_bytes_vary_only_at_declared_declassifications(tmp_path) -> None:
     """32 wire の実 trial で wire と role sink bytes の関係を検査する。
 
@@ -1912,12 +1919,13 @@ def test_role_sink_bytes_vary_only_at_declared_declassifications(tmp_path) -> No
             preview=preview,
             allow_unregistered_exploratory=True,
         )
+        cell = _assert_role_sink_report_complete(report, wire)
         role_payloads = {}
         for role in ("planner", "coder", "auditor", "critic"):
             assert len(providers[role].payload_bytes) == 1, (wire, role)
             role_payloads[role] = providers[role].payload_bytes[0]
 
-        generation = report["cells"][0]["generations"][0]
+        generation = cell["generations"][0]
         raw_variant = generation["harness"]["variant"]
         predicate = emit_predicate(A.parse_wire(wire))
         working_diff = "fixture-working-diff\n" + predicate
@@ -1928,7 +1936,7 @@ def test_role_sink_bytes_vary_only_at_declared_declassifications(tmp_path) -> No
         assert raw_variant != providers["critic"].payloads[0][
             "harness_result"
         ]["candidate_label"], wire
-        campaign_layout = A.CampaignLayout(report["cells"][0]["campaign_root"])
+        campaign_layout = A.CampaignLayout(cell["campaign_root"])
         build_starts = [
             record
             for record in wal.read_records(campaign_layout)
@@ -1993,6 +2001,67 @@ def test_role_sink_bytes_vary_only_at_declared_declassifications(tmp_path) -> No
         "trigger_gate_binding_commitment",
     ):
         assert len({record[secret_field] for record in secret_records}) == 32
+
+
+def test_role_sink_report_complete_rejects_partial_reports(tmp_path) -> None:
+    """この負例が守るのは helper の述語本体であり、role-sink test 側の呼出し接続そのものではない（D387 の射程）。
+    実 producer の report は _fake_drive 経由であり、role-sink test の drive 経路そのものではない。
+    partial の2形（fatal_error あり／なし）を覆うが、status ではなく stop_reason を見る形への helper の弱化は検出できない。
+    """
+    wire = "00000"
+    providers = {
+        role: A.FixtureRoleProvider(role)
+        for role in ("planner", "coder", "auditor")
+    }
+    report = A.run_trial(
+        trial_id="role-sink-missing-critic",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "missing-critic",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    assert report["status"] == "partial"
+    assert "fatal_error" in report
+    assert report["fatal_error"]["type"] == "KeyError"
+    assert len(report["cells"]) == 1
+    assert report["cells"][0]["stop_reason"] == "supervisor-error"
+    with pytest.raises(
+        AssertionError, match=f"wire={wire}: expected complete, got status=partial",
+    ):
+        _assert_role_sink_report_complete(report, wire)
+
+    providers = {
+        role: A.FixtureRoleProvider(role)
+        for role in ("planner", "coder", "auditor", "critic")
+    }
+    providers["planner"] = _InvalidPlanner()
+    report = A.run_trial(
+        trial_id="role-sink-invalid-planner",
+        workloads=["ycsb-a"],
+        generations=1,
+        provider_kind="fixture",
+        run_root=tmp_path / "invalid-planner",
+        sub="/unused",
+        do_build=False,
+        providers=providers,
+        drive=_fake_drive,
+        preview=_fake_preview,
+        allow_unregistered_exploratory=True,
+    )
+    assert report["status"] == "partial"
+    assert "fatal_error" not in report
+    assert len(report["cells"]) == 1
+    assert report["cells"][0]["stop_reason"] == "role-invalid"
+    with pytest.raises(
+        AssertionError, match=f"wire={wire}: expected complete, got status=partial",
+    ):
+        _assert_role_sink_report_complete(report, wire)
 
 
 class _InvalidPlanner:
