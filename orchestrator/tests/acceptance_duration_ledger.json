@@ -2599,7 +2599,6 @@
     "orchestrator/tests/test_related_work_search.py::test_population_contract_value_mutations_fail_schema_only[bibliographic_database_selection-main union also includes ACM Digital Library]": 0.46,
     "orchestrator/tests/test_related_work_search.py::test_population_contract_value_mutations_fail_schema_only[non_english_treatment-exclude all non-English records]": 0.45,
     "orchestrator/tests/test_related_work_search.py::test_population_contract_value_mutations_fail_schema_only[venue_preprint_distinction-merge venue and preprint occurrences by title]": 0.46,
-    "orchestrator/tests/test_related_work_search.py::test_postprocessing_tier_api_remains_outside_executor_scope": 0.001,
     "orchestrator/tests/test_related_work_search.py::test_preflight_200_can_be_available_but_unresolved_and_continues": 30.0,
     "orchestrator/tests/test_related_work_search.py::test_preflight_200_separates_availability_from_lookup_resolution": 38.0,
     "orchestrator/tests/test_related_work_search.py::test_preflight_successful_prefix_resumes_without_checkpoint": 0.003,
@@ -23106,7 +23105,7 @@
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]": 0.0,
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected": 0.0
   },
-  "nodeid_count": 23105,
+  "nodeid_count": 23104,
   "schema_version": 1,
   "unit": "seconds"
 }

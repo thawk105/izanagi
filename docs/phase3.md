@@ -384,6 +384,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      既存verifier v2でK2を1本再投入し、serializable・異常0・1 committedを取得した。
      新campaignだけの判定で過去campaignは再ラベルしない。実測と検査は
      `output/insights/2026-09-10_t2581-k2-pin/README.md`。
+   - [x] [T-2582] D1936項2に従い、K2 manifestの知識源を測定記録へ絞る送り手側の規律を
+     `docs/agent-architecture.md`のK2 role節へ置き、段4b runbookから参照だけを張った。
+     判定は書き手でなく文の種類で行う。gate・schema・role契約・歴史fixtureは不変。
+     実測と逐語は`output/insights/2026-09-14_t2582-knowledge-source-selection/README.md`。
 5. **(完了 2026-07-09〜07-10) sort-strategy 軸の起動一式** — S2 verify 2 本立て pipeline 配線 (D36 決定 4、
    opt-in = `search_config["verify"]=="legacy+s2"`) / lock 経路 (cc/silo/transaction.cc) の編集面拡張
    (前提 gate = auditor live、同一コミット束ね) / git worktree 隔離 (opt-in) + C1 解消 (D40) / 起動の
