@@ -171,6 +171,18 @@ attempt」) を満たすかどうかを判定していない。** したがっ�
 `figures/` の fig5 の用途制限は、いずれも解除せずそのまま有効なものとして扱う。
 `results/2026-09-04-a2-certification-reject.md` と `figures/` の fig5 は凍結物であり、所見を含まないまま残る。
 
+**B-7「全 workload の退行込み報告」の材料が増えた (2026-09-14 追記)。** 現行環境・正式 protocol で
+判定の出ている 3 workload の 6 cell を横断で併記した統制稿が
+`results/2026-09-14-b7-all-workload-regression.md` にある。内訳は attempt `t2364-20260907b` の
+rr5 (+63.5485%) と rr50 (+14.4213%)、attempt `a6-20260908b` の rr95 (−5.7841%) で、
+**負の効果も同じ表に載せてある。** ただし次の 4 点により、**2026-09-05 版 §8 の B-7 が書いている
+「要件は満たされていない」を訂正するものではない。** (1) **2 attempt を統括する単一の正式実験は
+存在しない** — protocol instance・source commit・投入日・ホストが違う。(2) adopted の genome は
+workload ごとに異なる (fixed 10 / 5 / 2 µs) ので、**同一 variant を他 workload へ当てた退行の
+比較ではない。** (3) 両 attempt の `a4_noise_floor_status` は `open` であり、**正負いずれについても
+床値を超える差を判定していない。** (4) 同稿は **D1645 の解除条件を判定しない。** 上の段落が書いた
+D1645 による A-2 の結論の除外と fig5 の用途制限は、本追記でも解除しない。
+
 **恒久の erratum は別の場所にある。**
 `figures/fig2_backoff_mechanism.png` の baseline 誤 label（横破線に `stock adaptive backoff` と
 書いてあるが、その値は無 backoff）と後継図 `figures/fig2b_backoff_sweep_3workload` への
@@ -235,6 +247,7 @@ claim-evidence が「主張ごとに何を書けて何が弱めているか」�
 | 2026-09-07 | `results/2026-09-07-a2-certification-reject.md` | 同じ attempt `t2022-20260828c` を一次資料全体から作り直した改訂稿。**測ったのは採用静的 backoff ではなく CCBench 内蔵 backoff の有効/無効** (`BACK_OFF=1` 対 `0`) である。限定 15 件 (D1645、F707 の再発) | outer `reject` は不変。**同じ attempt の執筆材料にはこの稿を使う。**2026-09-04 の稿は append-only の履歴として残る |
 | 2026-09-07 | `results/2026-09-07-a2-certification-observed-positive.md` | D1644 の pin + patch 束縛 `src_token` で identity を計算する driver で取り直した**別の attempt** `t2364-20260907b` (write-heavy / balanced の exact 4 cell、図 6、限定 6 件)。上の 2 行とは測っている条件が違い、前後比較として読んではならない (絶対規律 7) | outer `observed-positive`。correctness は別の trace-enabled run で 4 cell とも certified (性能の判定ではない)。**この attempt の執筆材料にはこの稿を使う** |
 | 2026-09-09 | `results/2026-09-09-a2-certification-observed-positive-en.md` | 直上の 2026-09-07 observed-positive 稿の**英語稿**。同じ attempt `t2364-20260907b` について、事実命題を足さず一次資料へ再照合して英語で書き直したもの ([T-2329]) | outer `observed-positive` (直上の稿と同一)。日本語稿を改めるものではなく、どちらも凍結物として残る |
+| 2026-09-14 | `results/2026-09-14-b7-all-workload-regression.md` | 見送り台帳の項目 B-7 (全 workload の退行込み報告) の材料。現行環境・正式 protocol で判定の出ている 3 workload の 6 cell を、**2 つの attempt に分かれた記録のまま横断で併記する** (`t2364-20260907b` の rr5 / rr50 と `a6-20260908b` の rr95、生標本 6 cell、限定 11 件)。単位は失敗条件 (e) が報告を求める「全 workload」の集合。**2 attempt を統括する単一の正式実験は存在しない** | 単一の outer status を持たない。所属 attempt の status をそのまま併記する (rr5 / rr50 は `observed-positive`、rr95 は `reject`)。**B-7 の充足も、床値超の退行も、D1645 の解除も判定しない** |
 
 **この系列の規則。**
 
