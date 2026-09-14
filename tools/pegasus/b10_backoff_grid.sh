@@ -184,8 +184,8 @@ cleanup_worktree() {
 trap cleanup_worktree EXIT
 
 case "$B10_RUN_KIND" in
-  extended|t2266-tail|t2418-explore) ;;
-  *) fail 2 "B10_RUN_KIND must be extended, t2266-tail, or t2418-explore" ;;
+  extended|t2266-tail|t2418-explore|t2500-tail-formal) ;;
+  *) fail 2 "B10_RUN_KIND must be extended, t2266-tail, t2418-explore, or t2500-tail-formal" ;;
 esac
 
 [[ -n "${PBS_JOBID:-}" && -n "${PBS_NODEFILE:-}" \
@@ -237,6 +237,24 @@ while IFS='=' read -r env_name _; do
 done < <(env)
 
 REPO_ROOT=$(cd "$PBS_O_WORKDIR" && pwd -P)
+if [[ "$B10_RUN_KIND" == "t2500-tail-formal" ]]; then
+  [[ "${B10_PREREGISTRATION_COMMIT:-}" =~ ^[0-9a-f]{40}$ ]] || \
+    fail 2 "B10_PREREGISTRATION_COMMIT must be 40 lowercase hex characters"
+  [[ "${B10_EXPLORE_CAMPAIGN:-}" == /* \
+      && -d "$B10_EXPLORE_CAMPAIGN" && ! -L "$B10_EXPLORE_CAMPAIGN" ]] || \
+    fail 2 "B10_EXPLORE_CAMPAIGN must be an absolute, existing, non-symlink directory"
+  "$PY" -I -B - "$REPO_ROOT" "$B10_EXPLORE_CAMPAIGN" <<'PY'
+import pathlib, sys
+repo = pathlib.Path(sys.argv[1]).resolve(strict=True)
+target = pathlib.Path(sys.argv[2]).resolve(strict=True)
+if target == repo or repo in target.parents or target in repo.parents:
+    print("explore campaign must be outside the repository", file=sys.stderr)
+    raise SystemExit(2)
+if any((parent / ".git").exists() for parent in (target, *target.parents)):
+    print("explore campaign has a repository ancestor", file=sys.stderr)
+    raise SystemExit(2)
+PY
+fi
 OUTPUT_ROOT=${B10_OUTPUT_ROOT:-}
 [[ -n "$OUTPUT_ROOT" && "$OUTPUT_ROOT" == /* && ! -e "$OUTPUT_ROOT" ]] || \
   fail 2 "B10_OUTPUT_ROOT must be an absolute, job-unique, uncreated path"
@@ -583,6 +601,9 @@ elif [[ "$B10_RUN_KIND" == "t2418-explore" ]]; then
 else
   CURRENT_STAGE=extended_sweep
 fi
+if [[ "$B10_RUN_KIND" == "t2500-tail-formal" ]]; then
+  CURRENT_STAGE=t2500_tail_formal_sweep
+fi
 SWEEP_COMMAND=("$PY" -I -B \
   "$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep.py" \
   "$WORKLOAD" --output-root "$OUTPUT_ROOT" \
@@ -591,6 +612,16 @@ SWEEP_COMMAND=("$PY" -I -B \
 if [[ "$B10_RUN_KIND" == "t2266-tail" \
     || "$B10_RUN_KIND" == "t2418-explore" ]]; then
   SWEEP_COMMAND+=(--run-kind "$B10_RUN_KIND")
+fi
+if [[ "$B10_RUN_KIND" == "t2500-tail-formal" ]]; then
+  SWEEP_COMMAND=("$PY" -I -B \
+    "$REPO_ROOT/orchestrator/campaign/b10_backoff_static_tail_formal.py" \
+    --preregistration-commit "$B10_PREREGISTRATION_COMMIT" \
+    run "$WORKLOAD" \
+    --explore-campaign "$B10_EXPLORE_CAMPAIGN" \
+    --output-root "$OUTPUT_ROOT" \
+    --cache-root "$B10_BUILD_CACHE_ROOT" \
+    --ccbench-dir "$CCBENCH_WORKTREE")
 fi
 timeout "$SWEEP_CAP_S" "${SWEEP_COMMAND[@]}"
 
@@ -660,6 +691,20 @@ elif run_kind == "t2418-explore":
         report = pathlib.Path(f"{report_stem}{suffix}")
         if not report.is_file() or report.is_symlink():
             raise SystemExit(f"T-2418 report artifact is missing: {report.name}")
+elif run_kind == "t2500-tail-formal":
+    wal_path = campaigns[0] / "runs" / "wal.jsonl"
+    commits = {
+        parsed.get("variant")
+        for row in wal_path.read_bytes().splitlines()
+        if row
+        for parsed in [json.loads(row)]
+        if parsed.get("stage") == "commit"
+    }
+    if len(commits) != 8 or None in commits:
+        raise SystemExit(f"T-2500 requires eight committed genomes, found {len(commits)}")
+    report = campaigns[0] / "reports" / "t2500-backoff-static-tail-formal-execution.json"
+    if not report.is_file() or report.is_symlink():
+        raise SystemExit(f"T-2500 execution artifact is missing: {report.name}")
 artifacts = {}
 for path in sorted(item for item in campaigns[0].rglob("*") if item.is_file()):
     artifacts[path.relative_to(base).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()

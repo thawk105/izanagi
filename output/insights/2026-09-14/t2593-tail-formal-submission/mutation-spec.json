@@ -1,0 +1,238 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 3000,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M1-job-uses-legacy-driver",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "old": "    \"$REPO_ROOT/orchestrator/campaign/b10_backoff_static_tail_formal.py\" \\\n",
+          "new": "    \"$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep.py\" \\\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_failed_sweep_cannot_reach_finalizer[driver-error]",
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_failed_sweep_cannot_reach_finalizer[internal-deadline]",
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_failed_sweep_cannot_reach_finalizer[success]",
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_failed_sweep_cannot_reach_finalizer[timeout]",
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_formal_command_uses_run_cli",
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_formal_inputs_checked_before_work[valid]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-formal-genome-count-five",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "old": "    if len(commits) != 8 or None in commits:\n        raise SystemExit(f\"T-2500 requires eight committed genomes, found {len(commits)}\")\n",
+          "new": "    if len(commits) != 5 or None in commits:\n        raise SystemExit(f\"T-2500 requires eight committed genomes, found {len(commits)}\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_failed_sweep_cannot_reach_finalizer[success]",
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_formal_requires_eight_commits_and_execution_artifact[duplicate-valid]",
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_formal_requires_eight_commits_and_execution_artifact[valid]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-formal-execution-stem-swapped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "old": "    report = campaigns[0] / \"reports\" / \"t2500-backoff-static-tail-formal-execution.json\"\n",
+          "new": "    report = campaigns[0] / \"reports\" / \"t2266-backoff-static-tail-execution.json\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_failed_sweep_cannot_reach_finalizer[success]",
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_formal_requires_eight_commits_and_execution_artifact[duplicate-valid]",
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_formal_requires_eight_commits_and_execution_artifact[valid]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-submit-drops-explore-campaign",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_b10_backoff_grid.sh",
+          "old": "    QSUB_ENV=\"$QSUB_ENV,B10_EXPLORE_CAMPAIGN=$B10_EXPLORE_CAMPAIGN\"\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_documented_submission_argv_reaches_three_jobs",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_formal_forwards_both_inputs_to_three_jobs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-commit-regex-accepts-anything",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_b10_backoff_grid.sh",
+          "old": "      && \"$B10_PREREGISTRATION_COMMIT\" =~ ^[0-9a-f]{40}$ ]] || {\n",
+          "new": "      && \"$B10_PREREGISTRATION_COMMIT\" =~ ^.*$ ]] || {\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_rejects_invalid_formal_commit[AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_rejects_invalid_formal_commit[HEAD]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_rejects_invalid_formal_commit[]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_rejects_invalid_formal_commit[a b]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_rejects_invalid_formal_commit[a,b]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_rejects_invalid_formal_commit[a/nb]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_rejects_invalid_formal_commit[a=b]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_rejects_invalid_formal_commit[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_rejects_invalid_formal_commit[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_rejects_invalid_formal_commit[abcdef0]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_rejects_invalid_formal_commit[main]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-legacy-kinds-accept-new-flags",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_b10_backoff_grid.sh",
+          "old": "elif [[ \"$PREREGISTRATION_COMMIT_SPECIFIED\" == 1 || \"$EXPLORE_CAMPAIGN_SPECIFIED\" == 1 ]]; then\n  echo \"preregistration commit and explore campaign are only valid for t2500-tail-formal\" >&2\n  exit 2\nfi\n",
+          "new": "fi\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[both-extended]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[both-t2266-tail]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[both-t2418-explore]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[commit-extended]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[commit-t2266-tail]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[commit-t2418-explore]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[empty-both-extended]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[empty-both-t2266-tail]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[empty-both-t2418-explore]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[empty-commit-extended]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[empty-commit-t2266-tail]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[empty-commit-t2418-explore]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[empty-explore-extended]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[empty-explore-t2266-tail]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[empty-explore-t2418-explore]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[explore-extended]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[explore-t2266-tail]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_rejects_formal_flags[explore-t2418-explore]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-formal-driver-gets-run-kind",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "old": "    --cache-root \"$B10_BUILD_CACHE_ROOT\" \\\n    --ccbench-dir \"$CCBENCH_WORKTREE\")\n",
+          "new": "    --cache-root \"$B10_BUILD_CACHE_ROOT\" \\\n    --ccbench-dir \"$CCBENCH_WORKTREE\" \\\n    --run-kind \"$B10_RUN_KIND\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_failed_sweep_cannot_reach_finalizer[driver-error]",
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_failed_sweep_cannot_reach_finalizer[internal-deadline]",
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_failed_sweep_cannot_reach_finalizer[success]",
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_failed_sweep_cannot_reach_finalizer[timeout]",
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_formal_command_uses_run_cli",
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_formal_inputs_checked_before_work[valid]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-formal-routed-through-extended",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "old": "if [[ \"$B10_RUN_KIND\" == \"extended\" ]]; then\n",
+          "new": "if [[ \"$B10_RUN_KIND\" == \"extended\" || \"$B10_RUN_KIND\" == \"t2500-tail-formal\" ]]; then\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_failed_sweep_cannot_reach_finalizer[success]",
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_formal_command_uses_run_cli",
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_formal_inputs_checked_before_work[valid]",
+        "orchestrator/tests/test_backoff_extended_sweep.py::test_b10_run_kind_routes_t2266_only_by_opt_in_and_binds_all_receipts"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-commit-regex-over-rejects",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_b10_backoff_grid.sh",
+          "old": "      && \"$B10_PREREGISTRATION_COMMIT\" =~ ^[0-9a-f]{40}$ ]] || {\n",
+          "new": "      && \"$B10_PREREGISTRATION_COMMIT\" =~ ^[0-9a-f]{41}$ ]] || {\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_documented_submission_argv_reaches_three_jobs",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_formal_forwards_both_inputs_to_three_jobs",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_rejects_invalid_formal_commit[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_repeated_arguments_produce_distinct_group_ids[t2500-tail-formal]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-formal-inputs-cleared-after-validation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "old": "fi\nOUTPUT_ROOT=${B10_OUTPUT_ROOT:-}\n",
+          "new": "fi\nunset B10_PREREGISTRATION_COMMIT\nOUTPUT_ROOT=${B10_OUTPUT_ROOT:-}\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_formal_inputs_checked_before_work[valid]",
+        "orchestrator/tests/test_b10_backoff_grid_job.py::test_job_formal_variable_occurrences_are_fixed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-submit-receipt-schema-bumped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_b10_backoff_grid.sh",
+          "old": "        \"schema_version\": \"b10-backoff-grid-submit-event/v1\",\n        \"event\": \"manifest\",\n",
+          "new": "        \"schema_version\": \"b10-backoff-grid-submit-event/v2\",\n        \"event\": \"manifest\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_documented_submission_argv_reaches_three_jobs",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_formal_forwards_both_inputs_to_three_jobs",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_qsub_argv_and_receipt_unchanged[None]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_qsub_argv_and_receipt_unchanged[extended]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_qsub_argv_and_receipt_unchanged[t2266-tail]",
+        "orchestrator/tests/test_b10_backoff_grid_submit.py::test_submit_legacy_qsub_argv_and_receipt_unchanged[t2418-explore]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

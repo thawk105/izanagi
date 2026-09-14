@@ -1,0 +1,41 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 170,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 2400,
+ "mutations": [
+  {
+   "id": "M8-genuine-partial-via-wall-budget",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "old": "                \"_deferred_wall_generation\", None\n",
+     "new": "                \"_deferred_wall_generation\", 1\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M8prime-genuine-partial-without-the-new-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "old": "                \"_deferred_wall_generation\", None\n",
+     "new": "                \"_deferred_wall_generation\", 1\n"
+    },
+    {
+     "file": "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+     "old": "        cell = _assert_role_sink_report_complete(report, wire)\n",
+     "new": "        cell = report[\"cells\"][0]\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
