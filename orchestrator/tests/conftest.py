@@ -395,6 +395,8 @@ _REAL_REPO_NODE_INVENTORY = frozenset({
     "test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2",
     "test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding",
     # module fixture が実 repo を clone し、実 submodule を local source として読む reader。
+    "test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_accept_static",
+    "test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_reject_swap_restore",
     "test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned",
     "test_codex_reasoning_ab.py::test_forbidden_commits_are_unreachable_in_both_cases",
     "test_codex_reasoning_ab.py::test_cleaned_snapshot_records_absent_commit_graph_and_keeps_closure",
@@ -562,6 +564,8 @@ _REAL_REPO_BOTH_READER_NODES = frozenset({
     "test_codex_reasoning_ab.py::test_parent_numstat_controls_remain_pinned",
     "test_codex_reasoning_ab.py::test_pos_neg_submodule_initialization_state_mismatch_is_rejected",
     "test_codex_reasoning_ab.py::test_replay_forwards_only_successful_snapshot_evidence_to_adjudication",
+    "test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_accept_static",
+    "test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_reject_swap_restore",
     "test_codex_reasoning_ab.py::test_snapshot_submodule_object_store_is_recursive",
     "test_codex_reasoning_ab.py::test_stale_commit_graph_referencing_pruned_commit_is_rejected_and_manifested",
     "test_codex_reasoning_ab.py::test_supervisor_launches_pair_and_scrubs_git_environment",
