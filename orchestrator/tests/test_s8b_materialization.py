@@ -559,6 +559,12 @@ def _sealed_case_floor_manifest_golden_stable(tmp_path):
         compiler_input = ccbench / "include" / "fixture.hh"
         compiler_input.parent.mkdir(parents=True, exist_ok=True)
         compiler_input.write_bytes(b"materialization golden compiler input\n")
+        # Seal this test-local tree with fixed modes as well as fixed path/bytes:
+        # snapshot_tree_digest includes non-write mode bits, so umask must not
+        # affect the literal manifest golden.
+        ccbench.chmod(0o755)
+        compiler_input.parent.chmod(0o755)
+        compiler_input.chmod(0o644)
         yield PreparedCell(genome=genome, src_token=token,
                            ccbench_dir=str(ccbench),
                            cache_root=str(tmp_path / "ca"),
@@ -712,7 +718,7 @@ def _sealed_case_floor_manifest_golden_stable(tmp_path):
         manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     actual_sha256 = hashlib.sha256(payload.encode("utf-8")).hexdigest()
     assert actual_sha256 == (
-        "4b08f0cf4e1fdfc0448fc94ce09a4752e72ac13b7e3aecd502737368d134cd9b"
+        "d65177baf2d5a597ae0468893a54573584b04b2684d9e1f7d7071ecf4fb8a50d"
     ), actual_sha256
 
 
