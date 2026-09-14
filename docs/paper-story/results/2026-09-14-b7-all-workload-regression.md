@@ -9,7 +9,8 @@ D12 が定める機械射影の材料レポートではない (数値は一次�
 
 **本稿は同系列の既存の稿を改めるものではない。** 同系列は append-only であり、2026-09-04 の稿、
 2026-09-07 の `reject` の稿、2026-09-07 の `observed-positive` の稿、その英語稿は、いずれも 1 byte も
-変えずに残る。本稿が足すのは、それらが 1 attempt ずつ書いている事実を **workload 横断で並べた表**である。
+変えずに残る。本稿が足すのは、既存の A-2 統制稿と A-6 の一次資料がそれぞれ記録している事実を
+**workload 横断で並べた表**である。**A-6 の結果については同系列に単独の稿が無い** (§4.4)。
 
 **本稿は B-7 の要件を満たしたという判定を行わない。** 2026-09-05 版 §8 の B-7 が書いている
 「要件は満たされていない」を訂正するものでもない。増えたのは材料であって、充足の裁定ではない。
@@ -60,8 +61,9 @@ read-heavy (rr95) — の 6 cell を 1 つの報告単位として扱う。
 
 ### 1.1 記録上共通の設定
 
-両 attempt の権威 bytes が持つ policy (`policy_bytes_base64` を復号した `performance_common`) は、
-性能側の設定として次を記録し、値は一致する。
+両 attempt の一次資料は、性能側の設定として次を記録する。**表の上 8 項目**は権威 bytes が持つ policy
+(`policy_bytes_base64` を復号した `performance_common`) の値で、両 attempt で一致する。
+**下 3 項目 (CCBench pin・perf・性能の build) はこの field には無く、別の記録から取った** (出所は §4.2)。
 
 | 項目 | 値 |
 |---|---|
@@ -179,7 +181,9 @@ A-2 の 4 cell は図 6 の provenance JSON が、A-6 の 2 cell は attempt の
 
 ### 2.3 ばらつき — 定義が attempt 間で揃っていない
 
-**2 つの attempt は別の定義でばらつきを記録している。共通の「CV」列へ押し込まない。**
+**本稿が転記元とした 2 つの資料は、ばらつきの表示定義が異なる。共通の「CV」列へ押し込まない。**
+異なるのは資料が表に出している定義であって、attempt が計算できる定義ではない — A-6 の campaign WAL は
+A-2 と同じ定義 (標本標準偏差 / 標本平均) の `cv` も記録している。
 
 | cell | 標本標準偏差 (tps、分母 n−1) | CV = 標本標準偏差 / 標本平均 | 母標準偏差 / median (分母 n) |
 |---|---:|---:|---:|
@@ -240,11 +244,12 @@ point-key trace に限られる。
    立証できない。**同時に「発火しない」と確定したわけでもない。** 選択的報告を禁じる (e) の趣旨に
    従い、床値の判定を待たずに正負をそろえて載せた。載せたこと自体を義務の履行として宣告しない。
 
-4. **B-7 の要件を満たすために必要な測定の形は、本稿の材料とは別である。** 要件の形を言葉にすると
-   「対象 workload で評価する variant を固定し、その同一 variant と対応する stock を対象 workload と
-   他 workload の全件で比較する。正しさは別の trace-enabled 走行、性能は trace-disabled 走行とし、
-   between-run floor を評価できる反復と束縛された条件のもとで正負の差を報告する」となる。
-   **本稿はその測定を実施しておらず、実施を要求もしない。** 形の言語化だけを残す。
+4. **本稿の材料には、同一 variant の workload 間比較が含まれていない。** その比較を行う測定の形を
+   言葉にすると「対象 workload で評価する variant を固定し、その同一 variant と対応する stock を
+   対象 workload と他 workload の全件で比較する。正しさは別の trace-enabled 走行、性能は
+   trace-disabled 走行とし、between-run floor を評価できる反復と束縛された条件のもとで正負の差を
+   報告する」となる。**これは失敗条件 (e) と観測者効果の分離 (絶対規律 1) に照らした説明であって、
+   B-7 の充足条件の確定でも、新しい事前登録でも、測定の実施要求でもない。**
 
 5. **abort 率は cell あたり 1 点の集約値である。** 定義は `aborts / (aborts + commits)`。
    標本ごとの率でも、信頼区間を持つ量でもなく、因果の機序を主張する量でもない。記述的な
@@ -288,6 +293,8 @@ point-key trace に限られる。
 |---|---|---|
 | A-2 認証成果物 | `output/insights/2026-09-07_t2364-paper-story-a2-certification/certification.json` | `e74d0f870497941b95ac4d1e244634188813e249f2821d571178e4854a3ed671` |
 | A-6 認証成果物 | `output/insights/2026-09-08_t2411-paper-story-a6-certification/certification.json` | `3a9505b009f4d0aa2161bcac8e50dada6712fc214d03d7d68d705060e6d92cab` |
+| A-2 raw manifest | `output/insights/2026-09-07_t2364-paper-story-a2-certification/raw-manifest.json` | `b23ee2ee6ff36d2377da80c2cf4eccc925bae9c3d89aab8a6a8543edfe9ae319` |
+| A-6 raw manifest | `output/insights/2026-09-08_t2411-paper-story-a6-certification/raw-manifest.json` | `8d17953575afc4594df052d5b5b778291c4d41a1564bb1fbc2d29e8d1df94ef9` |
 | A-2 図 6 の provenance | `docs/paper-story/figures/fig6_a2_certification_observed_positive.provenance.json` | `760b899b331719ff947f3f8df591e56f57f956f97c3d2debb20d392d427299e6` |
 | A-6 attempt の記録 | `output/insights/2026-09-08/t2411-a6-readheavy-submitted/README.md` | `8a00ba625bb3f681518275cc9873f3d555b370b5c341f7e51852394157839410` |
 | A-6 退行の事後解析 | `output/insights/2026-09-08/t2430-a6-readheavy-mechanism/README.md` | `fb38eaa68cb0d2d0681b9d3f8ace33d6b103608957c73c486182bc67a8ca881b` |
@@ -296,6 +303,12 @@ A-2 の `certification.json` の SHA-256 は、同じ dir の `artifact-manifest
 `files["certification.json"]` と `COMPLETE.json` の `certification_sha256` にも同じ値が
 記録されている。A-6 についても同様である。
 
+**`raw-manifest.json` と `artifact-manifest.json` は別物である。** 前者
+(schema `paper-story-a2-full-raw-manifest/v4`) は durable authority 側の生成物 — campaign lock、
+campaign WAL、cell ごとの raw JSON、条件関門の受領証 — を root 相対 path と SHA-256 で束縛し、
+campaign claim (host、job id、boot id、protocol digest) を記録する。後者は insight dir に公開した
+file 群の hash を持つ。§3 の限定 10 が言う admission record の束縛は前者にある。
+
 ### 4.2 値の出所
 
 | 掲載値 | 出所 |
@@ -303,7 +316,10 @@ A-2 の `certification.json` の SHA-256 は、同じ dir の `artifact-manifest
 | median、genome、role、workload、正しさ、`src_token`、`source_binding_status` | 両 `certification.json` の `cells[]` |
 | 効果 | 両 `certification.json` の `effects` |
 | 床値状態、最小性、compile-out の射程、独立観測の限界 | 両 `certification.json` の `a4_noise_floor_status`、`global_minimality_established`、`smallest_observed_sufficient_in_this_two_point_protocol`、`compile_out_evidence_scope`、`independent_observation_limits` |
-| 共通の測定設定 | 両 `certification.json` の `policy_bytes_base64` を復号した `performance_common` |
+| §1.1 の上 8 項目 (スレッド数〜CCBench protocol) | 両 `certification.json` の `policy_bytes_base64` を復号した `performance_common` |
+| §1.1 の CCBench pin | 両 `certification.json` の `current_pin`。両 `raw-manifest.json` の `current_pin` にも同じ値がある |
+| §1.1 の perf と性能の build | A-2 は図 6 の provenance の `measurement_conditions.perf_used` (`false`) と `trace_disabled_performance` (`true`)。A-6 は campaign WAL の `payload.perf_observation.use_perf` (`false`、2 cell 分) と raw JSON の `performance.trace_enabled` (`false`) |
+| §3 の限定 10 (admission record の束縛) | 両 `raw-manifest.json` の `files` が `receipts/condition-gate-<workload>.admissions.jsonl` を SHA-256 で束縛している。同 file は両 insight dir に公開されている |
 | rr5 / rr50 の生標本・標本標準偏差・CI 半幅・CV・abort 率・toolchain | 図 6 の provenance JSON の `cells[]` と `measurement_conditions` |
 | rr95 の生標本と母標準偏差 / median | A-6 attempt の記録の「結論」節 (事後解析 §1 にも同値) |
 | rr95 の abort 率 (0.1547 / 0.145) | campaign WAL の `stage=bench_done` の `payload.leading_indicators.abort_rate` (事後解析 §1 に転記されている)。**attempt の記録 README 自体には掲載がない。** raw JSON のトップレベル `abort` は `null` である |
@@ -320,8 +336,10 @@ A-6 の生標本・abort 率・toolchain は次の measurements root にある�
   (SHA-256 `d0a47903ee33f24465c3e934cb59f01d07056416d9486750f880208b716eec4d`)
 - `/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-20260908b/jobs/rr95/raw/rr95-fixed2.json`
   (SHA-256 `91173824743d83e89971eb3ec94d32262fe2e895667d1d3f4e7e547e862ba261`)
-- 同 attempt の campaign WAL (SHA-256 `36d11c6bf461c9acf6d2ede24ba13549005d0552bac87950d0df4d95da55eaeb`。
-  raw JSON の `campaign_evidence.wal_sha256` に束縛されている値と一致する)
+- 同 attempt の campaign WAL
+  `/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-20260908b/jobs/rr95/campaigns/paper-story-a2-rr95-paper-story-a6-certification-rr95-1e7d99f2/runs/wal.jsonl`
+  (SHA-256 `36d11c6bf461c9acf6d2ede24ba13549005d0552bac87950d0df4d95da55eaeb`。raw JSON の
+  `campaign_evidence.wal_sha256` と A-6 `raw-manifest.json` の `files` に束縛されている値と一致する)
 
 A-2 の durable authority は、図 6 の provenance JSON の `external_inputs` が root 相対 path と
 SHA-256 で 12 件記録している。
