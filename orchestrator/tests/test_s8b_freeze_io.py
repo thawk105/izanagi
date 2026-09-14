@@ -240,9 +240,21 @@ def test_s8b_drivers_no_longer_direct_import_p2_runtime_constants():
 
 
 def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_measure_fn_closure_passes_contract_numactl_to_measure_point"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
     """``measure_fn=None`` 経路の既定 closure が ``measure_point`` へ ``numactl`` /
     ``clocks_per_us`` を **contract から** 渡すことを実引数 spy で固定する (γ-14: closure ソース
     文字列検査でなく挙動検査)。"""
+    from orchestrator.tests.s8b_v2_freeze_fixture import sealed_source_protection_fixture
+
     import contextlib
     from types import SimpleNamespace
     from unittest import mock
@@ -419,14 +431,16 @@ def test_measure_fn_closure_passes_contract_numactl_to_measure_point(tmp_path):
             compiler_input_manifest, ensure_ascii=True, sort_keys=True,
             separators=(",", ":"),
         ).encode("utf-8")).hexdigest()
-        expected_materialization_sha256 = hashlib.sha256(
-            b"fixture-expected-materialization\0"
-            + json.dumps(
-                expected_materialization_descriptor.declaration,
-                ensure_ascii=False, sort_keys=True, separators=(",", ":"),
-            ).encode("utf-8")
-        ).hexdigest()
-        return SimpleNamespace(binary=str(b), bin_sha256=sha, bin_hash=sha[:16],
+        # Measurement wiring needs an admitted binary; no compile is claimed.
+        source_protection = sealed_source_protection_fixture(
+            source=source_evidence, binary_sha256=sha,
+            compiler_input_manifest_sha256=compiler_input_manifest_sha256,
+        )
+        expected_materialization_sha256 = (
+            source_protection.expected_materialization_sha256
+        )
+        return SimpleNamespace(source_protection=source_protection,
+                               binary=str(b), bin_sha256=sha, bin_hash=sha[:16],
                                configure_cmd="#", build_cmd="#", cached=False,
                                configure_argv=[
                                    "cmake", "-S", ccbench_dir, "-B", str(d)],

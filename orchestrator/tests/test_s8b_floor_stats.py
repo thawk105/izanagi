@@ -36,6 +36,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
+from orchestrator.tests.s8b_v2_freeze_fixture import portable_binary_admission_receipt_fixture
+
 from orchestrator.campaign.s8b_floor_stats import (  # noqa: E402
     ALLOWED_EXCLUDED_REASONS,
     FORMULA_ID,
@@ -211,7 +213,7 @@ def _portable_binary(temp_root: Path, *, cell_id: str, holdout_id: str,
     binary = source_root / "binary"
     binary.write_bytes(f"binary:{cell_id}".encode())
     binary_sha = hashlib.sha256(binary.read_bytes()).hexdigest()
-    receipt = s8b_binary_admission.issue_binary_admission_receipt(
+    receipt = portable_binary_admission_receipt_fixture(
         admission=admission, expected_policy=context.policy, source=source,
         cell_id=cell_id, holdout_id=holdout_id,
         configuration_id=configuration_id, binding=binding, binary=binary,

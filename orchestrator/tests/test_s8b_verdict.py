@@ -420,6 +420,16 @@ def test_verified_oracle_verdict_rejects_direct_construction():
 
 
 def test_judge_combined_rejects_post_issuance_oracle_document_tampering(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_judge_combined_rejects_post_issuance_oracle_document_tampering"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_judge_combined_rejects_post_issuance_oracle_document_tampering(tmp_path):
     case = _oracle_verifier_case(tmp_path)
     verified_oracle = verdict.verify_oracle_verdict(
         case.oracle_path,
@@ -446,6 +456,16 @@ def test_judge_combined_rejects_post_issuance_oracle_document_tampering(tmp_path
 
 
 def test_judge_combined_rejects_nested_semantic_subclass_in_sealed_document(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_judge_combined_rejects_nested_semantic_subclass_in_sealed_document"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_judge_combined_rejects_nested_semantic_subclass_in_sealed_document(tmp_path):
     case = _oracle_verifier_case(tmp_path)
     verified_oracle = verdict.verify_oracle_verdict(
         case.oracle_path,
@@ -669,6 +689,16 @@ def _write_oracle_variant(path: Path, document) -> None:
 
 
 def test_verify_oracle_verdict_accepts_rederived_exact_match(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_verify_oracle_verdict_accepts_rederived_exact_match"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_verify_oracle_verdict_accepts_rederived_exact_match(tmp_path):
     case = _oracle_verifier_case(tmp_path)
 
     verified = verdict.verify_oracle_verdict(
@@ -684,6 +714,16 @@ def test_verify_oracle_verdict_accepts_rederived_exact_match(tmp_path):
 
 
 def test_verify_oracle_verdict_rejects_boolean_median_type_confusion(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_verify_oracle_verdict_rejects_boolean_median_type_confusion"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_verify_oracle_verdict_rejects_boolean_median_type_confusion(tmp_path):
     case = _oracle_verifier_case(tmp_path)
     forged = deepcopy(case.oracle)
     target = next(
@@ -708,6 +748,16 @@ def test_verify_oracle_verdict_rejects_boolean_median_type_confusion(tmp_path):
 
 
 def test_verify_oracle_verdict_rejects_wrong_authority_observations(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_verify_oracle_verdict_rejects_wrong_authority_observations"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_verify_oracle_verdict_rejects_wrong_authority_observations(tmp_path):
     case = _oracle_verifier_case(tmp_path)
     wrong_observations = artifacts.OfficialObservations(deepcopy(case.observations))
     wrong_observations["manifest_sha256"] = "f" * 64
@@ -735,6 +785,16 @@ def test_verify_oracle_verdict_rejects_wrong_authority_observations(tmp_path):
 
 
 def test_verify_oracle_verdict_rejects_extra_top_level_key(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_verify_oracle_verdict_rejects_extra_top_level_key"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_verify_oracle_verdict_rejects_extra_top_level_key(tmp_path):
     case = _oracle_verifier_case(tmp_path)
     forged = deepcopy(case.oracle)
     forged["extra"] = "not-authoritative"
@@ -751,6 +811,16 @@ def test_verify_oracle_verdict_rejects_extra_top_level_key(tmp_path):
 
 
 def test_verify_oracle_verdict_requires_exact_authority_types(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_verify_oracle_verdict_requires_exact_authority_types"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_verify_oracle_verdict_requires_exact_authority_types(tmp_path):
     case = _oracle_verifier_case(tmp_path)
     # project_verified_manifest_schedule の TypeError も CLI main が捕捉し、rc=2 に保つ。
     with pytest.raises(TypeError, match="VerifiedManifest exact type"):
@@ -770,6 +840,16 @@ def test_verify_oracle_verdict_requires_exact_authority_types(tmp_path):
 
 
 def test_verify_oracle_verdict_rejects_approved_spec_from_other_manifest(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_verify_oracle_verdict_rejects_approved_spec_from_other_manifest"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_verify_oracle_verdict_rejects_approved_spec_from_other_manifest(tmp_path):
     case = _oracle_verifier_case(tmp_path)
     foreign_sha256 = "f" * 64
     foreign_spec = replace(case.approved, sha256=foreign_sha256)
@@ -803,6 +883,16 @@ def test_verify_oracle_verdict_rejects_approved_spec_from_other_manifest(tmp_pat
 
 
 def test_verify_oracle_verdict_rejects_post_issuance_manifest_tampering(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_verify_oracle_verdict_rejects_post_issuance_manifest_tampering"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_verify_oracle_verdict_rejects_post_issuance_manifest_tampering(tmp_path):
     case = _oracle_verifier_case(tmp_path)
     case.verified_manifest.document["schedule"]["n"] += 1
     tampered_n = case.verified_manifest.document["schedule"]["n"]
@@ -843,6 +933,16 @@ def test_verify_oracle_verdict_rejects_post_issuance_manifest_tampering(tmp_path
 
 
 def test_verify_oracle_verdict_rejects_semantic_sha256_subclass(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_verify_oracle_verdict_rejects_semantic_sha256_subclass"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_verify_oracle_verdict_rejects_semantic_sha256_subclass(tmp_path):
     case = _oracle_verifier_case(tmp_path)
 
     class AlwaysEqualSha256(str):
@@ -863,6 +963,16 @@ def test_verify_oracle_verdict_rejects_semantic_sha256_subclass(tmp_path):
 
 
 def test_verify_oracle_verdict_rejects_nested_semantic_dict_subclass(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_verify_oracle_verdict_rejects_nested_semantic_dict_subclass"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_verify_oracle_verdict_rejects_nested_semantic_dict_subclass(tmp_path):
     case = _oracle_verifier_case(tmp_path)
     original_schedule = case.verified_manifest.document["schedule"]
 
@@ -1026,108 +1136,140 @@ def _real_g1_with_scan_neutral_earlier_result(
 
 def test_verdict_cli_real_g1_rule_mismatch_preserves_selection_reason(
         tmp_path, monkeypatch, capsys):
-    root, freeze_sha, freeze_rel, earlier_rel = (
-        _real_g1_with_scan_neutral_earlier_result(tmp_path)
-    )
-    eligibility_calls = []
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
 
-    def derive_eligibility(**kwargs):
-        eligibility_calls.append(kwargs["result_rel"])
-        return kwargs["result_rel"] == earlier_rel
-
-    monkeypatch.setattr(
-        holdout_freeze,
-        "_derive_floor_selection_eligibility",
-        derive_eligibility,
+    case = "_sealed_case_verdict_cli_real_g1_rule_mismatch_preserves_selection_reason"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
     )
-    # These seams begin after the real historical reverify.  With the selection
-    # assertion removed, the same input must therefore reach rc=0 rather than a
-    # different downstream rejection.
-    monkeypatch.setattr(verdict.s8b_oracle_spec, "load_approved_spec", lambda root: object())
-    monkeypatch.setattr(
-        verdict.s8b_oracle_manifest, "verify_manifest", lambda path, **kwargs: object(),
-    )
-    monkeypatch.setattr(verdict, "_validate_execution_snapshot", lambda *args, **kwargs: None)
-    monkeypatch.setattr(verdict, "verify_prediction", lambda *args, **kwargs: object())
-    monkeypatch.setattr(verdict, "verify_oracle_verdict", lambda *args, **kwargs: object())
-    monkeypatch.setattr(
-        verdict, "judge_combined", lambda **kwargs: {"status": "selection-gate-passed"},
-    )
-    prediction_path = tmp_path / "prediction.json"
-    prediction_path.write_text("{}", encoding="utf-8")
-    output = tmp_path / "must-not-exist.json"
+    assert result == {"case": case, "completed": True}
 
-    rc = verdict.main([
-        "judge", "--prediction", str(prediction_path),
-        "--oracle", str(tmp_path / "oracle.json"),
-        "--manifest", str(tmp_path / "manifest.json"),
-        "--observations", str(tmp_path / "observations.json"),
-        "--freeze", str(root / freeze_rel), "--freeze-sha256", freeze_sha,
-        "--root", str(root), "--out", str(output),
-    ])
 
-    captured = capsys.readouterr()
-    assert rc == 2
-    assert "floor-selection-rule-mismatch" in captured.err
-    assert "earliest-eligible-official-run-id/v1" in captured.err
-    assert eligibility_calls == [earlier_rel]
-    assert not output.exists()
+def _sealed_case_verdict_cli_real_g1_rule_mismatch_preserves_selection_reason(tmp_path, monkeypatch):
+    import contextlib
+    import io
+    from types import SimpleNamespace
+
+    captured_stderr = io.StringIO()
+    with contextlib.redirect_stderr(captured_stderr):
+        root, freeze_sha, freeze_rel, earlier_rel = (
+            _real_g1_with_scan_neutral_earlier_result(tmp_path)
+        )
+        eligibility_calls = []
+
+        def derive_eligibility(**kwargs):
+            eligibility_calls.append(kwargs["result_rel"])
+            return kwargs["result_rel"] == earlier_rel
+
+        monkeypatch.setattr(
+            holdout_freeze,
+            "_derive_floor_selection_eligibility",
+            derive_eligibility,
+        )
+        # These seams begin after the real historical reverify.  With the selection
+        # assertion removed, the same input must therefore reach rc=0 rather than a
+        # different downstream rejection.
+        monkeypatch.setattr(verdict.s8b_oracle_spec, "load_approved_spec", lambda root: object())
+        monkeypatch.setattr(
+            verdict.s8b_oracle_manifest, "verify_manifest", lambda path, **kwargs: object(),
+        )
+        monkeypatch.setattr(verdict, "_validate_execution_snapshot", lambda *args, **kwargs: None)
+        monkeypatch.setattr(verdict, "verify_prediction", lambda *args, **kwargs: object())
+        monkeypatch.setattr(verdict, "verify_oracle_verdict", lambda *args, **kwargs: object())
+        monkeypatch.setattr(
+            verdict, "judge_combined", lambda **kwargs: {"status": "selection-gate-passed"},
+        )
+        prediction_path = tmp_path / "prediction.json"
+        prediction_path.write_text("{}", encoding="utf-8")
+        output = tmp_path / "must-not-exist.json"
+
+        rc = verdict.main([
+            "judge", "--prediction", str(prediction_path),
+            "--oracle", str(tmp_path / "oracle.json"),
+            "--manifest", str(tmp_path / "manifest.json"),
+            "--observations", str(tmp_path / "observations.json"),
+            "--freeze", str(root / freeze_rel), "--freeze-sha256", freeze_sha,
+            "--root", str(root), "--out", str(output),
+        ])
+
+        captured = SimpleNamespace(err=captured_stderr.getvalue())
+        assert rc == 2
+        assert "floor-selection-rule-mismatch" in captured.err
+        assert "earliest-eligible-official-run-id/v1" in captured.err
+        assert eligibility_calls == [earlier_rel]
+        assert not output.exists()
 
 
 def test_verdict_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate(
         tmp_path, monkeypatch, capsys):
-    root, freeze_sha, freeze_rel, _g1, _topology = (
-        ratified_fixture.build_production_emitter_g1(tmp_path)
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_verdict_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
     )
-    cli_root = Path(root)
-    events = []
-    loaded = []
-    selection_calls = []
-    real_load = ratified_freeze.load_ratified_freeze
-    real_selection = ratified_freeze.assert_g1_floor_selection_identity
+    assert result == {"case": case, "completed": True}
 
-    def load_ratified(candidate_root):
-        candidate = real_load(candidate_root)
-        loaded.append(candidate)
-        return candidate
 
-    def assert_selection(candidate, candidate_root):
-        events.append("selection")
-        selection_calls.append((candidate, candidate_root))
-        return real_selection(candidate, candidate_root)
+def _sealed_case_verdict_cli_valid_real_g1_reaches_reverify_after_actual_selection_gate(tmp_path, monkeypatch):
+    import contextlib
+    import io
+    from types import SimpleNamespace
 
-    def reached_reverify(candidate, candidate_root):
-        events.append("reverify")
-        raise ratified_freeze.RatifiedFreezeError(
-            "test-reverify-sentinel", "actual selection gate completed",
+    captured_stderr = io.StringIO()
+    with contextlib.redirect_stderr(captured_stderr):
+        root, freeze_sha, freeze_rel, _g1, _topology = (
+            ratified_fixture.build_production_emitter_g1(tmp_path)
         )
+        cli_root = Path(root)
+        events = []
+        loaded = []
+        selection_calls = []
+        real_load = ratified_freeze.load_ratified_freeze
+        real_selection = ratified_freeze.assert_g1_floor_selection_identity
 
-    monkeypatch.setattr(ratified_freeze, "load_ratified_freeze", load_ratified)
-    monkeypatch.setattr(
-        ratified_freeze, "assert_g1_floor_selection_identity", assert_selection,
-    )
-    monkeypatch.setattr(ratified_freeze, "reverify_published_freeze", reached_reverify)
-    output = tmp_path / "must-not-exist.json"
+        def load_ratified(candidate_root):
+            candidate = real_load(candidate_root)
+            loaded.append(candidate)
+            return candidate
 
-    rc = verdict.main([
-        "judge", "--prediction", str(tmp_path / "prediction.json"),
-        "--oracle", str(tmp_path / "oracle.json"),
-        "--manifest", str(tmp_path / "manifest.json"),
-        "--observations", str(tmp_path / "observations.json"),
-        "--freeze", str(root / freeze_rel), "--freeze-sha256", freeze_sha,
-        "--root", str(root), "--out", str(output),
-    ])
+        def assert_selection(candidate, candidate_root):
+            events.append("selection")
+            selection_calls.append((candidate, candidate_root))
+            return real_selection(candidate, candidate_root)
 
-    captured = capsys.readouterr()
-    assert rc == 2
-    assert events == ["selection", "reverify"]
-    assert len(loaded) == 1
-    assert selection_calls == [(loaded[0], cli_root)]
-    assert selection_calls[0][0] is loaded[0]
-    assert type(selection_calls[0][1]) is type(cli_root)
-    assert selection_calls[0][1] == cli_root
-    assert "test-reverify-sentinel" in captured.err
-    assert not output.exists()
+        def reached_reverify(candidate, candidate_root):
+            events.append("reverify")
+            raise ratified_freeze.RatifiedFreezeError(
+                "test-reverify-sentinel", "actual selection gate completed",
+            )
+
+        monkeypatch.setattr(ratified_freeze, "load_ratified_freeze", load_ratified)
+        monkeypatch.setattr(
+            ratified_freeze, "assert_g1_floor_selection_identity", assert_selection,
+        )
+        monkeypatch.setattr(ratified_freeze, "reverify_published_freeze", reached_reverify)
+        output = tmp_path / "must-not-exist.json"
+
+        rc = verdict.main([
+            "judge", "--prediction", str(tmp_path / "prediction.json"),
+            "--oracle", str(tmp_path / "oracle.json"),
+            "--manifest", str(tmp_path / "manifest.json"),
+            "--observations", str(tmp_path / "observations.json"),
+            "--freeze", str(root / freeze_rel), "--freeze-sha256", freeze_sha,
+            "--root", str(root), "--out", str(output),
+        ])
+
+        captured = SimpleNamespace(err=captured_stderr.getvalue())
+        assert rc == 2
+        assert events == ["selection", "reverify"]
+        assert len(loaded) == 1
+        assert selection_calls == [(loaded[0], cli_root)]
+        assert selection_calls[0][0] is loaded[0]
+        assert type(selection_calls[0][1]) is type(cli_root)
+        assert selection_calls[0][1] == cli_root
+        assert "test-reverify-sentinel" in captured.err
+        assert not output.exists()
 
 
 def test_cli_rejects_removed_floors_and_holdouts_args(tmp_path, capsys):
@@ -1479,6 +1621,16 @@ def _combined_measurement_case(observation: dict):
 
 
 def test_verify_oracle_verdict_rejects_handwritten_measurement_conditions(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_verify_oracle_verdict_rejects_handwritten_measurement_conditions"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_verify_oracle_verdict_rejects_handwritten_measurement_conditions(tmp_path):
     case = _oracle_verifier_case(tmp_path)
     observation = _degraded_observation()
     case.observations["measurement_conditions"] = [
