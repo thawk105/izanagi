@@ -58,6 +58,26 @@ title: [T-2470] create-only writer の作りかけ file を撤去し、他者が
   裁定した consumer 13 file が 2313 passed / 8 skipped / 0 failed (計算ノード、135 秒、rc=0)、
   段 6 luna Q-5 が挙げた参照元 3 file の補完走が 237 passed (計算ノード、76 秒、rc=0)。
   provenance full 監査 rc=0。test 関数名は基底 202 から 209 へ増え、消失 0・改名 0 を親が機械照合した。
+- **受入全走は 6 回投げて 6 回目で `child-green` (23390 passed / 68 skipped / 赤 0、tested_main
+  `16e5a93d9`)。** land 対象 tip は受入自身が作る main 取り込み merge であり、`child-green` の
+  受領証が出た走行だけを land に使う (赤の受領証では land しない)。
+  内訳は attempt 1 が Pegasus orphan hold で
+  child 未起動 (infra)、attempt 2/3/4 が F945 と同型の非帰属赤 (t1259 の autouse fixture が呼ぶ
+  未追跡走査 `git ls-files --others --exclude-standard -z` の 30 秒 timeout。赤の件数は 36 → 1 → 5 と
+  走るたびに変わり、判定失敗ではなく時間境界であることを示す)、attempt 5 が `owned-path-overlap`。
+- **非帰属の判定根拠 (DW-O18)。** 走査の実所要を静穏時に測って 6.9 秒 (制限 30 秒) であり、
+  混雑時に 4 倍以上へ伸びて境界を越える。同じ 2 file の単独再走は計算ノードで 269 passed・赤 0 で
+  非再現。本 wave の差分から当該 fixture への到達経路は無い。**hold 登録では逃げず**、
+  `/proc/loadavg` が下降局面 (1 分平均 < 5 分平均) かつ 1 分平均 < 62 になるまで待つ投入経路を作って
+  投げ直した。緑になった attempt 6 の投入時 load は 39.95/55.36/60.20。
+- **attempt 5 の `owned-path-overlap` は main 側差分だった。** main の
+  `Give the trial registry Git helper a hard timeout` が本 wave の所有 2 file を変更していたため、
+  親が `--no-ff --no-commit` で取り込み、競合なしを確認して commit した (`9dbc21287`)。
+  取り込み後に現物で検算し、本 wave の撤去条件 2 つと main の `_GIT_TIMEOUT_S` の双方が残り、
+  test 関数名の消失が 0 であることを確かめた。**両 file の combined diff は 0 byte** で、
+  merge は両親の和以外を持ち込んでいない (よって `role=integrator` で正しい)。
+  なお commit 前の provenance preflight は赤を出すが、これは merge の combined diff を commit 前に
+  計算できない構造上の保守性であり、権威である full 監査は 9920 件・新規違反なしで通った。
 - 逐語・変異台帳・spec は `output/insights/2026-09-14/t2470-create-only-partial-write/`。
 
 ## 次の一手差分
@@ -65,7 +85,7 @@ title: [T-2470] create-only writer の作りかけ file を撤去し、他者が
 ### 完了
 
 - [T-2470] 作りかけ file の撤去を実装し、他者が追記した台帳と同名の別 inode は消さない条件を付けた。
-  変異 11/11 KILLED、焦点走 2 本を実走した。
+  変異 11/11 KILLED、焦点走 2 本と受入全走 (child-green) を実走した。
   remaining: none
   base: a82e45769ce436a69c0770269b6a0db6c09ece1b62f11be4fd3fee9a09edb092
 
