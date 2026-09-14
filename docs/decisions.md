@@ -59665,3 +59665,298 @@ anomaly 0・mode 一致・rep ごとの整数カウンタの要求は 1 つも�
 - balanced 側へも保存を配線する — 測定順の設計が別で、rep の対応づけと採用 round の意味が違う。
   実際に使う予定のない経路へ、検査されない保存を増やす。
 - 黙って無視したままにする — 要求した保存が消えることを呼び手が知れない。
+
+## D1978. 実行場所分類の経路不足を実測で確定し、対象限定の測定経路の可否を裁定へ返す (2026-09-14)
+
+**決定 (1):** `docs/pegasus-runbook.md` §7.0 の実行場所分類について、D1938 が AI へ委任した対象の
+**対象・入力・実行条件は確定した**。対象は `tools/t2216_backoff_walk_model.py`、明示入力は
+5 files / 297,814 bytes、凍結設定は `REPETITIONS = 8` と `DURATION_US = 3_000_000.0` である。
+凍結 `measured.json` は使い捨ての過去 wave job ディレクトリに完全一致 2 本が実在し、
+3 者が独立に sha256 を照合した。**本走 argv は再現可能である。**
+
+**決定 (2):** **対象の本走は分類しない。`unknown` を据え置く。** T-2216 model の凍結入力・本走 argv を
+受け取れる認可済みの login dedicated-scope 経路が、調査した現行実装には無いためである。
+認可済みの login bounded scope は `tools/run_tests.py` の pytest 経路と
+`tools/check_ai_provenance.py` の履歴監査経路に実在するが、どちらも自分自身を再 exec する形で、
+任意の実行体を受け取らない。`script_path` の内部 seam、変異 fan-out の command 引数、
+compute の `generic`、user/mount namespace 隔離は、いずれも認可済み経路に数えない。
+**「login dedicated-scope 経路は存在しない」という無限定の主張は採らない** — 段 3 の敵対レンズが
+現物で反証した。判定は「調査した現行実装には無い」であり、静的検索を全実行面の不在証明にしない。
+
+**決定 (3):** 既存 runner で得た bounded scope の `memory.current` 観測は
+**§7.0 手順による実測ではない**ものとして記録する。sampler は scope 起動後に開始し、
+ループ待機が 5 ms で、§7.0 の先行 sampler・間隔 ≪1 ms とは異なる。したがって
+**certified peak を計算せず、欄も作らず、資源 class を変更しない。** 走ごとに付与予算が異なるため
+「3 反復」とも書かない。runner が表示する予算は実効 `memory.max` の逐語観測ではなく、実効値は未取得とする。
+
+**決定 (4):** 不足している実行経路は**成立条件の仕様としてだけ**書き、実装しない。仕様は
+(a) 対象を現行実行体の本走に限定し凍結 bytes・argv・commit・依存版を記録できること、
+(b) 全子孫を専用 cgroup に収め実効 `memory.max` と swap 制約を確認できること、
+(c) 開始を取り逃さず charged memory を観測し測定範囲と失敗を記録できること、
+(d) 7 項目を同じ 1 回の実行へ結び付け、0・欠測・cap 到達を軽量成功としないこと、
+(e) 資源分類と性能測定を混同せず hook 拒否や未解析面を経由しないこと、である。
+
+**決定 (5):** 次の 3 件をユーザー裁定へ返す。
+(i) 対象限定の測定実行経路を作ってよいか。
+(ii) 非 `tools/pegasus/` path の `local-ok` 登録が loader と hook の双方で拒否される制約の下で、
+対象を測れたとして class をどう扱うか。
+(iii) 凍結入力 bytes の保全先 — 使い捨ての job ディレクトリ外へ置くか、置くならどの provenance 規約か。
+
+**理由:**
+
+- D1938 は実行担当の変更であって、実装面の変更を一括承認したものとは読めない。
+  同決定は「必要な実行経路は既存機構を優先し、人間専任の代わりとなる新たな承認儀式は設けない」と定め、
+  §7.0 は「実行可能な経路が無ければ、その不足を AI の実装課題として特定する」と定める。
+  本決定はその「特定」までを行う。
+- D180 は測定専用 bounded surface の即時新設を却下し、admission registry の族再設計へ同梱すると定めた。
+  対象限定であってもこの論点に触れるため、親の裁量では実施しない。
+- D210 は上限付き実行を entry point の内側に閉じ、汎用 launcher を作らないと定めた。
+  内部 seam の CLI 公開や任意 argv を bounded に流す launcher は、同決定が取り下げた設計と同型である。
+- 測り方の差を書かずに小さい観測値を載せると、テスト scope の値で対象を軽い側へ倒せる。
+  絶対規律 2 の直接適用として、測定方式の差と射程を逐語で残し、class は動かさない。
+
+**却下した選択肢:**
+
+- 担当が AI へ移ったことを根拠に class を `local-ok` へ倒す — 実測証拠を代替しない。
+- 共有 cgroup の差分・per-process RSS・過去の非 canonical 測定 script を分類根拠にする — D1938 が禁じている。
+- 別綴り・Codex 子・subprocess 越し・cgroup の直接作成で hook 拒否を回避して測る — 迂回であり採らない。
+- 同じ実行をユーザー手番へ返す — D1938 が明示的に禁じた。返すのは経路新設の可否だけである。
+- 凍結入力を repo へ複製して保全する — 複製先の provenance 規約を新設せずに置くと
+  由来不明の凍結 bytes が増える。保全先自体を裁定項目にした。
+
+## D1979. 既に束縛されている性質へ、消費境界の同型再検査を足さない (2026-09-14)
+
+**決定:** B-4 の pair 完全性のうち、block id・precursor・proposal・on/off receipt を封印 registry と
+凍結 manifest へ束縛する部分は sanctioned assembler `assemble_b4_raw_analysis` で閉じている。
+同じ 4 性質を材料レポートの消費境界でもう一度検査する層を新設しない。閉じていないのは
+publication 間の選別であり、それを閉じるかはユーザー裁定へ返す。
+
+**理由:**
+- 束縛は `orchestrator/campaign/p3_b4_raw_record_producer.py:2322-2333` の `expected_binding` 完全一致
+  要求として実在し、raw の precursor は `:2366` で照合済み binding から代入されるため arm の
+  自己申告を経由しない。正例・負例も同 commit に着地している
+  (`orchestrator/tests/test_p3_b4_raw_record_producer.py:2063` ほか)。
+- 消費境界へ同型の検査を置いても、発火するのは「sanctioned assembler が正しく動いた後に、その
+  戻り値だけを改竄した」場合に限られる。実 artifact から到達する経路が無い検査は、受理集合を
+  1 つも変えない。これは仮想リスク向けの gate 追加であり、追加しない。
+- 段 3 の敵対相談 2 本が、異なるレンズから独立に同じ結論へ到達した。親も producer と test の
+  現物、および `git log -S` による着地 commit を自分で確認した。
+
+**却下した選択肢:**
+- 消費境界の完全性 consumer を新設する — 上記のとおり実経路で発火しないため却下。
+- 分析閉包 5 module を編集して純粋契約層へ束縛を足す — 事前登録 §5 の記入値 (5 module の
+  whole-file sha256) が黙って偽になる。受理集合を変える改訂であり AI が既成事実にしない。
+- publication を跨ぐ append-only の権威を今作る — D1936 前文の「付随する gate・台帳・汎用化を
+  足さない」と項 8 の「母集合を作るための追加基盤は採らない」に抵触する。裁定へ返す。
+
+## D1980. 持ち越し項目の前提は、一次資料ではなく実装コードで反証する (2026-09-14)
+
+**決定:** 持ち越し項目を対象とする wave では、段 1 の前提実測を carry 本文と初出エントリの照合で
+終わらせない。**その項目が「無い」と主張する機構の名前で実装側を検索し、着地 commit を
+`git log -S` で確かめる**ところまでを前提実測に含める。
+
+**理由:**
+- carry 本文は「機構が存在しない」という否定命題を運ぶ。否定命題は台帳の中では反証されない —
+  別 ID の実装 wave が機構を着地させても、その wave は自分の T しか次の一手に書かないため、
+  carry 側の本文は無傷のまま残る。
+- 本件では carry 本文の 2 日後に機構が着地し、以後 40 エントリ carry されていた。段 1 で
+  初出エントリの逐語まで当たっても検出できず、段 3 の敵対相談が実装コードを読んで初めて崩れた。
+- 子を 3 本起動した後に前提が崩れる方が、段 1 で 1 回検索するより高くつく。
+
+**却下した選択肢:**
+- 全 carry item に定期棚卸しを課す — 件数が多く、発火しない項目まで一律に読むことになる。
+  対象となった項目についてだけ、着手時に 1 回行う。
+- 実装 wave 側へ「他 ID の carry も更新せよ」と義務づける — 実装 wave は他 ID の carry 本文を
+  知らないのが普通であり、知り得ない義務を課すことになる。
+
+## D1981. 確認した静的参照閉包では silo ladder 証拠の適格性昇格 consumer は不在であり、ability-probe writer を「silo 昇格入口」に数えない (2026-09-14)
+
+**決定:** 基準 commit `75bea8e5f` で確認した静的参照閉包では、silo ladder の characterization 証拠を
+検査・発行する consumer は実在するが、**その証拠を研究目標・回復計測・通常 pipeline の適格性へ
+昇格させる consumer は不在である**。したがって契約世代の活性化権限が数える入口集合へ
+ability probe の writer を「silo 昇格入口」として置かず、その結線をもって昇格入口を守ったと報告しない。
+判定対象は適格性への昇格に限る。**silo の書込み入口そのものは実在するので、入口調査から silo を外さない。**
+
+**判定の射程 (これ以上を主張しない):**
+
+- 「不在」は**適格性への昇格**についてのみ言う。証拠の受理・公開・再検証・射影除外・依存取得の
+  各 consumer は実在する。これらを「何も無い」と読んではならない。
+- 確認したのは、既存 ledger・artifact schema・識別子・公開 helper・CLI・登録表から到達する
+  静的参照閉包である。任意の別名や汎用プログラムによる読取りまで含めた不存在は証明していない。
+- D196 の保留理由をそのまま現在の blocker として再掲しない。historical resolver の配線充足は
+  D215 が別途記録しており、残る理由はそちらが正本である。
+
+**理由 (実測、基準 commit `75bea8e5f`):**
+
+- **producer に適格な成果物を出す枝が無い。** `orchestrator/campaign/silo_ladder_rung1.py:4960-4964`
+  は発行 document の `classification` を `evaluation_role="ability_probe"` /
+  `research_goal_eligible=False` / `recovery_measurement_eligibility=False` のリテラルで固定する。
+  再読側の `orchestrator/campaign/silo_ladder_rung1.py:1273-1278` も同値を要求する。
+- **ladder driver は自身の用途を raw 側と宣言している。**
+  `orchestrator/campaign/condition_meaning_gate.py:3478-3480` の
+  `_PROMOTION_USE_CLASSES` は `certified-selection` / `floor` / `oracle` / `paper` の 4 つで、
+  ladder driver は `orchestrator/campaign/silo_ladder_rung1.py:2236-2237` で
+  `use_class="raw-measurement"` を渡す。**これは用途の宣言であって、機械的な昇格禁止ではない** —
+  同 gate の受理判定 (`orchestrator/campaign/condition_meaning_gate.py:4098-4103`) は
+  supply が green・meaning が非 red かだけを見ており、raw と promotion で分岐しない。
+  昇格用途を渡す production の call site は oracle に限らず、
+  `orchestrator/campaign/p3_s4_loop.py:441` の `certified-selection` や
+  `orchestrator/campaign/paper_story_a2_certification.py:784` の `paper` などが実在する。
+  不在判定の根拠は、この宣言だけでなく下記の classification と参照経路の調査を合わせたものである。
+- **ledger 側の consumer は負制約であって昇格権威ではない。**
+  `orchestrator/campaign/silo_ladder_rung1_contract.py:517-518` は entry 数が 1 でないことを違反として
+  記録し、`:539` 以降は既存 entry の非適格値を exact に要求する。
+  `orchestrator/campaign/projection_guard.py` の射影除外も、ability-probe 指定から**拒否**を作る側である。
+  これは D162 決定 (7) が ledger の 3 適格性 field について既に述べたことと同じ向きだが、
+  本判定は **ledger を経由しない経路** (成果物 classification、condition gate の use class、
+  materializer 登録、共有依存 helper、shell/PBS writer) まで広げて確認した点が異なる。
+  D162 決定 (7) だけでは本件は閉じない。
+- **silo 側の書込み入口は実在する。** `tools/pegasus/silo_ladder_rung1.sh` は Python driver より前に
+  ディレクトリを作り、`tools/pegasus/submit_silo_ladder_rung1.sh` は submission 領域と submit receipt を
+  書く。これらは ability evidence の生成経路であって昇格ではない。両者を混同すると、
+  昇格入口数の訂正が書込み入口の過少計上へ変わる。
+- **探索範囲。** `docs`・`orchestrator`・`tools`・`hooks`・`src`・`patches`・`AGENTS.md`・
+  `CLAUDE.md`・`README.md` に加え、`output/` 配下の現用 README も読んだ。
+  記録された検索 argv は `docs/archive/**` を除外し、段 3 の一方のレンズは `output/insights/**` も
+  除外している。凍結された裁定資料は逐語を別途射影して読んだ。
+  この除外条件の下で、本判定を追記する前の時点では `silo 昇格入口` の完全一致は 0 件だった
+  (本 D と同 wave の記録自体が、以後この語を現行側へ持ち込む)。
+  完全一致 0 件だけでは意味的同値の不在を導けないため、`admit` / `accept` / `qualify` /
+  `register` / `enroll` / `graduate` / `elevate` / `採用` / `格上げ` / `本採用` / `正式化` と
+  silo・ladder・rung の同一行検索、および shell・PBS・CMake・Makefile の識別子検索を併せて行った。
+
+**却下した選択肢:**
+
+- **証拠の受理・公開を昇格と数える** — `classification` は非適格のまま固定され、ledger の
+  `pipeline_eligible` も変わらない。公開でファイルが参照可能になることを適格性の獲得と
+  同一視すると、ability evidence の生成を昇格入口の実装として数えることになる。
+  これは「ability probe を結線して昇格入口を守ったと報告しない」という既裁定に直接反する。
+- **「昇格 consumer は 0 件」と無限定に書く** — 検査・公開・再検証の consumer は実在する。
+  無限定の否定は、後の読み手が「silo には何の受理機構も無い」と読む余地を残す。
+- **D162 決定 (7) を転用して本件を閉じたことにする** — 同決定の対象は ledger の 3 適格性 field を
+  昇格権威として読む consumer であり、ledger を経由しない経路は射程外である。
+- **昇格 consumer を新設する、または適格性 sidecar を置く** — 本判定の依頼は既存 consumer の同定と
+  文言の訂正であり、昇格機構の新設は scope 外である。D18 は inert patch の昇格を人間判断と
+  定めている。現在の発火条件が充足しているかどうかは本判定では測っていない。
+- **入口登録制度・恒久監査・一般化した検査を足す** — 本判定は 1 件の不在確定であり、
+  同型欠陥が独立に 2 件再現した事実は無い。
+
+## D1982. attempt registry の読取・候補導出が失敗した事実は、旧 `valid=False` 経路の認可へ変換しない (2026-09-14)
+
+**決定:** 床値 campaign の再試行認可で、attempt registry の候補読取または候補導出が
+`HoldoutAdmissionError` を送出したとき、旧 `valid=False` 経路の候補が 1 件あることを理由に
+正常復帰してはならない。例外はそのまま伝播させる。
+
+registry が**存在しない**場合は従来どおり候補 0 件として扱い、旧経路を通す。不在判定は
+`lstat()` の `FileNotFoundError` だけに限り、`read_bytes()` の `FileNotFoundError` は
+他の `OSError` と同じ読取拒否へ送る。読取後の regular-file / symlink 検査は読取前へ移さず、
+位置も内容も変えない。
+
+**理由:**
+
+- D880 の排他は「候補 evidence の件数」で判定する。読取が失敗すると件数を数えられないので、
+  件数による排他を件数を確かめずに通すことになる。これは判定不能を判定可能な値へ
+  すり替える形であり、gate が発火しない経路を作る。
+- 「不在」と「読めない」は意味が違う。不在は候補 0 件という**判定できた結果**であり、
+  読取失敗は**判定できなかった事実**である。両方を同じ `except` で受けると、
+  存在しない対象への symlink のように読取だけが失敗する状態が不在へ化ける。
+- 認可は新しい ticket の発行と最終 evidence 検査の両方から同じ gate を呼ぶ。片方だけを
+  塞ぐと、測定を始めてから最終検査で落ちる非対称が残る。
+
+**却下した選択肢:**
+
+- **読取後の regular-file / symlink 検査を読取前へ移す** — `lstat` の後に path が symlink へ
+  差し替わり、読取は正準 bytes を返して symlink が残る順序で、現行が拒否する入力を受理する。
+  既存の拒否を失う移動であり、受理集合を広げる。読取前検査を足すだけなら受理集合は変わらず
+  拒否 message だけが変わるので、変異で撃てる不変条件にもならない。
+- **壊れた registry を内容まで検査して一律に拒否する** — 本決定の射程を超える。
+  framing・strict JSON・canonical 検査を通る正準 JSON が registry として無意味である場合の
+  扱いは変えない。塞ぐのは「判定できなかった事実を認可へ変換すること」だけである。
+- **旧 `valid=False` 経路を同時に全廃する** — D977 の版境界が要る別作業であり、
+  既存 campaign の受理集合が変わる。本決定はその不整合を増やさない範囲に留める。
+
+## D1983. 成果物から再導出できない等式は撤去し、保証しない範囲として明記する (2026-09-14)
+
+**決定:** T-1998 の対 consumer が持っていた「記録された `toolchain_record_sha256` は、記録された
+toolchain の identity 射影を canonical JSON 化した hash と等しい」という腕内の等式を**撤去する**。
+残すのは manifest の非空性、digest の形式、**腕間の digest 一致**、腕間の manifest 一致、
+`result.toolchain` との一致である。検証しない範囲は consumer の module docstring に明記し、
+**両腕の digest を同じ別値へ置換した改竄はこの層では拒否できない**と書く。
+この穴を塞ぐ新しい検査は足さない。
+
+あわせて、実行 wrapper の前置を module 定数の literal で持つのをやめ、成果物と照合済みの
+環境契約 digest から `env_contract.resolve_by_contract_sha256(...)` で hash 束縛のまま解決する。
+`lookup(env_tag)` は使わない。
+
+**理由:**
+
+- producer は `--version` 全文を含む manifest から digest を作り、WAL には
+  `requested` / `realpath` / `version_first_line` の identity 射影だけを記録する。
+  回収成果物にその全文は無く (実測: 対象成果物 23 file に 0 件)、**どの実成果物でも
+  この等式は成立しない。** 恒偽の述語は認証を止めるだけで何も守らない。
+- 前置の literal は別環境の契約値の写しだった。D924 は「env contract の値を計測側へ literal で
+  写す」形を却下し `env_contract` から引くよう既に定めている。D144 は当該環境の空 prefix に
+  実測の根拠があることを確定している。
+- **受理集合は広がる。** 事前登録の判定規則が動かないことだけを根拠にはしない。撤去したのは
+  producer の証拠の意味を取り違えた等式であり、anomaly を出した variant や非直列化実行を
+  通す変更ではない。認証 admission、全記録の anomaly / verdict 検査、abort 拒否は残る。
+- 全文を成果物へ記録させる案と、producer の hash 対象を identity 射影へ揃える案は、いずれも
+  producer を変えるため既存の測定が無効になり再測定を要する。得られる束縛に見合わない。
+
+**却下した選択肢:**
+
+- **producer に全文 manifest を記録させて digest を検証可能にする** — 束縛は保てるが、
+  全 campaign の記録 bytes が動き、既に完走した測定をやり直すことになる。
+- **producer が hash する対象を identity 射影へ揃える** — 同じく再測定を要し、加えて
+  「全文を含む実行証跡用 hash」という意図された区別を失う。
+- **恒偽の等式を残したまま運用する** — 認証経路が永久に閉じない。
+- **撤去の代わりに別の検査を新設して穴を塞ぐ** — 成果物に無い証拠は何を足しても復元できない。
+  ユーザーの立っている指示 (過剰なガードレールを足さない) にも反する。
+- **前置を空 tuple の literal へ差し替える** — literal 写しという同じ誤りを向きだけ変えて残す。
+
+## D1984. 静的 loader の caller 閉包テストは現時点で新設しない (2026-09-14)
+
+**決定:** 批准床値の静的 loader (`orchestrator/campaign/s8b_ratified_freeze.py` の
+`load_ratified_freeze`) について、production caller を exact 一致で固定するメタテストを新設しない。
+D1831 決定 3 が記録した「そのメタテストは実在しない」という状態を、状態のまま維持する。
+母集合の件数は引き続き AST 走査由来として記録し、**権威ある閉包に由来すると書かない。**
+
+D1241 / D1313 の advisory / non-certifying 上限は解除しない。未配線 2 群 (C06 予算群と
+二読 fallback) の扱いも変えない。
+
+**理由:**
+
+- **反実仮想が成立しない。** 母集合の記録で実際に起きた誤りは 2 件あり、一方は carry が訂正前の
+  文面を写した転記誤り、他方は private core の self-load を到達不能と判断した到達可能性の判断誤り
+  である。**caller の静的件数を固定するテストは、どちらも検出しない。** 機構の必要性は、過去の
+  事故を実際に止められたかで測る。
+- **防ぐ対象に発生実績が無い。** このテストが検出するのは「選択規則へ配線されていない callsite が
+  新たに増える」ことだけで、その発生は記録に無い。D1831 は同じ理由で二読 fallback の縮小と
+  library 経路への token 追加を却下しており、本件はその却下線の同じ側にある。
+- **証拠力が既存テストと重複する。** 起案された事前登録候補 10 件のうち 8 件は、同じ source 変更で
+  既存テストが先に赤になる。新しい node が単独で殺せる変異は 2 件に満たず、変異 matrix は
+  追加保護でなく既存保護の再計上になる。
+- **受入の所要を押し上げる。** 同型の既存 inventory テストは所要時間台帳で 6.9 秒と 7.8 秒を要する。
+  起案は全 production Python を対象にし、負例側で走査を反復するため、台帳値からの粗い試算で
+  数十秒の追加になる。
+- **上限解除に寄与しない。** D1313 は削除済み earlier run、後続世代、起動証明書の実時間性も残余と
+  して挙げる。inventory の固定は未配線 2 件も公開物の受理集合も変えない。
+
+**併せて記録する事実:**
+
+- `assert_g1_floor_selection_identity` は g1 以外で何もせず返る。full launch core は逆に非 g1 を
+  拒否する。`reverify_published_freeze` は `ReverifiedFreeze` を指定するため選択検査の分岐に入らない。
+  **「launch という名の呼び出し = 配線済み」は一般には偽**であり、公開 `launch_validate` の
+  exact wrapper に限って成立する。
+- 静的な隣接は「公開成果物までに必ずその検査を通る」ことを証明しない。再代入・到達しない分岐・
+  例外の握り潰しは静的には区別できない。配線の分類名をこれ以上強く書かない。
+
+**却下した選択肢:**
+
+- **隣接関数と同型の caller inventory テストを足す** — 上記のとおり過去の事故を止められず、
+  既存テストと証拠が重なり、受入を重くする。
+- **件数を「権威ある閉包で数えた」と書く** — そのメタテストは実在しない。D1831 決定 3 を維持する。
+- **未配線 2 群のどちらかを期待値として固定する** — 二読 fallback の択一は未裁定であり、
+  片方を機械的な期待値にすると変更コストの非対称が生まれる。
+- **既存の同型 inventory テスト群を一般化して共通化する** — 依頼が一般化の追加を scope 外と
+  定めており、本件の判断材料でもない。

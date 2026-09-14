@@ -5373,9 +5373,12 @@ def _read_floor_registry_candidate_rows(path: Path) -> tuple[bytes, tuple[dict[s
     _assert_no_symlink_components(path.parent)
     try:
         mode = path.lstat().st_mode
-        raw = path.read_bytes()
     except FileNotFoundError:
         return b"", ()
+    except OSError as exc:
+        raise HoldoutAdmissionError("cannot read floor attempt registry") from exc
+    try:
+        raw = path.read_bytes()
     except OSError as exc:
         raise HoldoutAdmissionError("cannot read floor attempt registry") from exc
     if not stat.S_ISREG(mode) or path.is_symlink():
@@ -5753,22 +5756,9 @@ def _assert_retry_start_authorized_locked(
     trigger_sessions = _trigger_session_candidates(
         records=records, trigger=trigger,
     )
-    try:
-        recovery = _floor_registry_recovery_evidence_locked(
-            state, records=records, trigger=trigger,
-        )
-    except HoldoutAdmissionError:
-        # A malformed, irrelevant registry does not revoke the pre-existing
-        # exact valid=False authorization.  Without that complete legacy
-        # evidence, malformed registry bytes remain fail-closed.
-        if (
-            len(trigger_sessions) == 1
-            and _is_canonical_failed_planned_trigger(
-                state, row=trigger_sessions[0],
-            )
-        ):
-            return
-        raise
+    recovery = _floor_registry_recovery_evidence_locked(
+        state, records=records, trigger=trigger,
+    )
     # MUT-T1669-RETRY-XOR (retargeted from withdrawn A7): count all trigger
     # completions before applying the canonical legacy predicate.  This keeps
     # consume and final inspection symmetric when an extra completion exists.
@@ -5856,26 +5846,16 @@ def floor_retry_trigger_for_round(
             and row.get("cell_id") == state.row["cell_id"]
         }
         recoveries: list[tuple[str, _FloorRegistryRecoveryEvidence]] = []
-        try:
-            for start in starts:
-                trigger = str(start["attempt_id"])
-                if trigger in used_recovery_triggers:
-                    continue
-                evidence = _floor_registry_recovery_evidence_locked(
-                    state, records=records, trigger=trigger,
-                )
-                recoveries.extend(
-                    (trigger, evidence) for _candidate in evidence.candidates
-                )
-        except HoldoutAdmissionError:
-            # POS-B1: malformed registry bytes cannot disable the exact legacy
-            # valid=False path that predates registry recovery.
-            if len(legacy) == 1:
-                return FloorRetryAuthorization(
-                    trigger_attempt_id=str(legacy[0]["attempt_id"]),
-                    source="legacy-failed-session",
-                )
-            raise
+        for start in starts:
+            trigger = str(start["attempt_id"])
+            if trigger in used_recovery_triggers:
+                continue
+            evidence = _floor_registry_recovery_evidence_locked(
+                state, records=records, trigger=trigger,
+            )
+            recoveries.extend(
+                (trigger, evidence) for _candidate in evidence.candidates
+            )
 
         if len(recoveries) + len(legacy) > 1:
             raise HoldoutAdmissionError(

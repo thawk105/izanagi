@@ -181,3 +181,20 @@ F622 との違いは**恒真の向き**だけである。F622 は「決して赤
   今回は `source-identity-unbound` に落ちていないので、計算ノードの `g++` が
   事前登録の arm 別 source digest を再現したことは実測されたが、これは 1 回の観測である。
 - **write-heavy と read-heavy。** 事前登録の対象外であり、本 wave も測っていない。
+
+## 7. 追補 (2026-09-14、[T-2589] の敵対レビューによる訂正)
+
+本文の記述 2 箇所が言い過ぎだった。**削除せず、ここで訂正する。**
+
+- **§3.2 の「全文は成果物に無い」の射程。** `orchestrator/campaign/buildcache.py` の
+  completion manifest は `complete_toolchain_manifest` とその sha256 を実際に保存している。
+  持たないのは **T-1998 consumer が読む回収済み成果物**
+  (result.json、reservation.json、campaign の lock と WAL) の側だけである。
+  親が実測で確認した — 回収成果物 23 file に `complete_toolchain_manifest` は 0 件。
+  したがって「この consumer は digest を再導出できない」という結論は変わらないが、
+  「全文はどこにも無い」と読める書き方は誤りだった。
+- **§4 の「残る検査に追加の欠陥は無い」。** 1 成果物の受理からは導けない。
+  言えるのは**この成果物では追加の拒否に遭遇しなかった**ことだけである。
+
+是正の実施と認証された結果は
+`output/insights/2026-09-14_t2589-consumer-real-artifact-repair/README.md` にある。

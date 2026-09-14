@@ -1610,6 +1610,23 @@
   dev-wave 段 1 の前提実測 (`DW-S01`) で、子を 1 本も起動する前に止まった。恒久対応 1 は今回も
   投入前の防壁として機能したが、**letter 付き小項目の内容の後退と意味の drift を検出する機械防壁は
   無いままである。**
+
+- **再発: 2026-09-14** — 「機構が存在しない」と主張する carry item が、別 ID の実装 wave に
+  よって 2 日後に事実でなくなり、そのまま 40 エントリ運ばれた。従来の 7 形態と違う新しい角度は
+  **反証が台帳の中に一切現れない**ことである。carry 本文は否定命題 (「precursor hash・
+  on/off receipt・proposal・block id を束縛する manifest と完全性 consumer が要る」) を運ぶが、
+  それを崩す実装は別 ID の wave が自分の次の一手だけを書いて着地させたため、carry 側の本文は
+  無傷で残った。段 1 で初出エントリ (`docs/archive/worklog-phase3-0827-1008.md:901`) の逐語まで
+  当たっても検出できず、崩れたのは段 3 の敵対相談 2 本が実装コードを読んだ後である。
+  被害はユーザーの依頼そのものに及んだ — 依頼は「実装する」ことを前提に立ったが、
+  `orchestrator/campaign/p3_b4_raw_record_producer.py:2322-2333` の `expected_binding` 完全一致
+  要求と `:2366` の照合済み binding からの代入により 4 者の束縛は既に存在し、正例・負例
+  (`orchestrator/tests/test_p3_b4_raw_record_producer.py:2063` ほか) も同じ commit
+  `227ec68923c8a489be28861c4b2566effe140626` (2026-08-29) に着地していた。
+  恒久対応は D1980 — 持ち越し項目を対象とする wave の段 1
+  前提実測に「その項目が無いと主張する機構の名前で実装側を検索し、着地 commit を
+  `git log -S` で確かめる」を含める。**機械防壁は無いままである** — 否定命題の陳腐化を
+  検出する検査は台帳側に置けない。
 ### F36. 受入・検査の結果欄をプレースホルダのまま記録 commit し、恒久対応の実行が空証明になった [恒真ゲート] [手順漏れ]
 
 - 事象: `<受入結果を反映>` `<反映>` というリテラルのプレースホルダが埋められないまま記録 commit に
@@ -5047,6 +5064,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   親が `output/insights/` へ一次資料 22 file を書いた。harness が起動前の untracked 検査で
   検出し `rc=2` で中止した。**防壁は設計どおり働いた。** 記録を先に commit してから
   `--out` / `--wrapper-attempt` を変えて再投入した。
+
+- **再発: 2026-09-14** — 受入全走の走行中に、親が段 8 の自己改善 fragment 1 本を worktree へ
+  新規作成し、worklog fragment 1 本を編集した。受入は preflight の `prerun-clean` で `rc=70`
+  停止し、テストを 1 件も走らせずに 1 回分を失った。**2026-09-02 の再発と同型で、今回は
+  「段 7 の記録」ではなく「段 8 の自己改善」が起草先だった。** 親は「受入を待つ間に独立作業を
+  進める」という規律 (`CLAUDE.md` 作業の進め方 9) に従ったつもりで、その独立作業の書き先が
+  repo 内だったことに気づいていなかった。2026-09-02 の追記が既に
+  「待ち時間に進めてよい独立作業は repo 外に置くものだけである」と書いており、
+  **恒久対応は memory `dirty-tree-during-pending-job` から変更なし。**
+  段 8 は段 7 の後・受入の後に置く方が構造的に安全だが、入口の段順序の変更は
+  自己改善の範囲外なので実施せず、この観測だけを残す。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -9843,6 +9871,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   実行記録は各到達確認について宣言 hit 数と走査範囲を併記し、
   宣言 hit 数が走査件数を超えたまま「不在」と書いた確認を無効とする。
   **検出経路は段 6 の敵対レビュー。**
+
+- **再発: 2026-09-14** — silo 昇格 consumer の同定 wave で、親が canonical な decisions 記録へ
+  「production で昇格用途を渡す call site は oracle の 1 本だけである」と書いた。実際は
+  `certified-selection` / `paper` を渡す call site が複数実在する
+  (`orchestrator/campaign/p3_s4_loop.py:441`、`orchestrator/campaign/paper_story_a2_certification.py:784` 他)。
+  原因は 2 つ重なっている。(1) `rg ... | head -20` で出力を切った。(2) 同じ command に渡した
+  `--glob '!*/tests/*'` が**効いておらず**、限られた表示枠をテスト側の hit が占めていた。
+  F287 の型 (完全性を要する主張を切り詰めた出力から書く) と同一だが、**本件は「無い」ではなく
+  「1 本だけ」という一意性の主張**であり、同じ根本原因が肯定側の数量主張にも出ることを示した。
+  検出経路は段 6 の敵対レビューで、現物の反例を file:line で出した。親が検算して訂正した。
+  是正: 切らずに数え直し、記録から「1 本だけ」を削除して、用途の宣言は機械的な昇格禁止ではないと
+  明記した。判定 (昇格 consumer の不在) は反転していない。
+  恒久対応: memory `closure-and-search-discipline` へ「『N 本だけ』『唯一』も不在と同じ全数検査が
+  要る」「除外指定が効いたかを出力で確かめる」の 2 点を追記した。
+  **適用先が「不在の実測」から「件数・一意性の主張」へ広がった点が本追記の顕在化である。**
 ### F288. 敵対レビュー依頼が防御目的を明記していても依頼の**形**で上流分類器に拒否された [手順漏れ]
 
 - 事象: 段 3 レンズ A が 17 分・39 model call まで進んだ後、上流分類器の
@@ -23920,6 +23963,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`orchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected`)。
 - 再発検知: 各層に対する変異を事前登録し、probe で SURVIVED になった変異は
   「他層の mask」を先に疑う (`docs/dev-wave/mutation.md` の DW-M02)。
+- **supersede: 2026-09-14** — 恒久対応が指す負例 `test_shared_noncanonical_toolchain_digest_is_rejected` は撤去した。守っていた「腕内で canonical digest を再計算して記録値と照合する層」自体が producer の証拠を取り違えた等式で、回収成果物では恒偽だったためである (D1983)。**本項の一般の教訓 (片側だけを変える負例は対称な層に mask される) は有効なままである。** 腕間 digest 一致の負例 `test_toolchain_record_digest_drift_is_rejected` は残し、変異 M3 で KILLED を実測した。経緯は `output/insights/2026-09-14_t2589-consumer-real-artifact-repair/README.md`。
 
 ### F910. 段 5 実装子が model 呼び出し上限で報告を書かずに打ち切られた [手順漏れ] [コンテキスト浪費]
 
@@ -25004,3 +25048,94 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   明記する。以後の fix 子 4 本はこの指示で実走できた。
 - 再発検知: 子の完了報告に実走 nodeid が 1 件も無いときは、投入経路の失敗を疑って
   親が同じ木で自走 harness を叩き直す。
+
+### F965. 裁定本文が名指す識別子の割り当てを、凍結の権威と逐語照合しないまま確定した [ドリフト] [手順漏れ]
+
+- 事象: D1640 (2026-09-05) が `delta_min` の基準を「H1 = rr20、H2 = rr80」と書いたが、
+  凍結の権威 `s8b_holdout_freeze.HOLDOUTS` は rr80 が H1・rr20 が H2 である。
+  この対応は `31426fb9a` (2026-08-29) から不変で、**D1640 起草時点で既に逆**だった。
+  逐語適用すると各 holdout の実質効果境界が他方の throughput 水準から作られ、片側は
+  境界が過小になって環境ばらつき程度の差を「成立」へ通しうる (規律 2 の面)。
+  2026-09-14 の T-1875 前提実測で発見。ゲートが閉じており測定は起きていないため実害は無い。
+- 根本原因: 裁定を起草するとき、本文が名指す識別子 (H1 / H2) の割り当てを、凍結を生成する
+  producer の現物ではなく周辺の記述から取った。同じ裁定を 4 日後に再確認した D1649 でも
+  割り当ては照合されなかった。`delta_min` の値そのものは検証 consumer が型・符号・有限性を
+  機械検査するが、**どの holdout にどの値を割り当てたかは consumer の検査範囲の外**にある。
+- 恒久対応: memory `ruling-identifiers-must-match-frozen-authority` — 裁定・事前登録が
+  凍結済みの識別子 (holdout label、cell id、candidate id) を名指すときは、起草時に凍結
+  producer の現物へ逐語照合する。
+- 再発検知: 凍結の識別子を名指す裁定を引いて実装・測定へ入る wave の段 1 で、
+  引用元の割り当てを producer の現物と突き合わせる (目視。lint 化は未実装 —
+  裁定本文は自由記述で、識別子と値の対応を機械抽出する経路が無い)。
+
+### F966. local main の commit が同内容・別 SHA へ差し替わると `--ff-only` 追従が不能になる [手順漏れ]
+
+- 事象: wave 開始直後に local main の tip から fresh worktree を作った直後、別 session の land が
+  main の先頭 commit を**同じ件名・同じ親・別 SHA** の commit へ差し替えた。worktree の branch は
+  main から消えた側の commit に載り、`DW-O20` が指示する `git merge --ff-only main` が
+  `fatal: Not possible to fast-forward, aborting.` で失敗した。開始 gate も
+  `NG: HEAD != local main` を返し続けた。
+- 根本原因: `DW-O20` の追従手順は「main が**進んだ**」場合だけを想定している。main の commit が
+  置き換わると worktree の HEAD は main の祖先でなくなるため、ff-only は原理的に成立しない。
+  `git merge-base --is-ancestor <worktree HEAD> main` が偽になることで判別できる。
+- 恒久対応: 手順として残す。ff-only が失敗したら、まず祖先性を検査する。祖先でなければ追従ではなく
+  **branch の作り直し**で復旧する — worktree 内で `git checkout --detach main` →
+  `git branch -D <wave branch>` → `git checkout -b <wave branch>`。
+  `git reset` は使わない (reflog に reset が残ると land が拒否する)。
+  作り直しは wave 側に自前 commit が無い間だけ安全であり、commit 済みなら別手順が要る。
+- 再発検知: 開始 gate の `NG: HEAD != local main` が `--ff-only` 1 回で解消しないこと。
+  併せて `git merge-base --is-ancestor` の偽を確認する。
+
+### F967. 並行 session が local main を同じ件名の別 SHA へ置き換え、fresh gate も `--ff-only` も通らなくなった [手順漏れ] [ドリフト]
+
+- 事象: 2026-09-14 の wave 立ち上げで、`git worktree add ... main` が `d9bbdb6b0` を取った直後に
+  local main が `75bea8e5f` へ進んだ。両者は**件名が完全に同一**で、`75bea8e5f` は `d9bbdb6b0` の
+  子孫ではない (共通祖先は `f5423e2ff`)。`tools/check_wave_startup.py --mode fresh` は
+  `NG: HEAD != local main` を返し、`DW-O20` が指示する `git merge --ff-only main` も
+  `fatal: Not possible to fast-forward` で rc=128 になった。
+- 根本原因: `DW-O20` は HEAD 差の解消手段として `--ff-only` だけを与える。これは main が
+  **前進**した場合の手順であり、main が**置き換えられた**場合 (別 session の amend / 作り直し) には
+  定義上成立しない。並行 session が多い環境では、worktree 作成から起動 gate までの数十秒に
+  この置き換えが入りうる。
+- 実害なし (near miss)。wave 開始前に検出したため成果物は無傷。所要は約 2 分。
+- 恒久対応: memory `worktree-discipline` (branch 作り直しの手順を追加) —
+  未 commit の成果が無い段階では `git checkout --detach` → `git branch -D <branch>` →
+  `git checkout -b <branch> main` で branch を作り直す。**`git reset --hard main` を使わない** —
+  branch reflog に reset entry を残さず `branch: Created from main` だけにするためであり、
+  作り直しなら追加の履歴痕を持ち込まない。作業済み commit がある段階でこの状況に入った場合は
+  作り直しではなく通常の merge (非 ff) を使う。
+- 再発検知: 起動 gate が `NG: HEAD != local main` を返したとき、`git merge-base main HEAD` が
+  HEAD と一致しなければ本型である (一致すれば単なる前進なので `--ff-only` で足りる)。
+  `DW-O20` 本文への追記は `docs/dev-wave/**` の byte 予算に収まらないため行わない
+  (F66 と同じ扱い。予算超過で撤回した恒久対応は本台帳と memory が担う)。
+
+### F968. 読めなかった registry を候補 0 件と同一視し、件数による排他を素通りさせた [恒真ゲート]
+
+- 事象: 床値 campaign の再試行認可は、旧 `valid=False` 経路と registry の検証済み recovery の
+  **排他的二択**であり、排他は候補 evidence の件数で判定すると定めてある (D880)。ところが
+  registry の読取が例外になったとき、旧経路の候補が 1 件あれば正常復帰する fallback が 2 箇所に
+  あった。候補件数を数えられていないのに件数による排他を通していたので、
+  「registry 側にも候補があった履歴」と区別できないまま retry が 1 本認可された。
+  さらに reader 自身にも 3 箇所目があり、`lstat()` と `read_bytes()` の
+  `FileNotFoundError` を同じ節で受けていたため、存在しない対象への symlink が
+  「不在 = 候補 0 件」へ化けていた。
+- 根本原因: **判定できなかった事実を、判定できた値へ変換した。** 「不在」は候補 0 件という
+  結果であり、「読めない」は結果が無いことである。両者を同じ except 節で受けると、
+  後者が前者の顔をして下流の件数検査を通過する。件数で排他する gate は、件数が確定した
+  ときにだけ意味を持つ。
+- 恒久対応: D1982。実体は
+  `orchestrator/campaign/s8b_holdout_admission.py` の
+  `_assert_retry_start_authorized_locked` / `floor_retry_trigger_for_round` から救済 catch を
+  除去し、`_read_floor_registry_candidate_rows` の不在判定を `lstat()` に限定した変更
+  (commit `335e582b1`)。
+- 再発検知: `orchestrator/tests/test_s8b_holdout_admission.py` の負例 3 件
+  (`test_malformed_registry_rejects_existing_failed_session_retry_query` /
+  `..._consumption` / `..._inspection`)、
+  `test_dangling_registry_symlink_is_not_treated_as_absent`、および過剰拒否の正例
+  `test_missing_registry_preserves_existing_failed_session_retry`。
+  変異 `MUT-T1948-QUERY-PARSE-FALLBACK` / `MUT-T1948-SHARED-PARSE-FALLBACK` /
+  `MUT-T1948-READ-ENOENT-AS-ABSENT` / `MUT-T1948-ABSENT-AS-UNREADABLE` が全 KILLED
+  (`output/insights/2026-09-14/t1948-registry-parse-fallback/`)。
+- 検出経路: 起票は別 wave の段 6 レビューで、本 wave はその carry を実装した。
+  reader の 3 箇所目は本 wave の段 2 プランが、親 brief の「既に分離できている」という前提を
+  現物で崩して見つけた。
