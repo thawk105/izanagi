@@ -24732,6 +24732,22 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-10** — CC次実験precheckのdocs-only tip4d5b403b8で、T1259の実repo Git走査30秒timeoutが受入23setup errorと単独再走48setup errorになった。9月11日にmainのmodule snapshot化・実repo直列化を取り込み、tip76928e91eの2file焦点走991663.nqsvは262passed/20.57秒。判定本文・timeout・除外は変更しない。記録はoutput/insights/2026-09-11/cc-next-precheck-resume/README.md。
+
+- **再発: 2026-09-14** — repo 膨張監査 wave (docs のみ、tip `741e27283`) の受入 attempt 1 で、
+  `test_t1259_qsub_env_delivery_probe.py` の 6 件が setup error になった
+  (23,308 passed / 68 skipped / 6 error、子 rc=1、受領証は未発行で待ち手は rc=70)。
+  setup traceback の Git argv は既報と同一で、
+  `git -C <wave worktree> ls-files --others --exclude-standard -z` の 30.0 秒 TimeoutExpired。
+  同 tip・同 file の単独再走 (`run_tests.py`、996322.nqsv) は **51 passed / 16.67 秒、job Elapse 22S、
+  rc=0** で非再現。wave の変更は docs のみで、当該 fixture・probe・Git 呼出しは変更していない。
+  **本 wave は既報が「分離していない」と書いた遅延の大きさ自体を実測した。** 同じ worktree で
+  同 argv を 3 連続実行した wall は **34.60 / 24.96 / 15.90 秒**で、30 秒 timeout を跨いでいる
+  (実行時の load average 68.35〜88.49)。作業ツリーは tracked 24,684 件 / 約 690 MB である。
+  これは走査時間の分布を与えるだけで、**I/O 要因の分離ではない**。新規 worktree の cold cache と
+  login node 負荷が交絡しており、どちらがどれだけ効くかは測っていない。
+  恒久対応は既報のまま変えない — timeout 拡大・fixture の stub 化・除外・汎用 gate の新設は行わず、
+  `DW-O18` に従って単独非再現を確認して受入を再走した。記録は
+  `output/insights/2026-09-14/repo-bloat-audit/README.md` §7。
 ### F946. 修正可能な検査失敗で作業を終了し、ユーザーへ再開を要求した [手順漏れ] [誤前提]
 
 - 事象: insights整理のauthorが実行ログ検査で未受理になり、親は原因の切り分けや安全な再試行をせず正式停止した。
@@ -25173,3 +25189,26 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 検出経路: 起票は別 wave の段 6 レビューで、本 wave はその carry を実装した。
   reader の 3 箇所目は本 wave の段 2 プランが、親 brief の「既に分離できている」という前提を
   現物で崩して見つけた。
+
+### F969. 二重読みを一度読みへ直す起草案が、残る 1 回の読み先をすり替えて別の欠陥を作った [誤前提] [防壁の射程誤認]
+
+- 事象: `tools/codex_reasoning_ab.py` の `supervise_pair` は、run root の frozen copy を
+  hash 用と解析用に別々に読んでいた。段 2 の起草案はこれを 1 回読みへ直す際、
+  **読む対象を frozen から source へ移した** (`schedule_sha = _sha256(source_schedule_bytes)`)。
+  依頼の文面 (「一度だけ読み、その同じ bytes から導く」) は満たすが、
+  **現行が持っていた「frozen が壊れていたら拒否する」力を失う。**
+  正当な source を保存した直後に frozen を壊れた JSON へ上書きすると、現行は
+  `cannot read JSON object` で止まるが、起草案は source を hash・解析して launch まで進む。
+  段 3 の敵対レンズ A が、この反例を構成して覆した。
+- 根本原因: 「読み回数を 1 にする」という**数の要件**だけを見て、
+  「その 1 回が何を観測しているか」という**対象の要件**を見なかった。
+  二重読みは (i) 観測の重複と (ii) 観測対象の一致、という 2 つの性質を同時に持っており、
+  (i) だけを直すと (ii) を壊しうる。
+- 実害: なし (near miss)。段 3 の敵対相談で段 5 の実装前に覆り、
+  裁定でプラン v2 を「frozen を 1 回読む」へ差し替えた。
+- 恒久対応: D1988 が supervisor の authority を
+  frozen と明記し、source を authority にしてはならない理由を本文に持つ。
+  機械側の検知は変異 M6 (`_sha256(schedule_bytes)` → `_sha256(frozen_schedule.read_bytes())`)
+  が担い、frozen の read 計数が 2 になることで落ちる。
+- 再発検知: 読み回数を減らす修正では、**減らした後に残る 1 回が元と同じ対象を読むか**を
+  裁定で明示的に確かめる。段 3 の敵対レンズに「この修正が失う観測は何か」を必ず入れる。
