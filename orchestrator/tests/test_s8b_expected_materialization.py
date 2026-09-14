@@ -745,6 +745,7 @@ import sys
 sys.path[:] = sys.path[1:]
 import contextlib, importlib, inspect, io, json
 from pathlib import Path
+from types import SimpleNamespace
 # pytest can supply either orchestrator.tests.<module> or bare <module>.
 root = Path(sys.argv[1])
 sys.path[:0] = [str(root), str(root / 'orchestrator' / 'tests')]
@@ -757,6 +758,27 @@ import pytest
 output = io.StringIO()
 try:
     with contextlib.redirect_stdout(output), pytest.MonkeyPatch.context() as patch:
+        # Mirror conftest's four autouse fixtures before the case's own patches.
+        # These cases do not request _detect_site_under_test.
+        site_policy = sys.modules.get('orchestrator.campaign.site_policy')
+        if site_policy is not None:
+            patch.setattr(site_policy, 'socket', SimpleNamespace(
+                gethostname=lambda: 'test-host'))
+            patch.setattr(site_policy, '_has_nqsv', lambda: False)
+        for name in (
+            'IZANAGI_TASK_RUN_ID',
+            'IZANAGI_TASK_RUNS_ROOT',
+            'IZANAGI_TASK_RUN_SIDECAR',
+            'IZANAGI_TEST_TRIGGER',
+            'IZANAGI_EXPLORATION_OUTPUT_ROOT',
+            'IZANAGI_OFFICIAL_OUTPUT_ROOT',
+        ):
+            patch.delenv(name, raising=False)
+        layout = sys.modules.get('orchestrator.campaign.layout')
+        if layout is not None:
+            layout._reset_exploration_output_root_pin_for_tests()
+            layout._reset_official_output_root_pin_for_tests()
+        # Each child runs one case and exits, so no post-case pin reset is needed.
         if 'monkeypatch' in inspect.signature(case).parameters:
             parameters['monkeypatch'] = patch
         case(**parameters)
