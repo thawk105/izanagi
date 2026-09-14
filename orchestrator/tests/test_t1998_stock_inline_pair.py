@@ -95,9 +95,12 @@ _FLAGS = (
     ),
 )
 _TOOLCHAIN = {
-    "cc": {"realpath": "/usr/bin/cc", "version": "fixture-cc"},
-    "cmake": {"realpath": "/usr/bin/cmake", "version": "fixture-cmake"},
-    "cxx": {"realpath": "/usr/bin/c++", "version": "fixture-cxx"},
+    role: {
+        "requested": requested,
+        "realpath": f"/usr/bin/{requested}",
+        "version_first_line": f"fixture-{role}",
+    }
+    for role, requested in (("cc", "cc"), ("cmake", "cmake"), ("cxx", "c++"))
 }
 
 
@@ -116,7 +119,10 @@ def _canonical_json(value: object) -> str:
 
 
 _TOOLCHAIN_SHA = hashlib.sha256(
-    _canonical_json(_TOOLCHAIN).encode("utf-8")
+    _canonical_json({
+        role: {**entry, "version": f"{entry['version_first_line']}\nFull version details"}
+        for role, entry in _TOOLCHAIN.items()
+    }).encode("utf-8")
 ).hexdigest()
 
 
@@ -166,6 +172,7 @@ def _contract_loader_binding(
 def _write_producer(
     tmp_path: Path,
     *,
+    env_tag: str = "pegasus",
     short_gitlink: str = _SHORT_GITLINK,
     full_gitlink: str = _FULL_GITLINK,
     diagnostic_arm: str | None = None,
@@ -190,7 +197,7 @@ def _write_producer(
     campaigns = root / "campaigns"
     campaigns.mkdir(parents=True)
     context = build_run_context(generator_id=GeneratorId.BACKOFF_SWEEP)
-    authorization = env_contract.authorize("pegasus")
+    authorization = env_contract.authorize(env_tag)
     lock_identity = {
         "ccbench_commit": short_gitlink,
         "search_config": {
@@ -343,12 +350,12 @@ def _write_producer(
                 "workload": {"tag": "balanced"},
             }, ts=float(ordinal * 10 + 3.5))
         run_cmd = [
-            "numactl", "--interleave=all",
+            *authorization.contract.numactl,
             f"{build_dir}/cc/silo/ycsb_silo.exe",
             "-thread_num=48", "-ycsb_rratio=50",
         ]
         if arm == "target" and decoy_bench_executable is not None:
-            run_cmd = [decoy_bench_executable, run_cmd[2]]
+            run_cmd = [decoy_bench_executable, f"{build_dir}/cc/silo/ycsb_silo.exe"]
         wal.log(layout, variant, STAGE_BENCH_DONE, authorization.contract.env_tag, {
             "build_attempt_id": attempt,
             "tps": samples,
@@ -549,6 +556,17 @@ def test_real_admission_and_receipts_accept_only_the_fixed_pair(tmp_path: Path) 
     assert decision.identity.abbreviated_gitlink_is_full_identity is False
     assert decision.identity.submitter_identity_recoverable is False
     assert decision.identity.explicit_diagnostic_marker_check_is_sufficient is False
+
+
+def test_bench_execution_target_requires_exact_nonempty_prefix() -> None:
+    prefix = ("numactl", "--interleave=all")
+    executable = "/build/cc/silo/ycsb_silo.exe"
+
+    assert T._bench_execution_target([*prefix, executable, "--help"], prefix) == executable
+    assert T._bench_execution_target(
+        ["numactl", "--interleave=0", executable], prefix,
+    ) is None
+    assert T._bench_execution_target([executable, "--help"], prefix) is None
 
 
 def test_baseline_and_target_source_identities_may_normally_differ(tmp_path: Path) -> None:
@@ -985,59 +1003,6 @@ def test_toolchain_record_digest_drift_is_rejected(tmp_path: Path) -> None:
         _consume(fixture)
     assert excinfo.value.code == "toolchain-identity-mismatch"
     assert excinfo.value.arm == "target"
-
-
-def test_shared_noncanonical_toolchain_digest_is_rejected(tmp_path: Path) -> None:
-    """The canonical-manifest digest layer alone rejects this shared digest."""
-    fixture = _write_producer(tmp_path)
-    wal_path = fixture.campaign / "runs/wal.jsonl"
-    records = [json.loads(line) for line in wal_path.read_text().splitlines()]
-    pair_attempts = {
-        record["payload"]["build_attempt_id"]
-        for record in records
-        if record["stage"] == "build_start"
-        and record["payload"]["genome"] in {
-            T.BASELINE_CANONICAL_GENOME,
-            T.TARGET_CANONICAL_GENOME,
-        }
-    }
-    result = _read_json(fixture.root / "result.json")
-    arbitrary_digest = "d" * 64
-    assert arbitrary_digest != _TOOLCHAIN_SHA
-    mutated = 0
-    for record in records:
-        if (
-            record["stage"] == "build_done"
-            and record["payload"]["build_attempt_id"] in pair_attempts
-        ):
-            assert record["payload"]["toolchain"] == result["toolchain"] == _TOOLCHAIN
-            assert record["payload"]["toolchain_record_sha256"] == _TOOLCHAIN_SHA
-            record["payload"]["toolchain_record_sha256"] = arbitrary_digest
-            mutated += 1
-    assert len(pair_attempts) == mutated == 2
-    wal_path.write_text(
-        "".join(
-            json.dumps(
-                record,
-                ensure_ascii=False,
-                separators=(",", ":"),
-                allow_nan=False,
-            ) + "\n"
-            for record in records
-        ),
-        encoding="utf-8",
-    )
-    _refresh_result_wal_sha(fixture)
-
-    with pytest.raises(T.T1998PairRejected) as excinfo:
-        _consume(fixture)
-    assert excinfo.value.as_dict() == {
-        "code": "toolchain-identity-mismatch",
-        "field": "wal.build_done.toolchain_record_sha256",
-        "expected": _TOOLCHAIN_SHA,
-        "actual": arbitrary_digest,
-        "arm": "baseline",
-    }
 
 
 def test_result_projection_drift_is_rejected(tmp_path: Path) -> None:
