@@ -59,6 +59,39 @@ IZANAGI_MEMO_PREWARM_V1 {"barrier_s":28.329, "hook":"xdist_node_collection_finis
 `_RECEIPT_MEMO.prewarm` は `_PRODUCTION_RESOLVE(root=ROOT)` を呼ぶ。
 production の resolver が実 repo (lustre) を走査する費用であり、**production は触れない。**
 
+### 28.3 秒をどこへ置くかで結果が正反対になった (本 wave の最終的な発見)
+
+この 28.3 秒をテスト実行と重ねる実験を 2 通り行い、**置き場所が答えであることが分かった。**
+
+| 走 | 構成 | wall | 開始待ち | 実行窓 | 最長単体 |
+|---|---|---|---|---|---|
+| F | barrier あり (現状) | 307.9 秒 | 25.5 秒 | 220.6 秒 | 212.6 秒 |
+| G | barrier 撤去、**collection 後**に背景化 | 320.0 秒 | **0.1 秒** | **256.7 秒** | **247.6 秒** |
+| H | 起動を **collection 前**へ移動 | **279.8 秒** | **0.1 秒** | **217.0 秒** | 208.0 秒 |
+
+- **G:** barrier で節約した 25.4 秒が、実行窓の **+36.1 秒**になって返ってきた。
+  prewarm は実 repo (lustre) を走査する I/O で、t080 群も同じ lustre I/O を使う。
+  背景化すると両者が競合する。**28.3 秒は「無駄な待ち」ではなく実際の I/O である。**
+- **H:** collection (約 63 秒) は import 主体で lustre I/O をあまり使わない。
+  そこへ隠すと**実行窓は伸びず** (217.0 秒)、**300 秒を切った。**
+
+**H は本 wave では着地させなかった。** shard-1 / shard-2 に 4 件の赤が出たためである
+(入れ子 pytest で prewarm が走り、`result.stderr == ""` を期待するテストへ
+`IZANAGI_FREEZE_HOLD` が漏れる等)。consumer の有無は collection 前に確定できないので、
+実装は「全 controller で起動する」を選ばざるを得なかった。
+本物の受入 shard session だけへ閉じる修正 (`_izanagi_acceptance_shard_spec` で判定) を入れたところ、
+今度は probe の入れ子 xdist 走行で worker が crash した。
+**本 wave の中では安全に収束しないと判断し、撤去した。**
+
+**次の wave が単独の変更として入れれば安全に着地できる。** 設計も数値も揃っている —
+起動位置は `pytest_configure_node`、判定は `_izanagi_acceptance_shard_spec`、
+worker 側は cache を最大 120 秒待ち `.pending` / `.failed` marker で失敗を共有する。
+残る課題は**入れ子 pytest / probe 経路との共存だけ**である。
+
+---
+
+**以下は撤去に至るまでの記録である。**
+
 **残る手は、この 28.3 秒をテスト実行と重ねることである。**
 調べたところ**プロセス跨ぎの共有機構は既に在った** — controller の prewarm は
 `tempfile.gettempdir()` 配下の JSON へ書き、worker の `_ReceiptMemo.get` はそれを読む。

@@ -3,12 +3,12 @@
 
 receipt の production resolver は実 working tree と共有 submodule を走査する。pytest の
 test body が走り始めてから最初の consumer が解決すると、並行 writer と観測時点が競合する。
-この module は controller の実 repo 共有ロック内で一度だけ解決する ``prewarm`` 経路と、
+この module は controller の collection barrier で一度だけ解決する ``prewarm`` 経路と、
 その結果だけを読む consumer 経路を分離する。
 
 受理集合は変えない。prewarm は production resolver の値を加工しない。固定 snapshot X に
 対し、wire 往復後も値・型・bytes が意味的に同一な ``R(X)`` を同じ pytest session の全
-consumer が観測する。prewarm 待ちの期限超過、cache/lock 障害、壊れた cache、store 障害は
+consumer が観測する。prewarm 前の miss、cache/lock 障害、壊れた cache、store 障害は
 production resolver へ倒さず ``ReceiptMemoError`` で fail-closed にする。report 経路には
 到達するが、prewarm は本物の resolver を呼び、cache はロスレス往復するため、到達する値
 自体は変わらない。
@@ -48,8 +48,6 @@ _RUN_ID_ENV = "PYTEST_XDIST_TESTRUNUID"
 _SESSION_NONCE_ENV = "IZANAGI_RECEIPT_MEMO_NONCE"
 _CACHE_PREFIX = "izanagi-t057-receipt-"
 _CACHE_STALE_S = 6 * 3600
-_CACHE_WAIT_S = 120.0
-_CACHE_POLL_S = 0.05
 _CACHE_MAX_BYTES = 8 * 1024 * 1024
 _CACHE_SCHEMA_VERSION = 1
 _CACHE_KEYS = frozenset({
@@ -163,37 +161,6 @@ def _session_cache_path(
     if head is None:
         return None
     return _cache_path_for(run_id, head, session_id)
-
-
-def _failure_path(path: Path) -> Path:
-    return path.with_name(f"{path.name}.failed")
-
-
-def _pending_path(path: Path) -> Path:
-    return path.with_name(f"{path.name}.pending")
-
-
-def begin_background_prewarm(*, run_id: str, session_id: str) -> Path:
-    """Publish before scheduling workers; retain on every unsuccessful exit."""
-    path = _session_cache_path(run_id=run_id, session_id=session_id)
-    if path is None:
-        raise ReceiptMemoError(
-            "cache-path-unavailable", cache_path=None, run_id=run_id,
-            head=None, prewarm=True, process_prewarmed=False,
-        )
-    pending = _pending_path(path)
-    pending.touch(exist_ok=False)
-    return pending
-
-
-def publish_prewarm_failure(pending: Path) -> None:
-    """Best-effort notification; a missing marker still ends at the reader deadline."""
-    try:
-        # Use the path established before thread start, without another HEAD probe.
-        # Presence alone means failure; no payload can be partially decoded.
-        pending.with_suffix(".failed").touch(exist_ok=True)
-    except Exception:
-        pass
 
 
 def _reject_duplicate_json_keys(pairs):
@@ -472,7 +439,6 @@ class _ReceiptMemo:
         head: str,
         prewarm: bool,
         operation: Callable[[], object],
-        deadline: Optional[float] = None,
     ):
         lock = path.with_name(f"{path.name}.lock")
         try:
@@ -483,21 +449,7 @@ class _ReceiptMemo:
                 head=head, prewarm=prewarm, cause=exc,
             ) from exc
         try:
-            if deadline is None:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
-            else:
-                while True:
-                    try:
-                        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                        break
-                    except BlockingIOError:
-                        self._wait_for_cache(path, run_id, head, deadline)
-        except ReceiptMemoError:
-            try:
-                handle.close()
-            except OSError:
-                pass
-            raise
+            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
         except OSError as exc:
             try:
                 handle.close()
@@ -642,24 +594,8 @@ class _ReceiptMemo:
                 self._process_resolution,
             ) = self._suspended_sessions.pop()
 
-    def _wait_for_cache(self, path, run_id, head, deadline):
-        if _failure_path(path).exists():
-            raise self._error(
-                "prewarm-failed", cache_path=path, run_id=run_id,
-                head=head, prewarm=False,
-                cause=RuntimeError("controller prewarm failed"),
-            )
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            raise self._error(
-                "cache-missing", cache_path=path, run_id=run_id,
-                head=head, prewarm=False,
-                cause=TimeoutError("receipt prewarm deadline exceeded"),
-            )
-        time.sleep(min(_CACHE_POLL_S, remaining))
-
     def get(self):
-        """prewarm 済み state を読み、未着の session cache は期限付きで待つ。"""
+        """prewarm 済み process state または既存 session cache だけを読む。"""
         if self.process_prewarmed:
             return self._process_resolution
 
@@ -683,29 +619,20 @@ class _ReceiptMemo:
             )
 
         def read_existing():
-            if _failure_path(path).exists():
+            if not path.exists():
                 raise self._error(
-                    "prewarm-failed", cache_path=path, run_id=run_id,
+                    "cache-missing", cache_path=path, run_id=run_id,
                     head=head, prewarm=False,
-                    cause=RuntimeError("controller prewarm failed"),
                 )
-            if _pending_path(path).exists() or not path.exists():
-                return _MISSING
             return _cache_load(
                 path, run_id=run_id, head=head, prewarm=False,
                 process_prewarmed=self.process_prewarmed,
             )
 
-        deadline = time.monotonic() + _CACHE_WAIT_S
-        while True:
-            resolution = self._locked(
-                path, run_id=run_id, head=head, prewarm=False,
-                operation=read_existing, deadline=deadline,
-            )
-            if resolution is not _MISSING:
-                break
-            # Never hold the cache lock while waiting for its writer.
-            self._wait_for_cache(path, run_id, head, deadline)
+        resolution = self._locked(
+            path, run_id=run_id, head=head, prewarm=False,
+            operation=read_existing,
+        )
         self._process_resolution = resolution
         return resolution
 
