@@ -123,7 +123,7 @@ YCSB=✓: silo, tictoc, mocc, cicada, ermia, si, oze (7)。YCSB=—: ss2pl, mvto
 - **[C] version-lifetime:** ⑦ timestamp history / version reuse / GC (`TIMESTAMP_HISTORY`, `REUSE_VERSION`, `SINGLE_EXEC`, `WRITE_LATEST_ONLY`)
 
 **探索空間サイズ (生きた最適化フラグのみ、全て on/off):**
-cicada 2^6=64、oze 2^7=128、silo 2^4=16、tictoc 2^4=16、mocc 2^4=16、ss2pl 4、ermia 4、si 4、d2pl 4、mvto 2 ≈ **258 個の最適化バイナリ** (× protocol ごとの workload 数)。純粋なブール超立方体 (KEY_SIZE/VAL_SIZE は sizing で固定)。**初手の全探索が現実的** (roadmap §2 (a) の前提が確定)。
+cicada 2^6=64、oze 2^7=128、silo 2^4=16、tictoc 2^4=16、mocc 2^3=8、ss2pl 4、ermia 4、si 4、d2pl 4、mvto 2 ≈ **250 個の最適化バイナリ** (この一覧の単純和。× protocol ごとの workload 数)。純粋なブール超立方体 (KEY_SIZE/VAL_SIZE は sizing で固定)。**初手の全探索が現実的** (roadmap §2 (a) の前提が確定)。mocc の軸は `TEMPERATURE_RESET_OPT`・`KEY_SORT`・全 protocol 共通の `BACK_OFF` の 3 つ — `RWLOCK` は bare define で cache option から操作できないため、ss2pl の `DLR1` と同様に数えない (2026-09-14 訂正、旧記載は `RWLOCK` を数えて 2^4=16 としていた)。実体化済み軸集合の正本は `orchestrator/campaign/genome.py` で、silo と mocc はこの数と一致する。tictoc・cicada の項は同 file の登録軸と食い違うが、未検証のまま残す。
 
 **正しさに影響する (= verifier 必須通過) フラグ:** `SINGLE_EXEC` (MVCC→単版退化)、`WRITE_LATEST_ONLY` (版配置制約)、`MERGE_ON_READ` (cycle 検出タイミング)。これらをトグルしたら必ず verifier を通す。
 
@@ -208,7 +208,7 @@ CCBench には既に **`ADD_ANALYSIS`** という「数値マクロを `#if` で
 ## 8. Izanagi 次タスクへの申し送り
 
 - **タスク1 (trace-hook):** Silo から着手。3点とも CC-native (§4) なので trace 専用フィールド不要。`#if TRACE` 方式 + cmake `CCBENCH_TRACE` で配線 (§5)。改変の行き先は `izanagi-trace` ブランチ = submodule pin (D16。本文書執筆時の D6 案 = patches/ 配下の単一 trace-hook patch は D16 で改訂済み)。同 patch に **`-DLinux` ピンニング修正**も束ねるか別 patch にするか要判断。
-- **S1 (trace-hook の他 protocol 移植) の既知の罠 — ermia の版 ID 写像 (worklog 2026-06-18 から昇格):** si の版 ID は `cstamp` (単 uint) をそのまま `(epoch=1, tid=cstamp)` に写像できたが、**ermia は版 cstamp が `cstamp<<1` (低ビット = SSN flag, `ssn_commit`)** で、commit 経路も `ssn_commit`/`ssn_parallel_commit` の 2 系統ある。版 ID 写像をこの 1 ビットシフトに合わせないと**全 read が orphan 化**する (si の trace-hook はそのままでは流用不可)。Phase 3 主実験 headline 2 (クロスプロトコル) で S1 が発火する際の必須知識 (phase3.md must 表 S1 行)。
+- **S1 (trace-hook の他 protocol 移植) の既知の罠 — ermia の版 ID 写像 (worklog 2026-06-18 から昇格、2026-09-14 に現物で訂正):** si の版 ID は `cstamp` (単 uint) をそのまま `(epoch=1, tid=cstamp)` に写像でき、**ermia の active な版 ID も同じ raw cstamp** である。`TxExecutor::commit()` が呼ぶ commit 経路は `ssn_parallel_commit()` だけで、そこは `ver_->cstamp_.store(this->cstamp_)` と raw を書き、read 側の可視版選択 (`read_internal`) も raw の `txid_` と raw の `ver_->cstamp_` を比べる。`cstamp<<1` (低ビット = TID フラグ `TIDFLAG`) を書くのは (a) 呼び出しが 1 つも無い dormant な `ssn_commit()` と (b) sstamp (`verSstamp`) 側だけ。**罠は「1 ビットシフトに合わせること」ではなく、dormant な `ssn_commit()` を読んで写像を決めること** — シフトを入れると版 ID が実物と食い違い**全 read が orphan 化**する。si の trace-hook はそのまま流用できる。Phase 3 主実験 headline 2 (クロスプロトコル) で S1 が発火する際の必須知識 (phase3.md must 表 S1 行)。
 - **タスク2 (verifier):** TRACE ログから ww/wr/rw 辺を構築し G2 cycle 検出。版ID は Silo=Tidword(epoch,tid)、cicada=Version.wts_+chain、ss2pl=発番した producer-id。read-own-write 短絡を「再観測」として扱う。
 - **タスク3 (赤を出せる証明):** **`si` を positive control に** (SSN 剥がし= SI = 本物の write-skew G2)。`ermia`(SSN)/`oze`(明示グラフ) を cross-check oracle に。これは「わざと壊した CC」より自然で、CCBench 内に既に存在する本物の anomaly。
 - **タスク4 (calibrator):** `clocks_per_us` 実測、`-DLinux`/`numactl` ピンニング、`actual_extime` 監視 (§6)、cache-miss 飽和点 (perf 動作確認済み)。
