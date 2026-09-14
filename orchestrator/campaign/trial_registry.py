@@ -261,6 +261,7 @@ _GIT_ENV_ALLOW = frozenset({
     "SYSTEMROOT",
     "TMPDIR",
 })
+_GIT_TIMEOUT_S = 300.0
 
 
 class TrialRegistryError(RuntimeError):
@@ -967,14 +968,22 @@ def _git_env() -> dict[str, str]:
 def _git(
     repository_root: Path,
     args: Sequence[str],
+    *,
+    timeout_s: float = _GIT_TIMEOUT_S,
 ) -> subprocess.CompletedProcess[bytes]:
-    return subprocess.run(
-        ["git", "-C", os.fspath(repository_root), *args],
-        env=_git_env(),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-    )
+    try:
+        return subprocess.run(
+            ["git", "-C", os.fspath(repository_root), *args],
+            env=_git_env(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+            timeout=timeout_s,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise TrialRegistryError(
+            f"[git-operational] git command timed out after {timeout_s:g}s"
+        ) from exc
 
 
 def _repository_root(path: Path) -> Path:
