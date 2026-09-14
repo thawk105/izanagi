@@ -4590,6 +4590,7 @@ def _build_cells_impl(
                     holdout_id=holdout_id, configuration_id=configuration_id,
                     binding=receipt_identity, binary=binary_path,
                     binary_sha256=result.bin_sha256,
+                    source_protection=result.source_protection,
                     contract_sha256=contract.contract_sha256, trace=False,
                     source_snapshot_sha256=source_snapshot_sha256,
                     expected_materialization_sha256=(
