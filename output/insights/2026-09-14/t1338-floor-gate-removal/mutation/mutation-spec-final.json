@@ -1,0 +1,73 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 260,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1500,
+  "mutations": [
+    {
+      "id": "MUT-T1338-FREEZE-BYTE-HASH",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_detects_freeze_byte_tampering"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+          "old": "    if freeze_sha256 != freeze_record[\"sha256\"]:\n        raise ManifestError(\"freeze byte sha256 が manifest と不一致\")\n",
+          "new": "    if False:\n        raise ManifestError(\"freeze byte sha256 が manifest と不一致\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1338-TOPLEVEL-KEY-EXACT",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_manifest.py::test_verify_manifest_rejects_retired_floor_budget_snapshot_key"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_manifest.py",
+          "old": "    if set(document) != _MANIFEST_KEYS:\n        raise ManifestError(\"manifest top-level schema が不一致\")\n",
+          "new": "    if not _MANIFEST_KEYS <= set(document):\n        raise ManifestError(\"manifest top-level schema が不一致\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1338-STORE-BINARY-HASH",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_bytes_are_checked_against_admission_subject_independently",
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_store_hash_mismatch_is_refused"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_driver.py",
+          "old": "        if actual != rec[\"binary_sha256\"]:\n            raise OracleDriverError(\n                f\"[store-hash-mismatch] store binary sha256 が floor receipt と不一致: \"\n                f\"{rec['store_path']} (cell={cell})\"\n            )\n",
+          "new": "        if False:\n            raise OracleDriverError(\n                f\"[store-hash-mismatch] store binary sha256 が floor receipt と不一致: \"\n                f\"{rec['store_path']} (cell={cell})\"\n            )\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1338-ADMISSION-EXC-SWALLOW",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_foreign_cell_admission_receipt_is_refused_before_store_read"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_driver.py",
+          "old": "        except (KeyError, TypeError, _binary_admission.BinaryAdmissionError) as exc:\n            raise OracleDriverError(\n                f\"[admission-mismatch] floor binary admission receipt が不正: {cell}: {exc}\"\n            ) from exc\n",
+          "new": "        except (KeyError, TypeError, _binary_admission.BinaryAdmissionError):\n            pass\n"
+        }
+      ]
+    }
+  ]
+}
