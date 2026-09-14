@@ -1687,6 +1687,16 @@ def _install_scan_neutral_earlier_eligible_result(
 
 
 def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_cli_official_resolves_ratified_freeze_and_verifies"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
     root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
     output = tmp_path / "official-cli-observations.json"
     real_selection = (
@@ -1777,34 +1787,60 @@ def test_cli_official_resolves_ratified_freeze_and_verifies(tmp_path):
 
 def test_report_cli_real_g1_rule_mismatch_preserves_selection_reason(
         tmp_path, monkeypatch, capsys):
-    root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
-    loaded = report.s8b_ratified_freeze.load_ratified_freeze(root)
-    selected_rel = loaded.document["floor_source"]["path"]
-    assert isinstance(selected_rel, str)
-    earlier_rel, eligibility_calls = (
-        _install_scan_neutral_earlier_eligible_result(
-            root, selected_rel, monkeypatch,
-        )
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_report_cli_real_g1_rule_mismatch_preserves_selection_reason"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
     )
-    output = tmp_path / "selection-mismatch-must-not-exist.json"
+    assert result == {"case": case, "completed": True}
 
-    with mock.patch.object(
-            oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
-        rc = report.main([
-            "report",
-            "--manifest", str(manifest_path),
-            "--output-root", str(root.parent / "output"),
-            "--out", str(output),
-            "--repo-root", str(root),
-        ])
 
-    assert rc == 2
-    assert "floor-selection-rule-mismatch" in capsys.readouterr().err
-    assert eligibility_calls == [earlier_rel]
-    assert not output.exists()
+def _sealed_case_report_cli_real_g1_rule_mismatch_preserves_selection_reason(tmp_path, monkeypatch):
+    import contextlib
+    import io
+    from types import SimpleNamespace
+
+    captured_stderr = io.StringIO()
+    with contextlib.redirect_stderr(captured_stderr):
+        root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
+        loaded = report.s8b_ratified_freeze.load_ratified_freeze(root)
+        selected_rel = loaded.document["floor_source"]["path"]
+        assert isinstance(selected_rel, str)
+        earlier_rel, eligibility_calls = (
+            _install_scan_neutral_earlier_eligible_result(
+                root, selected_rel, monkeypatch,
+            )
+        )
+        output = tmp_path / "selection-mismatch-must-not-exist.json"
+
+        with mock.patch.object(
+                oracle_spec, "APPROVED_SPEC_SHA256", approved.sha256):
+            rc = report.main([
+                "report",
+                "--manifest", str(manifest_path),
+                "--output-root", str(root.parent / "output"),
+                "--out", str(output),
+                "--repo-root", str(root),
+            ])
+
+        assert rc == 2
+        assert "floor-selection-rule-mismatch" in captured_stderr.getvalue()
+        assert eligibility_calls == [earlier_rel]
+        assert not output.exists()
 
 
 def test_report_cli_selection_gate_receives_loaded_ratified_and_root(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_report_cli_selection_gate_receives_loaded_ratified_and_root"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_report_cli_selection_gate_receives_loaded_ratified_and_root(tmp_path):
     root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
     loaded_ratified = report.s8b_ratified_freeze.load_ratified_freeze(root)
     selection_calls: list[tuple[object, Path]] = []
@@ -1840,6 +1876,16 @@ def test_report_cli_selection_gate_receives_loaded_ratified_and_root(tmp_path):
 
 
 def test_report_rejects_unverifiable_floor_admission_without_output(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_report_rejects_unverifiable_floor_admission_without_output"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_report_rejects_unverifiable_floor_admission_without_output(tmp_path):
     root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
     _mark_official(root.parent / "report-output")
     admission_root = root / ".git/izanagi/s8b-holdout-admission-v1"
@@ -1859,6 +1905,16 @@ def test_report_rejects_unverifiable_floor_admission_without_output(tmp_path):
 
 
 def test_cli_verify_failure_returns_two_without_output(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_cli_verify_failure_returns_two_without_output"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_cli_verify_failure_returns_two_without_output(tmp_path):
     root, _manifest_path, document, approved = _ratified_cli_manifest(tmp_path)
     _mark_official(root.parent / "report-output")
     damaged = copy.deepcopy(document)
@@ -1885,6 +1941,16 @@ def test_cli_verify_failure_returns_two_without_output(tmp_path):
 
 def test_report_cli_accepts_matching_spec_then_rejects_one_other_spec_without_output(
         tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_report_cli_accepts_matching_spec_then_rejects_one_other_spec_without_output"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_report_cli_accepts_matching_spec_then_rejects_one_other_spec_without_output(tmp_path):
     root, manifest_path, _document, approved_a = _ratified_cli_manifest(tmp_path)
     _mark_official(root.parent / "report-output")
     positive_output = tmp_path / "positive-observations.json"
@@ -1928,6 +1994,16 @@ def test_report_cli_accepts_matching_spec_then_rejects_one_other_spec_without_ou
 
 def test_official_marked_empty_output_root_reports_missing_and_judges_indeterminate(
         tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_official_marked_empty_output_root_reports_missing_and_judges_indeterminate"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_official_marked_empty_output_root_reports_missing_and_judges_indeterminate(tmp_path):
     root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
     output_root = root.parent / "missing-report-output"
     observations_path = tmp_path / "missing-store-observations.json"
@@ -1955,6 +2031,16 @@ def test_official_marked_empty_output_root_reports_missing_and_judges_indetermin
 
 
 def test_official_missing_marker_cli_fails_without_output(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_official_missing_marker_cli_fails_without_output"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_official_missing_marker_cli_fails_without_output(tmp_path):
     root, manifest_path, _document, approved = _ratified_cli_manifest(tmp_path)
     output_root = root.parent / "unmarked-report-output"
     output_root.mkdir()
@@ -1974,6 +2060,16 @@ def test_official_missing_marker_cli_fails_without_output(tmp_path):
 
 def test_judge_cli_reverifies_official_manifest_and_legacy_cannot_reach_verdict(
         tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_case_judge_cli_reverifies_official_manifest_and_legacy_cannot_reach_verdict"
+    result = _run_sealed_case(
+        __name__, case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_case_judge_cli_reverifies_official_manifest_and_legacy_cannot_reach_verdict(tmp_path):
     root, manifest_path, document, approved = _ratified_cli_manifest(tmp_path)
     _mark_official(root.parent / "report-output")
     observations_path = tmp_path / "judge-input-observations.json"
