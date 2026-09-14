@@ -75,6 +75,14 @@ title: [T-2497] role sink 非干渉 node へ report status 検査と partial 負
 - 段 2 に codex plan 1 本、段 3 に consult 2 本 (sol / luna)、段 5 に author 1 本、
   段 6 に review 2 本 + fix 1 本を使った。実装子は sandbox から dispatch できず (rc=16)
   **実走 0 件**を正直に申告し、実測はすべて親が行った。
+- **段 8 の自己改善は候補 2 件で、1 件を採用・1 件を refuted にした。**
+  採用したのは M5 の mask (F820 の 3 回目の再発として追記)。**reference への追記は
+  byte 予算で 2 回続けて弾かれた** — `DW-M01` へ入れると `docs/dev-wave/**` の L1 unique
+  footprint が 10795 > 10625、発火点である `DW-M07` へ移すと単節 1216 > 1000 だった。
+  DW-M01 が既に F820 を指しているので、知見は F820 側だけに置いて reference は無改変にした
+  (同じ物語を入口・reference へ再掲しない契約に従う)。上限は引き上げていない。
+  refuted にしたのは「受入 lease dir の正本が dev-wave docs に無い」で、
+  `docs/pegasus-runbook.md` §7.3 に dir も定型 argv も既に書かれていた。親の読み落としである。
 - 段 5 の初回投入は `--reasoning` を author 段へ渡して rc=2 で即死した。DW-C01 に
   「`--reasoning` は plan/consult で必須、他段指定は rc=2」と明記されている既知契約への違反で、
   新しい失敗型ではない。argv を直して再投入した。
