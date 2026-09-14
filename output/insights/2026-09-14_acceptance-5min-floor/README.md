@@ -42,8 +42,34 @@ shard-1 は 0.09 秒、shard-2 は 0.12 秒でこの barrier が無い。
 controller だけが `_prewarm_receipt_memo` と `_prewarm_oracle_environment_memo` を呼ぶ。
 どちらも実 repo (lustre) を読む。shard-1 / shard-2 で 0 秒なのは consumer が不在のためである。
 
-**この 28.3 秒をテスト実行と重ねれば約 288 秒になり 300 秒を切る。**
-prewarm の計算内容は変えず、「いつ走るか」と「誰が待つか」だけを変える形で着手した。
+**この barrier の内訳を計測したところ、決定的な偏りが出た。**
+
+```
+IZANAGI_MEMO_PREWARM_V1 {"barrier_s":28.329, "hook":"xdist_node_collection_finished",
+                         "oracle_environment_memo_s":0.132, "receipt_memo_s":28.328}
+```
+
+**barrier のほぼ全部 (215 対 1) が `_prewarm_receipt_memo` 1 本である。**
+
+親はまず「2 つの prewarm が逐次だから並行化すれば半分になる」と考えて並行化したが、
+**この比では効果が無かった。** 並行化後の走は 307.9 秒で、直前の 316.0 秒との 8 秒差は
+走行ごとのばらつきと区別できない。**並行化は無効である。**
+ただし同時に足した計測行が上の内訳を出したので、次の一手が確定した。
+
+`_RECEIPT_MEMO.prewarm` は `_PRODUCTION_RESOLVE(root=ROOT)` を呼ぶ。
+production の resolver が実 repo (lustre) を走査する費用であり、**production は触れない。**
+
+**残る手は、この 28.3 秒をテスト実行と重ねることである。**
+調べたところ**プロセス跨ぎの共有機構は既に在った** — controller の prewarm は
+`tempfile.gettempdir()` 配下の JSON へ書き、worker の `_ReceiptMemo.get` はそれを読む。
+cache が無ければ fail-closed で失敗し、いまは barrier がその存在を保証している。
+したがって変えるのは 2 点だけである。
+
+1. controller は背景で書き、collection hook を待たせない。
+2. worker の `get()` は cache を上限つきで待つ (現行の即時失敗を待ちへ)。
+
+**「cache が無いので既定値」「worker が自分で resolver を呼ぶ」へ倒してはならない。**
+production resolver を呼べる唯一の経路が prewarm である性質を壊すためである。
 
 ---
 

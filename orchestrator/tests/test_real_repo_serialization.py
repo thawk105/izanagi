@@ -3345,9 +3345,395 @@ def test_oracle_environment_memo_nonce_is_propagated_to_workers_and_restored():
         assert os.environ[suite_conftest._ORACLE_ENVIRONMENT_MEMO_NONCE_ENV] == "outer-oracle-nonce"
 
 
+@pytest.fixture
+def delayed_receipt_cache(tmp_path, monkeypatch):
+    from orchestrator.tests import real_repo_receipt_memo as memo
+
+    head, run_id, session_id = "a" * 40, "delayed-run", "session-test"
+    monkeypatch.setattr(memo, "_repo_head", lambda: head)
+    monkeypatch.setattr(memo.tempfile, "gettempdir", lambda: str(tmp_path))
+    monkeypatch.setenv(memo._RUN_ID_ENV, run_id)
+    monkeypatch.setenv(memo._SESSION_NONCE_ENV, session_id)
+    monkeypatch.setattr(memo, "_CACHE_WAIT_S", 5.0)
+    resolution = memo.migration.ReceiptResolution(
+        "never-issued", ("delayed-value",), {"nested": [1, "値"]}, head,
+        receipt={"payload": [True, None]}, receipt_raw=bytes([0, 255, 42]),
+    )
+    return SimpleNamespace(
+        memo=memo, path=memo._cache_path_for(run_id, head, session_id),
+        resolution=resolution, run_id=run_id, session_id=session_id,
+    )
+
+
+def _receipt_async_call(call):
+    done = threading.Event()
+    outcome = []
+
+    def run():
+        try:
+            outcome.append(call())
+        except BaseException as exc:
+            outcome.append(exc)
+        finally:
+            done.set()
+
+    thread = threading.Thread(target=run, daemon=False)
+    thread.start()
+    return thread, done, outcome
+
+
+def _receipt_wait_observer(monkeypatch, memo):
+    waiting = threading.Event()
+    original = memo._ReceiptMemo._wait_for_cache
+
+    def wait(self, *args):
+        waiting.set()
+        return original(self, *args)
+
+    monkeypatch.setattr(memo._ReceiptMemo, "_wait_for_cache", wait)
+    return waiting
+
+
+def test_receipt_get_waits_for_actual_delayed_cache(delayed_receipt_cache, monkeypatch):
+    f = delayed_receipt_cache
+    waiting = _receipt_wait_observer(monkeypatch, f.memo)
+    thread, done, outcome = _receipt_async_call(f.memo._make_receipt_memo().get)
+    try:
+        assert waiting.wait(2), "reader never reached the missing-cache wait"
+        assert not done.wait(0.1), outcome
+        assert not f.path.exists()
+        f.memo._cache_store(f.path, f.resolution)
+        assert done.wait(2)
+        assert outcome == [f.resolution]
+    finally:
+        thread.join(6)
+    assert not thread.is_alive()
+
+
+def test_receipt_get_returns_complete_atomic_publication(delayed_receipt_cache, monkeypatch):
+    f = delayed_receipt_cache
+    partial, release = threading.Event(), threading.Event()
+    original = Path.write_bytes
+
+    def write_in_parts(path, raw):
+        if path.name.endswith(".tmp"):
+            original(path, b"")
+            original(path, raw[:len(raw) // 2])
+            partial.set()
+            assert release.wait(3), "test did not release partial cache writer"
+        return original(path, raw)
+
+    monkeypatch.setattr(Path, "write_bytes", write_in_parts)
+    writer = f.memo._make_receipt_memo(resolve=lambda: f.resolution)
+    wt, wd, wo = _receipt_async_call(
+        lambda: writer.prewarm(run_id=f.run_id, session_id=f.session_id),
+    )
+    reader = None
+    try:
+        assert partial.wait(2)
+        assert not f.path.exists()
+        waiting = _receipt_wait_observer(monkeypatch, f.memo)
+        reader, done, outcome = _receipt_async_call(f.memo._make_receipt_memo().get)
+        assert waiting.wait(2)
+        assert not done.wait(0.1), outcome
+        release.set()
+        assert wd.wait(2) and done.wait(2)
+        assert wo == [f.resolution]
+        assert outcome == [f.resolution]
+        assert outcome[0].receipt_raw == bytes([0, 255, 42])
+    finally:
+        release.set()
+        wt.join(6)
+        if reader is not None:
+            reader.join(6)
+    assert not wt.is_alive()
+    assert reader is not None and not reader.is_alive()
+
+
+def _receipt_background_test_node(run_id):
+    config = _ReceiptHookConfig({"collectonly": False, "testrunuid": run_id})
+    config.pluginmanager = SimpleNamespace(
+        get_plugin=lambda name: object() if name == "dsession" else None,
+    )
+    return SimpleNamespace(config=config, workerinput={"testrunuid": run_id})
+
+
+def test_receipt_background_failure_wakes_reader_before_deadline(
+    delayed_receipt_cache, monkeypatch,
+):
+    f = delayed_receipt_cache
+    suite = _load_suite_conftest()
+    node = _receipt_background_test_node(f.run_id)
+    release, entered = threading.Event(), threading.Event()
+
+    def resolve():
+        entered.set()
+        assert release.wait(3)
+        raise ValueError("injected resolver failure")
+
+    monkeypatch.setattr(f.memo, "_RECEIPT_MEMO", f.memo._make_receipt_memo(resolve))
+    monkeypatch.setattr(suite, "_real_repo_locks", lambda *_: contextlib.nullcontext())
+    monkeypatch.setattr(suite, "_receipt_memo_module", lambda: f.memo)
+    consumer = "test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract"
+    waiting = _receipt_wait_observer(monkeypatch, f.memo)
+    reader, done, outcome = _receipt_async_call(f.memo._make_receipt_memo().get)
+    try:
+        assert waiting.wait(2)
+        suite.pytest_xdist_node_collection_finished(node, [consumer])
+        assert entered.wait(2)
+        release.set()
+        assert done.wait(2), "reader waited for the five-second deadline"
+        assert isinstance(outcome[0], f.memo.ReceiptMemoError)
+        assert outcome[0].payload["reason"] == "prewarm-failed"
+        assert f.memo._failure_path(f.path).is_file()
+        with pytest.raises(f.memo.ReceiptMemoError, match="resolver-failed"):
+            suite._join_receipt_background(node.config)
+    finally:
+        release.set()
+        reader.join(6)
+        if hasattr(node.config, suite._RECEIPT_MEMO_BACKGROUND_ATTR):
+            with contextlib.suppress(f.memo.ReceiptMemoError):
+                suite._join_receipt_background(node.config)
+    assert not reader.is_alive()
+
+
+def test_receipt_background_success_releases_pending_cache(
+    delayed_receipt_cache, monkeypatch, capsys,
+):
+    f = delayed_receipt_cache
+    suite = _load_suite_conftest()
+    node = _receipt_background_test_node(f.run_id)
+    entered, release = threading.Event(), threading.Event()
+    accesses = []
+
+    @contextlib.contextmanager
+    def record_lock(access):
+        accesses.append(access)
+        yield
+
+    def resolve():
+        entered.set()
+        assert release.wait(3)
+        return f.resolution
+
+    monkeypatch.setattr(f.memo, "_RECEIPT_MEMO", f.memo._make_receipt_memo(resolve))
+    monkeypatch.setattr(suite, "_real_repo_locks", record_lock)
+    monkeypatch.setattr(suite, "_receipt_memo_module", lambda: f.memo)
+    consumer = "test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract"
+    reader = None
+    try:
+        suite.pytest_xdist_node_collection_finished(node, [consumer])
+        assert entered.wait(2)
+        assert accesses == [suite.RealRepoAccess("read", "read")]
+        assert f.memo._pending_path(f.path).is_file()
+        waiting = _receipt_wait_observer(monkeypatch, f.memo)
+        reader, done, outcome = _receipt_async_call(f.memo._make_receipt_memo().get)
+        assert waiting.wait(2)
+        assert not done.wait(0.1), outcome
+        release.set()
+        assert done.wait(2)
+        assert outcome == [f.resolution]
+        suite._join_receipt_background(node.config)
+        assert not f.memo._pending_path(f.path).exists()
+        prefix = "IZANAGI_MEMO_PREWARM_V1 "
+        timings = [json.loads(line[len(prefix):]) for line in
+                   capsys.readouterr().err.splitlines() if line.startswith(prefix)]
+        assert len(timings) == 1
+        assert timings[0]["receipt_memo_s"] > timings[0]["barrier_s"]
+    finally:
+        release.set()
+        if reader is not None:
+            reader.join(6)
+        suite._join_receipt_background(node.config)
+    assert reader is not None and not reader.is_alive()
+
+
+def test_receipt_cache_wait_has_deadline(delayed_receipt_cache, monkeypatch):
+    f = delayed_receipt_cache
+    monkeypatch.setattr(f.memo, "_CACHE_WAIT_S", 0.1)
+    start = time.monotonic()
+    with pytest.raises(f.memo.ReceiptMemoError) as raised:
+        f.memo._make_receipt_memo().get()
+    assert 0.08 <= time.monotonic() - start < 2
+    assert raised.value.payload["reason"] == "cache-missing"
+    assert raised.value.payload["exception_type"] == "TimeoutError"
+
+
+def test_receipt_cache_lock_wait_has_deadline(delayed_receipt_cache, monkeypatch):
+    f = delayed_receipt_cache
+    monkeypatch.setattr(f.memo, "_CACHE_WAIT_S", 0.1)
+    lock = f.path.with_name(f"{f.path.name}.lock")
+    with lock.open("a+b") as holder:
+        f.memo.fcntl.flock(holder.fileno(), f.memo.fcntl.LOCK_EX)
+        start = time.monotonic()
+        with pytest.raises(f.memo.ReceiptMemoError) as raised:
+            f.memo._make_receipt_memo().get()
+        assert 0.08 <= time.monotonic() - start < 2
+        assert raised.value.payload["exception_type"] == "TimeoutError"
+
+
+def test_receipt_published_cache_waits_for_controller_lock_exit(
+    delayed_receipt_cache, monkeypatch,
+):
+    f = delayed_receipt_cache
+    suite = _load_suite_conftest()
+    node = _receipt_background_test_node(f.run_id)
+    published, release = threading.Event(), threading.Event()
+
+    @contextlib.contextmanager
+    def failing_lock_exit(*_):
+        yield
+        published.set()
+        assert release.wait(3)
+        raise OSError("controller lock release failed after cache publication")
+
+    writer = f.memo._make_receipt_memo(resolve=lambda: f.resolution)
+    monkeypatch.setattr(f.memo, "_RECEIPT_MEMO", writer)
+    monkeypatch.setattr(suite, "_real_repo_locks", failing_lock_exit)
+    monkeypatch.setattr(suite, "_receipt_memo_module", lambda: f.memo)
+    consumer = "test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract"
+    reader = None
+    try:
+        suite.pytest_xdist_node_collection_finished(node, [consumer])
+        assert published.wait(2)
+        assert f.path.is_file()
+        assert f.memo._pending_path(f.path).is_file()
+        waiting = _receipt_wait_observer(monkeypatch, f.memo)
+        reader, done, outcome = _receipt_async_call(f.memo._make_receipt_memo().get)
+        assert waiting.wait(2)
+        assert not done.wait(0.1), outcome
+        release.set()
+        assert done.wait(2)
+        assert isinstance(outcome[0], f.memo.ReceiptMemoError)
+        assert outcome[0].payload["reason"] == "prewarm-failed"
+        with pytest.raises(OSError, match="controller lock release failed"):
+            suite._join_receipt_background(node.config)
+    finally:
+        release.set()
+        if reader is not None:
+            reader.join(6)
+        with contextlib.suppress(OSError):
+            suite._join_receipt_background(node.config)
+    assert reader is not None and not reader.is_alive()
+
+
+def test_receipt_failed_marker_write_still_times_out(delayed_receipt_cache, monkeypatch):
+    f = delayed_receipt_cache
+    monkeypatch.setattr(f.memo, "_CACHE_WAIT_S", 0.1)
+    pending = f.memo.begin_background_prewarm(run_id=f.run_id, session_id=f.session_id)
+    # Even a fully published JSON must not escape a subsequent controller failure.
+    f.memo._cache_store(f.path, f.resolution)
+    with mock.patch.object(Path, "touch", side_effect=OSError("marker disk failure")):
+        f.memo.publish_prewarm_failure(pending)
+    assert pending.is_file()
+    assert not f.memo._failure_path(f.path).exists()
+    with pytest.raises(f.memo.ReceiptMemoError) as raised:
+        f.memo._make_receipt_memo().get()
+    assert raised.value.payload["reason"] == "cache-missing"
+    assert raised.value.payload["exception_type"] == "TimeoutError"
+
+
+def test_receipt_worker_wait_never_resolves(delayed_receipt_cache, monkeypatch):
+    f = delayed_receipt_cache
+    monkeypatch.setattr(f.memo, "_CACHE_WAIT_S", 0.1)
+    with mock.patch.object(
+        f.memo, "_resolve_now", side_effect=AssertionError("worker resolved"),
+    ) as seam, mock.patch.object(
+        f.memo, "_PRODUCTION_RESOLVE", side_effect=AssertionError("worker production"),
+    ) as production:
+        reader = f.memo._make_receipt_memo()
+        with pytest.raises(f.memo.ReceiptMemoError):
+            reader.get()
+        f.memo._cache_store(f.path, f.resolution)
+        assert reader.get() == f.resolution
+        seam.assert_not_called()
+        production.assert_not_called()
+
+
+def test_receipt_no_xdist_collection_remains_synchronous(monkeypatch):
+    suite = _load_suite_conftest()
+    entered, release = threading.Event(), threading.Event()
+
+    def receipt(*_args, **_kwargs):
+        entered.set()
+        assert release.wait(3)
+
+    monkeypatch.setattr(suite, "_prewarm_receipt_memo", receipt)
+    monkeypatch.setattr(suite, "_prewarm_oracle_environment_memo", lambda *_a, **_k: None)
+    config = _ReceiptHookConfig({"collectonly": False, "numprocesses": 0})
+    config.pluginmanager = SimpleNamespace(get_plugin=lambda _: None)
+    thread, done, outcome = _receipt_async_call(
+        lambda: suite.pytest_collection_finish(SimpleNamespace(config=config, items=[])),
+    )
+    try:
+        assert entered.wait(2)
+        assert not done.wait(0.1), outcome
+        assert not hasattr(config, suite._RECEIPT_MEMO_BACKGROUND_ATTR)
+    finally:
+        release.set()
+        thread.join(6)
+    assert outcome == [None]
+    assert not thread.is_alive()
+
+
+def test_receipt_background_is_joined_by_unconfigure(delayed_receipt_cache, monkeypatch):
+    suite = _load_suite_conftest()
+    f = delayed_receipt_cache
+    node = _receipt_background_test_node(f.run_id)
+    monkeypatch.setattr(suite, "_receipt_memo_module", lambda: f.memo)
+    entered, release = threading.Event(), threading.Event()
+    calls = []
+
+    def receipt(*_args, **_kwargs):
+        calls.append("receipt")
+        entered.set()
+        assert release.wait(4)
+
+    monkeypatch.setattr(suite, "_prewarm_receipt_memo", receipt)
+    monkeypatch.setattr(suite, "_prewarm_oracle_environment_memo", lambda *_a, **_k: None)
+    monkeypatch.setattr(suite, "_emit_effective_scheduler_marker", lambda *_: None)
+    consumer = "test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract"
+    hook, hook_done, hook_outcome = _receipt_async_call(
+        lambda: suite.pytest_xdist_node_collection_finished(node, [consumer]),
+    )
+    cleanup = None
+    try:
+        assert entered.wait(2)
+        assert hook_done.wait(1), "collection still waits for receipt"
+        assert hook_outcome == [None]
+        background = getattr(node.config, suite._RECEIPT_MEMO_BACKGROUND_ATTR)[0]
+        assert background.is_alive() and not background.daemon
+        suite.pytest_xdist_node_collection_finished(node, [consumer])
+        assert calls == ["receipt"]
+
+        def unconfigure():
+            wrapper = suite.pytest_unconfigure(node.config)
+            next(wrapper)
+            with pytest.raises(StopIteration):
+                next(wrapper)
+            assert not background.is_alive()
+
+        cleanup, done, outcome = _receipt_async_call(unconfigure)
+        assert not done.wait(0.1), outcome
+        release.set()
+        assert done.wait(2)
+        assert outcome == [None]
+        assert not background.is_alive()
+    finally:
+        release.set()
+        hook.join(6)
+        if cleanup is not None:
+            cleanup.join(6)
+        suite._join_receipt_background(node.config)
+    assert not hook.is_alive()
+    assert cleanup is not None and not cleanup.is_alive()
+
+
 def _receipt_error(call, memo_module, expected_reason):
     try:
-        call()
+        # Existing fault tests exercise the same deadline with a short budget.
+        with mock.patch.object(memo_module, "_CACHE_WAIT_S", 0.05):
+            call()
     except memo_module.ReceiptMemoError as exc:
         assert exc.payload["reason"] == expected_reason, exc.payload
         raw = str(exc).removeprefix(memo_module._ERROR_PREFIX)
@@ -5058,6 +5444,20 @@ def test_receipt_memo_real_xdist_order_has_no_worker_payer():
 
                 class FakeMemo:
                     @staticmethod
+                    def begin_background_prewarm(*, run_id, session_id):
+                        side = "worker" if os.environ.get("PYTEST_XDIST_WORKER") else "controller"
+                        record(f"begin-prewarm-{{side}}")
+                        pending = EVENTS.with_suffix(".pending")
+                        pending.touch(exist_ok=False)
+                        return pending
+
+                    @staticmethod
+                    def publish_prewarm_failure(pending):
+                        side = "worker" if os.environ.get("PYTEST_XDIST_WORKER") else "controller"
+                        record(f"prewarm-failure-{{side}}")
+                        pending.with_suffix(".failed").touch(exist_ok=True)
+
+                    @staticmethod
                     def prewarm_real_repo_receipt(*, run_id, session_id):
                         side = "worker" if os.environ.get("PYTEST_XDIST_WORKER") else "controller"
                         record(f"prewarm-{{side}}")
@@ -5112,9 +5512,13 @@ def test_receipt_memo_real_xdist_order_has_no_worker_payer():
         trace = events.read_text(encoding="utf-8").splitlines()
     assert trace.count("worker-hook") == 1, trace
     assert trace.count("controller-hook") == 1, trace
+    assert trace.count("begin-prewarm-controller") == 1, trace
     assert trace.count("prewarm-controller") == 1, trace
     assert trace.count("finish-controller") == 1, trace
+    assert "begin-prewarm-worker" not in trace, trace
+    assert not any(event.startswith("prewarm-failure-") for event in trace), trace
     assert "prewarm-worker" not in trace, trace
+    assert trace.index("begin-prewarm-controller") < trace.index("prewarm-controller"), trace
     assert trace.index("worker-hook") < trace.index("controller-hook"), trace
 
     # 合成 worker payer を加えると exact payer assertion が赤になる。

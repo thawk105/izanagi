@@ -888,7 +888,12 @@ def _prewarm_receipt_memo(config, nodeids, *, run_id: str | None) -> None:
     _MEMO_PREWARM_TIMING.started = time.monotonic()
     memo_module = _receipt_memo_module()
     try:
-        with _real_repo_locks(RealRepoAccess("read", None)):
+        # Background resolution overlaps test writers, including shared ccbench.
+        # The serial collection barrier already excludes those writers.
+        access = RealRepoAccess(
+            "read", "read" if hasattr(config, _RECEIPT_MEMO_BACKGROUND_RUN_ID_ATTR) else None,
+        )
+        with _real_repo_locks(access):
             memo_module.prewarm_real_repo_receipt(
                 run_id=run_id,
                 session_id=session_id,
@@ -2231,8 +2236,38 @@ def pytest_runtest_protocol(item, nextitem):
             return (yield)
 
 
-def _run_memo_prewarm_barrier(receipt, oracle, *, hook: str) -> None:
-    """Join both non-daemon jobs before returning or propagating either failure."""
+_RECEIPT_MEMO_BACKGROUND_ATTR = "_izanagi_receipt_memo_background"
+_RECEIPT_MEMO_BACKGROUND_RUN_ID_ATTR = "_izanagi_receipt_memo_background_run_id"
+
+
+def _receipt_background_controller(node, ids) -> bool:
+    config = node.config
+    if hasattr(config, "workerinput") or not isinstance(
+        getattr(node, "workerinput", None), dict,
+    ):
+        return False
+    manager = getattr(config, "pluginmanager", None)
+    return (
+        manager is not None
+        and manager.get_plugin("dsession") is not None
+        and _receipt_memo_prewarm_prerequisites(config, ids)
+    )
+
+
+def _join_receipt_background(config) -> None:
+    job = getattr(config, _RECEIPT_MEMO_BACKGROUND_ATTR, None)
+    if job is None:
+        return
+    thread, finish = job
+    thread.join()
+    delattr(config, _RECEIPT_MEMO_BACKGROUND_ATTR)
+    finish()
+
+
+def _run_memo_prewarm_barrier(
+    receipt, oracle, *, hook: str, background_config=None,
+) -> None:
+    """Join oracle now; a worker controller joins receipt at unconfigure."""
     durations = [None, None]
     errors = [None, None]
 
@@ -2252,34 +2287,49 @@ def _run_memo_prewarm_barrier(receipt, oracle, *, hook: str) -> None:
         threading.Thread(target=timed, args=(0, receipt), daemon=False),
         threading.Thread(target=timed, args=(1, oracle), daemon=False),
     ]
+    def finish():
+        if any(duration is not None for duration in durations):
+            print(
+                "IZANAGI_MEMO_PREWARM_V1 " + json.dumps({
+                    "hook": hook,
+                    "receipt_memo_s": durations[0],
+                    "oracle_environment_memo_s": durations[1],
+                    "barrier_s": elapsed,
+                }, ensure_ascii=True, separators=(",", ":"), sort_keys=True),
+                file=sys.stderr,
+                flush=True,
+            )
+        receipt_error, oracle_error = errors
+        if receipt_error is not None:
+            if oracle_error is not None:
+                raise receipt_error from oracle_error
+            raise receipt_error
+        if oracle_error is not None:
+            raise oracle_error
+
     started_threads = []
+    background_started = False
     try:
-        for thread in threads:
-            thread.start()
-            started_threads.append(thread)
+        for index, thread in enumerate(threads):
+            if index == 0 and background_config is not None:
+                if hasattr(background_config, _RECEIPT_MEMO_BACKGROUND_ATTR):
+                    continue
+                thread.start()
+                setattr(background_config, _RECEIPT_MEMO_BACKGROUND_ATTR, (thread, finish))
+                background_started = True
+            else:
+                thread.start()
+                started_threads.append(thread)
     finally:
         for thread in started_threads:
             thread.join()
-    elapsed = time.monotonic() - started
-    if any(duration is not None for duration in durations):
-        print(
-            "IZANAGI_MEMO_PREWARM_V1 " + json.dumps({
-                "hook": hook,
-                "receipt_memo_s": durations[0],
-                "oracle_environment_memo_s": durations[1],
-                "barrier_s": elapsed,
-            }, ensure_ascii=True, separators=(",", ":"), sort_keys=True),
-            file=sys.stderr,
-            flush=True,
-        )
-    receipt_error, oracle_error = errors
-    if receipt_error is not None:
-        if oracle_error is not None:
-            # Explicit chaining retains both tracebacks; receipt is primary.
-            raise receipt_error from oracle_error
-        raise receipt_error
-    if oracle_error is not None:
-        raise oracle_error
+        elapsed = time.monotonic() - started
+    if background_started:
+        # Receipt errors are shared with readers and re-raised after the session join.
+        if errors[1] is not None:
+            raise errors[1]
+    else:
+        finish()
 
 
 @pytest.hookimpl(tryfirst=True)
@@ -2373,6 +2423,29 @@ def pytest_xdist_node_collection_finished(node, ids) -> None:
                 node.config,
                 getattr(node.config, _FLAKY_HOLD_MATCHED_IDS_ATTR, ()),
             )
+    background_config = (
+        node.config if _receipt_background_controller(node, ids) else None
+    )
+    if background_config is not None:
+        run_id = node.workerinput.get("testrunuid")
+        if run_id is None:
+            run_id = node.config.getoption("testrunuid", None)
+        if run_id is None:
+            raise pytest.UsageError("xdist receipt memo consumer に testrunuid が無い")
+        identity_attr = _RECEIPT_MEMO_BACKGROUND_RUN_ID_ATTR
+        previous = getattr(node.config, identity_attr, run_id)
+        if previous != run_id:
+            raise pytest.UsageError(
+                "receipt memo prewarm の xdist run ID が worker 間で不一致: "
+                f"first={previous!r} current={run_id!r}"
+            )
+        setattr(node.config, identity_attr, run_id)
+        if not hasattr(node.config, _RECEIPT_MEMO_BACKGROUND_ATTR):
+            pending = _receipt_memo_module().begin_background_prewarm(
+                run_id=run_id,
+                session_id=getattr(node.config, _RECEIPT_MEMO_SESSION_ID_ATTR, None),
+            )
+
     def receipt():
         if (
             not hasattr(node.config, "workerinput")
@@ -2389,7 +2462,14 @@ def pytest_xdist_node_collection_finished(node, ids) -> None:
             if run_id_available and run_id is None:
                 raise pytest.UsageError("xdist receipt memo consumer に testrunuid が無い")
             if run_id_available:
-                _prewarm_receipt_memo(node.config, ids, run_id=run_id)
+                try:
+                    _prewarm_receipt_memo(node.config, ids, run_id=run_id)
+                    if background_config is not None:
+                        pending.unlink()
+                except BaseException:
+                    if background_config is not None:
+                        _receipt_memo_module().publish_prewarm_failure(pending)
+                    raise
 
     def oracle():
         if (
@@ -2413,6 +2493,7 @@ def pytest_xdist_node_collection_finished(node, ids) -> None:
 
     _run_memo_prewarm_barrier(
         receipt, oracle, hook="xdist_node_collection_finished",
+        background_config=background_config,
     )
     if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
         return
@@ -3120,11 +3201,19 @@ def pytest_unconfigure(config):
     finally:
         cleanup_exception: BaseException | None = None
         try:
+            try:
+                try:
+                    _join_receipt_background(config)
+                except BaseException:
+                    if inner_exception is None:
+                        raise
+            finally:
+                _finish_memo_sessions(
+                    config, suppress_errors=inner_exception is not None
+                    or sys.exc_info()[0] is not None,
+                )
             if unmark_pytest_session_enforcing is not None:
                 unmark_pytest_session_enforcing(config)
-            _finish_memo_sessions(
-                config, suppress_errors=inner_exception is not None,
-            )
             stashed = tuple(_FAILURE_REPORTS)
             _FAILURE_REPORTS.clear()
             # finally 内で return すると inner hook の例外を StopIteration で消すため、
