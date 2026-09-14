@@ -887,12 +887,10 @@ class _V2Plan:
     ``contract`` = authorized contract 内の契約 (clocks_per_us / numactl の正本)。
     ``authorization_contract`` = certified sink へ渡す process-local receipt。
     ``receipt`` = 共有 execution guard の receipt (WAL campaign-start に記録)。
-    ``perf_sha_by_cell`` = (holdout_id, configuration_id) → 期待 perf binary sha256。
     """
     contract: "_env_contract.ExecutionEnvironmentContract"
     authorization_contract: "_env_contract.AuthorizedContract"
     receipt: dict
-    perf_sha_by_cell: dict
     verified_calibration: Optional["_env_attestation.VerifiedCalibration"] = None
     reservation_check: Optional["_reservation.ReservationCheck"] = None
 
@@ -923,7 +921,7 @@ def _store_sha256(out_root, store_path: str) -> Optional[str]:
 
 def _prepare_v2_execution(*, validated, run_contract, schedule,
                           out_root, repo_root=ROOT, environ=None) -> _V2Plan:
-    """v2 実走前検査を一括で行い _V2Plan を返す (run marker 作成前・第一防壁)。
+    """v2 実走前検査を一括で行い _V2Plan を返す (run marker 作成前)。
 
     ``validated`` は run_block が一度だけ launch_validate して得た同一 object であり、
     floor artifact の再読込・再 parse・再正規化は行わない。順に: (1) 型境界、
@@ -931,8 +929,7 @@ def _prepare_v2_execution(*, validated, run_contract, schedule,
     contract_sha256/clocks 完全一致・machine-pin)、(3) 共有 guard receipt 生成、
     (4) ``validated.binaries_by_cell`` だけを使う binary store 消費 (schedule 全行の store 実体の
     存在 + full sha256 一致)。いずれの不整合も OracleDriverError (呼び出し元が refusal
-    に翻訳)。事前 store 検査が第一防壁、pipeline の expected_perf_sha256 照合が TOCTOU
-    第二防壁という関係で使う (perf_sha_by_cell を返す)。"""
+    に翻訳)。store の内部整合を検査し、hash は測定側へ渡さない。"""
     if not isinstance(validated, s8b_ratified_freeze.LaunchValidatedFreeze):
         raise OracleDriverError("LaunchValidatedFreeze が無い (v2 実走の前提破れ)")
     ratified = validated.ratified
@@ -1047,7 +1044,6 @@ def _prepare_v2_execution(*, validated, run_contract, schedule,
             ) from exc
         preflight.append((cell, rec))
 
-    perf_sha_by_cell: dict = {}
     for cell, rec in preflight:
         actual = _store_sha256(out_root, rec["store_path"])
         if actual is None:
@@ -1060,10 +1056,9 @@ def _prepare_v2_execution(*, validated, run_contract, schedule,
                 f"[store-hash-mismatch] store binary sha256 が floor receipt と不一致: "
                 f"{rec['store_path']} (cell={cell})"
             )
-        perf_sha_by_cell[cell] = rec["binary_sha256"]
     return _V2Plan(
         contract=contract, authorization_contract=authorization_contract,
-        receipt=receipt, perf_sha_by_cell=perf_sha_by_cell,
+        receipt=receipt,
         verified_calibration=verified, reservation_check=reservation_check,
     )
 
@@ -1775,11 +1770,6 @@ def run_block(
                                 ),
                                 bench_max_rounds=run_contract["bench_max_rounds"],
                                 env_contract=plan.contract,
-                                # C3-5: 事前 store 検査 (第一防壁) が引いた期待 perf hash を
-                                # pipeline 照合 (第二防壁・TOCTOU) へ渡す。
-                                expected_perf_sha256=plan.perf_sha_by_cell[
-                                    (holdout_id, configuration_id)
-                                ],
                                 record_rep_returncodes=True,
                                 holdout_observation_admission=(
                                     observation_admission

@@ -45,8 +45,8 @@ MANIFEST_CANDIDATE_DIR = "output/s8b-oracle-manifest-candidates"
 
 SCHEMA_VERSION = _artifacts.OFFICIAL_MANIFEST_SCHEMA
 # freeze の stock 構成名。freeze document 自体に「どれが stock か」の明示 field は
-# ないためハードコードし、per-pair floor 検証時に freeze の構成集合に実在すること
-# (一致検査) を _holdout_configuration_ids で強制する (C3-3/C3-1)。
+# ないためハードコードし、schedule の cell product 検証時に構成集合に実在すること
+# (一致検査) を _holdout_configuration_ids で強制する。
 STOCK_CONFIGURATION = "stock_common"
 _ROW_KEYS = {
     "block_id", "replicate_index", "schedule_index",
@@ -55,7 +55,7 @@ _ROW_KEYS = {
 _MANIFEST_KEYS = {
     "schema_version", "manifest_id", "spec_sha256", "freeze", "known_axes_freeze",
     "run_contract", "binding_identity", "schedule", "schedule_sha256",
-    "campaign_ids", "campaign_config_preimages", "floor_budget_snapshot_sha256",
+    "campaign_ids", "campaign_config_preimages",
     "holdout_references", "allowed_excluded_reasons", "generator_versions",
 }
 _RUN_CONTRACT_KEYS = {
@@ -565,15 +565,6 @@ def _validate_binding_identity(binding_identity, *, schedule: Mapping) -> list[d
     return validated
 
 
-def _finite_positive_or_none(value) -> bool:
-    """有限正 float (>0) または None のとき True。bool・非有限・0 以下は False。"""
-    if value is None:
-        return True
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return False
-    return math.isfinite(float(value)) and float(value) > 0
-
-
 def _holdout_configuration_ids(freeze: Mapping, holdout_id: str) -> set:
     """freeze の当該 holdout の構成集合 (variant_binding.entries の key 集合)。
 
@@ -606,70 +597,6 @@ def _holdout_configuration_ids(freeze: Mapping, holdout_id: str) -> set:
     return config_ids
 
 
-def _validate_holdout_floor(freeze: Mapping, holdout_id: str, value) -> None:
-    """1 holdout の per-pair floor table を exact 検査する (C3-3)。
-
-    形 = exact 3 keys {pairs, scale_ref, scalar_alt}。scalar (v1 数値) 形・stock key
-    混入・pair 欠落/余分・自己矛盾する相関は全て拒否する。
-    """
-    if not isinstance(value, Mapping) or set(value) != {
-            "pairs", "scale_ref", "scalar_alt"}:
-        raise ManifestError(
-            f"freeze.floor.by_holdout.{holdout_id} が"
-            " exact {pairs, scale_ref, scalar_alt} でない"
-        )
-    pairs = value["pairs"]
-    scale_ref = value["scale_ref"]
-    scalar_alt = value["scalar_alt"]
-
-    expected_pairs = _holdout_configuration_ids(freeze, holdout_id) - {
-        STOCK_CONFIGURATION}
-    if not isinstance(pairs, Mapping) or set(pairs) != expected_pairs:
-        raise ManifestError(
-            f"freeze.floor.by_holdout.{holdout_id}.pairs の key 集合が"
-            " 構成集合−stock と一致しない"
-        )
-    for configuration_id, pair_value in pairs.items():
-        if not _finite_positive_or_none(pair_value):
-            raise ManifestError(
-                f"freeze.floor.by_holdout.{holdout_id}.pairs.{configuration_id}"
-                " が有限正 float or null でない"
-            )
-    if not _finite_positive_or_none(scale_ref):
-        raise ManifestError(
-            f"freeze.floor.by_holdout.{holdout_id}.scale_ref が"
-            " 有限正 float or null でない"
-        )
-    if not _finite_positive_or_none(scalar_alt):
-        raise ManifestError(
-            f"freeze.floor.by_holdout.{holdout_id}.scalar_alt が"
-            " 有限正 float or null でない"
-        )
-
-    pair_values = list(pairs.values())
-    all_pairs_present = bool(pair_values) and all(
-        v is not None for v in pair_values)
-    # 相関 1: scale_ref が null (stock 未確定) ⇒ 全 pair と scalar_alt も null。
-    if scale_ref is None and (
-            any(v is not None for v in pair_values) or scalar_alt is not None):
-        raise ManifestError(
-            f"freeze.floor.by_holdout.{holdout_id}: scale_ref が null なのに"
-            " pair/scalar_alt が非 null"
-        )
-    # 相関 2: scalar_alt は全 pair 非 null なら max(pairs)、いずれか null なら null。
-    if all_pairs_present:
-        if scalar_alt != max(pair_values):
-            raise ManifestError(
-                f"freeze.floor.by_holdout.{holdout_id}.scalar_alt が"
-                " max(pairs) と不一致"
-            )
-    elif scalar_alt is not None:
-        raise ManifestError(
-            f"freeze.floor.by_holdout.{holdout_id}.scalar_alt が"
-            " pair に null を含むのに非 null"
-        )
-
-
 def _validate_execution_snapshot(freeze: Mapping, *, holdout_ids: Sequence[str]) -> None:
     floor = freeze.get("floor")
     budget = freeze.get("budget")
@@ -684,8 +611,6 @@ def _validate_execution_snapshot(freeze: Mapping, *, holdout_ids: Sequence[str])
     by_holdout = floor.get("by_holdout")
     if not isinstance(by_holdout, Mapping) or set(by_holdout) != set(holdout_ids):
         raise ManifestError("freeze.floor.by_holdout が schedule holdout と一致しない")
-    for holdout_id, value in by_holdout.items():
-        _validate_holdout_floor(freeze, holdout_id, value)
     total = budget.get("total_bench_s")
     per_holdout = budget.get("per_holdout_bench_s")
     if (isinstance(total, bool) or not isinstance(total, (int, float))
@@ -804,9 +729,6 @@ def _build_manifest_from_snapshot(
         "schedule_sha256": schedule_sha256(schedule_copy),
         "campaign_ids": campaign_copy,
         "campaign_config_preimages": derived_preimages,
-        "floor_budget_snapshot_sha256": _canonical_sha256({
-            "floor": freeze.get("floor"), "budget": freeze.get("budget"),
-        }),
         "holdout_references": holdout_references,
         "allowed_excluded_reasons": reasons,
         "generator_versions": _validate_generators(generator_versions, root=root),
@@ -1090,10 +1012,6 @@ def verify_manifest(
             or len(set(campaigns.values())) != len(campaigns)):
         raise ManifestError("campaign ID が空または重複")
 
-    if document.get("floor_budget_snapshot_sha256") != _canonical_sha256({
-            "floor": freeze.get("floor"), "budget": freeze.get("budget"),
-    }):
-        raise ManifestError("floor/budget snapshot hash が不一致")
     expected_holdout_ids = sorted(frozen_holdouts)
     _validate_execution_snapshot(freeze, holdout_ids=expected_holdout_ids)
     run_contract = _validate_run_contract(document.get("run_contract"))
