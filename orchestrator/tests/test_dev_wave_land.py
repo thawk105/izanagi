@@ -3284,7 +3284,8 @@ def test_common_lock_timeout_does_not_start_provenance_checker() -> None:
         assert (result.rc, result.status) == (LAND.RC_LOCK_BUSY, "lock-busy"), result
         assert result.reason == (
             "another cooperative land operation holds the common lock "
-            "(phase=initial, waited_s=180.000, "
+            # A: 初回は従来どおり待機し尽くした拒否として区別する。
+            "(wait budget exhausted after waiting; phase=initial, waited_s=180.000, "
             "window_elapsed_s=180.000, limit_s=180.000)"
         )
         assert sum(runtime.sleeps) == pytest.approx(LAND._LAND_LOCK_WAIT_SECONDS)
@@ -3310,7 +3311,7 @@ def test_common_lock_waits_then_lands_after_holder_releases() -> None:
 
 
 def test_land_lock_polling_stops_at_shared_deadline() -> None:
-    """M2: 監査後再取得にも初回からの同じ絶対 deadline だけを使う。"""
+    """M2: 歴史的 nodeid を維持し、監査時間を待機予算から除く。"""
 
     with _repo() as repo:
         wave = repo.waves["one"]
@@ -3350,16 +3351,240 @@ def test_land_lock_polling_stops_at_shared_deadline() -> None:
         assert (result.rc, result.status) == (LAND.RC_LOCK_BUSY, "lock-busy"), result
         assert result.reason == (
             "another cooperative land operation holds the common lock "
-            "(phase=post-provenance, waited_s=10.000, "
-            "window_elapsed_s=180.000, limit_s=180.000)"
+            # A: 監査 170 秒を差し引かず、残る 180 秒を競合待機に使う。
+            "(wait budget exhausted after waiting; phase=post-provenance, waited_s=180.000, "
+            # A: 監査 170 秒と競合待機 180 秒で壁時計は 350 秒。
+            "window_elapsed_s=350.000, limit_s=180.000)"
         )
-        assert deadlines == [180.0, 180.0]
+        # A: 監査完了時刻 170 秒から未消費の 180 秒を使う。
+        assert deadlines == [180.0, 350.0]
         assert runtime.sleeps
         assert all(0.0 < delay <= LAND._LAND_LOCK_MAX_POLL_SECONDS for delay in runtime.sleeps)
-        assert sum(runtime.sleeps) == pytest.approx(10.0)
-        assert runtime.now_s == pytest.approx(180.0)
+        # A: 監査時間による減額がなくなり、180 秒待機する。
+        assert sum(runtime.sleeps) == pytest.approx(180.0)
+        # A: 監査 170 秒に待機 180 秒が加わる。
+        assert runtime.now_s == pytest.approx(350.0)
         assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
+
+
+def _wait_budget_fold_tip(repo: _Repo, wave: Path) -> str:
+    """実 spool planner / registry / gate / receipt を通す小さい canonical family。"""
+    (repo.main / ".git/info/exclude").write_text(".codex/worktrees/\n")
+    files = {
+        "docs/worklog.md": (
+            "# worklog\n\n## ローテーション\n\n---\n\n"
+            "## 2026-08-02 (2) — current\n\n- current\n\n"
+            "### 次の一手\n\n- [T-001] (1)\n"
+        ),
+        "docs/archive/worklog-phase3-0801-1.md": (
+            "# archive\n\n## 2026-08-01 (1) — seed\n\n- seed\n\n"
+            "### 次の一手\n\n- [T-001] seed task\n"
+        ),
+        "docs/archive/README.md": "# archive\n",
+        "docs/decisions.md": "# decisions\n\n## D1. seed (2026-08-01)\n\n**決定:** seed\n",
+        "docs/failures.md": "# failures\n\n## エントリ\n\n### F1. seed [手順漏れ]\n- 事象: seed\n",
+        # 実 planner は見送り領域の始端と終端の見出しを各一つ要求する。
+        "docs/phase3.md": "# phase3\n\n## 見送り台帳\n\n### 裁定・完了記録\n",
+        "tools/check_docs.py": "WORKLOG_ROTATE_BYTES = 100000\n",
+        "docs/spool/decisions/2026-08-03-test-wave-1.md": (
+            "---\nschema: izanagi-spool-v1\nledger: decisions\n"
+            "authored: 2026-08-03\nwave: test-wave\nseq: 1\n---\n"
+            "## {{D:wait-budget}}. wait budget\n\n**決定:** keep cumulative waits.\n"
+        ),
+    }
+    sources = [
+        ROOT / "tools/spool_fold.py",
+        ROOT / "orchestrator/tests/test_spool_fold.py",
+        ROOT / "orchestrator/tests/fold_gate_nodes.py",
+        ROOT / "orchestrator/tests/growth_test_holds.py",
+        *sorted((ROOT / "tools/dev_waves").glob("*.py")),
+    ]
+    for source in sources:
+        files[source.relative_to(ROOT).as_posix()] = source.read_text(encoding="utf-8")
+    for relative, content in files.items():
+        path = wave / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+    _git(wave, "add", "-A")
+    _git(wave, "commit", "-qm", "wait budget real fold fixture")
+    return _git(wave, "rev-parse", "HEAD")
+
+
+def _exercise_cumulative_waits(*, fold: bool, initial: float, audit: float,
+                               audit_wait: float, fold_wait: float = 0.0):
+    """時計だけを進め、実 flock・監査・fold gate・再検証・着地を実行する。"""
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = (_wait_budget_fold_tip(repo, wave) if fold
+               else repo.commit(wave, "wave.txt", "wave\n"))
+        runtime = _FakeLandLockRuntime()
+        acquisitions = []
+        stages = []
+        real_acquire = LAND._acquire_land_lock
+        real_audit = LAND._audit_provenance_history
+        real_gate = LAND._run_fold_gate
+        with _held_land_lock(repo) as holder:
+            release_at = initial
+
+            def sleep(delay):
+                # Cap the fake scheduler tick at the exact holder release event.
+                runtime.sleeps.append(delay)
+                runtime.now_s += min(delay, max(0.0, release_at - runtime.now_s))
+                if runtime.now_s >= release_at:
+                    fcntl.flock(holder, fcntl.LOCK_UN)
+
+            def hold_after(seconds, wait):
+                nonlocal release_at
+                runtime.now_s += seconds
+                if wait:
+                    fcntl.flock(holder, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                release_at = runtime.now_s + wait
+
+            def observed_audit(repository):
+                receipt = real_audit(repository)
+                stages.append("provenance")
+                hold_after(audit, audit_wait)
+                return receipt
+
+            def observed_gate(repository, plan, landing_tip):
+                assert plan.status != "noop"
+                receipt = real_gate(repository, plan, landing_tip)
+                assert receipt.outcome == LAND._FOLD_GATE_OUTCOME
+                stages.append("fold-gate")
+                hold_after(LAND._fold_gate_budgets().inner_seconds, fold_wait)
+                return receipt
+
+            def observed_acquire(repository, lock, deadline):
+                if fold and len(acquisitions) == 2:
+                    # 3 回目の実取得は、実 fold gate の成功後でなければならない。
+                    assert stages == ["provenance", "fold-gate"]
+                started = runtime.now_s
+                acquired, waited = real_acquire(repository, lock, deadline)
+                acquisitions.append((deadline - started, acquired, waited))
+                return acquired, waited
+
+            if not initial:
+                fcntl.flock(holder, fcntl.LOCK_UN)
+            with (
+                runtime.patch(),
+                _patched_land_attr("_land_lock_sleep", sleep),
+                _patched_land_attr("_audit_provenance_history", observed_audit),
+                _patched_land_attr("_run_fold_gate", observed_gate),
+                _patched_land_attr("_acquire_land_lock", observed_acquire),
+            ):
+                result = _land_real_gate(repo.request(wave, tip=tip))
+            head = _git(repo.main, "rev-parse", "HEAD")
+            if result.rc == LAND.RC_OK:
+                assert head == (result.fold_commit_sha if fold else tip)
+            else:
+                assert head == repo.base
+        # The land finally path must have closed its lock descriptor.
+        with _held_land_lock(repo):
+            pass
+        return result, acquisitions, stages
+
+
+def test_cumulative_wait_budget_provenance_does_not_refill() -> None:
+    """20 + 170: 残160なら拒否、180へ補充する変異なら取得できてしまう。"""
+    result, acquisitions, stages = _exercise_cumulative_waits(
+        fold=False, initial=20.0, audit=430.0, audit_wait=170.0,
+    )
+    assert (result.rc, result.status) == (LAND.RC_LOCK_BUSY, "lock-busy"), result
+    assert "phase=post-provenance" in result.reason
+    assert acquisitions == [(180.0, True, 20.0), (160.0, False, 160.0)]
+    assert stages == ["provenance"]
+
+
+def test_cumulative_wait_budget_fold_does_not_refill() -> None:
+    """fold後にも独立に20 + 170の補充変異境界を踏む。"""
+    result, acquisitions, stages = _exercise_cumulative_waits(
+        fold=True, initial=20.0, audit=430.0, audit_wait=0.0, fold_wait=170.0,
+    )
+    assert stages == ["provenance", "fold-gate"], result
+    assert len(acquisitions) == 3, (result, acquisitions)
+    assert (result.rc, result.status) == (LAND.RC_LOCK_BUSY, "lock-busy"), result
+    assert "phase=post-fold-gate" in result.reason
+    assert acquisitions == [(180.0, True, 20.0), (160.0, True, 0.0), (160.0, False, 160.0)]
+    assert stages == ["provenance", "fold-gate"]
+
+
+@pytest.mark.parametrize("fold", [False, True], ids=["noop", "fold"])
+def test_cumulative_wait_budget_long_audit_still_allows_contention(fold: bool) -> None:
+    """430秒監査後の実競合に待てる正例で旧絶対deadline復活を殺す。"""
+    result, acquisitions, stages = _exercise_cumulative_waits(
+        fold=fold, initial=20.0, audit=430.0, audit_wait=30.0, fold_wait=40.0,
+    )
+    if fold:
+        assert stages == ["provenance", "fold-gate"], result
+        assert len(acquisitions) == 3, (result, acquisitions)
+    assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+    expected = [(180.0, True, 20.0), (160.0, True, 30.0)]
+    if fold:
+        expected.append((130.0, True, 40.0))
+    assert acquisitions == expected
+    assert stages == (["provenance", "fold-gate"] if fold else ["provenance"])
+    assert result.as_json()["waited_s"] == (90.0 if fold else 50.0)
+    assert result.as_json()["window_elapsed_s"] == (
+        430.0 + result.waited_s + (LAND._fold_gate_budgets().inner_seconds if fold else 0.0)
+    )
+
+
+def test_cumulative_wait_budget_observed_short_audit_case() -> None:
+    """初回150秒・監査122秒の形でも、残30秒内の再取得を許す。"""
+    result, acquisitions, _ = _exercise_cumulative_waits(
+        fold=False, initial=150.0, audit=122.0, audit_wait=20.0,
+    )
+    assert result.rc == LAND.RC_OK, result
+    assert acquisitions == [(180.0, True, 150.0), (30.0, True, 20.0)]
+
+
+def test_cumulative_wait_budget_exhausted_before_attempt_reason() -> None:
+    result, acquisitions, _ = _exercise_cumulative_waits(
+        fold=False, initial=LAND._LAND_LOCK_WAIT_SECONDS, audit=430.0, audit_wait=20.0,
+    )
+    assert result.rc == LAND.RC_LOCK_BUSY, result
+    assert acquisitions[-1] == (0.0, False, 0.0)
+    assert "another cooperative land operation holds the common lock" in result.reason
+    assert "wait budget already exhausted; tried once without waiting" in result.reason
+
+
+def test_cumulative_wait_budget_empty_budget_free_lock_still_succeeds() -> None:
+    result, acquisitions, _ = _exercise_cumulative_waits(
+        fold=False, initial=LAND._LAND_LOCK_WAIT_SECONDS, audit=430.0, audit_wait=0.0,
+    )
+    assert result.rc == LAND.RC_OK, result
+    assert acquisitions[-1] == (0.0, True, 0.0)
+
+
+def test_cumulative_wait_budget_arithmetic_uses_production_timeouts() -> None:
+    import ast
+    import inspect
+    import math
+
+    function = ast.parse(inspect.getsource(LAND._run_provenance_checker))
+    timeouts = [kw.value for node in ast.walk(function) if isinstance(node, ast.Call)
+                for kw in node.keywords if kw.arg == "timeout"]
+    assert len(timeouts) == 1 and isinstance(timeouts[0], ast.Constant)
+    provenance = timeouts[0].value
+    budgets = LAND._fold_gate_budgets()
+    # 裁定の検査harness予算。production全体watchdogがあるという主張ではない。
+    termination_margin, test_watchdog = 30.0, 1280.0
+    components = (LAND._LAND_LOCK_WAIT_SECONDS, provenance, budgets.outer_seconds,
+                  termination_margin, test_watchdog)
+    assert all(math.isfinite(value) and value > 0 for value in components)
+    assert budgets.inner_seconds + budgets.termination_grace_seconds < budgets.outer_seconds
+    assert sum(components[:-1]) < test_watchdog
+
+
+def test_cumulative_wait_budget_result_before_window_omits_timing() -> None:
+    result = LAND.land(LAND.LandRequest(
+        Path("/missing"), Path("/missing"), "bad", "bad", (),
+        "test-wave", Path("/missing/receipt.json"),
+    ))
+    assert result.rc != LAND.RC_OK
+    assert "waited_s" not in result.as_json()
+    assert "window_elapsed_s" not in result.as_json()
 
 def test_provenance_gate_accepts_tip_zero_and_lands() -> None:
     """正例: tracked tip checker の full audit が緑なら通常 land できる。"""
@@ -3456,7 +3681,8 @@ def test_post_provenance_reacquire_waits_with_same_deadline() -> None:
                 os.close(holder)
 
         assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
-        assert deadlines == [180.0, 180.0]
+        # A: 監査完了時刻 170 秒から未消費の 180 秒を使う。
+        assert deadlines == [180.0, 350.0]
         assert sum(runtime.sleeps) >= 5.0
         assert runtime.now_s < 180.0
         assert result.acceptance_receipt_sha256 == hashlib.sha256(
@@ -3466,7 +3692,7 @@ def test_post_provenance_reacquire_waits_with_same_deadline() -> None:
 
 
 def test_expired_shared_deadline_still_attempts_post_provenance_once() -> None:
-    """期限経過後の再取得も、空いていれば最初の nonblocking 1 回で成功する。"""
+    """歴史的 nodeid を保持。長い監査後も空いた lock は待たず取得する。"""
 
     with _repo() as repo:
         wave = repo.waves["one"]

@@ -1,0 +1,64 @@
+{
+ "estimated_run_seconds": 120,
+ "hang_timeout_seconds": 2400,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_t316_sandbox_probe.py::test_require_condition_gate_rejection_reports_detail_to_stderr",
+    "orchestrator/tests/test_t316_sandbox_probe.py::test_require_condition_gate_rejection_survives_stderr_failure[OSError]",
+    "orchestrator/tests/test_t316_sandbox_probe.py::test_require_condition_gate_rejection_survives_stderr_failure[RuntimeError]",
+    "orchestrator/tests/test_t316_sandbox_probe.py::test_require_condition_gate_rejection_survives_stderr_failure[ValueError]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M1",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+     "new": "    if False:  # T2519 mutation: drop the condition gate rejection entirely.\n",
+     "old": "    if not admission.admitted:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_crossed_inert_condition_gate_pair[identical_reason__root_location_comparison]",
+    "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_crossed_inert_condition_gate_pair[root_location_reason__identity_comparison]",
+    "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_requested_default_preprocess_difference"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M2B",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+     "new": "        and ((\n            supply.reason_code,\n            supply.evidence.get(\"comparison\"),\n        ) in _INERT_CONDITION_GATE_PAIRS or True)  # T2519 mutation: accept any pair.\n",
+     "old": "        and (\n            supply.reason_code,\n            supply.evidence.get(\"comparison\"),\n        ) in _INERT_CONDITION_GATE_PAIRS\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_t316_sandbox_probe.py::test_require_condition_gate_rejection_reports_detail_to_stderr",
+    "orchestrator/tests/test_t316_sandbox_probe.py::test_require_condition_gate_rejection_survives_stderr_failure[OSError]",
+    "orchestrator/tests/test_t316_sandbox_probe.py::test_require_condition_gate_rejection_survives_stderr_failure[RuntimeError]",
+    "orchestrator/tests/test_t316_sandbox_probe.py::test_require_condition_gate_rejection_survives_stderr_failure[ValueError]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "M3",
+   "replacements": [
+    {
+     "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+     "new": "        # T2519 mutation: drop the rejection diagnostics entirely.\n        raise rejection\n",
+     "old": "        try:\n            for arm, record in ((\"supply\", supply), (\"meaning\", meaning)):\n                detail = record.evidence.get(\"detail\")\n                print(\n                    f\"condition gate rejected t316 CCBench build: {arm} detail=\"\n                    f\"{detail if detail else '<no detail>'}\",\n                    file=sys.stderr,\n                )\n        except Exception as diagnostic_error:\n            # Preserve the rejection and retain the output failure for traceback audit.\n            # BaseException control signals must still propagate.\n            raise rejection from diagnostic_error\n        raise rejection\n"
+    }
+   ]
+  }
+ ],
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 1800
+}
