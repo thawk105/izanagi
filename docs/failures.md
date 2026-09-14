@@ -24732,6 +24732,22 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-10** — CC次実験precheckのdocs-only tip4d5b403b8で、T1259の実repo Git走査30秒timeoutが受入23setup errorと単独再走48setup errorになった。9月11日にmainのmodule snapshot化・実repo直列化を取り込み、tip76928e91eの2file焦点走991663.nqsvは262passed/20.57秒。判定本文・timeout・除外は変更しない。記録はoutput/insights/2026-09-11/cc-next-precheck-resume/README.md。
+
+- **再発: 2026-09-14** — repo 膨張監査 wave (docs のみ、tip `741e27283`) の受入 attempt 1 で、
+  `test_t1259_qsub_env_delivery_probe.py` の 6 件が setup error になった
+  (23,308 passed / 68 skipped / 6 error、子 rc=1、受領証は未発行で待ち手は rc=70)。
+  setup traceback の Git argv は既報と同一で、
+  `git -C <wave worktree> ls-files --others --exclude-standard -z` の 30.0 秒 TimeoutExpired。
+  同 tip・同 file の単独再走 (`run_tests.py`、996322.nqsv) は **51 passed / 16.67 秒、job Elapse 22S、
+  rc=0** で非再現。wave の変更は docs のみで、当該 fixture・probe・Git 呼出しは変更していない。
+  **本 wave は既報が「分離していない」と書いた遅延の大きさ自体を実測した。** 同じ worktree で
+  同 argv を 3 連続実行した wall は **34.60 / 24.96 / 15.90 秒**で、30 秒 timeout を跨いでいる
+  (実行時の load average 68.35〜88.49)。作業ツリーは tracked 24,684 件 / 約 690 MB である。
+  これは走査時間の分布を与えるだけで、**I/O 要因の分離ではない**。新規 worktree の cold cache と
+  login node 負荷が交絡しており、どちらがどれだけ効くかは測っていない。
+  恒久対応は既報のまま変えない — timeout 拡大・fixture の stub 化・除外・汎用 gate の新設は行わず、
+  `DW-O18` に従って単独非再現を確認して受入を再走した。記録は
+  `output/insights/2026-09-14/repo-bloat-audit/README.md` §7。
 ### F946. 修正可能な検査失敗で作業を終了し、ユーザーへ再開を要求した [手順漏れ] [誤前提]
 
 - 事象: insights整理のauthorが実行ログ検査で未受理になり、親は原因の切り分けや安全な再試行をせず正式停止した。
