@@ -4,8 +4,8 @@
 manifest / driver / report の 3 群テストが共有する。実 freeze document の
 ``holdouts[h].variant_binding.entries`` の key 集合 (= 構成集合) から stock 構成
 (``stock_common``) を除いた集合を pair key として per-pair floor を組む。scalar (v1)
-形は使わない。verifier 側 (s8b_oracle_manifest._validate_holdout_floor) の per-pair
-exact 検査を満たす正例を単一源で生成し、各テストの fixture 分岐を防ぐ。
+形は使わない。per-pair floor の正例を単一源で生成し、各テストの fixture 分岐を防ぐ。
+manifest verifier は per-pair 値の内部整合を検査しないが、共有する正例の形は保つ。
 """
 from __future__ import annotations
 
