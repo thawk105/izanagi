@@ -6,6 +6,7 @@ import argparse
 import contextlib
 import ctypes
 import hashlib
+import inspect
 import json
 import os
 import platform
@@ -46,6 +47,9 @@ from orchestrator.campaign.env_contract import (  # noqa: E402
 from orchestrator.campaign.model import Genome  # noqa: E402
 from orchestrator.campaign.pin import CURRENT_PIN  # noqa: E402
 from orchestrator.campaign.source_digest import SourceEvidence  # noqa: E402
+from orchestrator.tests.test_s8b_expected_materialization import (  # noqa: E402
+    _SEALED_COMMAND_TIMEOUT_S,
+)
 
 
 _REQUIRED_SECURE_DIR_FD_FUNCTIONS = (
@@ -305,7 +309,33 @@ def _fake_build_environment(
         fake_compiler_inputs,
     )
 
-    def fake_run(cmd, what, timeout_s=None, *, site=None, env=None):
+    def fake_run(cmd, what, timeout_s=None, *, site=None, env=None,
+                 sealed_session=None, build_output=None):
+        if sealed_session is not None:
+            if what == "build":
+                staging = Path(cmd[cmd.index("--build") + 1])
+                assert build_output == str(staging / "cc" / "silo" / "ycsb_silo.exe")
+            else:
+                assert build_output is None
+            # Run this existing synthetic compiler in the real sealed child,
+            # including its metadata/binary writes to the shared staging tree.
+            script = (
+                "from pathlib import Path\n"
+                + inspect.getsource(_write_masstree_depend_info)
+                + f"\npayload = {payload!r}\n"
+                + f"masstree_build_root = {str(masstree_build_root) if masstree_build_root is not None else None!r}\n"
+                + textwrap.dedent(inspect.getsource(fake_run))
+                + f"\nfake_run({cmd!r}, {what!r})\n"
+            )
+            completed = sealed_session.run(
+                [sys.executable, "-I", "-B", "-c", script],
+                cwd="/", env=env, timeout_s=(
+                    _SEALED_COMMAND_TIMEOUT_S if timeout_s is None else timeout_s
+                ),
+                **({"build_output": build_output} if build_output is not None else {}),
+            )
+            assert completed.returncode == 0, completed.stderr
+            return
         if what == "configure":
             bdir = Path(cmd[cmd.index("-B") + 1])
             bdir.mkdir(parents=True, exist_ok=True)
@@ -3228,7 +3258,17 @@ def test_v2_without_source_snapshot_preserves_legacy_completion_and_skips_manife
     assert snapshot_checks == []
 
 
-def test_v2_descriptor_runs_gate_inside_build_and_returns_both_digests(
+def test_v2_descriptor_runs_gate_inside_build_and_returns_both_digests(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_v2_descriptor_runs_gate_inside_build_and_returns_both_digests_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _v2_descriptor_runs_gate_inside_build_and_returns_both_digests_case(
         tmp_path, monkeypatch):
     _install_toolchain(tmp_path, monkeypatch)
     _fake_build_environment(monkeypatch, tmp_path)
@@ -3264,6 +3304,9 @@ def test_v2_descriptor_runs_gate_inside_build_and_returns_both_digests(
         assert kwargs["ccbench_commit"] == descriptor.ccbench_commit
         assert kwargs["configuration"] == descriptor.configuration
         assert kwargs["declaration"] == descriptor.declaration
+        # Production must prepare this before admission; this mock must not
+        # hide an absent cache branch from the sealed worker (M-D).
+        assert (tmp_path / "cache").is_dir()
         events.append("gate-enter")
         yield buildcache.s8b_expected_materialization.AdmittedBuildSnapshot(
             source_snapshot_sha256=digest,
@@ -3291,7 +3334,9 @@ def test_v2_descriptor_runs_gate_inside_build_and_returns_both_digests(
         cache_root=str(tmp_path / "cache"),
         ccbench_dir=str(source_root),
     )
+    assert not (tmp_path / "cache").exists()
     fresh = buildcache.build_v2(genome, **kwargs)
+    assert Path(fresh.binary).read_bytes() == b"v2-binary"
     hit = buildcache.build_v2(genome, **kwargs)
 
     assert not fresh.cached and hit.cached
@@ -3302,7 +3347,17 @@ def test_v2_descriptor_runs_gate_inside_build_and_returns_both_digests(
     assert events == ["gate-enter", "gate-exit", "gate-enter", "gate-exit"]
 
 
-def test_v2_descriptor_rejects_rederived_evidence_before_build(
+def test_v2_descriptor_rejects_rederived_evidence_before_build(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_v2_descriptor_rejects_rederived_evidence_before_build_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _v2_descriptor_rejects_rederived_evidence_before_build_case(
         tmp_path, monkeypatch):
     _install_toolchain(tmp_path, monkeypatch)
     _fake_build_environment(monkeypatch, tmp_path)
@@ -3811,6 +3866,7 @@ def _v2_fetchcontent_rebind_fixture(tmp_path, monkeypatch):
         assert kwargs["ccbench_commit"] == descriptor.ccbench_commit
         assert kwargs["configuration"] == descriptor.configuration
         assert kwargs["declaration"] == descriptor.declaration
+        assert (tmp_path / "cache").is_dir()
         yield buildcache.s8b_expected_materialization.AdmittedBuildSnapshot(
             source_snapshot_sha256=snapshot_sha256,
             expected_materialization_sha256=snapshot_sha256,
@@ -3841,7 +3897,17 @@ def _v2_fetchcontent_rebind_fixture(tmp_path, monkeypatch):
     return first, base_b, receipt, descriptor
 
 
-def test_v2_hit_rebinds_fetchcontent_inputs_to_current_root(
+def test_v2_hit_rebinds_fetchcontent_inputs_to_current_root(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_v2_hit_rebinds_fetchcontent_inputs_to_current_root_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _v2_hit_rebinds_fetchcontent_inputs_to_current_root_case(
         tmp_path, monkeypatch):
     first, base_b, receipt, descriptor = _v2_fetchcontent_rebind_fixture(
         tmp_path, monkeypatch,
@@ -3867,7 +3933,17 @@ def test_v2_hit_rebinds_fetchcontent_inputs_to_current_root(
 
 
 @pytest.mark.parametrize("mutation", ["missing", "hash", "symlink"])
-def test_v2_hit_validation_failure_never_rebuilds(
+def test_v2_hit_validation_failure_never_rebuilds(tmp_path, mutation):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_v2_hit_validation_failure_never_rebuilds_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path, mutation=mutation,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _v2_hit_validation_failure_never_rebuilds_case(
         tmp_path, monkeypatch, mutation):
     _first, base_b, receipt, descriptor = _v2_fetchcontent_rebind_fixture(
         tmp_path, monkeypatch,
@@ -4118,7 +4194,7 @@ def test_copyout_fresh_publishes_exact_host_set_and_hit_is_executable(
     stat_mode = Path(fresh.binary).stat().st_mode & 0o777
     assert stat_mode == 0o500
     executed = subprocess.run(
-        [fresh.binary], capture_output=True, check=False, timeout=5,
+        [fresh.binary], capture_output=True, check=False, timeout=_SEALED_COMMAND_TIMEOUT_S,
     )
     assert executed.returncode == 0
     assert not fresh.cached and hit.cached
@@ -5325,6 +5401,841 @@ def test_legacy_materializer_admission_argument_is_mandatory_before_identity_spy
     with pytest.raises(TypeError, match="admission"):
         buildcache.build(Genome("silo", {}), "a" * 40, trace=True)
     assert identity_calls == []
+
+
+def test_descriptor_identity_binds_sealed_contract_without_changing_generic():
+    genome = Genome("silo", {"BACK_OFF": 1})
+    toolchain = {
+        role: {"requested": role, "realpath": f"/tool/{role}", "version_first_line": "v1"}
+        for role in ("cc", "cxx", "cmake")
+    }
+    args = (genome, "a" * 40, False, "stock", "cc", "cxx", toolchain)
+    kwargs = dict(site="test", dependency_prefix=[], admission={"receipt": "fixture"})
+    generic, generic_sha = buildcache._v2_identity(*args, **kwargs)
+    assert set(generic) == {
+        "genome_canonical", "ccbench_commit", "trace", "src_token", "cc", "cxx",
+        "toolchain_manifest_sha256", "site", "dependency_prefix", "admission",
+    }
+    explicit_none = buildcache._v2_identity(
+        *args, expected_materialization_sha256=None, **kwargs,
+    )
+    assert explicit_none == (generic, generic_sha)
+    snapshot_args = dict(source_snapshot_sha256="1" * 64, **kwargs)
+    old = buildcache._v2_identity(*args, **snapshot_args)
+    sealed, sealed_sha = buildcache._v2_identity(
+        *args, expected_materialization_sha256="1" * 64, **snapshot_args,
+    )
+    assert sealed["source_protection_contract"] == buildcache._SEALED_SOURCE_CONTRACT
+    assert sealed["expected_materialization_sha256"] == "1" * 64
+    assert sealed_sha != old[1]
+    assert set(sealed) - set(old[0]) == {
+        "source_protection_contract", "expected_materialization_sha256",
+    }
+
+
+def test_descriptor_impl_requires_session_before_any_build(tmp_path):
+    # No replacement type or mock session: exercise the real private entry gate.
+    with pytest.raises(buildcache.BuildCacheError, match="exact sealed session"):
+        buildcache._build_v2_impl(
+            Genome("silo", {"BACK_OFF": 1}),
+            admission=None, build_context=None, source_evidence=None,
+            contract=_contract(1), ccbench_commit="a" * 40, trace=False,
+            cc="cc", cxx="cxx", cache_root=str(tmp_path),
+            source_snapshot_sha256="1" * 64,
+            expected_materialization_sha256="1" * 64,
+        )
+
+
+def _real_pending_publication(tmp_path):
+    """Real directory descriptors, copy-out, claim and candidate; no OS stubs."""
+    parent = tmp_path / "cache"
+    parent.mkdir()
+    parent_fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY)
+    staging_fd, _ = buildcache._mkdir_open_at(parent_fd, "staging", label="test staging")
+    clean_fd, clean_identity = buildcache._mkdir_open_at(
+        parent_fd, ".candidate", label="test candidate",
+    )
+    source = parent / "staging" / "binary"
+    source.write_bytes(b"candidate binary A")
+    source.chmod(0o755)
+    clean = parent / ".candidate"
+    copied = buildcache._secure_copy_binary(staging_fd, clean_fd, "binary", str(clean))
+    os.close(staging_fd)
+    claim = parent / ".entry.claim"
+    buildcache._acquire_v2_claim(str(claim), str(parent), "test", parent_fd=parent_fd)
+    binary = parent / "entry" / "binary"
+    result = buildcache.BuildResult(
+        Genome("silo", {"BACK_OFF": 1}), False, str(binary),
+        hashlib.sha256(source.read_bytes()).hexdigest(), str(binary.parent), False,
+    )
+    return buildcache._PendingV2Publication(
+        result, {}, parent_fd, clean_fd, clean_identity, copied,
+        str(parent), str(clean), clean.name, "entry", str(claim),
+    )
+
+
+def test_pending_session_failure_discards_unpublished_candidate_and_keeps_claim(tmp_path):
+    pending = _real_pending_publication(tmp_path)
+    candidate = Path(pending.clean)
+    final = Path(pending.result.build_dir)
+    assert (candidate / "binary").read_bytes() == b"candidate binary A"
+    assert not (candidate / "completion.json").exists()
+    assert not final.exists()
+    pending.close()  # build_v2's finally after session exit/issue failure
+    assert not candidate.exists()
+    assert not final.exists()
+    parent_fd = os.open(pending.parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        # The next attempt cannot reuse the failed candidate. Existing claim
+        # semantics require explicit recovery before a new build of this key.
+        with pytest.raises(buildcache.BuildCacheError, match="claim"):
+            buildcache._acquire_v2_claim(
+                pending.claim, pending.parent, "second", parent_fd=parent_fd,
+            )
+    finally:
+        os.close(parent_fd)
+
+
+def test_pending_binary_drift_is_rejected_before_protection_record_or_rename(tmp_path):
+    pending = _real_pending_publication(tmp_path)
+    candidate_binary = Path(pending.clean) / "binary"
+    try:
+        # Control: the owner really can change this unsealed candidate.
+        candidate_binary.chmod(0o755)
+        candidate_binary.write_bytes(b"candidate binary B")
+        assert candidate_binary.read_bytes() == b"candidate binary B"
+        with pytest.raises(buildcache.BuildCacheError, match="pending binary changed"):
+            pending.publish(None)
+        assert not (Path(pending.clean) / "completion.json").exists()
+        assert not Path(pending.result.build_dir).exists()
+    finally:
+        pending.close()
+
+
+def test_pending_close_recovers_candidate_moved_to_another_parent(tmp_path):
+    pending = _real_pending_publication(tmp_path)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    displaced = elsewhere / "displaced"
+    clean = Path(pending.clean)
+    try:
+        clean.rename(displaced)
+        clean.mkdir()
+        # Control: without held-inode cleanup the same successful rename leaves
+        # the original binary outside the pathname that close used to remove.
+        assert (displaced / "binary").read_bytes() == b"candidate binary A"
+        with pytest.raises(buildcache.BuildCacheError, match="identity"):
+            pending.publish(None)
+        pending.close()
+        assert not displaced.exists()
+        assert not Path(pending.result.build_dir).exists()
+        assert Path(pending.claim).exists()
+    finally:
+        pending.close()
+
+
+def test_pending_close_never_closes_a_reused_descriptor(tmp_path):
+    pending = _real_pending_publication(tmp_path)
+    old_fd = pending.copied.destination_fd
+    pending.close()
+    replacement = os.open(tmp_path / "unrelated", os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        os.dup2(replacement, old_fd)
+        identity = os.fstat(old_fd)
+        pending.close()
+        assert os.fstat(old_fd) == identity
+        assert pending.clean_fd == pending.parent_fd == -1
+        assert pending.copied._owned_fds() == [-1, -1]
+    finally:
+        os.close(old_fd)
+        if replacement != old_fd:
+            os.close(replacement)
+
+
+def test_pending_return_interrupt_recovers_registered_fds_and_candidate(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_pending_return_interrupt_recovers_registered_fds_and_candidate_case"
+    result = _run_sealed_case("orchestrator.tests.test_buildcache_v2", case, tmp_path)
+    assert result == {"case": case, "completed": True}
+
+
+def _pending_return_interrupt_recovers_registered_fds_and_candidate_case(tmp_path, monkeypatch):
+    seen = []
+    protected = False
+    source, first = inspect.getsourcelines(buildcache._build_v2_impl)
+    boundary = first + next(i for i, line in enumerate(source)
+                            if line.strip() == "return pending")
+
+    def interrupt(frame, event, arg):
+        if (frame.f_code is buildcache._build_v2_impl.__code__
+                and event == "line" and frame.f_lineno == boundary):
+            assert frame.f_locals["transferred"] is True
+            pending = frame.f_locals["pending"]
+            fds = pending.copied._owned_fds() + [pending.clean_fd, pending.parent_fd]
+            # The callee has relinquished these live descriptors, while its
+            # caller has not received the result. Hit the reviewed signal gap.
+            assert all(os.fstat(fd) for fd in fds)
+            if not protected:
+                # Mutation control: remove the real caller's ownership, without
+                # replacing the session, close, fd operations, or signal seam.
+                owners = frame.f_locals.get("pending_publications")
+                if owners is not None:
+                    owners.clear()
+            seen.append((fds, pending))
+            raise KeyboardInterrupt("pending return boundary")
+        return interrupt
+
+    for protected in (False, True):
+        directory = tmp_path / ("protected" if protected else "control")
+        directory.mkdir()
+        previous = sys.gettrace()
+        try:
+            with monkeypatch.context() as patch:
+                sys.settrace(interrupt)
+                with pytest.raises(KeyboardInterrupt, match="pending return boundary"):
+                    _v2_descriptor_runs_gate_inside_build_and_returns_both_digests_case(directory, patch)
+        finally:
+            sys.settrace(previous)
+        assert len(seen) == (2 if protected else 1)
+        fds, pending = seen[-1]
+        try:
+            for fd in fds:
+                if protected:
+                    with pytest.raises(OSError):
+                        os.fstat(fd)
+                else:
+                    assert os.fstat(fd)  # The same interrupt really leaks without an owner.
+            if protected:
+                assert not Path(pending.clean).exists()
+            assert not Path(pending.result.build_dir).exists()
+            assert Path(pending.claim).exists()
+        finally:
+            pending.close()
+
+
+def test_qualification_source_attack_starts_and_is_blocked(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_qualification_source_attack_starts_and_is_blocked_case"
+    result = _run_sealed_case("orchestrator.tests.test_buildcache_v2", case, tmp_path)
+    assert result == {"case": case, "completed": True}
+
+
+def _qualification_source_attack_starts_and_is_blocked_case(tmp_path):
+    from orchestrator.manual_probes.t1994_readonly_snapshot_qualification import ParentSourceSubstitution
+
+    root = _publication_source(tmp_path)
+    target = root / "input.cpp"
+    target.write_bytes(b"A")
+    observation = {}
+    attack = ParentSourceSubstitution(root, observation)
+    command = [sys.executable, "-I", "-B", "-c",
+               "from pathlib import Path; import sys; print(Path(sys.argv[1]).read_text())",
+               str(target)]
+    try:
+        with _publication_session(root) as session:
+            try:
+                attack.start()
+                assert observation["status"] == "started"
+                assert observation["source_renamed"] and observation["ancestor_renamed"]
+                # Same reader and pathname outside the protected namespace see B.
+                control = subprocess.run(
+                    command, capture_output=True, text=True, check=True,
+                    timeout=_SEALED_COMMAND_TIMEOUT_S,
+                )
+                assert "T1994_ORIGINAL_TREE_B" in control.stdout
+                protected = session.run(
+                    command, cwd="/", env=None, timeout_s=_SEALED_COMMAND_TIMEOUT_S,
+                )
+                assert protected.returncode == 0, protected.stderr
+                attack.record_protection(protected.stdout.strip() == "A")
+                assert observation["status"] == "blocked"
+            finally:
+                attack.restore()
+        assert target.read_bytes() == b"A"
+    finally:
+        attack.restore()
+
+
+def test_qualification_never_credits_an_attack_that_could_not_start(tmp_path):
+    from orchestrator.manual_probes.t1994_readonly_snapshot_qualification import ParentSourceSubstitution
+
+    root = _publication_source(tmp_path)
+    (root / "input.cpp").write_bytes(b"A")
+    observation = {}
+    attack = ParentSourceSubstitution(root, observation)
+    # Real rename obstruction, with the same attack code (no syscall stub).
+    attack.renamed_source.mkdir()
+    (attack.renamed_source / "occupied").touch()
+    try:
+        with pytest.raises(OSError):
+            attack.start()
+        assert observation["status"] == "could-not-start"
+        with pytest.raises(RuntimeError, match="cannot credit protection"):
+            attack.record_protection(True)
+    finally:
+        attack.restore()
+
+
+def test_run_without_session_executes_real_command_even_when_named_build(tmp_path):
+    marker = tmp_path / "ran"
+    buildcache._run(
+        [os.sys.executable, "-c",
+         "from pathlib import Path; import sys; Path(sys.argv[1]).write_text('ran')",
+         str(marker)],
+        "build", site=buildcache.site_policy.OTHER,
+    )
+    assert marker.read_text() == "ran"
+
+
+def _publication_source(tmp_path):
+    parent = tmp_path / "source-parent"
+    parent.mkdir()
+    root = parent / "source"
+    root.mkdir()
+    (root / "input").write_bytes(b"A")
+    return root
+
+
+@contextlib.contextmanager
+def _publication_session(root, *, shared_directories=()):
+    """Exercise S1's real lifecycle on fixed input, without replaying CCBench.
+
+    Only the admitted input is a fixture. Mounts, command transport, cleanup,
+    waitpid, root checks, permission restoration and issuance are not replaced.
+    No private capability seal or issuance registry is accessed.
+    """
+    materialization = buildcache.s8b_expected_materialization
+    digest = materialization.snapshot_tree_digest(root)
+    session = materialization.SealedBuildSession(
+        materialization.AdmittedBuildSnapshot(
+            source_snapshot_sha256=digest,
+            expected_materialization_sha256=digest,
+            source_evidence=_source_evidence(
+                Genome("silo", {"BACK_OFF": 1}), "a" * 40, str(root),
+            ),
+        ),
+    )
+    try:
+        session._start(root, shared_directories=shared_directories)
+        yield session
+    finally:
+        session._finish()
+
+
+def _publication_capability(session, pending, *, cached=False):
+    kinds = buildcache.s8b_expected_materialization.SealedSnapshotProtectionKind
+    return session.issue(
+        kinds.SEALED_CACHE_HIT if cached else kinds.SEALED_BUILD,
+        binary_sha256=pending.result.bin_sha256,
+        compiler_input_manifest_sha256=hashlib.sha256(b"fixture manifest").hexdigest(),
+    )
+
+
+def test_real_session_publish_then_hit_issues_distinct_capabilities(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_real_session_publish_then_hit_issues_distinct_capabilities_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _real_session_publish_then_hit_issues_distinct_capabilities_case(tmp_path):
+    root = _publication_source(tmp_path)
+    pending = _real_pending_publication(tmp_path)
+    fds = pending.copied._owned_fds() + [pending.clean_fd, pending.parent_fd]
+    try:
+        with _publication_session(root, shared_directories=(Path(pending.parent),)) as fresh:
+            # The production command seam executes in the actual sealed child.
+            buildcache._run(
+                [sys.executable, "-I", "-B", "-c",
+                 "from pathlib import Path; import sys; "
+                 "assert Path(sys.argv[1]).read_bytes() == b'A'", str(root / "input")],
+                "configure", site=buildcache.site_policy.OTHER,
+                sealed_session=fresh, timeout_s=_SEALED_COMMAND_TIMEOUT_S,
+            )
+            # Produce the actual pending bytes in this session. A successful
+            # configure/read command alone cannot justify SEALED_BUILD (M-E).
+            output = Path(pending.parent) / "staging" / "fresh-binary"
+            buildcache._run(
+                [sys.executable, "-I", "-B", "-c",
+                 "from pathlib import Path; import sys; "
+                 "output = Path(sys.argv[2]); "
+                 "output.write_bytes(b'candidate binary ' + Path(sys.argv[1]).read_bytes()); "
+                 "output.chmod(0o500)",
+                 str(root / "input"), str(output)],
+                "build", site=buildcache.site_policy.OTHER, sealed_session=fresh,
+                timeout_s=_SEALED_COMMAND_TIMEOUT_S,
+                build_output=str(output),
+            )
+            assert output.read_bytes() == (Path(pending.clean) / "binary").read_bytes()
+            assert not Path(pending.result.build_dir).exists()
+            assert not (Path(pending.clean) / "completion.json").exists()
+            with pytest.raises(
+                    buildcache.s8b_expected_materialization.ExpectedMaterializationError,
+                    match="not complete"):
+                _publication_capability(fresh, pending)
+        capability = _publication_capability(fresh, pending)
+        result = pending.publish(capability)
+        assert Path(result.binary).read_bytes() == b"candidate binary A"
+        assert not Path(pending.claim).exists()
+        completion = json.loads((Path(result.build_dir) / "completion.json").read_text())
+        assert completion["source_protection"]["kind"] == "sealed-build"
+        with _publication_session(root) as hit:
+            buildcache._assert_source_snapshot_sha256(root, hit.source_snapshot_sha256)
+        hit_capability = _publication_capability(hit, pending, cached=True)
+        assert hit_capability.kind.value == "sealed-cache-hit"
+        assert hit_capability.binary_sha256 == capability.binary_sha256
+        assert hit_capability is not capability
+        with pytest.raises(buildcache.s8b_expected_materialization.ExpectedMaterializationError):
+            _publication_capability(hit, pending)
+    finally:
+        pending.close()
+    for fd in fds:
+        with pytest.raises(OSError):
+            os.fstat(fd)
+
+
+@pytest.mark.parametrize("attack", ["persistent-drift"])
+def test_real_session_parent_drift_or_exit_failure_never_publishes(tmp_path, attack):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_real_session_parent_drift_or_exit_failure_never_publishes_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path, attack=attack,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _real_session_parent_drift_or_exit_failure_never_publishes_case(tmp_path, attack):
+    root = _publication_source(tmp_path)
+    pending = _real_pending_publication(tmp_path)
+    fds = pending.copied._owned_fds() + [pending.clean_fd, pending.parent_fd]
+    error = (buildcache.BuildCacheError if attack == "persistent-drift"
+             else buildcache.s8b_expected_materialization.ExpectedMaterializationError)
+    reason = "source snapshot tree digest" if attack == "persistent-drift" else "root-identity-after-build"
+    try:
+        with pytest.raises(error, match=reason):
+            with _publication_session(root) as session:
+                # Control: the same owner really can replace the original tree.
+                if attack == "root-replacement":
+                    root.parent.chmod(0o700)
+                    root.rename(root.with_name("displaced"))
+                    root.mkdir()
+                    (root / "input").write_bytes(b"B")
+                else:
+                    (root / "input").chmod(0o600)
+                    (root / "input").write_bytes(b"B")
+                assert (root / "input").read_bytes() == b"B"
+                buildcache._run(
+                    [sys.executable, "-I", "-B", "-c",
+                     "from pathlib import Path; import sys; "
+                     "assert Path(sys.argv[1]).read_bytes() == b'A'", str(root / "input")],
+                    "build", site=buildcache.site_policy.OTHER, sealed_session=session,
+                    timeout_s=_SEALED_COMMAND_TIMEOUT_S,
+                )
+                if attack == "persistent-drift":
+                    # The real parent gate reads B even though the child reads A.
+                    buildcache._assert_source_snapshot_sha256(root, session.source_snapshot_sha256)
+            pending.publish(_publication_capability(session, pending))
+    finally:
+        pending.close()
+    assert not Path(pending.clean).exists()
+    assert not Path(pending.result.build_dir).exists()
+    for fd in fds:
+        with pytest.raises(OSError):
+            os.fstat(fd)
+    # A second attempt is blocked by the real stale-claim gate, not a hit on A.
+    parent_fd = os.open(pending.parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        with pytest.raises(buildcache.BuildCacheError, match="claim"):
+            buildcache._acquire_v2_claim(pending.claim, pending.parent, "retry", parent_fd=parent_fd)
+    finally:
+        os.close(parent_fd)
+
+
+@pytest.mark.parametrize("entry", ["binary", "candidate", "destination"])
+def test_pending_final_rename_rechecks_real_entries(tmp_path, entry):
+    _pending_final_rename_rechecks_real_entries_case(tmp_path, entry)
+
+
+def _pending_final_rename_rechecks_real_entries_case(tmp_path, entry):
+    pending = _real_pending_publication(tmp_path)
+    try:
+        # Real-fd positive control before attacking the same entries. Issuance
+        # is covered by the real-session integration case, not repeated here.
+        pending._verify_publish_entries()
+        clean = Path(pending.clean)
+        if entry == "binary":
+            (clean / "binary").unlink()
+            (clean / "binary").write_bytes(b"replacement")
+        elif entry == "candidate":
+            clean.rename(clean.with_name("displaced-candidate"))
+            clean.mkdir()
+            assert (clean.with_name("displaced-candidate") / "binary").read_bytes() == b"candidate binary A"
+        else:
+            Path(pending.result.build_dir).mkdir()
+        with pytest.raises(buildcache.BuildCacheError):
+            pending.publish(None)  # Rejected before capability consumption.
+        assert not (Path(pending.result.build_dir) / "binary").exists()
+    finally:
+        pending.close()
+    assert not clean.with_name("displaced-candidate").exists()
+
+
+def test_sealed_child_obeys_parent_d1755_protection_without_freezing_base(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_sealed_child_obeys_parent_d1755_protection_without_freezing_base_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _sealed_child_obeys_parent_d1755_protection_without_freezing_base_case(tmp_path):
+    root = _publication_source(tmp_path)
+    base = tmp_path / "base"
+    dependency = base / "masstree-src"
+    dependency.mkdir(parents=True)
+    target = dependency / "input"
+    target.write_bytes(b"A")
+    command = [sys.executable, "-I", "-B", "-c", textwrap.dedent("""
+        import errno, sys
+        from pathlib import Path
+        target, marker = map(Path, sys.argv[1:3])
+        denied = sys.argv[3] == 'denied'
+        try:
+            target.write_bytes(b'B')
+        except OSError as exc:
+            assert denied and exc.errno == errno.EACCES
+        else:
+            assert not denied
+        marker.write_bytes(b'writable base')
+    """), str(target), str(base / "new-entry")]
+    with _publication_session(root, shared_directories=(base,)) as session:
+        # Same child, same attempted write: succeeds without the D1755 context.
+        buildcache._run(command + ["allowed"], "build",
+                        site=buildcache.site_policy.OTHER, sealed_session=session,
+                        timeout_s=_SEALED_COMMAND_TIMEOUT_S)
+        assert target.read_bytes() == b"B"
+        target.write_bytes(b"A")
+        (base / "new-entry").unlink()
+        base_mode = stat.S_IMODE(base.stat().st_mode)
+        with sort_swo_dependency_material.protect_post_oracle_dependency_material(
+                dependency, fetchcontent_base_dir=base):
+            buildcache._run(command + ["denied"], "build",
+                            site=buildcache.site_policy.OTHER, sealed_session=session,
+                            timeout_s=_SEALED_COMMAND_TIMEOUT_S)
+            assert target.read_bytes() == b"A"
+            assert (base / "new-entry").read_bytes() == b"writable base"
+            assert stat.S_IMODE(base.stat().st_mode) == base_mode
+        target.write_bytes(b"restored")
+
+
+def test_descriptorless_build_never_enters_sealed_session(tmp_path, monkeypatch):
+    def forbidden(**kwargs):
+        pytest.fail("descriptor-less build entered sealed session")
+
+    monkeypatch.setattr(buildcache.s8b_expected_materialization,
+                        "sealed_build_session", forbidden, raising=False)
+    test_v2_without_source_snapshot_preserves_legacy_completion_and_skips_manifest(
+        tmp_path, monkeypatch,
+    )
+
+
+def test_descriptor_build_result_carries_real_fresh_and_hit_capabilities(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_descriptor_build_result_carries_real_fresh_and_hit_capabilities_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def test_descriptor_build_prepares_missing_cache_root(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_descriptor_build_prepares_missing_cache_root_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def test_descriptor_build_from_hidden_sibling_cwd(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_descriptor_build_from_hidden_sibling_cwd_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _descriptor_build_from_hidden_sibling_cwd_case(tmp_path, monkeypatch):
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "cwd-input").write_bytes(b"parent cwd")
+    monkeypatch.chdir(project)
+    source = tmp_path / "ccbench"
+    assert project.parts[1] == source.parts[1]
+    assert project not in source.parents and source not in project.parents
+    real_run = buildcache._run
+    setup = _fake_build_environment
+    calls = []
+
+    def setup_with_real_cwd_check(patch, directory, *args, **kwargs):
+        setup(patch, directory, *args, **kwargs)
+        synthetic_build = buildcache._run
+
+        def run(cmd, what, timeout_s=None, **options):
+            # The existing synthetic compiler avoids CMake cost. This probe
+            # goes through the production cwd/transport before that compiler;
+            # neither _run nor SealedBuildSession.run is stubbed for the probe.
+            session = options["sealed_session"]
+            program = (
+                "from pathlib import Path; import subprocess, sys; "
+                "assert Path.cwd() == Path(sys.argv[1]); "
+                "assert Path('cwd-input').read_bytes() == b'parent cwd'; "
+                "subprocess.run([sys.argv[2], '--version'], check=True)"
+            )
+            real_run(
+                [sys.executable, "-I", "-B", "-c", program,
+                 str(project), cmd[0]], what,
+                timeout_s=_SEALED_COMMAND_TIMEOUT_S,
+                site=buildcache.site_policy.OTHER, sealed_session=session,
+            )
+            calls.append(what)
+            return synthetic_build(cmd, what, timeout_s, **options)
+
+        patch.setattr(buildcache, "_run", run)
+
+    monkeypatch.setattr(sys.modules[__name__], "_fake_build_environment",
+                        setup_with_real_cwd_check)
+    # Keeps all existing binary, cache-hit, digest and lifecycle assertions.
+    _v2_descriptor_runs_gate_inside_build_and_returns_both_digests_case(
+        tmp_path, monkeypatch,
+    )
+    assert calls == ["configure", "build"]
+    completions = list((tmp_path / "cache").rglob("completion.json"))
+    assert len(completions) == 1
+
+
+def test_descriptor_named_input_branches_visible_in_real_child(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_descriptor_named_input_branches_visible_in_real_child_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _descriptor_named_input_branches_visible_in_real_child_case(tmp_path, monkeypatch):
+    monkeypatch.setenv("PATH", os.defpath)
+    root = _publication_source(tmp_path)
+    base, cache, prefix = (tmp_path / name for name in ("base", "cache", "prefix"))
+    for path in (base, cache, prefix):
+        path.mkdir()
+    source_dirs = {}
+    for name in ("masstree", "mimalloc", "googletest"):
+        path = tmp_path / (name + "-override")
+        path.mkdir()
+        (path / "input").write_text(name)
+        source_dirs[name] = str(path)
+    (prefix / "input").write_text("prefix")
+    tools = tmp_path / "real-tools"
+    tools.mkdir()
+    compiler = tools / "compiler"
+    _write_tool(compiler, "realpath compiler")
+    link = cache / "compiler-link"
+    link.symlink_to(compiler)
+    # A spine cwd needs no sharing; a source input must stay the sealed copy.
+    monkeypatch.chdir(root.parent)
+    shared = buildcache._descriptor_shared_directories(
+        root, cache, base, cc=str(link), cxx=str(link),
+        source_dirs={**source_dirs, "snapshot": str(root)},
+        dependency_prefix=str(prefix),
+    )
+    assert set(map(Path, shared)) == {cache, base, prefix, tools,
+                                    *(Path(p) for p in source_dirs.values())}
+    assert all(root != Path(p) and root not in Path(p).parents
+               and Path(p) not in root.parents for p in shared)
+    program = textwrap.dedent("""
+        import subprocess, sys
+        from pathlib import Path
+        compiler, base, cache, prefix, *dependencies = map(Path, sys.argv[1:])
+        result = subprocess.run([str(compiler)], capture_output=True, text=True, check=True)
+        assert result.stdout.strip() == 'realpath compiler'
+        assert (prefix / 'input').read_text() == 'prefix'
+        for path, name in zip(dependencies, ('masstree', 'mimalloc', 'googletest')):
+            assert (path / 'input').read_text() == name
+        (base / 'new-entry').write_bytes(b'writable base')
+        (cache / 'binary').write_bytes(b'built from named inputs')
+    """)
+    with _publication_session(root, shared_directories=shared) as session:
+        buildcache._run(
+            [sys.executable, "-I", "-B", "-c", program, str(compiler),
+             str(base), str(cache), str(prefix), *source_dirs.values()],
+            "build", site=buildcache.site_policy.OTHER, sealed_session=session,
+            timeout_s=_SEALED_COMMAND_TIMEOUT_S,
+            build_output=str(cache / "binary"),
+        )
+    assert (cache / "binary").read_bytes() == b"built from named inputs"
+    assert (base / "new-entry").read_bytes() == b"writable base"
+
+
+def _descriptor_build_prepares_missing_cache_root_case(tmp_path, monkeypatch):
+    assert not (tmp_path / "cache").exists()
+    _v2_descriptor_runs_gate_inside_build_and_returns_both_digests_case(tmp_path, monkeypatch)
+
+
+def test_configure_only_session_cannot_issue_sealed_build(tmp_path):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_configure_only_session_cannot_issue_sealed_build_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _configure_only_session_cannot_issue_sealed_build_case(tmp_path):
+    root = _publication_source(tmp_path)
+    binary = tmp_path / "preexisting-binary"
+    binary.write_bytes(b"not built in this session")
+    with _publication_session(root) as session:
+        buildcache._run(
+            [sys.executable, "-I", "-B", "-c", "pass"],
+            "configure", site=buildcache.site_policy.OTHER, sealed_session=session,
+            timeout_s=_SEALED_COMMAND_TIMEOUT_S,
+        )
+    with pytest.raises(
+            buildcache.s8b_expected_materialization.ExpectedMaterializationError,
+            match="kind differs from execution"):
+        session.issue(
+            buildcache.s8b_expected_materialization.SealedSnapshotProtectionKind.SEALED_BUILD,
+            binary_sha256=hashlib.sha256(binary.read_bytes()).hexdigest(),
+            compiler_input_manifest_sha256=hashlib.sha256(b"fixture manifest").hexdigest(),
+        )
+
+
+def _descriptor_build_result_carries_real_fresh_and_hit_capabilities_case(tmp_path, monkeypatch):
+    # Reuse the existing admission/compiler fixture and all its expectations.
+    # The sealed context, run/issue, cache validator and publication stay real.
+    original = buildcache.build_v2
+    results = []
+
+    def observe(*args, **kwargs):
+        result = original(*args, **kwargs)
+        results.append(result)
+        return result
+
+    monkeypatch.setattr(buildcache, "build_v2", observe)
+    _v2_descriptor_runs_gate_inside_build_and_returns_both_digests_case(tmp_path, monkeypatch)
+    fresh, hit = results
+    materialization = buildcache.s8b_expected_materialization
+    assert fresh.source_protection.kind is materialization.SealedSnapshotProtectionKind.SEALED_BUILD
+    assert hit.source_protection.kind is materialization.SealedSnapshotProtectionKind.SEALED_CACHE_HIT
+    for result in results:
+        assert materialization.validate_sealed_snapshot_capability(
+            result.source_protection,
+            source_snapshot_sha256=result.source_snapshot_sha256,
+            expected_materialization_sha256=result.expected_materialization_sha256,
+            binary_sha256=result.bin_sha256,
+            compiler_input_manifest_sha256=result.compiler_input_manifest_sha256,
+        ) is result.source_protection
+
+
+@pytest.mark.parametrize("attack", ["root-replacement"])
+def test_descriptor_build_failure_cannot_become_second_build_hit(tmp_path, attack):
+    from orchestrator.tests.test_s8b_expected_materialization import _run_sealed_case
+
+    case = "_descriptor_build_failure_cannot_become_second_build_hit_case"
+    result = _run_sealed_case(
+        "orchestrator.tests.test_buildcache_v2", case, tmp_path, attack=attack,
+    )
+    assert result == {"case": case, "completed": True}
+
+
+def _descriptor_build_failure_cannot_become_second_build_hit_case(tmp_path, monkeypatch, attack):
+    # These observers inject a filesystem attack at an actual production seam;
+    # they call the original operation and do not replace any protection gate.
+    original_build = buildcache.build_v2
+    original_result = buildcache._v2_result
+    original_collect = buildcache._collect_compiler_inputs
+    request = []
+    attacked = []
+
+    def observe_build(*args, **kwargs):
+        request.append((args, kwargs))
+        return original_build(*args, **kwargs)
+
+    def replace_root(*args, **kwargs):
+        result = original_result(*args, **kwargs)
+        root = Path(result.ccbench_root)
+        root.parent.chmod(0o700)
+        displaced = root.with_name("displaced-source")
+        root.rename(displaced)
+        shutil.copytree(displaced, root)
+        attacked.append(displaced)
+        assert root.stat().st_ino != displaced.stat().st_ino
+        return result
+
+    def leave_drift(*args, **kwargs):
+        result = original_collect(*args, **kwargs)
+        root = tmp_path / "ccbench"
+        root.chmod(0o700)
+        extra = root / "persistent-B"
+        extra.write_bytes(b"B")
+        assert extra.read_bytes() == b"B"
+        attacked.append(extra)
+        return result
+
+    monkeypatch.setattr(buildcache, "build_v2", observe_build)
+    if attack == "root-replacement":
+        monkeypatch.setattr(buildcache, "_v2_result", replace_root)
+        reason = "root-identity-after-build"
+    else:
+        monkeypatch.setattr(buildcache, "_collect_compiler_inputs", leave_drift)
+        reason = "source snapshot tree digest"
+    with pytest.raises(buildcache.BuildCacheError, match=reason):
+        _v2_descriptor_runs_gate_inside_build_and_returns_both_digests_case(tmp_path, monkeypatch)
+    assert len(attacked) == 1
+    cache = tmp_path / "cache"
+    assert not list(cache.rglob("completion.json"))
+    assert not list(cache.rglob("ycsb_silo.exe"))
+    assert not list(cache.rglob(".publish-*"))
+    assert not list(cache.rglob(".staging-*"))
+    assert len(list(cache.rglob("*.building"))) == 1
+    monkeypatch.setattr(buildcache, "_v2_result", original_result)
+    monkeypatch.setattr(buildcache, "_collect_compiler_inputs", original_collect)
+    root = tmp_path / "ccbench"
+    if attack == "root-replacement":
+        root.parent.chmod(0o700)
+        # copytree preserved the protected modes on the attacker's copy.
+        # Session restoration follows held fds to displaced-source, not this
+        # replacement inode. This fixture has only compiler-input.hh inside;
+        # unlinking it needs write permission on the copied root directory.
+        assert stat.S_IMODE(attacked[0].stat().st_mode) & stat.S_IWUSR
+        copied_mode = stat.S_IMODE(root.stat().st_mode)
+        assert not copied_mode & 0o222
+        root.chmod(copied_mode | stat.S_IWUSR)
+        buildcache._discard_build_dir(str(root))
+        attacked[0].rename(root)
+    else:
+        root.chmod(0o700)
+        attacked[0].unlink()
+    args, kwargs = request[0]
+    # Restore A to make the second request identical. It must reach the claim
+    # gate, so a source mismatch cannot hide accidental publication of A.
+    with pytest.raises(buildcache.BuildCacheError, match="claim"):
+        original_build(*args, **kwargs)
 
 
 if __name__ == "__main__":

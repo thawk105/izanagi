@@ -1089,7 +1089,7 @@ def _validate_cross_references(
 
 
 def _validate_build_receipt(raw: bytes, artifact: ArtifactConfig) -> None:
-    """実 ``s8b-binary-admission/v2`` receipt を binary bytes と束縛する。"""
+    """実 ``s8b-binary-admission/v3`` receipt を binary bytes と束縛する。"""
     record = _load_json(
         raw,
         label=f"build receipt {artifact.artifact_id}",
