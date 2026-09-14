@@ -1,0 +1,29 @@
+[Pegasus dispatch] job を gen_S へ投入します (izdw-c07b5c5b3b)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1994-readonly-snapshot/output/pegasus-dispatch/orphan-holds/unknown-dee0d3a4eae1bcae06f3e373.json
+[Pegasus dispatch] request ID 996046.nqsv を受理しました
+[Pegasus dispatch] request 996046.nqsv の状態: QUE
+[Pegasus dispatch] request 996046.nqsv の状態: RUN
+[Pegasus dispatch] request 996046.nqsv の状態: END
+[Pegasus dispatch] request 996046.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1994-readonly-snapshot/output/pegasus-dispatch/orphan-holds/unknown-dee0d3a4eae1bcae06f3e373.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1994-readonly-snapshot/output/pegasus-dispatch/c07b5c5b3b7f535642a6735b38e67d2b/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 996046.nqsv child stdout begin
+| {"overall": true, "checks": {"nonroot_x86_64": {"result": true, "errno": null}, "unshare": {"result": true, "errno": null}, "setgroups": {"result": true, "errno": null}, "uid_map": {"result": true, "errno": null}, "gid_map": {"result": true, "errno": null}, "private": {"result": true, "errno": null}, "tmpfs": {"result": true, "errno": null}, "copy": {"result": true, "errno": null}, "digest": {"result": true, "errno": null}, "seal": {"result": true, "errno": null}, "same_owner": {"result": true, "errno": null}, "chmod": {"result": true, "errno": 30, "error": "OSError"}, "write": {"result": true, "errno": 30, "error": "OSError"}, "read": {"result": true, "errno": null}, "child_exit": {"result": true, "errno": null}, "parent_user_unchanged": {"result": true, "errno": null}, "parent_mnt_unchanged": {"result": true, "errno": null}, "cleanup": {"result": true, "errno": null}}, "environment": {"kernel": "5.15.0-173-generic", "hostname": "bnode046", "uid": 31609, "/proc/sys/user/max_user_namespaces": {"value": "2147483647", "errno": null}, "/proc/sys/kernel/unprivileged_userns_clone": {"value": "1", "errno": null}}}
+[Pegasus dispatch] request 996046.nqsv child stdout end
+[Pegasus dispatch] request 996046.nqsv child stderr begin
+| 
+| ============================================================
+| Request ID:             996046.nqsv
+| Request Name:           izdw-c07b5c5b3b
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Mon Sep 14 03:36:42 2026
+| Started Request Time:   Mon Sep 14 03:36:51 2026
+| Ended Request Time:     Mon Sep 14 03:36:51 2026
+| Resources Information:
+|   Elapse:               4S
+|   Remaining Elapse:     596S
+| ============================================================
+[Pegasus dispatch] request 996046.nqsv child stderr end
