@@ -273,6 +273,25 @@ seq: 1
 
 ## 再発
 
+### F125
+
+- **再発: 2026-09-14** — **同一 wave の中で 2 回続けて踏んだ。** 並行 wave が 10 本を超える
+  時間帯では、main が数分おきに進み、そのたびに本 wave が触っている file と重なる。
+  1 回目は `orchestrator/tests/test_s8b_oracle_driver.py` (main 側 `60749a68f`「Retire the
+  floor-derived admission gates from the 8b oracle path」、7 行追加 26 行削除)、
+  2 回目は `orchestrator/tests/conftest.py` と
+  `orchestrator/tests/test_real_repo_serialization.py` (main 側 `687a7ad07`「Bind the schedule
+  descriptor SHA and the validated schedule to one read」、**合計 6 行追加だけ**)。
+  どちらも auto-merge は競合なく成功し、`git commit --dry-run -F` も通る。
+  受入の `stage=merge-message-provenance` で初めて
+  「実装面に Codex role=author がない — paths=...」として止まる。
+  **本 wave の新しい事実は頻度である。** 6 行の追加でも発火し、main が動くたびに繰り返す。
+  受入 1 走が 5〜10 分かかるので、**適合 → commit → merge → 受入投入の間に main がまた動くと
+  同じ輪に入る。** 本 wave は 2 回とも F847 の恒久対応 (Codex `role=author` に先回りの適合を
+  書かせ、commit してから merge し直す) で抜けた。F125 自身の恒久対応が挙げる
+  「統合結果の検証を Codex に回して `scope=merge-resolution` の trailer を付ける」形も
+  同じ効果を持ち、そちらの方が手数は少ない。**並行度が高い時間帯は後者を先に試すほうが速い。**
+
 ### F480
 
 - **再発: 2026-09-14** — **受入 shard の仕事量を均等化した瞬間に、軽かった shard-1 で
