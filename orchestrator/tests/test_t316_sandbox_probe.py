@@ -39,6 +39,104 @@ def test_condition_gate_dominates_ccbench_configure():
     assert '"-DCCBENCH_BACKOFF_FIXED=-1"' in source
     assert '"-DCMAKE_CXX_FLAGS=-DBACKOFF_FIXED=-1"' not in source
 
+
+def test_require_condition_gate_rejection_reports_detail_to_stderr(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    source = (
+        _REPO / "orchestrator/tests/fixtures/condition_meaning_gate/supplied"
+    )
+    root = tmp_path / "condition-gate-configure-failure"
+    shutil.copytree(source, root)
+    cmake_file = root / "CMakeLists.txt"
+    cmake_file.write_text(
+        cmake_file.read_text(encoding="utf-8")
+        + '\nmessage(FATAL_ERROR "T316_CONFIGURE_DETAIL_WITNESS")\n',
+        encoding="utf-8",
+    )
+    cxx = shutil.which("c++")
+    cmake = shutil.which("cmake")
+    assert cxx is not None and cmake is not None
+
+    with pytest.raises(RuntimeError) as rejected:
+        probe._require_condition_gate(
+            root, stock_root=root / "stock",
+            configure_args=("-DCCBENCH_BACKOFF_FIXED=-1",),
+            cxx=cxx, cmake=cmake,
+        )
+
+    assert str(rejected.value) == (
+        "condition gate rejected t316 CCBench build: "
+        "supply=red/configure-failed, "
+        "meaning=unestablished/meaning-witness-undeclared"
+    )
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    lines = captured.err.splitlines()
+    assert len(lines) == 2
+    assert lines[0].startswith(
+        "condition gate rejected t316 CCBench build: supply detail="
+        "process returned rc=1; stderr="
+    )
+    assert "T316_CONFIGURE_DETAIL_WITNESS" in lines[0]
+    assert "argv=" in lines[0]
+    assert cmake in lines[0]
+    assert lines[1] == (
+        "condition gate rejected t316 CCBench build: meaning detail=<no detail>"
+    )
+
+
+@pytest.mark.parametrize("output_error_type", [OSError, ValueError, RuntimeError])
+def test_require_condition_gate_rejection_survives_stderr_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    output_error_type: type[Exception],
+) -> None:
+    source = _REPO / "orchestrator/tests/fixtures/condition_meaning_gate/supplied"
+    root = tmp_path / "condition-gate-configure-failure"
+    shutil.copytree(source, root)
+    cmake_file = root / "CMakeLists.txt"
+    cmake_file.write_text(
+        cmake_file.read_text(encoding="utf-8")
+        + '\nmessage(FATAL_ERROR "T316_STDERR_FAILURE_WITNESS")\n',
+        encoding="utf-8",
+    )
+    cxx = shutil.which("c++")
+    cmake = shutil.which("cmake")
+    assert cxx is not None and cmake is not None
+    attempted_writes: list[str] = []
+    output_error = output_error_type("diagnostic stream cannot write")
+
+    class UnwritableStderr:
+        def write(self, text: str) -> int:
+            attempted_writes.append(text)
+            raise output_error
+
+    with monkeypatch.context() as patch:
+        patch.setattr(sys, "stderr", UnwritableStderr())
+        with pytest.raises(RuntimeError) as rejected:
+            probe._require_condition_gate(
+                root, stock_root=root / "stock",
+                configure_args=("-DCCBENCH_BACKOFF_FIXED=-1",),
+                cxx=cxx, cmake=cmake,
+            )
+
+    assert type(rejected.value) is RuntimeError
+    assert str(rejected.value) == (
+        "condition gate rejected t316 CCBench build: "
+        "supply=red/configure-failed, "
+        "meaning=unestablished/meaning-witness-undeclared"
+    )
+    assert rejected.value.__cause__ is output_error
+    assert len(attempted_writes) == 1
+    assert attempted_writes[0].startswith(
+        "condition gate rejected t316 CCBench build: supply detail="
+        "process returned rc=1; stderr="
+    )
+    assert "T316_STDERR_FAILURE_WITNESS" in attempted_writes[0]
+    assert "argv=" in attempted_writes[0]
+    assert str(Path(cmake).resolve()) in attempted_writes[0]
+
+
 # 実装定数を共有しない。カテゴリ削除変異で parametrize 自体が消えない独立 oracle。
 EXPECTED_S3_CATEGORIES = (
     "network_dns", "network_direct_ip", "network_proxy", "credential_home",

@@ -22936,6 +22936,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `condition_meaning_gate/supplied` へ無害な参照 1 行を入れており、本 wave はそれを
   `effectuation-ignored` へも入れて閉じた。**gate 側は fail-closed で正しく、直すのは
   変数を渡す側か受ける側である**という F855 の恒久対応がそのまま当てはまる。
+
+- **再発: 2026-09-14** — t316 probe も `-DRULE_LAUNCH_COMPILE=` を gflags / glog の install build から
+  流用しており、CCBench が参照しない変数として未使用警告に載ることを計算ノードで実測した
+  (`0:996829.nqsv`)。同じ警告に `IZANAGI_GFLAGS_SRC_HEAD` と `IZANAGI_GLOG_SRC_HEAD` も載る。
+  F855 の恒久対応「driver から未使用変数を除去」は t316 へ未適用である。
+  なお F855 が根本原因に挙げた「driver は gate の status しか出力しないため理由が見えなかった」
+  という側面は、本 wave が t316 について閉じた — 拒否時に `evidence.get("detail")` を job stderr へ
+  出すようにしたので、**login での再現 probe を経ずに計算ノードの実走そのものから読める**。
 ### F856. 上流への argv 追加が、下流の閉じた argv 文法に無効化される [手順漏れ] [恒真ゲート]
 
 - 事象: 認証経路をオフライン依存へ配線する wave で、段 3 の敵対レンズが「配線しても A-6 は
@@ -24505,6 +24513,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `test_certify_keeps_backoff_fixed_and_condition_gate_silo_only` が、この define と関門呼び出しが
   silo 分岐の内側にだけあることを固定する (変異 M6 で KILLED を確認)。
 
+
+- **再発: 2026-09-14** — **独立 3 例目。** t316 probe (`tools/pegasus/probes/t316_sandbox_backend_probe.py`)
+  の条件関門を計算ノードで実走したところ、`supply=red/configure-failed` で拒否された
+  (`0:996644.nqsv` bnode040 / `0:996829.nqsv` bnode016)。detail の逐語は
+  「successful process wrote stderr=b'CMake Warning:\n  Manually-specified variables were not used by
+  the project:\n\n    CCBENCH_BACKOFF_FIXED\n …'」で、argv の `-B` は requested 側を指す。
+  構図は F934 の 1・2 例目と同一である — probe は pin された素の CCBench 木を build し、patch を
+  materialize しないのに、関門は requested 側で `-DCCBENCH_BACKOFF_FIXED` を必ず足す。
+  **関門は正しく拒否している。** t316 の受領証 2 件 (2026-08-10) には `condition_gates` が 0 件で、
+  この driver の実経路では関門が一度も実走していなかった。
+  D1864 が「silo の現行挙動は据え置き、扱いはユーザー裁定へ返す」とした対象に t316 も含まれる。
 ### F935. 過去実走の凍結 evidence を「現行 producer を縛る live 契約」と読み、依頼された成果物を子が自ら scope から落とした [手順漏れ] [ドリフト]
 
 - 事象: 段 2 のプラン起草で、親が「red arm record の bytes を hash 束縛する consumer が存在するなら
