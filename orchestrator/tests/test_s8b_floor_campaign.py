@@ -785,11 +785,6 @@ def _private_run_campaign(protocol, freeze_doc, **kwargs):
     )
     if kwargs.get("mode") == "official":
         kwargs.setdefault("confirm_official_floor_run", True)
-        if kwargs.get("resume_dir") is None:
-            kwargs.setdefault(
-                "_protocol_authority",
-                s8b_floor_campaign.resolve_current_floor_protocol(root=authority),
-            )
     return s8b_floor_campaign._run_campaign_core(
         protocol, freeze_doc,
         _holdout_repo_root=authority,
@@ -821,12 +816,6 @@ def _run_campaign(protocol, freeze_doc, *, out_root, build_root, measure_fn, pro
     )
     kwargs["_holdout_signature_source"] = freeze_doc.document["holdouts"]
     if mode == "official":
-        if resume_dir is None:
-            kwargs["_protocol_authority"] = (
-                s8b_floor_campaign.resolve_current_floor_protocol(
-                    root=kwargs["_holdout_repo_root"],
-                )
-            )
         kwargs["confirm_official_floor_run"] = True
         official_preflight = (
             perf_preflight_fn or (lambda **_kwargs: _perf_receipt(available=True))
@@ -12225,9 +12214,6 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
         execution_receipt_fn=None,
         repo_root=clone_root, durable_root_policy=_durable_policy(out_root),
         _floor_preflight_fn=None,
-        _protocol_authority=s8b_floor_campaign.resolve_current_floor_protocol(
-            root=clone_root,
-        ),
         confirm_official_floor_run=True,
     )
 

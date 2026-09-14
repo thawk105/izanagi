@@ -7243,11 +7243,11 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         durable_root_policy=durable_root_policy,
         perf_preflight_fn=perf_preflight_fn,
         confirm_official_floor_run=confirm_official_floor_run,
-        _protocol_authority=protocol_authority,
+        protocol_relpath=None if protocol_authority is None else protocol_authority.path,
     )
 
 
-def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
+def _run_campaign_core(protocol, freeze_doc, protocol_relpath=None, *, out_root, mode, resume_dir=None,
                        measure_fn=None, probe_fn=None, sleep_fn=_DEFAULT_SLEEP_FN,
                        monotonic_fn=_DEFAULT_MONOTONIC_FN, prepare_fn=None, now_fn=None,
                        host_provenance_fn=None, process_identity_fn=None,
@@ -7257,7 +7257,6 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                        durable_root_policy=None, _floor_preflight_fn=None,
                        perf_preflight_fn=None, _holdout_repo_root=None,
                        _holdout_signature_source=None,
-                       _protocol_authority=None,
                        confirm_official_floor_run: bool = False) -> dict:
     """floor campaign を直列・単一テナントで実行し、floor 案 artifact を書いて返す。
 
@@ -7523,8 +7522,7 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         certificate = None
         if mode == "official":
             protocol_relpath = (
-                _FLOOR_PROTOCOL_REL if _protocol_authority is None
-                else _protocol_authority.path
+                _FLOOR_PROTOCOL_REL if protocol_relpath is None else protocol_relpath
             )
             floor_preflight_fn = (
                 _floor_preflight_freeze_allowlist

@@ -421,3 +421,69 @@ harness の `--expected-spec-sha256` へ渡す。**この手順を経ない変�
 - **時系列監査:** fix 前 snapshot は `s5-integrated-snapshot.diff`、fix 前後の差分は親が直接
   `diff -u` で読み、`_run_campaign_core` の official 分岐 1 箇所だけ・テスト file は byte 一致と
   確認した。**これは親の 1 主体による監査であり、独立主体の裏取りではない。**
+
+---
+
+## 裁定 14 (2026-09-14 追記) — core は `_protocol_authority` を受け取らず、`protocol_relpath` を非 keyword-only で受ける
+
+**この裁定は plan v2 の項 1・項 2・項 3 を訂正する。**
+
+### 覆した前提と、それを覆した実測
+
+受入全走 attempt 1 (`23307 passed / 6 failed / 6 error`、rc=70、受領証なし) のうち 2 件が
+本 wave に帰属した。**親が変更した test file の単独全走を省いたため、段 6 までの実測で捕まえ損ねた**
+(親は `-k` で新規 5 nodeid だけを走らせていた。`DW-O26` は「変更した test file は受入全走前に
+単独走で確認する」と定めており、これはその違反である)。
+
+- `test_refreeze_seam_classifier_covers_and_classifies_every_core_seam`:
+  同 test は **`_run_campaign_core` の keyword-only 引数集合から除外 4 件を引いたものが、
+  失格 seam の登録簿 `REFREEZE_DISQUALIFYING_SEAM_NAMES` と厳密一致する**ことを要求する。
+  `_protocol_authority` を keyword-only で足すと不変条件が破れる。
+- `test_second_scan_digest_shift_persists_claim_but_issues_no_certificate`:
+  実装子が test helper `_private_run_campaign` を「official mode なら
+  `resolve_current_floor_protocol(root=authority)` を呼んで `_protocol_authority` を埋める」形へ
+  変更したため、合成 root のテストが resolver の歴史 env 契約解決で落ちる。
+- 実測の切り分け: 変更 2 file を local main 版へ戻すと同じ 2 件が **3 passed**。
+
+### 裁定
+
+**`_protocol_authority` という keyword-only 引数を core から削除する。** 代わりに
+`_run_campaign_core` が `protocol_relpath` を **positional-or-keyword 引数 (既定 `None`)** として
+受け、`run_campaign` が保持した authority record の `.path` を渡す。
+
+```
+def _run_campaign_core(protocol, freeze_doc, protocol_relpath=None, *, out_root, mode, ...)
+    mode == "official" のとき:
+        実効値 = _FLOOR_PROTOCOL_REL if protocol_relpath is None else protocol_relpath
+```
+
+**理由。**
+
+1. **keyword-only にすると production が常に非既定 seam を供給することになる。** 失格 seam の
+   登録簿へ足せば、公開入口経由の official 走行はすべて refreeze 適格性を失う。これは本 wave が
+   触れてはならない挙動である。
+2. `*` より前に置けば keyword-only 集合が変わらないので、seam 分類器の不変条件も
+   `REFREEZE_DISQUALIFYING_SEAM_NAMES` も 1 bit も変えずに済む。
+3. record ではなく path だけを渡せば、core が authority object の他の field に依存しない。
+   裁定 1 の「下位は呼び手が渡した値だけを使う」とも整合する。
+4. **test helper が resolver を呼ぶ必要が無くなる。** 合成 root のテストは既定 `None` のまま
+   従来どおり legacy を使う。
+
+**禁止:**
+
+- `_run_campaign_core` に keyword-only 引数を追加してはならない。
+- `REFREEZE_DISQUALIFYING_SEAM_NAMES`、seam 分類器 `_nondefault_campaign_seams`、
+  seam 分類器テストの `excluded` 集合を変更してはならない。
+- test helper `_private_run_campaign` から resolver を呼んではならない。
+- core や preflight の内部で resolver を呼んで `protocol_relpath` を導出してはならない
+  (裁定 1 の禁止は不変)。
+- 既存テストの期待値・関数名集合を変更してはならない。
+
+**通る正例 1 つ:** `test_refreeze_seam_classifier_covers_and_classifies_every_core_seam` と
+`test_second_scan_digest_shift_persists_claim_but_issues_no_certificate` が、
+新規 5 nodeid と同時に緑を維持する。
+
+### 手順の是正
+
+**変更した test file は受入全走の前に単独で全走する。** `-k` による部分走は代替にならない
+(`DW-O26`)。本 wave は段 6 の変異本走後・段 7 記録前にこれを行うべきだった。
