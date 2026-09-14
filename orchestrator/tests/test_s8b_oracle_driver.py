@@ -2804,20 +2804,14 @@ def _fake_abort_evaluate_factory(reason: str):
 def _canned_plan(**kwargs) -> "driver._V2Plan":
     """WAL/budget 契約テスト用の canned v2 plan (git/store の実検査を迂回)。
 
-    _prepare_v2_execution の差し替えとして使う。渡された ``schedule`` kwarg から cell を
-    列挙するため manifest/freeze を再読しない (read カウント系テストを汚さない)。contract は
-    実 env 契約 lookup (clocks/numactl の正本)、receipt は実 guard 生成、perf_sha_by_cell は
-    全 cell を dummy 64hex で埋める (fake evaluate は expected_perf_sha256 を捕捉するだけ)。"""
+    _prepare_v2_execution の差し替えとして使う。manifest/freeze を再読しない
+    (read カウント系テストを汚さない)。contract は実 env 契約 lookup
+    (clocks/numactl の正本)、receipt は実 guard 生成。"""
     contract = ec.lookup(V2_ENV_TAG)
-    perf = {
-        (row["holdout_id"], row["configuration_id"]): "0" * 64
-        for row in kwargs["schedule"]
-    }
     return driver._V2Plan(
         contract=contract,
         authorization_contract=ec.authorize(V2_ENV_TAG),
         receipt=execution_guard.build_receipt(contract),
-        perf_sha_by_cell=perf,
     )
 
 
@@ -3250,10 +3244,6 @@ def _required_plan(contract, verified, schedule, environ, authorization):
         contract=contract,
         authorization_contract=authorization,
         receipt=receipt,
-        perf_sha_by_cell={
-            (row["holdout_id"], row["configuration_id"]): "0" * 64
-            for row in schedule
-        },
         verified_calibration=verified, reservation_check=check,
     )
 
@@ -4142,8 +4132,7 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
         plan = driver._V2Plan(
             contract=required,
             authorization_contract=env_contract.authorize("linux-baremetal"),
-            receipt=execution_guard.build_receipt(required),
-            perf_sha_by_cell={{}})
+            receipt=execution_guard.build_receipt(required))
 
         def won_claim_then_stop(*_args, **_kwargs):
             time.sleep(0.25)
@@ -5005,13 +4994,10 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
 
         def fake_plan(**kwargs):
             contract = ec.lookup("linux-baremetal")
-            perf = {{(r["holdout_id"], r["configuration_id"]): "0" * 64
-                     for r in kwargs["schedule"]}}
             return driver._V2Plan(
                 contract=contract,
                 authorization_contract=ec.authorize("linux-baremetal"),
-                receipt=execution_guard.build_receipt(contract),
-                perf_sha_by_cell=perf)
+                receipt=execution_guard.build_receipt(contract))
 
         stable_receipt_epoch = driver._t080_migration.ReceiptResolution(
             "never-issued", (), None, "c" * 40,
@@ -5876,8 +5862,7 @@ def test_private_validated_gate_has_only_run_block_as_production_caller():
 
 def test_v2_gate_happy_path_completes_and_binds_env_store_receipt(tmp_path):
     """v2 正常系: freeze==active 世代 + launch_validate 成立 + store 全一致 →
-    gate 通過・completed。expected_perf_sha256 が cell の store binary sha と一致して
-    evaluate に伝搬し、clocks/numactl は env 契約由来 (NUMACTL ハードコード撤去)、
+    gate 通過・completed。clocks/numactl は env 契約由来 (NUMACTL ハードコード撤去)、
     campaign-start に execution receipt が記録される。"""
     root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
     out_root = root.parent / "output"
@@ -5889,15 +5874,11 @@ def test_v2_gate_happy_path_completes_and_binds_env_store_receipt(tmp_path):
 
     assert result["status"] == "completed", result
     assert result["completed_trials"] == len(document["schedule"]["rows"])
-    # expected_perf_sha256 が各 cell の store binary sha と一致して伝搬する。
     contract = ec.lookup(V2_ENV_TAG)
     authorization = ec.authorize(V2_ENV_TAG)
     for call in evaluate_fn.calls:
         assert call["clocks_per_us"] == contract.clocks_per_us  # env 契約由来
         assert call["kwargs"]["numactl"] == list(contract.numactl)  # NUMACTL 撤去
-        assert call["kwargs"]["expected_perf_sha256"] in {
-            rec["binary_sha256"] for rec in binaries.values()
-        }
     # execution receipt が campaign-start に記録され manifest と整合する。
     start = next(e for e in result["events"] if e["event"] == "campaign-start")
     receipt = start["execution_receipt"]
@@ -6679,7 +6660,7 @@ def test_v2_contract_sha256_mismatch_is_refused(tmp_path):
 
 
 def test_v2_binary_mismatch_abort_maps_to_binary_mismatch_outcome(tmp_path):
-    """pipeline の bench-binary-mismatch abort (TOCTOU 第二防壁) が driver の
+    """WAL に直接注入した bench-binary-mismatch abort が driver の
     binary-mismatch terminal outcome に射影される。"""
     root, freeze_path, _gen_sha, _bin, _topology = _build_v2_repo(tmp_path)
     out_root = root.parent / "output"
