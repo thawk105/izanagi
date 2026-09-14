@@ -58,6 +58,10 @@ _DISPATCH_MARKER_LINE_MAX_BYTES = (
 )
 _SCHEDULER_ATTR = "_izanagi_effective_scheduler"
 _SESSION_PREFIX = ".izanagi-acceptance-shards"
+_DURATION_LEDGER_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "orchestrator/tests/acceptance_duration_ledger.json"
+)
 _REPORT_FIELDS = frozenset({
     "schema_version", "shard_count", "shard_index", "pytest_rc",
     "observed_universe", "selected", "finished", "effective_scheduler",
@@ -109,7 +113,7 @@ class ItemRecord:
 @dataclass(frozen=True)
 class Assignment:
     selected: tuple[tuple[str, ...], ...]
-    loads: tuple[int, ...]
+    loads: tuple[float, ...]
     components: tuple[dict[str, Any], ...]
 
 
@@ -375,7 +379,7 @@ def _groups_form_declared_conflict_component(groups: Sequence[str]) -> bool:
 
 
 def allocate(records: Sequence[ItemRecord], shard_count: int) -> Assignment:
-    """file/group 連結成分を group 優先、残り LPT で決定的に割り付ける。"""
+    """file/group 連結成分を group 優先、残り所要秒 LPT で割り付ける。"""
 
     if shard_count not in {2, 3}:
         raise ShardError("shard-count")
@@ -385,11 +389,26 @@ def allocate(records: Sequence[ItemRecord], shard_count: int) -> Assignment:
     components = _components(records)
     if len(components) < shard_count:
         raise ShardError("empty-shard")
+    durations = json.loads(_DURATION_LEDGER_PATH.read_text(encoding="utf-8"))[
+        "duration_seconds_by_nodeid"
+    ]
+    weights = {}
+    for record in records:
+        duration = durations.get(record.nodeid)
+        if duration is None and record.group is not None:
+            # Historical ledger entries retain the matching xdist suffix.
+            duration = durations.get(f"{record.nodeid}@{record.group}")
+        # D104: allocation hints, not authoritative wall measurements.  Give
+        # unseen tests one second each so new work is never free (nor rounded
+        # down to the millisecond-scale median of the mostly tiny tests).
+        weights[record.nodeid] = 1.0 if duration is None else float(duration)
+    for component in components:
+        component["weight"] = sum(weights[nodeid] for nodeid in component["nodeids"])
     grouped = [component for component in components if component["groups"]]
     remaining = [component for component in components if not component["groups"]]
     group_names = sorted({group for component in grouped for group in component["groups"]})
     bins: list[list[dict[str, Any]]] = [[] for _ in range(shard_count)]
-    loads = [0] * shard_count
+    loads = [0.0] * shard_count
 
     if shard_count >= len(group_names):
         if any(

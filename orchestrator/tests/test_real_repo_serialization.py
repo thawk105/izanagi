@@ -4669,6 +4669,219 @@ def test_receipt_memo_optout_only_selection_does_not_prewarm():
     assert calls == [{"run_id": None, "session_id": "session-test"}]
 
 
+@pytest.fixture(params=["collection_finish", "xdist_node_collection_finished"])
+def memo_barrier_probe(request, monkeypatch):
+    """Exercise real hook/helper wiring with fake memo endpoints and locks."""
+    suite = _load_suite_conftest()
+    config = _ReceiptHookConfig({"collectonly": False, "testrunuid": "barrier-run"})
+    setattr(config, suite._ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR, "oracle-session")
+    ids = [
+        next(iter(sorted(_RECEIPT_MEMO_CONSUMERS_GOLDEN))),
+        next(iter(sorted(ORACLE_ENVIRONMENT_CONSUMERS_GOLDEN))),
+    ]
+    receipt = mock.Mock()
+    oracle = mock.Mock()
+    monkeypatch.setattr(suite, "_receipt_memo_module", lambda: SimpleNamespace(
+        prewarm_real_repo_receipt=receipt,
+        finish_real_repo_receipt_session=mock.Mock(),
+    ))
+    monkeypatch.setattr(suite, "_oracle_environment_memo_module", lambda: SimpleNamespace(
+        prewarm_oracle_environment=oracle,
+        finish_oracle_environment_session=mock.Mock(),
+    ))
+    monkeypatch.setattr(suite, "_real_repo_locks", lambda access: contextlib.nullcontext())
+    monkeypatch.delenv("IZANAGI_TASK_RUN_SIDECAR", raising=False)
+
+    def invoke():
+        if request.param == "collection_finish":
+            suite.pytest_collection_finish(SimpleNamespace(
+                config=config, items=[_receipt_hook_item(nodeid) for nodeid in ids],
+            ))
+        else:
+            suite.pytest_xdist_node_collection_finished(SimpleNamespace(
+                config=config, workerinput={"testrunuid": "barrier-run"},
+            ), ids)
+
+    return SimpleNamespace(
+        suite=suite, config=config, ids=ids, receipt=receipt, oracle=oracle,
+        invoke=invoke, hook=request.param,
+    )
+
+
+def test_memo_barrier_calls_both_named_endpoints_once(memo_barrier_probe):
+    probe = memo_barrier_probe
+    probe.invoke()
+    probe.receipt.assert_called_once()
+    probe.oracle.assert_called_once()
+    expected_run_id = None if probe.hook == "collection_finish" else "barrier-run"
+    assert probe.receipt.call_args.kwargs["run_id"] == expected_run_id
+    assert probe.oracle.call_args.kwargs["run_id"] == expected_run_id
+
+
+@pytest.mark.parametrize("failed", ["receipt", "oracle"])
+@pytest.mark.parametrize("error_type", [RuntimeError, SystemExit])
+def test_memo_barrier_propagates_single_exception(memo_barrier_probe, failed, error_type):
+    probe = memo_barrier_probe
+    error = error_type(f"{failed} failed")
+    getattr(probe, failed).side_effect = error
+    with pytest.raises(error_type) as caught:
+        probe.invoke()
+    assert caught.value is error
+
+
+@pytest.mark.parametrize("failed", ["receipt", "oracle"])
+def test_memo_barrier_waits_for_peer_after_exception(memo_barrier_probe, failed):
+    probe = memo_barrier_probe
+    failure_started = threading.Event()
+    peer_started = threading.Event()
+    release = threading.Event()
+    returned = threading.Event()
+    completed = threading.Event()
+    errors = []
+    error = RuntimeError("prewarm failed")
+
+    def fail(**kwargs):
+        failure_started.set()
+        raise error
+
+    def finish(**kwargs):
+        peer_started.set()
+        assert failure_started.wait(5), "failing prewarm never started"
+        assert release.wait(5), "test failed to release peer"
+        completed.set()
+
+    getattr(probe, failed).side_effect = fail
+    getattr(probe, "oracle" if failed == "receipt" else "receipt").side_effect = finish
+    def invoke():
+        try:
+            probe.invoke()
+        except BaseException as exc:
+            errors.append((exc, completed.is_set()))
+        finally:
+            returned.set()
+
+    caller = threading.Thread(target=invoke, daemon=False)
+    caller.start()
+    try:
+        assert failure_started.wait(5)
+        assert peer_started.wait(5)
+        assert not returned.wait(0.05), "exception escaped with unfinished peer"
+    finally:
+        release.set()
+        caller.join()
+    assert errors == [(error, True)]
+    assert completed.is_set(), "exception escaped before peer completion"
+
+
+def test_memo_barrier_worker_runs_neither_endpoint(memo_barrier_probe, capsys):
+    probe = memo_barrier_probe
+    probe.config.workerinput = {}
+    probe.invoke()
+    probe.receipt.assert_not_called()
+    probe.oracle.assert_not_called()
+    assert "IZANAGI_MEMO_PREWARM_V1 " not in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("delayed", ["receipt", "oracle"])
+def test_memo_barrier_returns_only_after_both_complete(memo_barrier_probe, delayed):
+    probe = memo_barrier_probe
+    entered = threading.Event()
+    release = threading.Event()
+    returned = threading.Event()
+    completed = {"receipt": threading.Event(), "oracle": threading.Event()}
+    errors = []
+
+    def endpoint(name):
+        def run(**kwargs):
+            if name == delayed:
+                entered.set()
+                assert release.wait(5), "test failed to release prewarm"
+            completed[name].set()
+        return run
+
+    probe.receipt.side_effect = endpoint("receipt")
+    probe.oracle.side_effect = endpoint("oracle")
+
+    def invoke():
+        try:
+            probe.invoke()
+            assert all(event.is_set() for event in completed.values())
+        except BaseException as exc:
+            errors.append(exc)
+        finally:
+            returned.set()
+
+    caller = threading.Thread(target=invoke, daemon=False)
+    caller.start()
+    try:
+        assert entered.wait(5)
+        assert not returned.wait(0.05), "barrier returned with unfinished memo"
+    finally:
+        release.set()
+        caller.join()
+    assert not errors, errors
+    assert all(event.is_set() for event in completed.values())
+
+
+def test_memo_barrier_prewarm_jobs_overlap(memo_barrier_probe):
+    probe = memo_barrier_probe
+    started = [threading.Event(), threading.Event()]
+
+    def endpoint(index):
+        def run(**kwargs):
+            assert not threading.current_thread().daemon
+            started[index].set()
+            assert started[1 - index].wait(5), "prewarms were serialized"
+        return run
+
+    probe.receipt.side_effect = endpoint(0)
+    probe.oracle.side_effect = endpoint(1)
+    probe.invoke()
+    probe.receipt.assert_called_once()
+    probe.oracle.assert_called_once()
+
+
+def test_memo_barrier_both_failures_keep_receipt_primary(memo_barrier_probe):
+    probe = memo_barrier_probe
+    receipt_error = RuntimeError("receipt failure")
+    oracle_error = ValueError("oracle failure")
+    probe.receipt.side_effect = receipt_error
+    probe.oracle.side_effect = oracle_error
+    with pytest.raises(RuntimeError) as caught:
+        probe.invoke()
+    assert caught.value is receipt_error
+    assert caught.value.__cause__ is oracle_error
+    assert oracle_error.__traceback__ is not None
+
+
+def test_memo_barrier_emits_one_json_timing_line(memo_barrier_probe, capsys):
+    probe = memo_barrier_probe
+    probe.invoke()
+    lines = capsys.readouterr().err.splitlines()
+    prefix = "IZANAGI_MEMO_PREWARM_V1 "
+    timings = [json.loads(line[len(prefix):]) for line in lines if line.startswith(prefix)]
+    assert len(timings) == 1
+    payload = timings[0]
+    assert set(payload) == {
+        "hook", "receipt_memo_s", "oracle_environment_memo_s", "barrier_s",
+    }
+    assert payload["hook"] == probe.hook
+    for key in ("receipt_memo_s", "oracle_environment_memo_s"):
+        assert isinstance(payload[key], float)
+        assert 0 <= payload[key] <= payload["barrier_s"]
+    probe.invoke()
+    assert prefix not in capsys.readouterr().err
+
+
+def test_memo_barrier_no_consumers_emits_no_timing(memo_barrier_probe, capsys):
+    probe = memo_barrier_probe
+    probe.ids.clear()
+    probe.invoke()
+    probe.receipt.assert_not_called()
+    probe.oracle.assert_not_called()
+    assert "IZANAGI_MEMO_PREWARM_V1 " not in capsys.readouterr().err
+
+
 def test_receipt_memo_both_worker_guards_are_required_as_redundant_defense():
     """outer/helper 両 guard を同時に外す source 変異は worker payer を再発させる。"""
     suite_conftest = _load_suite_conftest()
@@ -4680,19 +4893,19 @@ def test_receipt_memo_both_worker_guards_are_required_as_redundant_defense():
         "        return\n"
     )
     outer_guard = (
-        '    if not hasattr(session.config, "workerinput"):\n'
+        '        if not hasattr(session.config, "workerinput"):\n'
+        "            _prewarm_receipt_memo(\n"
+        "                session.config,\n"
+        "                (_real_repo_node_id(item) for item in session.items),\n"
+        "                run_id=None,\n"
+        "            )\n"
+    )
+    outer_mutant = (
         "        _prewarm_receipt_memo(\n"
         "            session.config,\n"
         "            (_real_repo_node_id(item) for item in session.items),\n"
         "            run_id=None,\n"
         "        )\n"
-    )
-    outer_mutant = (
-        "    _prewarm_receipt_memo(\n"
-        "        session.config,\n"
-        "        (_real_repo_node_id(item) for item in session.items),\n"
-        "        run_id=None,\n"
-        "    )\n"
     )
     assert source.count(inner_guard) == 1
     assert source.count(outer_guard) == 1

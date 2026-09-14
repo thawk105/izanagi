@@ -4507,6 +4507,91 @@ def test_result_replace_fsyncs_parent_directory_after_publish(
     }
 
 
+def _job_trace_records(stderr):
+    prefix = "IZANAGI_DISPATCH_JOB_TRACE "
+    records = [json.loads(line[len(prefix):]) for line in stderr.splitlines()
+               if line.startswith(prefix)]
+    assert records
+    for record in records:
+        assert type(record["time_ns"]) is int and record["time_ns"] > 0
+        assert type(record["pid"]) is int and record["pid"] > 0
+    return records
+
+
+def test_result_trace_brackets_real_file_and_directory_fsync(tmp_path, capfd):
+    payload = {"stage": "child", "child_rc": 23}
+    DC._write_result_replace(tmp_path / "result.json", payload)
+    records = _job_trace_records(capfd.readouterr().err)
+    assert [record["event"] for record in records] == [
+        "result-file-fsync-start", "result-file-fsync-complete",
+        "result-published", "result-dir-fsync-start",
+        "result-dir-fsync-complete", "result-write-return",
+    ]
+    assert json.loads((tmp_path / "result.json").read_text()) == payload
+
+
+def test_result_trace_does_not_claim_failed_directory_fsync_completed(
+    tmp_path, monkeypatch, capfd,
+):
+    real_fsync = DC.os.fsync
+
+    def fail_directory_only(fd):
+        if DC.stat.S_ISDIR(os.fstat(fd).st_mode):
+            raise OSError("injected directory fsync failure")
+        return real_fsync(fd)
+
+    monkeypatch.setattr(DC.os, "fsync", fail_directory_only)
+    with pytest.raises(OSError, match="injected directory fsync failure"):
+        DC._write_result_replace(tmp_path / "result.json", {"child_rc": 23})
+    events = [r["event"] for r in _job_trace_records(capfd.readouterr().err)]
+    assert events == [
+        "result-file-fsync-start", "result-file-fsync-complete",
+        "result-published", "result-dir-fsync-start",
+    ]
+    assert json.loads((tmp_path / "result.json").read_text()) == {"child_rc": 23}
+
+
+def test_job_result_keys_and_child_rc(tmp_path):
+    request, digest = _write_bound_job_run_request(
+        tmp_path / "submission", repo_root=_REPO, task="generic",
+        args=[sys.executable, "-c", "raise SystemExit(23)"],
+    )
+    assert _actual_job_run(request, digest) == 23
+    result = json.loads((request.parent / "result.json").read_text())
+    assert set(result) == {
+        "schema_version", "stage", "child_rc", "pbs_jobid", "hostname",
+        "interpreter", "error", "request_sha256",
+    }
+    assert result["child_rc"] == 23
+
+
+def test_job_directory_fsync_failure_returns_infra_with_failure_trace(
+    tmp_path, monkeypatch, capfd,
+):
+    request, digest = _write_bound_job_run_request(
+        tmp_path / "submission", repo_root=_REPO, task="generic",
+        args=[sys.executable, "-c", "raise SystemExit(23)"],
+    )
+    real_fsync = DC.os.fsync
+
+    def fail_final_directory_only(fd):
+        if DC.stat.S_ISDIR(os.fstat(fd).st_mode):
+            result = json.loads((request.parent / "result.json").read_text())
+            if result["stage"] == "child":
+                raise OSError("injected final directory fsync failure")
+        return real_fsync(fd)
+
+    monkeypatch.setattr(DC.os, "fsync", fail_final_directory_only)
+    assert _actual_job_run(request, digest) == DC.INFRA_RC
+    records = _job_trace_records(capfd.readouterr().err)
+    events = [r["event"] for r in records]
+    assert "result-dir-fsync-start" in events
+    assert "result-dir-fsync-complete" not in events
+    assert records[-2]["event"] == "result-write-failed"
+    assert records[-1]["event"] == "job-return"
+    assert records[-1]["rc"] == DC.INFRA_RC
+
+
 def test_guard_create_failure_never_reaches_isolated_launcher(tmp_path):
     submission = tmp_path / "submission"
     request_path, request_sha256 = _write_bound_job_run_request(
