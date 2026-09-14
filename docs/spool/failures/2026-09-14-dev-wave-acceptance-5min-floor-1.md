@@ -216,3 +216,26 @@ seq: 1
   複数走っていれば本件である。`status=lock-busy` かつ `waited_s << limit_s` かつ
   `window_elapsed_s > limit_s` の組が `post-provenance` 位相の署名、
   `waited_s == window_elapsed_s == limit_s` が `initial` 位相の署名になる。
+
+## 再発
+
+### F480
+
+- **再発: 2026-09-14** — **受入 shard の仕事量を均等化した瞬間に、軽かった shard-1 で
+  22 件が一斉に赤になった。** すべて `orchestrator/tests/test_codex_worker_launch.py`。
+  割付の重みを nodeid 件数 (`weight=len(nodeids)`) から所要秒へ変えたところ、
+  最遅 shard の wall は 334.2 → **306.9 秒**へ下がり 3 shard が約 300 秒でそろった
+  (shard-0 334.2→306.9 / shard-1 214.9→306.1 / shard-2 225.2→296.2)。
+  その代償として **shard-1 の密度がほぼ倍**になり、launcher の壁時計予算 `wall='10'` を超えた。
+  失敗本文は `LauncherReturncodeMismatch: actual rc timeout != expected rc 0`、
+  `loadavg=(63.67, 37.03, 21.43)`、および
+  `isinstance(TimeoutExpired([...], 10), subprocess.CompletedProcess)` が False。
+  抜き取った 6 件は**旧構成の 54 走すべてで緑**、変更後の 1 走で赤で、
+  **shard は動いていない** (移動ではなく密度の上昇が原因)。
+  **本族が受入の高速化そのものを阻んでいることが、初めて数値で示された。**
+  F273 (実 launcher の spawn と並行 codex 子) と F480 (xdist のスケジューリング遅延) に対し、
+  本件は**同じ shard に載る仕事量を増やしただけで発火する**点が新しい。
+  22 件は単発ではなく族全体なので F766 の抜け道 (当該 1 呼び出しの予算を広げる) は使えず、
+  絶対規律 2 に従って配分の変更を撤去した。
+  **5 分への順序が確定した — F480 族 ([T-2095]) を先に解いてから配分を均す。**
+  逆にすると均した瞬間に赤になる。撤去後の 2 file は `38551b892` と byte 完全一致。
