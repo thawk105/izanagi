@@ -213,19 +213,28 @@ seq: 1
 - **`post-provenance` 型は負荷で決まり、順番待ちでは解けない。**
   全史 provenance 監査の所要は load average と強く相関する (ある wave の実測)。
 
-  | load average (1 分) | 監査の所要 |
-  |---|---|
-  | 75.33 | 480 秒で timeout (未完) |
-  | 87.94 | 367.148 秒 |
-  | 126.76 | 574 秒で完走 (rc=0、`9786 件、新規違反なし`) |
+  | load average (1 分) | 監査の所要 | 出所 |
+  |---|---|---|
+  | 約 35.84 | 268.8 秒 | 別 session |
+  | 約 37.97 | 302.1 秒 | 別 session |
+  | 約 70 | 419.2 秒 | 別 session |
+  | 75.33 | 480 秒で timeout (未完) | 本 wave |
+  | 87.94 | 367.148 秒 | 本 wave |
+  | 126.76 | 574 秒で完走 (rc=0、`9786 件、新規違反なし`) | 本 wave |
 
   **監査そのものは通る。落ちているのは所要時間だけである。**
-  2 点から外挿すると約 5.4 秒/load で、180 秒の窓に対応する load はおおよそ **40 前後**。
   同じ wave の直近の land は `phase=post-provenance, waited_s=0.007,
-  window_elapsed_s=367.148` で、**lock は即座に取れていた。**
-  したがって順番待ちで解けるのは `phase=initial` 型だけで、
+  window_elapsed_s=367.148` で、**lock は即座に取れていた** (別 session の 3 点も
+  `waited_s` ≤ 0.055 秒)。したがって順番待ちで解けるのは `phase=initial` 型だけで、
   **`post-provenance` 型は負荷が下がるまで誰も通らない。**
-  当座の運用は「load 40 未満を待ってから 1 本ずつ投げる」。
+
+  **180 秒の窓に対応する load の閾値は決まっていない。** 本 fragment は当初、
+  本 wave の 2 点だけから「約 5.4 秒/load、閾値はおおよそ 40 前後」と外挿していたが、
+  別 session の 3 点を足すと同じ外挿は 25 付近を指す。6 点は単調でもなく
+  (75.33 で未完、87.94 で 367 秒)、load average 以外の項 (同時に走る受入の本数、
+  lustre 側の混み方) が効いている。**単一の閾値を運用の判定器にしてはいけない。**
+  当座の運用は「load が下降局面にあるときに 1 本ずつ投げ、
+  `window_elapsed_s` を毎回記録して点を増やす」。
 - 再発検知: main の先端 commit 時刻と現在時刻の差。30 分以上開いていて `dev_wave_land.py` が
   複数走っていれば本件である。`status=lock-busy` かつ `waited_s << limit_s` かつ
   `window_elapsed_s > limit_s` の組が `post-provenance` 位相の署名、
@@ -270,6 +279,76 @@ seq: 1
 - 再発検知: setup error の本文に `real-repo lock deadline exceeded` が出たら本件である。
   `holders=` の mode 別内訳と `time` を記録し、投入時の load average と併記する。
   **単独再走が緑なら実装差分へ帰属させない** (`DW-O18`)。
+
+### {{F:fold-rollback-discards-the-whole-land}}. land の fold 失敗が main を merge 前まで巻き戻し、着地済みに見えた wave の記録が丸ごと列から消えた [手順漏れ] [観測]
+
+- 事象: 2026-09-14、別 session から「main が巻き戻っている」と通報を受け、自分の ref で裏取りした。
+  main の reflog は次の並びだった。
+
+  ```
+  7b00e6860 main@{2026-09-14 12:37:30 +0900}: merge 7b00e6860...: Fast-forward
+  b43dce6a9 main@{2026-09-14 12:38:33 +0900}: commit: Fold landed documentation fragments
+  c2a28d67d main@{2026-09-14 12:39:38 +0900}:
+  ```
+
+  3 行目の reflog message が**空**である。commit・merge・reset はいずれも message を残すので、
+  空は `git update-ref` による直接の ref 書き換えを意味する。
+
+- 根本原因: **破損ではなく `tools/dev_wave_land.py` の設計どおりの取り消しである。**
+  `_rollback_fold` は fold が失敗すると
+  `update-ref refs/heads/main <rollback_ref> <current>` の CAS で main を戻す。
+  通常経路の呼び出しは `rollback_ref=locked_main` — すなわち
+  **land が wave を merge する前の main tip** を渡している。
+  したがって fold の失敗は fold commit だけでなく **land の merge ごと巻き戻す。**
+  1 回の land で main が進み、1 分後に何事も無かったことになる。
+
+- 影響: 捨てられたのは B-4 記述統計 erratum wave の 11 commit で、実体は
+  `c36136237` (spool fragment 3 本) と `31bc00819` (事前登録追補)。
+  **記録自体は失われていない** — branch
+  `worktree-dev-wave-t2547-b4-descriptive-erratum` が保持している。
+  ただし当該 session は既に居らず、**誰も再 land していない。**
+  巻き戻しは land の rc で当事者に返るが、**当事者が居なくなれば誰も拾わない。**
+
+- **被害を番号で追跡してはいけない。** 現 main に `F970` が無く、`D1993` が
+  別内容で在るのは、**採番が fold 時に行われる**ため後続 wave が同じ番号を使ったからで、
+  矛盾ではない。巻き戻しの被害は**番号ではなく題 (中身) で照合する。**
+
+- **波及は実在した。被害者は 1 wave、手戻り約 20 分。**
+  `dev-wave-t2582-manifest-measurement-sources` が窓の中で main を取り込んでいた。
+  同 wave の branch reflog (逐語)。
+
+  ```
+  0864d326d worktree-dev-wave-t2582-manifest-measurement-sources@{2026-09-14 12:38:42 +0900}: commit (merge): Merge local main before the K2 knowledge-source acceptance run
+  f5b567ce2 worktree-dev-wave-t2582-manifest-measurement-sources@{2026-09-14 12:58:53 +0900}: reset: moving to f5b567ce2...
+  ```
+
+  merge は **12:38:42**、取り込んだ main は `7b00e68604f...`。
+  その後の land が `incorporated main is not an ancestor of locked main` を返し、
+  12:58:53 に受入 tip へ reset して取り込み直した。**検知から復旧まで約 20 分。**
+
+- **`git branch -a --contains` は被害者の検出に使えない。**
+  当初この検査で 0 件を得て「波及なし」と結論したが、誤りであった。
+  **被害を受けた wave は自分で reset して取り込み直すため、事後の `--contains` では消えている。**
+  窓に当たった wave が居たかどうかは、各 wave の **branch reflog の時刻**で見る。
+  生存者だけを数えて「被害ゼロ」と書くと、次に当たった wave が
+  自分の branch の異常を巻き戻しと結びつけられなくなる。
+
+- 頻度: main の reflog 400 件 (2026-09-07〜09-14) で空 message の ref 書き換えは **3 回**
+  (09-07 14:22、09-10 11:37、09-14 12:39)。2〜3 日に 1 回の常在現象である。
+
+- 恒久対応: forward-merge 経路を使う wave 共通の規律として、**merge の直前と land の直後の両方で、
+  取り込んだ main が現 main の祖先かを確かめる。**
+  `git merge-base --is-ancestor <取り込んだ main の SHA> refs/heads/main` の rc が
+  0 なら正常、1 なら巻き戻しの窓に当たっている。land 直後の 1 手で足りる。
+  **これは検知であって予防ではない。** merge 自体は成功するので、
+  `_rollback_fold` が走った直後に merge した wave は必ず一度は踏む。
+  踏んだら受入 tip へ reset して取り込み直す (上記の実例がその手順である)。
+  **機構側の予防 (fold の失敗で land の merge まで戻さない / 巻き戻しを列へ通知する) は
+  land の受理集合に触れるため、本 wave では決めずユーザー裁定へ返す。**
+
+- 再発検知: `git reflog show main --date=iso` で message が空の行を探す。
+  その行の**直前**の SHA を `X` として `git log --oneline refs/heads/main..X` が
+  捨てられた commit の一覧になる。
 
 ## 再発
 
