@@ -193,6 +193,10 @@ _REAL_REPO_CLASSIFIED_NODES_GOLDEN = frozenset({
     "test_codex_reasoning_ab.py::test_validate_schedule_legacy_different_arm_same_model_pair_remains_valid",
     # helper が実親 repo と実共有 submodule を clone source として直接読む reader。
     "test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e",
+    "test_s8b_floor_campaign.py::test_public_official_preflight_accepts_versioned_protocol",
+    "test_s8b_floor_campaign.py::test_public_official_preflight_accepts_legacy_protocol",
+    "test_s8b_floor_campaign.py::test_public_official_preflight_rejects_resolved_protocol_byte_drift",
+    "test_s8b_floor_campaign.py::test_public_official_preflight_rejects_legacy_byte_drift_after_capture",
     "test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null",
     "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
     "test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused",

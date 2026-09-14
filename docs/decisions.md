@@ -60874,3 +60874,186 @@ toolchain の realpath、depfile の出力先) は、**呼び手が共有枝と�
 
 - **常に両層同時変異を足す** — 生存が無いのに変異を増やすと、
   受入所要だけが増えて検出力が上がらない。
+
+## D2009. 集団報告の入口は新しい Pegasus 実行体を作らず、手順文書と CLI 束縛テストで置く (2026-09-14)
+
+**決定:** B-10 静的 tail 本走の 3 workload を 1 集団として報告する入口を、
+`tools/pegasus/` 配下の新しい実行体としては作らない。操作手順を
+`docs/b10-backoff-static-tail-submission.md` に置き、その手順に書いた argv を**文書から抜き出して**
+本走 driver の argument parser へ通すテストで束縛する。文書と CLI が乖離すればテストが赤になる。
+
+この形が保証しないことも同じ文書に書く。shell の wrapper が無いので、wrapper の終了コード伝播は
+検査対象にならない。
+
+**理由:**
+- `tools/pegasus/` 配下へ実行体を置くと、admission registry へ実行場所の分類を宣言する必要が生じる。
+  `test_bash_pegasus_execution_inventory_is_synchronized` が、拡張子・実行 bit・shebang の
+  いずれかを持つ file の集合と registry key の集合の一致を要求する。
+- その分類を実測で裏づける材料 (完走した 3 本の campaign) が、入口を作る時点では存在しない。
+  分類を実測なしに動かさないことは既決である。
+- 3 走を 1 集団として束ねる仕組みは既に 2 箇所にある。投入 receipt の group id と workload ごとの
+  出力 root、および driver の報告 subcommand が 3 つの campaign lock 間で集団の同一性を
+  突き合わせる経路である。欠けていたのは両者をつなぐ乖離しない手順だけだった。
+
+**却下した選択肢:**
+- 薄い shell を 1 本置いて registry へ分類を足す — 実測なしの分類宣言になる。
+- 置き場所を `tools/pegasus/` の外へずらす — inventory 検査を意図的に避ける形であり不正直。
+- 手順を書かずに driver の CLI だけを正本とする — 3 campaign の選び方 (出力 root ではなく
+  その配下の campaign directory を明示して渡す) が人の記憶に残り、取り違えが検出されない。
+
+## D2010. 投入 script の「旧系列 argv 不変」検査は、可変値を消さずその場で検証する (2026-09-14)
+
+**決定:** B-10 の投入 script を編集する wave で「既存系列の起動 argv を変えていない」ことを示す
+テストは、可変値を正規表現で潰して比較しない。可変値ごとに、その値が**何と一致すべきか**を
+その場で検証する。
+
+- job script の SHA-256 は、現行 job script の実 bytes から計算した値と一致すること
+- 投入 nonce は 3 job と manifest 事象で同一であること
+- group id の時刻部は、起動の直前と直後に取った UTC の窓に入ること
+- 同じ引数で 2 回起動して group id が異なること
+
+残る全部 (環境変数名・値・順序、workload の fan-out、出力 path の組み立て) は完全一致で比較する。
+生成された投入 receipt の schema・事象種別・走行種別と argv の対応も同じ走行で観測する。
+
+**理由:**
+- 投入 script が job へ渡す環境変数には job script 自身の SHA-256 が入る。job script を編集する
+  wave では、旧系列の argv に現れるこの値が必ず変わる。bytes 完全一致の比較は、書いた瞬間に
+  赤になるか、値を潰して恒真になるかのどちらかにしかならない。
+- 値を潰すと、誤った 64 桁 SHA を渡す編集が「argv 不変」の緑をすり抜ける。その job は
+  実行前に SHA 束縛で拒否されるので、検査が通ったこと自体が誤った安心になる。
+- group id を固定値へ置換する編集も、形式だけの検査では通る。固定化されると同じ出力親への
+  次回投入が receipt 衝突で拒否される。
+
+**却下した選択肢:**
+- 可変値を比較対象から除外する — 上記のすり抜けを許す。
+- 可変値ごと bytes 一致を要求する — 編集のたびに赤になり、検査として機能しない。
+- 期待値を検査対象の script から逆算する — 二重定義の片側だけを変える編集に追随して緑になる。
+
+## D2011. role sink 非干渉 node の status 検査が守る範囲は登録した変異集合までとし、生存する弱化は塞がずに測って記録する (2026-09-14)
+
+**決定:** `orchestrator/tests/test_p3_autonomous_workload_trial.py` の
+`test_role_sink_bytes_vary_only_at_declared_declassifications` へ足した
+report status 検査について、次の 2 つの弱化が両 node を緑のまま通すことを実測値として記録し、
+**これを塞ぐための追加の検査・gate・framework は置かない。**
+
+- helper の述語を `report["cells"][0]["stop_reason"] not in {"supervisor-error", "role-invalid"}`
+  へ書き換える形。負例の partial 2 形はどちらもこの述語で拒否されるため、
+  **status を一度も読まない helper が両 node を緑にできる。**
+- `run_wire` 内の helper 呼出しを `cell = report["cells"][0]` へ 1 行置換する形。
+  helper 本体は残るので負例は通り、本 node は status を検査しなくなる。
+
+**保証すると書いてよいのは次の 3 点だけである。**
+
+1. helper は実 `run_trial` が返す partial report を拒否する (負例が partial の 2 形で実測)。
+2. helper の述語本体を除去・弱化・受理拡大する 3 変異はいずれも負例が KILLED する。
+3. 呼出し行を単に削除する変異は本 node が `NameError` で KILLED する。
+
+**理由:**
+
+- 本 wave が直した欠陥は「恒真な保証 — 謳うだけで発火しない検査」の型である。
+  保証範囲を実際より広く書けば、同じ型の欠陥を記述の側で作り直すことになる。
+- D387 が既に定めているとおり、gate と検査を同じ主体が変更できる限り、repo 内の挙動検査は
+  意図的な弱体化への完全な防壁ではない。上記 2 形はその射程内であり、本 wave が作った欠陥ではない。
+- 有限個の負例をいくつ足しても、それらを全部満たす別述語への書き換えは常に残る。
+  負例を足し続ける設計は終わらない。**主張を測定へ置き換えるほうが安く、正直である。**
+- 生存を「静的にそう見える」で済ませず、変異として登録して SURVIVED を実測した。
+  注入 diff の sha256 は変異ごとに相異なり anchor は各 1 件だったので、注入は実在する。
+
+**却下した選択肢:**
+
+- 負例へ第 3・第 4 の partial 形を足して上記述語を殺す — 同じ regress が次の述語で再発する。
+  依頼が明示的に scope 外とした「仮想リスク向けの検査追加」にも当たる。
+- helper を production 側へ移して test から改変できなくする — production 変更は D1847 が禁じており、
+  受理集合を変える大きな設計変更を nit の対策として持ち込むことになる。
+- 生存を記録せず「負例で守られている」とだけ書く — 本 wave が直した欠陥そのものである。
+
+## D2012. report status の一貫性は production 側の completeness gate が既に担っており、test 側の status 検査は独立した第 2 層として位置づける (2026-09-14)
+
+**決定:** role sink 非干渉 node へ足した status 検査は、**production 側の既存層を置き換えるものではなく、
+利用点で完了性を明示する第 2 層である**と位置づける。「この検査が無ければ通っていた走がある」
+という主張は、`orchestrator/campaign/autonomous_trial_completeness.py` の各 gate を通過する
+本物の partial report を示せた場合にだけ書く。
+
+実測した内側の層は次の 3 つである。いずれも `p3_autonomous_workload_trial.py:3902` から
+`run_trial` の末尾で無条件に呼ばれる `assert_autonomous_trial_completeness()` の中にある。
+
+- `_check_status_projection` (同 file 2886) — producer と同じ述語 (cells 数 /
+  `fatal_error is None` / stop_reason / admission) を独立に再計算し、`report["status"]` と
+  一致しなければ `[terminal-projection] report status must be 'complete'` で落とす。
+  **`status` リテラルだけを反転する変異はここで死ぬ。**
+- 同 file 2405 — journal に対応する terminal event を持たない `fatal_error` を拒否する。
+  **report へ `fatal_error` を直接注入する変異はここで死ぬ。**
+- `[workload-coverage]` — 欠けた workload が無いのに wall-budget terminal event があると拒否する。
+  **wall budget 経路を強制する変異はここで死ぬ。**
+
+**理由:**
+
+- 変異で受理集合の縮小を示そうとして 3 回続けて内側の層に殺された。これは偶然ではなく、
+  report の完了性について production 側に厚い層が既にあるという実測である。
+  この事実を書かずに「穴を塞いだ」とだけ書くと、成果を過大に伝える。
+- 4 度目の再照準 (`_run_pending_critics` 末尾への `raise` 注入) で、cell が完成し 4 role の
+  payload も WAL も揃った後に `supervisor-error` が立つ経路を作り、内側 gate をすべて通過した
+  本物の partial report を得た。このとき本 node は追加した検査で赤になり、
+  呼出し接続を外すと緑になる。**縮小は実在するが、それを示すには内側の層を全部通す必要があった。**
+- 単一理由性 (F820) の確認は、赤の**本文**を読まないと成立しない。rc と node 名だけでは
+  内側の層に殺された変異を「自分の gate が効いた」と誤読する。
+
+**却下した選択肢:**
+
+- 内側の層があるから test 側の検査は不要とする — 内側の層が守るのは status と事実の**一貫性**で
+  あって、trial が完了したことではない。本物の partial は現に返る。
+- 差分が出るまで再照準を繰り返さず「差分は示せなかった」で閉じる — 3 回目までの結論であり、
+  4 回目で実際に示せた。示せる証拠を探さずに限界を主張するのは怠慢である。
+
+## D2013. official 床値の許可表は resolver が選んだ protocol の実 path へ exact 1 件だけ束縛する (2026-09-14)
+
+**決定:** 起動証明書の freeze allowlist は、legacy 固定 anchor `output/s8b-freeze/floor_protocol.json` へ
+その file 自身の bytes hash を束縛し、**実行時に resolver が選んだ protocol の実 path** へ実行 protocol の
+canonical hash を束縛する。両者が同じ path なら 1 entry に畳む。
+
+allowlist の key として新たに受理してよいのは、**呼び手が渡した `protocol_relpath` と exact 一致する
+1 件だけ**である。命名規則・正規表現・prefix 一致で受理してはならない。`protocol_relpath` は公開入口が
+保持した authority record からのみ取り、下位関数が resolver を呼んで導出してはならない。新 keyword は
+すべて既定 `None` とし、`None` のときの受理集合・分類・digest は変更前と 1 bit も違わない。
+
+**理由:**
+
+- D1111 の解決で protocol は世代別 namespace へ分かれたが、起動証明書の allowlist がその改版に
+  追随していなかった。resolver が世代別 protocol を選ぶ限り、legacy file の bytes hash が
+  resolved protocol の canonical hash と一致することは構造的にありえない。official 床値走行が
+  一度も成功していない事実はこれで説明がつく。
+- 同じ強度の検査を正しい対象へ向けるだけなので、受理集合は resolver の権威が既に固定した 1 path
+  ぶんしか広がらない。族ごと受理する案は、選ばれていない世代別 protocol まで allowlist key として
+  通してしまう。
+- legacy anchor の bytes は、直前の `historical_protocol` 比較 (pre_oracle_head の Git blob との一致)
+  が独立に押さえている。allowlist の legacy entry はその検査済み bytes を後続の 2 回の走査へ
+  束縛する役割であり、**独立検証ではない**。
+
+**却下した選択肢:**
+
+- legacy 固定 file を現行 pin で再封印して両者を一致させる — 凍結 bytes を変えることになる。
+- resolver を legacy 固定 path へ戻す — D1111 の解決を巻き戻す。
+- 世代別 protocol の命名規則で allowlist key を受理する — 選ばれていない世代まで通る。
+
+## D2014. 到達しない fail-closed を置くより、private seam は変更前の挙動を保つ (2026-09-14)
+
+**決定:** campaign の private core は official 分岐で、authority record があればその実 path を使い、
+**無ければ legacy anchor へ fallback する**。record 不在を理由に official を拒否する fail-closed は
+置かない。公開入口に「record が非 None であること」の assert も新設しない。
+
+**理由:**
+
+- private core の非 test 呼び手は公開入口 1 箇所だけで、その入口は authority を解決できないときに
+  例外を投げる。`None` が届く経路は monkeypatch だけである。したがって fail-closed は production で
+  決して発火しない。**発火しない assert を足すことは、謳うだけで効かない保証を作ることである。**
+- fail-closed を置いた初稿は、共有 fixture が official core を直接呼ぶ既存テスト 28 件を落とした。
+  通すには fixture が authority record を捏造することになり、捏造した record を根拠に
+  「実 path へ束縛した」と主張する形になる。これは正しさ検査の弱体化である。
+- fallback が効くのは production が到達しない seam だけで、そこでの挙動は変更前と同一である。
+  official の production 経路が実 path へ exact に束縛される性質は変わらない。
+
+**却下した選択肢:**
+
+- 共有 fixture 側へ authority record を配線する — 捏造した権威で gate を恒真にする。
+- 公開入口へ非 None の assert を足す — 恒真である。
+- 既存 28 件の期待値を変える — 正しさ検査の弱体化にあたる。
