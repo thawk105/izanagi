@@ -1,0 +1,112 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 150,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 2400,
+ "mutations": [
+  {
+   "id": "M1-supervisor-loader-reread",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    schedule = _load_json_object(frozen_schedule, data=schedule_bytes)\n",
+     "new": "    schedule = _load_json_object(frozen_schedule)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_accept_static[supervisor]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_reject_swap_restore[supervisor]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2-replay-loader-reread",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "        manifest_path, manifest.get(\"schedule\"), \"schedule\"\n    )\n    schedule = _load_json_object(schedule_path, data=schedule_bytes)\n",
+     "new": "        manifest_path, manifest.get(\"schedule\"), \"schedule\"\n    )\n    schedule = _load_json_object(schedule_path)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_accept_static[replay]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_reject_swap_restore[replay]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3-packets-loader-reread",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "                manifest_path.resolve(), schedule_descriptor, \"schedule\"\n            )\n            schedule = _load_json_object(schedule_path, data=schedule_bytes)\n",
+     "new": "                manifest_path.resolve(), schedule_descriptor, \"schedule\"\n            )\n            schedule = _load_json_object(schedule_path)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_accept_static[packets]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_reject_swap_restore[packets]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4-helper-return-reread",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    return path, data\n",
+     "new": "    return path, path.read_bytes()\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_accept_static[packets]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_accept_static[replay]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_reject_swap_restore[packets]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_reject_swap_restore[replay]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5-replay-sha-reread",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    schedule_sha = _sha256(schedule_bytes)\n    if manifest.get(\"schedule_sha256\") != schedule_sha:\n",
+     "new": "    schedule_sha = _sha256(schedule_path.read_bytes())\n    if manifest.get(\"schedule_sha256\") != schedule_sha:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_accept_static[replay]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_reject_swap_restore[replay]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6-supervisor-sha-reread",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/codex_reasoning_ab.py",
+     "old": "    schedule_sha = _sha256(schedule_bytes)\n    schedule = _load_json_object(frozen_schedule, data=schedule_bytes)\n",
+     "new": "    schedule_sha = _sha256(frozen_schedule.read_bytes())\n    schedule = _load_json_object(frozen_schedule, data=schedule_bytes)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_accept_static[supervisor]",
+    "orchestrator/tests/test_codex_reasoning_ab.py::test_schedule_authenticated_bytes_reject_swap_restore[supervisor]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

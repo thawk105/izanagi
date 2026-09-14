@@ -1,0 +1,50 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 200,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M1-wrapper-prefix-ignored",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    if tuple(argv[:len(prefix)]) != prefix:\n        return None\n    return argv[len(prefix)] if len(argv) > len(prefix) else None\n",
+          "new": "    if False and tuple(argv[:len(prefix)]) != prefix:\n        return None\n    return argv[0] if argv else None\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-contract-prefix-relittered",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    prefix = env_contract.resolve_by_contract_sha256(\n        environment_contract_sha256\n    ).contract.numactl\n",
+          "new": "    prefix = (\"numactl\", \"--interleave=all\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-cross-arm-digest-equality-vacuous",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/t1998_stock_inline_pair.py",
+          "old": "    _require_equal(\n        target_toolchain_digest, baseline_toolchain_digest,\n        code=\"toolchain-identity-mismatch\",\n        field=\"target.wal.build_done.toolchain_record_sha256\",\n        arm=\"target\",\n    )\n",
+          "new": "    if False:\n        _require_equal(\n            target_toolchain_digest, baseline_toolchain_digest,\n            code=\"toolchain-identity-mismatch\",\n            field=\"target.wal.build_done.toolchain_record_sha256\",\n            arm=\"target\",\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

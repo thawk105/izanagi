@@ -1627,6 +1627,18 @@
   前提実測に「その項目が無いと主張する機構の名前で実装側を検索し、着地 commit を
   `git log -S` で確かめる」を含める。**機械防壁は無いままである** — 否定命題の陳腐化を
   検出する検査は台帳側に置けない。
+
+- **再発: 2026-09-14** — [T-554] (hook 配線テストの skip 撤去) が、**実装の 14 日後にユーザー裁定
+  D857 として起票され、さらに 20 日間 carry され続けた**。実装 commit は `d4d1e82c0`
+  (2026-08-11 00:44:53 +0900)、裁定 D857 は 2026-08-25、着手は 2026-09-14。既知の 2 形態が
+  同時に現れている: 実装 commit が次の一手 delta の `完了` 節へ自 task ID を書かなかったこと
+  (2026-08-18 形態) と、裁定を記録する側が「その手番は既に済んでいないか」を照合しなかったこと
+  (2026-07-24 形態)。**新しい面は、撤去 commit の件名が carry の語を 1 つも含まないため
+  `git log -- <file>` の件名検索では見つからないこと。** 検出は `DW-S01` の前提実測で、
+  実装子を 1 本も起動する前に止まった。済み判定には
+  `git log --oneline -S'<対象識別子>' -- <file>` の pickaxe が効いた (件名検索は空振りする)。
+  恒久対応 1 (`DW-S01` の照合義務) は今回も投入後の防壁として機能し、
+  `/rulings` 側の恒久対応が未実装であるという既知の構造的穴も変わっていない。
 ### F36. 受入・検査の結果欄をプレースホルダのまま記録 commit し、恒久対応の実行が空証明になった [恒真ゲート] [手順漏れ]
 
 - 事象: `<受入結果を反映>` `<反映>` というリテラルのプレースホルダが埋められないまま記録 commit に
@@ -1943,6 +1955,18 @@
 - 検出は着地前で実害ゼロ。拾ったのは `DW-O26` の consumer 拡張焦点走 (参照関係で引いた 6 file) で、
   段 6 の敵対レビューも独立に同じものを検出した。**変更 file だけの焦点走なら取り逃していた。**
   挿入点より上にあるもう 1 つの pin (`_build_binary`) は動かず、赤にも出ていない。
+
+- **再発: 2026-09-14** — 床値由来の受入関門を撤去する wave で、production から 10 行消えた結果
+  `orchestrator/tests/test_ccbench_spawn_sites.py` の `_BuildSink` が pin する
+  `s8b_oracle_driver.py` の `pipeline.evaluate` 行が 1793 → 1783 へずれ、
+  `test_define_sink_cross_product_classifies_t2155_production_sinks_exactly` が赤になった。
+  **今回が足す事実は「参照関係で引く consumer 列挙でも漏れる」ことである。** 親は `DW-O26` に
+  従って import・helper・fixture を 2 段辿って consumer を列挙したが、この test は production を
+  **path 文字列と行番号の literal** で参照しており、import にも symbol 参照にも現れない。
+  拾ったのは段 6 の敵対レビュー (レンズ D) で、親の焦点走集合には入っていなかった。
+  恒久対応は F39 から変更しない。`DW-O09` への収容は [T-2480] の予算裁定待ちのままである。
+  運用として、**production の行数を変える wave では、consumer 列挙に「production の path 文字列を
+  literal で持つ test」を symbol 検索とは別に足す**。検出は着地前で実害ゼロ。
 ### F40. 測定のための一時変異ハーネスが部分一致の anchor で tracked file を壊し、実装の退行に見える赤を出した [恒真ゲート] [防壁の射程誤認]
 
 - 事象: [T-120] の A/B 交互測定 (xdist group あり/なしを交互に走らせて wall を比べる) で、親は
@@ -22924,6 +22948,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `condition_meaning_gate/supplied` へ無害な参照 1 行を入れており、本 wave はそれを
   `effectuation-ignored` へも入れて閉じた。**gate 側は fail-closed で正しく、直すのは
   変数を渡す側か受ける側である**という F855 の恒久対応がそのまま当てはまる。
+
+- **再発: 2026-09-14** — t316 probe も `-DRULE_LAUNCH_COMPILE=` を gflags / glog の install build から
+  流用しており、CCBench が参照しない変数として未使用警告に載ることを計算ノードで実測した
+  (`0:996829.nqsv`)。同じ警告に `IZANAGI_GFLAGS_SRC_HEAD` と `IZANAGI_GLOG_SRC_HEAD` も載る。
+  F855 の恒久対応「driver から未使用変数を除去」は t316 へ未適用である。
+  なお F855 が根本原因に挙げた「driver は gate の status しか出力しないため理由が見えなかった」
+  という側面は、本 wave が t316 について閉じた — 拒否時に `evidence.get("detail")` を job stderr へ
+  出すようにしたので、**login での再現 probe を経ずに計算ノードの実走そのものから読める**。
 ### F856. 上流への argv 追加が、下流の閉じた argv 文法に無効化される [手順漏れ] [恒真ゲート]
 
 - 事象: 認証経路をオフライン依存へ配線する wave で、段 3 の敵対レンズが「配線しても A-6 は
@@ -23963,6 +23995,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`orchestrator/tests/test_t1998_stock_inline_pair.py::test_shared_noncanonical_toolchain_digest_is_rejected`)。
 - 再発検知: 各層に対する変異を事前登録し、probe で SURVIVED になった変異は
   「他層の mask」を先に疑う (`docs/dev-wave/mutation.md` の DW-M02)。
+- **supersede: 2026-09-14** — 恒久対応が指す負例 `test_shared_noncanonical_toolchain_digest_is_rejected` は撤去した。守っていた「腕内で canonical digest を再計算して記録値と照合する層」自体が producer の証拠を取り違えた等式で、回収成果物では恒偽だったためである (D1983)。**本項の一般の教訓 (片側だけを変える負例は対称な層に mask される) は有効なままである。** 腕間 digest 一致の負例 `test_toolchain_record_digest_drift_is_rejected` は残し、変異 M3 で KILLED を実測した。経緯は `output/insights/2026-09-14_t2589-consumer-real-artifact-repair/README.md`。
 
 ### F910. 段 5 実装子が model 呼び出し上限で報告を書かずに打ち切られた [手順漏れ] [コンテキスト浪費]
 
@@ -24339,6 +24372,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 段 3 の敵対相談のレンズに「成果物の同定根拠が brief にあるか、無ければ何を根拠に
   その path を選んだか」を含める。今回は親が自力で見つけたため、この検知は未発火である。
 
+
+- **再発: 2026-09-14** — D501 決定 8 が名指した「driver の測定 binary bytes 照合」を、親が段 1 で
+  `orchestrator/campaign/floor_pair_driver.py` の build receipt 検査と同定した。実際の対象は
+  `s8b_oracle_driver.py` が過去床値 campaign の receipt から `expected_perf_sha256` を供給する
+  経路だった。曖昧さを解く鍵は裁定本文が述べる**性質**「照合対象の receipt 自体が過去の床値
+  campaign 由来である」で、親はこれを使わず **module 名が「driver」と「binary」を含むこと**で
+  同定していた。段 3 のレンズ A が指摘し、親が現物で確かめて編集面を差し替えた。
+  誤ったまま進めば、外すべき経路を残したまま無関係な検査 (`sort_best` の SWO PASS receipt 検査を
+  含む) を落としていた。
+- **これで独立 2 例目となり、F928 が置いた「2 例目が出たら共有 docs へ上げる」条件を満たした**
+  (1 例目は成果物名、2 例目は裁定が名指す機構名)。ただし収容先の `DW-S01` を含む
+  `docs/dev-wave/core.md` は 9691 bytes で層の上限 9696 bytes に対し残り 5 bytes しかなく、
+  1 文も入らない。安全記述を削って空ける形は契約が禁じている。**予算の変更は段 8 が実装せず
+  裁定へ返す事項なので、収容は実装しない。** 共有 docs への収容可否は [T-2480] と同じ型の
+  予算裁定として扱う。実害は Codex 子の空費ゼロ (段 3 が段 4 の前に訂正した)。
 ### F929. レビューの是正案をそのまま実装し、根拠の裁定より強い断定を書いた [権限逸脱]
 
 - 事象: 段 6 のレビューが「A-2 の候補段落を現在化した結果、fig5 の恒久 erratum の期限条件
@@ -24477,6 +24525,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `test_certify_keeps_backoff_fixed_and_condition_gate_silo_only` が、この define と関門呼び出しが
   silo 分岐の内側にだけあることを固定する (変異 M6 で KILLED を確認)。
 
+
+- **再発: 2026-09-14** — **独立 3 例目。** t316 probe (`tools/pegasus/probes/t316_sandbox_backend_probe.py`)
+  の条件関門を計算ノードで実走したところ、`supply=red/configure-failed` で拒否された
+  (`0:996644.nqsv` bnode040 / `0:996829.nqsv` bnode016)。detail の逐語は
+  「successful process wrote stderr=b'CMake Warning:\n  Manually-specified variables were not used by
+  the project:\n\n    CCBENCH_BACKOFF_FIXED\n …'」で、argv の `-B` は requested 側を指す。
+  構図は F934 の 1・2 例目と同一である — probe は pin された素の CCBench 木を build し、patch を
+  materialize しないのに、関門は requested 側で `-DCCBENCH_BACKOFF_FIXED` を必ず足す。
+  **関門は正しく拒否している。** t316 の受領証 2 件 (2026-08-10) には `condition_gates` が 0 件で、
+  この driver の実経路では関門が一度も実走していなかった。
+  D1864 が「silo の現行挙動は据え置き、扱いはユーザー裁定へ返す」とした対象に t316 も含まれる。
 ### F935. 過去実走の凍結 evidence を「現行 producer を縛る live 契約」と読み、依頼された成果物を子が自ら scope から落とした [手順漏れ] [ドリフト]
 
 - 事象: 段 2 のプラン起草で、親が「red arm record の bytes を hash 束縛する consumer が存在するなら
@@ -24704,6 +24763,22 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-10** — CC次実験precheckのdocs-only tip4d5b403b8で、T1259の実repo Git走査30秒timeoutが受入23setup errorと単独再走48setup errorになった。9月11日にmainのmodule snapshot化・実repo直列化を取り込み、tip76928e91eの2file焦点走991663.nqsvは262passed/20.57秒。判定本文・timeout・除外は変更しない。記録はoutput/insights/2026-09-11/cc-next-precheck-resume/README.md。
+
+- **再発: 2026-09-14** — repo 膨張監査 wave (docs のみ、tip `741e27283`) の受入 attempt 1 で、
+  `test_t1259_qsub_env_delivery_probe.py` の 6 件が setup error になった
+  (23,308 passed / 68 skipped / 6 error、子 rc=1、受領証は未発行で待ち手は rc=70)。
+  setup traceback の Git argv は既報と同一で、
+  `git -C <wave worktree> ls-files --others --exclude-standard -z` の 30.0 秒 TimeoutExpired。
+  同 tip・同 file の単独再走 (`run_tests.py`、996322.nqsv) は **51 passed / 16.67 秒、job Elapse 22S、
+  rc=0** で非再現。wave の変更は docs のみで、当該 fixture・probe・Git 呼出しは変更していない。
+  **本 wave は既報が「分離していない」と書いた遅延の大きさ自体を実測した。** 同じ worktree で
+  同 argv を 3 連続実行した wall は **34.60 / 24.96 / 15.90 秒**で、30 秒 timeout を跨いでいる
+  (実行時の load average 68.35〜88.49)。作業ツリーは tracked 24,684 件 / 約 690 MB である。
+  これは走査時間の分布を与えるだけで、**I/O 要因の分離ではない**。新規 worktree の cold cache と
+  login node 負荷が交絡しており、どちらがどれだけ効くかは測っていない。
+  恒久対応は既報のまま変えない — timeout 拡大・fixture の stub 化・除外・汎用 gate の新設は行わず、
+  `DW-O18` に従って単独非再現を確認して受入を再走した。記録は
+  `output/insights/2026-09-14/repo-bloat-audit/README.md` §7。
 ### F946. 修正可能な検査失敗で作業を終了し、ユーザーへ再開を要求した [手順漏れ] [誤前提]
 
 - 事象: insights整理のauthorが実行ログ検査で未受理になり、親は原因の切り分けや安全な再試行をせず正式停止した。
@@ -25048,6 +25123,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 子の完了報告に実走 nodeid が 1 件も無いときは、投入経路の失敗を疑って
   親が同じ木で自走 harness を叩き直す。
 
+
+- **再発: 2026-09-14** — 段 5 の実装子 2 名と段 6 の fix 子 1 名が、いずれも sandbox で
+  `tools/run_tests.py` の投入 preflight が `qstat -Q` rc=1 になり `rc=16` / `child_started=false` で
+  止まった。**3 名とも「実装済み・未実走」と申告し、`closed` や「緑」とは書かなかった** —
+  前回の wave が fix 子の prompt へ入れた指示が効いた。実走はすべて親が行い、全緑を確認した。
+  恒久対応は F964 から変更しない。今回が足す事実は、**prompt へ「rc=16 なら未実走と書け」を
+  明示すると子の申告が正直になる**ことの 2 例目である。
 ### F965. 裁定本文が名指す識別子の割り当てを、凍結の権威と逐語照合しないまま確定した [ドリフト] [手順漏れ]
 
 - 事象: D1640 (2026-09-05) が `delta_min` の基準を「H1 = rr20、H2 = rr80」と書いたが、
@@ -25138,3 +25220,26 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 検出経路: 起票は別 wave の段 6 レビューで、本 wave はその carry を実装した。
   reader の 3 箇所目は本 wave の段 2 プランが、親 brief の「既に分離できている」という前提を
   現物で崩して見つけた。
+
+### F969. 二重読みを一度読みへ直す起草案が、残る 1 回の読み先をすり替えて別の欠陥を作った [誤前提] [防壁の射程誤認]
+
+- 事象: `tools/codex_reasoning_ab.py` の `supervise_pair` は、run root の frozen copy を
+  hash 用と解析用に別々に読んでいた。段 2 の起草案はこれを 1 回読みへ直す際、
+  **読む対象を frozen から source へ移した** (`schedule_sha = _sha256(source_schedule_bytes)`)。
+  依頼の文面 (「一度だけ読み、その同じ bytes から導く」) は満たすが、
+  **現行が持っていた「frozen が壊れていたら拒否する」力を失う。**
+  正当な source を保存した直後に frozen を壊れた JSON へ上書きすると、現行は
+  `cannot read JSON object` で止まるが、起草案は source を hash・解析して launch まで進む。
+  段 3 の敵対レンズ A が、この反例を構成して覆した。
+- 根本原因: 「読み回数を 1 にする」という**数の要件**だけを見て、
+  「その 1 回が何を観測しているか」という**対象の要件**を見なかった。
+  二重読みは (i) 観測の重複と (ii) 観測対象の一致、という 2 つの性質を同時に持っており、
+  (i) だけを直すと (ii) を壊しうる。
+- 実害: なし (near miss)。段 3 の敵対相談で段 5 の実装前に覆り、
+  裁定でプラン v2 を「frozen を 1 回読む」へ差し替えた。
+- 恒久対応: D1988 が supervisor の authority を
+  frozen と明記し、source を authority にしてはならない理由を本文に持つ。
+  機械側の検知は変異 M6 (`_sha256(schedule_bytes)` → `_sha256(frozen_schedule.read_bytes())`)
+  が担い、frozen の read 計数が 2 になることで落ちる。
+- 再発検知: 読み回数を減らす修正では、**減らした後に残る 1 回が元と同じ対象を読むか**を
+  裁定で明示的に確かめる。段 3 の敵対レンズに「この修正が失う観測は何か」を必ず入れる。
