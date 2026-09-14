@@ -1,0 +1,153 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 290,
+  "timeout_seconds": 410,
+  "hang_timeout_seconds": 380,
+  "mutations": [
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_expected_materialization.py",
+          "old": "        if snapshot_tree_digest(root) != expected:\n            raise ExpectedMaterializationError(f\"sealed snapshot copy digest mismatch: {root}\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_expected_materialization.py",
+          "old": "        (\"expected_materialization_sha256\", expected_materialization_sha256),\n        (\"binary_sha256\", binary_sha256),\n        (\"compiler_input_manifest_sha256\", compiler_input_manifest_sha256),\n",
+          "new": "        (\"expected_materialization_sha256\", expected_materialization_sha256),\n        (\"compiler_input_manifest_sha256\", compiler_input_manifest_sha256),\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_expected_materialization.py",
+          "old": "        if (self._invalid or not self._completed or not self._finished\n                or self._owner != os.getpid()):\n",
+          "new": "        if self._owner != os.getpid():\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_expected_materialization.py",
+          "old": "def _install_snapshot_seccomp() -> None:\n    \"\"\"Block namespace/mount bypasses including i386 and x32.\n\n    clone3 ENOSYS fallback was measured on glibc 2.35 only; this makes no\n    portability claim for other libc implementations.\n    \"\"\"\n    class Instruction(ctypes.Structure):\n        _fields_ = [(\"code\", ctypes.c_ushort), (\"jt\", ctypes.c_ubyte),\n                    (\"jf\", ctypes.c_ubyte), (\"k\", ctypes.c_uint32)]\n\n    class Program(ctypes.Structure):\n        _fields_ = [(\"len\", ctypes.c_ushort), (\"filter\", ctypes.POINTER(Instruction))]\n\n    deny = 0x50000 | errno.EPERM\n    rows = [(0x20, 0, 0, 4), (0x15, 1, 0, 0xc000003e), (6, 0, 0, deny),\n            (0x20, 0, 0, 0), (0x45, 0, 1, 0x40000000), (6, 0, 0, deny)]\n    for number, verdict in ((435, 0x50000 | errno.ENOSYS), (308, deny),\n                            (165, deny), (166, deny), (442, deny), (429, deny)):\n        rows.extend(((0x15, 0, 1, number), (6, 0, 0, verdict)))\n    for number in (56, 272):\n        rows.extend(((0x15, 0, 3, number), (0x20, 0, 0, 16),\n                     (0x45, 0, 1, 0x10020000), (6, 0, 0, deny), (0x20, 0, 0, 0)))\n    rows.append((6, 0, 0, 0x7fff0000))\n    instructions = (Instruction * len(rows))(*(Instruction(*row) for row in rows))\n    program = Program(len(rows), instructions)\n    _linux_call(317, 1, 0, ctypes.byref(program))\n",
+          "new": "def _install_snapshot_seccomp() -> None:\n    pass\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_expected_materialization.py",
+          "old": "            _assert_root_identity(root, root_identity, stage=\"after-build\")\n",
+          "new": "            pass\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_expected_materialization.py",
+          "old": "                    _assert_root_identity(self._root, self._root_identity, stage=\"after-build\")\n",
+          "new": "                    pass\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_expected_materialization.py",
+          "old": "        value = SealedSnapshotCapability(\n            kind=kind, source_snapshot_sha256=self.source_snapshot_sha256,\n",
+          "new": "        value = SealedSnapshotCapability(\n            kind=SealedSnapshotProtectionKind.SEALED_BUILD, source_snapshot_sha256=self.source_snapshot_sha256,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_expected_materialization.py",
+          "old": "        for index, path in enumerate(ancestors):\n            if index:\n                path.mkdir()\n            _mount_snapshot(path, mounts, data=b\"size=4m,mode=755\")\n        if ancestors:\n            root.mkdir()\n",
+          "new": "        for path in ancestors:\n            _mount_snapshot(path, mounts, source=os.fsencode(path),\n                            filesystem=None, flags=4096)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_expected_materialization.py",
+          "old": "def _drop_snapshot_capabilities() -> None:\n    for cap in range(int(Path(\"/proc/sys/kernel/cap_last_cap\").read_text()) + 1):\n        _linux_call(157, 24, cap, 0, 0, 0)\n    _linux_call(157, 47, 4, 0, 0, 0)\n    libc = ctypes.CDLL(None, use_errno=True)\n    header = (ctypes.c_uint32 * 2)(0x20080522, 0)\n    data = (ctypes.c_uint32 * 6)()\n    if libc.capset(ctypes.byref(header), ctypes.byref(data)) == -1:\n        code = ctypes.get_errno()\n        raise OSError(code, os.strerror(code))\n    _linux_call(157, 38, 1, 0, 0, 0)\n    status = dict(line.split(\":\", 1) for line in Path(\"/proc/self/status\").read_text().splitlines())\n    if (any(int(status[name], 16) for name in\n            (\"CapInh\", \"CapPrm\", \"CapEff\", \"CapBnd\", \"CapAmb\"))\n            or int(status[\"NoNewPrivs\"]) != 1):\n        raise ExpectedMaterializationError(\"snapshot capability drop incomplete\")\n",
+          "new": "def _drop_snapshot_capabilities() -> None:\n    _linux_call(157, 38, 1, 0, 0, 0)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M15",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_expected_materialization.py",
+          "old": "                # Even EOF followed by EPIPE must never reach supervisor cleanup.\n                os._exit(worker_code)\n",
+          "new": "                # Worker falls through to supervisor cleanup.\n                pass\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": true
+    },
+    {
+      "id": "M16",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_expected_materialization.py",
+          "old": "            if binary_sha256 != self._build_binary_sha256:\n                raise ExpectedMaterializationError(\"snapshot build binary binding mismatch\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

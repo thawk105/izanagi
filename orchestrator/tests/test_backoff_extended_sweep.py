@@ -1702,7 +1702,8 @@ def test_b10_pbs_payload_and_submit_wrapper_are_three_independent_jobs():
     )[1].split("CURRENT_STAGE=finalize", 1)[0]
     assert '"$WORKLOAD" --output-root "$OUTPUT_ROOT" --defer-plot' in report_call
     assert "gnuplot" not in report_call
-    assert job.count('--cache-root "$B10_BUILD_CACHE_ROOT"') == 2
+    # Legacy sweep, extended analysis, and formal sweep each specify the cache.
+    assert job.count('--cache-root "$B10_BUILD_CACHE_ROOT"') == 3
     assert job.count("http://10.120.96.1:8080") == 1
     assert "BUILD_NETWORK_PROXY_URL=http://10.120.96.1:8080" in job
     assert 'export http_proxy="$BUILD_NETWORK_PROXY_URL"' in job
@@ -1839,7 +1840,8 @@ def test_b10_job_creates_records_and_passes_a_detached_ccbench_worktree():
     assert '"expected_gitlink_commit": expected' in job
     assert '"observed_head_commit": observed' in job
     assert 'status --porcelain --untracked-files=no' in job
-    assert job.count('--ccbench-dir "$CCBENCH_WORKTREE"') == 2
+    # Legacy sweep, extended analysis, and formal sweep each specify the worktree.
+    assert job.count('--ccbench-dir "$CCBENCH_WORKTREE"') == 3
     assert 'trap cleanup_worktree EXIT' in job
     assert 'CURRENT_STAGE=ccbench_worktree_cleanup\nremove_ccbench_worktree' in job
 

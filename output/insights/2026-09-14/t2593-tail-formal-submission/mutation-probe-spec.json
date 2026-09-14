@@ -1,0 +1,162 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 3000,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M1-job-uses-legacy-driver",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "old": "    \"$REPO_ROOT/orchestrator/campaign/b10_backoff_static_tail_formal.py\" \\\n",
+          "new": "    \"$REPO_ROOT/orchestrator/campaign/backoff_extended_sweep.py\" \\\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-formal-genome-count-five",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "old": "    if len(commits) != 8 or None in commits:\n        raise SystemExit(f\"T-2500 requires eight committed genomes, found {len(commits)}\")\n",
+          "new": "    if len(commits) != 5 or None in commits:\n        raise SystemExit(f\"T-2500 requires eight committed genomes, found {len(commits)}\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-formal-execution-stem-swapped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "old": "    report = campaigns[0] / \"reports\" / \"t2500-backoff-static-tail-formal-execution.json\"\n",
+          "new": "    report = campaigns[0] / \"reports\" / \"t2266-backoff-static-tail-execution.json\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-submit-drops-explore-campaign",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_b10_backoff_grid.sh",
+          "old": "    QSUB_ENV=\"$QSUB_ENV,B10_EXPLORE_CAMPAIGN=$B10_EXPLORE_CAMPAIGN\"\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-commit-regex-accepts-anything",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_b10_backoff_grid.sh",
+          "old": "      && \"$B10_PREREGISTRATION_COMMIT\" =~ ^[0-9a-f]{40}$ ]] || {\n",
+          "new": "      && \"$B10_PREREGISTRATION_COMMIT\" =~ ^.*$ ]] || {\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-legacy-kinds-accept-new-flags",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_b10_backoff_grid.sh",
+          "old": "elif [[ \"$PREREGISTRATION_COMMIT_SPECIFIED\" == 1 || \"$EXPLORE_CAMPAIGN_SPECIFIED\" == 1 ]]; then\n  echo \"preregistration commit and explore campaign are only valid for t2500-tail-formal\" >&2\n  exit 2\nfi\n",
+          "new": "fi\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-formal-driver-gets-run-kind",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "old": "    --cache-root \"$B10_BUILD_CACHE_ROOT\" \\\n    --ccbench-dir \"$CCBENCH_WORKTREE\")\n",
+          "new": "    --cache-root \"$B10_BUILD_CACHE_ROOT\" \\\n    --ccbench-dir \"$CCBENCH_WORKTREE\" \\\n    --run-kind \"$B10_RUN_KIND\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-formal-routed-through-extended",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "old": "if [[ \"$B10_RUN_KIND\" == \"extended\" ]]; then\n",
+          "new": "if [[ \"$B10_RUN_KIND\" == \"extended\" || \"$B10_RUN_KIND\" == \"t2500-tail-formal\" ]]; then\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-commit-regex-over-rejects",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_b10_backoff_grid.sh",
+          "old": "      && \"$B10_PREREGISTRATION_COMMIT\" =~ ^[0-9a-f]{40}$ ]] || {\n",
+          "new": "      && \"$B10_PREREGISTRATION_COMMIT\" =~ ^[0-9a-f]{41}$ ]] || {\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-formal-inputs-cleared-after-validation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/b10_backoff_grid.sh",
+          "old": "fi\nOUTPUT_ROOT=${B10_OUTPUT_ROOT:-}\n",
+          "new": "fi\nunset B10_PREREGISTRATION_COMMIT\nOUTPUT_ROOT=${B10_OUTPUT_ROOT:-}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-submit-receipt-schema-bumped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_b10_backoff_grid.sh",
+          "old": "        \"schema_version\": \"b10-backoff-grid-submit-event/v1\",\n        \"event\": \"manifest\",\n",
+          "new": "        \"schema_version\": \"b10-backoff-grid-submit-event/v2\",\n        \"event\": \"manifest\",\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

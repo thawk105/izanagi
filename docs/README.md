@@ -32,6 +32,10 @@
   (対数傾きの同時上下限による平坦/低下継続/判別不能の 3 分割と、上限まで続くことの要求)、
   域内非飽和を含む排他的な結末の集合、失敗条件、第 1 段の探索の全開示、
   本走 driver への束縛と投入前条件の正本
+- `b10-backoff-static-tail-submission.md` — 上記本走を Pegasus へ投入し、3 workload の成果物を
+  1 集団として報告するまでの操作手順の正本 ([T-2593])。走行種別 `t2500-tail-formal` の投入 argv、
+  新 2 入力 (事前登録 commit・探索走 campaign) の前提条件、job の完走判定、集団報告の argv と
+  保証しない範囲。格子・判定式は持たない (事前登録が正本)
 - `dynamic-backoff-preregistration.md` — Silo 上の Cicada 型 adaptive backoff の 3 定数を動的化する変異
   (計数窓 / 適応刻み / 動的上限) の事前登録。7 腕、対内 log 比の判定式と等価域、H1〜H7、欠測規則、
   診断 run と認証の範囲、束縛の正本
