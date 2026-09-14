@@ -567,6 +567,11 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      - [x] 床値 result v5 の prefix proof を holdout/ratified consumer へ結線する単位 D2 を実装
        ([T-1851]、2026-09-10)。既存v4受理・凍結23件・FORMULA_IDを維持。実測と統合記録は
        `output/insights/2026-09-10_t1851-unit-d2/README.md`。official実値域の取得は後続C3cに残る。
+     - [x] [T-1851] / [T-1946] / [T-2107] 単位 C3c (2026-09-14): D1936 項11の案aに従い、起動証明書の
+       許可表を resolver が選んだ protocol の実 path へ束縛し直した。受理する path は呼び手が渡した
+       exact 1 件だけで、族ごとの受理はしない。凍結23件のbytes・FORMULA_ID・凍結保留の全体は不変。
+       **official 床値 campaign は投入しておらず、試行台帳側 gate の実値域は未取得のまま後続に残る。**
+       実測と統合記録は `output/insights/2026-09-14/t1851-c3c-protocol-binding/README.md`。
      - [x] T-2525 / T-2526 (2026-09-10): D1859・D1936 項19に従い、要求側の静的物理量宣言を
        screening へ転送し、T-2418 新走の campaign/report を v2 に整合した。乱択を静的量へ
        変換せず、過去 artifact は保持する。適用範囲は

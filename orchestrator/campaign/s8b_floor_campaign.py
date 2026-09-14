@@ -5201,7 +5201,7 @@ def _pre_oracle_blob(root: Path, commit: str, rel: str, *, label: str) -> bytes:
 
 def _floor_preflight_freeze_allowlist(
         root: Path, *, freeze_path: str, freeze_sha256: str,
-        protocol_sha256: str,
+        protocol_sha256: str, protocol_relpath: str | None = None,
         _read_bytes: Optional[Callable[[Path], bytes]] = None) -> dict[str, str]:
     """journal 宣言由来の有界集合を exact path + bytes hash で構成する。"""
     root = Path(root)
@@ -5218,8 +5218,11 @@ def _floor_preflight_freeze_allowlist(
                 f"launch refusal: official preflight directory が実 directory でない: {rel}"
             )
 
+    effective_protocol_relpath = (
+        _FLOOR_PROTOCOL_REL if protocol_relpath is None else protocol_relpath
+    )
     captured: dict[str, bytes] = {}
-    for rel in sorted(_PREFLIGHT_FIXED_FILES):
+    for rel in sorted(_PREFLIGHT_FIXED_FILES | {effective_protocol_relpath}):
         path = root / rel
         if path.is_symlink() or not path.is_file():
             raise FloorCampaignError(
@@ -5243,7 +5246,7 @@ def _floor_preflight_freeze_allowlist(
         held_checks.append(_freeze_hold.held_marker(
             "s8b-floor.protocol-bytes-expected-pin",
         ))
-    elif hashlib.sha256(captured[_FLOOR_PROTOCOL_REL]).hexdigest() != protocol_sha256:
+    elif hashlib.sha256(captured[effective_protocol_relpath]).hexdigest() != protocol_sha256:
         raise FloorCampaignError(
             "launch refusal: floor protocol bytes sha256 が expected と不一致"
         )
@@ -5313,12 +5316,14 @@ def _floor_preflight_freeze_allowlist(
 
     allowlist = {
         _HOLDOUT_FREEZE_REL: freeze_sha256,
-        _FLOOR_PROTOCOL_REL: protocol_sha256,
+        _FLOOR_PROTOCOL_REL: hashlib.sha256(captured[_FLOOR_PROTOCOL_REL]).hexdigest(),
         _SELECTOR_PREDICTIONS_REL: hashlib.sha256(prediction_bytes).hexdigest(),
         _SELECTOR_JOURNAL_REL: hashlib.sha256(
             captured[_SELECTOR_JOURNAL_REL]
         ).hexdigest(),
     }
+
+    allowlist[effective_protocol_relpath] = protocol_sha256
 
     def declare(rel: str, expected_sha256: str) -> None:
         if rel in allowlist:
@@ -5386,7 +5391,8 @@ def _parse_selector_journal_bytes(raw: bytes) -> list[dict]:
     return records
 
 
-def _validate_freeze_allowlist_path(rel: object) -> str:
+def _validate_freeze_allowlist_path(
+        rel: object, *, protocol_relpath: str | None = None) -> str:
     """allowlist の raw POSIX relative path を正規化せず検証する。"""
     if not isinstance(rel, str) or not rel:
         raise FloorCampaignError(
@@ -5406,7 +5412,8 @@ def _validate_freeze_allowlist_path(rel: object) -> str:
             f"launch certificate: freeze_allowlist path が不正: {rel!r}"
         )
     if not (rel in _PREFLIGHT_FIXED_FILES
-            or rel.startswith(_SELECTOR_RUNS_REL + "/")):
+            or rel.startswith(_SELECTOR_RUNS_REL + "/")
+            or (protocol_relpath is not None and rel == protocol_relpath)):
         raise FloorCampaignError(
             f"launch certificate: freeze_allowlist path が有界範囲外: {rel!r}"
         )
@@ -5414,13 +5421,13 @@ def _validate_freeze_allowlist_path(rel: object) -> str:
 
 
 def _assert_freeze_allowlist(
-    root: Path, freeze_allowlist: Mapping,
+    root: Path, freeze_allowlist: Mapping, *, protocol_relpath: str | None = None,
 ) -> dict[str, str]:
     """freeze namespace 全 file を固定/selector/chain の3集合で被覆する。"""
     if not isinstance(freeze_allowlist, Mapping):
         raise FloorCampaignError("launch certificate: freeze_allowlist が Mapping でない")
     for rel, expected in freeze_allowlist.items():
-        _validate_freeze_allowlist_path(rel)
+        _validate_freeze_allowlist_path(rel, protocol_relpath=protocol_relpath)
         if not isinstance(expected, str) or re.fullmatch(r"[0-9a-f]{64}", expected) is None:
             raise FloorCampaignError(
                 f"launch certificate: freeze_allowlist sha256 が不正: {rel!r}"
@@ -5454,7 +5461,8 @@ def _assert_freeze_allowlist(
                         f"launch certificate: freeze namespace に非通常 file がある: {rel}"
                     )
                 if (rel in _PREFLIGHT_FIXED_FILES
-                        or rel.startswith(_SELECTOR_RUNS_REL + "/")):
+                        or rel.startswith(_SELECTOR_RUNS_REL + "/")
+                        or (protocol_relpath is not None and rel == protocol_relpath)):
                     bounded_actual.add(rel)
                 elif any(pattern.fullmatch(rel) for pattern in _CHAIN_RECORD_PATTERNS):
                     chain_records[rel] = hashlib.sha256(path.read_bytes()).hexdigest()
@@ -5490,13 +5498,16 @@ def _assert_freeze_allowlist(
     return chain_records
 
 
-def clean_scan_digest(root: Path, *, freeze_allowlist: Mapping) -> str:
+def clean_scan_digest(
+        root: Path, *, freeze_allowlist: Mapping,
+        protocol_relpath: str | None = None) -> str:
     """発行時点の clean scan を証明する: holdout hit 0 件 + 列挙 digest を返す (fail-closed)。
 
     同じ列挙集合を search_repository へ注入し、共有 _assert_search_pass で holdout 全件 0 hit・
     holdout 集合完全性・陽性対照を検査する。走査後に再列挙して名前集合の変化も拒否する。
     search_repository が除外する output/s8b-freeze は tracked/untracked を問わず全列挙し、
-    固定4 file・journal 宣言 selector-runs・既存命名規則の chain record の3集合で被覆する。
+    固定4 file と指定 protocol path・journal 宣言 selector-runs・既存命名規則の
+    chain record の3集合で被覆する。指定 path は exact 一致でのみ有界集合に加える。
     未知 file と全集合の symlink は拒否し、chain record も path + bytes hash を digest に含める。
 
     既知 residual: allowlist file は path→sha256 を束縛するが、走査中に同名 file の内容を交換して
@@ -5507,7 +5518,9 @@ def clean_scan_digest(root: Path, *, freeze_allowlist: Mapping) -> str:
         files_before = _holdout_freeze.enumerate_repository_files(root)
         report = _holdout_freeze.search_repository(root, files=files_before)
         _holdout_freeze._assert_search_pass(report)
-        chain_records = _assert_freeze_allowlist(root, freeze_allowlist)
+        chain_records = _assert_freeze_allowlist(
+            root, freeze_allowlist, protocol_relpath=protocol_relpath,
+        )
         files_after = _holdout_freeze.enumerate_repository_files(root)
     except _holdout_freeze.FreezeError as exc:
         raise FloorCampaignError(f"launch certificate: clean scan 拒否: {exc}") from exc
@@ -5589,10 +5602,12 @@ def validate_launch_certificate_strict(
 def _official_launch_preflight(root: Path, *, v1_freeze_sha256: str,
                                protocol_sha256: str, started_utc: str,
                                campaign_run_id: str,
-                               freeze_allowlist: Mapping) -> tuple[dict, str]:
+                               freeze_allowlist: Mapping,
+                               protocol_relpath: str | None = None) -> tuple[dict, str]:
     """発行前に独立2回 scan し、2回目を strict expected として返す。"""
     first_clean_digest = clean_scan_digest(
         Path(root), freeze_allowlist=freeze_allowlist,
+        protocol_relpath=protocol_relpath,
     )
     certificate = build_launch_certificate(
         v1_freeze_sha256=v1_freeze_sha256,
@@ -5603,6 +5618,7 @@ def _official_launch_preflight(root: Path, *, v1_freeze_sha256: str,
     )
     expected_clean_scan_digest = clean_scan_digest(
         Path(root), freeze_allowlist=freeze_allowlist,
+        protocol_relpath=protocol_relpath,
     )
     validate_launch_certificate_strict(
         certificate,
@@ -7211,7 +7227,7 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
     if mode == "official":
         _assert_official_permitted(mode, confirm_official_floor_run)
     authority_root = ROOT if repo_root is None else Path(repo_root)
-    _require_supplied_protocol_authority(
+    protocol_authority = _require_supplied_protocol_authority(
         protocol, root=authority_root,
         supplied_protocol_path=protocol_path,
     )
@@ -7228,10 +7244,11 @@ def run_campaign(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         durable_root_policy=durable_root_policy,
         perf_preflight_fn=perf_preflight_fn,
         confirm_official_floor_run=confirm_official_floor_run,
+        protocol_relpath=None if protocol_authority is None else protocol_authority.path,
     )
 
 
-def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
+def _run_campaign_core(protocol, freeze_doc, protocol_relpath=None, *, out_root, mode, resume_dir=None,
                        measure_fn=None, probe_fn=None, sleep_fn=_DEFAULT_SLEEP_FN,
                        monotonic_fn=_DEFAULT_MONOTONIC_FN, prepare_fn=None, now_fn=None,
                        host_provenance_fn=None, process_identity_fn=None,
@@ -7505,6 +7522,9 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
         assert started_at is not None
         certificate = None
         if mode == "official":
+            protocol_relpath = (
+                _FLOOR_PROTOCOL_REL if protocol_relpath is None else protocol_relpath
+            )
             floor_preflight_fn = (
                 _floor_preflight_freeze_allowlist
                 if _floor_preflight_fn is None else _floor_preflight_fn
@@ -7514,11 +7534,13 @@ def _run_campaign_core(protocol, freeze_doc, *, out_root, mode, resume_dir=None,
                 freeze_path=protocol["freeze"]["path"],
                 freeze_sha256=freeze_sha256,
                 protocol_sha256=protocol_sha256,
+                protocol_relpath=protocol_relpath,
             )
             certificate, expected_clean_scan_digest = _official_launch_preflight(
                 repo_root,
                 v1_freeze_sha256=freeze_sha256,
                 protocol_sha256=protocol_sha256,
+                protocol_relpath=protocol_relpath,
                 started_utc=started_at.isoformat(),
                 campaign_run_id=campaign_run_id,
                 freeze_allowlist=freeze_allowlist,
