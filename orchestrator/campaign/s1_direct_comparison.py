@@ -15,6 +15,7 @@ import json
 import math
 import os
 import re
+import shlex
 import subprocess
 import struct
 import sys
@@ -50,6 +51,8 @@ NUMACTL = ["numactl", "--interleave=all"]
 TOTAL_BUDGET_S = 43_200.0
 RETRY_RESERVE_S = 7_200.0
 MAX_RETRIES = 2
+# Observed diagnostic: 1057 bytes × 4 headroom; this budget includes the omission marker.
+_CONDITION_DETAIL_LIMIT_BYTES = 1057 * 4
 SESSION_STAGE = STAGE_S1_SESSION
 FREEZE_REL = "output/s1-freeze/measurement_freeze.json"
 BUDGET_REL = "output/s1-budget/time_ledger.json"
@@ -264,6 +267,34 @@ def condition_gate_receipt(
     }
 
 
+def _bounded_condition_detail(detail: str) -> str:
+    """Quote diagnostics and retain both ends within a dedicated byte budget."""
+    try:
+        rendered = shlex.join([detail])
+        encoded = rendered.encode("utf-8", errors="backslashreplace")
+        if len(encoded) <= _CONDITION_DETAIL_LIMIT_BYTES:
+            return rendered
+        digest = hashlib.sha256(encoded).hexdigest()
+
+        def omission_marker(omitted: int) -> str:
+            return (
+                "...<condition detail middle omitted; "
+                f"omitted={omitted} bytes; original={len(encoded)} bytes; "
+                f"sha256={digest}>..."
+            )
+
+        # Reserve the largest possible byte-count field before splitting equally.
+        available = _CONDITION_DETAIL_LIMIT_BYTES - len(omission_marker(len(encoded)))
+        head_bytes = available // 2
+        tail_bytes = available - head_bytes
+        head = encoded[:head_bytes].decode("utf-8", errors="ignore")
+        tail = encoded[-tail_bytes:].decode("utf-8", errors="ignore")
+        omitted = len(encoded) - len(head.encode("utf-8")) - len(tail.encode("utf-8"))
+        return head + omission_marker(omitted) + tail
+    except Exception:
+        return "<condition detail unavailable>"
+
+
 def _condition_records_for_genome(
         source_root: str, genome: Genome, *, driver_id: str, use_class: str,
         cxx: str, stock_root: Optional[str] = None) -> tuple[
@@ -310,10 +341,8 @@ def _condition_records_for_genome(
             if record.terminal_status == "green":
                 continue
             try:
-                # Reuse D1912's byte bound, quoting and truncation digest by
-                # rendering the detail as one diagnostic argument.
-                detail = condition_meaning_gate._bounded_process_argv_detail(
-                    [record.evidence.get("detail", "<detail unavailable>")],
+                detail = _bounded_condition_detail(
+                    record.evidence.get("detail", "<detail unavailable>"),
                 )
                 rejection += (
                     f"\n{record.macro}:{record.arm}:{record.reason_code}: "

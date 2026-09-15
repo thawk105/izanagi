@@ -13,6 +13,7 @@ import importlib.util
 import inspect
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -135,7 +136,7 @@ def test_condition_detail_formatter_failure_preserves_rejection(
         calls.append(argv)
         raise failure("formatting failed")
 
-    monkeypatch.setattr(condition_meaning_gate, "_bounded_process_argv_detail", broken_detail)
+    monkeypatch.setattr(S, "_bounded_condition_detail", broken_detail)
     expected = S.DriverError if failure is RuntimeError else failure
     with pytest.raises(expected) as rejected:
         _REAL_CONDITION_RECORDS_FOR_GENOME(
@@ -157,9 +158,9 @@ def test_condition_detail_formatter_failure_preserves_rejection(
         assert len(calls) == 1
 
 
-def test_condition_long_real_process_detail_keeps_d1912_bound_and_digest(
+def test_condition_real_process_detail_within_diagnostic_budget_is_complete(
         tmp_path, monkeypatch):
-    """拒否は実 preprocess の長い detail を D1912 の上限と digest 付きで運ぶ。
+    """拒否は実 preprocess の予算内 detail を全文運ぶ。
     受理は別の正例で同一の発行 record と canonical bytes を返す。
     """
     source = tmp_path / "supplied"
@@ -180,14 +181,91 @@ def test_condition_long_real_process_detail_keeps_d1912_bound_and_digest(
     detail = record.evidence["detail"]
     assert "rc=" in detail and "stderr=" in detail and "argv=" in detail
     encoded = shlex.join([detail]).encode("utf-8", errors="backslashreplace")
-    assert len(encoded) > 500
-    marker = (
-        "...<argv truncated; limit=500 bytes; "
-        f"original={len(encoded)} bytes; sha256={hashlib.sha256(encoded).hexdigest()}>"
-    ).encode("ascii")
-    expected = (encoded[:500 - len(marker)] + marker).decode("utf-8", errors="ignore")
-    assert f"evidence.detail={expected}" in str(rejected.value)
-    assert len(expected.encode("utf-8")) <= 500
+    assert 500 < len(encoded) <= S._CONDITION_DETAIL_LIMIT_BYTES
+    assert f"evidence.detail={shlex.join([detail])}" in str(rejected.value)
+    assert "condition detail middle omitted" not in str(rejected.value)
+
+
+def _diagnostic_record(detail):
+    request, = S._condition_requests_for_flags(
+        {"BACKOFF_FIXED": 5}, driver_id="test.s1.detail",
+    )
+    # The real canonical record factory; no evaluator/admission stub or fake type.
+    return condition_meaning_gate._arm_record(
+        arm="supply-effectuation", terminal_status="red",
+        reason_code="preprocess-failed", request=request,
+        request_digest=condition_meaning_gate._request_digest(request, ()),
+        evidence={"detail": detail},
+    )
+
+
+@pytest.mark.parametrize("check", ["head", "tail", "omitted", "sha256", "budget"])
+@pytest.mark.parametrize("header", ["common.hh", "共通.hh"])
+def test_condition_long_record_detail_keeps_both_ends_and_omission_evidence(check, header):
+    """拒否 record の長文は include 連鎖の先頭と末尾 error、および省略証拠を保つ。
+    受理判定は行わず、整形だけを実体へ直接入力して検査する。
+    """
+    detail = (
+        "In file included from source/include/common.hh:12,\n"
+        + f"                 from source/include/{header}:3,\n" * 200
+        + "source/transaction.cc:5: error: diagnostic-tail-sentinel"
+    )
+    record = _diagnostic_record(detail)
+    assert type(record) is condition_meaning_gate.ConditionArmRecord
+    encoded = shlex.join([record.evidence["detail"]]).encode("utf-8")
+    assert len(encoded) > S._CONDITION_DETAIL_LIMIT_BYTES
+    rendered = S._bounded_condition_detail(record.evidence["detail"])
+    if check == "head":  # M6: the beginning of the include chain must survive.
+        assert rendered.startswith("'In file included from source/include/common.hh:12,")
+    elif check == "tail":  # M5: the actual final error must survive.
+        assert rendered.endswith("source/transaction.cc:5: error: diagnostic-tail-sentinel'")
+    elif check == "omitted":  # M7: count actual discarded bytes, including UTF-8 boundaries.
+        marker = re.search(
+            r"\.\.\.<condition detail middle omitted; omitted=(\d+) bytes; "
+            r"original=(\d+) bytes; sha256=[0-9a-f]{64}>\.\.\.", rendered,
+        )
+        assert marker is not None
+        retained = rendered[:marker.start()] + rendered[marker.end():]
+        assert int(marker[1]) == len(encoded) - len(retained.encode("utf-8"))
+        assert int(marker[1]) > 0
+        assert int(marker[2]) == len(encoded)
+    elif check == "sha256":  # M7: digest covers the entire quoted diagnostic.
+        assert f"sha256={hashlib.sha256(encoded).hexdigest()}" in rendered
+    else:
+        assert len(rendered.encode("utf-8")) <= S._CONDITION_DETAIL_LIMIT_BYTES
+
+
+def test_condition_short_record_detail_is_complete():
+    """拒否 record の短い detail は省略しない。
+    受理判定には関与しない整形器を実 record の本文で検査する。
+    """
+    record = _diagnostic_record("error: short diagnostic")
+    assert S._bounded_condition_detail(record.evidence["detail"]) == "'error: short diagnostic'"
+
+
+def test_condition_detail_formatter_itself_returns_fixed_fallback():
+    """拒否 detail を整形できなくても固定の代替文字列を返す。
+    受理判定には関与しない整形器の Exception 境界を検査する。
+    """
+    record = _diagnostic_record(1)
+    assert S._bounded_condition_detail(record.evidence["detail"]) == "<condition detail unavailable>"
+
+
+@pytest.mark.parametrize("failure", [RuntimeError, KeyboardInterrupt, SystemExit, GeneratorExit])
+def test_condition_detail_quoting_failure_boundary(failure):
+    """拒否 detail の quote 失敗は固定文字列にし、終了割込みは伝播する。
+    受理経路ではこの整形器を呼ばない。
+    """
+    class BrokenTruth(str):
+        def __bool__(self):
+            raise failure("quoting failed")
+
+    detail = BrokenTruth("diagnostic")
+    if failure is RuntimeError:
+        assert S._bounded_condition_detail(detail) == "<condition detail unavailable>"
+    else:
+        with pytest.raises(failure):
+            S._bounded_condition_detail(detail)
 
 
 def test_condition_accepted_records_and_bytes_are_unchanged(monkeypatch):
