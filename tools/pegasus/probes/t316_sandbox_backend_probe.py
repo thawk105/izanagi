@@ -33,7 +33,7 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-from orchestrator.campaign import condition_meaning_gate  # noqa: E402
+from orchestrator.campaign import condition_meaning_gate, patchharness  # noqa: E402
 
 
 SCHEMA_VERSION = "t316-sandbox-backend-probe/v1"
@@ -1826,7 +1826,7 @@ def _toolchain_contract(profile: SandboxProfile, python: str) -> dict[str, Any]:
 def _execute_ccbench_build(
     profile: SandboxProfile, source: Path, cache_root: Path,
     dependency_root: Path, pins: Mapping[str, str], scratch: Path,
-    policy: Mapping[str, Any], deadline_ns: int, *, inside: bool,
+    policy: Mapping[str, Any], deadline_ns: int, *, inside: bool, stock_root: Path,
 ) -> dict[str, Any]:
     mode = "inside" if inside else "outside"
     root = scratch / f"s6-{mode}"
@@ -1854,13 +1854,11 @@ def _execute_ccbench_build(
         "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1", "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
         "-DCCBENCH_WAL=0", "-DCCBENCH_CCACHE=OFF", "-DCCBENCH_ADD_ANALYSIS=0",
         "-DCMAKE_C_COMPILER_LAUNCHER=", "-DCMAKE_CXX_COMPILER_LAUNCHER=",
-        "-DRULE_LAUNCH_COMPILE=", "-DCMAKE_TOOLCHAIN_FILE=", "-DCMAKE_CXX_FLAGS=",
+        "-DCMAKE_TOOLCHAIN_FILE=", "-DCMAKE_CXX_FLAGS=",
         f"-DCMAKE_PREFIX_PATH={prefix}",
         f"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={cache_root / 'masstree'}",
         f"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC={cache_root / 'mimalloc'}",
         f"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST={cache_root / 'googletest'}",
-        f"-DIZANAGI_GFLAGS_SRC_HEAD={pins['gflags']}",
-        f"-DIZANAGI_GLOG_SRC_HEAD={pins['glog']}",
         f"-DCMAKE_C_COMPILER={compiler_c}", f"-DCMAKE_CXX_COMPILER={compiler_cxx}",
     ]
     steps: list[dict[str, Any]] = []
@@ -1884,11 +1882,9 @@ def _execute_ccbench_build(
             failure_stage = label
             break
     if failure_stage is None:
-        stock_copy = root / "condition-gate-stock"
-        shutil.copytree(source, stock_copy, symlinks=True)
         condition_gate_family = _require_condition_gate(
             source,
-            stock_root=stock_copy,
+            stock_root=stock_root,
             configure_args=configure[5:],
             cxx=compiler_cxx,
             cmake=cmake,
@@ -1986,6 +1982,36 @@ def _require_condition_gate(
     return supply, meaning, admission
 
 
+@contextlib.contextmanager
+def _s6_requested_checkout(pin: str, source: Path, scratch: Path):
+    """Keep the host checkout outside the sandbox's masked /tmp.
+
+    The probe enters checkout serially. Scope TMPDIR to that entry only;
+    identity, apply, builds and cleanup run with the caller's environment.
+    The shared harness API and other drivers' allocation policy stay intact.
+    """
+    original_tmpdir = os.environ.get("TMPDIR")
+    checkout_parent = Path(original_tmpdir or "/tmp").resolve()
+    if checkout_parent.is_relative_to(Path("/tmp")):
+        # scratch was mkdtemp'd under the existing node scratch root. Its
+        # sibling checkout is mountable without joining the writable bind.
+        checkout_parent = scratch.resolve(strict=True).parent
+        if checkout_parent.is_relative_to(Path("/tmp")):
+            raise RuntimeError("S6 requested checkout parent must be outside /tmp")
+    with contextlib.ExitStack() as stack:
+        try:
+            os.environ["TMPDIR"] = os.fspath(checkout_parent)
+            requested = stack.enter_context(patchharness.checkout(
+                pin, base_dir=os.fspath(source),
+            ))
+        finally:
+            if original_tmpdir is None:
+                os.environ.pop("TMPDIR", None)
+            else:
+                os.environ["TMPDIR"] = original_tmpdir
+        yield requested
+
+
 def observe_s6(
     profile: SandboxProfile,
     repo_root: Path,
@@ -2053,16 +2079,42 @@ def observe_s6(
             "source_identity_valid": False, "source_identities": identities,
             "toolchain": toolchain,
         }
-    outside = _execute_ccbench_build(
-        profile, source, cache_root, dependency_root, pins, scratch, policy,
-        deadline_ns, inside=False,
-    )
-    inside = (
-        _execute_ccbench_build(
-            profile, source, cache_root, dependency_root, pins, scratch, policy,
-            deadline_ns, inside=True,
-        ) if outside["success"] else {"success": False, "failure_stage": "outside-control"}
-    )
+    with _s6_requested_checkout(
+        expected_ccbench_head, source, scratch,
+    ) as requested:
+        requested_root = Path(requested).resolve(strict=True)
+        identities["ccbench_requested_base"] = _git_source_identity(
+            requested_root, expected_ccbench_head,
+        )
+        source_identity_valid = all(item["valid"] for item in identities.values())
+        if not source_identity_valid:
+            return {
+                "attempted": True, "outside_success": False, "inside_success": False,
+                "trace_disabled": False, "failure_stage": "source-identity",
+                "source_identity_valid": source_identity_valid,
+                "source_identities": identities, "toolchain": toolchain,
+            }
+        # A later writable scratch bind must never cover the requested source.
+        if requested_root.is_relative_to(scratch.resolve(strict=True)):
+            raise RuntimeError("S6 requested source must be outside scratch")
+        s6_profile = SandboxProfile(
+            profile.bwrap, profile.repo_root, profile.scratch,
+            (*profile.readonly_roots, requested_root), runner=profile.runner,
+        )
+        with patchharness.applied(
+            os.fspath((repo_root / "patches/silo-backoff-fixed.patch").resolve(strict=True)),
+            expected_ccbench_head, ccbench_dir=os.fspath(requested_root),
+        ):
+            outside = _execute_ccbench_build(
+                s6_profile, requested_root, cache_root, dependency_root, pins, scratch, policy,
+                deadline_ns, inside=False, stock_root=source,
+            )
+            inside = (
+                _execute_ccbench_build(
+                    s6_profile, requested_root, cache_root, dependency_root, pins, scratch, policy,
+                    deadline_ns, inside=True, stock_root=source,
+                ) if outside["success"] else {"success": False, "failure_stage": "outside-control"}
+            )
     condition_gate_family = outside.pop("_condition_gate_family", ())
     inside.pop("_condition_gate_family", None)
     return {
@@ -2302,6 +2354,8 @@ def _git_metadata(repo_root: Path) -> dict[str, Any]:
 
 _RUNTIME_PBS_RELATIVE_PATH = "tools/pegasus/probes/t316_sandbox_backend_probe.pbs"
 _BOUND_RELATIVE_PATHS = (
+    "patches/silo-backoff-fixed.patch",
+    "orchestrator/campaign/patchharness.py",
     "orchestrator/campaign/condition_meaning_gate.py",
     "tools/pegasus/probes/t316_sandbox_backend_probe.py",
     _RUNTIME_PBS_RELATIVE_PATH,

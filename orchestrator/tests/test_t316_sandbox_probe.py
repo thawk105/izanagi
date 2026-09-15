@@ -12,6 +12,8 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -1532,6 +1534,8 @@ def _prepare_execution_binding_repo(
     empty_template = tmp_path / "empty-git-template"
     empty_template.mkdir()
     bound_bytes = {
+        "patches/silo-backoff-fixed.patch": b"fixture patch input\n",
+        "orchestrator/campaign/patchharness.py": b"# fixture patch harness\n",
         "orchestrator/campaign/condition_meaning_gate.py": b"# fixture condition gate\n",
         "tools/pegasus/probes/t316_sandbox_backend_probe.py": b"print('fixture probe')\n",
         "tools/pegasus/probes/t316_sandbox_backend_probe.pbs": b"#!/bin/bash\nexit 0\n",
@@ -1625,6 +1629,8 @@ def _prepare_execution_binding_repo(
 @pytest.mark.parametrize(
     "relative",
     [
+        pytest.param("patches/silo-backoff-fixed.patch", id="patch"),
+        pytest.param("orchestrator/campaign/patchharness.py", id="patchharness"),
         pytest.param("orchestrator/campaign/condition_meaning_gate.py", id="condition"),
         pytest.param("tools/pegasus/probes/t316_sandbox_backend_probe.py", id="probe"),
         pytest.param("tools/pegasus/probes/t316_sandbox_backend_probe.pbs", id="pbs"),
@@ -1719,6 +1725,408 @@ def test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs(
         match="^runtime PBS bytes differ from worktree PBS bytes$",
     ):
         probe._execution_binding(repo_root)
+
+
+@pytest.fixture
+def s6_bindable_root():
+    # SandboxProfile masks /tmp before mounting source/cache/scratch. All live
+    # inputs need mountable ancestors, not just the requested checkout. Keep
+    # them in a disposable sibling layout on the workspace filesystem; TMPDIR
+    # still names host-tmp, outside the writable scratch bind.
+    with tempfile.TemporaryDirectory(prefix=".t316-live-", dir=_REPO) as directory:
+        root = Path(directory).resolve(strict=True)
+        assert not root.is_relative_to(Path("/tmp"))
+        yield root
+
+
+def _s6_fixture_git(root: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", "-C", str(root), "-c", "user.name=T2607 Fixture",
+         "-c", "user.email=t2607@example.invalid", "-c", "commit.gpgsign=false",
+         *args], check=True, capture_output=True, text=True, timeout=30,
+    ).stdout.strip()
+
+
+def _s6_live_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str):
+    """Real tiny Git/CMake inputs; production harness and evaluators are intact.
+
+    The fixture patch occupies the production relative path. observe_s6 itself
+    must check out, apply, capture, evaluate and build it. This tests wiring;
+    the full CCBench workload still requires the parent's compute acceptance.
+    """
+    for name in (
+        "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR",
+        "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS", "GIT_TEMPLATE_DIR",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    monkeypatch.setenv("GIT_DEFAULT_HASH", "sha1")
+    repo = tmp_path / "repo"
+    source = repo / "external/ccbench"
+    fixture = _REPO / "orchestrator/tests/fixtures/condition_meaning_gate/supplied"
+    shutil.copytree(fixture / "stock", source)
+    options = source / "cmake/Options.cmake"
+    options.parent.mkdir()
+    options.write_text(
+        "function(ccbench_universal_definitions out_var)\n"
+        '  set(${out_var} "" PARENT_SCOPE)\nendfunction()\n', encoding="utf-8",
+    )
+    # Frozen names independent of the probe list. Reintroduced unused variables
+    # produce real CMake stderr in the actual condition gate.
+    cmake_text = '''cmake_minimum_required(VERSION 3.16)
+project(t316_wiring_fixture LANGUAGES C CXX)
+include(cmake/Options.cmake)
+ccbench_universal_definitions(defines)
+foreach(variable ENABLE_SANITIZER CCBENCH_TRACE CCBENCH_BACK_OFF
+        CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION CCBENCH_NO_WAIT_OF_TICTOC
+        CCBENCH_WAL CCBENCH_CCACHE CCBENCH_ADD_ANALYSIS CMAKE_PREFIX_PATH
+        FETCHCONTENT_SOURCE_DIR_MASSTREE FETCHCONTENT_SOURCE_DIR_MIMALLOC
+        FETCHCONTENT_SOURCE_DIR_GOOGLETEST)
+  message(STATUS "${variable}=${${variable}}")
+endforeach()
+add_executable(ycsb_silo.exe cc/silo/transaction.cc)
+target_compile_definitions(ycsb_silo.exe PRIVATE ${defines})
+set_target_properties(ycsb_silo.exe PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/cc/silo")
+'''
+    if failure == "gate":
+        cmake_text += 'message(FATAL_ERROR "T2607_GATE_FAILURE")\n'
+    elif failure == "outside":
+        cmake_text += '''if(CMAKE_BINARY_DIR MATCHES "s6-outside/ccbench-build")
+  add_custom_command(TARGET ycsb_silo.exe PRE_LINK
+    COMMAND "${CMAKE_COMMAND}" -E false)
+endif()
+'''
+    (source / "CMakeLists.txt").write_text(cmake_text, encoding="utf-8")
+    _s6_fixture_git(source, "init")
+    _s6_fixture_git(source, "add", ".")
+    _s6_fixture_git(source, "commit", "-m", "stock")
+    pin = _s6_fixture_git(source, "rev-parse", "HEAD")
+    shutil.copyfile(fixture / "cmake/Options.cmake", options)
+    shutil.copyfile(fixture / "include/backoff.hh", source / "include/backoff.hh")
+    patch = repo / "patches/silo-backoff-fixed.patch"
+    patch.parent.mkdir()
+    patch.write_text(_s6_fixture_git(source, "diff") + "\n", encoding="utf-8")
+    _s6_fixture_git(source, "restore", ".")
+    _s6_fixture_git(source, "commit", "--allow-empty", "-m", "wrong base")
+    wrong_pin = _s6_fixture_git(source, "rev-parse", "HEAD")
+    _s6_fixture_git(source, "checkout", "--detach", pin)
+    dependencies = tmp_path / "dependencies"
+    pins = {}
+    for name in ("gflags", "glog"):
+        dependency = dependencies / name
+        dependency.mkdir(parents=True)
+        (dependency / "CMakeLists.txt").write_text(
+            'cmake_minimum_required(VERSION 3.16)\n'
+            'project(t316_dependency_fixture LANGUAGES NONE)\n'
+            'install(FILES CMakeLists.txt DESTINATION share)\n', encoding="utf-8",
+        )
+        _s6_fixture_git(dependency, "init")
+        _s6_fixture_git(dependency, "add", ".")
+        _s6_fixture_git(dependency, "commit", "-m", "dependency")
+        pins[name] = _s6_fixture_git(dependency, "rev-parse", "HEAD")
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    shared = repo / "tools/pegasus/policy.json"
+    shared.parent.mkdir(parents=True)
+    shared.write_text(json.dumps({"silo_ladder_rung1": {
+        "dependency_pins": pins, "third_party_sources": [],
+    }}), encoding="utf-8")
+    _s6_fixture_git(repo, "init")
+    _s6_fixture_git(repo, "add", ".")
+    _s6_fixture_git(repo, "commit", "-m", "observer fixture with gitlink")
+    host_tmp = tmp_path / "host-tmp"
+    host_tmp.mkdir()
+    monkeypatch.setenv("TMPDIR", str(host_tmp))
+    monkeypatch.setenv("IZANAGI_PEGASUS_THIRDPARTY_CACHE", str(cache))
+    monkeypatch.setenv("IZANAGI_T139_DEPENDENCY_SOURCE_ROOT", str(dependencies))
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    for name in ("home", "tmp", "empty-tmp", "python-shim"):
+        (scratch / name).mkdir()
+    (scratch / "python-shim/python3").symlink_to(Path(sys.executable).resolve())
+    bwrap = shutil.which("bwrap")
+    assert bwrap is not None, "live S6 wiring test requires bubblewrap"
+    profile = probe.SandboxProfile(bwrap, repo, scratch, (dependencies, cache))
+    policy = {"stage_budgets_s": {
+        "s6_minimum_remaining_s": 0, "ccbench_build_cap_s": 120,
+    }}
+    return repo, source, scratch, profile, policy, pin, wrong_pin
+
+
+def _observe_s6_wiring(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure="", *, tmpdir_mode=None,
+):
+    repo, stock, scratch, profile, policy, pin, wrong_pin = _s6_live_fixture(
+        tmp_path, monkeypatch, failure,
+    )
+    if tmpdir_mode == "unset":
+        monkeypatch.delenv("TMPDIR", raising=False)
+    elif tmpdir_mode == "/tmp":
+        monkeypatch.setenv("TMPDIR", "/tmp")
+    events = []
+    requested_roots = []
+    gate = probe.condition_meaning_gate
+    harness = probe.patchharness
+    watched = {
+        harness.apply_patch.__code__: "apply",
+        harness.revert_worktree.__code__: "revert",
+        probe._git_source_identity.__code__: "identity",
+        probe._execute_ccbench_build.__code__: "build",
+        gate.capture_define_inputs.__code__: "capture",
+        probe._require_condition_gate.__code__: "gate",
+        probe._run_command.__code__: "command",
+    }
+
+    def observe(frame, event, arg):
+        if (event == "return" and frame.f_code == probe._git_source_identity.__code__
+                and failure == "wrong-head-restored"
+                and Path(frame.f_locals["path"]) in requested_roots):
+            # Preserve the real wrong-HEAD observation, then remove the later
+            # harness rejection as a competing reason. Neither checker is
+            # replaced: applied() can proceed if the probe ignores this record.
+            path = Path(frame.f_locals["path"])
+            assert arg["valid"] is False
+            assert arg["observed_head"] == wrong_pin
+            _s6_fixture_git(path, "checkout", "--detach", pin)
+            harness.assert_pinned_clean(str(path), pin)
+            events.append(("restored-pinned-clean", path))
+            return
+        if event != "call" or frame.f_code not in watched:
+            return
+        kind = watched[frame.f_code]
+        values = frame.f_locals
+        if kind == "identity":
+            path = Path(values["path"])
+            if path != stock and path.name == "wt":
+                requested_roots.append(path)
+                assert values["expected_head"] == pin
+                assert "BACKOFF_FIXED" not in (path / "include/backoff.hh").read_text()
+                if failure in {"wrong-head", "wrong-head-restored"}:
+                    _s6_fixture_git(path, "checkout", "--detach", wrong_pin)
+                elif failure == "dirty":
+                    (path / "untracked-base-witness").write_text("dirty\n")
+            events.append((kind, path))
+        elif kind in {"apply", "revert"}:
+            if kind == "apply":
+                # Fail at the first forbidden side effect, before a later
+                # gate/build can mask M6. Real applied() has already passed
+                # its pinned-clean check when it calls apply_patch().
+                assert failure != "wrong-head-restored", (
+                    "probe accepted the observed wrong HEAD; real harness accepted the restored base"
+                )
+                assert Path(values["patch_path"]) == repo / "patches/silo-backoff-fixed.patch"
+            events.append((kind, Path(values["sub"])))
+        elif kind == "build":
+            events.append((kind, Path(values["source"]), values["inside"],
+                           Path(values["stock_root"]), values["profile"]))
+        elif kind in {"capture", "gate"}:
+            key = "source_root" if kind == "capture" else "source"
+            assert "BACKOFF_FIXED" in (Path(values[key]) / "include/backoff.hh").read_text()
+            assert "BACKOFF_FIXED" not in (
+                Path(values["stock_root"]) / "include/backoff.hh"
+            ).read_text()
+            events.append((kind, Path(values[key]), Path(values["stock_root"]),
+                           tuple(values["configure_args"])))
+        elif kind == "command":
+            events.append((kind, tuple(values["argv"])))
+
+    previous = sys.getprofile()
+    sys.setprofile(observe)
+    try:
+        if failure == "gate":
+            with pytest.raises(RuntimeError, match="condition gate rejected"):
+                probe.observe_s6(profile, repo, scratch, policy,
+                                 time.monotonic_ns() + 600_000_000_000)
+            result = None
+        else:
+            result = probe.observe_s6(profile, repo, scratch, policy,
+                                      time.monotonic_ns() + 600_000_000_000)
+    finally:
+        sys.setprofile(previous)
+    assert len(requested_roots) == 1
+    requested = requested_roots[0]
+    assert not requested.exists()
+    assert _s6_fixture_git(stock, "status", "--porcelain", "--untracked-files=all") == ""
+    assert str(requested) not in _s6_fixture_git(stock, "worktree", "list", "--porcelain")
+    return result, events, requested, stock, scratch
+
+
+def test_s6_live_requested_gate_and_both_build_roots_match(s6_bindable_root, monkeypatch):
+    result, events, requested, stock, scratch = _observe_s6_wiring(s6_bindable_root, monkeypatch)
+    assert result["outside_success"] is True, result
+    assert result["inside_success"] is True, json.dumps(result["inside_build"], indent=2)
+    assert result["trace_disabled"] is True
+    builds = [event for event in events if event[0] == "build"]
+    assert [(event[1], event[2], event[3]) for event in builds] == [
+        (requested, False, stock), (requested, True, stock),
+    ]
+    captures = [event for event in events if event[0] == "capture"]
+    assert [(event[1], event[2]) for event in captures] == [(requested, stock)] * 2
+    configure_commands = []
+    for event in events:
+        if event[0] != "command":
+            continue
+        argv = event[1]
+        if "-S" in argv and "-B" in argv and "-DCCBENCH_TRACE=0" in argv:
+            configure_commands.append(argv)
+    assert len(configure_commands) == 2
+    assert [Path(argv[argv.index("-S") + 1]) for argv in configure_commands] == [requested] * 2
+    assert [event for event in events if event[0] in {"apply", "revert"}] == [
+        ("apply", requested), ("revert", requested),
+    ]
+    kinds = [event[0] for event in events]
+    apply_index, revert_index = kinds.index("apply"), kinds.index("revert")
+    assert all(apply_index < index < revert_index for index, kind in enumerate(kinds)
+               if kind in {"build", "gate", "capture"})
+    assert events.index(("identity", requested)) < apply_index
+    assert not requested.is_relative_to(scratch)
+    for build in builds:
+        assert requested in build[4].readonly_roots
+        argv = build[4].argv(["true"], build=True)
+        assert argv is not None
+        mount = ["--ro-bind", str(requested), str(requested)]
+        assert any(argv[index:index + 3] == mount for index in range(len(argv) - 2))
+    assert result["source_identity_valid"] is True
+    assert result["source_identities"]["ccbench_requested_base"]["valid"] is True
+    assert result["source_identities"]["ccbench_requested_base"]["path"] == str(requested)
+    assert result["condition_gates"] == result["outside_build"]["condition_gates"]
+
+
+@pytest.mark.parametrize("failure", ["wrong-head", "dirty"])
+def test_s6_requested_base_identity_rejects_real_wrong_head_and_dirty(
+    s6_bindable_root, monkeypatch, failure,
+):
+    result, events, requested, stock, scratch = _observe_s6_wiring(
+        s6_bindable_root, monkeypatch, failure,
+    )
+    assert result["failure_stage"] == "source-identity"
+    assert result["source_identity_valid"] is False
+    identity = result["source_identities"]["ccbench_requested_base"]
+    assert identity["valid"] is False
+    if failure == "wrong-head":
+        assert identity["observed_head"] != identity["expected_head"]
+        assert identity["clean_including_untracked"] is True
+    else:
+        assert identity["observed_head"] == identity["expected_head"]
+        assert identity["clean_including_untracked"] is False
+    assert not any(event[0] in {"apply", "build", "gate", "capture"} for event in events)
+
+
+def test_s6_requested_wrong_head_rejected_without_harness_mask(s6_bindable_root, monkeypatch):
+    result, events, requested, stock, scratch = _observe_s6_wiring(
+        s6_bindable_root, monkeypatch, "wrong-head-restored",
+    )
+    assert ("restored-pinned-clean", requested) in events
+    assert result["failure_stage"] == "source-identity"
+    assert result["source_identity_valid"] is False
+    identity = result["source_identities"]["ccbench_requested_base"]
+    assert identity["valid"] is False
+    assert identity["observed_head"] != identity["expected_head"]
+    assert identity["clean_including_untracked"] is True
+    assert not any(event[0] in {"apply", "build", "gate", "capture"} for event in events)
+
+
+@pytest.mark.parametrize("failure", ["outside", "gate"])
+def test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception(
+    s6_bindable_root, monkeypatch, failure,
+):
+    result, events, requested, stock, scratch = _observe_s6_wiring(
+        s6_bindable_root, monkeypatch, failure,
+    )
+    assert [event for event in events if event[0] in {"apply", "revert"}] == [
+        ("apply", requested), ("revert", requested),
+    ]
+    builds = [event for event in events if event[0] == "build"]
+    assert [(event[1], event[2]) for event in builds] == [(requested, False)]
+    if failure == "outside":
+        assert result["outside_build"]["failure_stage"] == "ccbench-build"
+        assert result["inside_build"]["failure_stage"] == "outside-control"
+
+
+def test_s6_shared_configure_excludes_named_unused_variables():
+    source = inspect.getsource(probe._execute_ccbench_build)
+    for name in ("RULE_LAUNCH_COMPILE", "IZANAGI_GFLAGS_SRC_HEAD", "IZANAGI_GLOG_SRC_HEAD"):
+        assert name not in source
+    assert '"-DCCBENCH_BACKOFF_FIXED=-1"' in source
+    assert "shutil.copytree" not in source
+
+
+def test_s6_requested_checkout_inside_scratch_is_rejected_and_removed(s6_bindable_root, monkeypatch):
+    repo, stock, scratch, profile, policy, pin, wrong_pin = _s6_live_fixture(
+        s6_bindable_root, monkeypatch, "",
+    )
+    monkeypatch.setenv("TMPDIR", str(scratch / "tmp"))
+    with pytest.raises(RuntimeError, match="S6 requested source must be outside scratch"):
+        probe.observe_s6(profile, repo, scratch, policy,
+                         time.monotonic_ns() + 600_000_000_000)
+    assert list((scratch / "tmp").iterdir()) == []
+    assert not (scratch / "s6-outside").exists()
+    assert _s6_fixture_git(stock, "status", "--porcelain", "--untracked-files=all") == ""
+    assert _s6_fixture_git(stock, "worktree", "list", "--porcelain").count("worktree ") == 1
+
+
+def test_s6_patch_and_harness_are_bound_execution_inputs():
+    assert "patches/silo-backoff-fixed.patch" in probe._BOUND_RELATIVE_PATHS
+    assert "orchestrator/campaign/patchharness.py" in probe._BOUND_RELATIVE_PATHS
+
+
+@pytest.mark.parametrize("tmpdir_mode", ["unset", "/tmp"])
+def test_s6_requested_checkout_avoids_masked_tmp(s6_bindable_root, monkeypatch, tmpdir_mode):
+    repo, stock, scratch, profile, policy, pin, wrong_pin = _s6_live_fixture(
+        s6_bindable_root, monkeypatch, "",
+    )
+    if tmpdir_mode == "unset":
+        monkeypatch.delenv("TMPDIR", raising=False)
+    else:
+        monkeypatch.setenv("TMPDIR", tmpdir_mode)
+    original_tmpdir = os.environ.get("TMPDIR")
+    observed = []
+
+    def stop_after_observing_source(build_profile, source, *args, **kwargs):
+        requested = source.resolve(strict=True)
+        observed.append(requested)
+        assert requested.parent.parent == scratch.parent
+        assert not requested.is_relative_to(Path("/tmp"))
+        assert not requested.is_relative_to(scratch)
+        assert "BACKOFF_FIXED" in (requested / "include/backoff.hh").read_text()
+        assert requested in build_profile.readonly_roots
+        assert os.environ.get("TMPDIR") == original_tmpdir
+        return {"success": False, "failure_stage": "placement-observed"}
+
+    monkeypatch.setattr(probe, "_execute_ccbench_build", stop_after_observing_source)
+    result = probe.observe_s6(profile, repo, scratch, policy,
+                              time.monotonic_ns() + 600_000_000_000)
+    assert result["outside_build"]["failure_stage"] == "placement-observed"
+    assert len(observed) == 1
+    assert not observed[0].parent.exists()
+    assert os.environ.get("TMPDIR") == original_tmpdir
+    assert _s6_fixture_git(stock, "worktree", "list", "--porcelain").count("worktree ") == 1
+
+
+@pytest.mark.parametrize("tmpdir_mode", ["unset", "/tmp"])
+def test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir(
+    s6_bindable_root, monkeypatch, tmpdir_mode,
+):
+    result, events, requested, stock, scratch = _observe_s6_wiring(
+        s6_bindable_root, monkeypatch, tmpdir_mode=tmpdir_mode,
+    )
+    assert requested.parent.parent == scratch.parent
+    assert not requested.is_relative_to(Path("/tmp"))
+    assert not requested.is_relative_to(scratch)
+    assert result["outside_success"] is True, result
+    assert result["inside_success"] is True, json.dumps(result["inside_build"], indent=2)
+    assert result["success"] is True
+    assert result["trace_disabled"] is True
+    assert result["source_identity_valid"] is True
+    assert [(event[1], event[2], event[3]) for event in events if event[0] == "build"] == [
+        (requested, False, stock), (requested, True, stock),
+    ]
+    assert [event for event in events if event[0] in {"apply", "revert"}] == [
+        ("apply", requested), ("revert", requested),
+    ]
 
 
 def _run() -> int:
