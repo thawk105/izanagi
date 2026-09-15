@@ -1,0 +1,483 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/3019c5277a1863bf29f8beee7c02bfdf/izdw-3019c5277a.o999041",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/3019c5277a1863bf29f8beee7c02bfdf/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................................                       [100%]\n50 passed in 140.87s (0:02:20)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "d3fc9ff3c80cae86a159890e7360b07d9b0de1761d42acd06fe804cf193a7ea4"
+    },
+    "artifact_error": null,
+    "collection_sha256": "e70739e0ee87912786372befcff914e08c8f25c51b01e82167cf21437b305785",
+    "duration_s": 208.605,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "c77dc0f9b205e1a074a66e6df8250d7629fefb8f84cb243d98f241264c04120c",
+    "repo_head": "9b2a3198ad73231404dc1fb2ee6cc4fa77fdda3e",
+    "runner_sha256": "b15b11ddc2d90a5d0b9679fe175bfa341631fcc803fe322019bd21a01f58240e",
+    "spec_sha256": "a355f9845f41f3b2572591ddd2a4bda7d26e6df5bfcb5c380ca36cea56f40acc",
+    "status": "PASSED",
+    "test_output_sha256": "d3fc9ff3c80cae86a159890e7360b07d9b0de1761d42acd06fe804cf193a7ea4",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "971af6236082568d6b6ce89ec2fda3938caba02a053c50ac731a136e5a9c2e6d"
+  },
+  "date": "2026-09-15T07:41:29.511786+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/71f583812ce6444e6e855ce2270d2464/izdw-71f583812c.o999047",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/71f583812ce6444e6e855ce2270d2464/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................F........................                       [100%]\n=================================== FAILURES ===================================\n______ test_aggregate_authoritative_floor_reaches_public_material_report _______\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_aggregate_authoritative_f0')\nimmutable_publication = _ImmutablePublication(publication_evidence=_PublicationEvidence(publication=B4PrerunPublication(publication_root='/tmp...tic-pair/off/receipt_producer-off-1_terminal.json'), iteration=201, on_commit_receipt=None, off_commit_receipt=None))))\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e602240580>\n\n    def test_aggregate_authoritative_floor_reaches_public_material_report(\n        tmp_path: Path,\n        immutable_publication: _ImmutablePublication,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        from orchestrator.tests.test_p3_b4_floor_artifact_issuer import (\n            _aggregate_public_sources,\n        )\n    \n        authority_repo = tmp_path / \"authority-repo\"\n        authority_repo.mkdir()\n        pins, paths, _, _ = _aggregate_public_sources(authority_repo, monkeypatch)\n        specs = [json.loads((authority_repo / pin[0]).read_bytes()) for pin in pins]\n        summaries = [json.loads((authority_repo / path).read_bytes()) for path in paths]\n        assert len(pins) == len(paths) == 3\n        assert [\n            spec[\"cells\"][0][\"perf_config\"][\"workload\"][\"ycsb_rratio\"]\n            for spec in specs\n        ] == [\"5\", \"50\", \"95\"]\n        expected_values = [Fraction(summary[\"candidate_floor\"]) for summary in summaries]\n        assert expected_values[0] < expected_values[2] < expected_values[1]\n        expected_floor = max(expected_values)\n        expected_ratio = [expected_floor.numerator, expected_floor.denominator]\n        expected_non_guarantees = [\n            *floor_issuer.NON_GUARANTEES,\n            *(item for summary in summaries for item in summary[\"proof_limitations\"][\"items\"]),\n            *floor_issuer.AGGREGATE_NON_GUARANTEES,\n        ]\n        # Name the non-maximum sources so their limitations cannot be dropped.\n        assert \"source 0\" in summaries[0][\"proof_limitations\"][\"items\"]\n        assert \"source 2\" in summaries[2][\"proof_limitations\"][\"items\"]\n    \n        monkeypatch.setattr(os, \"fsync\", lambda _fd: None)\n        issued = floor_issuer.issue_aggregate_authoritative_floor(\n            repo_root=authority_repo,\n            summary_paths=paths,\n            expected_specs=pins,\n            output_dir=Path(\"out\"),\n        )\n        artifact_path = issued.artifact_path\n        artifact_bytes = (authority_repo / artifact_path).read_bytes()\n        artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()\n        assert issued.artifact_sha256 == artifact_sha256\n        preregistration = authority_repo / R._PREREGISTRATION_RELATIVE_PATH\n        preregistration.parent.mkdir(parents=True)\n        preregistration.write_text(\n            f\"|{floor_issuer.PREREGISTRATION_FLOOR_LABEL}|\"\n            f\"artifact_path={artifact_path}; sha256={artifact_sha256}|\\n\",\n            encoding=\"utf-8\",\n        )\n        resolved = floor_issuer.resolve_preregistered_authoritative_floor(\n            repo_root=authority_repo,\n            preregistration_path=R._PREREGISTRATION_RELATIVE_PATH,\n        )\n        assert resolved is not None\n        assert resolved.artifact_path == issued.artifact_path\n        assert resolved.artifact_sha256 == issued.artifact_sha256\n        assert resolved.floor == expected_floor\n    \n        monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n        original_evaluator = R.evaluate_b4_artifacts\n        observed_floor_arguments: list[object] = []\n    \n        def record_floor_argument(**kwargs):\n            observed_floor_arguments.append(kwargs[\"floor\"])\n            return original_evaluator(**kwargs)\n    \n        monkeypatch.setattr(R, \"evaluate_b4_artifacts\", record_floor_argument)\n        document = R.build_material_report_document(\n            immutable_publication.publication.publication_root,\n        )\n        assert len(observed_floor_arguments) == 1\n        assert type(observed_floor_arguments[0]) is Fraction\n        assert observed_floor_arguments[0] == expected_floor\n    \n        report = json.loads(document.json_bytes.decode(\"utf-8\"))\n>       assert report[\"floor\"] == {\n            \"availability\": \"present\",\n            \"reason\": None,\n            \"source\": {\n                \"artifact_path\": artifact_path,\n                \"artifact_sha256\": artifact_sha256,\n                \"schema_version\": \"p3-b4-authoritative-floor/v2\",\n                \"generator_identity\": floor_issuer.GENERATOR_IDENTITY,\n            },\n            \"value\": expected_ratio,\n        }\nE       AssertionError: assert {'availabilit...599627370496]} == {'availabilit...599627370496]}\nE         \nE         Omitting 3 identical items, use -vv to show\nE         Differing items:\nE         {'source': {'artifact_path': 'out/b4-floor-aggregate__env-synthetic-env__protocol-mocc__threads-4__workload-set-7095cf...r_identity': 'orchestrator/campaign/p3_b4_floor_artifact_issuer.py', 'schema_version': 'p3-b4-authoritative-floor/v1'}} != {'source': {'artifact_path': 'out/b4-floor-aggregate__env-synthetic-env__protocol-mocc__threads-4__workload-set-7095cf...ersion': 'p3-b4-authoritative-floor/v2', 'generator_identity': 'orchestrator/campaign/p3_b4_floor_artifact_issuer.py'}}\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_material_report.py:1034: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report\n1 failed, 49 passed in 139.44s (0:02:19)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report\" nodeid_bytes=137 nodeid_omitted_bytes=0 source_bytes=5369 retained_bytes=3940 omitted_bytes=1429 rendered_excerpt_bytes=4096 sha256=cf44e43bb64be9146b534de68084d7e7235f3eea52d0ef41999ce925aa743d7d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> in summaries]\n>         assert expected_values[0] < expected_values[2] < expected_values[1]\n>         expected_floor = max(expected_values)\n>         expected_ratio = [expected_floor.numerator, expected_floor.denominator]\n>         expected_non_guarantees = [\n>             *floor_issuer.NON_GUARANTEES,\n>             *(item for summary in summaries for item in summary[\"proof_limitations\"][\"items\"]),\n>             *floor_issuer.AGGREGATE_NON_GUARANTEES,\n>         ]\n>         # Name the non-maximum sources so their limitations cannot be dropped.\n>         assert \"source 0\" in summaries[0][\"proof_limitations\"][\"items\"]\n>         assert \"source 2\" in summaries[2][\"proof_limitations\"][\"items\"]\n>     \n>         monkeypatch.setattr(os, \"fsync\", lambda _fd: None)\n>         issued = floor_issuer.issue_aggregate_authoritative_floor(\n>             repo_root=authority_repo,\n>             summary_paths=paths,\n>             expected_specs=pins,\n>             output_dir=Path(\"out\"),\n>         )\n>         artifact_path = issued.artifact_path\n>         artifact_bytes = (authority_repo / artifact_path).read_bytes()\n>         artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()\n>         assert issued.artifact_sha256 == artifact_sha256\n>         preregistration = authority_repo / R._PREREGISTRATION_RELATIVE_PATH\n>         preregistration.parent.mkdir(parents=True)\n>         preregistration.write_text(\n>             f\"|{floor_issuer.PREREGISTRATION_FLOOR_LABEL}|\"\n>             f\"artifact_path={artifact_path}; sha256={artifact_sha256}|\\x5cn\",\n>             encoding=\"utf-8\",\n>         )\n>         resolved = floor_issuer.resolve_preregistered_authoritative_floor(\n>             repo_root=authority_repo,\n>             preregistration_path=R._PREREGISTRATION_RELATIVE_PATH,\n>         )\n>         assert resolved is not None\n>         assert resolved.artifact_path == issued.artifact_path\n>         assert resolved.artifact_sha256 == issued.artifact_sha256\n>         assert resolved.floor == expected_floor\n>     \n>         monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n>         original_evaluator = R.evaluate_b4_artifacts\n>         observed_floor_arguments: list[object] = []\n>     \n>         def record_floor_argument(**kwargs):\n>             observed_floor_arguments.append(kwargs[\"floor\"])\n>             return original_evaluator(**kwargs)\n>     \n>         monkeypatch.setattr(R, \"evaluate_b4_artifacts\", record_floor_argument)\n>         document = R.build_material_report_document(\n>             immutable_publication.publication.publication_root,\n>         )\n>         assert len(observed_floor_arguments) == 1\n>         assert type(observed_floor_arguments[0]) is Fraction\n>         assert observed_floor_arguments[0] == expected_floor\n>     \n>         report = json.loads(document.json_bytes.decode(\"utf-8\"))\n> >       assert report[\"floor\"] == {\n>             \"availability\": \"present\",\n>             \"reason\": None,\n>             \"source\": {\n>                 \"artifact_path\": artifact_path,\n>                 \"artifact_sha256\": artifact_sha256,\n>                 \"schema_version\": \"p3-b4-authoritative-floor/v2\",\n>                 \"generator_identity\": floor_issuer.GENERATOR_IDENTITY,\n>             },\n>             \"value\": expected_ratio,\n>         }\n> E       AssertionError: assert {'availabilit...599627370496]} == {'availabilit...599627370496]}\n> E         \n> E         Omitting 3 identical items, use -vv to show\n> E         Differing items:\n> E         {'source': {'artifact_path': 'out/b4-floor-aggregate__env-synthetic-env__protocol-mocc__threads-4__workload-set-7095cf...r_identity': 'orchestrator/campaign/p3_b4_floor_artifact_issuer.py', 'schema_version': 'p3-b4-authoritative-floor/v1'}} != {'source': {'artifact_path': 'out/b4-floor-aggregate__env-synthetic-env__protocol-mocc__threads-4__workload-set-7095cf...ersion': 'p3-b4-authoritative-floor/v2', 'generator_identity': 'orchestrator/campaign/p3_b4_floor_artifact_issuer.py'}}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_material_report.py:1034: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=5369 retained_bytes=3940 omitted_bytes=1429 budget_bytes=49152 rendered_bytes=4867 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3922ccb8d7ce7b5d67f47c535add81f57334b10e39ed9942c07b4ad9448a07de"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e70739e0ee87912786372befcff914e08c8f25c51b01e82167cf21437b305785",
+      "duration_s": 162.926,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "9f2f5ae920c9f7391a11b1b411aa0aea60e67612868f5bc5e563f9cc919649df",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c4c0331b67ea10aad621bce817fbb3d625b7fbd3820bd9fc511be5fbd3d2a7cd",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "new": "        \"schema_version\": \"p3-b4-authoritative-floor/v1\",\n",
+          "old": "        \"schema_version\": authoritative_floor.schema_version,\n"
+        }
+      ],
+      "repo_head": "9b2a3198ad73231404dc1fb2ee6cc4fa77fdda3e",
+      "runner_sha256": "b15b11ddc2d90a5d0b9679fe175bfa341631fcc803fe322019bd21a01f58240e",
+      "spec_sha256": "a355f9845f41f3b2572591ddd2a4bda7d26e6df5bfcb5c380ca36cea56f40acc",
+      "status": "KILLED",
+      "test_output_sha256": "3922ccb8d7ce7b5d67f47c535add81f57334b10e39ed9942c07b4ad9448a07de",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "971af6236082568d6b6ce89ec2fda3938caba02a053c50ac731a136e5a9c2e6d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/6e439fad990d35bb8307e09869b22b56/izdw-6e439fad99.o999052",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/6e439fad990d35bb8307e09869b22b56/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................F........................                       [100%]\n=================================== FAILURES ===================================\n______ test_aggregate_authoritative_floor_reaches_public_material_report _______\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_aggregate_authoritative_f0')\nimmutable_publication = _ImmutablePublication(publication_evidence=_PublicationEvidence(publication=B4PrerunPublication(publication_root='/tmp...tic-pair/off/receipt_producer-off-1_terminal.json'), iteration=201, on_commit_receipt=None, off_commit_receipt=None))))\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d89e743700>\n\n    def test_aggregate_authoritative_floor_reaches_public_material_report(\n        tmp_path: Path,\n        immutable_publication: _ImmutablePublication,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        from orchestrator.tests.test_p3_b4_floor_artifact_issuer import (\n            _aggregate_public_sources,\n        )\n    \n        authority_repo = tmp_path / \"authority-repo\"\n        authority_repo.mkdir()\n        pins, paths, _, _ = _aggregate_public_sources(authority_repo, monkeypatch)\n        specs = [json.loads((authority_repo / pin[0]).read_bytes()) for pin in pins]\n        summaries = [json.loads((authority_repo / path).read_bytes()) for path in paths]\n        assert len(pins) == len(paths) == 3\n        assert [\n            spec[\"cells\"][0][\"perf_config\"][\"workload\"][\"ycsb_rratio\"]\n            for spec in specs\n        ] == [\"5\", \"50\", \"95\"]\n        expected_values = [Fraction(summary[\"candidate_floor\"]) for summary in summaries]\n        assert expected_values[0] < expected_values[2] < expected_values[1]\n        expected_floor = max(expected_values)\n        expected_ratio = [expected_floor.numerator, expected_floor.denominator]\n        expected_non_guarantees = [\n            *floor_issuer.NON_GUARANTEES,\n            *(item for summary in summaries for item in summary[\"proof_limitations\"][\"items\"]),\n            *floor_issuer.AGGREGATE_NON_GUARANTEES,\n        ]\n        # Name the non-maximum sources so their limitations cannot be dropped.\n        assert \"source 0\" in summaries[0][\"proof_limitations\"][\"items\"]\n        assert \"source 2\" in summaries[2][\"proof_limitations\"][\"items\"]\n    \n        monkeypatch.setattr(os, \"fsync\", lambda _fd: None)\n        issued = floor_issuer.issue_aggregate_authoritative_floor(\n            repo_root=authority_repo,\n            summary_paths=paths,\n            expected_specs=pins,\n            output_dir=Path(\"out\"),\n        )\n        artifact_path = issued.artifact_path\n        artifact_bytes = (authority_repo / artifact_path).read_bytes()\n        artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()\n        assert issued.artifact_sha256 == artifact_sha256\n        preregistration = authority_repo / R._PREREGISTRATION_RELATIVE_PATH\n        preregistration.parent.mkdir(parents=True)\n        preregistration.write_text(\n            f\"|{floor_issuer.PREREGISTRATION_FLOOR_LABEL}|\"\n            f\"artifact_path={artifact_path}; sha256={artifact_sha256}|\\n\",\n            encoding=\"utf-8\",\n        )\n        resolved = floor_issuer.resolve_preregistered_authoritative_floor(\n            repo_root=authority_repo,\n            preregistration_path=R._PREREGISTRATION_RELATIVE_PATH,\n        )\n        assert resolved is not None\n        assert resolved.artifact_path == issued.artifact_path\n        assert resolved.artifact_sha256 == issued.artifact_sha256\n        assert resolved.floor == expected_floor\n    \n        monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n        original_evaluator = R.evaluate_b4_artifacts\n        observed_floor_arguments: list[object] = []\n    \n        def record_floor_argument(**kwargs):\n            observed_floor_arguments.append(kwargs[\"floor\"])\n            return original_evaluator(**kwargs)\n    \n        monkeypatch.setattr(R, \"evaluate_b4_artifacts\", record_floor_argument)\n        document = R.build_material_report_document(\n            immutable_publication.publication.publication_root,\n        )\n        assert len(observed_floor_arguments) == 1\n        assert type(observed_floor_arguments[0]) is Fraction\n        assert observed_floor_arguments[0] == expected_floor\n    \n        report = json.loads(document.json_bytes.decode(\"utf-8\"))\n        assert report[\"floor\"] == {\n            \"availability\": \"present\",\n            \"reason\": None,\n            \"source\": {\n                \"artifact_path\": artifact_path,\n                \"artifact_sha256\": artifact_sha256,\n                \"schema_version\": \"p3-b4-authoritative-floor/v2\",\n                \"generator_identity\": floor_issuer.GENERATOR_IDENTITY,\n            },\n            \"value\": expected_ratio,\n        }\n        for limitations in (\n            report[\"certification_scope\"][\"not_guaranteed\"],\n            report[\"provenance\"][\"report_non_guarantees\"],\n        ):\n>           assert limitations[-len(expected_non_guarantees):] == expected_non_guarantees\nE           AssertionError: assert ['research_su...on_time', ...] == ['binary64 の中...urement', ...]\nE             \nE             At index 0 diff: 'research_success_or_novelty' != 'binary64 の中間丸めにより、記録された float D が同じ入力の exact D より小さいことがある。'\nE             Right contains 3 more items, first extra item: '期待 spec 列が結果を見る前に選ばれたこと、§5 の対象集合との意味的一致、1 campaign・1 セルあたり n = 62 と 24 時間以上の分離は機械検査しない。'\nE             Use -v to get more diff\n\norchestrator/tests/test_p3_b4_material_report.py:1049: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report\n1 failed, 49 passed in 140.71s (0:02:20)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report\" nodeid_bytes=137 nodeid_omitted_bytes=0 source_bytes=5506 retained_bytes=3683 omitted_bytes=1823 rendered_excerpt_bytes=4096 sha256=44f510e213fd178cc1a6efce1aefa4f18ad41507213240e0a1fd1f86a1a5f24b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>         *floor_issuer.AGGREGATE_NON_GUARANTEES,\n>         ]\n>         # Name the non-maximum sources so their limitations cannot be dropped.\n>         assert \"source 0\" in summaries[0][\"proof_limitations\"][\"items\"]\n>         assert \"source 2\" in summaries[2][\"proof_limitations\"][\"items\"]\n>     \n>         monkeypatch.setattr(os, \"fsync\", lambda _fd: None)\n>         issued = floor_issuer.issue_aggregate_authoritative_floor(\n>             repo_root=authority_repo,\n>             summary_paths=paths,\n>             expected_specs=pins,\n>             output_dir=Path(\"out\"),\n>         )\n>         artifact_path = issued.artifact_path\n>         artifact_bytes = (authority_repo / artifact_path).read_bytes()\n>         artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()\n>         assert issued.artifact_sha256 == artifact_sha256\n>         preregistration = authority_repo / R._PREREGISTRATION_RELATIVE_PATH\n>         preregistration.parent.mkdir(parents=True)\n>         preregistration.write_text(\n>             f\"|{floor_issuer.PREREGISTRATION_FLOOR_LABEL}|\"\n>             f\"artifact_path={artifact_path}; sha256={artifact_sha256}|\\x5cn\",\n>             encoding=\"utf-8\",\n>         )\n>         resolved = floor_issuer.resolve_preregistered_authoritative_floor(\n>             repo_root=authority_repo,\n>             preregistration_path=R._PREREGISTRATION_RELATIVE_PATH,\n>         )\n>         assert resolved is not None\n>         assert resolved.artifact_path == issued.artifact_path\n>         assert resolved.artifact_sha256 == issued.artifact_sha256\n>         assert resolved.floor == expected_floor\n>     \n>         monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n>         original_evaluator = R.evaluate_b4_artifacts\n>         observed_floor_arguments: list[object] = []\n>     \n>         def record_floor_argument(**kwargs):\n>             observed_floor_arguments.append(kwargs[\"floor\"])\n>             return original_evaluator(**kwargs)\n>     \n>         monkeypatch.setattr(R, \"evaluate_b4_artifacts\", record_floor_argument)\n>         document = R.build_material_report_document(\n>             immutable_publication.publication.publication_root,\n>         )\n>         assert len(observed_floor_arguments) == 1\n>         assert type(observed_floor_arguments[0]) is Fraction\n>         assert observed_floor_arguments[0] == expected_floor\n>     \n>         report = json.loads(document.json_bytes.decode(\"utf-8\"))\n>         assert report[\"floor\"] == {\n>             \"availability\": \"present\",\n>             \"reason\": None,\n>             \"source\": {\n>                 \"artifact_path\": artifact_path,\n>                 \"artifact_sha256\": artifact_sha256,\n>                 \"schema_version\": \"p3-b4-authoritative-floor/v2\",\n>                 \"generator_identity\": floor_issuer.GENERATOR_IDENTITY,\n>             },\n>             \"value\": expected_ratio,\n>         }\n>         for limitations in (\n>             report[\"certification_scope\"][\"not_guaranteed\"],\n>             report[\"provenance\"][\"report_non_guarantees\"],\n>         ):\n> >           assert limitations[-len(expected_non_guarantees):] == expected_non_guarantees\n> E           AssertionError: assert ['research_su...on_time', ...] == ['binary64 \\u306e\\u4e2d...urement', ...]\n> E             \n> E             At index 0 diff: 'research_success_or_novelty' != 'binary64 \\u306e\\u4e2d\\u9593\\u4e38\\u3081\\u306b\\u3088\\u308a\\u3001\\u8a18\\u9332\\u3055\\u308c\\u305f float D \\u304c\\u540c\\u3058\\u5165\\u529b\\u306e exact D \\u3088\\u308a\\u5c0f\\u3055\\u3044\\u3053\\u3068\\u304c\\u3042\\u308b\\u3002'\n> E             Right contains 3 more items, first extra item: '\\u671f\\u5f85 spec \\u5217\\u304c\\u7d50\\u679c\\u3092\\u898b\\u308b\\u524d\\u306b\\u9078\\u3070\\u308c\\u305f\\u3053\\u3068\\u3001\\xa75 \\u306e\\u5bfe\\u8c61\\u96c6\\u5408\\u3068\\u306e\\u610f\\u5473\\u7684\\u4e00\\u81f4\\u30011 campaign\\u30fb1 \\u30bb\\u30eb\\u3042\\u305f\\u308a n = 62 \\u3068 24 \\u6642\\u9593\\u4ee5\\u4e0a\\u306e\\u5206\\u96e2\\u306f\\u6a5f\\u68b0\\u691c\\u67fb\\u3057\\u306a\\u3044\\u3002'\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_material_report.py:1049: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=5506 retained_bytes=3683 omitted_bytes=1823 budget_bytes=49152 rendered_bytes=4867 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "41f685fdbfe7ea1b7229ebe89d6523ef4103c7151d9f88f3f5aa3fd1be109f50"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e70739e0ee87912786372befcff914e08c8f25c51b01e82167cf21437b305785",
+      "duration_s": 956.476,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "ce919a3872591d3b3b846f5fabb978c8c274c3f060445ff4bd178fd9423123b4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "aaa7acde08fd99b420750ddf6b301dd20590f40add25fcfd83a5df2e62f8d3be",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "new": "    not_guaranteed.extend(authoritative_floor.non_guarantees[:3])\n    report[\"provenance\"][\"report_non_guarantees\"].extend(\n        authoritative_floor.non_guarantees[:3]\n    )\n",
+          "old": "    not_guaranteed.extend(authoritative_floor.non_guarantees)\n    report[\"provenance\"][\"report_non_guarantees\"].extend(\n        authoritative_floor.non_guarantees\n    )\n"
+        }
+      ],
+      "repo_head": "9b2a3198ad73231404dc1fb2ee6cc4fa77fdda3e",
+      "runner_sha256": "b15b11ddc2d90a5d0b9679fe175bfa341631fcc803fe322019bd21a01f58240e",
+      "spec_sha256": "a355f9845f41f3b2572591ddd2a4bda7d26e6df5bfcb5c380ca36cea56f40acc",
+      "status": "KILLED",
+      "test_output_sha256": "41f685fdbfe7ea1b7229ebe89d6523ef4103c7151d9f88f3f5aa3fd1be109f50",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "971af6236082568d6b6ce89ec2fda3938caba02a053c50ac731a136e5a9c2e6d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/740f0c451cf8b197f37370bf59663cf7/izdw-740f0c451c.o999125",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/740f0c451cf8b197f37370bf59663cf7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................F........................                       [100%]\n=================================== FAILURES ===================================\n______ test_aggregate_authoritative_floor_reaches_public_material_report _______\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_aggregate_authoritative_f0')\nimmutable_publication = _ImmutablePublication(publication_evidence=_PublicationEvidence(publication=B4PrerunPublication(publication_root='/tmp...tic-pair/off/receipt_producer-off-1_terminal.json'), iteration=201, on_commit_receipt=None, off_commit_receipt=None))))\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1506e933c3d0>\n\n    def test_aggregate_authoritative_floor_reaches_public_material_report(\n        tmp_path: Path,\n        immutable_publication: _ImmutablePublication,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        from orchestrator.tests.test_p3_b4_floor_artifact_issuer import (\n            _aggregate_public_sources,\n        )\n    \n        authority_repo = tmp_path / \"authority-repo\"\n        authority_repo.mkdir()\n        pins, paths, _, _ = _aggregate_public_sources(authority_repo, monkeypatch)\n        specs = [json.loads((authority_repo / pin[0]).read_bytes()) for pin in pins]\n        summaries = [json.loads((authority_repo / path).read_bytes()) for path in paths]\n        assert len(pins) == len(paths) == 3\n        assert [\n            spec[\"cells\"][0][\"perf_config\"][\"workload\"][\"ycsb_rratio\"]\n            for spec in specs\n        ] == [\"5\", \"50\", \"95\"]\n        expected_values = [Fraction(summary[\"candidate_floor\"]) for summary in summaries]\n        assert expected_values[0] < expected_values[2] < expected_values[1]\n        expected_floor = max(expected_values)\n        expected_ratio = [expected_floor.numerator, expected_floor.denominator]\n        expected_non_guarantees = [\n            *floor_issuer.NON_GUARANTEES,\n            *(item for summary in summaries for item in summary[\"proof_limitations\"][\"items\"]),\n            *floor_issuer.AGGREGATE_NON_GUARANTEES,\n        ]\n        # Name the non-maximum sources so their limitations cannot be dropped.\n        assert \"source 0\" in summaries[0][\"proof_limitations\"][\"items\"]\n        assert \"source 2\" in summaries[2][\"proof_limitations\"][\"items\"]\n    \n        monkeypatch.setattr(os, \"fsync\", lambda _fd: None)\n        issued = floor_issuer.issue_aggregate_authoritative_floor(\n            repo_root=authority_repo,\n            summary_paths=paths,\n            expected_specs=pins,\n            output_dir=Path(\"out\"),\n        )\n        artifact_path = issued.artifact_path\n        artifact_bytes = (authority_repo / artifact_path).read_bytes()\n        artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()\n        assert issued.artifact_sha256 == artifact_sha256\n        preregistration = authority_repo / R._PREREGISTRATION_RELATIVE_PATH\n        preregistration.parent.mkdir(parents=True)\n        preregistration.write_text(\n            f\"|{floor_issuer.PREREGISTRATION_FLOOR_LABEL}|\"\n            f\"artifact_path={artifact_path}; sha256={artifact_sha256}|\\n\",\n            encoding=\"utf-8\",\n        )\n        resolved = floor_issuer.resolve_preregistered_authoritative_floor(\n            repo_root=authority_repo,\n            preregistration_path=R._PREREGISTRATION_RELATIVE_PATH,\n        )\n        assert resolved is not None\n        assert resolved.artifact_path == issued.artifact_path\n        assert resolved.artifact_sha256 == issued.artifact_sha256\n        assert resolved.floor == expected_floor\n    \n        monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n        original_evaluator = R.evaluate_b4_artifacts\n        observed_floor_arguments: list[object] = []\n    \n        def record_floor_argument(**kwargs):\n            observed_floor_arguments.append(kwargs[\"floor\"])\n            return original_evaluator(**kwargs)\n    \n        monkeypatch.setattr(R, \"evaluate_b4_artifacts\", record_floor_argument)\n        document = R.build_material_report_document(\n            immutable_publication.publication.publication_root,\n        )\n        assert len(observed_floor_arguments) == 1\n        assert type(observed_floor_arguments[0]) is Fraction\n>       assert observed_floor_arguments[0] == expected_floor\nE       assert Fraction(0, 1) == Fraction(1351079888211149, 4503599627370496)\n\norchestrator/tests/test_p3_b4_material_report.py:1031: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report\n1 failed, 49 passed in 139.45s (0:02:19)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report\" nodeid_bytes=137 nodeid_omitted_bytes=0 source_bytes=4234 retained_bytes=3932 omitted_bytes=302 rendered_excerpt_bytes=4096 sha256=7a9cca544cceb26e91ad46d9c128b9b3d766aad205afda97d4bca959cd6ccdf3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> eceipt_producer-off-1_terminal.json'), iteration=201, on_commit_receipt=None, off_commit_receipt=None))))\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1506e933c3d0>\n> \n>     def test_aggregate_authoritative_floor_reaches_public_material_report(\n>         tmp_path: Path,\n>         immutable_publication: _ImmutablePublication,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         from orchestrator.tests.test_p3_b4_floor_artifact_issuer import (\n>             _aggregate_public_sources,\n>         )\n>     \n>         authority_repo = tmp_path / \"authority-repo\"\n>         authority_repo.mkdir()\n>         pins, paths, _, _ = _aggregate_public_sources(authority_repo, monkeypatch)\n>         specs = [json.loads((authority_repo / pin[0]).read_bytes()) for pin in pins]\n>         summaries = [json.loads((authority_repo / path).read_bytes()) for path in paths]\n>         assert len(pins) == len(paths) == 3\n>         assert [\n>             spec[\"cells\"][0][\"perf_config\"][\"workload\"][\"ycsb_rratio\"]\n>             for spec in specs\n>         ] == [\"5\", \"50\", \"95\"]\n>         expected_values = [Fraction(summary[\"candidate_floor\"]) for summary in summaries]\n>         assert expected_values[0] < expected_values[2] < expected_values[1]\n>         expected_floor = max(expected_values)\n>         expected_ratio = [expected_floor.numerator, expected_floor.denominator]\n>         expected_non_guarantees = [\n>             *floor_issuer.NON_GUARANTEES,\n>             *(item for summary in summaries for item in summary[\"proof_limitations\"][\"items\"]),\n>             *floor_issuer.AGGREGATE_NON_GUARANTEES,\n>         ]\n>         # Name the non-maximum sources so their limitations cannot be dropped.\n>         assert \"source 0\" in summaries[0][\"proof_limitations\"][\"items\"]\n>         assert \"source 2\" in summaries[2][\"proof_limitations\"][\"items\"]\n>     \n>         monkeypatch.setattr(os, \"fsync\", lambda _fd: None)\n>         issued = floor_issuer.issue_aggregate_authoritative_floor(\n>             repo_root=authority_repo,\n>             summary_paths=paths,\n>             expected_specs=pins,\n>             output_dir=Path(\"out\"),\n>         )\n>         artifact_path = issued.artifact_path\n>         artifact_bytes = (authority_repo / artifact_path).read_bytes()\n>         artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()\n>         assert issued.artifact_sha256 == artifact_sha256\n>         preregistration = authority_repo / R._PREREGISTRATION_RELATIVE_PATH\n>         preregistration.parent.mkdir(parents=True)\n>         preregistration.write_text(\n>             f\"|{floor_issuer.PREREGISTRATION_FLOOR_LABEL}|\"\n>             f\"artifact_path={artifact_path}; sha256={artifact_sha256}|\\x5cn\",\n>             encoding=\"utf-8\",\n>         )\n>         resolved = floor_issuer.resolve_preregistered_authoritative_floor(\n>             repo_root=authority_repo,\n>             preregistration_path=R._PREREGISTRATION_RELATIVE_PATH,\n>         )\n>         assert resolved is not None\n>         assert resolved.artifact_path == issued.artifact_path\n>         assert resolved.artifact_sha256 == issued.artifact_sha256\n>         assert resolved.floor == expected_floor\n>     \n>         monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n>         original_evaluator = R.evaluate_b4_artifacts\n>         observed_floor_arguments: list[object] = []\n>     \n>         def record_floor_argument(**kwargs):\n>             observed_floor_arguments.append(kwargs[\"floor\"])\n>             return original_evaluator(**kwargs)\n>     \n>         monkeypatch.setattr(R, \"evaluate_b4_artifacts\", record_floor_argument)\n>         document = R.build_material_report_document(\n>             immutable_publication.publication.publication_root,\n>         )\n>         assert len(observed_floor_arguments) == 1\n>         assert type(observed_floor_arguments[0]) is Fraction\n> >       assert observed_floor_arguments[0] == expected_floor\n> E       assert Fraction(0, 1) == Fraction(1351079888211149, 4503599627370496)\n> \n> orchestrator/tests/test_p3_b4_material_report.py:1031: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4234 retained_bytes=3932 omitted_bytes=302 budget_bytes=49152 rendered_bytes=4865 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b2d7bbd05051d2c63349e23877d2b55f561f6d5e28452d0064c94d0996a3c809"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e70739e0ee87912786372befcff914e08c8f25c51b01e82167cf21437b305785",
+      "duration_s": 162.38,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "b80f19ce487d64e1d59b999623e847613a4aa1236d1993f4094d5974b4e46f88",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "25007ad8314e8fc907fa9cce7aaa8b06cae25d428906f85bcfd41da970f19e3e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "new": "    result = evaluate_b4_artifacts(\n        floor=(\n            Fraction(0, 1)\n            if authoritative_floor is not None\n            else None\n        ),\n",
+          "old": "    result = evaluate_b4_artifacts(\n        floor=(\n            authoritative_floor.floor\n            if authoritative_floor is not None\n            else None\n        ),\n"
+        }
+      ],
+      "repo_head": "9b2a3198ad73231404dc1fb2ee6cc4fa77fdda3e",
+      "runner_sha256": "b15b11ddc2d90a5d0b9679fe175bfa341631fcc803fe322019bd21a01f58240e",
+      "spec_sha256": "a355f9845f41f3b2572591ddd2a4bda7d26e6df5bfcb5c380ca36cea56f40acc",
+      "status": "KILLED",
+      "test_output_sha256": "b2d7bbd05051d2c63349e23877d2b55f561f6d5e28452d0064c94d0996a3c809",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "971af6236082568d6b6ce89ec2fda3938caba02a053c50ac731a136e5a9c2e6d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/7b45ec01b8e7d76df80b4e3b08b8e221/izdw-7b45ec01b8.o999135",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/7b45ec01b8e7d76df80b4e3b08b8e221/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................F........................                       [100%]\n=================================== FAILURES ===================================\n______ test_aggregate_authoritative_floor_reaches_public_material_report _______\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_aggregate_authoritative_f0')\nimmutable_publication = _ImmutablePublication(publication_evidence=_PublicationEvidence(publication=B4PrerunPublication(publication_root='/tmp...tic-pair/off/receipt_producer-off-1_terminal.json'), iteration=201, on_commit_receipt=None, off_commit_receipt=None))))\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1490fe8ef670>\n\n    def test_aggregate_authoritative_floor_reaches_public_material_report(\n        tmp_path: Path,\n        immutable_publication: _ImmutablePublication,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        from orchestrator.tests.test_p3_b4_floor_artifact_issuer import (\n            _aggregate_public_sources,\n        )\n    \n        authority_repo = tmp_path / \"authority-repo\"\n        authority_repo.mkdir()\n        pins, paths, _, _ = _aggregate_public_sources(authority_repo, monkeypatch)\n        specs = [json.loads((authority_repo / pin[0]).read_bytes()) for pin in pins]\n        summaries = [json.loads((authority_repo / path).read_bytes()) for path in paths]\n        assert len(pins) == len(paths) == 3\n        assert [\n            spec[\"cells\"][0][\"perf_config\"][\"workload\"][\"ycsb_rratio\"]\n            for spec in specs\n        ] == [\"5\", \"50\", \"95\"]\n        expected_values = [Fraction(summary[\"candidate_floor\"]) for summary in summaries]\n        assert expected_values[0] < expected_values[2] < expected_values[1]\n        expected_floor = max(expected_values)\n        expected_ratio = [expected_floor.numerator, expected_floor.denominator]\n        expected_non_guarantees = [\n            *floor_issuer.NON_GUARANTEES,\n            *(item for summary in summaries for item in summary[\"proof_limitations\"][\"items\"]),\n            *floor_issuer.AGGREGATE_NON_GUARANTEES,\n        ]\n        # Name the non-maximum sources so their limitations cannot be dropped.\n        assert \"source 0\" in summaries[0][\"proof_limitations\"][\"items\"]\n        assert \"source 2\" in summaries[2][\"proof_limitations\"][\"items\"]\n    \n        monkeypatch.setattr(os, \"fsync\", lambda _fd: None)\n        issued = floor_issuer.issue_aggregate_authoritative_floor(\n            repo_root=authority_repo,\n            summary_paths=paths,\n            expected_specs=pins,\n            output_dir=Path(\"out\"),\n        )\n        artifact_path = issued.artifact_path\n        artifact_bytes = (authority_repo / artifact_path).read_bytes()\n        artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()\n        assert issued.artifact_sha256 == artifact_sha256\n        preregistration = authority_repo / R._PREREGISTRATION_RELATIVE_PATH\n        preregistration.parent.mkdir(parents=True)\n        preregistration.write_text(\n            f\"|{floor_issuer.PREREGISTRATION_FLOOR_LABEL}|\"\n            f\"artifact_path={artifact_path}; sha256={artifact_sha256}|\\n\",\n            encoding=\"utf-8\",\n        )\n        resolved = floor_issuer.resolve_preregistered_authoritative_floor(\n            repo_root=authority_repo,\n            preregistration_path=R._PREREGISTRATION_RELATIVE_PATH,\n        )\n        assert resolved is not None\n        assert resolved.artifact_path == issued.artifact_path\n        assert resolved.artifact_sha256 == issued.artifact_sha256\n        assert resolved.floor == expected_floor\n    \n        monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n        original_evaluator = R.evaluate_b4_artifacts\n        observed_floor_arguments: list[object] = []\n    \n        def record_floor_argument(**kwargs):\n            observed_floor_arguments.append(kwargs[\"floor\"])\n            return original_evaluator(**kwargs)\n    \n        monkeypatch.setattr(R, \"evaluate_b4_artifacts\", record_floor_argument)\n        document = R.build_material_report_document(\n            immutable_publication.publication.publication_root,\n        )\n        assert len(observed_floor_arguments) == 1\n        assert type(observed_floor_arguments[0]) is Fraction\n        assert observed_floor_arguments[0] == expected_floor\n    \n        report = json.loads(document.json_bytes.decode(\"utf-8\"))\n>       assert report[\"floor\"] == {\n            \"availability\": \"present\",\n            \"reason\": None,\n            \"source\": {\n                \"artifact_path\": artifact_path,\n                \"artifact_sha256\": artifact_sha256,\n                \"schema_version\": \"p3-b4-authoritative-floor/v2\",\n                \"generator_identity\": floor_issuer.GENERATOR_IDENTITY,\n            },\n            \"value\": expected_ratio,\n        }\nE       AssertionError: assert {'availabilit...alue': [0, 1]} == {'availabilit...599627370496]}\nE         \nE         Omitting 3 identical items, use -vv to show\nE         Differing items:\nE         {'value': [0, 1]} != {'value': [1351079888211149, 4503599627370496]}\nE         Use -v to get more diff\n\norchestrator/tests/test_p3_b4_material_report.py:1034: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report\n1 failed, 49 passed in 139.80s (0:02:19)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report\" nodeid_bytes=137 nodeid_omitted_bytes=0 source_bytes=4953 retained_bytes=3926 omitted_bytes=1027 rendered_excerpt_bytes=4096 sha256=1dfa01cba7eec673d55cdda740d523ece4259fe6aa74ff1fc0327e4a49430a99\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> po / pin[0]).read_bytes()) for pin in pins]\n>         summaries = [json.loads((authority_repo / path).read_bytes()) for path in paths]\n>         assert len(pins) == len(paths) == 3\n>         assert [\n>             spec[\"cells\"][0][\"perf_config\"][\"workload\"][\"ycsb_rratio\"]\n>             for spec in specs\n>         ] == [\"5\", \"50\", \"95\"]\n>         expected_values = [Fraction(summary[\"candidate_floor\"]) for summary in summaries]\n>         assert expected_values[0] < expected_values[2] < expected_values[1]\n>         expected_floor = max(expected_values)\n>         expected_ratio = [expected_floor.numerator, expected_floor.denominator]\n>         expected_non_guarantees = [\n>             *floor_issuer.NON_GUARANTEES,\n>             *(item for summary in summaries for item in summary[\"proof_limitations\"][\"items\"]),\n>             *floor_issuer.AGGREGATE_NON_GUARANTEES,\n>         ]\n>         # Name the non-maximum sources so their limitations cannot be dropped.\n>         assert \"source 0\" in summaries[0][\"proof_limitations\"][\"items\"]\n>         assert \"source 2\" in summaries[2][\"proof_limitations\"][\"items\"]\n>     \n>         monkeypatch.setattr(os, \"fsync\", lambda _fd: None)\n>         issued = floor_issuer.issue_aggregate_authoritative_floor(\n>             repo_root=authority_repo,\n>             summary_paths=paths,\n>             expected_specs=pins,\n>             output_dir=Path(\"out\"),\n>         )\n>         artifact_path = issued.artifact_path\n>         artifact_bytes = (authority_repo / artifact_path).read_bytes()\n>         artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()\n>         assert issued.artifact_sha256 == artifact_sha256\n>         preregistration = authority_repo / R._PREREGISTRATION_RELATIVE_PATH\n>         preregistration.parent.mkdir(parents=True)\n>         preregistration.write_text(\n>             f\"|{floor_issuer.PREREGISTRATION_FLOOR_LABEL}|\"\n>             f\"artifact_path={artifact_path}; sha256={artifact_sha256}|\\x5cn\",\n>             encoding=\"utf-8\",\n>         )\n>         resolved = floor_issuer.resolve_preregistered_authoritative_floor(\n>             repo_root=authority_repo,\n>             preregistration_path=R._PREREGISTRATION_RELATIVE_PATH,\n>         )\n>         assert resolved is not None\n>         assert resolved.artifact_path == issued.artifact_path\n>         assert resolved.artifact_sha256 == issued.artifact_sha256\n>         assert resolved.floor == expected_floor\n>     \n>         monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n>         original_evaluator = R.evaluate_b4_artifacts\n>         observed_floor_arguments: list[object] = []\n>     \n>         def record_floor_argument(**kwargs):\n>             observed_floor_arguments.append(kwargs[\"floor\"])\n>             return original_evaluator(**kwargs)\n>     \n>         monkeypatch.setattr(R, \"evaluate_b4_artifacts\", record_floor_argument)\n>         document = R.build_material_report_document(\n>             immutable_publication.publication.publication_root,\n>         )\n>         assert len(observed_floor_arguments) == 1\n>         assert type(observed_floor_arguments[0]) is Fraction\n>         assert observed_floor_arguments[0] == expected_floor\n>     \n>         report = json.loads(document.json_bytes.decode(\"utf-8\"))\n> >       assert report[\"floor\"] == {\n>             \"availability\": \"present\",\n>             \"reason\": None,\n>             \"source\": {\n>                 \"artifact_path\": artifact_path,\n>                 \"artifact_sha256\": artifact_sha256,\n>                 \"schema_version\": \"p3-b4-authoritative-floor/v2\",\n>                 \"generator_identity\": floor_issuer.GENERATOR_IDENTITY,\n>             },\n>             \"value\": expected_ratio,\n>         }\n> E       AssertionError: assert {'availabilit...alue': [0, 1]} == {'availabilit...599627370496]}\n> E         \n> E         Omitting 3 identical items, use -vv to show\n> E         Differing items:\n> E         {'value': [0, 1]} != {'value': [1351079888211149, 4503599627370496]}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_p3_b4_material_report.py:1034: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4953 retained_bytes=3926 omitted_bytes=1027 budget_bytes=49152 rendered_bytes=4867 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d9af3e5c456508f237522b587472587ba446cd7fce99e2b53d1c2e4348a9d431"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e70739e0ee87912786372befcff914e08c8f25c51b01e82167cf21437b305785",
+      "duration_s": 382.936,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "a7fcf536cc73a7b239230aa5d03e3f98f27b6f9a833b79b5e756f2372debcf3a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cf10833ef9f27d2e5c789338b7ab5c2e1bbc15d8f84280f8fe06ac91a53be95e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "new": "    ratio = [\n        0,\n        1,\n    ]\n    report[\"floor\"] = {\n",
+          "old": "    ratio = [\n        authoritative_floor.floor.numerator,\n        authoritative_floor.floor.denominator,\n    ]\n    report[\"floor\"] = {\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "new": "    ratio = [\n        0,\n        1,\n    ]\n    expected_floor = {\n",
+          "old": "    ratio = [\n        authoritative_floor.floor.numerator,\n        authoritative_floor.floor.denominator,\n    ]\n    expected_floor = {\n"
+        }
+      ],
+      "repo_head": "9b2a3198ad73231404dc1fb2ee6cc4fa77fdda3e",
+      "runner_sha256": "b15b11ddc2d90a5d0b9679fe175bfa341631fcc803fe322019bd21a01f58240e",
+      "spec_sha256": "a355f9845f41f3b2572591ddd2a4bda7d26e6df5bfcb5c380ca36cea56f40acc",
+      "status": "KILLED",
+      "test_output_sha256": "d9af3e5c456508f237522b587472587ba446cd7fce99e2b53d1c2e4348a9d431",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "971af6236082568d6b6ce89ec2fda3938caba02a053c50ac731a136e5a9c2e6d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/cf1b362ccdc14ae268f5d3d7a184da29/izdw-cf1b362ccd.o999180",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/cf1b362ccdc14ae268f5d3d7a184da29/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........................F........................                       [100%]\n=================================== FAILURES ===================================\n______ test_aggregate_authoritative_floor_reaches_public_material_report _______\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_aggregate_authoritative_f0')\nimmutable_publication = _ImmutablePublication(publication_evidence=_PublicationEvidence(publication=B4PrerunPublication(publication_root='/tmp...tic-pair/off/receipt_producer-off-1_terminal.json'), iteration=201, on_commit_receipt=None, off_commit_receipt=None))))\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1470ec257970>\n\n    def test_aggregate_authoritative_floor_reaches_public_material_report(\n        tmp_path: Path,\n        immutable_publication: _ImmutablePublication,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        from orchestrator.tests.test_p3_b4_floor_artifact_issuer import (\n            _aggregate_public_sources,\n        )\n    \n        authority_repo = tmp_path / \"authority-repo\"\n        authority_repo.mkdir()\n        pins, paths, _, _ = _aggregate_public_sources(authority_repo, monkeypatch)\n        specs = [json.loads((authority_repo / pin[0]).read_bytes()) for pin in pins]\n        summaries = [json.loads((authority_repo / path).read_bytes()) for path in paths]\n        assert len(pins) == len(paths) == 3\n        assert [\n            spec[\"cells\"][0][\"perf_config\"][\"workload\"][\"ycsb_rratio\"]\n            for spec in specs\n        ] == [\"5\", \"50\", \"95\"]\n        expected_values = [Fraction(summary[\"candidate_floor\"]) for summary in summaries]\n        assert expected_values[0] < expected_values[2] < expected_values[1]\n        expected_floor = max(expected_values)\n        expected_ratio = [expected_floor.numerator, expected_floor.denominator]\n        expected_non_guarantees = [\n            *floor_issuer.NON_GUARANTEES,\n            *(item for summary in summaries for item in summary[\"proof_limitations\"][\"items\"]),\n            *floor_issuer.AGGREGATE_NON_GUARANTEES,\n        ]\n        # Name the non-maximum sources so their limitations cannot be dropped.\n        assert \"source 0\" in summaries[0][\"proof_limitations\"][\"items\"]\n        assert \"source 2\" in summaries[2][\"proof_limitations\"][\"items\"]\n    \n        monkeypatch.setattr(os, \"fsync\", lambda _fd: None)\n        issued = floor_issuer.issue_aggregate_authoritative_floor(\n            repo_root=authority_repo,\n            summary_paths=paths,\n            expected_specs=pins,\n            output_dir=Path(\"out\"),\n        )\n        artifact_path = issued.artifact_path\n        artifact_bytes = (authority_repo / artifact_path).read_bytes()\n        artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()\n        assert issued.artifact_sha256 == artifact_sha256\n        preregistration = authority_repo / R._PREREGISTRATION_RELATIVE_PATH\n        preregistration.parent.mkdir(parents=True)\n        preregistration.write_text(\n            f\"|{floor_issuer.PREREGISTRATION_FLOOR_LABEL}|\"\n            f\"artifact_path={artifact_path}; sha256={artifact_sha256}|\\n\",\n            encoding=\"utf-8\",\n        )\n        resolved = floor_issuer.resolve_preregistered_authoritative_floor(\n            repo_root=authority_repo,\n            preregistration_path=R._PREREGISTRATION_RELATIVE_PATH,\n        )\n        assert resolved is not None\n        assert resolved.artifact_path == issued.artifact_path\n        assert resolved.artifact_sha256 == issued.artifact_sha256\n        assert resolved.floor == expected_floor\n    \n        monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n        original_evaluator = R.evaluate_b4_artifacts\n        observed_floor_arguments: list[object] = []\n    \n        def record_floor_argument(**kwargs):\n            observed_floor_arguments.append(kwargs[\"floor\"])\n            return original_evaluator(**kwargs)\n    \n        monkeypatch.setattr(R, \"evaluate_b4_artifacts\", record_floor_argument)\n        document = R.build_material_report_document(\n            immutable_publication.publication.publication_root,\n        )\n        assert len(observed_floor_arguments) == 1\n        assert type(observed_floor_arguments[0]) is Fraction\n        assert observed_floor_arguments[0] == expected_floor\n    \n        report = json.loads(document.json_bytes.decode(\"utf-8\"))\n        assert report[\"floor\"] == {\n            \"availability\": \"present\",\n            \"reason\": None,\n            \"source\": {\n                \"artifact_path\": artifact_path,\n                \"artifact_sha256\": artifact_sha256,\n                \"schema_version\": \"p3-b4-authoritative-floor/v2\",\n                \"generator_identity\": floor_issuer.GENERATOR_IDENTITY,\n            },\n            \"value\": expected_ratio,\n        }\n        for limitations in (\n            report[\"certification_scope\"][\"not_guaranteed\"],\n            report[\"provenance\"][\"report_non_guarantees\"],\n        ):\n            assert limitations[-len(expected_non_guarantees):] == expected_non_guarantees\n            assert \"source 0\" in limitations\n            assert \"source 2\" in limitations\n    \n        markdown = document.markdown_bytes.decode(\"utf-8\")\n>       assert f\"floor artifact path: `{artifact_path}`\" in markdown\nE       assert 'floor artifact path: `out/b4-floor-aggregate__env-synthetic-env__protocol-mocc__threads-4__workload-set-7095cfaaa30f9b4f5228__campaign-set-e077949e061474f5acc8.json`' in '# B-4 evidence-only material report\\n\\n- schema: `p3-b4-material-report/v1`\\n- report JSON SHA-256: `b549cf54c468b09c... | 不在 | {\"availability\":\"present\",\"scope\":\"experiment\",\"value\":\"indeterminate\"} | 不在 | False | [\"verify-red\"] | [] |\\n'\n\norchestrator/tests/test_p3_b4_material_report.py:1054: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report\n1 failed, 49 passed in 139.19s (0:02:19)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report\" nodeid_bytes=137 nodeid_omitted_bytes=0 source_bytes=5560 retained_bytes=3914 omitted_bytes=1646 rendered_excerpt_bytes=4096 sha256=61bfc9031fbe0136b8cc7ba4d368dab462f7ae1ad9a9431b29284c1bed6bfd6d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>        expected_non_guarantees = [\n>             *floor_issuer.NON_GUARANTEES,\n>             *(item for summary in summaries for item in summary[\"proof_limitations\"][\"items\"]),\n>             *floor_issuer.AGGREGATE_NON_GUARANTEES,\n>         ]\n>         # Name the non-maximum sources so their limitations cannot be dropped.\n>         assert \"source 0\" in summaries[0][\"proof_limitations\"][\"items\"]\n>         assert \"source 2\" in summaries[2][\"proof_limitations\"][\"items\"]\n>     \n>         monkeypatch.setattr(os, \"fsync\", lambda _fd: None)\n>         issued = floor_issuer.issue_aggregate_authoritative_floor(\n>             repo_root=authority_repo,\n>             summary_paths=paths,\n>             expected_specs=pins,\n>             output_dir=Path(\"out\"),\n>         )\n>         artifact_path = issued.artifact_path\n>         artifact_bytes = (authority_repo / artifact_path).read_bytes()\n>         artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()\n>         assert issued.artifact_sha256 == artifact_sha256\n>         preregistration = authority_repo / R._PREREGISTRATION_RELATIVE_PATH\n>         preregistration.parent.mkdir(parents=True)\n>         preregistration.write_text(\n>             f\"|{floor_issuer.PREREGISTRATION_FLOOR_LABEL}|\"\n>             f\"artifact_path={artifact_path}; sha256={artifact_sha256}|\\x5cn\",\n>             encoding=\"utf-8\",\n>         )\n>         resolved = floor_issuer.resolve_preregistered_authoritative_floor(\n>             repo_root=authority_repo,\n>             preregistration_path=R._PREREGISTRATION_RELATIVE_PATH,\n>         )\n>         assert resolved is not None\n>         assert resolved.artifact_path == issued.artifact_path\n>         assert resolved.artifact_sha256 == issued.artifact_sha256\n>         assert resolved.floor == expected_floor\n>     \n>         monkeypatch.setattr(R, \"_REPOSITORY_ROOT\", authority_repo)\n>         original_evaluator = R.evaluate_b4_artifacts\n>         observed_floor_arguments: list[object] = []\n>     \n>         def record_floor_argument(**kwargs):\n>             observed_floor_arguments.append(kwargs[\"floor\"])\n>             return original_evaluator(**kwargs)\n>     \n>         monkeypatch.setattr(R, \"evaluate_b4_artifacts\", record_floor_argument)\n>         document = R.build_material_report_document(\n>             immutable_publication.publication.publication_root,\n>         )\n>         assert len(observed_floor_arguments) == 1\n>         assert type(observed_floor_arguments[0]) is Fraction\n>         assert observed_floor_arguments[0] == expected_floor\n>     \n>         report = json.loads(document.json_bytes.decode(\"utf-8\"))\n>         assert report[\"floor\"] == {\n>             \"availability\": \"present\",\n>             \"reason\": None,\n>             \"source\": {\n>                 \"artifact_path\": artifact_path,\n>                 \"artifact_sha256\": artifact_sha256,\n>                 \"schema_version\": \"p3-b4-authoritative-floor/v2\",\n>                 \"generator_identity\": floor_issuer.GENERATOR_IDENTITY,\n>             },\n>             \"value\": expected_ratio,\n>         }\n>         for limitations in (\n>             report[\"certification_scope\"][\"not_guaranteed\"],\n>             report[\"provenance\"][\"report_non_guarantees\"],\n>         ):\n>             assert limitations[-len(expected_non_guarantees):] == expected_non_guarantees\n>             assert \"source 0\" in limitations\n>             assert \"source 2\" in limitations\n>     \n>         markdown = document.markdown_bytes.decode(\"utf-8\")\n> >       assert f\"floor artifact path: `{artifact_path}`\" in markdown\n> E       assert 'floor artifact path: `out/b4-floor-aggregate__env-synthetic-env__protocol-mocc__threads-4__workload-set-7095cfaaa30f9b4f5228__campaign-set-e077949e061474f5acc8.json`' in '# B-4 evidence-only material report\\x5cn\\x5cn- schema: `p3-b4-material-report/v1`\\x5cn- report JSON SHA-256: `b549cf54c468b09c... | \\u4e0d\\u5728 | {\"availability\":\"present\",\"scope\":\"experiment\",\"value\":\"indeterminate\"} | \\u4e0d\\u5728 | False | [\"verify-red\"] | [] |\\x5cn'\n> \n> orchestrator/tests/test_p3_b4_material_report.py:1054: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=5560 retained_bytes=3914 omitted_bytes=1646 budget_bytes=49152 rendered_bytes=4867 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5a9fce4767dc62253c2aeaac1579b08b674ce13a4a18152a454d5735896fe4b3"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e70739e0ee87912786372befcff914e08c8f25c51b01e82167cf21437b305785",
+      "duration_s": 166.013,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "b6b5467001fd46e7a73cb7642fbdfed11b1206b39f5d2e14c687d0e7e9cc758e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "490d17e9970d486ae4fa6f7557dce540c5a5d67ec879bad730dbe66ec804e4ae",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "new": "        f\"- floor artifact path: `artifacts/b4-floor-zero-boundary.json`\\n\"\n",
+          "old": "        f\"- floor artifact path: `{_display(authoritative_floor.artifact_path)}`\\n\"\n"
+        }
+      ],
+      "repo_head": "9b2a3198ad73231404dc1fb2ee6cc4fa77fdda3e",
+      "runner_sha256": "b15b11ddc2d90a5d0b9679fe175bfa341631fcc803fe322019bd21a01f58240e",
+      "spec_sha256": "a355f9845f41f3b2572591ddd2a4bda7d26e6df5bfcb5c380ca36cea56f40acc",
+      "status": "KILLED",
+      "test_output_sha256": "5a9fce4767dc62253c2aeaac1579b08b674ce13a4a18152a454d5735896fe4b3",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "971af6236082568d6b6ce89ec2fda3938caba02a053c50ac731a136e5a9c2e6d"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/f171e7bec80feb72d3d675e41e40dae1/izdw-f171e7bec8.o999038",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/f171e7bec80feb72d3d675e41e40dae1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_b4_material_report.py::test_normal_path_assembles_binds_evaluates_and_builds_document\norchestrator/tests/test_p3_b4_material_report.py::test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf\norchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[missing]\norchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[malformed]\norchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_rejects_recovered_campaign_root_sibling\norchestrator/tests/test_p3_b4_material_report.py::test_complete_projection_preserves_402_sources_fields_and_transcribed_binding\norchestrator/tests/test_p3_b4_material_report.py::test_markdown_provenance_argv_and_required_columns_match_json_rows\norchestrator/tests/test_p3_b4_material_report.py::test_markdown_escape_orders_backslash_pipe_and_normalizes_cr_lf\norchestrator/tests/test_p3_b4_material_report.py::test_artifact_availability_is_frozen_once_per_planned_leaf\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[terminal-reason]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[campaign-id]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[drop-one-arm]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[duplicate-one-arm]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[rewrite-source-utf8]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[anomaly-class-alias]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[absent-to-zero]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[remove-transcribed-binding]\norchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[registry]\norchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[manifest]\norchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[issuer_receipt]\norchestrator/tests/test_p3_b4_material_report.py::test_m8_absent_authority_public_bytes_match_pre_change_golden\norchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[False-True]\norchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[False-False]\norchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-True]\norchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]\norchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report\norchestrator/tests/test_p3_b4_material_report.py::test_present_floor_projects_required_verbatim_non_guarantees\norchestrator/tests/test_p3_b4_material_report.py::test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator\norchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation\norchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[established]\norchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[not_established]\norchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[indeterminate]\norchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[protocol_violation]\norchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[equal]\norchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[below]\norchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[above]\norchestrator/tests/test_p3_b4_material_report.py::test_m13_lexical_dotdot_alias_reaches_resolved_campaign_comparison\norchestrator/tests/test_p3_b4_material_report.py::test_output_symlink_component_is_rejected_before_any_report_write\norchestrator/tests/test_p3_b4_material_report.py::test_m15_real_issuer_exception_is_wrapped_with_reason_and_writes_nothing\norchestrator/tests/test_p3_b4_material_report.py::test_publication_symlink_alias_remains_rejected_by_existing_loader\norchestrator/tests/test_p3_b4_material_report.py::test_m15_real_ledger_exception_type_is_wrapped_and_writes_nothing\norchestrator/tests/test_p3_b4_material_report.py::test_m16a_existing_pair_is_rejected_before_publication_reload\norchestrator/tests/test_p3_b4_material_report.py::test_m16b_prepublication_race_check_rejects_new_target\norchestrator/tests/test_p3_b4_material_report.py::test_m16c_create_only_link_rejects_collision_without_other_guards\norchestrator/tests/test_p3_b4_material_report.py::test_commit_marker_is_last_and_binds_both_durable_files\norchestrator/tests/test_p3_b4_material_report.py::test_second_link_failure_rolls_back_pair_and_leaves_no_commit_marker\norchestrator/tests/test_p3_b4_material_report.py::test_commit_marker_link_failure_rolls_back_both_staged_artifacts\norchestrator/tests/test_p3_b4_material_report.py::test_rollback_failure_is_reported_instead_of_suppressed\norchestrator/tests/test_p3_b4_material_report.py::test_cli_clean_subprocess_runs_twice_and_refuses_overwrite\norchestrator/tests/test_p3_b4_material_report.py::test_outputs_contain_no_combining_diacritic_codepoints\n\n50 tests collected in 1.40s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "bf5608f09b895b115d8bd8f2be38b3de5ff77d3e5db30d8e6aff184ca64efd49"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_normal_path_assembles_binds_evaluates_and_builds_document",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[missing]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[malformed]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_rejects_recovered_campaign_root_sibling",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_complete_projection_preserves_402_sources_fields_and_transcribed_binding",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_markdown_provenance_argv_and_required_columns_match_json_rows",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_markdown_escape_orders_backslash_pipe_and_normalizes_cr_lf",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_artifact_availability_is_frozen_once_per_planned_leaf",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[terminal-reason]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[campaign-id]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[drop-one-arm]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[duplicate-one-arm]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[rewrite-source-utf8]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[anomaly-class-alias]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[absent-to-zero]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[remove-transcribed-binding]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[registry]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[manifest]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[issuer_receipt]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m8_absent_authority_public_bytes_match_pre_change_golden",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[False-True]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[False-False]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-True]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_present_floor_projects_required_verbatim_non_guarantees",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[established]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[not_established]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[indeterminate]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[protocol_violation]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[equal]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[below]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[above]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m13_lexical_dotdot_alias_reaches_resolved_campaign_comparison",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_output_symlink_component_is_rejected_before_any_report_write",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m15_real_issuer_exception_is_wrapped_with_reason_and_writes_nothing",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_publication_symlink_alias_remains_rejected_by_existing_loader",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m15_real_ledger_exception_type_is_wrapped_and_writes_nothing",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16a_existing_pair_is_rejected_before_publication_reload",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16b_prepublication_race_check_rejects_new_target",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16c_create_only_link_rejects_collision_without_other_guards",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_commit_marker_is_last_and_binds_both_durable_files",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_second_link_failure_rolls_back_pair_and_leaves_no_commit_marker",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_commit_marker_link_failure_rolls_back_both_staged_artifacts",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_rollback_failure_is_reported_instead_of_suppressed",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_cli_clean_subprocess_runs_twice_and_refuses_overwrite",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_outputs_contain_no_combining_diacritic_codepoints"
+      ],
+      "duration_s": 22.041,
+      "rc": 0,
+      "repo_head": "9b2a3198ad73231404dc1fb2ee6cc4fa77fdda3e",
+      "runner_sha256": "b15b11ddc2d90a5d0b9679fe175bfa341631fcc803fe322019bd21a01f58240e",
+      "spec_sha256": "a355f9845f41f3b2572591ddd2a4bda7d26e6df5bfcb5c380ca36cea56f40acc",
+      "status": "PASSED",
+      "tool_sha256": "971af6236082568d6b6ce89ec2fda3938caba02a053c50ac731a136e5a9c2e6d"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9f2f5ae920c9f7391a11b1b411aa0aea60e67612868f5bc5e563f9cc919649df",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_material_report.py",
+            "new": "        \"schema_version\": \"p3-b4-authoritative-floor/v1\",\n",
+            "old": "        \"schema_version\": authoritative_floor.schema_version,\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ce919a3872591d3b3b846f5fabb978c8c274c3f060445ff4bd178fd9423123b4",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_material_report.py",
+            "new": "    not_guaranteed.extend(authoritative_floor.non_guarantees[:3])\n    report[\"provenance\"][\"report_non_guarantees\"].extend(\n        authoritative_floor.non_guarantees[:3]\n    )\n",
+            "old": "    not_guaranteed.extend(authoritative_floor.non_guarantees)\n    report[\"provenance\"][\"report_non_guarantees\"].extend(\n        authoritative_floor.non_guarantees\n    )\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b80f19ce487d64e1d59b999623e847613a4aa1236d1993f4094d5974b4e46f88",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_material_report.py",
+            "new": "    result = evaluate_b4_artifacts(\n        floor=(\n            Fraction(0, 1)\n            if authoritative_floor is not None\n            else None\n        ),\n",
+            "old": "    result = evaluate_b4_artifacts(\n        floor=(\n            authoritative_floor.floor\n            if authoritative_floor is not None\n            else None\n        ),\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a7fcf536cc73a7b239230aa5d03e3f98f27b6f9a833b79b5e756f2372debcf3a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_material_report.py",
+            "new": "    ratio = [\n        0,\n        1,\n    ]\n    report[\"floor\"] = {\n",
+            "old": "    ratio = [\n        authoritative_floor.floor.numerator,\n        authoritative_floor.floor.denominator,\n    ]\n    report[\"floor\"] = {\n"
+          },
+          {
+            "file": "orchestrator/campaign/p3_b4_material_report.py",
+            "new": "    ratio = [\n        0,\n        1,\n    ]\n    expected_floor = {\n",
+            "old": "    ratio = [\n        authoritative_floor.floor.numerator,\n        authoritative_floor.floor.denominator,\n    ]\n    expected_floor = {\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b6b5467001fd46e7a73cb7642fbdfed11b1206b39f5d2e14c687d0e7e9cc758e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_material_report.py",
+            "new": "        f\"- floor artifact path: `artifacts/b4-floor-zero-boundary.json`\\n\"\n",
+            "old": "        f\"- floor artifact path: `{_display(authoritative_floor.artifact_path)}`\\n\"\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "c77dc0f9b205e1a074a66e6df8250d7629fefb8f84cb243d98f241264c04120c",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_b4_material_report.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 9000.0
+  },
+  "repo_head": "9b2a3198ad73231404dc1fb2ee6cc4fa77fdda3e",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_b4_material_report.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "dispatch_head_blob_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "bdd71aed9f7e679f0a2d661ac3b5944b247301b8",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "b15b11ddc2d90a5d0b9679fe175bfa341631fcc803fe322019bd21a01f58240e",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "a355f9845f41f3b2572591ddd2a4bda7d26e6df5bfcb5c380ca36cea56f40acc",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "971af6236082568d6b6ce89ec2fda3938caba02a053c50ac731a136e5a9c2e6d",
+  "updated_at": "2026-09-15T08:17:49.201122+00:00"
+}

@@ -1,0 +1,456 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/9585f1250eb8beb7b19553fcb2100b69/izdw-9585f1250e.o999249",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/9585f1250eb8beb7b19553fcb2100b69/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................................                        [100%]\n49 passed in 134.79s (0:02:14)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "434465680ce2cb7c6e31373b9d6ed13ddc792a311c005fc7c4e3122a84825a03"
+    },
+    "artifact_error": null,
+    "collection_sha256": "c3a303e8e3f30184f6e063482263a8459b283e57381d46aa145591a6c737b026",
+    "duration_s": 156.2,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "ae24187e206d08b665dfad2c9460093e59397cf95b457f37dc092d4dda5d878b",
+    "repo_head": "9b2a3198ad73231404dc1fb2ee6cc4fa77fdda3e",
+    "runner_sha256": "8d561998a7c80d24b66311f71d8e52139ff5627f361061ba1cf712f7932eb205",
+    "spec_sha256": "57ce8de648ee23079649ffefaa1119e1825a7ca1b89b0c6c7dcbc4f531a5defa",
+    "status": "PASSED",
+    "test_output_sha256": "434465680ce2cb7c6e31373b9d6ed13ddc792a311c005fc7c4e3122a84825a03",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "971af6236082568d6b6ce89ec2fda3938caba02a053c50ac731a136e5a9c2e6d"
+  },
+  "date": "2026-09-15T08:32:11.088716+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/ba05c03f8db9c34adfcb4d601c523375/izdw-ba05c03f8d.o999258",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/ba05c03f8db9c34adfcb4d601c523375/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................................                        [100%]\n49 passed in 135.18s (0:02:15)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "b4fefa6d24341546d51a9f42a0236a9199aa51fe42094102dd3b49c057798c53"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c3a303e8e3f30184f6e063482263a8459b283e57381d46aa145591a6c737b026",
+      "duration_s": 965.959,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "9f2f5ae920c9f7391a11b1b411aa0aea60e67612868f5bc5e563f9cc919649df",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "45783900df4cfa617f72c10d1ac002a7bc8e0eea92530d53966fb13e4ae30939",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "new": "        \"schema_version\": \"p3-b4-authoritative-floor/v1\",\n",
+          "old": "        \"schema_version\": authoritative_floor.schema_version,\n"
+        }
+      ],
+      "repo_head": "9b2a3198ad73231404dc1fb2ee6cc4fa77fdda3e",
+      "runner_sha256": "8d561998a7c80d24b66311f71d8e52139ff5627f361061ba1cf712f7932eb205",
+      "spec_sha256": "57ce8de648ee23079649ffefaa1119e1825a7ca1b89b0c6c7dcbc4f531a5defa",
+      "status": "SURVIVED",
+      "test_output_sha256": "b4fefa6d24341546d51a9f42a0236a9199aa51fe42094102dd3b49c057798c53",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "971af6236082568d6b6ce89ec2fda3938caba02a053c50ac731a136e5a9c2e6d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/a0f479409f9311a14c9bfa94f23c0912/izdw-a0f479409f.o999276",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/a0f479409f9311a14c9bfa94f23c0912/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................................                        [100%]\n49 passed in 134.85s (0:02:14)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "d633429080542d953d338a9dc4ab6a352d04f78a1cc339f395fd8a2d62aa4da8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c3a303e8e3f30184f6e063482263a8459b283e57381d46aa145591a6c737b026",
+      "duration_s": 162.172,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "ce919a3872591d3b3b846f5fabb978c8c274c3f060445ff4bd178fd9423123b4",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "5279fd8b7863329a38b89be089bb1bef1f8989df5ecacfdbea294d2ecf2e3323",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "new": "    not_guaranteed.extend(authoritative_floor.non_guarantees[:3])\n    report[\"provenance\"][\"report_non_guarantees\"].extend(\n        authoritative_floor.non_guarantees[:3]\n    )\n",
+          "old": "    not_guaranteed.extend(authoritative_floor.non_guarantees)\n    report[\"provenance\"][\"report_non_guarantees\"].extend(\n        authoritative_floor.non_guarantees\n    )\n"
+        }
+      ],
+      "repo_head": "9b2a3198ad73231404dc1fb2ee6cc4fa77fdda3e",
+      "runner_sha256": "8d561998a7c80d24b66311f71d8e52139ff5627f361061ba1cf712f7932eb205",
+      "spec_sha256": "57ce8de648ee23079649ffefaa1119e1825a7ca1b89b0c6c7dcbc4f531a5defa",
+      "status": "SURVIVED",
+      "test_output_sha256": "d633429080542d953d338a9dc4ab6a352d04f78a1cc339f395fd8a2d62aa4da8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "971af6236082568d6b6ce89ec2fda3938caba02a053c50ac731a136e5a9c2e6d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/a2812e68f792931c8dfd38b924cec6c2/izdw-a2812e68f7.o999278",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/a2812e68f792931c8dfd38b924cec6c2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................................                        [100%]\n49 passed in 134.69s (0:02:14)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "b41d55ee3525b70af0b30130d6c95810d9ddb5e982862a1d337918990b3ddd5d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c3a303e8e3f30184f6e063482263a8459b283e57381d46aa145591a6c737b026",
+      "duration_s": 380.35,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "b80f19ce487d64e1d59b999623e847613a4aa1236d1993f4094d5974b4e46f88",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "8d41dc9cd4517be110ea395ba855f1ae0fa58b95b5dc60042749e19fcfa630e0",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "new": "    result = evaluate_b4_artifacts(\n        floor=(\n            Fraction(0, 1)\n            if authoritative_floor is not None\n            else None\n        ),\n",
+          "old": "    result = evaluate_b4_artifacts(\n        floor=(\n            authoritative_floor.floor\n            if authoritative_floor is not None\n            else None\n        ),\n"
+        }
+      ],
+      "repo_head": "9b2a3198ad73231404dc1fb2ee6cc4fa77fdda3e",
+      "runner_sha256": "8d561998a7c80d24b66311f71d8e52139ff5627f361061ba1cf712f7932eb205",
+      "spec_sha256": "57ce8de648ee23079649ffefaa1119e1825a7ca1b89b0c6c7dcbc4f531a5defa",
+      "status": "SURVIVED",
+      "test_output_sha256": "b41d55ee3525b70af0b30130d6c95810d9ddb5e982862a1d337918990b3ddd5d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "971af6236082568d6b6ce89ec2fda3938caba02a053c50ac731a136e5a9c2e6d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/4ffc53de74165fbfc357ab5dd0ddc7e6/izdw-4ffc53de74.o999288",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/4ffc53de74165fbfc357ab5dd0ddc7e6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................................                        [100%]\n49 passed in 134.65s (0:02:14)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "ecbf1ff1bd4fc88acc34f21d06a36968d007eb9f737b9cecde4644a3dc743749"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c3a303e8e3f30184f6e063482263a8459b283e57381d46aa145591a6c737b026",
+      "duration_s": 156.708,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "a7fcf536cc73a7b239230aa5d03e3f98f27b6f9a833b79b5e756f2372debcf3a",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "2f14d10abe77be6c102c00869a3f07c7d34936bae62e91081672e9140d0d0361",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "new": "    ratio = [\n        0,\n        1,\n    ]\n    report[\"floor\"] = {\n",
+          "old": "    ratio = [\n        authoritative_floor.floor.numerator,\n        authoritative_floor.floor.denominator,\n    ]\n    report[\"floor\"] = {\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "new": "    ratio = [\n        0,\n        1,\n    ]\n    expected_floor = {\n",
+          "old": "    ratio = [\n        authoritative_floor.floor.numerator,\n        authoritative_floor.floor.denominator,\n    ]\n    expected_floor = {\n"
+        }
+      ],
+      "repo_head": "9b2a3198ad73231404dc1fb2ee6cc4fa77fdda3e",
+      "runner_sha256": "8d561998a7c80d24b66311f71d8e52139ff5627f361061ba1cf712f7932eb205",
+      "spec_sha256": "57ce8de648ee23079649ffefaa1119e1825a7ca1b89b0c6c7dcbc4f531a5defa",
+      "status": "SURVIVED",
+      "test_output_sha256": "ecbf1ff1bd4fc88acc34f21d06a36968d007eb9f737b9cecde4644a3dc743749",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "971af6236082568d6b6ce89ec2fda3938caba02a053c50ac731a136e5a9c2e6d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/c65ef9ef4a748218a5e994c4df44db59/izdw-c65ef9ef4a.o999294",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/c65ef9ef4a748218a5e994c4df44db59/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................................                        [100%]\n49 passed in 133.91s (0:02:13)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "ca9bb570b788abedb1a939ca98cd3ed0521890484e8f535359cfea82606ad89f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c3a303e8e3f30184f6e063482263a8459b283e57381d46aa145591a6c737b026",
+      "duration_s": 160.525,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "b6b5467001fd46e7a73cb7642fbdfed11b1206b39f5d2e14c687d0e7e9cc758e",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "38eafb3871e65369b747af96bfc7e8a7df5e6c643efd2dcf13469dd81eda469b",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "new": "        f\"- floor artifact path: `artifacts/b4-floor-zero-boundary.json`\\n\"\n",
+          "old": "        f\"- floor artifact path: `{_display(authoritative_floor.artifact_path)}`\\n\"\n"
+        }
+      ],
+      "repo_head": "9b2a3198ad73231404dc1fb2ee6cc4fa77fdda3e",
+      "runner_sha256": "8d561998a7c80d24b66311f71d8e52139ff5627f361061ba1cf712f7932eb205",
+      "spec_sha256": "57ce8de648ee23079649ffefaa1119e1825a7ca1b89b0c6c7dcbc4f531a5defa",
+      "status": "SURVIVED",
+      "test_output_sha256": "ca9bb570b788abedb1a939ca98cd3ed0521890484e8f535359cfea82606ad89f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "971af6236082568d6b6ce89ec2fda3938caba02a053c50ac731a136e5a9c2e6d"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/4ea52bd615dcd2a98bf130487e3f59f0/izdw-4ea52bd615.o999181",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/output/pegasus-dispatch/4ea52bd615dcd2a98bf130487e3f59f0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_b4_material_report.py::test_normal_path_assembles_binds_evaluates_and_builds_document\norchestrator/tests/test_p3_b4_material_report.py::test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf\norchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[missing]\norchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[malformed]\norchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_rejects_recovered_campaign_root_sibling\norchestrator/tests/test_p3_b4_material_report.py::test_complete_projection_preserves_402_sources_fields_and_transcribed_binding\norchestrator/tests/test_p3_b4_material_report.py::test_markdown_provenance_argv_and_required_columns_match_json_rows\norchestrator/tests/test_p3_b4_material_report.py::test_markdown_escape_orders_backslash_pipe_and_normalizes_cr_lf\norchestrator/tests/test_p3_b4_material_report.py::test_artifact_availability_is_frozen_once_per_planned_leaf\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[terminal-reason]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[campaign-id]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[drop-one-arm]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[duplicate-one-arm]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[rewrite-source-utf8]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[anomaly-class-alias]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[absent-to-zero]\norchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[remove-transcribed-binding]\norchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[registry]\norchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[manifest]\norchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[issuer_receipt]\norchestrator/tests/test_p3_b4_material_report.py::test_m8_absent_authority_public_bytes_match_pre_change_golden\norchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[False-True]\norchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[False-False]\norchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-True]\norchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]\norchestrator/tests/test_p3_b4_material_report.py::test_present_floor_projects_required_verbatim_non_guarantees\norchestrator/tests/test_p3_b4_material_report.py::test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator\norchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation\norchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[established]\norchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[not_established]\norchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[indeterminate]\norchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[protocol_violation]\norchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[equal]\norchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[below]\norchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[above]\norchestrator/tests/test_p3_b4_material_report.py::test_m13_lexical_dotdot_alias_reaches_resolved_campaign_comparison\norchestrator/tests/test_p3_b4_material_report.py::test_output_symlink_component_is_rejected_before_any_report_write\norchestrator/tests/test_p3_b4_material_report.py::test_m15_real_issuer_exception_is_wrapped_with_reason_and_writes_nothing\norchestrator/tests/test_p3_b4_material_report.py::test_publication_symlink_alias_remains_rejected_by_existing_loader\norchestrator/tests/test_p3_b4_material_report.py::test_m15_real_ledger_exception_type_is_wrapped_and_writes_nothing\norchestrator/tests/test_p3_b4_material_report.py::test_m16a_existing_pair_is_rejected_before_publication_reload\norchestrator/tests/test_p3_b4_material_report.py::test_m16b_prepublication_race_check_rejects_new_target\norchestrator/tests/test_p3_b4_material_report.py::test_m16c_create_only_link_rejects_collision_without_other_guards\norchestrator/tests/test_p3_b4_material_report.py::test_commit_marker_is_last_and_binds_both_durable_files\norchestrator/tests/test_p3_b4_material_report.py::test_second_link_failure_rolls_back_pair_and_leaves_no_commit_marker\norchestrator/tests/test_p3_b4_material_report.py::test_commit_marker_link_failure_rolls_back_both_staged_artifacts\norchestrator/tests/test_p3_b4_material_report.py::test_rollback_failure_is_reported_instead_of_suppressed\norchestrator/tests/test_p3_b4_material_report.py::test_cli_clean_subprocess_runs_twice_and_refuses_overwrite\norchestrator/tests/test_p3_b4_material_report.py::test_outputs_contain_no_combining_diacritic_codepoints\n\n49/50 tests collected (1 deselected) in 1.66s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "b918f1a80225cd7408c8f4b5bb4956ee263bf504fea257f7c9ca2af29650f6d6"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_normal_path_assembles_binds_evaluates_and_builds_document",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[missing]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[malformed]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_rejects_recovered_campaign_root_sibling",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_complete_projection_preserves_402_sources_fields_and_transcribed_binding",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_markdown_provenance_argv_and_required_columns_match_json_rows",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_markdown_escape_orders_backslash_pipe_and_normalizes_cr_lf",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_artifact_availability_is_frozen_once_per_planned_leaf",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[terminal-reason]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[campaign-id]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[drop-one-arm]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[duplicate-one-arm]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[rewrite-source-utf8]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[anomaly-class-alias]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[absent-to-zero]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[remove-transcribed-binding]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[registry]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[manifest]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[issuer_receipt]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m8_absent_authority_public_bytes_match_pre_change_golden",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[False-True]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[False-False]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-True]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[True-False]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_present_floor_projects_required_verbatim_non_guarantees",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[established]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[not_established]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[indeterminate]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values[protocol_violation]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[equal]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[below]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[above]",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m13_lexical_dotdot_alias_reaches_resolved_campaign_comparison",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_output_symlink_component_is_rejected_before_any_report_write",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m15_real_issuer_exception_is_wrapped_with_reason_and_writes_nothing",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_publication_symlink_alias_remains_rejected_by_existing_loader",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m15_real_ledger_exception_type_is_wrapped_and_writes_nothing",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16a_existing_pair_is_rejected_before_publication_reload",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16b_prepublication_race_check_rejects_new_target",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16c_create_only_link_rejects_collision_without_other_guards",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_commit_marker_is_last_and_binds_both_durable_files",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_second_link_failure_rolls_back_pair_and_leaves_no_commit_marker",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_commit_marker_link_failure_rolls_back_both_staged_artifacts",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_rollback_failure_is_reported_instead_of_suppressed",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_cli_clean_subprocess_runs_twice_and_refuses_overwrite",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_outputs_contain_no_combining_diacritic_codepoints"
+      ],
+      "duration_s": 817.149,
+      "rc": 0,
+      "repo_head": "9b2a3198ad73231404dc1fb2ee6cc4fa77fdda3e",
+      "runner_sha256": "8d561998a7c80d24b66311f71d8e52139ff5627f361061ba1cf712f7932eb205",
+      "spec_sha256": "57ce8de648ee23079649ffefaa1119e1825a7ca1b89b0c6c7dcbc4f531a5defa",
+      "status": "PASSED",
+      "tool_sha256": "971af6236082568d6b6ce89ec2fda3938caba02a053c50ac731a136e5a9c2e6d"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "9f2f5ae920c9f7391a11b1b411aa0aea60e67612868f5bc5e563f9cc919649df",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_material_report.py",
+            "new": "        \"schema_version\": \"p3-b4-authoritative-floor/v1\",\n",
+            "old": "        \"schema_version\": authoritative_floor.schema_version,\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "ce919a3872591d3b3b846f5fabb978c8c274c3f060445ff4bd178fd9423123b4",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_material_report.py",
+            "new": "    not_guaranteed.extend(authoritative_floor.non_guarantees[:3])\n    report[\"provenance\"][\"report_non_guarantees\"].extend(\n        authoritative_floor.non_guarantees[:3]\n    )\n",
+            "old": "    not_guaranteed.extend(authoritative_floor.non_guarantees)\n    report[\"provenance\"][\"report_non_guarantees\"].extend(\n        authoritative_floor.non_guarantees\n    )\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "b80f19ce487d64e1d59b999623e847613a4aa1236d1993f4094d5974b4e46f88",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_material_report.py",
+            "new": "    result = evaluate_b4_artifacts(\n        floor=(\n            Fraction(0, 1)\n            if authoritative_floor is not None\n            else None\n        ),\n",
+            "old": "    result = evaluate_b4_artifacts(\n        floor=(\n            authoritative_floor.floor\n            if authoritative_floor is not None\n            else None\n        ),\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "a7fcf536cc73a7b239230aa5d03e3f98f27b6f9a833b79b5e756f2372debcf3a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_material_report.py",
+            "new": "    ratio = [\n        0,\n        1,\n    ]\n    report[\"floor\"] = {\n",
+            "old": "    ratio = [\n        authoritative_floor.floor.numerator,\n        authoritative_floor.floor.denominator,\n    ]\n    report[\"floor\"] = {\n"
+          },
+          {
+            "file": "orchestrator/campaign/p3_b4_material_report.py",
+            "new": "    ratio = [\n        0,\n        1,\n    ]\n    expected_floor = {\n",
+            "old": "    ratio = [\n        authoritative_floor.floor.numerator,\n        authoritative_floor.floor.denominator,\n    ]\n    expected_floor = {\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "b6b5467001fd46e7a73cb7642fbdfed11b1206b39f5d2e14c687d0e7e9cc758e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_material_report.py",
+            "new": "        f\"- floor artifact path: `artifacts/b4-floor-zero-boundary.json`\\n\"\n",
+            "old": "        f\"- floor artifact path: `{_display(authoritative_floor.artifact_path)}`\\n\"\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "ae24187e206d08b665dfad2c9460093e59397cf95b457f37dc092d4dda5d878b",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_b4_material_report.py",
+      "-q",
+      "-rf",
+      "--deselect",
+      "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 9000.0
+  },
+  "repo_head": "9b2a3198ad73231404dc1fb2ee6cc4fa77fdda3e",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_p3_b4_material_report.py",
+      "-q",
+      "-rf",
+      "--deselect",
+      "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "dispatch_head_blob_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "bdd71aed9f7e679f0a2d661ac3b5944b247301b8",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "8d561998a7c80d24b66311f71d8e52139ff5627f361061ba1cf712f7932eb205",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "57ce8de648ee23079649ffefaa1119e1825a7ca1b89b0c6c7dcbc4f531a5defa",
+  "summary": {
+    "KILLED": 0,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 5,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2591-aggregate-material-report/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "971af6236082568d6b6ce89ec2fda3938caba02a053c50ac731a136e5a9c2e6d",
+  "updated_at": "2026-09-15T09:07:09.060626+00:00"
+}
