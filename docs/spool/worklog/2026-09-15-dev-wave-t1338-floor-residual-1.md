@@ -50,6 +50,13 @@ title: [T-1338] 依頼が名指した 3 件は前日に撤去済みで、台帳�
   30 秒締切 (`_GIT_TIMEOUT_S`) が並行 worktree 作成下の `submodule update --recursive` に足りな
   かったこと。`DW-O08` に従い同じ引数で 1 度だけ再実行し rc=0 を得た。「この worktree では
   初期化できない」とは一般化しない。
+- **受入全走は 1 回で `child-green`。** 23662 passed / 68 skipped / 0 failed (attempt 1、
+  tested main `0600887d9`、tested tip `83b0e98f0`、非帰属赤 0)。投入時の `/proc/loadavg` は
+  213.97 / 218.31 / 206.24 で、同時に 7 wave・10 本の `run_tests.py` が走っていたが赤は出な
+  かった。**実装面 0 byte の wave なので、仮に赤が出ても本 wave へは帰属しえない。**
+- 記録前後の検査: `check_docs.py` rc=0、`spool_fold.py --dry-run --show-diff` rc=0、
+  三軸語・placeholder 走査 (`s8b_holdout_freeze search`) rc=0 で自 wave の file は hit 0 件、
+  全史 provenance 監査 10105 件で新規違反なし。
 - 工数: codex 子 3 本 (plan 1 = medium 200.6 s / 7 call、consult 2 = medium 190.0 s / 8 call と
   372.7 s / 17 call)。実装子・fix 子・レビュー子は段 4 の「実装しない」裁定により起動していない。
 - 一次資料は `output/insights/2026-09-15/t1338-floor-residual/README.md`。裁定パッケージ 3 件

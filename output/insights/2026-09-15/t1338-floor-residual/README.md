@@ -132,7 +132,10 @@ R3 の**範囲**だけで、assertion 1 行と解決経路全体は撤去単位�
 |---|---|
 | 実装面差分 | 0 byte (production・test とも編集なし) |
 | 変異 matrix | 免除 (`DW-S04` の実装面差分ゼロ) |
-| 受入全走 | 段 7 の記録前に実走 (結果は worklog) |
+| 受入全走 | attempt 1 で `child-green`。23662 passed / 68 skipped / 0 failed (tested main `0600887d9`、tested tip `83b0e98f0`、非帰属赤 0) |
+| 全史 provenance 監査 | 10105 件、新規違反なし |
+| 三軸語・placeholder 走査 | rc=0 (自 wave の file は hit 0 件) |
+| `check_docs.py` / `spool_fold.py --dry-run` | いずれも rc=0 |
 
 ## file
 
