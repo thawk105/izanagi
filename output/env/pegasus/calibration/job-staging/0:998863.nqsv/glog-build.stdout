@@ -1,0 +1,9 @@
+[ 12%] Building CXX object CMakeFiles/glog.dir/src/demangle.cc.o
+[ 25%] Building CXX object CMakeFiles/glog.dir/src/logging.cc.o
+[ 37%] Building CXX object CMakeFiles/glog.dir/src/raw_logging.cc.o
+[ 50%] Building CXX object CMakeFiles/glog.dir/src/symbolize.cc.o
+[ 62%] Building CXX object CMakeFiles/glog.dir/src/utilities.cc.o
+[ 75%] Building CXX object CMakeFiles/glog.dir/src/vlog_is_on.cc.o
+[ 87%] Building CXX object CMakeFiles/glog.dir/src/signalhandler.cc.o
+[100%] Linking CXX static library libglog.a
+[100%] Built target glog
