@@ -1,0 +1,102 @@
+import argparse
+import hashlib
+import importlib.util
+import itertools
+import json
+import sys
+from collections import Counter
+from pathlib import Path
+
+ROOT = Path('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2583-backoff-high-band-sign')
+PREREG = '/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2583-backoff-high-band-sign/s4-adjudication.md'
+PREREG_SHA = '1137f8424f9bf4c310ddea23907e04e8ec021b90336264683df59a3c085f9201'
+MAIN, SENS, LOW = 'both_endpoints_gt_50', 'max_endpoint_gt_50', 'both_endpoints_le_50'
+SELECT = {MAIN: lambda e: min(e) > 50, SENS: lambda e: max(e) > 50, LOW: lambda e: max(e) <= 50}
+STEPS = ['nm-step0.5', 'nm-step1', 'nm-step2', 'nm-step25', 'nm-step100']
+LEFT, RIGHT = 'nm-step1', 'nm-step1-u2560'
+
+def absolute(value):
+    path = Path(value)
+    if not path.is_absolute():
+        raise argparse.ArgumentTypeError('measurement_incomplete: absolute path required')
+    return path
+
+def identity(path):
+    digest, size = hashlib.sha256(), 0
+    with path.open('rb') as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b''):
+            digest.update(block); size += len(block)
+    return {'path': str(path), 'bytes': size, 'sha256': digest.hexdigest()}
+
+def summarize(raw, counts):
+    rows = []
+    for edge, signs in sorted(raw.items()):
+        n, plus = counts.get(edge, (0, 0)); p = plus / n if n else None
+        rows.append([list(edge), plus, n - plus, signs[0], p, 2 * p * (1 - p) if n else None])
+    totals = {name: sum(signs[sign] for signs in raw.values()) for name, sign in [('positive', 1), ('negative', -1), ('zero', 0)]}
+    return {'high_band_pair_count': sum(totals.values()), **{'high_band_' + k: v for k, v in totals.items()}, 'high_band_unique_edge_count': len(raw), 'nonzero_unique_edge_count': len(counts), 'self_edge_count': sum(sum(s.values()) for e, s in raw.items() if e[0] == e[1]), 'boundary_crossing_edge_count': sum(sum(s.values()) for e, s in raw.items() if min(e) <= 50 < max(e)), 'edge_columns': ['edge', 'n_plus', 'n_minus', 'n_zero', 'p', 'd'], 'edges': rows, 'n_definition': 'n_plus + n_minus; unique edges and pair counts include zero signs'}
+
+def analyze(args):
+    if args.output.exists() or args.output.is_symlink():
+        raise FileExistsError(args.output)
+    analyzer_info = identity(args.analyzer)
+    spec = importlib.util.spec_from_file_location('t2583_existing_analyzer', str(args.analyzer))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    trace_info = identity(args.trace)
+    resolved, runs = module._load_new_trace(args.trace)
+    _, coverages = module._j4_effective_update_interval(runs)
+    existing = module._j1_sign_instability(runs, coverages)
+    cells, counts, observations = {}, {}, {}
+    for cell, run in runs.items():
+        events = run['events']; raw = {}
+        for previous, current in zip(events, events[1:]):
+            edge = tuple(sorted((previous['backoff_before'], previous['backoff_after'])))
+            raw.setdefault(edge, Counter())[current['gradient_sign']] += 1
+        obs = module._edge_observations(events)
+        observations[cell] = {band: [o for o in obs if select(o['edge'])] for band, select in SELECT.items()}
+        counts[cell] = {band: module._edge_counts(items) for band, items in observations[cell].items()}
+        row = {'event_count': len(events), 'nonzero_gradient_count': sum(e['gradient_sign'] != 0 for e in events), 'zero_gradient_count': sum(e['gradient_sign'] == 0 for e in events), 'retained': run['retained'], 'dropped': run['dropped'], 'retained_coverage': coverages[cell]}
+        row.update({field + '_' + name: fn(e[field] for e in events) for field in ('backoff_before', 'backoff_after') for name, fn in [('min', min), ('max', max)]})
+        row.update({'self_edge_count': sum(sum(s.values()) for e, s in raw.items() if e[0] == e[1]), 'boundary_crossing_edge_count': sum(sum(s.values()) for e, s in raw.items() if min(e) <= 50 < max(e))})
+        row['bands'] = {band: summarize({e: s for e, s in raw.items() if select(e)}, counts[cell][band]) for band, select in SELECT.items()}
+        cells[cell] = row
+    contrast = module._fixed_edge_comparison(counts[LEFT][MAIN], counts[RIGHT][MAIN])
+    k = contrast['common_edge_count']; right = cells[RIGHT]['bands'][MAIN]
+    contrast['feasibility'] = 'no_high_band_observation' if not right['high_band_pair_count'] else 'no_nonzero_high_band_sign' if not counts[RIGHT][MAIN] else 'no_common_high_band_edge' if not k else 'insufficient_common_support' if k < 10 else 'executable'
+    contrast['comparison'] = contrast['difference_update10_minus_update2560']
+    contrast['common_support_minimum'] = 10
+    if k >= 10:
+        contrast['segments'] = [dict(segment=s + 1, **module._fixed_edge_comparison(module._edge_counts(observations[LEFT][MAIN], s), module._edge_counts(observations[RIGHT][MAIN], s))) for s in range(3)]
+        differences = [s['difference_update10_minus_update2560'] for s in contrast['segments']]
+        contrast['support_direction_met'] = contrast['comparison'] >= 0.10 and all(d is not None and d > 0 for d in differences)
+        contrast['qualifiers'] = [] if contrast['support_direction_met'] else ['direction_unstable']
+    edges = [e['unordered_edge'] for e in existing['overall']['edges']]
+    reused = ['_load_new_trace', '_j4_effective_update_interval', '_j1_sign_instability', '_edge_observations', '_edge_counts', '_fixed_edge_comparison']
+    known = {'j2_time_weighted_p_gt_50': dict(zip(STEPS + [RIGHT], [0.0, 0.8412, 0.9819, 0.9617, 0.9547, 0.0])), 'event_weighted_backoff_before_max': dict(zip(STEPS + [RIGHT], [22.0, 358.0, 444.0, 1000.0, 1000.0, 12.0])), 'old_j1_common_edge_count': 12, 'old_j1_max_endpoint_us': 12, 'main_common_support_failure_predicted': True}
+    return {'schema_version': 'izanagi-t2583-high-band-sign/v1', 'input': dict(trace_info, resolved_path=str(resolved)),
+            'analyzer': dict(analyzer_info, reused_functions=reused, bytes_unmodified=True, reuse='unmodified J1 call; existing components applied to observations filtered after extraction'),
+            'preregistration': {'path': PREREG, 'sha256': PREREG_SHA, 'blinded': False, 'known_information': known},
+            'headline_eligible': False, 'throughput_scope': 'diagnostic_only', 'scope': 'write-heavy / 48 threads / records 1,000,000 / extime 3 seconds / 1 rep / Pegasus; descriptive retained-trace sign mixture only',
+            'bands': {MAIN: 'min(edge) > 50 us (strict)', SENS: 'max(edge) > 50 us (strict), including boundary crossings', 'min_endpoint_gt_50': 'synonym of both_endpoints_gt_50; not an independent sensitivity', LOW: 'max(edge) <= 50 us; descriptive within-cell contrast', 'pair_definition': 'previous event unordered (before, after) edge with current gradient_sign; no event prefilter; self edges retained; counts are adjacent-pair occurrences unless unique'},
+            'cells': cells, 'existing_j1_unmodified': existing, 'existing_j1_common_edges_by_band': {**{b: sum(select(e) for e in edges) for b, select in SELECT.items()}, 'boundary_crossing_edge_count': sum(min(e) <= 50 < max(e) for e in edges), 'max_endpoint_us': max((max(e) for e in edges), default=None)},
+            'high_band_main_contrast': contrast, 'step_axis_common_edge_counts': [{'left': l, 'right': r, **{b: len(counts[l][b].keys() & counts[r][b].keys()) for b in (MAIN, SENS)}} for l, r in itertools.combinations(STEPS, 2)],
+            'step_axis_scope': '更新間隔 10 µs に固定した刻み条件間の記述である。更新間隔 10 対 2560 µs の高域対照を補完するものではなく、広窓による符号安定化の証拠には用いない。',
+            'limitations': ['Small-sample downward bias: E[d] = 2q(1-q)(1-1/n) under independent Bernoulli; n = n_plus + n_minus; unequal n can create differences at equal q.', '1 rep; observations are not independent; retained events may cover only a terminal slice; segments split retained event indices, not elapsed time.', 'Sign mixture, including self edges, cannot identify counting-noise causality or why the walk does not return from high backoff; walking history and window state confound interpretation; no promotion to wide-window stabilization evidence.', 'Loader retains all six cells simultaneously.'], 'omitted': []}
+
+def main():
+    parser = argparse.ArgumentParser(description='Diagnostic high-band sign probe; failures: measurement_incomplete.')
+    parser.add_argument('--trace', required=True, type=absolute)
+    parser.add_argument('--output', required=True, type=absolute)
+    parser.add_argument('--analyzer', type=absolute, default=ROOT / 'orchestrator/campaign/backoff_nonmonotonicity_analysis.py')
+    args = parser.parse_args()
+    try:
+        payload = json.dumps(analyze(args), ensure_ascii=False, indent=2, allow_nan=False) + '\n'
+        with args.output.open('x', encoding='utf-8') as stream:
+            stream.write(payload)
+    except (Exception, SystemExit) as exc:
+        print(f'measurement_incomplete: {type(exc).__name__}: {exc}', file=sys.stderr); return 1
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main())
