@@ -23242,6 +23242,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「production 全体」を起点にしているためである。段 3 のレンズ B が独立に検出した。
   対応は契約の射程 (`contract-v3.1.md` の 9 節) と実装計画 (`plan-v2.md` の 8 節) へ書き、
   判定の導出箇所を既存の 1 本に保つ実装制約にした。
+
+- **再発: 2026-09-15** — 親が段 1 brief で、凍結 spec と build receipt の実 instance が
+  「0 件」であることを `git ls-files | grep -i floor.pair` という **file 名検索**で断定した。
+  loader (`floor_pair_driver.load_frozen_spec`) は spec の命名を一切要求しないので、
+  この検索では任意の名前で保存された instance を除外できない。段 2 plan と段 3 レンズ A が
+  独立に指摘し、親が内容検索 (`git grep` + JSON parse) と tracked `.gz` 1767 件の展開走査で
+  取り直した。件数は変わらなかったが、根拠は不十分だった。
+  **不在を主張するときは、consumer が実際に要求する識別子 (ここでは top-level の `schema` 値) で
+  内容を引く。** file 名は consumer の要求ではない。
 ### F865. 防護を足す変更が、無関係な既存の防護対象を弱めた [受理集合の後退] [検査 corpus の穴]
 
 - 事象: 発行主体 subtree の防護を `perf` の出力先判定へ足した際、出力値を後段の既存判定から
