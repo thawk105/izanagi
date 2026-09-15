@@ -36,6 +36,16 @@ title: [T-2266] 依頼の帯 901〜998 と名指された driver が両立しな
   (契約どおりの 1 回再実行で解決)。いずれも 5 session が同時に worktree を作っていた時間帯である。
 - **エージェント工数。** codex 子は 3 名 (plan 1・敵対相談 2)、いずれも read-only。実装子はゼロ。
   変異 matrix は実装面の差分ゼロにより免除、受入全走は免除していない。
+- **受入と land の経緯。** 受入 1 回目は child-green (23661 passed 相当)。land 1 回目は
+  `rc=10 stale-main`、2 回目は `rc=31 fold-gate-failed` — 本文は
+  `registered worktree path cannot be resolved: [Errno 4] Interrupted system call` で、
+  落ちた path は**別 wave のもの**、`main_before == main_after` で main は 1 bit も動いていない。
+  F672 の型である (直後の読取専用再確認では登録 90 path すべてが解決できた)。
+  F672 の復旧に従い受入を取り直したところ、2 回目は
+  `orchestrator/tests/test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed` が
+  1 件だけ赤になった (23661 passed 中 1 failed)。**単独再走は rc=0 / 1 passed / 7.77 秒で非再現。**
+  本 wave の差分は docs と insight だけで、SIGTERM の送出・待機を扱うこの test へ到達する経路を持たない。
+  **非帰属赤と判定し、hold 登録はしない。** 同一 tip での単独再走は 1 回だけ行った。
 
 ## 次の一手差分
 
