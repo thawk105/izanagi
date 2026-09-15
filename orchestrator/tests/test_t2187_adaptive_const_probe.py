@@ -3085,6 +3085,7 @@ def test_counterfactual_artifacts_record_exact_preregistration_sha_only_on_exact
     exact = {
         "backoff_trace": True,
         "cells_text": probe.COUNTERFACTUAL_TRACE_CELLS_TEXT,
+        "step_policy_seed": 5744733223455690259,
         "workloads_text": "write-heavy,balanced,read-heavy",
         "threads_text": "24,48",
         "rep_index": 0,
@@ -3165,6 +3166,7 @@ def test_counterfactual_artifacts_record_exact_preregistration_sha_only_on_exact
 
 def test_cohort2_trace_metadata_uses_independent_exact_v4_predicate() -> None:
     cohort1 = probe._artifact_contract_metadata(
+        step_policy_seed=5744733223455690259,
         backoff_trace=True,
         cells_text=probe.COUNTERFACTUAL_TRACE_CELLS_TEXT,
         workloads_text="write-heavy,balanced,read-heavy",
@@ -3185,6 +3187,7 @@ def test_cohort2_trace_metadata_uses_independent_exact_v4_predicate() -> None:
     exact = {
         "backoff_trace": True,
         "cells_text": probe.COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT,
+        "step_policy_seed": 14481721328008317845,
         "workloads_text": "write-heavy,balanced,read-heavy",
         "threads_text": "24,48",
         "rep_index": 0,
@@ -3624,6 +3627,7 @@ def test_backoff_trace_contract_accepts_only_four_exact_cell_literals(
         *,
         extime: int = 3,
         terminal_us: int = 0,
+        seed: int | None = None,
     ):
         args = parser.parse_args(
             [
@@ -3644,6 +3648,8 @@ def test_backoff_trace_contract_accepts_only_four_exact_cell_literals(
                 str(tmp_path / "unused.json"),
             ]
         )
+        if seed is not None:
+            args.step_policy_seed = seed
         return (
             args,
             probe.parse_cells(args.cells),
@@ -3682,6 +3688,10 @@ def test_backoff_trace_contract_accepts_only_four_exact_cell_literals(
                 threads,
                 extime=extime,
                 terminal_us=terminal_us,
+                seed={
+                    COUNTERFACTUAL_TRACE_CELLS: 5744733223455690259,
+                    COUNTERFACTUAL_COHORT2_TRACE_CELLS: 14481721328008317845,
+                }.get(exact),
             )
         )
 
@@ -4237,7 +4247,7 @@ def test_public_dispatch_keeps_policy_grid_and_trace_validators_disjoint(
                 "--threads",
                 "24,48",
                 "--step-policy-seed",
-                "7",
+                "5744733223455690259",
                 "--out",
                 str(probe.DYNAMIC_OUT_PREFIX / "trace" / "dispatch.json"),
             ],
@@ -5279,6 +5289,205 @@ def test_backoff_trace_mode_rejects_nonzero_rep_index_only(tmp_path: Path) -> No
             probe._parse_workloads(args.workloads),
             probe._parse_threads(args.threads),
         )
+
+
+# Independent expectations, transcribed from the frozen cohort seed tables.
+EXPECTED_COUNTERFACTUAL_SEEDS = (
+    5744733223455690259, 781552995023334429, 1606918558588661,
+    16736322205931003081, 1227967287010452276, 2171878327641984105,
+    2057459156086657874, 11135758292722279839, 13576760736062537317,
+    5470969369189575692, 2410271300384854639, 13467815584134101060,
+)
+EXPECTED_COUNTERFACTUAL_COHORT2_SEEDS = (
+    14481721328008317845, 7453732891837486670, 766609016836229506,
+    14479507243158715447, 3736279228254271919, 6574519577559702715,
+    15525319108568766040, 13039315294558381935, 16889140200793892447,
+    15536816158447092057, 13171317188614694465, 3421410286381859835,
+)
+COUNTERFACTUAL_REGISTERED_CASES = [
+    pytest.param(cohort, seed, id=f"cohort{cohort}-slot{slot:02d}")
+    for cohort, seeds in (
+        (1, EXPECTED_COUNTERFACTUAL_SEEDS),
+        (2, EXPECTED_COUNTERFACTUAL_COHORT2_SEEDS),
+    )
+    for slot, seed in enumerate(seeds)
+]
+
+
+def _counterfactual_exact_inputs(cohort: int) -> dict:
+    return {
+        "backoff_trace": True,
+        "cells_text": (
+            COUNTERFACTUAL_TRACE_CELLS if cohort == 1
+            else COUNTERFACTUAL_COHORT2_TRACE_CELLS
+        ),
+        "workloads_text": "write-heavy,balanced,read-heavy",
+        "threads_text": "24,48",
+        "rep_index": 0,
+        "reps_per_job": 1,
+        "extime": 3 if cohort == 1 else 6,
+        "backoff_trace_terminal_us": 0 if cohort == 1 else 5_000_000,
+    }
+
+
+def _counterfactual_validator_inputs(exact: dict) -> tuple:
+    args = probe._argument_parser().parse_args(
+        ["--cells", exact["cells_text"], "--out", "unused.json"]
+    )
+    for key, value in exact.items():
+        setattr(args, {"cells_text": "cells", "workloads_text": "workloads",
+                      "threads_text": "threads"}.get(key, key), value)
+    return (args, probe.parse_cells(args.cells),
+            probe._parse_workloads(args.workloads), probe._parse_threads(args.threads))
+
+
+def test_counterfactual_seed_table_matches_frozen_section_8_1() -> None:
+    section = probe.COUNTERFACTUAL_PREREGISTRATION.read_text().split(
+        "### 8.1 seed の逐語一覧", 1
+    )[1].split("## 9.", 1)[0]
+    original = tuple(int(seed) for seed in re.findall(
+        r"^\| \d{2} \| (\d+) \|", section, re.MULTILINE
+    ))
+    assert original == EXPECTED_COUNTERFACTUAL_SEEDS
+    assert probe.COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS == original
+    assert len(original) == len(set(original)) == 12
+    assert probe.CERT_PREREGISTERED_STEP_POLICY_SEEDS == EXPECTED_COUNTERFACTUAL_COHORT2_SEEDS
+
+
+@pytest.mark.parametrize("cohort,seed", COUNTERFACTUAL_REGISTERED_CASES)
+def test_counterfactual_validator_accepts_every_registered_seed(cohort, seed) -> None:
+    exact = {**_counterfactual_exact_inputs(cohort), "step_policy_seed": seed}
+    probe._validate_backoff_trace_contract(*_counterfactual_validator_inputs(exact))
+
+
+@pytest.mark.parametrize("cohort,seed", COUNTERFACTUAL_REGISTERED_CASES)
+def test_counterfactual_metadata_accepts_every_registered_seed(cohort, seed) -> None:
+    document = (probe.COUNTERFACTUAL_PREREGISTRATION if cohort == 1
+                else probe.COUNTERFACTUAL_COHORT2_PREREGISTRATION)
+    assert probe._artifact_contract_metadata(
+        **_counterfactual_exact_inputs(cohort), step_policy_seed=seed
+    ) == {
+        "schema_version": (probe.TRACE_SCHEMA_VERSION if cohort == 1
+                           else probe.COHORT2_TRACE_SCHEMA_VERSION),
+        "not_certified": probe.DIAGNOSTIC_NOT_CERTIFIED,
+        "counterfactual_preregistration": hashlib.sha256(document.read_bytes()).hexdigest(),
+    }
+
+
+class _Seed(int):
+    pass
+
+
+COUNTERFACTUAL_INVALID_CASES = [
+    pytest.param(cohort, seed, id=f"cohort{cohort}-{label}")
+    for cohort in (1, 2)
+    for label, seed in (
+        ("none", None), ("seven", 7), ("zero", 0), ("uint64-max", 2**64 - 1),
+        ("compile-default", 11400714819323198485),
+        ("other-cohort", 14481721328008317845 if cohort == 1 else 5744733223455690259),
+        ("string", "5744733223455690259" if cohort == 1 else "14481721328008317845"),
+        ("bool", True),
+        ("type-alias", float(1606918558588661) if cohort == 1 else _Seed(766609016836229506)),
+    )
+] + [
+    pytest.param(1, _Seed(1606918558588661), id="cohort1-int-subclass"),
+]
+
+
+@pytest.mark.parametrize("cohort,seed", COUNTERFACTUAL_INVALID_CASES)
+def test_counterfactual_validator_rejects_invalid_seed(cohort, seed) -> None:
+    exact = {**_counterfactual_exact_inputs(cohort), "step_policy_seed": seed}
+    with pytest.raises(ValueError, match=f"step-policy-seed.*cohort{cohort}"):
+        probe._validate_backoff_trace_contract(*_counterfactual_validator_inputs(exact))
+
+
+@pytest.mark.parametrize("cohort,seed", COUNTERFACTUAL_INVALID_CASES)
+def test_counterfactual_metadata_omits_binding_for_invalid_seed(cohort, seed, monkeypatch) -> None:
+    def unexpected_hash():
+        pytest.fail("invalid seed reached preregistration hash")
+
+    monkeypatch.setattr(probe, "_counterfactual_prereg_sha256", unexpected_hash)
+    monkeypatch.setattr(probe, "_counterfactual_cohort2_prereg_sha256", unexpected_hash)
+    metadata = probe._artifact_contract_metadata(
+        **_counterfactual_exact_inputs(cohort), step_policy_seed=seed
+    )
+    assert "counterfactual_preregistration" not in metadata
+    assert metadata["schema_version"] == probe.TRACE_SCHEMA_VERSION
+
+
+@pytest.mark.parametrize("cohort", (1, 2), ids=("cohort1", "cohort2"))
+def test_counterfactual_validator_rejects_omitted_seed(cohort) -> None:
+    with pytest.raises(ValueError, match=f"step-policy-seed.*cohort{cohort}"):
+        probe._validate_backoff_trace_contract(
+            *_counterfactual_validator_inputs(_counterfactual_exact_inputs(cohort))
+        )
+
+
+@pytest.mark.parametrize("cohort", (1, 2), ids=("cohort1", "cohort2"))
+def test_counterfactual_metadata_omits_binding_for_omitted_seed(cohort) -> None:
+    metadata = probe._artifact_contract_metadata(**_counterfactual_exact_inputs(cohort))
+    assert "counterfactual_preregistration" not in metadata
+    assert metadata["schema_version"] == probe.TRACE_SCHEMA_VERSION
+
+
+def _counterfactual_serialized_outputs(cohort, seed, tmp_path):
+    exact = _counterfactual_exact_inputs(cohort)
+    metadata = probe._artifact_contract_metadata(**exact, step_policy_seed=seed)
+    rows = [
+        {**probe._cell_identity(cell), **probe._counterfactual_row_metadata(
+            preregistration_sha256=metadata.get("counterfactual_preregistration"),
+            cell=cell, step_policy_seed=seed,
+        )}
+        for cell in probe.parse_cells(exact["cells_text"])
+    ]
+    out = tmp_path / "counterfactual.json"
+    out.write_text(json.dumps({**metadata, "runs": rows}))
+    for row in rows:
+        probe._append_journal(out, row)
+    return (json.loads(out.read_text()), [json.loads(line) for line in
+            Path(str(out) + ".journal.jsonl").read_text().splitlines()])
+
+
+@pytest.mark.parametrize("cohort", (1, 2), ids=("cohort1", "cohort2"))
+def test_counterfactual_registered_seed_binding_reaches_json_and_journal(cohort, tmp_path) -> None:
+    seed = 5744733223455690259 if cohort == 1 else 14481721328008317845
+    payload, journal = _counterfactual_serialized_outputs(cohort, seed, tmp_path)
+    document = (probe.COUNTERFACTUAL_PREREGISTRATION if cohort == 1
+                else probe.COUNTERFACTUAL_COHORT2_PREREGISTRATION)
+    expected = hashlib.sha256(document.read_bytes()).hexdigest()
+    assert payload["counterfactual_preregistration"] == expected
+    assert journal == payload["runs"]
+    for rows in (payload["runs"], journal):
+        assert len(rows) == 3
+        assert all(row["counterfactual_preregistration"] == expected for row in rows)
+        assert "step_policy_seed" not in rows[0]
+        assert "step_policy_seed" not in rows[1]
+        assert rows[2]["step_policy_seed"] == seed
+
+
+@pytest.mark.parametrize("cohort", (1, 2), ids=("cohort1", "cohort2"))
+def test_counterfactual_unregistered_seed_omits_binding_from_json_and_journal(cohort, tmp_path) -> None:
+    payload, journal = _counterfactual_serialized_outputs(cohort, 7, tmp_path)
+    assert "counterfactual_preregistration" not in payload
+    assert journal == payload["runs"]
+    assert len(journal) == 3
+    for row in payload["runs"] + journal:
+        assert "counterfactual_preregistration" not in row
+
+
+@pytest.mark.parametrize("cohort", (1, 2), ids=("cohort1", "cohort2"))
+@pytest.mark.parametrize("field,drift", (
+    ("cells_text", COUNTERFACTUAL_TRACE_CELLS[:-1] + "1"),
+    ("workloads_text", "write-heavy"),
+    ("threads_text", "48"), ("rep_index", 1), ("reps_per_job", 2),
+    ("extime", 4), ("backoff_trace_terminal_us", 1),
+))
+def test_counterfactual_registered_seed_does_not_bypass_exact_axes(cohort, field, drift) -> None:
+    exact = {**_counterfactual_exact_inputs(cohort), field: drift,
+             "step_policy_seed": 5744733223455690259 if cohort == 1 else 14481721328008317845}
+    with pytest.raises(ValueError, match="one exact diagnostic cell set"):
+        probe._validate_backoff_trace_contract(*_counterfactual_validator_inputs(exact))
+    assert "counterfactual_preregistration" not in probe._artifact_contract_metadata(**exact)
 
 
 def _run() -> int:
