@@ -1,0 +1,271 @@
+{"argv": ["git", "-C", "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/external/ccbench", "rev-parse", "HEAD^{commit}"], "timeout_s": null, "returncode": 0, "elapsed_s": 0.027357498998753726}
+511c9538e4e8efa54b45cda62e72389ed3b706ec
+
+{"argv": ["git", "clone", "--no-hardlinks", "--no-checkout", "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources/masstree-src", "/tmp/t1994-qualification-1ra1mswp/base/masstree-src"], "timeout_s": null, "returncode": 0, "elapsed_s": 0.03593034000368789}
+Cloning into '/tmp/t1994-qualification-1ra1mswp/base/masstree-src'...
+done.
+
+{"argv": ["git", "-C", "/tmp/t1994-qualification-1ra1mswp/base/masstree-src", "checkout", "--detach", "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38"], "timeout_s": null, "returncode": 0, "elapsed_s": 0.015014261996839195}
+HEAD is now at b3c5d05 Merge pull request #1 from thawk105/cxx20-compat
+
+{"argv": ["git", "clone", "--no-hardlinks", "--no-checkout", "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources/mimalloc-src", "/tmp/t1994-qualification-1ra1mswp/base/mimalloc-src"], "timeout_s": null, "returncode": 0, "elapsed_s": 0.06734066299395636}
+Cloning into '/tmp/t1994-qualification-1ra1mswp/base/mimalloc-src'...
+done.
+
+{"argv": ["git", "-C", "/tmp/t1994-qualification-1ra1mswp/base/mimalloc-src", "checkout", "--detach", "02a2f5df9d7d46d30263b83832eebeeab62dc5fe"], "timeout_s": null, "returncode": 0, "elapsed_s": 0.03340866300277412}
+HEAD is now at 02a2f5df bump version to v2.3.2
+
+{"argv": ["git", "clone", "--no-hardlinks", "--no-checkout", "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources/googletest-src", "/tmp/t1994-qualification-1ra1mswp/base/googletest-src"], "timeout_s": null, "returncode": 0, "elapsed_s": 0.07185276300879195}
+Cloning into '/tmp/t1994-qualification-1ra1mswp/base/googletest-src'...
+done.
+
+{"argv": ["git", "-C", "/tmp/t1994-qualification-1ra1mswp/base/googletest-src", "checkout", "--detach", "f8d7d77c06936315286eb55f8de22cd23c188571"], "timeout_s": null, "returncode": 0, "elapsed_s": 0.03608187101781368}
+HEAD is now at f8d7d77c Bump version to v1.14 in preparation for release
+
+{"argv": ["/usr/bin/cmake", "-S", "/tmp/izanagi_wt_10ofui5u/wt", "-B", "/tmp/t1994-qualification-1ra1mswp/base/izanagi-masstree-prebuild", "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF", "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11", "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11", "-DFETCHCONTENT_BASE_DIR=/tmp/t1994-qualification-1ra1mswp/base", "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/t1994-qualification-1ra1mswp/base/masstree-src", "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/tmp/t1994-qualification-1ra1mswp/base/mimalloc-src", "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/tmp/t1994-qualification-1ra1mswp/base/googletest-src"], "timeout_s": null, "returncode": 0, "elapsed_s": 0.9017152879969217}
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/x86_64-linux-gnu-g++-11 - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Looking for C++ include pthread.h
+-- Looking for C++ include pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Found gflags: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/env/pegasus/silo_ladder_rung1/job-staging/t2625-deps/gflags-install/lib/libgflags.a  
+-- Found glog: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/env/pegasus/silo_ladder_rung1/job-staging/t2625-deps/glog-install/lib/libglog.a  
+-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version "1.74.0") found components: filesystem 
+-- The C compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/x86_64-linux-gnu-gcc-11 - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- 
+-- Architecture: x64
+-- Performing Test mi_has_libpthread
+-- Performing Test mi_has_libpthread - Success
+-- Performing Test mi_has_librt
+-- Performing Test mi_has_librt - Success
+-- Performing Test mi_has_libatomic
+-- Performing Test mi_has_libatomic - Success
+-- 
+-- Library name     : mimalloc
+-- Version          : 2.3.2
+-- Build type       : release
+-- C Compiler       : /usr/bin/x86_64-linux-gnu-gcc-11
+-- Compiler flags   : -Wall;-Wextra;-Wno-unknown-pragmas;-fvisibility=hidden;-Wstrict-prototypes;-ftls-model=initial-exec
+-- Compiler defines : MI_CMAKE_BUILD_TYPE=release;MI_BUILD_RELEASE
+-- Link libraries   : pthread;rt;atomic
+-- Build targets    : static
+-- 
+-- Found Python3: /usr/bin/python3.10 (found version "3.10.12") found components: Interpreter 
+-- Wrote protocol×workload matrix to /tmp/t1994-qualification-1ra1mswp/base/izanagi-masstree-prebuild/PROTOCOL_MATRIX.md
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /tmp/t1994-qualification-1ra1mswp/base/izanagi-masstree-prebuild
+
+{"argv": ["/usr/bin/cmake", "--build", "/tmp/t1994-qualification-1ra1mswp/base/izanagi-masstree-prebuild", "--target", "masstree_build", "-j", "48"], "timeout_s": null, "returncode": 0, "elapsed_s": 10.684197433001827}
+masstree: bootstrap + configure + make + ar
+Building masstree (libkohler_masstree_json.a)
+configure.ac:14: warning: The macro `AC_LANG_CPLUSPLUS' is obsolete.
+configure.ac:14: You should run autoupdate.
+./lib/autoconf/c.m4:262: AC_LANG_CPLUSPLUS is expanded from...
+configure.ac:14: the top level
+Now, run ./configure.
+checking for gcc... gcc
+checking whether the C compiler works... yes
+checking for C compiler default output file name... a.out
+checking for suffix of executables... 
+checking whether we are cross compiling... no
+checking for suffix of object files... o
+checking whether the compiler supports GNU C... yes
+checking whether gcc accepts -g... yes
+checking for gcc option to enable C11 features... none needed
+checking for g++... g++
+checking whether the compiler supports GNU C++... yes
+checking whether g++ accepts -g... yes
+checking for g++ option to enable C++11 features... none needed
+checking for stdio.h... yes
+checking for stdlib.h... yes
+checking for string.h... yes
+checking for inttypes.h... yes
+checking for stdint.h... yes
+checking for strings.h... yes
+checking for sys/stat.h... yes
+checking for sys/types.h... yes
+checking for unistd.h... yes
+checking whether byte ordering is bigendian... no
+checking for sys/epoll.h... yes
+checking for numa.h... yes
+checking for library containing numa_available... -lnuma
+checking for __builtin_clz builtin... yes
+checking for __builtin_clzl builtin... yes
+checking for __builtin_clzll builtin... yes
+checking for __builtin_ctz builtin... yes
+checking for __builtin_ctzl builtin... yes
+checking for __builtin_ctzll builtin... yes
+checking for __sync_synchronize builtin... yes
+checking for __sync_fetch_and_add builtin... yes
+checking for __sync_add_and_fetch builtin... yes
+checking for __sync_fetch_and_add_8 builtin... yes
+checking for __sync_add_and_fetch_8 builtin... yes
+checking for __sync_fetch_and_or builtin... yes
+checking for __sync_or_and_fetch builtin... yes
+checking for __sync_fetch_and_or_8 builtin... yes
+checking for __sync_or_and_fetch_8 builtin... yes
+checking for __sync_bool_compare_and_swap builtin... yes
+checking for __sync_bool_compare_and_swap_8 builtin... yes
+checking for __sync_val_compare_and_swap builtin... yes
+checking for __sync_val_compare_and_swap_8 builtin... yes
+checking for __sync_lock_test_and_set builtin... yes
+checking for __sync_lock_test_and_set_val builtin... yes
+checking for __sync_lock_release_set builtin... yes
+checking whether the C++ compiler understands 'auto'... yes
+checking whether the C++ compiler understands constexpr... yes
+checking whether the C++ compiler understands static_assert... yes
+checking whether the C++ compiler understands rvalue references... yes
+checking whether the C++ compiler understands template alias... yes
+checking for type_traits... yes
+checking for std::hash... yes
+checking for __has_trivial_copy... yes
+checking for __has_trivial_destructor... yes
+checking for std::move... yes
+checking for std::is_trivially_copyable... yes
+checking for std::is_trivially_destructible... yes
+checking for std::is_rvalue_reference... yes
+checking for malloc in -lflow... no
+checking for mallctl in -ljemalloc... no
+checking for tc_malloc in -ltcmalloc_minimal... no
+checking for _Z16getMainHoardHeapv in -lhoard... no
+checking for malloc library... malloc
+checking for malloc library... default
+checking whether off_t and long are the same type... yes
+checking whether off_t and long long are the same type... no
+checking whether int64_t and long are the same type... yes
+checking whether int64_t and long long are the same type... no
+checking whether size_t and unsigned are the same type... no
+checking whether size_t and unsigned long are the same type... yes
+checking whether size_t and unsigned long long are the same type... no
+checking for long long... yes
+checking size of short... 2
+checking size of int... 4
+checking size of long... 8
+checking size of long long... 8
+checking size of void *... 8
+checking for g++ options needed to detect all undeclared functions... none needed
+checking whether getline is declared... yes
+checking for time.h... yes
+checking for execinfo.h... yes
+checking whether clock_gettime is declared... yes
+checking for library containing clock_gettime... none required
+checking for clock_gettime... yes
+checking for library containing backtrace... none required
+checking whether MADV_HUGEPAGE is supported... checking how to run the C++ preprocessor... g++ -E
+yes
+checking whether MAP_HUGETLB is supported... yes
+configure: creating ./config.status
+config.status: creating GNUmakefile
+config.status: creating config.h
+make[4]: warning: -j0 forced in submake: resetting jobserver mode.
+config.status: creating config.h
+config.status: config.h is unchanged
+kvthread.cc: In constructor ‘threadinfo::threadinfo(int, int)’:
+kvthread.cc:33:11: warning: ‘void* memset(void*, int, size_t)’ clearing an object of type ‘class threadinfo’ with no trivial copy-assignment [-Wclass-memaccess]
+   33 |     memset(this, 0, sizeof(*this));
+      |     ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+In file included from kvthread.cc:16:
+kvthread.hh:94:7: note: ‘class threadinfo’ declared here
+   94 | class threadinfo {
+      |       ^~~~~~~~~~
+json.cc: In member function ‘void lcdf::Json::ObjectJson::grow(bool)’:
+json.cc:117:19: warning: ‘void* memcpy(void*, const void*, size_t)’ writing to an object of type ‘struct lcdf::Json::ObjectItem’ with no trivial copy-assignment; use copy-initialization instead [-Wclass-memaccess]
+  117 |             memcpy(oi, ob, sizeof(ObjectItem));
+      |             ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:436:14: note: ‘struct lcdf::Json::ObjectItem’ declared here
+  436 | struct Json::ObjectItem {
+      |              ^~~~~~~~~~
+json.cc: In member function ‘void lcdf::Json::hard_uniqueify_array(bool, int)’:
+json.cc:250:15: warning: ‘void* memcpy(void*, const void*, size_t)’ writing to an object of type ‘class lcdf::Json’ with no trivial copy-assignment; use copy-assignment or copy-initialization instead [-Wclass-memaccess]
+  250 |         memcpy(u_.a.x->a, old_u.a.x->a, sizeof(Json) * u_.a.x->size);
+      |         ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:44:7: note: ‘class lcdf::Json’ declared here
+   44 | class Json {
+      |       ^~~~
+json.cc:268:27: warning: ‘void* memset(void*, int, size_t)’ clearing an object of type ‘class lcdf::Json’ with no trivial copy-assignment; use assignment or value-initialization instead [-Wclass-memaccess]
+  268 |                     memset(&u_.a.x->a[u_.a.x->size], 0, sizeof(Json) * (i + 1 - u_.a.x->size));
+      |                     ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:44:7: note: ‘class lcdf::Json’ declared here
+   44 | class Json {
+      |       ^~~~
+json.cc: In member function ‘void* lcdf::Json::uniqueify_array_insert(bool, lcdf::Json::size_type)’:
+json.cc:343:16: warning: ‘void* memmove(void*, const void*, size_t)’ writing to an object of type ‘class lcdf::Json’ with no trivial copy-assignment; use copy-assignment or copy-initialization instead [-Wclass-memaccess]
+  343 |         memmove(&u_.a.x->a[pos + 1], &u_.a.x->a[pos], (size - pos) * sizeof(Json));
+      |         ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:44:7: note: ‘class lcdf::Json’ declared here
+   44 | class Json {
+      |       ^~~~
+json.cc: In member function ‘lcdf::Json::array_iterator lcdf::Json::erase(lcdf::Json::array_iterator, lcdf::Json::array_iterator)’:
+json.cc:357:20: warning: ‘void* memmove(void*, const void*, size_t)’ writing to an object of type ‘class lcdf::Json’ with no trivial copy-assignment; use copy-assignment or copy-initialization instead [-Wclass-memaccess]
+  357 |             memmove(&u_.a.x->a[fpos], &u_.a.x->a[lpos],
+      |             ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  358 |                     (size - lpos) * sizeof(Json));
+      |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:44:7: note: ‘class lcdf::Json’ declared here
+   44 | class Json {
+      |       ^~~~
+json.cc: In member function ‘lcdf::Json& lcdf::Json::hard_get_insert(lcdf::Json::size_type)’:
+json.cc:534:19: warning: ‘void* memset(void*, int, size_t)’ clearing an object of type ‘class lcdf::Json’ with no trivial copy-assignment; use assignment or value-initialization instead [-Wclass-memaccess]
+  534 |             memset(&u_.a.x->a[u_.a.x->size], 0, sizeof(Json) * (x + 1 - u_.a.x->size));
+      |             ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:44:7: note: ‘class lcdf::Json’ declared here
+   44 | class Json {
+      |       ^~~~
+log.cc: In static member function ‘static logset* logset::make(int)’:
+log.cc:165:15: warning: array subscript -1 is below array bounds of ‘loginfo [0]’ [-Warray-bounds]
+  165 |     ls->li_[-1].lsi_.size_ = size;
+      |     ~~~~~~~~~~^
+In file included from log.cc:16:
+log.hh:114:13: note: while referencing ‘logset::li_’
+  114 |     loginfo li_[0];
+      |             ^~~
+log.cc:166:15: warning: array subscript -1 is below array bounds of ‘loginfo [0]’ [-Warray-bounds]
+  166 |     ls->li_[-1].lsi_.allocation_offset_ = (int) (x - ls_pos);
+      |     ~~~~~~~~~~^
+In file included from log.cc:16:
+log.hh:114:13: note: while referencing ‘logset::li_’
+  114 |     loginfo li_[0];
+      |             ^~~
+log.hh: In static member function ‘static void logset::free(logset*)’:
+log.hh:194:18: warning: array subscript -1 is below array bounds of ‘const loginfo [0]’ [-Warray-bounds]
+  194 |     return li_[-1].lsi_.size_;
+      |            ~~~~~~^
+log.hh:114:13: note: while referencing ‘logset::li_’
+  114 |     loginfo li_[0];
+      |             ^~~
+log.cc:175:55: warning: array subscript -1 is below array bounds of ‘loginfo [0]’ [-Warray-bounds]
+  175 |     delete[] (reinterpret_cast<char*>(ls) + ls->li_[-1].lsi_.allocation_offset_);
+      |                                             ~~~~~~~~~~^
+In file included from log.cc:16:
+log.hh:114:13: note: while referencing ‘logset::li_’
+  114 |     loginfo li_[0];
+      |             ^~~
+ar: `u' modifier ignored since `D' is the default (see `U')
+Built target masstree_build
+
+{"argv": ["/usr/bin/python3", "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py", "--internal", "sealed", "/tmp/izanagi_wt_yr6881uy/wt", "/tmp/t1994-qualification-1ra1mswp/base/qualification-shared/shared-0444"], "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification", "timeout_s": null, "ccache_environment": {}, "returncode": 0, "elapsed_s": 0.1002669429872185}
+{"inventory": {"files": 404, "directories": 47, "symlinks": 0, "apparent_bytes": 2352405, "symlink_bytes": 0, "page_rounded_file_bytes": 3321856, "page_size": 4096, "nodes": 451, "required_inodes": 451, "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42", "excluded_names": [".git"]}, "mountinfo": "1012 1011 259:7 / / rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n1013 1012 0:5 / /dev rw,nosuid,relatime - devtmpfs udev rw,size=65208296k,nr_inodes=16302074,mode=755,inode64\n1014 1013 0:24 / /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=000\n1015 1013 0:27 / /dev/shm rw,nosuid,nodev - tmpfs tmpfs rw,inode64\n1016 1013 0:34 / /dev/hugepages rw,relatime - hugetlbfs hugetlbfs rw,pagesize=2M\n1017 1013 0:20 / /dev/mqueue rw,nosuid,nodev,noexec,relatime - mqueue mqueue rw\n1018 1012 0:25 / /run rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053636k,mode=755,inode64\n1019 1018 0:28 / /run/lock rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=5120k,inode64\n1020 1018 0:36 / /run/credentials/systemd-sysusers.service ro,nosuid,nodev,noexec,relatime - ramfs none rw,mode=700\n1021 1018 0:38 / /run/rpc_pipefs rw,relatime - rpc_pipefs sunrpc rw\n1022 1018 0:25 /snapd/ns /run/snapd/ns rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053636k,mode=755,inode64\n1023 1012 0:22 / /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw\n1024 1023 0:6 / /sys/kernel/security rw,nosuid,nodev,noexec,relatime - securityfs securityfs rw\n1025 1023 0:29 / /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime - cgroup2 cgroup2 rw,nsdelegate,memory_recursiveprot\n1026 1023 0:30 / /sys/fs/pstore rw,nosuid,nodev,noexec,relatime - pstore pstore rw\n1027 1023 0:31 / /sys/firmware/efi/efivars rw,nosuid,nodev,noexec,relatime - efivarfs efivarfs rw\n1028 1023 0:32 / /sys/fs/bpf rw,nosuid,nodev,noexec,relatime - bpf bpf rw,mode=700\n1029 1023 0:7 / /sys/kernel/debug rw,nosuid,nodev,noexec,relatime - debugfs debugfs rw\n1030 1029 0:12 / /sys/kernel/debug/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n1031 1023 0:12 / /sys/kernel/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n1032 1023 0:35 / /sys/fs/fuse/connections rw,nosuid,nodev,noexec,relatime - fusectl fusectl rw\n1033 1023 0:21 / /sys/kernel/config rw,nosuid,nodev,noexec,relatime - configfs configfs rw\n1034 1012 0:23 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw\n1035 1034 0:33 / /proc/sys/fs/binfmt_misc rw,relatime - autofs systemd-1 rw,fd=29,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=64630\n1036 1035 0:37 / /proc/sys/fs/binfmt_misc rw,nosuid,nodev,noexec,relatime - binfmt_misc binfmt_misc rw\n1037 1012 7:1 / /snap/core20/2866 ro,nodev,relatime - squashfs /dev/loop1 ro,errors=continue\n1038 1012 7:2 / /snap/lxd/40364 ro,nodev,relatime - squashfs /dev/loop2 ro,errors=continue\n1039 1012 7:3 / /snap/lxd/40526 ro,nodev,relatime - squashfs /dev/loop3 ro,errors=continue\n1040 1012 7:4 / /snap/snapd/27710 ro,nodev,relatime - squashfs /dev/loop4 ro,errors=continue\n1041 1012 7:5 / /snap/snapd/27738 ro,nodev,relatime - squashfs /dev/loop5 ro,errors=continue\n1042 1012 259:5 / /boot rw,relatime - xfs /dev/nvme0n1p2 rw,attr2,inode64,logbufs=8,logbsize=32k,noquota\n1043 1042 259:4 / /boot/efi rw,relatime - vfat /dev/nvme0n1p1 rw,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro\n1044 1012 259:8 / /var/opt/nec/nqsv/jsv/jobfile rw,relatime - xfs /dev/nvme0n1p5 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n1045 1012 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1046 1045 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1047 1046 1273:181606 /1 /work/1 rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1048 1047 1273:181606 /1/SFC /work/1/SFC rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1049 1048 1273:181606 /1/SFC/tanab /work/1/SFC/tanab rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1050 1049 1273:181606 /1/SFC/tanab/izanagi /work/1/SFC/tanab/izanagi rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1051 1050 1273:181606 /1/SFC/tanab/izanagi/.claude /work/1/SFC/tanab/izanagi/.claude rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1052 1051 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees /work/1/SFC/tanab/izanagi/.claude/worktrees rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1053 1052 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1054 1053 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1055 1054 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1056 1055 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/fadd00b28bc044c8c609b3a7b235c351 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/fadd00b28bc044c8c609b3a7b235c351 ro - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1057 1012 1273:181606 / /system rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/system rw,flock,user_xattr,lazystatfs,encrypt\n1058 1012 1273:181606 / /home rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/home rw,flock,user_xattr,lazystatfs,encrypt\n1059 1012 7:6 / /snap/core20/2922 ro,nodev,relatime - squashfs /dev/loop6 ro,errors=continue\n1060 1012 9:0 / /scr rw,relatime - xfs /dev/md0 rw,attr2,inode64,logbufs=8,logbsize=32k,sunit=1024,swidth=2048,noquota\n1061 1012 259:10 / /pmem rw,noatime - ext4 /dev/pmem0 rw,dax=always\n1062 1012 0:45 / /tmp ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n1063 1062 0:55 / /tmp/izanagi_wt_yr6881uy ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n1064 1062 259:7 /tmp/t1994-qualification-1ra1mswp/cache-stock_common-aba /tmp/t1994-qualification-1ra1mswp/cache-stock_common-aba rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n1065 1062 259:7 /tmp/t1994-qualification-1ra1mswp/base /tmp/t1994-qualification-1ra1mswp/base rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n1066 1063 0:56 / /tmp/izanagi_wt_yr6881uy/wt ro,relatime - tmpfs tmpfs rw,size=11124k,uid=31609,gid=30410,inode64\n", "source_mounts": ["1066 1063 0:56 / /tmp/izanagi_wt_yr6881uy/wt ro,relatime - tmpfs tmpfs rw,size=11124k,uid=31609,gid=30410,inode64"], "chmod_errno": 30, "write_errno": 13, "read_unchanged": true, "git_absent": true, "tmpfs": {"fragment_size": 4096, "used_bytes": 3321856, "used_inodes": 451}, "status": "Name:\tpython3\nUmask:\t0022\nState:\tR (running)\nTgid:\t3021982\nNgid:\t0\nPid:\t3021982\nPPid:\t3021969\nTracerPid:\t0\nUid:\t31609\t31609\t31609\t31609\nGid:\t30410\t30410\t30410\t30410\nFDSize:\t64\nGroups:\t65534 30410 \nNStgid:\t3021982\nNSpid:\t3021982\nNSpgid:\t3019837\nNSsid:\t3019837\nVmPeak:\t   36832 kB\nVmSize:\t   36832 kB\nVmLck:\t       0 kB\nVmPin:\t       0 kB\nVmHWM:\t   24548 kB\nVmRSS:\t   24548 kB\nRssAnon:\t   14856 kB\nRssFile:\t    9692 kB\nRssShmem:\t       0 kB\nVmData:\t   17260 kB\nVmStk:\t     132 kB\nVmExe:\t    2772 kB\nVmLib:\t    5700 kB\nVmPTE:\t     108 kB\nVmSwap:\t       0 kB\nHugetlbPages:\t       0 kB\nCoreDumping:\t0\nTHP_enabled:\t1\nThreads:\t1\nSigQ:\t0/509439\nSigPnd:\t0000000000000000\nShdPnd:\t0000000000000000\nSigBlk:\t0000000000000000\nSigIgn:\t0000000001005000\nSigCgt:\t0000000000000002\nCapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapBnd:\t0000000000000000\nCapAmb:\t0000000000000000\nNoNewPrivs:\t1\nSeccomp:\t2\nSeccomp_filters:\t1\nSpeculation_Store_Bypass:\tthread force mitigated\nSpeculationIndirectBranch:\tconditional force disabled\nCpus_allowed:\tffff,ffffffff\nCpus_allowed_list:\t0-47\nMems_allowed:\t00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001\nMems_allowed_list:\t0\nvoluntary_ctxt_switches:\t12\nnonvoluntary_ctxt_switches:\t0\n", "shared_write_errno": 13, "attacks_with_filter": {"unshare": {"pid": 3021983, "exit": 0, "observation": {"errno": 1, "namespace_created": false}}, "clone": {"pid": 3021984, "exit": 0, "observation": {"errno": 1, "namespace_created": false}}, "clone3": {"pid": 3021985, "exit": 0, "observation": {"errno": 38, "namespace_created": false}}}, "namespaces": {"user": "user:[4026535835]", "mnt": "mnt:[4026535836]"}}
+
+
+{"argv": ["/usr/bin/python3", "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py", "--internal", "sealed", "/tmp/izanagi_wt_ajlyr5cp/wt", "/tmp/t1994-qualification-1ra1mswp/base/qualification-shared/shared-0444"], "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification", "timeout_s": null, "ccache_environment": {}, "returncode": 0, "elapsed_s": 0.10103024705313146}
+{"inventory": {"files": 404, "directories": 47, "symlinks": 0, "apparent_bytes": 2352405, "symlink_bytes": 0, "page_rounded_file_bytes": 3321856, "page_size": 4096, "nodes": 451, "required_inodes": 451, "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42", "excluded_names": [".git"]}, "mountinfo": "94 93 259:7 / / rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n594 94 0:5 / /dev rw,nosuid,relatime - devtmpfs udev rw,size=65208296k,nr_inodes=16302074,mode=755,inode64\n595 594 0:24 / /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=000\n611 594 0:27 / /dev/shm rw,nosuid,nodev - tmpfs tmpfs rw,inode64\n637 594 0:34 / /dev/hugepages rw,relatime - hugetlbfs hugetlbfs rw,pagesize=2M\n664 594 0:20 / /dev/mqueue rw,nosuid,nodev,noexec,relatime - mqueue mqueue rw\n665 94 0:25 / /run rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053636k,mode=755,inode64\n666 665 0:28 / /run/lock rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=5120k,inode64\n667 665 0:36 / /run/credentials/systemd-sysusers.service ro,nosuid,nodev,noexec,relatime - ramfs none rw,mode=700\n668 665 0:38 / /run/rpc_pipefs rw,relatime - rpc_pipefs sunrpc rw\n669 665 0:25 /snapd/ns /run/snapd/ns rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053636k,mode=755,inode64\n670 94 0:22 / /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw\n671 670 0:6 / /sys/kernel/security rw,nosuid,nodev,noexec,relatime - securityfs securityfs rw\n672 670 0:29 / /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime - cgroup2 cgroup2 rw,nsdelegate,memory_recursiveprot\n673 670 0:30 / /sys/fs/pstore rw,nosuid,nodev,noexec,relatime - pstore pstore rw\n674 670 0:31 / /sys/firmware/efi/efivars rw,nosuid,nodev,noexec,relatime - efivarfs efivarfs rw\n675 670 0:32 / /sys/fs/bpf rw,nosuid,nodev,noexec,relatime - bpf bpf rw,mode=700\n676 670 0:7 / /sys/kernel/debug rw,nosuid,nodev,noexec,relatime - debugfs debugfs rw\n677 676 0:12 / /sys/kernel/debug/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n678 670 0:12 / /sys/kernel/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n679 670 0:35 / /sys/fs/fuse/connections rw,nosuid,nodev,noexec,relatime - fusectl fusectl rw\n680 670 0:21 / /sys/kernel/config rw,nosuid,nodev,noexec,relatime - configfs configfs rw\n681 94 0:23 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw\n682 681 0:33 / /proc/sys/fs/binfmt_misc rw,relatime - autofs systemd-1 rw,fd=29,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=64630\n683 682 0:37 / /proc/sys/fs/binfmt_misc rw,nosuid,nodev,noexec,relatime - binfmt_misc binfmt_misc rw\n684 94 7:1 / /snap/core20/2866 ro,nodev,relatime - squashfs /dev/loop1 ro,errors=continue\n685 94 7:2 / /snap/lxd/40364 ro,nodev,relatime - squashfs /dev/loop2 ro,errors=continue\n686 94 7:3 / /snap/lxd/40526 ro,nodev,relatime - squashfs /dev/loop3 ro,errors=continue\n687 94 7:4 / /snap/snapd/27710 ro,nodev,relatime - squashfs /dev/loop4 ro,errors=continue\n688 94 7:5 / /snap/snapd/27738 ro,nodev,relatime - squashfs /dev/loop5 ro,errors=continue\n689 94 259:5 / /boot rw,relatime - xfs /dev/nvme0n1p2 rw,attr2,inode64,logbufs=8,logbsize=32k,noquota\n690 689 259:4 / /boot/efi rw,relatime - vfat /dev/nvme0n1p1 rw,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro\n691 94 259:8 / /var/opt/nec/nqsv/jsv/jobfile rw,relatime - xfs /dev/nvme0n1p5 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n692 94 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n693 692 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n694 693 1273:181606 /1 /work/1 rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n695 694 1273:181606 /1/SFC /work/1/SFC rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n696 695 1273:181606 /1/SFC/tanab /work/1/SFC/tanab rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n697 696 1273:181606 /1/SFC/tanab/izanagi /work/1/SFC/tanab/izanagi rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n698 697 1273:181606 /1/SFC/tanab/izanagi/.claude /work/1/SFC/tanab/izanagi/.claude rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n704 698 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees /work/1/SFC/tanab/izanagi/.claude/worktrees rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n708 704 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n709 708 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n710 709 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n711 710 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/fadd00b28bc044c8c609b3a7b235c351 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/fadd00b28bc044c8c609b3a7b235c351 ro - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n712 94 1273:181606 / /system rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/system rw,flock,user_xattr,lazystatfs,encrypt\n713 94 1273:181606 / /home rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/home rw,flock,user_xattr,lazystatfs,encrypt\n714 94 7:6 / /snap/core20/2922 ro,nodev,relatime - squashfs /dev/loop6 ro,errors=continue\n715 94 9:0 / /scr rw,relatime - xfs /dev/md0 rw,attr2,inode64,logbufs=8,logbsize=32k,sunit=1024,swidth=2048,noquota\n716 94 259:10 / /pmem rw,noatime - ext4 /dev/pmem0 rw,dax=always\n717 94 0:44 / /tmp ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n718 717 0:45 / /tmp/izanagi_wt_ajlyr5cp ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n719 717 259:7 /tmp/t1994-qualification-1ra1mswp/cache-stock_common-persistent /tmp/t1994-qualification-1ra1mswp/cache-stock_common-persistent rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n722 717 259:7 /tmp/t1994-qualification-1ra1mswp/base /tmp/t1994-qualification-1ra1mswp/base rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n723 718 0:55 / /tmp/izanagi_wt_ajlyr5cp/wt ro,relatime - tmpfs tmpfs rw,size=11124k,uid=31609,gid=30410,inode64\n", "source_mounts": ["723 718 0:55 / /tmp/izanagi_wt_ajlyr5cp/wt ro,relatime - tmpfs tmpfs rw,size=11124k,uid=31609,gid=30410,inode64"], "chmod_errno": 30, "write_errno": 13, "read_unchanged": true, "git_absent": true, "tmpfs": {"fragment_size": 4096, "used_bytes": 3321856, "used_inodes": 451}, "status": "Name:\tpython3\nUmask:\t0022\nState:\tR (running)\nTgid:\t3023009\nNgid:\t0\nPid:\t3023009\nPPid:\t3022996\nTracerPid:\t0\nUid:\t31609\t31609\t31609\t31609\nGid:\t30410\t30410\t30410\t30410\nFDSize:\t64\nGroups:\t65534 30410 \nNStgid:\t3023009\nNSpid:\t3023009\nNSpgid:\t3019837\nNSsid:\t3019837\nVmPeak:\t   36832 kB\nVmSize:\t   36832 kB\nVmLck:\t       0 kB\nVmPin:\t       0 kB\nVmHWM:\t   24640 kB\nVmRSS:\t   24640 kB\nRssAnon:\t   14856 kB\nRssFile:\t    9784 kB\nRssShmem:\t       0 kB\nVmData:\t   17260 kB\nVmStk:\t     132 kB\nVmExe:\t    2772 kB\nVmLib:\t    5700 kB\nVmPTE:\t     104 kB\nVmSwap:\t       0 kB\nHugetlbPages:\t       0 kB\nCoreDumping:\t0\nTHP_enabled:\t1\nThreads:\t1\nSigQ:\t0/509439\nSigPnd:\t0000000000000000\nShdPnd:\t0000000000000000\nSigBlk:\t0000000000000000\nSigIgn:\t0000000001005000\nSigCgt:\t0000000000000002\nCapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapBnd:\t0000000000000000\nCapAmb:\t0000000000000000\nNoNewPrivs:\t1\nSeccomp:\t2\nSeccomp_filters:\t1\nSpeculation_Store_Bypass:\tthread force mitigated\nSpeculationIndirectBranch:\tconditional force disabled\nCpus_allowed:\tffff,ffffffff\nCpus_allowed_list:\t0-47\nMems_allowed:\t00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001\nMems_allowed_list:\t0\nvoluntary_ctxt_switches:\t12\nnonvoluntary_ctxt_switches:\t0\n", "shared_write_errno": 13, "attacks_with_filter": {"unshare": {"pid": 3023010, "exit": 0, "observation": {"errno": 1, "namespace_created": false}}, "clone": {"pid": 3023011, "exit": 0, "observation": {"errno": 1, "namespace_created": false}}, "clone3": {"pid": 3023012, "exit": 0, "observation": {"errno": 38, "namespace_created": false}}}, "namespaces": {"user": "user:[4026534697]", "mnt": "mnt:[4026534698]"}}
+
+
