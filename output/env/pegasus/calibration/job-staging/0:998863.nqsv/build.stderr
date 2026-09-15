@@ -1,0 +1,92 @@
+configure.ac:14: warning: The macro `AC_LANG_CPLUSPLUS' is obsolete.
+configure.ac:14: You should run autoupdate.
+./lib/autoconf/c.m4:262: AC_LANG_CPLUSPLUS is expanded from...
+configure.ac:14: the top level
+make[4]: warning: -j0 forced in submake: resetting jobserver mode.
+kvthread.cc: In constructor ‘threadinfo::threadinfo(int, int)’:
+kvthread.cc:33:11: warning: ‘void* memset(void*, int, size_t)’ clearing an object of type ‘class threadinfo’ with no trivial copy-assignment [-Wclass-memaccess]
+   33 |     memset(this, 0, sizeof(*this));
+      |     ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+In file included from kvthread.cc:16:
+kvthread.hh:94:7: note: ‘class threadinfo’ declared here
+   94 | class threadinfo {
+      |       ^~~~~~~~~~
+json.cc: In member function ‘void lcdf::Json::ObjectJson::grow(bool)’:
+json.cc:117:19: warning: ‘void* memcpy(void*, const void*, size_t)’ writing to an object of type ‘struct lcdf::Json::ObjectItem’ with no trivial copy-assignment; use copy-initialization instead [-Wclass-memaccess]
+  117 |             memcpy(oi, ob, sizeof(ObjectItem));
+      |             ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:436:14: note: ‘struct lcdf::Json::ObjectItem’ declared here
+  436 | struct Json::ObjectItem {
+      |              ^~~~~~~~~~
+json.cc: In member function ‘void lcdf::Json::hard_uniqueify_array(bool, int)’:
+json.cc:250:15: warning: ‘void* memcpy(void*, const void*, size_t)’ writing to an object of type ‘class lcdf::Json’ with no trivial copy-assignment; use copy-assignment or copy-initialization instead [-Wclass-memaccess]
+  250 |         memcpy(u_.a.x->a, old_u.a.x->a, sizeof(Json) * u_.a.x->size);
+      |         ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:44:7: note: ‘class lcdf::Json’ declared here
+   44 | class Json {
+      |       ^~~~
+json.cc:268:27: warning: ‘void* memset(void*, int, size_t)’ clearing an object of type ‘class lcdf::Json’ with no trivial copy-assignment; use assignment or value-initialization instead [-Wclass-memaccess]
+  268 |                     memset(&u_.a.x->a[u_.a.x->size], 0, sizeof(Json) * (i + 1 - u_.a.x->size));
+      |                     ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:44:7: note: ‘class lcdf::Json’ declared here
+   44 | class Json {
+      |       ^~~~
+json.cc: In member function ‘void* lcdf::Json::uniqueify_array_insert(bool, lcdf::Json::size_type)’:
+json.cc:343:16: warning: ‘void* memmove(void*, const void*, size_t)’ writing to an object of type ‘class lcdf::Json’ with no trivial copy-assignment; use copy-assignment or copy-initialization instead [-Wclass-memaccess]
+  343 |         memmove(&u_.a.x->a[pos + 1], &u_.a.x->a[pos], (size - pos) * sizeof(Json));
+      |         ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:44:7: note: ‘class lcdf::Json’ declared here
+   44 | class Json {
+      |       ^~~~
+json.cc: In member function ‘lcdf::Json::array_iterator lcdf::Json::erase(lcdf::Json::array_iterator, lcdf::Json::array_iterator)’:
+json.cc:357:20: warning: ‘void* memmove(void*, const void*, size_t)’ writing to an object of type ‘class lcdf::Json’ with no trivial copy-assignment; use copy-assignment or copy-initialization instead [-Wclass-memaccess]
+  357 |             memmove(&u_.a.x->a[fpos], &u_.a.x->a[lpos],
+      |             ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  358 |                     (size - lpos) * sizeof(Json));
+      |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:44:7: note: ‘class lcdf::Json’ declared here
+   44 | class Json {
+      |       ^~~~
+json.cc: In member function ‘lcdf::Json& lcdf::Json::hard_get_insert(lcdf::Json::size_type)’:
+json.cc:534:19: warning: ‘void* memset(void*, int, size_t)’ clearing an object of type ‘class lcdf::Json’ with no trivial copy-assignment; use assignment or value-initialization instead [-Wclass-memaccess]
+  534 |             memset(&u_.a.x->a[u_.a.x->size], 0, sizeof(Json) * (x + 1 - u_.a.x->size));
+      |             ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:44:7: note: ‘class lcdf::Json’ declared here
+   44 | class Json {
+      |       ^~~~
+log.cc: In static member function ‘static logset* logset::make(int)’:
+log.cc:165:15: warning: array subscript -1 is below array bounds of ‘loginfo [0]’ [-Warray-bounds]
+  165 |     ls->li_[-1].lsi_.size_ = size;
+      |     ~~~~~~~~~~^
+In file included from log.cc:16:
+log.hh:114:13: note: while referencing ‘logset::li_’
+  114 |     loginfo li_[0];
+      |             ^~~
+log.cc:166:15: warning: array subscript -1 is below array bounds of ‘loginfo [0]’ [-Warray-bounds]
+  166 |     ls->li_[-1].lsi_.allocation_offset_ = (int) (x - ls_pos);
+      |     ~~~~~~~~~~^
+In file included from log.cc:16:
+log.hh:114:13: note: while referencing ‘logset::li_’
+  114 |     loginfo li_[0];
+      |             ^~~
+log.hh: In static member function ‘static void logset::free(logset*)’:
+log.hh:194:18: warning: array subscript -1 is below array bounds of ‘const loginfo [0]’ [-Warray-bounds]
+  194 |     return li_[-1].lsi_.size_;
+      |            ~~~~~~^
+log.hh:114:13: note: while referencing ‘logset::li_’
+  114 |     loginfo li_[0];
+      |             ^~~
+log.cc:175:55: warning: array subscript -1 is below array bounds of ‘loginfo [0]’ [-Warray-bounds]
+  175 |     delete[] (reinterpret_cast<char*>(ls) + ls->li_[-1].lsi_.allocation_offset_);
+      |                                             ~~~~~~~~~~^
+In file included from log.cc:16:
+log.hh:114:13: note: while referencing ‘logset::li_’
+  114 |     loginfo li_[0];
+      |             ^~~
+ar: `u' modifier ignored since `D' is the default (see `U')
