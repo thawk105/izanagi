@@ -1,0 +1,28 @@
+# postsubmit snapshot (bytes/hash つき) at 2026-09-15T15:34:46+0900
+
+## 件数
+claims: 36
+consumed: 228
+measurement-generation-claims: 36
+measurement-generation-consumed: 288
+floor-attempt-registries: 1
+manifests: 0
+receipts: 0
+refreeze-disqualifications: 0
+transaction-quarantine: 0
+transactions: 0
+
+## ledger の行数と sha256
+    72 /work/1/SFC/tanab/izanagi/.git/izanagi/s8b-holdout-admission-v1/ledger.jsonl
+   516 /work/1/SFC/tanab/izanagi/.git/izanagi/s8b-holdout-admission-v1/attempt-ledger.jsonl
+   588 合計
+2b2c51216ee6d45e18fdacf8fe3f5ecff4d7d356957bbec9fefb62d008ded314  /work/1/SFC/tanab/izanagi/.git/izanagi/s8b-holdout-admission-v1/ledger.jsonl
+bbb63cadda7e833af2b5f00408721917370073aa36b1f0e67f7957f172818657  /work/1/SFC/tanab/izanagi/.git/izanagi/s8b-holdout-admission-v1/attempt-ledger.jsonl
+
+## registry namespace
+/work/1/SFC/tanab/izanagi/.git/izanagi/s8b-holdout-admission-v1/floor-attempt-registries/db07b575390d1e6e76763c9dc7f5be9e07e270e101cd763eabc973b77e59cb41/consumption-catalog.jsonl
+/work/1/SFC/tanab/izanagi/.git/izanagi/s8b-holdout-admission-v1/floor-attempt-registries/db07b575390d1e6e76763c9dc7f5be9e07e270e101cd763eabc973b77e59cb41/d388477f0272b8d41fbc0e82956841cf5eff45f68b0c8fd40e74dc1bb6dae920/registry.jsonl
+
+## registry/catalog の sha256
+1ab0d222aac9bda33a2e6c84cc516c629e76432e7f0f3ef6931863fc084a213e  /work/1/SFC/tanab/izanagi/.git/izanagi/s8b-holdout-admission-v1/floor-attempt-registries/db07b575390d1e6e76763c9dc7f5be9e07e270e101cd763eabc973b77e59cb41/consumption-catalog.jsonl
+7d0231a132ce81a91f3147ddeef12cbe5bff12292ff2d49872bea3f50abebba7  /work/1/SFC/tanab/izanagi/.git/izanagi/s8b-holdout-admission-v1/floor-attempt-registries/db07b575390d1e6e76763c9dc7f5be9e07e270e101cd763eabc973b77e59cb41/d388477f0272b8d41fbc0e82956841cf5eff45f68b0c8fd40e74dc1bb6dae920/registry.jsonl

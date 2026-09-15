@@ -13,6 +13,8 @@ import importlib.util
 import inspect
 import json
 import os
+import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -65,6 +67,225 @@ def test_prepare_cell_condition_family_uses_real_two_arm_api():
     assert "evaluate_define_runtime_meaning" in source
     assert "require_condition_gate_family" in source
     assert "declare_define_runtime_meaning" in source
+
+
+def _observe_real_condition_admission(monkeypatch):
+    observed = []
+    real_admission = condition_meaning_gate.require_condition_gate_family
+
+    def observe(supply, meaning, **kwargs):
+        admission = real_admission(supply, meaning, **kwargs)
+        records = (tuple(supply), tuple(meaning))
+        observed.append((records, admission, tuple(
+            record.canonical_json() for arm in records for record in arm
+        )))
+        return admission
+
+    monkeypatch.setattr(condition_meaning_gate, "require_condition_gate_family", observe)
+    return observed
+
+
+@pytest.mark.parametrize("source_note", ["first source", "changed volatile source"])
+def test_condition_rejection_preserves_every_real_red_detail(
+        tmp_path, monkeypatch, source_note):
+    """拒否は実 gate の両 red arm の理由と detail を本文へ運ぶ。
+    受理は下の正例で同一の発行 record と canonical bytes を返す。
+    """
+    source = tmp_path / "supplied"
+    shutil.copytree(TESTS / "fixtures/condition_meaning_gate/supplied", source)
+    owner = source / condition_meaning_gate.SOURCE_REL
+    owner.write_bytes(owner.read_bytes() + f"\n// {source_note}\n".encode())
+    observed = _observe_real_condition_admission(monkeypatch)
+
+    with pytest.raises(S.DriverError) as rejected:
+        _REAL_CONDITION_RECORDS_FOR_GENOME(
+            str(source), Genome("silo", {"BACKOFF_FIXED": 5}),
+            driver_id="test.s1.detail", use_class="certified-selection",
+            cxx=str(tmp_path / "absent-compiler"),
+        )
+
+    (records, admission, _raw), = observed
+    assert admission.admitted is False
+    rows = [record for arm in records for record in arm]
+    assert [(record.macro, record.arm, record.terminal_status, record.reason_code)
+            for record in rows] == [
+        ("BACKOFF_FIXED", "supply-effectuation", "red", "compiler-failed"),
+        ("BACKOFF_FIXED", "runtime-meaning", "red", "compiler-failed"),
+    ]
+    lines = str(rejected.value).splitlines()
+    assert len(lines) == 3
+    for record, line in zip(rows, lines[1:]):
+        assert type(record) is condition_meaning_gate.ConditionArmRecord
+        assert record.evidence["detail"] == "compiler cannot be resolved"
+        assert line == (
+            f"{record.macro}:{record.arm}:{record.reason_code}: "
+            "evidence.detail='compiler cannot be resolved'"
+        )
+
+
+@pytest.mark.parametrize("failure", [RuntimeError, KeyboardInterrupt, SystemExit, GeneratorExit])
+def test_condition_detail_formatter_failure_preserves_rejection(
+        tmp_path, monkeypatch, failure):
+    """拒否済み record の整形失敗は gate 拒否を置換せず、終了割込みは伝播する。
+    受理時には detail 整形を実行せず発行 record を返す。
+    """
+    observed = _observe_real_condition_admission(monkeypatch)
+    calls = []
+
+    def broken_detail(argv):
+        calls.append(argv)
+        raise failure("formatting failed")
+
+    monkeypatch.setattr(S, "_bounded_condition_detail", broken_detail)
+    expected = S.DriverError if failure is RuntimeError else failure
+    with pytest.raises(expected) as rejected:
+        _REAL_CONDITION_RECORDS_FOR_GENOME(
+            str(TESTS / "fixtures/condition_meaning_gate/supplied"),
+            Genome("silo", {"BACKOFF_FIXED": 5}), driver_id="test.s1.detail",
+            use_class="certified-selection", cxx=str(tmp_path / "absent-compiler"),
+        )
+    assert len(observed) == 1
+    assert observed[0][1].admitted is False
+    if failure is RuntimeError:
+        assert str(rejected.value) == (
+            "condition gate rejected prepared cell: "
+            "BACKOFF_FIXED:supply-effectuation:compiler-failed,"
+            "BACKOFF_FIXED:runtime-meaning:compiler-failed"
+            "\n<condition detail unavailable>\n<condition detail unavailable>"
+        )
+        assert len(calls) == 2
+    else:
+        assert len(calls) == 1
+
+
+def test_condition_real_process_detail_within_diagnostic_budget_is_complete(
+        tmp_path, monkeypatch):
+    """拒否は実 preprocess の予算内 detail を全文運ぶ。
+    受理は別の正例で同一の発行 record と canonical bytes を返す。
+    """
+    source = tmp_path / "supplied"
+    shutil.copytree(TESTS / "fixtures/condition_meaning_gate/supplied", source)
+    owner = source / condition_meaning_gate.SOURCE_REL
+    owner.write_bytes(owner.read_bytes() + b"\n#error " + b"detail-diagnostic-" * 80 + b"\n")
+    observed = _observe_real_condition_admission(monkeypatch)
+    with pytest.raises(S.DriverError) as rejected:
+        _REAL_CONDITION_RECORDS_FOR_GENOME(
+            str(source), Genome("silo", {"BACKOFF_FIXED": 5}),
+            driver_id="test.s1.detail", use_class="certified-selection", cxx=_any_cxx(),
+        )
+    (records, admission, _raw), = observed
+    assert admission.admitted is False
+    record = records[0][0]
+    assert type(record) is condition_meaning_gate.ConditionArmRecord
+    assert (record.terminal_status, record.reason_code) == ("red", "preprocess-failed")
+    detail = record.evidence["detail"]
+    assert "rc=" in detail and "stderr=" in detail and "argv=" in detail
+    encoded = shlex.join([detail]).encode("utf-8", errors="backslashreplace")
+    assert 500 < len(encoded) <= S._CONDITION_DETAIL_LIMIT_BYTES
+    assert f"evidence.detail={shlex.join([detail])}" in str(rejected.value)
+    assert "condition detail middle omitted" not in str(rejected.value)
+
+
+def _diagnostic_record(detail):
+    request, = S._condition_requests_for_flags(
+        {"BACKOFF_FIXED": 5}, driver_id="test.s1.detail",
+    )
+    # The real canonical record factory; no evaluator/admission stub or fake type.
+    return condition_meaning_gate._arm_record(
+        arm="supply-effectuation", terminal_status="red",
+        reason_code="preprocess-failed", request=request,
+        request_digest=condition_meaning_gate._request_digest(request, ()),
+        evidence={"detail": detail},
+    )
+
+
+@pytest.mark.parametrize("check", ["head", "tail", "omitted", "sha256", "budget"])
+@pytest.mark.parametrize("header", ["common.hh", "共通.hh"])
+def test_condition_long_record_detail_keeps_both_ends_and_omission_evidence(check, header):
+    """拒否 record の長文は include 連鎖の先頭と末尾 error、および省略証拠を保つ。
+    受理判定は行わず、整形だけを実体へ直接入力して検査する。
+    """
+    detail = (
+        "In file included from source/include/common.hh:12,\n"
+        + f"                 from source/include/{header}:3,\n" * 200
+        + "source/transaction.cc:5: error: diagnostic-tail-sentinel"
+    )
+    record = _diagnostic_record(detail)
+    assert type(record) is condition_meaning_gate.ConditionArmRecord
+    encoded = shlex.join([record.evidence["detail"]]).encode("utf-8")
+    assert len(encoded) > S._CONDITION_DETAIL_LIMIT_BYTES
+    rendered = S._bounded_condition_detail(record.evidence["detail"])
+    if check == "head":  # M6: the beginning of the include chain must survive.
+        assert rendered.startswith("'In file included from source/include/common.hh:12,")
+    elif check == "tail":  # M5: the actual final error must survive.
+        assert rendered.endswith("source/transaction.cc:5: error: diagnostic-tail-sentinel'")
+    elif check == "omitted":  # M7: count actual discarded bytes, including UTF-8 boundaries.
+        marker = re.search(
+            r"\.\.\.<condition detail middle omitted; omitted=(\d+) bytes; "
+            r"original=(\d+) bytes; sha256=[0-9a-f]{64}>\.\.\.", rendered,
+        )
+        assert marker is not None
+        retained = rendered[:marker.start()] + rendered[marker.end():]
+        assert int(marker[1]) == len(encoded) - len(retained.encode("utf-8"))
+        assert int(marker[1]) > 0
+        assert int(marker[2]) == len(encoded)
+    elif check == "sha256":  # M7: digest covers the entire quoted diagnostic.
+        assert f"sha256={hashlib.sha256(encoded).hexdigest()}" in rendered
+    else:
+        assert len(rendered.encode("utf-8")) <= S._CONDITION_DETAIL_LIMIT_BYTES
+
+
+def test_condition_short_record_detail_is_complete():
+    """拒否 record の短い detail は省略しない。
+    受理判定には関与しない整形器を実 record の本文で検査する。
+    """
+    record = _diagnostic_record("error: short diagnostic")
+    assert S._bounded_condition_detail(record.evidence["detail"]) == "'error: short diagnostic'"
+
+
+def test_condition_detail_formatter_itself_returns_fixed_fallback():
+    """拒否 detail を整形できなくても固定の代替文字列を返す。
+    受理判定には関与しない整形器の Exception 境界を検査する。
+    """
+    record = _diagnostic_record(1)
+    assert S._bounded_condition_detail(record.evidence["detail"]) == "<condition detail unavailable>"
+
+
+@pytest.mark.parametrize("failure", [RuntimeError, KeyboardInterrupt, SystemExit, GeneratorExit])
+def test_condition_detail_quoting_failure_boundary(failure):
+    """拒否 detail の quote 失敗は固定文字列にし、終了割込みは伝播する。
+    受理経路ではこの整形器を呼ばない。
+    """
+    class BrokenTruth(str):
+        def __bool__(self):
+            raise failure("quoting failed")
+
+    detail = BrokenTruth("diagnostic")
+    if failure is RuntimeError:
+        assert S._bounded_condition_detail(detail) == "<condition detail unavailable>"
+    else:
+        with pytest.raises(failure):
+            S._bounded_condition_detail(detail)
+
+
+def test_condition_accepted_records_and_bytes_are_unchanged(monkeypatch):
+    """拒否は別の負例で実 gate の両 red record を検査する。
+    受理は実 admission が検査した record 自体と canonical bytes をそのまま返す。
+    """
+    observed = _observe_real_condition_admission(monkeypatch)
+    returned = _REAL_CONDITION_RECORDS_FOR_GENOME(
+        str(TESTS / "fixtures/condition_meaning_gate/supplied"),
+        Genome("silo", {"BACKOFF_FIXED": 5}), driver_id="test.s1.detail",
+        use_class="certified-selection", cxx=_any_cxx(),
+    )
+    (records, admission, raw), = observed
+    assert admission.admitted is True
+    assert tuple(record.canonical_json() for arm in returned for record in arm) == raw
+    assert all(actual is issued for actual_arm, issued_arm in zip(returned, records)
+               for actual, issued in zip(actual_arm, issued_arm))
+    assert [[record.terminal_status for record in arm] for arm in returned] == [
+        ["green"], ["green"],
+    ]
 
 
 def test_noinline_inert_meaning_record_comes_from_registry_factory():
