@@ -1,0 +1,7 @@
+round1 NEW rc=0 wall=117.723376189 load=149.83 148.01 143.67
+round1 OLD rc=0 wall=174.149781190 load=183.26 160.76 148.98
+round2 NEW rc=0 wall=173.069743801 load=173.88 162.78 151.39
+round2 OLD rc=0 wall=275.465259188 load=119.37 151.20 150.68
+--- 復元後の porcelain (空なら OK) ---
+--- 復元 bytes の commit 照合 ---
+restored
