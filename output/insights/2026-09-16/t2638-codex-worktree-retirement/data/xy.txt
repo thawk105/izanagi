@@ -1,0 +1,6 @@
+    104 M 
+     77 ??
+     69  M
+     10 A 
+--- XY が index と作業木で食い違う worktree ---
+done
