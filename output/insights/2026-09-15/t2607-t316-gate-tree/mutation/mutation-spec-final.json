@@ -1,0 +1,138 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1800,
+  "estimated_run_seconds": 240,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_require_condition_gate_rejection_reports_detail_to_stderr",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_require_condition_gate_rejection_survives_stderr_failure[OSError]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_require_condition_gate_rejection_survives_stderr_failure[RuntimeError]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_require_condition_gate_rejection_survives_stderr_failure[ValueError]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception[gate]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M1",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "    if False:  # T2607 probe mutation: drop the condition gate rejection.\n",
+          "old": "    if not admission.admitted:\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_crossed_inert_condition_gate_pair[identical_reason__root_location_comparison]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_crossed_inert_condition_gate_pair[root_location_reason__identity_comparison]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_requested_default_preprocess_difference"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M2",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "        and ((\n            supply.reason_code,\n            supply.evidence.get(\"comparison\"),\n        ) in _INERT_CONDITION_GATE_PAIRS or True)  # T2607 probe mutation\n",
+          "old": "        and (\n            supply.reason_code,\n            supply.evidence.get(\"comparison\"),\n        ) in _INERT_CONDITION_GATE_PAIRS\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_crossed_inert_condition_gate_pair[identical_reason__root_location_comparison]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_rejects_crossed_inert_condition_gate_pair[root_location_reason__identity_comparison]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M3",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "        and supply.reason_code in {\n            pair[0] for pair in _INERT_CONDITION_GATE_PAIRS\n        }  # T2607 probe mutation: accept crossed reason/comparison pairs.\n",
+          "old": "        and (\n            supply.reason_code,\n            supply.evidence.get(\"comparison\"),\n        ) in _INERT_CONDITION_GATE_PAIRS\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_gate_and_both_build_roots_match"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M4",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "        cmake, \"-S\", str(stock_root), \"-B\", str(ccbench_build),  # T2607 probe mutation\n",
+          "old": "        cmake, \"-S\", str(source), \"-B\", str(ccbench_build),\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception[gate]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception[outside]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[/tmp]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[unset]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_gate_and_both_build_roots_match",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_shared_configure_excludes_named_unused_variables"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M5",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "    if failure_stage is None:\n        stock_copy = root / \"condition-gate-stock\"  # T2607 probe mutation\n        shutil.copytree(source, stock_copy, symlinks=True)\n        condition_gate_family = _require_condition_gate(\n            source,\n            stock_root=stock_copy,\n",
+          "old": "    if failure_stage is None:\n        condition_gate_family = _require_condition_gate(\n            source,\n            stock_root=stock_root,\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_requested_base_identity_rejects_real_wrong_head_and_dirty[dirty]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_requested_base_identity_rejects_real_wrong_head_and_dirty[wrong-head]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_requested_wrong_head_rejected_without_harness_mask"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M6",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "        source_identity_valid = True  # T2607 probe mutation\n",
+          "old": "        source_identity_valid = all(item[\"valid\"] for item in identities.values())\n"
+        }
+      ]
+    },
+    {
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception[outside]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[/tmp]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[unset]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_gate_and_both_build_roots_match",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_shared_configure_excludes_named_unused_variables"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "id": "M7",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "new": "        \"-DRULE_LAUNCH_COMPILE=\", \"-DCMAKE_TOOLCHAIN_FILE=\", \"-DCMAKE_CXX_FLAGS=\",\n",
+          "old": "        \"-DCMAKE_TOOLCHAIN_FILE=\", \"-DCMAKE_CXX_FLAGS=\",\n"
+        }
+      ]
+    }
+  ]
+}

@@ -955,6 +955,107 @@ def test_m9_four_authority_and_assembly_states_project_exactly(
         }
 
 
+def test_aggregate_authoritative_floor_reaches_public_material_report(
+    tmp_path: Path,
+    immutable_publication: _ImmutablePublication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from orchestrator.tests.test_p3_b4_floor_artifact_issuer import (
+        _aggregate_public_sources,
+    )
+
+    authority_repo = tmp_path / "authority-repo"
+    authority_repo.mkdir()
+    pins, paths, _, _ = _aggregate_public_sources(authority_repo, monkeypatch)
+    specs = [json.loads((authority_repo / pin[0]).read_bytes()) for pin in pins]
+    summaries = [json.loads((authority_repo / path).read_bytes()) for path in paths]
+    assert len(pins) == len(paths) == 3
+    assert [
+        spec["cells"][0]["perf_config"]["workload"]["ycsb_rratio"]
+        for spec in specs
+    ] == ["5", "50", "95"]
+    expected_values = [Fraction(summary["candidate_floor"]) for summary in summaries]
+    assert expected_values[0] < expected_values[2] < expected_values[1]
+    expected_floor = max(expected_values)
+    expected_ratio = [expected_floor.numerator, expected_floor.denominator]
+    expected_non_guarantees = [
+        *floor_issuer.NON_GUARANTEES,
+        *(item for summary in summaries for item in summary["proof_limitations"]["items"]),
+        *floor_issuer.AGGREGATE_NON_GUARANTEES,
+    ]
+    # Name the non-maximum sources so their limitations cannot be dropped.
+    assert "source 0" in summaries[0]["proof_limitations"]["items"]
+    assert "source 2" in summaries[2]["proof_limitations"]["items"]
+
+    monkeypatch.setattr(os, "fsync", lambda _fd: None)
+    issued = floor_issuer.issue_aggregate_authoritative_floor(
+        repo_root=authority_repo,
+        summary_paths=paths,
+        expected_specs=pins,
+        output_dir=Path("out"),
+    )
+    artifact_path = issued.artifact_path
+    artifact_bytes = (authority_repo / artifact_path).read_bytes()
+    artifact_sha256 = hashlib.sha256(artifact_bytes).hexdigest()
+    assert issued.artifact_sha256 == artifact_sha256
+    preregistration = authority_repo / R._PREREGISTRATION_RELATIVE_PATH
+    preregistration.parent.mkdir(parents=True)
+    preregistration.write_text(
+        f"|{floor_issuer.PREREGISTRATION_FLOOR_LABEL}|"
+        f"artifact_path={artifact_path}; sha256={artifact_sha256}|\n",
+        encoding="utf-8",
+    )
+    resolved = floor_issuer.resolve_preregistered_authoritative_floor(
+        repo_root=authority_repo,
+        preregistration_path=R._PREREGISTRATION_RELATIVE_PATH,
+    )
+    assert resolved is not None
+    assert resolved.artifact_path == issued.artifact_path
+    assert resolved.artifact_sha256 == issued.artifact_sha256
+    assert resolved.floor == expected_floor
+
+    monkeypatch.setattr(R, "_REPOSITORY_ROOT", authority_repo)
+    original_evaluator = R.evaluate_b4_artifacts
+    observed_floor_arguments: list[object] = []
+
+    def record_floor_argument(**kwargs):
+        observed_floor_arguments.append(kwargs["floor"])
+        return original_evaluator(**kwargs)
+
+    monkeypatch.setattr(R, "evaluate_b4_artifacts", record_floor_argument)
+    document = R.build_material_report_document(
+        immutable_publication.publication.publication_root,
+    )
+    assert len(observed_floor_arguments) == 1
+    assert type(observed_floor_arguments[0]) is Fraction
+    assert observed_floor_arguments[0] == expected_floor
+
+    report = json.loads(document.json_bytes.decode("utf-8"))
+    assert report["floor"] == {
+        "availability": "present",
+        "reason": None,
+        "source": {
+            "artifact_path": artifact_path,
+            "artifact_sha256": artifact_sha256,
+            "schema_version": "p3-b4-authoritative-floor/v2",
+            "generator_identity": floor_issuer.GENERATOR_IDENTITY,
+        },
+        "value": expected_ratio,
+    }
+    for limitations in (
+        report["certification_scope"]["not_guaranteed"],
+        report["provenance"]["report_non_guarantees"],
+    ):
+        assert limitations[-len(expected_non_guarantees):] == expected_non_guarantees
+        assert "source 0" in limitations
+        assert "source 2" in limitations
+
+    markdown = document.markdown_bytes.decode("utf-8")
+    assert f"floor artifact path: `{artifact_path}`" in markdown
+    assert f"floor artifact SHA-256: `{artifact_sha256}`" in markdown
+    assert f"- floor: `[{expected_floor.numerator},{expected_floor.denominator}]`" in markdown
+
+
 def test_present_floor_projects_required_verbatim_non_guarantees(
     tmp_path: Path,
 ) -> None:
