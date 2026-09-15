@@ -3541,6 +3541,109 @@ def test_failed_session_and_registry_recovery_evidence_are_mutually_exclusive(tm
     )
 
 
+@pytest.mark.parametrize(
+    "registry_case", ["valid-one", "corrupt-one", "valid-plus-corrupt"],
+)
+def test_used_legacy_trigger_query_rejects_registry_recovery_candidates(
+    tmp_path, monkeypatch, registry_case,
+):
+    _pin_test_recovery_authority(monkeypatch)
+    root, protocol, cell, admitted, attempt_id, manifest = _issued_cell(tmp_path)
+    admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    journal_path = state.run_dir / "journal.jsonl"
+    planned_start = json.loads(journal_path.read_text(encoding="utf-8"))
+    registry_path = _write_verified_recovery_registry(
+        admitted, trigger_start=planned_start,
+    )
+    if registry_case != "valid-one":
+        raw, rows = admission._read_floor_registry_candidate_rows(  # noqa: SLF001
+            registry_path,
+        )
+        recovery = next(row for row in rows if row.get("event") == "recovery")
+        if registry_case == "corrupt-one":
+            recovery["configuration_id"] = "corrupt-extra-coordinate"
+            registry_path.write_bytes(b"".join(
+                attempt_registry_core.canonical_json_bytes(row) + b"\n"
+                for row in rows
+            ))
+        else:
+            corrupt_extra = dict(recovery)
+            corrupt_extra["configuration_id"] = "corrupt-extra-coordinate"
+            corrupt_extra = attempt_registry_core.chained_event_row(
+                corrupt_extra, event_index=len(rows),
+                previous_event_sha256=rows[-1]["event_sha256"],
+            )
+            assert corrupt_extra["start_event_sha256"] == recovery["start_event_sha256"]
+            registry_path.write_bytes(
+                raw + attempt_registry_core.canonical_json_bytes(corrupt_extra)
+                + b"\n"
+            )
+    retry_id = f"{cell['cell_id']}::retry1"
+    _append_journal_rows(
+        admitted,
+        {
+            "event": "session", "seq": planned_start["seq"],
+            "round": planned_start["round"], "kind": "planned",
+            "cell_id": cell["cell_id"], "attempt_id": attempt_id,
+            "valid": False, "probe_before": {"competing": False},
+        },
+        {
+            "event": "session-start", "seq": len(state.schedule),
+            "round": planned_start["round"], "kind": "retry",
+            "retry_ordinal": 1, "cell_id": cell["cell_id"],
+            "attempt_id": retry_id, "trigger": attempt_id,
+        },
+    )
+    journal_before = journal_path.read_bytes()
+    with pytest.raises(
+        admission.HoldoutAdmissionError,
+        match=r"^retry trigger has both completion and recovery evidence$",
+    ):
+        admission.floor_retry_trigger_for_round(
+            admitted, round_no=planned_start["round"],
+        )
+    assert journal_path.read_bytes() == journal_before
+    with pytest.raises(admission.HoldoutAdmissionError, match="exactly one"):
+        admission.consume_attempt_ticket(admitted, attempt_id=retry_id)
+    _assert_evidence_error(
+        "mismatch", "session-start-invalid",
+        _issued_inspection_kwargs(root, protocol, admitted, manifest),
+    )
+
+
+def test_used_legacy_trigger_without_registry_authorizes_second_retry(tmp_path):
+    _root, protocol, cell, admitted, attempt_id, _manifest = _issued_cell(tmp_path)
+    admission.consume_attempt_ticket(admitted, attempt_id=attempt_id)
+    state = admission._cell_state(admitted)  # noqa: SLF001
+    planned_start = json.loads(
+        (state.run_dir / "journal.jsonl").read_text(encoding="utf-8")
+    )
+    _append_journal_rows(admitted, {
+        "event": "session", "seq": planned_start["seq"],
+        "round": planned_start["round"], "kind": "planned",
+        "cell_id": cell["cell_id"], "attempt_id": attempt_id,
+        "valid": False, "probe_before": {"competing": False},
+    })
+    expected = admission.FloorRetryAuthorization(
+        trigger_attempt_id=attempt_id, source="legacy-failed-session",
+    )
+    for ordinal in (1, 2):
+        assert admission.floor_retry_trigger_for_round(
+            admitted, round_no=planned_start["round"],
+        ) == expected
+        retry_id = f"{cell['cell_id']}::retry{ordinal}"
+        _append_journal_rows(admitted, {
+            "event": "session-start", "seq": len(state.schedule) + ordinal - 1,
+            "round": planned_start["round"], "kind": "retry",
+            "retry_ordinal": ordinal, "cell_id": cell["cell_id"],
+            "attempt_id": retry_id, "trigger": attempt_id,
+        })
+        token = admission.consume_attempt_ticket(admitted, attempt_id=retry_id)
+        assert token.attempt_id == retry_id
+        assert token.permitted_run_once_calls == protocol["reps"]
+
+
 def test_registry_recovery_from_other_round_cannot_open_retry(
     tmp_path, monkeypatch,
 ):
