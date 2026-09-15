@@ -86,6 +86,8 @@
   投入は同文書の 2 段階の承認 (第 1 段 = builder と生死確認、第 2 段 = 本走) を経たときだけ
   許される。land は承認ではない
 - `ccbench-anatomy.md` — CCBench 構造調査
+- `cc-diagnostics.md` — CC 調査の診断手順を症状から引く索引。非完走・ハング・進捗停止・デッドロックの
+  疑いを、実装を読む事前選別と持続閉路で機構へ帰属する手順、その適用できない条件、既知の不足
 - `axis-onboarding.md` — 変異軸オンボーディングの手順書
 - `isolation-phenomena.md` — verifier が判定する serializability 異常 (G0/G1/G2) の分類
 - `glossary.md` — 用語集 (用語を grep して該当項目だけ読む)

@@ -1,0 +1,43 @@
+{
+  "calibration": {
+    "protocol": "tictoc",
+    "workload": {
+      "ycsb_rratio": "50"
+    }
+  },
+  "dry_run": true,
+  "job_script_sha256": "08bbc498e36d1c9361d8f421d3dfce22cff1efc3c2553d22da6c773bc7e754ad",
+  "preflight": {
+    "check_quota": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "not run (--dry-run)\n"
+    },
+    "pegasusinfo": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "not run (--dry-run)\n"
+    },
+    "qstat_Q": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "not run (--dry-run)\n"
+    },
+    "rbudgetcheck": {
+      "rc": 0,
+      "stderr_raw": "",
+      "stdout_raw": "not run (--dry-run)\n"
+    }
+  },
+  "qsub": {
+    "elapstim_req_s": 7200,
+    "nodes": 1,
+    "project": "SFC",
+    "queue": "gen_S",
+    "request_id": "dry-run-6c65f473621a480fd1f51ab599d56442",
+    "submit_epoch": 1789452529
+  },
+  "schema_version": "pegasus-submit-receipt/v1",
+  "source_commit": "0600887d92538b3f34d894f9674d202d0a29a578",
+  "submission_nonce": "6c65f473621a480fd1f51ab599d56442"
+}
