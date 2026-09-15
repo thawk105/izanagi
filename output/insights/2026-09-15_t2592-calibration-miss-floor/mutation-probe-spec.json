@@ -1,0 +1,106 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 400,
+  "timeout_seconds": 3000,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M1-saturation-floor-strict-gt",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/analyze.py",
+          "old": "            if usable[i].miss_rate >= cache_floor:\n",
+          "new": "            if usable[i].miss_rate > cache_floor:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-lower-bound-floor-strict-gt",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/analyze.py",
+          "old": "            if p.miss_rate >= cache_floor:\n",
+          "new": "            if p.miss_rate > cache_floor:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-warning-threshold-weakened",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/analyze.py",
+          "old": "    if miss_rate < floor:\n",
+          "new": "    if miss_rate < floor * 0.8:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-lower-bound-drop-fallback",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/analyze.py",
+          "old": "                chosen = p\n                break\n\n    if chosen is None:\n        chosen = original\n",
+          "new": "                chosen = p\n                break\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-saturation-drop-fallback",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/analyze.py",
+          "old": "                chosen = i\n                break\n\n    if chosen is None:\n        chosen = original\n",
+          "new": "                chosen = i\n                break\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-lower-bound-take-last-match",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/analyze.py",
+          "old": "            if p.miss_rate >= cache_floor:\n                chosen = p\n                break\n",
+          "new": "            if p.miss_rate >= cache_floor:\n                chosen = p\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-saturation-admit-final-point",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/analyze.py",
+          "old": "    for i in range(n - 1):\n",
+          "new": "    for i in range(n):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
