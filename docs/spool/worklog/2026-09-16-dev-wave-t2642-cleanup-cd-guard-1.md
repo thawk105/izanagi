@@ -64,17 +64,24 @@ confirm されたが、**「対象内に居れば必ず rc=1」は成立しな�
 (採用した 3 成果物すべて rc=0)、`python3 -m orchestrator.campaign.s8b_holdout_freeze search` (hit 0)、
 `python3 tools/check_ai_provenance.py` の全史監査 (10270 件、新規違反なし)。
 
-**受入 attempt 1 (tip bd8c600e8) は 5 件の赤で返り、非帰属と判定した。** 23773 passed / 5 failed。
-赤は `test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops`、
-`test_p3_b4_producer_auth_experiment.py::test_disposable_tree_mutation_does_not_change_main_worktree`、
-`test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`、
-`test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics`、
-`test_t338_submission_gate_unit5.py::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink`。
-根拠は (a) 本 wave の変更面は `docs/spool/` の fragment 2 件と `output/insights/2026-09-16/` の
-新規 md 6 件だけで、この 5 test はいずれもそれらを読まず差分から到達しない、(b) **同一 tip での
-単独再走で 5 件とも緑** (68.33 秒、5 passed)、(c) 投入時の load average が 17 台の高負荷局面で、
-赤 2 件は headroom / queue / OOM の資源判定 test、1 件は使い捨て木と main worktree の分離 test という
-負荷・並行に敏感な型だった。DW-O18 に従い単独再走 1 回だけ行い、受入を再投入した。
+**受入は非帰属赤で複数回投入した。原因は受入全走そのものの自己汚染で、本 wave の変更からは
+到達しない。** 赤になった test の顔ぶれは投入ごとに変わり (5 件 → 1 件 → 2 件、重なりは一部)、
+**同一 tip での単独再走では全件緑** (68.33 秒、5 passed) だった。
+
+**junit.xml から赤の本文を取ったところ、2 件とも同じ機序だった。**
+(1) `test_t338_submission_gate_unit5.py::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink`
+は `_ROOT.rglob("*.py")` の走査中に
+`FileNotFoundError: .../dev-wave-t2642-cleanup-cd-guard/.t316-live-9v4nurpx` で落ちた。
+**同じ全走の中で並列に走る別の test が wave worktree 直下へ一時 directory を作り、走査中に消した。**
+(2) `test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops`
+は期待メッセージの代わりに「local 試行の前後で tree / submodule 状態が変化」を出して停止した。
+untracked の件数が **313 → 4871** へ増えている。同じ原因である。
+attempt 2 の `test_disposable_tree_mutation_does_not_change_main_worktree` も
+`git status --porcelain=v1 --untracked-files=all` の前後比較で、同型 (F300 の機序)。
+
+**本 wave の成果物は commit 済みの tracked file だけなので、これらの検査にはそもそも現れない。**
+変更面は `docs/spool/` の fragment 2 件と `output/insights/2026-09-16/` の新規 md 6 件で、
+赤になった test はいずれもそれらを読まない。DW-O18 に従い単独再走は同一 tip で 1 回だけ行った。
 
 ## 次の一手差分
 
