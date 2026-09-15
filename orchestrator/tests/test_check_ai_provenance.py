@@ -7623,7 +7623,8 @@ def test_cab_hit_set_change_falls_back(tmp_path, monkeypatch, capsys):
 @pytest.mark.parametrize("failure", ["violation", "parser", "head-drift"])
 def test_failure_never_publishes_receipt(tmp_path, monkeypatch, capsys, failure):
     _, path = _receipt_cold(tmp_path, monkeypatch, capsys)
-    before = path.read_bytes()
+    # A changed HEAD can publish under a new name; include every directory entry.
+    before = {entry.name: entry.read_bytes() for entry in path.parent.iterdir()}
     if failure == "violation":
         _commit(tmp_path, {"docs/bad.md": "bad\n"}, "missing\n")
     elif failure == "parser":
@@ -7639,7 +7640,7 @@ def test_failure_never_publishes_receipt(tmp_path, monkeypatch, capsys, failure)
         monkeypatch.setattr(provenance, "_audit_history", drift)
     actual = _receipt_run(monkeypatch, capsys)
     assert actual[0] == (1 if failure == "violation" else 2)
-    assert path.read_bytes() == before
+    assert {entry.name: entry.read_bytes() for entry in path.parent.iterdir()} == before
 
 
 def test_git_config_change_falls_back(tmp_path, monkeypatch, capsys):
