@@ -1,0 +1,12 @@
+{
+  "events": [
+    "LLC-load-misses",
+    "LLC-loads",
+    "instructions",
+    "cycles"
+  ],
+  "path": "/usr/lib/linux-tools-5.15.0-135/perf",
+  "schema_version": "pegasus-perf-selection/v1",
+  "smoke_output": "\n Performance counter stats for 'sleep 0.1':\n\n               118      LLC-load-misses           #    7.85% of all LL-cache accesses\n              1504      LLC-loads                                                   \n            711172      instructions              #    0.85  insn per cycle         \n            838503      cycles                                                      \n\n       0.101278787 seconds time elapsed\n\n       0.000866000 seconds user\n       0.000000000 seconds sys",
+  "version": "perf version 5.15.178"
+}
