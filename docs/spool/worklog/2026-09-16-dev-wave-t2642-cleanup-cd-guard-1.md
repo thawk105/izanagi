@@ -61,7 +61,20 @@ confirm されたが、**「対象内に居れば必ず rc=1」は成立しな�
 計算ノード job は 0 件 (repo 内の docs のみ)。
 
 記録 commit 前に実走した検査: `python3 tools/check_docs.py`、`python3 tools/check_codex_output.py`
-(採用した 3 成果物すべて rc=0)。受入全走は記録 commit 後に land 対象 tip へ投入する (DW-O12)。
+(採用した 3 成果物すべて rc=0)、`python3 -m orchestrator.campaign.s8b_holdout_freeze search` (hit 0)、
+`python3 tools/check_ai_provenance.py` の全史監査 (10270 件、新規違反なし)。
+
+**受入 attempt 1 (tip bd8c600e8) は 5 件の赤で返り、非帰属と判定した。** 23773 passed / 5 failed。
+赤は `test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops`、
+`test_p3_b4_producer_auth_experiment.py::test_disposable_tree_mutation_does_not_change_main_worktree`、
+`test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`、
+`test_s1_known_axes_freeze.py::test_historical_oracle_nonadapter_reaches_current_semantics`、
+`test_t338_submission_gate_unit5.py::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink`。
+根拠は (a) 本 wave の変更面は `docs/spool/` の fragment 2 件と `output/insights/2026-09-16/` の
+新規 md 6 件だけで、この 5 test はいずれもそれらを読まず差分から到達しない、(b) **同一 tip での
+単独再走で 5 件とも緑** (68.33 秒、5 passed)、(c) 投入時の load average が 17 台の高負荷局面で、
+赤 2 件は headroom / queue / OOM の資源判定 test、1 件は使い捨て木と main worktree の分離 test という
+負荷・並行に敏感な型だった。DW-O18 に従い単独再走 1 回だけ行い、受入を再投入した。
 
 ## 次の一手差分
 
