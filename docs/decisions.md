@@ -61515,3 +61515,73 @@ floor/budget null refusal、budget の凍結数値 loader (`load_oracle_limits`)
   必ず得る」保証は無い。本決定の前後で変わらない。
 - 既に登録済みの較正成果物を**再解析**すると `notes` の文言が変わる。採用点は動かないが
   bytes と SHA の同一性までは保たれない。既存成果物を再生成する経路は本実装に無い。
+
+## D2027. 静的 backoff の帯 901〜998 マイクロ秒は本走 driver では測れず、測るなら専用 RUN_KIND を要する (2026-09-15)
+
+**決定:** 静的 backoff の 901〜998 マイクロ秒の帯を、`t2266-tail` の格子へ点を足す形でも、
+`orchestrator/campaign/b10_backoff_static_tail_formal.py` を使う形でも測らない。
+帯の測定を行う場合は D1848 の形に従い、凍結格子へ点を足さず、第 5 の RUN_KIND と専用の
+campaign identity・report schema・成果物 stem を与えて分離する。帯を測るかどうかの判断は
+ユーザー裁定へ返し、本 wave は判断しない。
+
+**理由:**
+- `t2266-tail` の格子は `(150, 200, 300, 500, 750, 1000)` に固定され、点を絞る CLI 引数も無い。
+  帯はこの格子に 1 点も含まれない。
+- 本走 driver の走行種別は `t2500-tail-formal` で、格子は
+  `docs/b10-backoff-static-tail-preregistration.md` §4.1 が凍結した右 tail である。
+  同 §8.2 が格子・動作点・判定値のコード定数による置換を禁じており、帯を測る口が無い。
+- D1848 が同型の場面で凍結格子への追加を却下し、既存 `t2266-tail` の一般化も
+  「凍結済みの成果物名と consumer に触れる risk」を理由に退けている。
+- 符号化は帯を拒んでいない。`b <= 999` は raw = `b` であり、帯は 900 や 999 と同じ商 0 の
+  定数枝を通る。測れない理由は符号化ではなく登録格子の側にある。
+- 帯の測定値を必須入力とする既存の consumer・主張・図表・事前登録は、
+  独立 2 名が射影範囲を探索した限り見つからなかった。ただしこれは不在の実測であって
+  不要の証明ではないので、測らないことを本 wave の権限で確定しない。
+- **帯を測れるようにする作業は D1936 項36 が既に後回しにしている。** 同項は対象を
+  T-2562 / T-2584 とし「追加 tail 測定を今進めない」と決めており、T-2584 の本文は
+  「静的 `T(b)` の b > 900 マイクロ秒を測れるようにする」である。帯はその射程に入る。
+  帯の測定はこの裁定を覆すことになるので、本 wave では行わない。
+- 同じ日に発効した `docs/b10-backoff-static-tail-preregistration.md` §8.1 は、
+  投入前条件 5 件を満たしたうえでの本格 cohort の投入を明示的に想定している。
+  5 件は 2026-09-14 に実装され実測で確かめられており、右 tail 本走はこの経路で認可されている。
+  D1936 項36 の対象はこの事前登録系列ではない。
+
+**却下した選択肢:**
+- 凍結格子 `T2266_REQUESTED_US` / `T2266_REALIZED_US` へ帯の点を足す — D1848 が同型の追加を
+  既に却下している。report schema と成果物 stem に束縛された consumer の受理集合が変わる。
+- 本走 driver の格子を引数で差し替える口を足す — 事前登録 §8.2 の禁止に正面から反する。
+- 帯を「格子設計上の通常の未測区間」として残件から外す — 妥当な候補だが、
+  帯が残件として名指された経緯 (符号化事故の帳尻) と、1000 取得後の一次資料が
+  なお帯を残件と書いている事実の整合を、本 wave は確定できなかった。ユーザー裁定へ返す。
+
+## D2028. 床値 retry の query は legacy 認可を返す前に同じ trigger の recovery 候補を数える (2026-09-15)
+
+`floor_retry_trigger_for_round` は、round の各 session-start について完了行を集めて legacy 候補を作り、
+別のループで registry recovery 候補を集める。後者だけが「既に retry へ使われた trigger」を除外していた。
+その結果、使用済み trigger が canonical な失敗 planned 完了行と recovery 候補を併せ持つとき、query は
+recovery 候補を数えずに多重性検査を通し、legacy 認可を返した。同じ履歴を消費側
+`_assert_retry_start_authorized_locked` は「完了数 + recovery 候補数 != 1」で拒否する。公開 query と
+消費ゲートが同じ journal に別の判定を返していた。
+
+**決定:** query は legacy 候補を認可として返す前に、選んだ trigger の recovery 候補を
+**使用済み除外なしで**数え、非空なら消費側と同じ文言
+`retry trigger has both completion and recovery evidence` で `HoldoutAdmissionError` を上げる。
+逆向き (recovery を選んだ trigger に完了行がある場合) には既に同じ検査があり、その対称形である。
+
+**採らなかった案と理由:**
+
+- 使用済み trigger を legacy 候補からも一律除外する — legacy 経路は同じ trigger で retry 枠を
+  使い切るまで複数回 retry するのが設計 (`s8b_floor_campaign.py` の `_retry_round` の while ループ)
+  であり、正当な resume を壊す。
+- 黙って `None` を返す — 呼び手 `_retry_authorization` は `None` を「この cell は retry 不要」と読む。
+  消費側が拒否する履歴を検出しておきながら、試行不足のまま先へ進める。
+- recovery 側の使用済み除外を外す — recovery の一回限定設計を変える。
+
+**この決定が変えないもの:** 消費側と最終 inspection の受理集合。certified な成果物の値・受理集合・参照。
+現時点の production では registry recovery 行を書く呼び手が無く、混在履歴を置いても通常 resume は
+`_replay_cut6_start` の cut-6 検査で query より先に拒否する。閉じたのは API 境界の判定不一致であり、
+scheduler collector が接続された時点で live になる。
+
+段 1 brief はこの影響を「測定を 1 本空費して `artifact-invalid` で終わる」と書いたが、段 3 の敵対 2 本が
+現物で否定した。消費は測定 callback より前に行われる。この訂正は
+F591 の再発として failures へ記録した。

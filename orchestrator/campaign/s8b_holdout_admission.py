@@ -5879,8 +5879,16 @@ def floor_retry_trigger_for_round(
                 source="verified-registry-recovery",
             )
         if legacy:
+            trigger = str(legacy[0]["attempt_id"])
+            evidence = _floor_registry_recovery_evidence_locked(
+                state, records=records, trigger=trigger,
+            )
+            if evidence.candidates:
+                raise HoldoutAdmissionError(
+                    "retry trigger has both completion and recovery evidence"
+                )
             return FloorRetryAuthorization(
-                trigger_attempt_id=str(legacy[0]["attempt_id"]),
+                trigger_attempt_id=trigger,
                 source="legacy-failed-session",
             )
         return None
