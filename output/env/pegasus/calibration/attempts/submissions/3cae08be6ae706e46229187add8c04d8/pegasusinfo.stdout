@@ -1,0 +1,17 @@
+Pegasus                |  Run   Run    |  All   All    
+QueueName        JSVs  |  Node  Req    |  Node  Req    
+---------------  ----     ---   -----     ---   -----  
+edu-1            147      0     0         0     0      
+edu-2            147      0     0         0     0      
+edu-4            147      0     0         0     0      
+edu-8            147      0     0         0     0      
+gen_S            147      5     5         5     5      
+gen_M            147      0     0         0     0      
+gen_L            147      0     0         0     0      
+gpu              147      65    20        1047  32     
+gpu_low          147      0     0         0     0      
+interactive      147      0     0         0     0      
+interactive_low  147      0     0         0     0      
+debug            147      0     0         0     0      
+---------------           ---                          
+TOTAL                     70                           
