@@ -24775,6 +24775,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   この driver の実経路では関門が一度も実走していなかった。
   D1864 が「silo の現行挙動は据え置き、扱いはユーザー裁定へ返す」とした対象に t316 も含まれる。
 - **supersede: 2026-09-10** — 一次資料の「認定 attempt 12 件すべてに `condition-gate.jsonl` が無く、この関門は認定経路で一度も実走していない」は、request `988706.nqsv` (rr95) と `988708.nqsv` (rr5) が構造化記録を出したことで、確認できた範囲の初回実走として限定訂正する。両 job の判定は手動実走と同一 (`supply-effectuation: configure-failed` / `runtime-meaning: materialized-branch-invalid`) で診断を追認した。**拒否原因が解消したという意味ではなく、2026-09-14 の別 driver 再発もそのまま残る。** 証拠は `output/insights/2026-09-10/t2515-rr95-rr5-calibration/job-evidence/988706-rr95-condition-gate.jsonl` と `988708-rr5-condition-gate.jsonl`。
+- **supersede: 2026-09-15** — 3 例目の t316 は解消した。patch を当てた使い捨て木を条件関門と両 build で共有し、CCBench が参照しない 3 変数を共有 configure から外した結果、実経路 (`0:999027.nqsv`) で supply 腕が `stock-inert-preprocess-root-location-only` の緑に到達し S6 が go になった。認定 launcher と A-1 driver の 2 例は据え置きで、D2032 は t316 の配線だけを変えている。
 ### F935. 過去実走の凍結 evidence を「現行 producer を縛る live 契約」と読み、依頼された成果物を子が自ら scope から落とした [手順漏れ] [ドリフト]
 
 - 事象: 段 2 のプラン起草で、親が「red arm record の bytes を hash 束縛する consumer が存在するなら
@@ -26101,3 +26102,26 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   を使い依存先を stub しない。予算内に収まる短い本文で切り詰めが起きず全文が残ることを正例にした。
 - 実害: 投入 1 回ぶんの計算資源と wall time。台帳消費はゼロ (走行は registry reservation 前に停止)。
   誤った結論を記録に残す前に実機で露出した。
+
+### F989. sandbox が `/tmp` を空 directory で覆うのに、harness は `TMPDIR` 既定の `/tmp` へ使い捨て木を作っていた [誤前提] [手順漏れ]
+
+- 事象: t316 の S6 で patch を当てた使い捨て木を build 対象にしたところ、outside build は成功し
+  inside build だけが失敗した。新規の配線テストが計算ノードで
+  `inside_success=False` を返して検出した。
+- 根本原因: `SandboxProfile.argv` は `--ro-bind <scratch>/empty-tmp /tmp` で `/tmp` を空 directory の
+  read-only bind に置き換える。一方 `patchharness.checkout` は
+  `os.environ.get("TMPDIR", "/tmp")` の下に木を作る。**両者を結ぶ契約が無かった。**
+  probe の PBS は `SCRATCH_ROOT=${TMPDIR:-/scr}` を使うだけで `TMPDIR` を export しない。
+  修正前の受領証 `output/env/pegasus/t316-sandbox-backend/0:996644.nqsv/receipt.json` の scratch は
+  `/scr` 直下であり、その job で `TMPDIR` は未設定だった。つまり本番でも requested 木は `/tmp` に
+  作られ、inside build から読めない。
+- **本番の実害が出る前に捕まえた near miss である。** 修正前は関門が手前で拒否していたため
+  inside build がこの層へ到達したことが一度も無く、同じ配置で既に走っていた。
+- 恒久対応: D2032 の決定 4。`TMPDIR` が未設定または `/tmp` 配下のとき、
+  使い捨て木を scratch の兄弟へ作る。scratch の外なので writable bind に覆われず、`/tmp` の
+  置き換えにも隠れない。
+- 再発検知: `orchestrator/tests/test_t316_sandbox_probe.py` の
+  `test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir` が `TMPDIR` 未設定と
+  `/tmp` の 2 ケースで、実際に生成された木の path を観測して検査する。
+  変異 M5 と M7 がこの node を含む完全集合で KILLED になることを 2026-09-15 の本走で確認した
+  (`output/insights/2026-09-15/t2607-t316-gate-tree/mutation/mutation-final-ledger.json`)。
