@@ -395,14 +395,15 @@ def test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf(
     assert "recorded scheduled-attempt rejection rate: `1/201`" in markdown
 
     attempts = producer_test_support._eligible_attempts(EXPECTED_BLOCK_COUNT + 1)
-    publication = producer_test_support.issuer.issue_b4_prerun_publication(
-        scheduled_inputs=attempts,
-        planned_result_artifacts=producer_test_support._planned(
-            attempts,
-            tmp_path / "results",
-        ),
-        publication_root=str(tmp_path / "publication"),
-    )
+    with producer_test_support.preregistered_publication_root(tmp_path) as publication_root:
+        publication = producer_test_support.issuer.issue_b4_prerun_publication(
+            scheduled_inputs=attempts,
+            planned_result_artifacts=producer_test_support._planned(
+                attempts,
+                tmp_path / "results",
+            ),
+            publication_root=str(publication_root),
+        )
 
     report = R.build_material_report_document(
         publication.publication_root

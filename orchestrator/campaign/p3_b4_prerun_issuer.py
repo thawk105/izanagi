@@ -29,6 +29,8 @@ from enum import Enum
 import hashlib
 import json
 import os
+from pathlib import Path
+import re
 import secrets
 import stat
 from typing import NoReturn, Sequence
@@ -49,6 +51,9 @@ _RECEIPT_NAME = "prerun-issuer-receipt.json"
 _RECEIPT_TEMP_NAME = ".prerun-issuer-receipt.tmp"
 _SEED_SOURCE_KIND = "python-secrets-token-bytes"
 _SEED_BYTE_COUNT = 32
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+_PREREGISTRATION_PATH = "docs/phase3-b4-reflux-ablation-preregistration.md"
+_PUBLICATION_ROOT_KEY = "B-4 prerun publication root"
 
 B4_PRERUN_NON_GUARANTEES = (
     "formal_launcher_not_wired_to_require_this_receipt",
@@ -77,6 +82,7 @@ class B4PrerunRejectionReason(str, Enum):
     RESULT_PATH_INSPECTION_FAILED = "result_path_inspection_failed"
     RESULT_ARTIFACT_ALREADY_EXISTS = "result_artifact_already_exists"
     PUBLICATION_ROOT_INVALID = "publication_root_invalid"
+    PUBLICATION_ROOT_NOT_PREREGISTERED = "publication_root_not_preregistered"
     PUBLICATION_ROOT_EXISTS = "publication_root_exists"
     PUBLICATION_ROOT_CHANGED = "publication_root_changed"
     DESIGN_NOT_FEASIBLE = "design_not_feasible"
@@ -183,6 +189,38 @@ def _canonical_absolute_path(
     if os.path.normpath(value) != value:
         _reject(reason, f"{label} is not canonical")
     return value
+
+
+def _preregistered_publication_root() -> str:
+    reason = B4PrerunRejectionReason.PUBLICATION_ROOT_NOT_PREREGISTERED
+    try:
+        document = (_REPOSITORY_ROOT / _PREREGISTRATION_PATH).read_bytes().decode("utf-8")
+    except OSError as exc:
+        _reject(reason, "cannot read publication root preregistration", cause=exc)
+    except UnicodeDecodeError as exc:
+        _reject(reason, "publication root preregistration is not UTF-8", cause=exc)
+    lines = [line for line in document.splitlines() if _PUBLICATION_ROOT_KEY in line]
+    if len(lines) != 1:
+        _reject(reason, f"expected exactly one publication root declaration, found {len(lines)}")
+    match = re.fullmatch(
+        r"B-4 prerun publication root \(repo 相対\): `(?P<root>output/[a-z0-9][a-z0-9_-]*(?:/[a-z0-9][a-z0-9_-]*)*)`",
+        lines[0],
+    )
+    if match is None:
+        _reject(reason, "malformed publication root declaration")
+    return _canonical_absolute_path(
+        str(_REPOSITORY_ROOT / match.group("root")),
+        reason=reason,
+        label="preregistered publication root",
+    )
+
+
+def _require_preregistered_publication_root(root: str) -> None:
+    if root != _preregistered_publication_root():
+        _reject(
+            B4PrerunRejectionReason.PUBLICATION_ROOT_NOT_PREREGISTERED,
+            "publication_root does not match the preregistered root",
+        )
 
 
 def _inspect_result_leaf_absent(path: str) -> None:
@@ -719,6 +757,7 @@ def issue_b4_prerun_publication(
         reason=B4PrerunRejectionReason.PUBLICATION_ROOT_INVALID,
         label="publication_root",
     )
+    _require_preregistered_publication_root(root)
     registry_path = os.path.join(root, _REGISTRY_NAME)
     manifest_path = os.path.join(root, _MANIFEST_NAME)
     receipt_path = os.path.join(root, _RECEIPT_NAME)

@@ -61,6 +61,7 @@ from test_p3_b4_closed_critic import (
     _marked_driver_configs,
     _production_launch_context,
 )
+from p3_b4_proposal_binding_support import preregistered_publication_root
 from test_p3_b4_prerun_issuer import _eligible_attempts, _planned
 
 
@@ -131,11 +132,12 @@ def _publication(
     if reference_override is not None:
         attempts[0] = replace(attempts[0], reference_tps=reference_override)
     attempt_tuple = tuple(attempts)
-    return issuer.issue_b4_prerun_publication(
-        scheduled_inputs=attempt_tuple,
-        planned_result_artifacts=_planned(attempt_tuple, root / "results"),
-        publication_root=str(root / "publication"),
-    )
+    with preregistered_publication_root(root) as publication_root:
+        return issuer.issue_b4_prerun_publication(
+            scheduled_inputs=attempt_tuple,
+            planned_result_artifacts=_planned(attempt_tuple, root / "results"),
+            publication_root=str(publication_root),
+        )
 
 
 def _copy_precursor_with_writers(
