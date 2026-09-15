@@ -50,10 +50,25 @@ title: [T-1338] 依頼が名指した 3 件は前日に撤去済みで、台帳�
   30 秒締切 (`_GIT_TIMEOUT_S`) が並行 worktree 作成下の `submodule update --recursive` に足りな
   かったこと。`DW-O08` に従い同じ引数で 1 度だけ再実行し rc=0 を得た。「この worktree では
   初期化できない」とは一般化しない。
-- **受入全走は 1 回で `child-green`。** 23662 passed / 68 skipped / 0 failed (attempt 1、
-  tested main `0600887d9`、tested tip `83b0e98f0`、非帰属赤 0)。投入時の `/proc/loadavg` は
+- **受入 attempt 1 は `child-green`。** 23662 passed / 68 skipped / 0 failed (tested main
+  `0600887d9`、tested tip `83b0e98f0`、非帰属赤 0)。投入時の `/proc/loadavg` は
   213.97 / 218.31 / 206.24 で、同時に 7 wave・10 本の `run_tests.py` が走っていたが赤は出な
   かった。**実装面 0 byte の wave なので、仮に赤が出ても本 wave へは帰属しえない。**
+- **land が rc=23 で拒否し、記録と受入の循環が実測で表に出た。** 受入結果を書いた commit を
+  `--landing-wave-tip-sha` で足して land したところ、`forward main merge first-parent commit
+  must have exactly two parents` で拒まれた。**tested tip より後ろに置けるのは main の forward
+  merge だけ**であり、内容 commit は置けない。一方 `DW-S07` が指示する amend は receipt の
+  tested tip 束縛を壊す。したがって受入結果は**次の commit へ書き、その tip で受入を取り直す**
+  しかない。本エントリはその形で書いており、**本エントリを含む tip での走行結果は本文には
+  書けない — 受理された receipt が権威である。**
+- **`DW-S07` の「再走値は amend する」は実測と食い違うが、本 wave では是正できなかった。**
+  L1 予算の空きは 1 byte しかなく、`DW-O18` への統合は同節が whole-section の exact 契約と
+  1000 byte の単節予算を持つため両方に抵触した。D782 が委任する D730 の手順では、既存記述の
+  削減が安全義務に触れ、収容例も独立 1 例しかないため、本案件は「実施しない」へ落ちる。
+  上限引き上げには至っていない。**同型が独立 3 例そろった時点で収容できる。**
+- **受入 attempt 2 は `claim-self-unverified` (rc=70) で弾かれた。** attempt 1 の lease を
+  自分が保持したままだったため。`tools/wave_land_window.py release` で解放して投げ直した。
+  受入の子は 1 度も起動していない (非帰属赤ではない)。
 - 記録前後の検査: `check_docs.py` rc=0、`spool_fold.py --dry-run --show-diff` rc=0、
   三軸語・placeholder 走査 (`s8b_holdout_freeze search`) rc=0 で自 wave の file は hit 0 件、
   全史 provenance 監査 10105 件で新規違反なし。

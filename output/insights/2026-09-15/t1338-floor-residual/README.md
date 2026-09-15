@@ -125,6 +125,12 @@ R3 の**範囲**だけで、assertion 1 行と解決経路全体は撤去単位�
   現状 (default None で不発、API としては 4 つの既存テストが拒否・続行・不正値・省略時を検査) の
   まま残すかは未裁定である。
 - **U3** D811 の「門が守っていた性質」の読み (上記 5)。どちらを採るかで R1 の将来の扱いが変わる。
+- **U4 (手順)** `DW-S07` の「再走値は amend する」は実測と食い違う。受入 receipt は tested tip を
+  束縛し、tested tip より後ろの非 merge commit は land が rc=23 で拒む。正しい作法は「再走値は
+  後続 commit へ書き、その tip で受入を取り直す」である。**是正は docs 予算で収容できなかった** —
+  L1 の空きは 1 byte、`DW-O18` は whole-section exact 契約と 1000 byte 単節予算に抵触する。
+  D782 → D730 の手順により本案件は「実施しない」へ落ちる (上限引き上げはしていない)。
+  同型が独立 3 例そろえば例外収容できる。
 
 ## 測定
 
@@ -132,7 +138,9 @@ R3 の**範囲**だけで、assertion 1 行と解決経路全体は撤去単位�
 |---|---|
 | 実装面差分 | 0 byte (production・test とも編集なし) |
 | 変異 matrix | 免除 (`DW-S04` の実装面差分ゼロ) |
-| 受入全走 | attempt 1 で `child-green`。23662 passed / 68 skipped / 0 failed (tested main `0600887d9`、tested tip `83b0e98f0`、非帰属赤 0) |
+| 受入 attempt 1 | `child-green`。23662 passed / 68 skipped / 0 failed (tested main `0600887d9`、tested tip `83b0e98f0`、非帰属赤 0) |
+| 受入 attempt 2 | `claim-self-unverified` (rc=70)。attempt 1 の lease を保持したままだったため子は 1 度も起動していない (非帰属赤ではない) |
+| land attempt 1 | rc=23 `forward main merge first-parent commit must have exactly two parents`。tested tip より後ろに置けるのは main の forward merge だけである |
 | 全史 provenance 監査 | 10105 件、新規違反なし |
 | 三軸語・placeholder 走査 | rc=0 (自 wave の file は hit 0 件) |
 | `check_docs.py` / `spool_fold.py --dry-run` | いずれも rc=0 |
