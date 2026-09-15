@@ -73,6 +73,19 @@ title: [T-2599] 裁定済みなのに次の一手の本文が裁定前のまま�
   「裁定待ちでなく既定方針あり」と書いている。T-2422 = 状態語が「P3・新規」で裁定待ちを
   主張していない。
 - 実装面の差分は 0 である。
+- **受入全走は 2 回投げて 2 回目で `child-green`** (23778 passed / 68 skipped / 赤 0・flake 0、
+  `tested_main` `61e0e9c4a`)。変異 matrix は実装面の差分 0 により DW-S04 で免除した。
+- **1 回目の赤 2 件は同一原因の非帰属だった。** どちらも走行中に worktree 内の一時木
+  `.t316-live-pvpxv8ly/` が現れて消えたことによる。
+  `test_t338_submission_gate_unit5.py::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink`
+  は `_ROOT.rglob("*.py")` が消えた `dependencies/glog/.git` を `scandir` して
+  `FileNotFoundError` で落ち、
+  `test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops`
+  は「local 試行の前後で tree / submodule 状態が変化」を検知して停止したため期待文言が出なかった。
+  **本 wave の差分は docs fragment 1 本で、どちらの test にも到達経路がない。** 単独再走は
+  2 件とも緑 (rc=0、17.98 秒)、走行後の作業ツリーは clean で残骸も無い。DW-O18 に従い同一 tip で
+  1 回だけ受入を再走し、`red_nodeids` / `flake_nodeids` ともに 0 件で緑を得た。
+  hold 登録はしていない (非再現のため登録要件を満たさない)。
 - 工数: codex 子 2 本 (いずれも consult・read-only・gpt-6-astra / medium、`outcome=accepted` /
   `stop_reason=completed`)。対応づけの当否が wall 262 秒・model call 11・出力 6,776 token、
   取りこぼしと副作用が wall 368 秒・call 16・出力 7,865 token。入力はほぼ cache 済み
