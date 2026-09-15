@@ -184,6 +184,8 @@ def test_saturation_fast():
     assert r.saturated
     assert r.records == 2_000_000
     assert not r.cache_floor_warning      # 1.5% は floor 0.5% 超
+    assert not r.lower_bound_selected
+    assert not any("候補から選択" in n for n in r.notes)
 
 
 # ===== find_saturation: 飽和しない (遅い) =====
@@ -225,6 +227,8 @@ def test_lower_bound_when_no_plateau():
     assert r.lower_bound_selected
     assert r.records == 2_000_000
     assert r.working_set_ratio is not None and r.working_set_ratio > 4.0
+    assert not r.cache_floor_warning
+    assert not any("候補から選択" in n for n in r.notes)
 
 
 def test_lower_bound_unavailable_without_l3_or_maxrss():
@@ -257,6 +261,8 @@ def test_plateau_preferred_over_lower_bound():
     assert r.saturated
     assert not r.lower_bound_selected
     assert r.records == 2_000_000
+    assert not r.cache_floor_warning
+    assert not any("候補から選択" in n for n in r.notes)
 
 
 # ===== find_saturation: 下限割れ (cache に乗る) =====
@@ -269,6 +275,122 @@ def test_saturation_cache_floor_warning():
     assert r.saturated
     assert r.records == 1_000_000
     assert r.cache_floor_warning
+    assert not r.lower_bound_selected
+    assert not any("候補から選択" in n for n in r.notes)
+
+
+def test_lower_bound_cache_floor_rr5():
+    pts = [_pt(1_000_000, .00364, maxrss_mb=517),
+           _pt(2_000_000, .01392, maxrss_mb=1023),
+           _pt(4_000_000, .04762, maxrss_mb=1958)]
+    r = find_saturation(pts, l3_bytes=110_100_480)
+    assert r.records == 2_000_000
+    assert not r.saturated and r.lower_bound_selected
+    assert not r.cache_floor_warning
+    assert r.miss_rate_at == .01392
+    assert r.working_set_ratio == 1023 * 1024 * 1024 / 110_100_480
+    note = ("cache_floor 下限 0.50% を満たす最小 N を同じ下限基準候補から選択: "
+            "N=1,000,000 (LLC miss 0.364%) → N=2,000,000 (LLC miss 1.392%)。")
+    assert note in r.notes
+    assert any("かつ LLC miss 率 ≥ 0.50%" in n for n in r.notes)
+    from orchestrator.calibrator.model import CalibrationResult
+    from orchestrator.calibrator.report import render_text, result_to_dict
+    result = CalibrationResult(env_tag="test", threads=8, saturation=r)
+    assert note in result_to_dict(result)["saturation"]["notes"]
+    assert note in render_text(result)
+
+
+def test_saturation_cache_floor_minimum_records():
+    pts = [_pt(4_000_000, .005), _pt(8_000_000, .006),
+           _pt(1_000_000, .001), _pt(2_000_000, .006)]
+    r = find_saturation(pts)
+    assert r.records == 2_000_000
+    assert r.saturated and not r.lower_bound_selected
+    assert not r.cache_floor_warning and r.miss_rate_at == .006
+    note = ("cache_floor 下限 0.50% を満たす最小 N を同じ飽和候補から選択: "
+            "N=1,000,000 (LLC miss 0.100%) → N=2,000,000 (LLC miss 0.600%)。")
+    assert note in r.notes
+    from orchestrator.calibrator.model import CalibrationResult
+    from orchestrator.calibrator.report import render_text, result_to_dict
+    result = CalibrationResult(env_tag="test", threads=8, saturation=r)
+    assert note in result_to_dict(result)["saturation"]["notes"]
+    assert note in render_text(result)
+
+
+def test_lower_bound_cache_floor_no_match():
+    pts = [_pt(1_000_000, .001, maxrss_mb=400),
+           _pt(2_000_000, .002, maxrss_mb=500),
+           _pt(4_000_000, .003, maxrss_mb=600)]
+    r = find_saturation(pts, threshold=.0005, l3_bytes=_L3)
+    assert r.records == 1_000_000
+    assert not r.saturated and r.lower_bound_selected
+    assert r.cache_floor_warning and r.miss_rate_at == .001
+    assert not any("候補から選択" in n for n in r.notes)
+    assert any("保持 (miss 率下限を満たす候補なし)" in n for n in r.notes)
+
+
+def test_saturation_cache_floor_final_point_excluded():
+    pts = [_pt(1_000_000, .001, maxrss_mb=400),
+           _pt(2_000_000, .002, maxrss_mb=500),
+           _pt(4_000_000, .006, maxrss_mb=600)]
+    r = find_saturation(pts, l3_bytes=_L3)
+    assert r.records == 1_000_000
+    assert r.saturated and not r.lower_bound_selected
+    assert r.cache_floor_warning
+    assert not any("候補から選択" in n for n in r.notes)
+
+
+def test_lower_bound_cache_floor_final_point_included():
+    pts = [_pt(1_000_000, .001, maxrss_mb=400),
+           _pt(2_000_000, .002, maxrss_mb=500),
+           _pt(4_000_000, .020, maxrss_mb=600)]
+    r = find_saturation(pts, l3_bytes=_L3)
+    assert r.records == 4_000_000
+    assert not r.saturated and r.lower_bound_selected
+    assert not r.cache_floor_warning
+
+
+def test_lower_bound_cache_floor_and_rss_same_point():
+    pts = [_pt(1_000_000, .020, maxrss_mb=300),
+           _pt(2_000_000, .001, maxrss_mb=400),
+           _pt(4_000_000, .030, maxrss_mb=500)]
+    r = find_saturation(pts, l3_bytes=_L3)
+    assert r.records == 4_000_000
+    assert not r.saturated and r.lower_bound_selected
+    assert not r.cache_floor_warning
+
+
+def test_saturation_cache_floor_boundary_and_override():
+    for floor, rates in ((.005, (.001, .005, .006)),
+                         (.020, (.019, .020, .021))):
+        pts = [_pt(n, rate) for n, rate in
+               zip((1_000_000, 2_000_000, 4_000_000), rates)]
+        r = find_saturation(pts, cache_floor=floor)
+        assert r.records == 2_000_000
+        assert r.saturated and not r.lower_bound_selected
+        assert not r.cache_floor_warning and r.miss_rate_at == floor
+        assert any(f"cache_floor 下限 {floor*100:.2f}%" in n for n in r.notes)
+
+
+def test_lower_bound_cache_floor_boundary():
+    pts = [_pt(1_000_000, .001, maxrss_mb=400),
+           _pt(2_000_000, .005, maxrss_mb=500),
+           _pt(4_000_000, .020, maxrss_mb=600)]
+    r = find_saturation(pts, l3_bytes=_L3)
+    assert r.records == 2_000_000
+    assert not r.saturated and r.lower_bound_selected
+    assert not r.cache_floor_warning and r.miss_rate_at == .005
+
+
+def test_saturation_cache_floor_warning_inside_margin():
+    # v2-1: .0045 は [floor*.8, floor) の内側。この値は動かさない。
+    pts = [_pt(1_000_000, .0045), _pt(2_000_000, .0046),
+           _pt(4_000_000, .0047)]
+    r = find_saturation(pts)
+    assert r.records == 1_000_000
+    assert r.saturated and not r.lower_bound_selected
+    assert r.miss_rate_at == .0045 and r.cache_floor_warning
+    assert not any("候補から選択" in n for n in r.notes)
 
 
 # ===== find_saturation: 退化ケース =====
