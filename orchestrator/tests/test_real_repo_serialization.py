@@ -373,6 +373,7 @@ _P3_B4_MATERIAL_REPORT_NODES_GOLDEN = frozenset({
     "test_p3_b4_material_report.py::test_m8_absent_authority_public_bytes_match_pre_change_golden",
     "test_p3_b4_material_report.py::test_present_floor_projects_required_verbatim_non_guarantees",
     "test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly",
+    "test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report",
     "test_p3_b4_material_report.py::test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator",
     "test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation",
     "test_p3_b4_material_report.py::test_m09_renderer_only_future_compatibility_preserves_four_verdict_wire_values",

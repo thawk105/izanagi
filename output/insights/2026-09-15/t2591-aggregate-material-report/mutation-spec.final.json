@@ -1,0 +1,93 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 400,
+  "hang_timeout_seconds": 1800,
+  "timeout_seconds": 9000,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "        \"schema_version\": authoritative_floor.schema_version,\n",
+          "new": "        \"schema_version\": \"p3-b4-authoritative-floor/v1\",\n"
+        }
+      ]
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    not_guaranteed.extend(authoritative_floor.non_guarantees)\n    report[\"provenance\"][\"report_non_guarantees\"].extend(\n        authoritative_floor.non_guarantees\n    )\n",
+          "new": "    not_guaranteed.extend(authoritative_floor.non_guarantees[:3])\n    report[\"provenance\"][\"report_non_guarantees\"].extend(\n        authoritative_floor.non_guarantees[:3]\n    )\n"
+        }
+      ]
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    result = evaluate_b4_artifacts(\n        floor=(\n            authoritative_floor.floor\n            if authoritative_floor is not None\n            else None\n        ),\n",
+          "new": "    result = evaluate_b4_artifacts(\n        floor=(\n            Fraction(0, 1)\n            if authoritative_floor is not None\n            else None\n        ),\n"
+        }
+      ]
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    ratio = [\n        authoritative_floor.floor.numerator,\n        authoritative_floor.floor.denominator,\n    ]\n    report[\"floor\"] = {\n",
+          "new": "    ratio = [\n        0,\n        1,\n    ]\n    report[\"floor\"] = {\n"
+        },
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "    ratio = [\n        authoritative_floor.floor.numerator,\n        authoritative_floor.floor.denominator,\n    ]\n    expected_floor = {\n",
+          "new": "    ratio = [\n        0,\n        1,\n    ]\n    expected_floor = {\n"
+        }
+      ]
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_material_report.py::test_aggregate_authoritative_floor_reaches_public_material_report@p3-b4-material-report"
+      ],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_material_report.py",
+          "old": "        f\"- floor artifact path: `{_display(authoritative_floor.artifact_path)}`\\n\"\n",
+          "new": "        f\"- floor artifact path: `artifacts/b4-floor-zero-boundary.json`\\n\"\n"
+        }
+      ]
+    }
+  ]
+}
