@@ -1,0 +1,199 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "MUT-T2625-M1-RECORDS-DROPS-CONFIGURE-ARGS",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_qualification_condition_configure_args_reach_real_capture[injected-records]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "    captured = condition_meaning_gate.capture_define_inputs(\n        source_root, stock_root=stock_root, configure_args=configure_args,\n    )\n",
+          "new": "    captured = condition_meaning_gate.capture_define_inputs(\n        source_root, stock_root=stock_root,\n    )\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2625-M2-PREPARE-DROPS-CONFIGURE-ARGS",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s1_direct_comparison.py::test_qualification_condition_configure_args_reach_real_capture[injected-prepare]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s1_direct_comparison.py",
+          "old": "                use_class=condition_use_class, cxx=cxx, stock_root=stock_root,\n                configure_args=condition_configure_args,\n            )\n",
+          "new": "                use_class=condition_use_class, cxx=cxx, stock_root=stock_root,\n            )\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2625-M3-RECEIPT-BACK-TO-SORT-ONLY",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_buildcache_v2.py::test_qualification_stock_build_case_dependency_options[receipt]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+          "old": "            fetchcontent_dependency_receipt=binding.cache_receipt(),\n            fetchcontent_archive_sha256=binding.archive_sha256)\n",
+          "new": "            fetchcontent_archive_sha256=binding.archive_sha256)\n"
+        },
+        {
+          "file": "orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+          "old": "            build_options.update(\n                post_oracle_dependency_binding=floor._post_oracle_dependency_binding(\n",
+          "new": "            build_options.update(\n                fetchcontent_dependency_receipt=binding.cache_receipt(),\n                post_oracle_dependency_binding=floor._post_oracle_dependency_binding(\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2625-M4-ARCHIVE-BACK-TO-SORT-ONLY",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_buildcache_v2.py::test_qualification_stock_build_case_dependency_options[archive]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+          "old": "            fetchcontent_dependency_receipt=binding.cache_receipt(),\n            fetchcontent_archive_sha256=binding.archive_sha256)\n",
+          "new": "            fetchcontent_dependency_receipt=binding.cache_receipt())\n"
+        },
+        {
+          "file": "orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+          "old": "            build_options.update(\n                post_oracle_dependency_binding=floor._post_oracle_dependency_binding(\n",
+          "new": "            build_options.update(\n                fetchcontent_archive_sha256=binding.archive_sha256,\n                post_oracle_dependency_binding=floor._post_oracle_dependency_binding(\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2625-M5-COMPILER-INPUT-ROOT-LEAKS-TO-STOCK",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_buildcache_v2.py::test_qualification_stock_build_case_dependency_options[no-post-oracle]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+          "old": "        build_options = dict(\n            extra, fetchcontent_base_dir=str(base),\n            fetchcontent_dependency_receipt=binding.cache_receipt(),\n            fetchcontent_archive_sha256=binding.archive_sha256)\n",
+          "new": "        build_options = dict(\n            extra, fetchcontent_base_dir=str(base),\n            fetchcontent_dependency_receipt=binding.cache_receipt(),\n            fetchcontent_archive_sha256=binding.archive_sha256,\n            current_compiler_input_masstree_root=str(binding.source_root))\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2625-M6-INJECTION-DROPS-MASSTREE-DEFINE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_buildcache_v2.py::test_qualification_stock_build_case_dependency_options[order]",
+        "orchestrator/tests/test_buildcache_v2.py::test_qualification_stock_build_case_dependency_options[sources]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+          "old": "        *bc._fetchcontent_source_defines(source_dirs),\n    )\n",
+          "new": "        *[d for d in bc._fetchcontent_source_defines(source_dirs)\n          if 'MASSTREE' not in d],\n    )\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2625-M7-INJECTION-ADDS-CMAKE-CXX-FLAGS",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_buildcache_v2.py::test_qualification_stock_build_case_dependency_options[base-only]",
+        "orchestrator/tests/test_buildcache_v2.py::test_qualification_stock_build_case_dependency_options[no-cxx]",
+        "orchestrator/tests/test_buildcache_v2.py::test_qualification_stock_build_case_dependency_options[order]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+          "old": "        '-DFETCHCONTENT_BASE_DIR=' + str(base),\n        *bc._fetchcontent_source_defines(source_dirs),\n",
+          "new": "        '-DFETCHCONTENT_BASE_DIR=' + str(base),\n        '-DCMAKE_CXX_FLAGS=-O2',\n        *bc._fetchcontent_source_defines(source_dirs),\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2625-M8-SEAL-DROPS-WRITE-ERRNO",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_buildcache_v2.py::test_qualification_seal_require_errno_conjunction[M8-write-succeeded]",
+        "orchestrator/tests/test_buildcache_v2.py::test_qualification_seal_require_errno_conjunction[unapproved-write-errno]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+          "old": "                        and observation['write_errno'] in (errno.EROFS, errno.EACCES)\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2625-M9-SEAL-DROPS-CHMOD-EROFS",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_buildcache_v2.py::test_qualification_seal_require_errno_conjunction[M9-chmod-succeeded]",
+        "orchestrator/tests/test_buildcache_v2.py::test_qualification_seal_require_errno_conjunction[chmod-dac-only]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+          "old": "                        and observation['chmod_errno'] == errno.EROFS\n",
+          "new": ""
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2625-M10-SESSION-DROPS-CONTRACT-ID",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_expected_materialization.py::test_snapshot_contract_id_reaches_real_rederivation[contract-M10]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_expected_materialization.py",
+          "old": "            prepared_src_token=prepared_src_token, cxx=cxx,\n            sort_oracle_contract_id=sort_oracle_contract_id,\n        ) as admitted:\n",
+          "new": "            prepared_src_token=prepared_src_token, cxx=cxx,\n        ) as admitted:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2625-M11-REDERIVATION-DROPS-CONTRACT-ID",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_expected_materialization.py::test_snapshot_contract_id_reaches_real_rederivation[contract-M11]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_expected_materialization.py",
+          "old": "                cxx=cxx,\n                sort_oracle_contract_id=sort_oracle_contract_id,\n            )\n",
+          "new": "                cxx=cxx,\n            )\n"
+        }
+      ]
+    }
+  ]
+}
