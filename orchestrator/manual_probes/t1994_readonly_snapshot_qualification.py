@@ -622,8 +622,17 @@ def build_case(configuration, attack_mode, label, row, checks, args, freeze, pin
     options = {'oracle_dependency_root': binding.oracle_root,
                'oracle_compiler': toolchain['cxx']['realpath']} \
         if configuration == 'sort_best' else {}
+    condition_configure_args = (
+        '-DCMAKE_BUILD_TYPE=Release',
+        '-DENABLE_SANITIZER=OFF',
+        '-DCMAKE_C_COMPILER=' + toolchain['cc']['realpath'],
+        '-DFETCHCONTENT_BASE_DIR=' + str(base),
+        *bc._fetchcontent_source_defines(source_dirs),
+    )
     with direct.prepare_cell({'configuration': configuration, 'variant': dict(entry)},
-                             pin, cxx=cxx, **options) as prepared:
+                             pin, cxx=cxx,
+                             condition_configure_args=condition_configure_args,
+                             **options) as prepared:
         root = Path(prepared.ccbench_dir)
         inventory = fd_inventory(root)
         row['copy_target'] = inventory
@@ -634,13 +643,14 @@ def build_case(configuration, attack_mode, label, row, checks, args, freeze, pin
         review = mat.reviewed_source_capability(
             review_id=review_id.S8B_FLOOR, source=evidence, input_sha256=descriptor.declaration_sha256)
         admission = derive_build_admission(context, evidence, review_receipt=review)
-        build_options = dict(extra, fetchcontent_base_dir=str(base))
+        build_options = dict(
+            extra, fetchcontent_base_dir=str(base),
+            fetchcontent_dependency_receipt=binding.cache_receipt(),
+            fetchcontent_archive_sha256=binding.archive_sha256)
         build_options.update({name + '_source_dir': value for name, value in source_dirs.items()})
         if configuration == 'sort_best':
             row['oracle_attempt'] = prepared.oracle_attempt
             build_options.update(
-                fetchcontent_dependency_receipt=binding.cache_receipt(),
-                fetchcontent_archive_sha256=binding.archive_sha256,
                 post_oracle_dependency_binding=floor._post_oracle_dependency_binding(
                     prepared.oracle_attempt, binding),
                 current_compiler_input_masstree_root=str(binding.source_root))

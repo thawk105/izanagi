@@ -51,6 +51,80 @@ import commit_receipt_support as receipt_support                   # noqa: E402
 _REAL_CONDITION_RECORDS_FOR_GENOME = S._condition_records_for_genome
 
 
+@contextlib.contextmanager
+def _qualification_direct_checkout(tmp_path):
+    """Load unchanged driver bytes beside a private, real Git checkout.
+
+    This avoids both the module's autouse compiler stub and shared submodule
+    writes. All relative imports still resolve to the real campaign modules.
+    """
+    path = tmp_path / "orchestrator/campaign/s1_direct_comparison.py"
+    path.parent.mkdir(parents=True)
+    shutil.copyfile(S.__file__, path)
+    name = "orchestrator.campaign._qualification_direct"
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    try:
+        spec.loader.exec_module(module)
+        _, pin = _fake_ccbench_repo(tmp_path / "external/ccbench")
+        yield module, pin
+    finally:
+        del sys.modules[name]
+
+
+class _QualificationObserved(Exception):
+    """Stop after the named real boundary, before compiler/build work."""
+
+
+@pytest.mark.parametrize("stage", ["records", "prepare"])
+@pytest.mark.parametrize("explicit", [True, False], ids=["injected", "default"])
+def test_qualification_condition_configure_args_reach_real_capture(tmp_path, stage, explicit):
+    base = tmp_path / "base"
+    injected = (
+        "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=" + str(Path(shutil.which("gcc")).resolve()),
+        "-DFETCHCONTENT_BASE_DIR=" + str(base),
+        *(f"-DFETCHCONTENT_SOURCE_DIR_{name.upper()}={base / (name + '-src')}"
+          for name in ("masstree", "mimalloc", "googletest")),
+    ) if explicit else ()
+    observed = {}
+    with _qualification_direct_checkout(tmp_path) as (direct, pin):
+        def trace(frame, event, value):
+            if event == "call" and frame.f_code is direct._condition_records_for_genome.__code__:
+                observed["records"] = frame.f_locals["configure_args"]
+            if event == "return" and frame.f_code is condition_meaning_gate.capture_define_inputs.__code__:
+                assert type(value) is condition_meaning_gate.CapturedDefineInputs
+                observed["capture"] = value.configure_args
+                raise _QualificationObserved
+            return trace
+
+        previous = sys.gettrace()
+        try:
+            sys.settrace(trace)
+            with pytest.raises(_QualificationObserved):
+                if stage == "records":
+                    direct._condition_records_for_genome(
+                        str(tmp_path / "external/ccbench"),
+                        Genome("silo", {"BACKOFF_NOINLINE": 1}),
+                        driver_id="qualification-test", use_class="floor", cxx=_any_cxx(),
+                        **({"configure_args": injected} if explicit else {}),
+                    )
+                else:
+                    with direct.prepare_cell(
+                        {"configuration": "stock_common",
+                         "variant": {"flags": {"BACKOFF_NOINLINE": 1}}},
+                        pin, cxx=_any_cxx(),
+                        **({"condition_configure_args": injected} if explicit else {}),
+                    ):
+                        pytest.fail("capture boundary was not observed")
+        finally:
+            sys.settrace(previous)
+    # Separate anchors: M1 checks the leaf, M2 checks the outer handoff.
+    assert "capture" in observed
+    assert observed["capture" if stage == "records" else "records"] == injected
+
+
 @pytest.fixture(autouse=True)
 def _avoid_condition_compiler_work_in_driver_tests(monkeypatch):
     monkeypatch.setattr(

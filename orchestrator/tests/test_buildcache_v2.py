@@ -5658,6 +5658,123 @@ def _qualification_source_attack_starts_and_is_blocked_case(tmp_path):
         attack.restore()
 
 
+@pytest.mark.parametrize("check", ["receipt", "archive", "no-post-oracle", "sources", "no-cxx", "order", "base-only"])
+def test_qualification_stock_build_case_dependency_options(tmp_path, check):
+    from orchestrator.manual_probes import t1994_readonly_snapshot_qualification as driver
+    from orchestrator.campaign import (
+        axis_trigger_gating, s8b_expected_materialization as em, s8b_floor_campaign as floor,
+        s8b_materialization as mat, source_digest,
+    )
+    from orchestrator.tests.test_s1_direct_comparison import (
+        _qualification_direct_checkout, _QualificationObserved,
+    )
+
+    base = tmp_path / "base"
+    base.mkdir()
+    source_dirs = {} if check == "base-only" else {
+        name: str(base / (name + "-src"))
+        for name in ("masstree", "mimalloc", "googletest")
+    }
+    flags = {"BACK_OFF": 1, "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+             "NO_WAIT_OF_TICTOC": 1, "WAL": 0}
+    freeze = {"holdouts": {"test": {"variant_binding": {
+        "entries": {"stock_common": {"flags": flags}},
+    }}}}
+    toolchain = buildcache.observed_toolchain_manifest("gcc", "g++")
+    cc, cxx = buildcache.toolchain_compilers_from_manifest(toolchain)
+    context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    observed = {}
+    with _qualification_direct_checkout(tmp_path) as (direct, pin):
+        # Only this test's private checkout needs to reach real build admission.
+        # Preserve the surrounding function/declaration and both markers; the
+        # complete frozen block and adjacent epilogue must match the axis bytes.
+        checkout = tmp_path / "external/ccbench"
+        source = checkout / axis_trigger_gating.SOURCE_REL
+        raw = source.read_bytes()
+        begin = raw.index(b"    // EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n")
+        end_marker = b"    // EVOLVE-BLOCK-END silo-backoff-trigger-gating\n"
+        end = raw.index(end_marker, begin) + len(end_marker)
+        source.write_bytes(
+            raw[:begin] + axis_trigger_gating.FROZEN_TEMPLATE_BLOCK_BYTES
+            + axis_trigger_gating.FROZEN_TEMPLATE_EPILOGUE_BYTES + raw[end:]
+        )
+        subprocess.run(["git", "-C", str(checkout), "add", axis_trigger_gating.SOURCE_REL],
+                       capture_output=True, text=True, check=True)
+        subprocess.run(["git", "-C", str(checkout), "commit", "-q", "-m",
+                        "canonical qualification trigger material"],
+                       capture_output=True, text=True, check=True)
+        pin = subprocess.run(["git", "-C", str(checkout), "rev-parse", "HEAD"],
+                             capture_output=True, text=True, check=True).stdout.strip()
+        # Real binding type/method; values are observations of temporary bytes.
+        config = base / "config.h"
+        archive = base / "libmasstree.a"
+        config.write_bytes(b"qualification config\n")
+        archive.write_bytes(b"qualification archive\n")
+        binding = floor._FloorOracleDependencyBinding(
+            source_root=base, expected_head=pin, observed_head=pin,
+            config_sha256=hashlib.sha256(config.read_bytes()).hexdigest(),
+            archive_sha256=hashlib.sha256(archive.read_bytes()).hexdigest(),
+            archive_nondebug_sha256=hashlib.sha256(archive.read_bytes()).hexdigest(),
+            expected_toolchain_manifest_sha256=floor._floor_toolchain_manifest_sha256(toolchain),
+            source_st_dev=base.stat().st_dev, source_st_ino=base.stat().st_ino,
+        )
+
+        def trace(frame, event, value):
+            if event == "call" and frame.f_code is direct.prepare_cell.__wrapped__.__code__:
+                observed["configure"] = frame.f_locals["condition_configure_args"]
+            if (event == "line" and frame.f_code is driver.build_case.__code__
+                    and "original_run" in frame.f_locals):
+                observed["build"] = dict(frame.f_locals["build_options"])
+                raise _QualificationObserved
+            return trace
+
+        previous = sys.gettrace()
+        try:
+            sys.settrace(trace)
+            with pytest.raises(_QualificationObserved):
+                driver.build_case(
+                    "stock_common", "aba", "stock_common:aba", {}, {},
+                    SimpleNamespace(holdout="test"), freeze, pin, toolchain, cc, cxx,
+                    context, None, base, source_dirs, base / "shared", binding,
+                    tmp_path, None, buildcache, em, mat, floor, direct, source_digest,
+                    em.SealedBuildSession, em.SealedSnapshotProtectionKind,
+                    derive_build_admission, ReviewId,
+                )
+        finally:
+            sys.settrace(previous)
+
+    options, injected = observed["build"], observed["configure"]
+    if check == "receipt":
+        assert options["fetchcontent_dependency_receipt"] == binding.cache_receipt()
+    elif check == "archive":
+        assert options["fetchcontent_archive_sha256"] == binding.archive_sha256
+    elif check == "no-post-oracle":
+        # Retain the old M5 gate; new M5 moves only the compiler-input root
+        # into common build_options, so the second assert is its sole failure.
+        assert "post_oracle_dependency_binding" not in options
+        assert "current_compiler_input_masstree_root" not in options
+    elif check == "sources":
+        # M6 removes MASSTREE from the returned defines, not source_dirs.
+        # The order case is a redundant gate, not independent mutation evidence.
+        for name, path in source_dirs.items():
+            assert f"-DFETCHCONTENT_SOURCE_DIR_{name.upper()}={path}" in injected
+    elif check == "no-cxx":
+        # M7 adds one CXX_FLAGS argument; capture's duplicate gate needs > 1.
+        # Order/base-only also reject it, but are redundant mutation gates.
+        assert not any(arg.startswith(("-DCMAKE_CXX_FLAGS", "-DCMAKE_CXX_COMPILER"))
+                       for arg in injected)
+    else:
+        expected = (
+            "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF",
+            "-DCMAKE_C_COMPILER=" + toolchain["cc"]["realpath"],
+            "-DFETCHCONTENT_BASE_DIR=" + str(base),
+        )
+        if check == "order":
+            expected += tuple(f"-DFETCHCONTENT_SOURCE_DIR_{name.upper()}={path}"
+                              for name, path in source_dirs.items())
+        assert injected == expected
+
+
 def test_qualification_never_credits_an_attack_that_could_not_start(tmp_path):
     from orchestrator.manual_probes.t1994_readonly_snapshot_qualification import ParentSourceSubstitution
 
