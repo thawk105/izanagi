@@ -1,0 +1,57 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 400,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1-remove-campaign-abort-reraise",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "        except CampaignAbort:\n            raise\n        except (RuntimeError, subprocess.TimeoutExpired) as exc:",
+          "new": "        except (RuntimeError, subprocess.TimeoutExpired) as exc:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_campaign_abort_propagates_without_launch_failure"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-widen-reraise-to-runtime-error",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "        except CampaignAbort:\n            raise",
+          "new": "        except RuntimeError:\n            raise"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_runtime_error_records_launch_failure",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_post_probe_runs_on_launch_error_and_competing_takes_precedence"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-post-probe-before-reraise",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "        except CampaignAbort:\n            raise",
+          "new": "        except CampaignAbort:\n            strict_probe(self.probe_fn)\n            raise"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_campaign_abort_propagates_without_launch_failure"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
