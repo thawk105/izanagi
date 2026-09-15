@@ -6280,6 +6280,8 @@ class _Runner:
                 cell_id, attempt_id, binary, cell["records"], cell["threads"],
                 cell["workload"],
             )
+        except CampaignAbort:
+            raise
         except (RuntimeError, subprocess.TimeoutExpired) as exc:
             measure_error = exc
 
