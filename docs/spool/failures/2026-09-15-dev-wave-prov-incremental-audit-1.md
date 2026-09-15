@@ -30,10 +30,13 @@ seq: 1
   `orchestrator/tests/test_check_ai_provenance.py` だけで、**作業ツリーへ未 tracked path を作らない**
   (受領証は共通 git-dir 配下で `git status` に現れない)。`output/pegasus-dispatch/` は `.gitignore`
   対象なので dispatch 成果物も原因ではない。したがって非帰属である。
-- 恒久対応: **未了。** 同 wave は自分が所有する
-  `test_provenance_headroom_short_queue_unavailable_cap_oom_stops` だけを、production の指紋採取を
-  monkeypatch して周囲の churn から隔離した。**所有外の 3 node (`test_p3_b4_producer_auth_experiment`
-  の 2 件と `test_run_tests_preflight` の 1 件) は手を付けていない。** 本質的な是正は
+- 恒久対応: **部分的。** 同 wave は `cap_oom` 族の双子テスト 2 件 —
+  `test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops` と
+  `test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`
+  — を、production の指紋採取を monkeypatch して周囲の churn から隔離した。前者を直した 3 回目の
+  受入で後者だけが落ち、族であることが確定したので同じ隔離を入れている。
+  **`ScratchTree` 族の 2 node (`test_p3_b4_producer_auth_experiment`) は手を付けていない**
+  (1 回目の受入でしか観測しておらず、2・3 回目では落ちていない)。本質的な是正は
   「`t316` 系の scratch を repo 外へ出す」か「repo 状態の不変を要求するテストを一律に隔離する」の
   どちらかで、main 全体のテスト隔離に当たるため別 wave の scope である。
 - 再発検知: 受入全走でこの 4 node のいずれかが落ち、かつ同じ file の単独走が緑であること。
