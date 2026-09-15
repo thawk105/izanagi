@@ -7127,6 +7127,304 @@ def test_forward_correction_ancestry_still_uses_merge_base(
     assert any(command[3] == history.target for command in observed), observed
 
 
+
+# --- Batch acquisition: fixed synthetic objects, never the growing repo HEAD ---
+
+
+def _batch_raw_commit(
+    root: Path, message: bytes, *, parents: tuple[str, ...] = (),
+    encoding: bytes | None = None,
+) -> str:
+    tree = _git(root, "mktree", input_text="")
+    headers = [f"tree {tree}".encode()]
+    headers.extend(f"parent {oid}".encode() for oid in parents)
+    headers.extend([
+        b"author Batch Fixture <batch@example.invalid> 946684800 +0000",
+        b"committer Batch Fixture <batch@example.invalid> 946684800 +0000",
+    ])
+    if encoding is not None:
+        headers.append(b"encoding " + encoding)
+    result = subprocess.run(
+        ["git", "hash-object", "-t", "commit", "-w", "--stdin"], cwd=root,
+        input=b"\n".join(headers) + b"\n\n" + message,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+    )
+    return result.stdout.decode("ascii").strip()
+
+
+@pytest.mark.parametrize(("message", "encoding", "output_encoding"), [
+    pytest.param(b"", None, "UTF-8", id="empty"),
+    pytest.param(b"\n", None, "UTF-8", id="lf-only"),
+    pytest.param(b"subject\n\nAI-Agent: none", None, "UTF-8", id="no-final-lf"),
+    pytest.param(b"subject\n\nAI-Agent: none\n", None, "UTF-8", id="one-final-lf"),
+    pytest.param(b"subject\n\nAI-Agent: none\n\n", None, "UTF-8", id="two-final-lfs"),
+    pytest.param(b"subject\n\nAI-Agent: none\r", None, "UTF-8", id="final-cr"),
+    pytest.param(b"subject\r\n\r\nAI-Agent: none\r\n", None, "UTF-8", id="crlf"),
+    pytest.param(b"subject\n  continuation\n\nAI-Agent: none\n", None, "UTF-8", id="continued-subject"),
+    pytest.param(b"\n \t\n\tfirst\n  next\n\nAI-Agent: none\n", None, "UTF-8", id="leading-whitespace"),
+    pytest.param(b"subject\n\nbody\x00hidden\n\nAI-Agent: none\n", None, "UTF-8", id="nul"),
+    pytest.param(b"subject\n\nbody\x01retained\n\nAI-Agent: none\n", None, "UTF-8", id="soh"),
+    pytest.param(b"subject\n\n---\n\nAI-Agent: none\n", None, "UTF-8", id="divider"),
+    pytest.param(b"subject\n\nAI-Agent: none\n\x0b", None, "UTF-8", id="trailing-vtab"),
+    pytest.param(b"subject\n\n" + b"x" * (1024 * 1024) + b"\n\nAI-Agent: none\n", None, "UTF-8", id="one-mib"),
+    pytest.param(b"caf\xe9\n\nAI-Agent: none\n", b"ISO-8859-1", "UTF-8", id="legacy-header"),
+    pytest.param(b"caf\xe9\n\nAI-Agent: none\n", b"ISO-8859-1", "ISO-8859-1", id="legacy-output"),
+    pytest.param(b"invalid\xff\xfe\n\nAI-Agent: none\n", None, "UTF-8", id="invalid-utf8"),
+])
+def test_batch_messages_match_show_bytes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    message: bytes, encoding: bytes | None, output_encoding: str,
+):
+    _init_repo(tmp_path)
+    _git(tmp_path, "config", "i18n.logOutputEncoding", output_encoding)
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    _install_known_violation_registry(monkeypatch, ())
+    root = _batch_raw_commit(tmp_path, b"root\n\nAI-Agent: none\n")
+    side = _batch_raw_commit(tmp_path, b"side without trailer\n")
+    specimen = _batch_raw_commit(
+        tmp_path, message, parents=(root, side), encoding=encoding,
+    )
+    # Out-of-HEAD roots, merge, reverse order and duplicate requests are fixed.
+    selected = [specimen, side, root, specimen]
+    try:
+        expected = {
+            oid: provenance._CommitMessage(
+                provenance._git("show", "-s", "--format=%s", oid).strip(),
+                provenance._git("show", "-s", "--format=%B", oid),
+            ) for oid in selected
+        }
+    except UnicodeError:
+        assert provenance._batch_commit_messages(selected) is None
+    else:
+        assert provenance._batch_commit_messages(selected) == expected
+
+
+@pytest.mark.parametrize("damage", [
+    "terminal", "missing", "extra-nul", "duplicate", "foreign", "invalid-oid",
+    "log-error", "decode-error", "os-error",
+])
+def test_batch_invalid_output_discards_every_record(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, damage: str,
+    capsys: pytest.CaptureFixture[str],
+):
+    _init_repo(tmp_path)
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    _install_known_violation_registry(monkeypatch, ())
+    bad = _batch_raw_commit(tmp_path, b"missing trailer\n")
+    good = _batch_raw_commit(tmp_path, b"good\n\nAI-Agent: none\n")
+    _git(tmp_path, "update-ref", "HEAD", good)
+    selected = [bad, good]
+    monkeypatch.setattr(provenance, "_commit_range", lambda *a, **k: selected)
+    real_git = provenance._git
+    old = provenance._audit_history
+    with monkeypatch.context() as patch:
+        patch.setattr(provenance, "_batch_commit_messages", lambda commits: None)
+        baseline = old(selected)
+        old_rc = _run_range(monkeypatch, good)
+        old_output = capsys.readouterr()
+    assert len(baseline.findings) == 1
+    assert bad[:12] in baseline.findings[0]
+    # Poison the first valid record: accepting even this partial result hides
+    # the real missing trailer. The later record breaks the batch contract.
+    records = [bad, "missing trailer\n", "good\n\nAI-Agent: none\n\n",
+               good, "good\n", "good\n\nAI-Agent: none\n\n"]
+    if damage == "missing":
+        records = records[:3]
+    elif damage == "duplicate":
+        records[3] = bad
+    elif damage == "foreign":
+        records[3] = "a" * 40
+    elif damage == "invalid-oid":
+        records[3] = "not-an-oid"
+    output = "\0".join(records) + "\0"
+    if damage == "terminal":
+        output = output[:-1]
+    elif damage == "extra-nul":
+        output += "\0"
+
+    def damaged(*args, **kwargs):
+        if args[:2] == ("log", "--no-walk=unsorted"):
+            if damage == "log-error":
+                raise RuntimeError("speculative log failure must stay private")
+            if damage == "decode-error":
+                raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "synthetic")
+            if damage == "os-error":
+                raise OSError("speculative spawn failure must stay private")
+            return output
+        return real_git(*args, **kwargs)
+
+    monkeypatch.setattr(provenance, "_git", damaged)
+    assert old(selected) == baseline
+    new_rc = _run_range(monkeypatch, good)
+    assert new_rc == old_rc == 1
+    assert capsys.readouterr() == old_output
+    assert provenance._batch_commit_messages(selected) is None
+
+
+def test_batch_empty_and_non_full_requests_do_not_spawn(monkeypatch: pytest.MonkeyPatch):
+    def refuse(*args, **kwargs):
+        raise AssertionError("invalid/empty batch must not spawn")
+    monkeypatch.setattr(provenance, "_git", refuse)
+    assert provenance._batch_commit_messages([]) == {}
+    for selected in (["HEAD"], ["abc123"], ["-n1"], ["A" * 40]):
+        assert provenance._batch_commit_messages(selected) is None
+    monkeypatch.setattr(provenance, "_batch_commit_messages", refuse)
+    monkeypatch.setattr(provenance, "_build_ancestry", refuse)
+    monkeypatch.setattr(provenance, "_known_violation_registry", refuse)
+    assert provenance._audit_history([]) == provenance.HistoryAudit([], [], [])
+
+
+@pytest.mark.parametrize("authoritative", [False, True])
+def test_batch_history_matches_old_acquisition_with_nonempty_results(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, authoritative: bool,
+    capsys: pytest.CaptureFixture[str],
+):
+    commits, _, _ = _mixed_history(tmp_path, monkeypatch)
+    known = _commit(tmp_path, {"docs/known.md": "known\n"}, "known missing\n")
+    commits.append(known)
+    _install_known_violation_registry(monkeypatch, (_known_spec(known),))
+    options = dict(authoritative=authoritative, head=known)
+    with monkeypatch.context() as patch:
+        patch.setattr(provenance, "_batch_commit_messages", lambda selected: None)
+        baseline = provenance._audit_history(commits, **options)
+        old_rc = _run_range(monkeypatch, known)
+        old_output = capsys.readouterr()
+    assert baseline.findings and baseline.corrected and baseline.waived
+    assert baseline.known_violations
+    assert provenance._audit_history(commits, **options) == baseline
+    new_rc = _run_range(monkeypatch, known)
+    new_output = capsys.readouterr()
+    assert old_rc == new_rc == 1
+    assert new_output == old_output
+    assert "implementation-author-waived=1" in new_output.out
+    assert "known-violations=1" in new_output.out
+
+
+@pytest.mark.parametrize("oracle", [False, True])
+def test_batch_subprocess_counts_and_selected_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, oracle: bool,
+):
+    _init_repo(tmp_path)
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    _install_known_violation_registry(monkeypatch, ())
+    first = _batch_raw_commit(tmp_path, b"first missing\n")
+    good = _batch_raw_commit(tmp_path, b"good\n\nAI-Agent: none\n", parents=(first,))
+    outside = _batch_raw_commit(tmp_path, b"outside missing\n")
+    _git(tmp_path, "update-ref", "HEAD", good)
+    selected = [outside, good, first, outside]
+    if oracle:
+        monkeypatch.setattr(provenance, "_build_ancestry", lambda *a, **k: None)
+    seen = Counter()
+    real_run = subprocess.run
+
+    def recording(command, **kwargs):
+        if command[:3] == ["git", "log", "--no-walk=unsorted"]:
+            seen["log"] += 1
+            assert kwargs["input"].splitlines() == [outside, good, first]
+        for fmt in ("%s", "%B"):
+            if command[:4] == ["git", "show", "-s", f"--format={fmt}"]:
+                seen[fmt] += 1
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(provenance.subprocess, "run", recording)
+    audit = provenance._audit_history(selected)
+    assert audit.findings == [
+        f"{oid[:12]} {label}: AI-Agent trailer がない"
+        for oid, label in [(outside, "outside missing"), (first, "first missing"),
+                           (outside, "outside missing")]
+    ]
+    assert seen == (Counter({"%s": 4, "%B": 4}) if oracle else Counter({"log": 1}))
+
+
+def test_batch_trailing_whitespace_changes_acceptance_if_stripped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    _init_repo(tmp_path)
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    _install_known_violation_registry(monkeypatch, ())
+    oid = _batch_raw_commit(tmp_path, b"subject\n\nAI-Agent: none\n\x0b")
+    _git(tmp_path, "update-ref", "HEAD", oid)
+    message = provenance._git("show", "-s", "--format=%B", oid)
+    assert provenance.validate_message("fixture", message)[0]
+    assert not provenance.validate_message("fixture", message.rstrip())[0]
+    with monkeypatch.context() as patch:
+        patch.setattr(provenance, "_batch_commit_messages", lambda selected: None)
+        baseline = provenance._audit_history([oid])
+    assert baseline.findings
+    assert provenance._audit_history([oid]) == baseline
+
+
+@pytest.mark.parametrize("case", ["accepted", "rejected", "parser-first", "show-error", "decode-error"])
+def test_batch_public_output_and_failure_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str], case: str,
+):
+    _init_repo(tmp_path)
+    monkeypatch.setattr(provenance, "REPO", tmp_path)
+    _install_known_violation_registry(monkeypatch, ())
+    first_message = b"first\n\nAI-Agent: none\n"
+    if case == "parser-first":
+        first_message += b"AI-Agent-Correction: invalid\n"
+    first = _batch_raw_commit(tmp_path, first_message)
+    message = b"second\n\nAI-Agent: none\n" if case == "accepted" else b"second missing\n"
+    if case == "decode-error":
+        message = b"second\xff\xfe\n"
+        _git(tmp_path, "config", "i18n.logOutputEncoding", "ISO-8859-1")
+    second = _batch_raw_commit(tmp_path, message, parents=(first,))
+    _git(tmp_path, "update-ref", "HEAD", second)
+    monkeypatch.setattr(provenance, "_commit_range", lambda *a, **k: [first, second])
+    real_git = provenance._git
+    real_parser = provenance._isolated_parsed_trailers
+
+    def failing_git(*args, **kwargs):
+        if case in {"parser-first", "show-error"}:
+            if args[:2] == ("log", "--no-walk=unsorted"):
+                raise RuntimeError("later speculative log error")
+            if args[:3] == ("show", "-s", "--format=%B") and args[3] == second:
+                raise RuntimeError("later legacy show error")
+        return real_git(*args, **kwargs)
+
+    def failing_parser(message, **kwargs):
+        if case == "parser-first" and message.startswith("first\n"):
+            raise RuntimeError("first legacy parser error")
+        return real_parser(message, **kwargs)
+
+    monkeypatch.setattr(provenance, "_git", failing_git)
+    monkeypatch.setattr(provenance, "_isolated_parsed_trailers", failing_parser)
+    with monkeypatch.context() as patch:
+        patch.setattr(provenance, "_batch_commit_messages", lambda selected: None)
+        old_rc = _run_range(monkeypatch, second)
+        old_output = capsys.readouterr()
+    new_rc = _run_range(monkeypatch, second)
+    new_output = capsys.readouterr()
+    assert (new_rc, new_output.out, new_output.err) == (old_rc, old_output.out, old_output.err)
+    expected_rc = {"accepted": 0, "rejected": 1}.get(case, 2)
+    assert old_rc == expected_rc
+    if case == "parser-first":
+        assert "first legacy parser error" in old_output.err
+        assert "later" not in old_output.err
+
+
+
+def test_batch_forward_correction_public_success(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    history = _make_correction_history(tmp_path, monkeypatch)
+    _install_known_violation_registry(monkeypatch, ())
+    rev_range = f"{history.target}^1..{history.correction}"
+    with monkeypatch.context() as patch:
+        patch.setattr(provenance, "_batch_commit_messages", lambda selected: None)
+        old_rc = _run_range(monkeypatch, rev_range)
+        old_output = capsys.readouterr()
+    new_rc = _run_range(monkeypatch, rev_range)
+    new_output = capsys.readouterr()
+    assert old_rc == new_rc == 0
+    assert new_output == old_output
+    assert "forward-corrected=1" in new_output.out
+    assert new_output.err == ""
+
+
 def _run() -> int:
     """parameterized path matrix を含む同一 node 集合を素の runner からも実行する。"""
     return int(pytest.main(["-q", str(Path(__file__).resolve())]))

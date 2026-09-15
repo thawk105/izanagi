@@ -1139,6 +1139,12 @@ class NormalFinding:
 
 
 @dataclass(frozen=True)
+class _CommitMessage:
+    subject: str
+    message: str
+
+
+@dataclass(frozen=True)
 class CommitAudit:
     commit: str
     label: str
@@ -1197,6 +1203,46 @@ def _git(*args: str, input_text: str | None = None) -> str:
         detail = proc.stderr.strip() or proc.stdout.strip()
         raise RuntimeError(f"git {' '.join(args)} failed: {detail}")
     return proc.stdout
+
+
+def _batch_commit_messages(commits: list[str]) -> dict[str, _CommitMessage] | None:
+    """Use the selected OIDs only; discard the entire batch on any failure.
+
+    LF belongs in Git's output, before text-mode newline translation, just as
+    in the two legacy show calls. None asks every worker to use those calls so
+    speculative acquisition cannot change public errors or their input order.
+    """
+    requested = set(commits)
+    if not all(re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", oid) for oid in requested):
+        return None
+    if not requested:
+        return {}
+    try:
+        output = _git(
+            "log", "--no-walk=unsorted", "--stdin", "-z",
+            "--format=tformat:%H%x00%s%x0a%x00%B%x0a",
+            input_text="\n".join(dict.fromkeys(commits)) + "\n",
+        )
+    except (RuntimeError, OSError, UnicodeError):
+        return None
+    if not output.endswith("\0"):
+        return None
+    fields = output[:-1].split("\0")
+    if len(fields) != 3 * len(requested):
+        return None
+    messages: dict[str, _CommitMessage] = {}
+    for offset in range(0, len(fields), 3):
+        oid, subject, message = fields[offset:offset + 3]
+        if (
+            not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", oid)
+            or oid not in requested
+            or oid in messages
+        ):
+            return None
+        messages[oid] = _CommitMessage(subject.strip(), message)
+    if set(messages) != requested:
+        return None
+    return messages
 
 
 def _canonical_trailer_env(parse_cwd: Path) -> dict[str, str]:
@@ -1894,6 +1940,7 @@ def _normal_commit_audit(
     scope_epoch: str | None,
     implementation_epoch: str | None,
     ancestry: _Ancestry | None = None,
+    commit_message: _CommitMessage | None = None,
     authoritative: bool = False,
 ) -> CommitAudit:
     """ancestry=None は逐次 oracle 経路 (merge-base / per-commit pickaxe)。
@@ -1905,8 +1952,12 @@ def _normal_commit_audit(
             "authoritative normal audit requires an ancestry index"
         )
 
-    subject = _git("show", "-s", "--format=%s", commit).strip()
-    message = _git("show", "-s", "--format=%B", commit)
+    if commit_message is None:
+        subject = _git("show", "-s", "--format=%s", commit).strip()
+        message = _git("show", "-s", "--format=%B", commit)
+    else:
+        subject = commit_message.subject
+        message = commit_message.message
     label = f"{commit[:12]} {subject}"
     if ancestry is None:
         cab_policy_applies = _has_co_authored_by_policy(commit)
@@ -2094,6 +2145,7 @@ def _audit_history(
         authoritative=authoritative,
         head=head,
     )
+    messages = _batch_commit_messages(commits) if ancestry is not None else None
 
     def audit_one(commit: str) -> CommitAudit:
         return _normal_commit_audit(
@@ -2101,6 +2153,7 @@ def _audit_history(
             scope_epoch=scope_epoch,
             implementation_epoch=implementation_epoch,
             ancestry=ancestry,
+            commit_message=messages[commit] if messages is not None else None,
             authoritative=authoritative,
         )
 
