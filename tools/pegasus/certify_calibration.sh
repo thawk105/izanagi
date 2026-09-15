@@ -7,8 +7,21 @@
 # C3-7 予約式 (秒):
 # TSC(10) + cooldown_max(1200) + points(5)*sweep_reps(3)*120
 # + noise_reps(10)*120 + 2*sweep_reps(3)*120
-# + build_cap(CCBench=900 + gflags=60 + glog=120)(1080)
-# + finalize_reserve(600) = 6610。要求 7200 秒はこれを上回る。
+# + reservation_allocation(1080) + finalize_reserve(600) = 6610。
+# 1080 は逐次上限ではなく予約配分の項。従来の build_cap の内訳は実体と一致しない:
+# gflags は configure/build/install の 3 command で 180 秒、glog は同 3 command で 360 秒、
+# CCBench は configure+build の 2 command で 1800 秒。
+# third-party copy 360・pristine 検証 120・attestation probe 240・qstat 30・
+# binary hash+nm 120・perf 40 秒はこの予約項に含まれない。
+# 計測前の timeout 指定値の和は 3250 秒。CLI 予約 4990 と後処理予約を積むと
+# 3250 + 4990 + 600 = 8840 > 7200 であり、最大経路の完遂を保証しない。
+# 8840 自体も上限ではない。timeout のない git status、git worktree add、/proc 全走査、
+# worktree 削除、receipt I/O と fsync、submit receipt 待ちの最大 60 回の sleep 1 は含まれない。
+# CLI の 2*sweep_reps*120 は certify では走らない予約定数
+# (orchestrator/calibrator/sweep.py が scale 測定前に return する)。
+# 計測完了前に打ち切られた attempt は部分標本から新たに accepted を組み立てない。
+# ただし公開後に TERM を受けると accepted な公開物が残ったまま wrapper が非ゼロ終了しうる。
+# これは既存の限界であり、本変更によるものではない。
 set -Eeuo pipefail
 umask 077
 
@@ -771,7 +784,26 @@ frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 + 2 * 3 * 120 + 1080 + in
 walltime_formula = (
     "TSC(10)+cooldown_max(1200)+points(5)*sweep_reps(3)*120+"
     "noise_reps(10)*120+2*sweep_reps(3)*120+"
-    "build_cap(CCBench=900+gflags=60+glog=120)(1080)+finalize_reserve(600)=6610"
+    "reservation_allocation(1080)+finalize_reserve(600)=6610; "
+    "1080 is a reservation allocation, not a sequential bound. "
+    "The former build_cap breakdown does not match the commands: "
+    "gflags configure/build/install=3*60=180s; "
+    "glog configure/build/install=3*120=360s; "
+    "CCBench configure+build=2*900=1800s. "
+    "This allocation excludes third-party copy(360), pristine verification(120), "
+    "attestation probes(240), qstat(30), binary hash+nm(120), perf(40). "
+    "Pre-measurement timeout values sum to 3250s; with CLI reservation(4990) "
+    "and finalize reserve: 3250 + 4990 + 600 = 8840 > 7200; "
+    "completion of the maximum path is not guaranteed. "
+    "8840 itself is not an upper bound: it excludes operations without timeout "
+    "(git status, git worktree add, full /proc scan, worktree removal, "
+    "receipt I/O and fsync, submit receipt wait of up to 60 sleep 1 calls). "
+    "CLI 2*sweep_reps*120 is a reservation constant not executed in certify "
+    "(orchestrator/calibrator/sweep.py returns before scale measurement). "
+    "An attempt interrupted before measurement completion does not newly "
+    "assemble accepted output from partial samples; however, TERM after "
+    "publication can leave accepted published artifacts while the wrapper "
+    "exits nonzero. This is an existing limitation, not introduced by this change."
 )
 candidate = {
     "qsub": submit["qsub"],

@@ -209,8 +209,34 @@ def test_certify_uses_frozen_cli_names_and_reservation_exports():
     ):
         assert "IZANAGI_RESERVATION_" + field in source
     assert '"required_s": frozen_required_s' in source
-    assert "5 * 3 * 120 + 10 * 120 + 2 * 3 * 120 + 1080" in source
-    assert "build_cap(CCBench=900+gflags=60+glog=120)(1080)" in source
+    assert (
+        "frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 "
+        "+ 2 * 3 * 120 + 1080 + int(reserve_s)"
+    ) in source
+    assert '''walltime_formula = (
+    "TSC(10)+cooldown_max(1200)+points(5)*sweep_reps(3)*120+"
+    "noise_reps(10)*120+2*sweep_reps(3)*120+"
+    "reservation_allocation(1080)+finalize_reserve(600)=6610; "
+    "1080 is a reservation allocation, not a sequential bound. "
+    "The former build_cap breakdown does not match the commands: "
+    "gflags configure/build/install=3*60=180s; "
+    "glog configure/build/install=3*120=360s; "
+    "CCBench configure+build=2*900=1800s. "
+    "This allocation excludes third-party copy(360), pristine verification(120), "
+    "attestation probes(240), qstat(30), binary hash+nm(120), perf(40). "
+    "Pre-measurement timeout values sum to 3250s; with CLI reservation(4990) "
+    "and finalize reserve: 3250 + 4990 + 600 = 8840 > 7200; "
+    "completion of the maximum path is not guaranteed. "
+    "8840 itself is not an upper bound: it excludes operations without timeout "
+    "(git status, git worktree add, full /proc scan, worktree removal, "
+    "receipt I/O and fsync, submit receipt wait of up to 60 sleep 1 calls). "
+    "CLI 2*sweep_reps*120 is a reservation constant not executed in certify "
+    "(orchestrator/calibrator/sweep.py returns before scale measurement). "
+    "An attempt interrupted before measurement completion does not newly "
+    "assemble accepted output from partial samples; however, TERM after "
+    "publication can leave accepted published artifacts while the wrapper "
+    "exits nonzero. This is an existing limitation, not introduced by this change."
+)''' in source
     assert "finalize_reserve(600)=6610" in source
     assert '--numactl "$NUMA_POLICY"' not in source
 
