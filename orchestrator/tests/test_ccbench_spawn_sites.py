@@ -955,7 +955,7 @@ _DEFERRED_GATE_MEMBERS = (
         ),
         "buildcache",
         "<module>._certify_main._build_trace_binary",
-        3910,
+        3941,
     ),
     _DeferredGateMember(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
@@ -968,7 +968,7 @@ _DEFERRED_GATE_MEMBERS = (
         ),
         "buildcache",
         "<module>.main",
-        4303,
+        4334,
     ),
 )
 
@@ -2723,11 +2723,11 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
             "wave dynamic-backoff-mechanism", "buildcache",
-            "<module>._certify_main._build_trace_binary", 3910,
+            "<module>._certify_main._build_trace_binary", 3941,
         ),
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-            "wave dynamic-backoff-mechanism", "buildcache", "<module>.main", 4303,
+            "wave dynamic-backoff-mechanism", "buildcache", "<module>.main", 4334,
         ),
     }
     assert all(item.reason for item in _DEFERRED_GATE_MEMBERS)
@@ -2978,7 +2978,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
     patch_macros = frozenset(patch_sources)
     target = _BuildSink(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
-        "<module>._certify_main._build_trace_binary", 3910, "buildcache",
+        "<module>._certify_main._build_trace_binary", 3941, "buildcache",
     )
     assert target in _benchmark_build_sinks(sources)
     member = _deferred_member(target)
