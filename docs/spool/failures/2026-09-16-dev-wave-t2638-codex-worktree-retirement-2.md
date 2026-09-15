@@ -27,11 +27,16 @@ seq: 2
 ### F300
 
 - **再発: 2026-09-16** — churn の出所が**同じ走行の内側**という変種 ([T-2638])。docs のみの wave で
-  受入全走を 4 回投入し、4 回とも赤になった (赤 3 件 → 33 件 → 1 件 → 2 件)。赤は毎回
-  「走行中に作業木・submodule の状態が変化した」族で、`assert_repository_unchanged` の `before`
-  bytes には `?? .t316-live-<乱数>/…` が入っていた。これは**同じ受入走行の別テストが wave 作業木へ
-  作った scratch** である。F300 の既往は「親が repo 内で別作業をした」「別 session が local main を
-  進めた」だったが、今回は**走行の内側で完結しており、親も他 session も何もしていない**。
+  受入全走が 5 回続けて赤になり、6 回目で緑になった (赤 3 件 → 33 件 → 1 件 → 2 件 → 1 件)。
+  **機序は最後の 1 件が明示した** —
+  `test_t338_submission_gate_unit5.py::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink`
+  は repo root 全体を `rglob("*.py")` で走査するが、その途中で
+  `.t316-live-<乱数>/repo/external/ccbench/.git/worktrees` に入ったところ、**同じ走行中の別テストが
+  その directory を削除**し `FileNotFoundError` で落ちた。他の赤も同じ scratch を観測した
+  `assert_repository_unchanged` 系である。**repo root を全走査する検査と、repo root 配下に scratch を
+  作っては消す検査が、同一走行内で競合している。** F300 の既往は「親が repo 内で別作業をした」
+  「別 session が local main を進めた」だったが、今回は**走行の内側で完結しており、親も他 session も
+  何もしていない**。
   赤になった test の集合は走行ごとに変わり (同一 tip・同一差分)、単独走では全件緑
   (3 件 → 3 passed、30 件 → 199 passed、1 件 → 1 passed)。変更した path
   (`docs/spool/**`・`output/insights/**`) は赤になった 4 test file とその production module の
