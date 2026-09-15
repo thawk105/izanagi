@@ -73,19 +73,28 @@ title: [T-2599] 裁定済みなのに次の一手の本文が裁定前のまま�
   「裁定待ちでなく既定方針あり」と書いている。T-2422 = 状態語が「P3・新規」で裁定待ちを
   主張していない。
 - 実装面の差分は 0 である。
-- **受入全走は 2 回投げて 2 回目で `child-green`** (23778 passed / 68 skipped / 赤 0・flake 0、
-  `tested_main` `61e0e9c4a`)。変異 matrix は実装面の差分 0 により DW-S04 で免除した。
-- **1 回目の赤 2 件は同一原因の非帰属だった。** どちらも走行中に worktree 内の一時木
-  `.t316-live-pvpxv8ly/` が現れて消えたことによる。
-  `test_t338_submission_gate_unit5.py::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink`
-  は `_ROOT.rglob("*.py")` が消えた `dependencies/glog/.git` を `scandir` して
-  `FileNotFoundError` で落ち、
-  `test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops`
-  は「local 試行の前後で tree / submodule 状態が変化」を検知して停止したため期待文言が出なかった。
-  **本 wave の差分は docs fragment 1 本で、どちらの test にも到達経路がない。** 単独再走は
-  2 件とも緑 (rc=0、17.98 秒)、走行後の作業ツリーは clean で残骸も無い。DW-O18 に従い同一 tip で
-  1 回だけ受入を再走し、`red_nodeids` / `flake_nodeids` ともに 0 件で緑を得た。
-  hold 登録はしていない (非再現のため登録要件を満たさない)。
+- **受入全走は複数回投げ、最終走で `child-green` (赤 0・flake 0) を得た。** 件数・`tested_main`・
+  `tested_tip` の正本は受領証 `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2599-stale-carry-states/
+  acceptance-receipt-*.json`。変異 matrix は実装面の差分 0 により DW-S04 で免除した。
+- **赤はすべて非帰属で、原因は 1 つに集約された — 並行走行が共有作業ツリーの状態を走行中に
+  変えることである。** 本 wave の差分は docs fragment 1 本で、赤が出た test のどれにも到達経路がない。
+  観測した現れ方は 4 通りある。(1) 一時木 `.t316-live-*` が現れて消え、`_ROOT.rglob("*.py")` が
+  消えた `dependencies/glog/.git` を `scandir` して `FileNotFoundError`
+  (`test_t338_submission_gate_unit5`)。(2) `ScratchTreeError: main worktree status changed during
+  experiment` (`test_p3_b4_producer_auth_experiment` の 2 case)。(3) `git ls-files --others` と
+  `git status --porcelain` の `subprocess.TimeoutExpired` (`test_t1259_qsub_env_delivery_probe` の
+  14 件)。(4) 共有 `/tmp/izanagi-real-repo-*-parent.lock` の `real-repo lock deadline exceeded`
+  (READ 保持者 4 本)。(1)〜(4) はいずれも「local 試行の前後で tree / submodule 状態が変化」を
+  検知する `test_run_tests_preflight` / `test_check_ai_provenance` の停止と同じ根を持つ。
+- **単独再走はすべて非再現だった。** 赤が出た file 群の焦点走は 2 回とも緑 (2 件 17.98 秒 rc=0、
+  543 件 114.92 秒 rc=0) で、走行後の作業ツリーは clean、一時木の残骸も無い。DW-O18 に従い
+  期待値・制限値・除外を 1 つも変えず受入を再走した。**hold 登録はしていない** — 非再現であり
+  登録要件 (main の既存 F を証拠とする) を満たさない。
+- **赤と相関したのは負荷でなく同時走行本数だった。** 投入直前の実測では、他 wave の受入 leader が
+  2 本のとき緑、3 本のときは 1 分平均負荷が 2.55 まで落ちていても赤だった。共有
+  `/tmp/izanagi-real-repo-*-parent.lock` が wave を跨いで競合するため、投入判断を
+  `/proc/loadavg` だけで決めることはできない。**観測は緑 1 回・赤 3 回なので、閾値としては
+  主張しない** (DW-G03 の族一般化に足りない)。
 - 工数: codex 子 2 本 (いずれも consult・read-only・gpt-6-astra / medium、`outcome=accepted` /
   `stop_reason=completed`)。対応づけの当否が wall 262 秒・model call 11・出力 6,776 token、
   取りこぼしと副作用が wall 368 秒・call 16・出力 7,865 token。入力はほぼ cache 済み
