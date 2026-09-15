@@ -52,7 +52,14 @@ title: [T-2637] 到達不能監査の repo 外走査の収量を実測し、並�
   `test_initial_patch_contains_no_parallel_execution` が存在し、D985 の結論がテストとして
   固定されている。**いずれも本 wave では直していない。**
 - **実装していない。** ユーザー指定の成果物が「収量の実測と、採る案の設計」であり、採る案が
-  D985 と衝突するため。実装面の差分がゼロなので変異 matrix は免除した (`DW-S04`)。受入全走は行った。
+  D985 と衝突するため。実装面の差分がゼロなので変異 matrix は免除した (`DW-S04`)。
+- **受入全走は緑。** `classification=child-green`、rc=0、**23,778 passed / 68 skipped**、赤 0 件、
+  flake hold 0 件。所要 21 分 28 秒。lease は取得できず wave digest の疑似 holder で投入した
+  (D662 で待ち行列は廃止済み)。
+- **`land` は tested tip より先の commit を two-parent の forward merge に限る** (rc=23、
+  `forward main merge first-parent commit must have exactly two parents`)。受入の実測値を
+  tested tip の上へ docs commit として載せる形は通らないため、本 fragment へ値を書いてから
+  受入を取り直し、tested tip と着地 tip を一致させた。
 - 工数: codex 子 3 本 (plan 1・consult 2、いずれも gpt-6-astra / medium、すべて read-only)。
   親の計測は監査 1 走と走査 6 走。
 - 一次資料 = `output/insights/2026-09-16/t2637-offrepo-scan-yield/`
