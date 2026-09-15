@@ -63,6 +63,11 @@ spec は `mutation-spec.json` (sha256
 
 3 件とも `matches_expectation: true` で、赤くなった node の集合が事前登録と完全一致した。
 
+**fix 後の最終 commit (af6b8e776) でも同じ結果を再現した** (`mutation-out-after-fix.json`)。
+DW-M07 が要求する「fix 後の最終 commit で anchor と期待 node を再検証してから本走する」に従い、
+spec の anchor を再検証 (rc=0) したうえで走らせ直し、baseline PASSED・3/3 KILLED・
+期待 node 完全一致を得た。
+
 M2 は「受理集合を縮小する wave の、承認外の過剰拒否の正例」を兼ねる (DW-M01)。
 M2 は既存テストも赤にするため、全走の赤だけでは新設正例への帰属を示せない。
 本走は新設正例を含む 3 node を個別指定した範囲で走らせ、帰属を確定した。
@@ -76,6 +81,29 @@ M2 は既存テストも赤にするため、全走の赤だけでは新設正�
 | 新設 2 本 | 2 passed, 516 deselected in 8.01s |
 | `test_s8b_floor_campaign.py` 単独走 | 515 passed, 3 skipped in 697.41s |
 | consumer + meta-test 5 対象 | 113 passed in 98.56s |
+| 受入赤 7 件の fix 後再走 | 50 passed in 161.77s |
+
+## 受入全走で出た私起因の赤 (行番号 pin)
+
+受入全走 (tip 6434b6e21 + main 取り込み) は 23657 passed / 3 error・4 failed だった。
+このうち `test_ccbench_spawn_sites.py` の 4 件は**本 wave に帰属する決定的赤**である。
+
+同 file は spawn site の位置を**行番号で pin** している。本 wave が 6283 行付近へ 2 行足したため、
+同 file 後方の `<module>.main` 内 `run_campaign(` が 8659 行から 8661 行へずれ、pin と食い違った。
+単独再走でも再現した。
+
+段 1 の凍結 pin 閉包で `s8b_floor_campaign` を参照する test を 30 件まで path 検索で絞ったのに、
+**中身を読まなかった**のが漏れである。行番号という形の pin は、path で hit しても中身を読まない
+限り見えない。
+
+fix 子が pin の数値 2 箇所だけを 8661 へ更新した (`stage6-fix-report.md`)。
+焦点再レビュー (`stage6-focus-review.md`) が修正前 bytes との比較で緩和の不在を独立に確認し、
+`build_cells.invoke_build` の pin (4708) が変更位置より前で不変であること、
+`orchestrator` / `tools` に取りこぼした同種の行番号 pin が無いことも確認した。
+
+同時に赤だった `test_t1259_qsub_env_delivery_probe.py` 2 件と
+`test_s8c_preregistration_predicates.py::test_repository_candidate_uses_real_s8c_budget_module`
+1 件は、fix 後の同一走行で緑になった。本 wave に帰属しない (F57 と同型の負荷依存)。
 
 consumer の列挙は symbol `_run_session` の参照関係で引いた (`test_s8b_oracle_n_pilot.py`)。
 meta-test は自走 harness (`test_plain_runner_coverage.py`)、所要台帳の網羅率、pytest 収集設定、
@@ -120,5 +148,8 @@ real repo 収集の 4 件。
 | `stage5-author-report.md` | 段 5 実装子の報告 |
 | `stage6-review-a.md` | 段 6 敵対レビュー A (実装の忠実性と停止の意味) |
 | `stage6-review-b.md` | 段 6 敵対レビュー B (テストの実効性) |
+| `stage6-fix-report.md` | 段 6 fix 子の報告 (行番号 pin の追随) |
+| `stage6-focus-review.md` | 段 6 焦点再レビュー (緩和でないことの独立確認) |
 | `mutation-spec.json` | 変異事前登録 |
-| `mutation-out.json` | 変異 matrix の実行結果 |
+| `mutation-out.json` | 変異 matrix の実行結果 (実装 commit 85c4f15ac) |
+| `mutation-out-after-fix.json` | 変異 matrix の再走結果 (最終 commit af6b8e776) |
