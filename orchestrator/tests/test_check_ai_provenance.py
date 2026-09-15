@@ -7425,6 +7425,807 @@ def test_batch_forward_correction_public_success(
     assert new_output.err == ""
 
 
+# Incremental authoritative audit: real repositories, parsers, registry and IO.
+def _receipt_repo(root, monkeypatch):
+    _init_repo(root)
+    policy = "# policy\n" + provenance.IMPLEMENTATION_POLICY_NEEDLE + "\n"
+    base = _commit(root, {provenance.POLICY_PATH: policy}, CODEX_AUTHOR)
+    branch = _git(root, "branch", "--show-current")
+    _git(root, "switch", "-q", "-c", "receipt-side")
+    known = _commit(root, {"docs/known.md": "known\n"}, "missing trailer\n")
+    _git(root, "switch", "-q", branch)
+    _commit(root, {"docs/main.md": "main\n"}, CODEX_AUTHOR)
+    _git(root, "merge", "--no-ff", "--no-commit", "receipt-side")
+    _commit(root, {}, CODEX_AUTHOR)
+    spec = _known_spec(known)
+    data = _known_violation_bytes(spec)
+    directory = root / provenance._KNOWN_VIOLATION_RELATIVE_DIRECTORY
+    directory.mkdir(parents=True)
+    (directory / _known_violation_filename(spec, data)).write_bytes(data)
+    _commit(root, {"docs/fold.md": "fold accounting\n"}, CODEX_AUTHOR)
+    _commit(root, {"tools/waived.py": "# waived\n"}, CLAUDE_AUTHOR_WAIVED)
+    monkeypatch.setattr(provenance, "REPO", root)
+    monkeypatch.setattr(provenance, "_KNOWN_VIOLATION_REPO_ROOT", root)
+    monkeypatch.setattr(provenance, "_KNOWN_VIOLATION_DIRECTORY", directory)
+    return base, spec
+
+
+def _receipt_files(root):
+    return list((root / ".git" / provenance._RECEIPT_DIRECTORY).glob("*/*.json"))
+
+
+def _receipt_run(monkeypatch, capsys):
+    observed, batches, roots = [], [], []
+    normal = provenance._normal_commit_audit
+    batch = provenance._batch_commit_messages
+    build = provenance._build_ancestry
+
+    def recording(oid, **kwargs):
+        observed.append(oid)
+        return normal(oid, **kwargs)
+
+    def recording_batch(commits):
+        batches.append(list(commits))
+        return batch(commits)
+
+    def recording_roots(commits, **kwargs):
+        roots.append(list(commits))
+        return build(commits, **kwargs)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(provenance, "_normal_commit_audit", recording)
+        patch.setattr(provenance, "_batch_commit_messages", recording_batch)
+        patch.setattr(provenance, "_build_ancestry", recording_roots)
+        rc = provenance.main([], site=site_policy.OTHER)
+    output = capsys.readouterr()
+    assert roots == [[_git(provenance.REPO, "rev-parse", "HEAD")]] or rc == 2
+    return rc, output, observed, batches
+
+
+def _receipt_cold(root, monkeypatch, capsys):
+    _receipt_repo(root, monkeypatch)
+    result = _receipt_run(monkeypatch, capsys)
+    assert result[0] == 0, result[1]
+    assert set(result[2]) == set(provenance._commit_range(None, head=_git(root, "rev-parse", "HEAD")))
+    paths = _receipt_files(root)
+    assert len(paths) == 1
+    assert paths[0].stat().st_mode & 0o777 == 0o600
+    assert paths[0].parent.stat().st_mode & 0o777 == 0o700
+    return result, paths[0]
+
+
+def test_warm_reuse_matches_full_oracle(tmp_path, monkeypatch, capsys):
+    cold, path = _receipt_cold(tmp_path, monkeypatch, capsys)
+    warm = _receipt_run(monkeypatch, capsys)
+    assert warm[:2] == cold[:2]
+    assert warm[2:] == ([], [[]])
+    # Remove every receipt so the full oracle cannot reuse an ancestor.
+    for receipt in path.parent.glob("*.json"):
+        receipt.unlink()
+    oracle = _receipt_run(monkeypatch, capsys)
+    assert oracle[:2] == warm[:2]
+    assert set(oracle[2]) == set(cold[2])
+    assert "implementation-author-waived=1" in warm[1].out
+    assert "known-violations=1" in warm[1].out
+
+
+def test_receipt_invalid_schema_falls_back(tmp_path, monkeypatch, capsys):
+    cold, path = _receipt_cold(tmp_path, monkeypatch, capsys)
+    document = json.loads(path.read_text())
+    document["schema"] += 1
+    path.write_text(json.dumps(document))
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[:2] == cold[:2]
+    assert set(actual[2]) == set(cold[2])
+
+
+def test_checker_bytes_change_falls_back(tmp_path, monkeypatch, capsys):
+    checker = tmp_path / "checker.py"
+    checker.write_bytes(Path(provenance.__file__).read_bytes())
+    monkeypatch.setattr(provenance, "__file__", str(checker))
+    cold, _ = _receipt_cold(tmp_path, monkeypatch, capsys)
+    checker.write_bytes(checker.read_bytes() + b"\n# changed checker bytes\n")
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[:2] == cold[:2]
+    assert set(actual[2]) == set(cold[2])
+    assert len(_receipt_files(tmp_path)) == 2
+
+
+def test_registry_addition_falls_back(tmp_path, monkeypatch, capsys):
+    cold, _ = _receipt_cold(tmp_path, monkeypatch, capsys)
+    bad = _commit(tmp_path, {"docs/new-known.md": "new\n"}, "missing again\n")
+    spec = _known_spec(bad)
+    data = _known_violation_bytes(spec)
+    directory = tmp_path / provenance._KNOWN_VIOLATION_RELATIVE_DIRECTORY
+    (directory / _known_violation_filename(spec, data)).write_bytes(data)
+    tip = _commit(tmp_path, {}, CODEX_AUTHOR)
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[0] == 0, actual[1]
+    assert set(actual[2]) == set(cold[2]) | {bad, tip}
+    assert "known-violations=2" in actual[1].out
+
+
+def test_nonancestor_receipt_falls_back(tmp_path, monkeypatch, capsys):
+    cold, path = _receipt_cold(tmp_path, monkeypatch, capsys)
+    tip = _git(tmp_path, "rev-parse", "HEAD")
+    _git(tmp_path, "switch", "-q", "-c", "unrelated-receipt")
+    side = _commit(tmp_path, {"docs/other.md": "side\n"}, CODEX_AUTHOR)
+    _git(tmp_path, "checkout", "-q", tip)
+    # Only the tip is damaged. Prefix digest and D remain valid, so the
+    # ancestor check is the sole reason to reject this receipt (M4).
+    document = json.loads(path.read_text())
+    document["tip"] = side
+    path.write_text(json.dumps(document))
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[:2] == cold[:2]
+    assert set(actual[2]) == set(cold[2])
+
+
+def test_delta_correction_falls_back(tmp_path, monkeypatch, capsys):
+    cold, _ = _receipt_cold(tmp_path, monkeypatch, capsys)
+    tip = _commit(tmp_path, {"docs/correction.md": "candidate\n"},
+                  CODEX_AUTHOR + "\nAI-Agent-Correction: invalid\n")
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[0] == 1
+    assert "AI-Agent-Correction" in actual[1].err
+    assert set(actual[2]) == set(cold[2]) | {tip}
+
+
+def test_prefix_stale_coverage_is_inherited(tmp_path, monkeypatch, capsys):
+    cold, _ = _receipt_cold(tmp_path, monkeypatch, capsys)
+    tip = _commit(tmp_path, {"docs/delta.md": "delta\n"}, CODEX_AUTHOR)
+    warm = _receipt_run(monkeypatch, capsys)
+    assert warm[0] == 0, warm[1]
+    assert warm[2] == [tip]
+    assert "known-violations=1" in warm[1].out
+    assert [line for line in cold[1].out.splitlines() if "known-violation" in line] == [
+        line for line in warm[1].out.splitlines() if "known-violation" in line]
+    for receipt in _receipt_files(tmp_path):
+        receipt.unlink()
+    assert _receipt_run(monkeypatch, capsys)[:2] == warm[:2]
+
+
+def test_empty_delta_still_runs_append_only(tmp_path, monkeypatch, capsys):
+    _receipt_cold(tmp_path, monkeypatch, capsys)
+    real = provenance.check_known_violation_append_only_history
+    seen = []
+
+    def observe(root):
+        seen.append(root)
+        return real(root)
+
+    monkeypatch.setattr(provenance, "check_known_violation_append_only_history", observe)
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[0] == 0 and actual[2] == []
+    assert seen == [tmp_path]
+
+
+def test_parser_canary_runs_even_on_empty_delta(tmp_path, monkeypatch, capsys):
+    _receipt_cold(tmp_path, monkeypatch, capsys)
+    # Real tempfile failure; no parser replacement.
+    monkeypatch.setattr(provenance.tempfile, "tempdir", str(tmp_path / "absent"))
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[0] == 2
+    assert "実行不能" in actual[1].err
+    assert actual[2] == []
+
+
+def test_cab_hit_set_change_falls_back(tmp_path, monkeypatch, capsys):
+    cold, _ = _receipt_cold(tmp_path, monkeypatch, capsys)
+    policy = tmp_path / provenance.POLICY_PATH
+    tip = _commit(tmp_path, {provenance.POLICY_PATH:
+                  policy.read_text() + POLICY_NEEDLE_LITERAL + "\n"}, CODEX_AUTHOR)
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[0] == 0, actual[1]
+    assert set(actual[2]) == set(cold[2]) | {tip}
+
+
+@pytest.mark.parametrize("failure", ["violation", "parser", "head-drift"])
+def test_failure_never_publishes_receipt(tmp_path, monkeypatch, capsys, failure):
+    _, path = _receipt_cold(tmp_path, monkeypatch, capsys)
+    before = path.read_bytes()
+    if failure == "violation":
+        _commit(tmp_path, {"docs/bad.md": "bad\n"}, "missing\n")
+    elif failure == "parser":
+        monkeypatch.setattr(provenance.tempfile, "tempdir", str(tmp_path / "absent"))
+    else:
+        real = provenance._audit_history
+
+        def drift(*args, **kwargs):
+            history = real(*args, **kwargs)
+            _commit(tmp_path, {"docs/drift.md": "drift\n"}, CODEX_AUTHOR)
+            return history
+
+        monkeypatch.setattr(provenance, "_audit_history", drift)
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[0] == (1 if failure == "violation" else 2)
+    assert path.read_bytes() == before
+
+
+def test_environment_fingerprint_change_falls_back(tmp_path, monkeypatch, capsys):
+    cold, _ = _receipt_cold(tmp_path, monkeypatch, capsys)
+    monkeypatch.setenv("LC_MESSAGES", "C")
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_KEY_0", "receipt.fixture")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", "changed")
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[:2] == cold[:2]
+    assert set(actual[2]) == set(cold[2])
+    assert len(_receipt_files(tmp_path)) == 2
+
+
+def test_delta_audits_only_new_commits(tmp_path, monkeypatch, capsys):
+    _receipt_cold(tmp_path, monkeypatch, capsys)
+    old = _git(tmp_path, "rev-parse", "HEAD")
+    _git(tmp_path, "switch", "-q", "-c", "later-side")
+    side = _commit(tmp_path, {"docs/later-side.md": "side\n"}, CODEX_AUTHOR)
+    _git(tmp_path, "checkout", "-q", old)
+    main = _commit(tmp_path, {"docs/later-main.md": "main\n"}, CODEX_AUTHOR)
+    _git(tmp_path, "merge", "--no-ff", "--no-commit", "later-side")
+    merge = _commit(tmp_path, {}, CODEX_AUTHOR)
+    fold = _commit(tmp_path, {"docs/later-fold.md": "fold\n"}, CODEX_AUTHOR)
+    delta = {side, main, merge, fold}
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[0] == 0, actual[1]
+    assert set(actual[2]) == delta and len(actual[2]) == len(delta)
+    assert len(actual[3]) == 1 and set(actual[3][0]) == delta
+    for receipt in _receipt_files(tmp_path):
+        receipt.unlink()
+    assert _receipt_run(monkeypatch, capsys)[:2] == actual[:2]
+
+
+def test_receipt_save_failure_keeps_warm_verdict(tmp_path, monkeypatch, capsys):
+    cold, path = _receipt_cold(tmp_path, monkeypatch, capsys)
+    before = path.read_bytes()
+    real = provenance.os.replace
+
+    def fail_receipt(source, destination, *args, **kwargs):
+        if Path(destination) == path:
+            raise OSError("receipt store unavailable")
+        return real(source, destination, *args, **kwargs)
+
+    monkeypatch.setattr(provenance.os, "replace", fail_receipt)
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[:2] == cold[:2]
+    assert actual[2] == []
+    assert path.read_bytes() == before
+    assert list(path.parent.glob(".receipt-*")) == []
+
+
+@pytest.mark.parametrize("damage", [
+    "json", "directory", "symlink", "rc", "missing-tip", "blob-tip",
+    "selection", "coverage", "candidate-count", "records",
+])
+def test_receipt_damage_falls_back(tmp_path, monkeypatch, capsys, damage):
+    cold, path = _receipt_cold(tmp_path, monkeypatch, capsys)
+    document = json.loads(path.read_text())
+    if damage == "json":
+        path.write_text("{")
+    elif damage == "directory":
+        path.unlink()
+        path.mkdir()
+    elif damage == "symlink":
+        target = path.with_suffix(".saved")
+        path.rename(target)
+        path.symlink_to(target)
+    else:
+        if damage == "rc":
+            document["returncode"] = 1
+        elif damage == "missing-tip":
+            document["tip"] = "0" * 40
+        elif damage == "blob-tip":
+            document["tip"] = _git(tmp_path, "rev-parse", "HEAD:" + provenance.POLICY_PATH)
+        elif damage == "selection":
+            document["selection"]["count"] += 1
+        elif damage == "coverage":
+            document["coverage"]["matched"] = []
+        elif damage == "candidate-count":
+            document["candidate_count"] = 2
+        else:
+            document["records"]["waived"] = None
+        path.write_text(json.dumps(document))
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[:2] == cold[:2]
+    assert set(actual[2]) == set(cold[2])
+
+
+def test_receipt_preserves_forward_correction_and_rejects_second(tmp_path, monkeypatch, capsys):
+    _receipt_repo(tmp_path, monkeypatch)
+    target = _commit(tmp_path, {"docs/target.md": "target\n"}, "missing target\n")
+    payload = _install_synthetic_correction_spec(monkeypatch, target)
+    message = CODEX_AUTHOR + "AI-Agent-Correction: " + payload + "\n"
+    correction = _commit(tmp_path, {"docs/corrected.md": "corrected\n"}, message)
+    cold = _receipt_run(monkeypatch, capsys)
+    assert cold[0] == 0, cold[1]
+    assert f"target={target} correction={correction}" in cold[1].out
+    warm = _receipt_run(monkeypatch, capsys)
+    assert warm[:2] == cold[:2] and warm[2] == []
+    tip = _commit(tmp_path, {"docs/second.md": "second\n"}, message)
+    failed = _receipt_run(monkeypatch, capsys)
+    assert failed[0] == 1
+    assert "candidates=2" in failed[1].err
+    assert set(failed[2]) == set(cold[2]) | {tip}
+
+
+def test_receipt_store_is_shared_across_worktrees(tmp_path, monkeypatch, capsys):
+    root = tmp_path / "repo"
+    root.mkdir()
+    cold, _ = _receipt_cold(root, monkeypatch, capsys)
+    peer = tmp_path / "peer"
+    _git(root, "worktree", "add", "--detach", str(peer), "HEAD")
+    monkeypatch.setattr(provenance, "REPO", peer)
+    monkeypatch.setattr(provenance, "_KNOWN_VIOLATION_REPO_ROOT", peer)
+    monkeypatch.setattr(provenance, "_KNOWN_VIOLATION_DIRECTORY",
+                        peer / provenance._KNOWN_VIOLATION_RELATIVE_DIRECTORY)
+    warm = _receipt_run(monkeypatch, capsys)
+    assert warm[:2] == cold[:2] and warm[2] == []
+    assert len(_receipt_files(root)) == 1
+
+
+def test_real_checker_cold_to_warm_end_to_end(tmp_path, monkeypatch):
+    _receipt_repo(tmp_path, monkeypatch)
+    # Profile real calls in separate processes without replacing dependencies.
+    script = r'''
+import importlib.util, json, sys, threading
+from pathlib import Path
+spec = importlib.util.spec_from_file_location("receipt_e2e_checker", sys.argv[1])
+checker = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = checker
+spec.loader.exec_module(checker)
+checker.REPO = Path(sys.argv[2])
+checker._KNOWN_VIOLATION_REPO_ROOT = checker.REPO
+checker._KNOWN_VIOLATION_DIRECTORY = checker.REPO / checker._KNOWN_VIOLATION_RELATIVE_DIRECTORY
+seen = []
+def profile(frame, event, arg):
+    if event == "call" and frame.f_code is checker._normal_commit_audit.__code__:
+        seen.append(frame.f_locals["commit"])
+threading.setprofile(profile)
+sys.setprofile(profile)
+rc = checker.main([], site=checker.site_policy.OTHER)
+sys.setprofile(None)
+threading.setprofile(None)
+Path(sys.argv[3]).write_text(json.dumps(seen))
+sys.exit(rc)
+'''
+    trace = tmp_path / ".git" / "normal-audit-trace.json"
+    command = [sys.executable, "-c", script, str(Path(provenance.__file__).resolve()),
+               str(tmp_path), str(trace)]
+    cold = subprocess.run(command, cwd=REPO, text=True, capture_output=True)
+    cold_calls = json.loads(trace.read_text())
+    assert cold.returncode == 0, cold.stderr
+    assert set(cold_calls) == set(provenance._commit_range(None, head=_git(tmp_path, "rev-parse", "HEAD")))
+    assert len(_receipt_files(tmp_path)) == 1
+    warm = subprocess.run(command, cwd=REPO, text=True, capture_output=True)
+    assert (warm.returncode, warm.stdout, warm.stderr) == (cold.returncode, cold.stdout, cold.stderr)
+    assert json.loads(trace.read_text()) == []
+    assert "known-violations=1" in warm.stdout
+    assert "implementation-author-waived=1" in warm.stdout
+
+
+def _attribute_merge_repo(root, monkeypatch, capsys):
+    _receipt_repo(root, monkeypatch)
+    lines = [f"line {i}\n" for i in range(36)]
+    base = _commit(root, {"tools/shared_lines.py": "".join(lines)}, CODEX_AUTHOR)
+    branch = _git(root, "branch", "--show-current")
+    _git(root, "switch", "-q", "-c", "attribute-side", base)
+    side_lines = lines.copy()
+    side_lines[4] = "side edit\n"
+    side = _commit(root, {"tools/shared_lines.py": "".join(side_lines)}, CODEX_AUTHOR)
+    _git(root, "switch", "-q", branch)
+    lines[31] = "main edit\n"
+    _commit(root, {"tools/shared_lines.py": "".join(lines)}, CODEX_AUTHOR)
+    _git(root, "merge", "--no-ff", "--no-commit", side)
+    merge = _commit(root, {}, CLAUDE_AUTHOR)
+    assert provenance._commit_paths(merge) == []
+    cold = _receipt_run(monkeypatch, capsys)
+    assert cold[0] == 0, cold[1]
+    assert len(_receipt_files(root)) == 1
+    return merge, cold
+
+
+def test_gitattributes_change_falls_back(tmp_path, monkeypatch, capsys):
+    merge, cold = _attribute_merge_repo(tmp_path, monkeypatch, capsys)
+    tip = _commit(tmp_path, {".gitattributes": "tools/shared_lines.py -diff\n"}, CODEX_AUTHOR)
+    assert provenance._commit_paths(merge) == ["tools/shared_lines.py"]
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[0] == 1, actual[1]
+    assert (f"{merge[:12]} change: 実装面に Codex role=author がない — "
+            "paths=tools/shared_lines.py\n") in actual[1].err
+    assert set(actual[2]) == set(cold[2]) | {tip}
+    for path in _receipt_files(tmp_path):
+        path.unlink()
+    oracle = _receipt_run(monkeypatch, capsys)
+    assert oracle[0] == 1
+    assert oracle[:2] == actual[:2]
+
+
+def test_unchanged_attributes_document_commit_warm_hit(tmp_path, monkeypatch, capsys):
+    _, cold = _attribute_merge_repo(tmp_path, monkeypatch, capsys)
+    tip = _commit(tmp_path, {"docs/attribute-positive.md": "document\n"}, CODEX_AUTHOR)
+    warm = _receipt_run(monkeypatch, capsys)
+    assert warm[0] == 0, warm[1]
+    assert warm[2:] == ([tip], [[tip]])
+    for path in _receipt_files(tmp_path):
+        path.unlink()
+    oracle = _receipt_run(monkeypatch, capsys)
+    assert oracle[0] == 0
+    assert oracle[:2] == warm[:2]
+    assert set(oracle[2]) == set(cold[2]) | {tip}
+
+
+@pytest.mark.parametrize("source", ["info", "configured"])
+def test_local_attributes_bytes_change_falls_back(tmp_path, monkeypatch, capsys, source):
+    merge, cold = _attribute_merge_repo(tmp_path, monkeypatch, capsys)
+    if source == "info":
+        attributes = tmp_path / ".git" / "info" / "attributes"
+    else:
+        attributes = tmp_path / ".git" / "external-attributes"
+        _git(tmp_path, "config", "core.attributesFile", str(attributes))
+        # Bind the configured-but-absent state before changing only the bytes.
+        assert _receipt_run(monkeypatch, capsys)[0] == 0
+    attributes.write_bytes(b"tools/shared_lines.py -diff\n")
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[0] == 1
+    assert (f"{merge[:12]} change: 実装面に Codex role=author がない — "
+            "paths=tools/shared_lines.py\n") in actual[1].err
+    assert set(actual[2]) == set(cold[2])
+    for path in _receipt_files(tmp_path):
+        path.unlink()
+    assert _receipt_run(monkeypatch, capsys)[:2] == actual[:2]
+
+
+def test_receipt_chain_survives_divergent_tip(tmp_path, monkeypatch, capsys):
+    _receipt_repo(tmp_path, monkeypatch)
+    base = _git(tmp_path, "rev-parse", "HEAD")
+    a = _commit(tmp_path, {"docs/a.md": "A\n"}, CODEX_AUTHOR)
+    assert _receipt_run(monkeypatch, capsys)[0] == 0
+    a_path = _receipt_files(tmp_path)[0]
+    a_bytes = a_path.read_bytes()
+    _git(tmp_path, "checkout", "-q", base)
+    b = _commit(tmp_path, {"docs/b.md": "B\n"}, CODEX_AUTHOR)
+    assert _receipt_run(monkeypatch, capsys)[0] == 0
+    assert a_path.read_bytes() == a_bytes
+    assert {json.loads(p.read_text())["tip"] for p in _receipt_files(tmp_path)} == {a, b}
+    _git(tmp_path, "checkout", "-q", a)
+    c = _commit(tmp_path, {"docs/c.md": "C\n"}, CODEX_AUTHOR)
+    warm = _receipt_run(monkeypatch, capsys)
+    assert warm[0] == 0, warm[1]
+    assert warm[2:] == ([c], [[c]])
+    assert set(_git(tmp_path, "rev-list", f"{a}..{c}").splitlines()) == {c}
+    assert a_path.read_bytes() == a_bytes
+
+
+def test_receipt_chooses_smallest_delta(tmp_path, monkeypatch, capsys):
+    _receipt_cold(tmp_path, monkeypatch, capsys)
+    nearer = _commit(tmp_path, {"docs/nearer.md": "nearer\n"}, CODEX_AUTHOR)
+    assert _receipt_run(monkeypatch, capsys)[0] == 0
+    paths = _receipt_files(tmp_path)
+    assert len(paths) == 2
+    # Make the older ancestor most recently saved: recency must not win lookup.
+    for path in paths:
+        if json.loads(path.read_text())["tip"] != nearer:
+            os.utime(path, None)
+    tip = _commit(tmp_path, {"docs/nearest.md": "tip\n"}, CODEX_AUTHOR)
+    warm = _receipt_run(monkeypatch, capsys)
+    assert warm[0] == 0
+    assert warm[2:] == ([tip], [[tip]])
+
+
+def test_receipt_retention_prunes_oldest(tmp_path, monkeypatch, capsys):
+    _, path = _receipt_cold(tmp_path, monkeypatch, capsys)
+    # Audit each real empty commit and publish its green receipt through main.
+    old_paths = []
+    for i in range(provenance._RECEIPT_LIMIT):
+        _git(tmp_path, "commit", "--allow-empty", "-q", "-F", "-", input_text=CODEX_AUTHOR)
+        tip = _git(tmp_path, "rev-parse", "HEAD")
+        assert _receipt_run(monkeypatch, capsys)[0] == 0
+        current = path.parent / f"{tip}.json"
+        assert current.is_file()
+        old_paths.append(current)
+    assert len(_receipt_files(tmp_path)) == provenance._RECEIPT_LIMIT
+    assert not path.exists()
+    assert all(p.exists() for p in old_paths)
+
+
+@pytest.mark.parametrize("source", ["untracked", "modified", "nested", "index", "xdg", "home"])
+def test_additional_attribute_sources_fall_back(tmp_path, monkeypatch, capsys, source):
+    home = tmp_path / "attribute-home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    if source == "xdg":
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(home / "xdg"))
+    merge, cold = _attribute_merge_repo(tmp_path, monkeypatch, capsys)
+    attributes = tmp_path / ".gitattributes"
+    rule = "tools/shared_lines.py -diff\n"
+    if source == "modified":
+        _commit(tmp_path, {".gitattributes": "# unchanged baseline\n"}, CODEX_AUTHOR)
+        cold = _receipt_run(monkeypatch, capsys)
+        assert cold[0] == 0
+    elif source == "nested":
+        attributes = tmp_path / "tools/.gitattributes"
+        rule = "shared_lines.py -diff\n"
+    elif source in {"home", "xdg"}:
+        attributes = ((home / "xdg") if source == "xdg" else home / ".config") / "git/attributes"
+        attributes.parent.mkdir(parents=True)
+    before = (_git(tmp_path, "rev-parse", "HEAD"), _git(tmp_path, "config", "--list"))
+    info = tmp_path / ".git/info/attributes"
+    assert not info.exists()
+    attributes.write_text(rule)
+    if source == "index":
+        _git(tmp_path, "add", ".gitattributes")
+        attributes.unlink()
+    assert before == (_git(tmp_path, "rev-parse", "HEAD"), _git(tmp_path, "config", "--list"))
+    assert not info.exists()
+    assert provenance._commit_paths(merge) == ["tools/shared_lines.py"]
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[0] == 1
+    assert set(actual[2]) == set(cold[2])
+    for receipt in _receipt_files(tmp_path):
+        receipt.unlink()
+    oracle = _receipt_run(monkeypatch, capsys)
+    assert oracle[:2] == actual[:2]
+    assert set(oracle[2]) == set(actual[2])
+
+
+def test_system_attribute_bytes_invalidate_receipt(tmp_path, monkeypatch, capsys):
+    attributes = tmp_path / "system-attributes"
+    # Bind a writable stand-in; the machine's system file must not be edited.
+    monkeypatch.setattr(provenance, "_system_attributes_path", lambda: str(attributes))
+    cold, _ = _receipt_cold(tmp_path, monkeypatch, capsys)
+    attributes.write_text("# system input changed\n")
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[:2] == cold[:2]
+    assert set(actual[2]) == set(cold[2])
+    assert _receipt_run(monkeypatch, capsys)[2] == []
+
+
+def test_receipt_retention_prefers_current_ancestors(tmp_path, monkeypatch, capsys):
+    _, a_path = _receipt_cold(tmp_path, monkeypatch, capsys)
+    a = _git(tmp_path, "rev-parse", "HEAD")
+    base = _git(tmp_path, "rev-parse", "HEAD^")
+    monkeypatch.setattr(provenance, "_RECEIPT_LIMIT", 3)
+    os.utime(a_path, ns=(1, 1))
+    for i in range(2):
+        _git(tmp_path, "checkout", "-q", base)
+        _commit(tmp_path, {f"docs/divergent-{i}.md": "side\n"}, CODEX_AUTHOR)
+        assert _receipt_run(monkeypatch, capsys)[0] == 0
+    assert len(_receipt_files(tmp_path)) == 3
+    _git(tmp_path, "checkout", "-q", a)
+    c = _commit(tmp_path, {"docs/retained-c.md": "C\n"}, CODEX_AUTHOR)
+    warm = _receipt_run(monkeypatch, capsys)
+    assert warm[0] == 0 and warm[2:] == ([c], [[c]])
+    assert a_path.exists()
+    receipts = _receipt_files(tmp_path)
+    assert len(receipts) == 3
+    assert len({json.loads(p.read_text())["tip"] for p in receipts} - {a, c}) == 1
+
+
+def test_receipt_partition_enumeration_is_local(tmp_path, monkeypatch, capsys):
+    _, path = _receipt_cold(tmp_path, monkeypatch, capsys)
+    other = path.parent.parent / "other-environment"
+    other.mkdir()
+    (other / path.name).write_text("invalid unrelated receipt")
+    (path.parent.parent / "legacy.tip.json").write_text("old flat layout")
+    real = Path.glob
+    visited = []
+
+    def observe(directory, pattern):
+        visited.append(directory)
+        return real(directory, pattern)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, "glob", observe)
+        warm = _receipt_run(monkeypatch, capsys)
+    assert warm[0] == 0 and warm[2] == []
+    assert visited and set(visited) == {path.parent}
+
+
+@pytest.mark.parametrize("damage_nearest", [False, True])
+def test_receipt_prefilter_and_zero_delta_stop(tmp_path, monkeypatch, capsys, damage_nearest):
+    _, old_path = _receipt_cold(tmp_path, monkeypatch, capsys)
+    old = _git(tmp_path, "rev-parse", "HEAD")
+    base = _git(tmp_path, "rev-parse", "HEAD^")
+    _git(tmp_path, "checkout", "-q", base)
+    side = _commit(tmp_path, {"docs/prefilter-side.md": "side\n"}, CODEX_AUTHOR)
+    assert _receipt_run(monkeypatch, capsys)[0] == 0
+    _git(tmp_path, "checkout", "-q", old)
+    tip = _commit(tmp_path, {"docs/prefilter-tip.md": "tip\n"}, CODEX_AUTHOR)
+    assert _receipt_run(monkeypatch, capsys)[0] == 0
+    if damage_nearest:
+        path = old_path.parent / f"{tip}.json"
+        receipt = json.loads(path.read_text())
+        receipt["selection"]["count"] += 1
+        path.write_text(json.dumps(receipt))
+    real = provenance._receipt_prefix
+    checked = []
+
+    def observe(receipt, *args):
+        checked.append(receipt["tip"])
+        return real(receipt, *args)
+
+    monkeypatch.setattr(provenance, "_receipt_prefix", observe)
+    warm = _receipt_run(monkeypatch, capsys)
+    assert warm[0] == 0
+    assert side not in checked
+    assert checked == ([tip, old] if damage_nearest else [tip])
+    assert warm[2] == ([tip] if damage_nearest else [])
+
+
+
+@pytest.mark.parametrize("nested", [False, True])
+def test_attribute_symlink_replaced_by_same_bytes_falls_back(tmp_path, monkeypatch, capsys, nested):
+    merge, _ = _attribute_merge_repo(tmp_path, monkeypatch, capsys)
+    attributes = tmp_path / ("tools/.gitattributes" if nested else ".gitattributes")
+    target = tmp_path / ".git/attribute-target"
+    rule = b"shared_lines.py -diff\n" if nested else b"tools/shared_lines.py -diff\n"
+    target.write_bytes(rule)
+    attributes.symlink_to(target)
+    assert provenance._commit_paths(merge) == []
+    cold = _receipt_run(monkeypatch, capsys)
+    assert cold[0] == 0 and cold[2]
+    warm = _receipt_run(monkeypatch, capsys)
+    assert warm[:2] == cold[:2] and warm[2] == []
+    attributes.unlink()
+    attributes.write_bytes(rule)
+    assert provenance._commit_paths(merge) == ["tools/shared_lines.py"]
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[0] == 1 and set(actual[2]) == set(cold[2])
+    for receipt in _receipt_files(tmp_path):
+        receipt.unlink()
+    oracle = _receipt_run(monkeypatch, capsys)
+    assert oracle[0] == 1 and oracle[:2] == actual[:2]
+
+
+def test_attribute_search_is_bounded_and_unreadable_is_stable(tmp_path, monkeypatch, capsys):
+    _receipt_repo(tmp_path, monkeypatch)
+    ignored = tmp_path / "ignored-output"
+    ignored.mkdir()
+    (tmp_path / ".git/info/exclude").write_text("ignored-output/\n")
+    (ignored / ".gitattributes").write_text("* -diff\n")
+    attributes = tmp_path / "unreadable-system-attributes"
+    attributes.write_text("# inaccessible\n")
+    monkeypatch.setattr(provenance, "_system_attributes_path", lambda: str(attributes))
+    real_read = Path.read_bytes
+    real_lstat = Path.lstat
+    seen = []
+
+    def read(path):
+        if path == attributes:
+            raise PermissionError(13, "fixture attribute unreadable")
+        return real_read(path)
+
+    def lstat(path, *args, **kwargs):
+        assert ignored not in path.parents
+        if path.name == ".gitattributes":
+            seen.append(path)
+        return real_lstat(path, *args, **kwargs)
+
+    def no_walk(*args, **kwargs):
+        raise AssertionError("attribute lookup must not walk the worktree")
+
+    monkeypatch.setattr(Path, "read_bytes", read)
+    monkeypatch.setattr(Path, "lstat", lstat)
+    monkeypatch.setattr(provenance.os, "walk", no_walk)
+    cold = _receipt_run(monkeypatch, capsys)
+    assert cold[0] == 0 and cold[2]
+    assert len(_receipt_files(tmp_path)) == 1
+    warm = _receipt_run(monkeypatch, capsys)
+    assert warm[:2] == cold[:2] and warm[2] == []
+    assert seen
+
+
+@pytest.mark.parametrize("source", ["index-only", "directory-symlink"])
+def test_attribute_candidate_directories_cover_git_paths(tmp_path, monkeypatch, source):
+    """git は監査 tip の tree から属性を読まないため、tip-only 経路は覆わない。"""
+    _receipt_repo(tmp_path, monkeypatch)
+    directory = tmp_path / "outer/inner"
+    directory.mkdir(parents=True)
+    tracked = "outer/inner/tracked.py"
+    if source == "index-only":
+        (tmp_path / tracked).write_text("tracked\n")
+        _git(tmp_path, "add", tracked)
+    else:
+        _commit(tmp_path, {tracked: "tracked\n"}, CODEX_AUTHOR)
+        if source == "tip-only":
+            _git(tmp_path, "rm", "--cached", tracked)
+        else:
+            target = tmp_path / ".git/linked-directory"
+            directory.rename(target)
+            directory.symlink_to(target, target_is_directory=True)
+    head = _git(tmp_path, "rev-parse", "HEAD")
+    before = provenance._attribute_fingerprint(head)
+    (directory / ".gitattributes").write_text("* -diff\n")
+    after = provenance._attribute_fingerprint(head)
+    assert after != before
+    assert provenance._attribute_fingerprint(head) == after
+    (tmp_path / "outer/.gitattributes").write_text("* text\n")
+    assert provenance._attribute_fingerprint(head) != after
+
+
+def test_configured_attribute_path_with_trailing_newline_falls_back(tmp_path, monkeypatch, capsys):
+    merge, _ = _attribute_merge_repo(tmp_path, monkeypatch, capsys)
+    attributes = tmp_path / ".git/attributes-with-newline\n"
+    attributes.write_text("# baseline\n")
+    attributes.with_name(attributes.name.rstrip("\n")).write_text("# decoy\n")
+    _git(tmp_path, "config", "core.attributesFile", str(attributes))
+    cold = _receipt_run(monkeypatch, capsys)
+    assert cold[0] == 0 and cold[2]
+    warm = _receipt_run(monkeypatch, capsys)
+    assert warm[:2] == cold[:2] and warm[2] == []
+    attributes.write_text("tools/shared_lines.py -diff\n")
+    assert provenance._commit_paths(merge) == ["tools/shared_lines.py"]
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[0] == 1 and set(actual[2]) == set(cold[2])
+    for receipt in _receipt_files(tmp_path):
+        receipt.unlink()
+    assert _receipt_run(monkeypatch, capsys)[:2] == actual[:2]
+
+
+@pytest.mark.parametrize("damage_nearest", [False, True])
+def test_receipt_first_valid_nonempty_delta_stops(tmp_path, monkeypatch, capsys, damage_nearest):
+    _receipt_cold(tmp_path, monkeypatch, capsys)
+    tips = [_git(tmp_path, "rev-parse", "HEAD")]
+    for i in range(2):
+        tips.append(_commit(tmp_path, {f"docs/candidate-{i}.md": "candidate\n"}, CODEX_AUTHOR))
+        assert _receipt_run(monkeypatch, capsys)[0] == 0
+    if damage_nearest:
+        path = next(p for p in _receipt_files(tmp_path) if json.loads(p.read_text())["tip"] == tips[-1])
+        receipt = json.loads(path.read_text())
+        receipt["selection"]["count"] += 1
+        path.write_text(json.dumps(receipt))
+    tip = _commit(tmp_path, {"docs/nonempty-delta.md": "delta\n"}, CODEX_AUTHOR)
+    real = provenance._receipt_prefix
+    checked = []
+
+    def observe(receipt, *args):
+        checked.append(receipt["tip"])
+        return real(receipt, *args)
+
+    monkeypatch.setattr(provenance, "_receipt_prefix", observe)
+    warm = _receipt_run(monkeypatch, capsys)
+    assert warm[0] == 0
+    assert checked == ([tips[-1], tips[-2]] if damage_nearest else [tips[-1]])
+    assert set(warm[2]) == ({tip, tips[-1]} if damage_nearest else {tip})
+    for receipt in _receipt_files(tmp_path):
+        receipt.unlink()
+    assert _receipt_run(monkeypatch, capsys)[:2] == warm[:2]
+
+def test_attribute_fingerprint_is_independent_of_tip(tmp_path, monkeypatch):
+    _receipt_repo(tmp_path, monkeypatch)
+    old = _commit(tmp_path, {".gitattributes": "* text=auto\n",
+                             "old/nested/file.txt": "old\n"}, CODEX_AUTHOR)
+    _git(tmp_path, "rm", "old/nested/file.txt")
+    for i in range(3):
+        tip = _commit(tmp_path, {f"new-{i}/nested/file.txt": str(i)}, CODEX_AUTHOR)
+    assert _git(tmp_path, "diff", "--name-only", f"{old}..{tip}", "--",
+                "*.gitattributes", ".gitattributes") == ""
+    assert provenance._attribute_fingerprint(old) == provenance._attribute_fingerprint(tip)
+
+
+def test_many_commit_delta_warm_hit(tmp_path, monkeypatch, capsys):
+    _receipt_repo(tmp_path, monkeypatch)
+    _commit(tmp_path, {"future/nested/tracked.txt": "baseline\n"}, CODEX_AUTHOR)
+    # Remove a directory from the index before cold; the first delta commit
+    # records that deletion. Only tip-tree candidate discovery then changes.
+    _git(tmp_path, "rm", "--cached", "future/nested/tracked.txt")
+    (tmp_path / "future/nested/tracked.txt").unlink()
+    cold = _receipt_run(monkeypatch, capsys)
+    assert cold[0] == 0 and cold[2]
+    delta = []
+    for i in range(40):
+        delta.append(_commit(tmp_path, {"docs/many-delta.md": f"revision {i}\n"}, CODEX_AUTHOR))
+    warm = _receipt_run(monkeypatch, capsys)
+    assert warm[0] == 0, warm[1]
+    assert len(warm[2]) == len(delta) and set(warm[2]) == set(delta)
+    assert len(warm[3]) == 1 and set(warm[3][0]) == set(delta)
+    for receipt in _receipt_files(tmp_path):
+        receipt.unlink()
+    oracle = _receipt_run(monkeypatch, capsys)
+    assert oracle[:2] == warm[:2]
+    assert set(delta) < set(oracle[2])
+
+
 def _run() -> int:
     """parameterized path matrix を含む同一 node 集合を素の runner からも実行する。"""
     return int(pytest.main(["-q", str(Path(__file__).resolve())]))
