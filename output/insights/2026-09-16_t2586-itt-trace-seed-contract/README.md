@@ -112,6 +112,36 @@ exact axes なら束縛が付く」は、本 wave が閉じる穴そのもので
 `_artifact_contract_metadata` の test file 内の全 20 呼び出し点を表にして閉じた。
 段 6 の 2 レビューと焦点再レビューは、独立に 5 件目が無いことを確認している。
 
+## 行番号 pin を持つ台帳を段 1 で見落とした
+
+`orchestrator/tests/test_ccbench_spawn_sites.py` の `_DEFERRED_GATE_MEMBERS` は、build sink を
+**(relative_path, kind, scope, lineno)** で pin する。本 wave が producer へ 31 行足したため、
+同 file の 2 sink の行番号だけがずれた。
+
+| sink scope | kind | 旧 | 新 |
+|---|---|---:|---:|
+| `<module>._certify_main._build_trace_binary` | `buildcache` | 3910 | 3941 |
+| `<module>.main` | `buildcache` | 4303 | 4334 |
+
+これで define × sink の cross-product が 28 triple 分「未審査」になり、受入全走が
+決定的な赤 4 node を出した。**2 回の独立した受入走で同一**である。
+sink・scope・kind・定義集合は同一で、build sink の追加も削除も無い。ずれているのは anchor だけ
+なので、pin を動的導出へ書き換えず 3 箇所・計 5 整数を現行行へ直した
+(`:958` `:971` `:2726` `:2730` `:2981`)。動的導出にすると、sink が本当に消えたときに
+検出できなくなる。
+
+**anchor が効いている負例は合成していない。** 受入全走が古い anchor で 2 回とも決定的に
+赤くなったことが、production で取れた負例そのものである。
+
+**原因は段 1 の pin 閉包検索を自分で切ったこと。**
+`git grep -n "t2187_adaptive_const_probe" | grep -v <自 test> | head -40` を実行し、
+表示された 40 行を閉包の全件として扱った。その 40 行は
+`acceptance_duration_ledger.json` の node 行が大半を占め、`test_ccbench_spawn_sites.py` は
+切った側にあった。是正として `git grep -l` で全件 (185 path) を出し直し、行番号を pin して
+いるのがこの 1 file だけであることを確かめた。他の pin (`test_hooks.py`、
+`admission_registry.json`、`submit_t2417_*.sh` 等) は path による分類だけで、
+行番号も内容 hash も持たない。
+
 ## 保証しないこと
 
 - **helper の直接呼出しまでは守らない。** `_counterfactual_row_metadata` は渡された hash を

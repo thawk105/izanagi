@@ -50,6 +50,15 @@ sha256 も consumer の pin と一致する。
 `tools/run_tests.py` は本 wave 中、子・親を通じて `qstat -Q` preflight で rc=16 を返し続けた
 (計算ノード混雑)。実測はすべて自走 harness と変異 harness の dispatch 経路で行った。
 
+**受入全走が実在の赤を掘り当てた。** `test_ccbench_spawn_sites.py` の `_DEFERRED_GATE_MEMBERS` は
+build sink を (path, kind, scope, lineno) で pin する。本 wave が producer へ 31 行足したため
+2 sink の行番号がずれ (3910→3941、4303→4334)、cross-product が 28 triple 分の未審査扱いになった。
+2 回の独立した受入走で同じ 4 node が決定的に赤くなっている。sink・scope・kind・定義集合は同一で、
+ずれているのは anchor だけなので、pin を動的導出へ書き換えず 3 箇所・計 5 整数を現行行へ直した。
+**anchor が効いている負例は合成していない** — 受入が古い anchor で 2 回とも赤くなったことが、
+production で取れた負例そのものである。原因は段 1 の pin 閉包検索を自分で `head -40` で切り、
+見えた範囲を閉包として扱ったこと。F376 へ再発として記録した。
+
 **段 8 の改善候補 2 件はどちらも採らなかった。** (1)「`--reasoning` の段別制約が docs から
 引けない」は取り下げ — `DW-C01` に「`--reasoning` は plan/consult で必須。他段指定は rc=2」と
 既に書いてあり、docs の欠落ではなく親が読んだうえで適用を誤っただけだった (dry-run が投入前に
