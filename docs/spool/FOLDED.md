@@ -4318,3 +4318,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-09-15","base":"0600887d92538b3f34d894f9674d202d0a29a578","content_sha256":"38a17b832872351637c76ccb9b17458264ef807062a4de1e161c9f35f409e2dd","seq":1,"tested_tip":"f565feab6b80b8a8f55a05e0e6f0373570857118","wave":"dev-wave-t1998-balanced-formal-run","wave_ref":"refs/heads/worktree-dev-wave-t1998-balanced-formal-run"}
 - {"allocations":{},"authored":"2026-09-15","base":"0600887d92538b3f34d894f9674d202d0a29a578","content_sha256":"9a5fde40b139c9f52afc93916bae4b178fc2a6dbdf24db6c8662dba95133564b","seq":2,"tested_tip":"f565feab6b80b8a8f55a05e0e6f0373570857118","wave":"dev-wave-t1998-balanced-formal-run","wave_ref":"refs/heads/worktree-dev-wave-t1998-balanced-formal-run"}
+
+- {"allocations":{"T:nonsilo-within-run-floor-embargo-lift":"[T-2634]"},"authored":"2026-09-15","base":"0864b5dfabb591b2a7758206d41f3290ec839d1f","content_sha256":"39fc7860bade489868067c61cb0bed0849a6ef8ed0aae081fb8ca727b7e253d4","seq":1,"tested_tip":"985056ce9e46da6dd9180ab6a84d03b62ee78ebb","wave":"dev-wave-t2224-nonsilo-calibration","wave_ref":"refs/heads/worktree-dev-wave-t2224-nonsilo-calibration"}
