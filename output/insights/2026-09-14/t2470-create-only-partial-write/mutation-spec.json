@@ -1,0 +1,216 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1-cleanup-unlink-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "                    if (named.st_dev, named.st_ino) == (created.st_dev, created.st_ino):\n                        os.unlink(relative_path.name, dir_fd=parent_fd)\n",
+          "new": "                    if (named.st_dev, named.st_ino) == (created.st_dev, created.st_ino):\n                        pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[genesis-write]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[genesis-write_no_progress]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[genesis-file_fsync]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[genesis-directory_fsync]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[classification-write]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[classification-write_no_progress]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[classification-file_fsync]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[classification-directory_fsync]",
+        "orchestrator/tests/test_trial_registry.py::test_create_only_interrupt_removes_residue_and_allows_retry",
+        "orchestrator/tests/test_trial_registry.py::test_create_only_unlink_failure_preserves_original_error"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-fileexists-also-unlinks",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "        except FileExistsError as exc:\n            raise TrialRegistryError(f\"[{gate}] create-only path already exists\") from exc\n        total_written = 0\n",
+          "new": "        except FileExistsError as exc:\n            os.unlink(relative_path.name, dir_fd=parent_fd)\n            raise TrialRegistryError(f\"[{gate}] create-only path already exists\") from exc\n        total_written = 0\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_classification_rejection_preserves_receipt_bytes",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_registry_genesis_is_closed_before_first_performance_observation",
+        "orchestrator/tests/test_trial_registry.py::test_genesis_cli_rejects_second_creation_without_changing_bytes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-parent-fsync-outside-cleanup",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "            os.fsync(fd)\n            os.fsync(parent_fd)\n        except BaseException:\n",
+          "new": "            os.fsync(fd)\n        except BaseException:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[genesis-directory_fsync]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[classification-directory_fsync]",
+        "orchestrator/tests/test_trial_registry.py::test_create_only_success_preserves_bytes_and_fsync_order"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-size-guard-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "                if created.st_size == total_written:\n",
+          "new": "                if True:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_keeps_file_extended_by_another_writer"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-inode-guard-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "                    if (named.st_dev, named.st_ino) == (created.st_dev, created.st_ino):\n",
+          "new": "                    if True:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_keeps_replaced_inode_at_same_name"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-cleanup-requires-progress",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "                if created.st_size == total_written:\n",
+          "new": "                if created.st_size == total_written and total_written > 0:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[genesis-write_no_progress]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[classification-write_no_progress]",
+        "orchestrator/tests/test_trial_registry.py::test_create_only_unlink_failure_preserves_original_error"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-baseexception-narrowed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "        except BaseException:\n            try:\n                created = os.fstat(fd)\n",
+          "new": "        except Exception:\n            try:\n                created = os.fstat(fd)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_create_only_interrupt_removes_residue_and_allows_retry"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-cleanup-error-replaces-cause",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "            except OSError:\n                pass\n            raise\n",
+          "new": "            except OSError:\n                raise\n            raise\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_create_only_unlink_failure_preserves_original_error"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-bare-raise-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "            except OSError:\n                pass\n            raise\n        finally:\n",
+          "new": "            except OSError:\n                pass\n        finally:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[genesis-write]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[genesis-write_no_progress]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[genesis-file_fsync]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[genesis-directory_fsync]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[classification-write]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[classification-write_no_progress]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[classification-file_fsync]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[classification-directory_fsync]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_keeps_file_extended_by_another_writer",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_keeps_replaced_inode_at_same_name",
+        "orchestrator/tests/test_trial_registry.py::test_create_only_interrupt_removes_residue_and_allows_retry",
+        "orchestrator/tests/test_trial_registry.py::test_create_only_unlink_failure_preserves_original_error"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "P1-fsync-order-reversed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "            os.fsync(fd)\n            os.fsync(parent_fd)\n        except BaseException:\n",
+          "new": "            os.fsync(parent_fd)\n            os.fsync(fd)\n        except BaseException:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[genesis-file_fsync]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[genesis-directory_fsync]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[classification-file_fsync]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[classification-directory_fsync]",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_keeps_file_extended_by_another_writer",
+        "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_keeps_replaced_inode_at_same_name",
+        "orchestrator/tests/test_trial_registry.py::test_create_only_success_preserves_bytes_and_fsync_order"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "P2-absolute-path-unlink",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "                        os.unlink(relative_path.name, dir_fd=parent_fd)\n",
+          "new": "                        os.unlink(repository_root / relative_path)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_create_only_unlink_failure_preserves_original_error"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

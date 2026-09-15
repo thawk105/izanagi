@@ -1,5 +1,10 @@
 {
   "duration_seconds_by_nodeid": {
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_freeze_allowlist_path_rejects_unselected_versioned_protocol": 0.002,
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_public_official_preflight_accepts_legacy_protocol": 40.0,
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_public_official_preflight_accepts_versioned_protocol": 87.0,
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_public_official_preflight_rejects_legacy_byte_drift_after_capture": 71.0,
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_public_official_preflight_rejects_resolved_protocol_byte_drift": 85.0,
     "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_analyze_cohort_complete_production_positive_and_two_mutants": 4.0,
     "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_anomaly_maximum_is_consumed_consistently": 5.0,
     "orchestrator/tests/test_b10_backoff_static_tail_formal.py::test_balanced_integer_opt_in_is_rejected_before_work": 0.009,
@@ -23105,7 +23110,7 @@
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_unstable_arm_is_inconclusive[target]": 0.0,
     "orchestrator/tests/test_t1998_stock_inline_pair.py::test_verify_environment_tag_drift_is_rejected": 0.0
   },
-  "nodeid_count": 23104,
+  "nodeid_count": 23109,
   "schema_version": 1,
   "unit": "seconds"
 }

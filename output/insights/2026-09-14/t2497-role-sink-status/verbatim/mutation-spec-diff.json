@@ -1,0 +1,43 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 130,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 2400,
+ "mutations": [
+  {
+   "id": "M9-genuine-partial-via-post-critic-supervisor-error",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "old": "    if not pending_critics:\n        cell.pop(\"_pending_critics\", None)\n",
+     "new": "    if not pending_critics:\n        cell.pop(\"_pending_critics\", None)\n        raise RuntimeError(\"mutation M9: post-critic supervisor error\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_role_sink_bytes_vary_only_at_declared_declassifications"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M9prime-genuine-partial-without-the-new-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "old": "    if not pending_critics:\n        cell.pop(\"_pending_critics\", None)\n",
+     "new": "    if not pending_critics:\n        cell.pop(\"_pending_critics\", None)\n        raise RuntimeError(\"mutation M9: post-critic supervisor error\")\n"
+    },
+    {
+     "file": "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+     "old": "        cell = _assert_role_sink_report_complete(report, wire)\n",
+     "new": "        cell = report[\"cells\"][0]\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

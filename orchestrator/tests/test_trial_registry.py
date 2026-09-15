@@ -6838,6 +6838,7 @@ def test_attempt_registry_genesis_is_closed_before_first_performance_observation
     tmp_path: Path,
 ) -> None:
     repo, _manifest_path, manifest, registry, _p, _c, _freeze, slots = _attempt_fixture(tmp_path)
+    before = registry.read_bytes()
     with pytest.raises(R.TrialRegistryError, match=r"create-only"):
         R.create_attempt_registry_genesis(
             repository_root=repo,
@@ -6847,6 +6848,7 @@ def test_attempt_registry_genesis_is_closed_before_first_performance_observation
             prereg_generation=13,
             slots=slots,
         )
+    assert registry.read_bytes() == before
     rows = [json.loads(line) for line in registry.read_text().splitlines()]
     rows[0]["slots"].append(dict(rows[0]["slots"][0], slot_id="late-slot"))
     _rechain_attempt_rows(rows)
@@ -8488,6 +8490,254 @@ def test_attempt_registry_rejects_terminal_report_hash_replacement(tmp_path: Pat
             effective_commit=c,
             report_paths=[report_path],
         )
+
+
+def _create_only_public_call(tmp_path: Path, caller: str):
+    if caller == "genesis":
+        repo, manifest_path, manifest, _slots_path, slots, _argv = _genesis_cli_fixture(tmp_path)
+        kwargs = dict(
+            repository_root=repo, manifest_path=manifest_path,
+            manifest_sha256=manifest.sha256, freeze_id="freeze-genesis-cli",
+            prereg_generation=2, slots=slots,
+        )
+        return (
+            lambda: R.create_attempt_registry_genesis(**kwargs),
+            repo / R.DEFAULT_ATTEMPT_REGISTRY_PATH,
+            "attempt-registry-genesis",
+        )
+    repo, _path, _manifest, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    cap = _reserve_attempt(repo, registry, p, c, freeze, slots[0])
+    kwargs = dict(
+        pre_observation_failure_reason="wall-timeout",
+        authority_id="fixture-authority", authority_policy_sha256="a" * 64,
+        external_evidence_sha256="b" * 64,
+        classified_at="2026-08-18T00:00:01+00:00",
+    )
+    payload = _canonical(R._attempt_receipt_payload(capability=cap, **kwargs)) + b"\n"
+    target = repo / "output/s8c-trial-registry/classification-receipts" / (
+        hashlib.sha256(payload).hexdigest() + ".json"
+    )
+    return lambda: R.classify_attempt(cap, **kwargs), target, "attempt-classification-receipt"
+
+
+@pytest.mark.parametrize("caller,point", [
+    (caller, point)
+    for caller in ("genesis", "classification")
+    for point in ("write", "write_no_progress", "file_fsync", "directory_fsync")
+])
+def test_attempt_create_only_failure_removes_residue_and_allows_retry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caller: str, point: str,
+) -> None:
+    invoke, target, gate = _create_only_public_call(tmp_path, caller)
+    original_write, original_fsync = os.write, os.fsync
+    injected = OSError(f"injected {point}")
+    calls = []
+    with monkeypatch.context() as patch:
+        if point in ("write", "write_no_progress"):
+            def fail_write(fd, data):
+                assert os.path.samestat(os.fstat(fd), target.stat())
+                calls.append(len(data))
+                if point == "write_no_progress":
+                    return 0
+                if len(calls) == 1:
+                    return original_write(fd, data[:1])
+                raise injected
+            patch.setattr(R.os, "write", fail_write)
+        else:
+            def fail_fsync(fd):
+                directory = stat.S_ISDIR(os.fstat(fd).st_mode)
+                expected = target.parent if directory else target
+                assert os.path.samestat(os.fstat(fd), expected.stat())
+                calls.append(directory)
+                if directory == (point == "directory_fsync"):
+                    raise injected
+                return original_fsync(fd)
+            patch.setattr(R.os, "fsync", fail_fsync)
+        with pytest.raises(R.TrialRegistryError, match=rf"\[{gate}\] create-only write failed") as caught:
+            invoke()
+    assert len(calls) == (2 if point in ("write", "directory_fsync") else 1)
+    if point == "write_no_progress":
+        assert isinstance(caught.value.__cause__, OSError)
+        assert str(caught.value.__cause__) == "create-only write did not advance"
+    else:
+        assert caught.value.__cause__ is injected
+    assert not target.exists()
+    invoke()
+    assert target.read_bytes().endswith(b"\n")
+    if caller == "genesis":
+        assert len(R._load_attempt_registry_bytes(target.read_bytes())) == 1
+    else:
+        assert hashlib.sha256(target.read_bytes()).hexdigest() == target.stem
+        rows = R._load_attempt_registry_bytes(
+            (target.parents[3] / R.DEFAULT_ATTEMPT_REGISTRY_PATH).read_bytes()
+        )
+        assert [row["event"] for row in rows] == [
+            "freeze", "start", "pre-observation-seal", "classification",
+        ]
+
+
+def test_attempt_create_only_keeps_file_extended_by_another_writer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    invoke, target, gate = _create_only_public_call(tmp_path, "genesis")
+    original_fsync = os.fsync
+    injected = OSError("injected genesis fsync after append")
+    preserved = []
+
+    def append_then_fail(fd):
+        assert os.path.samestat(os.fstat(fd), target.stat())
+        before = target.read_bytes()
+        rows = R._load_attempt_registry_bytes(before)
+        candidate = R._attempt_core.reserve_attempt_slot(
+            rows, profile=R._S8C_ATTEMPT_PROFILE,
+            freeze_id=rows[0]["freeze_id"], slot_id=rows[0]["slots"][0]["slot_id"],
+            binding=("a" * 40, "b" * 40), run_start_receipt_sha256="c" * 64,
+            process_identity={"pid": 101, "starttime": "fixture-start", "execution_uuid": "fixture-exec"},
+            started_at="2026-08-18T00:00:00+00:00",
+        )
+        extra = b"".join(_canonical(row) + b"\n" for row in candidate[len(rows):])
+        other_fd = os.open(target, os.O_WRONLY | os.O_APPEND)
+        try:
+            assert other_fd != fd
+            view = memoryview(extra)
+            while view:
+                count = os.write(other_fd, view)
+                assert count > 0
+                view = view[count:]
+            original_fsync(other_fd)
+        finally:
+            os.close(other_fd)
+        preserved.append(before + extra)
+        raise injected
+
+    with monkeypatch.context() as patch:
+        patch.setattr(R.os, "fsync", append_then_fail)
+        with pytest.raises(R.TrialRegistryError, match=rf"\[{gate}\]") as caught:
+            invoke()
+    assert caught.value.__cause__ is injected
+    assert len(preserved) == 1
+    assert target.read_bytes() == preserved[0]
+    assert [row["event"] for row in R._load_attempt_registry_bytes(target.read_bytes())] == [
+        "freeze", "start", "pre-observation-seal",
+    ]
+
+
+def test_attempt_create_only_keeps_replaced_inode_at_same_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    invoke, target, gate = _create_only_public_call(tmp_path, "genesis")
+    injected = OSError("injected fsync after replacement")
+    preserved = []
+
+    def replace_then_fail(fd):
+        before = target.read_bytes()
+        target.unlink()
+        target.write_bytes(before)
+        assert not os.path.samestat(os.fstat(fd), target.stat())
+        assert os.fstat(fd).st_size == target.stat().st_size
+        preserved.append(before)
+        raise injected
+
+    with monkeypatch.context() as patch:
+        patch.setattr(R.os, "fsync", replace_then_fail)
+        with pytest.raises(R.TrialRegistryError, match=rf"\[{gate}\]") as caught:
+            invoke()
+    assert caught.value.__cause__ is injected
+    assert len(preserved) == 1
+    assert target.read_bytes() == preserved[0]
+
+
+def test_create_only_unlink_failure_preserves_original_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    invoke, target, gate = _create_only_public_call(tmp_path, "genesis")
+    injected = OSError("injected write failure")
+    unlinks = []
+
+    def fail_write(fd, data):
+        assert os.path.samestat(os.fstat(fd), target.stat())
+        raise injected
+
+    def fail_unlink(name, *, dir_fd):
+        assert name == target.name
+        assert os.path.samestat(os.fstat(dir_fd), target.parent.stat())
+        unlinks.append(name)
+        raise OSError("injected cleanup failure")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(R.os, "write", fail_write)
+        patch.setattr(R.os, "unlink", fail_unlink)
+        with pytest.raises(R.TrialRegistryError, match=rf"\[{gate}\]") as caught:
+            invoke()
+    assert unlinks == [target.name]
+    assert caught.value.__cause__ is injected
+    assert target.read_bytes() == b""
+
+
+def test_create_only_interrupt_removes_residue_and_allows_retry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    invoke, target, _gate = _create_only_public_call(tmp_path, "genesis")
+    original_write = os.write
+    injected = KeyboardInterrupt("injected interruption")
+    calls = []
+
+    def interrupt_write(fd, data):
+        assert os.path.samestat(os.fstat(fd), target.stat())
+        calls.append(len(data))
+        if len(calls) == 1:
+            return original_write(fd, data[:1])
+        raise injected
+
+    with monkeypatch.context() as patch:
+        patch.setattr(R.os, "write", interrupt_write)
+        with pytest.raises(KeyboardInterrupt) as caught:
+            invoke()
+    assert caught.value is injected
+    assert len(calls) == 2
+    assert not target.exists()
+    invoke()
+    assert len(R._load_attempt_registry_bytes(target.read_bytes())) == 1
+
+
+def test_create_only_success_preserves_bytes_and_fsync_order(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_write, original_fsync = os.write, os.fsync
+    payload = b"complete-record\n"
+    target = tmp_path / "receipt.json"
+    synced = []
+
+    def short_write(fd, data):
+        return original_write(fd, data[:1])
+
+    def record_fsync(fd):
+        directory = stat.S_ISDIR(os.fstat(fd).st_mode)
+        assert os.path.samestat(os.fstat(fd), (tmp_path if directory else target).stat())
+        synced.append("directory" if directory else "file")
+        return original_fsync(fd)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(R.os, "write", short_write)
+        patch.setattr(R.os, "fsync", record_fsync)
+        result = R._write_create_only(
+            repository_root=tmp_path, relative_path=Path(target.name),
+            payload=payload, gate="attempt-registry-genesis",
+        )
+    assert result == target
+    assert target.read_bytes() == payload
+    assert synced == ["file", "directory"]
+
+
+def test_attempt_registry_classification_rejection_preserves_receipt_bytes(
+    tmp_path: Path,
+) -> None:
+    invoke, target, gate = _create_only_public_call(tmp_path, "classification")
+    invoke()
+    before = target.read_bytes()
+    with pytest.raises(R.TrialRegistryError, match=rf"\[{gate}\] create-only path already exists"):
+        invoke()
+    assert target.read_bytes() == before
 
 
 if __name__ == "__main__":
