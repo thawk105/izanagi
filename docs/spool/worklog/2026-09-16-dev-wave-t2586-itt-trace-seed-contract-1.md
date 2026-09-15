@@ -50,6 +50,16 @@ sha256 も consumer の pin と一致する。
 `tools/run_tests.py` は本 wave 中、子・親を通じて `qstat -Q` preflight で rc=16 を返し続けた
 (計算ノード混雑)。実測はすべて自走 harness と変異 harness の dispatch 経路で行った。
 
+**段 8 の改善候補 2 件はどちらも採らなかった。** (1)「`--reasoning` の段別制約が docs から
+引けない」は取り下げ — `DW-C01` に「`--reasoning` は plan/consult で必須。他段指定は rc=2」と
+既に書いてあり、docs の欠落ではなく親が読んだうえで適用を誤っただけだった (dry-run が投入前に
+止めたので実害なし)。(2)「隔離 session の親は投入先 worktree へ git を向けられないので、
+`DW-S05-A` に成果の回収手順が無い」は実測由来だが、`docs/dev-wave/**` の L1.5 予算が満杯で
+収容できなかった (追記すると 9850 > 9696 bytes)。意味等価な既存記述の削減は見つからず、
+独立 3 例も無いので、D782 が委任する D730 の手順に従い「実施しない」で閉じた。上限は上げていない。
+本 wave は所有 2 file の内容 copy + sha256 照合と、投入時刻起点の mtime 走査による所有外の
+無変更確認で代替した。
+
 工数: codex 子 7 本 (plan 1・consult 2・author 2・review 2・fix 1・focus 1 のうち author は
 1 本目が停止報告で終了、いずれも gpt-6-astra / medium)。変異は probe 1 走 + 本走 1 走。
 
