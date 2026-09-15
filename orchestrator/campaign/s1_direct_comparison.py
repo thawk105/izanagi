@@ -305,7 +305,23 @@ def _condition_records_for_genome(
             for record in (*supply_records, *meaning_records)
             if record.terminal_status != "green"
         )
-        raise DriverError(f"condition gate rejected prepared cell: {reasons}")
+        rejection = f"condition gate rejected prepared cell: {reasons}"
+        for record in (*supply_records, *meaning_records):
+            if record.terminal_status == "green":
+                continue
+            try:
+                # Reuse D1912's byte bound, quoting and truncation digest by
+                # rendering the detail as one diagnostic argument.
+                detail = condition_meaning_gate._bounded_process_argv_detail(
+                    [record.evidence.get("detail", "<detail unavailable>")],
+                )
+                rejection += (
+                    f"\n{record.macro}:{record.arm}:{record.reason_code}: "
+                    f"evidence.detail={detail}"
+                )
+            except Exception:
+                rejection += "\n<condition detail unavailable>"
+        raise DriverError(rejection)
     return tuple(supply_records), tuple(meaning_records)
 
 

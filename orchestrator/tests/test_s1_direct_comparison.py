@@ -13,6 +13,7 @@ import importlib.util
 import inspect
 import json
 import os
+import shlex
 import shutil
 import subprocess
 import sys
@@ -65,6 +66,148 @@ def test_prepare_cell_condition_family_uses_real_two_arm_api():
     assert "evaluate_define_runtime_meaning" in source
     assert "require_condition_gate_family" in source
     assert "declare_define_runtime_meaning" in source
+
+
+def _observe_real_condition_admission(monkeypatch):
+    observed = []
+    real_admission = condition_meaning_gate.require_condition_gate_family
+
+    def observe(supply, meaning, **kwargs):
+        admission = real_admission(supply, meaning, **kwargs)
+        records = (tuple(supply), tuple(meaning))
+        observed.append((records, admission, tuple(
+            record.canonical_json() for arm in records for record in arm
+        )))
+        return admission
+
+    monkeypatch.setattr(condition_meaning_gate, "require_condition_gate_family", observe)
+    return observed
+
+
+@pytest.mark.parametrize("source_note", ["first source", "changed volatile source"])
+def test_condition_rejection_preserves_every_real_red_detail(
+        tmp_path, monkeypatch, source_note):
+    """拒否は実 gate の両 red arm の理由と detail を本文へ運ぶ。
+    受理は下の正例で同一の発行 record と canonical bytes を返す。
+    """
+    source = tmp_path / "supplied"
+    shutil.copytree(TESTS / "fixtures/condition_meaning_gate/supplied", source)
+    owner = source / condition_meaning_gate.SOURCE_REL
+    owner.write_bytes(owner.read_bytes() + f"\n// {source_note}\n".encode())
+    observed = _observe_real_condition_admission(monkeypatch)
+
+    with pytest.raises(S.DriverError) as rejected:
+        _REAL_CONDITION_RECORDS_FOR_GENOME(
+            str(source), Genome("silo", {"BACKOFF_FIXED": 5}),
+            driver_id="test.s1.detail", use_class="certified-selection",
+            cxx=str(tmp_path / "absent-compiler"),
+        )
+
+    (records, admission, _raw), = observed
+    assert admission.admitted is False
+    rows = [record for arm in records for record in arm]
+    assert [(record.macro, record.arm, record.terminal_status, record.reason_code)
+            for record in rows] == [
+        ("BACKOFF_FIXED", "supply-effectuation", "red", "compiler-failed"),
+        ("BACKOFF_FIXED", "runtime-meaning", "red", "compiler-failed"),
+    ]
+    lines = str(rejected.value).splitlines()
+    assert len(lines) == 3
+    for record, line in zip(rows, lines[1:]):
+        assert type(record) is condition_meaning_gate.ConditionArmRecord
+        assert record.evidence["detail"] == "compiler cannot be resolved"
+        assert line == (
+            f"{record.macro}:{record.arm}:{record.reason_code}: "
+            "evidence.detail='compiler cannot be resolved'"
+        )
+
+
+@pytest.mark.parametrize("failure", [RuntimeError, KeyboardInterrupt, SystemExit, GeneratorExit])
+def test_condition_detail_formatter_failure_preserves_rejection(
+        tmp_path, monkeypatch, failure):
+    """拒否済み record の整形失敗は gate 拒否を置換せず、終了割込みは伝播する。
+    受理時には detail 整形を実行せず発行 record を返す。
+    """
+    observed = _observe_real_condition_admission(monkeypatch)
+    calls = []
+
+    def broken_detail(argv):
+        calls.append(argv)
+        raise failure("formatting failed")
+
+    monkeypatch.setattr(condition_meaning_gate, "_bounded_process_argv_detail", broken_detail)
+    expected = S.DriverError if failure is RuntimeError else failure
+    with pytest.raises(expected) as rejected:
+        _REAL_CONDITION_RECORDS_FOR_GENOME(
+            str(TESTS / "fixtures/condition_meaning_gate/supplied"),
+            Genome("silo", {"BACKOFF_FIXED": 5}), driver_id="test.s1.detail",
+            use_class="certified-selection", cxx=str(tmp_path / "absent-compiler"),
+        )
+    assert len(observed) == 1
+    assert observed[0][1].admitted is False
+    if failure is RuntimeError:
+        assert str(rejected.value) == (
+            "condition gate rejected prepared cell: "
+            "BACKOFF_FIXED:supply-effectuation:compiler-failed,"
+            "BACKOFF_FIXED:runtime-meaning:compiler-failed"
+            "\n<condition detail unavailable>\n<condition detail unavailable>"
+        )
+        assert len(calls) == 2
+    else:
+        assert len(calls) == 1
+
+
+def test_condition_long_real_process_detail_keeps_d1912_bound_and_digest(
+        tmp_path, monkeypatch):
+    """拒否は実 preprocess の長い detail を D1912 の上限と digest 付きで運ぶ。
+    受理は別の正例で同一の発行 record と canonical bytes を返す。
+    """
+    source = tmp_path / "supplied"
+    shutil.copytree(TESTS / "fixtures/condition_meaning_gate/supplied", source)
+    owner = source / condition_meaning_gate.SOURCE_REL
+    owner.write_bytes(owner.read_bytes() + b"\n#error " + b"detail-diagnostic-" * 80 + b"\n")
+    observed = _observe_real_condition_admission(monkeypatch)
+    with pytest.raises(S.DriverError) as rejected:
+        _REAL_CONDITION_RECORDS_FOR_GENOME(
+            str(source), Genome("silo", {"BACKOFF_FIXED": 5}),
+            driver_id="test.s1.detail", use_class="certified-selection", cxx=_any_cxx(),
+        )
+    (records, admission, _raw), = observed
+    assert admission.admitted is False
+    record = records[0][0]
+    assert type(record) is condition_meaning_gate.ConditionArmRecord
+    assert (record.terminal_status, record.reason_code) == ("red", "preprocess-failed")
+    detail = record.evidence["detail"]
+    assert "rc=" in detail and "stderr=" in detail and "argv=" in detail
+    encoded = shlex.join([detail]).encode("utf-8", errors="backslashreplace")
+    assert len(encoded) > 500
+    marker = (
+        "...<argv truncated; limit=500 bytes; "
+        f"original={len(encoded)} bytes; sha256={hashlib.sha256(encoded).hexdigest()}>"
+    ).encode("ascii")
+    expected = (encoded[:500 - len(marker)] + marker).decode("utf-8", errors="ignore")
+    assert f"evidence.detail={expected}" in str(rejected.value)
+    assert len(expected.encode("utf-8")) <= 500
+
+
+def test_condition_accepted_records_and_bytes_are_unchanged(monkeypatch):
+    """拒否は別の負例で実 gate の両 red record を検査する。
+    受理は実 admission が検査した record 自体と canonical bytes をそのまま返す。
+    """
+    observed = _observe_real_condition_admission(monkeypatch)
+    returned = _REAL_CONDITION_RECORDS_FOR_GENOME(
+        str(TESTS / "fixtures/condition_meaning_gate/supplied"),
+        Genome("silo", {"BACKOFF_FIXED": 5}), driver_id="test.s1.detail",
+        use_class="certified-selection", cxx=_any_cxx(),
+    )
+    (records, admission, raw), = observed
+    assert admission.admitted is True
+    assert tuple(record.canonical_json() for arm in returned for record in arm) == raw
+    assert all(actual is issued for actual_arm, issued_arm in zip(returned, records)
+               for actual, issued in zip(actual_arm, issued_arm))
+    assert [[record.terminal_status for record in arm] for arm in returned] == [
+        ["green"], ["green"],
+    ]
 
 
 def test_noinline_inert_meaning_record_comes_from_registry_factory():
