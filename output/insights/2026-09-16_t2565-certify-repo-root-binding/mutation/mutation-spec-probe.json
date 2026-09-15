@@ -1,0 +1,92 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 9000,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "MUT-T2565-M1-DROP-CD",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "  ( cd -- \"$REPO_ROOT\" && \"${qsub_cmd[@]}\" ) >\"$SUBMISSION_DIR/qsub.stdout\" 2>\"$SUBMISSION_DIR/qsub.stderr\"\n",
+          "new": "  \"${qsub_cmd[@]}\" >\"$SUBMISSION_DIR/qsub.stdout\" 2>\"$SUBMISSION_DIR/qsub.stderr\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T2565-M2-CD-TO-PWD",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "  ( cd -- \"$REPO_ROOT\" && \"${qsub_cmd[@]}\" ) >\"$SUBMISSION_DIR/qsub.stdout\" 2>\"$SUBMISSION_DIR/qsub.stderr\"\n",
+          "new": "  ( cd -- \"$PWD\" && \"${qsub_cmd[@]}\" ) >\"$SUBMISSION_DIR/qsub.stdout\" 2>\"$SUBMISSION_DIR/qsub.stderr\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T2565-M3-DROP-ABSOLUTIZE",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "if [[ \"$JOB_SCRIPT\" != /* ]]; then\n  # Keep directory-name newlines; remove only pwd's newline and the sentinel.\n  CALLER_CWD=$(pwd -P && printf '.')\n  CALLER_CWD=${CALLER_CWD%$'\\n.'}\n  JOB_SCRIPT=\"$CALLER_CWD/$JOB_SCRIPT\"\nfi\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T2565-M4-ABSOLUTIZE-AGAINST-REPO-ROOT",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "if [[ \"$JOB_SCRIPT\" != /* ]]; then\n  # Keep directory-name newlines; remove only pwd's newline and the sentinel.\n  CALLER_CWD=$(pwd -P && printf '.')\n  CALLER_CWD=${CALLER_CWD%$'\\n.'}\n  JOB_SCRIPT=\"$CALLER_CWD/$JOB_SCRIPT\"\nfi\n",
+          "new": "if [[ \"$JOB_SCRIPT\" != /* ]]; then\n  JOB_SCRIPT=\"$REPO_ROOT/$JOB_SCRIPT\"\nfi\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T2565-M5-REDIRECT-INSIDE-SUBSHELL",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "  ( cd -- \"$REPO_ROOT\" && \"${qsub_cmd[@]}\" ) >\"$SUBMISSION_DIR/qsub.stdout\" 2>\"$SUBMISSION_DIR/qsub.stderr\"\n",
+          "new": "  ( cd -- \"$REPO_ROOT\" && \"${qsub_cmd[@]}\" >\"$SUBMISSION_DIR/qsub.stdout\" 2>\"$SUBMISSION_DIR/qsub.stderr\" )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T2565-M6-DROP-SENTINEL",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "  CALLER_CWD=$(pwd -P && printf '.')\n",
+          "new": "  CALLER_CWD=$(pwd -P)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

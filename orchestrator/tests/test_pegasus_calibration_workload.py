@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import os
@@ -1489,15 +1490,7 @@ def test_submitter_rejects_unregistered_protocol_before_side_effects(
     assert not attempts.exists()
 
 
-def _run_submit_dry_run_in_clean_fixture(
-    tmp_path: Path,
-    *,
-    protocol: str | None = None,
-    rratio: str | None = None,
-    expected_returncode: int = 0,
-) -> tuple[
-    Path, Path, Path, list[str], subprocess.CompletedProcess[str],
-]:
+def _make_submit_clean_fixture(tmp_path: Path) -> Path:
     fixture_repo = tmp_path / "repo"
     fixture_tools = fixture_repo / "tools" / "pegasus"
     fixture_tools.parent.mkdir(parents=True)
@@ -1524,6 +1517,21 @@ def _run_submit_dry_run_in_clean_fixture(
     staging_root.mkdir(parents=True)
     for name in THIRD_PARTY_NAMES:
         (staging_root / name).mkdir()
+
+    return fixture_repo
+
+
+def _run_submit_dry_run_in_clean_fixture(
+    tmp_path: Path,
+    *,
+    protocol: str | None = None,
+    rratio: str | None = None,
+    expected_returncode: int = 0,
+) -> tuple[
+    Path, Path, Path, list[str], subprocess.CompletedProcess[str],
+]:
+    fixture_repo = _make_submit_clean_fixture(tmp_path)
+    fixture_tools = fixture_repo / "tools" / "pegasus"
 
     command = [
         "bash",
@@ -1698,6 +1706,204 @@ def test_submit_dry_run_keeps_scheduler_output_outside_the_repository(tmp_path: 
         assert fixture_repo not in output_path.parents
         assert output_path != git_common_repo
         assert git_common_repo not in output_path.parents
+
+
+def _run_submit_with_fake_qsub(
+    tmp_path: Path,
+    repo_root: Path,
+    caller: Path,
+    *,
+    attempts_root: Path | None = None,
+    job_script: Path | None = None,
+    qsub_rc: int = 0,
+    bash_quoted_display: bool = False,
+) -> tuple[subprocess.CompletedProcess[str], dict, Path]:
+    fake_bin = (tmp_path / "fake-bin").resolve()
+    fake_bin.mkdir()
+    observation_path = (tmp_path / "qsub-observation.json").resolve()
+    for name in ("qstat", "pegasusinfo", "rbudgetcheck", "check_quota"):
+        stub = fake_bin / name
+        stub.write_text("#!/bin/sh\nprintf 'preflight ok\\n'\n", encoding="utf-8")
+        stub.chmod(0o755)
+    qsub = fake_bin / "qsub"
+    qsub.write_text(
+        "#!/usr/bin/env python3\n"
+        "import hashlib, json, os, sys\n"
+        "from pathlib import Path\n"
+        "script = Path(sys.argv[-1]).read_bytes()\n"
+        "observation = {'cwd': os.getcwd(), 'argv': ['qsub', *sys.argv[1:]],\n"
+        "               'script_hex': script.hex(),\n"
+        "               'script_sha256': hashlib.sha256(script).hexdigest()}\n"
+        "Path(os.environ['QSUB_OBSERVATION']).write_text(json.dumps(observation))\n"
+        "rc = int(os.environ['QSUB_RC'])\n"
+        "if rc:\n"
+        "    print('fake qsub failure', file=sys.stderr)\n"
+        "else:\n"
+        "    print('Request 12345.server submitted')\n"
+        "sys.exit(rc)\n",
+        encoding="utf-8",
+    )
+    qsub.chmod(0o755)
+    command = [
+        "bash", str(repo_root / "tools/pegasus/submit_certify.sh"),
+        "--repo-root", str(repo_root),
+    ]
+    if attempts_root is not None:
+        command.extend(["--attempts-root", str(attempts_root)])
+    if job_script is not None:
+        command.extend(["--job-script", str(job_script)])
+    env = os.environ | {
+        "PATH": str(fake_bin) + os.pathsep + os.environ["PATH"],
+        "QSUB_OBSERVATION": str(observation_path),
+        "QSUB_RC": str(qsub_rc),
+    }
+    completed = subprocess.run(
+        command, cwd=caller, env=env, capture_output=True, text=True,
+        check=False, timeout=30,
+    )
+    assert completed.returncode == qsub_rc, completed.stdout + completed.stderr
+    observed = json.loads(observation_path.read_text(encoding="utf-8"))
+    if bash_quoted_display:
+        # shlex cannot decode Bash's ANSI-C quoting for newline-containing paths.
+        expected_display = subprocess.run(
+            ["bash", "-c", "printf 'qsub command:'; printf ' %q' \"$@\"",
+             "qsub-display", *observed["argv"]],
+            capture_output=True, text=True, check=True,
+        ).stdout
+        assert [
+            line for line in completed.stdout.splitlines()
+            if line.startswith("qsub command:")
+        ] == [expected_display]
+    else:
+        displayed = [
+            shlex.split(line.removeprefix("qsub command:"))
+            for line in completed.stdout.splitlines()
+            if line.startswith("qsub command:")
+        ]
+        assert displayed == [observed["argv"]]
+    attempts = attempts_root or repo_root / "output/env/pegasus/calibration/attempts"
+    if not attempts.is_absolute():
+        attempts = caller / attempts
+    submissions = list((attempts / "submissions").iterdir())
+    assert len(submissions) == 1
+    submission = submissions[0]
+    pre = json.loads((submission / "pre-submit.json").read_text(encoding="utf-8"))
+    assert pre["dry_run"] is False
+    assert pre["job_script_sha256"] == observed["script_sha256"]
+    assert (submission / "qsub.rc").read_text() == f"{qsub_rc}\n"
+    if qsub_rc == 0:
+        receipt = json.loads(
+            (submission / "submit-receipt.json").read_text(encoding="utf-8"),
+        )
+        assert receipt["qsub"]["request_id"] == "12345.server"
+        assert receipt["dry_run"] is False
+        assert receipt["job_script_sha256"] == observed["script_sha256"]
+        assert (submission / "qsub.stdout").read_text() == (
+            "Request 12345.server submitted\n"
+        )
+    return completed, observed, submission
+
+
+@pytest.mark.parametrize("outside_repo", [False, True], ids=["repo", "outside"])
+def test_submitter_runs_qsub_in_repo_root(tmp_path: Path, outside_repo: bool) -> None:
+    repo = _make_submit_clean_fixture(tmp_path)
+    caller = tmp_path / "caller" if outside_repo else repo
+    caller.mkdir(exist_ok=True)
+    _completed, observed, _submission = _run_submit_with_fake_qsub(
+        tmp_path, repo, caller,
+    )
+    assert observed["cwd"] == str(repo)
+    if outside_repo:
+        assert observed["cwd"] != str(caller)
+    script = repo / "tools/pegasus/certify_calibration.sh"
+    assert observed["argv"][-1] == str(script)
+    assert bytes.fromhex(observed["script_hex"]) == script.read_bytes()
+
+
+def test_submitter_keeps_relative_attempts_in_caller(tmp_path: Path) -> None:
+    repo = _make_submit_clean_fixture(tmp_path)
+    caller = tmp_path / "caller"
+    caller.mkdir()
+    attempts = Path("new attempts")
+    _completed, observed, submission = _run_submit_with_fake_qsub(
+        tmp_path, repo, caller, attempts_root=attempts,
+    )
+    assert observed["cwd"] == str(repo)
+    assert submission.parent == caller / attempts / "submissions"
+    assert not (repo / attempts).exists()
+    capture_names = ("qstat_Q", "pegasusinfo", "rbudgetcheck", "check_quota", "qsub")
+    assert {path.name for path in submission.iterdir()} == {
+        *(f"{name}.{suffix}" for name in capture_names
+          for suffix in ("stdout", "stderr", "rc")),
+        "pre-submit.json", "submit-receipt.json",
+    }
+    for name in capture_names:
+        assert (submission / f"{name}.rc").read_text() == "0\n"
+        assert (submission / f"{name}.stderr").read_text() == ""
+        assert (submission / f"{name}.stdout").read_text()
+
+
+@pytest.mark.parametrize(
+    "payload", [b"#!/bin/sh\necho caller\n", b"#!/bin/sh\necho changed\n"],
+    ids=["original", "changed"],
+)
+def test_submitter_keeps_relative_job_script_bytes_from_caller(
+    tmp_path: Path, payload: bytes,
+) -> None:
+    repo = _make_submit_clean_fixture(tmp_path)
+    caller = tmp_path / "caller"
+    (caller / "output").mkdir(parents=True)
+    relative_script = Path("output/custom script.sh")
+    (caller / relative_script).write_bytes(payload)
+    (repo / relative_script).write_bytes(b"#!/bin/sh\necho wrong-repo-script\n")
+    _completed, observed, _submission = _run_submit_with_fake_qsub(
+        tmp_path, repo, caller, job_script=relative_script,
+    )
+    assert observed["cwd"] == str(repo)
+    assert observed["argv"][-1] == str(caller / relative_script)
+    assert bytes.fromhex(observed["script_hex"]) == payload
+    assert observed["script_sha256"] == hashlib.sha256(payload).hexdigest()
+
+
+def test_submitter_keeps_relative_job_script_bytes_from_newline_caller(
+    tmp_path: Path,
+) -> None:
+    repo = _make_submit_clean_fixture(tmp_path)
+    caller = repo / "output" / "caller\n"
+    sibling = repo / "output" / "caller"
+    caller.mkdir()
+    sibling.mkdir()
+    relative_script = Path("custom.sh")
+    payload = b"#!/bin/sh\necho newline-caller\n"
+    wrong_payload = b"#!/bin/sh\necho wrong-sibling\n"
+    (caller / relative_script).write_bytes(payload)
+    (sibling / relative_script).write_bytes(wrong_payload)
+
+    _completed, observed, _submission = _run_submit_with_fake_qsub(
+        tmp_path, repo, caller, job_script=relative_script,
+        bash_quoted_display=True,
+    )
+
+    assert observed["cwd"] == str(repo)
+    assert observed["argv"][-1] == str(caller / relative_script)
+    assert bytes.fromhex(observed["script_hex"]) == payload
+    assert bytes.fromhex(observed["script_hex"]) != wrong_payload
+    assert observed["script_sha256"] == hashlib.sha256(payload).hexdigest()
+
+
+def test_submitter_preserves_qsub_failure_and_captures(tmp_path: Path) -> None:
+    repo = _make_submit_clean_fixture(tmp_path)
+    caller = tmp_path / "caller"
+    caller.mkdir()
+    completed, observed, submission = _run_submit_with_fake_qsub(
+        tmp_path, repo, caller, qsub_rc=7,
+    )
+    assert observed["cwd"] == str(repo)
+    assert completed.returncode == 7
+    assert "qsub failed" in completed.stderr
+    assert (submission / "qsub.stderr").read_text() == "fake qsub failure\n"
+    assert (submission / "qsub.stdout").read_text() == ""
+    assert not (submission / "submit-receipt.json").exists()
 
 
 def test_runbook_shows_ai_driven_h1_h2_submission_path() -> None:
