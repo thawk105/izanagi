@@ -1,0 +1,19 @@
+[
+  "env",
+  "PATH=/scr/0_998863.nqsv/bin:/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/condabin:/bin:/usr/bin:/usr/ucb:/snap/bin:/system/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin",
+  "/bin/python3.10",
+  "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2224-nonsilo-calibration/orchestrator/calibrate.py",
+  "--certify",
+  "--env-tag",
+  "pegasus",
+  "--threads",
+  "48",
+  "--workload",
+  "ycsb_zipf_skew=0.9,ycsb_rratio=95,ycsb_rmw=0",
+  "--binary",
+  "/scr/0_998863.nqsv/ccbench-build/cc/tictoc/ycsb_tictoc.exe",
+  "--binary-sha256",
+  "3aa47fc47c35e0f973203bd898b382b94af7f5ce898f5ab7540d3a42e0d3ab7c",
+  "--receipt-json",
+  "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2224-nonsilo-calibration/output/env/pegasus/calibration/job-staging/0:998863.nqsv/acquisition-receipt.json"
+]
