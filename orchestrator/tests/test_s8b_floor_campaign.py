@@ -9911,6 +9911,85 @@ def test_post_probe_runs_on_launch_error_and_competing_takes_precedence(tmp_path
         assert s["probe_after"] is not None  # 例外経路でも post-probe が走った
 
 
+def test_measure_campaign_abort_propagates_without_launch_failure(tmp_path):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    abort = s8b_floor_campaign.CampaignAbort("fixture measure abort")
+    measured_cells = []
+    probes_after_measure = 0
+
+    def measure_fn(binary, records, threads, workload):
+        measured_cells.append(_cell_id_from_binary(binary))
+        raise abort
+
+    def probe_fn():
+        nonlocal probes_after_measure
+        if measured_cells:
+            probes_after_measure += 1
+        return (1, "", "")
+
+    out_root = tmp_path / "out"
+    with pytest.raises(s8b_floor_campaign.CampaignAbort) as caught:
+        _run_campaign(
+            protocol, _verified_freeze(freeze), out_root=out_root,
+            build_root=tmp_path / "bin", measure_fn=measure_fn, probe_fn=probe_fn,
+        )
+
+    assert caught.value is abort
+    assert len(measured_cells) == 1
+    assert probes_after_measure == 0
+    run_dir = _only_run_dir(out_root)
+    journal = _read_journal_lines(run_dir / "journal.jsonl")
+    starts = [r for r in journal if r.get("event") == "session-start"]
+    assert len(starts) == 1
+    assert starts[0]["cell_id"] == measured_cells[0]
+    attempt_id = starts[0]["attempt_id"]
+    assert not any(
+        r.get("event") == "session" and r.get("attempt_id") == attempt_id
+        for r in journal
+    )
+    assert not any(
+        r.get("attempt_id") == attempt_id
+        and r.get("excluded_reason") == "launch_failure"
+        for r in journal
+    )
+    assert journal[-1]["event"] == "terminal"
+    assert journal[-1]["status"] == "aborted"
+    assert journal[-1]["reason"] == str(abort)
+    assert not (run_dir / "result.json").exists()
+
+
+def test_measure_runtime_error_records_launch_failure(tmp_path):
+    freeze = _freeze_document()
+    protocol = _protocol(freeze_sha=_freeze_sha(freeze))
+    launch_fail_cell = "rr79::system_gate"
+    measure_fn = _make_measure_fn(
+        reps=protocol["reps"], value_fn=lambda cid: _BASE_TPS[cid],
+        raise_for={launch_fail_cell},
+    )
+    out_root = tmp_path / "out"
+    _run_campaign(
+        protocol, _verified_freeze(freeze), out_root=out_root,
+        build_root=tmp_path / "bin", measure_fn=measure_fn,
+        probe_fn=lambda: (1, "", ""),
+    )
+    journal = _read_journal_lines(_only_run_dir(out_root) / "journal.jsonl")
+    rows = [r for r in journal
+            if r.get("event") == "session" and r.get("cell_id") == launch_fail_cell]
+    assert rows
+    assert all(r["excluded_reason"] == "launch_failure" for r in rows)
+    assert all(r["valid"] is False for r in rows)
+    assert all(r["session_median"] is None for r in rows)
+    assert all(r["probe_after"]["competing"] is False for r in rows)
+    assert all(r["exec_failures"] == protocol["reps"] for r in rows)
+    starts = {r["attempt_id"] for r in journal if r.get("event") == "session-start"}
+    assert all(r["attempt_id"] in starts for r in rows)
+    assert not any(
+        r.get("event") == "terminal" and r.get("status") == "aborted"
+        for r in journal
+    )
+
+
 @pytest.mark.parametrize("probe_fn, match", [
     # rc>1 (pgrep エラー)・rc==1+付随出力・rc==0+空・rc==1+stderr 非空 (BusyBox 罠) は
     # いずれも共有分類器が CompetingBenchProbeError を投げ、floor が CampaignAbort へ
