@@ -1,0 +1,76 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 9000,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "MUT-T2595-LEGACY-RECOVERY-OMIT",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "            if evidence.candidates:\n",
+          "new": "            if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_used_legacy_trigger_query_rejects_registry_recovery_candidates[valid-one]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_used_legacy_trigger_query_rejects_registry_recovery_candidates[corrupt-one]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_used_legacy_trigger_query_rejects_registry_recovery_candidates[valid-plus-corrupt]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T2595-LEGACY-RECOVERY-MULTIPLE-ONLY",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "            if evidence.candidates:\n",
+          "new": "            if len(evidence.candidates) > 1:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_used_legacy_trigger_query_rejects_registry_recovery_candidates[valid-one]",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_used_legacy_trigger_query_rejects_registry_recovery_candidates[corrupt-one]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T2595-LEGACY-RECOVERY-SINGLE-ONLY",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "            if evidence.candidates:\n",
+          "new": "            if len(evidence.candidates) == 1:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_used_legacy_trigger_query_rejects_registry_recovery_candidates[valid-plus-corrupt]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T2595-LEGACY-RECOVERY-EMPTY-REJECT",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_admission.py",
+          "old": "            if evidence.candidates:\n",
+          "new": "            if evidence.candidates is not None:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_missing_registry_preserves_existing_failed_session_retry",
+        "orchestrator/tests/test_s8b_holdout_admission.py::test_used_legacy_trigger_without_registry_authorizes_second_retry"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
