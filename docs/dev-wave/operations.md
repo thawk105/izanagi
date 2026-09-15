@@ -60,16 +60,16 @@ submodule の index lock を作れない sandbox 由来の偽赤と連鎖赤を�
 
 ## DW-O09 — 凍結 bytes の pin 閉包
 
-着手前に `git grep -n "<成果物パス>"` を使い、
-bytes を pin する台帳・test・trust root を全列挙する。
+着手前に `git grep -n "<成果物パス>"` で pin する台帳・test・trust root を全列挙。
 `FROZEN_MANIFEST`、generator source hash pin、key→canonical path 束縛、output 外の
-review ledger、全 field から同一性 hash を導く dataclass・schema も対象に含める。path 検索が見つけるのは path を key にする
-pin だけである。role 名や xdist group 名など path 以外を key に張る pin も key 側で検索し、
-path の hit 0 件を pin なしと結論しない（F30）。
-durable manifest が未発行か再発行要かを区別して brief の不変条件へ書く（F27/F30、D84）。
-統一系 wave では各出現を live copy / 独立 golden / 凍結 snapshot / 歴史記録へ分類してから
-scope を裁定する（F39）。
-**docs のみの wave でも成立する** — 判定をコードの有無で代用せず docs path も検索する（F78）。
+review ledger、全 field から同一性 hash を導く dataclass・schema を含む。path 検索は path key の
+pin しか出さない。role 名や xdist group 名など path 以外を key にする pin も key 側で検索し、
+hit 0 件を pin なしと結論しない（F30）。hit した test は中身まで読む — 行番号 pin は一覧に出ず、
+行の追加で後方がずれる。
+durable manifest の未発行/再発行要を区別し brief の不変条件へ書く（F27/F30、D84）。
+統一系 wave は各出現を live copy / 独立 golden / 凍結 snapshot / 歴史記録へ分類して
+scope を裁定（F39）。
+**docs のみの wave でも成立** — 判定をコードの有無で代用せず docs path も検索（F78）。
 
 ## DW-O10 — producer write-path
 
@@ -197,8 +197,8 @@ test file を足す走は file 集合列挙のメタテストも焦点走に含�
 所有するなら main 取込み済みの木で既存走行に相乗りし受入後に足さない。
 ## DW-O27 — acceptance は lease を待たない
 
-D662 により lease 待ち行列は廃止。`acceptance`は投入前 claim を 1 回だけ行い`held`でも待たず
-wave digest の疑似 holder で投入する。待つ経路は flag でも戻らない。
+D662 で lease 待ち行列は廃止。`acceptance`は投入前 claim を 1 回行い`held`でも待たず wave digest の
+疑似 holder で投入する。待つ経路は flag でも戻らない。
 `--lease-optional`と`--poll-seconds`は no-op。`stale-held`・`unavailable`は fail-closed。
 integrity 検査と receipt 全 field は未取得でも不変。`--lease-dir`は省略せず専用 dir で迂回しない。
 未取得が確定した走行は`release`しない。`--wave`は branch 名の末尾一致を要求 (codex の wave slug
