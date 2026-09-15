@@ -7642,6 +7642,23 @@ def test_failure_never_publishes_receipt(tmp_path, monkeypatch, capsys, failure)
     assert path.read_bytes() == before
 
 
+def test_git_config_change_falls_back(tmp_path, monkeypatch, capsys):
+    cold, _ = _receipt_cold(tmp_path, monkeypatch, capsys)
+    head = _git(tmp_path, "rev-parse", "HEAD")
+    warm = _receipt_run(monkeypatch, capsys)
+    assert warm[:2] == cold[:2]
+    assert warm[2:] == ([], [[]])
+
+    # This alias affects the legacy AI-Agent parser, as its existing test fixes.
+    _git(tmp_path, "config", "--local", "trailer.agent.key", "AI-Agent:")
+    assert provenance._ai_agent_values("change\n\nAgent: none\n") == ["none"]
+    assert _git(tmp_path, "rev-parse", "HEAD") == head
+    actual = _receipt_run(monkeypatch, capsys)
+    assert actual[:2] == cold[:2]
+    assert set(actual[2]) == set(cold[2])
+    assert len(actual[3]) == 1 and set(actual[3][0]) == set(cold[2])
+
+
 def test_environment_fingerprint_change_falls_back(tmp_path, monkeypatch, capsys):
     cold, _ = _receipt_cold(tmp_path, monkeypatch, capsys)
     monkeypatch.setenv("LC_MESSAGES", "C")
