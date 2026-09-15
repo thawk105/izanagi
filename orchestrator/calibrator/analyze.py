@@ -39,8 +39,11 @@ def find_saturation(points: List[ScalePoint],
     第二基準 = **下限** (decisions D15): masstree 系 workload では miss 率が木の
     深化で単調上昇し飽和しないことがある。その場合に上限 (=最も遅い run) を採るのは
     絶対規律4 と逆。代わりに l3_bytes が与えられていれば「working set (maxrss) が
-    L3 を l3_multiple 倍超える最小 N」= 多コア cache 競合が確実に再現される最小点を
+    L3 の l3_multiple 倍以上になる最小 N」を候補として
     採る。l3_bytes が無ければ従来通り最大点を暫定返し (スイープ延長を促す)。
+
+    両基準とも既存候補内で miss 率が cache_floor 以上の最小 N を優先する。
+    適合候補が無ければ従来の最小候補と警告を保持する。
     """
     usable = [p for p in points if p.miss_rate is not None]
     res = SaturationResult(records=0, saturated=False, threshold=threshold,
@@ -78,6 +81,7 @@ def find_saturation(points: List[ScalePoint],
     # してしまう)。よって i は range(n-1) まで。
     n = len(usable)
     chosen: Optional[int] = None
+    original: Optional[int] = None
     for i in range(n - 1):
         flat = True
         for j in range(i + 1, n):
@@ -85,8 +89,14 @@ def find_saturation(points: List[ScalePoint],
                 flat = False
                 break
         if flat:
-            chosen = i
-            break
+            if original is None:
+                original = i
+            if usable[i].miss_rate >= cache_floor:
+                chosen = i
+                break
+
+    if chosen is None:
+        chosen = original
 
     if chosen is None:
         # 末尾まで平らにならなかった = 範囲内で飽和せず (単調上昇 workload)。
@@ -94,6 +104,12 @@ def find_saturation(points: List[ScalePoint],
         return _lower_bound(res, usable, l3_bytes, l3_multiple, cache_floor)
 
     p = usable[chosen]
+    if chosen != original:
+        old = usable[original]
+        res.notes.append(
+            f"cache_floor 下限 {cache_floor*100:.2f}% を満たす最小 N を同じ飽和候補から選択: "
+            f"N={old.records:,} (LLC miss {old.miss_rate*100:.3f}%) → "
+            f"N={p.records:,} (LLC miss {p.miss_rate*100:.3f}%)。")
     res.records = p.records
     res.saturated = True
     res.miss_rate_at = p.miss_rate
@@ -121,9 +137,9 @@ def _lower_bound(res: SaturationResult, usable: List[ScalePoint],
                  cache_floor: float) -> SaturationResult:
     """飽和点が無い (単調上昇) ときの下限基準 (decisions D15)。
 
-    working set (= 実測 maxrss) が L3 を l3_multiple 倍超える最小の N を採る。
-    そこは「many-core cache 競合が確実に再現される」最小点であり、それ以上は
-    miss 率を微増させるだけで run を遅くする (規律4)。l3_bytes / maxrss が無ければ
+    working set (= 実測 maxrss) が L3 の l3_multiple 倍以上の候補から、
+    miss 率も cache_floor 以上の最小 N を採る。適合候補が無ければ従来の
+    RSS 条件だけで最小の候補を保持する。l3_bytes / maxrss が無ければ
     判定できないので従来通り最大点を暫定返しし、スイープ延長を促す。
     """
     largest = usable[-1]
@@ -143,12 +159,19 @@ def _lower_bound(res: SaturationResult, usable: List[ScalePoint],
         return res
 
     need = l3_multiple * l3_bytes
-    # working set (maxrss) が need を超える最小 N。
+    # RSS 候補の最小 N を退避し、miss 率下限も満たす最小 N を探す。
     chosen = None
+    original = None
     for p in usable:
         if p.maxrss_kb is not None and p.maxrss_kb * 1024 >= need:
-            chosen = p
-            break
+            if original is None:
+                original = p
+            if p.miss_rate >= cache_floor:
+                chosen = p
+                break
+
+    if chosen is None:
+        chosen = original
 
     if chosen is None:
         # 最大点でも L3×K に届かない = もっと大きい N が要る (稀)。
@@ -168,12 +191,20 @@ def _lower_bound(res: SaturationResult, usable: List[ScalePoint],
     res.lower_bound_selected = True
     res.miss_rate_at = chosen.miss_rate
     res.working_set_ratio = (chosen.maxrss_kb * 1024) / l3_bytes
+    if chosen is not original:
+        res.notes.append(
+            f"cache_floor 下限 {cache_floor*100:.2f}% を満たす最小 N を同じ下限基準候補から選択: "
+            f"N={original.records:,} (LLC miss {original.miss_rate*100:.3f}%) → "
+            f"N={chosen.records:,} (LLC miss {chosen.miss_rate*100:.3f}%)。")
+    selection = (
+        f"かつ LLC miss 率 ≥ {cache_floor*100:.2f}% を満たす最小 N={chosen.records:,} を採用。"
+        if chosen.miss_rate >= cache_floor else
+        f"の最小 N={chosen.records:,} を保持 (miss 率下限を満たす候補なし)。")
     res.notes.append(
-        "miss 率が単調上昇で飽和点なし (masstree 系の木深化, D15)。下限基準を適用: "
+        "測定範囲内で飽和点なし。下限基準を適用: "
         f"working set (maxrss {chosen.maxrss_kb/1024:.0f} MB) が L3 "
         f"({l3_bytes/1024/1024:.0f} MB) の {res.working_set_ratio:.1f} 倍 "
-        f"(≥{l3_multiple:g}×) になる最小 N={chosen.records:,} を採用。"
-        "many-core cache 競合は再現され、かつ run コスト最小")
+        f"(≥{l3_multiple:g}×) " + selection)
     _flag_cache_floor(res, chosen.miss_rate, cache_floor)
     return res
 

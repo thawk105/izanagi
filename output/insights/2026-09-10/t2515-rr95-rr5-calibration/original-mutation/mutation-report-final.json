@@ -1,0 +1,731 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/5ad541745ff30710f929aa00caa56fc6/izdw-5ad541745f.o988982",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/5ad541745ff30710f929aa00caa56fc6/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 65%]\n......................................                                   [100%]\n110 passed in 4.93s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "9b52e2b96eada2206cf2a111a53092718ee1befb0dcb16a38b65d34f46b264fc"
+    },
+    "artifact_error": null,
+    "collection_sha256": "179710a82e0934d3f0d34a80ab9c827bc762070fbffbe6e95bf8921f4cb925ff",
+    "duration_s": 32.239,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "7fd45ac2f1716d6519fcf8b35f62b9578de1df271b53def769da8d96d5bd0d67",
+    "repo_head": "18704ae18212d08e25df439316de5bcbf903f4c5",
+    "runner_sha256": "b031fb6c9d1438f5ca12b1c00dafa5a287643ff6e223b86e0cbc0204a227fcef",
+    "spec_sha256": "dd2424b9f84f758d9cff422daa8d243bcd909c73063c011d27812f0639311bca",
+    "status": "PASSED",
+    "test_output_sha256": "9b52e2b96eada2206cf2a111a53092718ee1befb0dcb16a38b65d34f46b264fc",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "9b642865324c49dc8725672d70df70bd2a4a030fad9cbb79a273660ed2b48aa0"
+  },
+  "date": "2026-09-09T16:31:20.240399+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/3c4b5f9380903be6cf1eae8eded2a6d2/izdw-3c4b5f9380.o988985",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/3c4b5f9380903be6cf1eae8eded2a6d2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................................................F.F......... [ 65%]\n............F.........................                                   [100%]\n=================================== FAILURES ===================================\n____________ test_submitter_exposes_only_the_calibration_whitelist _____________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_submitter_exposes_only_the_calibration_whitelist() -> None:\n        source = SUBMIT.read_text(encoding=\"utf-8\")\n    \n        assert \"[--job-script PATH] [--rratio 5|20|50|80|95]\" in source\n        assert \"[--protocol silo|mocc|tictoc]\" in source\n        assert 'RRATIO=50' in source\n        assert 'PROTOCOL=silo' in source\n        assert 'PROTOCOL_EXPLICIT=0' in source\n        assert 'RRATIO\" != \"5\"' in source\n        assert 'RRATIO\" != \"20\"' in source\n        assert 'RRATIO\" != \"50\"' in source\n        assert 'RRATIO\" != \"80\"' in source\n>       assert 'RRATIO\" != \"95\"' in source\nE       assert 'RRATIO\" != \"95\"' in '#!/bin/bash\\n# ログインノード専用: clean source と投入前 snapshot を固定して certification job を投入する。\\nset -Eeuo pipefail\\n\\nusage() {\\...andle.write(\"\\\\n\")\\nPY\\n\\necho \"submit receipt: $SUBMISSION_DIR/submit-receipt.json\"\\necho \"request ID: $REQUEST_ID\"\\n'\n\norchestrator/tests/test_pegasus_calibration_workload.py:58: AssertionError\n___________ test_job_rechecks_the_submission_workload_and_records_it ___________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_job_rechecks_the_submissi0')\n\n    def test_job_rechecks_the_submission_workload_and_records_it(tmp_path: Path) -> None:\n        source = JOB.read_text(encoding=\"utf-8\")\n        expected_rratios = [\"5\", \"20\", \"50\", \"80\", \"95\"]\n    \n        submit_rratios = _rratio_gate_values(\n            SUBMIT.read_text(encoding=\"utf-8\"), \"RRATIO\",\n        )\n        job_rratios = _rratio_gate_values(source, \"IZANAGI_CALIBRATION_RRATIO\")\n>       assert submit_rratios == expected_rratios\nE       AssertionError: assert ['5', '20', '50', '80'] == ['5', '20', '50', '80', '95']\nE         \nE         Right contains one more item: '95'\nE         Use -v to get more diff\n\norchestrator/tests/test_pegasus_calibration_workload.py:86: AssertionError\n_________ test_submit_dry_run_passes_scheduler_file_paths_to_qsub[95] __________\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_submit_dry_run_passes_sch0')\nrratio = '95'\n\n    @pytest.mark.parametrize(\"rratio\", [\"5\", \"20\", \"50\", \"80\", \"95\"])\n    def test_submit_dry_run_passes_scheduler_file_paths_to_qsub(\n        tmp_path: Path, rratio: str,\n    ) -> None:\n        _fixture_repo, _git_common_repo, expected_root, qsub_argv = (\n>           _run_submit_dry_run_in_clean_fixture(tmp_path, rratio=rratio)\n        )\n\norchestrator/tests/test_pegasus_calibration_workload.py:757: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_submit_dry_run_passes_sch0')\nprotocol = None, rratio = '95'\n\n    def _run_submit_dry_run_in_clean_fixture(\n        tmp_path: Path,\n        *,\n        protocol: str | None = None,\n        rratio: str | None = None,\n    ) -> tuple[Path, Path, Path, list[str]]:\n        fixture_repo = tmp_path / \"repo\"\n        fixture_tools = fixture_repo / \"tools\" / \"pegasus\"\n        fixture_tools.parent.mkdir(parents=True)\n        shutil.copytree(\n            ROOT / \"tools\" / \"pegasus\",\n            fixture_tools,\n            ignore=shutil.ignore_patterns(\"__pycache__\"),\n        )\n        subprocess.run([\"git\", \"init\", \"-q\", str(fixture_repo)], check=True)\n        subprocess.run(\n            [\"git\", \"-C\", str(fixture_repo), \"config\", \"user.email\", \"fixture@example.invalid\"],\n            check=True,\n        )\n        subprocess.run(\n            [\"git\", \"-C\", str(fixture_repo), \"config\", \"user.name\", \"Fixture\"],\n            check=True,\n        )\n        subprocess.run([\"git\", \"-C\", str(fixture_repo), \"add\", \".\"], check=True)\n        subprocess.run(\n            [\"git\", \"-C\", str(fixture_repo), \"commit\", \"-qm\", \"fixture\"],\n            check=True,\n        )\n    \n        command = [\n            \"bash\",\n            str(fixture_tools / \"submit_certify.sh\"),\n            \"--repo-root\",\n            str(fixture_repo),\n            \"--attempts-root\",\n            str(tmp_path / \"attempts\"),\n            \"--dry-run\",\n        ]\n        if protocol is not None:\n            command.extend([\"--protocol\", protocol])\n        if rratio is not None:\n            command.extend([\"--rratio\", rratio])\n        completed = subprocess.run(\n            command,\n            capture_output=True,\n            text=True,\n            check=False,\n        )\n>       assert completed.returncode == 0, completed.stderr\nE       AssertionError: --rratio must be exactly 5, 20, 50, 80, or 95\nE         \nE       assert 2 == 0\nE        +  where 2 = CompletedProcess(args=['bash', '/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_submit_dry_run_passes_sch0/repo/tools/pe...ts', '--dry-run', '--rratio', '95'], returncode=2, stdout='', stderr='--rratio must be exactly 5, 20, 50, 80, or 95\\n').returncode\n\norchestrator/tests/test_pegasus_calibration_workload.py:670: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[95]\n3 failed, 107 passed in 4.48s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[95]\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=2954 retained_bytes=2954 omitted_bytes=0 rendered_excerpt_bytes=3106 sha256=efa178b90d764791afddcf6008d645730f58d2b91da75c3480d8cda346deda30\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw46] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_submit_dry_run_passes_sch0')\n> rratio = '95'\n> \n>     @pytest.mark.parametrize(\"rratio\", [\"5\", \"20\", \"50\", \"80\", \"95\"])\n>     def test_submit_dry_run_passes_scheduler_file_paths_to_qsub(\n>         tmp_path: Path, rratio: str,\n>     ) -> None:\n>         _fixture_repo, _git_common_repo, expected_root, qsub_argv = (\n> >           _run_submit_dry_run_in_clean_fixture(tmp_path, rratio=rratio)\n>         )\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:757: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_submit_dry_run_passes_sch0')\n> protocol = None, rratio = '95'\n> \n>     def _run_submit_dry_run_in_clean_fixture(\n>         tmp_path: Path,\n>         *,\n>         protocol: str | None = None,\n>         rratio: str | None = None,\n>     ) -> tuple[Path, Path, Path, list[str]]:\n>         fixture_repo = tmp_path / \"repo\"\n>         fixture_tools = fixture_repo / \"tools\" / \"pegasus\"\n>         fixture_tools.parent.mkdir(parents=True)\n>         shutil.copytree(\n>             ROOT / \"tools\" / \"pegasus\",\n>             fixture_tools,\n>             ignore=shutil.ignore_patterns(\"__pycache__\"),\n>         )\n>         subprocess.run([\"git\", \"init\", \"-q\", str(fixture_repo)], check=True)\n>         subprocess.run(\n>             [\"git\", \"-C\", str(fixture_repo), \"config\", \"user.email\", \"fixture@example.invalid\"],\n>             check=True,\n>         )\n>         subprocess.run(\n>             [\"git\", \"-C\", str(fixture_repo), \"config\", \"user.name\", \"Fixture\"],\n>             check=True,\n>         )\n>         subprocess.run([\"git\", \"-C\", str(fixture_repo), \"add\", \".\"], check=True)\n>         subprocess.run(\n>             [\"git\", \"-C\", str(fixture_repo), \"commit\", \"-qm\", \"fixture\"],\n>             check=True,\n>         )\n>     \n>         command = [\n>             \"bash\",\n>             str(fixture_tools / \"submit_certify.sh\"),\n>             \"--repo-root\",\n>             str(fixture_repo),\n>             \"--attempts-root\",\n>             str(tmp_path / \"attempts\"),\n>             \"--dry-run\",\n>         ]\n>         if protocol is not None:\n>             command.extend([\"--protocol\", protocol])\n>         if rratio is not None:\n>             command.extend([\"--rratio\", rratio])\n>         completed = subprocess.run(\n>             command,\n>             capture_output=True,\n>             text=True,\n>             check=False,\n>         )\n> >       assert completed.returncode == 0, completed.stderr\n> E       AssertionError: --rratio must be exactly 5, 20, 50, 80, or 95\n> E         \n> E       assert 2 == 0\n> E        +  where 2 = CompletedProcess(args=['bash', '/tmp/pytest-of-tanab/pytest-0/popen-gw46/test_submit_dry_run_passes_sch0/repo/tools/pe...ts', '--dry-run', '--rratio', '95'], returncode=2, stdout='', stderr='--rratio must be exactly 5, 20, 50, 80, or 95\\x5cn').returncode\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:670: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=1046 retained_bytes=1046 omitted_bytes=0 rendered_excerpt_bytes=1191 sha256=7447fb5adfab6e5d4e506d4bc639df4911c288dcbabd8e998f95e0fef04bf9ff\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_submitter_exposes_only_the_calibration_whitelist() -> None:\n>         source = SUBMIT.read_text(encoding=\"utf-8\")\n>     \n>         assert \"[--job-script PATH] [--rratio 5|20|50|80|95]\" in source\n>         assert \"[--protocol silo|mocc|tictoc]\" in source\n>         assert 'RRATIO=50' in source\n>         assert 'PROTOCOL=silo' in source\n>         assert 'PROTOCOL_EXPLICIT=0' in source\n>         assert 'RRATIO\" != \"5\"' in source\n>         assert 'RRATIO\" != \"20\"' in source\n>         assert 'RRATIO\" != \"50\"' in source\n>         assert 'RRATIO\" != \"80\"' in source\n> >       assert 'RRATIO\" != \"95\"' in source\n> E       assert 'RRATIO\" != \"95\"' in '#!/bin/bash\\x5cn# \\u30ed\\u30b0\\u30a4\\u30f3\\u30ce\\u30fc\\u30c9\\u5c02\\u7528: clean source \\u3068\\u6295\\u5165\\u524d snapshot \\u3092\\u56fa\\u5b9a\\u3057\\u3066 certification job \\u3092\\u6295\\u5165\\u3059\\u308b\\u3002\\x5cnset -Eeuo pipefail\\x5cn\\x5cnusage() {\\x5c...andle.write(\"\\x5c\\x5cn\")\\x5cnPY\\x5cn\\x5cnecho \"submit receipt: $SUBMISSION_DIR/submit-receipt.json\"\\x5cnecho \"request ID: $REQUEST_ID\"\\x5cn'\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:58: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=844 retained_bytes=844 omitted_bytes=0 rendered_excerpt_bytes=883 sha256=fd202a757cd897c88e5c379ff41a3044f6d34f3c99651c11d28a6b8522eb5e2d\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_job_rechecks_the_submissi0')\n> \n>     def test_job_rechecks_the_submission_workload_and_records_it(tmp_path: Path) -> None:\n>         source = JOB.read_text(encoding=\"utf-8\")\n>         expected_rratios = [\"5\", \"20\", \"50\", \"80\", \"95\"]\n>     \n>         submit_rratios = _rratio_gate_values(\n>             SUBMIT.read_text(encoding=\"utf-8\"), \"RRATIO\",\n>         )\n>         job_rratios = _rratio_gate_values(source, \"IZANAGI_CALIBRATION_RRATIO\")\n> >       assert submit_rratios == expected_rratios\n> E       AssertionError: assert ['5', '20', '50', '80'] == ['5', '20', '50', '80', '95']\n> E         \n> E         Right contains one more item: '95'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:86: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=4844 retained_bytes=4844 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6826 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a97400ad5926821ec460216d07702c62803f2ba0fab805f3393c2ae084276559"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "179710a82e0934d3f0d34a80ab9c827bc762070fbffbe6e95bf8921f4cb925ff",
+      "duration_s": 27.868,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[95]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[95]"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2515-M1-SUBMIT-DROP-95",
+      "injection_diff_sha256": "91d877cd91281ee8d10fbc9a3781ead754fdc1a6dbd5be81ec039c0fb114cffb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0d3a1ea4f48ec902fc2c42dbb14b2ba7e4af1afde240f20d8bb2feb49e768ffc",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "new": "      && \"$RRATIO\" != \"80\" ]]; then\n",
+          "old": "      && \"$RRATIO\" != \"80\" && \"$RRATIO\" != \"95\" ]]; then\n"
+        }
+      ],
+      "repo_head": "18704ae18212d08e25df439316de5bcbf903f4c5",
+      "runner_sha256": "b031fb6c9d1438f5ca12b1c00dafa5a287643ff6e223b86e0cbc0204a227fcef",
+      "spec_sha256": "dd2424b9f84f758d9cff422daa8d243bcd909c73063c011d27812f0639311bca",
+      "status": "KILLED",
+      "test_output_sha256": "a97400ad5926821ec460216d07702c62803f2ba0fab805f3393c2ae084276559",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9b642865324c49dc8725672d70df70bd2a4a030fad9cbb79a273660ed2b48aa0"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/76f6d1f415677973fea22afc30b0b949/izdw-76f6d1f415.o988992",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/76f6d1f415677973fea22afc30b0b949/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n......................................................................F. [ 65%]\nF............F........................                                   [100%]\n=================================== FAILURES ===================================\n___________ test_job_rechecks_the_submission_workload_and_records_it ___________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_job_rechecks_the_submissi0')\n\n    def test_job_rechecks_the_submission_workload_and_records_it(tmp_path: Path) -> None:\n        source = JOB.read_text(encoding=\"utf-8\")\n        expected_rratios = [\"5\", \"20\", \"50\", \"80\", \"95\"]\n    \n        submit_rratios = _rratio_gate_values(\n            SUBMIT.read_text(encoding=\"utf-8\"), \"RRATIO\",\n        )\n        job_rratios = _rratio_gate_values(source, \"IZANAGI_CALIBRATION_RRATIO\")\n>       assert submit_rratios == expected_rratios\nE       AssertionError: assert ['20', '50', '80', '95'] == ['5', '20', '50', '80', '95']\nE         \nE         At index 0 diff: '20' != '5'\nE         Right contains one more item: '95'\nE         Use -v to get more diff\n\norchestrator/tests/test_pegasus_calibration_workload.py:86: AssertionError\n____________ test_submitter_exposes_only_the_calibration_whitelist _____________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_submitter_exposes_only_the_calibration_whitelist() -> None:\n        source = SUBMIT.read_text(encoding=\"utf-8\")\n    \n        assert \"[--job-script PATH] [--rratio 5|20|50|80|95]\" in source\n        assert \"[--protocol silo|mocc|tictoc]\" in source\n        assert 'RRATIO=50' in source\n        assert 'PROTOCOL=silo' in source\n        assert 'PROTOCOL_EXPLICIT=0' in source\n>       assert 'RRATIO\" != \"5\"' in source\nE       assert 'RRATIO\" != \"5\"' in '#!/bin/bash\\n# ログインノード専用: clean source と投入前 snapshot を固定して certification job を投入する。\\nset -Eeuo pipefail\\n\\nusage() {\\...andle.write(\"\\\\n\")\\nPY\\n\\necho \"submit receipt: $SUBMISSION_DIR/submit-receipt.json\"\\necho \"request ID: $REQUEST_ID\"\\n'\n\norchestrator/tests/test_pegasus_calibration_workload.py:54: AssertionError\n__________ test_submit_dry_run_passes_scheduler_file_paths_to_qsub[5] __________\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_submit_dry_run_passes_sch0')\nrratio = '5'\n\n    @pytest.mark.parametrize(\"rratio\", [\"5\", \"20\", \"50\", \"80\", \"95\"])\n    def test_submit_dry_run_passes_scheduler_file_paths_to_qsub(\n        tmp_path: Path, rratio: str,\n    ) -> None:\n        _fixture_repo, _git_common_repo, expected_root, qsub_argv = (\n>           _run_submit_dry_run_in_clean_fixture(tmp_path, rratio=rratio)\n        )\n\norchestrator/tests/test_pegasus_calibration_workload.py:757: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_submit_dry_run_passes_sch0')\nprotocol = None, rratio = '5'\n\n    def _run_submit_dry_run_in_clean_fixture(\n        tmp_path: Path,\n        *,\n        protocol: str | None = None,\n        rratio: str | None = None,\n    ) -> tuple[Path, Path, Path, list[str]]:\n        fixture_repo = tmp_path / \"repo\"\n        fixture_tools = fixture_repo / \"tools\" / \"pegasus\"\n        fixture_tools.parent.mkdir(parents=True)\n        shutil.copytree(\n            ROOT / \"tools\" / \"pegasus\",\n            fixture_tools,\n            ignore=shutil.ignore_patterns(\"__pycache__\"),\n        )\n        subprocess.run([\"git\", \"init\", \"-q\", str(fixture_repo)], check=True)\n        subprocess.run(\n            [\"git\", \"-C\", str(fixture_repo), \"config\", \"user.email\", \"fixture@example.invalid\"],\n            check=True,\n        )\n        subprocess.run(\n            [\"git\", \"-C\", str(fixture_repo), \"config\", \"user.name\", \"Fixture\"],\n            check=True,\n        )\n        subprocess.run([\"git\", \"-C\", str(fixture_repo), \"add\", \".\"], check=True)\n        subprocess.run(\n            [\"git\", \"-C\", str(fixture_repo), \"commit\", \"-qm\", \"fixture\"],\n            check=True,\n        )\n    \n        command = [\n            \"bash\",\n            str(fixture_tools / \"submit_certify.sh\"),\n            \"--repo-root\",\n            str(fixture_repo),\n            \"--attempts-root\",\n            str(tmp_path / \"attempts\"),\n            \"--dry-run\",\n        ]\n        if protocol is not None:\n            command.extend([\"--protocol\", protocol])\n        if rratio is not None:\n            command.extend([\"--rratio\", rratio])\n        completed = subprocess.run(\n            command,\n            capture_output=True,\n            text=True,\n            check=False,\n        )\n>       assert completed.returncode == 0, completed.stderr\nE       AssertionError: --rratio must be exactly 5, 20, 50, 80, or 95\nE         \nE       assert 2 == 0\nE        +  where 2 = CompletedProcess(args=['bash', '/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_submit_dry_run_passes_sch0/repo/tools/pe...pts', '--dry-run', '--rratio', '5'], returncode=2, stdout='', stderr='--rratio must be exactly 5, 20, 50, 80, or 95\\n').returncode\n\norchestrator/tests/test_pegasus_calibration_workload.py:670: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[5]\n3 failed, 107 passed in 4.38s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[5]\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=2952 retained_bytes=2952 omitted_bytes=0 rendered_excerpt_bytes=3104 sha256=2d6be7679750bcf1428d640bc2a21e3e22714e95872ee28f0406008954697360\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_submit_dry_run_passes_sch0')\n> rratio = '5'\n> \n>     @pytest.mark.parametrize(\"rratio\", [\"5\", \"20\", \"50\", \"80\", \"95\"])\n>     def test_submit_dry_run_passes_scheduler_file_paths_to_qsub(\n>         tmp_path: Path, rratio: str,\n>     ) -> None:\n>         _fixture_repo, _git_common_repo, expected_root, qsub_argv = (\n> >           _run_submit_dry_run_in_clean_fixture(tmp_path, rratio=rratio)\n>         )\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:757: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_submit_dry_run_passes_sch0')\n> protocol = None, rratio = '5'\n> \n>     def _run_submit_dry_run_in_clean_fixture(\n>         tmp_path: Path,\n>         *,\n>         protocol: str | None = None,\n>         rratio: str | None = None,\n>     ) -> tuple[Path, Path, Path, list[str]]:\n>         fixture_repo = tmp_path / \"repo\"\n>         fixture_tools = fixture_repo / \"tools\" / \"pegasus\"\n>         fixture_tools.parent.mkdir(parents=True)\n>         shutil.copytree(\n>             ROOT / \"tools\" / \"pegasus\",\n>             fixture_tools,\n>             ignore=shutil.ignore_patterns(\"__pycache__\"),\n>         )\n>         subprocess.run([\"git\", \"init\", \"-q\", str(fixture_repo)], check=True)\n>         subprocess.run(\n>             [\"git\", \"-C\", str(fixture_repo), \"config\", \"user.email\", \"fixture@example.invalid\"],\n>             check=True,\n>         )\n>         subprocess.run(\n>             [\"git\", \"-C\", str(fixture_repo), \"config\", \"user.name\", \"Fixture\"],\n>             check=True,\n>         )\n>         subprocess.run([\"git\", \"-C\", str(fixture_repo), \"add\", \".\"], check=True)\n>         subprocess.run(\n>             [\"git\", \"-C\", str(fixture_repo), \"commit\", \"-qm\", \"fixture\"],\n>             check=True,\n>         )\n>     \n>         command = [\n>             \"bash\",\n>             str(fixture_tools / \"submit_certify.sh\"),\n>             \"--repo-root\",\n>             str(fixture_repo),\n>             \"--attempts-root\",\n>             str(tmp_path / \"attempts\"),\n>             \"--dry-run\",\n>         ]\n>         if protocol is not None:\n>             command.extend([\"--protocol\", protocol])\n>         if rratio is not None:\n>             command.extend([\"--rratio\", rratio])\n>         completed = subprocess.run(\n>             command,\n>             capture_output=True,\n>             text=True,\n>             check=False,\n>         )\n> >       assert completed.returncode == 0, completed.stderr\n> E       AssertionError: --rratio must be exactly 5, 20, 50, 80, or 95\n> E         \n> E       assert 2 == 0\n> E        +  where 2 = CompletedProcess(args=['bash', '/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_submit_dry_run_passes_sch0/repo/tools/pe...pts', '--dry-run', '--rratio', '5'], returncode=2, stdout='', stderr='--rratio must be exactly 5, 20, 50, 80, or 95\\x5cn').returncode\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:670: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=884 retained_bytes=884 omitted_bytes=0 rendered_excerpt_bytes=925 sha256=4022da1fa24cdbbadac7fdda36f77e9d3e5b0282c68d77ca842421fbc88531a4\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_job_rechecks_the_submissi0')\n> \n>     def test_job_rechecks_the_submission_workload_and_records_it(tmp_path: Path) -> None:\n>         source = JOB.read_text(encoding=\"utf-8\")\n>         expected_rratios = [\"5\", \"20\", \"50\", \"80\", \"95\"]\n>     \n>         submit_rratios = _rratio_gate_values(\n>             SUBMIT.read_text(encoding=\"utf-8\"), \"RRATIO\",\n>         )\n>         job_rratios = _rratio_gate_values(source, \"IZANAGI_CALIBRATION_RRATIO\")\n> >       assert submit_rratios == expected_rratios\n> E       AssertionError: assert ['20', '50', '80', '95'] == ['5', '20', '50', '80', '95']\n> E         \n> E         At index 0 diff: '20' != '5'\n> E         Right contains one more item: '95'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:86: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=873 retained_bytes=873 omitted_bytes=0 rendered_excerpt_bytes=1010 sha256=2b73ff80f1c70bdca80ebf78fc11d739996821008a9faf169b93998d84d3003c\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_submitter_exposes_only_the_calibration_whitelist() -> None:\n>         source = SUBMIT.read_text(encoding=\"utf-8\")\n>     \n>         assert \"[--job-script PATH] [--rratio 5|20|50|80|95]\" in source\n>         assert \"[--protocol silo|mocc|tictoc]\" in source\n>         assert 'RRATIO=50' in source\n>         assert 'PROTOCOL=silo' in source\n>         assert 'PROTOCOL_EXPLICIT=0' in source\n> >       assert 'RRATIO\" != \"5\"' in source\n> E       assert 'RRATIO\" != \"5\"' in '#!/bin/bash\\x5cn# \\u30ed\\u30b0\\u30a4\\u30f3\\u30ce\\u30fc\\u30c9\\u5c02\\u7528: clean source \\u3068\\u6295\\u5165\\u524d snapshot \\u3092\\u56fa\\u5b9a\\u3057\\u3066 certification job \\u3092\\u6295\\u5165\\u3059\\u308b\\u3002\\x5cnset -Eeuo pipefail\\x5cn\\x5cnusage() {\\x5c...andle.write(\"\\x5c\\x5cn\")\\x5cnPY\\x5cn\\x5cnecho \"submit receipt: $SUBMISSION_DIR/submit-receipt.json\"\\x5cnecho \"request ID: $REQUEST_ID\"\\x5cn'\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:54: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=4709 retained_bytes=4709 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6682 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5c99e4f03c351fd4e92db6e1c17005955758d83fa54b0c44555fc5a41955e6fe"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "179710a82e0934d3f0d34a80ab9c827bc762070fbffbe6e95bf8921f4cb925ff",
+      "duration_s": 27.207,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[5]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[5]"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2515-M2-SUBMIT-DROP-5",
+      "injection_diff_sha256": "4ed481f4baf471204812870bcd588944ede18bc5f1421ba74b2ecae7a7f198dd",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "571e772d87db7f862a261564dedea6bca6356ca0b2fb02520a29a2123a4f2da7",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "new": "if [[ \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n",
+          "old": "if [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n"
+        }
+      ],
+      "repo_head": "18704ae18212d08e25df439316de5bcbf903f4c5",
+      "runner_sha256": "b031fb6c9d1438f5ca12b1c00dafa5a287643ff6e223b86e0cbc0204a227fcef",
+      "spec_sha256": "dd2424b9f84f758d9cff422daa8d243bcd909c73063c011d27812f0639311bca",
+      "status": "KILLED",
+      "test_output_sha256": "5c99e4f03c351fd4e92db6e1c17005955758d83fa54b0c44555fc5a41955e6fe",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9b642865324c49dc8725672d70df70bd2a4a030fad9cbb79a273660ed2b48aa0"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/d3ed177793809401e67429b6eb72691f/izdw-d3ed177793.o988997",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/d3ed177793809401e67429b6eb72691f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................................................F.... [ 65%]\n.....................................F                                   [100%]\n=================================== FAILURES ===================================\n___________ test_job_rechecks_the_submission_workload_and_records_it ___________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_job_rechecks_the_submissi0')\n\n    def test_job_rechecks_the_submission_workload_and_records_it(tmp_path: Path) -> None:\n        source = JOB.read_text(encoding=\"utf-8\")\n        expected_rratios = [\"5\", \"20\", \"50\", \"80\", \"95\"]\n    \n        submit_rratios = _rratio_gate_values(\n            SUBMIT.read_text(encoding=\"utf-8\"), \"RRATIO\",\n        )\n        job_rratios = _rratio_gate_values(source, \"IZANAGI_CALIBRATION_RRATIO\")\n>       assert submit_rratios == expected_rratios\nE       AssertionError: assert ['5', '51', '...', '80', '95'] == ['5', '20', '50', '80', '95']\nE         \nE         At index 1 diff: '51' != '20'\nE         Left contains one more item: '95'\nE         Use -v to get more diff\n\norchestrator/tests/test_pegasus_calibration_workload.py:86: AssertionError\n_____ test_submitter_rejects_an_unregistered_ratio_before_side_effects[51] _____\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_submitter_rejects_an_unre0')\nrratio = '51'\n\n    @pytest.mark.parametrize(\n        \"rratio\",\n        [\"0\", \"51\", \"100\", \"05\", \"+5\", \" 5\", \"5 \", \"５\"],\n    )\n    def test_submitter_rejects_an_unregistered_ratio_before_side_effects(\n        tmp_path: Path, rratio: str,\n    ) -> None:\n        # Empty is intentionally omitted: `${2:?}` rejects it before this gate, and\n        # the contract does not require that earlier rejection to use the same rc.\n        completed = subprocess.run(\n            [\n                str(SUBMIT),\n                \"--rratio\",\n                rratio,\n                \"--attempts-root\",\n                str(tmp_path / \"attempts\"),\n            ],\n            cwd=ROOT,\n            capture_output=True,\n            text=True,\n            check=False,\n        )\n    \n        assert completed.returncode == 2\n>       assert \"--rratio must be exactly 5, 20, 50, 80, or 95\" in completed.stderr\nE       AssertionError: assert '--rratio must be exactly 5, 20, 50, 80, or 95' in 'working tree is dirty; certification submission aborted\\n'\nE        +  where 'working tree is dirty; certification submission aborted\\n' = CompletedProcess(args=['/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/tools/pegasus/submit...jects_an_unre0/attempts'], returncode=2, stdout='', stderr='working tree is dirty; certification submission aborted\\n').stderr\n\norchestrator/tests/test_pegasus_calibration_workload.py:600: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[51]\n2 failed, 108 passed in 10.06s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[51]\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=1579 retained_bytes=1579 omitted_bytes=0 rendered_excerpt_bytes=1660 sha256=9f6c86b79cf774b9bfbee7ec59bfc5c4ed9f1ba26ad6dce3b20ed85ce8a8ba6e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_submitter_rejects_an_unre0')\n> rratio = '51'\n> \n>     @pytest.mark.parametrize(\n>         \"rratio\",\n>         [\"0\", \"51\", \"100\", \"05\", \"+5\", \" 5\", \"5 \", \"\\uff15\"],\n>     )\n>     def test_submitter_rejects_an_unregistered_ratio_before_side_effects(\n>         tmp_path: Path, rratio: str,\n>     ) -> None:\n>         # Empty is intentionally omitted: `${2:?}` rejects it before this gate, and\n>         # the contract does not require that earlier rejection to use the same rc.\n>         completed = subprocess.run(\n>             [\n>                 str(SUBMIT),\n>                 \"--rratio\",\n>                 rratio,\n>                 \"--attempts-root\",\n>                 str(tmp_path / \"attempts\"),\n>             ],\n>             cwd=ROOT,\n>             capture_output=True,\n>             text=True,\n>             check=False,\n>         )\n>     \n>         assert completed.returncode == 2\n> >       assert \"--rratio must be exactly 5, 20, 50, 80, or 95\" in completed.stderr\n> E       AssertionError: assert '--rratio must be exactly 5, 20, 50, 80, or 95' in 'working tree is dirty; certification submission aborted\\x5cn'\n> E        +  where 'working tree is dirty; certification submission aborted\\x5cn' = CompletedProcess(args=['/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/tools/pegasus/submit...jects_an_unre0/attempts'], returncode=2, stdout='', stderr='working tree is dirty; certification submission aborted\\x5cn').stderr\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:600: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=890 retained_bytes=890 omitted_bytes=0 rendered_excerpt_bytes=931 sha256=84da188d9d1683216af786253ea43bbc80f308304f910d4aa1f527337e1a338f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_job_rechecks_the_submissi0')\n> \n>     def test_job_rechecks_the_submission_workload_and_records_it(tmp_path: Path) -> None:\n>         source = JOB.read_text(encoding=\"utf-8\")\n>         expected_rratios = [\"5\", \"20\", \"50\", \"80\", \"95\"]\n>     \n>         submit_rratios = _rratio_gate_values(\n>             SUBMIT.read_text(encoding=\"utf-8\"), \"RRATIO\",\n>         )\n>         job_rratios = _rratio_gate_values(source, \"IZANAGI_CALIBRATION_RRATIO\")\n> >       assert submit_rratios == expected_rratios\n> E       AssertionError: assert ['5', '51', '...', '80', '95'] == ['5', '20', '50', '80', '95']\n> E         \n> E         At index 1 diff: '51' != '20'\n> E         Left contains one more item: '95'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:86: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2469 retained_bytes=2469 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3795 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c09065c398fd43ac2c5ae8783c00b43168425736addb8e0fd64a10e075618dea"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "179710a82e0934d3f0d34a80ab9c827bc762070fbffbe6e95bf8921f4cb925ff",
+      "duration_s": 37.524,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[51]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[51]"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2515-M3-SUBMIT-ADD-51",
+      "injection_diff_sha256": "941c5670d593f8693019b7baf11a9df9fd33bda0d6a511b9df238d4cbe759c9c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c15248c5580600773d1c8372be090d3ba256ea5e7ad5d17da7e634a052d67810",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "new": "if [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"51\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n",
+          "old": "if [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n"
+        }
+      ],
+      "repo_head": "18704ae18212d08e25df439316de5bcbf903f4c5",
+      "runner_sha256": "b031fb6c9d1438f5ca12b1c00dafa5a287643ff6e223b86e0cbc0204a227fcef",
+      "spec_sha256": "dd2424b9f84f758d9cff422daa8d243bcd909c73063c011d27812f0639311bca",
+      "status": "KILLED",
+      "test_output_sha256": "c09065c398fd43ac2c5ae8783c00b43168425736addb8e0fd64a10e075618dea",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9b642865324c49dc8725672d70df70bd2a4a030fad9cbb79a273660ed2b48aa0"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/fe4aa8899da9da9a4415bbd817ec9dd3/izdw-fe4aa8899d.o988999",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/fe4aa8899da9da9a4415bbd817ec9dd3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......................................................................F [ 65%]\n......................................                                   [100%]\n=================================== FAILURES ===================================\n___________ test_job_rechecks_the_submission_workload_and_records_it ___________\n[gw13] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_job_rechecks_the_submissi0')\n\n    def test_job_rechecks_the_submission_workload_and_records_it(tmp_path: Path) -> None:\n        source = JOB.read_text(encoding=\"utf-8\")\n        expected_rratios = [\"5\", \"20\", \"50\", \"80\", \"95\"]\n    \n        submit_rratios = _rratio_gate_values(\n            SUBMIT.read_text(encoding=\"utf-8\"), \"RRATIO\",\n        )\n        job_rratios = _rratio_gate_values(source, \"IZANAGI_CALIBRATION_RRATIO\")\n        assert submit_rratios == expected_rratios\n>       assert job_rratios == expected_rratios\nE       AssertionError: assert ['5', '20', '50', '80'] == ['5', '20', '50', '80', '95']\nE         \nE         Right contains one more item: '95'\nE         Use -v to get more diff\n\norchestrator/tests/test_pegasus_calibration_workload.py:87: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it\n1 failed, 109 passed in 4.37s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=891 retained_bytes=891 omitted_bytes=0 rendered_excerpt_bytes=932 sha256=8c9f33203ee59fd6223cb3eb811ab00ccd36218f501f70af0cc0cd7a3abfdd85\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw13/test_job_rechecks_the_submissi0')\n> \n>     def test_job_rechecks_the_submission_workload_and_records_it(tmp_path: Path) -> None:\n>         source = JOB.read_text(encoding=\"utf-8\")\n>         expected_rratios = [\"5\", \"20\", \"50\", \"80\", \"95\"]\n>     \n>         submit_rratios = _rratio_gate_values(\n>             SUBMIT.read_text(encoding=\"utf-8\"), \"RRATIO\",\n>         )\n>         job_rratios = _rratio_gate_values(source, \"IZANAGI_CALIBRATION_RRATIO\")\n>         assert submit_rratios == expected_rratios\n> >       assert job_rratios == expected_rratios\n> E       AssertionError: assert ['5', '20', '50', '80'] == ['5', '20', '50', '80', '95']\n> E         \n> E         Right contains one more item: '95'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:87: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=891 retained_bytes=891 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1668 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "532ea4f8f1212af865e6283bcb130c40b035defdc0d1c2d47eb6908b7bf143fe"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "179710a82e0934d3f0d34a80ab9c827bc762070fbffbe6e95bf8921f4cb925ff",
+      "duration_s": 252.409,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2515-M4-JOB-DROP-95",
+      "injection_diff_sha256": "354b6b2fa2f5b59c82ae18165a5e74e26afa65f42069d48e71c2962b9d9cb0bb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e9e80ee2c92dc1b432d3c4a97b20de10ba3ab8abab39f74411d7de3943fbede2",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "      && \"$IZANAGI_CALIBRATION_RRATIO\" != \"80\" ]]; then\n",
+          "old": "      && \"$IZANAGI_CALIBRATION_RRATIO\" != \"80\" \\\n      && \"$IZANAGI_CALIBRATION_RRATIO\" != \"95\" ]]; then\n"
+        }
+      ],
+      "repo_head": "18704ae18212d08e25df439316de5bcbf903f4c5",
+      "runner_sha256": "b031fb6c9d1438f5ca12b1c00dafa5a287643ff6e223b86e0cbc0204a227fcef",
+      "spec_sha256": "dd2424b9f84f758d9cff422daa8d243bcd909c73063c011d27812f0639311bca",
+      "status": "KILLED",
+      "test_output_sha256": "532ea4f8f1212af865e6283bcb130c40b035defdc0d1c2d47eb6908b7bf143fe",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9b642865324c49dc8725672d70df70bd2a4a030fad9cbb79a273660ed2b48aa0"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/8bbb7d79fd65043ec466ec611d8be23b/izdw-8bbb7d79fd.o989034",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/8bbb7d79fd65043ec466ec611d8be23b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 65%]\n.....................................F                                   [100%]\n=================================== FAILURES ===================================\n_____ test_submitter_rejects_an_unregistered_ratio_before_side_effects[+5] _____\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_submitter_rejects_an_unre0')\nrratio = '+5'\n\n    @pytest.mark.parametrize(\n        \"rratio\",\n        [\"0\", \"51\", \"100\", \"05\", \"+5\", \" 5\", \"5 \", \"５\"],\n    )\n    def test_submitter_rejects_an_unregistered_ratio_before_side_effects(\n        tmp_path: Path, rratio: str,\n    ) -> None:\n        # Empty is intentionally omitted: `${2:?}` rejects it before this gate, and\n        # the contract does not require that earlier rejection to use the same rc.\n        completed = subprocess.run(\n            [\n                str(SUBMIT),\n                \"--rratio\",\n                rratio,\n                \"--attempts-root\",\n                str(tmp_path / \"attempts\"),\n            ],\n            cwd=ROOT,\n            capture_output=True,\n            text=True,\n            check=False,\n        )\n    \n        assert completed.returncode == 2\n>       assert \"--rratio must be exactly 5, 20, 50, 80, or 95\" in completed.stderr\nE       AssertionError: assert '--rratio must be exactly 5, 20, 50, 80, or 95' in 'working tree is dirty; certification submission aborted\\n'\nE        +  where 'working tree is dirty; certification submission aborted\\n' = CompletedProcess(args=['/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/tools/pegasus/submit...jects_an_unre0/attempts'], returncode=2, stdout='', stderr='working tree is dirty; certification submission aborted\\n').stderr\n\norchestrator/tests/test_pegasus_calibration_workload.py:600: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[+5]\n1 failed, 109 passed in 7.03s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[+5]\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=1579 retained_bytes=1579 omitted_bytes=0 rendered_excerpt_bytes=1660 sha256=591f5fafb1a07e607688799623fc475baa83f9ac36ef8b5d2c072d8cb1a257d2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_submitter_rejects_an_unre0')\n> rratio = '+5'\n> \n>     @pytest.mark.parametrize(\n>         \"rratio\",\n>         [\"0\", \"51\", \"100\", \"05\", \"+5\", \" 5\", \"5 \", \"\\uff15\"],\n>     )\n>     def test_submitter_rejects_an_unregistered_ratio_before_side_effects(\n>         tmp_path: Path, rratio: str,\n>     ) -> None:\n>         # Empty is intentionally omitted: `${2:?}` rejects it before this gate, and\n>         # the contract does not require that earlier rejection to use the same rc.\n>         completed = subprocess.run(\n>             [\n>                 str(SUBMIT),\n>                 \"--rratio\",\n>                 rratio,\n>                 \"--attempts-root\",\n>                 str(tmp_path / \"attempts\"),\n>             ],\n>             cwd=ROOT,\n>             capture_output=True,\n>             text=True,\n>             check=False,\n>         )\n>     \n>         assert completed.returncode == 2\n> >       assert \"--rratio must be exactly 5, 20, 50, 80, or 95\" in completed.stderr\n> E       AssertionError: assert '--rratio must be exactly 5, 20, 50, 80, or 95' in 'working tree is dirty; certification submission aborted\\x5cn'\n> E        +  where 'working tree is dirty; certification submission aborted\\x5cn' = CompletedProcess(args=['/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/tools/pegasus/submit...jects_an_unre0/attempts'], returncode=2, stdout='', stderr='working tree is dirty; certification submission aborted\\x5cn').stderr\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:600: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1579 retained_bytes=1579 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2413 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "879813e2aa58d5ce7bd731d9e6ebca79881bee7dad65166e3fb2fbf9a87f28e6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "179710a82e0934d3f0d34a80ab9c827bc762070fbffbe6e95bf8921f4cb925ff",
+      "duration_s": 196.11,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[+5]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[+5]"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2515-M5-SUBMIT-STRIP-PLUS",
+      "injection_diff_sha256": "d0bfe0c5c09dfe994eab03bb9e7e8f444783a44f784de91e4c43de2725523e54",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6b6100579e93a27bd595dd8e485b6e95e3fa512072378b820f00d3591d7f968b",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "new": "RRATIO=${RRATIO#+}\nif [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n",
+          "old": "if [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n"
+        }
+      ],
+      "repo_head": "18704ae18212d08e25df439316de5bcbf903f4c5",
+      "runner_sha256": "b031fb6c9d1438f5ca12b1c00dafa5a287643ff6e223b86e0cbc0204a227fcef",
+      "spec_sha256": "dd2424b9f84f758d9cff422daa8d243bcd909c73063c011d27812f0639311bca",
+      "status": "KILLED",
+      "test_output_sha256": "879813e2aa58d5ce7bd731d9e6ebca79881bee7dad65166e3fb2fbf9a87f28e6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9b642865324c49dc8725672d70df70bd2a4a030fad9cbb79a273660ed2b48aa0"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/1cf2202f6ff935c28218c1c2262841a0/izdw-1cf2202f6f.o989041",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/1cf2202f6ff935c28218c1c2262841a0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 65%]\n.....................................F                                   [100%]\n=================================== FAILURES ===================================\n_____ test_submitter_rejects_an_unregistered_ratio_before_side_effects[05] _____\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_submitter_rejects_an_unre0')\nrratio = '05'\n\n    @pytest.mark.parametrize(\n        \"rratio\",\n        [\"0\", \"51\", \"100\", \"05\", \"+5\", \" 5\", \"5 \", \"５\"],\n    )\n    def test_submitter_rejects_an_unregistered_ratio_before_side_effects(\n        tmp_path: Path, rratio: str,\n    ) -> None:\n        # Empty is intentionally omitted: `${2:?}` rejects it before this gate, and\n        # the contract does not require that earlier rejection to use the same rc.\n        completed = subprocess.run(\n            [\n                str(SUBMIT),\n                \"--rratio\",\n                rratio,\n                \"--attempts-root\",\n                str(tmp_path / \"attempts\"),\n            ],\n            cwd=ROOT,\n            capture_output=True,\n            text=True,\n            check=False,\n        )\n    \n        assert completed.returncode == 2\n>       assert \"--rratio must be exactly 5, 20, 50, 80, or 95\" in completed.stderr\nE       AssertionError: assert '--rratio must be exactly 5, 20, 50, 80, or 95' in 'working tree is dirty; certification submission aborted\\n'\nE        +  where 'working tree is dirty; certification submission aborted\\n' = CompletedProcess(args=['/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/tools/pegasus/submit...jects_an_unre0/attempts'], returncode=2, stdout='', stderr='working tree is dirty; certification submission aborted\\n').stderr\n\norchestrator/tests/test_pegasus_calibration_workload.py:600: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[05]\n1 failed, 109 passed in 6.63s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[05]\" nodeid_bytes=125 nodeid_omitted_bytes=0 source_bytes=1579 retained_bytes=1579 omitted_bytes=0 rendered_excerpt_bytes=1660 sha256=43512894ec5eb8de4671bb17d311ea47ccf54540c35c1f04be741fa4e71fc365\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_submitter_rejects_an_unre0')\n> rratio = '05'\n> \n>     @pytest.mark.parametrize(\n>         \"rratio\",\n>         [\"0\", \"51\", \"100\", \"05\", \"+5\", \" 5\", \"5 \", \"\\uff15\"],\n>     )\n>     def test_submitter_rejects_an_unregistered_ratio_before_side_effects(\n>         tmp_path: Path, rratio: str,\n>     ) -> None:\n>         # Empty is intentionally omitted: `${2:?}` rejects it before this gate, and\n>         # the contract does not require that earlier rejection to use the same rc.\n>         completed = subprocess.run(\n>             [\n>                 str(SUBMIT),\n>                 \"--rratio\",\n>                 rratio,\n>                 \"--attempts-root\",\n>                 str(tmp_path / \"attempts\"),\n>             ],\n>             cwd=ROOT,\n>             capture_output=True,\n>             text=True,\n>             check=False,\n>         )\n>     \n>         assert completed.returncode == 2\n> >       assert \"--rratio must be exactly 5, 20, 50, 80, or 95\" in completed.stderr\n> E       AssertionError: assert '--rratio must be exactly 5, 20, 50, 80, or 95' in 'working tree is dirty; certification submission aborted\\x5cn'\n> E        +  where 'working tree is dirty; certification submission aborted\\x5cn' = CompletedProcess(args=['/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/tools/pegasus/submit...jects_an_unre0/attempts'], returncode=2, stdout='', stderr='working tree is dirty; certification submission aborted\\x5cn').stderr\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:600: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1579 retained_bytes=1579 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2413 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f106411a538960bfe47b5c1c14aa8f346b5d741dde649c2fb3a92bf4b79a080b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "179710a82e0934d3f0d34a80ab9c827bc762070fbffbe6e95bf8921f4cb925ff",
+      "duration_s": 144.787,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[05]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[05]"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2515-M6-SUBMIT-STRIP-ZERO",
+      "injection_diff_sha256": "152d3194f89e4f17071efdcaeb15fa9e1c9443fb247e6ca1fdb4dcd0abdb514f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a005466b1c5a24adc92c479fbf43d429561d979f222aec1d967f8dc32ed0420b",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "new": "RRATIO=${RRATIO#0}\nif [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n",
+          "old": "if [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n"
+        }
+      ],
+      "repo_head": "18704ae18212d08e25df439316de5bcbf903f4c5",
+      "runner_sha256": "b031fb6c9d1438f5ca12b1c00dafa5a287643ff6e223b86e0cbc0204a227fcef",
+      "spec_sha256": "dd2424b9f84f758d9cff422daa8d243bcd909c73063c011d27812f0639311bca",
+      "status": "KILLED",
+      "test_output_sha256": "f106411a538960bfe47b5c1c14aa8f346b5d741dde649c2fb3a92bf4b79a080b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9b642865324c49dc8725672d70df70bd2a4a030fad9cbb79a273660ed2b48aa0"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/c886cd6088d2ca658697d87da0fc4c35/izdw-c886cd6088.o989054",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/c886cd6088d2ca658697d87da0fc4c35/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................F....................................... [ 65%]\n......................................                                   [100%]\n=================================== FAILURES ===================================\n______________ test_runbook_shows_ai_driven_h1_h2_submission_path ______________\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_runbook_shows_ai_driven_h1_h2_submission_path() -> None:\n        source = README.read_text(encoding=\"utf-8\")\n    \n        assert \"submit_certify.sh --rratio 80\" in source\n        assert \"submit_certify.sh --rratio 20\" in source\n        assert \"submit_certify.sh --rratio 95\" in source\n        assert \"submit_certify.sh --rratio 5\" in source\n>       assert \"5 / 20 / 50 / 80 / 95 の固定 whitelist\" in source\nE       AssertionError: assert '5 / 20 / 50 / 80 / 95 の固定 whitelist' in '# Pegasus env contract 登録用ジョブ資材\\n\\nこのディレクトリは、Pegasus の計算ノードを実測し、certification calibration の provenance を\\n`output/env...ds` の configure argv まで\\n5 値が届く」ところまで確認した (`output/insights/2026-09-05_t2232-s4-loop-pegasus-job-script/README.md`)。\\n'\n\norchestrator/tests/test_pegasus_calibration_workload.py:823: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path\n1 failed, 109 passed in 4.88s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=964 retained_bytes=964 omitted_bytes=0 rendered_excerpt_bytes=1171 sha256=4646b023f3b3c3c976584b91dbaa8e88956350fb6e769eb068c12b798024bf42\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw47] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_runbook_shows_ai_driven_h1_h2_submission_path() -> None:\n>         source = README.read_text(encoding=\"utf-8\")\n>     \n>         assert \"submit_certify.sh --rratio 80\" in source\n>         assert \"submit_certify.sh --rratio 20\" in source\n>         assert \"submit_certify.sh --rratio 95\" in source\n>         assert \"submit_certify.sh --rratio 5\" in source\n> >       assert \"5 / 20 / 50 / 80 / 95 \\u306e\\u56fa\\u5b9a whitelist\" in source\n> E       AssertionError: assert '5 / 20 / 50 / 80 / 95 \\u306e\\u56fa\\u5b9a whitelist' in '# Pegasus env contract \\u767b\\u9332\\u7528\\u30b8\\u30e7\\u30d6\\u8cc7\\u6750\\x5cn\\x5cn\\u3053\\u306e\\u30c7\\u30a3\\u30ec\\u30af\\u30c8\\u30ea\\u306f\\u3001Pegasus \\u306e\\u8a08\\u7b97\\u30ce\\u30fc\\u30c9\\u3092\\u5b9f\\u6e2c\\u3057\\u3001certification calibration \\u306e provenance \\u3092\\x5cn`output/env...ds` \\u306e configure argv \\u307e\\u3067\\x5cn5 \\u5024\\u304c\\u5c4a\\u304f\\u300d\\u3068\\u3053\\u308d\\u307e\\u3067\\u78ba\\u8a8d\\u3057\\u305f (`output/insights/2026-09-05_t2232-s4-loop-pegasus-job-script/README.md`)\\u3002\\x5cn'\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:823: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=964 retained_bytes=964 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1902 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9664b796a5f69b919ac3ce75ce910d77f6ad09089ef293411e6df35f237502ea"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "179710a82e0934d3f0d34a80ab9c827bc762070fbffbe6e95bf8921f4cb925ff",
+      "duration_s": 48.013,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2515-M7-DOCS-REVERT-WHITELIST",
+      "injection_diff_sha256": "7015499cd9381be4257bf4ff31445702f90f9f07890f102ea573e15cd29d3e77",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ec1a248dca5f92e2d092aa08cfef02195631a20d3dc81d8c4adafc25aefe2715",
+      "replacements": [
+        {
+          "file": "tools/pegasus/README.md",
+          "new": "(20 / 50 / 80 の固定 whitelist)",
+          "old": "(5 / 20 / 50 / 80 / 95 の固定 whitelist)"
+        }
+      ],
+      "repo_head": "18704ae18212d08e25df439316de5bcbf903f4c5",
+      "runner_sha256": "b031fb6c9d1438f5ca12b1c00dafa5a287643ff6e223b86e0cbc0204a227fcef",
+      "spec_sha256": "dd2424b9f84f758d9cff422daa8d243bcd909c73063c011d27812f0639311bca",
+      "status": "KILLED",
+      "test_output_sha256": "9664b796a5f69b919ac3ce75ce910d77f6ad09089ef293411e6df35f237502ea",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9b642865324c49dc8725672d70df70bd2a4a030fad9cbb79a273660ed2b48aa0"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/0a6e2cc0bf8e4606d20ed4dcd56654a4/izdw-0a6e2cc0bf.o989059",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/0a6e2cc0bf8e4606d20ed4dcd56654a4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................................................F....... [ 65%]\n......................................                                   [100%]\n=================================== FAILURES ===================================\n___ test_condition_gate_uses_smoke_checked_interpreter_selected_before_call ____\n[gw26] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_condition_gate_uses_smoke_checked_interpreter_selected_before_call() -> None:\n        source = JOB.read_text(encoding=\"utf-8\")\n        selection_start = source.index('CALIBRATE_PYTHON=\"\"')\n        failure_start = source.index(\n            'if [[ -z \"$CALIBRATE_PYTHON\" ]]; then', selection_start,\n        )\n        selection_end = source.index(\"\\nfi\", failure_start) + len(\"\\nfi\")\n        selection = source[selection_start:selection_end]\n    \n        assert (\n            'if \"$resolved\" -I -B -c \\\\\\n'\n            \"      'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)' \\\\\\n\"\n            '      >/dev/null 2>&1; then\\n'\n            '    CALIBRATE_PYTHON=\"$resolved\"'\n        ) in selection\n        assert (\n            'if [[ -z \"$CALIBRATE_PYTHON\" ]]; then\\n'\n            '  write_failure 2 interpreter \\\\\\n'\n            '    \"no python3.10 interpreter passed smoke check '\n            '(rejected: ${calibrate_python_rejected:-none})\"\\n'\n            '  exit 2\\n'\n            'fi'\n        ) in selection\n    \n        gate_calls = list(re.finditer(r\"(?m)^  run_condition_gate$\", source))\n        assert len(gate_calls) == 1\n        assert (\n            source.index('ATTEMPT_DIR=')\n            < source.index(\"trap on_err ERR\")\n            < selection_start\n        )\n        assert selection_end < gate_calls[0].start()\n>       assert (\n            'local -a condition_gate_argv=(\"$CALIBRATE_PYTHON\" -m '\n            'orchestrator.campaign.condition_meaning_gate'\n        ) in source\nE       assert 'local -a condition_gate_argv=(\"$CALIBRATE_PYTHON\" -m orchestrator.campaign.condition_meaning_gate' in '#!/bin/bash\\n#PBS -A SFC\\n#PBS -q gen_S\\n#PBS -l elapstim_req=02:00:00\\n#PBS -b 1\\n\\n# C3-7 予約式 (秒):\\n# TSC(10) + coo...OURCE\" \\\\\\n  >\"$ATTEMPT_DIR/worktree-remove.stdout\" 2>\"$ATTEMPT_DIR/worktree-remove.stderr\"\\nBUILD_SOURCE=\"\"\\nexit 0\\n'\n\norchestrator/tests/test_pegasus_calibration_workload.py:459: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_calibration_workload.py::test_condition_gate_uses_smoke_checked_interpreter_selected_before_call\n1 failed, 109 passed in 4.67s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_calibration_workload.py::test_condition_gate_uses_smoke_checked_interpreter_selected_before_call\" nodeid_bytes=128 nodeid_omitted_bytes=0 source_bytes=2017 retained_bytes=2017 omitted_bytes=0 rendered_excerpt_bytes=2196 sha256=aad63035cdae7ada45be75964c1131c114af7ff23d7dce07a94ba29e46b0825f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_condition_gate_uses_smoke_checked_interpreter_selected_before_call() -> None:\n>         source = JOB.read_text(encoding=\"utf-8\")\n>         selection_start = source.index('CALIBRATE_PYTHON=\"\"')\n>         failure_start = source.index(\n>             'if [[ -z \"$CALIBRATE_PYTHON\" ]]; then', selection_start,\n>         )\n>         selection_end = source.index(\"\\x5cnfi\", failure_start) + len(\"\\x5cnfi\")\n>         selection = source[selection_start:selection_end]\n>     \n>         assert (\n>             'if \"$resolved\" -I -B -c \\x5c\\x5c\\x5cn'\n>             \"      'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3, 10) else 1)' \\x5c\\x5c\\x5cn\"\n>             '      >/dev/null 2>&1; then\\x5cn'\n>             '    CALIBRATE_PYTHON=\"$resolved\"'\n>         ) in selection\n>         assert (\n>             'if [[ -z \"$CALIBRATE_PYTHON\" ]]; then\\x5cn'\n>             '  write_failure 2 interpreter \\x5c\\x5c\\x5cn'\n>             '    \"no python3.10 interpreter passed smoke check '\n>             '(rejected: ${calibrate_python_rejected:-none})\"\\x5cn'\n>             '  exit 2\\x5cn'\n>             'fi'\n>         ) in selection\n>     \n>         gate_calls = list(re.finditer(r\"(?m)^  run_condition_gate$\", source))\n>         assert len(gate_calls) == 1\n>         assert (\n>             source.index('ATTEMPT_DIR=')\n>             < source.index(\"trap on_err ERR\")\n>             < selection_start\n>         )\n>         assert selection_end < gate_calls[0].start()\n> >       assert (\n>             'local -a condition_gate_argv=(\"$CALIBRATE_PYTHON\" -m '\n>             'orchestrator.campaign.condition_meaning_gate'\n>         ) in source\n> E       assert 'local -a condition_gate_argv=(\"$CALIBRATE_PYTHON\" -m orchestrator.campaign.condition_meaning_gate' in '#!/bin/bash\\x5cn#PBS -A SFC\\x5cn#PBS -q gen_S\\x5cn#PBS -l elapstim_req=02:00:00\\x5cn#PBS -b 1\\x5cn\\x5cn# C3-7 \\u4e88\\u7d04\\u5f0f (\\u79d2):\\x5cn# TSC(10) + coo...OURCE\" \\x5c\\x5c\\x5cn  >\"$ATTEMPT_DIR/worktree-remove.stdout\" 2>\"$ATTEMPT_DIR/worktree-remove.stderr\"\\x5cnBUILD_SOURCE=\"\"\\x5cnexit 0\\x5cn'\n> \n> orchestrator/tests/test_pegasus_calibration_workload.py:459: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2017 retained_bytes=2017 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2952 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4aaa6de41e318c9850a35b8fa4d7d7dd910d41e745202d92e571d6be347f61bd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "179710a82e0934d3f0d34a80ab9c827bc762070fbffbe6e95bf8921f4cb925ff",
+      "duration_s": 145.082,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_condition_gate_uses_smoke_checked_interpreter_selected_before_call"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_condition_gate_uses_smoke_checked_interpreter_selected_before_call"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T2515-M8-GATE-BARE-PYTHON3",
+      "injection_diff_sha256": "b6b2ce72e98944ea6ef7f58940ec9f8e7ec0e54585ba3eb88510a0d37225ff29",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7d452d8e14599a50c977489a52060d502d9d7d80c55f9e2b51a457695eb5b3b8",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "  local -a condition_gate_argv=(python3 -m orchestrator.campaign.condition_meaning_gate\n",
+          "old": "  local -a condition_gate_argv=(\"$CALIBRATE_PYTHON\" -m orchestrator.campaign.condition_meaning_gate\n"
+        }
+      ],
+      "repo_head": "18704ae18212d08e25df439316de5bcbf903f4c5",
+      "runner_sha256": "b031fb6c9d1438f5ca12b1c00dafa5a287643ff6e223b86e0cbc0204a227fcef",
+      "spec_sha256": "dd2424b9f84f758d9cff422daa8d243bcd909c73063c011d27812f0639311bca",
+      "status": "KILLED",
+      "test_output_sha256": "4aaa6de41e318c9850a35b8fa4d7d7dd910d41e745202d92e571d6be347f61bd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "9b642865324c49dc8725672d70df70bd2a4a030fad9cbb79a273660ed2b48aa0"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/72150a335a1b0b105eb09029c67d71e2/izdw-72150a335a.o988978",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/output/pegasus-dispatch/72150a335a1b0b105eb09029c67d71e2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist\norchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_keeps_backoff_fixed_and_condition_gate_silo_only\norchestrator/tests/test_pegasus_calibration_workload.py::test_condition_gate_uses_smoke_checked_interpreter_selected_before_call\norchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_are_byte_compatible\norchestrator/tests/test_pegasus_calibration_workload.py::test_calibration_shell_scripts_parse\norchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_condition_gate_dominates_first_buildcache_call\norchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_requests_every_genome_value_and_inert_witness\norchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_uses_factory_noinline_and_legacy_backoff_declarations\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[0]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[51]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[100]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[05]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[+5]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[ 5]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[5 ]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[\\uff15]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_unregistered_protocol_before_side_effects[cicada]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_unregistered_protocol_before_side_effects[ermia]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_omitted_protocol_is_silo_without_changing_qsub_argv\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[5]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[20]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[50]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[80]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[95]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_keeps_scheduler_output_outside_the_repository\norchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path\norchestrator/tests/test_pegasus_tools.py::test_shell_syntax[smoke_probe.sh]\norchestrator/tests/test_pegasus_tools.py::test_shell_syntax[submit_certify.sh]\norchestrator/tests/test_pegasus_tools.py::test_shell_syntax[certify_calibration.sh]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directives_match_shared_and_calibration_policies\norchestrator/tests/test_pegasus_tools.py::test_certify_calibration_policy_check_rejects_symlinks[certify_calibration.sh]\norchestrator/tests/test_pegasus_tools.py::test_certify_calibration_policy_check_rejects_symlinks[submit_certify.sh]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash\\n#PBS -A one\\n#PBS -A two\\nset -e\\n]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash\\nset -e\\n#PBS -A late\\n]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash\\n##PBS -A hidden\\nset -e\\n]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash\\n# #PBS -A hidden\\nset -e\\n]\norchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports\norchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_execs_valid_argv\norchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_rejects_missing_or_invalid_json[missing]\norchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_rejects_missing_or_invalid_json[invalid]\norchestrator/tests/test_pegasus_tools.py::test_certify_calibrator_resolves_and_shims_versioned_interpreter\norchestrator/tests/test_pegasus_tools.py::test_certify_calibrator_interpreter_resolution_fails_closed\norchestrator/tests/test_pegasus_tools.py::test_certify_calibrate_timeout_argv_cannot_self_match_ycsb_probe\norchestrator/tests/test_pegasus_tools.py::test_certify_perf_stage_is_policy_driven_fail_closed_and_precedes_calibrate\norchestrator/tests/test_pegasus_tools.py::test_perf_stage_all_candidates_failed_writes_perf_failure\norchestrator/tests/test_pegasus_tools.py::test_perf_stage_rejects_not_supported_smoke_output\norchestrator/tests/test_pegasus_tools.py::test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench\norchestrator/tests/test_pegasus_tools.py::test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench\norchestrator/tests/test_pegasus_tools.py::test_certify_cmake_paths_derive_from_colon_free_job_tmpdir\norchestrator/tests/test_pegasus_tools.py::test_certify_colon_job_id_creates_colon_free_job_tmpdir\norchestrator/tests/test_pegasus_tools.py::test_shell_jobs_normalize_qstat_id_and_capture_system_toolchain\norchestrator/tests/test_pegasus_tools.py::test_qstat_parser_accepts_real_nqsv_867863_output\norchestrator/tests/test_pegasus_tools.py::test_qstat_parser_skips_none_and_tries_next_key\norchestrator/tests/test_pegasus_tools.py::test_qstat_parser_keeps_unavailable_for_none_or_missing_fields[exec_host = (none)\\nexec_vnode = (none)\\nassigned_host = (none)\\nvnode = (none)\\nstime = (none)\\nstart_time = (none)\\nstart = (none)\\nStarted Request Time = (none)\\nExecution Hosts(JSVNO):\\n    (none)\\n]\norchestrator/tests/test_pegasus_tools.py::test_qstat_parser_keeps_unavailable_for_none_or_missing_fields[Request ID: 867863.nqsv\\nCurrent State = Running\\n]\norchestrator/tests/test_pegasus_tools.py::test_smoke_toolchain_capture_detects_nonzero_gcc_version\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[0:0:X-0:X]\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[00:X-00:X]\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[0:X-X]\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[X-X]\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_rejects_empty_string\norchestrator/tests/test_pegasus_tools.py::test_certify_keeps_default_modules_and_uses_system_toolchain\norchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_policy_and_comparison_use_normalized_exact_match\norchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_check_rejects_nearby_sku[Intel Xeon Platinum 8468-True]\norchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_check_rejects_nearby_sku[Intel Xeon Platinum 8468H-False]\norchestrator/tests/test_pegasus_tools.py::test_acquisition_candidate_rejects_schema_valid_duplicate_probe_key\norchestrator/tests/test_pegasus_tools.py::test_run_probe_fixture_to_stdout_shape_and_file\norchestrator/tests/test_pegasus_tools.py::test_run_probe_import_failure_is_structured_and_nonzero\norchestrator/tests/test_pegasus_tools.py::test_run_probe_probe_failure_is_structured_in_file_and_stdout\norchestrator/tests/test_pegasus_tools.py::test_run_probe_write_failure_is_structured_for_stdout\norchestrator/tests/test_pegasus_tools.py::test_run_probe_write_failure_has_nonempty_message_for_empty_exception\norchestrator/tests/test_pegasus_tools.py::test_smoke_probe_calls_v2_producer_and_preserves_stdout_copy\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_fixture_to_final_json\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_preserves_job_script_sha256\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_accepts_raw_zero_subrequest_prefix\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_rejects_other_prefix_and_raw_mismatch[1:12345.scheduler]\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_rejects_other_prefix_and_raw_mismatch[other.scheduler]\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_missing_input_is_nonzero\norchestrator/tests/test_pegasus_tools.py::test_make_acquisition_receipt_round_trip_and_field_drop\norchestrator/tests/test_pegasus_tools.py::test_certify_records_real_cmake_and_fixed_nm_identity\norchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_accepts_real_unstripped_trace_free_binary\norchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_rejects_real_unstripped_trace_binary\norchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_rejects_real_empty_stripped_binary\norchestrator/tests/test_pegasus_tools.py::test_gflags_missing_source_writes_gflags_failure\norchestrator/tests/test_pegasus_tools.py::test_gflags_head_mismatch_writes_gflags_failure\norchestrator/tests/test_pegasus_tools.py::test_glog_head_mismatch_writes_glog_failure\norchestrator/tests/test_pegasus_tools.py::test_calibrate_failure_survives_err_trap_and_writes_job_result\norchestrator/tests/test_pegasus_tools.py::test_certify_job_rejects_legacy_tolerance_environment\norchestrator/tests/test_pegasus_tools.py::test_qstat_failure_reaches_allocation_unavailable_path\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-0:123.server-True]\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-1:123.server-False]\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-124.server-False]\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_requires_matching_calibration_rratio\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_requires_matching_calibration_protocol\norchestrator/tests/test_pegasus_tools.py::test_submit_dry_run_does_not_resolve_cluster_commands\n\n110 tests collected in 0.56s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "c50072d0e8f557a7503306096a78f18833f05fb38c42898842902b671dde5505"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_keeps_backoff_fixed_and_condition_gate_silo_only",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_condition_gate_uses_smoke_checked_interpreter_selected_before_call",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_are_byte_compatible",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_calibration_shell_scripts_parse",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_condition_gate_dominates_first_buildcache_call",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_requests_every_genome_value_and_inert_witness",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_uses_factory_noinline_and_legacy_backoff_declarations",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[0]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[51]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[100]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[05]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[+5]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[ 5]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[5 ]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[/uff15]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_unregistered_protocol_before_side_effects[cicada]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_unregistered_protocol_before_side_effects[ermia]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_omitted_protocol_is_silo_without_changing_qsub_argv",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[5]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[20]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[50]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[80]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[95]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_keeps_scheduler_output_outside_the_repository",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path",
+        "orchestrator/tests/test_pegasus_tools.py::test_shell_syntax[smoke_probe.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_shell_syntax[submit_certify.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_shell_syntax[certify_calibration.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directives_match_shared_and_calibration_policies",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibration_policy_check_rejects_symlinks[certify_calibration.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibration_policy_check_rejects_symlinks[submit_certify.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash/n#PBS -A one/n#PBS -A two/nset -e/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash/nset -e/n#PBS -A late/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash/n##PBS -A hidden/nset -e/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash/n# #PBS -A hidden/nset -e/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports",
+        "orchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_execs_valid_argv",
+        "orchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_rejects_missing_or_invalid_json[missing]",
+        "orchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_rejects_missing_or_invalid_json[invalid]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibrator_resolves_and_shims_versioned_interpreter",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibrator_interpreter_resolution_fails_closed",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibrate_timeout_argv_cannot_self_match_ycsb_probe",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_perf_stage_is_policy_driven_fail_closed_and_precedes_calibrate",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_all_candidates_failed_writes_perf_failure",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_rejects_not_supported_smoke_output",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_cmake_paths_derive_from_colon_free_job_tmpdir",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_colon_job_id_creates_colon_free_job_tmpdir",
+        "orchestrator/tests/test_pegasus_tools.py::test_shell_jobs_normalize_qstat_id_and_capture_system_toolchain",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_parser_accepts_real_nqsv_867863_output",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_parser_skips_none_and_tries_next_key",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_parser_keeps_unavailable_for_none_or_missing_fields[exec_host = (none)/nexec_vnode = (none)/nassigned_host = (none)/nvnode = (none)/nstime = (none)/nstart_time = (none)/nstart = (none)/nStarted Request Time = (none)/nExecution Hosts(JSVNO):/n    (none)/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_parser_keeps_unavailable_for_none_or_missing_fields[Request ID: 867863.nqsv/nCurrent State = Running/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_smoke_toolchain_capture_detects_nonzero_gcc_version",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[0:0:X-0:X]",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[00:X-00:X]",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[0:X-X]",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[X-X]",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_rejects_empty_string",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_keeps_default_modules_and_uses_system_toolchain",
+        "orchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_policy_and_comparison_use_normalized_exact_match",
+        "orchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_check_rejects_nearby_sku[Intel Xeon Platinum 8468-True]",
+        "orchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_check_rejects_nearby_sku[Intel Xeon Platinum 8468H-False]",
+        "orchestrator/tests/test_pegasus_tools.py::test_acquisition_candidate_rejects_schema_valid_duplicate_probe_key",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_fixture_to_stdout_shape_and_file",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_import_failure_is_structured_and_nonzero",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_probe_failure_is_structured_in_file_and_stdout",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_write_failure_is_structured_for_stdout",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_write_failure_has_nonempty_message_for_empty_exception",
+        "orchestrator/tests/test_pegasus_tools.py::test_smoke_probe_calls_v2_producer_and_preserves_stdout_copy",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_fixture_to_final_json",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_preserves_job_script_sha256",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_accepts_raw_zero_subrequest_prefix",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_rejects_other_prefix_and_raw_mismatch[1:12345.scheduler]",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_rejects_other_prefix_and_raw_mismatch[other.scheduler]",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_missing_input_is_nonzero",
+        "orchestrator/tests/test_pegasus_tools.py::test_make_acquisition_receipt_round_trip_and_field_drop",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_records_real_cmake_and_fixed_nm_identity",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_accepts_real_unstripped_trace_free_binary",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_rejects_real_unstripped_trace_binary",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_rejects_real_empty_stripped_binary",
+        "orchestrator/tests/test_pegasus_tools.py::test_gflags_missing_source_writes_gflags_failure",
+        "orchestrator/tests/test_pegasus_tools.py::test_gflags_head_mismatch_writes_gflags_failure",
+        "orchestrator/tests/test_pegasus_tools.py::test_glog_head_mismatch_writes_glog_failure",
+        "orchestrator/tests/test_pegasus_tools.py::test_calibrate_failure_survives_err_trap_and_writes_job_result",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_job_rejects_legacy_tolerance_environment",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_failure_reaches_allocation_unavailable_path",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-0:123.server-True]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-1:123.server-False]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-124.server-False]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_requires_matching_calibration_rratio",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_requires_matching_calibration_protocol",
+        "orchestrator/tests/test_pegasus_tools.py::test_submit_dry_run_does_not_resolve_cluster_commands"
+      ],
+      "duration_s": 27.066,
+      "rc": 0,
+      "repo_head": "18704ae18212d08e25df439316de5bcbf903f4c5",
+      "runner_sha256": "b031fb6c9d1438f5ca12b1c00dafa5a287643ff6e223b86e0cbc0204a227fcef",
+      "spec_sha256": "dd2424b9f84f758d9cff422daa8d243bcd909c73063c011d27812f0639311bca",
+      "status": "PASSED",
+      "tool_sha256": "9b642865324c49dc8725672d70df70bd2a4a030fad9cbb79a273660ed2b48aa0"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-T2515-M1-SUBMIT-DROP-95": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[95]",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "91d877cd91281ee8d10fbc9a3781ead754fdc1a6dbd5be81ec039c0fb114cffb",
+        "replacements": [
+          {
+            "file": "tools/pegasus/submit_certify.sh",
+            "new": "      && \"$RRATIO\" != \"80\" ]]; then\n",
+            "old": "      && \"$RRATIO\" != \"80\" && \"$RRATIO\" != \"95\" ]]; then\n"
+          }
+        ]
+      },
+      "MUT-T2515-M2-SUBMIT-DROP-5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[5]",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4ed481f4baf471204812870bcd588944ede18bc5f1421ba74b2ecae7a7f198dd",
+        "replacements": [
+          {
+            "file": "tools/pegasus/submit_certify.sh",
+            "new": "if [[ \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n",
+            "old": "if [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n"
+          }
+        ]
+      },
+      "MUT-T2515-M3-SUBMIT-ADD-51": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it",
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[51]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "941c5670d593f8693019b7baf11a9df9fd33bda0d6a511b9df238d4cbe759c9c",
+        "replacements": [
+          {
+            "file": "tools/pegasus/submit_certify.sh",
+            "new": "if [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"51\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n",
+            "old": "if [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n"
+          }
+        ]
+      },
+      "MUT-T2515-M4-JOB-DROP-95": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "354b6b2fa2f5b59c82ae18165a5e74e26afa65f42069d48e71c2962b9d9cb0bb",
+        "replacements": [
+          {
+            "file": "tools/pegasus/certify_calibration.sh",
+            "new": "      && \"$IZANAGI_CALIBRATION_RRATIO\" != \"80\" ]]; then\n",
+            "old": "      && \"$IZANAGI_CALIBRATION_RRATIO\" != \"80\" \\\n      && \"$IZANAGI_CALIBRATION_RRATIO\" != \"95\" ]]; then\n"
+          }
+        ]
+      },
+      "MUT-T2515-M5-SUBMIT-STRIP-PLUS": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[+5]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d0bfe0c5c09dfe994eab03bb9e7e8f444783a44f784de91e4c43de2725523e54",
+        "replacements": [
+          {
+            "file": "tools/pegasus/submit_certify.sh",
+            "new": "RRATIO=${RRATIO#+}\nif [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n",
+            "old": "if [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n"
+          }
+        ]
+      },
+      "MUT-T2515-M6-SUBMIT-STRIP-ZERO": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[05]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "152d3194f89e4f17071efdcaeb15fa9e1c9443fb247e6ca1fdb4dcd0abdb514f",
+        "replacements": [
+          {
+            "file": "tools/pegasus/submit_certify.sh",
+            "new": "RRATIO=${RRATIO#0}\nif [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n",
+            "old": "if [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n"
+          }
+        ]
+      },
+      "MUT-T2515-M7-DOCS-REVERT-WHITELIST": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7015499cd9381be4257bf4ff31445702f90f9f07890f102ea573e15cd29d3e77",
+        "replacements": [
+          {
+            "file": "tools/pegasus/README.md",
+            "new": "(20 / 50 / 80 の固定 whitelist)",
+            "old": "(5 / 20 / 50 / 80 / 95 の固定 whitelist)"
+          }
+        ]
+      },
+      "MUT-T2515-M8-GATE-BARE-PYTHON3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_calibration_workload.py::test_condition_gate_uses_smoke_checked_interpreter_selected_before_call"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b6b2ce72e98944ea6ef7f58940ec9f8e7ec0e54585ba3eb88510a0d37225ff29",
+        "replacements": [
+          {
+            "file": "tools/pegasus/certify_calibration.sh",
+            "new": "  local -a condition_gate_argv=(python3 -m orchestrator.campaign.condition_meaning_gate\n",
+            "old": "  local -a condition_gate_argv=(\"$CALIBRATE_PYTHON\" -m orchestrator.campaign.condition_meaning_gate\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "7fd45ac2f1716d6519fcf8b35f62b9578de1df271b53def769da8d96d5bd0d67",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_pegasus_calibration_workload.py",
+      "orchestrator/tests/test_pegasus_tools.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "18704ae18212d08e25df439316de5bcbf903f4c5",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_pegasus_calibration_workload.py",
+      "orchestrator/tests/test_pegasus_tools.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "dispatch_head_blob_sha256": "69a0a04d50742947d7b0010c9d1c88a06d34a9d49e0c764167fcc2661759b950",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "3abee3a99aefd1090f343e73413abd2581f5494a",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "b031fb6c9d1438f5ca12b1c00dafa5a287643ff6e223b86e0cbc0204a227fcef",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "dd2424b9f84f758d9cff422daa8d243bcd909c73063c011d27812f0639311bca",
+  "summary": {
+    "KILLED": 8,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 8,
+    "matching": 8,
+    "recorded": 8,
+    "registered": 8
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-calib-rr95-rr5/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "9b642865324c49dc8725672d70df70bd2a4a030fad9cbb79a273660ed2b48aa0",
+  "updated_at": "2026-09-09T16:47:59.398907+00:00"
+}

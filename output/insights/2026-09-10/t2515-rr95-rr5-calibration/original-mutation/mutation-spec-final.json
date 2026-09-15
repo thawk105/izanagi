@@ -1,0 +1,141 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "MUT-T2515-M1-SUBMIT-DROP-95",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[95]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "      && \"$RRATIO\" != \"80\" && \"$RRATIO\" != \"95\" ]]; then\n",
+          "new": "      && \"$RRATIO\" != \"80\" ]]; then\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2515-M2-SUBMIT-DROP-5",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[5]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "if [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n",
+          "new": "if [[ \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2515-M3-SUBMIT-ADD-51",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[51]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "if [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n",
+          "new": "if [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"51\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2515-M4-JOB-DROP-95",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "      && \"$IZANAGI_CALIBRATION_RRATIO\" != \"80\" \\\n      && \"$IZANAGI_CALIBRATION_RRATIO\" != \"95\" ]]; then\n",
+          "new": "      && \"$IZANAGI_CALIBRATION_RRATIO\" != \"80\" ]]; then\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2515-M5-SUBMIT-STRIP-PLUS",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[+5]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "if [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n",
+          "new": "RRATIO=${RRATIO#+}\nif [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2515-M6-SUBMIT-STRIP-ZERO",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[05]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_certify.sh",
+          "old": "if [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n",
+          "new": "RRATIO=${RRATIO#0}\nif [[ \"$RRATIO\" != \"5\" && \"$RRATIO\" != \"20\" && \"$RRATIO\" != \"50\" \\\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2515-M7-DOCS-REVERT-WHITELIST",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/README.md",
+          "old": "(5 / 20 / 50 / 80 / 95 の固定 whitelist)",
+          "new": "(20 / 50 / 80 の固定 whitelist)"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2515-M8-GATE-BARE-PYTHON3",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_condition_gate_uses_smoke_checked_interpreter_selected_before_call"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "  local -a condition_gate_argv=(\"$CALIBRATE_PYTHON\" -m orchestrator.campaign.condition_meaning_gate\n",
+          "new": "  local -a condition_gate_argv=(python3 -m orchestrator.campaign.condition_meaning_gate\n"
+        }
+      ]
+    }
+  ]
+}
