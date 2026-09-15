@@ -208,6 +208,12 @@ if [[ "$PROTOCOL_EXPLICIT" -eq 1 ]]; then
 fi
 SCHEDULER_STDOUT="$SCHEDULER_OUTPUT_ROOT/$NONCE.scheduler.stdout"
 SCHEDULER_STDERR="$SCHEDULER_OUTPUT_ROOT/$NONCE.scheduler.stderr"
+if [[ "$JOB_SCRIPT" != /* ]]; then
+  # Keep directory-name newlines; remove only pwd's newline and the sentinel.
+  CALLER_CWD=$(pwd -P && printf '.')
+  CALLER_CWD=${CALLER_CWD%$'\n.'}
+  JOB_SCRIPT="$CALLER_CWD/$JOB_SCRIPT"
+fi
 qsub_cmd=(qsub -o "$SCHEDULER_STDOUT" -e "$SCHEDULER_STDERR" -v "$export_spec" "$JOB_SCRIPT")
 printf 'qsub command:'
 printf ' %q' "${qsub_cmd[@]}"
@@ -220,7 +226,7 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   printf '0\n' >"$SUBMISSION_DIR/qsub.rc"
 else
   set +e
-  "${qsub_cmd[@]}" >"$SUBMISSION_DIR/qsub.stdout" 2>"$SUBMISSION_DIR/qsub.stderr"
+  ( cd -- "$REPO_ROOT" && "${qsub_cmd[@]}" ) >"$SUBMISSION_DIR/qsub.stdout" 2>"$SUBMISSION_DIR/qsub.stderr"
   qsub_rc=$?
   set -e
   printf '%s\n' "$qsub_rc" >"$SUBMISSION_DIR/qsub.rc"
