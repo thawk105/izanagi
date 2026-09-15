@@ -10,12 +10,18 @@ seq: 1
 
 ### {{F:acceptance-untracked-churn-flips-state-assertions}}. 受入全走が自分の作業ツリーへ作る未 tracked scratch が、repo 状態の不変を assert するテストを落とす [テスト代表性] [計測汚染]
 
-- 事象: provenance 差分監査 wave の受入全走で 2 回続けて非帰属赤が出た。1 回目は 3 件
+- 事象: provenance 差分監査 wave の受入全走を 7 回投げ、テストまで到達した 6 回すべてで非帰属赤が出た
+  (1 回は shard の dispatch-infrastructure 障害でテストへ到達せず)。**落ちた node は毎回違い、
+  のべ 8 種類**。同じ file の単独走はいずれも緑。1 回目は 3 件
   (`test_p3_b4_producer_auth_experiment.py::test_case_failure_records_aborted_and_remaining_cases_continue`、
   同 `::test_disposable_tree_mutation_does_not_change_main_worktree`、
   `test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`)、
   2 回目は 1 件 (`test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops`)。
-  **落ちる node が回ごとに違い、同じ 2 file の単独走は 266 passed で緑**である (競走であって決定的赤ではない)。
+  4 回目は `test_campaign::test_certified_writer_authorization_caller_inventory_is_closed`、
+  5 回目は `test_p3_b4_wiring_probe::test_source_and_test_are_the_only_non_output_worktree_changes`、
+  7 回目は `test_p3_b4_producer_auth_experiment` の 2 件 +
+  `test_t338_submission_gate_unit5::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink`。
+  **落ちる node が回ごとに違い、同じ file の単独走は緑**である (競走であって決定的赤ではない)。
 - 根本原因: 受入全走は 1 つの wave worktree で shard を並行に走らせる。`t316` 系のテストは repo 直下へ
   `.t316-live-<8 文字>/` という **`.gitignore` の対象外**の scratch directory を作る。一方で、
   `git status --porcelain -z --untracked-files=all` の出力 bytes が走行前後で変わらないことを要求する
@@ -39,6 +45,11 @@ seq: 1
   (1 回目の受入でしか観測しておらず、2・3 回目では落ちていない)。本質的な是正は
   「`t316` 系の scratch を repo 外へ出す」か「repo 状態の不変を要求するテストを一律に隔離する」の
   どちらかで、main 全体のテスト隔離に当たるため別 wave の scope である。
-- 再発検知: 受入全走でこの 4 node のいずれかが落ち、かつ同じ file の単独走が緑であること。
+- **負荷との無関係を実測した。** 「非帰属赤の連発は load の下降局面を待って投げ直す」という既存の
+  処方は、この族には効かない。1〜5 走目は load 180 超・並行 wave 20 本超だったが、6・7 走目は
+  **load 2.77 / 2.26 / 2.05 の下降局面、同時走行中の受入 0 本**で投げ、それでも赤になった。
+  競走は機械負荷ではなく **1 つの worktree 内で並行する xdist worker 同士**なので、
+  機械が空いても窓は閉じない。**この族に対して投げ直しは有効な手ではない。**
+- 再発検知: 受入全走でこの族のいずれかの node が落ち、かつ同じ file の単独走が緑であること。
   落ちる node が回ごとに変わることが競走の署名である。**「N 走完全一致」は flake の証拠にならない**
   (`DW-O18`) が、本件は逆に **node が回ごとに変わる**ので決定的赤ではないと言える。
