@@ -5490,6 +5490,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   敵対レビュー 2 本が「path 再利用時の見逃しを広げる」と反証し、真因の特定によって不要になった。
   **誤った修正案を実装前に捨てられたのは、レビューと実測の両方があったためである。**
 
+
+- **再発: 2026-09-16** — 向きが逆の同型 ([T-2638])。F119 は `git diff-tree -m` が merge で
+  **過大計上**する側だったが、今回は `git log --find-object` が merge で**過少計上**した。
+  `git log` は既定で merge commit の差分を作らないため、`merge(main):` 経由で main へ入った blob が
+  「どの commit にも無い」と判定される。実証: 同じ blob が `-m` / `--diff-merges=first-parent` を
+  付けると merge commit `9f2f8d3a3` に見つかり、`git rev-parse refs/heads/main:<path>` は
+  **その blob が main の現行内容そのもの**だと返した。この誤判定のまま「子 worktree に着地して
+  いない内容が 6 件ある」と報告する直前だった。**根本原因は F119 と同じで、merge commit に対する
+  git の差分生成の既定を確かめずに判定器へ据えたこと。** 恒久対応 = 内容の着地判定は
+  `git rev-parse <ref>:<path>` と `git hash-object` の直接比較を一次とし (O(1)・履歴を歩かない・
+  merge の影響を受けない)、履歴検索は `-m` 付きの補助に限り、**`--find-object` の無 hit を単独の
+  否定根拠にしない**。再発検知 = memory `git-find-object-misses-merge-commits`。
+  なお `--find-object` の hit も「その commit の tree にその blob がある」ことを意味しない
+  (削除された側でも hit する) ため、証拠 commit として記録するなら `ls-tree` で tree を直接照合する。
 ### F120. 実装面を Claude が書いた commit が provenance 契約に阻まれ、検査緑のまま land 不能になった [手順漏れ]
 
 - 事象: 上記恒久対応を先に実装した commit `e8d0c44c` は `check_docs` 緑・テスト緑だったが、
@@ -10297,6 +10311,30 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **検知点が 4 つ目である** ことを顕在化する — 走行前 `rc=2`、走行中の偽の赤、走行後の
   事後検査 `rc=125` に加えて、**`--plan-only` の事後検査**がある。これは 1 走も消費しないので
   4 者のうち最も安く、並行 churn が常態なら本走の前に必ず当たる。
+
+- **再発: 2026-09-16** — churn の出所が**同じ走行の内側**という変種 ([T-2638])。docs のみの wave で
+  受入全走が 5 回続けて赤になり、6 回目で緑になった (赤 3 件 → 33 件 → 1 件 → 2 件 → 1 件)。
+  **機序は最後の 1 件が明示した** —
+  `test_t338_submission_gate_unit5.py::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink`
+  は repo root 全体を `rglob("*.py")` で走査するが、その途中で
+  `.t316-live-<乱数>/repo/external/ccbench/.git/worktrees` に入ったところ、**同じ走行中の別テストが
+  その directory を削除**し `FileNotFoundError` で落ちた。他の赤も同じ scratch を観測した
+  `assert_repository_unchanged` 系である。**repo root を全走査する検査と、repo root 配下に scratch を
+  作っては消す検査が、同一走行内で競合している。** F300 の既往は「親が repo 内で別作業をした」
+  「別 session が local main を進めた」だったが、今回は**走行の内側で完結しており、親も他 session も
+  何もしていない**。
+  赤になった test の集合は走行ごとに変わり (同一 tip・同一差分)、単独走では全件緑
+  (3 件 → 3 passed、30 件 → 199 passed、1 件 → 1 passed)。変更した path
+  (`docs/spool/**`・`output/insights/**`) は赤になった 4 test file とその production module の
+  どこからも参照されておらず、差分到達不能を機械的に確認した。
+  **恒久対応は未定。** `orchestrator/tests/flaky_test_holds.py` への登録は `DW-O18` が
+  「main 既存 F を証拠に Codex role=author が登録」と定めるが、本再発追記が main へ着地するまで
+  その証拠が存在しない (循環)。影響を受ける test は
+  `test_p3_b4_producer_auth_experiment.py::test_disposable_tree_mutation_does_not_change_main_worktree`、
+  同 `::test_case_failure_records_aborted_and_remaining_cases_continue`、
+  `test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`、
+  `test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops`。
+  再発検知 = 受入 log の FAILED 行がこの 4 件のいずれかだけで、単独走が緑になること。
 ### F301. 編集対象ファイルを bytes pin している側を数え落とした [凍結 pin] [手順漏れ]
 
 - 事象: 受入全走で `test_s8b_oracle_manifest.py` の 2 node が
@@ -11919,6 +11957,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   変異を事前登録する段で対象 file が閉包の member かを確認し、member なら閉包外の consumer へ
   再照準する。本 wave は 2 件を `orchestrator/campaign/layer3_report.py` (閉包外) へ再照準し、
   probe 2 で単一 node を確認してから本走した。
+
+- **再発: 2026-09-16** — 判定手順が `contract-loader-drift` に限定されていたため、別 producer で
+  同じ形の偽赤を 1 本の焦点走 (9 test file・751 passed) を費やして踏んだ。今回の producer は
+  `orchestrator/tests/test_p3_b4_producer_auth_experiment.py::test_main_worktree_has_no_permanent_prototype_or_pin_change`
+  で、`orchestrator/campaign/p3_b4_producer_auth_experiment.py` の `PROTOTYPE_PATCHES` が名指す
+  保護 path について `git diff --exit-code <HEAD>` の無差分を要求する。発行器を編集して未 commit の
+  まま焦点走をかけると機械的に赤くなり、commit 後の単独再走は 50 passed・rc=0 だった。
+  **これで「disk bytes が HEAD blob と一致することを要求する gate」は独立 2 producer で再現した**
+  (契約 loader 閉包と producer-auth prototype pin)。判定手順を赤の理由行の語だけに依存させず、
+  実装面を編集した wave では焦点走の赤を実装へ帰属する前に統合 commit 後の再走で切り分ける。
 ### F358. byte 束縛されたソースへの変異は、意味に無関係な共通核で全変異が KILLED に見える [テスト代表性]
 
 - 事象: `pipeline.py` を対象にした変異 13 件が全て KILLED になったが、内訳を見ると
