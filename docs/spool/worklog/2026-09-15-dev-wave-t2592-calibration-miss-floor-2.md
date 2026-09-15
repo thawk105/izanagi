@@ -35,10 +35,18 @@ title: [T-2592] 較正のレコード数の選択規則へ品質検査の取り�
   動かないことを確認した。しかし wave 中に local main が `6cf35ee7a` で 3 件足したため、
   取り込み後に 7 件で取り直した。7 件とも採用点は動かない。
   **着手時の 4 件だけで「全件動かない」と書いていたら誤りだった。**
-- **受入全走 1 回目は `stage=postcheck rc=70` で終端した (非帰属)。** 子 rc は null で、
-  テストは 1 本も走っていない。`claimed_main` は `0864b5dfa` だったが、post-claim merge の後に
-  local main がさらに進んで `behind != 0` になった競走である。取り込み merge `8e974931e` 自体は
-  成立しており、差分にも成果物にも影響しない。
+- **受入全走の赤はすべて非帰属だった (DW-O18 の判定根拠)。**
+  1 回目と 2 回目は `stage=postcheck rc=70` で、子 rc は null = テストが 1 本も走っていない。
+  post-claim merge に約 6 分 40 秒かかり、その間に別 session が local main を進めたため
+  `behind != 0` になった競走である (`claimed_main` は `0864b5dfa` / `9c0d498a4`)。
+  取り込み merge 自体は成立しており、差分にも成果物にも影響しない。
+  3 回目はテストまで到達して **23,645 passed / 68 skipped / 26 error**。
+  26 件は全て **setup での timeout** で、内訳は自 worktree に対する
+  `git status --porcelain` の 30 秒 timeout が 16 件、`git ls-files --others` の 30 秒 timeout が
+  9 件、real-repo parent lock の deadline 超過が 1 件。assertion 本文は 1 件も無く、
+  変更面 (`analyze.py` と `test_calibrator.py`) から到達しない。
+  当該 2 file の単独再走は **269 passed・rc=0** で再現しなかった。
+  測定時の `/proc/loadavg` は 135.36 / 146.24 / 143.32、同時走行中の受入は 4 本。
 - **セッション異常 2 件。** (1) `EnterWorktree` tool が
   `Could not read the repository git config to neutralize filter drivers` で失敗した
   (`.git/config` は読取可能で `git config --get` も成功する)。手動 `git worktree add` で回復した。
