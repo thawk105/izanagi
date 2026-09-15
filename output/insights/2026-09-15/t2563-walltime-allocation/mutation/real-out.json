@@ -1,0 +1,559 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze/output/pegasus-dispatch/1cfbb33d8a3ca9a61764460f94253934/izdw-1cfbb33d8a.o999048",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze/output/pegasus-dispatch/1cfbb33d8a3ca9a61764460f94253934/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [193 items]\n\n........................................................................ [ 37%]\n........................................................................ [ 74%]\n.................................................                        [100%]\n======================== 193 passed in 74.74s (0:01:14) ========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "f87a5d31280e88e4b3558f3fff619126f3f0cb940126df8b794fd61be57ccc0e"
+    },
+    "artifact_error": null,
+    "collection_sha256": "b2bc5a845d5cd58245f1d4210330ce9ce6607f50b9f0b4078d6b13f181f13189",
+    "duration_s": 874.006,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "a4fba3e00ce01f48c06077af62cee29496eba59baf65eed6459639c550fde0ae",
+    "repo_head": "f5ba283784f99364c0a5e2eab09e03c5fa713c1f",
+    "runner_sha256": "61b4c2a397044be6b1e335b2830f13fd4fa6757c15218e9dc7681104aef2a239",
+    "spec_sha256": "0aea2ad2535ddcea3d000d76ef832cce00e5c8baeca46dccdf14c45fa750c87e",
+    "status": "PASSED",
+    "test_output_sha256": "f87a5d31280e88e4b3558f3fff619126f3f0cb940126df8b794fd61be57ccc0e",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "fe3673f7db9a297d549d6becfdcdf1c540f0e2bc129b023facf820e58d38fa82"
+  },
+  "date": "2026-09-15T07:45:58.749658+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze/output/pegasus-dispatch/ed835eaf9051430632e9e0de6b2f9ab4/izdw-ed835eaf90.o999114",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze/output/pegasus-dispatch/ed835eaf9051430632e9e0de6b2f9ab4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [193 items]\n\n........................................................................ [ 37%]\n.........................................F.............................. [ 74%]\n.................................................                        [100%]\n=================================== FAILURES ===================================\n__________ test_certify_uses_frozen_cli_names_and_reservation_exports __________\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certify_uses_frozen_cli_names_and_reservation_exports():\n        source = (TOOL_DIR / \"certify_calibration.sh\").read_text(encoding=\"utf-8\")\n        for flag in (\"--certify\", \"--receipt-json\", \"--binary-sha256\"):\n            assert flag in source\n        assert \"--effective-clock-tolerance-pct\" not in source\n        assert \"legacy effective clock tolerance input is forbidden\" in source\n        for field in (\n            \"JOB_ID\", \"REQUESTED_S\", \"SCHEDULER_STARTED_EPOCH\", \"DEADLINE_EPOCH\",\n            \"HOST\", \"BOOT_ID\", \"SCRIPT_SHA256\", \"NONCE\",\n        ):\n            assert \"IZANAGI_RESERVATION_\" + field in source\n        assert '\"required_s\": frozen_required_s' in source\n>       assert (\n            \"frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 \"\n            \"+ 2 * 3 * 120 + 1080 + int(reserve_s)\"\n        ) in source\nE       assert 'frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 + 2 * 3 * 120 + 1080 + int(reserve_s)' in '#!/bin/bash\\n#PBS -A SFC\\n#PBS -q gen_S\\n#PBS -l elapstim_req=02:00:00\\n#PBS -b 1\\n\\n# C3-7 予約式 (秒):\\n# TSC(10) + coo...OURCE\" \\\\\\n  >\"$ATTEMPT_DIR/worktree-remove.stdout\" 2>\"$ATTEMPT_DIR/worktree-remove.stderr\"\\nBUILD_SOURCE=\"\"\\nexit 0\\n'\n\norchestrator/tests/test_pegasus_tools.py:212: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports\n=================== 1 failed, 192 passed in 75.54s (0:01:15) ===================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=1323 retained_bytes=1323 omitted_bytes=0 rendered_excerpt_bytes=1417 sha256=f2133d76083ff377fbee39e1b25a74a4ebc341d9241fe4129da803bf2c5f67d1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certify_uses_frozen_cli_names_and_reservation_exports():\n>         source = (TOOL_DIR / \"certify_calibration.sh\").read_text(encoding=\"utf-8\")\n>         for flag in (\"--certify\", \"--receipt-json\", \"--binary-sha256\"):\n>             assert flag in source\n>         assert \"--effective-clock-tolerance-pct\" not in source\n>         assert \"legacy effective clock tolerance input is forbidden\" in source\n>         for field in (\n>             \"JOB_ID\", \"REQUESTED_S\", \"SCHEDULER_STARTED_EPOCH\", \"DEADLINE_EPOCH\",\n>             \"HOST\", \"BOOT_ID\", \"SCRIPT_SHA256\", \"NONCE\",\n>         ):\n>             assert \"IZANAGI_RESERVATION_\" + field in source\n>         assert '\"required_s\": frozen_required_s' in source\n> >       assert (\n>             \"frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 \"\n>             \"+ 2 * 3 * 120 + 1080 + int(reserve_s)\"\n>         ) in source\n> E       assert 'frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 + 2 * 3 * 120 + 1080 + int(reserve_s)' in '#!/bin/bash\\x5cn#PBS -A SFC\\x5cn#PBS -q gen_S\\x5cn#PBS -l elapstim_req=02:00:00\\x5cn#PBS -b 1\\x5cn\\x5cn# C3-7 \\u4e88\\u7d04\\u5f0f (\\u79d2):\\x5cn# TSC(10) + coo...OURCE\" \\x5c\\x5c\\x5cn  >\"$ATTEMPT_DIR/worktree-remove.stdout\" 2>\"$ATTEMPT_DIR/worktree-remove.stderr\"\\x5cnBUILD_SOURCE=\"\"\\x5cnexit 0\\x5cn'\n> \n> orchestrator/tests/test_pegasus_tools.py:212: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1323 retained_bytes=1323 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2145 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2dd31336245e94c47bf90644d90c502a96e348c5fdd566ee155d9181aed67747"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b2bc5a845d5cd58245f1d4210330ce9ce6607f50b9f0b4078d6b13f181f13189",
+      "duration_s": 104.807,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "d4d01f0beecea3147ae00680e5d633331d66a935aef3baac4fa46bc578a45622",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "821f277cb4c83d82efceb21eed82d7e14835f2d280ed093acd33199d235744ac",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 + 2 * 3 * 120 + 1081 + int(reserve_s)",
+          "old": "frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 + 2 * 3 * 120 + 1080 + int(reserve_s)"
+        }
+      ],
+      "repo_head": "f5ba283784f99364c0a5e2eab09e03c5fa713c1f",
+      "runner_sha256": "61b4c2a397044be6b1e335b2830f13fd4fa6757c15218e9dc7681104aef2a239",
+      "spec_sha256": "0aea2ad2535ddcea3d000d76ef832cce00e5c8baeca46dccdf14c45fa750c87e",
+      "status": "KILLED",
+      "test_output_sha256": "2dd31336245e94c47bf90644d90c502a96e348c5fdd566ee155d9181aed67747",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fe3673f7db9a297d549d6becfdcdf1c540f0e2bc129b023facf820e58d38fa82"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze/output/pegasus-dispatch/b3c92f2a29be865cdce04953a3b74dfd/izdw-b3c92f2a29.o999122",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze/output/pegasus-dispatch/b3c92f2a29be865cdce04953a3b74dfd/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [193 items]\n\n........................................................................ [ 37%]\n..........................................F............................. [ 74%]\n.................................................                        [100%]\n=================================== FAILURES ===================================\n__________ test_certify_uses_frozen_cli_names_and_reservation_exports __________\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certify_uses_frozen_cli_names_and_reservation_exports():\n        source = (TOOL_DIR / \"certify_calibration.sh\").read_text(encoding=\"utf-8\")\n        for flag in (\"--certify\", \"--receipt-json\", \"--binary-sha256\"):\n            assert flag in source\n        assert \"--effective-clock-tolerance-pct\" not in source\n        assert \"legacy effective clock tolerance input is forbidden\" in source\n        for field in (\n            \"JOB_ID\", \"REQUESTED_S\", \"SCHEDULER_STARTED_EPOCH\", \"DEADLINE_EPOCH\",\n            \"HOST\", \"BOOT_ID\", \"SCRIPT_SHA256\", \"NONCE\",\n        ):\n            assert \"IZANAGI_RESERVATION_\" + field in source\n        assert '\"required_s\": frozen_required_s' in source\n        assert (\n            \"frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 \"\n            \"+ 2 * 3 * 120 + 1080 + int(reserve_s)\"\n        ) in source\n>       assert '''walltime_formula = (\n        \"TSC(10)+cooldown_max(1200)+points(5)*sweep_reps(3)*120+\"\n        \"noise_reps(10)*120+2*sweep_reps(3)*120+\"\n        \"reservation_allocation(1080)+finalize_reserve(600)=6610; \"\n        \"1080 is a reservation allocation, not a sequential bound. \"\n        \"The former build_cap breakdown does not match the commands: \"\n        \"gflags configure/build/install=3*60=180s; \"\n        \"glog configure/build/install=3*120=360s; \"\n        \"CCBench configure+build=2*900=1800s. \"\n        \"This allocation excludes third-party copy(360), pristine verification(120), \"\n        \"attestation probes(240), qstat(30), binary hash+nm(120), perf(40). \"\n        \"Pre-measurement timeout values sum to 3250s; with CLI reservation(4990) \"\n        \"and finalize reserve: 3250 + 4990 + 600 = 8840 > 7200; \"\n        \"completion of the maximum path is not guaranteed. \"\n        \"8840 itself is not an upper bound: it excludes operations without timeout \"\n        \"(git status, git worktree add, full /proc scan, worktree removal, \"\n        \"receipt I/O and fsync, submit receipt wait of up to 60 sleep 1 calls). \"\n        \"CLI 2*sweep_reps*120 is a reservation constant not executed in certify \"\n        \"(orchestrator/calibrator/sweep.py returns before scale measurement). \"\n        \"An attempt interrupted before measurement completion does not newly \"\n        \"assemble accepted output from partial samples; however, TERM after \"\n        \"publication can leave accepted published artifacts while the wrapper \"\n        \"exits nonzero. This is an existing limitation, not introduced by this change.\"\n    )''' in source\nE       assert 'walltime_formula = (\\n    \"TSC(10)+cooldown_max(1200)+points(5)*sweep_reps(3)*120+\"\\n    \"noise_reps(10)*120+2*sweep_... artifacts while the wrapper \"\\n    \"exits nonzero. This is an existing limitation, not introduced by this change.\"\\n)' in '#!/bin/bash\\n#PBS -A SFC\\n#PBS -q gen_S\\n#PBS -l elapstim_req=02:00:00\\n#PBS -b 1\\n\\n# C3-7 予約式 (秒):\\n# TSC(10) + coo...OURCE\" \\\\\\n  >\"$ATTEMPT_DIR/worktree-remove.stdout\" 2>\"$ATTEMPT_DIR/worktree-remove.stderr\"\\nBUILD_SOURCE=\"\"\\nexit 0\\n'\n\norchestrator/tests/test_pegasus_tools.py:216: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports\n=================== 1 failed, 192 passed in 74.39s (0:01:14) ===================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=3110 retained_bytes=3110 omitted_bytes=0 rendered_excerpt_bytes=3264 sha256=59ae361948bec9ed3a716fca0366467c84e0f944b3cca977592e224720685679\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certify_uses_frozen_cli_names_and_reservation_exports():\n>         source = (TOOL_DIR / \"certify_calibration.sh\").read_text(encoding=\"utf-8\")\n>         for flag in (\"--certify\", \"--receipt-json\", \"--binary-sha256\"):\n>             assert flag in source\n>         assert \"--effective-clock-tolerance-pct\" not in source\n>         assert \"legacy effective clock tolerance input is forbidden\" in source\n>         for field in (\n>             \"JOB_ID\", \"REQUESTED_S\", \"SCHEDULER_STARTED_EPOCH\", \"DEADLINE_EPOCH\",\n>             \"HOST\", \"BOOT_ID\", \"SCRIPT_SHA256\", \"NONCE\",\n>         ):\n>             assert \"IZANAGI_RESERVATION_\" + field in source\n>         assert '\"required_s\": frozen_required_s' in source\n>         assert (\n>             \"frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 \"\n>             \"+ 2 * 3 * 120 + 1080 + int(reserve_s)\"\n>         ) in source\n> >       assert '''walltime_formula = (\n>         \"TSC(10)+cooldown_max(1200)+points(5)*sweep_reps(3)*120+\"\n>         \"noise_reps(10)*120+2*sweep_reps(3)*120+\"\n>         \"reservation_allocation(1080)+finalize_reserve(600)=6610; \"\n>         \"1080 is a reservation allocation, not a sequential bound. \"\n>         \"The former build_cap breakdown does not match the commands: \"\n>         \"gflags configure/build/install=3*60=180s; \"\n>         \"glog configure/build/install=3*120=360s; \"\n>         \"CCBench configure+build=2*900=1800s. \"\n>         \"This allocation excludes third-party copy(360), pristine verification(120), \"\n>         \"attestation probes(240), qstat(30), binary hash+nm(120), perf(40). \"\n>         \"Pre-measurement timeout values sum to 3250s; with CLI reservation(4990) \"\n>         \"and finalize reserve: 3250 + 4990 + 600 = 8840 > 7200; \"\n>         \"completion of the maximum path is not guaranteed. \"\n>         \"8840 itself is not an upper bound: it excludes operations without timeout \"\n>         \"(git status, git worktree add, full /proc scan, worktree removal, \"\n>         \"receipt I/O and fsync, submit receipt wait of up to 60 sleep 1 calls). \"\n>         \"CLI 2*sweep_reps*120 is a reservation constant not executed in certify \"\n>         \"(orchestrator/calibrator/sweep.py returns before scale measurement). \"\n>         \"An attempt interrupted before measurement completion does not newly \"\n>         \"assemble accepted output from partial samples; however, TERM after \"\n>         \"publication can leave accepted published artifacts while the wrapper \"\n>         \"exits nonzero. This is an existing limitation, not introduced by this change.\"\n>     )''' in source\n> E       assert 'walltime_formula = (\\x5cn    \"TSC(10)+cooldown_max(1200)+points(5)*sweep_reps(3)*120+\"\\x5cn    \"noise_reps(10)*120+2*sweep_... artifacts while the wrapper \"\\x5cn    \"exits nonzero. This is an existing limitation, not introduced by this change.\"\\x5cn)' in '#!/bin/bash\\x5cn#PBS -A SFC\\x5cn#PBS -q gen_S\\x5cn#PBS -l elapstim_req=02:00:00\\x5cn#PBS -b 1\\x5cn\\x5cn# C3-7 \\u4e88\\u7d04\\u5f0f (\\u79d2):\\x5cn# TSC(10) + coo...OURCE\" \\x5c\\x5c\\x5cn  >\"$ATTEMPT_DIR/worktree-remove.stdout\" 2>\"$ATTEMPT_DIR/worktree-remove.stderr\"\\x5cnBUILD_SOURCE=\"\"\\x5cnexit 0\\x5cn'\n> \n> orchestrator/tests/test_pegasus_tools.py:216: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3110 retained_bytes=3110 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3992 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8a70757399632fd8f189ebaa996a8f4309c4bcc327c7c7ca2b2525dfdf1dad9d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b2bc5a845d5cd58245f1d4210330ce9ce6607f50b9f0b4078d6b13f181f13189",
+      "duration_s": 106.575,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "f71a9887aeb3d66ea5b7a7db74bc728447c57b12b57fa0014a801c5d4db7070a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "25e647b564c4ffe97724343267bf7767d2dacd406554442787b4db5d9eb67900",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "    \"8840 is the guaranteed upper bound of the job. \"",
+          "old": "    \"8840 itself is not an upper bound: it excludes operations without timeout \""
+        }
+      ],
+      "repo_head": "f5ba283784f99364c0a5e2eab09e03c5fa713c1f",
+      "runner_sha256": "61b4c2a397044be6b1e335b2830f13fd4fa6757c15218e9dc7681104aef2a239",
+      "spec_sha256": "0aea2ad2535ddcea3d000d76ef832cce00e5c8baeca46dccdf14c45fa750c87e",
+      "status": "KILLED",
+      "test_output_sha256": "8a70757399632fd8f189ebaa996a8f4309c4bcc327c7c7ca2b2525dfdf1dad9d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fe3673f7db9a297d549d6becfdcdf1c540f0e2bc129b023facf820e58d38fa82"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze/output/pegasus-dispatch/8f94c65b81c689a12babd621399c84ab/izdw-8f94c65b81.o999126",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze/output/pegasus-dispatch/8f94c65b81c689a12babd621399c84ab/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [193 items]\n\n..........................................................F............. [ 37%]\n........................................................................ [ 74%]\n.................................................                        [100%]\n=================================== FAILURES ===================================\n__________ test_pbs_directives_match_shared_and_calibration_policies ___________\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_pbs_directives_match_shared_and_calibration_policies():\n        shared_policy = json.loads(SHARED_POLICY.read_text(encoding=\"utf-8\"))\n        calibration_policy = json.loads(\n            CALIBRATION_POLICY.read_text(encoding=\"utf-8\")\n        )\n        smoke = _pbs_directives(TOOL_DIR / \"smoke_probe.sh\")\n        certify = _pbs_directives(TOOL_DIR / \"certify_calibration.sh\")\n        for directives in (smoke, certify):\n            assert directives[\"-A\"] == shared_policy[\"project\"]\n            assert directives[\"-q\"] == shared_policy[\"queue\"]\n            assert int(directives[\"-b\"]) == shared_policy[\"nodes\"]\n        assert (\n            smoke[\"-l\"]\n            == \"elapstim_req=\" + calibration_policy[\"smoke_walltime\"]\n        )\n        assert (\n            certify[\"-l\"]\n            == \"elapstim_req=\" + calibration_policy[\"certify_walltime\"]\n        )\n        assert (\n            _hms_seconds(calibration_policy[\"smoke_walltime\"])\n            == calibration_policy[\"smoke_walltime_s\"]\n        )\n        assert (\n            _hms_seconds(calibration_policy[\"certify_walltime\"])\n            == calibration_policy[\"certify_walltime_s\"]\n        )\n        certify_source = (TOOL_DIR / \"certify_calibration.sh\").read_text(\n            encoding=\"utf-8\"\n        )\n        formula_reserves = {\n            int(value)\n            for value in re.findall(r\"finalize_reserve\\((\\d+)\\)\", certify_source)\n        }\n        assert formula_reserves\n>       assert formula_reserves == {calibration_policy[\"finalize_reserve_s\"]}\nE       assert {599, 600} == {600}\nE         \nE         Extra items in the left set:\nE         599\nE         Use -v to get more diff\n\norchestrator/tests/test_pegasus_tools.py:169: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_tools.py::test_pbs_directives_match_shared_and_calibration_policies\n=================== 1 failed, 192 passed in 75.69s (0:01:15) ===================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_tools.py::test_pbs_directives_match_shared_and_calibration_policies\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=1773 retained_bytes=1773 omitted_bytes=0 rendered_excerpt_bytes=1873 sha256=30def6b097b4f934a7ec9ce0c37275a7124fe843afb9d883ea0d0cc9e65a4664\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw46] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_pbs_directives_match_shared_and_calibration_policies():\n>         shared_policy = json.loads(SHARED_POLICY.read_text(encoding=\"utf-8\"))\n>         calibration_policy = json.loads(\n>             CALIBRATION_POLICY.read_text(encoding=\"utf-8\")\n>         )\n>         smoke = _pbs_directives(TOOL_DIR / \"smoke_probe.sh\")\n>         certify = _pbs_directives(TOOL_DIR / \"certify_calibration.sh\")\n>         for directives in (smoke, certify):\n>             assert directives[\"-A\"] == shared_policy[\"project\"]\n>             assert directives[\"-q\"] == shared_policy[\"queue\"]\n>             assert int(directives[\"-b\"]) == shared_policy[\"nodes\"]\n>         assert (\n>             smoke[\"-l\"]\n>             == \"elapstim_req=\" + calibration_policy[\"smoke_walltime\"]\n>         )\n>         assert (\n>             certify[\"-l\"]\n>             == \"elapstim_req=\" + calibration_policy[\"certify_walltime\"]\n>         )\n>         assert (\n>             _hms_seconds(calibration_policy[\"smoke_walltime\"])\n>             == calibration_policy[\"smoke_walltime_s\"]\n>         )\n>         assert (\n>             _hms_seconds(calibration_policy[\"certify_walltime\"])\n>             == calibration_policy[\"certify_walltime_s\"]\n>         )\n>         certify_source = (TOOL_DIR / \"certify_calibration.sh\").read_text(\n>             encoding=\"utf-8\"\n>         )\n>         formula_reserves = {\n>             int(value)\n>             for value in re.findall(r\"finalize_reserve\\x5c((\\x5cd+)\\x5c)\", certify_source)\n>         }\n>         assert formula_reserves\n> >       assert formula_reserves == {calibration_policy[\"finalize_reserve_s\"]}\n> E       assert {599, 600} == {600}\n> E         \n> E         Extra items in the left set:\n> E         599\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_pegasus_tools.py:169: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1773 retained_bytes=1773 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2599 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5ad16f8e12dd0589a2fa5e79f8ddc196a1b7e97018766ad23e18f2cfaebef282"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b2bc5a845d5cd58245f1d4210330ce9ce6607f50b9f0b4078d6b13f181f13189",
+      "duration_s": 105.76,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directives_match_shared_and_calibration_policies"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directives_match_shared_and_calibration_policies"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "0210fcd95349546bb2fb654fd43596c7fc9f10dc568ed83a8e0bd0c050dc23c6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3268acadd12a94a18a5681f8d188758a01568bc6b5b47f02ff7029c146b372a3",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "# + reservation_allocation(1080) + finalize_reserve(599) = 6610。",
+          "old": "# + reservation_allocation(1080) + finalize_reserve(600) = 6610。"
+        }
+      ],
+      "repo_head": "f5ba283784f99364c0a5e2eab09e03c5fa713c1f",
+      "runner_sha256": "61b4c2a397044be6b1e335b2830f13fd4fa6757c15218e9dc7681104aef2a239",
+      "spec_sha256": "0aea2ad2535ddcea3d000d76ef832cce00e5c8baeca46dccdf14c45fa750c87e",
+      "status": "KILLED",
+      "test_output_sha256": "5ad16f8e12dd0589a2fa5e79f8ddc196a1b7e97018766ad23e18f2cfaebef282",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fe3673f7db9a297d549d6becfdcdf1c540f0e2bc129b023facf820e58d38fa82"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze/output/pegasus-dispatch/dbae4b8499ff7062c17ebe51a1deb973/izdw-dbae4b8499.o999131",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze/output/pegasus-dispatch/dbae4b8499ff7062c17ebe51a1deb973/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [193 items]\n\n........................................................................ [ 37%]\n.........................................F.............................. [ 74%]\n.................................................                        [100%]\n=================================== FAILURES ===================================\n__________ test_certify_uses_frozen_cli_names_and_reservation_exports __________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_certify_uses_frozen_cli_names_and_reservation_exports():\n        source = (TOOL_DIR / \"certify_calibration.sh\").read_text(encoding=\"utf-8\")\n        for flag in (\"--certify\", \"--receipt-json\", \"--binary-sha256\"):\n            assert flag in source\n        assert \"--effective-clock-tolerance-pct\" not in source\n        assert \"legacy effective clock tolerance input is forbidden\" in source\n        for field in (\n            \"JOB_ID\", \"REQUESTED_S\", \"SCHEDULER_STARTED_EPOCH\", \"DEADLINE_EPOCH\",\n            \"HOST\", \"BOOT_ID\", \"SCRIPT_SHA256\", \"NONCE\",\n        ):\n            assert \"IZANAGI_RESERVATION_\" + field in source\n        assert '\"required_s\": frozen_required_s' in source\n        assert (\n            \"frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 \"\n            \"+ 2 * 3 * 120 + 1080 + int(reserve_s)\"\n        ) in source\n>       assert '''walltime_formula = (\n        \"TSC(10)+cooldown_max(1200)+points(5)*sweep_reps(3)*120+\"\n        \"noise_reps(10)*120+2*sweep_reps(3)*120+\"\n        \"reservation_allocation(1080)+finalize_reserve(600)=6610; \"\n        \"1080 is a reservation allocation, not a sequential bound. \"\n        \"The former build_cap breakdown does not match the commands: \"\n        \"gflags configure/build/install=3*60=180s; \"\n        \"glog configure/build/install=3*120=360s; \"\n        \"CCBench configure+build=2*900=1800s. \"\n        \"This allocation excludes third-party copy(360), pristine verification(120), \"\n        \"attestation probes(240), qstat(30), binary hash+nm(120), perf(40). \"\n        \"Pre-measurement timeout values sum to 3250s; with CLI reservation(4990) \"\n        \"and finalize reserve: 3250 + 4990 + 600 = 8840 > 7200; \"\n        \"completion of the maximum path is not guaranteed. \"\n        \"8840 itself is not an upper bound: it excludes operations without timeout \"\n        \"(git status, git worktree add, full /proc scan, worktree removal, \"\n        \"receipt I/O and fsync, submit receipt wait of up to 60 sleep 1 calls). \"\n        \"CLI 2*sweep_reps*120 is a reservation constant not executed in certify \"\n        \"(orchestrator/calibrator/sweep.py returns before scale measurement). \"\n        \"An attempt interrupted before measurement completion does not newly \"\n        \"assemble accepted output from partial samples; however, TERM after \"\n        \"publication can leave accepted published artifacts while the wrapper \"\n        \"exits nonzero. This is an existing limitation, not introduced by this change.\"\n    )''' in source\nE       assert 'walltime_formula = (\\n    \"TSC(10)+cooldown_max(1200)+points(5)*sweep_reps(3)*120+\"\\n    \"noise_reps(10)*120+2*sweep_... artifacts while the wrapper \"\\n    \"exits nonzero. This is an existing limitation, not introduced by this change.\"\\n)' in '#!/bin/bash\\n#PBS -A SFC\\n#PBS -q gen_S\\n#PBS -l elapstim_req=02:00:00\\n#PBS -b 1\\n\\n# C3-7 予約式 (秒):\\n# TSC(10) + coo...OURCE\" \\\\\\n  >\"$ATTEMPT_DIR/worktree-remove.stdout\" 2>\"$ATTEMPT_DIR/worktree-remove.stderr\"\\nBUILD_SOURCE=\"\"\\nexit 0\\n'\n\norchestrator/tests/test_pegasus_tools.py:216: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports\n=================== 1 failed, 192 passed in 75.58s (0:01:15) ===================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=3110 retained_bytes=3110 omitted_bytes=0 rendered_excerpt_bytes=3264 sha256=1b40325e6e32bba8f95673b95fa0bb4ac062dd5f2bfdd476ee5c0cede8aee44c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_certify_uses_frozen_cli_names_and_reservation_exports():\n>         source = (TOOL_DIR / \"certify_calibration.sh\").read_text(encoding=\"utf-8\")\n>         for flag in (\"--certify\", \"--receipt-json\", \"--binary-sha256\"):\n>             assert flag in source\n>         assert \"--effective-clock-tolerance-pct\" not in source\n>         assert \"legacy effective clock tolerance input is forbidden\" in source\n>         for field in (\n>             \"JOB_ID\", \"REQUESTED_S\", \"SCHEDULER_STARTED_EPOCH\", \"DEADLINE_EPOCH\",\n>             \"HOST\", \"BOOT_ID\", \"SCRIPT_SHA256\", \"NONCE\",\n>         ):\n>             assert \"IZANAGI_RESERVATION_\" + field in source\n>         assert '\"required_s\": frozen_required_s' in source\n>         assert (\n>             \"frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 \"\n>             \"+ 2 * 3 * 120 + 1080 + int(reserve_s)\"\n>         ) in source\n> >       assert '''walltime_formula = (\n>         \"TSC(10)+cooldown_max(1200)+points(5)*sweep_reps(3)*120+\"\n>         \"noise_reps(10)*120+2*sweep_reps(3)*120+\"\n>         \"reservation_allocation(1080)+finalize_reserve(600)=6610; \"\n>         \"1080 is a reservation allocation, not a sequential bound. \"\n>         \"The former build_cap breakdown does not match the commands: \"\n>         \"gflags configure/build/install=3*60=180s; \"\n>         \"glog configure/build/install=3*120=360s; \"\n>         \"CCBench configure+build=2*900=1800s. \"\n>         \"This allocation excludes third-party copy(360), pristine verification(120), \"\n>         \"attestation probes(240), qstat(30), binary hash+nm(120), perf(40). \"\n>         \"Pre-measurement timeout values sum to 3250s; with CLI reservation(4990) \"\n>         \"and finalize reserve: 3250 + 4990 + 600 = 8840 > 7200; \"\n>         \"completion of the maximum path is not guaranteed. \"\n>         \"8840 itself is not an upper bound: it excludes operations without timeout \"\n>         \"(git status, git worktree add, full /proc scan, worktree removal, \"\n>         \"receipt I/O and fsync, submit receipt wait of up to 60 sleep 1 calls). \"\n>         \"CLI 2*sweep_reps*120 is a reservation constant not executed in certify \"\n>         \"(orchestrator/calibrator/sweep.py returns before scale measurement). \"\n>         \"An attempt interrupted before measurement completion does not newly \"\n>         \"assemble accepted output from partial samples; however, TERM after \"\n>         \"publication can leave accepted published artifacts while the wrapper \"\n>         \"exits nonzero. This is an existing limitation, not introduced by this change.\"\n>     )''' in source\n> E       assert 'walltime_formula = (\\x5cn    \"TSC(10)+cooldown_max(1200)+points(5)*sweep_reps(3)*120+\"\\x5cn    \"noise_reps(10)*120+2*sweep_... artifacts while the wrapper \"\\x5cn    \"exits nonzero. This is an existing limitation, not introduced by this change.\"\\x5cn)' in '#!/bin/bash\\x5cn#PBS -A SFC\\x5cn#PBS -q gen_S\\x5cn#PBS -l elapstim_req=02:00:00\\x5cn#PBS -b 1\\x5cn\\x5cn# C3-7 \\u4e88\\u7d04\\u5f0f (\\u79d2):\\x5cn# TSC(10) + coo...OURCE\" \\x5c\\x5c\\x5cn  >\"$ATTEMPT_DIR/worktree-remove.stdout\" 2>\"$ATTEMPT_DIR/worktree-remove.stderr\"\\x5cnBUILD_SOURCE=\"\"\\x5cnexit 0\\x5cn'\n> \n> orchestrator/tests/test_pegasus_tools.py:216: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3110 retained_bytes=3110 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3992 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "cbe037330d6ce561d7be00297b2bbfd35bc02f362e04ea03f1bf6d08d2ce339d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b2bc5a845d5cd58245f1d4210330ce9ce6607f50b9f0b4078d6b13f181f13189",
+      "duration_s": 102.24,
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "52933207bc63ecaee68a8df265dd82061cceb7c1f44ffc2f1184ce4305967355",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "50fc94821e82b28003fbf88fbbb82ff8bf8bb8df8737b8168513c86784566c14",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "new": "    \"reservation_allocation(1080)+finalize_reserve(600)=6611; \"",
+          "old": "    \"reservation_allocation(1080)+finalize_reserve(600)=6610; \""
+        }
+      ],
+      "repo_head": "f5ba283784f99364c0a5e2eab09e03c5fa713c1f",
+      "runner_sha256": "61b4c2a397044be6b1e335b2830f13fd4fa6757c15218e9dc7681104aef2a239",
+      "spec_sha256": "0aea2ad2535ddcea3d000d76ef832cce00e5c8baeca46dccdf14c45fa750c87e",
+      "status": "KILLED",
+      "test_output_sha256": "cbe037330d6ce561d7be00297b2bbfd35bc02f362e04ea03f1bf6d08d2ce339d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "fe3673f7db9a297d549d6becfdcdf1c540f0e2bc129b023facf820e58d38fa82"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze/output/pegasus-dispatch/e0c30c5cdf522c18fe95ca2f2f7e03a2/izdw-e0c30c5cdf.o999045",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze/output/pegasus-dispatch/e0c30c5cdf522c18fe95ca2f2f7e03a2/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_pegasus_tools.py::test_shell_syntax[smoke_probe.sh]\norchestrator/tests/test_pegasus_tools.py::test_shell_syntax[submit_certify.sh]\norchestrator/tests/test_pegasus_tools.py::test_shell_syntax[certify_calibration.sh]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directives_match_shared_and_calibration_policies\norchestrator/tests/test_pegasus_tools.py::test_certify_calibration_policy_check_rejects_symlinks[certify_calibration.sh]\norchestrator/tests/test_pegasus_tools.py::test_certify_calibration_policy_check_rejects_symlinks[submit_certify.sh]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash\\n#PBS -A one\\n#PBS -A two\\nset -e\\n]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash\\nset -e\\n#PBS -A late\\n]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash\\n##PBS -A hidden\\nset -e\\n]\norchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash\\n# #PBS -A hidden\\nset -e\\n]\norchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports\norchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_execs_valid_argv\norchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_rejects_missing_or_invalid_json[missing]\norchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_rejects_missing_or_invalid_json[invalid]\norchestrator/tests/test_pegasus_tools.py::test_certify_calibrator_resolves_and_shims_versioned_interpreter\norchestrator/tests/test_pegasus_tools.py::test_certify_calibrator_interpreter_resolution_fails_closed\norchestrator/tests/test_pegasus_tools.py::test_certify_calibrate_timeout_argv_cannot_self_match_ycsb_probe\norchestrator/tests/test_pegasus_tools.py::test_certify_perf_stage_is_policy_driven_fail_closed_and_precedes_calibrate\norchestrator/tests/test_pegasus_tools.py::test_perf_stage_all_candidates_failed_writes_perf_failure\norchestrator/tests/test_pegasus_tools.py::test_perf_stage_rejects_not_supported_smoke_output\norchestrator/tests/test_pegasus_tools.py::test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench\norchestrator/tests/test_pegasus_tools.py::test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench\norchestrator/tests/test_pegasus_tools.py::test_certify_cmake_paths_derive_from_colon_free_job_tmpdir\norchestrator/tests/test_pegasus_tools.py::test_certify_colon_job_id_creates_colon_free_job_tmpdir\norchestrator/tests/test_pegasus_tools.py::test_shell_jobs_normalize_qstat_id_and_capture_system_toolchain\norchestrator/tests/test_pegasus_tools.py::test_qstat_parser_accepts_real_nqsv_867863_output\norchestrator/tests/test_pegasus_tools.py::test_qstat_parser_skips_none_and_tries_next_key\norchestrator/tests/test_pegasus_tools.py::test_qstat_parser_keeps_unavailable_for_none_or_missing_fields[exec_host = (none)\\nexec_vnode = (none)\\nassigned_host = (none)\\nvnode = (none)\\nstime = (none)\\nstart_time = (none)\\nstart = (none)\\nStarted Request Time = (none)\\nExecution Hosts(JSVNO):\\n    (none)\\n]\norchestrator/tests/test_pegasus_tools.py::test_qstat_parser_keeps_unavailable_for_none_or_missing_fields[Request ID: 867863.nqsv\\nCurrent State = Running\\n]\norchestrator/tests/test_pegasus_tools.py::test_smoke_toolchain_capture_detects_nonzero_gcc_version\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[0:0:X-0:X]\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[00:X-00:X]\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[0:X-X]\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[X-X]\norchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_rejects_empty_string\norchestrator/tests/test_pegasus_tools.py::test_certify_keeps_default_modules_and_uses_system_toolchain\norchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_policy_and_comparison_use_normalized_exact_match\norchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_check_rejects_nearby_sku[Intel Xeon Platinum 8468-True]\norchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_check_rejects_nearby_sku[Intel Xeon Platinum 8468H-False]\norchestrator/tests/test_pegasus_tools.py::test_acquisition_candidate_rejects_schema_valid_duplicate_probe_key\norchestrator/tests/test_pegasus_tools.py::test_run_probe_fixture_to_stdout_shape_and_file\norchestrator/tests/test_pegasus_tools.py::test_run_probe_import_failure_is_structured_and_nonzero\norchestrator/tests/test_pegasus_tools.py::test_run_probe_probe_failure_is_structured_in_file_and_stdout\norchestrator/tests/test_pegasus_tools.py::test_run_probe_write_failure_is_structured_for_stdout\norchestrator/tests/test_pegasus_tools.py::test_run_probe_write_failure_has_nonempty_message_for_empty_exception\norchestrator/tests/test_pegasus_tools.py::test_smoke_probe_calls_v2_producer_and_preserves_stdout_copy\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_fixture_to_final_json\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_preserves_job_script_sha256\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_accepts_raw_zero_subrequest_prefix\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_rejects_other_prefix_and_raw_mismatch[1:12345.scheduler]\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_rejects_other_prefix_and_raw_mismatch[other.scheduler]\norchestrator/tests/test_pegasus_tools.py::test_collect_receipt_missing_input_is_nonzero\norchestrator/tests/test_pegasus_tools.py::test_make_acquisition_receipt_round_trip_and_field_drop\norchestrator/tests/test_pegasus_tools.py::test_certify_records_real_cmake_and_fixed_nm_identity\norchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_accepts_real_unstripped_trace_free_binary\norchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_rejects_real_unstripped_trace_binary\norchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_rejects_real_empty_stripped_binary\norchestrator/tests/test_pegasus_tools.py::test_gflags_missing_source_writes_gflags_failure\norchestrator/tests/test_pegasus_tools.py::test_gflags_head_mismatch_writes_gflags_failure\norchestrator/tests/test_pegasus_tools.py::test_glog_head_mismatch_writes_glog_failure\norchestrator/tests/test_pegasus_tools.py::test_calibrate_failure_survives_err_trap_and_writes_job_result\norchestrator/tests/test_pegasus_tools.py::test_certify_job_rejects_legacy_tolerance_environment\norchestrator/tests/test_pegasus_tools.py::test_qstat_failure_reaches_allocation_unavailable_path\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-0:123.server-True]\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-1:123.server-False]\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-124.server-False]\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_requires_matching_calibration_rratio\norchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_requires_matching_calibration_protocol\norchestrator/tests/test_pegasus_tools.py::test_submit_dry_run_does_not_resolve_cluster_commands\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_matches_ccbench_sources\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_roundtrips_every_declared_entry\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_accepts_empty_cache_default\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_ccbench_side_rename\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_non_cicada_ccbench_side_rename\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_izanagi_side_rename\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[cicada]\norchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_keeps_unknown_axis_identity_fallback\norchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values\norchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_accepts_real_cache_name_with_distinct_axis_values\norchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name\norchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_unmapped_cicada_suffix_alias\norchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist\norchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_calibrator_uses_smoke_checked_interpreter_selected_before_call\norchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_offline_fetchcontent_contract_is_identical_for_all_protocols\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_configure_use_site_passes_the_complete_configure_argv\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_third_party_verifier_uses_version_checked_interpreter\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_third_party_verifier_interpreter_resolution_fails_closed\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_offline_configure_resolves_three_local_sources_and_fails_without_each\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_copy_leaves_the_staging_sources_untouched_and_writable\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[masstree]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[mimalloc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[googletest]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_a_missing_or_malformed_third_party_staging_root\norchestrator/tests/test_pegasus_calibration_workload.py::test_calibration_shell_scripts_parse\norchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_condition_gate_dominates_first_buildcache_call\norchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_requests_every_genome_value_and_inert_witness\norchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_uses_factory_noinline_and_legacy_backoff_declarations\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[0]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[51]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[100]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[05]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[+5]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[ 5]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[5 ]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[\\uff15]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_unregistered_protocol_before_side_effects[cicada]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_unregistered_protocol_before_side_effects[ermia]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[silo]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[mocc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[tictoc]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_omitted_protocol_is_silo_without_changing_qsub_argv\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[5]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[20]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[50]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[80]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[95]\norchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_keeps_scheduler_output_outside_the_repository\norchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path\norchestrator/tests/test_official_perf_closure.py::test_bench_callers_are_exact_and_own_canonical_preflight\norchestrator/tests/test_official_perf_closure.py::test_balanced_schedule_uses_lock_free_blocks_under_one_outer_lock\norchestrator/tests/test_official_perf_closure.py::test_campaign_loop_has_distinct_legacy_and_balanced_split_calls\norchestrator/tests/test_official_perf_closure.py::test_official_perf_surface_inventory_is_exact\norchestrator/tests/test_official_perf_closure.py::test_closure_inventory_mutations_are_not_tautologies\norchestrator/tests/test_official_perf_closure.py::test_outer_perf_file_and_added_guard_inventory_is_exact\norchestrator/tests/test_official_perf_closure.py::test_outer_perf_file_mutations_are_not_tautologies\norchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact\norchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_local_fixed_shadow_is_unreachable\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro\norchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site\norchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites\norchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes\norchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible\norchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]\norchestrator/tests/test_pegasus_policy_registry.py::test_pegasus_policy_registry_is_complete_and_tracked\norchestrator/tests/test_pegasus_policy_registry.py::test_direct_shared_policy_reads_of_moved_keys_are_a_best_effort_tripwire\n\n193 tests collected in 1.21s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "ea83ea28c0d155b5819db34cff4e0c3ccaa494cbf7a2f7b206e4e8657d8ae24c"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_shell_syntax[smoke_probe.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_shell_syntax[submit_certify.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_shell_syntax[certify_calibration.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directives_match_shared_and_calibration_policies",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibration_policy_check_rejects_symlinks[certify_calibration.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibration_policy_check_rejects_symlinks[submit_certify.sh]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash/n#PBS -A one/n#PBS -A two/nset -e/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash/nset -e/n#PBS -A late/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash/n##PBS -A hidden/nset -e/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_pbs_directive_parser_rejects_duplicate_late_or_commented[#!/bin/bash/n# #PBS -A hidden/nset -e/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports",
+        "orchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_execs_valid_argv",
+        "orchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_rejects_missing_or_invalid_json[missing]",
+        "orchestrator/tests/test_pegasus_tools.py::test_exec_calibrate_rejects_missing_or_invalid_json[invalid]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibrator_resolves_and_shims_versioned_interpreter",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibrator_interpreter_resolution_fails_closed",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_calibrate_timeout_argv_cannot_self_match_ycsb_probe",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_perf_stage_is_policy_driven_fail_closed_and_precedes_calibrate",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_all_candidates_failed_writes_perf_failure",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_rejects_not_supported_smoke_output",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_cmake_paths_derive_from_colon_free_job_tmpdir",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_colon_job_id_creates_colon_free_job_tmpdir",
+        "orchestrator/tests/test_pegasus_tools.py::test_shell_jobs_normalize_qstat_id_and_capture_system_toolchain",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_parser_accepts_real_nqsv_867863_output",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_parser_skips_none_and_tries_next_key",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_parser_keeps_unavailable_for_none_or_missing_fields[exec_host = (none)/nexec_vnode = (none)/nassigned_host = (none)/nvnode = (none)/nstime = (none)/nstart_time = (none)/nstart = (none)/nStarted Request Time = (none)/nExecution Hosts(JSVNO):/n    (none)/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_parser_keeps_unavailable_for_none_or_missing_fields[Request ID: 867863.nqsv/nCurrent State = Running/n]",
+        "orchestrator/tests/test_pegasus_tools.py::test_smoke_toolchain_capture_detects_nonzero_gcc_version",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[0:0:X-0:X]",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[00:X-00:X]",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[0:X-X]",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_strips_only_one_exact_zero_prefix[X-X]",
+        "orchestrator/tests/test_pegasus_tools.py::test_normalize_request_id_rejects_empty_string",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_keeps_default_modules_and_uses_system_toolchain",
+        "orchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_policy_and_comparison_use_normalized_exact_match",
+        "orchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_check_rejects_nearby_sku[Intel Xeon Platinum 8468-True]",
+        "orchestrator/tests/test_pegasus_tools.py::test_known_values_cpu_check_rejects_nearby_sku[Intel Xeon Platinum 8468H-False]",
+        "orchestrator/tests/test_pegasus_tools.py::test_acquisition_candidate_rejects_schema_valid_duplicate_probe_key",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_fixture_to_stdout_shape_and_file",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_import_failure_is_structured_and_nonzero",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_probe_failure_is_structured_in_file_and_stdout",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_write_failure_is_structured_for_stdout",
+        "orchestrator/tests/test_pegasus_tools.py::test_run_probe_write_failure_has_nonempty_message_for_empty_exception",
+        "orchestrator/tests/test_pegasus_tools.py::test_smoke_probe_calls_v2_producer_and_preserves_stdout_copy",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_fixture_to_final_json",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_preserves_job_script_sha256",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_accepts_raw_zero_subrequest_prefix",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_rejects_other_prefix_and_raw_mismatch[1:12345.scheduler]",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_rejects_other_prefix_and_raw_mismatch[other.scheduler]",
+        "orchestrator/tests/test_pegasus_tools.py::test_collect_receipt_missing_input_is_nonzero",
+        "orchestrator/tests/test_pegasus_tools.py::test_make_acquisition_receipt_round_trip_and_field_drop",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_records_real_cmake_and_fixed_nm_identity",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_accepts_real_unstripped_trace_free_binary",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_rejects_real_unstripped_trace_binary",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_trace_symbol_stage_rejects_real_empty_stripped_binary",
+        "orchestrator/tests/test_pegasus_tools.py::test_gflags_missing_source_writes_gflags_failure",
+        "orchestrator/tests/test_pegasus_tools.py::test_gflags_head_mismatch_writes_gflags_failure",
+        "orchestrator/tests/test_pegasus_tools.py::test_glog_head_mismatch_writes_glog_failure",
+        "orchestrator/tests/test_pegasus_tools.py::test_calibrate_failure_survives_err_trap_and_writes_job_result",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_job_rejects_legacy_tolerance_environment",
+        "orchestrator/tests/test_pegasus_tools.py::test_qstat_failure_reaches_allocation_unavailable_path",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-0:123.server-True]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-1:123.server-False]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_uses_narrow_request_id_normalization[123.server-124.server-False]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_requires_matching_calibration_rratio",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_submit_binding_requires_matching_calibration_protocol",
+        "orchestrator/tests/test_pegasus_tools.py::test_submit_dry_run_does_not_resolve_cluster_commands",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_matches_ccbench_sources",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_roundtrips_every_declared_entry",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_accepts_empty_cache_default",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_ccbench_side_rename",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_non_cicada_ccbench_side_rename",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_table_rejects_izanagi_side_rename",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_rejects_non_injective_copy_for_every_protocol[cicada]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_genome_axis_cache_mapping_keeps_unknown_axis_identity_fallback",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_cmake_defines_preserve_distinct_axis_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_accepts_real_cache_name_with_distinct_axis_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_generic_cache_name",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cicada_receipt_rejects_unmapped_cicada_suffix_alias",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_receipt_accepts_real_cache_names_for_certification_protocols[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_exposes_only_the_calibration_whitelist",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_job_rechecks_the_submission_workload_and_records_it",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axes_match_independent_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_defines_match_exact_values",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_shell_protocol_axis_values_satisfy_genome_spaces",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_non_silo_defines_contain_no_axis_outsider[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_derives_protocol_target_and_binary_path[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_final_calibrate_binary_matches_built_binary[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_calibrator_uses_smoke_checked_interpreter_selected_before_call",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_default_silo_build_and_calibrate_argv_match_offline_contract",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_offline_fetchcontent_contract_is_identical_for_all_protocols",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_configure_use_site_passes_the_complete_configure_argv",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_third_party_verifier_uses_version_checked_interpreter",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_third_party_verifier_interpreter_resolution_fails_closed",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_offline_configure_resolves_three_local_sources_and_fails_without_each",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_copy_leaves_the_staging_sources_untouched_and_writable",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[masstree]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[mimalloc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_job_rejects_a_staging_source_with_ignored_artifacts[googletest]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_a_missing_or_malformed_third_party_staging_root",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_calibration_shell_scripts_parse",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_condition_gate_dominates_first_buildcache_call",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_requests_every_genome_value_and_inert_witness",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_cost_probe_uses_factory_noinline_and_legacy_backoff_declarations",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[0]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[51]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[100]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[05]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[+5]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[ 5]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[5 ]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_an_unregistered_ratio_before_side_effects[/uff15]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_unregistered_protocol_before_side_effects[cicada]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_rejects_unregistered_protocol_before_side_effects[ermia]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[silo]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[mocc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_accepts_exact_protocol_whitelist_and_records_it[tictoc]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submitter_omitted_protocol_is_silo_without_changing_qsub_argv",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[5]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[20]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[50]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[80]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_passes_scheduler_file_paths_to_qsub[95]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_submit_dry_run_keeps_scheduler_output_outside_the_repository",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_runbook_shows_ai_driven_h1_h2_submission_path",
+        "orchestrator/tests/test_official_perf_closure.py::test_bench_callers_are_exact_and_own_canonical_preflight",
+        "orchestrator/tests/test_official_perf_closure.py::test_balanced_schedule_uses_lock_free_blocks_under_one_outer_lock",
+        "orchestrator/tests/test_official_perf_closure.py::test_campaign_loop_has_distinct_legacy_and_balanced_split_calls",
+        "orchestrator/tests/test_official_perf_closure.py::test_official_perf_surface_inventory_is_exact",
+        "orchestrator/tests/test_official_perf_closure.py::test_closure_inventory_mutations_are_not_tautologies",
+        "orchestrator/tests/test_official_perf_closure.py::test_outer_perf_file_and_added_guard_inventory_is_exact",
+        "orchestrator/tests/test_official_perf_closure.py::test_outer_perf_file_mutations_are_not_tautologies",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_local_fixed_shadow_is_unreachable",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]",
+        "orchestrator/tests/test_pegasus_policy_registry.py::test_pegasus_policy_registry_is_complete_and_tracked",
+        "orchestrator/tests/test_pegasus_policy_registry.py::test_direct_shared_policy_reads_of_moved_keys_are_a_best_effort_tripwire"
+      ],
+      "duration_s": 22.466,
+      "rc": 0,
+      "repo_head": "f5ba283784f99364c0a5e2eab09e03c5fa713c1f",
+      "runner_sha256": "61b4c2a397044be6b1e335b2830f13fd4fa6757c15218e9dc7681104aef2a239",
+      "spec_sha256": "0aea2ad2535ddcea3d000d76ef832cce00e5c8baeca46dccdf14c45fa750c87e",
+      "status": "PASSED",
+      "tool_sha256": "fe3673f7db9a297d549d6becfdcdf1c540f0e2bc129b023facf820e58d38fa82"
+    },
+    "hang_timeout_seconds": 1200.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d4d01f0beecea3147ae00680e5d633331d66a935aef3baac4fa46bc578a45622",
+        "replacements": [
+          {
+            "file": "tools/pegasus/certify_calibration.sh",
+            "new": "frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 + 2 * 3 * 120 + 1081 + int(reserve_s)",
+            "old": "frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 + 2 * 3 * 120 + 1080 + int(reserve_s)"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f71a9887aeb3d66ea5b7a7db74bc728447c57b12b57fa0014a801c5d4db7070a",
+        "replacements": [
+          {
+            "file": "tools/pegasus/certify_calibration.sh",
+            "new": "    \"8840 is the guaranteed upper bound of the job. \"",
+            "old": "    \"8840 itself is not an upper bound: it excludes operations without timeout \""
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_tools.py::test_pbs_directives_match_shared_and_calibration_policies"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0210fcd95349546bb2fb654fd43596c7fc9f10dc568ed83a8e0bd0c050dc23c6",
+        "replacements": [
+          {
+            "file": "tools/pegasus/certify_calibration.sh",
+            "new": "# + reservation_allocation(1080) + finalize_reserve(599) = 6610。",
+            "old": "# + reservation_allocation(1080) + finalize_reserve(600) = 6610。"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_pegasus_tools.py::test_certify_uses_frozen_cli_names_and_reservation_exports"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "52933207bc63ecaee68a8df265dd82061cceb7c1f44ffc2f1184ce4305967355",
+        "replacements": [
+          {
+            "file": "tools/pegasus/certify_calibration.sh",
+            "new": "    \"reservation_allocation(1080)+finalize_reserve(600)=6611; \"",
+            "old": "    \"reservation_allocation(1080)+finalize_reserve(600)=6610; \""
+          }
+        ]
+      }
+    },
+    "registration_sha256": "a4fba3e00ce01f48c06077af62cee29496eba59baf65eed6459639c550fde0ae",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_pegasus_tools.py",
+      "orchestrator/tests/test_pegasus_calibration_workload.py",
+      "orchestrator/tests/test_official_perf_closure.py",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "orchestrator/tests/test_pegasus_policy_registry.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "f5ba283784f99364c0a5e2eab09e03c5fa713c1f",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_pegasus_tools.py",
+      "orchestrator/tests/test_pegasus_calibration_workload.py",
+      "orchestrator/tests/test_official_perf_closure.py",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "orchestrator/tests/test_pegasus_policy_registry.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "dispatch_head_blob_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "b10f5503d4d89540569c5c3dc698e775dc22e067",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "61b4c2a397044be6b1e335b2830f13fd4fa6757c15218e9dc7681104aef2a239",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "0aea2ad2535ddcea3d000d76ef832cce00e5c8baeca46dccdf14c45fa750c87e",
+  "summary": {
+    "KILLED": 4,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 4,
+    "matching": 4,
+    "recorded": 4,
+    "registered": 4
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2563-walltime-refreeze/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "fe3673f7db9a297d549d6becfdcdf1c540f0e2bc129b023facf820e58d38fa82",
+  "updated_at": "2026-09-15T08:09:26.534195+00:00"
+}

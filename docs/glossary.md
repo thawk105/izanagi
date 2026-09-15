@@ -104,6 +104,8 @@ CCBench のプロトコル群と、正しさ検証 (verifier) を読むための
 
 **zipf skew (zipfian 分布のスキュー)** — アクセスが一部の人気キーに偏る度合い。高いほど同じキーへの競合が増える。*izanagi:* ワークロードの競合度を決めるパラメータ。calibration は skew=0.9 で固定した (ccbench-anatomy.md §3)。
 
+**deadlock (デッドロック) / wait-for graph (待ちグラフ)** — 複数のスレッドが互いの保持する資源を待ち合い、どれも進めなくなった状態。待ちグラフは「待ち手 → その資源の実 holder」を辺にした有向グラフで、その閉路がデッドロックの証拠になる。*izanagi:* 「走行が終わらなかったこと」は証拠にしない。受理条件は D791 の 4 つ — 整合した snapshot 上で各辺が実 holder を指し要求 mode が非両立であること、連続 3 snapshot で閉路の全 node の属性と辺の形が同一であること、その間 commit・abort カウンタが不変であること、走行が hard timeout で終わっていること。証拠は計装ビルドのものであり未計装ビルドでの発生率ではない。症状から引く診断手順は `docs/cc-diagnostics.md`。
+
 **livelock (ライブロック)** — 各スレッドは動き続けるが、互いに譲り合って/衝突し続けて全体として前に進まない状態。*izanagi:* no-wait で両者が即 abort し合うと起きうる。Silo の 8 通りから両 0 の組み合わせを除外した理由 (P2-0)。
 
 **ODR (One Definition Rule, 単一定義規則)** — C++ で「同じ実体の定義は 1 つだけ」という規則。破ると未定義動作。*izanagi:* CCBench 側で見つけた本物のバグ (ODR 違反) を上流 master へ還元した事例 (D16)。

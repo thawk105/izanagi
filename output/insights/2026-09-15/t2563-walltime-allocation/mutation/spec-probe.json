@@ -1,0 +1,64 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 400,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 + 2 * 3 * 120 + 1080 + int(reserve_s)",
+          "new": "frozen_required_s = 10 + 1200 + 5 * 3 * 120 + 10 * 120 + 2 * 3 * 120 + 1081 + int(reserve_s)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "    \"8840 itself is not an upper bound: it excludes operations without timeout \"",
+          "new": "    \"8840 is the guaranteed upper bound of the job. \""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "# + reservation_allocation(1080) + finalize_reserve(600) = 6610。",
+          "new": "# + reservation_allocation(1080) + finalize_reserve(599) = 6610。"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "    \"reservation_allocation(1080)+finalize_reserve(600)=6610; \"",
+          "new": "    \"reservation_allocation(1080)+finalize_reserve(600)=6611; \""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
