@@ -10730,6 +10730,22 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   この時点では発火しない。`DW-O20` 本文の是正は同節が 997 / 1000 bytes で余白 3 bytes しか
   なく実測に裏付けられた 1 行も入らないため実施しない (恒久対応は [T-1139] が所有)。
 - **supersede: 2026-08-20** — 恒久対応(「未実施、[T-1139]未裁定」)は[T-1428]が`tools/dev_wave_submodule_init.py`の新設と`docs/dev-wave/core.md` DW-C01のpointer置換で実施した。詳細はD622。
+
+- **再発: 2026-09-15** — 2026-08-20 の supersede が入れた恒久対応
+  (`tools/dev_wave_submodule_init.py` と `DW-C01` の pointer) が**在るのに**再発した。
+  新規 worktree で同 tool が `runtime-io-failure: {'label': 'submodule', 'kind': 'update-no-fetch'}`
+  の rc=1 を返したが、親はこれを止まる理由と扱わず先へ進んだ。続けて `git submodule status` を
+  **非再帰**で叩き、top-level 2 行に `-` が無いことだけを見て「pin 一致で clean」と判定した。
+  入れ子の googletest は `-` 接頭辞のまま残り、受入が
+  `stage=preflight-submodule-ready rc=2` で走行ゼロ・log 未生成のまま落ちた
+  (lease claim 前の preflight なので lease 窓は失っていない)。
+  他の稼働 worktree の `git submodule status --recursive` と照合して差を特定し、
+  tool と同じ argv `git -c protocol.file.allow=always submodule update --init --recursive --no-fetch`
+  を前景で叩いて rc=0、googletest が `f8d7d77c` で checkout されたことを確認して再投入した。
+  **初回の rc=1 は、他 session の `git worktree add` が 10 本並行していた時間帯の一過性**で、
+  同じ argv が後で成功している。
+  **恒久対応の存在は、その rc を読まない運用を防がない。** 検証は必ず `--recursive` で行い、
+  全行に `-` / `U` 接頭辞が無いことを確認する。非再帰の status を clean の根拠にしない。
 ### F321. `single_process` を名乗る床値 claim が、同一 protocol の二重投入を排除しない [恒真ゲート]
 
 - 事象: (2026-08-16、静的検査) 床値 campaign は `isolation_policy.single_process` が真のとき
@@ -11814,6 +11830,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `.done` の実在だけを見るループにしたら正しく待てた。**縮退した待ち手を張り直すときは、
   生死判定を pid でなく成果物の実在に寄せる。**
 - **supersede: 2026-09-14** — 2026-09-02 の再発が「縮退経路が完了扱いで抜けている疑い」と書いた点を本 wave の実測が狭めた。[T-2593] wave では `producer: /proc/<pid>/stat を読めないため pid-only へ縮退します` を 8 回すべての待ち手で観測したが、偽完了は 1 回も起きず、8 回とも `.done` が実在するまで正しく待って戻った。したがって縮退メッセージ自体は偽完了の徴候ではなく、両者は独立に扱う。
+
+- **再発: 2026-09-10** — `tools/dev_wave_wait.py producer` が、producer process が生存し
+  対象 job も RUN 中の状態で rc=0 を返す事象を 1 wave で **3 回**観測した (焦点再レビュー・
+  焦点走・変異本走)。いずれも
+  `producer: /proc/<pid>/stat を読めないため pid-only へ縮退します` を出した直後で、
+  2026-09-02 の観測と同じ縮退経路の署名である。**原因は切り分けていない。**
+  `DW-C00` の「完了は `.done` 非空で決める」に従い 3 回とも未完了と判定して待ち手を張り直したので、
+  誤って先へ進んだ回は無い。機構は変更していない。
+  **本記録を回収した 2026-09-15 の wave でも、段 2 / 段 3 の待ち手 3 本すべてで同じ縮退
+  メッセージが出た。** ただし 3 本とも `.done` が非空 (`0`) で成果物も実在し、実際には完了していた。
+  縮退メッセージの出現と偽完了は独立に扱う。
 ### F356. 過去の遷移を毎回再判定する chain に、可変な現行定数との比較を置いた [恒真ゲート] [誤前提]
 
 - 事象: 環境契約の後継判定へ「取得方式名が現行 probe 定数と一致すること」を足した。
@@ -15547,6 +15574,26 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `test_certify_third_party_verifier_uses_version_checked_interpreter` と
   `test_certify_third_party_verifier_interpreter_resolution_fails_closed` で、
   前者は裸 `python3` への差し戻しを変異走行で KILLED として実測している。
+
+- **再発: 2026-09-10 (条件関門・同日の別呼出し)** — 同じ `tools/pegasus/certify_calibration.sh` の
+  **条件関門**が裸の `python3` で起動され、計算ノードの既定 interpreter (intelpython 3.9) で
+  `orchestrator/verifier/parse.py` の 3.10 構文を import した時点で
+  `TypeError: unsupported operand type(s) for |: 'type' and '_LiteralGenericAlias'` になった。
+  request `988653.nqsv` (rr95) / `988654.nqsv` (rr5) の 2 本で同一 traceback、21 秒・`rc=1`。
+  **本エントリの既載 2026-09-10 再発 (pristine source verifier) とは別の呼出し・別の観測**である。
+  同 script は既に python3.10 の smoke 選定ブロックを持っていたが、それが**関門より後ろ**に
+  置かれていたため効いていなかった。当時の対処は、選定ブロックを内容を変えずに関門より前へ移し、
+  関門の argv 先頭を `"$CALIBRATE_PYTHON"` にすること (関門自体は弱めていない)。
+  なお条件関門そのものは後続の D1936 項 6 が整合撤去したため、現行 main に当該呼出しは無い。
+  **検知が遅れた理由**: 既存 unit test は job body の shell を静的に読むだけで、関門が実際に
+  どの interpreter で起動されるかを見ていなかった。login node では `python3` が 3.10 に
+  解決されるため、仮に実行しても再現しない — **計算ノードでしか出ない差**である。
+  実測できた時点は 4 つで、`892707.nqsv` の成功 (2026-08-06、関門導入前)、
+  3.10 専用式の投入 `3c9932591` (2026-08-20)、関門の全 driver 義務化 `0218acc61` (2026-09-01)、
+  発現 (2026-09-10)。**「2026-08-06 以降ずっと故障していた」とは言えない**
+  (本エントリ自身が別の認証投入と失敗を記録している)。
+  一次資料: `output/insights/2026-09-10/t2515-rr95-rr5-calibration/README.md` の 2026-09-15 追記と
+  同 dir の `job-evidence/988653-rr95-condition-gate.stderr`、`original-verbatim/`。
 ### F501. python3.10 interpreter修正がperf選定PATHの優先順位を壊す回帰を生んだ [手順漏れ]
 
 - 事象: 上記F500の修正を適用した直後、rr80再投入
@@ -17560,6 +17607,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `test_resume_runner_produces_one_retry_from_admission_selected_recovery`) と、
   変異 `MUT-T1669-CUT6-ADMISSION` / `MUT-T1669-TRIGGER-FORWARD`。
 
+
+- **再発: 2026-09-15** — [T-2595] の段 1 brief が、`DW-G05` の成果物影響を「欠陥地点へ至る経路が
+  実在すること」だけで書いた。段 3 の敵対 2 本が独立に否定し、親が現物で検算した。同じ呼び手
+  `_Runner.run()` は `_retry_round` を呼ぶ手前で round の全 retry start に `_replay_cut6_start` を
+  掛け、その先の `_assert_retry_start_authorized_locked` が同じ混在履歴を先に拒否する。consume は
+  測定 callback より前に走る。さらに production には registry recovery 行を書く呼び手が無い
+  (`record_attempt_recovery` の非テスト参照は内部委譲のみ)。閉じた非対称は実在するが、
+  **現時点の production からは到達しない**。前回は実装後に段 6 が検出したのに対し、今回は F591 の
+  恒久対応である段 3 / 段 6 の実効性レンズが実装前に検出した。経路の実在は到達性を含意しない、
+  という同じ誤りである。
 ### F592. 検証対象の受領証が自分の trust root を名乗れた [恒真ゲート]
 
 - 事象: 「検証済み recovery」の検証で、候補 receipt の `authority_id` と
@@ -21192,6 +21249,19 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (実時間の上界か、イベント順序か、負荷依存か) で引き直し、族エントリが別 F に無いか確かめる。
   族が正しく当たってもなお exact 関数名が無いなら、それは本エントリの循環に入っている。
 
+
+- **再発: 2026-09-10** — 受入全走が 2 巡とも赤になったとき、親は `docs/failures.md` を
+  `t1259` と `TimeoutExpired` という**字面**で検索し「この事象の F は存在しない」と判定して
+  wave を止め、ユーザー裁定へ返した。実際には F57 (全走の並列が外部 process 一般の
+  wall-clock gate を押し出し git の timeout にも及ぶ) と F862 (real-repo inventory 未登録 node が
+  worker へ散る誤分類型) が実在し、後者が本件の主因の記述だった。
+  **本エントリの根本原因 (1)「台帳を主題ではなくファイル名で引いて正しい族を見落とす」の再発**である。
+  根本原因 (2) の hold 登録循環はこの回では再現していない。
+  独立レンズの相談 2 件が両方とも指摘して訂正された。
+  再発検知は既存のとおり — `DW-O18` の「F 不在」を主張する前に、**事象の型**
+  (並列度・wall-clock・外部 process・timeout) で台帳を引く。file 名と例外名だけの検索で
+  不在を結論しない。
+  一次資料: `output/insights/2026-09-10/t2515-rr95-rr5-calibration/original-verbatim/`。
 ### F767. 変異 wrapper が `--out` 未生成の中断でも resume command を表示し、その resume は必ず失敗する [手順漏れ]
 
 - 事象: T-2027/T-2043 の変異走行 attempt 1 が collection 段の手前で child_rc=2 で止まった。
@@ -24694,6 +24764,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **関門は正しく拒否している。** t316 の受領証 2 件 (2026-08-10) には `condition_gates` が 0 件で、
   この driver の実経路では関門が一度も実走していなかった。
   D1864 が「silo の現行挙動は据え置き、扱いはユーザー裁定へ返す」とした対象に t316 も含まれる。
+- **supersede: 2026-09-10** — 一次資料の「認定 attempt 12 件すべてに `condition-gate.jsonl` が無く、この関門は認定経路で一度も実走していない」は、request `988706.nqsv` (rr95) と `988708.nqsv` (rr5) が構造化記録を出したことで、確認できた範囲の初回実走として限定訂正する。両 job の判定は手動実走と同一 (`supply-effectuation: configure-failed` / `runtime-meaning: materialized-branch-invalid`) で診断を追認した。**拒否原因が解消したという意味ではなく、2026-09-14 の別 driver 再発もそのまま残る。** 証拠は `output/insights/2026-09-10/t2515-rr95-rr5-calibration/job-evidence/988706-rr95-condition-gate.jsonl` と `988708-rr5-condition-gate.jsonl`。
 ### F935. 過去実走の凍結 evidence を「現行 producer を縛る live 契約」と読み、依頼された成果物を子が自ら scope から落とした [手順漏れ] [ドリフト]
 
 - 事象: 段 2 のプラン起草で、親が「red arm record の bytes を hash 束縛する consumer が存在するなら
@@ -24771,6 +24842,23 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   確かめる。** 依頼文に書かれた個別の未決項目だけを追うと、活動ごと止まっている裁定を必ず外す。
 - **再発検知:** 段 1 brief の「研究前進」1 行に対し、その前進が属する活動を止める裁定が
   無いことを確認した記録 (検索語と hit 0 件) を handoff へ残す。記録が無ければ段 4 で差し戻す。
+
+- **再発: 2026-09-15** — **既載の拡張された恒久対応 (依頼が属する活動の種類を名詞で 1 つ決め、
+  その語で decisions.md を検索して「やめる/据え置く/縮小する」向きの裁定が無いことを確かめる) を、
+  親が段 1 で実行しなかった。** 依頼は「静的 backoff の帯 901〜998 マイクロ秒の標本を取る」で、
+  活動の種類は「静的 backoff tail の追加測定」である。この語で検索していれば
+  **D1936 項36 (2026-09-10、ユーザー裁定) が対象 T-2562 / T-2584 で「追加 tail 測定を今進めない」と
+  決めており、T-2584 の本文が「静的 `T(b)` の b > 900 マイクロ秒を測れるようにする」である**ことに
+  段 1 で当たっていた。親が実際に検索したのは D1848 (格子への点追加)、D1724 (主張の上限)、
+  D1813、D1748 という**個別の未決項目の語**だけで、既載が「必ず外す」と名指した外し方をそのまま踏んだ。
+  発覚は段 7 の記録中で、worklog の次の一手から T-2562 を辿って初めて当たった。
+  **実害は出ていない** — 段 4 の裁定は独立の理由 (帯を測るには専用 RUN_KIND を作る実装が要り、
+  依頼が明示した「本題の実測だけ」に入らない) で帯を測らない側を選んでおり、結果として
+  裁定と整合した。**整合したのは偶然であって、検査が働いたからではない。**
+  もう一方の実測 (`t2500-tail-formal` の本走) は、自分の事前登録 §8.1 の投入前条件 5 件が
+  2026-09-14 に満たされたことで別途認可されており、D1936 項36 の対象ではない。
+  既載の再発検知 (検索語と hit 0 件の記録を handoff へ残す) も行っていなかったため、
+  段 4 の差し戻しも発火しなかった。
 ### F938. fix 子が既存テストを無断削除し、親の通常検算では検出できなかった [テスト代表性] [手順漏れ]
 
 - 事象: 段 6 の fix 1 巡目が、基底 commit から存在する既存テスト
