@@ -1,0 +1,488 @@
+{"argv": ["git", "-C", "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/external/ccbench", "rev-parse", "HEAD^{commit}"], "timeout_s": null, "returncode": 0, "elapsed_s": 0.016017424000892788}
+511c9538e4e8efa54b45cda62e72389ed3b706ec
+
+{"argv": ["git", "clone", "--no-hardlinks", "--no-checkout", "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources/masstree-src", "/tmp/t1994-qualification-4jkjuq81/base/masstree-src"], "timeout_s": null, "returncode": 0, "elapsed_s": 0.09185515100034536}
+Cloning into '/tmp/t1994-qualification-4jkjuq81/base/masstree-src'...
+done.
+
+{"argv": ["git", "-C", "/tmp/t1994-qualification-4jkjuq81/base/masstree-src", "checkout", "--detach", "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38"], "timeout_s": null, "returncode": 0, "elapsed_s": 0.011454565999883926}
+HEAD is now at b3c5d05 Merge pull request #1 from thawk105/cxx20-compat
+
+{"argv": ["git", "clone", "--no-hardlinks", "--no-checkout", "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources/mimalloc-src", "/tmp/t1994-qualification-4jkjuq81/base/mimalloc-src"], "timeout_s": null, "returncode": 0, "elapsed_s": 0.0628874479989463}
+Cloning into '/tmp/t1994-qualification-4jkjuq81/base/mimalloc-src'...
+done.
+
+{"argv": ["git", "-C", "/tmp/t1994-qualification-4jkjuq81/base/mimalloc-src", "checkout", "--detach", "02a2f5df9d7d46d30263b83832eebeeab62dc5fe"], "timeout_s": null, "returncode": 0, "elapsed_s": 0.030278272002760787}
+HEAD is now at 02a2f5df bump version to v2.3.2
+
+{"argv": ["git", "clone", "--no-hardlinks", "--no-checkout", "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources/googletest-src", "/tmp/t1994-qualification-4jkjuq81/base/googletest-src"], "timeout_s": null, "returncode": 0, "elapsed_s": 0.076087664001534}
+Cloning into '/tmp/t1994-qualification-4jkjuq81/base/googletest-src'...
+done.
+
+{"argv": ["git", "-C", "/tmp/t1994-qualification-4jkjuq81/base/googletest-src", "checkout", "--detach", "f8d7d77c06936315286eb55f8de22cd23c188571"], "timeout_s": null, "returncode": 0, "elapsed_s": 0.033659896998869954}
+HEAD is now at f8d7d77c Bump version to v1.14 in preparation for release
+
+{"argv": ["/usr/bin/cmake", "-S", "/tmp/izanagi_wt_x2b19d20/wt", "-B", "/tmp/t1994-qualification-4jkjuq81/base/izanagi-masstree-prebuild", "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF", "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11", "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11", "-DFETCHCONTENT_BASE_DIR=/tmp/t1994-qualification-4jkjuq81/base", "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/t1994-qualification-4jkjuq81/base/masstree-src", "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/tmp/t1994-qualification-4jkjuq81/base/mimalloc-src", "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/tmp/t1994-qualification-4jkjuq81/base/googletest-src"], "timeout_s": null, "returncode": 0, "elapsed_s": 1.3367494019985315}
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/x86_64-linux-gnu-g++-11 - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Looking for C++ include pthread.h
+-- Looking for C++ include pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Found gflags: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/env/pegasus/silo_ladder_rung1/job-staging/t2625-deps/gflags-install/lib/libgflags.a  
+-- Found glog: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/env/pegasus/silo_ladder_rung1/job-staging/t2625-deps/glog-install/lib/libglog.a  
+-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version "1.74.0") found components: filesystem 
+-- The C compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/x86_64-linux-gnu-gcc-11 - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- 
+-- Architecture: x64
+-- Performing Test mi_has_libpthread
+-- Performing Test mi_has_libpthread - Success
+-- Performing Test mi_has_librt
+-- Performing Test mi_has_librt - Success
+-- Performing Test mi_has_libatomic
+-- Performing Test mi_has_libatomic - Success
+-- 
+-- Library name     : mimalloc
+-- Version          : 2.3.2
+-- Build type       : release
+-- C Compiler       : /usr/bin/x86_64-linux-gnu-gcc-11
+-- Compiler flags   : -Wall;-Wextra;-Wno-unknown-pragmas;-fvisibility=hidden;-Wstrict-prototypes;-ftls-model=initial-exec
+-- Compiler defines : MI_CMAKE_BUILD_TYPE=release;MI_BUILD_RELEASE
+-- Link libraries   : pthread;rt;atomic
+-- Build targets    : static
+-- 
+-- Found Python3: /usr/bin/python3.10 (found version "3.10.12") found components: Interpreter 
+-- Wrote protocol×workload matrix to /tmp/t1994-qualification-4jkjuq81/base/izanagi-masstree-prebuild/PROTOCOL_MATRIX.md
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /tmp/t1994-qualification-4jkjuq81/base/izanagi-masstree-prebuild
+
+{"argv": ["/usr/bin/cmake", "--build", "/tmp/t1994-qualification-4jkjuq81/base/izanagi-masstree-prebuild", "--target", "masstree_build", "-j", "48"], "timeout_s": null, "returncode": 0, "elapsed_s": 10.630382741997892}
+masstree: bootstrap + configure + make + ar
+Building masstree (libkohler_masstree_json.a)
+configure.ac:14: warning: The macro `AC_LANG_CPLUSPLUS' is obsolete.
+configure.ac:14: You should run autoupdate.
+./lib/autoconf/c.m4:262: AC_LANG_CPLUSPLUS is expanded from...
+configure.ac:14: the top level
+Now, run ./configure.
+checking for gcc... gcc
+checking whether the C compiler works... yes
+checking for C compiler default output file name... a.out
+checking for suffix of executables... 
+checking whether we are cross compiling... no
+checking for suffix of object files... o
+checking whether the compiler supports GNU C... yes
+checking whether gcc accepts -g... yes
+checking for gcc option to enable C11 features... none needed
+checking for g++... g++
+checking whether the compiler supports GNU C++... yes
+checking whether g++ accepts -g... yes
+checking for g++ option to enable C++11 features... none needed
+checking for stdio.h... yes
+checking for stdlib.h... yes
+checking for string.h... yes
+checking for inttypes.h... yes
+checking for stdint.h... yes
+checking for strings.h... yes
+checking for sys/stat.h... yes
+checking for sys/types.h... yes
+checking for unistd.h... yes
+checking whether byte ordering is bigendian... no
+checking for sys/epoll.h... yes
+checking for numa.h... yes
+checking for library containing numa_available... -lnuma
+checking for __builtin_clz builtin... yes
+checking for __builtin_clzl builtin... yes
+checking for __builtin_clzll builtin... yes
+checking for __builtin_ctz builtin... yes
+checking for __builtin_ctzl builtin... yes
+checking for __builtin_ctzll builtin... yes
+checking for __sync_synchronize builtin... yes
+checking for __sync_fetch_and_add builtin... yes
+checking for __sync_add_and_fetch builtin... yes
+checking for __sync_fetch_and_add_8 builtin... yes
+checking for __sync_add_and_fetch_8 builtin... yes
+checking for __sync_fetch_and_or builtin... yes
+checking for __sync_or_and_fetch builtin... yes
+checking for __sync_fetch_and_or_8 builtin... yes
+checking for __sync_or_and_fetch_8 builtin... yes
+checking for __sync_bool_compare_and_swap builtin... yes
+checking for __sync_bool_compare_and_swap_8 builtin... yes
+checking for __sync_val_compare_and_swap builtin... yes
+checking for __sync_val_compare_and_swap_8 builtin... yes
+checking for __sync_lock_test_and_set builtin... yes
+checking for __sync_lock_test_and_set_val builtin... yes
+checking for __sync_lock_release_set builtin... yes
+checking whether the C++ compiler understands 'auto'... yes
+checking whether the C++ compiler understands constexpr... yes
+checking whether the C++ compiler understands static_assert... yes
+checking whether the C++ compiler understands rvalue references... yes
+checking whether the C++ compiler understands template alias... yes
+checking for type_traits... yes
+checking for std::hash... yes
+checking for __has_trivial_copy... yes
+checking for __has_trivial_destructor... yes
+checking for std::move... yes
+checking for std::is_trivially_copyable... yes
+checking for std::is_trivially_destructible... yes
+checking for std::is_rvalue_reference... yes
+checking for malloc in -lflow... no
+checking for mallctl in -ljemalloc... no
+checking for tc_malloc in -ltcmalloc_minimal... no
+checking for _Z16getMainHoardHeapv in -lhoard... no
+checking for malloc library... malloc
+checking for malloc library... default
+checking whether off_t and long are the same type... yes
+checking whether off_t and long long are the same type... no
+checking whether int64_t and long are the same type... yes
+checking whether int64_t and long long are the same type... no
+checking whether size_t and unsigned are the same type... no
+checking whether size_t and unsigned long are the same type... yes
+checking whether size_t and unsigned long long are the same type... no
+checking for long long... yes
+checking size of short... 2
+checking size of int... 4
+checking size of long... 8
+checking size of long long... 8
+checking size of void *... 8
+checking for g++ options needed to detect all undeclared functions... none needed
+checking whether getline is declared... yes
+checking for time.h... yes
+checking for execinfo.h... yes
+checking whether clock_gettime is declared... yes
+checking for library containing clock_gettime... none required
+checking for clock_gettime... yes
+checking for library containing backtrace... none required
+checking whether MADV_HUGEPAGE is supported... checking how to run the C++ preprocessor... g++ -E
+yes
+checking whether MAP_HUGETLB is supported... yes
+configure: creating ./config.status
+config.status: creating GNUmakefile
+config.status: creating config.h
+make[4]: warning: -j0 forced in submake: resetting jobserver mode.
+config.status: creating config.h
+config.status: config.h is unchanged
+kvthread.cc: In constructor ‘threadinfo::threadinfo(int, int)’:
+kvthread.cc:33:11: warning: ‘void* memset(void*, int, size_t)’ clearing an object of type ‘class threadinfo’ with no trivial copy-assignment [-Wclass-memaccess]
+   33 |     memset(this, 0, sizeof(*this));
+      |     ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~
+In file included from kvthread.cc:16:
+kvthread.hh:94:7: note: ‘class threadinfo’ declared here
+   94 | class threadinfo {
+      |       ^~~~~~~~~~
+json.cc: In member function ‘void lcdf::Json::ObjectJson::grow(bool)’:
+json.cc:117:19: warning: ‘void* memcpy(void*, const void*, size_t)’ writing to an object of type ‘struct lcdf::Json::ObjectItem’ with no trivial copy-assignment; use copy-initialization instead [-Wclass-memaccess]
+  117 |             memcpy(oi, ob, sizeof(ObjectItem));
+      |             ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:436:14: note: ‘struct lcdf::Json::ObjectItem’ declared here
+  436 | struct Json::ObjectItem {
+      |              ^~~~~~~~~~
+json.cc: In member function ‘void lcdf::Json::hard_uniqueify_array(bool, int)’:
+json.cc:250:15: warning: ‘void* memcpy(void*, const void*, size_t)’ writing to an object of type ‘class lcdf::Json’ with no trivial copy-assignment; use copy-assignment or copy-initialization instead [-Wclass-memaccess]
+  250 |         memcpy(u_.a.x->a, old_u.a.x->a, sizeof(Json) * u_.a.x->size);
+      |         ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:44:7: note: ‘class lcdf::Json’ declared here
+   44 | class Json {
+      |       ^~~~
+json.cc:268:27: warning: ‘void* memset(void*, int, size_t)’ clearing an object of type ‘class lcdf::Json’ with no trivial copy-assignment; use assignment or value-initialization instead [-Wclass-memaccess]
+  268 |                     memset(&u_.a.x->a[u_.a.x->size], 0, sizeof(Json) * (i + 1 - u_.a.x->size));
+      |                     ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:44:7: note: ‘class lcdf::Json’ declared here
+   44 | class Json {
+      |       ^~~~
+json.cc: In member function ‘void* lcdf::Json::uniqueify_array_insert(bool, lcdf::Json::size_type)’:
+json.cc:343:16: warning: ‘void* memmove(void*, const void*, size_t)’ writing to an object of type ‘class lcdf::Json’ with no trivial copy-assignment; use copy-assignment or copy-initialization instead [-Wclass-memaccess]
+  343 |         memmove(&u_.a.x->a[pos + 1], &u_.a.x->a[pos], (size - pos) * sizeof(Json));
+      |         ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:44:7: note: ‘class lcdf::Json’ declared here
+   44 | class Json {
+      |       ^~~~
+json.cc: In member function ‘lcdf::Json::array_iterator lcdf::Json::erase(lcdf::Json::array_iterator, lcdf::Json::array_iterator)’:
+json.cc:357:20: warning: ‘void* memmove(void*, const void*, size_t)’ writing to an object of type ‘class lcdf::Json’ with no trivial copy-assignment; use copy-assignment or copy-initialization instead [-Wclass-memaccess]
+  357 |             memmove(&u_.a.x->a[fpos], &u_.a.x->a[lpos],
+      |             ~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  358 |                     (size - lpos) * sizeof(Json));
+      |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:44:7: note: ‘class lcdf::Json’ declared here
+   44 | class Json {
+      |       ^~~~
+json.cc: In member function ‘lcdf::Json& lcdf::Json::hard_get_insert(lcdf::Json::size_type)’:
+json.cc:534:19: warning: ‘void* memset(void*, int, size_t)’ clearing an object of type ‘class lcdf::Json’ with no trivial copy-assignment; use assignment or value-initialization instead [-Wclass-memaccess]
+  534 |             memset(&u_.a.x->a[u_.a.x->size], 0, sizeof(Json) * (x + 1 - u_.a.x->size));
+      |             ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from json.cc:17:
+json.hh:44:7: note: ‘class lcdf::Json’ declared here
+   44 | class Json {
+      |       ^~~~
+log.cc: In static member function ‘static logset* logset::make(int)’:
+log.cc:165:15: warning: array subscript -1 is below array bounds of ‘loginfo [0]’ [-Warray-bounds]
+  165 |     ls->li_[-1].lsi_.size_ = size;
+      |     ~~~~~~~~~~^
+In file included from log.cc:16:
+log.hh:114:13: note: while referencing ‘logset::li_’
+  114 |     loginfo li_[0];
+      |             ^~~
+log.cc:166:15: warning: array subscript -1 is below array bounds of ‘loginfo [0]’ [-Warray-bounds]
+  166 |     ls->li_[-1].lsi_.allocation_offset_ = (int) (x - ls_pos);
+      |     ~~~~~~~~~~^
+In file included from log.cc:16:
+log.hh:114:13: note: while referencing ‘logset::li_’
+  114 |     loginfo li_[0];
+      |             ^~~
+log.hh: In static member function ‘static void logset::free(logset*)’:
+log.hh:194:18: warning: array subscript -1 is below array bounds of ‘const loginfo [0]’ [-Warray-bounds]
+  194 |     return li_[-1].lsi_.size_;
+      |            ~~~~~~^
+log.hh:114:13: note: while referencing ‘logset::li_’
+  114 |     loginfo li_[0];
+      |             ^~~
+log.cc:175:55: warning: array subscript -1 is below array bounds of ‘loginfo [0]’ [-Warray-bounds]
+  175 |     delete[] (reinterpret_cast<char*>(ls) + ls->li_[-1].lsi_.allocation_offset_);
+      |                                             ~~~~~~~~~~^
+In file included from log.cc:16:
+log.hh:114:13: note: while referencing ‘logset::li_’
+  114 |     loginfo li_[0];
+      |             ^~~
+ar: `u' modifier ignored since `D' is the default (see `U')
+Built target masstree_build
+
+{"argv": ["/usr/bin/python3", "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py", "--internal", "sealed", "/tmp/izanagi_wt_lfx_47sx/wt", "/tmp/t1994-qualification-4jkjuq81/base/qualification-shared/shared-0444"], "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification", "timeout_s": null, "ccache_environment": {}, "returncode": 0, "elapsed_s": 0.09903239499908523}
+{"inventory": {"files": 404, "directories": 47, "symlinks": 0, "apparent_bytes": 2352405, "symlink_bytes": 0, "page_rounded_file_bytes": 3321856, "page_size": 4096, "nodes": 451, "required_inodes": 451, "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42", "excluded_names": [".git"]}, "mountinfo": "1012 1011 259:5 / / rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n1013 1012 0:5 / /dev rw,nosuid,relatime - devtmpfs udev rw,size=65208292k,nr_inodes=16302073,mode=755,inode64\n1014 1013 0:24 / /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=000\n1015 1013 0:27 / /dev/shm rw,nosuid,nodev - tmpfs tmpfs rw,inode64\n1016 1013 0:34 / /dev/hugepages rw,relatime - hugetlbfs hugetlbfs rw,pagesize=2M\n1017 1013 0:20 / /dev/mqueue rw,nosuid,nodev,noexec,relatime - mqueue mqueue rw\n1018 1012 0:25 / /run rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053632k,mode=755,inode64\n1019 1018 0:28 / /run/lock rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=5120k,inode64\n1020 1018 0:36 / /run/credentials/systemd-sysusers.service ro,nosuid,nodev,noexec,relatime - ramfs none rw,mode=700\n1021 1018 0:40 / /run/rpc_pipefs rw,relatime - rpc_pipefs sunrpc rw\n1022 1018 0:25 /snapd/ns /run/snapd/ns rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053632k,mode=755,inode64\n1023 1012 0:22 / /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw\n1024 1023 0:6 / /sys/kernel/security rw,nosuid,nodev,noexec,relatime - securityfs securityfs rw\n1025 1023 0:29 / /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime - cgroup2 cgroup2 rw,nsdelegate,memory_recursiveprot\n1026 1023 0:30 / /sys/fs/pstore rw,nosuid,nodev,noexec,relatime - pstore pstore rw\n1027 1023 0:31 / /sys/firmware/efi/efivars rw,nosuid,nodev,noexec,relatime - efivarfs efivarfs rw\n1028 1023 0:32 / /sys/fs/bpf rw,nosuid,nodev,noexec,relatime - bpf bpf rw,mode=700\n1029 1023 0:7 / /sys/kernel/debug rw,nosuid,nodev,noexec,relatime - debugfs debugfs rw\n1030 1029 0:12 / /sys/kernel/debug/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n1031 1023 0:12 / /sys/kernel/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n1032 1023 0:35 / /sys/fs/fuse/connections rw,nosuid,nodev,noexec,relatime - fusectl fusectl rw\n1033 1023 0:21 / /sys/kernel/config rw,nosuid,nodev,noexec,relatime - configfs configfs rw\n1034 1012 0:23 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw\n1035 1034 0:33 / /proc/sys/fs/binfmt_misc rw,relatime - autofs systemd-1 rw,fd=29,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=29709\n1036 1035 0:37 / /proc/sys/fs/binfmt_misc rw,nosuid,nodev,noexec,relatime - binfmt_misc binfmt_misc rw\n1037 1012 7:0 / /snap/core20/2866 ro,nodev,relatime - squashfs /dev/loop0 ro,errors=continue\n1038 1012 7:1 / /snap/core20/2922 ro,nodev,relatime - squashfs /dev/loop1 ro,errors=continue\n1039 1012 7:2 / /snap/lxd/40364 ro,nodev,relatime - squashfs /dev/loop2 ro,errors=continue\n1040 1012 7:3 / /snap/lxd/40526 ro,nodev,relatime - squashfs /dev/loop3 ro,errors=continue\n1041 1012 7:4 / /snap/snapd/27710 ro,nodev,relatime - squashfs /dev/loop4 ro,errors=continue\n1042 1012 7:5 / /snap/snapd/27738 ro,nodev,relatime - squashfs /dev/loop5 ro,errors=continue\n1043 1012 259:6 / /var/opt/nec/nqsv/jsv/jobfile rw,relatime - xfs /dev/nvme0n1p5 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n1044 1012 259:3 / /boot rw,relatime - xfs /dev/nvme0n1p2 rw,attr2,inode64,logbufs=8,logbsize=32k,noquota\n1045 1044 259:2 / /boot/efi rw,relatime - vfat /dev/nvme0n1p1 rw,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro\n1046 1012 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1047 1046 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1048 1047 1273:181606 /1 /work/1 rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1049 1048 1273:181606 /1/SFC /work/1/SFC rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1050 1049 1273:181606 /1/SFC/tanab /work/1/SFC/tanab rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1051 1050 1273:181606 /1/SFC/tanab/izanagi /work/1/SFC/tanab/izanagi rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1052 1051 1273:181606 /1/SFC/tanab/izanagi/.claude /work/1/SFC/tanab/izanagi/.claude rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1053 1052 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees /work/1/SFC/tanab/izanagi/.claude/worktrees rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1054 1053 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1055 1054 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1056 1055 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1057 1056 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/1ffdfc7fd8fad93d6fd1929ca6a2e7d8 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/1ffdfc7fd8fad93d6fd1929ca6a2e7d8 ro - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1058 1012 1273:181606 / /system rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/system rw,flock,user_xattr,lazystatfs,encrypt\n1059 1012 1273:181606 / /home rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/home rw,flock,user_xattr,lazystatfs,encrypt\n1060 1012 9:0 / /scr rw,relatime - xfs /dev/md0 rw,attr2,inode64,logbufs=8,logbsize=32k,sunit=1024,swidth=2048,noquota\n1061 1012 259:10 / /pmem rw,noatime - ext4 /dev/pmem0 rw,dax=always\n1062 1012 0:46 / /tmp ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n1063 1062 0:55 / /tmp/izanagi_wt_lfx_47sx ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n1064 1062 259:5 /tmp/t1994-qualification-4jkjuq81/base /tmp/t1994-qualification-4jkjuq81/base rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n1065 1062 259:5 /tmp/t1994-qualification-4jkjuq81/cache-stock_common-aba /tmp/t1994-qualification-4jkjuq81/cache-stock_common-aba rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n1066 1063 0:56 / /tmp/izanagi_wt_lfx_47sx/wt ro,relatime - tmpfs tmpfs rw,size=11124k,uid=31609,gid=30410,inode64\n", "source_mounts": ["1066 1063 0:56 / /tmp/izanagi_wt_lfx_47sx/wt ro,relatime - tmpfs tmpfs rw,size=11124k,uid=31609,gid=30410,inode64"], "chmod_errno": 30, "write_errno": 13, "read_unchanged": true, "git_absent": true, "tmpfs": {"fragment_size": 4096, "used_bytes": 3321856, "used_inodes": 451}, "status": "Name:\tpython3\nUmask:\t0022\nState:\tR (running)\nTgid:\t3145257\nNgid:\t0\nPid:\t3145257\nPPid:\t3145244\nTracerPid:\t0\nUid:\t31609\t31609\t31609\t31609\nGid:\t30410\t30410\t30410\t30410\nFDSize:\t64\nGroups:\t65534 30410 \nNStgid:\t3145257\nNSpid:\t3145257\nNSpgid:\t3143121\nNSsid:\t3143121\nVmPeak:\t   36840 kB\nVmSize:\t   36840 kB\nVmLck:\t       0 kB\nVmPin:\t       0 kB\nVmHWM:\t   24800 kB\nVmRSS:\t   24800 kB\nRssAnon:\t   14856 kB\nRssFile:\t    9944 kB\nRssShmem:\t       0 kB\nVmData:\t   17268 kB\nVmStk:\t     132 kB\nVmExe:\t    2772 kB\nVmLib:\t    5700 kB\nVmPTE:\t     116 kB\nVmSwap:\t       0 kB\nHugetlbPages:\t       0 kB\nCoreDumping:\t0\nTHP_enabled:\t1\nThreads:\t1\nSigQ:\t0/509439\nSigPnd:\t0000000000000000\nShdPnd:\t0000000000000000\nSigBlk:\t0000000000000000\nSigIgn:\t0000000001005000\nSigCgt:\t0000000000000002\nCapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapBnd:\t0000000000000000\nCapAmb:\t0000000000000000\nNoNewPrivs:\t1\nSeccomp:\t2\nSeccomp_filters:\t1\nSpeculation_Store_Bypass:\tthread force mitigated\nSpeculationIndirectBranch:\tconditional force disabled\nCpus_allowed:\tffff,ffffffff\nCpus_allowed_list:\t0-47\nMems_allowed:\t00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001\nMems_allowed_list:\t0\nvoluntary_ctxt_switches:\t12\nnonvoluntary_ctxt_switches:\t0\n", "shared_write_errno": 13, "attacks_with_filter": {"unshare": {"pid": 3145258, "exit": 0, "observation": {"errno": 1, "namespace_created": false}}, "clone": {"pid": 3145259, "exit": 0, "observation": {"errno": 1, "namespace_created": false}}, "clone3": {"pid": 3145260, "exit": 0, "observation": {"errno": 38, "namespace_created": false}}}, "namespaces": {"user": "user:[4026534703]", "mnt": "mnt:[4026534704]"}}
+
+
+{"argv": ["/usr/bin/cmake", "-S", "/tmp/izanagi_wt_lfx_47sx/wt", "-B", "/tmp/t1994-qualification-4jkjuq81/cache-stock_common-aba/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-e6c9404077d13219f47b57e82b37d124", "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF", "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11", "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11", "-DFETCHCONTENT_BASE_DIR=/tmp/t1994-qualification-4jkjuq81/base", "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/t1994-qualification-4jkjuq81/base/masstree-src", "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/tmp/t1994-qualification-4jkjuq81/base/mimalloc-src", "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/tmp/t1994-qualification-4jkjuq81/base/googletest-src", "-DCCBENCH_BACK_OFF=1", "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1", "-DCCBENCH_NO_WAIT_OF_TICTOC=0", "-DCCBENCH_WAL=0", "-DCCBENCH_TRACE=0"], "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification", "timeout_s": null, "ccache_environment": {}, "returncode": 0, "elapsed_s": 0.7732553589994495}
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/x86_64-linux-gnu-g++-11 - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Looking for C++ include pthread.h
+-- Looking for C++ include pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Found gflags: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/env/pegasus/silo_ladder_rung1/job-staging/t2625-deps/gflags-install/lib/libgflags.a  
+-- Found glog: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/env/pegasus/silo_ladder_rung1/job-staging/t2625-deps/glog-install/lib/libglog.a  
+-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version "1.74.0") found components: filesystem 
+-- The C compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/x86_64-linux-gnu-gcc-11 - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- 
+-- Architecture: x64
+-- Performing Test mi_has_libpthread
+-- Performing Test mi_has_libpthread - Success
+-- Performing Test mi_has_librt
+-- Performing Test mi_has_librt - Success
+-- Performing Test mi_has_libatomic
+-- Performing Test mi_has_libatomic - Success
+-- 
+-- Library name     : mimalloc
+-- Version          : 2.3.2
+-- Build type       : release
+-- C Compiler       : /usr/bin/x86_64-linux-gnu-gcc-11
+-- Compiler flags   : -Wall;-Wextra;-Wno-unknown-pragmas;-fvisibility=hidden;-Wstrict-prototypes;-ftls-model=initial-exec
+-- Compiler defines : MI_CMAKE_BUILD_TYPE=release;MI_BUILD_RELEASE
+-- Link libraries   : pthread;rt;atomic
+-- Build targets    : static
+-- 
+-- Found Python3: /usr/bin/python3.10 (found version "3.10.12") found components: Interpreter 
+-- Wrote protocol×workload matrix to /tmp/t1994-qualification-4jkjuq81/cache-stock_common-aba/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-e6c9404077d13219f47b57e82b37d124/PROTOCOL_MATRIX.md
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /tmp/t1994-qualification-4jkjuq81/cache-stock_common-aba/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-e6c9404077d13219f47b57e82b37d124
+
+
+{"argv": ["/usr/bin/cmake", "--build", "/tmp/t1994-qualification-4jkjuq81/cache-stock_common-aba/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-e6c9404077d13219f47b57e82b37d124", "--target", "ycsb_silo.exe", "-j", "48"], "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification", "timeout_s": null, "ccache_environment": {}, "returncode": 0, "elapsed_s": 4.4112315450001915}
+[  0%] Built target masstree_build
+[ 14%] Building CXX object CMakeFiles/ccbench_common.dir/common/util.cc.o
+[ 14%] Building CXX object CMakeFiles/ccbench_common.dir/common/result.cc.o
+[ 21%] Building C object /tmp/t1994-qualification-4jkjuq81/base/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc.c.o
+[ 28%] Building C object /tmp/t1994-qualification-4jkjuq81/base/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-aligned.c.o
+[ 28%] Building C object /tmp/t1994-qualification-4jkjuq81/base/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/alloc-posix.c.o
+[ 35%] Building C object /tmp/t1994-qualification-4jkjuq81/base/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/arena.c.o
+[ 35%] Building C object /tmp/t1994-qualification-4jkjuq81/base/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/bitmap.c.o
+[ 42%] Building C object /tmp/t1994-qualification-4jkjuq81/base/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/init.c.o
+[ 42%] Building C object /tmp/t1994-qualification-4jkjuq81/base/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/heap.c.o
+[ 50%] Building C object /tmp/t1994-qualification-4jkjuq81/base/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/libc.c.o
+[ 57%] Building C object /tmp/t1994-qualification-4jkjuq81/base/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/options.c.o
+[ 57%] Building C object /tmp/t1994-qualification-4jkjuq81/base/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/os.c.o
+[ 64%] Building C object /tmp/t1994-qualification-4jkjuq81/base/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/page.c.o
+[ 64%] Building C object /tmp/t1994-qualification-4jkjuq81/base/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/random.c.o
+[ 71%] Building C object /tmp/t1994-qualification-4jkjuq81/base/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment-map.c.o
+[ 71%] Building C object /tmp/t1994-qualification-4jkjuq81/base/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/segment.c.o
+[ 78%] Building C object /tmp/t1994-qualification-4jkjuq81/base/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/stats.c.o
+[ 85%] Building C object /tmp/t1994-qualification-4jkjuq81/base/mimalloc-build/CMakeFiles/mimalloc-static.dir/src/prim/prim.c.o
+[ 85%] Linking C static library libmimalloc.a
+[ 85%] Built target mimalloc-static
+[ 85%] Linking CXX static library libccbench_common.a
+[ 85%] Built target ccbench_common
+[ 85%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o
+[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/util.cc.o
+[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o
+[100%] Linking CXX executable ycsb_silo.exe
+[100%] Built target ycsb_silo.exe
+
+
+{"argv": ["/usr/bin/python3", "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py", "--internal", "inventory", "/tmp/izanagi_wt_lfx_47sx/wt"], "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification", "timeout_s": null, "ccache_environment": {}, "returncode": 0, "elapsed_s": 0.09042787499856786}
+{"files": 404, "directories": 47, "symlinks": 0, "apparent_bytes": 2352405, "symlink_bytes": 0, "page_rounded_file_bytes": 3321856, "page_size": 4096, "nodes": 451, "required_inodes": 451, "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42", "excluded_names": [".git"]}
+
+
+{"argv": ["/usr/bin/python3", "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py", "--internal", "sealed", "/tmp/izanagi_wt_otno83zh/wt", "/tmp/t1994-qualification-4jkjuq81/base/qualification-shared/shared-0444"], "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification", "timeout_s": null, "ccache_environment": {}, "returncode": 0, "elapsed_s": 0.1001620559982257}
+{"inventory": {"files": 404, "directories": 47, "symlinks": 0, "apparent_bytes": 2354746, "symlink_bytes": 0, "page_rounded_file_bytes": 3325952, "page_size": 4096, "nodes": 451, "required_inodes": 451, "copy_domain_sha256": "78a815ac8d8b0cd6b87a6ddbcbdcc252b1fd8be0ea7d8d1d7ecdcc24b50b4016", "excluded_names": [".git"]}, "mountinfo": "632 631 259:5 / / rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n633 632 0:5 / /dev rw,nosuid,relatime - devtmpfs udev rw,size=65208292k,nr_inodes=16302073,mode=755,inode64\n634 633 0:24 / /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=000\n635 633 0:27 / /dev/shm rw,nosuid,nodev - tmpfs tmpfs rw,inode64\n637 633 0:34 / /dev/hugepages rw,relatime - hugetlbfs hugetlbfs rw,pagesize=2M\n638 633 0:20 / /dev/mqueue rw,nosuid,nodev,noexec,relatime - mqueue mqueue rw\n715 632 0:25 / /run rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053632k,mode=755,inode64\n716 715 0:28 / /run/lock rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=5120k,inode64\n717 715 0:36 / /run/credentials/systemd-sysusers.service ro,nosuid,nodev,noexec,relatime - ramfs none rw,mode=700\n718 715 0:40 / /run/rpc_pipefs rw,relatime - rpc_pipefs sunrpc rw\n719 715 0:25 /snapd/ns /run/snapd/ns rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053632k,mode=755,inode64\n720 632 0:22 / /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw\n721 720 0:6 / /sys/kernel/security rw,nosuid,nodev,noexec,relatime - securityfs securityfs rw\n722 720 0:29 / /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime - cgroup2 cgroup2 rw,nsdelegate,memory_recursiveprot\n723 720 0:30 / /sys/fs/pstore rw,nosuid,nodev,noexec,relatime - pstore pstore rw\n724 720 0:31 / /sys/firmware/efi/efivars rw,nosuid,nodev,noexec,relatime - efivarfs efivarfs rw\n725 720 0:32 / /sys/fs/bpf rw,nosuid,nodev,noexec,relatime - bpf bpf rw,mode=700\n726 720 0:7 / /sys/kernel/debug rw,nosuid,nodev,noexec,relatime - debugfs debugfs rw\n727 726 0:12 / /sys/kernel/debug/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n728 720 0:12 / /sys/kernel/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n729 720 0:35 / /sys/fs/fuse/connections rw,nosuid,nodev,noexec,relatime - fusectl fusectl rw\n730 720 0:21 / /sys/kernel/config rw,nosuid,nodev,noexec,relatime - configfs configfs rw\n731 632 0:23 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw\n732 731 0:33 / /proc/sys/fs/binfmt_misc rw,relatime - autofs systemd-1 rw,fd=29,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=29709\n733 732 0:37 / /proc/sys/fs/binfmt_misc rw,nosuid,nodev,noexec,relatime - binfmt_misc binfmt_misc rw\n734 632 7:0 / /snap/core20/2866 ro,nodev,relatime - squashfs /dev/loop0 ro,errors=continue\n735 632 7:1 / /snap/core20/2922 ro,nodev,relatime - squashfs /dev/loop1 ro,errors=continue\n736 632 7:2 / /snap/lxd/40364 ro,nodev,relatime - squashfs /dev/loop2 ro,errors=continue\n737 632 7:3 / /snap/lxd/40526 ro,nodev,relatime - squashfs /dev/loop3 ro,errors=continue\n738 632 7:4 / /snap/snapd/27710 ro,nodev,relatime - squashfs /dev/loop4 ro,errors=continue\n739 632 7:5 / /snap/snapd/27738 ro,nodev,relatime - squashfs /dev/loop5 ro,errors=continue\n740 632 259:6 / /var/opt/nec/nqsv/jsv/jobfile rw,relatime - xfs /dev/nvme0n1p5 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n741 632 259:3 / /boot rw,relatime - xfs /dev/nvme0n1p2 rw,attr2,inode64,logbufs=8,logbsize=32k,noquota\n742 741 259:2 / /boot/efi rw,relatime - vfat /dev/nvme0n1p1 rw,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro\n743 632 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n744 743 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n745 744 1273:181606 /1 /work/1 rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n746 745 1273:181606 /1/SFC /work/1/SFC rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n747 746 1273:181606 /1/SFC/tanab /work/1/SFC/tanab rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n748 747 1273:181606 /1/SFC/tanab/izanagi /work/1/SFC/tanab/izanagi rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n749 748 1273:181606 /1/SFC/tanab/izanagi/.claude /work/1/SFC/tanab/izanagi/.claude rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n755 749 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees /work/1/SFC/tanab/izanagi/.claude/worktrees rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n756 755 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n758 756 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n759 758 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n760 759 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/1ffdfc7fd8fad93d6fd1929ca6a2e7d8 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/1ffdfc7fd8fad93d6fd1929ca6a2e7d8 ro - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n761 632 1273:181606 / /system rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/system rw,flock,user_xattr,lazystatfs,encrypt\n762 632 1273:181606 / /home rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/home rw,flock,user_xattr,lazystatfs,encrypt\n763 632 9:0 / /scr rw,relatime - xfs /dev/md0 rw,attr2,inode64,logbufs=8,logbsize=32k,sunit=1024,swidth=2048,noquota\n764 632 259:10 / /pmem rw,noatime - ext4 /dev/pmem0 rw,dax=always\n765 632 0:43 / /tmp ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n766 765 0:46 / /tmp/izanagi_wt_otno83zh ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n767 765 259:5 /tmp/t1994-qualification-4jkjuq81/base /tmp/t1994-qualification-4jkjuq81/base rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n768 765 259:5 /tmp/t1994-qualification-4jkjuq81/cache-sort_best-none /tmp/t1994-qualification-4jkjuq81/cache-sort_best-none rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n769 766 0:55 / /tmp/izanagi_wt_otno83zh/wt ro,relatime - tmpfs tmpfs rw,size=11128k,uid=31609,gid=30410,inode64\n", "source_mounts": ["769 766 0:55 / /tmp/izanagi_wt_otno83zh/wt ro,relatime - tmpfs tmpfs rw,size=11128k,uid=31609,gid=30410,inode64"], "chmod_errno": 30, "write_errno": 13, "read_unchanged": true, "git_absent": true, "tmpfs": {"fragment_size": 4096, "used_bytes": 3325952, "used_inodes": 451}, "status": "Name:\tpython3\nUmask:\t0022\nState:\tR (running)\nTgid:\t3146448\nNgid:\t0\nPid:\t3146448\nPPid:\t3146427\nTracerPid:\t0\nUid:\t31609\t31609\t31609\t31609\nGid:\t30410\t30410\t30410\t30410\nFDSize:\t64\nGroups:\t65534 30410 \nNStgid:\t3146448\nNSpid:\t3146448\nNSpgid:\t3143121\nNSsid:\t3143121\nVmPeak:\t   36840 kB\nVmSize:\t   36840 kB\nVmLck:\t       0 kB\nVmPin:\t       0 kB\nVmHWM:\t   24736 kB\nVmRSS:\t   24736 kB\nRssAnon:\t   14856 kB\nRssFile:\t    9880 kB\nRssShmem:\t       0 kB\nVmData:\t   17268 kB\nVmStk:\t     132 kB\nVmExe:\t    2772 kB\nVmLib:\t    5700 kB\nVmPTE:\t     112 kB\nVmSwap:\t       0 kB\nHugetlbPages:\t       0 kB\nCoreDumping:\t0\nTHP_enabled:\t1\nThreads:\t1\nSigQ:\t0/509439\nSigPnd:\t0000000000000000\nShdPnd:\t0000000000000000\nSigBlk:\t0000000000000000\nSigIgn:\t0000000001005000\nSigCgt:\t0000000000000002\nCapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapBnd:\t0000000000000000\nCapAmb:\t0000000000000000\nNoNewPrivs:\t1\nSeccomp:\t2\nSeccomp_filters:\t1\nSpeculation_Store_Bypass:\tthread force mitigated\nSpeculationIndirectBranch:\tconditional force disabled\nCpus_allowed:\tffff,ffffffff\nCpus_allowed_list:\t0-47\nMems_allowed:\t00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001\nMems_allowed_list:\t0\nvoluntary_ctxt_switches:\t12\nnonvoluntary_ctxt_switches:\t1\n", "shared_write_errno": 13, "attacks_with_filter": {"unshare": {"pid": 3146449, "exit": 0, "observation": {"errno": 1, "namespace_created": false}}, "clone": {"pid": 3146450, "exit": 0, "observation": {"errno": 1, "namespace_created": false}}, "clone3": {"pid": 3146451, "exit": 0, "observation": {"errno": 38, "namespace_created": false}}}, "namespaces": {"user": "user:[4026534698]", "mnt": "mnt:[4026534699]"}}
+
+
+{"argv": ["/usr/bin/cmake", "-S", "/tmp/izanagi_wt_otno83zh/wt", "-B", "/tmp/t1994-qualification-4jkjuq81/cache-sort_best-none/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-1d423720e910f085c0661ac8c9c8e96a", "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF", "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11", "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11", "-DFETCHCONTENT_BASE_DIR=/tmp/t1994-qualification-4jkjuq81/base", "-DFETCHCONTENT_FULLY_DISCONNECTED=ON", "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/t1994-qualification-4jkjuq81/base/masstree-src", "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/tmp/t1994-qualification-4jkjuq81/base/mimalloc-src", "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/tmp/t1994-qualification-4jkjuq81/base/googletest-src", "-DCCBENCH_BACK_OFF=1", "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1", "-DCCBENCH_NO_WAIT_OF_TICTOC=0", "-DCCBENCH_SORT_VARIANT=1", "-DCCBENCH_WAL=0", "-DCCBENCH_TRACE=0"], "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification", "timeout_s": null, "ccache_environment": {}, "returncode": 0, "elapsed_s": 0.7772895689995494}
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/x86_64-linux-gnu-g++-11 - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Looking for C++ include pthread.h
+-- Looking for C++ include pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Found gflags: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/env/pegasus/silo_ladder_rung1/job-staging/t2625-deps/gflags-install/lib/libgflags.a  
+-- Found glog: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/env/pegasus/silo_ladder_rung1/job-staging/t2625-deps/glog-install/lib/libglog.a  
+-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version "1.74.0") found components: filesystem 
+-- The C compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/x86_64-linux-gnu-gcc-11 - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- 
+-- Architecture: x64
+-- Performing Test mi_has_libpthread
+-- Performing Test mi_has_libpthread - Success
+-- Performing Test mi_has_librt
+-- Performing Test mi_has_librt - Success
+-- Performing Test mi_has_libatomic
+-- Performing Test mi_has_libatomic - Success
+-- 
+-- Library name     : mimalloc
+-- Version          : 2.3.2
+-- Build type       : release
+-- C Compiler       : /usr/bin/x86_64-linux-gnu-gcc-11
+-- Compiler flags   : -Wall;-Wextra;-Wno-unknown-pragmas;-fvisibility=hidden;-Wstrict-prototypes;-ftls-model=initial-exec
+-- Compiler defines : MI_CMAKE_BUILD_TYPE=release;MI_BUILD_RELEASE
+-- Link libraries   : pthread;rt;atomic
+-- Build targets    : static
+-- 
+-- Found Python3: /usr/bin/python3.10 (found version "3.10.12") found components: Interpreter 
+-- Wrote protocol×workload matrix to /tmp/t1994-qualification-4jkjuq81/cache-sort_best-none/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-1d423720e910f085c0661ac8c9c8e96a/PROTOCOL_MATRIX.md
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /tmp/t1994-qualification-4jkjuq81/cache-sort_best-none/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-1d423720e910f085c0661ac8c9c8e96a
+
+
+{"argv": ["/usr/bin/cmake", "--build", "/tmp/t1994-qualification-4jkjuq81/cache-sort_best-none/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-1d423720e910f085c0661ac8c9c8e96a", "--target", "ycsb_silo.exe", "-j", "48"], "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification", "timeout_s": null, "ccache_environment": {}, "returncode": 0, "elapsed_s": 4.337056441996538}
+Consolidate compiler generated dependencies of target mimalloc-static
+[  0%] Built target masstree_build
+[  7%] Building CXX object CMakeFiles/ccbench_common.dir/common/result.cc.o
+[ 14%] Building CXX object CMakeFiles/ccbench_common.dir/common/util.cc.o
+[ 14%] Linking C static library libmimalloc.a
+[ 85%] Built target mimalloc-static
+[ 85%] Linking CXX static library libccbench_common.a
+[ 85%] Built target ccbench_common
+[ 85%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o
+[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/util.cc.o
+[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o
+[100%] Linking CXX executable ycsb_silo.exe
+[100%] Built target ycsb_silo.exe
+
+
+{"argv": ["/usr/bin/python3", "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py", "--internal", "inventory", "/tmp/izanagi_wt_otno83zh/wt"], "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification", "timeout_s": null, "ccache_environment": {}, "returncode": 0, "elapsed_s": 0.09005361999879824}
+{"files": 404, "directories": 47, "symlinks": 0, "apparent_bytes": 2354746, "symlink_bytes": 0, "page_rounded_file_bytes": 3325952, "page_size": 4096, "nodes": 451, "required_inodes": 451, "copy_domain_sha256": "78a815ac8d8b0cd6b87a6ddbcbdcc252b1fd8be0ea7d8d1d7ecdcc24b50b4016", "excluded_names": [".git"]}
+
+
+{"argv": ["/usr/bin/python3", "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py", "--internal", "sealed", "/tmp/izanagi_wt_iqpdt63s/wt", "/tmp/t1994-qualification-4jkjuq81/base/qualification-shared/shared-0444"], "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification", "timeout_s": null, "ccache_environment": {}, "returncode": 0, "elapsed_s": 0.1006407870008843}
+{"inventory": {"files": 404, "directories": 47, "symlinks": 0, "apparent_bytes": 2352405, "symlink_bytes": 0, "page_rounded_file_bytes": 3321856, "page_size": 4096, "nodes": 451, "required_inodes": 451, "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42", "excluded_names": [".git"]}, "mountinfo": "632 631 259:5 / / rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n633 632 0:5 / /dev rw,nosuid,relatime - devtmpfs udev rw,size=65208292k,nr_inodes=16302073,mode=755,inode64\n634 633 0:24 / /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=000\n635 633 0:27 / /dev/shm rw,nosuid,nodev - tmpfs tmpfs rw,inode64\n637 633 0:34 / /dev/hugepages rw,relatime - hugetlbfs hugetlbfs rw,pagesize=2M\n638 633 0:20 / /dev/mqueue rw,nosuid,nodev,noexec,relatime - mqueue mqueue rw\n715 632 0:25 / /run rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053632k,mode=755,inode64\n716 715 0:28 / /run/lock rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=5120k,inode64\n717 715 0:36 / /run/credentials/systemd-sysusers.service ro,nosuid,nodev,noexec,relatime - ramfs none rw,mode=700\n718 715 0:40 / /run/rpc_pipefs rw,relatime - rpc_pipefs sunrpc rw\n719 715 0:25 /snapd/ns /run/snapd/ns rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053632k,mode=755,inode64\n720 632 0:22 / /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw\n721 720 0:6 / /sys/kernel/security rw,nosuid,nodev,noexec,relatime - securityfs securityfs rw\n722 720 0:29 / /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime - cgroup2 cgroup2 rw,nsdelegate,memory_recursiveprot\n723 720 0:30 / /sys/fs/pstore rw,nosuid,nodev,noexec,relatime - pstore pstore rw\n724 720 0:31 / /sys/firmware/efi/efivars rw,nosuid,nodev,noexec,relatime - efivarfs efivarfs rw\n725 720 0:32 / /sys/fs/bpf rw,nosuid,nodev,noexec,relatime - bpf bpf rw,mode=700\n726 720 0:7 / /sys/kernel/debug rw,nosuid,nodev,noexec,relatime - debugfs debugfs rw\n727 726 0:12 / /sys/kernel/debug/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n728 720 0:12 / /sys/kernel/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n729 720 0:35 / /sys/fs/fuse/connections rw,nosuid,nodev,noexec,relatime - fusectl fusectl rw\n730 720 0:21 / /sys/kernel/config rw,nosuid,nodev,noexec,relatime - configfs configfs rw\n731 632 0:23 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw\n732 731 0:33 / /proc/sys/fs/binfmt_misc rw,relatime - autofs systemd-1 rw,fd=29,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=29709\n733 732 0:37 / /proc/sys/fs/binfmt_misc rw,nosuid,nodev,noexec,relatime - binfmt_misc binfmt_misc rw\n734 632 7:0 / /snap/core20/2866 ro,nodev,relatime - squashfs /dev/loop0 ro,errors=continue\n735 632 7:1 / /snap/core20/2922 ro,nodev,relatime - squashfs /dev/loop1 ro,errors=continue\n736 632 7:2 / /snap/lxd/40364 ro,nodev,relatime - squashfs /dev/loop2 ro,errors=continue\n737 632 7:3 / /snap/lxd/40526 ro,nodev,relatime - squashfs /dev/loop3 ro,errors=continue\n738 632 7:4 / /snap/snapd/27710 ro,nodev,relatime - squashfs /dev/loop4 ro,errors=continue\n739 632 7:5 / /snap/snapd/27738 ro,nodev,relatime - squashfs /dev/loop5 ro,errors=continue\n740 632 259:6 / /var/opt/nec/nqsv/jsv/jobfile rw,relatime - xfs /dev/nvme0n1p5 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n741 632 259:3 / /boot rw,relatime - xfs /dev/nvme0n1p2 rw,attr2,inode64,logbufs=8,logbsize=32k,noquota\n742 741 259:2 / /boot/efi rw,relatime - vfat /dev/nvme0n1p1 rw,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro\n743 632 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n744 743 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n745 744 1273:181606 /1 /work/1 rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n746 745 1273:181606 /1/SFC /work/1/SFC rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n747 746 1273:181606 /1/SFC/tanab /work/1/SFC/tanab rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n748 747 1273:181606 /1/SFC/tanab/izanagi /work/1/SFC/tanab/izanagi rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n749 748 1273:181606 /1/SFC/tanab/izanagi/.claude /work/1/SFC/tanab/izanagi/.claude rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n755 749 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees /work/1/SFC/tanab/izanagi/.claude/worktrees rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n756 755 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n758 756 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n759 758 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n760 759 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/1ffdfc7fd8fad93d6fd1929ca6a2e7d8 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/1ffdfc7fd8fad93d6fd1929ca6a2e7d8 ro - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n761 632 1273:181606 / /system rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/system rw,flock,user_xattr,lazystatfs,encrypt\n762 632 1273:181606 / /home rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/home rw,flock,user_xattr,lazystatfs,encrypt\n763 632 9:0 / /scr rw,relatime - xfs /dev/md0 rw,attr2,inode64,logbufs=8,logbsize=32k,sunit=1024,swidth=2048,noquota\n764 632 259:10 / /pmem rw,noatime - ext4 /dev/pmem0 rw,dax=always\n765 632 0:43 / /tmp ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n766 765 0:46 / /tmp/izanagi_wt_iqpdt63s ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n767 765 259:5 /tmp/t1994-qualification-4jkjuq81/base /tmp/t1994-qualification-4jkjuq81/base rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n768 765 259:5 /tmp/t1994-qualification-4jkjuq81/cache-stock_common-persistent /tmp/t1994-qualification-4jkjuq81/cache-stock_common-persistent rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n769 766 0:55 / /tmp/izanagi_wt_iqpdt63s/wt ro,relatime - tmpfs tmpfs rw,size=11124k,uid=31609,gid=30410,inode64\n", "source_mounts": ["769 766 0:55 / /tmp/izanagi_wt_iqpdt63s/wt ro,relatime - tmpfs tmpfs rw,size=11124k,uid=31609,gid=30410,inode64"], "chmod_errno": 30, "write_errno": 13, "read_unchanged": true, "git_absent": true, "tmpfs": {"fragment_size": 4096, "used_bytes": 3321856, "used_inodes": 451}, "status": "Name:\tpython3\nUmask:\t0022\nState:\tR (running)\nTgid:\t3147223\nNgid:\t0\nPid:\t3147223\nPPid:\t3147210\nTracerPid:\t0\nUid:\t31609\t31609\t31609\t31609\nGid:\t30410\t30410\t30410\t30410\nFDSize:\t64\nGroups:\t65534 30410 \nNStgid:\t3147223\nNSpid:\t3147223\nNSpgid:\t3143121\nNSsid:\t3143121\nVmPeak:\t   36840 kB\nVmSize:\t   36840 kB\nVmLck:\t       0 kB\nVmPin:\t       0 kB\nVmHWM:\t   24688 kB\nVmRSS:\t   24688 kB\nRssAnon:\t   14864 kB\nRssFile:\t    9824 kB\nRssShmem:\t       0 kB\nVmData:\t   17268 kB\nVmStk:\t     132 kB\nVmExe:\t    2772 kB\nVmLib:\t    5700 kB\nVmPTE:\t     104 kB\nVmSwap:\t       0 kB\nHugetlbPages:\t       0 kB\nCoreDumping:\t0\nTHP_enabled:\t1\nThreads:\t1\nSigQ:\t0/509439\nSigPnd:\t0000000000000000\nShdPnd:\t0000000000000000\nSigBlk:\t0000000000000000\nSigIgn:\t0000000001005000\nSigCgt:\t0000000000000002\nCapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapBnd:\t0000000000000000\nCapAmb:\t0000000000000000\nNoNewPrivs:\t1\nSeccomp:\t2\nSeccomp_filters:\t1\nSpeculation_Store_Bypass:\tthread force mitigated\nSpeculationIndirectBranch:\tconditional force disabled\nCpus_allowed:\tffff,ffffffff\nCpus_allowed_list:\t0-47\nMems_allowed:\t00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001\nMems_allowed_list:\t0\nvoluntary_ctxt_switches:\t12\nnonvoluntary_ctxt_switches:\t0\n", "shared_write_errno": 13, "attacks_with_filter": {"unshare": {"pid": 3147224, "exit": 0, "observation": {"errno": 1, "namespace_created": false}}, "clone": {"pid": 3147225, "exit": 0, "observation": {"errno": 1, "namespace_created": false}}, "clone3": {"pid": 3147226, "exit": 0, "observation": {"errno": 38, "namespace_created": false}}}, "namespaces": {"user": "user:[4026534699]", "mnt": "mnt:[4026534703]"}}
+
+
+{"argv": ["/usr/bin/cmake", "-S", "/tmp/izanagi_wt_iqpdt63s/wt", "-B", "/tmp/t1994-qualification-4jkjuq81/cache-stock_common-persistent/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-0ba2212723bf377f0669141045b1539e", "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF", "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11", "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11", "-DFETCHCONTENT_BASE_DIR=/tmp/t1994-qualification-4jkjuq81/base", "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/t1994-qualification-4jkjuq81/base/masstree-src", "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/tmp/t1994-qualification-4jkjuq81/base/mimalloc-src", "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/tmp/t1994-qualification-4jkjuq81/base/googletest-src", "-DCCBENCH_BACK_OFF=1", "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1", "-DCCBENCH_NO_WAIT_OF_TICTOC=0", "-DCCBENCH_WAL=0", "-DCCBENCH_TRACE=0"], "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification", "timeout_s": null, "ccache_environment": {}, "returncode": 0, "elapsed_s": 0.7744045910003479}
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/x86_64-linux-gnu-g++-11 - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Looking for C++ include pthread.h
+-- Looking for C++ include pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Found gflags: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/env/pegasus/silo_ladder_rung1/job-staging/t2625-deps/gflags-install/lib/libgflags.a  
+-- Found glog: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/env/pegasus/silo_ladder_rung1/job-staging/t2625-deps/glog-install/lib/libglog.a  
+-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version "1.74.0") found components: filesystem 
+-- The C compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/x86_64-linux-gnu-gcc-11 - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- 
+-- Architecture: x64
+-- Performing Test mi_has_libpthread
+-- Performing Test mi_has_libpthread - Success
+-- Performing Test mi_has_librt
+-- Performing Test mi_has_librt - Success
+-- Performing Test mi_has_libatomic
+-- Performing Test mi_has_libatomic - Success
+-- 
+-- Library name     : mimalloc
+-- Version          : 2.3.2
+-- Build type       : release
+-- C Compiler       : /usr/bin/x86_64-linux-gnu-gcc-11
+-- Compiler flags   : -Wall;-Wextra;-Wno-unknown-pragmas;-fvisibility=hidden;-Wstrict-prototypes;-ftls-model=initial-exec
+-- Compiler defines : MI_CMAKE_BUILD_TYPE=release;MI_BUILD_RELEASE
+-- Link libraries   : pthread;rt;atomic
+-- Build targets    : static
+-- 
+-- Found Python3: /usr/bin/python3.10 (found version "3.10.12") found components: Interpreter 
+-- Wrote protocol×workload matrix to /tmp/t1994-qualification-4jkjuq81/cache-stock_common-persistent/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-0ba2212723bf377f0669141045b1539e/PROTOCOL_MATRIX.md
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /tmp/t1994-qualification-4jkjuq81/cache-stock_common-persistent/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-0ba2212723bf377f0669141045b1539e
+
+
+{"argv": ["/usr/bin/cmake", "--build", "/tmp/t1994-qualification-4jkjuq81/cache-stock_common-persistent/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-0ba2212723bf377f0669141045b1539e", "--target", "ycsb_silo.exe", "-j", "48"], "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification", "timeout_s": null, "ccache_environment": {}, "returncode": 0, "elapsed_s": 4.355941938996693}
+Consolidate compiler generated dependencies of target mimalloc-static
+[  0%] Built target masstree_build
+[  7%] Building CXX object CMakeFiles/ccbench_common.dir/common/result.cc.o
+[ 14%] Building CXX object CMakeFiles/ccbench_common.dir/common/util.cc.o
+[ 14%] Linking C static library libmimalloc.a
+[ 85%] Built target mimalloc-static
+[ 85%] Linking CXX static library libccbench_common.a
+[ 85%] Built target ccbench_common
+[ 85%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/ycsb_silo.cc.o
+[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/transaction.cc.o
+[100%] Building CXX object cc/silo/CMakeFiles/ycsb_silo.exe.dir/util.cc.o
+[100%] Linking CXX executable ycsb_silo.exe
+[100%] Built target ycsb_silo.exe
+
+
+{"argv": ["/usr/bin/python3", "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py", "--internal", "inventory", "/tmp/izanagi_wt_iqpdt63s/wt"], "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification", "timeout_s": null, "ccache_environment": {}, "returncode": 0, "elapsed_s": 0.0909483059986087}
+{"files": 404, "directories": 47, "symlinks": 0, "apparent_bytes": 2352405, "symlink_bytes": 0, "page_rounded_file_bytes": 3321856, "page_size": 4096, "nodes": 451, "required_inodes": 451, "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42", "excluded_names": [".git"]}
+
+
