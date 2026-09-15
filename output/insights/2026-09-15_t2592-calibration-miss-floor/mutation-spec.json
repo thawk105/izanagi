@@ -1,0 +1,133 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 400,
+  "timeout_seconds": 3000,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M1-saturation-floor-strict-gt",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/analyze.py",
+          "old": "            if usable[i].miss_rate >= cache_floor:\n",
+          "new": "            if usable[i].miss_rate > cache_floor:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_saturation_cache_floor_boundary_and_override"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-lower-bound-floor-strict-gt",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/analyze.py",
+          "old": "            if p.miss_rate >= cache_floor:\n",
+          "new": "            if p.miss_rate > cache_floor:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_boundary"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-warning-threshold-weakened",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/analyze.py",
+          "old": "    if miss_rate < floor:\n",
+          "new": "    if miss_rate < floor * 0.8:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_saturation_cache_floor_warning_inside_margin"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-lower-bound-drop-fallback",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/analyze.py",
+          "old": "                chosen = p\n                break\n\n    if chosen is None:\n        chosen = original\n",
+          "new": "                chosen = p\n                break\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_no_match"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-saturation-drop-fallback",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/analyze.py",
+          "old": "                chosen = i\n                break\n\n    if chosen is None:\n        chosen = original\n",
+          "new": "                chosen = i\n                break\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_saturation_cache_floor_warning",
+        "orchestrator/tests/test_calibrator.py::test_saturation_cache_floor_warning_inside_margin",
+        "orchestrator/tests/test_calibrator.py::test_saturation_cache_floor_final_point_excluded"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-lower-bound-take-last-match",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/analyze.py",
+          "old": "            if p.miss_rate >= cache_floor:\n                chosen = p\n                break\n",
+          "new": "            if p.miss_rate >= cache_floor:\n                chosen = p\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_boundary",
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_when_no_plateau",
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_rr5"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-saturation-admit-final-point",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/analyze.py",
+          "old": "    for i in range(n - 1):\n",
+          "new": "    for i in range(n):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_final_point_included",
+        "orchestrator/tests/test_calibrator.py::test_saturation_cache_floor_final_point_excluded",
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_and_rss_same_point",
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_boundary",
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_even_max_too_small",
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_no_match",
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_rr5",
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_when_no_plateau",
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_unavailable_without_l3_or_maxrss",
+        "orchestrator/tests/test_calibrator.py::test_saturation_never"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
