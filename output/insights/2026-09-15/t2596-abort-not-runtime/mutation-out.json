@@ -1,0 +1,307 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2596-abort-not-runtime/output/pegasus-dispatch/b804fc0aee16181efe8e085835616fff/izdw-b804fc0aee.o998925",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2596-abort-not-runtime/output/pegasus-dispatch/b804fc0aee16181efe8e085835616fff/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2596-abort-not-runtime\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [3 items]\n\n...                                                                      [100%]\n============================== 3 passed in 14.55s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "ef08e764f94c68dd937c60a2e68e1dc84bff327050f7f67c223c314f71320ca7"
+    },
+    "artifact_error": null,
+    "collection_sha256": "41e0917d65cc9a1daa4aa9fa5c4a716e3d0cbc3de6b986b1899391d2177c85eb",
+    "duration_s": 42.373,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "be6197504f6d76c030e0451c19d85ca8bb597c0c7e44aa64e1e5738ddaa36474",
+    "repo_head": "85c4f15ac3f94bbdc274270821d87f7cd46756a4",
+    "runner_sha256": "eb34390e9e5b29ca6b1e07ab61eba81a4095e1c9fd77069a77126540abfa39e3",
+    "spec_sha256": "3d30103cf9296e1501b39d480ba23c4bbb3644de444481b2a625309d75a850e5",
+    "status": "PASSED",
+    "test_output_sha256": "ef08e764f94c68dd937c60a2e68e1dc84bff327050f7f67c223c314f71320ca7",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "e42b4ecdf3ffebfec1e4664ab88e9a063094965e80673db7bcac11e1a6637aec"
+  },
+  "date": "2026-09-15T06:58:48.342322+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2596-abort-not-runtime/output/pegasus-dispatch/04ef084f8a783c82d691322e4ce04ecd/izdw-04ef084f8a.o998929",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2596-abort-not-runtime/output/pegasus-dispatch/04ef084f8a783c82d691322e4ce04ecd/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2596-abort-not-runtime\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [3 items]\n\n..F                                                                      [100%]\n=================================== FAILURES ===================================\n________ test_measure_campaign_abort_propagates_without_launch_failure _________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_measure_campaign_abort_pr0')\n\n    def test_measure_campaign_abort_propagates_without_launch_failure(tmp_path):\n        freeze = _freeze_document()\n        protocol = _protocol(freeze_sha=_freeze_sha(freeze))\n        abort = s8b_floor_campaign.CampaignAbort(\"fixture measure abort\")\n        measured_cells = []\n        probes_after_measure = 0\n    \n        def measure_fn(binary, records, threads, workload):\n            measured_cells.append(_cell_id_from_binary(binary))\n            raise abort\n    \n        def probe_fn():\n            nonlocal probes_after_measure\n            if measured_cells:\n                probes_after_measure += 1\n            return (1, \"\", \"\")\n    \n        out_root = tmp_path / \"out\"\n>       with pytest.raises(s8b_floor_campaign.CampaignAbort) as caught:\nE       Failed: DID NOT RAISE CampaignAbort\n\norchestrator/tests/test_s8b_floor_campaign.py:9932: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_floor_campaign.py::test_measure_campaign_abort_propagates_without_launch_failure\n========================= 1 failed, 2 passed in 14.50s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_floor_campaign.py::test_measure_campaign_abort_propagates_without_launch_failure\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1001 retained_bytes=1001 omitted_bytes=0 rendered_excerpt_bytes=1054 sha256=aaf1d4bef547947f43b7df359056b940eb4cf690cdc50ef6b2e01794b3356b24\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_measure_campaign_abort_pr0')\n> \n>     def test_measure_campaign_abort_propagates_without_launch_failure(tmp_path):\n>         freeze = _freeze_document()\n>         protocol = _protocol(freeze_sha=_freeze_sha(freeze))\n>         abort = s8b_floor_campaign.CampaignAbort(\"fixture measure abort\")\n>         measured_cells = []\n>         probes_after_measure = 0\n>     \n>         def measure_fn(binary, records, threads, workload):\n>             measured_cells.append(_cell_id_from_binary(binary))\n>             raise abort\n>     \n>         def probe_fn():\n>             nonlocal probes_after_measure\n>             if measured_cells:\n>                 probes_after_measure += 1\n>             return (1, \"\", \"\")\n>     \n>         out_root = tmp_path / \"out\"\n> >       with pytest.raises(s8b_floor_campaign.CampaignAbort) as caught:\n> E       Failed: DID NOT RAISE CampaignAbort\n> \n> orchestrator/tests/test_s8b_floor_campaign.py:9932: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1001 retained_bytes=1001 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1790 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "aa4b7767ac335206cf27d1e21e766165569d5eafbbecd9a13792773421b567eb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "41e0917d65cc9a1daa4aa9fa5c4a716e3d0cbc3de6b986b1899391d2177c85eb",
+      "duration_s": 54.565,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_campaign_abort_propagates_without_launch_failure"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_campaign_abort_propagates_without_launch_failure"
+      ],
+      "hang_risk": false,
+      "id": "M1-remove-campaign-abort-reraise",
+      "injection_diff_sha256": "2e8f3b449ebad5a1b20db64cf30479927fb291bf9d904e46e6de231ef00ad77b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1f04618ca4c35087a8785563adb580a004fb14fafad69b8141c4b1a49dc354db",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "        except (RuntimeError, subprocess.TimeoutExpired) as exc:",
+          "old": "        except CampaignAbort:\n            raise\n        except (RuntimeError, subprocess.TimeoutExpired) as exc:"
+        }
+      ],
+      "repo_head": "85c4f15ac3f94bbdc274270821d87f7cd46756a4",
+      "runner_sha256": "eb34390e9e5b29ca6b1e07ab61eba81a4095e1c9fd77069a77126540abfa39e3",
+      "spec_sha256": "3d30103cf9296e1501b39d480ba23c4bbb3644de444481b2a625309d75a850e5",
+      "status": "KILLED",
+      "test_output_sha256": "aa4b7767ac335206cf27d1e21e766165569d5eafbbecd9a13792773421b567eb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e42b4ecdf3ffebfec1e4664ab88e9a063094965e80673db7bcac11e1a6637aec"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2596-abort-not-runtime/output/pegasus-dispatch/ae7f6a35808e92427a77a2b6b15fe7b6/izdw-ae7f6a3580.o998936",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2596-abort-not-runtime/output/pegasus-dispatch/ae7f6a35808e92427a77a2b6b15fe7b6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2596-abort-not-runtime\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [3 items]\n\n.FF                                                                      [100%]\n=================================== FAILURES ===================================\n______________ test_measure_runtime_error_records_launch_failure _______________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_measure_runtime_error_rec0')\n\n    def test_measure_runtime_error_records_launch_failure(tmp_path):\n        freeze = _freeze_document()\n        protocol = _protocol(freeze_sha=_freeze_sha(freeze))\n        launch_fail_cell = \"rr79::system_gate\"\n        measure_fn = _make_measure_fn(\n            reps=protocol[\"reps\"], value_fn=lambda cid: _BASE_TPS[cid],\n            raise_for={launch_fail_cell},\n        )\n        out_root = tmp_path / \"out\"\n>       _run_campaign(\n            protocol, _verified_freeze(freeze), out_root=out_root,\n            build_root=tmp_path / \"bin\", measure_fn=measure_fn,\n            probe_fn=lambda: (1, \"\", \"\"),\n        )\n\norchestrator/tests/test_s8b_floor_campaign.py:9971: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_s8b_floor_campaign.py:851: in _run_campaign\n    return entrypoint(protocol, freeze_doc, build_fn=fake_build, **kwargs)\norchestrator/campaign/s8b_floor_campaign.py:7956: in _run_campaign_core\n    runner.run()\norchestrator/campaign/s8b_floor_campaign.py:6582: in run\n    self._run_session(\norchestrator/campaign/s8b_floor_campaign.py:6279: in _run_session\n    scale_point = self.measure_fn(\norchestrator/campaign/s8b_floor_campaign.py:6012: in measure_attempt\n    return measure_fn(binary, records, threads, workload)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nbinary = '/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_measure_runtime_error_rec0/out/s8b-build-cache/fixture/rr79__system_gate/ycsb_fixture.exe'\nrecords = 730079, threads = 17\nworkload = {'ycsb_zipf_skew': '0.42', 'ycsb_rratio': '79', 'ycsb_rmw': '1'}\n\n    def measure_fn(binary, records, threads, workload):\n        cell_id = _cell_id_from_binary(binary)\n        calls.append(cell_id)\n        call_details.append({\n            \"cell_id\": cell_id,\n            \"records\": records,\n            \"threads\": threads,\n            \"workload\": dict(workload),\n        })\n        if cell_id in raise_for:\n>           raise RuntimeError(f\"fixture: 実行不能を模す ({cell_id})\")\nE           RuntimeError: fixture: 実行不能を模す (rr79::system_gate)\n\norchestrator/tests/test_s8b_floor_campaign.py:965: RuntimeError\n_____ test_post_probe_runs_on_launch_error_and_competing_takes_precedence ______\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_post_probe_runs_on_launch0')\n\n    def test_post_probe_runs_on_launch_error_and_competing_takes_precedence(tmp_path):\n        \"\"\"measure が例外 (全 rep 起動不能) の経路でも post-probe を実行し、post-probe 競合が\n        launch_failure より優先される (β-7 の precedence)。\"\"\"\n        freeze = _freeze_document()\n        verified = _verified_freeze(freeze)\n        protocol = _protocol(freeze_sha=_freeze_sha(freeze))\n        launch_fail_cell = \"rr79::system_gate\"\n    \n        # pre-probe は常に競合なし (rc=1)、post-probe (2 回目) は競合 (rc=0) を返す。\n        calls = {\"n\": 0}\n    \n        def probe_fn():\n            calls[\"n\"] += 1\n            if calls[\"n\"] % 2 == 1:\n                return (1, \"\", \"\")           # pre-probe: 競合なし\n            return (0, \"777 ycsb_fixture.exe\\n\", \"\")  # post-probe: 競合\n    \n        measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid],\n                                      raise_for={launch_fail_cell})\n>       outcome = _run_campaign(protocol, verified, out_root=tmp_path / \"out\",\n                                build_root=tmp_path / \"bin\", measure_fn=measure_fn,\n                                probe_fn=probe_fn)\n\norchestrator/tests/test_s8b_floor_campaign.py:9904: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_s8b_floor_campaign.py:851: in _run_campaign\n    return entrypoint(protocol, freeze_doc, build_fn=fake_build, **kwargs)\norchestrator/campaign/s8b_floor_campaign.py:7956: in _run_campaign_core\n    runner.run()\norchestrator/campaign/s8b_floor_campaign.py:6582: in run\n    self._run_session(\norchestrator/campaign/s8b_floor_campaign.py:6279: in _run_session\n    scale_point = self.measure_fn(\norchestrator/campaign/s8b_floor_campaign.py:6012: in measure_attempt\n    return measure_fn(binary, records, threads, workload)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nbinary = '/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_post_probe_runs_on_launch0/out/s8b-build-cache/fixture/rr79__system_gate/ycsb_fixture.exe'\nrecords = 730079, threads = 17\nworkload = {'ycsb_zipf_skew': '0.42', 'ycsb_rratio': '79', 'ycsb_rmw': '1'}\n\n    def measure_fn(binary, records, threads, workload):\n        cell_id = _cell_id_from_binary(binary)\n        calls.append(cell_id)\n        call_details.append({\n            \"cell_id\": cell_id,\n            \"records\": records,\n            \"threads\": threads,\n            \"workload\": dict(workload),\n        })\n        if cell_id in raise_for:\n>           raise RuntimeError(f\"fixture: 実行不能を模す ({cell_id})\")\nE           RuntimeError: fixture: 実行不能を模す (rr79::system_gate)\n\norchestrator/tests/test_s8b_floor_campaign.py:965: RuntimeError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_floor_campaign.py::test_measure_runtime_error_records_launch_failure\nFAILED orchestrator/tests/test_s8b_floor_campaign.py::test_post_probe_runs_on_launch_error_and_competing_takes_precedence\n========================= 2 failed, 1 passed in 6.73s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_floor_campaign.py::test_post_probe_runs_on_launch_error_and_competing_takes_precedence\" nodeid_bytes=114 nodeid_omitted_bytes=0 source_bytes=2922 retained_bytes=2922 omitted_bytes=0 rendered_excerpt_bytes=3249 sha256=a2aa7e7b071a31dd7d30c4005594e6a36e644d643a43e303124664bfa90585de\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_post_probe_runs_on_launch0')\n> \n>     def test_post_probe_runs_on_launch_error_and_competing_takes_precedence(tmp_path):\n>         \"\"\"measure \\u304c\\u4f8b\\u5916 (\\u5168 rep \\u8d77\\u52d5\\u4e0d\\u80fd) \\u306e\\u7d4c\\u8def\\u3067\\u3082 post-probe \\u3092\\u5b9f\\u884c\\u3057\\u3001post-probe \\u7af6\\u5408\\u304c\n>         launch_failure \\u3088\\u308a\\u512a\\u5148\\u3055\\u308c\\u308b (\\u03b2-7 \\u306e precedence)\\u3002\"\"\"\n>         freeze = _freeze_document()\n>         verified = _verified_freeze(freeze)\n>         protocol = _protocol(freeze_sha=_freeze_sha(freeze))\n>         launch_fail_cell = \"rr79::system_gate\"\n>     \n>         # pre-probe \\u306f\\u5e38\\u306b\\u7af6\\u5408\\u306a\\u3057 (rc=1)\\u3001post-probe (2 \\u56de\\u76ee) \\u306f\\u7af6\\u5408 (rc=0) \\u3092\\u8fd4\\u3059\\u3002\n>         calls = {\"n\": 0}\n>     \n>         def probe_fn():\n>             calls[\"n\"] += 1\n>             if calls[\"n\"] % 2 == 1:\n>                 return (1, \"\", \"\")           # pre-probe: \\u7af6\\u5408\\u306a\\u3057\n>             return (0, \"777 ycsb_fixture.exe\\x5cn\", \"\")  # post-probe: \\u7af6\\u5408\n>     \n>         measure_fn = _make_measure_fn(reps=5, value_fn=lambda cid: _BASE_TPS[cid],\n>                                       raise_for={launch_fail_cell})\n> >       outcome = _run_campaign(protocol, verified, out_root=tmp_path / \"out\",\n>                                 build_root=tmp_path / \"bin\", measure_fn=measure_fn,\n>                                 probe_fn=probe_fn)\n> \n> orchestrator/tests/test_s8b_floor_campaign.py:9904: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_s8b_floor_campaign.py:851: in _run_campaign\n>     return entrypoint(protocol, freeze_doc, build_fn=fake_build, **kwargs)\n> orchestrator/campaign/s8b_floor_campaign.py:7956: in _run_campaign_core\n>     runner.run()\n> orchestrator/campaign/s8b_floor_campaign.py:6582: in run\n>     self._run_session(\n> orchestrator/campaign/s8b_floor_campaign.py:6279: in _run_session\n>     scale_point = self.measure_fn(\n> orchestrator/campaign/s8b_floor_campaign.py:6012: in measure_attempt\n>     return measure_fn(binary, records, threads, workload)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> binary = '/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_post_probe_runs_on_launch0/out/s8b-build-cache/fixture/rr79__system_gate/ycsb_fixture.exe'\n> records = 730079, threads = 17\n> workload = {'ycsb_zipf_skew': '0.42', 'ycsb_rratio': '79', 'ycsb_rmw': '1'}\n> \n>     def measure_fn(binary, records, threads, workload):\n>         cell_id = _cell_id_from_binary(binary)\n>         calls.append(cell_id)\n>         call_details.append({\n>             \"cell_id\": cell_id,\n>             \"records\": records,\n>             \"threads\": threads,\n>             \"workload\": dict(workload),\n>         })\n>         if cell_id in raise_for:\n> >           raise RuntimeError(f\"fixture: \\u5b9f\\u884c\\u4e0d\\u80fd\\u3092\\u6a21\\u3059 ({cell_id})\")\n> E           RuntimeError: fixture: \\u5b9f\\u884c\\u4e0d\\u80fd\\u3092\\u6a21\\u3059 (rr79::system_gate)\n> \n> orchestrator/tests/test_s8b_floor_campaign.py:965: RuntimeError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_floor_campaign.py::test_measure_runtime_error_records_launch_failure\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=2335 retained_bytes=2335 omitted_bytes=0 rendered_excerpt_bytes=2480 sha256=c7de0357d112a587ec9c3daf414cc1d75af002a45143f39d597953da6581e61c\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_measure_runtime_error_rec0')\n> \n>     def test_measure_runtime_error_records_launch_failure(tmp_path):\n>         freeze = _freeze_document()\n>         protocol = _protocol(freeze_sha=_freeze_sha(freeze))\n>         launch_fail_cell = \"rr79::system_gate\"\n>         measure_fn = _make_measure_fn(\n>             reps=protocol[\"reps\"], value_fn=lambda cid: _BASE_TPS[cid],\n>             raise_for={launch_fail_cell},\n>         )\n>         out_root = tmp_path / \"out\"\n> >       _run_campaign(\n>             protocol, _verified_freeze(freeze), out_root=out_root,\n>             build_root=tmp_path / \"bin\", measure_fn=measure_fn,\n>             probe_fn=lambda: (1, \"\", \"\"),\n>         )\n> \n> orchestrator/tests/test_s8b_floor_campaign.py:9971: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_s8b_floor_campaign.py:851: in _run_campaign\n>     return entrypoint(protocol, freeze_doc, build_fn=fake_build, **kwargs)\n> orchestrator/campaign/s8b_floor_campaign.py:7956: in _run_campaign_core\n>     runner.run()\n> orchestrator/campaign/s8b_floor_campaign.py:6582: in run\n>     self._run_session(\n> orchestrator/campaign/s8b_floor_campaign.py:6279: in _run_session\n>     scale_point = self.measure_fn(\n> orchestrator/campaign/s8b_floor_campaign.py:6012: in measure_attempt\n>     return measure_fn(binary, records, threads, workload)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> binary = '/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_measure_runtime_error_rec0/out/s8b-build-cache/fixture/rr79__system_gate/ycsb_fixture.exe'\n> records = 730079, threads = 17\n> workload = {'ycsb_zipf_skew': '0.42', 'ycsb_rratio': '79', 'ycsb_rmw': '1'}\n> \n>     def measure_fn(binary, records, threads, workload):\n>         cell_id = _cell_id_from_binary(binary)\n>         calls.append(cell_id)\n>         call_details.append({\n>             \"cell_id\": cell_id,\n>             \"records\": records,\n>             \"threads\": threads,\n>             \"workload\": dict(workload),\n>         })\n>         if cell_id in raise_for:\n> >           raise RuntimeError(f\"fixture: \\u5b9f\\u884c\\u4e0d\\u80fd\\u3092\\u6a21\\u3059 ({cell_id})\")\n> E           RuntimeError: fixture: \\u5b9f\\u884c\\u4e0d\\u80fd\\u3092\\u6a21\\u3059 (rr79::system_gate)\n> \n> orchestrator/tests/test_s8b_floor_campaign.py:965: RuntimeError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=5257 retained_bytes=5257 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6907 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2be31869b5c414900889006d193a4f04a14e7b6be92bc1f846630a26b293f7b0"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "41e0917d65cc9a1daa4aa9fa5c4a716e3d0cbc3de6b986b1899391d2177c85eb",
+      "duration_s": 38.329,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_runtime_error_records_launch_failure",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_post_probe_runs_on_launch_error_and_competing_takes_precedence"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_runtime_error_records_launch_failure",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_post_probe_runs_on_launch_error_and_competing_takes_precedence"
+      ],
+      "hang_risk": false,
+      "id": "M2-widen-reraise-to-runtime-error",
+      "injection_diff_sha256": "39fa2a4c46b8b2f5ef809adc47b69be512ff0ef49105a156fbab800e0aa7f384",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "96aa6f5016a0e7d1e5005bfe4a6d0d19c78d570b800521a958e589c3029ff4de",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "        except RuntimeError:\n            raise",
+          "old": "        except CampaignAbort:\n            raise"
+        }
+      ],
+      "repo_head": "85c4f15ac3f94bbdc274270821d87f7cd46756a4",
+      "runner_sha256": "eb34390e9e5b29ca6b1e07ab61eba81a4095e1c9fd77069a77126540abfa39e3",
+      "spec_sha256": "3d30103cf9296e1501b39d480ba23c4bbb3644de444481b2a625309d75a850e5",
+      "status": "KILLED",
+      "test_output_sha256": "2be31869b5c414900889006d193a4f04a14e7b6be92bc1f846630a26b293f7b0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e42b4ecdf3ffebfec1e4664ab88e9a063094965e80673db7bcac11e1a6637aec"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2596-abort-not-runtime/output/pegasus-dispatch/5185fe362f8162c9767290559ef6efe4/izdw-5185fe362f.o998941",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2596-abort-not-runtime/output/pegasus-dispatch/5185fe362f8162c9767290559ef6efe4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2596-abort-not-runtime\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [3 items]\n\nF..                                                                      [100%]\n=================================== FAILURES ===================================\n________ test_measure_campaign_abort_propagates_without_launch_failure _________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_measure_campaign_abort_pr0')\n\n    def test_measure_campaign_abort_propagates_without_launch_failure(tmp_path):\n        freeze = _freeze_document()\n        protocol = _protocol(freeze_sha=_freeze_sha(freeze))\n        abort = s8b_floor_campaign.CampaignAbort(\"fixture measure abort\")\n        measured_cells = []\n        probes_after_measure = 0\n    \n        def measure_fn(binary, records, threads, workload):\n            measured_cells.append(_cell_id_from_binary(binary))\n            raise abort\n    \n        def probe_fn():\n            nonlocal probes_after_measure\n            if measured_cells:\n                probes_after_measure += 1\n            return (1, \"\", \"\")\n    \n        out_root = tmp_path / \"out\"\n        with pytest.raises(s8b_floor_campaign.CampaignAbort) as caught:\n            _run_campaign(\n                protocol, _verified_freeze(freeze), out_root=out_root,\n                build_root=tmp_path / \"bin\", measure_fn=measure_fn, probe_fn=probe_fn,\n            )\n    \n        assert caught.value is abort\n        assert len(measured_cells) == 1\n>       assert probes_after_measure == 0\nE       assert 1 == 0\n\norchestrator/tests/test_s8b_floor_campaign.py:9940: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8b_floor_campaign.py::test_measure_campaign_abort_propagates_without_launch_failure\n========================= 1 failed, 2 passed in 14.39s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8b_floor_campaign.py::test_measure_campaign_abort_propagates_without_launch_failure\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=1309 retained_bytes=1309 omitted_bytes=0 rendered_excerpt_bytes=1378 sha256=0663b740dfc1f396cb25d8a34b2057a5491af5aca6b521048260aed44e532b8c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_measure_campaign_abort_pr0')\n> \n>     def test_measure_campaign_abort_propagates_without_launch_failure(tmp_path):\n>         freeze = _freeze_document()\n>         protocol = _protocol(freeze_sha=_freeze_sha(freeze))\n>         abort = s8b_floor_campaign.CampaignAbort(\"fixture measure abort\")\n>         measured_cells = []\n>         probes_after_measure = 0\n>     \n>         def measure_fn(binary, records, threads, workload):\n>             measured_cells.append(_cell_id_from_binary(binary))\n>             raise abort\n>     \n>         def probe_fn():\n>             nonlocal probes_after_measure\n>             if measured_cells:\n>                 probes_after_measure += 1\n>             return (1, \"\", \"\")\n>     \n>         out_root = tmp_path / \"out\"\n>         with pytest.raises(s8b_floor_campaign.CampaignAbort) as caught:\n>             _run_campaign(\n>                 protocol, _verified_freeze(freeze), out_root=out_root,\n>                 build_root=tmp_path / \"bin\", measure_fn=measure_fn, probe_fn=probe_fn,\n>             )\n>     \n>         assert caught.value is abort\n>         assert len(measured_cells) == 1\n> >       assert probes_after_measure == 0\n> E       assert 1 == 0\n> \n> orchestrator/tests/test_s8b_floor_campaign.py:9940: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1309 retained_bytes=1309 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2114 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8dd191713b7beac7c84163d70d34af7f52f147ee51a7ebd6ddd8cac074baf97a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "41e0917d65cc9a1daa4aa9fa5c4a716e3d0cbc3de6b986b1899391d2177c85eb",
+      "duration_s": 40.098,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_campaign_abort_propagates_without_launch_failure"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_campaign_abort_propagates_without_launch_failure"
+      ],
+      "hang_risk": false,
+      "id": "M3-post-probe-before-reraise",
+      "injection_diff_sha256": "bc570f2171cc4deab247c28b6575de08c9a36a52f57b9451e85a05e97d3d6a49",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8a8b10658fdb75ff286ec20fbf4cf889b618a36a201903920f14639f33c3c9d8",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "new": "        except CampaignAbort:\n            strict_probe(self.probe_fn)\n            raise",
+          "old": "        except CampaignAbort:\n            raise"
+        }
+      ],
+      "repo_head": "85c4f15ac3f94bbdc274270821d87f7cd46756a4",
+      "runner_sha256": "eb34390e9e5b29ca6b1e07ab61eba81a4095e1c9fd77069a77126540abfa39e3",
+      "spec_sha256": "3d30103cf9296e1501b39d480ba23c4bbb3644de444481b2a625309d75a850e5",
+      "status": "KILLED",
+      "test_output_sha256": "8dd191713b7beac7c84163d70d34af7f52f147ee51a7ebd6ddd8cac074baf97a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e42b4ecdf3ffebfec1e4664ab88e9a063094965e80673db7bcac11e1a6637aec"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2596-abort-not-runtime/output/pegasus-dispatch/0fe16b0e1abf597f8b3f64659ad1a7e0/izdw-0fe16b0e1a.o998918",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2596-abort-not-runtime/output/pegasus-dispatch/0fe16b0e1abf597f8b3f64659ad1a7e0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_campaign_abort_propagates_without_launch_failure\norchestrator/tests/test_s8b_floor_campaign.py::test_measure_runtime_error_records_launch_failure\norchestrator/tests/test_s8b_floor_campaign.py::test_post_probe_runs_on_launch_error_and_competing_takes_precedence\n\n3 tests collected in 2.01s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "d64f40e940bbfa6b542a6682b6300580856bd3e102af1d55547a4705344482ed"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_campaign_abort_propagates_without_launch_failure",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_runtime_error_records_launch_failure",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_post_probe_runs_on_launch_error_and_competing_takes_precedence"
+      ],
+      "duration_s": 27.992,
+      "rc": 0,
+      "repo_head": "85c4f15ac3f94bbdc274270821d87f7cd46756a4",
+      "runner_sha256": "eb34390e9e5b29ca6b1e07ab61eba81a4095e1c9fd77069a77126540abfa39e3",
+      "spec_sha256": "3d30103cf9296e1501b39d480ba23c4bbb3644de444481b2a625309d75a850e5",
+      "status": "PASSED",
+      "tool_sha256": "e42b4ecdf3ffebfec1e4664ab88e9a063094965e80673db7bcac11e1a6637aec"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-remove-campaign-abort-reraise": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_campaign_abort_propagates_without_launch_failure"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2e8f3b449ebad5a1b20db64cf30479927fb291bf9d904e46e6de231ef00ad77b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_floor_campaign.py",
+            "new": "        except (RuntimeError, subprocess.TimeoutExpired) as exc:",
+            "old": "        except CampaignAbort:\n            raise\n        except (RuntimeError, subprocess.TimeoutExpired) as exc:"
+          }
+        ]
+      },
+      "M2-widen-reraise-to-runtime-error": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_runtime_error_records_launch_failure",
+          "orchestrator/tests/test_s8b_floor_campaign.py::test_post_probe_runs_on_launch_error_and_competing_takes_precedence"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "39fa2a4c46b8b2f5ef809adc47b69be512ff0ef49105a156fbab800e0aa7f384",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_floor_campaign.py",
+            "new": "        except RuntimeError:\n            raise",
+            "old": "        except CampaignAbort:\n            raise"
+          }
+        ]
+      },
+      "M3-post-probe-before-reraise": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_campaign_abort_propagates_without_launch_failure"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bc570f2171cc4deab247c28b6575de08c9a36a52f57b9451e85a05e97d3d6a49",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8b_floor_campaign.py",
+            "new": "        except CampaignAbort:\n            strict_probe(self.probe_fn)\n            raise",
+            "old": "        except CampaignAbort:\n            raise"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "be6197504f6d76c030e0451c19d85ca8bb597c0c7e44aa64e1e5738ddaa36474",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_campaign_abort_propagates_without_launch_failure",
+      "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_runtime_error_records_launch_failure",
+      "orchestrator/tests/test_s8b_floor_campaign.py::test_post_probe_runs_on_launch_error_and_competing_takes_precedence",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 900.0
+  },
+  "repo_head": "85c4f15ac3f94bbdc274270821d87f7cd46756a4",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_campaign_abort_propagates_without_launch_failure",
+      "orchestrator/tests/test_s8b_floor_campaign.py::test_measure_runtime_error_records_launch_failure",
+      "orchestrator/tests/test_s8b_floor_campaign.py::test_post_probe_runs_on_launch_error_and_competing_takes_precedence",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2596-abort-not-runtime/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "dispatch_head_blob_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2596-abort-not-runtime/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "a91cd9292fcdaaaaf00aef6b7a1613e9d2d9b905",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "eb34390e9e5b29ca6b1e07ab61eba81a4095e1c9fd77069a77126540abfa39e3",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "3d30103cf9296e1501b39d480ba23c4bbb3644de444481b2a625309d75a850e5",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2596-abort-not-runtime/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "e42b4ecdf3ffebfec1e4664ab88e9a063094965e80673db7bcac11e1a6637aec",
+  "updated_at": "2026-09-15T07:04:58.163833+00:00"
+}
