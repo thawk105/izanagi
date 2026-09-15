@@ -2497,6 +2497,14 @@
   `.done` も無いまま終了し、上位の通知だけが「完了」を告げた。3 点照合 (成果物実在 + `.done` +
   producer 死) で検出し、待ちを張り直して続行した。本 wave で 3 回発生し、うち 2 回は
   段 6 の敵対レビュー待ちだった。誤って完了と扱えばレビューなしで land する事故になっていた。
+
+- **再発: 2026-09-15** — `/cleanup-branches` 実行中、撤去対象 worktree の追跡外ファイルを見るために
+  `cd <worktree>` した時点で、背景セッションの作業ディレクトリが撤去対象の中へ移った。2026-07-20 の
+  事例は cwd が最初から対象に固定されていたが、今回は**cwd が固定でないセッションが自分で入った**
+  別経路である (harness が `cd` を追従して primary working directory を張り替える)。撤去前に
+  main checkout へ戻して回避し、実害なし。判別 = 撤去対象へは `cd` せず `git -C` と絶対 path で
+  扱う。撤去 step の cwd 検査 (対象配下なら停止) が本実行では機能した。§3 への明文化は
+  [T-2642] で起票済み。
 ### F52. 変異復元後の stale bytecode cache が同一バイト長変異を実効残留させた [手順漏れ]
 - 事象: [T-153]/[T-158] wave の変異 matrix (2026-07-29) で、V11 (`10 * 1024 * 1024` →
   `20 * 1024 * 1024` の同一バイト長置換) をソース復元した後も、`tools/__pycache__` の変異版
@@ -23242,6 +23250,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「production 全体」を起点にしているためである。段 3 のレンズ B が独立に検出した。
   対応は契約の射程 (`contract-v3.1.md` の 9 節) と実装計画 (`plan-v2.md` の 8 節) へ書き、
   判定の導出箇所を既存の 1 本に保つ実装制約にした。
+
+- **再発: 2026-09-15** — 親が段 1 brief で、凍結 spec と build receipt の実 instance が
+  「0 件」であることを `git ls-files | grep -i floor.pair` という **file 名検索**で断定した。
+  loader (`floor_pair_driver.load_frozen_spec`) は spec の命名を一切要求しないので、
+  この検索では任意の名前で保存された instance を除外できない。段 2 plan と段 3 レンズ A が
+  独立に指摘し、親が内容検索 (`git grep` + JSON parse) と tracked `.gz` 1767 件の展開走査で
+  取り直した。件数は変わらなかったが、根拠は不十分だった。
+  **不在を主張するときは、consumer が実際に要求する識別子 (ここでは top-level の `schema` 値) で
+  内容を引く。** file 名は consumer の要求ではない。
 ### F865. 防護を足す変更が、無関係な既存の防護対象を弱めた [受理集合の後退] [検査 corpus の穴]
 
 - 事象: 発行主体 subtree の防護を `perf` の出力先判定へ足した際、出力値を後段の既存判定から
@@ -25910,3 +25927,42 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 段 6 の敵対レビューと焦点再レビューが、いずれも独立に全件を検出した
   (レビュー A が 4 件、焦点が訂正由来の 4 件)。**既存の防壁は破れていない** — 破れたのは
   「親が先に自分で検算する」という手順の不在であり、費用はレビュー 1 巡分である。
+
+### F986. 層予算を節の和だけで見積もり、leaf の preamble 304 bytes を落とした [手順漏れ]
+
+- 事象: 段 1 brief で dev-wave 読み込み契約の L1 層を「10,320 / 10,625、残 305 bytes」と実測として
+  報告し、その余地に発見経路 1 行を足す設計を立てた。段 3 の 2 レンズが独立に
+  「現物は 10,624 / 10,625、残 1 byte」と反証し、親が検査器自身の関数で再測して子が正しいと確定した。
+  提案どおり足していれば文書検査が 95 bytes 超過で赤になった。
+- 根本原因: 親が `## ` 見出しで節を切り出して和を取り、**leaf file の preamble を数えなかった。**
+  `docs/dev-wave/core.md` の preamble は L1 に入るので数えたが、`mutation.md` (109 bytes) と
+  `operations.md` (195 bytes) の preamble も、その file に L1 節がある限り L1 へ計上される。
+  検査器は「分類済み節 + preamble = 実 bytes」の被覆不変条件を持つため、preamble はどこかの層に
+  必ず入る。自前の節切り出しはこの規則を再現していなかった。
+- 恒久対応: 層予算を見積もるときは `tools/check_docs.py` の `_visible_reference_slices` と
+  `STAGE_UNCONDITIONAL_DISPATCH_CONTRACT` を通して測る。自前の見出し切り出しで代用しない。
+- 再発検知: `orchestrator/tests/test_check_docs.py::test_dev_wave_layer_budget_rejects_plus_one` が
+  境界 +1 byte を固定しているので、誤った見積もりで足せば検査が赤で止まる。親側の見積もり誤りは
+  止められないので、追記を提案する段で必ず検査器経由の実測値を添える。
+
+### F987. 要約経路が一次資料の節構成を捏造した [捏造/幻覚]
+
+- 事象: ユーザーが参照論文の §3.5〜3.6 と §5.5 を読むよう指示した。Web 取得の要約は
+  §3.5 を "Self-Improvement Through Architectural Modifications"、§3.6 を "Knowledge Integration
+  and Expansion"、§5.5 を "Safety Considerations in Autonomous Research Loops" と報告した。
+  親が PDF 本文を自分で text 化すると、実体は §3.5 "Harness and agent self-evolution"、
+  §3.6 "Skill libraries and persistent accumulation"、§5.5 "Result-level versus process-level
+  improvement" だった。**節の題・内容・引用文献のすべてが別物**で、要約は一般論で埋められていた。
+  引用文献の節も「機械学習の自己最適化、AI 安全性文献、メタ学習研究を参照している」という
+  出典を辿れない記述だった。
+- 観測: 要約の側には「その節が取れなかった」という信号が出ず、一般論で埋まった題と内容が返った。
+  引用文献の節も「機械学習の自己最適化、AI 安全性文献、メタ学習研究を参照している」という
+  出典を辿れない記述だった。
+- 根本原因: **未確定。** 節番号で特定の節を要求したとき、取得できなかった部分をもっともらしい題で
+  埋めている、という推測までである。要約を生成する構成も、その入力が本文のどこまでを含んでいたかも
+  本 wave では確かめていない。下の恒久対応は原因の確定に依存しない。
+- 恒久対応: 一次資料の節を根拠にする前に、**自分で本文を取り出して節見出しを照合する**。
+  PDF なら `pdftotext -layout` で text 化し、見出し行を検索してから該当範囲を読む。
+  要約だけを根拠に節名・節番号・引用文献を書かない。
+- 再発検知: 論文・仕様の節番号を引く記述には、本文から取った見出し文字列を併記する。
+  併記が無い節参照は裏取り未実施として扱う。
