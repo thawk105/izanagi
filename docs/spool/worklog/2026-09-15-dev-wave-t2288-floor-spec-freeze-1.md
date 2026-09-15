@@ -49,7 +49,16 @@ title: [T-2288] workload 別 3 spec は凍結できず、塞いでいるのが�
   今回も親の根拠 4 点が段 2・段 3 で訂正された。結論は同じでも、誤った根拠のまま
   「較正さえ取れれば凍結できる」と書けば次 wave が空振りしていた。
 - **実装面差分が 0 なので DW-S04 により変異 matrix を免除した。受入全走は免除していない。**
-- 受入全走: 段 7 の記録 commit 後に投入する (本 fragment を書いた時点では未実施)。
+- **受入全走は 2 回走らせ、1 回目の赤 8 件はすべて非帰属だった (DW-O18 の判定根拠)。**
+  1 回目 (tip `6e2a8ad96`、負荷 194) は 8 error / 23654 passed。junit の本文は
+  **7 件が `subprocess.TimeoutExpired: git ls-files --others --exclude-standard` の 30 秒 timeout**
+  (`test_t1259_qsub_env_delivery_probe.py`)、**1 件が共有 real-repo lock の deadline 超過**
+  (`test_s8c_preregistration_predicates.py::test_repository_candidate_uses_real_s8c_budget_module`、
+  保持者は他セッションの pid 4 件が READ)。本 wave の差分は commit 済みの docs だけで、
+  どちらの経路にも到達しない。**両 file の単独走は rc=0 で緑**だったので hold 登録はしていない。
+  2 回目は `/proc/loadavg` の下降局面 (1 分 164 < 5 分 195 < 15 分 200、同時 acceptance 1 本) を待って
+  同一 tip へ投げ直し、**child-green (23662 passed / 68 skipped)** を得た。
+  受領証 = `acceptance-receipt-2.json`、tested main `0600887d9` / tested tip `6e2a8ad96`。
 - **段 8 の改善候補 1 件は見送った。** `tools/dev_wave_wait.py acceptance --help` は argv の `--` 区切りを
   parse 前に要求するため rc=2 で落ちる (親が実測)。DW-O27 へ 1 行足そうとしたが、同節は
   1052 bytes > 単節予算 1000 bytes になり `check_docs.py` が赤になった。既存本文はいずれも規範なので、
