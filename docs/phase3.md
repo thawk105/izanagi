@@ -572,6 +572,15 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
        exact 1 件だけで、族ごとの受理はしない。凍結23件のbytes・FORMULA_ID・凍結保留の全体は不変。
        **official 床値 campaign は投入しておらず、試行台帳側 gate の実値域は未取得のまま後続に残る。**
        実測と統合記録は `output/insights/2026-09-14/t1851-c3c-protocol-binding/README.md`。
+     - [x] [T-1851] official 床値の実投入 (2026-09-15): D1936 項14 に従い official 床値 campaign を
+       3 回投入し (`998882.nqsv` / `999039.nqsv` / `999102.nqsv`)、**起動証明書を史上初めて通して
+       証明書 file の発行まで到達した** (D2013 / D2014 の実機初検証)。台帳消費はゼロで、共有
+       admission root の投入前後 snapshot が bytes / hash で一致することを確認した。凍結23件の
+       bytes・FORMULA_ID・result schema の既定は不変。**試行台帳側 gate の実値域は依然として
+       未取得**で、3 走行とも cell build 段の condition gate で止まる。停止 gate の入力は実値で
+       特定でき、原因は **Masstree の autoconf 生成 header `config.h` が前処理の include path に
+       無いこと** (`BACKOFF_FIXED` の供給自体は成功)。build 供給の subsystem なので後続に残す。
+       実測と統合記録は `output/insights/2026-09-15/t1851-c3c-official-floor-run/README.md`。
      - [x] T-2525 / T-2526 (2026-09-10): D1859・D1936 項19に従い、要求側の静的物理量宣言を
        screening へ転送し、T-2418 新走の campaign/report を v2 に整合した。乱択を静的量へ
        変換せず、過去 artifact は保持する。適用範囲は
