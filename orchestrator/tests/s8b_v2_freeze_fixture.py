@@ -17,6 +17,14 @@ from pathlib import Path
 from typing import Callable, Mapping, Optional, Sequence
 
 from orchestrator.campaign import s8b_floor_contract as _floor_contract
+from orchestrator.campaign import s8b_expected_materialization as _snapshot
+
+# Save the real protection functions before floor fixtures install their
+# unrelated synthetic declaration-replay seams.
+_REAL_ASSERT_MATERIALIZATION = _snapshot.assert_expected_materialization
+_REAL_PROTECT_SNAPSHOT = _snapshot.make_snapshot_non_writable
+_REAL_RESTORE_SNAPSHOT = _snapshot.restore_snapshot_permissions
+
 
 # manifest verifier のハードコード stock 名と一致させる (両者とも freeze 記録値に
 # stock_common が実在することを別途検査する)。
@@ -79,6 +87,195 @@ def canonical_bytes(value) -> bytes:
         value, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
         allow_nan=False,
     ).encode("utf-8")
+
+
+def in_sealed_fixture_process(test):
+    """Keep real seal issuance and all test assertions in one single-thread child.
+
+    Fork the test body, not the capability: issuance records are PID-bound and
+    must never be transported back into the xdist worker. Fixture arguments and
+    installed monkeypatches are inherited; assertions and spies run in the child.
+    Only the failure traceback returns to pytest. No skip/xfail conversion.
+    """
+    import functools
+    import os
+    import traceback
+
+    @functools.wraps(test)
+    def run(*args, **kwargs):
+        read_fd, write_fd = os.pipe()
+        try:
+            pid = os.fork()
+        except BaseException:
+            os.close(read_fd)
+            os.close(write_fd)
+            raise
+        if pid == 0:
+            os.close(read_fd)
+            status = 0
+            with os.fdopen(write_fd, "w", encoding="utf-8") as report:
+                try:
+                    test(*args, **kwargs)
+                except BaseException:
+                    status = 1
+                    report.write(traceback.format_exc())
+            os._exit(status)
+        os.close(write_fd)
+        try:
+            with os.fdopen(read_fd, encoding="utf-8") as report:
+                failure = report.read()
+        finally:
+            _, status = os.waitpid(pid, 0)
+        assert status == 0, failure or f"sealed fixture child wait status: {status}"
+    return run
+
+
+def run_sealed_fixture_case(module, case, tmp_path, **parameters):
+    """Run issuer and assertions in a fresh interpreter, never in an xdist worker."""
+    import sys
+    # Current callers each open one cache-hit session, with no session.run().
+    # Budget both startup reads (ownership and READY), finish, normal reap and
+    # fallback reap. Use one existing finish budget for interpreter/imports,
+    # fixture setup and assertions: 2*60 + 30 + 2*30 + 30 = 240 seconds.
+    # This follows session wait policy, not measured fixture latency; the tiny
+    # synthetic-tree probe cannot establish a five-second end-to-end bound.
+    timeout_s = (
+        2 * _snapshot._SNAPSHOT_READY_TIMEOUT_S
+        + 2 * _snapshot._SNAPSHOT_FINISH_TIMEOUT_S
+        + 2 * _snapshot._SNAPSHOT_REAP_TIMEOUT_S
+    )
+    code = """
+import sys
+# -E ignores PYTHONPATH; discard -c's cwd entry before importing helpers.
+# Keep interpreter/site paths so user-installed pytest remains available.
+sys.path[:] = sys.path[1:]
+import contextlib, importlib, inspect, io, json
+from pathlib import Path
+# pytest can supply either orchestrator.tests.<module> or bare <module>.
+root = Path(sys.argv[1])
+sys.path[:0] = [str(root), str(root / 'orchestrator' / 'tests')]
+case = inspect.unwrap(getattr(importlib.import_module(sys.argv[2]), sys.argv[3]))
+parameters = json.loads(sys.argv[5])
+parameters['tmp_path'] = Path(sys.argv[4])
+import pytest
+output = io.StringIO()
+try:
+    with contextlib.redirect_stdout(output), pytest.MonkeyPatch.context() as patch:
+        if 'monkeypatch' in inspect.signature(case).parameters:
+            parameters['monkeypatch'] = patch
+        result = case(**parameters)
+finally:
+    print(output.getvalue(), file=sys.stderr, end='')
+print(json.dumps(result))
+"""
+    result = subprocess.run(
+        [sys.executable, "-E", "-B", "-c", code,
+         str(Path(__file__).resolve().parents[2]), module, case,
+         str(tmp_path), json.dumps(parameters)],
+        capture_output=True, text=True, timeout=timeout_s,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    return json.loads(result.stdout)
+
+
+def in_fresh_sealed_fixture_process(test):
+    """Only completion data crosses processes; PID-bound capabilities stay local."""
+    import functools
+    import inspect
+
+    @functools.wraps(test)
+    def run(*args, **kwargs):
+        parameters = dict(inspect.signature(test).bind(*args, **kwargs).arguments)
+        tmp_path = parameters.pop("tmp_path")
+        parameters.pop("monkeypatch", None)
+        return run_sealed_fixture_case(
+            test.__module__, test.__name__, tmp_path, **parameters,
+        )
+    return run
+
+
+def sealed_source_protection_fixture(
+        *, source, binary_sha256, compiler_input_manifest_sha256):
+    """Issue through a real tiny sealed session; no issuer/registry bypass.
+
+    Only Git replay and evidence derivation use synthetic fixture inputs. Restore
+    real snapshot checks locally even when a caller mocks declaration admission.
+    These pre-existing fixture bytes use SEALED_CACHE_HIT: no compile is claimed.
+    """
+    from unittest.mock import patch
+
+    root = Path(source.source_root)
+    digest = _snapshot.snapshot_tree_digest(root)
+    with patch.object(
+            _snapshot, "produce_expected_materialization_from_declaration",
+            return_value=digest), patch.object(
+            _snapshot.source_digest, "resolve_evidence", return_value=source), patch.object(
+            _snapshot, "assert_expected_materialization", _REAL_ASSERT_MATERIALIZATION), patch.object(
+            _snapshot, "make_snapshot_non_writable", _REAL_PROTECT_SNAPSHOT), patch.object(
+            _snapshot, "restore_snapshot_permissions", _REAL_RESTORE_SNAPSHOT):
+        with _snapshot.sealed_build_session(
+                ccbench_commit=source.ccbench_commit, configuration="stock_common",
+                declaration={}, snapshot_root=root, genome=None,
+                prepared_src_token=source.src_token, cxx="c++",
+                shared_directories=()) as session:
+            pass
+    return session.issue(
+        _snapshot.SealedSnapshotProtectionKind.SEALED_CACHE_HIT,
+        binary_sha256=binary_sha256,
+        compiler_input_manifest_sha256=compiler_input_manifest_sha256,
+    )
+
+
+def portable_binary_admission_receipt_fixture(
+        *, admission, expected_policy, source, cell_id, holdout_id,
+        configuration_id, binding, binary, binary_sha256, contract_sha256,
+        trace, source_snapshot_sha256, expected_materialization_sha256,
+        compiler_input_manifest, compiler_input_manifest_sha256,
+        source_protection=None, current_compiler_input_masstree_root=None,
+        current_compiler_input_dependency_prefix_roots=None):
+    """Portable reader input only; this dict makes no capability issuance claim.
+
+    Keep issuer tests on the real API. Consumer fixtures need only the durable
+    schema, including its internally consistent source protection projection.
+    """
+    source_body = source.as_receipt()
+    source_body.pop("source_root")
+    admission_body = admission.as_wal_receipt()
+    body = {
+        "schema": "s8b-binary-admission/v3",
+        "admission": {
+            key: admission_body[key] for key in (
+                "schema", "class", "policy_sha256", "review_id", "input_sha256",
+            )
+        },
+        "subject": {
+            "cell_id": cell_id, "holdout_id": holdout_id,
+            "configuration_id": configuration_id,
+            "entry_sha256": binding["entry_sha256"],
+            "binding_sha256": binding["binding_sha256"],
+            "binary_sha256": binary_sha256, "contract_sha256": contract_sha256,
+            "trace": trace, "source_snapshot_sha256": source_snapshot_sha256,
+            "expected_materialization_sha256": expected_materialization_sha256,
+            "compiler_input_manifest_sha256": compiler_input_manifest_sha256,
+        },
+        "proof": {
+            "compiler_input_manifest": compiler_input_manifest,
+            "materialization_binding": dict(binding),
+            "source_protection": {
+                "kind": "sealed-build",
+                "source_snapshot_sha256": source_snapshot_sha256,
+                "expected_materialization_sha256": expected_materialization_sha256,
+                "binary_sha256": binary_sha256,
+                "compiler_input_manifest_sha256": compiler_input_manifest_sha256,
+            },
+        },
+    }
+    body["admission"]["source"] = source_body
+    body["receipt_sha256"] = hashlib.sha256(json.dumps(
+        body, ensure_ascii=True, sort_keys=True, separators=(",", ":"),
+        allow_nan=False,
+    ).encode("utf-8")).hexdigest()
+    return body
 
 
 def launch_certificate(*, protocol_sha256: str, campaign_run_id: str) -> dict:
@@ -297,7 +494,7 @@ def _synthetic_floor_result(v1: dict, protocol: dict, *, root: Path) -> dict:
             input_sha256=entry_sha256,
         )
         admission = derive_build_admission(context, source, review_receipt=review)
-        receipt = binary_admission.issue_binary_admission_receipt(
+        receipt = portable_binary_admission_receipt_fixture(
             admission=admission, expected_policy=context.policy, source=source,
             cell_id=cell["cell_id"], holdout_id=cell["holdout_id"],
             configuration_id=cell["configuration_id"], binding=binding,

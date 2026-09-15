@@ -261,6 +261,7 @@ _GIT_ENV_ALLOW = frozenset({
     "SYSTEMROOT",
     "TMPDIR",
 })
+_GIT_TIMEOUT_S = 300.0
 
 
 class TrialRegistryError(RuntimeError):
@@ -967,14 +968,22 @@ def _git_env() -> dict[str, str]:
 def _git(
     repository_root: Path,
     args: Sequence[str],
+    *,
+    timeout_s: float = _GIT_TIMEOUT_S,
 ) -> subprocess.CompletedProcess[bytes]:
-    return subprocess.run(
-        ["git", "-C", os.fspath(repository_root), *args],
-        env=_git_env(),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        check=False,
-    )
+    try:
+        return subprocess.run(
+            ["git", "-C", os.fspath(repository_root), *args],
+            env=_git_env(),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+            timeout=timeout_s,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise TrialRegistryError(
+            f"[git-operational] git command timed out after {timeout_s:g}s"
+        ) from exc
 
 
 def _repository_root(path: Path) -> Path:
@@ -2448,15 +2457,30 @@ def _write_create_only(
             fd = os.open(relative_path.name, flags, 0o644, dir_fd=parent_fd)
         except FileExistsError as exc:
             raise TrialRegistryError(f"[{gate}] create-only path already exists") from exc
+        total_written = 0
         try:
             view = memoryview(payload)
             while view:
                 written = os.write(fd, view)
                 if written <= 0:
                     raise OSError("create-only write did not advance")
+                total_written += written
                 view = view[written:]
             os.fsync(fd)
             os.fsync(parent_fd)
+        except BaseException:
+            try:
+                created = os.fstat(fd)
+                if created.st_size == total_written:
+                    named = os.stat(
+                        relative_path.name, dir_fd=parent_fd,
+                        follow_symlinks=False,
+                    )
+                    if (named.st_dev, named.st_ino) == (created.st_dev, created.st_ino):
+                        os.unlink(relative_path.name, dir_fd=parent_fd)
+            except OSError:
+                pass
+            raise
         finally:
             os.close(fd)
     except TrialRegistryError:

@@ -2,17 +2,21 @@
 """8b oracle driver の gate、binding、budget、WAL 契約を検査する。"""
 from __future__ import annotations
 
+from orchestrator.tests.s8b_v2_freeze_fixture import in_sealed_fixture_process
+
 import ast
 import atexit
 import contextlib
 import copy
 import dataclasses
 import errno
+import fcntl
 import functools
 import hashlib
 import importlib
 import inspect
 import json
+import multiprocessing
 import os
 import shutil
 import subprocess
@@ -517,6 +521,8 @@ def _t080_repo(tmp_path: Path, *, receipt: str) -> tuple[Path, Path]:
     root = tmp_path / f"t080-{receipt}"
     root.mkdir()
     _run_git(root, "init", "-q")
+    _run_git(root, "config", "gc.auto", "0")
+    assert _run_git(root, "config", "--int", "--get", "gc.auto") == "0"
     _run_git(root, "config", "user.name", "T080 U1 Test")
     _run_git(root, "config", "user.email", "t080-u1@example.invalid")
     for relative in (
@@ -634,6 +640,8 @@ def _output_ignore_contract_repo(
     repo = tmp_path / "output-ignore-repo"
     repo.mkdir()
     _run_git(repo, "init", "-q")
+    _run_git(repo, "config", "gc.auto", "0")
+    assert _run_git(repo, "config", "--int", "--get", "gc.auto") == "0"
     global_rules = tmp_path / "global-ignore"
     global_rules.write_bytes(b"output/global-cache/\n")
     _run_git(repo, "config", "core.excludesFile", str(global_rules))
@@ -865,17 +873,102 @@ def _copy_git_visible_output(source_root: Path, destination: Path) -> set[str]:
     return visible_output
 
 
+def _t080_remove_tree(parent: Path) -> None:
+    """Retry only disappearing entries; never hide a tree left after retries."""
+    for attempt in range(3):
+        try:
+            shutil.rmtree(parent)
+            return
+        except FileNotFoundError:
+            # A concurrent remover may have removed the whole tree or only an
+            # entry already enumerated by rmtree (e.g. .git/gc.pid). Restart
+            # the walk so remaining siblings are still removed.
+            try:
+                parent.lstat()
+            except FileNotFoundError:
+                return
+            if attempt == 2:
+                raise
+
+
+class _T080SharedBases:
+    """全 worker が collection 中に参加し、最後の退出者が木を削除する。"""
+
+    def __init__(self, parent: Path):
+        self.parent = _assert_t080_temp_root_outside_real_output(parent)
+        self.parent.mkdir(parents=True, exist_ok=True)
+        self.lifetime = (self.parent / "workers.lock").open("a+b")
+        fcntl.flock(self.lifetime, fcntl.LOCK_SH)
+
+    def close(self):
+        if self.lifetime.closed:
+            return
+        fcntl.flock(self.lifetime, fcntl.LOCK_UN)
+        try:
+            # 他 worker の終了を待たない。最後の 1 本だけが削除権を得る。
+            try:
+                fcntl.flock(self.lifetime, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return
+            if self.parent.exists():
+                _t080_remove_tree(self.parent)
+        finally:
+            self.lifetime.close()
+
+    def get(self, key):
+        digest = hashlib.sha256(json.dumps(key).encode("utf-8")).hexdigest()
+        parent = self.parent / digest
+        with (self.parent / f"{digest}.lock").open("a+b") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            marker = parent / "complete.json"
+            if not marker.is_file():
+                # 失敗した builder の残骸は完成品として使わない。
+                if parent.exists():
+                    _t080_remove_tree(parent)
+                parent.mkdir()
+                root, _receipt, document = _build_t080_stub_free_e2e_repo(
+                    parent, r_trailer=key[0], extra_r_path=key[1],
+                    issue_receipt=key[2], distinct_basis_blob=key[3],
+                )
+                pending = parent / "complete.pending"
+                pending.write_text(json.dumps({
+                    "root": root.relative_to(parent).as_posix(),
+                    "document": document,
+                }), encoding="utf-8")
+                pending.replace(marker)
+            completed = json.loads(marker.read_text(encoding="utf-8"))
+            return parent / completed["root"], completed["document"]
+
+
+def _t080_join_shared_bases():
+    # xdist/remote.py は workerinput['testrunuid'] をこの env に設定する。
+    # workermanage.py の NodeManager が全 worker に同じ値を渡す。
+    run_id = os.environ.get("PYTEST_XDIST_TESTRUNUID")
+    if not run_id:
+        return None
+    identity = hashlib.sha256(
+        json.dumps([str(ROOT), run_id]).encode("utf-8")
+    ).hexdigest()
+    bases = _T080SharedBases(
+        Path(tempfile.gettempdir()) / f"izanagi-t080-e2e-session-{identity}"
+    )
+    atexit.register(bases.close)
+    return bases
+
+
+# fixture setup では遅い: まだ consumer が割り当てられていない worker も
+# collection barrier より前に参加させ、先に終わる worker に削除させない。
+_T080_SHARED_BASES = _t080_join_shared_bases()
+
+
 def _t080_stub_free_e2e_repo(
         tmp_path: Path, *, r_trailer: str = "AI-Agent: none",
         extra_r_path: bool = False, issue_receipt: bool = True,
         distinct_basis_blob: bool = False,
         ) -> tuple[Path, Path, dict]:
-    """`_build_t080_stub_free_e2e_repo` を process 内で引数ごとに 1 回だけ組む ([T-057])。
+    """同じ xdist session の引数ごとに base を 1 回だけ組む。
 
-    この fixture は 36MB / 2300 ファイルの copytree + `git submodule add` + 子 python での
-    draft→finalize→commit→verify で **1 回 15〜22 秒**かかり、そのうち同一引数の組み合わせが
-    7 回作り直されていた (実測: 本番 git 畳み込み後に残った tail の最大要因)。
-    base を 1 回だけ組み、各テストへは独立した実体コピーを渡す。
+    session ID が無い単独走では従来の process 内 memo を使う。
 
     テストは受け取った repo を破壊的に変異させる (ファイル追記・submodule への commit・削除) ため、
     **コピーは共有しない実体**でなければならない。返す document も deepcopy して渡す。
@@ -885,14 +978,17 @@ def _t080_stub_free_e2e_repo(
         Path(tempfile.gettempdir())
     )
     key = (r_trailer, extra_r_path, issue_receipt, distinct_basis_blob)
-    cached = _T080_E2E_BASE_CACHE.get(key)
+    cached = (
+        _T080_SHARED_BASES.get(key) if _T080_SHARED_BASES is not None
+        else _T080_E2E_BASE_CACHE.get(key)
+    )
     if cached is None:
         base_parent = _assert_t080_temp_root_outside_real_output(Path(
             tempfile.mkdtemp(
                 prefix="izanagi-t080-e2e-base-", dir=base_temp_root,
             )
         ))
-        atexit.register(shutil.rmtree, base_parent, ignore_errors=True)
+        atexit.register(_t080_remove_tree, base_parent)
         base_root, _receipt, document = _build_t080_stub_free_e2e_repo(
             base_parent, r_trailer=r_trailer, extra_r_path=extra_r_path,
             issue_receipt=issue_receipt, distinct_basis_blob=distinct_basis_blob,
@@ -903,6 +999,287 @@ def _t080_stub_free_e2e_repo(
     root = tmp_path / base_root.name
     shutil.copytree(base_root, root, symlinks=True)
     return root, root / migration.RECEIPT_REL, copy.deepcopy(document)
+
+
+@pytest.fixture
+def t080_shared_cache_probe(tmp_path, monkeypatch):
+    bases = _T080SharedBases(tmp_path / "bases")
+    monkeypatch.setattr(sys.modules[__name__], "_T080_SHARED_BASES", bases)
+    try:
+        # callable fixture: 既存の 6 function / 11 node の E2E consumer とは
+        # 別に、cache の配線そのものを検査する。
+        yield _t080_stub_free_e2e_repo, bases
+    finally:
+        bases.close()
+
+
+def _t080_cache_fork_call(action):
+    """process memo を共有しない子で実行し、失敗も親へ返す。"""
+    ctx = multiprocessing.get_context("fork")
+    receive, send = ctx.Pipe(duplex=False)
+
+    def child():
+        try:
+            send.send((True, action()))
+        except BaseException as exc:
+            send.send((False, repr(exc)))
+        finally:
+            send.close()
+
+    process = ctx.Process(target=child)
+    process.start()
+    send.close()
+    try:
+        assert receive.poll(600), "cache child did not finish"
+        ok, result = receive.recv()
+        process.join(10)
+        assert process.exitcode == 0
+        assert ok, result
+        return result
+    finally:
+        if process.is_alive():
+            process.terminate()
+            process.join()
+        receive.close()
+        process.close()
+
+
+def test_t080_shared_base_builds_real_builder_once_across_processes(
+        tmp_path, t080_shared_cache_probe):
+    repo, _bases = t080_shared_cache_probe
+
+    def call(destination):
+        # wraps は実 builder を実行する。cache と builder の両層 stub ではない。
+        with mock.patch.object(
+                sys.modules[__name__], "_build_t080_stub_free_e2e_repo",
+                wraps=_build_t080_stub_free_e2e_repo,
+                ) as builder:
+            root, _receipt, _document = repo(destination, issue_receipt=False)
+            assert (root / "orchestrator/campaign/s8b_oracle_driver.py").is_file()
+            base, _ = _bases.get(("AI-Agent: none", False, False, False))
+            for repository in (base, root):
+                for git_root in (repository, repository / migration.CCBENCH_REL):
+                    assert _run_git(git_root, "config", "--int", "--get", "gc.auto") == "0"
+            return builder.call_count
+
+    first = _t080_cache_fork_call(lambda: call(tmp_path / "first"))
+    second = _t080_cache_fork_call(lambda: call(tmp_path / "second"))
+    assert (first, second) == (1, 0)
+
+
+@pytest.fixture
+def t080_small_cache_builder():
+    def build(parent, **kwargs):
+        root = parent / "t080-stub-free-e2e"
+        root.mkdir()
+        (root / "payload").write_bytes(b"original\n")
+        (root / "payload").chmod(0o750)
+        (root / "link").symlink_to("payload")
+        return root, root / migration.RECEIPT_REL, {"arguments": kwargs}
+
+    with mock.patch.object(
+            sys.modules[__name__], "_build_t080_stub_free_e2e_repo",
+            side_effect=build,
+            ) as builder:
+        yield builder
+
+
+def test_t080_shared_base_returns_independent_repos_and_documents(
+        tmp_path, t080_shared_cache_probe, t080_small_cache_builder):
+    repo, bases = t080_shared_cache_probe
+    first, _, first_doc = repo(tmp_path / "first")
+    second, _, second_doc = repo(tmp_path / "second")
+    base, base_doc = bases.get(("AI-Agent: none", False, True, False))
+    assert len({(p / "payload").stat().st_ino for p in (first, second, base)}) == 3
+    assert (second / "payload").stat().st_mode == (base / "payload").stat().st_mode
+    assert (second / "payload").stat().st_mtime_ns == (base / "payload").stat().st_mtime_ns
+    assert (second / "link").is_symlink()
+    assert os.readlink(second / "link") == "payload"
+    (first / "payload").write_bytes(b"changed\n")
+    (first / "link").unlink()
+    first_doc["arguments"]["r_trailer"] = "changed"
+    assert (second / "payload").read_bytes() == b"original\n"
+    assert (base / "payload").read_bytes() == b"original\n"
+    assert second_doc["arguments"]["r_trailer"] == "AI-Agent: none"
+    assert base_doc == second_doc
+
+
+def test_t080_shared_base_without_completion_marker_is_rebuilt(
+        tmp_path, t080_shared_cache_probe, t080_small_cache_builder):
+    repo, bases = t080_shared_cache_probe
+    first, _, _ = repo(tmp_path / "first")
+    marker, = bases.parent.glob("*/complete.json")
+    marker.unlink()
+    # 未完成の木が存在するだけでは hit にしてはならない。
+    (marker.parent / first.name / "payload").write_bytes(b"unfinished\n")
+    second, _, _ = repo(tmp_path / "second")
+    assert t080_small_cache_builder.call_count == 2
+    assert (second / "payload").read_bytes() == b"original\n"
+    assert marker.is_file()
+
+
+def test_t080_shared_base_waits_for_builder_lock(
+        tmp_path, t080_shared_cache_probe, t080_small_cache_builder):
+    repo, bases = t080_shared_cache_probe
+    repo(tmp_path / "first")
+    marker, = bases.parent.glob("*/complete.json")
+    marker.unlink()
+    ctx = multiprocessing.get_context("fork")
+    receive, send = ctx.Pipe(duplex=False)
+    real_flock = fcntl.flock
+
+    def child():
+        def observed_flock(fd, operation):
+            if operation == fcntl.LOCK_EX:
+                try:
+                    real_flock(fd, operation | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    send.send("blocked-on-builder-lock")
+            return real_flock(fd, operation)
+
+        try:
+            with mock.patch.object(fcntl, "flock", side_effect=observed_flock):
+                root, _, _ = repo(tmp_path / "second")
+            send.send((root / "payload").read_bytes())
+        except BaseException as exc:
+            send.send(repr(exc))
+        finally:
+            send.close()
+
+    with (bases.parent / f"{marker.parent.name}.lock").open("a+b") as lock:
+        real_flock(lock, fcntl.LOCK_EX)
+        process = ctx.Process(target=child)
+        process.start()
+        send.close()
+        try:
+            assert receive.poll(30), "child did not reach builder lock"
+            assert receive.recv() == "blocked-on-builder-lock"
+            assert not marker.exists()
+            real_flock(lock, fcntl.LOCK_UN)
+            assert receive.poll(30), "child did not resume after unlock"
+            assert receive.recv() == b"original\n"
+            process.join(10)
+            assert process.exitcode == 0
+            assert marker.is_file()
+        finally:
+            real_flock(lock, fcntl.LOCK_UN)
+            if process.is_alive():
+                process.terminate()
+                process.join()
+            receive.close()
+            process.close()
+
+
+def test_t080_shared_base_missing_session_uses_process_memo(
+        tmp_path, monkeypatch, t080_shared_cache_probe, t080_small_cache_builder):
+    repo, _bases = t080_shared_cache_probe
+    monkeypatch.delenv("PYTEST_XDIST_TESTRUNUID", raising=False)
+    assert _t080_join_shared_bases() is None
+    monkeypatch.setattr(sys.modules[__name__], "_T080_SHARED_BASES", None)
+    monkeypatch.setattr(sys.modules[__name__], "_T080_E2E_BASE_CACHE", {})
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+    repo(tmp_path / "first")
+    repo(tmp_path / "second")
+    assert t080_small_cache_builder.call_count == 1
+
+
+def test_t080_shared_base_keeps_all_four_key_fields_separate(
+        tmp_path, t080_shared_cache_probe, t080_small_cache_builder):
+    repo, _bases = t080_shared_cache_probe
+    arguments = [
+        {}, {"r_trailer": "AI-Agent: changed"}, {"extra_r_path": True},
+        {"issue_receipt": False}, {"distinct_basis_blob": True},
+    ]
+    expected = {
+        "r_trailer": "AI-Agent: none", "extra_r_path": False,
+        "issue_receipt": True, "distinct_basis_blob": False,
+    }
+    for index, overrides in enumerate(arguments):
+        _, _, document = repo(tmp_path / str(index), **overrides)
+        assert document["arguments"] == {**expected, **overrides}
+    assert t080_small_cache_builder.call_count == 5
+
+
+def test_t080_shared_base_only_last_participant_removes_tree(tmp_path):
+    first = _T080SharedBases(tmp_path / "bases")
+    second = _T080SharedBases(first.parent)
+    try:
+        with mock.patch.object(shutil, "rmtree", wraps=shutil.rmtree) as remove:
+            first.close()
+            assert second.parent.is_dir()
+            remove.assert_not_called()
+            second.close()
+            remove.assert_called_once_with(second.parent)
+            assert not second.parent.exists()
+    finally:
+        first.close()
+        second.close()
+
+
+@pytest.mark.parametrize("whole_tree", [False, True])
+def test_t080_shared_base_cleanup_tolerates_real_disappearance(tmp_path, whole_tree):
+    bases = _T080SharedBases(tmp_path / "bases")
+    git_dir = bases.parent / "repo" / ".git"
+    git_dir.mkdir(parents=True)
+    victim = git_dir / "gc.pid"
+    victim.write_text("transient\n", encoding="utf-8")
+    (bases.parent / "remaining").write_text("must be removed\n", encoding="utf-8")
+    real_unlink = os.unlink
+    real_rmtree = shutil.rmtree
+    disappeared = []
+
+    def unlink_after_other_remover(path, *args, **kwargs):
+        if Path(path).name == "gc.pid" and not disappeared:
+            # rmtree has enumerated this real entry. Remove it before its
+            # actual unlink syscall, which must now raise ENOENT itself.
+            disappeared.append(victim)
+            if whole_tree:
+                real_rmtree(bases.parent)
+            else:
+                real_unlink(path, *args, **kwargs)
+        return real_unlink(path, *args, **kwargs)
+
+    try:
+        with mock.patch.object(os, "unlink", side_effect=unlink_after_other_remover):
+            bases.close()
+        assert disappeared == [victim]
+        assert not bases.parent.exists()
+    finally:
+        bases.close()
+        if bases.parent.exists():
+            _t080_remove_tree(bases.parent)
+
+
+@pytest.mark.parametrize("error_number", [errno.EACCES, errno.EIO, errno.ENOTEMPTY])
+def test_t080_shared_base_cleanup_propagates_other_errors(tmp_path, error_number):
+    bases = _T080SharedBases(tmp_path / "bases")
+    failure = OSError(error_number, os.strerror(error_number))
+    try:
+        with mock.patch.object(shutil, "rmtree", side_effect=failure) as remove:
+            with pytest.raises(OSError) as raised:
+                bases.close()
+        assert raised.value is failure
+        remove.assert_called_once_with(bases.parent)
+        assert bases.parent.is_dir()
+        assert bases.lifetime.closed
+    finally:
+        bases.close()
+        _t080_remove_tree(bases.parent)
+
+
+def test_t080_shared_base_cleanup_exhausted_disappearance_is_error(tmp_path):
+    bases = _T080SharedBases(tmp_path / "bases")
+    failure = FileNotFoundError(errno.ENOENT, "entry disappeared")
+    try:
+        with mock.patch.object(shutil, "rmtree", side_effect=failure) as remove:
+            with pytest.raises(FileNotFoundError) as raised:
+                bases.close()
+        assert raised.value is failure
+        assert remove.call_count == 3
+        assert bases.parent.is_dir()
+    finally:
+        bases.close()
+        _t080_remove_tree(bases.parent)
 
 
 def test_t080_stub_free_e2e_exact_consumers_and_nodeids_b5():
@@ -994,6 +1371,8 @@ def _build_t080_stub_free_e2e_repo(
     root = tmp_path / "t080-stub-free-e2e"
     root.mkdir()
     _run_git(root, "init", "-q")
+    _run_git(root, "config", "gc.auto", "0")
+    assert _run_git(root, "config", "--int", "--get", "gc.auto") == "0"
     _run_git(root, "config", "user.name", "T080 E2E Human")
     _run_git(root, "config", "user.email", "t080-e2e@example.invalid")
 
@@ -1062,9 +1441,12 @@ def _build_t080_stub_free_e2e_repo(
         )
 
     _run_git(
-        root, "-c", "protocol.file.allow=always", "submodule", "add", "-q",
+        root, "-c", "gc.auto=0", "-c", "protocol.file.allow=always",
+        "submodule", "add", "-q",
         str(ROOT / migration.CCBENCH_REL), migration.CCBENCH_REL,
     )
+    _run_git(root / migration.CCBENCH_REL, "config", "gc.auto", "0")
+    assert _run_git(root / migration.CCBENCH_REL, "config", "--int", "--get", "gc.auto") == "0"
     _run_git(root / migration.CCBENCH_REL, "checkout", "-q", known["ccbench_pin"])
     _run_git(root, "add", "-A")
     _run_git(root, "commit", "-q", "-m", "T080 migration basis", "-m", "AI-Agent: none")
@@ -1262,9 +1644,13 @@ def test_t080_output_copy_visibility_matches_production_enumeration(
     output.mkdir(parents=True)
     ccbench.mkdir(parents=True)
     _run_git(root, "init", "-q")
+    _run_git(root, "config", "gc.auto", "0")
+    assert _run_git(root, "config", "--int", "--get", "gc.auto") == "0"
     _run_git(root, "config", "user.name", "T080 visibility test")
     _run_git(root, "config", "user.email", "t080-visibility@example.invalid")
     _run_git(ccbench, "init", "-q")
+    _run_git(ccbench, "config", "gc.auto", "0")
+    assert _run_git(ccbench, "config", "--int", "--get", "gc.auto") == "0"
 
     (root / ".gitignore").write_text(
         "output/ignored.txt\n", encoding="utf-8",
@@ -3686,6 +4072,8 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
     receipt_root = tmp_path / "receipt-free-repo"
     receipt_root.mkdir()
     _run_git(receipt_root, "init", "-q", "--object-format=sha1")
+    _run_git(receipt_root, "config", "gc.auto", "0")
+    assert _run_git(receipt_root, "config", "--int", "--get", "gc.auto") == "0"
     _run_git(receipt_root, "config", "user.name", "S8B G12 Test")
     _run_git(receipt_root, "config", "user.email", "s8b-g12@example.invalid")
     _run_git(receipt_root, "config", "commit.gpgsign", "false")
@@ -4211,6 +4599,7 @@ def test_probe_error_reason_is_fail_closed_unknown_abort(tmp_path, reason):
     assert len(evaluate_fn.calls) == 1
 
 
+@in_sealed_fixture_process
 def test_transient_prepare_failure_retries_once(tmp_path):
     root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(
         tmp_path,
@@ -5390,6 +5779,7 @@ def _assert_extime_launch_refusal(decision):
     })
 
 
+@in_sealed_fixture_process
 def test_v2_standalone_gate_check_requires_full_floor_validation(tmp_path):
     """standalone v2 gate は self-load / injected static freeze を full validate する。"""
     real_load = driver.s8b_ratified_freeze.load_ratified_freeze
@@ -5474,6 +5864,7 @@ def test_private_validated_gate_has_only_run_block_as_production_caller():
     assert callers == ["run_block"]
 
 
+@in_sealed_fixture_process
 def test_v2_gate_happy_path_completes_and_binds_env_store_receipt(tmp_path):
     """v2 正常系: freeze==active 世代 + launch_validate 成立 + store 全一致 →
     gate 通過・completed。clocks/numactl は env 契約由来 (NUMACTL ハードコード撤去)、
@@ -5502,6 +5893,7 @@ def test_v2_gate_happy_path_completes_and_binds_env_store_receipt(tmp_path):
     )
 
 
+@in_sealed_fixture_process
 def test_v2_foreign_cell_admission_receipt_is_refused_before_store_read(tmp_path):
     root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(tmp_path)
     out_root = root.parent / "output"
@@ -5539,6 +5931,7 @@ def test_v2_foreign_cell_admission_receipt_is_refused_before_store_read(tmp_path
             )
 
 
+@in_sealed_fixture_process
 def test_oracle_driver_accepts_conditional_sort_receipt_and_rejects_its_absence(
         tmp_path):
     root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(tmp_path)
@@ -5569,6 +5962,7 @@ def test_oracle_driver_accepts_conditional_sort_receipt_and_rejects_its_absence(
         )
 
 
+@in_sealed_fixture_process
 def test_v2_store_bytes_are_checked_against_admission_subject_independently(tmp_path):
     """M5 の独立性は主張せず、実 store 改変が既存 record SHA gate で拒否される。"""
     root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
@@ -5587,6 +5981,7 @@ def test_v2_store_bytes_are_checked_against_admission_subject_independently(tmp_
         )
 
 
+@in_sealed_fixture_process
 def test_v2_completed_driver_adapter_campaign_is_accepted_by_report(tmp_path):
     """driver adapter の completed WAL は report で 5 個の bench 証拠として読める。"""
     root, freeze_path, _gen_sha, _binaries, _topology = _build_v2_repo(tmp_path)
@@ -5652,6 +6047,7 @@ def test_v2_completed_driver_adapter_campaign_is_accepted_by_report(tmp_path):
 
 
 @pytest.mark.parametrize("change", ["replaced", "removed"])
+@in_sealed_fixture_process
 def test_v2_post_run_store_change_is_reported_and_refused(tmp_path, change):
     root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
     out_root = root.parent / "output"
@@ -6046,6 +6442,7 @@ def test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2(tmp_path):
                for item in built)
 
 
+@in_sealed_fixture_process
 def test_v2_floor_disk_swap_after_launch_uses_same_validated_object(tmp_path):
     """launch 後の floor disk 差替えを無視し、旧 blob reader も呼ばない。"""
     root, freeze_path, _gen_sha, _binaries, topology = _build_v2_repo(tmp_path)
@@ -6084,6 +6481,7 @@ def test_v2_floor_disk_swap_after_launch_uses_same_validated_object(tmp_path):
     assert result_path.read_bytes() != original_raw
 
 
+@in_sealed_fixture_process
 def test_v2_freeze_bytes_not_active_generation_is_refused(tmp_path):
     """与えられた freeze bytes が active 世代と 1 byte でも違えば
     freeze-not-active-generation で拒否 (何も書かない)。"""
@@ -6109,6 +6507,7 @@ def test_v2_freeze_bytes_not_active_generation_is_refused(tmp_path):
     })
 
 
+@in_sealed_fixture_process
 def test_v2_launch_validate_failure_is_refused(tmp_path):
     """launch_validate 失敗 (closure 外の未申告 hit) は v2-execution refusal に翻訳。"""
     root, freeze_path, _gen_sha, _bin, _topology = _build_v2_repo(tmp_path)
@@ -6127,6 +6526,7 @@ def test_v2_launch_validate_failure_is_refused(tmp_path):
     })
 
 
+@in_sealed_fixture_process
 def test_v2_launch_validate_non_ratified_error_is_refused(tmp_path):
     """launch_validate が RatifiedFreezeError 以外 (内部 _hf の git/os 走査由来の
     FreezeError 等) を投げても、stack trace を漏らさず v2-execution refusal に翻訳する
@@ -6161,6 +6561,7 @@ def test_v2_launch_validate_non_ratified_error_is_refused(tmp_path):
     assert not (tmp_path / "v2-markers").exists()
 
 
+@in_sealed_fixture_process
 def test_v2_store_missing_is_refused(tmp_path):
     """store 実体が欠落していれば refusal (再ビルド fallback は書かない)。"""
     root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
@@ -6191,6 +6592,7 @@ def test_v2_store_missing_is_refused(tmp_path):
     assert not (tmp_path / "v2-markers").exists()
 
 
+@in_sealed_fixture_process
 def test_v2_store_hash_mismatch_is_refused(tmp_path):
     """store 実体の bytes が floor receipt の binary_sha256 と不一致なら refusal。"""
     root, freeze_path, _gen_sha, binaries, _topology = _build_v2_repo(tmp_path)
@@ -6220,6 +6622,7 @@ def test_v2_store_hash_mismatch_is_refused(tmp_path):
     assert not (tmp_path / "v2-markers").exists()
 
 
+@in_sealed_fixture_process
 def test_v2_contract_sha256_mismatch_is_refused(tmp_path):
     """run_contract.contract_sha256 が env 契約 lookup 結果と不一致なら refusal。"""
     global _ACTIVE_APPROVED
@@ -6273,6 +6676,7 @@ def test_v2_contract_sha256_mismatch_is_refused(tmp_path):
     })
 
 
+@in_sealed_fixture_process
 def test_v2_binary_mismatch_abort_maps_to_binary_mismatch_outcome(tmp_path):
     """WAL に直接注入した bench-binary-mismatch abort が driver の
     binary-mismatch terminal outcome に射影される。"""

@@ -116,6 +116,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/condition_meaning_gate.py", "<module>._run_process"): 1,
     ("campaign/contract_loader_binding.py", "<module>._run_git"): 1,
     ("campaign/floor_liveness.py", "<module>.classify"): 1,
+    # Pre-existing fork, now visible with T-1994's fork API coverage: runs
+    # checkpoint I/O callbacks in a child and returns a boolean over a pipe.
+    ("campaign/floor_job_checkpoint.py", "<module>._bounded_boolean_child"): 1,
     # Read-only Git HEAD/blob/lineage queries bind frozen inputs, and the
     # fixed pgrep probe only observes competing processes; none launches CCBench.
     ("campaign/floor_pair_driver.py", "<module>._git_head"): 1,
@@ -213,6 +216,19 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     ("campaign/s8a_trigger_coverage.py", "<module>._run_cmake_build"): 1,
     ("campaign/s8a_trigger_coverage.py", "<module>._verify"): 1,
     ("campaign/s8a_trigger_freq.py", "<module>._run_freq"): 1,
+    # T-1994 reviewed new sealed-session sites. The trusted buildcache._run
+    # caller forwards CMake configure/build argv through SealedBuildSession.run;
+    # the worker runs that argv without a shell, with the supplied timeout,
+    # after capability drop and seccomp installation. This is a build runner,
+    # not a CCBench measurement launch (nor a command allow-list).
+    ("campaign/s8b_expected_materialization.py", "<module>._snapshot_worker"): 1,
+    # The namespace supervisor forks the command worker and owns its cleanup.
+    ("campaign/s8b_expected_materialization.py", "<module>._snapshot_supervisor"): 1,
+    # The outer subreaper forks the namespace supervisor and reaps descendants
+    # even when that supervisor is killed.
+    ("campaign/s8b_expected_materialization.py", "<module>._snapshot_guardian"): 1,
+    # The session owner forks the guardian before waiting for worker readiness.
+    ("campaign/s8b_expected_materialization.py", "<module>.SealedBuildSession._start"): 1,
     ("campaign/s8b_floor_campaign.py", "<module>._ccbench_gitlink"): 1,
     ("campaign/s8b_floor_campaign.py", "<module>._default_probe_fn"): 1,
     # Sanitized read-only `git ... ls-tree -z ...` and `git ... cat-file blob`
@@ -258,6 +274,9 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     # Compiler -M scan only emits dependencies; -I paths do not run CCBench.
     ("campaign/sort_swo_oracle.py", "<module>._dependency_manifest_closure"): 1,
     ("campaign/sort_swo_oracle.py", "<module>._run_matrix"): 1,
+    # Pre-existing fork, now visible with T-1994's fork API coverage: the
+    # oracle broker child execs its standalone comparator worker, not CCBench.
+    ("campaign/sort_swo_oracle.py", "<module>._broker_main"): 1,
     # Read-only Git metadata queries use fixed argv and a sanitized environment.
     ("campaign/source_digest.py", "<module>._checkout_gitlink_oid"): 2,
     ("campaign/source_digest.py", "<module>._cpp_normalize"): 1,
@@ -295,6 +314,7 @@ _PROCESS_APIS = {
     },
     "asyncio": {"create_subprocess_exec", "create_subprocess_shell"},
     "os": {
+        "fork",
         "system", "popen", "spawnl", "spawnle", "spawnlp", "spawnlpe",
         "spawnv", "spawnve", "spawnvp", "spawnvpe",
     },
@@ -914,7 +934,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns the build_fn injection seam",
         "injected-build_fn",
         "<module>.build_cells.invoke_build",
-        4707,
+        4708,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_floor_campaign.py",
@@ -922,7 +942,7 @@ _DEFERRED_GATE_MEMBERS = (
         "稼働 wave t2027 の所有面。動的 protocol 経由の campaign sink",
         "campaign",
         "<module>.main",
-        8636,
+        8659,
     ),
     _DeferredGateMember(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
@@ -2694,11 +2714,11 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
             "wave t2027", "injected-build_fn",
-            "<module>.build_cells.invoke_build", 4707,
+            "<module>.build_cells.invoke_build", 4708,
         ),
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
-            "wave t2027", "campaign", "<module>.main", 8636,
+            "wave t2027", "campaign", "<module>.main", 8659,
         ),
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",

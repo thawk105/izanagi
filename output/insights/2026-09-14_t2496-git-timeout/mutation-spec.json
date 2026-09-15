@@ -1,0 +1,107 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 60,
+  "timeout_seconds": 9000,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "M1-drop-timeout-kwarg",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "            timeout=timeout_s,\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause",
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-swallow-timeout",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "    except subprocess.TimeoutExpired as exc:\n        raise TrialRegistryError(\n            f\"[git-operational] git command timed out after {timeout_s:g}s\"\n        ) from exc\n",
+          "new": "    except subprocess.TimeoutExpired:\n        return subprocess.CompletedProcess([], 0, b\"\", b\"\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-default-disables-budget",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "    timeout_s: float = _GIT_TIMEOUT_S,\n",
+          "new": "    timeout_s: float | None = None,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-reject-completed-nonzero",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "            check=False,\n",
+          "new": "            check=True,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_nonzero_result"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-hardcoded-budget",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "            timeout=timeout_s,\n",
+          "new": "            timeout=30.0,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_raises_operational_error_with_cause",
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_default_reaches_subprocess_run"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-drop-stdout-capture",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/trial_registry.py",
+          "old": "            stdout=subprocess.PIPE,\n",
+          "new": "            stdout=None,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_success_result",
+        "orchestrator/tests/test_trial_registry.py::test_git_timeout_preserves_nonzero_result"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

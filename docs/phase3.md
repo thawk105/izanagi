@@ -384,6 +384,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      既存verifier v2でK2を1本再投入し、serializable・異常0・1 committedを取得した。
      新campaignだけの判定で過去campaignは再ラベルしない。実測と検査は
      `output/insights/2026-09-10_t2581-k2-pin/README.md`。
+   - [x] [T-2582] D1936項2に従い、K2 manifestの知識源を測定記録へ絞る送り手側の規律を
+     `docs/agent-architecture.md`のK2 role節へ置き、段4b runbookから参照だけを張った。
+     判定は書き手でなく文の種類で行う。gate・schema・role契約・歴史fixtureは不変。
+     実測と逐語は`output/insights/2026-09-14_t2582-knowledge-source-selection/README.md`。
 5. **(完了 2026-07-09〜07-10) sort-strategy 軸の起動一式** — S2 verify 2 本立て pipeline 配線 (D36 決定 4、
    opt-in = `search_config["verify"]=="legacy+s2"`) / lock 経路 (cc/silo/transaction.cc) の編集面拡張
    (前提 gate = auditor live、同一コミット束ね) / git worktree 隔離 (opt-in) + C1 解消 (D40) / 起動の
@@ -563,6 +567,11 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
      - [x] 床値 result v5 の prefix proof を holdout/ratified consumer へ結線する単位 D2 を実装
        ([T-1851]、2026-09-10)。既存v4受理・凍結23件・FORMULA_IDを維持。実測と統合記録は
        `output/insights/2026-09-10_t1851-unit-d2/README.md`。official実値域の取得は後続C3cに残る。
+     - [x] [T-1851] / [T-1946] / [T-2107] 単位 C3c (2026-09-14): D1936 項11の案aに従い、起動証明書の
+       許可表を resolver が選んだ protocol の実 path へ束縛し直した。受理する path は呼び手が渡した
+       exact 1 件だけで、族ごとの受理はしない。凍結23件のbytes・FORMULA_ID・凍結保留の全体は不変。
+       **official 床値 campaign は投入しておらず、試行台帳側 gate の実値域は未取得のまま後続に残る。**
+       実測と統合記録は `output/insights/2026-09-14/t1851-c3c-protocol-binding/README.md`。
      - [x] T-2525 / T-2526 (2026-09-10): D1859・D1936 項19に従い、要求側の静的物理量宣言を
        screening へ転送し、T-2418 新走の campaign/report を v2 に整合した。乱択を静的量へ
        変換せず、過去 artifact は保持する。適用範囲は

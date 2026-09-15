@@ -1,0 +1,106 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 420,
+ "timeout_seconds": 3600,
+ "hang_timeout_seconds": 2400,
+ "mutations": [
+  {
+   "id": "M1-helper-assert-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+     "old": "    assert report[\"status\"] == \"complete\", (\n        f\"wire={wire}: expected complete, got status={report['status']}\"\n    )\n    return report[\"cells\"][0]\n",
+     "new": "    return report[\"cells\"][0]\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2-helper-weakened-to-fatal-only",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+     "old": "    assert report[\"status\"] == \"complete\", (\n",
+     "new": "    assert report.get(\"fatal_error\") is None, (\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3-helper-accepts-partial",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+     "old": "    assert report[\"status\"] == \"complete\", (\n",
+     "new": "    assert report[\"status\"] in {\"complete\", \"partial\"}, (\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4-call-site-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+     "old": "        cell = _assert_role_sink_report_complete(report, wire)\n",
+     "new": "        # mutation M4: helper call removed\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5-producer-status-forced-partial",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+     "old": "    status = (\n        \"complete\"\n",
+     "new": "    status = (\n        \"partial\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6-helper-reads-stop-reason-not-status",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+     "old": "    assert report[\"status\"] == \"complete\", (\n",
+     "new": "    assert report[\"cells\"][0][\"stop_reason\"] not in {\n        \"supervisor-error\", \"role-invalid\",\n    }, (\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7-call-site-replaced-by-direct-index",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+     "old": "        cell = _assert_role_sink_report_complete(report, wire)\n",
+     "new": "        cell = report[\"cells\"][0]\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
