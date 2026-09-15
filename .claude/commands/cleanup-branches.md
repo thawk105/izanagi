@@ -25,12 +25,15 @@ final で裁定候補として返し、実装・記録・commit は後から明�
 
 ## 1. 棚卸し (削除の前に全量を見る)
 
-- `git worktree list` と `git branch -a` を列挙し、各 local branch は 1 回で
-  `git rev-list --count --left-right <b>...main` (左=ahead 右=behind) を出す
-- 各 worktree の `git status --short` (未コミット差分の有無)
-- ahead>0 のブランチは `git cherry main <b>` を出す。ahead だけでは判定できない
-  (rebase / cherry-pick は ahead>0 のまま残る)。`+` 行は実在でなく内容で判定する
-  (spool の不在は fold で正常)。未着地なら §5 で報告
+- §2 の安い条件が先、高い判定は通過対象のみ。
+- `git worktree list` / `git branch -a` を列挙。全 local branch の
+  `git rev-list --count --left-right <b>...main` (左=ahead 右=behind) と
+  ahead>0 のみ `git cherry main <b>` を各 1 command に集約。
+  rebase/cherry-pick 後も ahead>0。`+` 行は実在でなく内容判定
+  (spool 不在は fold で正常)。未着地は §5 へ
+- 除外対象含む全 worktree の `GIT_OPTIONAL_LOCKS=0 git status --short` を §4 用に保存。
+  独立な読み取り並列可。読み取り・占有検査の起動親/wrapper (検査時も生存する親含む) の argv に対象 path 禁止。
+  対象入り argv の全読み取り終了後、§2 の安い条件通過対象のみ §3 の占有検査へ。
 - `python3 tools/audit_dangling_commits.py --offrepo-root <runbook §7.2 の dir>` を単独実行
   (パイプ禁止、rc直後保存、F152)。分岐: `docs/unreachable-object-ledger.md`
 - 全削除・撤去候補を 1 回で `python3 tools/check_branch_rescue.py --ledger-check --branch <b>...
@@ -38,12 +41,12 @@ final で裁定候補として返し、実装・記録・commit は後から明�
 
 ## 2. 安全条件 (満たさないものは削除せず報告に回す)
 
-- ブランチ: **ahead=0 (main に取り込み済み) のみ削除**。`git branch -d` を使う (`-D` は使わない —
-  -d が拒否したら取り込み漏れの兆候なので止めて報告)
-- worktree: §1 の status 空を削除直前に再確認し、HEAD が main に取り込み済みのみ。
-  占有は §3 で実測し、占有・判定不能・HEAD 直近 (目安 1h) は残す。迷ったらユーザー確認へ
-- local main / primary worktree、foreign・locked・所有不明な worktree は inventory/report のみにする
-- 自分がその worktree 内で作業中なら、先に main checkout 側へ抜けてから操作する
+- 安い条件: local main / primary worktree、foreign・locked・所有不明は inventory/report のみ。
+  worktree: HEAD 直近 (目安 1h) は保持、main 取込済み必須。
+  branch: **ahead=0 (main 取込済み)** のみ `git branch -d` (`-D` 禁止)。
+  -d 拒否は取込漏れの兆候、停止・報告
+- 高い条件: 削除直前に §1 の status 空を再確認。§3 の占有・判定不能は保持。
+  迷えばユーザー確認。対象内で作業中は先に main checkout へ退出
 
 ## 3. worktree の削除手順 (F26)
 
@@ -52,8 +55,10 @@ rc1=占有/rc2=判定不能は停止。submodule は `git worktree remove` 禁�
 
 1. `git -C <worktree> checkout --detach` (branch を解放)
 2. `git branch -d <branch>` (取り込み済み確認の上)
-3. ディレクトリ撤去後、`git worktree prune --dry-run --verbose` の全候補が今回の所有確認済み対象と
-   完全一致するときだけ `git worktree prune`。余分・不明な候補があれば real prune せず引き渡す
+3. dir 撤去は 1 件 1 process・各長い timeout。一括ループ禁止、path 相互非包含時のみ並列可。
+   detach・branch 削除・prune は直列。全撤去 process 終了・成功確認後
+   (不明・中断なら停止)、`git worktree prune --dry-run --verbose` の
+   全候補＝今回所有確認済み対象なら `git worktree prune`。余分・不明候補時は real prune せず引渡し
 
 **`git submodule deinit` は使わない**。誤実行時は追加修復せず停止し、必要な
 `git submodule update --init external/ccbench` を final で引き渡す。正本は `docs/failures.md` F26。
