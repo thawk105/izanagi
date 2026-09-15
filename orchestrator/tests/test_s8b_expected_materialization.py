@@ -640,6 +640,82 @@ def test_build_snapshot_captures_declared_evolve_source_bytes_before_build(
         }
 
 
+@pytest.mark.parametrize("stage", ["sealed", "admitted"], ids=["M10", "M11"])
+@pytest.mark.parametrize("explicit", [True, False], ids=["contract", "default"])
+def test_snapshot_contract_id_reaches_real_rederivation(tmp_path, stage, explicit):
+    """Observe real calls after real replay, exact comparison and chmod.
+
+    Stop at resolve_evidence's entry: this tests argument transport, not sort
+    oracle validity, completed evidence derivation, or namespace qualification.
+    No dependency is replaced and no prepared evidence is returned by a stub.
+    """
+    import importlib.util
+    import sys
+    from orchestrator.tests.test_s1_direct_comparison import _fake_ccbench_repo
+
+    authority, pin = _fake_ccbench_repo(tmp_path / "external/ccbench")
+    # Relocate unchanged module bytes so its repository authority is private.
+    path = tmp_path / "orchestrator/campaign/s8b_expected_materialization.py"
+    path.parent.mkdir(parents=True)
+    shutil.copyfile(E.__file__, path)
+    name = "orchestrator.campaign._qualification_snapshot"
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+
+    class Observed(BaseException):
+        pass
+
+    try:
+        spec.loader.exec_module(module)
+        contract_id = "qualification-contract" if explicit else None
+        seen = {}
+        with module.patchharness.checkout(pin, base_dir=str(authority)) as checkout:
+            root = Path(checkout)
+            original_mode = _mode(root)
+            original_parent_mode = _mode(root.parent)
+
+            def trace(frame, event, value):
+                if event == "call" and frame.f_code is inspect.unwrap(
+                        module.admitted_build_snapshot).__code__:
+                    seen["admitted"] = frame.f_locals["sort_oracle_contract_id"]
+                if event == "call" and frame.f_code is module.source_digest.resolve_evidence.__code__:
+                    seen["resolve"] = frame.f_locals["sort_oracle_contract_id"]
+                    assert frame.f_locals["ccbench_dir"] == str(root)
+                    assert _mode(root) & 0o222 == 0
+                    assert _mode(root / "cmake/Options.cmake") & 0o222 == 0
+                    raise Observed
+                return trace
+
+            options = dict(
+                ccbench_commit=pin, configuration="stock_common",
+                declaration={"flags": {"BACK_OFF": 1}}, snapshot_root=root,
+                genome=Genome("silo", {"BACK_OFF": 1}),
+                prepared_src_token="unused-before-rederivation", cxx="c++",
+            )
+            if explicit:
+                options["sort_oracle_contract_id"] = contract_id
+            entry = module.admitted_build_snapshot
+            if stage == "sealed":
+                entry = module.sealed_build_session
+                options["shared_directories"] = ()
+            previous = sys.gettrace()
+            try:
+                sys.settrace(trace)
+                with pytest.raises(Observed):
+                    with entry(**options):
+                        pytest.fail("rederivation entry was not observed")
+            finally:
+                sys.settrace(previous)
+            assert _mode(root) == original_mode
+            assert _mode(root.parent) == original_parent_mode
+            assert "resolve" in seen
+            # M10 is isolated at its own receiver; M11 enters admission directly.
+            assert seen["admitted" if stage == "sealed" else "resolve"] == contract_id
+    finally:
+        del sys.modules[name]
+
+
 def test_snapshot_root_inode_replacement_is_rejected(tmp_path):
     root = tmp_path / "snapshot"
     root.mkdir()

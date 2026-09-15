@@ -1,0 +1,1123 @@
+{
+  "overall": false,
+  "checks": {
+    "real_session_api": {
+      "result": true,
+      "errno": null
+    },
+    "compute_node": {
+      "result": true,
+      "errno": null
+    },
+    "nonroot_x86_64": {
+      "result": true,
+      "errno": null
+    },
+    "moved:_real_session_parent_drift_or_exit_failure_never_publishes_case": {
+      "result": true,
+      "errno": null
+    },
+    "moved:_descriptor_build_failure_cannot_become_second_build_hit_case": {
+      "result": true,
+      "errno": null
+    },
+    "capability_state:capabilities": {
+      "result": true,
+      "errno": null
+    },
+    "capability_state:dropped": {
+      "result": true,
+      "errno": null
+    },
+    "capability_state:regained": {
+      "result": true,
+      "errno": null
+    },
+    "capability_state:filtered": {
+      "result": true,
+      "errno": null
+    },
+    "capability_control": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "before_drop_write_errno": 0,
+        "after_drop_write_errno": 13,
+        "attacks_without_filter": {
+          "unshare": {
+            "pid": 3019972,
+            "exit": 0,
+            "observation": {
+              "errno": 0,
+              "namespace_created": true,
+              "shared_write_errno": 0
+            }
+          },
+          "clone": {
+            "pid": 3019973,
+            "exit": 0,
+            "observation": {
+              "errno": 0,
+              "namespace_created": true,
+              "nested_child_exit": 0
+            }
+          },
+          "clone3": {
+            "pid": 3019976,
+            "exit": 0,
+            "observation": {
+              "errno": 0,
+              "namespace_created": true,
+              "nested_child_exit": 0
+            }
+          }
+        }
+      }
+    },
+    "unfiltered_unshare": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 3019972,
+        "exit": 0,
+        "observation": {
+          "errno": 0,
+          "namespace_created": true,
+          "shared_write_errno": 0
+        }
+      }
+    },
+    "unfiltered_clone": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 3019973,
+        "exit": 0,
+        "observation": {
+          "errno": 0,
+          "namespace_created": true,
+          "nested_child_exit": 0
+        }
+      }
+    },
+    "unfiltered_clone3": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 3019976,
+        "exit": 0,
+        "observation": {
+          "errno": 0,
+          "namespace_created": true,
+          "nested_child_exit": 0
+        }
+      }
+    },
+    "stock_common:aba:seal": {
+      "result": false,
+      "errno": null
+    },
+    "stock_common:aba:attack_executed_and_blocked": {
+      "result": false,
+      "errno": null,
+      "observation": {
+        "status": "not-started",
+        "source_renamed": false,
+        "ancestor_renamed": false
+      }
+    },
+    "stock_common:aba": {
+      "result": false,
+      "errno": null,
+      "error": "RuntimeError: stock_common:aba:attack_executed_and_blocked"
+    },
+    "sort_best:none:session_used": {
+      "result": false,
+      "errno": null
+    },
+    "sort_best:none": {
+      "result": false,
+      "errno": null,
+      "error": "RuntimeError: sort_best:none:session_used"
+    },
+    "stock_common:persistent:seal": {
+      "result": false,
+      "errno": null
+    },
+    "stock_common:persistent:attack_executed_and_blocked": {
+      "result": false,
+      "errno": null,
+      "observation": {
+        "status": "not-started",
+        "source_renamed": false,
+        "ancestor_renamed": false
+      }
+    },
+    "stock_common:persistent": {
+      "result": false,
+      "errno": null,
+      "error": "RuntimeError: stock_common:persistent:attack_executed_and_blocked"
+    },
+    "parent_namespaces_unchanged": {
+      "result": true,
+      "errno": null
+    },
+    "descendants_finished": {
+      "result": true,
+      "errno": null,
+      "remaining_pids": []
+    }
+  },
+  "environment": {
+    "hostname": "bnode049",
+    "kernel": "5.15.0-173-generic",
+    "libc": [
+      "glibc",
+      "2.35"
+    ],
+    "uid": 31609,
+    "argv": [
+      "/usr/bin/python3",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+      "--dependency-sources",
+      "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources"
+    ],
+    "exec_argv": [
+      "python3",
+      "-m",
+      "orchestrator.manual_probes.t1994_readonly_snapshot_qualification",
+      "--dependency-sources",
+      "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources"
+    ],
+    "parent_namespaces_before": {
+      "user": "user:[4026535834]",
+      "mnt": "mnt:[4026535833]"
+    },
+    "parent_namespaces_after": {
+      "user": "user:[4026535834]",
+      "mnt": "mnt:[4026535833]"
+    }
+  },
+  "time_budget": {
+    "timeout_s": null,
+    "population": null,
+    "observed_max_s": null,
+    "multiplier": null,
+    "same_regime": null,
+    "reason": "No qualified duration population exists for this regime. Driver/session/CMake calls have no timeout. Existing oracle semantic limits are recorded separately."
+  },
+  "limitations": [
+    "Only source substitution during build is measured; poisoned cache reuse is open.",
+    "Capabilities are trusted-producer values, not kernel attestation or signatures.",
+    "Hostile Python process-memory mutation is outside the trust boundary.",
+    "clone3 ENOSYS fallback evidence covers only the observed libc and commands.",
+    "Only one freeze entry each for stock_common and sort_best is qualified."
+  ],
+  "artifacts": {
+    "json": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/insights/2026-09-14/t1994-readonly-snapshot/qualification/run-d0f8hq4f/qualification.json",
+    "raw_log": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/insights/2026-09-14/t1994-readonly-snapshot/qualification/run-d0f8hq4f/raw.log"
+  },
+  "oracle_existing_limits": {
+    "source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/campaign/sort_swo_oracle.py",
+    "source_sha256": "50af147aa13eb1c6a523a20a6a313c62dd676ef09ce822728020869ff558adfd",
+    "compile_s": 8.0,
+    "run_s": 2.0,
+    "tool_identity_s": 2.0,
+    "scope": "Existing SWO oracle contract only, not qualification build time budgets."
+  },
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/external/ccbench",
+        "rev-parse",
+        "HEAD^{commit}"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.027357498998753726
+    },
+    {
+      "argv": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "--no-checkout",
+        "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources/masstree-src",
+        "/tmp/t1994-qualification-1ra1mswp/base/masstree-src"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.03593034000368789
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/tmp/t1994-qualification-1ra1mswp/base/masstree-src",
+        "checkout",
+        "--detach",
+        "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.015014261996839195
+    },
+    {
+      "argv": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "--no-checkout",
+        "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources/mimalloc-src",
+        "/tmp/t1994-qualification-1ra1mswp/base/mimalloc-src"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.06734066299395636
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/tmp/t1994-qualification-1ra1mswp/base/mimalloc-src",
+        "checkout",
+        "--detach",
+        "02a2f5df9d7d46d30263b83832eebeeab62dc5fe"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.03340866300277412
+    },
+    {
+      "argv": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "--no-checkout",
+        "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources/googletest-src",
+        "/tmp/t1994-qualification-1ra1mswp/base/googletest-src"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.07185276300879195
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/tmp/t1994-qualification-1ra1mswp/base/googletest-src",
+        "checkout",
+        "--detach",
+        "f8d7d77c06936315286eb55f8de22cd23c188571"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.03608187101781368
+    },
+    {
+      "argv": [
+        "/usr/bin/cmake",
+        "-S",
+        "/tmp/izanagi_wt_10ofui5u/wt",
+        "-B",
+        "/tmp/t1994-qualification-1ra1mswp/base/izanagi-masstree-prebuild",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DFETCHCONTENT_BASE_DIR=/tmp/t1994-qualification-1ra1mswp/base",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/t1994-qualification-1ra1mswp/base/masstree-src",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/tmp/t1994-qualification-1ra1mswp/base/mimalloc-src",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/tmp/t1994-qualification-1ra1mswp/base/googletest-src"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.9017152879969217
+    },
+    {
+      "argv": [
+        "/usr/bin/cmake",
+        "--build",
+        "/tmp/t1994-qualification-1ra1mswp/base/izanagi-masstree-prebuild",
+        "--target",
+        "masstree_build",
+        "-j",
+        "48"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 10.684197433001827
+    }
+  ],
+  "toolchain": {
+    "cc": {
+      "requested": "gcc",
+      "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+      "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+      "version": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+    },
+    "cxx": {
+      "requested": "g++",
+      "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+      "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+      "version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+    },
+    "cmake": {
+      "requested": "cmake",
+      "realpath": "/usr/bin/cmake",
+      "version_first_line": "cmake version 3.22.1",
+      "version": "cmake version 3.22.1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake)."
+    }
+  },
+  "ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+  "declarations": {
+    "freeze": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/s8b-freeze/holdout_freeze.json",
+    "freeze_sha256": "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688",
+    "holdout": "rr80"
+  },
+  "contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+  "publication_failure_cases": {
+    "_real_session_parent_drift_or_exit_failure_never_publishes_case": {
+      "case": "_real_session_parent_drift_or_exit_failure_never_publishes_case",
+      "completed": true,
+      "attack": "root-replacement",
+      "elapsed_s": 0.5789351760176942
+    },
+    "_descriptor_build_failure_cannot_become_second_build_hit_case": {
+      "case": "_descriptor_build_failure_cannot_become_second_build_hit_case",
+      "completed": true,
+      "attack": "persistent-drift",
+      "elapsed_s": 0.7343777769710869
+    }
+  },
+  "capability_state_cases": {
+    "capabilities": {
+      "case": "_shared_readonly_file_capability_and_userns_controls_case",
+      "completed": true,
+      "state": "capabilities",
+      "elapsed_s": 0.5167792839929461
+    },
+    "dropped": {
+      "case": "_shared_readonly_file_capability_and_userns_controls_case",
+      "completed": true,
+      "state": "dropped",
+      "elapsed_s": 0.5166177579667419
+    },
+    "regained": {
+      "case": "_shared_readonly_file_capability_and_userns_controls_case",
+      "completed": true,
+      "state": "regained",
+      "elapsed_s": 0.530947367020417
+    },
+    "filtered": {
+      "case": "_shared_readonly_file_capability_and_userns_controls_case",
+      "completed": true,
+      "state": "filtered",
+      "elapsed_s": 0.5053640290279873
+    }
+  },
+  "control": {
+    "pid": 3019971,
+    "exit": 0,
+    "observation": {
+      "before_drop_write_errno": 0,
+      "after_drop_write_errno": 13,
+      "attacks_without_filter": {
+        "unshare": {
+          "pid": 3019972,
+          "exit": 0,
+          "observation": {
+            "errno": 0,
+            "namespace_created": true,
+            "shared_write_errno": 0
+          }
+        },
+        "clone": {
+          "pid": 3019973,
+          "exit": 0,
+          "observation": {
+            "errno": 0,
+            "namespace_created": true,
+            "nested_child_exit": 0
+          }
+        },
+        "clone3": {
+          "pid": 3019976,
+          "exit": 0,
+          "observation": {
+            "errno": 0,
+            "namespace_created": true,
+            "nested_child_exit": 0
+          }
+        }
+      }
+    }
+  },
+  "dependency": {
+    "dependency_root": "/tmp/t1994-qualification-1ra1mswp/base/masstree-src",
+    "dependency_expected_head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+    "dependency_head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+    "dependency_config_sha256": "e9a4ecd3dfb9aef9c159e99cb2b7000651a2036ec909095f750b2c891404694a",
+    "dependency_archive_sha256": "8cbb73ba2d510b7b656c1385e08b11a0656c5d83a6d0ac9c7b5ac3e6e01d40f8",
+    "dependency_archive_nondebug_sha256": "844334920db6592852abaa36b2320929bbaf16a7323a7b011ec821dfed7bd514",
+    "dependency_toolchain_manifest_sha256": "61f756352ad21e05f3fc52d94f3249db25f23cf43ca43248a64f405183c48fbd",
+    "dependency_source_st_dev": 66311,
+    "dependency_source_st_ino": 645414,
+    "oracle_dependency_root": "/tmp/t1994-qualification-1ra1mswp/base/.sort-swo-dependency-q_zjcv2c/canonical",
+    "dependency_manifest_sha256": "8d0151cfaa0b86d1a2753e69f514633ec2fe6ee1077caed819fd3a426b501875"
+  },
+  "builds": {
+    "stock_common:aba": {
+      "configuration": "stock_common",
+      "attack": "aba",
+      "session_commands": [
+        {
+          "argv": [
+            "/usr/bin/python3",
+            "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+            "--internal",
+            "sealed",
+            "/tmp/izanagi_wt_yr6881uy/wt",
+            "/tmp/t1994-qualification-1ra1mswp/base/qualification-shared/shared-0444"
+          ],
+          "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification",
+          "timeout_s": null,
+          "ccache_environment": {},
+          "returncode": 0,
+          "elapsed_s": 0.1002669429872185
+        }
+      ],
+      "ccache": {
+        "status": "unobserved"
+      },
+      "descriptor_sha256": "92e6df6889a4d5a0b4c7ad350689f87ab93eec5384bcd329dc4651c1a8ac302a",
+      "descriptor": {
+        "configuration": "stock_common",
+        "ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+        "declaration": {
+          "flags": {
+            "BACK_OFF": 1,
+            "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+            "NO_WAIT_OF_TICTOC": 0,
+            "WAL": 0
+          },
+          "sources": [
+            {
+              "path": "external/ccbench/cmake/Options.cmake",
+              "sha256": "7f8656c10610aa15a66258dd2aca01d1230fe15ee31bf9944225019d42d66651",
+              "key": "four CACHE defaults and BACK_OFF universal mapping",
+              "lines": [
+                "20: set(CCBENCH_BACK_OFF      1 CACHE STRING \"exponential backoff on abort\")",
+                "27: set(CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION  1 CACHE STRING \"\")",
+                "28: set(CCBENCH_NO_WAIT_OF_TICTOC              0 CACHE STRING \"\")",
+                "47: set(CCBENCH_WAL                           0 CACHE STRING \"silo\")",
+                "63:     BACK_OFF=${CCBENCH_BACK_OFF}"
+              ]
+            },
+            {
+              "path": "external/ccbench/cc/silo/CMakeLists.txt",
+              "sha256": "91af7720e82f0629cffdf9a1278695d764b48a620a7468728dc4a392df01096f",
+              "key": "silo target mappings for three protocol flags",
+              "lines": [
+                "5:     NO_WAIT_LOCKING_IN_VALIDATION=${CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION}",
+                "6:     NO_WAIT_OF_TICTOC=${CCBENCH_NO_WAIT_OF_TICTOC}",
+                "10:     WAL=${CCBENCH_WAL}"
+              ]
+            }
+          ]
+        },
+        "template_patch_path": null
+      },
+      "copy_target": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "rename_attack": {
+        "status": "not-started",
+        "source_renamed": false,
+        "ancestor_renamed": false
+      },
+      "seal": {
+        "inventory": {
+          "files": 404,
+          "directories": 47,
+          "symlinks": 0,
+          "apparent_bytes": 2352405,
+          "symlink_bytes": 0,
+          "page_rounded_file_bytes": 3321856,
+          "page_size": 4096,
+          "nodes": 451,
+          "required_inodes": 451,
+          "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+          "excluded_names": [
+            ".git"
+          ]
+        },
+        "mountinfo": "1012 1011 259:7 / / rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n1013 1012 0:5 / /dev rw,nosuid,relatime - devtmpfs udev rw,size=65208296k,nr_inodes=16302074,mode=755,inode64\n1014 1013 0:24 / /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=000\n1015 1013 0:27 / /dev/shm rw,nosuid,nodev - tmpfs tmpfs rw,inode64\n1016 1013 0:34 / /dev/hugepages rw,relatime - hugetlbfs hugetlbfs rw,pagesize=2M\n1017 1013 0:20 / /dev/mqueue rw,nosuid,nodev,noexec,relatime - mqueue mqueue rw\n1018 1012 0:25 / /run rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053636k,mode=755,inode64\n1019 1018 0:28 / /run/lock rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=5120k,inode64\n1020 1018 0:36 / /run/credentials/systemd-sysusers.service ro,nosuid,nodev,noexec,relatime - ramfs none rw,mode=700\n1021 1018 0:38 / /run/rpc_pipefs rw,relatime - rpc_pipefs sunrpc rw\n1022 1018 0:25 /snapd/ns /run/snapd/ns rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053636k,mode=755,inode64\n1023 1012 0:22 / /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw\n1024 1023 0:6 / /sys/kernel/security rw,nosuid,nodev,noexec,relatime - securityfs securityfs rw\n1025 1023 0:29 / /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime - cgroup2 cgroup2 rw,nsdelegate,memory_recursiveprot\n1026 1023 0:30 / /sys/fs/pstore rw,nosuid,nodev,noexec,relatime - pstore pstore rw\n1027 1023 0:31 / /sys/firmware/efi/efivars rw,nosuid,nodev,noexec,relatime - efivarfs efivarfs rw\n1028 1023 0:32 / /sys/fs/bpf rw,nosuid,nodev,noexec,relatime - bpf bpf rw,mode=700\n1029 1023 0:7 / /sys/kernel/debug rw,nosuid,nodev,noexec,relatime - debugfs debugfs rw\n1030 1029 0:12 / /sys/kernel/debug/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n1031 1023 0:12 / /sys/kernel/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n1032 1023 0:35 / /sys/fs/fuse/connections rw,nosuid,nodev,noexec,relatime - fusectl fusectl rw\n1033 1023 0:21 / /sys/kernel/config rw,nosuid,nodev,noexec,relatime - configfs configfs rw\n1034 1012 0:23 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw\n1035 1034 0:33 / /proc/sys/fs/binfmt_misc rw,relatime - autofs systemd-1 rw,fd=29,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=64630\n1036 1035 0:37 / /proc/sys/fs/binfmt_misc rw,nosuid,nodev,noexec,relatime - binfmt_misc binfmt_misc rw\n1037 1012 7:1 / /snap/core20/2866 ro,nodev,relatime - squashfs /dev/loop1 ro,errors=continue\n1038 1012 7:2 / /snap/lxd/40364 ro,nodev,relatime - squashfs /dev/loop2 ro,errors=continue\n1039 1012 7:3 / /snap/lxd/40526 ro,nodev,relatime - squashfs /dev/loop3 ro,errors=continue\n1040 1012 7:4 / /snap/snapd/27710 ro,nodev,relatime - squashfs /dev/loop4 ro,errors=continue\n1041 1012 7:5 / /snap/snapd/27738 ro,nodev,relatime - squashfs /dev/loop5 ro,errors=continue\n1042 1012 259:5 / /boot rw,relatime - xfs /dev/nvme0n1p2 rw,attr2,inode64,logbufs=8,logbsize=32k,noquota\n1043 1042 259:4 / /boot/efi rw,relatime - vfat /dev/nvme0n1p1 rw,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro\n1044 1012 259:8 / /var/opt/nec/nqsv/jsv/jobfile rw,relatime - xfs /dev/nvme0n1p5 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n1045 1012 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1046 1045 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1047 1046 1273:181606 /1 /work/1 rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1048 1047 1273:181606 /1/SFC /work/1/SFC rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1049 1048 1273:181606 /1/SFC/tanab /work/1/SFC/tanab rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1050 1049 1273:181606 /1/SFC/tanab/izanagi /work/1/SFC/tanab/izanagi rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1051 1050 1273:181606 /1/SFC/tanab/izanagi/.claude /work/1/SFC/tanab/izanagi/.claude rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1052 1051 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees /work/1/SFC/tanab/izanagi/.claude/worktrees rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1053 1052 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1054 1053 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1055 1054 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1056 1055 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/fadd00b28bc044c8c609b3a7b235c351 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/fadd00b28bc044c8c609b3a7b235c351 ro - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1057 1012 1273:181606 / /system rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/system rw,flock,user_xattr,lazystatfs,encrypt\n1058 1012 1273:181606 / /home rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/home rw,flock,user_xattr,lazystatfs,encrypt\n1059 1012 7:6 / /snap/core20/2922 ro,nodev,relatime - squashfs /dev/loop6 ro,errors=continue\n1060 1012 9:0 / /scr rw,relatime - xfs /dev/md0 rw,attr2,inode64,logbufs=8,logbsize=32k,sunit=1024,swidth=2048,noquota\n1061 1012 259:10 / /pmem rw,noatime - ext4 /dev/pmem0 rw,dax=always\n1062 1012 0:45 / /tmp ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n1063 1062 0:55 / /tmp/izanagi_wt_yr6881uy ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n1064 1062 259:7 /tmp/t1994-qualification-1ra1mswp/cache-stock_common-aba /tmp/t1994-qualification-1ra1mswp/cache-stock_common-aba rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n1065 1062 259:7 /tmp/t1994-qualification-1ra1mswp/base /tmp/t1994-qualification-1ra1mswp/base rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n1066 1063 0:56 / /tmp/izanagi_wt_yr6881uy/wt ro,relatime - tmpfs tmpfs rw,size=11124k,uid=31609,gid=30410,inode64\n",
+        "source_mounts": [
+          "1066 1063 0:56 / /tmp/izanagi_wt_yr6881uy/wt ro,relatime - tmpfs tmpfs rw,size=11124k,uid=31609,gid=30410,inode64"
+        ],
+        "chmod_errno": 30,
+        "write_errno": 13,
+        "read_unchanged": true,
+        "git_absent": true,
+        "tmpfs": {
+          "fragment_size": 4096,
+          "used_bytes": 3321856,
+          "used_inodes": 451
+        },
+        "status": "Name:\tpython3\nUmask:\t0022\nState:\tR (running)\nTgid:\t3021982\nNgid:\t0\nPid:\t3021982\nPPid:\t3021969\nTracerPid:\t0\nUid:\t31609\t31609\t31609\t31609\nGid:\t30410\t30410\t30410\t30410\nFDSize:\t64\nGroups:\t65534 30410 \nNStgid:\t3021982\nNSpid:\t3021982\nNSpgid:\t3019837\nNSsid:\t3019837\nVmPeak:\t   36832 kB\nVmSize:\t   36832 kB\nVmLck:\t       0 kB\nVmPin:\t       0 kB\nVmHWM:\t   24548 kB\nVmRSS:\t   24548 kB\nRssAnon:\t   14856 kB\nRssFile:\t    9692 kB\nRssShmem:\t       0 kB\nVmData:\t   17260 kB\nVmStk:\t     132 kB\nVmExe:\t    2772 kB\nVmLib:\t    5700 kB\nVmPTE:\t     108 kB\nVmSwap:\t       0 kB\nHugetlbPages:\t       0 kB\nCoreDumping:\t0\nTHP_enabled:\t1\nThreads:\t1\nSigQ:\t0/509439\nSigPnd:\t0000000000000000\nShdPnd:\t0000000000000000\nSigBlk:\t0000000000000000\nSigIgn:\t0000000001005000\nSigCgt:\t0000000000000002\nCapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapBnd:\t0000000000000000\nCapAmb:\t0000000000000000\nNoNewPrivs:\t1\nSeccomp:\t2\nSeccomp_filters:\t1\nSpeculation_Store_Bypass:\tthread force mitigated\nSpeculationIndirectBranch:\tconditional force disabled\nCpus_allowed:\tffff,ffffffff\nCpus_allowed_list:\t0-47\nMems_allowed:\t00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001\nMems_allowed_list:\t0\nvoluntary_ctxt_switches:\t12\nnonvoluntary_ctxt_switches:\t0\n",
+        "shared_write_errno": 13,
+        "attacks_with_filter": {
+          "unshare": {
+            "pid": 3021983,
+            "exit": 0,
+            "observation": {
+              "errno": 1,
+              "namespace_created": false
+            }
+          },
+          "clone": {
+            "pid": 3021984,
+            "exit": 0,
+            "observation": {
+              "errno": 1,
+              "namespace_created": false
+            }
+          },
+          "clone3": {
+            "pid": 3021985,
+            "exit": 0,
+            "observation": {
+              "errno": 38,
+              "namespace_created": false
+            }
+          }
+        },
+        "namespaces": {
+          "user": "user:[4026535835]",
+          "mnt": "mnt:[4026535836]"
+        }
+      },
+      "build_exception": {
+        "result": false,
+        "errno": null,
+        "error": "BuildError: v2 build \u5b9f\u884c\u5931\u6557 (staging=/tmp/t1994-qualification-1ra1mswp/cache-stock_common-aba/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3019878-d1beb409bfd27003d0ab3fda352ddd8e): stock_common:aba:seal"
+      },
+      "parent_checks": [
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3019878,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3019878,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_source_snapshot_sha256",
+          "pid": 3019878,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3019878,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3019878,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        }
+      ],
+      "cache_completion_files_before_restore": [],
+      "cache_binaries_before_restore": [],
+      "parent_inventory_at_return": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "error": "Traceback (most recent call last):\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py\", line 490, in qualify\n    build_case(configuration, attack_mode, label, row, checks, args,\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py\", line 796, in build_case\n    require(checks, label + ':attack_executed_and_blocked',\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py\", line 66, in require\n    raise RuntimeError(name)\nRuntimeError: stock_common:aba:attack_executed_and_blocked\n"
+    },
+    "sort_best:none": {
+      "configuration": "sort_best",
+      "attack": "none",
+      "session_commands": [],
+      "ccache": {
+        "status": "unobserved"
+      },
+      "descriptor_sha256": "fbcfd23562e960de735a648a5b0841bb30fbc9d56873a328933f877612518bc2",
+      "descriptor": {
+        "configuration": "sort_best",
+        "ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+        "declaration": {
+          "name": "sk_ad",
+          "flags": {
+            "BACK_OFF": 1,
+            "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+            "NO_WAIT_OF_TICTOC": 0,
+            "WAL": 0,
+            "SORT_VARIANT": 1
+          },
+          "comparator": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? a.storage_ < b.storage_\n                                         : b.key_ < a.key_;\n       });",
+          "note": "read-heavy \u306f sweep \u672a\u5b9f\u65bd\u3002D52 \u00a72.1 \u306e\u4e8b\u524d\u56fa\u5b9a sk_ad \u3092\u63a1\u7528\u3057\u3001comparator \u306f write-heavy \u672c\u8d70 provenance \u304b\u3089\u6d41\u7528\u3002",
+          "sources": [
+            {
+              "path": "docs/phase3-main-experiment.md",
+              "sha256": "e544de1969dd4df13dc42aa3d165e22b70fab2ab399dc011baa46359727bea45",
+              "key": "D52 2026-07-12\u8ffd\u8a18: read-heavy sk_ad\u4e8b\u524d\u56fa\u5b9a"
+            },
+            {
+              "path": "output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json",
+              "sha256": "42aad55fd9fc57360ec3beff429ccebee1ba0f41288a10e52d12a71c547fcdc7",
+              "key": "entries.sk_ad.implementation"
+            },
+            {
+              "path": "orchestrator/campaign/s6_sort_sweep.py",
+              "sha256": "0c7dcd30caf7a1e6bd97273c9273ae808516a5cdea5ce004b060edfaa29888a2",
+              "key": "_genome(1) and candidate space"
+            },
+            {
+              "path": "orchestrator/campaign/p3_s4_loop_sort.py",
+              "sha256": "9b64f34bac3711f2384fd89e8d387e2e9d736af6e2d7c9b246c059b52267dbf4",
+              "key": "_BASE used by _genome(1)"
+            }
+          ]
+        },
+        "template_patch_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/patches/silo-sort-variant.patch"
+      },
+      "copy_target": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2354746,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3325952,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "78a815ac8d8b0cd6b87a6ddbcbdcc252b1fd8be0ea7d8d1d7ecdcc24b50b4016",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "oracle_attempt": {
+        "event": "sort-swo-oracle-attempt",
+        "classification": "pass",
+        "reason_code": "sort-swo-oracle-pass",
+        "oracle_contract_id": "sort-swo-v5-corpus2-protocol3-checker4-grammar2-xcc26c4322fe96e7e9427ace317c5b46f3c3d382b00bdbf937bbab595cbe0c60f-c7d25fac23469-tu7732f044d8ab-f3caa77f8111f-a091abb17ccad",
+        "materialized_hole_sha256": "b72f3c57a677571efe6223dbe344d68f4b61ff363f72c28c6211d4db37a0603e",
+        "proposal_sha256": "2b571448c17553d4a67f2381ae05728ba5e28a5c5180cd91080e92351beea38f",
+        "oracle_receipt": {
+          "contract_id": "sort-swo-v5-corpus2-protocol3-checker4-grammar2-xcc26c4322fe96e7e9427ace317c5b46f3c3d382b00bdbf937bbab595cbe0c60f-c7d25fac23469-tu7732f044d8ab-f3caa77f8111f-a091abb17ccad",
+          "materialized_hole_sha256": "b72f3c57a677571efe6223dbe344d68f4b61ff363f72c28c6211d4db37a0603e",
+          "proposal_sha256": "2b571448c17553d4a67f2381ae05728ba5e28a5c5180cd91080e92351beea38f",
+          "corpus_id": "sort-swo-corpus-v2",
+          "corpus_version": 2,
+          "compiler_realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+          "compiler_version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+          "compile_flags_sha256": "3caa77f8111ff611183eaec0acfdff11eb75d74c81a3bfec66262674921c3b25",
+          "tu_sha256": "0b4325eec8794153f8a9c14406b2ce04151472f71a2ed0df785681fff245c5b3",
+          "tu_template_sha256": "7732f044d8ab2b657231cfeb132f59a981b761b9ac62a8d61e6b5338140083e4",
+          "dependency_root_realpath": "/tmp/izanagi_sort_swo__t1zv_iz/verified-masstree",
+          "dependency_config_sha256": "e9a4ecd3dfb9aef9c159e99cb2b7000651a2036ec909095f750b2c891404694a",
+          "dependency_manifest_sha256": "8d0151cfaa0b86d1a2753e69f514633ec2fe6ee1077caed819fd3a426b501875",
+          "guarantee_boundary": "guarantees[admitted-ir-trusted-matrix,versioned-corpus-real-tu-byte-exact-conformance,contract-bound-pointer-mapping,candidate-corpus-mutation-is-impossible,candidate-protocol-frame-write-is-impossible];does-not-guarantee[arbitrary-cpp-or-all-input-swo];mode[constructive-swo-membership-not-dynamic-candidate-swo-search]"
+        }
+      },
+      "post_oracle_binding": {
+        "fetchcontent_base_dir": "/tmp/t1994-qualification-1ra1mswp/base",
+        "oracle_dependency_root": "/tmp/t1994-qualification-1ra1mswp/base/.sort-swo-dependency-q_zjcv2c/canonical",
+        "dependency_manifest_sha256": "8d0151cfaa0b86d1a2753e69f514633ec2fe6ee1077caed819fd3a426b501875",
+        "masstree_head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+        "config_sha256": "e9a4ecd3dfb9aef9c159e99cb2b7000651a2036ec909095f750b2c891404694a",
+        "archive_sha256": "8cbb73ba2d510b7b656c1385e08b11a0656c5d83a6d0ac9c7b5ac3e6e01d40f8"
+      },
+      "rename_attack": {
+        "status": "not-started",
+        "source_renamed": false,
+        "ancestor_renamed": false
+      },
+      "build_exception": {
+        "result": false,
+        "errno": null,
+        "error": "BuildCacheError: S8b build source snapshot \u3092\u5ba3\u8a00\u3078\u675f\u7e1b\u3067\u304d\u306a\u3044: ExpectedMaterializationError: non-writable snapshot src_token differs from prepared result (reason=src-token-mismatch count=1)"
+      },
+      "parent_checks": [
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3019878,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3019878,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        }
+      ],
+      "cache_completion_files_before_restore": [],
+      "cache_binaries_before_restore": [],
+      "parent_inventory_at_return": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2354746,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3325952,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "78a815ac8d8b0cd6b87a6ddbcbdcc252b1fd8be0ea7d8d1d7ecdcc24b50b4016",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "error": "Traceback (most recent call last):\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py\", line 490, in qualify\n    build_case(configuration, attack_mode, label, row, checks, args,\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py\", line 798, in build_case\n    require(checks, label + ':session_used', sealed_seen and build_finished)\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py\", line 66, in require\n    raise RuntimeError(name)\nRuntimeError: sort_best:none:session_used\n"
+    },
+    "stock_common:persistent": {
+      "configuration": "stock_common",
+      "attack": "persistent",
+      "session_commands": [
+        {
+          "argv": [
+            "/usr/bin/python3",
+            "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+            "--internal",
+            "sealed",
+            "/tmp/izanagi_wt_ajlyr5cp/wt",
+            "/tmp/t1994-qualification-1ra1mswp/base/qualification-shared/shared-0444"
+          ],
+          "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification",
+          "timeout_s": null,
+          "ccache_environment": {},
+          "returncode": 0,
+          "elapsed_s": 0.10103024705313146
+        }
+      ],
+      "ccache": {
+        "status": "unobserved"
+      },
+      "descriptor_sha256": "92e6df6889a4d5a0b4c7ad350689f87ab93eec5384bcd329dc4651c1a8ac302a",
+      "descriptor": {
+        "configuration": "stock_common",
+        "ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+        "declaration": {
+          "flags": {
+            "BACK_OFF": 1,
+            "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+            "NO_WAIT_OF_TICTOC": 0,
+            "WAL": 0
+          },
+          "sources": [
+            {
+              "path": "external/ccbench/cmake/Options.cmake",
+              "sha256": "7f8656c10610aa15a66258dd2aca01d1230fe15ee31bf9944225019d42d66651",
+              "key": "four CACHE defaults and BACK_OFF universal mapping",
+              "lines": [
+                "20: set(CCBENCH_BACK_OFF      1 CACHE STRING \"exponential backoff on abort\")",
+                "27: set(CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION  1 CACHE STRING \"\")",
+                "28: set(CCBENCH_NO_WAIT_OF_TICTOC              0 CACHE STRING \"\")",
+                "47: set(CCBENCH_WAL                           0 CACHE STRING \"silo\")",
+                "63:     BACK_OFF=${CCBENCH_BACK_OFF}"
+              ]
+            },
+            {
+              "path": "external/ccbench/cc/silo/CMakeLists.txt",
+              "sha256": "91af7720e82f0629cffdf9a1278695d764b48a620a7468728dc4a392df01096f",
+              "key": "silo target mappings for three protocol flags",
+              "lines": [
+                "5:     NO_WAIT_LOCKING_IN_VALIDATION=${CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION}",
+                "6:     NO_WAIT_OF_TICTOC=${CCBENCH_NO_WAIT_OF_TICTOC}",
+                "10:     WAL=${CCBENCH_WAL}"
+              ]
+            }
+          ]
+        },
+        "template_patch_path": null
+      },
+      "copy_target": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "rename_attack": {
+        "status": "not-started",
+        "source_renamed": false,
+        "ancestor_renamed": false
+      },
+      "seal": {
+        "inventory": {
+          "files": 404,
+          "directories": 47,
+          "symlinks": 0,
+          "apparent_bytes": 2352405,
+          "symlink_bytes": 0,
+          "page_rounded_file_bytes": 3321856,
+          "page_size": 4096,
+          "nodes": 451,
+          "required_inodes": 451,
+          "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+          "excluded_names": [
+            ".git"
+          ]
+        },
+        "mountinfo": "94 93 259:7 / / rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n594 94 0:5 / /dev rw,nosuid,relatime - devtmpfs udev rw,size=65208296k,nr_inodes=16302074,mode=755,inode64\n595 594 0:24 / /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=000\n611 594 0:27 / /dev/shm rw,nosuid,nodev - tmpfs tmpfs rw,inode64\n637 594 0:34 / /dev/hugepages rw,relatime - hugetlbfs hugetlbfs rw,pagesize=2M\n664 594 0:20 / /dev/mqueue rw,nosuid,nodev,noexec,relatime - mqueue mqueue rw\n665 94 0:25 / /run rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053636k,mode=755,inode64\n666 665 0:28 / /run/lock rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=5120k,inode64\n667 665 0:36 / /run/credentials/systemd-sysusers.service ro,nosuid,nodev,noexec,relatime - ramfs none rw,mode=700\n668 665 0:38 / /run/rpc_pipefs rw,relatime - rpc_pipefs sunrpc rw\n669 665 0:25 /snapd/ns /run/snapd/ns rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053636k,mode=755,inode64\n670 94 0:22 / /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw\n671 670 0:6 / /sys/kernel/security rw,nosuid,nodev,noexec,relatime - securityfs securityfs rw\n672 670 0:29 / /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime - cgroup2 cgroup2 rw,nsdelegate,memory_recursiveprot\n673 670 0:30 / /sys/fs/pstore rw,nosuid,nodev,noexec,relatime - pstore pstore rw\n674 670 0:31 / /sys/firmware/efi/efivars rw,nosuid,nodev,noexec,relatime - efivarfs efivarfs rw\n675 670 0:32 / /sys/fs/bpf rw,nosuid,nodev,noexec,relatime - bpf bpf rw,mode=700\n676 670 0:7 / /sys/kernel/debug rw,nosuid,nodev,noexec,relatime - debugfs debugfs rw\n677 676 0:12 / /sys/kernel/debug/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n678 670 0:12 / /sys/kernel/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n679 670 0:35 / /sys/fs/fuse/connections rw,nosuid,nodev,noexec,relatime - fusectl fusectl rw\n680 670 0:21 / /sys/kernel/config rw,nosuid,nodev,noexec,relatime - configfs configfs rw\n681 94 0:23 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw\n682 681 0:33 / /proc/sys/fs/binfmt_misc rw,relatime - autofs systemd-1 rw,fd=29,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=64630\n683 682 0:37 / /proc/sys/fs/binfmt_misc rw,nosuid,nodev,noexec,relatime - binfmt_misc binfmt_misc rw\n684 94 7:1 / /snap/core20/2866 ro,nodev,relatime - squashfs /dev/loop1 ro,errors=continue\n685 94 7:2 / /snap/lxd/40364 ro,nodev,relatime - squashfs /dev/loop2 ro,errors=continue\n686 94 7:3 / /snap/lxd/40526 ro,nodev,relatime - squashfs /dev/loop3 ro,errors=continue\n687 94 7:4 / /snap/snapd/27710 ro,nodev,relatime - squashfs /dev/loop4 ro,errors=continue\n688 94 7:5 / /snap/snapd/27738 ro,nodev,relatime - squashfs /dev/loop5 ro,errors=continue\n689 94 259:5 / /boot rw,relatime - xfs /dev/nvme0n1p2 rw,attr2,inode64,logbufs=8,logbsize=32k,noquota\n690 689 259:4 / /boot/efi rw,relatime - vfat /dev/nvme0n1p1 rw,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro\n691 94 259:8 / /var/opt/nec/nqsv/jsv/jobfile rw,relatime - xfs /dev/nvme0n1p5 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n692 94 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n693 692 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n694 693 1273:181606 /1 /work/1 rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n695 694 1273:181606 /1/SFC /work/1/SFC rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n696 695 1273:181606 /1/SFC/tanab /work/1/SFC/tanab rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n697 696 1273:181606 /1/SFC/tanab/izanagi /work/1/SFC/tanab/izanagi rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n698 697 1273:181606 /1/SFC/tanab/izanagi/.claude /work/1/SFC/tanab/izanagi/.claude rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n704 698 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees /work/1/SFC/tanab/izanagi/.claude/worktrees rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n708 704 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n709 708 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n710 709 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n711 710 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/fadd00b28bc044c8c609b3a7b235c351 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/fadd00b28bc044c8c609b3a7b235c351 ro - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n712 94 1273:181606 / /system rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/system rw,flock,user_xattr,lazystatfs,encrypt\n713 94 1273:181606 / /home rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/home rw,flock,user_xattr,lazystatfs,encrypt\n714 94 7:6 / /snap/core20/2922 ro,nodev,relatime - squashfs /dev/loop6 ro,errors=continue\n715 94 9:0 / /scr rw,relatime - xfs /dev/md0 rw,attr2,inode64,logbufs=8,logbsize=32k,sunit=1024,swidth=2048,noquota\n716 94 259:10 / /pmem rw,noatime - ext4 /dev/pmem0 rw,dax=always\n717 94 0:44 / /tmp ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n718 717 0:45 / /tmp/izanagi_wt_ajlyr5cp ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n719 717 259:7 /tmp/t1994-qualification-1ra1mswp/cache-stock_common-persistent /tmp/t1994-qualification-1ra1mswp/cache-stock_common-persistent rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n722 717 259:7 /tmp/t1994-qualification-1ra1mswp/base /tmp/t1994-qualification-1ra1mswp/base rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n723 718 0:55 / /tmp/izanagi_wt_ajlyr5cp/wt ro,relatime - tmpfs tmpfs rw,size=11124k,uid=31609,gid=30410,inode64\n",
+        "source_mounts": [
+          "723 718 0:55 / /tmp/izanagi_wt_ajlyr5cp/wt ro,relatime - tmpfs tmpfs rw,size=11124k,uid=31609,gid=30410,inode64"
+        ],
+        "chmod_errno": 30,
+        "write_errno": 13,
+        "read_unchanged": true,
+        "git_absent": true,
+        "tmpfs": {
+          "fragment_size": 4096,
+          "used_bytes": 3321856,
+          "used_inodes": 451
+        },
+        "status": "Name:\tpython3\nUmask:\t0022\nState:\tR (running)\nTgid:\t3023009\nNgid:\t0\nPid:\t3023009\nPPid:\t3022996\nTracerPid:\t0\nUid:\t31609\t31609\t31609\t31609\nGid:\t30410\t30410\t30410\t30410\nFDSize:\t64\nGroups:\t65534 30410 \nNStgid:\t3023009\nNSpid:\t3023009\nNSpgid:\t3019837\nNSsid:\t3019837\nVmPeak:\t   36832 kB\nVmSize:\t   36832 kB\nVmLck:\t       0 kB\nVmPin:\t       0 kB\nVmHWM:\t   24640 kB\nVmRSS:\t   24640 kB\nRssAnon:\t   14856 kB\nRssFile:\t    9784 kB\nRssShmem:\t       0 kB\nVmData:\t   17260 kB\nVmStk:\t     132 kB\nVmExe:\t    2772 kB\nVmLib:\t    5700 kB\nVmPTE:\t     104 kB\nVmSwap:\t       0 kB\nHugetlbPages:\t       0 kB\nCoreDumping:\t0\nTHP_enabled:\t1\nThreads:\t1\nSigQ:\t0/509439\nSigPnd:\t0000000000000000\nShdPnd:\t0000000000000000\nSigBlk:\t0000000000000000\nSigIgn:\t0000000001005000\nSigCgt:\t0000000000000002\nCapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapBnd:\t0000000000000000\nCapAmb:\t0000000000000000\nNoNewPrivs:\t1\nSeccomp:\t2\nSeccomp_filters:\t1\nSpeculation_Store_Bypass:\tthread force mitigated\nSpeculationIndirectBranch:\tconditional force disabled\nCpus_allowed:\tffff,ffffffff\nCpus_allowed_list:\t0-47\nMems_allowed:\t00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001\nMems_allowed_list:\t0\nvoluntary_ctxt_switches:\t12\nnonvoluntary_ctxt_switches:\t0\n",
+        "shared_write_errno": 13,
+        "attacks_with_filter": {
+          "unshare": {
+            "pid": 3023010,
+            "exit": 0,
+            "observation": {
+              "errno": 1,
+              "namespace_created": false
+            }
+          },
+          "clone": {
+            "pid": 3023011,
+            "exit": 0,
+            "observation": {
+              "errno": 1,
+              "namespace_created": false
+            }
+          },
+          "clone3": {
+            "pid": 3023012,
+            "exit": 0,
+            "observation": {
+              "errno": 38,
+              "namespace_created": false
+            }
+          }
+        },
+        "namespaces": {
+          "user": "user:[4026534697]",
+          "mnt": "mnt:[4026534698]"
+        }
+      },
+      "build_exception": {
+        "result": false,
+        "errno": null,
+        "error": "BuildError: v2 build \u5b9f\u884c\u5931\u6557 (staging=/tmp/t1994-qualification-1ra1mswp/cache-stock_common-persistent/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3019878-5582efadb0bb20c47992fdb0713a868c): stock_common:persistent:seal"
+      },
+      "parent_checks": [
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3019878,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3019878,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_source_snapshot_sha256",
+          "pid": 3019878,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3019878,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3019878,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        }
+      ],
+      "cache_completion_files_before_restore": [],
+      "cache_binaries_before_restore": [],
+      "parent_inventory_at_return": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "error": "Traceback (most recent call last):\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py\", line 490, in qualify\n    build_case(configuration, attack_mode, label, row, checks, args,\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py\", line 796, in build_case\n    require(checks, label + ':attack_executed_and_blocked',\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py\", line 66, in require\n    raise RuntimeError(name)\nRuntimeError: stock_common:persistent:attack_executed_and_blocked\n"
+    }
+  },
+  "cleanup_reaped": [],
+  "summary_tail": {
+    "overall": false,
+    "failed": [
+      "stock_common:aba:seal",
+      "stock_common:aba:attack_executed_and_blocked",
+      "stock_common:aba",
+      "sort_best:none:session_used",
+      "sort_best:none",
+      "stock_common:persistent:seal",
+      "stock_common:persistent:attack_executed_and_blocked",
+      "stock_common:persistent"
+    ],
+    "requested_coverage": [
+      "stock_common",
+      "sort_best"
+    ],
+    "completed_cases": [],
+    "copy_targets": {
+      "stock_common:aba": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "sort_best:none": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2354746,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3325952,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "78a815ac8d8b0cd6b87a6ddbcbdcc252b1fd8be0ea7d8d1d7ecdcc24b50b4016",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "stock_common:persistent": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      }
+    },
+    "ccache_diagnostic_only": true
+  }
+}

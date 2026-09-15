@@ -1,0 +1,2383 @@
+{
+  "overall": true,
+  "checks": {
+    "real_session_api": {
+      "result": true,
+      "errno": null
+    },
+    "compute_node": {
+      "result": true,
+      "errno": null
+    },
+    "nonroot_x86_64": {
+      "result": true,
+      "errno": null
+    },
+    "moved:_real_session_parent_drift_or_exit_failure_never_publishes_case": {
+      "result": true,
+      "errno": null
+    },
+    "moved:_descriptor_build_failure_cannot_become_second_build_hit_case": {
+      "result": true,
+      "errno": null
+    },
+    "capability_state:capabilities": {
+      "result": true,
+      "errno": null
+    },
+    "capability_state:dropped": {
+      "result": true,
+      "errno": null
+    },
+    "capability_state:regained": {
+      "result": true,
+      "errno": null
+    },
+    "capability_state:filtered": {
+      "result": true,
+      "errno": null
+    },
+    "capability_control": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "before_drop_write_errno": 0,
+        "after_drop_write_errno": 13,
+        "attacks_without_filter": {
+          "unshare": {
+            "pid": 3143249,
+            "exit": 0,
+            "observation": {
+              "errno": 0,
+              "namespace_created": true,
+              "shared_write_errno": 0
+            }
+          },
+          "clone": {
+            "pid": 3143250,
+            "exit": 0,
+            "observation": {
+              "errno": 0,
+              "namespace_created": true,
+              "nested_child_exit": 0
+            }
+          },
+          "clone3": {
+            "pid": 3143252,
+            "exit": 0,
+            "observation": {
+              "errno": 0,
+              "namespace_created": true,
+              "nested_child_exit": 0
+            }
+          }
+        }
+      }
+    },
+    "unfiltered_unshare": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 3143249,
+        "exit": 0,
+        "observation": {
+          "errno": 0,
+          "namespace_created": true,
+          "shared_write_errno": 0
+        }
+      }
+    },
+    "unfiltered_clone": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 3143250,
+        "exit": 0,
+        "observation": {
+          "errno": 0,
+          "namespace_created": true,
+          "nested_child_exit": 0
+        }
+      }
+    },
+    "unfiltered_clone3": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 3143252,
+        "exit": 0,
+        "observation": {
+          "errno": 0,
+          "namespace_created": true,
+          "nested_child_exit": 0
+        }
+      }
+    },
+    "stock_common:aba:seal": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:aba:capdrop": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:aba:capability_sets_empty": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:aba:filtered_unshare": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 3145258,
+        "exit": 0,
+        "observation": {
+          "errno": 1,
+          "namespace_created": false
+        }
+      }
+    },
+    "stock_common:aba:filtered_clone": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 3145259,
+        "exit": 0,
+        "observation": {
+          "errno": 1,
+          "namespace_created": false
+        }
+      }
+    },
+    "stock_common:aba:filtered_clone3": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 3145260,
+        "exit": 0,
+        "observation": {
+          "errno": 38,
+          "namespace_created": false
+        }
+      }
+    },
+    "stock_common:aba:B_differs": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:aba:unprotected_compiler_reads_B": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:aba:compiler_A": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:aba:attack_executed_and_blocked": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "status": "blocked",
+        "source_renamed": true,
+        "ancestor_renamed": true,
+        "poisoned_paths": [
+          "cc/cicada/bomb_cicada.cc",
+          "cc/cicada/sbomb_cicada.cc",
+          "cc/cicada/testzip.cc",
+          "cc/cicada/tpcc_cicada.cc",
+          "cc/cicada/transaction.cc",
+          "cc/cicada/util.cc",
+          "cc/cicada/ycsb_cicada.cc",
+          "cc/d2pl/dbomb_d2pl.cc",
+          "cc/d2pl/sbomb_d2pl.cc",
+          "cc/d2pl/transaction.cc",
+          "cc/d2pl/util.cc",
+          "cc/ermia/bomb_ermia.cc",
+          "cc/ermia/garbage_collection.cc",
+          "cc/ermia/sbomb_ermia.cc",
+          "cc/ermia/tpcc_ermia.cc",
+          "cc/ermia/transaction.cc",
+          "cc/ermia/util.cc",
+          "cc/ermia/ycsb_ermia.cc",
+          "cc/mocc/bomb_mocc.cc",
+          "cc/mocc/lock.cc",
+          "cc/mocc/sbomb_mocc.cc",
+          "cc/mocc/tpcc_mocc.cc",
+          "cc/mocc/transaction.cc",
+          "cc/mocc/util.cc",
+          "cc/mocc/ycsb_mocc.cc",
+          "cc/mvto/bomb_mvto.cc",
+          "cc/mvto/tpcc_mvto.cc",
+          "cc/mvto/transaction.cc",
+          "cc/mvto/util.cc",
+          "cc/oze/bomb_oze.cc",
+          "cc/oze/debug.cc",
+          "cc/oze/tpcc_oze.cc",
+          "cc/oze/transaction.cc",
+          "cc/oze/util.cc",
+          "cc/oze/ycsb_oze.cc",
+          "cc/si/bomb_si.cc",
+          "cc/si/garbage_collection.cc",
+          "cc/si/sbomb_si.cc",
+          "cc/si/tpcc_si.cc",
+          "cc/si/transaction.cc",
+          "cc/si/util.cc",
+          "cc/si/ycsb_si.cc",
+          "cc/silo/bomb_silo.cc",
+          "cc/silo/replayTest.cc",
+          "cc/silo/sbomb_silo.cc",
+          "cc/silo/tpcc_silo.cc",
+          "cc/silo/transaction.cc",
+          "cc/silo/util.cc",
+          "cc/silo/ycsb_silo.cc",
+          "cc/ss2pl/bomb_ss2pl.cc",
+          "cc/ss2pl/ss2pl.cc",
+          "cc/ss2pl/tpcc_ss2pl.cc",
+          "cc/ss2pl/transaction.cc",
+          "cc/ss2pl/util.cc",
+          "cc/ss2pl/test/make_db_test.cpp",
+          "cc/tictoc/bomb_tictoc.cc",
+          "cc/tictoc/sbomb_tictoc.cc",
+          "cc/tictoc/tpcc_tictoc.cc",
+          "cc/tictoc/transaction.cc",
+          "cc/tictoc/util.cc",
+          "cc/tictoc/ycsb_tictoc.cc",
+          "common/result.cc",
+          "common/util.cc",
+          "microbench/fetch_add.cc",
+          "microbench/membench.cc",
+          "microbench/pow_test.cc",
+          "microbench/rdtscBench.cc",
+          "microbench/xoroshiro.cc",
+          "microbench/zipf_dist_test.cc",
+          "microbench/legacy/cache-test.cc",
+          "microbench/legacy/mcslock_with_timeout.c",
+          "microbench/legacy/masstree_simple_test/unit-mt.cc",
+          "microbench/legacy/masstree_simple_test/unit-mt2.cc"
+        ],
+        "parent_B_inventory": {
+          "files": 404,
+          "directories": 47,
+          "symlinks": 0,
+          "apparent_bytes": 1890875,
+          "symlink_bytes": 0,
+          "page_rounded_file_bytes": 2981888,
+          "page_size": 4096,
+          "nodes": 451,
+          "required_inodes": 451,
+          "copy_domain_sha256": "af6d797e26f4910ca4180a2d888db2ff07ff20b3657eeba41c0398a290c0ebef",
+          "excluded_names": [
+            ".git"
+          ]
+        },
+        "unprotected_compiler": {
+          "argv": [
+            "g++",
+            "-E",
+            "-x",
+            "c++",
+            "/tmp/izanagi_wt_lfx_47sx/wt/cc/cicada/bomb_cicada.cc"
+          ],
+          "returncode": 1,
+          "stderr": "/tmp/izanagi_wt_lfx_47sx/wt/cc/cicada/bomb_cicada.cc:1:2: error: #error T1994_ORIGINAL_TREE_B\n    1 | #error T1994_ORIGINAL_TREE_B\n      |  ^~~~~\n"
+        }
+      }
+    },
+    "stock_common:aba:session_used": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:aba:real_build": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:aba:binary_digest": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:aba:manifest_digest": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:aba:source_unchanged": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:aba": {
+      "result": true,
+      "errno": null
+    },
+    "sort_best:none:seal": {
+      "result": true,
+      "errno": null
+    },
+    "sort_best:none:capdrop": {
+      "result": true,
+      "errno": null
+    },
+    "sort_best:none:capability_sets_empty": {
+      "result": true,
+      "errno": null
+    },
+    "sort_best:none:filtered_unshare": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 3146449,
+        "exit": 0,
+        "observation": {
+          "errno": 1,
+          "namespace_created": false
+        }
+      }
+    },
+    "sort_best:none:filtered_clone": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 3146450,
+        "exit": 0,
+        "observation": {
+          "errno": 1,
+          "namespace_created": false
+        }
+      }
+    },
+    "sort_best:none:filtered_clone3": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 3146451,
+        "exit": 0,
+        "observation": {
+          "errno": 38,
+          "namespace_created": false
+        }
+      }
+    },
+    "sort_best:none:compiler_A": {
+      "result": true,
+      "errno": null
+    },
+    "sort_best:none:session_used": {
+      "result": true,
+      "errno": null
+    },
+    "sort_best:none:real_build": {
+      "result": true,
+      "errno": null
+    },
+    "sort_best:none:binary_digest": {
+      "result": true,
+      "errno": null
+    },
+    "sort_best:none:manifest_digest": {
+      "result": true,
+      "errno": null
+    },
+    "sort_best:none:source_unchanged": {
+      "result": true,
+      "errno": null
+    },
+    "sort_best:none:D1755_checks_executed": {
+      "result": true,
+      "errno": null
+    },
+    "sort_best:none": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:persistent:seal": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:persistent:capdrop": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:persistent:capability_sets_empty": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:persistent:filtered_unshare": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 3147224,
+        "exit": 0,
+        "observation": {
+          "errno": 1,
+          "namespace_created": false
+        }
+      }
+    },
+    "stock_common:persistent:filtered_clone": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 3147225,
+        "exit": 0,
+        "observation": {
+          "errno": 1,
+          "namespace_created": false
+        }
+      }
+    },
+    "stock_common:persistent:filtered_clone3": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 3147226,
+        "exit": 0,
+        "observation": {
+          "errno": 38,
+          "namespace_created": false
+        }
+      }
+    },
+    "stock_common:persistent:B_differs": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:persistent:unprotected_compiler_reads_B": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:persistent:compiler_A": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:persistent:attack_executed_and_blocked": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "status": "blocked",
+        "source_renamed": true,
+        "ancestor_renamed": true,
+        "poisoned_paths": [
+          "cc/cicada/bomb_cicada.cc",
+          "cc/cicada/sbomb_cicada.cc",
+          "cc/cicada/testzip.cc",
+          "cc/cicada/tpcc_cicada.cc",
+          "cc/cicada/transaction.cc",
+          "cc/cicada/util.cc",
+          "cc/cicada/ycsb_cicada.cc",
+          "cc/d2pl/dbomb_d2pl.cc",
+          "cc/d2pl/sbomb_d2pl.cc",
+          "cc/d2pl/transaction.cc",
+          "cc/d2pl/util.cc",
+          "cc/ermia/bomb_ermia.cc",
+          "cc/ermia/garbage_collection.cc",
+          "cc/ermia/sbomb_ermia.cc",
+          "cc/ermia/tpcc_ermia.cc",
+          "cc/ermia/transaction.cc",
+          "cc/ermia/util.cc",
+          "cc/ermia/ycsb_ermia.cc",
+          "cc/mocc/bomb_mocc.cc",
+          "cc/mocc/lock.cc",
+          "cc/mocc/sbomb_mocc.cc",
+          "cc/mocc/tpcc_mocc.cc",
+          "cc/mocc/transaction.cc",
+          "cc/mocc/util.cc",
+          "cc/mocc/ycsb_mocc.cc",
+          "cc/mvto/bomb_mvto.cc",
+          "cc/mvto/tpcc_mvto.cc",
+          "cc/mvto/transaction.cc",
+          "cc/mvto/util.cc",
+          "cc/oze/bomb_oze.cc",
+          "cc/oze/debug.cc",
+          "cc/oze/tpcc_oze.cc",
+          "cc/oze/transaction.cc",
+          "cc/oze/util.cc",
+          "cc/oze/ycsb_oze.cc",
+          "cc/si/bomb_si.cc",
+          "cc/si/garbage_collection.cc",
+          "cc/si/sbomb_si.cc",
+          "cc/si/tpcc_si.cc",
+          "cc/si/transaction.cc",
+          "cc/si/util.cc",
+          "cc/si/ycsb_si.cc",
+          "cc/silo/bomb_silo.cc",
+          "cc/silo/replayTest.cc",
+          "cc/silo/sbomb_silo.cc",
+          "cc/silo/tpcc_silo.cc",
+          "cc/silo/transaction.cc",
+          "cc/silo/util.cc",
+          "cc/silo/ycsb_silo.cc",
+          "cc/ss2pl/bomb_ss2pl.cc",
+          "cc/ss2pl/ss2pl.cc",
+          "cc/ss2pl/tpcc_ss2pl.cc",
+          "cc/ss2pl/transaction.cc",
+          "cc/ss2pl/util.cc",
+          "cc/ss2pl/test/make_db_test.cpp",
+          "cc/tictoc/bomb_tictoc.cc",
+          "cc/tictoc/sbomb_tictoc.cc",
+          "cc/tictoc/tpcc_tictoc.cc",
+          "cc/tictoc/transaction.cc",
+          "cc/tictoc/util.cc",
+          "cc/tictoc/ycsb_tictoc.cc",
+          "common/result.cc",
+          "common/util.cc",
+          "microbench/fetch_add.cc",
+          "microbench/membench.cc",
+          "microbench/pow_test.cc",
+          "microbench/rdtscBench.cc",
+          "microbench/xoroshiro.cc",
+          "microbench/zipf_dist_test.cc",
+          "microbench/legacy/cache-test.cc",
+          "microbench/legacy/mcslock_with_timeout.c",
+          "microbench/legacy/masstree_simple_test/unit-mt.cc",
+          "microbench/legacy/masstree_simple_test/unit-mt2.cc"
+        ],
+        "parent_B_inventory": {
+          "files": 404,
+          "directories": 47,
+          "symlinks": 0,
+          "apparent_bytes": 1890875,
+          "symlink_bytes": 0,
+          "page_rounded_file_bytes": 2981888,
+          "page_size": 4096,
+          "nodes": 451,
+          "required_inodes": 451,
+          "copy_domain_sha256": "af6d797e26f4910ca4180a2d888db2ff07ff20b3657eeba41c0398a290c0ebef",
+          "excluded_names": [
+            ".git"
+          ]
+        },
+        "unprotected_compiler": {
+          "argv": [
+            "g++",
+            "-E",
+            "-x",
+            "c++",
+            "/tmp/izanagi_wt_iqpdt63s/wt/cc/cicada/bomb_cicada.cc"
+          ],
+          "returncode": 1,
+          "stderr": "/tmp/izanagi_wt_iqpdt63s/wt/cc/cicada/bomb_cicada.cc:1:2: error: #error T1994_ORIGINAL_TREE_B\n    1 | #error T1994_ORIGINAL_TREE_B\n      |  ^~~~~\n"
+        }
+      }
+    },
+    "stock_common:persistent:session_used": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:persistent:parent_rejected_B": {
+      "result": true,
+      "errno": null,
+      "rejection": "S8b build source snapshot \u3092\u5ba3\u8a00\u3078\u675f\u7e1b\u3067\u304d\u306a\u3044: ExpectedMaterializationError: snapshot root identity changed (reason=root-identity-after-build count=1)"
+    },
+    "stock_common:persistent:no_publish": {
+      "result": true,
+      "errno": null
+    },
+    "stock_common:persistent": {
+      "result": true,
+      "errno": null
+    },
+    "parent_namespaces_unchanged": {
+      "result": true,
+      "errno": null
+    },
+    "descendants_finished": {
+      "result": true,
+      "errno": null,
+      "remaining_pids": []
+    }
+  },
+  "environment": {
+    "hostname": "bnode001",
+    "kernel": "5.15.0-173-generic",
+    "libc": [
+      "glibc",
+      "2.35"
+    ],
+    "uid": 31609,
+    "argv": [
+      "/usr/bin/python3",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+      "--dependency-sources",
+      "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources"
+    ],
+    "exec_argv": [
+      "python3",
+      "-m",
+      "orchestrator.manual_probes.t1994_readonly_snapshot_qualification",
+      "--dependency-sources",
+      "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources"
+    ],
+    "parent_namespaces_before": {
+      "user": "user:[4026534702]",
+      "mnt": "mnt:[4026534701]"
+    },
+    "parent_namespaces_after": {
+      "user": "user:[4026534702]",
+      "mnt": "mnt:[4026534701]"
+    }
+  },
+  "time_budget": {
+    "timeout_s": null,
+    "population": null,
+    "observed_max_s": null,
+    "multiplier": null,
+    "same_regime": null,
+    "reason": "No qualified duration population exists for this regime. Driver/session/CMake calls have no timeout. Existing oracle semantic limits are recorded separately."
+  },
+  "limitations": [
+    "Only source substitution during build is measured; poisoned cache reuse is open.",
+    "Capabilities are trusted-producer values, not kernel attestation or signatures.",
+    "Hostile Python process-memory mutation is outside the trust boundary.",
+    "clone3 ENOSYS fallback evidence covers only the observed libc and commands.",
+    "Only one freeze entry each for stock_common and sort_best is qualified."
+  ],
+  "artifacts": {
+    "json": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/insights/2026-09-14/t1994-readonly-snapshot/qualification/run-xeo5_8qs/qualification.json",
+    "raw_log": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/insights/2026-09-14/t1994-readonly-snapshot/qualification/run-xeo5_8qs/raw.log"
+  },
+  "oracle_existing_limits": {
+    "source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/campaign/sort_swo_oracle.py",
+    "source_sha256": "50af147aa13eb1c6a523a20a6a313c62dd676ef09ce822728020869ff558adfd",
+    "compile_s": 8.0,
+    "run_s": 2.0,
+    "tool_identity_s": 2.0,
+    "scope": "Existing SWO oracle contract only, not qualification build time budgets."
+  },
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/external/ccbench",
+        "rev-parse",
+        "HEAD^{commit}"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.016017424000892788
+    },
+    {
+      "argv": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "--no-checkout",
+        "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources/masstree-src",
+        "/tmp/t1994-qualification-4jkjuq81/base/masstree-src"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.09185515100034536
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/tmp/t1994-qualification-4jkjuq81/base/masstree-src",
+        "checkout",
+        "--detach",
+        "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.011454565999883926
+    },
+    {
+      "argv": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "--no-checkout",
+        "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources/mimalloc-src",
+        "/tmp/t1994-qualification-4jkjuq81/base/mimalloc-src"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.0628874479989463
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/tmp/t1994-qualification-4jkjuq81/base/mimalloc-src",
+        "checkout",
+        "--detach",
+        "02a2f5df9d7d46d30263b83832eebeeab62dc5fe"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.030278272002760787
+    },
+    {
+      "argv": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "--no-checkout",
+        "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources/googletest-src",
+        "/tmp/t1994-qualification-4jkjuq81/base/googletest-src"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.076087664001534
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/tmp/t1994-qualification-4jkjuq81/base/googletest-src",
+        "checkout",
+        "--detach",
+        "f8d7d77c06936315286eb55f8de22cd23c188571"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.033659896998869954
+    },
+    {
+      "argv": [
+        "/usr/bin/cmake",
+        "-S",
+        "/tmp/izanagi_wt_x2b19d20/wt",
+        "-B",
+        "/tmp/t1994-qualification-4jkjuq81/base/izanagi-masstree-prebuild",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DFETCHCONTENT_BASE_DIR=/tmp/t1994-qualification-4jkjuq81/base",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/t1994-qualification-4jkjuq81/base/masstree-src",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/tmp/t1994-qualification-4jkjuq81/base/mimalloc-src",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/tmp/t1994-qualification-4jkjuq81/base/googletest-src"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 1.3367494019985315
+    },
+    {
+      "argv": [
+        "/usr/bin/cmake",
+        "--build",
+        "/tmp/t1994-qualification-4jkjuq81/base/izanagi-masstree-prebuild",
+        "--target",
+        "masstree_build",
+        "-j",
+        "48"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 10.630382741997892
+    }
+  ],
+  "toolchain": {
+    "cc": {
+      "requested": "gcc",
+      "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+      "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+      "version": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+    },
+    "cxx": {
+      "requested": "g++",
+      "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+      "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+      "version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+    },
+    "cmake": {
+      "requested": "cmake",
+      "realpath": "/usr/bin/cmake",
+      "version_first_line": "cmake version 3.22.1",
+      "version": "cmake version 3.22.1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake)."
+    }
+  },
+  "ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+  "declarations": {
+    "freeze": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/s8b-freeze/holdout_freeze.json",
+    "freeze_sha256": "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688",
+    "holdout": "rr80"
+  },
+  "contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+  "publication_failure_cases": {
+    "_real_session_parent_drift_or_exit_failure_never_publishes_case": {
+      "case": "_real_session_parent_drift_or_exit_failure_never_publishes_case",
+      "completed": true,
+      "attack": "root-replacement",
+      "elapsed_s": 0.5443424740005867
+    },
+    "_descriptor_build_failure_cannot_become_second_build_hit_case": {
+      "case": "_descriptor_build_failure_cannot_become_second_build_hit_case",
+      "completed": true,
+      "attack": "persistent-drift",
+      "elapsed_s": 0.6843338329999824
+    }
+  },
+  "capability_state_cases": {
+    "capabilities": {
+      "case": "_shared_readonly_file_capability_and_userns_controls_case",
+      "completed": true,
+      "state": "capabilities",
+      "elapsed_s": 0.49214887199923396
+    },
+    "dropped": {
+      "case": "_shared_readonly_file_capability_and_userns_controls_case",
+      "completed": true,
+      "state": "dropped",
+      "elapsed_s": 0.4931454110010236
+    },
+    "regained": {
+      "case": "_shared_readonly_file_capability_and_userns_controls_case",
+      "completed": true,
+      "state": "regained",
+      "elapsed_s": 0.49392361900027026
+    },
+    "filtered": {
+      "case": "_shared_readonly_file_capability_and_userns_controls_case",
+      "completed": true,
+      "state": "filtered",
+      "elapsed_s": 0.4928665250008635
+    }
+  },
+  "control": {
+    "pid": 3143248,
+    "exit": 0,
+    "observation": {
+      "before_drop_write_errno": 0,
+      "after_drop_write_errno": 13,
+      "attacks_without_filter": {
+        "unshare": {
+          "pid": 3143249,
+          "exit": 0,
+          "observation": {
+            "errno": 0,
+            "namespace_created": true,
+            "shared_write_errno": 0
+          }
+        },
+        "clone": {
+          "pid": 3143250,
+          "exit": 0,
+          "observation": {
+            "errno": 0,
+            "namespace_created": true,
+            "nested_child_exit": 0
+          }
+        },
+        "clone3": {
+          "pid": 3143252,
+          "exit": 0,
+          "observation": {
+            "errno": 0,
+            "namespace_created": true,
+            "nested_child_exit": 0
+          }
+        }
+      }
+    }
+  },
+  "dependency": {
+    "dependency_root": "/tmp/t1994-qualification-4jkjuq81/base/masstree-src",
+    "dependency_expected_head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+    "dependency_head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+    "dependency_config_sha256": "e9a4ecd3dfb9aef9c159e99cb2b7000651a2036ec909095f750b2c891404694a",
+    "dependency_archive_sha256": "ed3c9b7f41d7b6eb66c00a7d440c32796814250269b5fd7871cc128c30afd13b",
+    "dependency_archive_nondebug_sha256": "844334920db6592852abaa36b2320929bbaf16a7323a7b011ec821dfed7bd514",
+    "dependency_toolchain_manifest_sha256": "61f756352ad21e05f3fc52d94f3249db25f23cf43ca43248a64f405183c48fbd",
+    "dependency_source_st_dev": 66309,
+    "dependency_source_st_ino": 268642210,
+    "oracle_dependency_root": "/tmp/t1994-qualification-4jkjuq81/base/.sort-swo-dependency-xy_5krq0/canonical",
+    "dependency_manifest_sha256": "8d0151cfaa0b86d1a2753e69f514633ec2fe6ee1077caed819fd3a426b501875"
+  },
+  "builds": {
+    "stock_common:aba": {
+      "configuration": "stock_common",
+      "attack": "aba",
+      "session_commands": [
+        {
+          "argv": [
+            "/usr/bin/python3",
+            "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+            "--internal",
+            "sealed",
+            "/tmp/izanagi_wt_lfx_47sx/wt",
+            "/tmp/t1994-qualification-4jkjuq81/base/qualification-shared/shared-0444"
+          ],
+          "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification",
+          "timeout_s": null,
+          "ccache_environment": {},
+          "returncode": 0,
+          "elapsed_s": 0.09903239499908523
+        },
+        {
+          "argv": [
+            "/usr/bin/cmake",
+            "-S",
+            "/tmp/izanagi_wt_lfx_47sx/wt",
+            "-B",
+            "/tmp/t1994-qualification-4jkjuq81/cache-stock_common-aba/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-e6c9404077d13219f47b57e82b37d124",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DENABLE_SANITIZER=OFF",
+            "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+            "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+            "-DFETCHCONTENT_BASE_DIR=/tmp/t1994-qualification-4jkjuq81/base",
+            "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/t1994-qualification-4jkjuq81/base/masstree-src",
+            "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/tmp/t1994-qualification-4jkjuq81/base/mimalloc-src",
+            "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/tmp/t1994-qualification-4jkjuq81/base/googletest-src",
+            "-DCCBENCH_BACK_OFF=1",
+            "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+            "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+            "-DCCBENCH_WAL=0",
+            "-DCCBENCH_TRACE=0"
+          ],
+          "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification",
+          "timeout_s": null,
+          "ccache_environment": {},
+          "returncode": 0,
+          "elapsed_s": 0.7732553589994495
+        },
+        {
+          "argv": [
+            "/usr/bin/cmake",
+            "--build",
+            "/tmp/t1994-qualification-4jkjuq81/cache-stock_common-aba/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-e6c9404077d13219f47b57e82b37d124",
+            "--target",
+            "ycsb_silo.exe",
+            "-j",
+            "48"
+          ],
+          "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification",
+          "timeout_s": null,
+          "ccache_environment": {},
+          "returncode": 0,
+          "elapsed_s": 4.4112315450001915
+        },
+        {
+          "argv": [
+            "/usr/bin/python3",
+            "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+            "--internal",
+            "inventory",
+            "/tmp/izanagi_wt_lfx_47sx/wt"
+          ],
+          "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification",
+          "timeout_s": null,
+          "ccache_environment": {},
+          "returncode": 0,
+          "elapsed_s": 0.09042787499856786
+        }
+      ],
+      "ccache": {
+        "launcher": "unused",
+        "cache_dir": null,
+        "temporary_dir": null,
+        "log_file": null,
+        "status": "unused",
+        "cmake_entries": {
+          "CCACHE_PROGRAM": "CCACHE_PROGRAM-NOTFOUND",
+          "CCBENCH_CCACHE": "ON"
+        },
+        "generated_recipe_lines": []
+      },
+      "descriptor_sha256": "92e6df6889a4d5a0b4c7ad350689f87ab93eec5384bcd329dc4651c1a8ac302a",
+      "descriptor": {
+        "configuration": "stock_common",
+        "ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+        "declaration": {
+          "flags": {
+            "BACK_OFF": 1,
+            "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+            "NO_WAIT_OF_TICTOC": 0,
+            "WAL": 0
+          },
+          "sources": [
+            {
+              "path": "external/ccbench/cmake/Options.cmake",
+              "sha256": "7f8656c10610aa15a66258dd2aca01d1230fe15ee31bf9944225019d42d66651",
+              "key": "four CACHE defaults and BACK_OFF universal mapping",
+              "lines": [
+                "20: set(CCBENCH_BACK_OFF      1 CACHE STRING \"exponential backoff on abort\")",
+                "27: set(CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION  1 CACHE STRING \"\")",
+                "28: set(CCBENCH_NO_WAIT_OF_TICTOC              0 CACHE STRING \"\")",
+                "47: set(CCBENCH_WAL                           0 CACHE STRING \"silo\")",
+                "63:     BACK_OFF=${CCBENCH_BACK_OFF}"
+              ]
+            },
+            {
+              "path": "external/ccbench/cc/silo/CMakeLists.txt",
+              "sha256": "91af7720e82f0629cffdf9a1278695d764b48a620a7468728dc4a392df01096f",
+              "key": "silo target mappings for three protocol flags",
+              "lines": [
+                "5:     NO_WAIT_LOCKING_IN_VALIDATION=${CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION}",
+                "6:     NO_WAIT_OF_TICTOC=${CCBENCH_NO_WAIT_OF_TICTOC}",
+                "10:     WAL=${CCBENCH_WAL}"
+              ]
+            }
+          ]
+        },
+        "template_patch_path": null
+      },
+      "copy_target": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "rename_attack": {
+        "status": "blocked",
+        "source_renamed": true,
+        "ancestor_renamed": true,
+        "poisoned_paths": [
+          "cc/cicada/bomb_cicada.cc",
+          "cc/cicada/sbomb_cicada.cc",
+          "cc/cicada/testzip.cc",
+          "cc/cicada/tpcc_cicada.cc",
+          "cc/cicada/transaction.cc",
+          "cc/cicada/util.cc",
+          "cc/cicada/ycsb_cicada.cc",
+          "cc/d2pl/dbomb_d2pl.cc",
+          "cc/d2pl/sbomb_d2pl.cc",
+          "cc/d2pl/transaction.cc",
+          "cc/d2pl/util.cc",
+          "cc/ermia/bomb_ermia.cc",
+          "cc/ermia/garbage_collection.cc",
+          "cc/ermia/sbomb_ermia.cc",
+          "cc/ermia/tpcc_ermia.cc",
+          "cc/ermia/transaction.cc",
+          "cc/ermia/util.cc",
+          "cc/ermia/ycsb_ermia.cc",
+          "cc/mocc/bomb_mocc.cc",
+          "cc/mocc/lock.cc",
+          "cc/mocc/sbomb_mocc.cc",
+          "cc/mocc/tpcc_mocc.cc",
+          "cc/mocc/transaction.cc",
+          "cc/mocc/util.cc",
+          "cc/mocc/ycsb_mocc.cc",
+          "cc/mvto/bomb_mvto.cc",
+          "cc/mvto/tpcc_mvto.cc",
+          "cc/mvto/transaction.cc",
+          "cc/mvto/util.cc",
+          "cc/oze/bomb_oze.cc",
+          "cc/oze/debug.cc",
+          "cc/oze/tpcc_oze.cc",
+          "cc/oze/transaction.cc",
+          "cc/oze/util.cc",
+          "cc/oze/ycsb_oze.cc",
+          "cc/si/bomb_si.cc",
+          "cc/si/garbage_collection.cc",
+          "cc/si/sbomb_si.cc",
+          "cc/si/tpcc_si.cc",
+          "cc/si/transaction.cc",
+          "cc/si/util.cc",
+          "cc/si/ycsb_si.cc",
+          "cc/silo/bomb_silo.cc",
+          "cc/silo/replayTest.cc",
+          "cc/silo/sbomb_silo.cc",
+          "cc/silo/tpcc_silo.cc",
+          "cc/silo/transaction.cc",
+          "cc/silo/util.cc",
+          "cc/silo/ycsb_silo.cc",
+          "cc/ss2pl/bomb_ss2pl.cc",
+          "cc/ss2pl/ss2pl.cc",
+          "cc/ss2pl/tpcc_ss2pl.cc",
+          "cc/ss2pl/transaction.cc",
+          "cc/ss2pl/util.cc",
+          "cc/ss2pl/test/make_db_test.cpp",
+          "cc/tictoc/bomb_tictoc.cc",
+          "cc/tictoc/sbomb_tictoc.cc",
+          "cc/tictoc/tpcc_tictoc.cc",
+          "cc/tictoc/transaction.cc",
+          "cc/tictoc/util.cc",
+          "cc/tictoc/ycsb_tictoc.cc",
+          "common/result.cc",
+          "common/util.cc",
+          "microbench/fetch_add.cc",
+          "microbench/membench.cc",
+          "microbench/pow_test.cc",
+          "microbench/rdtscBench.cc",
+          "microbench/xoroshiro.cc",
+          "microbench/zipf_dist_test.cc",
+          "microbench/legacy/cache-test.cc",
+          "microbench/legacy/mcslock_with_timeout.c",
+          "microbench/legacy/masstree_simple_test/unit-mt.cc",
+          "microbench/legacy/masstree_simple_test/unit-mt2.cc"
+        ],
+        "parent_B_inventory": {
+          "files": 404,
+          "directories": 47,
+          "symlinks": 0,
+          "apparent_bytes": 1890875,
+          "symlink_bytes": 0,
+          "page_rounded_file_bytes": 2981888,
+          "page_size": 4096,
+          "nodes": 451,
+          "required_inodes": 451,
+          "copy_domain_sha256": "af6d797e26f4910ca4180a2d888db2ff07ff20b3657eeba41c0398a290c0ebef",
+          "excluded_names": [
+            ".git"
+          ]
+        },
+        "unprotected_compiler": {
+          "argv": [
+            "g++",
+            "-E",
+            "-x",
+            "c++",
+            "/tmp/izanagi_wt_lfx_47sx/wt/cc/cicada/bomb_cicada.cc"
+          ],
+          "returncode": 1,
+          "stderr": "/tmp/izanagi_wt_lfx_47sx/wt/cc/cicada/bomb_cicada.cc:1:2: error: #error T1994_ORIGINAL_TREE_B\n    1 | #error T1994_ORIGINAL_TREE_B\n      |  ^~~~~\n"
+        }
+      },
+      "seal": {
+        "inventory": {
+          "files": 404,
+          "directories": 47,
+          "symlinks": 0,
+          "apparent_bytes": 2352405,
+          "symlink_bytes": 0,
+          "page_rounded_file_bytes": 3321856,
+          "page_size": 4096,
+          "nodes": 451,
+          "required_inodes": 451,
+          "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+          "excluded_names": [
+            ".git"
+          ]
+        },
+        "mountinfo": "1012 1011 259:5 / / rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n1013 1012 0:5 / /dev rw,nosuid,relatime - devtmpfs udev rw,size=65208292k,nr_inodes=16302073,mode=755,inode64\n1014 1013 0:24 / /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=000\n1015 1013 0:27 / /dev/shm rw,nosuid,nodev - tmpfs tmpfs rw,inode64\n1016 1013 0:34 / /dev/hugepages rw,relatime - hugetlbfs hugetlbfs rw,pagesize=2M\n1017 1013 0:20 / /dev/mqueue rw,nosuid,nodev,noexec,relatime - mqueue mqueue rw\n1018 1012 0:25 / /run rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053632k,mode=755,inode64\n1019 1018 0:28 / /run/lock rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=5120k,inode64\n1020 1018 0:36 / /run/credentials/systemd-sysusers.service ro,nosuid,nodev,noexec,relatime - ramfs none rw,mode=700\n1021 1018 0:40 / /run/rpc_pipefs rw,relatime - rpc_pipefs sunrpc rw\n1022 1018 0:25 /snapd/ns /run/snapd/ns rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053632k,mode=755,inode64\n1023 1012 0:22 / /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw\n1024 1023 0:6 / /sys/kernel/security rw,nosuid,nodev,noexec,relatime - securityfs securityfs rw\n1025 1023 0:29 / /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime - cgroup2 cgroup2 rw,nsdelegate,memory_recursiveprot\n1026 1023 0:30 / /sys/fs/pstore rw,nosuid,nodev,noexec,relatime - pstore pstore rw\n1027 1023 0:31 / /sys/firmware/efi/efivars rw,nosuid,nodev,noexec,relatime - efivarfs efivarfs rw\n1028 1023 0:32 / /sys/fs/bpf rw,nosuid,nodev,noexec,relatime - bpf bpf rw,mode=700\n1029 1023 0:7 / /sys/kernel/debug rw,nosuid,nodev,noexec,relatime - debugfs debugfs rw\n1030 1029 0:12 / /sys/kernel/debug/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n1031 1023 0:12 / /sys/kernel/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n1032 1023 0:35 / /sys/fs/fuse/connections rw,nosuid,nodev,noexec,relatime - fusectl fusectl rw\n1033 1023 0:21 / /sys/kernel/config rw,nosuid,nodev,noexec,relatime - configfs configfs rw\n1034 1012 0:23 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw\n1035 1034 0:33 / /proc/sys/fs/binfmt_misc rw,relatime - autofs systemd-1 rw,fd=29,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=29709\n1036 1035 0:37 / /proc/sys/fs/binfmt_misc rw,nosuid,nodev,noexec,relatime - binfmt_misc binfmt_misc rw\n1037 1012 7:0 / /snap/core20/2866 ro,nodev,relatime - squashfs /dev/loop0 ro,errors=continue\n1038 1012 7:1 / /snap/core20/2922 ro,nodev,relatime - squashfs /dev/loop1 ro,errors=continue\n1039 1012 7:2 / /snap/lxd/40364 ro,nodev,relatime - squashfs /dev/loop2 ro,errors=continue\n1040 1012 7:3 / /snap/lxd/40526 ro,nodev,relatime - squashfs /dev/loop3 ro,errors=continue\n1041 1012 7:4 / /snap/snapd/27710 ro,nodev,relatime - squashfs /dev/loop4 ro,errors=continue\n1042 1012 7:5 / /snap/snapd/27738 ro,nodev,relatime - squashfs /dev/loop5 ro,errors=continue\n1043 1012 259:6 / /var/opt/nec/nqsv/jsv/jobfile rw,relatime - xfs /dev/nvme0n1p5 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n1044 1012 259:3 / /boot rw,relatime - xfs /dev/nvme0n1p2 rw,attr2,inode64,logbufs=8,logbsize=32k,noquota\n1045 1044 259:2 / /boot/efi rw,relatime - vfat /dev/nvme0n1p1 rw,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro\n1046 1012 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1047 1046 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1048 1047 1273:181606 /1 /work/1 rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1049 1048 1273:181606 /1/SFC /work/1/SFC rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1050 1049 1273:181606 /1/SFC/tanab /work/1/SFC/tanab rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1051 1050 1273:181606 /1/SFC/tanab/izanagi /work/1/SFC/tanab/izanagi rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1052 1051 1273:181606 /1/SFC/tanab/izanagi/.claude /work/1/SFC/tanab/izanagi/.claude rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1053 1052 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees /work/1/SFC/tanab/izanagi/.claude/worktrees rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1054 1053 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1055 1054 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1056 1055 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1057 1056 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/1ffdfc7fd8fad93d6fd1929ca6a2e7d8 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/1ffdfc7fd8fad93d6fd1929ca6a2e7d8 ro - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n1058 1012 1273:181606 / /system rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/system rw,flock,user_xattr,lazystatfs,encrypt\n1059 1012 1273:181606 / /home rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/home rw,flock,user_xattr,lazystatfs,encrypt\n1060 1012 9:0 / /scr rw,relatime - xfs /dev/md0 rw,attr2,inode64,logbufs=8,logbsize=32k,sunit=1024,swidth=2048,noquota\n1061 1012 259:10 / /pmem rw,noatime - ext4 /dev/pmem0 rw,dax=always\n1062 1012 0:46 / /tmp ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n1063 1062 0:55 / /tmp/izanagi_wt_lfx_47sx ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n1064 1062 259:5 /tmp/t1994-qualification-4jkjuq81/base /tmp/t1994-qualification-4jkjuq81/base rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n1065 1062 259:5 /tmp/t1994-qualification-4jkjuq81/cache-stock_common-aba /tmp/t1994-qualification-4jkjuq81/cache-stock_common-aba rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n1066 1063 0:56 / /tmp/izanagi_wt_lfx_47sx/wt ro,relatime - tmpfs tmpfs rw,size=11124k,uid=31609,gid=30410,inode64\n",
+        "source_mounts": [
+          "1066 1063 0:56 / /tmp/izanagi_wt_lfx_47sx/wt ro,relatime - tmpfs tmpfs rw,size=11124k,uid=31609,gid=30410,inode64"
+        ],
+        "chmod_errno": 30,
+        "write_errno": 13,
+        "read_unchanged": true,
+        "git_absent": true,
+        "tmpfs": {
+          "fragment_size": 4096,
+          "used_bytes": 3321856,
+          "used_inodes": 451
+        },
+        "status": "Name:\tpython3\nUmask:\t0022\nState:\tR (running)\nTgid:\t3145257\nNgid:\t0\nPid:\t3145257\nPPid:\t3145244\nTracerPid:\t0\nUid:\t31609\t31609\t31609\t31609\nGid:\t30410\t30410\t30410\t30410\nFDSize:\t64\nGroups:\t65534 30410 \nNStgid:\t3145257\nNSpid:\t3145257\nNSpgid:\t3143121\nNSsid:\t3143121\nVmPeak:\t   36840 kB\nVmSize:\t   36840 kB\nVmLck:\t       0 kB\nVmPin:\t       0 kB\nVmHWM:\t   24800 kB\nVmRSS:\t   24800 kB\nRssAnon:\t   14856 kB\nRssFile:\t    9944 kB\nRssShmem:\t       0 kB\nVmData:\t   17268 kB\nVmStk:\t     132 kB\nVmExe:\t    2772 kB\nVmLib:\t    5700 kB\nVmPTE:\t     116 kB\nVmSwap:\t       0 kB\nHugetlbPages:\t       0 kB\nCoreDumping:\t0\nTHP_enabled:\t1\nThreads:\t1\nSigQ:\t0/509439\nSigPnd:\t0000000000000000\nShdPnd:\t0000000000000000\nSigBlk:\t0000000000000000\nSigIgn:\t0000000001005000\nSigCgt:\t0000000000000002\nCapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapBnd:\t0000000000000000\nCapAmb:\t0000000000000000\nNoNewPrivs:\t1\nSeccomp:\t2\nSeccomp_filters:\t1\nSpeculation_Store_Bypass:\tthread force mitigated\nSpeculationIndirectBranch:\tconditional force disabled\nCpus_allowed:\tffff,ffffffff\nCpus_allowed_list:\t0-47\nMems_allowed:\t00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001\nMems_allowed_list:\t0\nvoluntary_ctxt_switches:\t12\nnonvoluntary_ctxt_switches:\t0\n",
+        "shared_write_errno": 13,
+        "attacks_with_filter": {
+          "unshare": {
+            "pid": 3145258,
+            "exit": 0,
+            "observation": {
+              "errno": 1,
+              "namespace_created": false
+            }
+          },
+          "clone": {
+            "pid": 3145259,
+            "exit": 0,
+            "observation": {
+              "errno": 1,
+              "namespace_created": false
+            }
+          },
+          "clone3": {
+            "pid": 3145260,
+            "exit": 0,
+            "observation": {
+              "errno": 38,
+              "namespace_created": false
+            }
+          }
+        },
+        "namespaces": {
+          "user": "user:[4026534703]",
+          "mnt": "mnt:[4026534704]"
+        }
+      },
+      "compiler_read_view_after_build": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "parent_checks": [
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_source_snapshot_sha256",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_masstree_source_root_from_cmake_cache",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_collect_compiler_inputs",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_source_snapshot_sha256",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_recheck_source_evidence",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        }
+      ],
+      "cache_completion_files_before_restore": [
+        "contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/54499c3d1464d86230f9fb7821e655084a56494e2adc87322b69dea54c7db857/completion.json"
+      ],
+      "cache_binaries_before_restore": [
+        "contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/54499c3d1464d86230f9fb7821e655084a56494e2adc87322b69dea54c7db857/cc/silo/ycsb_silo.exe"
+      ],
+      "parent_inventory_at_return": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "provenance": {
+        "configure_argv": [
+          "/usr/bin/cmake",
+          "-S",
+          "/tmp/izanagi_wt_lfx_47sx/wt",
+          "-B",
+          "/tmp/t1994-qualification-4jkjuq81/cache-stock_common-aba/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/54499c3d1464d86230f9fb7821e655084a56494e2adc87322b69dea54c7db857",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DENABLE_SANITIZER=OFF",
+          "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+          "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+          "-DFETCHCONTENT_BASE_DIR=/tmp/t1994-qualification-4jkjuq81/base",
+          "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/t1994-qualification-4jkjuq81/base/masstree-src",
+          "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/tmp/t1994-qualification-4jkjuq81/base/mimalloc-src",
+          "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/tmp/t1994-qualification-4jkjuq81/base/googletest-src",
+          "-DCCBENCH_BACK_OFF=1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_WAL=0",
+          "-DCCBENCH_TRACE=0"
+        ],
+        "build_argv": [
+          "/usr/bin/cmake",
+          "--build",
+          "/tmp/t1994-qualification-4jkjuq81/cache-stock_common-aba/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/54499c3d1464d86230f9fb7821e655084a56494e2adc87322b69dea54c7db857",
+          "--target",
+          "ycsb_silo.exe",
+          "-j",
+          "48"
+        ],
+        "binary_sha256": "1afcb5cf245b9fd453996cd85571df038f856a579857d101ca00460801ec065c",
+        "compiler_input_manifest_sha256": "5fc1a6091d59a01a09a38a9d27e1fca7c35b9926c19894855130d4d0a5c468f2",
+        "source_snapshot_sha256": "0e6e99e6aa480a41dd01f6c464047b0df07d3148dce9e0406381be997ca5955f",
+        "expected_materialization_sha256": "0e6e99e6aa480a41dd01f6c464047b0df07d3148dce9e0406381be997ca5955f",
+        "source_protection": {
+          "kind": "sealed-build",
+          "source_snapshot_sha256": "0e6e99e6aa480a41dd01f6c464047b0df07d3148dce9e0406381be997ca5955f",
+          "expected_materialization_sha256": "0e6e99e6aa480a41dd01f6c464047b0df07d3148dce9e0406381be997ca5955f",
+          "binary_sha256": "1afcb5cf245b9fd453996cd85571df038f856a579857d101ca00460801ec065c",
+          "compiler_input_manifest_sha256": "5fc1a6091d59a01a09a38a9d27e1fca7c35b9926c19894855130d4d0a5c468f2"
+        },
+        "toolchain_manifest": {
+          "cc": {
+            "requested": "gcc",
+            "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+            "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+            "version": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+          },
+          "cxx": {
+            "requested": "g++",
+            "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+            "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+            "version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+          },
+          "cmake": {
+            "requested": "cmake",
+            "realpath": "/usr/bin/cmake",
+            "version_first_line": "cmake version 3.22.1",
+            "version": "cmake version 3.22.1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake)."
+          }
+        }
+      }
+    },
+    "sort_best:none": {
+      "configuration": "sort_best",
+      "attack": "none",
+      "session_commands": [
+        {
+          "argv": [
+            "/usr/bin/python3",
+            "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+            "--internal",
+            "sealed",
+            "/tmp/izanagi_wt_otno83zh/wt",
+            "/tmp/t1994-qualification-4jkjuq81/base/qualification-shared/shared-0444"
+          ],
+          "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification",
+          "timeout_s": null,
+          "ccache_environment": {},
+          "returncode": 0,
+          "elapsed_s": 0.1001620559982257
+        },
+        {
+          "argv": [
+            "/usr/bin/cmake",
+            "-S",
+            "/tmp/izanagi_wt_otno83zh/wt",
+            "-B",
+            "/tmp/t1994-qualification-4jkjuq81/cache-sort_best-none/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-1d423720e910f085c0661ac8c9c8e96a",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DENABLE_SANITIZER=OFF",
+            "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+            "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+            "-DFETCHCONTENT_BASE_DIR=/tmp/t1994-qualification-4jkjuq81/base",
+            "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+            "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/t1994-qualification-4jkjuq81/base/masstree-src",
+            "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/tmp/t1994-qualification-4jkjuq81/base/mimalloc-src",
+            "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/tmp/t1994-qualification-4jkjuq81/base/googletest-src",
+            "-DCCBENCH_BACK_OFF=1",
+            "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+            "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+            "-DCCBENCH_SORT_VARIANT=1",
+            "-DCCBENCH_WAL=0",
+            "-DCCBENCH_TRACE=0"
+          ],
+          "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification",
+          "timeout_s": null,
+          "ccache_environment": {},
+          "returncode": 0,
+          "elapsed_s": 0.7772895689995494
+        },
+        {
+          "argv": [
+            "/usr/bin/cmake",
+            "--build",
+            "/tmp/t1994-qualification-4jkjuq81/cache-sort_best-none/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-1d423720e910f085c0661ac8c9c8e96a",
+            "--target",
+            "ycsb_silo.exe",
+            "-j",
+            "48"
+          ],
+          "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification",
+          "timeout_s": null,
+          "ccache_environment": {},
+          "returncode": 0,
+          "elapsed_s": 4.337056441996538
+        },
+        {
+          "argv": [
+            "/usr/bin/python3",
+            "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+            "--internal",
+            "inventory",
+            "/tmp/izanagi_wt_otno83zh/wt"
+          ],
+          "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification",
+          "timeout_s": null,
+          "ccache_environment": {},
+          "returncode": 0,
+          "elapsed_s": 0.09005361999879824
+        }
+      ],
+      "ccache": {
+        "launcher": "unused",
+        "cache_dir": null,
+        "temporary_dir": null,
+        "log_file": null,
+        "status": "unused",
+        "cmake_entries": {
+          "CCACHE_PROGRAM": "CCACHE_PROGRAM-NOTFOUND",
+          "CCBENCH_CCACHE": "ON"
+        },
+        "generated_recipe_lines": []
+      },
+      "descriptor_sha256": "fbcfd23562e960de735a648a5b0841bb30fbc9d56873a328933f877612518bc2",
+      "descriptor": {
+        "configuration": "sort_best",
+        "ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+        "declaration": {
+          "name": "sk_ad",
+          "flags": {
+            "BACK_OFF": 1,
+            "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+            "NO_WAIT_OF_TICTOC": 0,
+            "WAL": 0,
+            "SORT_VARIANT": 1
+          },
+          "comparator": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? a.storage_ < b.storage_\n                                         : b.key_ < a.key_;\n       });",
+          "note": "read-heavy \u306f sweep \u672a\u5b9f\u65bd\u3002D52 \u00a72.1 \u306e\u4e8b\u524d\u56fa\u5b9a sk_ad \u3092\u63a1\u7528\u3057\u3001comparator \u306f write-heavy \u672c\u8d70 provenance \u304b\u3089\u6d41\u7528\u3002",
+          "sources": [
+            {
+              "path": "docs/phase3-main-experiment.md",
+              "sha256": "e544de1969dd4df13dc42aa3d165e22b70fab2ab399dc011baa46359727bea45",
+              "key": "D52 2026-07-12\u8ffd\u8a18: read-heavy sk_ad\u4e8b\u524d\u56fa\u5b9a"
+            },
+            {
+              "path": "output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json",
+              "sha256": "42aad55fd9fc57360ec3beff429ccebee1ba0f41288a10e52d12a71c547fcdc7",
+              "key": "entries.sk_ad.implementation"
+            },
+            {
+              "path": "orchestrator/campaign/s6_sort_sweep.py",
+              "sha256": "0c7dcd30caf7a1e6bd97273c9273ae808516a5cdea5ce004b060edfaa29888a2",
+              "key": "_genome(1) and candidate space"
+            },
+            {
+              "path": "orchestrator/campaign/p3_s4_loop_sort.py",
+              "sha256": "9b64f34bac3711f2384fd89e8d387e2e9d736af6e2d7c9b246c059b52267dbf4",
+              "key": "_BASE used by _genome(1)"
+            }
+          ]
+        },
+        "template_patch_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/patches/silo-sort-variant.patch"
+      },
+      "copy_target": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2354746,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3325952,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "78a815ac8d8b0cd6b87a6ddbcbdcc252b1fd8be0ea7d8d1d7ecdcc24b50b4016",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "oracle_attempt": {
+        "event": "sort-swo-oracle-attempt",
+        "classification": "pass",
+        "reason_code": "sort-swo-oracle-pass",
+        "oracle_contract_id": "sort-swo-v5-corpus2-protocol3-checker4-grammar2-xcc26c4322fe96e7e9427ace317c5b46f3c3d382b00bdbf937bbab595cbe0c60f-c7d25fac23469-tu7732f044d8ab-f3caa77f8111f-a091abb17ccad",
+        "materialized_hole_sha256": "b72f3c57a677571efe6223dbe344d68f4b61ff363f72c28c6211d4db37a0603e",
+        "proposal_sha256": "2b571448c17553d4a67f2381ae05728ba5e28a5c5180cd91080e92351beea38f",
+        "oracle_receipt": {
+          "contract_id": "sort-swo-v5-corpus2-protocol3-checker4-grammar2-xcc26c4322fe96e7e9427ace317c5b46f3c3d382b00bdbf937bbab595cbe0c60f-c7d25fac23469-tu7732f044d8ab-f3caa77f8111f-a091abb17ccad",
+          "materialized_hole_sha256": "b72f3c57a677571efe6223dbe344d68f4b61ff363f72c28c6211d4db37a0603e",
+          "proposal_sha256": "2b571448c17553d4a67f2381ae05728ba5e28a5c5180cd91080e92351beea38f",
+          "corpus_id": "sort-swo-corpus-v2",
+          "corpus_version": 2,
+          "compiler_realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+          "compiler_version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+          "compile_flags_sha256": "3caa77f8111ff611183eaec0acfdff11eb75d74c81a3bfec66262674921c3b25",
+          "tu_sha256": "0b4325eec8794153f8a9c14406b2ce04151472f71a2ed0df785681fff245c5b3",
+          "tu_template_sha256": "7732f044d8ab2b657231cfeb132f59a981b761b9ac62a8d61e6b5338140083e4",
+          "dependency_root_realpath": "/tmp/izanagi_sort_swo_lgg1d_56/verified-masstree",
+          "dependency_config_sha256": "e9a4ecd3dfb9aef9c159e99cb2b7000651a2036ec909095f750b2c891404694a",
+          "dependency_manifest_sha256": "8d0151cfaa0b86d1a2753e69f514633ec2fe6ee1077caed819fd3a426b501875",
+          "guarantee_boundary": "guarantees[admitted-ir-trusted-matrix,versioned-corpus-real-tu-byte-exact-conformance,contract-bound-pointer-mapping,candidate-corpus-mutation-is-impossible,candidate-protocol-frame-write-is-impossible];does-not-guarantee[arbitrary-cpp-or-all-input-swo];mode[constructive-swo-membership-not-dynamic-candidate-swo-search]"
+        }
+      },
+      "post_oracle_binding": {
+        "fetchcontent_base_dir": "/tmp/t1994-qualification-4jkjuq81/base",
+        "oracle_dependency_root": "/tmp/t1994-qualification-4jkjuq81/base/.sort-swo-dependency-xy_5krq0/canonical",
+        "dependency_manifest_sha256": "8d0151cfaa0b86d1a2753e69f514633ec2fe6ee1077caed819fd3a426b501875",
+        "masstree_head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+        "config_sha256": "e9a4ecd3dfb9aef9c159e99cb2b7000651a2036ec909095f750b2c891404694a",
+        "archive_sha256": "ed3c9b7f41d7b6eb66c00a7d440c32796814250269b5fd7871cc128c30afd13b"
+      },
+      "rename_attack": {
+        "status": "not-started",
+        "source_renamed": false,
+        "ancestor_renamed": false
+      },
+      "seal": {
+        "inventory": {
+          "files": 404,
+          "directories": 47,
+          "symlinks": 0,
+          "apparent_bytes": 2354746,
+          "symlink_bytes": 0,
+          "page_rounded_file_bytes": 3325952,
+          "page_size": 4096,
+          "nodes": 451,
+          "required_inodes": 451,
+          "copy_domain_sha256": "78a815ac8d8b0cd6b87a6ddbcbdcc252b1fd8be0ea7d8d1d7ecdcc24b50b4016",
+          "excluded_names": [
+            ".git"
+          ]
+        },
+        "mountinfo": "632 631 259:5 / / rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n633 632 0:5 / /dev rw,nosuid,relatime - devtmpfs udev rw,size=65208292k,nr_inodes=16302073,mode=755,inode64\n634 633 0:24 / /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=000\n635 633 0:27 / /dev/shm rw,nosuid,nodev - tmpfs tmpfs rw,inode64\n637 633 0:34 / /dev/hugepages rw,relatime - hugetlbfs hugetlbfs rw,pagesize=2M\n638 633 0:20 / /dev/mqueue rw,nosuid,nodev,noexec,relatime - mqueue mqueue rw\n715 632 0:25 / /run rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053632k,mode=755,inode64\n716 715 0:28 / /run/lock rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=5120k,inode64\n717 715 0:36 / /run/credentials/systemd-sysusers.service ro,nosuid,nodev,noexec,relatime - ramfs none rw,mode=700\n718 715 0:40 / /run/rpc_pipefs rw,relatime - rpc_pipefs sunrpc rw\n719 715 0:25 /snapd/ns /run/snapd/ns rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053632k,mode=755,inode64\n720 632 0:22 / /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw\n721 720 0:6 / /sys/kernel/security rw,nosuid,nodev,noexec,relatime - securityfs securityfs rw\n722 720 0:29 / /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime - cgroup2 cgroup2 rw,nsdelegate,memory_recursiveprot\n723 720 0:30 / /sys/fs/pstore rw,nosuid,nodev,noexec,relatime - pstore pstore rw\n724 720 0:31 / /sys/firmware/efi/efivars rw,nosuid,nodev,noexec,relatime - efivarfs efivarfs rw\n725 720 0:32 / /sys/fs/bpf rw,nosuid,nodev,noexec,relatime - bpf bpf rw,mode=700\n726 720 0:7 / /sys/kernel/debug rw,nosuid,nodev,noexec,relatime - debugfs debugfs rw\n727 726 0:12 / /sys/kernel/debug/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n728 720 0:12 / /sys/kernel/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n729 720 0:35 / /sys/fs/fuse/connections rw,nosuid,nodev,noexec,relatime - fusectl fusectl rw\n730 720 0:21 / /sys/kernel/config rw,nosuid,nodev,noexec,relatime - configfs configfs rw\n731 632 0:23 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw\n732 731 0:33 / /proc/sys/fs/binfmt_misc rw,relatime - autofs systemd-1 rw,fd=29,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=29709\n733 732 0:37 / /proc/sys/fs/binfmt_misc rw,nosuid,nodev,noexec,relatime - binfmt_misc binfmt_misc rw\n734 632 7:0 / /snap/core20/2866 ro,nodev,relatime - squashfs /dev/loop0 ro,errors=continue\n735 632 7:1 / /snap/core20/2922 ro,nodev,relatime - squashfs /dev/loop1 ro,errors=continue\n736 632 7:2 / /snap/lxd/40364 ro,nodev,relatime - squashfs /dev/loop2 ro,errors=continue\n737 632 7:3 / /snap/lxd/40526 ro,nodev,relatime - squashfs /dev/loop3 ro,errors=continue\n738 632 7:4 / /snap/snapd/27710 ro,nodev,relatime - squashfs /dev/loop4 ro,errors=continue\n739 632 7:5 / /snap/snapd/27738 ro,nodev,relatime - squashfs /dev/loop5 ro,errors=continue\n740 632 259:6 / /var/opt/nec/nqsv/jsv/jobfile rw,relatime - xfs /dev/nvme0n1p5 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n741 632 259:3 / /boot rw,relatime - xfs /dev/nvme0n1p2 rw,attr2,inode64,logbufs=8,logbsize=32k,noquota\n742 741 259:2 / /boot/efi rw,relatime - vfat /dev/nvme0n1p1 rw,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro\n743 632 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n744 743 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n745 744 1273:181606 /1 /work/1 rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n746 745 1273:181606 /1/SFC /work/1/SFC rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n747 746 1273:181606 /1/SFC/tanab /work/1/SFC/tanab rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n748 747 1273:181606 /1/SFC/tanab/izanagi /work/1/SFC/tanab/izanagi rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n749 748 1273:181606 /1/SFC/tanab/izanagi/.claude /work/1/SFC/tanab/izanagi/.claude rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n755 749 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees /work/1/SFC/tanab/izanagi/.claude/worktrees rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n756 755 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n758 756 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n759 758 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n760 759 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/1ffdfc7fd8fad93d6fd1929ca6a2e7d8 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/1ffdfc7fd8fad93d6fd1929ca6a2e7d8 ro - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n761 632 1273:181606 / /system rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/system rw,flock,user_xattr,lazystatfs,encrypt\n762 632 1273:181606 / /home rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/home rw,flock,user_xattr,lazystatfs,encrypt\n763 632 9:0 / /scr rw,relatime - xfs /dev/md0 rw,attr2,inode64,logbufs=8,logbsize=32k,sunit=1024,swidth=2048,noquota\n764 632 259:10 / /pmem rw,noatime - ext4 /dev/pmem0 rw,dax=always\n765 632 0:43 / /tmp ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n766 765 0:46 / /tmp/izanagi_wt_otno83zh ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n767 765 259:5 /tmp/t1994-qualification-4jkjuq81/base /tmp/t1994-qualification-4jkjuq81/base rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n768 765 259:5 /tmp/t1994-qualification-4jkjuq81/cache-sort_best-none /tmp/t1994-qualification-4jkjuq81/cache-sort_best-none rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n769 766 0:55 / /tmp/izanagi_wt_otno83zh/wt ro,relatime - tmpfs tmpfs rw,size=11128k,uid=31609,gid=30410,inode64\n",
+        "source_mounts": [
+          "769 766 0:55 / /tmp/izanagi_wt_otno83zh/wt ro,relatime - tmpfs tmpfs rw,size=11128k,uid=31609,gid=30410,inode64"
+        ],
+        "chmod_errno": 30,
+        "write_errno": 13,
+        "read_unchanged": true,
+        "git_absent": true,
+        "tmpfs": {
+          "fragment_size": 4096,
+          "used_bytes": 3325952,
+          "used_inodes": 451
+        },
+        "status": "Name:\tpython3\nUmask:\t0022\nState:\tR (running)\nTgid:\t3146448\nNgid:\t0\nPid:\t3146448\nPPid:\t3146427\nTracerPid:\t0\nUid:\t31609\t31609\t31609\t31609\nGid:\t30410\t30410\t30410\t30410\nFDSize:\t64\nGroups:\t65534 30410 \nNStgid:\t3146448\nNSpid:\t3146448\nNSpgid:\t3143121\nNSsid:\t3143121\nVmPeak:\t   36840 kB\nVmSize:\t   36840 kB\nVmLck:\t       0 kB\nVmPin:\t       0 kB\nVmHWM:\t   24736 kB\nVmRSS:\t   24736 kB\nRssAnon:\t   14856 kB\nRssFile:\t    9880 kB\nRssShmem:\t       0 kB\nVmData:\t   17268 kB\nVmStk:\t     132 kB\nVmExe:\t    2772 kB\nVmLib:\t    5700 kB\nVmPTE:\t     112 kB\nVmSwap:\t       0 kB\nHugetlbPages:\t       0 kB\nCoreDumping:\t0\nTHP_enabled:\t1\nThreads:\t1\nSigQ:\t0/509439\nSigPnd:\t0000000000000000\nShdPnd:\t0000000000000000\nSigBlk:\t0000000000000000\nSigIgn:\t0000000001005000\nSigCgt:\t0000000000000002\nCapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapBnd:\t0000000000000000\nCapAmb:\t0000000000000000\nNoNewPrivs:\t1\nSeccomp:\t2\nSeccomp_filters:\t1\nSpeculation_Store_Bypass:\tthread force mitigated\nSpeculationIndirectBranch:\tconditional force disabled\nCpus_allowed:\tffff,ffffffff\nCpus_allowed_list:\t0-47\nMems_allowed:\t00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001\nMems_allowed_list:\t0\nvoluntary_ctxt_switches:\t12\nnonvoluntary_ctxt_switches:\t1\n",
+        "shared_write_errno": 13,
+        "attacks_with_filter": {
+          "unshare": {
+            "pid": 3146449,
+            "exit": 0,
+            "observation": {
+              "errno": 1,
+              "namespace_created": false
+            }
+          },
+          "clone": {
+            "pid": 3146450,
+            "exit": 0,
+            "observation": {
+              "errno": 1,
+              "namespace_created": false
+            }
+          },
+          "clone3": {
+            "pid": 3146451,
+            "exit": 0,
+            "observation": {
+              "errno": 38,
+              "namespace_created": false
+            }
+          }
+        },
+        "namespaces": {
+          "user": "user:[4026534698]",
+          "mnt": "mnt:[4026534699]"
+        }
+      },
+      "compiler_read_view_after_build": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2354746,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3325952,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "78a815ac8d8b0cd6b87a6ddbcbdcc252b1fd8be0ea7d8d1d7ecdcc24b50b4016",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "parent_checks": [
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_post_oracle_dependency_material",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_source_snapshot_sha256",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_post_oracle_dependency_material",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_fetchcontent_fully_disconnected_effective",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_post_oracle_dependency_material",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_masstree_source_root_from_cmake_cache",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_masstree_source_root_from_cmake_cache",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_collect_compiler_inputs",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_source_snapshot_sha256",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_post_oracle_dependency_material",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_recheck_source_evidence",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        }
+      ],
+      "cache_completion_files_before_restore": [
+        "contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/888021409a44d436acc04d4ec24dfc0b52e7dbe049fb953494abce5013ad4974/completion.json"
+      ],
+      "cache_binaries_before_restore": [
+        "contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/888021409a44d436acc04d4ec24dfc0b52e7dbe049fb953494abce5013ad4974/cc/silo/ycsb_silo.exe"
+      ],
+      "parent_inventory_at_return": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2354746,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3325952,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "78a815ac8d8b0cd6b87a6ddbcbdcc252b1fd8be0ea7d8d1d7ecdcc24b50b4016",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "provenance": {
+        "configure_argv": [
+          "/usr/bin/cmake",
+          "-S",
+          "/tmp/izanagi_wt_otno83zh/wt",
+          "-B",
+          "/tmp/t1994-qualification-4jkjuq81/cache-sort_best-none/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/888021409a44d436acc04d4ec24dfc0b52e7dbe049fb953494abce5013ad4974",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DENABLE_SANITIZER=OFF",
+          "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+          "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+          "-DFETCHCONTENT_BASE_DIR=/tmp/t1994-qualification-4jkjuq81/base",
+          "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+          "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/t1994-qualification-4jkjuq81/base/masstree-src",
+          "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/tmp/t1994-qualification-4jkjuq81/base/mimalloc-src",
+          "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/tmp/t1994-qualification-4jkjuq81/base/googletest-src",
+          "-DCCBENCH_BACK_OFF=1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_SORT_VARIANT=1",
+          "-DCCBENCH_WAL=0",
+          "-DCCBENCH_TRACE=0"
+        ],
+        "build_argv": [
+          "/usr/bin/cmake",
+          "--build",
+          "/tmp/t1994-qualification-4jkjuq81/cache-sort_best-none/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/888021409a44d436acc04d4ec24dfc0b52e7dbe049fb953494abce5013ad4974",
+          "--target",
+          "ycsb_silo.exe",
+          "-j",
+          "48"
+        ],
+        "binary_sha256": "459aafa52bc5df3111458a2c314fac99f0c02df4fb2943e79f150bf301a16a4a",
+        "compiler_input_manifest_sha256": "471b3124d09d53e137b1125555e736235796b21bc398017763786f535ccca195",
+        "source_snapshot_sha256": "27a214458487f7f51c0662c16a3833749f2ce41a20d1254cb9f896fadc3d6b2f",
+        "expected_materialization_sha256": "27a214458487f7f51c0662c16a3833749f2ce41a20d1254cb9f896fadc3d6b2f",
+        "source_protection": {
+          "kind": "sealed-build",
+          "source_snapshot_sha256": "27a214458487f7f51c0662c16a3833749f2ce41a20d1254cb9f896fadc3d6b2f",
+          "expected_materialization_sha256": "27a214458487f7f51c0662c16a3833749f2ce41a20d1254cb9f896fadc3d6b2f",
+          "binary_sha256": "459aafa52bc5df3111458a2c314fac99f0c02df4fb2943e79f150bf301a16a4a",
+          "compiler_input_manifest_sha256": "471b3124d09d53e137b1125555e736235796b21bc398017763786f535ccca195"
+        },
+        "toolchain_manifest": {
+          "cc": {
+            "requested": "gcc",
+            "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+            "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+            "version": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+          },
+          "cxx": {
+            "requested": "g++",
+            "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+            "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+            "version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+          },
+          "cmake": {
+            "requested": "cmake",
+            "realpath": "/usr/bin/cmake",
+            "version_first_line": "cmake version 3.22.1",
+            "version": "cmake version 3.22.1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake)."
+          }
+        }
+      }
+    },
+    "stock_common:persistent": {
+      "configuration": "stock_common",
+      "attack": "persistent",
+      "session_commands": [
+        {
+          "argv": [
+            "/usr/bin/python3",
+            "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+            "--internal",
+            "sealed",
+            "/tmp/izanagi_wt_iqpdt63s/wt",
+            "/tmp/t1994-qualification-4jkjuq81/base/qualification-shared/shared-0444"
+          ],
+          "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification",
+          "timeout_s": null,
+          "ccache_environment": {},
+          "returncode": 0,
+          "elapsed_s": 0.1006407870008843
+        },
+        {
+          "argv": [
+            "/usr/bin/cmake",
+            "-S",
+            "/tmp/izanagi_wt_iqpdt63s/wt",
+            "-B",
+            "/tmp/t1994-qualification-4jkjuq81/cache-stock_common-persistent/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-0ba2212723bf377f0669141045b1539e",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DENABLE_SANITIZER=OFF",
+            "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+            "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+            "-DFETCHCONTENT_BASE_DIR=/tmp/t1994-qualification-4jkjuq81/base",
+            "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/t1994-qualification-4jkjuq81/base/masstree-src",
+            "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/tmp/t1994-qualification-4jkjuq81/base/mimalloc-src",
+            "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/tmp/t1994-qualification-4jkjuq81/base/googletest-src",
+            "-DCCBENCH_BACK_OFF=1",
+            "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+            "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+            "-DCCBENCH_WAL=0",
+            "-DCCBENCH_TRACE=0"
+          ],
+          "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification",
+          "timeout_s": null,
+          "ccache_environment": {},
+          "returncode": 0,
+          "elapsed_s": 0.7744045910003479
+        },
+        {
+          "argv": [
+            "/usr/bin/cmake",
+            "--build",
+            "/tmp/t1994-qualification-4jkjuq81/cache-stock_common-persistent/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/.staging-3143162-0ba2212723bf377f0669141045b1539e",
+            "--target",
+            "ycsb_silo.exe",
+            "-j",
+            "48"
+          ],
+          "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification",
+          "timeout_s": null,
+          "ccache_environment": {},
+          "returncode": 0,
+          "elapsed_s": 4.355941938996693
+        },
+        {
+          "argv": [
+            "/usr/bin/python3",
+            "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+            "--internal",
+            "inventory",
+            "/tmp/izanagi_wt_iqpdt63s/wt"
+          ],
+          "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification",
+          "timeout_s": null,
+          "ccache_environment": {},
+          "returncode": 0,
+          "elapsed_s": 0.0909483059986087
+        }
+      ],
+      "ccache": {
+        "launcher": "unused",
+        "cache_dir": null,
+        "temporary_dir": null,
+        "log_file": null,
+        "status": "unused",
+        "cmake_entries": {
+          "CCACHE_PROGRAM": "CCACHE_PROGRAM-NOTFOUND",
+          "CCBENCH_CCACHE": "ON"
+        },
+        "generated_recipe_lines": []
+      },
+      "descriptor_sha256": "92e6df6889a4d5a0b4c7ad350689f87ab93eec5384bcd329dc4651c1a8ac302a",
+      "descriptor": {
+        "configuration": "stock_common",
+        "ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+        "declaration": {
+          "flags": {
+            "BACK_OFF": 1,
+            "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+            "NO_WAIT_OF_TICTOC": 0,
+            "WAL": 0
+          },
+          "sources": [
+            {
+              "path": "external/ccbench/cmake/Options.cmake",
+              "sha256": "7f8656c10610aa15a66258dd2aca01d1230fe15ee31bf9944225019d42d66651",
+              "key": "four CACHE defaults and BACK_OFF universal mapping",
+              "lines": [
+                "20: set(CCBENCH_BACK_OFF      1 CACHE STRING \"exponential backoff on abort\")",
+                "27: set(CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION  1 CACHE STRING \"\")",
+                "28: set(CCBENCH_NO_WAIT_OF_TICTOC              0 CACHE STRING \"\")",
+                "47: set(CCBENCH_WAL                           0 CACHE STRING \"silo\")",
+                "63:     BACK_OFF=${CCBENCH_BACK_OFF}"
+              ]
+            },
+            {
+              "path": "external/ccbench/cc/silo/CMakeLists.txt",
+              "sha256": "91af7720e82f0629cffdf9a1278695d764b48a620a7468728dc4a392df01096f",
+              "key": "silo target mappings for three protocol flags",
+              "lines": [
+                "5:     NO_WAIT_LOCKING_IN_VALIDATION=${CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION}",
+                "6:     NO_WAIT_OF_TICTOC=${CCBENCH_NO_WAIT_OF_TICTOC}",
+                "10:     WAL=${CCBENCH_WAL}"
+              ]
+            }
+          ]
+        },
+        "template_patch_path": null
+      },
+      "copy_target": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "rename_attack": {
+        "status": "blocked",
+        "source_renamed": true,
+        "ancestor_renamed": true,
+        "poisoned_paths": [
+          "cc/cicada/bomb_cicada.cc",
+          "cc/cicada/sbomb_cicada.cc",
+          "cc/cicada/testzip.cc",
+          "cc/cicada/tpcc_cicada.cc",
+          "cc/cicada/transaction.cc",
+          "cc/cicada/util.cc",
+          "cc/cicada/ycsb_cicada.cc",
+          "cc/d2pl/dbomb_d2pl.cc",
+          "cc/d2pl/sbomb_d2pl.cc",
+          "cc/d2pl/transaction.cc",
+          "cc/d2pl/util.cc",
+          "cc/ermia/bomb_ermia.cc",
+          "cc/ermia/garbage_collection.cc",
+          "cc/ermia/sbomb_ermia.cc",
+          "cc/ermia/tpcc_ermia.cc",
+          "cc/ermia/transaction.cc",
+          "cc/ermia/util.cc",
+          "cc/ermia/ycsb_ermia.cc",
+          "cc/mocc/bomb_mocc.cc",
+          "cc/mocc/lock.cc",
+          "cc/mocc/sbomb_mocc.cc",
+          "cc/mocc/tpcc_mocc.cc",
+          "cc/mocc/transaction.cc",
+          "cc/mocc/util.cc",
+          "cc/mocc/ycsb_mocc.cc",
+          "cc/mvto/bomb_mvto.cc",
+          "cc/mvto/tpcc_mvto.cc",
+          "cc/mvto/transaction.cc",
+          "cc/mvto/util.cc",
+          "cc/oze/bomb_oze.cc",
+          "cc/oze/debug.cc",
+          "cc/oze/tpcc_oze.cc",
+          "cc/oze/transaction.cc",
+          "cc/oze/util.cc",
+          "cc/oze/ycsb_oze.cc",
+          "cc/si/bomb_si.cc",
+          "cc/si/garbage_collection.cc",
+          "cc/si/sbomb_si.cc",
+          "cc/si/tpcc_si.cc",
+          "cc/si/transaction.cc",
+          "cc/si/util.cc",
+          "cc/si/ycsb_si.cc",
+          "cc/silo/bomb_silo.cc",
+          "cc/silo/replayTest.cc",
+          "cc/silo/sbomb_silo.cc",
+          "cc/silo/tpcc_silo.cc",
+          "cc/silo/transaction.cc",
+          "cc/silo/util.cc",
+          "cc/silo/ycsb_silo.cc",
+          "cc/ss2pl/bomb_ss2pl.cc",
+          "cc/ss2pl/ss2pl.cc",
+          "cc/ss2pl/tpcc_ss2pl.cc",
+          "cc/ss2pl/transaction.cc",
+          "cc/ss2pl/util.cc",
+          "cc/ss2pl/test/make_db_test.cpp",
+          "cc/tictoc/bomb_tictoc.cc",
+          "cc/tictoc/sbomb_tictoc.cc",
+          "cc/tictoc/tpcc_tictoc.cc",
+          "cc/tictoc/transaction.cc",
+          "cc/tictoc/util.cc",
+          "cc/tictoc/ycsb_tictoc.cc",
+          "common/result.cc",
+          "common/util.cc",
+          "microbench/fetch_add.cc",
+          "microbench/membench.cc",
+          "microbench/pow_test.cc",
+          "microbench/rdtscBench.cc",
+          "microbench/xoroshiro.cc",
+          "microbench/zipf_dist_test.cc",
+          "microbench/legacy/cache-test.cc",
+          "microbench/legacy/mcslock_with_timeout.c",
+          "microbench/legacy/masstree_simple_test/unit-mt.cc",
+          "microbench/legacy/masstree_simple_test/unit-mt2.cc"
+        ],
+        "parent_B_inventory": {
+          "files": 404,
+          "directories": 47,
+          "symlinks": 0,
+          "apparent_bytes": 1890875,
+          "symlink_bytes": 0,
+          "page_rounded_file_bytes": 2981888,
+          "page_size": 4096,
+          "nodes": 451,
+          "required_inodes": 451,
+          "copy_domain_sha256": "af6d797e26f4910ca4180a2d888db2ff07ff20b3657eeba41c0398a290c0ebef",
+          "excluded_names": [
+            ".git"
+          ]
+        },
+        "unprotected_compiler": {
+          "argv": [
+            "g++",
+            "-E",
+            "-x",
+            "c++",
+            "/tmp/izanagi_wt_iqpdt63s/wt/cc/cicada/bomb_cicada.cc"
+          ],
+          "returncode": 1,
+          "stderr": "/tmp/izanagi_wt_iqpdt63s/wt/cc/cicada/bomb_cicada.cc:1:2: error: #error T1994_ORIGINAL_TREE_B\n    1 | #error T1994_ORIGINAL_TREE_B\n      |  ^~~~~\n"
+        }
+      },
+      "seal": {
+        "inventory": {
+          "files": 404,
+          "directories": 47,
+          "symlinks": 0,
+          "apparent_bytes": 2352405,
+          "symlink_bytes": 0,
+          "page_rounded_file_bytes": 3321856,
+          "page_size": 4096,
+          "nodes": 451,
+          "required_inodes": 451,
+          "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+          "excluded_names": [
+            ".git"
+          ]
+        },
+        "mountinfo": "632 631 259:5 / / rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n633 632 0:5 / /dev rw,nosuid,relatime - devtmpfs udev rw,size=65208292k,nr_inodes=16302073,mode=755,inode64\n634 633 0:24 / /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw,gid=5,mode=620,ptmxmode=000\n635 633 0:27 / /dev/shm rw,nosuid,nodev - tmpfs tmpfs rw,inode64\n637 633 0:34 / /dev/hugepages rw,relatime - hugetlbfs hugetlbfs rw,pagesize=2M\n638 633 0:20 / /dev/mqueue rw,nosuid,nodev,noexec,relatime - mqueue mqueue rw\n715 632 0:25 / /run rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053632k,mode=755,inode64\n716 715 0:28 / /run/lock rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=5120k,inode64\n717 715 0:36 / /run/credentials/systemd-sysusers.service ro,nosuid,nodev,noexec,relatime - ramfs none rw,mode=700\n718 715 0:40 / /run/rpc_pipefs rw,relatime - rpc_pipefs sunrpc rw\n719 715 0:25 /snapd/ns /run/snapd/ns rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053632k,mode=755,inode64\n720 632 0:22 / /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw\n721 720 0:6 / /sys/kernel/security rw,nosuid,nodev,noexec,relatime - securityfs securityfs rw\n722 720 0:29 / /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime - cgroup2 cgroup2 rw,nsdelegate,memory_recursiveprot\n723 720 0:30 / /sys/fs/pstore rw,nosuid,nodev,noexec,relatime - pstore pstore rw\n724 720 0:31 / /sys/firmware/efi/efivars rw,nosuid,nodev,noexec,relatime - efivarfs efivarfs rw\n725 720 0:32 / /sys/fs/bpf rw,nosuid,nodev,noexec,relatime - bpf bpf rw,mode=700\n726 720 0:7 / /sys/kernel/debug rw,nosuid,nodev,noexec,relatime - debugfs debugfs rw\n727 726 0:12 / /sys/kernel/debug/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n728 720 0:12 / /sys/kernel/tracing rw,nosuid,nodev,noexec,relatime - tracefs tracefs rw\n729 720 0:35 / /sys/fs/fuse/connections rw,nosuid,nodev,noexec,relatime - fusectl fusectl rw\n730 720 0:21 / /sys/kernel/config rw,nosuid,nodev,noexec,relatime - configfs configfs rw\n731 632 0:23 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw\n732 731 0:33 / /proc/sys/fs/binfmt_misc rw,relatime - autofs systemd-1 rw,fd=29,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=29709\n733 732 0:37 / /proc/sys/fs/binfmt_misc rw,nosuid,nodev,noexec,relatime - binfmt_misc binfmt_misc rw\n734 632 7:0 / /snap/core20/2866 ro,nodev,relatime - squashfs /dev/loop0 ro,errors=continue\n735 632 7:1 / /snap/core20/2922 ro,nodev,relatime - squashfs /dev/loop1 ro,errors=continue\n736 632 7:2 / /snap/lxd/40364 ro,nodev,relatime - squashfs /dev/loop2 ro,errors=continue\n737 632 7:3 / /snap/lxd/40526 ro,nodev,relatime - squashfs /dev/loop3 ro,errors=continue\n738 632 7:4 / /snap/snapd/27710 ro,nodev,relatime - squashfs /dev/loop4 ro,errors=continue\n739 632 7:5 / /snap/snapd/27738 ro,nodev,relatime - squashfs /dev/loop5 ro,errors=continue\n740 632 259:6 / /var/opt/nec/nqsv/jsv/jobfile rw,relatime - xfs /dev/nvme0n1p5 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n741 632 259:3 / /boot rw,relatime - xfs /dev/nvme0n1p2 rw,attr2,inode64,logbufs=8,logbsize=32k,noquota\n742 741 259:2 / /boot/efi rw,relatime - vfat /dev/nvme0n1p1 rw,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro\n743 632 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n744 743 1273:181606 / /work rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n745 744 1273:181606 /1 /work/1 rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n746 745 1273:181606 /1/SFC /work/1/SFC rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n747 746 1273:181606 /1/SFC/tanab /work/1/SFC/tanab rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n748 747 1273:181606 /1/SFC/tanab/izanagi /work/1/SFC/tanab/izanagi rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n749 748 1273:181606 /1/SFC/tanab/izanagi/.claude /work/1/SFC/tanab/izanagi/.claude rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n755 749 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees /work/1/SFC/tanab/izanagi/.claude/worktrees rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n756 755 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n758 756 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n759 758 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n760 759 1273:181606 /1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/1ffdfc7fd8fad93d6fd1929ca6a2e7d8 /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/pegasus-dispatch/1ffdfc7fd8fad93d6fd1929ca6a2e7d8 ro - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n761 632 1273:181606 / /system rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/system rw,flock,user_xattr,lazystatfs,encrypt\n762 632 1273:181606 / /home rw - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/home rw,flock,user_xattr,lazystatfs,encrypt\n763 632 9:0 / /scr rw,relatime - xfs /dev/md0 rw,attr2,inode64,logbufs=8,logbsize=32k,sunit=1024,swidth=2048,noquota\n764 632 259:10 / /pmem rw,noatime - ext4 /dev/pmem0 rw,dax=always\n765 632 0:43 / /tmp ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n766 765 0:46 / /tmp/izanagi_wt_iqpdt63s ro,relatime - tmpfs tmpfs rw,size=4096k,mode=755,uid=31609,gid=30410,inode64\n767 765 259:5 /tmp/t1994-qualification-4jkjuq81/base /tmp/t1994-qualification-4jkjuq81/base rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n768 765 259:5 /tmp/t1994-qualification-4jkjuq81/cache-stock_common-persistent /tmp/t1994-qualification-4jkjuq81/cache-stock_common-persistent rw,relatime - xfs /dev/nvme0n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n769 766 0:55 / /tmp/izanagi_wt_iqpdt63s/wt ro,relatime - tmpfs tmpfs rw,size=11124k,uid=31609,gid=30410,inode64\n",
+        "source_mounts": [
+          "769 766 0:55 / /tmp/izanagi_wt_iqpdt63s/wt ro,relatime - tmpfs tmpfs rw,size=11124k,uid=31609,gid=30410,inode64"
+        ],
+        "chmod_errno": 30,
+        "write_errno": 13,
+        "read_unchanged": true,
+        "git_absent": true,
+        "tmpfs": {
+          "fragment_size": 4096,
+          "used_bytes": 3321856,
+          "used_inodes": 451
+        },
+        "status": "Name:\tpython3\nUmask:\t0022\nState:\tR (running)\nTgid:\t3147223\nNgid:\t0\nPid:\t3147223\nPPid:\t3147210\nTracerPid:\t0\nUid:\t31609\t31609\t31609\t31609\nGid:\t30410\t30410\t30410\t30410\nFDSize:\t64\nGroups:\t65534 30410 \nNStgid:\t3147223\nNSpid:\t3147223\nNSpgid:\t3143121\nNSsid:\t3143121\nVmPeak:\t   36840 kB\nVmSize:\t   36840 kB\nVmLck:\t       0 kB\nVmPin:\t       0 kB\nVmHWM:\t   24688 kB\nVmRSS:\t   24688 kB\nRssAnon:\t   14864 kB\nRssFile:\t    9824 kB\nRssShmem:\t       0 kB\nVmData:\t   17268 kB\nVmStk:\t     132 kB\nVmExe:\t    2772 kB\nVmLib:\t    5700 kB\nVmPTE:\t     104 kB\nVmSwap:\t       0 kB\nHugetlbPages:\t       0 kB\nCoreDumping:\t0\nTHP_enabled:\t1\nThreads:\t1\nSigQ:\t0/509439\nSigPnd:\t0000000000000000\nShdPnd:\t0000000000000000\nSigBlk:\t0000000000000000\nSigIgn:\t0000000001005000\nSigCgt:\t0000000000000002\nCapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapBnd:\t0000000000000000\nCapAmb:\t0000000000000000\nNoNewPrivs:\t1\nSeccomp:\t2\nSeccomp_filters:\t1\nSpeculation_Store_Bypass:\tthread force mitigated\nSpeculationIndirectBranch:\tconditional force disabled\nCpus_allowed:\tffff,ffffffff\nCpus_allowed_list:\t0-47\nMems_allowed:\t00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001\nMems_allowed_list:\t0\nvoluntary_ctxt_switches:\t12\nnonvoluntary_ctxt_switches:\t0\n",
+        "shared_write_errno": 13,
+        "attacks_with_filter": {
+          "unshare": {
+            "pid": 3147224,
+            "exit": 0,
+            "observation": {
+              "errno": 1,
+              "namespace_created": false
+            }
+          },
+          "clone": {
+            "pid": 3147225,
+            "exit": 0,
+            "observation": {
+              "errno": 1,
+              "namespace_created": false
+            }
+          },
+          "clone3": {
+            "pid": 3147226,
+            "exit": 0,
+            "observation": {
+              "errno": 38,
+              "namespace_created": false
+            }
+          }
+        },
+        "namespaces": {
+          "user": "user:[4026534699]",
+          "mnt": "mnt:[4026534703]"
+        }
+      },
+      "compiler_read_view_after_build": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "build_exception": {
+        "result": false,
+        "errno": null,
+        "error": "BuildCacheError: S8b build source snapshot \u3092\u5ba3\u8a00\u3078\u675f\u7e1b\u3067\u304d\u306a\u3044: ExpectedMaterializationError: snapshot root identity changed (reason=root-identity-after-build count=1)"
+      },
+      "parent_checks": [
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_source_snapshot_sha256",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_masstree_source_root_from_cmake_cache",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": true,
+          "rejected": false
+        },
+        {
+          "guard": "_collect_compiler_inputs",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": true,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_source_snapshot_sha256",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": true,
+          "rejected": true,
+          "error": "source snapshot tree digest \u304c build request \u3068\u4e0d\u4e00\u81f4"
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": true,
+          "rejected": true,
+          "error": "snapshot root identity changed (reason=root-identity-after-build count=1)"
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 3143162,
+          "namespaces": {
+            "user": "user:[4026534702]",
+            "mnt": "mnt:[4026534701]"
+          },
+          "source_is_B": true,
+          "rejected": true,
+          "error": "snapshot root identity changed (reason=root-identity-after-build count=1)"
+        }
+      ],
+      "cache_completion_files_before_restore": [],
+      "cache_binaries_before_restore": [],
+      "parent_inventory_at_return": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 1890875,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 2981888,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "af6d797e26f4910ca4180a2d888db2ff07ff20b3657eeba41c0398a290c0ebef",
+        "excluded_names": [
+          ".git"
+        ]
+      }
+    }
+  },
+  "cleanup_reaped": [],
+  "summary_tail": {
+    "overall": true,
+    "failed": [],
+    "requested_coverage": [
+      "stock_common",
+      "sort_best"
+    ],
+    "completed_cases": [
+      "stock_common:aba",
+      "sort_best:none",
+      "stock_common:persistent"
+    ],
+    "copy_targets": {
+      "stock_common:aba": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "sort_best:none": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2354746,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3325952,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "78a815ac8d8b0cd6b87a6ddbcbdcc252b1fd8be0ea7d8d1d7ecdcc24b50b4016",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "stock_common:persistent": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      }
+    },
+    "ccache_diagnostic_only": true
+  }
+}

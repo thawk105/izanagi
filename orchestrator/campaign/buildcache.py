@@ -3353,6 +3353,7 @@ def build_v2(
                 genome=genome,
                 prepared_src_token=source_evidence.src_token,
                 cxx=cxx,
+                sort_oracle_contract_id=sort_oracle_contract_id,
                 shared_directories=shared_directories,
         ) as admitted:
             if admitted.source_evidence != source_evidence:

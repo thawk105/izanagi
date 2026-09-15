@@ -1,0 +1,840 @@
+{
+  "overall": false,
+  "checks": {
+    "real_session_api": {
+      "result": true,
+      "errno": null
+    },
+    "compute_node": {
+      "result": true,
+      "errno": null
+    },
+    "nonroot_x86_64": {
+      "result": true,
+      "errno": null
+    },
+    "moved:_real_session_parent_drift_or_exit_failure_never_publishes_case": {
+      "result": true,
+      "errno": null
+    },
+    "moved:_descriptor_build_failure_cannot_become_second_build_hit_case": {
+      "result": true,
+      "errno": null
+    },
+    "capability_state:capabilities": {
+      "result": true,
+      "errno": null
+    },
+    "capability_state:dropped": {
+      "result": true,
+      "errno": null
+    },
+    "capability_state:regained": {
+      "result": true,
+      "errno": null
+    },
+    "capability_state:filtered": {
+      "result": true,
+      "errno": null
+    },
+    "capability_control": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "before_drop_write_errno": 0,
+        "after_drop_write_errno": 13,
+        "attacks_without_filter": {
+          "unshare": {
+            "pid": 1057497,
+            "exit": 0,
+            "observation": {
+              "errno": 0,
+              "namespace_created": true,
+              "shared_write_errno": 0
+            }
+          },
+          "clone": {
+            "pid": 1057498,
+            "exit": 0,
+            "observation": {
+              "errno": 0,
+              "namespace_created": true,
+              "nested_child_exit": 0
+            }
+          },
+          "clone3": {
+            "pid": 1057500,
+            "exit": 0,
+            "observation": {
+              "errno": 0,
+              "namespace_created": true,
+              "nested_child_exit": 0
+            }
+          }
+        }
+      }
+    },
+    "unfiltered_unshare": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 1057497,
+        "exit": 0,
+        "observation": {
+          "errno": 0,
+          "namespace_created": true,
+          "shared_write_errno": 0
+        }
+      }
+    },
+    "unfiltered_clone": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 1057498,
+        "exit": 0,
+        "observation": {
+          "errno": 0,
+          "namespace_created": true,
+          "nested_child_exit": 0
+        }
+      }
+    },
+    "unfiltered_clone3": {
+      "result": true,
+      "errno": null,
+      "observation": {
+        "pid": 1057500,
+        "exit": 0,
+        "observation": {
+          "errno": 0,
+          "namespace_created": true,
+          "nested_child_exit": 0
+        }
+      }
+    },
+    "stock_common:aba:attack_executed_and_blocked": {
+      "result": false,
+      "errno": null,
+      "observation": {
+        "status": "not-started",
+        "source_renamed": false,
+        "ancestor_renamed": false
+      }
+    },
+    "stock_common:aba": {
+      "result": false,
+      "errno": null,
+      "error": "RuntimeError: stock_common:aba:attack_executed_and_blocked"
+    },
+    "sort_best:none": {
+      "result": false,
+      "errno": null,
+      "error": "DriverError: condition gate rejected prepared cell: SORT_VARIANT:supply-effectuation:configure-failed,SORT_VARIANT:runtime-meaning:meaning-witness-undeclared"
+    },
+    "stock_common:persistent:attack_executed_and_blocked": {
+      "result": false,
+      "errno": null,
+      "observation": {
+        "status": "not-started",
+        "source_renamed": false,
+        "ancestor_renamed": false
+      }
+    },
+    "stock_common:persistent": {
+      "result": false,
+      "errno": null,
+      "error": "RuntimeError: stock_common:persistent:attack_executed_and_blocked"
+    },
+    "parent_namespaces_unchanged": {
+      "result": true,
+      "errno": null
+    },
+    "descendants_finished": {
+      "result": false,
+      "errno": null,
+      "remaining_pids": [
+        1059612,
+        1059616,
+        1059620
+      ]
+    }
+  },
+  "environment": {
+    "hostname": "bnode016",
+    "kernel": "5.15.0-173-generic",
+    "libc": [
+      "glibc",
+      "2.35"
+    ],
+    "uid": 31609,
+    "argv": [
+      "/usr/bin/python3",
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py",
+      "--dependency-sources",
+      "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources"
+    ],
+    "exec_argv": [
+      "python3",
+      "-m",
+      "orchestrator.manual_probes.t1994_readonly_snapshot_qualification",
+      "--dependency-sources",
+      "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources"
+    ],
+    "parent_namespaces_before": {
+      "user": "user:[4026535834]",
+      "mnt": "mnt:[4026535833]"
+    },
+    "parent_namespaces_after": {
+      "user": "user:[4026535834]",
+      "mnt": "mnt:[4026535833]"
+    }
+  },
+  "time_budget": {
+    "timeout_s": null,
+    "population": null,
+    "observed_max_s": null,
+    "multiplier": null,
+    "same_regime": null,
+    "reason": "No qualified duration population exists for this regime. Driver/session/CMake calls have no timeout. Existing oracle semantic limits are recorded separately."
+  },
+  "limitations": [
+    "Only source substitution during build is measured; poisoned cache reuse is open.",
+    "Capabilities are trusted-producer values, not kernel attestation or signatures.",
+    "Hostile Python process-memory mutation is outside the trust boundary.",
+    "clone3 ENOSYS fallback evidence covers only the observed libc and commands.",
+    "Only one freeze entry each for stock_common and sort_best is qualified."
+  ],
+  "artifacts": {
+    "json": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/insights/2026-09-14/t1994-readonly-snapshot/qualification/run-gseddj5u/qualification.json",
+    "raw_log": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/insights/2026-09-14/t1994-readonly-snapshot/qualification/run-gseddj5u/raw.log"
+  },
+  "oracle_existing_limits": {
+    "source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/campaign/sort_swo_oracle.py",
+    "source_sha256": "50af147aa13eb1c6a523a20a6a313c62dd676ef09ce822728020869ff558adfd",
+    "compile_s": 8.0,
+    "run_s": 2.0,
+    "tool_identity_s": 2.0,
+    "scope": "Existing SWO oracle contract only, not qualification build time budgets."
+  },
+  "commands": [
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/external/ccbench",
+        "rev-parse",
+        "HEAD^{commit}"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.013416667992714792
+    },
+    {
+      "argv": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "--no-checkout",
+        "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources/masstree-src",
+        "/tmp/t1994-qualification-lzg80__0/base/masstree-src"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.02612168004270643
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/tmp/t1994-qualification-lzg80__0/base/masstree-src",
+        "checkout",
+        "--detach",
+        "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.012075364997144789
+    },
+    {
+      "argv": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "--no-checkout",
+        "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources/mimalloc-src",
+        "/tmp/t1994-qualification-lzg80__0/base/mimalloc-src"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.03315160202328116
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/tmp/t1994-qualification-lzg80__0/base/mimalloc-src",
+        "checkout",
+        "--detach",
+        "02a2f5df9d7d46d30263b83832eebeeab62dc5fe"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.03512529702857137
+    },
+    {
+      "argv": [
+        "git",
+        "clone",
+        "--no-hardlinks",
+        "--no-checkout",
+        "output/env/pegasus/silo_ladder_rung1/job-staging/t2625-dependency-sources/googletest-src",
+        "/tmp/t1994-qualification-lzg80__0/base/googletest-src"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.03675542998826131
+    },
+    {
+      "argv": [
+        "git",
+        "-C",
+        "/tmp/t1994-qualification-lzg80__0/base/googletest-src",
+        "checkout",
+        "--detach",
+        "f8d7d77c06936315286eb55f8de22cd23c188571"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.03654077195096761
+    },
+    {
+      "argv": [
+        "/usr/bin/cmake",
+        "-S",
+        "/tmp/izanagi_wt_55ujjwcq/wt",
+        "-B",
+        "/tmp/t1994-qualification-lzg80__0/base/izanagi-masstree-prebuild",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+        "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+        "-DFETCHCONTENT_BASE_DIR=/tmp/t1994-qualification-lzg80__0/base",
+        "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/tmp/t1994-qualification-lzg80__0/base/masstree-src",
+        "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/tmp/t1994-qualification-lzg80__0/base/mimalloc-src",
+        "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/tmp/t1994-qualification-lzg80__0/base/googletest-src"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 0.7501885569654405
+    },
+    {
+      "argv": [
+        "/usr/bin/cmake",
+        "--build",
+        "/tmp/t1994-qualification-lzg80__0/base/izanagi-masstree-prebuild",
+        "--target",
+        "masstree_build",
+        "-j",
+        "48"
+      ],
+      "timeout_s": null,
+      "returncode": 0,
+      "elapsed_s": 10.57330066000577
+    }
+  ],
+  "toolchain": {
+    "cc": {
+      "requested": "gcc",
+      "realpath": "/usr/bin/x86_64-linux-gnu-gcc-11",
+      "version_first_line": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+      "version": "x86_64-linux-gnu-gcc-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+    },
+    "cxx": {
+      "requested": "g++",
+      "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+      "version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+      "version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+    },
+    "cmake": {
+      "requested": "cmake",
+      "realpath": "/usr/bin/cmake",
+      "version_first_line": "cmake version 3.22.1",
+      "version": "cmake version 3.22.1\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake)."
+    }
+  },
+  "ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+  "declarations": {
+    "freeze": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/output/s8b-freeze/holdout_freeze.json",
+    "freeze_sha256": "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688",
+    "holdout": "rr80"
+  },
+  "contract_sha256": "e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01",
+  "publication_failure_cases": {
+    "_real_session_parent_drift_or_exit_failure_never_publishes_case": {
+      "case": "_real_session_parent_drift_or_exit_failure_never_publishes_case",
+      "completed": true,
+      "attack": "root-replacement",
+      "elapsed_s": 0.4085756790009327
+    },
+    "_descriptor_build_failure_cannot_become_second_build_hit_case": {
+      "case": "_descriptor_build_failure_cannot_become_second_build_hit_case",
+      "completed": true,
+      "attack": "persistent-drift",
+      "elapsed_s": 0.5360554689541459
+    }
+  },
+  "capability_state_cases": {
+    "capabilities": {
+      "case": "_shared_readonly_file_capability_and_userns_controls_case",
+      "completed": true,
+      "state": "capabilities",
+      "elapsed_s": 0.35082146304193884
+    },
+    "dropped": {
+      "case": "_shared_readonly_file_capability_and_userns_controls_case",
+      "completed": true,
+      "state": "dropped",
+      "elapsed_s": 0.3518399400054477
+    },
+    "regained": {
+      "case": "_shared_readonly_file_capability_and_userns_controls_case",
+      "completed": true,
+      "state": "regained",
+      "elapsed_s": 0.3502980060293339
+    },
+    "filtered": {
+      "case": "_shared_readonly_file_capability_and_userns_controls_case",
+      "completed": true,
+      "state": "filtered",
+      "elapsed_s": 0.34937433601589873
+    }
+  },
+  "control": {
+    "pid": 1057496,
+    "exit": 0,
+    "observation": {
+      "before_drop_write_errno": 0,
+      "after_drop_write_errno": 13,
+      "attacks_without_filter": {
+        "unshare": {
+          "pid": 1057497,
+          "exit": 0,
+          "observation": {
+            "errno": 0,
+            "namespace_created": true,
+            "shared_write_errno": 0
+          }
+        },
+        "clone": {
+          "pid": 1057498,
+          "exit": 0,
+          "observation": {
+            "errno": 0,
+            "namespace_created": true,
+            "nested_child_exit": 0
+          }
+        },
+        "clone3": {
+          "pid": 1057500,
+          "exit": 0,
+          "observation": {
+            "errno": 0,
+            "namespace_created": true,
+            "nested_child_exit": 0
+          }
+        }
+      }
+    }
+  },
+  "dependency": {
+    "dependency_root": "/tmp/t1994-qualification-lzg80__0/base/masstree-src",
+    "dependency_expected_head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+    "dependency_head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+    "dependency_config_sha256": "e9a4ecd3dfb9aef9c159e99cb2b7000651a2036ec909095f750b2c891404694a",
+    "dependency_archive_sha256": "46a5dcf68e4eb9df77264191c1b3094114214ccf78fd1e3b0bc7271862e026ec",
+    "dependency_archive_nondebug_sha256": "844334920db6592852abaa36b2320929bbaf16a7323a7b011ec821dfed7bd514",
+    "dependency_toolchain_manifest_sha256": "61f756352ad21e05f3fc52d94f3249db25f23cf43ca43248a64f405183c48fbd",
+    "dependency_source_st_dev": 66309,
+    "dependency_source_st_ino": 172111342,
+    "oracle_dependency_root": "/tmp/t1994-qualification-lzg80__0/base/.sort-swo-dependency-tlho6j5n/canonical",
+    "dependency_manifest_sha256": "8d0151cfaa0b86d1a2753e69f514633ec2fe6ee1077caed819fd3a426b501875"
+  },
+  "builds": {
+    "stock_common:aba": {
+      "configuration": "stock_common",
+      "attack": "aba",
+      "session_commands": [],
+      "ccache": {
+        "status": "unobserved"
+      },
+      "descriptor_sha256": "92e6df6889a4d5a0b4c7ad350689f87ab93eec5384bcd329dc4651c1a8ac302a",
+      "descriptor": {
+        "configuration": "stock_common",
+        "ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+        "declaration": {
+          "flags": {
+            "BACK_OFF": 1,
+            "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+            "NO_WAIT_OF_TICTOC": 0,
+            "WAL": 0
+          },
+          "sources": [
+            {
+              "path": "external/ccbench/cmake/Options.cmake",
+              "sha256": "7f8656c10610aa15a66258dd2aca01d1230fe15ee31bf9944225019d42d66651",
+              "key": "four CACHE defaults and BACK_OFF universal mapping",
+              "lines": [
+                "20: set(CCBENCH_BACK_OFF      1 CACHE STRING \"exponential backoff on abort\")",
+                "27: set(CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION  1 CACHE STRING \"\")",
+                "28: set(CCBENCH_NO_WAIT_OF_TICTOC              0 CACHE STRING \"\")",
+                "47: set(CCBENCH_WAL                           0 CACHE STRING \"silo\")",
+                "63:     BACK_OFF=${CCBENCH_BACK_OFF}"
+              ]
+            },
+            {
+              "path": "external/ccbench/cc/silo/CMakeLists.txt",
+              "sha256": "91af7720e82f0629cffdf9a1278695d764b48a620a7468728dc4a392df01096f",
+              "key": "silo target mappings for three protocol flags",
+              "lines": [
+                "5:     NO_WAIT_LOCKING_IN_VALIDATION=${CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION}",
+                "6:     NO_WAIT_OF_TICTOC=${CCBENCH_NO_WAIT_OF_TICTOC}",
+                "10:     WAL=${CCBENCH_WAL}"
+              ]
+            }
+          ]
+        },
+        "template_patch_path": null
+      },
+      "copy_target": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "rename_attack": {
+        "status": "not-started",
+        "source_renamed": false,
+        "ancestor_renamed": false
+      },
+      "build_exception": {
+        "result": false,
+        "errno": null,
+        "error": "BuildCacheError: FETCHCONTENT_BASE_DIR \u3068 dependency receipt \u306f\u540c\u6642\u6307\u5b9a\u5fc5\u9808"
+      },
+      "parent_checks": [
+        {
+          "guard": "_assert_root_identity",
+          "pid": 1057411,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 1057411,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 1057411,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 1057411,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        }
+      ],
+      "cache_completion_files_before_restore": [],
+      "cache_binaries_before_restore": [],
+      "parent_inventory_at_return": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "error": "Traceback (most recent call last):\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py\", line 490, in qualify\n    build_case(configuration, attack_mode, label, row, checks, args,\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py\", line 786, in build_case\n    require(checks, label + ':attack_executed_and_blocked',\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py\", line 66, in require\n    raise RuntimeError(name)\nRuntimeError: stock_common:aba:attack_executed_and_blocked\n"
+    },
+    "sort_best:none": {
+      "configuration": "sort_best",
+      "attack": "none",
+      "session_commands": [],
+      "ccache": {
+        "status": "unobserved"
+      },
+      "descriptor_sha256": "fbcfd23562e960de735a648a5b0841bb30fbc9d56873a328933f877612518bc2",
+      "descriptor": {
+        "configuration": "sort_best",
+        "ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+        "declaration": {
+          "name": "sk_ad",
+          "flags": {
+            "BACK_OFF": 1,
+            "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+            "NO_WAIT_OF_TICTOC": 0,
+            "WAL": 0,
+            "SORT_VARIANT": 1
+          },
+          "comparator": "  sort(write_set_.begin(), write_set_.end(),\n       [](const WriteElement<Tuple>& a, const WriteElement<Tuple>& b) -> bool {\n         return a.storage_ != b.storage_ ? a.storage_ < b.storage_\n                                         : b.key_ < a.key_;\n       });",
+          "note": "read-heavy \u306f sweep \u672a\u5b9f\u65bd\u3002D52 \u00a72.1 \u306e\u4e8b\u524d\u56fa\u5b9a sk_ad \u3092\u63a1\u7528\u3057\u3001comparator \u306f write-heavy \u672c\u8d70 provenance \u304b\u3089\u6d41\u7528\u3002",
+          "sources": [
+            {
+              "path": "docs/phase3-main-experiment.md",
+              "sha256": "e544de1969dd4df13dc42aa3d165e22b70fab2ab399dc011baa46359727bea45",
+              "key": "D52 2026-07-12\u8ffd\u8a18: read-heavy sk_ad\u4e8b\u524d\u56fa\u5b9a"
+            },
+            {
+              "path": "output/campaigns/p3-s6-sort-sweep-write-heavy-sweep-0484feef/reports/s6_sort_sweep_provenance.json",
+              "sha256": "42aad55fd9fc57360ec3beff429ccebee1ba0f41288a10e52d12a71c547fcdc7",
+              "key": "entries.sk_ad.implementation"
+            },
+            {
+              "path": "orchestrator/campaign/s6_sort_sweep.py",
+              "sha256": "0c7dcd30caf7a1e6bd97273c9273ae808516a5cdea5ce004b060edfaa29888a2",
+              "key": "_genome(1) and candidate space"
+            },
+            {
+              "path": "orchestrator/campaign/p3_s4_loop_sort.py",
+              "sha256": "9b64f34bac3711f2384fd89e8d387e2e9d736af6e2d7c9b246c059b52267dbf4",
+              "key": "_BASE used by _genome(1)"
+            }
+          ]
+        },
+        "template_patch_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/patches/silo-sort-variant.patch"
+      },
+      "error": "Traceback (most recent call last):\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py\", line 490, in qualify\n    build_case(configuration, attack_mode, label, row, checks, args,\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py\", line 625, in build_case\n    with direct.prepare_cell({'configuration': configuration, 'variant': dict(entry)},\n  File \"/usr/lib/python3.10/contextlib.py\", line 135, in __enter__\n    return next(self.gen)\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/campaign/s1_direct_comparison.py\", line 920, in prepare_cell\n    _condition_records_for_genome(\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/campaign/s1_direct_comparison.py\", line 308, in _condition_records_for_genome\n    raise DriverError(f\"condition gate rejected prepared cell: {reasons}\")\norchestrator.campaign.s1_direct_comparison.DriverError: condition gate rejected prepared cell: SORT_VARIANT:supply-effectuation:configure-failed,SORT_VARIANT:runtime-meaning:meaning-witness-undeclared\n"
+    },
+    "stock_common:persistent": {
+      "configuration": "stock_common",
+      "attack": "persistent",
+      "session_commands": [],
+      "ccache": {
+        "status": "unobserved"
+      },
+      "descriptor_sha256": "92e6df6889a4d5a0b4c7ad350689f87ab93eec5384bcd329dc4651c1a8ac302a",
+      "descriptor": {
+        "configuration": "stock_common",
+        "ccbench_commit": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+        "declaration": {
+          "flags": {
+            "BACK_OFF": 1,
+            "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+            "NO_WAIT_OF_TICTOC": 0,
+            "WAL": 0
+          },
+          "sources": [
+            {
+              "path": "external/ccbench/cmake/Options.cmake",
+              "sha256": "7f8656c10610aa15a66258dd2aca01d1230fe15ee31bf9944225019d42d66651",
+              "key": "four CACHE defaults and BACK_OFF universal mapping",
+              "lines": [
+                "20: set(CCBENCH_BACK_OFF      1 CACHE STRING \"exponential backoff on abort\")",
+                "27: set(CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION  1 CACHE STRING \"\")",
+                "28: set(CCBENCH_NO_WAIT_OF_TICTOC              0 CACHE STRING \"\")",
+                "47: set(CCBENCH_WAL                           0 CACHE STRING \"silo\")",
+                "63:     BACK_OFF=${CCBENCH_BACK_OFF}"
+              ]
+            },
+            {
+              "path": "external/ccbench/cc/silo/CMakeLists.txt",
+              "sha256": "91af7720e82f0629cffdf9a1278695d764b48a620a7468728dc4a392df01096f",
+              "key": "silo target mappings for three protocol flags",
+              "lines": [
+                "5:     NO_WAIT_LOCKING_IN_VALIDATION=${CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION}",
+                "6:     NO_WAIT_OF_TICTOC=${CCBENCH_NO_WAIT_OF_TICTOC}",
+                "10:     WAL=${CCBENCH_WAL}"
+              ]
+            }
+          ]
+        },
+        "template_patch_path": null
+      },
+      "copy_target": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "rename_attack": {
+        "status": "not-started",
+        "source_renamed": false,
+        "ancestor_renamed": false
+      },
+      "build_exception": {
+        "result": false,
+        "errno": null,
+        "error": "BuildCacheError: FETCHCONTENT_BASE_DIR \u3068 dependency receipt \u306f\u540c\u6642\u6307\u5b9a\u5fc5\u9808"
+      },
+      "parent_checks": [
+        {
+          "guard": "_assert_root_identity",
+          "pid": 1057411,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 1057411,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 1057411,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        },
+        {
+          "guard": "_assert_root_identity",
+          "pid": 1057411,
+          "namespaces": {
+            "user": "user:[4026535834]",
+            "mnt": "mnt:[4026535833]"
+          },
+          "source_is_B": false,
+          "rejected": false
+        }
+      ],
+      "cache_completion_files_before_restore": [],
+      "cache_binaries_before_restore": [],
+      "parent_inventory_at_return": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "error": "Traceback (most recent call last):\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py\", line 490, in qualify\n    build_case(configuration, attack_mode, label, row, checks, args,\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py\", line 786, in build_case\n    require(checks, label + ':attack_executed_and_blocked',\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2625-sealed-snapshot-qualification/orchestrator/manual_probes/t1994_readonly_snapshot_qualification.py\", line 66, in require\n    raise RuntimeError(name)\nRuntimeError: stock_common:persistent:attack_executed_and_blocked\n"
+    }
+  },
+  "cleanup_reaped": [
+    [
+      1059612,
+      128
+    ],
+    [
+      1059616,
+      128
+    ],
+    [
+      1059620,
+      128
+    ]
+  ],
+  "summary_tail": {
+    "overall": false,
+    "failed": [
+      "stock_common:aba:attack_executed_and_blocked",
+      "stock_common:aba",
+      "sort_best:none",
+      "stock_common:persistent:attack_executed_and_blocked",
+      "stock_common:persistent",
+      "descendants_finished"
+    ],
+    "requested_coverage": [
+      "stock_common",
+      "sort_best"
+    ],
+    "completed_cases": [],
+    "copy_targets": {
+      "stock_common:aba": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      },
+      "sort_best:none": null,
+      "stock_common:persistent": {
+        "files": 404,
+        "directories": 47,
+        "symlinks": 0,
+        "apparent_bytes": 2352405,
+        "symlink_bytes": 0,
+        "page_rounded_file_bytes": 3321856,
+        "page_size": 4096,
+        "nodes": 451,
+        "required_inodes": 451,
+        "copy_domain_sha256": "82aeb0015bea19cf9728671d57377c0aff3d8a831b12a7bb9dfe8017f9331a42",
+        "excluded_names": [
+          ".git"
+        ]
+      }
+    },
+    "ccache_diagnostic_only": true
+  }
+}

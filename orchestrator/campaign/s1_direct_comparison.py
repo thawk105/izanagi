@@ -297,7 +297,8 @@ def _bounded_condition_detail(detail: str) -> str:
 
 def _condition_records_for_genome(
         source_root: str, genome: Genome, *, driver_id: str, use_class: str,
-        cxx: str, stock_root: Optional[str] = None) -> tuple[
+        cxx: str, stock_root: Optional[str] = None,
+        configure_args: Sequence[str] = ()) -> tuple[
             tuple[condition_meaning_gate.ConditionArmRecord, ...],
             tuple[condition_meaning_gate.ConditionArmRecord, ...],
         ]:
@@ -305,7 +306,7 @@ def _condition_records_for_genome(
     if not requests:
         return (), ()
     captured = condition_meaning_gate.capture_define_inputs(
-        source_root, stock_root=stock_root,
+        source_root, stock_root=stock_root, configure_args=configure_args,
     )
     supply_records = []
     meaning_records = []
@@ -832,6 +833,7 @@ def _session_wall_upper_bound_s(role: str) -> float:
 def prepare_cell(
         cell: Mapping, ccbench_pin: str, *, cxx: str,
         condition_use_class: str = "floor",
+        condition_configure_args: Sequence[str] = (),
         oracle_dependency_root: Optional[os.PathLike[str] | str] = None,
         oracle_compiler: Optional[os.PathLike[str] | str] = None,
         oracle_phase_marker: Optional[Callable[[], None]] = None):
@@ -966,6 +968,7 @@ def prepare_cell(
                 sub, genome,
                 driver_id=_condition_driver_id(configuration),
                 use_class=condition_use_class, cxx=cxx, stock_root=stock_root,
+                configure_args=condition_configure_args,
             )
         )
         # The materializer boundary re-resolves and validates full SourceEvidence.
