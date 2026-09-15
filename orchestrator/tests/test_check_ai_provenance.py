@@ -5735,6 +5735,13 @@ def test_provenance_headroom_short_queue_unavailable_cap_oom_stops(
         return LH.Admission.DISPATCH, None, "観測余裕=500 bytes"
 
     dispatch = mock.Mock(side_effect=AssertionError("must not dispatch"))
+    # 並行 shard の未 tracked file によらず、容量不足で停止する分岐を検査する。
+    fingerprint = mock.Mock(
+        return_value=provenance._TreeFingerprint("a" * 64, (0, 0, 0, 0, 0)),
+    )
+    monkeypatch.setattr(
+        provenance, "_tree_and_submodules_fingerprint", fingerprint,
+    )
     monkeypatch.setattr(LH, "grant_budget", grant_budget)
     monkeypatch.setattr(
         provenance,
@@ -5758,6 +5765,7 @@ def test_provenance_headroom_short_queue_unavailable_cap_oom_stops(
     assert "ENA=DIS" in error
     assert "STS=INA" in error
     dispatch.assert_not_called()
+    assert fingerprint.call_args_list == [mock.call(provenance.REPO)] * 2
 
 
 def test_provenance_headroom_short_queue_unavailable_zero_budget_stops(
