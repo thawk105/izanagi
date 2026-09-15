@@ -942,7 +942,7 @@ _DEFERRED_GATE_MEMBERS = (
         "稼働 wave t2027 の所有面。動的 protocol 経由の campaign sink",
         "campaign",
         "<module>.main",
-        8659,
+        8661,
     ),
     _DeferredGateMember(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
@@ -2718,7 +2718,7 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         ),
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
-            "wave t2027", "campaign", "<module>.main", 8659,
+            "wave t2027", "campaign", "<module>.main", 8661,
         ),
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",
@@ -2953,7 +2953,7 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     s1_sink = _BuildSink(
         "orchestrator/campaign/s1_direct_comparison.py",
         "<module>.run_role",
-        1236,
+        1281,
         "campaign",
     )
     s8b_sink = _BuildSink(

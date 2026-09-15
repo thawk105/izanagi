@@ -1,0 +1,30 @@
+IZANAGI_FREEZE_HOLD {"check_id": "s8b-floor.protocol-bytes-expected-pin", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+Traceback (most recent call last):
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-c3c-official-floor/orchestrator/campaign/s8b_floor_campaign.py", line 9021, in <module>
+    sys.exit(main())
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-c3c-official-floor/orchestrator/campaign/s8b_floor_campaign.py", line 8659, in main
+    outcome = run_campaign(
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-c3c-official-floor/orchestrator/campaign/s8b_floor_campaign.py", line 7234, in run_campaign
+    return _run_campaign_core(
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-c3c-official-floor/orchestrator/campaign/s8b_floor_campaign.py", line 7655, in _run_campaign_core
+    runtime_built = build_cells(
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-c3c-official-floor/orchestrator/campaign/s8b_floor_campaign.py", line 4713, in build_cells
+    return _build_cells_impl(
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-c3c-official-floor/orchestrator/campaign/s8b_floor_campaign.py", line 4359, in _build_cells_impl
+    with _prepared_binding(
+  File "/usr/lib/python3.10/contextlib.py", line 135, in __enter__
+    return next(self.gen)
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-c3c-official-floor/orchestrator/campaign/s8b_floor_campaign.py", line 4035, in _prepared_binding
+    with prepared_binding(
+  File "/usr/lib/python3.10/contextlib.py", line 135, in __enter__
+    return next(self.gen)
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-c3c-official-floor/orchestrator/campaign/s8b_materialization.py", line 136, in prepared_binding
+    with manager as prepared:
+  File "/usr/lib/python3.10/contextlib.py", line 135, in __enter__
+    return next(self.gen)
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-c3c-official-floor/orchestrator/campaign/s1_direct_comparison.py", line 936, in prepare_cell
+    _condition_records_for_genome(
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1851-c3c-official-floor/orchestrator/campaign/s1_direct_comparison.py", line 324, in _condition_records_for_genome
+    raise DriverError(rejection)
+orchestrator.campaign.s1_direct_comparison.DriverError: condition gate rejected prepared cell: BACKOFF_FIXED:supply-effectuation:preprocess-failed
+BACKOFF_FIXED:supply-effectuation:preprocess-failed: evidence.detail='process returned rc=1; stderr=b'"'"'ded from /scr/0_999039.nqsv/izanagi_wt_1833hjov/wt/cc/silo/include/common.hh:12,\n                 from /scr/0_999039.nqsv/izanagi_wt_1833hjov/wt/cc/silo/include/atomic_tool.hh:3,\n                 from /scr/0_999039.nqsv/izanagi_wt_1833hjov/wt/cc/silo/transaction.cc:5:\n/scr/0_999039.nqsv/izanagi_wt_1833hjov/wt/cc/silo/include/../...<argv truncated; limit=500 bytes; original=1057 bytes; sha256=01c6a206f8d170ed7cfefce1e97969cd3749843e2f09bf8847ef467110c6f4d3>

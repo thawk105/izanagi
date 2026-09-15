@@ -1,0 +1,8 @@
+{
+  "campaign_run_id": "20260915T063232Z-2c8cf9be",
+  "clean_scan_digest": "b09b3e0d3711b84abc536e87cba01b8dea44f41253cc73e02c458fe60a65a354",
+  "protocol_sha256": "2c8cf9be929d83653814ecf5f2d5ed134a2af89686d796b8144da2fd45dfa58a",
+  "schema": "s8b-floor-launch-certificate/v1",
+  "started_utc": "2026-09-15T06:32:32.884657+00:00",
+  "v1_freeze_sha256": "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688"
+}
