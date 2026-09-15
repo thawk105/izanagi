@@ -61,6 +61,16 @@ title: [T-2591] 集約床値が実 issuer から公開材料レポートまで�
   実 Git 凍結、calibration の真正性、`write_material_report` による publish、certification の成立を
   証明しない。材料レポートの現物は `certifying=False` / `closed_world=False` / `evidence-only` /
   `not_in_effect` を宣言している。親が brief で「certification 成果物」と書いたのは現物より強かった。
+- **段 8 の docs 変更で焦点走が 2 段階に赤くなり、どちらも実装の回帰ではなかった。**
+  1 回目は `docs/dev-wave/operations.md` を未 commit のまま走らせたため、launcher の authority 検査が
+  `working tree が authority commit と異なる` で全件 rc=2 になった (116 赤)。段 8 を commit して解消し、
+  `test_dev_wave_launch_authority.py` の 6 件は緑になった。2 回目は `test_codex_worker_launch.py` だけが
+  96 件赤で、署名は `codex_exit_code=-15` (SIGTERM)・`evidence_status=missing`・`metering_status=missing`。
+  **同 file を単独で走らせると 211 passed・rc=0・8.90 秒**だった (負荷 130、下降局面)。
+  本 wave の差分 (テスト 3 file と DW-O14 の 3 行) は launcher の process 終端挙動へ到達しない。
+  F57 (launcher 族の負荷依存フレーク) と同型の非帰属赤として扱い、hold 登録はしていない。
+- **最終受入全走は本記録 commit と段 8 の commit を固定した後に既存 acceptance 経路で実行し、
+  耐久 receipt を共通 land が検証する。**
 - **運用の実測 2 件。** (1) `git worktree add` は並行 session 多数の下で 40〜50 分かかった (2 本)。
   (2) `tools/dev_wave_submodule_init.py` は**両方の worktree で 1 回目が
   `runtime-io-failure: update-no-fetch` で落ち、同じ引数の再実行で成功した**。
