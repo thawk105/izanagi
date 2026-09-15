@@ -23,3 +23,24 @@ seq: 2
   否定根拠にしない**。再発検知 = memory `git-find-object-misses-merge-commits`。
   なお `--find-object` の hit も「その commit の tree にその blob がある」ことを意味しない
   (削除された側でも hit する) ため、証拠 commit として記録するなら `ls-tree` で tree を直接照合する。
+
+### F300
+
+- **再発: 2026-09-16** — churn の出所が**同じ走行の内側**という変種 ([T-2638])。docs のみの wave で
+  受入全走を 4 回投入し、4 回とも赤になった (赤 3 件 → 33 件 → 1 件 → 2 件)。赤は毎回
+  「走行中に作業木・submodule の状態が変化した」族で、`assert_repository_unchanged` の `before`
+  bytes には `?? .t316-live-<乱数>/…` が入っていた。これは**同じ受入走行の別テストが wave 作業木へ
+  作った scratch** である。F300 の既往は「親が repo 内で別作業をした」「別 session が local main を
+  進めた」だったが、今回は**走行の内側で完結しており、親も他 session も何もしていない**。
+  赤になった test の集合は走行ごとに変わり (同一 tip・同一差分)、単独走では全件緑
+  (3 件 → 3 passed、30 件 → 199 passed、1 件 → 1 passed)。変更した path
+  (`docs/spool/**`・`output/insights/**`) は赤になった 4 test file とその production module の
+  どこからも参照されておらず、差分到達不能を機械的に確認した。
+  **恒久対応は未定。** `orchestrator/tests/flaky_test_holds.py` への登録は `DW-O18` が
+  「main 既存 F を証拠に Codex role=author が登録」と定めるが、本再発追記が main へ着地するまで
+  その証拠が存在しない (循環)。影響を受ける test は
+  `test_p3_b4_producer_auth_experiment.py::test_disposable_tree_mutation_does_not_change_main_worktree`、
+  同 `::test_case_failure_records_aborted_and_remaining_cases_continue`、
+  `test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`、
+  `test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops`。
+  再発検知 = 受入 log の FAILED 行がこの 4 件のいずれかだけで、単独走が緑になること。

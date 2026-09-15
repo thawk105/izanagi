@@ -65,7 +65,19 @@ pin の正本は `tools/check_docs.py` = 実装面なので、D782 / D730 の手
 次の実装 wave の候補として残す。なおこの罠は 2026-09-07 に既に memory へ記録されており、
 **記録が無かったのではなく引かずに踏んだ**。
 
-工数: codex 子 3 本 (plan 1・consult 2、いずれも `gpt-6-astra` / medium)。計算ノード job は 0。
+**受入全走は 4 回投入して 4 回とも赤で、4 回とも非帰属だった。** 赤は 3 件 → 33 件 → 1 件 → 2 件と
+推移し、失敗集合は同一 tip・同一差分のまま毎回変わった。中身は毎回「走行中に作業木・submodule の
+状態が変化した」族で、`assert_repository_unchanged` の `before` bytes に
+`?? .t316-live-<乱数>/…` が入っていた — **同じ受入走行の別テストが wave 作業木へ作る scratch**
+である。単独走では全件緑 (3 件 → 3 passed、30 件 → 199 passed、1 件 → 1 passed)。
+変更した path は赤になった 4 test file とその production module のどこからも参照されておらず、
+差分到達不能を機械的に確認した。新しい F は作らず、既存 F300 の再発として記録した。
+**`flaky_test_holds.py` への登録は使えない** — `DW-O18` が「main 既存 F を証拠に Codex role=author が
+登録」と定めるが、その証拠となる再発追記が本 wave の着地待ちであり循環する。
+hold で逃げず、負荷と同時走行本数の窓を待って投げ直す方針を採った。
+
+工数: codex 子 3 本 (plan 1・consult 2、いずれも `gpt-6-astra` / medium)。計算ノード job は
+焦点走 2 回 (999957.nqsv ほか)。受入投入 4 回。
 
 ## 次の一手差分
 
