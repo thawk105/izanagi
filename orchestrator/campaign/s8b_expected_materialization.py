@@ -866,6 +866,7 @@ def admitted_build_snapshot(
         *, ccbench_commit: str, configuration: str,
         declaration: Mapping[str, object], snapshot_root: os.PathLike[str] | str,
         genome, prepared_src_token: str, cxx: str,
+        sort_oracle_contract_id: Optional[str] = None,
 ) -> Iterator[AdmittedBuildSnapshot]:
     """Admit and protect the source snapshot used by one S8b build.
 
@@ -904,6 +905,7 @@ def admitted_build_snapshot(
                 ccbench_commit,
                 ccbench_dir=os.fspath(snapshot_root),
                 cxx=cxx,
+                sort_oracle_contract_id=sort_oracle_contract_id,
             )
         except (OSError, RuntimeError, TypeError, ValueError) as exc:
             raise ExpectedMaterializationError(
@@ -1602,6 +1604,7 @@ def sealed_build_session(
         *, ccbench_commit: str, configuration: str,
         declaration: Mapping[str, object], snapshot_root: os.PathLike[str] | str,
         genome, prepared_src_token: str, cxx: str, shared_directories,
+        sort_oracle_contract_id: Optional[str] = None,
 ) -> Iterator[SealedBuildSession]:
     """Add a private sealed view to the existing parent-side admission protocol.
 
@@ -1622,6 +1625,7 @@ def sealed_build_session(
             ccbench_commit=ccbench_commit, configuration=configuration,
             declaration=declaration, snapshot_root=snapshot_root, genome=genome,
             prepared_src_token=prepared_src_token, cxx=cxx,
+            sort_oracle_contract_id=sort_oracle_contract_id,
         ) as admitted:
             session = SealedBuildSession(admitted)
             # The outer admission context still owns the original permissions.

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import ctypes
+import errno
 import hashlib
 import inspect
 import json
@@ -5773,6 +5774,53 @@ def test_qualification_stock_build_case_dependency_options(tmp_path, check):
             expected += tuple(f"-DFETCHCONTENT_SOURCE_DIR_{name.upper()}={path}"
                               for name, path in source_dirs.items())
         assert injected == expected
+
+
+@pytest.mark.parametrize("write_error,chmod_error,accepted", [
+    pytest.param(errno.EROFS, errno.EROFS, True, id="erofs"),
+    pytest.param(errno.EACCES, errno.EROFS, True, id="dac-before-ro"),
+    pytest.param(0, errno.EROFS, False, id="M8-write-succeeded"),
+    pytest.param(errno.EACCES, 0, False, id="M9-chmod-succeeded"),
+    pytest.param(errno.EACCES, errno.EACCES, False, id="chmod-dac-only"),
+    pytest.param(errno.EPERM, errno.EROFS, False, id="unapproved-write-errno"),
+])
+def test_qualification_seal_require_errno_conjunction(write_error, chmod_error, accepted):
+    """Execute the driver's complete require, without duplicating its predicate.
+
+    This is a predicate test, not a mount qualification. Synthetic observations
+    vary one conjunct at a time; the production require itself is unchanged.
+    """
+    import ast
+    import inspect
+    from types import SimpleNamespace
+    from orchestrator.manual_probes import t1994_readonly_snapshot_qualification as driver
+
+    tree = ast.parse(inspect.getsource(driver.build_case))
+    calls = [node for node in ast.walk(tree)
+             if isinstance(node, ast.Call)
+             and isinstance(node.func, ast.Name) and node.func.id == "require"
+             and len(node.args) >= 3
+             and isinstance(node.args[1], ast.BinOp)
+             and isinstance(node.args[1].right, ast.Constant)
+             and node.args[1].right.value == ":seal"]
+    assert len(calls) == 1
+    code = compile(ast.Expression(calls[0]), driver.__file__, "eval")
+    inventory = {"files": 1}
+    observation = {
+        "chmod_errno": chmod_error, "write_errno": write_error,
+        "read_unchanged": True, "git_absent": True, "inventory": inventory,
+        "source_mounts": ["1 0 0:1 / /source ro,relatime - tmpfs tmpfs rw"],
+    }
+    checks = {}
+    inputs = dict(vars(driver), checks=checks, label="test",
+                  observed=SimpleNamespace(returncode=0), observation=observation,
+                  inventory=inventory)
+    if accepted:
+        eval(code, inputs)
+    else:
+        with pytest.raises(RuntimeError, match="^test:seal$"):
+            eval(code, inputs)
+    assert checks["test:seal"]["result"] is accepted
 
 
 def test_qualification_never_credits_an_attack_that_could_not_start(tmp_path):

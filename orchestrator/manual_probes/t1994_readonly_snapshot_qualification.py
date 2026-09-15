@@ -714,7 +714,8 @@ def build_case(configuration, attack_mode, label, row, checks, args, freeze, pin
                 observation = json.loads(observed.stdout)
                 row['seal'] = observation
                 require(checks, label + ':seal', observed.returncode == 0
-                        and observation['chmod_errno'] == errno.EROFS and observation['write_errno'] == errno.EROFS
+                        and observation['chmod_errno'] == errno.EROFS
+                        and observation['write_errno'] in (errno.EROFS, errno.EACCES)
                         and observation['read_unchanged'] and observation['git_absent']
                         and observation['inventory'] == inventory and observation['source_mounts']
                         and all('ro' in line.split()[5].split(',') and ' - tmpfs ' in line
