@@ -44,3 +44,42 @@ seq: 1
   checker 側は変更しない (読み手を無条件に無視させると占有検知そのものが弱まる)。
 - 再発検知: 掃除で rc1 (占有) が想定外に多い場合、まず自分の読み取り probe と wrapper の
   argv を疑う。
+
+### {{F:t316-scratch-dir-in-repo-root-breaks-acceptance}}. repo 直下に一時 dir を作る test が、並列受入で作業ツリー清浄を前提にする test を落とす [テスト代表性]
+
+- 事象: 2026-09-16 の受入全走 4 回すべてが child-verdict の赤で返った。赤の node は毎回異なるが
+  (1 回目 10 件、2 回目 2 件、3 回目 4 件、4 回目 4 件)、本文はいずれも作業ツリーが test 実行中に
+  変化したことを示していた。完全な本文に現れた実体は
+  `FileNotFoundError: .../.t316-live-5i6hap18` と
+  `assert {'.t316-live-butbiy4g/'} <= {...}` である。
+  生成元は `orchestrator/tests/test_t316_sandbox_probe.py:1736` の
+  `tempfile.TemporaryDirectory(prefix=".t316-live-", dir=_REPO)` で、**repo 直下**に一時 dir を作る。
+  導入は commit `168ad3d0bebc5f910e4ffa6aba9f445c101634ef` (2026-09-15 16:35、[T-2607])、
+  main に着地済み。
+- 被害者 (いずれも作業ツリーの清浄・不変を前提にする):
+  `test_p3_b4_producer_auth_experiment.py::test_case_failure_records_aborted_and_remaining_cases_continue`、
+  同 `::test_disposable_tree_mutation_does_not_change_main_worktree` (`ScratchTreeError:
+  main worktree status changed during experiment`)、
+  `test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`、
+  `test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops`、
+  `test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes`、
+  `test_t338_submission_gate_unit5.py::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink`。
+- 根本原因: 一時 dir の親が `_REPO` である。並列 shard の受入では、この dir が存在する数秒の間に
+  別 shard の test が `git status` / `git ls-files --others` を撮るため、同じ worktree を共有する
+  test 間で競合する。どの node が落ちるかは shard の割り当てと実行順で変わるので、赤は毎回違う。
+  変更を出した wave の受入では緑だったとみられるが、これは競合が確率的であるためで、
+  欠陥が無かったことを意味しない。
+- 恒久対応: 一時 dir を repo 外 (`tempfile.gettempdir()` 配下または専用 scratch root) へ移す。
+  repo 内に置く必要があるなら `output/` 配下など `.gitignore` 済みの場所にする。
+  本 wave の編集面 (`.claude/commands/cleanup-branches.md`、`tools/check_docs.py`、
+  `orchestrator/tests/test_check_docs.py`) の外なので、別 wave が Codex author で直す。
+- 同型の生成箇所 (2026-09-16 に `git grep -n "dir=_REPO" -- orchestrator tools` で実測、2 件):
+  `orchestrator/tests/test_t316_sandbox_probe.py:1736` (`prefix=".t316-live-"`) と
+  `orchestrator/tests/test_hooks.py:1513` (`prefix="t2146-hardlink-"`)。
+  `orchestrator/tests/test_run_tests_testops_observation.py:1083` は `dir=_REPO.parent` なので
+  repo 外であり該当しない。**独立 2 例あるので局所修復でなく族としての是正を検討してよい**
+  (`DW-G03`)。
+- 再発検知: 受入の赤 node が走行ごとに変わり、本文が worktree の状態変化を指す場合に本エントリを
+  引く。`git grep -n "dir=_REPO" -- orchestrator tools` で同型の生成箇所を数える。
+- **判定の注意:** 被害者 test を `flaky_test_holds.py` へ登録して迂回しない。落ちているのは
+  被害者であって原因ではなく、登録すると作業ツリー清浄の検査が受入から消える。

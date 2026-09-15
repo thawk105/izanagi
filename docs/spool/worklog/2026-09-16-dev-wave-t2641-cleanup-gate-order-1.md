@@ -81,3 +81,10 @@ title: "[T-2641] 掃除の棚卸しを安い gate 先行へ直し、実測で 2 
   出ないので子の argv も走査する」(+238 bytes)。どちらも本 wave で実測済みだが、
   D730 の「実測 3 例以上だけを例外とする」に届かないため実施しない側へ落とした。
   同型の実測が積み上がったときに、L1 の縮約または増枠と合わせて再検討する。
+- {{T:t316-scratch-dir-out-of-repo-root}} **P1・新規**: `orchestrator/tests/test_t316_sandbox_probe.py:1736`
+  の `tempfile.TemporaryDirectory(prefix=".t316-live-", dir=_REPO)` を repo 外 (または `output/` 配下の
+  ignore 済み path) へ移す。repo 直下に一時 dir を作るため、並列 shard の受入で作業ツリーの清浄を
+  前提にする test が確率的に落ちる。{{F:t316-scratch-dir-in-repo-root-breaks-acceptance}} に
+  実測 4 走ぶんの証拠がある。**被害者 test を hold 登録して迂回してはならない。**
+  実装面なので Codex author が要る。`git grep -n "dir=_REPO" -- orchestrator/tests` で
+  同型の生成箇所を先に数えること。
