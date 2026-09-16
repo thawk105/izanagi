@@ -1,0 +1,176 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 1500,
+  "hang_timeout_seconds": 1500,
+  "mutations": [
+    {
+      "id": "m0-equivalent-sorted-list",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "    return root, {\"current_runtime_sources\": sorted(current_runtime_sources)}\n",
+          "new": "    return root, {\"current_runtime_sources\": sorted(list(current_runtime_sources))}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-proto-output-copy-drops-tracked-txt",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "    _copy_git_visible_output(ROOT, root / \"output\")\n",
+          "new": "    _copy_git_visible_output(ROOT, root / \"output\")\n    (root / \"output/tracked.txt\").unlink(missing_ok=True)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-distinct-descriptor-append-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "            descriptor.read_bytes() + b\"\\n<!-- T-093 fixture-local basis blob -->\\n\"\n",
+          "new": "            descriptor.read_bytes()\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-derived-copy-excludes-git",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "                shutil.copytree(proto_root, root, symlinks=True)\n",
+          "new": "                shutil.copytree(proto_root, root, symlinks=True, ignore=shutil.ignore_patterns(\".git\"))\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-submodule-pointer-absolute",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "    _run_git(root / migration.CCBENCH_REL, \"checkout\", \"-q\", known[\"ccbench_pin\"])\n    return root, {\"current_runtime_sources\": sorted(current_runtime_sources)}\n",
+          "new": "    _run_git(root / migration.CCBENCH_REL, \"checkout\", \"-q\", known[\"ccbench_pin\"])\n    (root / migration.CCBENCH_REL / \".git\").write_text(f\"gitdir: {(root / '.git/modules' / migration.CCBENCH_REL).resolve()}\\n\", encoding=\"utf-8\")\n    return root, {\"current_runtime_sources\": sorted(current_runtime_sources)}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-proto-lock-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "            fcntl.flock(lock, fcntl.LOCK_EX)\n            if not marker.is_file():\n",
+          "new": "            if not marker.is_file():\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-proto-marker-published-before-build",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "                root, info = _build_t080_e2e_proto(parent)\n                pending = self.parent / \"proto-complete.pending\"\n",
+          "new": "                marker.write_text(json.dumps({\"root\": \"t080-stub-free-e2e\", \"info\": {\"current_runtime_sources\": []}}), encoding=\"utf-8\")\n                root, info = _build_t080_e2e_proto(parent)\n                pending = self.parent / \"proto-complete.pending\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-key-marker-published-before-finish",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "                shutil.copytree(proto_root, root, symlinks=True)\n                root, _receipt, document = _finish_t080_stub_free_e2e_repo(\n",
+          "new": "                shutil.copytree(proto_root, root, symlinks=True)\n                marker.write_text(json.dumps({\"root\": root.relative_to(parent).as_posix(), \"document\": {}}), encoding=\"utf-8\")\n                root, _receipt, document = _finish_t080_stub_free_e2e_repo(\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-derived-copy-drops-symlinks-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "                shutil.copytree(proto_root, root, symlinks=True)\n",
+          "new": "                shutil.copytree(proto_root, root)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-cache-identity-drops-distinct-field",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "        digest = hashlib.sha256(json.dumps(key).encode(\"utf-8\")).hexdigest()\n        parent = self.parent / digest\n",
+          "new": "        digest = hashlib.sha256(json.dumps(key[:3]).encode(\"utf-8\")).hexdigest()\n        parent = self.parent / digest\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-first-close-removes-session-parent",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "            except BlockingIOError:\n                return\n            if self.parent.exists():\n",
+          "new": "            except BlockingIOError:\n                pass\n            if self.parent.exists():\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-proto-entry-boundary-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "    \"\"\"Build the key-independent snapshot, including the submodule index.\"\"\"\n    tmp_path = _assert_t080_temp_root_outside_real_output(tmp_path)\n",
+          "new": "    \"\"\"Build the key-independent snapshot, including the submodule index.\"\"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
