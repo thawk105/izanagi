@@ -80,6 +80,20 @@ title: [T-2616] receipt memo の prewarm を受入全走でだけ collection 前
   完全に残っていたため、`DW-O01` の「未受理は未完了と記し次の子に監査させる」に従い、
   段 6 のレビュー 2 本に差分を監査させた。
 
+- **段 8 の自己改善候補 2 件は、予算に入らず「実施しない」へ落とした。** どちらも実測由来である。
+  (1) `DW-C01` の「隔離 worktree の detach は `.sh` 2 枚へ」に従っても、**script path を変数で
+  渡すと guard が拒否する** (`what it reads or is handed as shell text cannot be shown not to run
+  git`)。絶対 path の literal で叩けば通る。(2) `DW-O01` の「prompt に `## 総括` 必須」は
+  **採用検査の条件としては読めるが、prompt の出力形式節へ節を置けという指示としては読み取りにくい**。
+  実際に書き落として段 5 の成果物が `f43_fragment` で未受理になった。
+  **いずれも追記すると予算を超える** — (1) は `DW-C01` が exact 契約かつ単節 1000 bytes 上限で
+  1067 bytes になり、(2) は `docs/dev-wave/**` の L1.5 footprint が 9696 bytes 上限に対し
+  9777 bytes になる。基準線は違反 0 件である。D782 が委任する D730 の梯子
+  (既存削減 → 独立 3 例なら例外収容 → それでも無理なら上限引き上げ) を当てたが、**削減で
+  捻出できる bytes が足りず、実測はどちらも 1 例なので例外収容に届かない**。上限引き上げは
+  最後の手段であり 1 例では使わない。2 例目を踏んだ wave が持ち上げられるよう、
+  症状と超過 bytes をここに残す。
+
 - **エージェント工数。** codex 子 6 本 (plan 1 = reasoning high、consult 2 = high、author 1 /
   review 2 / fix 1 = docs 権威の medium、すべて gpt-6-astra)。受入投入 11 回 (緑 1、
   main churn による postcheck 競走 1、orphan hold による不発 6、job hang 1、他 2)、
