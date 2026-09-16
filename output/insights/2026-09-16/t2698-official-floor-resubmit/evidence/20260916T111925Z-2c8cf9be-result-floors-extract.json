@@ -1,0 +1,217 @@
+{
+ "attempt_registry": {
+  "chain_head_sha256": "142efdf78e3909d061cbc7d21d19ba1a5df892309eea7a4ff570a856e7186ee8",
+  "freeze_sha256": "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688",
+  "protocol_sha256": "2c8cf9be929d83653814ecf5f2d5ed134a2af89686d796b8144da2fd45dfa58a",
+  "registry_schema": "s8b-floor-attempt-registry/v2",
+  "row_count": 481,
+  "schedule_sha256": "534706783a5aaee91f02dc3dfc24fd46ca930fb32d13caa610e3db832aac7ee3",
+  "schema": "s8b-floor-attempt-registry-proof/v1"
+ },
+ "ccbench_pin": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+ "eligible_for_refreeze_producer_reported": true,
+ "env_tag": "pegasus",
+ "excluded": [],
+ "floors": {
+  "rr20": {
+   "diagnostics": {
+    "cell_cv_max": "0.15",
+    "cells": {
+     "rr20::backoff_fixed_best": {
+      "cv": 0.002929450134431946,
+      "floor": 35817.945,
+      "machine_anomaly": false,
+      "rel_floor": 35817.945,
+      "u_noise": 17565.25185761447
+     },
+     "rr20::ident_all": {
+      "cv": 0.009177071119696168,
+      "floor": 35817.945,
+      "machine_anomaly": false,
+      "rel_floor": 35817.945,
+      "u_noise": 17704.40656507381
+     },
+     "rr20::p2_2_flag_opt": {
+      "cv": 0.009704523630321423,
+      "floor": 35817.945,
+      "machine_anomaly": false,
+      "rel_floor": 35817.945,
+      "u_noise": 28965.914929386032
+     },
+     "rr20::sort_best": {
+      "cv": 0.0061416846265960065,
+      "floor": 35817.945,
+      "machine_anomaly": false,
+      "rel_floor": 35817.945,
+      "u_noise": 15858.953792506527
+     },
+     "rr20::stock_common": {
+      "cv": 0.011788533946082865,
+      "m": 1193931.5,
+      "machine_anomaly": false,
+      "s": 14033.04281164892
+     },
+     "rr20::system_gate": {
+      "cv": 0.0066638613036445644,
+      "floor": 35817.945,
+      "machine_anomaly": false,
+      "rel_floor": 35817.945,
+      "u_noise": 16345.165985915924
+     }
+    },
+    "machine_anomaly_cells": [],
+    "stock_id": "rr20::stock_common",
+    "stock_machine_anomaly": false,
+    "stock_valid": true,
+    "wired_min_rel_floor": 0.03
+   },
+   "pairs": {
+    "backoff_fixed_best": 35817.945,
+    "ident_all": 35817.945,
+    "p2_2_flag_opt": 35817.945,
+    "sort_best": 35817.945,
+    "system_gate": 35817.945
+   },
+   "scalar_alt": 35817.945,
+   "scale_ref": 1193931.5
+  },
+  "rr80": {
+   "diagnostics": {
+    "cell_cv_max": "0.15",
+    "cells": {
+     "rr80::backoff_fixed_best": {
+      "cv": 0.002262447822906971,
+      "floor": 46065.78,
+      "machine_anomaly": false,
+      "rel_floor": 46065.78,
+      "u_noise": 24516.09465738783
+     },
+     "rr80::ident_all": {
+      "cv": 0.00713808380212461,
+      "floor": 46065.78,
+      "machine_anomaly": false,
+      "rel_floor": 46065.78,
+      "u_noise": 21894.60304463506
+     },
+     "rr80::p2_2_flag_opt": {
+      "cv": 0.00272703521102826,
+      "floor": 46065.78,
+      "machine_anomaly": false,
+      "rel_floor": 46065.78,
+      "u_noise": 27543.212037438294
+     },
+     "rr80::sort_best": {
+      "cv": 0.008451164556297575,
+      "floor": 46065.78,
+      "machine_anomaly": false,
+      "rel_floor": 46065.78,
+      "u_noise": 22942.93552451697
+     },
+     "rr80::stock_common": {
+      "cv": 0.012362064005543695,
+      "m": 1535526.0,
+      "machine_anomaly": false,
+      "s": 19001.538516187127
+     },
+     "rr80::system_gate": {
+      "cv": 0.0027261594985543876,
+      "floor": 46065.78,
+      "machine_anomaly": false,
+      "rel_floor": 46065.78,
+      "u_noise": 20842.658566198865
+     }
+    },
+    "machine_anomaly_cells": [],
+    "stock_id": "rr80::stock_common",
+    "stock_machine_anomaly": false,
+    "stock_valid": true,
+    "wired_min_rel_floor": 0.03
+   },
+   "pairs": {
+    "backoff_fixed_best": 46065.78,
+    "ident_all": 46065.78,
+    "p2_2_flag_opt": 46065.78,
+    "sort_best": 46065.78,
+    "system_gate": 46065.78
+   },
+   "scalar_alt": 46065.78,
+   "scale_ref": 1535526.0
+  }
+ },
+ "formula": "s8b-floor-stats/v2",
+ "freeze_sha256": "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688",
+ "holdout_admission": {
+  "admission_row_count": 12,
+  "attempt_row_count": 96,
+  "campaign_run_id": "20260916T111925Z-2c8cf9be",
+  "claim_identities": {
+   "rr20::backoff_fixed_best": "286a4b9d6081ff47a0d6b5845ee340038db78de3811f2cd5882c424c30eb4e85",
+   "rr20::ident_all": "9590ca100ab5adf78ce83ef0878a3f74953cd9003cb6f0bc678eda4375913a66",
+   "rr20::p2_2_flag_opt": "f5d347519c660df5728a28073d4c15db3b0aed2c04211e984a1ea51f8c2bc021",
+   "rr20::sort_best": "9a480a80225d9b4768bbd03da065e2f95e0c56d4a113dca75d438995d9a4f148",
+   "rr20::stock_common": "cbb6f2b06575e028b77010cdac2cf7b675691303bd78a9a47ed119ee38bdc399",
+   "rr20::system_gate": "0399fa5e7df4da6452c4d66b66a80092cc3ea791c1a10af84ea7410fbcd4f8da",
+   "rr80::backoff_fixed_best": "954da5d1933d2a52ea5df603dc7fadf2ca08b210ccfdab010819604f28a9c62b",
+   "rr80::ident_all": "a59f6dfc1fdbc157a6372c7b6e95de4b7998d0d9f25d4b6959bc61a520c16f8d",
+   "rr80::p2_2_flag_opt": "425621c1e7de06cd96274233e1bc733aed6d9e1993478048998694d353d9b7ea",
+   "rr80::sort_best": "6bbc9cd8c68bc980dfb99a794b9b563f0c80b5ea245fde0aedecd8bf80d89e08",
+   "rr80::stock_common": "20672a9f033153f6d33ac6ba1e3e7879dc82079a7c484e43b79536ef543b072f",
+   "rr80::system_gate": "fe2ffd461e4f7b019572404af57bd1e8d31f0a0a52ede6044f6e6836072a56d6"
+  },
+  "freeze_sha256": "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688",
+  "ledger_projection_sha256": "0d680d37fb7e0ad4a274b5d9cc7c06cdb42b76e5377fd95c6869574a61e52555",
+  "manifest_sha256": "50af60db9c489a2b06a9baa2970cc29903b619102578991c25ff3714c1a5ae2a",
+  "mode": "official",
+  "protocol_sha256": "2c8cf9be929d83653814ecf5f2d5ed134a2af89686d796b8144da2fd45dfa58a",
+  "run_relpath": "env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be",
+  "schema": "s8b-floor-holdout-admission-receipt/v1"
+ },
+ "holdouts": [
+  "rr20",
+  "rr80"
+ ],
+ "manifest_sha256": "50af60db9c489a2b06a9baa2970cc29903b619102578991c25ff3714c1a5ae2a",
+ "mode": "official",
+ "n_sessions": 8,
+ "note": "result.json (s8b-floor-result/v5) から三軸 literal を含まない部分だけを抽出した射影。原本は source に記す",
+ "perf_preflight": {
+  "available": false,
+  "candidates": [
+   {
+    "executable": true,
+    "path": "/usr/lib/linux-tools/5.15.0-135-generic/perf",
+    "rc": 0
+   },
+   {
+    "executable": true,
+    "path": "/usr/lib/linux-tools/5.15.0-100-generic/perf",
+    "rc": 0
+   }
+  ],
+  "parsed_events": [],
+  "probe_argv": [
+   "perf",
+   "stat",
+   "-x,",
+   "-o",
+   "<tmp>/perf.csv",
+   "-e",
+   "LLC-load-misses,LLC-loads,instructions,cycles",
+   "--",
+   "/bin/true"
+  ],
+  "rc": 2,
+  "reason": "nonzero-rc",
+  "schema": "izanagi-perf-preflight/v1",
+  "status": "unavailable",
+  "stderr_sha256": "0644bd60a2709389c1ad9119ddd28b38e764959a236f398b8bab65bf84c732c4"
+ },
+ "protocol_sha256": "2c8cf9be929d83653814ecf5f2d5ed134a2af89686d796b8144da2fd45dfa58a",
+ "reps": 5,
+ "scale_adequacy_rel_tolerance": "0.10",
+ "schema": "s8b-floor-result/v5",
+ "source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2698-official-floor-resubmit/output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json",
+ "source_sha256": "b111831e9d002b523b57b0096a04bf03bb86b9b01fb5418511909f8ed4075620",
+ "stock_configuration": "stock_common",
+ "wired_min_rel_floor": 0.03
+}
