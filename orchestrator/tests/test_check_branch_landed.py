@@ -356,6 +356,159 @@ def test_receipt_identity_mismatch_does_not_prove_fragment(tmp_path: Path):
     assert unit["evidence"][1]["outcome"] == "not-matched"
 
 
+def test_batch_preserves_merge_introduced_state(tmp_path):
+    repo = _init_repo(tmp_path)
+    _write(repo, "f", "base\n")
+    base = _commit(repo, "base f")
+    _topic(repo)
+    _write(repo, "f", "resolution\n")
+    topic = _commit(repo, "topic resolution")
+    oid = _git(repo, "rev-parse", f"{topic}:f").stdout.strip()
+    _main(repo)
+    _write(repo, "f", "left\n")
+    _commit(repo, "left")
+    _git(repo, "switch", "-c", "side", base)
+    _write(repo, "f", "right\n")
+    _commit(repo, "right")
+    _main(repo)
+    assert _git(repo, "merge", "--no-ff", "side", check=False).returncode == 1
+    _write(repo, "f", "resolution\n")
+    witness = _commit(repo, "merge resolution")
+    (repo / "f").unlink()
+    _commit(repo, "remove resolution")
+    raw = _git(repo, "log", "--raw", "--no-abbrev", "--format=", "main", "--", "f").stdout
+    assert f" {oid} M" not in raw
+    payload = TOOL.assess(repo, "topic")
+    assert payload["decision"] == TOOL._decision("landed", "all-introduced-states-proven")
+    unit = _unit(payload, path="f", reason="exact-state-in-main-history")
+    assert (unit["commit"], unit["change"]) == (topic, "M")
+    assert unit["required_state"] == {"path": "f", "mode": "100644", "object_type": "blob", "oid": oid}
+    exact = unit["evidence"][0]
+    assert (exact["layer"], exact["outcome"], exact["matched_commit"], exact["candidate_count"]) == (
+        "exact-tree-state", "matched", witness, 5,
+    )
+
+
+def test_batch_validates_all_rows_before_accepting_match(tmp_path, monkeypatch):
+    repo, _, oid, witness, tip = _history_fixture(tmp_path, "f")
+    original = TOOL.Git.run
+    consumed = []
+
+    def corrupt(self, args, **kwargs):
+        result = original(self, args, **kwargs)
+        if args[0] == "log" and "--format=%H" in args and args[-1] == "f":
+            result.stdout = f"{witness}\n{tip}\n".encode()
+        if args[0] == "cat-file" and args[1].startswith("--batch-check="):
+            consumed.append(kwargs["input_data"])
+            result.stdout = f"{oid} blob 7 0\nbroken\n".encode()
+        return result
+
+    monkeypatch.setattr(TOOL.Git, "run", corrupt)
+    payload = TOOL.assess(repo, "topic")
+    assert consumed == [f"{witness}:f 0\n{tip}:f 1\n".encode()]
+    assert payload["decision"] == TOOL._decision("indeterminate", "path-batch-parse-error")
+
+
+@pytest.mark.parametrize("spool", [False, True])
+@pytest.mark.parametrize("failure", ["command-timeout", "deadline", "parse"])
+def test_batch_failure_never_becomes_negative(tmp_path, monkeypatch, spool, failure):
+    path = "docs/spool/worklog/2026-08-25-topic-1.md" if spool else "f"
+    content = _fragment("worklog", "Body.") if spool else "wanted\n"
+    repo, _, _, _, _ = _history_fixture(tmp_path, path, content)
+    original = TOOL.Git.run
+    consumed = []
+
+    def fail(self, args, **kwargs):
+        if args[0] == "cat-file" and args[1].startswith("--batch-check="):
+            consumed.append(kwargs["input_data"])
+            if failure == "command-timeout":
+                raise TOOL.AssessmentError("assessment-timeout", "injected timeout", outcome="truncated")
+            result = original(self, args, **kwargs)
+            if failure == "deadline":
+                remaining = self.remaining
+                samples = iter([-1.0])
+                monkeypatch.setattr(self, "remaining", lambda: next(samples, remaining()))
+            else:
+                result.stdout = b"invalid\n"
+            return result
+        return original(self, args, **kwargs)
+
+    monkeypatch.setattr(TOOL.Git, "run", fail)
+    payload = TOOL.assess(repo, "topic")
+    assert len(consumed) == 1
+    reason = "path-batch-parse-error" if failure == "parse" else "assessment-timeout"
+    assert payload["decision"] == TOOL._decision(
+        "indeterminate", "one-or-more-states-unproven" if spool else reason,
+    )
+    if spool:
+        unit = _unit(payload, path=path, reason=reason)
+        exact, receipt = unit["evidence"][:2]
+        assert (exact["layer"], exact["outcome"], exact["reason"], exact["matched_commit"], exact["decisive"]) == (
+            "exact-tree-state", "error" if failure == "parse" else "truncated", reason, None, True,
+        )
+        assert receipt["decisive"] is False
+
+
+def test_batch_chunk_limit_and_command_count(tmp_path, monkeypatch):
+    repo, _, oid, witness, tip = _history_fixture(tmp_path, "f")
+    original = TOOL.Git.run
+    batches = []
+
+    def many(self, args, **kwargs):
+        result = original(self, args, **kwargs)
+        if args[0] == "log" and args[-1] == "f":
+            result.stdout = ((tip + "\n") * 1024 + witness + "\n").encode()
+        if args[0] == "cat-file" and args[1].startswith("--batch-check="):
+            batches.append(len(kwargs["input_data"].splitlines()))
+        return result
+
+    monkeypatch.setattr(TOOL.Git, "run", many)
+    git = TOOL.Git(repo, TOOL.time.monotonic() + 30)
+    required = TOOL.TreeEntry("f", "100644", "blob", oid)
+    result = TOOL._find_exact_state(git, tip, required, 1024)
+    assert batches == [1024, 1]
+    assert git.command_count == 5
+    assert (result.outcome, result.reason, result.matched_commit, result.candidate_count, result.candidate_limit) == (
+        "matched", "exact-state-in-main-history", witness, 1025, 1024,
+    )
+
+
+def test_batch_empty_input_is_an_error(tmp_path):
+    git = TOOL.Git(tmp_path, TOOL.time.monotonic() + 30)
+    with pytest.raises(TOOL.AssessmentError) as caught:
+        TOOL._batch_check_path_candidates(git, [], "f")
+    assert (caught.value.code, caught.value.outcome) == ("path-batch-parse-error", "error")
+    assert git.command_count == 0
+
+
+@pytest.mark.parametrize("kind", ["missing", "tree", "gitlink", "symlink"])
+def test_batch_preserves_nonregular_legacy_path(tmp_path, monkeypatch, kind):
+    repo, _, oid, witness, tip = _history_fixture(tmp_path, "f")
+    required = {
+        "missing": TOOL._missing_entry("f", 40),
+        "tree": TOOL.TreeEntry("f", "040000", "tree", oid),
+        "gitlink": TOOL.TreeEntry("f", "160000", "commit", oid),
+        "symlink": TOOL.TreeEntry("f", "120000", "blob", oid),
+    }[kind]
+    observed_calls = []
+
+    def entry(git, commit, path, oid_length):
+        observed_calls.append((commit, path))
+        return required if commit == witness else TOOL.TreeEntry("f", "100644", "blob", "a" * 40)
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("nonregular state must use ls-tree path")
+
+    monkeypatch.setattr(TOOL, "_tree_entry", entry)
+    monkeypatch.setattr(TOOL, "_batch_check_path_candidates", forbidden)
+    git = TOOL.Git(repo, TOOL.time.monotonic() + 30)
+    result = TOOL._find_exact_state(git, tip, required, 1024)
+    assert observed_calls == [(tip, "f"), (tip, "f"), (witness, "f")]
+    assert (result.outcome, result.reason, result.matched_commit, result.candidate_count) == (
+        "matched", "exact-state-in-main-history", witness, 2,
+    )
+
+
 def test_one_invalid_receipt_bullet_invalidates_registry(tmp_path: Path):
     repo = _init_repo(tmp_path)
     fragment = _fragment("decisions", "## Decision\n\nExact content.")
@@ -1534,3 +1687,220 @@ def test_json_schema_outcomes_and_all_exit_codes(tmp_path: Path):
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main(["-q", __file__]))
+
+
+# T-2639: actual tree witnesses, tagged protocol failures, and positive-only spool proof.
+def _history_fixture(tmp_path: Path, path: str, content: str = "wanted\n"):
+    repo = _init_repo(tmp_path)
+    _topic(repo)
+    _write(repo, path, content)
+    topic = _commit(repo, "topic state")
+    oid = _git(repo, "rev-parse", f"{topic}:{path}").stdout.strip()
+    _main(repo)
+    _write(repo, path, content)
+    witness = _commit(repo, "main witness")
+    (repo / path).unlink()
+    tip = _commit(repo, "remove witness")
+    return repo, topic, oid, witness, tip
+
+
+def _assert_exact_unit(payload, path, topic, oid, witness):
+    assert payload["decision"]["verdict"] == "landed"
+    unit = payload["proof_units"][0]
+    assert (unit["commit"], unit["path"], unit["change"]) == (topic, path, "A")
+    assert unit["required_state"] == {
+        "path": path, "mode": "100644", "object_type": "blob", "oid": oid,
+    }
+    assert unit["decision"] == TOOL._decision("landed", "exact-state-in-main-history")
+    evidence = unit["evidence"][0]
+    assert {k: evidence[k] for k in ("layer", "decisive", "outcome", "reason", "matched_commit",
+                                   "candidate_count", "candidate_limit")} == {
+        "layer": "exact-tree-state", "decisive": True, "outcome": "matched",
+        "reason": "exact-state-in-main-history", "matched_commit": witness,
+        "candidate_count": 2, "candidate_limit": 1024,
+    }
+    return unit
+
+
+@pytest.mark.parametrize("path", [
+    "output/env/pegasus/calibration/job-staging/0:867863.nqsv/allocation-unavailable.json",
+    "space path", "line\npath", "carriage\rpath", "tab\tpath", "日本語",
+    'quote"path', "-leading",
+], ids=["colon", "space", "lf", "cr", "tab", "utf8", "quote", "dash"])
+def test_batch_path_handling(tmp_path, monkeypatch, path):
+    repo, topic, oid, witness, tip = _history_fixture(tmp_path, path)
+    calls = []
+    original = TOOL.Git.run
+
+    def record(self, args, **kwargs):
+        if args[0] == "cat-file" and args[1].startswith("--batch-check="):
+            calls.append(kwargs["input_data"])
+        return original(self, args, **kwargs)
+
+    monkeypatch.setattr(TOOL.Git, "run", record)
+    _assert_exact_unit(TOOL.assess(repo, "topic"), path, topic, oid, witness)
+    assert calls == ([] if any(c.isspace() for c in path) else [
+        f"{tip}:{path} 0\n{witness}:{path} 1\n".encode(),
+    ])
+
+
+@pytest.mark.parametrize("fault", ["short", "extra", "no-lf", "reordered", "missing-expression",
+                                       "ambiguous", "dangling", "empty", "quote", "dash"])
+def test_batch_invalid_stdout_is_indeterminate(tmp_path, monkeypatch, fault):
+    path = 'quote"path' if fault == "quote" else "-leading" if fault == "dash" else "f"
+    repo, topic, oid, witness, tip = _history_fixture(tmp_path, path)
+    original = TOOL.Git.run
+    consumed = []
+
+    def corrupt(self, args, **kwargs):
+        result = original(self, args, **kwargs)
+        if args[0] == "cat-file" and args[1].startswith("--batch-check="):
+            consumed.append(kwargs["input_data"])
+            good = f"{oid} blob 7 0\n{oid} blob 7 1\n".encode()
+            replacements = {
+                "short": good.splitlines(keepends=True)[0], "extra": good + b"extra\n",
+                "no-lf": good[:-1], "reordered": f"{oid} blob 7 1\n{oid} blob 7 0\n".encode(),
+                "missing-expression": f"{tip}:wrong missing\n{oid} blob 7 1\n".encode(),
+                "ambiguous": f"{tip}:{path} ambiguous\n{oid} blob 7 1\n".encode(),
+                "dangling": f"{tip}:{path} dangling\n{oid} blob 7 1\n".encode(),
+                "empty": b"", "quote": good + b"bad\n", "dash": good + b"bad\n",
+            }
+            return subprocess.CompletedProcess(args, 0, replacements[fault], b"")
+        return result
+
+    monkeypatch.setattr(TOOL.Git, "run", corrupt)
+    payload = TOOL.assess(repo, "topic")
+    assert consumed == [f"{tip}:{path} 0\n{witness}:{path} 1\n".encode()]
+    assert payload["decision"] == TOOL._decision("indeterminate", "path-batch-parse-error")
+
+
+@pytest.mark.parametrize("difference", ["mode", "type", "oid"])
+def test_batch_rejects_candidate_state_difference(tmp_path, monkeypatch, difference):
+    repo, topic, oid, witness, tip = _history_fixture(tmp_path, "f")
+    original = TOOL.Git.run
+    consumed = []
+
+    def different(self, args, **kwargs):
+        result = original(self, args, **kwargs)
+        if args[0] == "cat-file" and args[1].startswith("--batch-check="):
+            consumed.append(True)
+            if difference == "type":
+                result.stdout = result.stdout.replace(b" blob ", b" tree ")
+            elif difference == "oid":
+                result.stdout = result.stdout.replace(oid.encode(), b"1" * len(oid))
+        if difference == "mode" and args[0] == "ls-tree" and witness in args:
+            result.stdout = result.stdout.replace(b"100644", b"100755")
+        return result
+
+    monkeypatch.setattr(TOOL.Git, "run", different)
+    payload = TOOL.assess(repo, "topic")
+    assert consumed == [True]
+    assert payload["decision"]["verdict"] == "indeterminate"
+    unit = _unit(payload, path="f", reason="exact-state-not-proven")
+    assert unit["required_state"] == {"path": "f", "mode": "100644", "object_type": "blob", "oid": oid}
+    assert unit["evidence"][0]["outcome"] == "not-matched"
+    assert unit["evidence"][0]["matched_commit"] is None
+
+
+def test_spool_exact_history_without_receipt_is_landed(tmp_path, monkeypatch):
+    path = "docs/spool/worklog/2026-08-25-topic-1.md"
+    repo, topic, oid, witness, _ = _history_fixture(tmp_path, path, _fragment("worklog", "Body."))
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("spool must not call regular decision")
+
+    monkeypatch.setattr(TOOL, "_regular_decision", forbidden)
+    payload = TOOL.assess(repo, "topic")
+    unit = _assert_exact_unit(payload, path, topic, oid, witness)
+    assert unit["evidence"][1]["decisive"] is False
+    assert unit["evidence"][1]["outcome"] == "not-matched"
+    assert payload["unproven_paths"] == []
+    assert payload["receipt_missing_paths"] == [path]
+    assert payload["unresolved_fragment_candidates"] == []
+
+
+@pytest.mark.parametrize("probe_outcome", ["matched", "not-matched"])
+def test_unlanded_pure_add_spool_stays_indeterminate(tmp_path, monkeypatch, probe_outcome):
+    repo = _init_repo(tmp_path)
+    path = "docs/spool/worklog/2026-08-25-topic-1.md"
+    _topic(repo)
+    _write(repo, path, _fragment("worklog", "Body."))
+    topic = _commit(repo, "unlanded fragment")
+    oid = _git(repo, "rev-parse", f"{topic}:{path}").stdout.strip()
+    original = TOOL._ledger_probe
+    consumed = []
+
+    def probe(*args, **kwargs):
+        consumed.append(True)
+        result = original(*args, **kwargs)
+        result["outcome"] = probe_outcome
+        return result
+
+    monkeypatch.setattr(TOOL, "_ledger_probe", probe)
+    payload = TOOL.assess(repo, "topic")
+    assert consumed == [True]
+    assert payload["decision"] == TOOL._decision("indeterminate", "one-or-more-states-unproven")
+    unit = _unit(payload, path=path, reason="folded-receipt-absent")
+    assert (unit["commit"], unit["change"]) == (topic, "A")
+    assert unit["required_state"] == {"path": path, "mode": "100644", "object_type": "blob", "oid": oid}
+    assert unit["decision"] == TOOL._decision("indeterminate", "folded-receipt-absent")
+    exact, receipt = unit["evidence"][:2]
+    assert (exact["layer"], exact["outcome"], exact["candidate_count"], exact["matched_commit"], exact["decisive"]) == (
+        "exact-tree-state", "not-matched", 0, None, False,
+    )
+    assert (receipt["layer"], receipt["outcome"], receipt["reason"], receipt["decisive"]) == (
+        "folded-receipt", "not-matched", "folded-receipt-absent", True,
+    )
+
+
+@pytest.mark.parametrize("failure", ["receipt", "blob-limit", "fragment"])
+def test_spool_exact_does_not_hide_integrity_errors(tmp_path, monkeypatch, failure):
+    path = "docs/spool/worklog/2026-08-25-topic-1.md"
+    content = "invalid frontmatter\n" if failure == "fragment" else _fragment("worklog", "Body.")
+    repo, topic, oid, witness, _ = _history_fixture(tmp_path, path, content)
+    if failure == "receipt":
+        _write(repo, "docs/spool/FOLDED.md", "# Folded\n\n- {broken\n")
+        _commit(repo, "invalid receipt")
+    if failure == "blob-limit":
+        monkeypatch.setattr(TOOL, "MAX_TEXT_BYTES", 8)
+    payload = TOOL.assess(repo, "topic")
+    assert payload["decision"]["verdict"] == "indeterminate"
+    unit = payload["proof_units"][0]
+    reason = {"receipt": "folded-receipt-json-invalid", "blob-limit": "blob-size-limit-exceeded",
+              "fragment": "fragment-frontmatter-invalid"}[failure]
+    assert (unit["commit"], unit["path"], unit["change"]) == (topic, path, "A")
+    assert unit["decision"] == TOOL._decision("indeterminate", reason)
+    assert unit["required_state"] == {"path": path, "mode": "100644", "object_type": "blob", "oid": oid}
+    assert unit["evidence"][0]["outcome"] == "not-applicable"
+    assert unit["evidence"][0]["matched_commit"] is None
+    assert unit["evidence"][1]["decisive"] is True
+    assert (unit["evidence"][1]["layer"], unit["evidence"][1]["outcome"], unit["evidence"][1]["reason"]) == (
+        "folded-receipt", "truncated" if failure == "blob-limit" else "error", reason,
+    )
+    assert unit["integrity_incomplete"] is True
+
+
+def test_unreceipted_spool_deletion_has_no_exact_fallback(tmp_path, monkeypatch):
+    repo = _init_repo(tmp_path)
+    path = "docs/spool/worklog/2026-08-25-topic-1.md"
+    _write(repo, path, _fragment("worklog", "Body."))
+    _commit(repo, "shared fragment")
+    _topic(repo)
+    (repo / path).unlink()
+    topic = _commit(repo, "topic deletion")
+    _main(repo)
+    (repo / path).unlink()
+    _commit(repo, "main deletion")
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("deleted spool must not use exact fallback")
+
+    monkeypatch.setattr(TOOL, "_find_exact_state", forbidden)
+    payload = TOOL.assess(repo, "topic")
+    assert payload["decision"]["verdict"] == "indeterminate"
+    unit = _unit(payload, path=path, reason="folded-receipt-absent")
+    assert (unit["commit"], unit["change"]) == (topic, "D")
+    assert unit["required_state"] == {"path": path, "mode": "000000", "object_type": "missing", "oid": "0" * 40}
+    assert unit["decision"] == TOOL._decision("indeterminate", "folded-receipt-absent")
+    assert unit["evidence"][0]["outcome"] == "not-applicable"
+    assert unit["evidence"][1]["outcome"] == "not-matched"
