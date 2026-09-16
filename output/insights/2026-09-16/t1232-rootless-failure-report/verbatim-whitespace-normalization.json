@@ -1,0 +1,160 @@
+{
+  "schema": "izanagi-verbatim-whitespace-normalization/v1",
+  "reason": "git diff --check が逐語の行末空白 (Markdown の強制改行) を拒否するため、DW-S07 の可逆最小正規化を適用した。可視文字は不変。",
+  "restore": "各 file の trailing_whitespace_lines の line 行末へ removed_bytes 個の空白 (0x20) を戻すと original_sha256 に一致する。",
+  "files": [
+    {
+      "path": "output/insights/2026-09-16/t1232-rootless-failure-report/verbatim/s2-plan.md",
+      "original_sha256": "f32d5d95e4b4d13ec3a304e0286780eca109f78cee08ded5f1a0cd1b80599c50",
+      "original_bytes": 17538,
+      "normalized_sha256": "ff26aeb3323d966035cf51a0f4df6f4dcd402f561c66b40ff8561f35bf09ac56",
+      "normalized_bytes": 17528,
+      "trailing_whitespace_lines": [
+        {
+          "line": 181,
+          "removed_bytes": 2
+        },
+        {
+          "line": 225,
+          "removed_bytes": 2
+        },
+        {
+          "line": 226,
+          "removed_bytes": 2
+        },
+        {
+          "line": 227,
+          "removed_bytes": 2
+        },
+        {
+          "line": 228,
+          "removed_bytes": 2
+        }
+      ]
+    },
+    {
+      "path": "output/insights/2026-09-16/t1232-rootless-failure-report/verbatim/s3-lensA.md",
+      "original_sha256": "908fbbe9b39565efd1abd2cfa021dee06f323b4f0b924ac2950134a9d0b32b5b",
+      "original_bytes": 7621,
+      "normalized_sha256": "9e846fb5b7c57c78aba214ced6e0161ec72979103555e147d586690f997b31b8",
+      "normalized_bytes": 7611,
+      "trailing_whitespace_lines": [
+        {
+          "line": 88,
+          "removed_bytes": 2
+        },
+        {
+          "line": 89,
+          "removed_bytes": 2
+        },
+        {
+          "line": 90,
+          "removed_bytes": 2
+        },
+        {
+          "line": 91,
+          "removed_bytes": 2
+        },
+        {
+          "line": 92,
+          "removed_bytes": 2
+        }
+      ]
+    },
+    {
+      "path": "output/insights/2026-09-16/t1232-rootless-failure-report/verbatim/s3-lensB.md",
+      "original_sha256": "628c7ad0007dcd76478c30747ea5cacc335e39fc94af71706eee5f3f266bc141",
+      "original_bytes": 10264,
+      "normalized_sha256": "5a5b0194d224cd50f4919315ef6c6d337018c4abecf510f16c90b7f8ee550d8f",
+      "normalized_bytes": 10250,
+      "trailing_whitespace_lines": [
+        {
+          "line": 58,
+          "removed_bytes": 2
+        },
+        {
+          "line": 61,
+          "removed_bytes": 2
+        },
+        {
+          "line": 96,
+          "removed_bytes": 2
+        },
+        {
+          "line": 97,
+          "removed_bytes": 2
+        },
+        {
+          "line": 98,
+          "removed_bytes": 2
+        },
+        {
+          "line": 99,
+          "removed_bytes": 2
+        },
+        {
+          "line": 100,
+          "removed_bytes": 2
+        }
+      ]
+    },
+    {
+      "path": "output/insights/2026-09-16/t1232-rootless-failure-report/verbatim/s6-revA.md",
+      "original_sha256": "2ee849e062e12419911b82a94eda3e416b6237e437785bd13669457279661a43",
+      "original_bytes": 7960,
+      "normalized_sha256": "16b9f1bab5502060989296b4c148b708f5c0e37add6be57632766fcbdff0e55d",
+      "normalized_bytes": 7950,
+      "trailing_whitespace_lines": [
+        {
+          "line": 58,
+          "removed_bytes": 2
+        },
+        {
+          "line": 86,
+          "removed_bytes": 2
+        },
+        {
+          "line": 87,
+          "removed_bytes": 2
+        },
+        {
+          "line": 88,
+          "removed_bytes": 2
+        },
+        {
+          "line": 89,
+          "removed_bytes": 2
+        }
+      ]
+    },
+    {
+      "path": "output/insights/2026-09-16/t1232-rootless-failure-report/verbatim/s6-revB.md",
+      "original_sha256": "54a880194eba6bcc9618df33c8f6bf0e41d9f3da4e05877a2091714dc813a089",
+      "original_bytes": 10100,
+      "normalized_sha256": "f16db16a1e9c5b3e08c48038b0c73f2842d6ae31b7c0860289b1a01384bb6286",
+      "normalized_bytes": 10090,
+      "trailing_whitespace_lines": [
+        {
+          "line": 89,
+          "removed_bytes": 2
+        },
+        {
+          "line": 90,
+          "removed_bytes": 2
+        },
+        {
+          "line": 91,
+          "removed_bytes": 2
+        },
+        {
+          "line": 92,
+          "removed_bytes": 2
+        },
+        {
+          "line": 93,
+          "removed_bytes": 2
+        }
+      ]
+    }
+  ]
+}
