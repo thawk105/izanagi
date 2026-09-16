@@ -1,5 +1,6 @@
 """Whole-namespace evacuation, integrity failures, and real clean scan."""
 from pathlib import Path
+import ast
 import hashlib
 import inspect
 import json
@@ -44,6 +45,43 @@ def _bytes(directory):
 
 
 def test_bundle_root_is_fixed_and_has_no_override(tmp_path, monkeypatch):
+    tree = ast.parse(inspect.getsource(E.bundle_root))
+    parents = {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
+    environment_copies = set()
+    # Environment access is only for a sanitized subprocess environment, never
+    # for selecting a bundle. Check structure independently of variable names.
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id == "os":
+            environ = parents[node]
+            assert isinstance(environ, ast.Attribute) and environ.attr == "environ", \
+                "bundle_root must not read environment values"
+            method = parents[environ]
+            assert isinstance(method, ast.Attribute) and method.attr == "copy", \
+                "os.environ may only be copied for sanitization"
+            call = parents[method]
+            assert isinstance(call, ast.Call) and call.func is method
+            assert not call.args and not call.keywords
+            assignment = parents[call]
+            assert isinstance(assignment, ast.Assign) and assignment.value is call
+            assert len(assignment.targets) == 1 and isinstance(assignment.targets[0], ast.Name)
+            environment_copies.add(assignment.targets[0].id)
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
+                and node.id in environment_copies):
+            continue
+        use = parents[node]
+        if isinstance(use, ast.Attribute):
+            assert use.attr == "pop", "environment copies may only remove variables"
+            call = parents[use]
+            assert isinstance(call, ast.Call) and call.func is use
+            assert isinstance(parents[call], ast.Expr), "removed environment values must be discarded"
+        else:
+            assert isinstance(use, ast.keyword) and use.arg == "env", \
+                "environment copies may only be passed as subprocess env"
+            call = parents[use]
+            assert isinstance(call, ast.Call)
+            assert isinstance(call.func, ast.Attribute) and call.func.attr == "check_output"
+            assert isinstance(call.func.value, ast.Name) and call.func.value.id == "subprocess"
     root = _repo(tmp_path)
     expected = root / ".git/izanagi/s8b-floor-evacuation/pegasus"
     for key in ("S8B_FLOOR_EVACUATION_ROOT", "S8B_FLOOR_EVACUATION_BUNDLE", "BUNDLE_ROOT"):
