@@ -1,0 +1,179 @@
+# 窓 5 (2026-09-17 00:59-01:11 JST) で起動した leaf の証拠の射影
+# declared_total / actual_count は page 証拠の parse 節、duplicate_occurrences は records 節、
+# occurrences / distinct は ledgers/<leaf>.passN.*.json の最大台帳から採った。
+
+## 段 A — 初回取得 (pass 1)
+
+== AX1-20260902-E1-Q6-SY2018@openalex
+   p0.a01.json    declared_total=888 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p1.a01.json    declared_total=888 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p2.a01.json    declared_total=888 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p3.a01.json    declared_total=888 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p4.a01.json    declared_total=888 actual_count=89 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   全 attempt の actual_count 合計 = 889
+   最大 pass1 台帳: AX1-20260902-E1-Q6-SY2018@openalex.pass1.98052c252e7c.json occurrences=889 distinct=888
+   頁の declared_total の集合 = [888]; 最終 declared_total − distinct = 0
+
+== AX1-20260902-E1-Q6-SY2019@openalex
+   p0.a01.json    declared_total=1242 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p1.a01.json    declared_total=1242 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p2.a01.json    declared_total=1242 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p3.a01.json    declared_total=1242 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p4.a01.json    declared_total=1242 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p5.a01.json    declared_total=1242 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p6.a01.json    declared_total=1242 actual_count=42 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   全 attempt の actual_count 合計 = 1242
+   最大 pass1 台帳: AX1-20260902-E1-Q6-SY2019@openalex.pass1.51c3c9cf3625.json occurrences=1242 distinct=1242
+   頁の declared_total の集合 = [1242]; 最終 declared_total − distinct = 0
+
+== AX1-20260902-E1-Q6-SY2020@openalex
+   p0.a01.json    declared_total=1598 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p1.a01.json    declared_total=1598 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p2.a01.json    declared_total=1598 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p3.a01.json    declared_total=1598 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p4.a01.json    declared_total=1598 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p5.a01.json    declared_total=1598 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p6.a01.json    declared_total=1598 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p7.a01.json    declared_total=1598 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p8.a01.json    declared_total=1598 actual_count=0 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   全 attempt の actual_count 合計 = 1600
+   最大 pass1 台帳: AX1-20260902-E1-Q6-SY2020@openalex.pass1.0b91753be7a2.json occurrences=1600 distinct=1598
+   頁の declared_total の集合 = [1598]; 最終 declared_total − distinct = 0
+
+== AX1-20260902-E1-Q6-SY2021@openalex
+   p0.a01.json    declared_total=2043 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p1.a01.json    declared_total=2043 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p10.a01.json   declared_total=2043 actual_count=44 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p2.a01.json    declared_total=2043 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p3.a01.json    declared_total=2043 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p4.a01.json    declared_total=2043 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p5.a01.json    declared_total=2043 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p6.a01.json    declared_total=2043 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p7.a01.json    declared_total=2043 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p8.a01.json    declared_total=2043 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p9.a01.json    declared_total=2043 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   全 attempt の actual_count 合計 = 2044
+   最大 pass1 台帳: AX1-20260902-E1-Q6-SY2021@openalex.pass1.37a1731b855c.json occurrences=2044 distinct=2042
+   頁の declared_total の集合 = [2043]; 最終 declared_total − distinct = 1
+
+== AX1-20260902-E1-Q6-SY2022@openalex
+   p0.a01.json    declared_total=2251 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p1.a01.json    declared_total=2251 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p10.a01.json   declared_total=2251 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p11.a01.json   declared_total=2251 actual_count=55 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p2.a01.json    declared_total=2251 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p3.a01.json    declared_total=2251 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p4.a01.json    declared_total=2251 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p5.a01.json    declared_total=2251 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p6.a01.json    declared_total=2251 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p7.a01.json    declared_total=2251 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p8.a01.json    declared_total=2251 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p9.a01.json    declared_total=2251 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   全 attempt の actual_count 合計 = 2255
+   最大 pass1 台帳: AX1-20260902-E1-Q6-SY2022@openalex.pass1.691de64c69a0.json occurrences=2255 distinct=2251
+   頁の declared_total の集合 = [2251]; 最終 declared_total − distinct = 0
+
+== AX1-20260902-E1-Q6-SY2023@openalex
+   p0.a01.json    declared_total=3183 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p1.a01.json    declared_total=3183 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p10.a01.json   declared_total=3183 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p11.a01.json   declared_total=3183 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p12.a01.json   declared_total=3183 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p13.a01.json   declared_total=3183 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p14.a01.json   declared_total=3183 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p15.a01.json   declared_total=3183 actual_count=187 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p2.a01.json    declared_total=3183 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p3.a01.json    declared_total=3183 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p4.a01.json    declared_total=3183 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p5.a01.json    declared_total=3183 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p6.a01.json    declared_total=3183 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p7.a01.json    declared_total=3183 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p8.a01.json    declared_total=3183 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p9.a01.json    declared_total=3183 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   全 attempt の actual_count 合計 = 3187
+   最大 pass1 台帳: AX1-20260902-E1-Q6-SY2023@openalex.pass1.6c7ba5f0e62d.json occurrences=3187 distinct=3183
+   頁の declared_total の集合 = [3183]; 最終 declared_total − distinct = 0
+
+== AX1-20260902-E1-Q6-SY2024@openalex
+   p0.a01.json    declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p1.a01.json    declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p10.a01.json   declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p11.a01.json   declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p12.a01.json   declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p13.a01.json   declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p14.a01.json   declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p15.a01.json   declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p16.a01.json   declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p17.a01.json   declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p18.a01.json   declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p19.a01.json   declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p2.a01.json    declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p20.a01.json   declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p21.a01.json   declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p22.a01.json   declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p23.a01.json   declared_total=4669 actual_count=71 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p3.a01.json    declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p4.a01.json    declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p5.a01.json    declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p6.a01.json    declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p7.a01.json    declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p8.a01.json    declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   p9.a01.json    declared_total=4669 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917a
+   全 attempt の actual_count 合計 = 4671
+   最大 pass1 台帳: AX1-20260902-E1-Q6-SY2024@openalex.pass1.6116ac607502.json occurrences=4671 distinct=4668
+   頁の declared_total の集合 = [4669]; 最終 declared_total − distinct = 1
+
+## 段 B — 独立 2 走目 (pass 2) と pass 1 の比較
+
+== AX1-20260902-E1-Q3-SY1997@openalex
+   pass1 p0.a01.json    declared_total=233 actual_count=200 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass1 p1.a01.json    declared_total=233 actual_count=33 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass2 p0.a02.json    declared_total=234 actual_count=200 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass2 p1.a02.json    declared_total=234 actual_count=34 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass1 最大台帳 AX1-20260902-E1-Q3-SY1997@openalex.pass1.19cfde418dcb.json: occurrences=233 distinct=233
+   pass2 最大台帳 AX1-20260902-E1-Q3-SY1997@openalex.pass2.68f77d09793b.json: occurrences=234 distinct=234
+   pass2 − pass1 (2 走目で増えた ID) = 2: ['https://openalex.org/W2052420423', 'https://openalex.org/W2082936638']
+   pass1 − pass2 (2 走目で消えた ID) = 1: ['https://openalex.org/W2537549870']
+   共通 ID の順序は pass1 と同じか = False
+
+== AX1-20260902-E1-Q3-SY1998@openalex
+   pass1 p0.a01.json    declared_total=185 actual_count=185 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass2 p0.a02.json    declared_total=184 actual_count=184 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass1 最大台帳 AX1-20260902-E1-Q3-SY1998@openalex.pass1.76b28c1e3e1e.json: occurrences=185 distinct=185
+   pass2 最大台帳 AX1-20260902-E1-Q3-SY1998@openalex.pass2.930ae2f9e937.json: occurrences=184 distinct=184
+   pass2 − pass1 (2 走目で増えた ID) = 3: ['https://openalex.org/W1525329731', 'https://openalex.org/W2047610674', 'https://openalex.org/W2049386870']
+   pass1 − pass2 (2 走目で消えた ID) = 4: ['https://openalex.org/W144463632', 'https://openalex.org/W1896351112', 'https://openalex.org/W2078034524', 'https://openalex.org/W658992740']
+   共通 ID の順序は pass1 と同じか = False
+
+== AX1-20260902-E1-Q3-SY1999@openalex
+   pass1 p0.a01.json    declared_total=220 actual_count=200 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass1 p1.a01.json    declared_total=220 actual_count=20 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass2 p0.a02.json    declared_total=216 actual_count=200 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass2 p1.a02.json    declared_total=216 actual_count=16 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass1 最大台帳 AX1-20260902-E1-Q3-SY1999@openalex.pass1.feaf4559c17f.json: occurrences=220 distinct=220
+   pass2 最大台帳 AX1-20260902-E1-Q3-SY1999@openalex.pass2.66eb42c280d4.json: occurrences=216 distinct=216
+   pass2 − pass1 (2 走目で増えた ID) = 3: ['https://openalex.org/W2141607576', 'https://openalex.org/W2953864812', 'https://openalex.org/W3086872842']
+   pass1 − pass2 (2 走目で消えた ID) = 7: ['https://openalex.org/W1820024962', 'https://openalex.org/W2039824583', 'https://openalex.org/W2161381283', 'https://openalex.org/W2352138257', 'https://openalex.org/W2368297189', 'https://openalex.org/W2385365704', 'https://openalex.org/W619311292']
+   共通 ID の順序は pass1 と同じか = False
+
+== AX1-20260902-E1-Q3-SY2000@openalex
+   pass1 p0.a01.json    declared_total=225 actual_count=200 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass1 p1.a01.json    declared_total=225 actual_count=25 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass2 p0.a02.json    declared_total=225 actual_count=200 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass2 p1.a02.json    declared_total=225 actual_count=25 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass1 最大台帳 AX1-20260902-E1-Q3-SY2000@openalex.pass1.50714237bcbc.json: occurrences=225 distinct=225
+   pass2 最大台帳 AX1-20260902-E1-Q3-SY2000@openalex.pass2.27b8fefe1607.json: occurrences=225 distinct=225
+   pass2 − pass1 (2 走目で増えた ID) = 2: ['https://openalex.org/W2076268811', 'https://openalex.org/W4234967526']
+   pass1 − pass2 (2 走目で消えた ID) = 2: ['https://openalex.org/W2351738448', 'https://openalex.org/W2384642438']
+   共通 ID の順序は pass1 と同じか = False
+
+== AX1-20260902-E1-Q3-SY2001@openalex
+   pass1 p0.a01.json    declared_total=222 actual_count=200 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass1 p1.a01.json    declared_total=222 actual_count=22 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass2 p0.a02.json    declared_total=220 actual_count=200 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass2 p1.a02.json    declared_total=220 actual_count=21 duplicate_occurrences=0 run_id=t2090-openalex-20260903
+   pass1 最大台帳 AX1-20260902-E1-Q3-SY2001@openalex.pass1.e17279b29200.json: occurrences=222 distinct=222
+   pass2 最大台帳 AX1-20260902-E1-Q3-SY2001@openalex.pass2.db1baefe4072.json: occurrences=221 distinct=220
+   pass2 − pass1 (2 走目で増えた ID) = 0: []
+   pass1 − pass2 (2 走目で消えた ID) = 2: ['https://openalex.org/W2347340872', 'https://openalex.org/W2386016498']
+   共通 ID の順序は pass1 と同じか = False
