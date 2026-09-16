@@ -10,6 +10,7 @@ exit code: 0 = repo 外の同一実体による抑止後に取り残しなし / 
 from __future__ import annotations
 
 import argparse
+import queue
 import hashlib
 import os
 import re
@@ -17,6 +18,7 @@ import stat
 import subprocess
 import sys
 import time
+import threading
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,6 +27,8 @@ from pathlib import Path
 DEFAULT_EXCLUDED_PREFIXES = ("docs/spool/", "docs/archive/")
 DEFAULT_REGENERABLE_PREFIXES = ("output/s8b-build-cache/",)
 DEFAULT_REPO = Path(__file__).resolve().parents[1]
+OFFREPO_SCAN_WORKERS = 16
+OFFREPO_SCAN_WORKERS_ENV = "IZANAGI_AUDIT_SCAN_WORKERS"
 OFFREPO_ROOT_ENV = "IZANAGI_DEV_WAVE_JOBS_DIR"
 MAX_BLOB_SIZE = 32 * 1024 * 1024
 AUDIT_ELAPSED_LIMIT_SECONDS = 300.0
@@ -861,33 +865,283 @@ def _compare_regular_candidate(
             os.close(descriptor)
 
 
+_WalkKey = tuple[tuple[int, str], ...]
+_OffrepoKeys = dict[tuple[str, _ExternalIdentity], tuple[_WalkKey, int]]
+_OffrepoIndex = dict[str, dict[int, dict[bool, list[_BlobMetadata]]]]
+
+
+@dataclass
+class _OffrepoCounts:
+    directories: int = 0
+    files: int = 0
+    failures: int = 0
+
+    def record_error(self, _error: OSError) -> None:
+        self.failures += 1
+
+
+class _OffrepoCountSlot:
+    """A worker publishes cumulative counts; only the caller emits progress."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._counts = (0, 0, 0)
+
+    def publish(self, counts: _OffrepoCounts) -> None:
+        with self._lock:
+            self._counts = (counts.directories, counts.files, counts.failures)
+
+    def read(self) -> tuple[int, int, int]:
+        with self._lock:
+            return self._counts
+
+
+def _offrepo_scan_workers() -> int:
+    raw = os.environ.get(OFFREPO_SCAN_WORKERS_ENV)
+    try:
+        workers = OFFREPO_SCAN_WORKERS if raw is None else int(raw)
+    except ValueError:
+        raise RuntimeError(f"{OFFREPO_SCAN_WORKERS_ENV} must be a positive integer") from None
+    if not isinstance(workers, int) or isinstance(workers, bool) or workers <= 0:
+        raise RuntimeError(f"{OFFREPO_SCAN_WORKERS_ENV} must be a positive integer")
+    return workers
+
+
+def _process_offrepo_iteration(
+    root: Path,
+    iteration: tuple[str, list[str], list[str]],
+    by_basename: _OffrepoIndex,
+    possible: _PossibleCandidates,
+    counts: _OffrepoCounts,
+    notify: Callable[[], None],
+    keys: _OffrepoKeys | None = None,
+    key_prefix: _WalkKey = (),
+) -> None:
+    directory, dirnames, filenames = iteration
+    counts.directories += 1
+    dirnames.sort()
+    filenames.sort()
+    notify()
+    for filename in filenames:
+        counts.files += 1
+        notify()
+        size_index = by_basename.get(filename)
+        if size_index is None:
+            continue
+        path = Path(directory) / filename
+        try:
+            candidate_stat = path.lstat()
+        except OSError:
+            counts.failures += 1
+            continue
+        if not stat.S_ISREG(candidate_stat.st_mode):
+            continue
+        executable = bool(candidate_stat.st_mode & stat.S_IXUSR)
+        same_prefilter = size_index.get(
+            candidate_stat.st_size, {}
+        ).get(executable, ())
+        for position, candidate in enumerate(same_prefilter):
+            absolute_path = path.absolute()
+            external = _ExternalCandidate(
+                path=absolute_path,
+                root=root,
+                initial_stat=candidate_stat,
+            )
+            identity = (
+                candidate_stat.st_dev,
+                candidate_stat.st_ino,
+            )
+            groups = possible.setdefault(candidate.object_id, {})
+            group = groups.get(identity)
+            if group is None:
+                group = _ExternalCandidateGroup(
+                    external=external,
+                    metadata=candidate,
+                    owners=set(),
+                    aliases=set(),
+                )
+                groups[identity] = group
+            if keys is not None:
+                key = (key_prefix + ((0, filename),), position)
+                group_key = (candidate.object_id, identity)
+                if group_key not in keys or key < keys[group_key]:
+                    group.external = external
+                    group.metadata = candidate
+                    keys[group_key] = key
+            group.owners.add((candidate.commit, candidate.path))
+            group.aliases.add(
+                _ExternalMatch(path=absolute_path, root=root)
+            )
+
+
+def _scan_offrepo_directory(
+    directory: Path,
+    key_prefix: _WalkKey,
+    root: Path,
+    by_basename: _OffrepoIndex,
+    possible: _PossibleCandidates,
+    keys: _OffrepoKeys,
+    counts: _OffrepoCounts,
+    notify: Callable[[], None],
+) -> list[tuple[Path, _WalkKey]]:
+    """Process one walk yield; the queue owns recursion."""
+    walk = os.walk(
+        directory, topdown=True, onerror=counts.record_error, followlinks=False
+    )
+    try:
+        iteration = next(walk, None)
+        if iteration is None:
+            return []
+        _process_offrepo_iteration(
+            root, iteration, by_basename, possible, counts, notify, keys, key_prefix
+        )
+        return [
+            (Path(os.path.join(directory, name)), key_prefix + ((1, name),))
+            for name in iteration[1]
+            if not os.path.islink(os.path.join(directory, name))
+        ]
+    finally:
+        walk.close()
+
+
+def _run_offrepo_queue(
+    tasks: list[tuple[Path, _WalkKey]],
+    root: Path,
+    by_basename: _OffrepoIndex,
+    workers: int,
+    possible: _PossibleCandidates,
+    keys: _OffrepoKeys,
+    counts: _OffrepoCounts,
+    heartbeat: _ProgressRateLimiter,
+) -> None:
+    pending = len(tasks)
+    work = queue.Queue()
+    for task in tasks:
+        work.put(task)
+    lock = threading.Lock()
+    stopped = threading.Event()
+    done = threading.Event()
+    errors: list[BaseException] = []
+    slots = [_OffrepoCountSlot() for _ in range(workers)]
+    results = [({}, {}) for _ in range(workers)]
+
+    def worker(index: int) -> None:
+        nonlocal pending
+        local = _OffrepoCounts()
+        found, found_keys = results[index]
+        slot = slots[index]
+
+        def publish() -> None:
+            if local.files % 256 == 0:
+                slot.publish(local)
+
+        try:
+            while True:
+                task = work.get()
+                if task is None or stopped.is_set():
+                    return
+                children = _scan_offrepo_directory(
+                    *task, root, by_basename, found, found_keys, local, publish
+                )
+                slot.publish(local)
+                with lock:
+                    for child in children:
+                        work.put(child)
+                    pending += len(children) - 1
+                    if pending == 0:
+                        done.set()
+                        return
+        except BaseException as error:
+            with lock:
+                if not errors:
+                    errors.append(error)
+                stopped.set()
+                done.set()
+        finally:
+            slot.publish(local)
+
+    threads = []
+    try:
+        for index in range(workers):
+            thread = threading.Thread(target=worker, args=(index,), daemon=False)
+            thread.start()
+            threads.append(thread)
+        while True:
+            finished = done.wait(timeout=POLL_CEILING_SECONDS)
+            totals = [slot.read() for slot in slots]
+            heartbeat.pulse(
+                f"directories={counts.directories + sum(t[0] for t in totals)} "
+                f"files={counts.files + sum(t[1] for t in totals)}"
+            )
+            if finished:
+                break
+    finally:
+        stopped.set()
+        for _ in threads:
+            work.put(None)
+        for thread in threads:
+            thread.join()
+    if errors:
+        raise errors[0]
+    for (found, found_keys), slot in zip(results, slots):
+        _merge_offrepo_candidates(possible, found, keys, found_keys)
+        directories, files, failures = slot.read()
+        counts.directories += directories
+        counts.files += files
+        counts.failures += failures
+
+
+def _merge_offrepo_candidates(
+    possible: _PossibleCandidates, incoming: _PossibleCandidates,
+    keys: _OffrepoKeys | None = None, incoming_keys: _OffrepoKeys | None = None,
+) -> None:
+    for object_id, groups in incoming.items():
+        destination = possible.setdefault(object_id, {})
+        for identity, group in groups.items():
+            existing = destination.get(identity)
+            if keys is not None and incoming_keys is not None:
+                group_key = (object_id, identity)
+                key = incoming_keys[group_key]
+                if group_key not in keys or key < keys[group_key]:
+                    keys[group_key] = key
+                    if existing is not None:
+                        existing.external = group.external
+                        existing.metadata = group.metadata
+            if existing is None:
+                destination[identity] = group
+            else:
+                existing.owners.update(group.owners)
+                existing.aliases.update(group.aliases)
+
+
 def _enumerate_offrepo_candidates(
     roots: Sequence[Path],
     candidates: Sequence[_BlobMetadata],
     *,
     progress: ProgressCallback | None = None,
-) -> tuple[
-    _PossibleCandidates, int, bool
-]:
+) -> tuple[_PossibleCandidates, int, bool]:
     """blob を読まず basename・size・mode が一致する外部実体を列挙する。"""
     if not candidates:
         return {}, 0, False
-    by_basename: dict[str, dict[int, dict[bool, list[_BlobMetadata]]]] = {}
+    workers = _offrepo_scan_workers()
+    by_basename: _OffrepoIndex = {}
     for candidate in candidates:
         by_basename.setdefault(candidate.basename, {}).setdefault(
             candidate.size, {}
         ).setdefault(candidate.executable, []).append(candidate)
 
     possible: _PossibleCandidates = {}
-    failures = 0
-    directories_scanned = 0
-    files_considered = 0
+    counts = _OffrepoCounts()
     heartbeat = _ProgressRateLimiter(progress, "repo 外走査")
+
+    def pulse() -> None:
+        heartbeat.pulse(f"directories={counts.directories} files={counts.files}")
+
     for root in sorted(roots):
         try:
             root_stat = root.lstat()
         except OSError:
-            failures += 1
+            counts.failures += 1
             continue
         permission_bits = stat.S_IMODE(root_stat.st_mode)
         if (
@@ -895,71 +1149,34 @@ def _enumerate_offrepo_candidates(
             or permission_bits & 0o444 == 0
             or permission_bits & 0o111 == 0
         ):
-            failures += 1
+            counts.failures += 1
             continue
 
-        def record_walk_error(_error: OSError) -> None:
-            nonlocal failures
-            failures += 1
-
-        for directory, dirnames, filenames in os.walk(
-            root,
-            topdown=True,
-            onerror=record_walk_error,
-            followlinks=False,
-        ):
-            directories_scanned += 1
-            dirnames.sort()
-            filenames.sort()
-            heartbeat.pulse(
-                f"directories={directories_scanned} files={files_considered}"
+        if workers == 1:
+            walk = os.walk(
+                root, topdown=True, onerror=counts.record_error, followlinks=False
             )
-            for filename in filenames:
-                files_considered += 1
-                heartbeat.pulse(
-                    f"directories={directories_scanned} files={files_considered}"
+            for iteration in walk:
+                _process_offrepo_iteration(
+                    root, iteration, by_basename, possible, counts, pulse
                 )
-                size_index = by_basename.get(filename)
-                if size_index is None:
-                    continue
-                path = Path(directory) / filename
-                try:
-                    candidate_stat = path.lstat()
-                except OSError:
-                    failures += 1
-                    continue
-                if not stat.S_ISREG(candidate_stat.st_mode):
-                    continue
-                executable = bool(candidate_stat.st_mode & stat.S_IXUSR)
-                same_prefilter = size_index.get(
-                    candidate_stat.st_size, {}
-                ).get(executable, ())
-                for candidate in same_prefilter:
-                    absolute_path = path.absolute()
-                    external = _ExternalCandidate(
-                        path=absolute_path,
-                        root=root,
-                        initial_stat=candidate_stat,
-                    )
-                    identity = (
-                        candidate_stat.st_dev,
-                        candidate_stat.st_ino,
-                    )
-                    groups = possible.setdefault(candidate.object_id, {})
-                    group = groups.get(identity)
-                    if group is None:
-                        group = _ExternalCandidateGroup(
-                            external=external,
-                            metadata=candidate,
-                            owners=set(),
-                            aliases=set(),
-                        )
-                        groups[identity] = group
-                    group.owners.add((candidate.commit, candidate.path))
-                    group.aliases.add(
-                        _ExternalMatch(path=absolute_path, root=root)
-                    )
-    return possible, failures, True
+            continue
+
+        found: _PossibleCandidates = {}
+        keys: _OffrepoKeys = {}
+        tasks = _scan_offrepo_directory(
+            root, (), root, by_basename, found, keys, counts, pulse
+        )
+        if tasks:
+            _run_offrepo_queue(
+                tasks, root, by_basename, workers, found, keys, counts, heartbeat
+            )
+        # Restore DFS insertion order, then retain representatives from earlier roots.
+        ordered: _PossibleCandidates = {}
+        for object_id, identity in sorted(keys, key=keys.__getitem__):
+            ordered.setdefault(object_id, {})[identity] = found[object_id][identity]
+        _merge_offrepo_candidates(possible, ordered)
+    return possible, counts.failures, True
 
 
 def _compare_offrepo_candidates(
