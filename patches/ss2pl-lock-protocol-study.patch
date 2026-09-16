@@ -2232,7 +2232,7 @@ new file mode 100644
 index 00000000..2bc4b7fd
 --- /dev/null
 +++ b/cc/ss2pl/wfg.cc
-@@ -0,0 +1,390 @@
+@@ -0,0 +1,420 @@
 +#include "include/ss2pl_wfg.hh"
 +
 +#include <algorithm>
@@ -2296,7 +2296,12 @@ index 00000000..2bc4b7fd
 +std::thread Watchdog;
 +
 +[[nodiscard]] const char* mode_name(SS2PLWfgMode mode) {
++#if SS2PL_LOCK_IMPL == 1 && SS2PL_LOCK_KIND == 0
++  (void) mode;
++  return "write";
++#else
 +  return mode == SS2PLWfgMode::read ? "read" : "write";
++#endif
 +}
 +
 +[[nodiscard]] bool incompatible(SS2PLWfgMode requested,
@@ -2432,24 +2437,31 @@ index 00000000..2bc4b7fd
 +[[nodiscard]] std::string cycle_json(
 +    const Snapshot& snapshot,
 +    const std::vector<std::vector<std::uint32_t>>& edges,
-+    const std::vector<std::uint32_t>& cycle) {
++    const std::vector<std::uint32_t>& cycle, std::uint64_t tick) {
 +  std::ostringstream out;
-+  out << "{\n  \"schema\": \"ss2pl-wfg/v1\",\n"
-+      << "  \"cycle_found\": true,\n"
-+      << "  \"conflict_count\": " << snapshot.conflicts << ",\n"
-+      << "  \"no_wait_failure_count\": " << snapshot.no_wait_failures
-+      << ",\n  \"nodes\": [\n";
++  out << "{\"schema\":\"ss2pl-wfg/v2\",\"event\":\"wfg_snapshot\",\"tick\":"
++      << tick << ",\"cycle_found\":true,\"conflict_count\":" << snapshot.conflicts
++      << ",\"no_wait_failure_count\":" << snapshot.no_wait_failures
++      << ",\"nodes\":[";
 +  for (std::size_t i = 0; i < cycle.size(); ++i) {
 +    const std::uint32_t thid = cycle[i];
 +    const WorkerState& worker = snapshot.workers[thid];
-+    out << "    {\"thread_id\": " << thid << ", \"attempt\": "
-+        << worker.attempt << ", \"waiting_lock_id\": \"0x" << std::hex
-+        << worker.waiting_lock << std::dec << "\", \"requested_mode\": \""
-+        << mode_name(worker.waiting_mode) << "\", \"commit_count\": "
-+        << worker.commits << ", \"abort_count\": " << worker.aborts << "}";
-+    out << (i + 1 == cycle.size() ? "\n" : ",\n");
++    if (i != 0) out << ',';
++    out << "{\"thread_id\":" << thid << ",\"attempt\":"
++        << worker.attempt << ",\"wait_lock_id\":\"0x" << std::hex
++        << worker.waiting_lock << std::dec << "\",\"request_mode\":\""
++        << mode_name(worker.waiting_mode) << "\",\"commit_count\":"
++        << worker.commits << ",\"abort_count\":" << worker.aborts
++        << ",\"held_locks\":[";
++    for (std::size_t j = 0; j < worker.held.size(); ++j) {
++      const HeldLock& held = worker.held[j];
++      if (j != 0) out << ',';
++      out << "{\"lock_id\":\"0x" << std::hex << held.lock_id << std::dec
++          << "\",\"mode\":\"" << mode_name(held.mode) << "\"}";
++    }
++    out << "]}";
 +  }
-+  out << "  ],\n  \"edges\": [\n";
++  out << "],\"edges\":[";
 +  bool first = true;
 +  for (std::uint32_t waiter : cycle) {
 +    for (std::uint32_t holder : edges[waiter]) {
@@ -2458,43 +2470,56 @@ index 00000000..2bc4b7fd
 +        if (node == holder) holder_in_cycle = true;
 +      }
 +      if (!holder_in_cycle) continue;
-+      SS2PLWfgMode held_mode = SS2PLWfgMode::write;
++      const HeldLock* held_lock = nullptr;
 +      for (const HeldLock& held : snapshot.workers[holder].held) {
 +        if (held.lock_id == snapshot.workers[waiter].waiting_lock) {
-+          held_mode = held.mode;
++          held_lock = &held;
 +          break;
 +        }
 +      }
-+      if (!first) out << ",\n";
++      if (held_lock == nullptr) continue;
++      if (!first) out << ',';
 +      first = false;
-+      out << "    {\"waiter\": " << waiter << ", \"holder\": " << holder
-+          << ", \"lock_id\": \"0x" << std::hex
++      out << "{\"waiter_thread_id\":" << waiter << ",\"holder_thread_id\":" << holder
++          << ",\"lock_id\":\"0x" << std::hex
 +          << snapshot.workers[waiter].waiting_lock << std::dec
-+          << "\", \"requested_mode\": \""
++          << "\",\"request_mode\":\""
 +          << mode_name(snapshot.workers[waiter].waiting_mode)
-+          << "\", \"holder_mode\": \"" << mode_name(held_mode) << "\"}";
++          << "\",\"holder_mode\":\"" << mode_name(held_lock->mode)
++          << "\",\"compatible\":false}";
 +    }
 +  }
-+  out << "\n  ]\n}\n";
++  out << "]}\n";
 +  return out.str();
++}
++
++void emit_snapshot(const std::string& data) {
++  std::lock_guard<std::mutex> guard(cout_mutex);
++  ::flockfile(stdout);
++  const std::size_t written = std::fwrite(data.data(), 1, data.size(), stdout);
++  const int flushed = std::fflush(stdout);
++  ::funlockfile(stdout);
++  if (written != data.size() || flushed != 0) ERR;
 +}
 +
 +[[nodiscard]] std::string terminal_json(const Snapshot& snapshot) {
 +  std::ostringstream out;
-+  out << "{\n  \"schema\": \"ss2pl-wfg/v1\",\n"
-+      << "  \"cycle_found\": false,\n"
-+      << "  \"conflict_count\": " << snapshot.conflicts << ",\n"
-+      << "  \"no_wait_failure_count\": " << snapshot.no_wait_failures
-+      << ",\n  \"read_acquire_count\": " << snapshot.read_acquires
-+      << ",\n  \"write_acquire_count\": " << snapshot.write_acquires
-+      << ",\n  \"upgrade_count\": " << snapshot.upgrades << "\n}\n";
++  out << "{\"schema\":\"ss2pl-wfg/v2\",\"event\":\"wfg_terminal\",\"tick\":null"
++      << ",\"cycle_found\":false,\"conflict_count\":" << snapshot.conflicts
++      << ",\"no_wait_failure_count\":" << snapshot.no_wait_failures
++      << ",\"read_acquire_count\":" << snapshot.read_acquires
++      << ",\"write_acquire_count\":" << snapshot.write_acquires
++      << ",\"upgrade_count\":" << snapshot.upgrades
++      << ",\"nodes\":[],\"edges\":[]}\n";
 +  return out.str();
 +}
 +
 +void watchdog_main() {
 +  std::string previous_signature;
 +  std::uint32_t consecutive = 0;
++  std::uint64_t tick = 0;
 +  while (!StopRequested.load(std::memory_order_acquire)) {
++    ++tick;
 +    const Snapshot snapshot = take_snapshot();
 +    const auto edges = make_edges(snapshot);
 +    const auto cycle = find_cycle(edges);
@@ -2509,8 +2534,13 @@ index 00000000..2bc4b7fd
 +      consecutive = 0;
 +    }
 +
++    std::string emitted;
++    if (!cycle.empty()) {
++      emitted = cycle_json(snapshot, edges, cycle, tick);
++      emit_snapshot(emitted);
++    }
 +    if (consecutive >= 3) {
-+      durable_replace(cycle_json(snapshot, edges, cycle));
++      durable_replace(emitted);
 +      CycleWritten.store(true, std::memory_order_release);
 +      return;
 +    }
@@ -2628,7 +2658,7 @@ new file mode 100644
 index 00000000..4e286a7c
 --- /dev/null
 +++ b/cc/ss2pl/ycsb_ss2pl.cc
-@@ -0,0 +1,62 @@
+@@ -0,0 +1,65 @@
 +#define GLOBAL_VALUE_DEFINE
 +
 +#include "include/common.hh"
@@ -2655,6 +2685,9 @@ index 00000000..4e286a7c
 +  gflags::SetUsageMessage("YCSB SS2PL benchmark.");
 +  gflags::ParseCommandLineFlags(&argc, &argv, true);
 +  chkArg();
++#if SS2PL_WFG_DIAG
++  ShowOptParameters();
++#endif
 +  YcsbWorkload::displayWorkloadParameter();
 +  YcsbWorkload::makeDB<Tuple, void>(nullptr);
 +

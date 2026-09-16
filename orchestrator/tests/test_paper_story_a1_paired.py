@@ -4788,3 +4788,133 @@ def test_a1_amendment_binding_rejects_single_changed_input_M8():
         changed = copy.deepcopy(binding)
         changed["files"][path]["working_sha256"] = "0" * 64
         assert not paired._validate_source_binding(changed, policy)
+
+
+def _sized_source_binding():
+    source = paired.a1_source
+    policy = paired.load_policy(source.SIZED_STUDY_ID)[0]
+    contract = source.load_contract(Path(paired.__file__).resolve().parents[2], source.SIZED_STUDY_ID)
+    files = {path: {"git_blob_oid": "b" * 40, "working_sha256": "c" * 64}
+             for path in paired._source_relative_paths(policy, non_certifying=False)}
+    for path, digest in (
+        (source.SIZED_CONTRACT_PATH, source.SIZED_CONTRACT_SHA256),
+        (contract["patch"], contract["patch_sha256"]),
+        (contract["amendment"], contract["amendment_sha256"]),
+    ):
+        files[path]["working_sha256"] = digest
+    return policy, {**_source_binding(), "files": files}
+
+
+def test_sized_source_contract_pins_bytes_and_four_bindings(tmp_path):
+    source = paired.a1_source
+    repo = Path(paired.__file__).resolve().parents[2]
+    contract = source.load_contract(repo, source.SIZED_STUDY_ID)
+    assert set(contract) == {
+        "schema_version", "study_id", "canonical_head", "patch", "patch_sha256",
+        "policy", "policy_sha256", "preregistration", "preregistration_sha256",
+        "amendment", "amendment_sha256",
+    }
+    assert contract["schema_version"] == "paper-story-a1-source/v2"
+    assert contract["study_id"] == source.SIZED_STUDY_ID
+    assert contract["canonical_head"] == paired.CANONICAL_CCBENCH_OID
+    paths = [source.SIZED_CONTRACT_PATH, *(contract[k] for k in
+             ("patch", "policy", "preregistration", "amendment"))]
+    for relative in paths:
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes((repo / relative).read_bytes())
+    assert source.load_contract(tmp_path, source.SIZED_STUDY_ID) == contract
+    for relative in paths:
+        target = tmp_path / relative
+        original = target.read_bytes()
+        try:
+            target.write_bytes(original + b"\n")
+            with pytest.raises(RuntimeError, match="bytes differ"):
+                source.load_contract(tmp_path, source.SIZED_STUDY_ID)
+        finally:
+            target.write_bytes(original)
+
+
+def test_sized_amendment_binding_rejects_single_changed_input():
+    policy, binding = _sized_source_binding()
+    source = paired.a1_source
+    assert paired._validate_source_binding(binding, policy)
+    for path in (source.SIZED_CONTRACT_PATH, source.SIZED_SOURCE_PATHS[2],
+                 source.SIZED_SOURCE_PATHS[3]):
+        changed = copy.deepcopy(binding)
+        changed["files"][path]["working_sha256"] = "0" * 64
+        assert not paired._validate_source_binding(changed, policy)
+
+
+def test_pilot_published_source_binding_remains_accepted():
+    repo = Path(paired.__file__).resolve().parents[2]
+    receipt = json.loads((repo / "output/insights/2026-09-01_paper-story-a1-balanced5-pilot/receipt.json").read_bytes())
+    binding = receipt["source_binding"]
+    assert paired._validate_source_binding(binding, _v3_pilot_policy())
+    assert paired.a1_source.binding_matches(binding["files"])
+
+
+def _sized_amended_arm():
+    policy, binding = _sized_source_binding()
+    arm = paired._workload_arm_by_role(policy, "write-heavy", "variant")
+    fixture_policy = {**policy, "arms": [dict(arm, name="adaptive")]}
+    evidence = _arm(fixture_policy, "adaptive")
+    arm = fixture_policy["arms"][0]
+    frames = evidence["attempts"][0]["frames"]
+    start, build, bench = frames[0]["payload"], frames[1]["payload"], frames[3]["payload"]
+    start["build_admission"] = {"source": {
+        "source_root": "/source", "ccbench_commit": paired.CANONICAL_CCBENCH_OID,
+        "tracked_clean": False, "src_token": start["src_token"],
+        "genome_sha256": hashlib.sha256(start["genome"].encode()).hexdigest(),
+    }}
+    base = _TEST_BUILD_DIR.parent / "fetchcontent"
+    base.mkdir()
+    options = {"fetchcontent_base_dir": str(base)}
+    for name in ("masstree", "mimalloc", "googletest"):
+        target = base / (name + "-src")
+        target.mkdir()
+        options[name + "_source_dir"] = str(target)
+    configure, build_argv = paired.buildcache._v2_commands(
+        paired.Genome(arm["protocol"], dict(arm["flags"])), False, "/source",
+        str(_TEST_BUILD_DIR / "adaptive"), build["toolchain"], jobs=48,
+        dependency_prefix=_dependency_prefix_fixture(), **options,
+    )
+    build["perf_configure_cmd"] = shlex.join(configure)
+    build["perf_build_cmd"] = shlex.join(build_argv)
+    bench["settled"] = True
+    scale = policy["scale"]
+    argv = shlex.split(bench["run_cmd"])
+    replacements = {"thread_num": scale["threads"], "ycsb_tuple_num": scale["records"],
+                    "extime": scale["extime_s"], "ycsb_zipf_skew": scale["ycsb_zipf_skew"],
+                    "ycsb_rmw": scale["ycsb_rmw"], "ycsb_max_ope": scale["ycsb_max_ope"]}
+    bench["run_cmd"] = shlex.join([
+        "-" + key + "=" + str(replacements[key]) if token.startswith("-") and
+        (key := token[1:].split("=")[0]) in replacements else token for token in argv
+    ])
+    return policy, binding, arm, evidence
+
+
+def _validate_sized_amended_arm(state):
+    policy, binding, arm, evidence = state
+    return paired._validate_arm(arm, evidence, policy=policy, workload_name="write-heavy",
+                                env_tag="pegasus", source_binding=binding)
+
+
+def test_sized_consumer_accepts_amended_configure():
+    result = _validate_sized_amended_arm(_sized_amended_arm())
+    assert result["valid"], result["errors"]
+
+
+def test_sized_consumer_rejects_admission_mismatch():
+    state = _sized_amended_arm()
+    for key, value, error in (
+        ("source_root", "relative", "amended-source-admission-mismatch"),
+        ("tracked_clean", True, "amended-source-admission-mismatch"),
+        ("ccbench_commit", "0" * 40, "amended-source-admission-mismatch"),
+        ("source_root", "/other-source", "trace0-source-route-incomplete"),
+    ):
+        changed = copy.deepcopy(state)
+        changed[3]["attempts"][0]["frames"][0]["payload"]["build_admission"]["source"][key] = value
+        result = _validate_sized_amended_arm(changed)
+        assert not result["valid"]
+        assert error in result["errors"]

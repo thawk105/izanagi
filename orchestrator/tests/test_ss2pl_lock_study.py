@@ -2,6 +2,7 @@
 """SS2PL lock-study gates with paired positive and mutation-sensitive cases."""
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import inspect
 import json
@@ -1475,6 +1476,202 @@ def test_deadlock_evidence_rejects_edge_topology_drift_with_stable_nodes():
         {**snapshots[1]["edges"][2], "holder_thread_id": 1},
     ]
     assert driver.validate_deadlock_evidence(snapshots, timed_out=True) is None
+
+
+def _wfg_stdout_fixture() -> str:
+    """計算ノード 1 走 (request 0:2339.nqsv、bnode007、2026-09-17) の実 stdout を逐語で写した fixture。
+
+    sha256 c98ea15b033a54c55dca34b77bd0d4a236f51609aac7dbf0ce4bd3c418784bf4。合成ではない。
+    """
+    return """#FLAGS_clocks_per_us:\t2100
+#FLAGS_extime:\t\t10
+#FLAGS_thread_num:\t48
+#ShowOptParameters(): ADD_ANALYSIS 0: BACK_OFF 1: DLR0 : SS2PL_LOCK_IMPL 1: SS2PL_LOCK_KIND 0: SS2PL_DLR 0: SS2PL_WFG_DIAG 1: MASSTREE_USE 1: KEY_SIZE 8: KEY_SORT 0: VAL_SIZE 8
+#FLAGS_ycsb_max_ope:\t10
+#FLAGS_ycsb_rmw:\t0
+#FLAGS_ycsb_rratio:\t50
+#FLAGS_ycsb_tuple_num:\t100
+#FLAGS_ycsb_zipf_skew:\t0
+{"schema":"ss2pl-wfg/v2","event":"wfg_snapshot","tick":5,"cycle_found":true,"conflict_count":41,"no_wait_failure_count":0,"nodes":[{"thread_id":16,"attempt":1,"wait_lock_id":"0x14d33800a740","request_mode":"write","commit_count":0,"abort_count":0,"held_locks":[{"lock_id":"0x14d33800b1c0","mode":"write"}]},{"thread_id":21,"attempt":1,"wait_lock_id":"0x14d33800b1c0","request_mode":"write","commit_count":0,"abort_count":0,"held_locks":[{"lock_id":"0x14d338008280","mode":"write"},{"lock_id":"0x14d33800a740","mode":"write"},{"lock_id":"0x14d338007d40","mode":"write"},{"lock_id":"0x14d33800e480","mode":"write"},{"lock_id":"0x14d3380056c0","mode":"write"}]}],"edges":[{"waiter_thread_id":16,"holder_thread_id":21,"lock_id":"0x14d33800a740","request_mode":"write","holder_mode":"write","compatible":false},{"waiter_thread_id":21,"holder_thread_id":16,"lock_id":"0x14d33800b1c0","request_mode":"write","holder_mode":"write","compatible":false}]}
+{"schema":"ss2pl-wfg/v2","event":"wfg_snapshot","tick":6,"cycle_found":true,"conflict_count":41,"no_wait_failure_count":0,"nodes":[{"thread_id":16,"attempt":1,"wait_lock_id":"0x14d33800a740","request_mode":"write","commit_count":0,"abort_count":0,"held_locks":[{"lock_id":"0x14d33800b1c0","mode":"write"}]},{"thread_id":21,"attempt":1,"wait_lock_id":"0x14d33800b1c0","request_mode":"write","commit_count":0,"abort_count":0,"held_locks":[{"lock_id":"0x14d338008280","mode":"write"},{"lock_id":"0x14d33800a740","mode":"write"},{"lock_id":"0x14d338007d40","mode":"write"},{"lock_id":"0x14d33800e480","mode":"write"},{"lock_id":"0x14d3380056c0","mode":"write"}]}],"edges":[{"waiter_thread_id":16,"holder_thread_id":21,"lock_id":"0x14d33800a740","request_mode":"write","holder_mode":"write","compatible":false},{"waiter_thread_id":21,"holder_thread_id":16,"lock_id":"0x14d33800b1c0","request_mode":"write","holder_mode":"write","compatible":false}]}
+{"schema":"ss2pl-wfg/v2","event":"wfg_snapshot","tick":7,"cycle_found":true,"conflict_count":41,"no_wait_failure_count":0,"nodes":[{"thread_id":16,"attempt":1,"wait_lock_id":"0x14d33800a740","request_mode":"write","commit_count":0,"abort_count":0,"held_locks":[{"lock_id":"0x14d33800b1c0","mode":"write"}]},{"thread_id":21,"attempt":1,"wait_lock_id":"0x14d33800b1c0","request_mode":"write","commit_count":0,"abort_count":0,"held_locks":[{"lock_id":"0x14d338008280","mode":"write"},{"lock_id":"0x14d33800a740","mode":"write"},{"lock_id":"0x14d338007d40","mode":"write"},{"lock_id":"0x14d33800e480","mode":"write"},{"lock_id":"0x14d3380056c0","mode":"write"}]}],"edges":[{"waiter_thread_id":16,"holder_thread_id":21,"lock_id":"0x14d33800a740","request_mode":"write","holder_mode":"write","compatible":false},{"waiter_thread_id":21,"holder_thread_id":16,"lock_id":"0x14d33800b1c0","request_mode":"write","holder_mode":"write","compatible":false}]}
+"""
+
+
+def _wfg_fixture_snapshots() -> list[dict]:
+    return driver._extract_snapshots(driver._json_events(_wfg_stdout_fixture()))
+
+
+def _wfg_fixture_workload() -> dict:
+    return {**driver.WORKLOAD_DEFAULT, "ycsb_tuple_num": 100, "ycsb_zipf_skew": 0}
+
+
+def test_wfg_stdout_fixture_accepts_actual_holders():
+    assert hashlib.sha256(_wfg_stdout_fixture().encode("utf-8")).hexdigest() == (
+        "c98ea15b033a54c55dca34b77bd0d4a236f51609aac7dbf0ce4bd3c418784bf4"
+    )
+    events = driver._json_events(_wfg_stdout_fixture())
+    snapshots = driver._extract_snapshots(events)
+    assert len(events) == len(snapshots) == 3
+    assert "holder_holds_lock" not in json.dumps(events)
+    evidence = driver.validate_deadlock_evidence(snapshots, timed_out=True)
+    assert evidence is not None
+    assert evidence["snapshot_indexes"] == [0, 1, 2]
+    assert driver.validate_deadlock_evidence(snapshots, timed_out=False) is None
+
+
+@pytest.mark.parametrize("field", ["wait_lock_id", "waiter_thread_id", "holder_thread_id"])
+def test_wfg_stdout_legacy_fields_are_rejected(field):
+    snapshots = _wfg_fixture_snapshots()
+    assert driver.validate_deadlock_evidence(snapshots, timed_out=True) is not None
+    legacy = {
+        "wait_lock_id": "waiting_lock_id",
+        "waiter_thread_id": "waiter", "holder_thread_id": "holder",
+    }
+    for snapshot in snapshots:
+        for item in snapshot["nodes" if field == "wait_lock_id" else "edges"]:
+            item[legacy[field]] = item.pop(field)
+    assert driver.validate_deadlock_evidence(snapshots, timed_out=True) is None
+
+
+@pytest.mark.parametrize("mutation", ["missing", "lock_id", "mode"])
+def test_wfg_stdout_missing_held_locks_is_rejected(mutation):
+    snapshots = _wfg_fixture_snapshots()
+    assert driver.validate_deadlock_evidence(snapshots, timed_out=True) is not None
+    for snapshot in snapshots:
+        for node in snapshot["nodes"]:
+            if mutation == "missing":
+                del node["held_locks"]
+            else:
+                edge = next(
+                    edge for edge in snapshot["edges"]
+                    if edge["holder_thread_id"] == node["thread_id"]
+                )
+                held = next(
+                    held for held in node["held_locks"]
+                    if held["lock_id"] == edge["lock_id"]
+                )
+                held[mutation] = "0xdead" if mutation == "lock_id" else "read"
+    assert driver.validate_deadlock_evidence(snapshots, timed_out=True) is None
+
+
+def test_wfg_startup_axes_without_terminal_output(tmp_path):
+    binary, build, _ = _admission_fixture(tmp_path, arm="phase1")
+    build["binary"] = str(binary)
+    stdout = "\n".join(
+        line for line in _wfg_stdout_fixture().splitlines() if not line.startswith("{")
+    ) + "\n"
+    axes, _ = driver.parse_runtime_axes(stdout)
+    assert axes == driver.ARM_CONFIG["phase1"]
+    admitted = driver._admit_output(
+        stdout, arm="phase1", workload=_wfg_fixture_workload(), build=build,
+        binary=binary, thread_num=48, require_metrics=False, require_thread_commits=False,
+    )
+    assert admitted["runtime_axes"] == axes
+    assert admitted["json_events"] == []
+
+
+def test_phase_trial_passes_unique_wfg_output_and_collects_file(tmp_path, monkeypatch):
+    """Exercise argv/receipt wiring; subprocess timeout and flush are not simulated."""
+    binary, build, _ = _admission_fixture(tmp_path.resolve(), arm="phase1")
+    build["binary"] = str(binary)
+    stdout = _wfg_stdout_fixture()
+    final_bytes = (stdout.splitlines()[-1] + "\n").encode("utf-8")
+    final_json = json.loads(final_bytes)
+    paths = []
+    output_kind = "present"
+
+    def fake(argv, *, timeout_s, expected_timeout):
+        flags = [arg for arg in argv if arg.startswith("-ss2pl_wfg_output=")]
+        assert len(flags) == 1, "required unique -ss2pl_wfg_output flag missing"
+        path = Path(flags[0].split("=", 1)[1])
+        assert path.is_absolute()
+        assert path.name == "final.json"
+        assert path.parent.parent == binary.parent
+        assert path.parent.name.startswith("ss2pl-wfg-phase1-high-contention-t0-")
+        assert path not in paths
+        paths.append(path)
+        assert timeout_s == 60 and expected_timeout is None
+        if output_kind == "present":
+            path.write_bytes(final_bytes)
+        elif output_kind == "invalid_json":
+            path.write_bytes(b"{")
+        elif output_kind == "invalid_utf8":
+            path.write_bytes(b"\xff")
+        elif output_kind == "read_error":
+            path.mkdir()
+        return (0, stdout, "", True, "term")
+
+    monkeypatch.setattr(driver, "_run_process", fake)
+    for output_kind in ("present", "present", "missing", "invalid_json", "invalid_utf8", "read_error"):
+        result = driver._run_phase_trial(
+            phase="phase1", build=build, workload=_wfg_fixture_workload(),
+            trial=0, point="high-contention", clocks_per_us=2100, occasion={},
+        )
+        receipt = result["wfg_output"]
+        assert set(receipt) == {"path", "status", "sha256", "json", "error"}
+        assert receipt["path"] == str(paths[-1])
+        assert receipt["status"] == ("invalid_json" if output_kind == "invalid_utf8" else output_kind)
+        assert Path(result["stdout_path"]).read_text(encoding="utf-8") == stdout
+        assert Path(result["stderr_path"]).read_text(encoding="utf-8") == ""
+        assert driver.sha256_file(Path(result["stdout_path"])) == result["stdout_sha256"]
+        assert driver.sha256_file(Path(result["stderr_path"])) == result["stderr_sha256"]
+        assert Path(result["stdout_path"]).parent == paths[-1].parent
+        assert Path(result["stderr_path"]).parent == paths[-1].parent
+        assert result["timed_out"] is True and result["termination"] == "term"
+        assert result["accepted_cycle"]["snapshot_indexes"] == [0, 1, 2]
+        assert len(result["wfg_snapshots"]) == 3
+        assert sum(arg.startswith("-ss2pl_wfg_output=") for arg in result["argv"]) == 1
+        if output_kind == "present":
+            assert receipt["json"] == final_json
+            assert receipt["sha256"] == driver._sha256_bytes(final_bytes)
+            assert receipt["error"] is None
+        else:
+            assert receipt["json"] is None
+            if output_kind in ("invalid_json", "invalid_utf8"):
+                assert receipt["sha256"] == driver.sha256_file(paths[-1])
+            else:
+                assert receipt["sha256"] is None
+            if output_kind == "missing":
+                assert receipt["error"] is None
+            else:
+                assert isinstance(receipt["error"], str) and receipt["error"]
+        json.dumps(result)
+    assert len(set(paths)) == 6
+
+    perf_binary, perf_build, perf_stdout = _admission_fixture(tmp_path.resolve(), arm="D")
+    perf_build["binary"] = str(perf_binary)
+    perf_stdout += "\n#ss2pl_thread_commit_counts: 90\n"
+    perf_argv = []
+
+    def fake_performance(argv, *, timeout_s, expected_timeout):
+        assert not any(arg.startswith("-ss2pl_wfg_output=") for arg in argv)
+        assert timeout_s == 120 and expected_timeout is False
+        perf_argv.extend(argv)
+        return (0, perf_stdout, "", False, "natural")
+
+    monkeypatch.setattr(driver, "_run_process", fake_performance)
+    performance = driver._run_performance_once(
+        build=perf_build, arm="D", workload=driver.WORKLOAD_DEFAULT,
+        thread_num=1, clocks_per_us=2100, block_id=0, block_attempt=0,
+        order_index=0, experiment="fixture", occasion={},
+    )
+    assert perf_argv
+    assert performance["argv"] == perf_argv[1:]
+
+
+def test_wfg_exclusive_mode_write_is_accepted_and_read_read_is_rejected():
+    snapshots = _wfg_fixture_snapshots()
+    assert driver.validate_deadlock_evidence(snapshots, timed_out=True) is not None
+    for snapshot in snapshots:
+        for node in snapshot["nodes"]:
+            node["request_mode"] = "read"
+            for held in node["held_locks"]:
+                held["mode"] = "read"
+        for edge in snapshot["edges"]:
+            edge["request_mode"] = edge["holder_mode"] = "read"
+    assert driver.validate_deadlock_evidence(snapshots, timed_out=True) is None
+
 
 
 if __name__ == "__main__":

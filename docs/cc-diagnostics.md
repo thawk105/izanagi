@@ -118,7 +118,9 @@ lock timeout 定数 (定義 1 箇所のみ、使用なし。2026-09-15 に確認
 - **受理を後から再検査できる形で保存する成果物。** 閉路を見たという記述ではなく、連続する
   snapshot の node 属性・辺・counter と、走行の終了理由が残っていること。抽出元の study は
   この形の証拠を残しておらず、保存された成果物からは D791 の受理を独立に再検査できない
-  (2026-09-15 に確認。詳細は「既知の不足」)。
+  (2026-09-15 に確認)。2026-09-17 以降は、runner の `_run_phase_trial` が trial ごとの
+  directory に生の stdout / stderr と計器の durable file を保全し、受領証に連続 snapshot と
+  `timed_out` を残す (詳細は「既知の不足」の接続の項)。
 
 ### 比較対象・計測方法
 
@@ -189,16 +191,31 @@ lock timeout 定数 (定義 1 箇所のみ、使用なし。2026-09-15 に確認
 ### 既知の不足 — この手順を使う前に知っておくこと
 
 いずれも 2026-09-15 に現物で確認した。修正は本手順の外側の作業であり、ここでは不足として記す。
+2026-09-17 に接続した項はその旨を書き、残る不足はそのまま残す。
 
-- **計器と検証器が接続していない。** C++ 側の計器は最終的な閉路 1 枚を指定 file へ書く。
-  Python 側の `tools/pegasus/run_ss2pl_lock_study.py` は標準出力の snapshot event を読んで連続 3 枚を
-  自分で検査する。両者は transport が違い、node と辺の field 名が 4 箇所で食い違い、runner は
-  計器の出力先 flag を一度も渡さない。**この 2 つをそのまま繋いでも D791 の証拠は採れない。**
+- **計器と検証器は 2026-09-17 に接続した** (一次資料
+  `output/insights/2026-09-17/t2644-ss2pl-wfg-connect/README.md`)。それまでは C++ 側の計器が
+  最終的な閉路 1 枚を指定 file へ書き、Python 側の `tools/pegasus/run_ss2pl_lock_study.py` は標準出力の
+  snapshot event を読む形で、transport・node と辺の field 名 4 箇所・出力先 flag が食い違っていた。
+  接続後は、計器が閉路の立った tick ごとに 1 行 JSON event (`ss2pl-wfg/v2`) を標準出力へ出し、同じ
+  文字列を durable file にも残す。runner は trial ごとに出力先 flag を渡し、生の stdout / stderr と
+  durable file を保全する。加えて (a) hang して kill される走行でも build 軸を読めるよう起動時に軸行を
+  出す、(b) 排他 lock (`KIND=0`) では mode を実 lock mode (`write`) で出す (それまでは read 操作を
+  `read` と出しており、検証器が read/read を両立と判定して実閉路を拒否しえた)、の 2 点も直した。
+  計算ノード 1 走 (高競合点、48 threads、hard timeout 60 秒) で検証器が D791 の 4 条件を独立に判定し
+  閉路を受理した。**検証器の受理条件は変えていない。**
+- **runner の build 経路は condition gate (2026-08-27 導入) と patch の設計が構造的に合わない。**
+  inert な arm は stock 木を対照にするが stock の ss2pl に `ycsb_ss2pl.exe` が無く、非 inert な arm は
+  軸ごとに header / marker define が変わるため依存閉包・argv の drift で拒否される。さらに pristine な
+  thirdparty staging では masstree の `config.h` 不在で gate の前処理が落ちる。上の 1 走はこの gate を
+  通さない build (production の configure / build / compile definition 検証 / 不在性検査だけ) で
+  得たものであり、`controls` mode 全体が動くことは示していない。
 - **保存された成果物に受理の材料が無い。** 抽出元 study の保存 raw 3 件はいずれも phase の走行記録が
   空で、閉路の語を 1 件も含まない。過去の観測報告を否定するものではないが、**独立な再検査は
   できない**。本手順を使うときは、必要な入力の最後の項を最初から満たすこと。
 - **対照走行が自分の timeout 契約に落ちている。** 同 study の controls は、hard timeout を期待した
-  走行が自力で終わったという不一致で失敗している。
+  走行が自力で終わったという不一致で失敗している。phase2 (No-Wait) が要求する `acquisition_paths`
+  counter は計器がまだ出さない。
 
 ### 観測事実と、まだ検証していない機序仮説
 

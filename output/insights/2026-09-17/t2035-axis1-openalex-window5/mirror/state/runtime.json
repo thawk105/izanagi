@@ -1,0 +1,43 @@
+{
+  "dblp_restart_count": 0,
+  "hosts": {
+    "api.openalex.org": {
+      "last_issued": 1789575072.7929237
+    }
+  },
+  "quota": {
+    "openalex": {
+      "cost_usd": 0.001,
+      "credits_per_request": 10,
+      "header_evidence": [
+        [
+          "X-RateLimit-Cost-USD",
+          "0.001"
+        ],
+        [
+          "X-RateLimit-Credits-Used",
+          "10"
+        ],
+        [
+          "X-RateLimit-Limit",
+          "1000"
+        ],
+        [
+          "X-RateLimit-Remaining",
+          "69"
+        ],
+        [
+          "X-RateLimit-Reset",
+          "28127"
+        ]
+      ],
+      "limit": 1000,
+      "observed_at_jst": "2026-09-17T01:11:13.974861+09:00",
+      "observed_at_utc": "2026-09-16T16:11:13.974861Z",
+      "observed_request_id": "AX1-20260902-E1-Q3-SY2001@openalex#p1",
+      "remaining": 69,
+      "reset_seconds": 28127
+    }
+  },
+  "schema_version": "izanagi-axis1-search-runtime-state/v1"
+}
