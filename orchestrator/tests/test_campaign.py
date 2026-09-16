@@ -5275,7 +5275,22 @@ def test_certified_writer_authorization_caller_inventory_is_closed():
 
     repo_root = Path(_ORCH).parent
     source_paths = []
-    for path in sorted(repo_root.rglob("*.py")):
+    candidates = []
+    # Prune transient workspace roots before descent; os.walk skips each
+    # directory whose scandir raises OSError (including concurrent removal).
+    for directory, dirnames, filenames in os.walk(repo_root):
+        if Path(directory) == repo_root:
+            dirnames[:] = [name for name in dirnames if not name.startswith(".")]
+        for filename in filenames:
+            if not filename.endswith(".py"):
+                continue
+            path = Path(directory) / filename
+            try:
+                path.stat()
+            except OSError:
+                continue
+            candidates.append(path)
+    for path in sorted(candidates):
         rel_path = path.relative_to(repo_root)
         parts = rel_path.parts
         # Tests contain authority-omission negative controls and same-name mocks.
