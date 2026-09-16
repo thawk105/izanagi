@@ -45,6 +45,12 @@ title: 層 3 の bench-first screening 射影を回帰 pin し、名指し campa
 - **隣接訂正を 1 件行った。** `docs/glossary.md` の `low-fidelity proxy` 項が bench-first
   screening v2 を「方針採用済み・未実装」と書き続けていた。`docs/phase3.md` は同じ機構を
   2026-07-15 実装済みと書いている。glossary は `LIVING_DOCS` の現況文書なので直した。
+- **wave slug と branch 名に未採番の T 番号を使ってしまい、段 6 で改名した (near miss)。**
+  禁止は `docs/spool/worklog/README.md` に 2026-09-02 の実測つきで書かれていたが、
+  その文書を読むのは段 7 で、branch を切るのは wave 開始時である。**規約が発火点より後の
+  文書にあった。** 段 8 で pointer を入れようとしたが、`DW-O20` は 1218/1000 bytes、
+  `DW-C01` は 1117/1000 bytes でどちらも節予算に収まらなかった (実測)。予算上限の引き上げは
+  既裁定で不可なので、[T-375] / [T-376] と同じ形で起票した。
 - エージェント工数: codex 子 6 本 (plan 1・consult 2・author 1・review 2、いずれも
   `gpt-6-astra` / `reasoning=medium`)。fix 子は所見が実装側に無かったため起動していない。
 
@@ -61,3 +67,11 @@ title: 層 3 の bench-first screening 射影を回帰 pin し、名指し campa
   repo 内に 0 件である** (DW-G04 により本 wave では実装しない)。
   着手条件 = `runs/agent_outputs.jsonl` を生む loop 再走が予定されたとき。
   B-9 の残り 1 項である (もう 1 項の深い一致検査は [T-326] が「実施しない」と裁定済み)。
+- {{T:dev-wave-slug-numbering-pointer}} **P3・docs 予算待ち**: wave 開始時に読む節
+  (`DW-C01` または `DW-O20`) へ「wave slug と branch 名に未採番の T 番号を使わない」の
+  pointer を足す。正本は `docs/spool/worklog/README.md` にあるが、それを読むのは段 7 で、
+  branch を切るのは wave 開始時なので、現状は規約が発火点より後の文書にある。
+  **本 wave の段 8 で実測したところ収容できなかった** — 追記すると `DW-O20` が
+  1218 bytes / 予算 1000、`DW-C01` が 1117 bytes / 予算 1000 になる。
+  予算上限の引き上げは既裁定で不可 ([T-375] / [T-376] と同型)。
+  再訪条件 = [T-959] が L2 の空き枠を設計し収容先ができたとき。
