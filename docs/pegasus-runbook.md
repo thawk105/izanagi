@@ -1244,7 +1244,7 @@ python3 tools/dev_wave_wait.py compute \
 - 受入と land の**どの終わり方でも** lease を手放す。待ち手が保持したまま返すのは成功時と
   `held-self` 経路の失敗時なので、**land の終端では親が `release --wave "$W"` を実行する**
   (赤・失敗・中断を含む)。他 wave の lease は消せない (holder digest 不一致なら `not-owner`)。
-- land が成功したときだけ、保存した land 結果 JSON を渡して通知文を作り、`ListAgents` で
+- land が成功したときは、保存した land 結果 JSON を渡して通知文を作り、`ListAgents` で
   照合した peer へ 1 度だけ送る。
 
 ```
@@ -1254,6 +1254,15 @@ python3 tools/dev_wave_land.py ... \
   > "$J/land-result.json"                                # rc と JSON を保存する
 python3 tools/wave_land_window.py message --kind landed --wave "$W" --land-json "$J/land-result.json"
 ```
+
+- **land が rc=26 (`fold-failed`) で終わり、main が wave tip でない SHA にある場合** (fold 失敗で merge 前へ
+  巻き戻した場合と、merge 前の失敗で main が動かなかった場合を含む、F977) は、同じ JSON で
+  `python3 tools/wave_land_window.py message --kind rolled-back --wave "$W" --land-json "$J/land-result.json"`
+  を実行し、rc=0 の通知文を同じ照合済み peer へ 1 度送る。rc=3 (述語不成立) なら送らない。
+  rc=28 (`fold-rollback-failed`、巻き戻し不完全) はこの kind の対象外で、親が手で復旧する。
+  通知は advisory であり、受け手は取り込んだ main の SHA について
+  `git merge-base --is-ancestor <SHA> refs/heads/main` が rc=1 なら受入完走後に受入 tip へ reset して
+  取り込み直す (F977 の恒久対応の手順)。
 
 - **`--acceptance-wave` / `--acceptance-receipt` は必須である ([T-908])。** 省略すると
   argparse の rc=2、receipt が欠落・不正なら rc=23 (`acceptance-receipt-rejected`) で
