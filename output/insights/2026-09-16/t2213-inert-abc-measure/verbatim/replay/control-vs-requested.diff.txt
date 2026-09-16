@@ -1,0 +1,152 @@
+--- /work/1/SFC/tanab/dev-wave-scratch/t2213-inert-abc-20260916/replay-BACKOFF_MAX_US/control-preprocessed.ii	2026-09-16 20:18:55.000000000 +0900
++++ /work/1/SFC/tanab/dev-wave-scratch/t2213-inert-abc-20260916/replay-BACKOFF_MAX_US/requested-preprocessed.ii	2026-09-16 20:18:47.000000000 +0900
+@@ -140270,8 +140270,69 @@
+ public:
+   static std::atomic<double> Backoff_;
+   static constexpr double kMinBackoff = 0;
+-  static constexpr double kMaxBackoff = 1000;
+-  static constexpr double kIncrBackoff = 100;
++  static constexpr double kMaxBackoff = static_cast<double>(1000);
++  static constexpr double kIncrBackoff =
++      static_cast<double>(100000) / 1000.0;
++  static constexpr size_t kUpdateBackoffUs =
++      static_cast<size_t>(10);
++  static_assert(kIncrBackoff > 0, "hill-climb step must be positive");
++  static_assert(kMaxBackoff > 0, "backoff ceiling must be positive");
++  static_assert(10 > 0 &&
++                    kUpdateBackoffUs == 10,
++                "update interval must be a positive whole number of us");
++  static constexpr uint64_t kCountWindow =
++      static_cast<uint64_t>(0);
++  static constexpr size_t kCountCapUs =
++      static_cast<size_t>(0);
++  static constexpr uint64_t kStepMinMilli =
++      static_cast<uint64_t>(100000);
++  static constexpr uint64_t kStepMaxMilli =
++      static_cast<uint64_t>(100000);
++  static constexpr uint64_t kStepMin = kStepMinMilli / 1000;
++  static constexpr uint64_t kStepMax = kStepMaxMilli / 1000;
++  static_assert(0 >= 0 &&
++                    kCountWindow == 0,
++                "count window must be a nonnegative whole number");
++  static_assert(0 >= 0 &&
++                    kCountCapUs == 0,
++                "count cap must be a nonnegative whole number of us");
++  static_assert(0 == 0 ||
++                    0 >= 10,
++                "count cap must be zero or at least the update interval");
++  static_assert(0 == 0 || 0 == 1,
++                "step adaptation must be 0 or 1");
++  static_assert(100000 >= 0 &&
++                    kStepMinMilli == 100000 &&
++                    kStepMinMilli % 1000 == 0,
++                "minimum step must be a nonnegative whole number of us");
++  static_assert(100000 >= 0 &&
++                    kStepMaxMilli == 100000 &&
++                    kStepMaxMilli % 1000 == 0,
++                "maximum step must be a nonnegative whole number of us");
++  static_assert(kStepMin <= kStepMax,
++                "adaptive step bounds must be ordered");
++  static_assert(!0 || kStepMin > 0,
++                "adaptive minimum step must be positive");
++  static_assert(!0 ||
++                    (kIncrBackoff ==
++                         static_cast<uint64_t>(kIncrBackoff) &&
++                     kStepMin <= kIncrBackoff &&
++                     kIncrBackoff <= kStepMax),
++                "initial adaptive step must be a whole us within its bounds");
++  static_assert(0 == 0 || 0 == 1,
++                "dynamic ceiling must be 0 or 1");
++  static_assert(!0 || kStepMax <= 50 / 4,
++                "dynamic ceiling maximum step must fit below the 50us floor");
++  static_assert(!0 ||
++                    (kMaxBackoff == static_cast<uint64_t>(kMaxBackoff) &&
++                     kMaxBackoff >= 50),
++                "dynamic ceiling must be a whole us at or above its floor");
++  static_assert(0 == 0 || 0 == 1,
++                "backoff trace must be 0 or 1");
++  static_assert(0 == 0 ||
++                    0 == 1 ||
++                    0 == 2,
++                "backoff step policy must be 0, 1 or 2");
+   uint64_t last_committed_txs_ = 0;
+   double last_committed_tput_ = 0;
+   uint64_t last_backoff_ = 0;
+@@ -140282,14 +140343,20 @@
+     last_time_ = rdtscp();
+     clocks_per_us_ = clocks_per_us;
+   }
+-  bool check_update_backoff() {
+-    if (chkClkSpan(last_time_, rdtscp(), clocks_per_us_ * 10))
++  bool check_update_backoff_at(uint64_t now,
++                               [[maybe_unused]] uint64_t committed_txs) {
++    if (chkClkSpan(last_time_, now, clocks_per_us_ * kUpdateBackoffUs))
+       return true;
+     else
+       return false;
+   }
++  bool check_update_backoff(const uint64_t committed_txs = 0) {
++    return check_update_backoff_at(rdtscp(), committed_txs);
++  }
+   void update_backoff(const uint64_t committed_txs) {
+-    uint64_t now = rdtscp();
++    update_backoff_at(rdtscp(), committed_txs);
++  }
++  void update_backoff_at(uint64_t now, const uint64_t committed_txs) {
+     uint64_t time_diff = now - last_time_;
+     last_time_ = now;
+     double new_backoff = Backoff_.load(std::memory_order_acquire);
+@@ -140823,7 +140890,7 @@
+   ~File() noexcept try { close(); } catch (...) {
+   }
+   int fd() const {
+-    if (fd_ < 0) do { perror("ERROR"); do { fprintf(stderr, "%ld %16s %4d %16s\n", (long int) pthread_self(), "/work/1/SFC/tanab/dev-wave-scratch/t2213-inert-abc-20260916/ccbench-stock/cc/silo/include/../../../include/fileio.hh", 63, __func__); fflush(stderr); } while (0); exit(1); } while (0);
++    if (fd_ < 0) do { perror("ERROR"); do { fprintf(stderr, "%ld %16s %4d %16s\n", (long int) pthread_self(), "/work/1/SFC/tanab/dev-wave-scratch/t2213-inert-abc-20260916/ccbench-abc/cc/silo/include/../../../include/fileio.hh", 63, __func__); fflush(stderr); } while (0); exit(1); } while (0);
+     return fd_;
+   }
+   void close() {
+@@ -140841,7 +140908,7 @@
+     size_t s = 0;
+     while (s < size) {
+       size_t r = readsome(&buf[s], size - s);
+-      if (r == 0) do { perror("ERROR"); do { fprintf(stderr, "%ld %16s %4d %16s\n", (long int) pthread_self(), "/work/1/SFC/tanab/dev-wave-scratch/t2213-inert-abc-20260916/ccbench-stock/cc/silo/include/../../../include/fileio.hh", 84, __func__); fflush(stderr); } while (0); exit(1); } while (0);
++      if (r == 0) do { perror("ERROR"); do { fprintf(stderr, "%ld %16s %4d %16s\n", (long int) pthread_self(), "/work/1/SFC/tanab/dev-wave-scratch/t2213-inert-abc-20260916/ccbench-abc/cc/silo/include/../../../include/fileio.hh", 84, __func__); fflush(stderr); } while (0); exit(1); } while (0);
+       s += r;
+     }
+   }
+@@ -140851,7 +140918,7 @@
+     while (s < size) {
+       ssize_t r = ::write(fd(), &buf[s], size - s);
+       if (r < 0) throw LibcError((*__errno_location ()), "write failed: ");
+-      if (r == 0) do { perror("ERROR"); do { fprintf(stderr, "%ld %16s %4d %16s\n", (long int) pthread_self(), "/work/1/SFC/tanab/dev-wave-scratch/t2213-inert-abc-20260916/ccbench-stock/cc/silo/include/../../../include/fileio.hh", 95, __func__); fflush(stderr); } while (0); exit(1); } while (0);
++      if (r == 0) do { perror("ERROR"); do { fprintf(stderr, "%ld %16s %4d %16s\n", (long int) pthread_self(), "/work/1/SFC/tanab/dev-wave-scratch/t2213-inert-abc-20260916/ccbench-abc/cc/silo/include/../../../include/fileio.hh", 95, __func__); fflush(stderr); } while (0); exit(1); } while (0);
+       s += r;
+     }
+   }
+@@ -140895,7 +140962,7 @@
+   const int PATHNAME_SIZE = 512;
+   char pathname[PATHNAME_SIZE];
+   memset(pathname, '\0', PATHNAME_SIZE);
+-  if (getcwd(pathname, PATHNAME_SIZE) == __null) do { perror("ERROR"); do { fprintf(stderr, "%ld %16s %4d %16s\n", (long int) pthread_self(), "/work/1/SFC/tanab/dev-wave-scratch/t2213-inert-abc-20260916/ccbench-stock/cc/silo/include/../../../include/fileio.hh", 160, __func__); fflush(stderr); } while (0); exit(1); } while (0);
++  if (getcwd(pathname, PATHNAME_SIZE) == __null) do { perror("ERROR"); do { fprintf(stderr, "%ld %16s %4d %16s\n", (long int) pthread_self(), "/work/1/SFC/tanab/dev-wave-scratch/t2213-inert-abc-20260916/ccbench-abc/cc/silo/include/../../../include/fileio.hh", 160, __func__); fflush(stderr); } while (0); exit(1); } while (0);
+   logpath = pathname;
+   logpath += "/log/log" + std::to_string(thid);
+ }
+@@ -141142,7 +141209,7 @@
+       }
+     }
+   } else {
+-    do { perror("ERROR"); do { fprintf(stderr, "%ld %16s %4d %16s\n", (long int) pthread_self(), "/work/1/SFC/tanab/dev-wave-scratch/t2213-inert-abc-20260916/ccbench-stock/cc/silo/transaction.cc", 106, __func__); fflush(stderr); } while (0); exit(1); } while (0);
++    do { perror("ERROR"); do { fprintf(stderr, "%ld %16s %4d %16s\n", (long int) pthread_self(), "/work/1/SFC/tanab/dev-wave-scratch/t2213-inert-abc-20260916/ccbench-abc/cc/silo/transaction.cc", 106, __func__); fflush(stderr); } while (0); exit(1); } while (0);
+   }
+   write_set_.emplace_back(s, key, tuple, OpType::INSERT);
+   return Status::OK;
+@@ -141401,7 +141468,7 @@
+         break;
+       }
+       default:
+-        do { perror("ERROR"); do { fprintf(stderr, "%ld %16s %4d %16s\n", (long int) pthread_self(), "/work/1/SFC/tanab/dev-wave-scratch/t2213-inert-abc-20260916/ccbench-stock/cc/silo/transaction.cc", 690, __func__); fflush(stderr); } while (0); exit(1); } while (0);
++        do { perror("ERROR"); do { fprintf(stderr, "%ld %16s %4d %16s\n", (long int) pthread_self(), "/work/1/SFC/tanab/dev-wave-scratch/t2213-inert-abc-20260916/ccbench-abc/cc/silo/transaction.cc", 690, __func__); fflush(stderr); } while (0); exit(1); } while (0);
+     }
+   }
+   gc_records();

@@ -67,7 +67,12 @@ class ScalePoint:
     maxrss_kb: Optional[int] = None       # 常駐メモリ (working set の実測代理。
                                           # 下限判定 = working set vs L3 に使う)
     run_cmd: str = ""                     # この測定点を再現する実行コマンド (forensic binding)
-    # CC-native な leading indicator (代表 rep の ccbench メトリクスから, roadmap §3.5)。
+    # counters / walltime_s / maxrss_kb は代表 rep 由来 (throughput の中央値に
+    # 最も近い rep、偶数有効 reps では上側中央。同値なら実行順で最初)。
+    # CC-native な leading indicator (roadmap §3.5) は throughput と同じ中央値演算:
+    # 奇数有効 reps は代表の中央 rep の値、偶数は throughput 順の中央 2 rep の
+    # 算術平均 (一方でも欠損なら None)。
+    # 有効 throughput が 0 件なら、最後に解析できた rep の 5 field をそのまま保持する。
     abort_rate: Optional[float] = None    # abort/(commit+abort)。競合の捌き方が直接出る
     latency_ns: Optional[float] = None    # 平均トランザクションレイテンシ [ns]
     notes: List[str] = field(default_factory=list)   # rep 失敗等の構造化記録 (規律3)
@@ -91,6 +96,8 @@ class ScalePoint:
 
         throughput スカラーだけでは探索が停滞する (Jitskit) ので、abort 率
         (CC が競合をどう捌くか)・latency・cache miss 率・IPC を一緒に残す。
+        latency_ns は WAL に残す CC 本来のデータだが、CCBench の通常出力では
+        throughput 由来の量なので critic digest は列に出さない。
         """
         return {
             "throughput_tps": self.throughput,

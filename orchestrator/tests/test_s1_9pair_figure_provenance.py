@@ -1053,9 +1053,12 @@ def test_p9_production_provenance_keeps_historical_marker_for_every_campaign():
         },
         "caption": "fixture caption",
     }
+    scratch_root = ROOT / "output" / "runs"
+    scratch_root.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(
-        prefix=".s1-current-provenance-", dir=ROOT,
+        prefix=".s1-current-provenance-", dir=scratch_root,
     ) as temp:
+        assert Path(temp).parent == scratch_root
         prefix = Path(temp) / "figure"
         Path(f"{prefix}.png").write_bytes(b"fixture-png")
         Path(f"{prefix}.pdf").write_bytes(b"fixture-pdf")
