@@ -10335,6 +10335,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`、
   `test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops`。
   再発検知 = 受入 log の FAILED 行がこの 4 件のいずれかだけで、単独走が緑になること。
+
+- **再発: 2026-09-16 (2 本目の wave、[T-2599])** — 同日の [T-2638] が記録した「churn の出所が
+  同じ走行の内側」の変種を、**別の wave が独立に踏んだ**。docs のみ (`docs/spool/**` だけ) の wave で
+  受入全走が 4 回続けて赤になり、赤の集合は走行ごとに変わった (2 件 → 17 件 → 4 件 → 4 件)。
+  出た test はすべて F300 の既存追記が名指す 4 件の部分集合で、単独走はいずれも緑
+  (2 件 → 2 passed、4 file → 543 passed、3 file → 267 passed)。
+  **他 session の同時走行は原因ではないと実測で分かった** — 受入 leader が他に 1 本だけで
+  1 分平均負荷 1.95 の最も静かな窓でも同じ 4 件が赤になった。投入直前の leader 本数と負荷は
+  赤の有無を予測しない。
+  **2 例目が別 producer で揃ったので、族としての恒久対応を検討できる状態になった** (DW-G03)。
+  ただし本 wave は docs のみで実装面の差分を持たないため、`orchestrator/tests/flaky_test_holds.py`
+  への登録も走査側の設計変更も行っていない。恒久対応は依然として未定であり、
+  次に必要なのは「repo root 全走査の検査と repo root 配下に scratch を作る検査を同一走行内で
+  同居させない」設計の裁定である。
 ### F301. 編集対象ファイルを bytes pin している側を数え落とした [凍結 pin] [手順漏れ]
 
 - 事象: 受入全走で `test_s8b_oracle_manifest.py` の 2 node が
@@ -26320,3 +26334,125 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 被覆が恒等であることを実測で固定した。top-level dot-dir 配下に走査対象の `.py` は
   0 件、走査対象は変更前後とも 420 件で追加・削除とも空集合。`.t316-live-*` を列挙後・降下前に
   消す再現を 20 回行い、20 回とも落ちず 420 件を返す。被覆が動けばこの件数が動く。
+
+### F996. 掃除手順が命じる裸の `git status` が、同手順自身が禁じる index 書き換えを行っていた [恒真ゲート]
+
+- 事象: `/cleanup-branches` §0 は「surviving worktree の tracked/untracked file・index・設定の
+  作成/編集」を禁じるが、同 command §1 は全 worktree に対して裸の `git status --short` を命じていた。
+  本 wave の親が実測したところ、tracked file の mtime を変えた直後に裸の `git status --short` を
+  走らせると worktree の index の md5 が `622f9487ca7db6e31d7cab9adedbf62e` →
+  `107713b4710d1cdbf74ffd6734743ec0` へ変化した。同条件で
+  `GIT_OPTIONAL_LOCKS=0 git status --short` を走らせた場合は md5 が変化しなかった (負の対照)。
+  つまり入口が、自分の禁止に反する命令を出していた。
+- 根本原因: `git status` は stat cache が古いと index を書き戻す。掃除手順はこれを知らずに
+  読み取り probe として扱っていた。同じ repo の `tools/check_branch_rescue.py` は子 git へ
+  `GIT_OPTIONAL_LOCKS=0` を渡しており、対策は既に別経路に存在していた。
+- 恒久対応: `.claude/commands/cleanup-branches.md` §1 で `GIT_OPTIONAL_LOCKS=0 git status --short`
+  を明示する。
+- 再発検知: 掃除実行後の §4 事後検査 (surviving worktree・index・repo file に新しい差分が無い)。
+  index の bytes 不変までは §4 の status 比較では証明できないため、疑う場合は index の
+  digest を直接取る。
+
+### F997. 占有 checker が読み取り probe の argv を「占有」と数え、並列化が過剰な保持を生む [恒真ゲート]
+
+- 事象: `tools/check_worktree_occupancy.py` は自分と checker 起動祖先を除く全 process の
+  `/proc/<pid>/cmdline` を走査し、対象 path を argv に含むものを占有源 (`cmdline`) に数える
+  (`_argv_matches_targets`)。`/cleanup-branches` §1 は各 worktree の `git status` を、
+  §3 は「削除の直前に対象ごと」占有検査を命じるが、**両者の時間的関係を書いていなかった**。
+  対象 path を argv に持つ読み取り (`git -C <wt> status`、
+  `check_branch_rescue.py --retire-worktree <wt>`) を占有検査と並走させると rc1 になり、
+  削除してよい worktree が「占有」として保持される。並列化の利得を打ち消す。
+  同型は dev-wave 側でも既知で、wave 撤去が rc=21 になる原因と同じ機序である。
+- 根本原因: checker は「対象を名指す process が生きている」ことを占有の証拠にする設計で、
+  読み手の種別を区別しない。手順側に順序制約が無かった。
+- 恒久対応: `.claude/commands/cleanup-branches.md` §1 に
+  「読み取り・占有検査の起動親/wrapper (検査時も生存する親含む) の argv に対象 path 禁止」と
+  「対象入り argv の全読み取り終了後に §3 の占有検査へ」を置く。
+  checker 側は変更しない (読み手を無条件に無視させると占有検知そのものが弱まる)。
+- 再発検知: 掃除で rc1 (占有) が想定外に多い場合、まず自分の読み取り probe と wrapper の
+  argv を疑う。
+
+### F998. repo 直下に一時 dir を作る test が、並列受入で作業ツリー清浄を前提にする test を落とす [テスト代表性]
+
+- 事象: 2026-09-16 の受入全走 4 回すべてが child-verdict の赤で返った。赤の node は毎回異なるが
+  (1 回目 10 件、2 回目 2 件、3 回目 4 件、4 回目 4 件)、本文はいずれも作業ツリーが test 実行中に
+  変化したことを示していた。完全な本文に現れた実体は
+  `FileNotFoundError: .../.t316-live-5i6hap18` と
+  `assert {'.t316-live-butbiy4g/'} <= {...}` である。
+  生成元は `orchestrator/tests/test_t316_sandbox_probe.py:1736` の
+  `tempfile.TemporaryDirectory(prefix=".t316-live-", dir=_REPO)` で、**repo 直下**に一時 dir を作る。
+  導入は commit `168ad3d0bebc5f910e4ffa6aba9f445c101634ef` (2026-09-15 16:35、[T-2607])、
+  main に着地済み。
+- 被害者 (いずれも作業ツリーの清浄・不変を前提にする):
+  `test_p3_b4_producer_auth_experiment.py::test_case_failure_records_aborted_and_remaining_cases_continue`、
+  同 `::test_disposable_tree_mutation_does_not_change_main_worktree` (`ScratchTreeError:
+  main worktree status changed during experiment`)、
+  `test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`、
+  `test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops`、
+  `test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes`、
+  `test_t338_submission_gate_unit5.py::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink`。
+- 根本原因: 一時 dir の親が `_REPO` である。並列 shard の受入では、この dir が存在する数秒の間に
+  別 shard の test が `git status` / `git ls-files --others` を撮るため、同じ worktree を共有する
+  test 間で競合する。どの node が落ちるかは shard の割り当てと実行順で変わるので、赤は毎回違う。
+  変更を出した wave の受入では緑だったとみられるが、これは競合が確率的であるためで、
+  欠陥が無かったことを意味しない。
+- 恒久対応: 一時 dir を repo 外 (`tempfile.gettempdir()` 配下または専用 scratch root) へ移す。
+  repo 内に置く必要があるなら `output/` 配下など `.gitignore` 済みの場所にする。
+  本 wave の編集面 (`.claude/commands/cleanup-branches.md`、`tools/check_docs.py`、
+  `orchestrator/tests/test_check_docs.py`) の外なので、別 wave が Codex author で直す。
+- 同型の生成箇所 (2026-09-16 に `git grep -n "dir=_REPO" -- orchestrator tools` で実測、2 件):
+  `orchestrator/tests/test_t316_sandbox_probe.py:1736` (`prefix=".t316-live-"`) と
+  `orchestrator/tests/test_hooks.py:1513` (`prefix="t2146-hardlink-"`)。
+  `orchestrator/tests/test_run_tests_testops_observation.py:1083` は `dir=_REPO.parent` なので
+  repo 外であり該当しない。**独立 2 例あるので局所修復でなく族としての是正を検討してよい**
+  (`DW-G03`)。
+- 再発検知: 受入の赤 node が走行ごとに変わり、本文が worktree の状態変化を指す場合に本エントリを
+  引く。`git grep -n "dir=_REPO" -- orchestrator tools` で同型の生成箇所を数える。
+- **判定の注意:** 被害者 test を `flaky_test_holds.py` へ登録して迂回しない。落ちているのは
+  被害者であって原因ではなく、登録すると作業ツリー清浄の検査が受入から消える。
+
+### F999. 受入全走が自分の作業ツリーへ作る未 tracked scratch が、repo 状態の不変を assert するテストを落とす [テスト代表性] [計測汚染]
+
+- 事象: provenance 差分監査 wave の受入全走を 7 回投げ、テストまで到達した 6 回すべてで非帰属赤が出た
+  (1 回は shard の dispatch-infrastructure 障害でテストへ到達せず)。**落ちた node は毎回違い、
+  のべ 8 種類**。同じ file の単独走はいずれも緑。1 回目は 3 件
+  (`test_p3_b4_producer_auth_experiment.py::test_case_failure_records_aborted_and_remaining_cases_continue`、
+  同 `::test_disposable_tree_mutation_does_not_change_main_worktree`、
+  `test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`)、
+  2 回目は 1 件 (`test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops`)。
+  4 回目は `test_campaign::test_certified_writer_authorization_caller_inventory_is_closed`、
+  5 回目は `test_p3_b4_wiring_probe::test_source_and_test_are_the_only_non_output_worktree_changes`、
+  7 回目は `test_p3_b4_producer_auth_experiment` の 2 件 +
+  `test_t338_submission_gate_unit5::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink`。
+  **落ちる node が回ごとに違い、同じ file の単独走は緑**である (競走であって決定的赤ではない)。
+- 根本原因: 受入全走は 1 つの wave worktree で shard を並行に走らせる。`t316` 系のテストは repo 直下へ
+  `.t316-live-<8 文字>/` という **`.gitignore` の対象外**の scratch directory を作る。一方で、
+  `git status --porcelain -z --untracked-files=all` の出力 bytes が走行前後で変わらないことを要求する
+  テストが複数ある。前者が後者の観測窓に入ると後者が落ちる。
+  - `cap_oom` 族 (`_run_bounded_scope` を monkeypatch して `cap_oom` を返させる 2 つの双子テスト) は、
+    その後 **production が実 repository の指紋を before/after で取り、変化していれば fallback を拒否する**
+    分岐へ入る。期待した「ログインの余裕もキューも無いため、いまは実行できません」ではなく
+    「local 試行の前後で tree / submodule 状態が変化しました」が出る。実測は
+    `各状態出力 bytes (0, 0, 313, 0, 0) -> (51, 0, 313, 0, 0)` で、未 tracked が 1 件増えている。
+  - `ScratchTree` 族は `assert_repository_unchanged` が同じ理由で落ちる。
+- 帰属の判定: 同 wave の差分は `tools/check_ai_provenance.py` と
+  `orchestrator/tests/test_check_ai_provenance.py` だけで、**作業ツリーへ未 tracked path を作らない**
+  (受領証は共通 git-dir 配下で `git status` に現れない)。`output/pegasus-dispatch/` は `.gitignore`
+  対象なので dispatch 成果物も原因ではない。したがって非帰属である。
+- 恒久対応: **部分的。** 同 wave は `cap_oom` 族の双子テスト 2 件 —
+  `test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops` と
+  `test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`
+  — を、production の指紋採取を monkeypatch して周囲の churn から隔離した。前者を直した 3 回目の
+  受入で後者だけが落ち、族であることが確定したので同じ隔離を入れている。
+  **`ScratchTree` 族の 2 node (`test_p3_b4_producer_auth_experiment`) は手を付けていない**
+  (1 回目の受入でしか観測しておらず、2・3 回目では落ちていない)。本質的な是正は
+  「`t316` 系の scratch を repo 外へ出す」か「repo 状態の不変を要求するテストを一律に隔離する」の
+  どちらかで、main 全体のテスト隔離に当たるため別 wave の scope である。
+- **負荷との無関係を実測した。** 「非帰属赤の連発は load の下降局面を待って投げ直す」という既存の
+  処方は、この族には効かない。1〜5 走目は load 180 超・並行 wave 20 本超だったが、6・7 走目は
+  **load 2.77 / 2.26 / 2.05 の下降局面、同時走行中の受入 0 本**で投げ、それでも赤になった。
+  競走は機械負荷ではなく **1 つの worktree 内で並行する xdist worker 同士**なので、
+  機械が空いても窓は閉じない。**この族に対して投げ直しは有効な手ではない。**
+- 再発検知: 受入全走でこの族のいずれかの node が落ち、かつ同じ file の単独走が緑であること。
+  落ちる node が回ごとに変わることが競走の署名である。**「N 走完全一致」は flake の証拠にならない**
+  (`DW-O18`) が、本件は逆に **node が回ごとに変わる**ので決定的赤ではないと言える。
