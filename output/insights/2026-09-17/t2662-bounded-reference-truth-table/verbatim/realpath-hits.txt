@@ -1,0 +1,6 @@
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-suite-floor-recheck/measure/run2/before-after-0_898290.nqsv/tmp/pytest-of-tanab/pytest-0/popen-gw38/test_generation_two_rejected_b0/g2 clean scan Ω
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-suite-floor-recheck/measure/run2/before-after-0_898290.nqsv/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_deterministic_artifacts_a0/a much longer root with spaces Ω
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-suite-floor-recheck/measure/run2/before-after-0_898290.nqsv/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_production_emitter_staged0/a much longer root with spaces Ω
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-suite-floor-recheck/measure/run2/before-after-0_898290.nqsv/tmp/pytest-of-tanab/pytest-0/popen-gw31/test_metacharacter_control_pat0/repo/output/insights/receipt[?]*.json
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-suite-floor-recheck/measure/run2/before-after-0_898290.nqsv/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_chain_g2_env_tag_unchange0/g2 clean scan Ω
+/work/1/SFC/tanab/dev-wave-jobs/dev-wave-suite-floor-recheck/measure/run2/before-after-0_898290.nqsv/tmp/pytest-of-tanab/pytest-0/popen-gw35/test_literal_pathspec_registry0/repo/:(glob)does-not-match
