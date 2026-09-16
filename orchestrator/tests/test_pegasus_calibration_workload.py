@@ -630,6 +630,114 @@ printf 'calibrate:'; printf ' %q' "${{calibrate_argv[@]}}"; printf '\n'
     return shlex.split(completed.stdout.removeprefix("calibrate:").strip())
 
 
+@pytest.mark.parametrize("mode", [
+    "unavailable", "probe_error", "selected", "literal_available",
+])
+def test_certify_perf_preflight_argv(tmp_path, mode):
+    """Execute production selection/preflight/argv only, not exec or job finalization."""
+    import sys
+
+    attempt = tmp_path / "attempt"
+    attempt.mkdir()
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    base = tmp_path / "base"
+    base.mkdir()
+    # Isolate PATH from host perf, including the selected Python's directory.
+    for name in ("python3", "dirname", "timeout", "grep", "realpath", "cat", "mkdir", "ln", "env"):
+        (base / name).symlink_to(sys.executable if name == "python3" else shutil.which(name))
+    log = tmp_path / "perf-calls.jsonl"
+
+    def perf_fixture(path, behavior):
+        path.write_text(
+            f"#!{sys.executable}\n"
+            "import json, os, signal, sys\n"
+            f"with open({str(log)!r}, 'a') as out:\n"
+            "    out.write(json.dumps([sys.argv[0], sys.argv[1:]]) + '\\n')\n"
+            f"behavior = {behavior!r}\n"
+            "if behavior == 'probe_error':\n"
+            "    # SIGKILL cannot inherit an ignored or blocked signal disposition.\n"
+            "    os.kill(os.getpid(), signal.SIGKILL)\n"
+            "if behavior == 'unavailable':\n"
+            "    sys.exit(2)\n"
+            "if '--version' in sys.argv:\n"
+            "    print('fixture perf')\n"
+            "elif '-o' in sys.argv:\n"
+            "    events = sys.argv[sys.argv.index('-e') + 1].split(',')\n"
+            "    with open(sys.argv[sys.argv.index('-o') + 1], 'w') as out:\n"
+            "        out.write(''.join('1,,' + event + '\\n' for event in events))\n",
+            encoding="utf-8",
+        )
+        path.chmod(0o755)
+
+    failed = tmp_path / "failed-perf"
+    perf_fixture(failed, "unavailable")
+    candidates = [failed]
+    if mode == "selected":
+        selected = tmp_path / "selected-perf"
+        perf_fixture(selected, "available")
+        candidates.append(selected)
+    else:
+        perf_fixture(base / "perf", "available" if mode == "literal_available" else mode)
+
+    source = JOB.read_text(encoding="utf-8")
+    fragment = source[source.index("# (vii) policy-pinned perf"):source.index("\ncalibrate_rc=0")]
+    values = {
+        "REPO_ROOT": str(ROOT), "ATTEMPT_DIR": str(attempt), "TMPDIR": str(scratch),
+        "CALIBRATE_PYTHON": str(base / "python3"), "PATH": str(base),
+        "CALIBRATION_RRATIO": "50", "BINARY": str(tmp_path / "ycsb_silo.exe"),
+        "BINARY_SHA": "c" * 64,
+    }
+    command = "set -Eeuo pipefail\n"
+    command += "\n".join(f"{key}={shlex.quote(value)}" for key, value in values.items())
+    command += "\nexport PATH\n"
+    command += "PERF_CANDIDATES=(" + " ".join(shlex.quote(str(p)) for p in candidates) + ")\n"
+    command += 'write_failure() { printf "%s\\n" "$*" > "$ATTEMPT_DIR/fixture-failure"; }\n'
+    completed = subprocess.run(
+        ["/bin/bash", "-c", command + fragment], capture_output=True, text=True,
+        env={**os.environ, "PYTHONPATH": str(ROOT)},
+    )
+    receipt = json.loads((attempt / "perf-preflight.json").read_text())
+    if mode == "probe_error":
+        assert completed.returncode == 2, completed.stderr
+        assert receipt["status"] == "probe_error"
+        assert receipt["reason"] == "probe-signal"
+        assert not (attempt / "calibrate-argv.json").exists()
+        assert (attempt / "fixture-failure").read_text().startswith("2 perf ")
+        return
+
+    assert completed.returncode == 0, completed.stderr
+    argv = json.loads((attempt / "calibrate-argv.json").read_text())
+    expected_path = f"{base}:{base}"
+    if mode == "selected":
+        expected_path = f"{scratch}/bin:{base}:{base}"
+        assert (scratch / "bin/perf").resolve() == selected
+        selection = json.loads((attempt / "perf-selection.json").read_text())
+        assert selection["path"] == str(selected)
+    else:
+        assert not (scratch / "bin/perf").exists()
+        assert not (attempt / "perf-selection.json").exists()
+
+    expected = [
+        "env", f"PATH={expected_path}", str(base / "python3"), str(ROOT / "orchestrator/calibrate.py"),
+        "--certify", "--env-tag", "pegasus", "--threads", "48",
+        "--workload", "ycsb_zipf_skew=0.9,ycsb_rratio=50,ycsb_rmw=0",
+        "--binary", values["BINARY"], "--binary-sha256", "c" * 64,
+        "--receipt-json", str(attempt / "acquisition-receipt.json"),
+    ]
+    if mode == "unavailable":
+        assert receipt["status"] == "unavailable"
+        expected += ["--perf-preflight-json", str(attempt / "perf-preflight.json")]
+    else:
+        assert receipt["status"] == "available"
+    assert argv == expected
+    calls = [json.loads(line) for line in log.read_text().splitlines()]
+    literal = str(scratch / "bin/perf") if mode == "selected" else str(base / "perf")
+    assert sum(path == literal and "-o" in args for path, args in calls) == 1
+    if mode == "selected":
+        assert calls[0] == [str(failed), ["--version"]]
+
+
 def _offline_fetchcontent_tokens(
     *, source_root: Path | str, base_dir: Path | str,
 ) -> list[str]:
