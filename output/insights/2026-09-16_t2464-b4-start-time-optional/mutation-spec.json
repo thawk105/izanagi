@@ -1,0 +1,160 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 600,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "m1-drop-added-branch",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "    for label, value in values.items():\n        if label == \"実行責任者・開始時刻\":\n            match = re.fullmatch(\n                r\"実行責任者 = (?P<owner>[^、=\\r\\n]+)、開始時刻 = 未記入\",\n                value,\n            )\n            if match is not None:\n                owner = match.group(\"owner\").strip()\n                if (\n                    owner\n                    and _RESERVED_SENTINEL_RE.search(owner) is None\n                    and owner.casefold() not in _RESERVED_SENTINEL_WHOLE_VALUES\n                ):\n                    continue\n",
+          "new": "    for value in values.values():\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_accepts_unrecorded_start_time_with_named_owner"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-unconditional-continue-for-target-label",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "        if label == \"実行責任者・開始時刻\":\n            match = re.fullmatch(\n                r\"実行責任者 = (?P<owner>[^、=\\r\\n]+)、開始時刻 = 未記入\",\n                value,\n            )\n            if match is not None:\n                owner = match.group(\"owner\").strip()\n                if (\n                    owner\n                    and _RESERVED_SENTINEL_RE.search(owner) is None\n                    and owner.casefold() not in _RESERVED_SENTINEL_WHOLE_VALUES\n                ):\n                    continue\n",
+          "new": "        if label == \"実行責任者・開始時刻\":\n            continue\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_whole_unrecorded_owner_start_cell",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_owner_with_unrecorded_start",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_whitespace_owner_with_unrecorded_start",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reserved_owner_with_unrecorded_start",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_other_start_sentinels",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_start_suffix",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reordered_unrecorded_start_fields",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_extra_owner_start_field"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-drop-label-condition",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "        if label == \"実行責任者・開始時刻\":\n            match = re.fullmatch(\n",
+          "new": "        if True:\n            match = re.fullmatch(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_optional_start_syntax_in_other_label"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-drop-owner-nonempty-condition",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "                if (\n                    owner\n                    and _RESERVED_SENTINEL_RE.search(owner) is None\n",
+          "new": "                if (\n                    _RESERVED_SENTINEL_RE.search(owner) is None\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_whitespace_owner_with_unrecorded_start"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-drop-owner-sentinel-regex-condition",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "                    owner\n                    and _RESERVED_SENTINEL_RE.search(owner) is None\n                    and owner.casefold() not in _RESERVED_SENTINEL_WHOLE_VALUES\n",
+          "new": "                    owner\n                    and owner.casefold() not in _RESERVED_SENTINEL_WHOLE_VALUES\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_owner_with_unrecorded_start",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reserved_owner_with_unrecorded_start"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-drop-owner-whole-value-condition",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "                    and owner.casefold() not in _RESERVED_SENTINEL_WHOLE_VALUES\n                ):\n",
+          "new": "                ):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reserved_owner_with_unrecorded_start"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-widen-start-time-token",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "                r\"実行責任者 = (?P<owner>[^、=\\r\\n]+)、開始時刻 = 未記入\",\n",
+          "new": "                r\"実行責任者 = (?P<owner>[^、=\\r\\n]+)、開始時刻 = (?:未記入|TODO)\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_other_start_sentinels"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-fullmatch-to-match",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "            match = re.fullmatch(\n",
+          "new": "            match = re.match(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_start_suffix"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-widen-owner-capture",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "                r\"実行責任者 = (?P<owner>[^、=\\r\\n]+)、開始時刻 = 未記入\",\n                value,\n",
+          "new": "                r\"実行責任者 = (?P<owner>.+)、開始時刻 = 未記入\",\n                value,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_extra_owner_start_field"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
