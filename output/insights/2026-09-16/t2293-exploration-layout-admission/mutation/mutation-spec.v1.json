@@ -1,0 +1,112 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "MUT-T2293Q1-M1-INNER-ISINSTANCE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_result_evidence.py::test_ordered_wal_projection_refuses_layout_subclasses[official]",
+        "orchestrator/tests/test_reflux_result_evidence.py::test_ordered_wal_projection_refuses_layout_subclasses[exploration]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    if (\n        type(layout) is not CampaignLayout\n        and type(layout) is not ExplorationCampaignLayout\n    ):\n        raise ResultEvidenceError(\n            \"layout must be an exact CampaignLayout or ExplorationCampaignLayout\"\n        )\n    if type(build_attempt_id) is not str or not build_attempt_id:\n",
+          "new": "    if not isinstance(layout, (CampaignLayout, ExplorationCampaignLayout)):\n        raise ResultEvidenceError(\n            \"layout must be an exact CampaignLayout or ExplorationCampaignLayout\"\n        )\n    if type(build_attempt_id) is not str or not build_attempt_id:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2293Q1-M2-INNER-HASATTR",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_result_evidence.py::test_ordered_wal_projection_refuses_layout_subclasses[official]",
+        "orchestrator/tests/test_reflux_result_evidence.py::test_ordered_wal_projection_refuses_layout_subclasses[exploration]",
+        "orchestrator/tests/test_reflux_result_evidence.py::test_ordered_wal_projection_refuses_duck_layout[frozen]",
+        "orchestrator/tests/test_reflux_result_evidence.py::test_ordered_wal_projection_refuses_duck_layout[namespace]",
+        "orchestrator/tests/test_reflux_result_evidence.py::test_ordered_wal_projection_refuses_type_equality_impostor[official]",
+        "orchestrator/tests/test_reflux_result_evidence.py::test_ordered_wal_projection_refuses_type_equality_impostor[exploration]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    if (\n        type(layout) is not CampaignLayout\n        and type(layout) is not ExplorationCampaignLayout\n    ):\n        raise ResultEvidenceError(\n            \"layout must be an exact CampaignLayout or ExplorationCampaignLayout\"\n        )\n    if type(build_attempt_id) is not str or not build_attempt_id:\n",
+          "new": "    if not hasattr(layout, \"wal_file\"):\n        raise ResultEvidenceError(\n            \"layout must be an exact CampaignLayout or ExplorationCampaignLayout\"\n        )\n    if type(build_attempt_id) is not str or not build_attempt_id:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2293Q1-M5-INNER-TUPLE-MEMBERSHIP",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_result_evidence.py::test_ordered_wal_projection_refuses_type_equality_impostor[official]",
+        "orchestrator/tests/test_reflux_result_evidence.py::test_ordered_wal_projection_refuses_type_equality_impostor[exploration]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    if (\n        type(layout) is not CampaignLayout\n        and type(layout) is not ExplorationCampaignLayout\n    ):\n        raise ResultEvidenceError(\n            \"layout must be an exact CampaignLayout or ExplorationCampaignLayout\"\n        )\n    if type(build_attempt_id) is not str or not build_attempt_id:\n",
+          "new": "    if type(layout) not in (CampaignLayout, ExplorationCampaignLayout):\n        raise ResultEvidenceError(\n            \"layout must be an exact CampaignLayout or ExplorationCampaignLayout\"\n        )\n    if type(build_attempt_id) is not str or not build_attempt_id:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2293Q1-M3-INNER-OLD-GATE",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_result_evidence.py::test_campaign_producer_issues_real_wal_projection_and_resolves_interval[exploration]",
+        "orchestrator/tests/test_reflux_campaign_issuer.py::test_real_run_campaign_exploration_issues_rejected_record"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    if (\n        type(layout) is not CampaignLayout\n        and type(layout) is not ExplorationCampaignLayout\n    ):\n        raise ResultEvidenceError(\n            \"layout must be an exact CampaignLayout or ExplorationCampaignLayout\"\n        )\n    if type(build_attempt_id) is not str or not build_attempt_id:\n",
+          "new": "    if type(layout) is not CampaignLayout:\n        raise ResultEvidenceError(\n            \"layout must be an exact CampaignLayout or ExplorationCampaignLayout\"\n        )\n    if type(build_attempt_id) is not str or not build_attempt_id:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2293Q1-M4-OUTER-OLD-GATE",
+      "category": "positive",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_result_evidence.py::test_campaign_producer_issues_real_wal_projection_and_resolves_interval[exploration]",
+        "orchestrator/tests/test_reflux_result_evidence.py::test_campaign_producer_refuses_exploration_root_outside_evidence_root_before_writes",
+        "orchestrator/tests/test_reflux_campaign_issuer.py::test_real_run_campaign_exploration_issues_rejected_record"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    if (\n        type(layout) is not CampaignLayout\n        and type(layout) is not ExplorationCampaignLayout\n    ):\n        raise ResultEvidenceError(\n            \"layout must be an exact CampaignLayout or ExplorationCampaignLayout\"\n        )\n    if type(environment_contract) is not ExecutionEnvironmentContract:\n",
+          "new": "    if type(layout) is not CampaignLayout:\n        raise ResultEvidenceError(\n            \"layout must be an exact CampaignLayout or ExplorationCampaignLayout\"\n        )\n    if type(environment_contract) is not ExecutionEnvironmentContract:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T2293Q1-M6-INNER-EQUIVALENT-REORDER",
+      "category": "positive",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/reflux_result_evidence.py",
+          "old": "    if (\n        type(layout) is not CampaignLayout\n        and type(layout) is not ExplorationCampaignLayout\n    ):\n        raise ResultEvidenceError(\n            \"layout must be an exact CampaignLayout or ExplorationCampaignLayout\"\n        )\n    if type(build_attempt_id) is not str or not build_attempt_id:\n",
+          "new": "    if (\n        type(layout) is not ExplorationCampaignLayout\n        and type(layout) is not CampaignLayout\n    ):\n        raise ResultEvidenceError(\n            \"layout must be an exact CampaignLayout or ExplorationCampaignLayout\"\n        )\n    if type(build_attempt_id) is not str or not build_attempt_id:\n"
+        }
+      ]
+    }
+  ]
+}

@@ -14,6 +14,7 @@ import importlib.util
 import io
 import json
 import os
+from pathlib import Path
 import py_compile
 import shutil
 import stat
@@ -30,6 +31,7 @@ _REPO = os.path.dirname(_ORCH)
 sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.campaign import source_digest                               # noqa: E402
+from tools.acceptance_shards import _git_common_dir, _validate_shared_root  # noqa: E402
 from skiputil import skip, skip_conditional_unrun                # noqa: E402
 
 
@@ -1507,10 +1509,17 @@ def test_t2146_authority_hardlink_alias_is_denied_in_both_guards(tmp_path):
     alias_root = os.fspath(tmp_path)
     same_device_root = None
     alias_parent = alias_root
+    main_repo = _git_common_dir(Path(_REPO)).parent
+    shared_root = (main_repo.parent / ".izanagi-t2146-hardlink").resolve()
+    _validate_shared_root(Path(_REPO), main_repo, shared_root)
     if os.stat(alias_root).st_dev != os.stat(_T2146_AUTHORITY_PUBLIC_KEY).st_dev:
         # pytest tmp が別 device の環境でも、tmp_path 配下の lexical alias を入口にして
-        # hardlink entry 自体は authority と同じ device の repo-local 一時 dir に置く。
-        same_device_root = tempfile.mkdtemp(prefix="t2146-hardlink-", dir=_REPO)
+        # hardlink entry 自体は repo と main checkout の外、main checkout の親直下の
+        # .izanagi-t2146-hardlink に置く。同じ workspace filesystem なので
+        # authority と同じ device に留まる。
+        shared_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+        same_device_root = tempfile.mkdtemp(prefix="t2146-hardlink-", dir=shared_root)
+        assert Path(same_device_root).parent == shared_root
         alias_parent = os.path.join(alias_root, "same-device")
         os.symlink(same_device_root, alias_parent)
     alias = os.path.join(alias_parent, "authority-public-key-hardlink")
