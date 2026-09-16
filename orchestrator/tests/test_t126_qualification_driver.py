@@ -7,12 +7,13 @@ import sys
 import os
 import json
 import hashlib
+import math
+import statistics
 import select
 import signal
 import subprocess
 import time
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
@@ -22,13 +23,14 @@ sys.path.insert(0, str(_HERE))
 sys.path.insert(0, str(_HERE.parents[1]))
 
 import test_campaign as campaign_fixtures  # noqa: E402
-from orchestrator.calibrator import schema_v2  # noqa: E402
+from orchestrator.calibrator import effective_clock_policy, schema_v2  # noqa: E402
 from orchestrator.campaign import env_attestation, env_contract, pipeline  # noqa: E402
 from orchestrator.campaign.build_admission import (  # noqa: E402
     BuildProvenance,
     GeneratorId,
     build_run_context,
 )
+from orchestrator.campaign.calibration_verify import VerifiedCalibration  # noqa: E402
 from orchestrator.campaign.model import Genome  # noqa: E402
 from orchestrator.qualification.artifacts import (  # noqa: E402
     QualificationArtifactError,
@@ -256,26 +258,114 @@ def test_m10_driver_binds_prologue_observation_at_every_member_callsite():
     } == {"perf_observation"}
 
 
-def test_t452_attest_preserves_intentional_fail_closed_behavior(monkeypatch, tmp_path):
-    """[T-452] wave では意図的に現挙動を保存した。修正はユーザー裁定待ちの別タスク。"""
-    calibration = schema_v2.validate_calibration_v2(_valid_document())
-    raw = env_attestation.profile_to_dict(calibration.attestation_profile)
-    del raw["effective_clock"]["tolerance_pct"]
-    observed = env_attestation.normalize_observed_profile(raw)
-    verified = SimpleNamespace(
-        calibration=calibration,
-        attestation_profile_sha256=env_attestation.profile_sha256(
-            calibration.attestation_profile,
-        ),
+def _attest_fixture(monkeypatch):
+    document = _valid_document()
+    document["attestation_profile"]["effective_clock"]["tolerance_pct"] = (
+        effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT
     )
+    calibration = schema_v2.validate_calibration_v2(document)
+    expected_raw = document["attestation_profile"]
+    expected_sha256 = hashlib.sha256(json.dumps(
+        expected_raw, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    ).encode("utf-8")).hexdigest()
+    verified = VerifiedCalibration(
+        schema_version=document["schema_version"],
+        sha256=hashlib.sha256(json.dumps(document).encode("utf-8")).hexdigest(),
+        calibration=calibration,
+        attestation_profile_sha256=expected_sha256,
+    )
+    raw = json.loads(json.dumps(expected_raw))
+    del raw["effective_clock"]["tolerance_pct"]
     monkeypatch.setattr(
         t126_driver.env_attestation, "load_verified_calibration",
         lambda _contract, _root: verified,
     )
-    monkeypatch.setattr(t126_driver.env_attestation, "probe", lambda: observed)
+    monkeypatch.setattr(
+        t126_driver.env_attestation, "probe",
+        lambda: env_attestation.normalize_observed_profile(raw),
+    )
+    return verified, raw
 
-    with pytest.raises(QualificationDriverError, match="AttestationError"):
+
+def test_t541_attest_accepts_matching_profile_with_v2_envelope(monkeypatch, tmp_path):
+    """T-541/T-507: 実比較・parser・観測 hash を通して一致入力を受理する。"""
+    verified, raw = _attest_fixture(monkeypatch)
+    payload = t126_driver._attest(tmp_path, object())
+    assert set(payload) == {
+        "schema_version", "status", "expected_profile_sha256",
+        "observed_profile_sha256", "observed_profile_projection_schema",
+        "comparisons",
+    }
+    assert payload["schema_version"] == "t126-qualification-attestation/v2"
+    assert payload["observed_profile_projection_schema"] == "pegasus-probe-output/v2"
+    assert payload["status"] == "accepted"
+    assert payload["expected_profile_sha256"] == verified.attestation_profile_sha256
+    assert payload["observed_profile_sha256"] == hashlib.sha256(json.dumps(
+        raw, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    ).encode("utf-8")).hexdigest()
+    comparisons = payload["comparisons"]
+    assert len(comparisons) == 21
+    assert {row["field"] for row in comparisons} == {
+        "cpu.vendor", "cpu.family", "cpu.model", "cpu.model_name_raw",
+        "cpu.model_name_normalized", "cores.physical", "cores.logical",
+        "cores.smt_active", "cores.affinity_visible", "cache_topology", "numa",
+        "tsc.raw_samples_mhz", "tsc.median_mhz", "tsc.clocks_per_us_int",
+        "tsc.source", "effective_clock.samples_mhz", "effective_clock.method",
+        "effective_clock.governor", "visibility.hidepid",
+        "visibility.pid_ns_shared_with_host", "visibility.pid_ns_method",
+    }
+    assert all(row["verdict"] == "pass" for row in comparisons)
+
+
+def test_t541_attest_rejects_governor_mismatch(monkeypatch, tmp_path):
+    _, raw = _attest_fixture(monkeypatch)
+    raw["effective_clock"]["governor"] = "powersave"
+    with pytest.raises(QualificationDriverError, match="comparison contains a mismatch"):
         t126_driver._attest(tmp_path, object())
+
+
+@pytest.mark.parametrize("side", ["lower", "upper"])
+@pytest.mark.parametrize("outside", [False, True], ids=["endpoint", "just-outside"])
+def test_t541_attest_clock_band_boundary(monkeypatch, tmp_path, side, outside):
+    verified, raw = _attest_fixture(monkeypatch)
+    clock = verified.calibration.attestation_profile.effective_clock
+    median = float(statistics.median(clock.samples_mhz))
+    delta = abs(median) * clock.tolerance_pct / 100.0
+    endpoint = median - delta if side == "lower" else median + delta
+    sample = math.nextafter(
+        endpoint, -math.inf if side == "lower" else math.inf,
+    ) if outside else endpoint
+    # Only one sample moves; the median remains inside the allowed band.
+    raw["effective_clock"]["samples_mhz"][0] = sample
+    if outside:
+        with pytest.raises(QualificationDriverError, match="comparison contains a mismatch"):
+            t126_driver._attest(tmp_path, object())
+    else:
+        payload = t126_driver._attest(tmp_path, object())
+        assert payload["status"] == "accepted"
+        assert all(row["verdict"] == "pass" for row in payload["comparisons"])
+
+
+def test_t541_attest_wraps_probe_exception(monkeypatch, tmp_path):
+    _attest_fixture(monkeypatch)
+
+    def fail_probe():
+        raise OSError("probe unavailable")
+
+    monkeypatch.setattr(t126_driver.env_attestation, "probe", fail_probe)
+    with pytest.raises(QualificationDriverError, match="OSError: probe unavailable") as exc:
+        t126_driver._attest(tmp_path, object())
+    assert isinstance(exc.value.__cause__, OSError)
+
+
+def test_t541_attest_rejects_empty_comparisons(monkeypatch, tmp_path):
+    _attest_fixture(monkeypatch)
+    monkeypatch.setattr(
+        t126_driver.env_attestation, "compare_profiles", lambda *args, **kwargs: [],
+    )
+    with pytest.raises(QualificationDriverError, match="comparison contains a mismatch"):
+        t126_driver._attest(tmp_path, object())
+
 
 def test_qualification_entry_constructs_run_context_for_live_member_build():
     source = (_ROOT / "orchestrator/qualification/t126_driver.py").read_text(
