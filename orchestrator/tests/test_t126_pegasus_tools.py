@@ -3398,6 +3398,51 @@ def _submit_fixture(
     return repo, fake_bin, calls
 
 
+@pytest.mark.parametrize("missing_gflags", [False, True], ids=["hydrated", "missing-gflags"])
+def test_archived_submission_uses_checkout_dependency_staging(tmp_path, missing_gflags):
+    repo, fake_bin, _ = _submit_fixture(tmp_path)
+    helper_root = tmp_path / "archived-helper"
+    helper_root.mkdir()
+    archive = tmp_path / "helper.tar"
+    _git(repo, "archive", "--format=tar", f"--output={archive}", "HEAD",
+         "orchestrator", "tools/pegasus/policy.json")
+    shutil.unpack_archive(str(archive), str(helper_root))
+    assert not (helper_root / THIRD_PARTY_STAGING_RELATIVE).exists()
+    staging = repo / THIRD_PARTY_STAGING_RELATIVE
+    policy = json.loads((repo / "tools/pegasus/policy.json").read_text(encoding="utf-8"))
+    expected = {
+        name: {
+            "commit": policy[f"{name}_expected_head"],
+            "tree": _git(staging / name, "rev-parse", "HEAD^{tree}"),
+        }
+        for name in ("gflags", "glog")
+    }
+    if missing_gflags:
+        shutil.rmtree(staging / "gflags")
+    output_dir = tmp_path / "prepared"
+    output_dir.mkdir()
+    env = dict(os.environ)
+    env.pop("IZANAGI_THIRDPARTY_SOURCE_ROOT", None)
+    env.pop("PYTHONPATH", None)
+    env["PATH"] = str(fake_bin) + os.pathsep + env["PATH"]
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    completed = subprocess.run(
+        [sys.executable, "-I", "-B",
+         str(helper_root / "orchestrator/qualification/submission.py"),
+         "--repo-root", str(repo), "--output-dir", str(output_dir)],
+        cwd=helper_root, env=env, capture_output=True, text=True, timeout=120)
+    if missing_gflags:
+        assert completed.returncode == 2, completed.stderr
+        assert f"dependency source is unsafe: {staging / 'gflags'}" in completed.stderr
+        assert list(output_dir.iterdir()) == []
+    else:
+        assert completed.returncode == 0, completed.stderr
+        manifest = load_json_strict(output_dir / "toolchain-manifest.json")
+        assert manifest["dependencies"] == expected
+        preimage = load_json_strict(output_dir / "series-identity.json")
+        assert preimage["toolchain_manifest"] == manifest
+
+
 def _install_scheduler_stubs(
         fake_bin: Path, calls: Path, *, visible_job: str = "98765.nqsv",
         perf_unsupported: bool = False) -> Path:
@@ -3982,11 +4027,16 @@ def test_submit_rejects_symlink_component_hidden_drift_and_skip_worktree(
     repo, fake_bin, calls = _submit_fixture(tmp_path)
     _install_scheduler_stubs(fake_bin, calls)
     outside = tmp_path / "outside"
-    outside.mkdir()
-    (repo / "output/env").parent.mkdir(parents=True, exist_ok=True)
+    (repo / "output/env").rename(outside)
     (repo / "output/env").symlink_to(outside, target_is_directory=True)
+    assert (repo / THIRD_PARTY_STAGING_RELATIVE / "gflags").is_dir()
+    assert (repo / THIRD_PARTY_STAGING_RELATIVE / "glog").is_dir()
+    fixture_entries = set(outside.rglob("*"))
     symlinked = _run_submit(repo, fake_bin)
     assert symlinked.returncode == 2
+    assert set(outside.rglob("*")) == fixture_entries
+    # Exclude the pre-existing fixture tree from the no-new-output check.
+    (outside / "pegasus").rename(tmp_path / "fixture-pegasus")
     assert list(outside.iterdir()) == []
 
     repo2, fake_bin2, calls2 = _submit_fixture(tmp_path / "hidden")

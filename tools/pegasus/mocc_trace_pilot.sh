@@ -890,9 +890,6 @@ REQUESTED_S=${policy_values[3]}
 FINALIZE_RESERVE_S=${policy_values[4]}
 EXPECTED_CPU=${policy_values[5]}
 EXPECTED_CORES=${policy_values[6]}
-THIRDPARTY_SOURCE_ROOT="${IZANAGI_THIRDPARTY_SOURCE_ROOT:-$REPO_ROOT/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src}"
-GFLAGS_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/gflags"
-GLOG_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/glog"
 GFLAGS_EXPECTED_HEAD=${policy_values[7]}
 GLOG_EXPECTED_HEAD=${policy_values[8]}
 THIRD_PARTY_CACHE_ENV=${policy_values[9]}
@@ -1528,6 +1525,38 @@ PY_T1718_COMPILER_GATE
 fi
 # END T1718 COMPILER VERSION BODY GATE
 
+CACHE_ROOT=${!THIRD_PARTY_CACHE_ENV:-}
+if [[ -z "$CACHE_ROOT" ]]; then
+  write_failure 2 third_party "$THIRD_PARTY_CACHE_ENV is missing"
+  exit 2
+fi
+THIRD_PARTY_STAGING_ROOT="$TMPDIR/thirdparty-src"
+timeout 20 python3 "$TOOLS/fetch_third_party.py" hydrate --repo-root "$REPO_ROOT" \
+  --cache-root "$CACHE_ROOT" --staging-root "$THIRD_PARTY_STAGING_ROOT" \
+  >"$ATTEMPT_DIR/third-party-hydrate.json" \
+  2>"$ATTEMPT_DIR/third-party-hydrate.stderr"
+THIRD_PARTY_SOURCE_ROOT=$(python3 - "$ATTEMPT_DIR/third-party-hydrate.json" <<'PY'
+import json
+import os
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    payload = json.load(handle)
+value = payload.get("source_root")
+if type(value) is not str or not os.path.isabs(value):
+    raise SystemExit("hydrate output .source_root is not an absolute path")
+print(value)
+PY
+)
+if [[ ! -d "$THIRD_PARTY_SOURCE_ROOT" ]]; then
+  write_failure 2 third_party "hydrate source_root is missing"
+  exit 2
+fi
+printf '%s\n' "$THIRD_PARTY_SOURCE_ROOT" >"$ATTEMPT_DIR/third-party-source-root.stdout"
+THIRDPARTY_SOURCE_ROOT="$THIRD_PARTY_SOURCE_ROOT"
+GFLAGS_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/gflags"
+GLOG_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/glog"
+
 if [[ ! -d "$GFLAGS_SOURCE_PATH" ]]; then
   write_failure 2 gflags "gflags source path missing"
   exit 2
@@ -1627,34 +1656,6 @@ timeout 120 "${glog_build_argv[@]}" >"$ATTEMPT_DIR/glog-build.stdout" 2>"$ATTEMP
 timeout 120 "${glog_install_argv[@]}" >"$ATTEMPT_DIR/glog-install.stdout" 2>"$ATTEMPT_DIR/glog-install.stderr"
 
 export CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR;$GLOG_INSTALL_DIR"
-CACHE_ROOT=${!THIRD_PARTY_CACHE_ENV:-}
-if [[ -z "$CACHE_ROOT" ]]; then
-  write_failure 2 third_party "$THIRD_PARTY_CACHE_ENV is missing"
-  exit 2
-fi
-THIRD_PARTY_STAGING_ROOT="$TMPDIR/thirdparty-src"
-timeout 20 python3 "$TOOLS/fetch_third_party.py" hydrate --repo-root "$REPO_ROOT" \
-  --cache-root "$CACHE_ROOT" --staging-root "$THIRD_PARTY_STAGING_ROOT" \
-  >"$ATTEMPT_DIR/third-party-hydrate.json" \
-  2>"$ATTEMPT_DIR/third-party-hydrate.stderr"
-THIRD_PARTY_SOURCE_ROOT=$(python3 - "$ATTEMPT_DIR/third-party-hydrate.json" <<'PY'
-import json
-import os
-import sys
-
-with open(sys.argv[1], encoding="utf-8") as handle:
-    payload = json.load(handle)
-value = payload.get("source_root")
-if type(value) is not str or not os.path.isabs(value):
-    raise SystemExit("hydrate output .source_root is not an absolute path")
-print(value)
-PY
-)
-if [[ ! -d "$THIRD_PARTY_SOURCE_ROOT" ]]; then
-  write_failure 2 third_party "hydrate source_root is missing"
-  exit 2
-fi
-printf '%s\n' "$THIRD_PARTY_SOURCE_ROOT" >"$ATTEMPT_DIR/third-party-source-root.stdout"
 
 CCBENCH_BASE="$REPO_ROOT/external/ccbench"
 if [[ ! -d "$CCBENCH_BASE" ]]; then

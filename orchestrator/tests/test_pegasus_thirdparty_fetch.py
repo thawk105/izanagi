@@ -922,6 +922,48 @@ def test_default_verify_requires_all_five_sources(git_fixture, monkeypatch, caps
     assert "gflags" in stderr
 
 
+def test_verify_cache_root_must_be_explicit_or_environment(
+    git_fixture, monkeypatch, capsys,
+) -> None:
+    tool = _load_tool()
+    _prepare_cache(tool, git_fixture, monkeypatch)
+    capsys.readouterr()
+    env_name = "IZANAGI_PEGASUS_THIRDPARTY_CACHE"
+    monkeypatch.delenv(env_name, raising=False)
+    argv = ["verify", "--repo-root", str(git_fixture.repo)]
+    assert tool.main(argv) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.count("\n") == 1
+    assert env_name in captured.err
+    monkeypatch.setenv(env_name, str(git_fixture.cache))
+    assert tool.main(argv) == 0
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert json.loads(captured.out)["cache_root"] == str(git_fixture.cache)
+
+
+def test_build_dependency_sources_rejects_url_without_git_suffix() -> None:
+    tool = _load_tool()
+    document = json.loads((REPO / "tools/pegasus/policy.json").read_text())
+    document["gflags_source_url"] = "https://github.com/gflags/gflags"
+    with pytest.raises(tool.OperationalError, match="build dependency source policy is invalid"):
+        tool._build_dependency_sources(document)
+
+
+def test_build_dependency_sources_real_policy_exact_shape() -> None:
+    tool = _load_tool()
+    document = json.loads((REPO / "tools/pegasus/policy.json").read_text())
+    assert tool._build_dependency_sources(document) == (
+        {"name": "gflags", "source_name": "gflags",
+         "url": "https://github.com/gflags/gflags.git",
+         "pin": "e171aa2d15ed9eb17054558e0b3a6a413bb01067"},
+        {"name": "glog", "source_name": "glog",
+         "url": "https://github.com/google/glog.git",
+         "pin": "8f9ccfe770add9e4c64e9b25c102658e3c763b73"},
+    )
+
+
 def _run() -> int:
     return pytest.main([__file__, "-q"])
 

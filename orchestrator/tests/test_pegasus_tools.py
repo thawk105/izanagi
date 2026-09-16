@@ -486,16 +486,53 @@ def test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench():
     ):
         job = (TOOL_DIR / name).read_text(encoding="utf-8")
         resolution = (
+            'THIRDPARTY_SOURCE_ROOT="$THIRD_PARTY_SOURCE_ROOT"'
+            if name == "mocc_trace_pilot.sh" else
             'THIRDPARTY_SOURCE_ROOT="$IZANAGI_S4_THIRDPARTY_SOURCE_ROOT"'
             if name == "p3_s4_loop_pegasus.sh" else
             'THIRDPARTY_SOURCE_ROOT="${IZANAGI_THIRDPARTY_SOURCE_ROOT:-$'
             + repo_var + '/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src}"'
         )
         assert job.count(resolution) == 1, name
+        if name == "mocc_trace_pilot.sh":
+            hydrate = 'timeout 20 python3 "$TOOLS/fetch_third_party.py" hydrate --repo-root "$REPO_ROOT"'
+            assert job.count(hydrate) == 1
+            cache_check = (
+                'CACHE_ROOT=${!THIRD_PARTY_CACHE_ENV:-}\n'
+                'if [[ -z "$CACHE_ROOT" ]]; then\n'
+                '  write_failure 2 third_party "$THIRD_PARTY_CACHE_ENV is missing"\n'
+                '  exit 2\nfi'
+            )
+            assert cache_check in job
+            root_read = 'THIRD_PARTY_SOURCE_ROOT=$(python3 - "$ATTEMPT_DIR/third-party-hydrate.json"'
+            hydrate_body = job[job.index(cache_check):job.index(resolution)]
+            for required in (
+                'THIRD_PARTY_STAGING_ROOT="$TMPDIR/thirdparty-src"',
+                '--cache-root "$CACHE_ROOT" --staging-root "$THIRD_PARTY_STAGING_ROOT"',
+                '>"$ATTEMPT_DIR/third-party-hydrate.json"',
+                '2>"$ATTEMPT_DIR/third-party-hydrate.stderr"',
+                'value = payload.get("source_root")',
+                'if type(value) is not str or not os.path.isabs(value):',
+                '    raise SystemExit("hydrate output .source_root is not an absolute path")',
+                'print(value)',
+                'if [[ ! -d "$THIRD_PARTY_SOURCE_ROOT" ]]; then\n'
+                '  write_failure 2 third_party "hydrate source_root is missing"\n'
+                '  exit 2\nfi',
+            ):
+                assert hydrate_body.count(required) == 1, required
+            assert (job.index("# END T1718 COMPILER VERSION BODY GATE")
+                    < job.index(cache_check) < job.index(hydrate)
+                    < job.index(root_read) < job.index(resolution))
+            assert "IZANAGI_THIRDPARTY_SOURCE_ROOT" not in job
+            assert "job-staging/thirdparty-src" not in job
         for dep in ("gflags", "glog"):
             assignment = f'{dep.upper()}_{source_var}="$THIRDPARTY_SOURCE_ROOT/{dep}"'
             assert job.count(assignment) == 1, name
             assert job.index(resolution) < job.index(assignment), name
+            if name == "mocc_trace_pilot.sh":
+                assert (job.index(assignment)
+                        < job.index(f'if [[ ! -d "${dep.upper()}_SOURCE_PATH" ]]; then')
+                        < job.index(f'git -C "${dep.upper()}_SOURCE_PATH" rev-parse HEAD'))
             assert f'"{dep}_source_path"' not in job, name
             if name == "t126_qualification.sh":
                 archive = f'git -C "${dep.upper()}_SOURCE" archive --format=tar'

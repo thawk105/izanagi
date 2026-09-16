@@ -360,7 +360,16 @@ for item in policy:
 PY
 )
 [[ ${#third_party_rows[@]} -eq 3 ]]
-for row in "${third_party_rows[@]}"; do
+# find_package dependencies are separate from the three FetchContent sources.
+readarray -t build_dependency_rows < <("$PY" -I -B - "$POLICY" <<'PY_BUILD_DEPS'
+import json, sys
+policy = json.load(open(sys.argv[1], encoding="utf-8"))
+for name in ("gflags", "glog"):
+    print("\t".join((name, name, policy[f"{name}_expected_head"])))
+PY_BUILD_DEPS
+)
+[[ ${#build_dependency_rows[@]} -eq 2 ]]
+for row in "${third_party_rows[@]}" "${build_dependency_rows[@]}"; do
   IFS=$'\t' read -r third_name third_source_name third_pin <<<"$row"
   [[ "$third_name" =~ ^[a-z][a-z0-9_-]*$ ]]
   [[ "$third_source_name" =~ ^[a-z][a-z0-9_-]*$ ]]

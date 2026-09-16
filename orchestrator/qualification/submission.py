@@ -109,7 +109,7 @@ def _dependency(path: Path, expected_commit: str) -> dict[str, str]:
     return {"commit": commit, "tree": tree}
 
 
-def prepare_toolchain(policy: Mapping[str, Any]) -> dict[str, Any]:
+def prepare_toolchain(policy: Mapping[str, Any], *, repo_root: Path) -> dict[str, Any]:
     executables = {
         "python": _executable("python", ["python3", "python3.10", "python3.11"]),
         "cc": _executable("cc", ["gcc-13"]),
@@ -161,7 +161,7 @@ def prepare_toolchain(policy: Mapping[str, Any]) -> dict[str, Any]:
             raise SubmissionPreparationError("required executable unavailable: perf")
         executables["perf"] = perf_row
     source_root = Path(os.environ.get(THIRD_PARTY_SOURCE_ROOT_ENV)
-                       or Path(__file__).resolve().parents[2] / THIRD_PARTY_STAGING_RELATIVE)
+                       or repo_root / THIRD_PARTY_STAGING_RELATIVE)
     dependencies = {
         "gflags": _dependency(
             source_root / "gflags", policy["gflags_expected_head"]),
@@ -212,7 +212,7 @@ def prepare(repo_root: Path, output_dir: Path) -> tuple[str, Path, Path]:
         (repo_root / "tools/pegasus/policy.json").read_text(encoding="utf-8"))
     protocol = load_protocol(
         repo_root / "orchestrator/qualification/t126_control_v1.json")
-    toolchain = prepare_toolchain(policy)
+    toolchain = prepare_toolchain(policy, repo_root=repo_root)
     preimage = build_series_preimage(repo_root, protocol, toolchain)
     series_id = series_identity(preimage)
     toolchain_path = output_dir / "toolchain-manifest.json"
