@@ -4,13 +4,16 @@
 critic は「生のカウンタでなく組み合わせて読み、特定の設計選択に帰属させる」
 (agent-architecture §critic)。そのために必要な構造化を機械側で先に行う:
 
-1. **genome 別の leading indicators** — throughput / abort_rate / latency / llc_miss /
+1. **genome 別の leading indicators** — throughput / abort_rate / llc_miss /
    ipc を 1 行ずつ。
 2. **フラグ軸ごとの限界効果** — 各設計選択 (BACK_OFF / no-wait 政策 / WAL) を
    フリップしたとき各指標がどう動くか (他フラグで周辺化した平均)。これが
    「fitness を設計選択に帰属させる」核心。例: BACK_OFF 0→1 で throughput が
-   半減し latency が 3 倍だが abort_rate はほぼ不変 → backoff のコストは
-   contention 低減でなく latency と読める。
+   下がるのに abort_rate がほぼ不変なら、backoff は競合を減らしておらず
+   待ち時間のコストだけを払っている、と読める。cache miss / IPC で機序を補強する。
+
+CCBench の通常出力 (result.cc の displayTps) では latency[ns] = 1e9 *
+thread_num / throughput で独立した latency 計測ではないため、digest の列には出さない。
 
 純データ整形 (machine 非依存)。実走・書き込みはしない。
 """
@@ -59,9 +62,9 @@ from orchestrator.campaign.sort_swo_oracle import (                # noqa: E402
 from .identity_projection import IdentityProjection                # noqa: E402
 
 # critic が見る指標と「大きいほど良いか」(throughput/ipc は大、他は小が良い)。
-INDICATORS = ["throughput_tps", "abort_rate", "latency_ns", "llc_miss_rate", "ipc"]
+INDICATORS = ["throughput_tps", "abort_rate", "llc_miss_rate", "ipc"]
 HIGHER_IS_BETTER = {"throughput_tps": True, "ipc": True,
-                    "abort_rate": False, "latency_ns": False, "llc_miss_rate": False}
+                    "abort_rate": False, "llc_miss_rate": False}
 
 
 @dataclass
@@ -1217,8 +1220,6 @@ def _fmt(ind: str, v: Optional[float]) -> str:
         return "—"
     if ind == "throughput_tps":
         return f"{v:,.0f}"
-    if ind == "latency_ns":
-        return f"{v:,.0f}ns"
     if ind in ("abort_rate", "llc_miss_rate"):
         return f"{v * 100:.2f}%"
     return f"{v:.2f}"            # ipc

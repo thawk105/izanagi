@@ -38,7 +38,7 @@ from orchestrator.holdout_observation import (
 
 from .benchparse import (integer_abort_commit_counts, _num, abort_rate as parse_abort_rate, latency_ns as
                          parse_latency_ns, parse_bench_stdout, throughput_tps)
-from .model import PerfCounters, ScalePoint
+from .model import PerfCounters, ScalePoint, _median
 from .perfparse import parse_perf_stat
 
 
@@ -800,6 +800,28 @@ def capture_run_once(binary: str, gflags: Sequence[str],
     return _seal_captured_output(lambda: result)
 
 
+def _summarize_rep_results(rep_results):
+    """Keep representative fields and align indicators with median throughput."""
+    valid = [r for r in rep_results if r[0] is not None]
+    if not valid:
+        return rep_results[-1][1:]
+    throughputs = sorted(r[0] for r in valid)
+    median_ref = throughputs[len(throughputs) // 2]
+    rep = min(valid, key=lambda r: abs(r[0] - median_ref))
+    counters, walltime_s, maxrss_kb = rep[1], rep[2], rep[3]
+    if len(valid) % 2:
+        abort_rate, latency_ns = rep[4], rep[5]
+    else:
+        ordered = sorted(enumerate(valid), key=lambda item: item[1][0])
+        middle = len(ordered) // 2
+        lo, hi = ordered[middle - 1][1], ordered[middle][1]
+        abort_rate = (_median([lo[4], hi[4]])
+                      if lo[4] is not None and hi[4] is not None else None)
+        latency_ns = (_median([lo[5], hi[5]])
+                      if lo[5] is not None and hi[5] is not None else None)
+    return counters, walltime_s, maxrss_kb, abort_rate, latency_ns
+
+
 def capture_measure_point(
         binary: str, records: int, threads: int,
         clocks_per_us: int, extime: int = 3, reps: int = 5,
@@ -1047,17 +1069,8 @@ def capture_measure_point(
                 f"all {reps} reps failed at records={records} threads={threads}: "
                 + " | ".join(pt.notes))
 
-        valid = [result for result in rep_results if result[0] is not None]
-        rep = None
-        if valid:
-            throughputs = sorted(result[0] for result in valid)
-            median = throughputs[len(throughputs) // 2]
-            rep = min(valid, key=lambda result: abs(result[0] - median))
-        elif rep_results:
-            rep = rep_results[-1]
-        if rep is not None:
-            (pt.counters, pt.walltime_s, pt.maxrss_kb,
-             pt.abort_rate, pt.latency_ns) = rep[1], rep[2], rep[3], rep[4], rep[5]
+        (pt.counters, pt.walltime_s, pt.maxrss_kb,
+         pt.abort_rate, pt.latency_ns) = _summarize_rep_results(rep_results)
         if rep_observations is not None:
             pt.rep_observations = [
                 dict(observation) for observation in rep_observations
@@ -1284,24 +1297,8 @@ def measure_point(binary: str, records: int, threads: int,
             + " | ".join(point.notes)
         )
 
-    valid = [result for result in rep_results if result[0] is not None]
-    representative = None
-    if valid:
-        throughputs = sorted(result[0] for result in valid)
-        median = throughputs[len(throughputs) // 2]
-        representative = min(
-            valid, key=lambda result: abs(result[0] - median),
-        )
-    elif rep_results:
-        representative = rep_results[-1]
-    if representative is not None:
-        (
-            point.counters,
-            point.walltime_s,
-            point.maxrss_kb,
-            point.abort_rate,
-            point.latency_ns,
-        ) = representative[1:]
+    (point.counters, point.walltime_s, point.maxrss_kb,
+     point.abort_rate, point.latency_ns) = _summarize_rep_results(rep_results)
     if rep_observations is not None:
         point.rep_observations = [
             dict(observation) for observation in rep_observations
