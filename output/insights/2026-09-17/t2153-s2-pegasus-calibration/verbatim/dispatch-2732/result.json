@@ -1,0 +1,10 @@
+{
+  "child_rc": 0,
+  "error": null,
+  "hostname": "bnode003",
+  "interpreter": "/usr/bin/python3.10",
+  "pbs_jobid": "0:2732.nqsv",
+  "request_sha256": "9c820162016d8d6a1125d2bfcecb46a1d109177e5fa1f24beba5abd35d92d2a1",
+  "schema_version": "pegasus-dispatch-result/v1",
+  "stage": "child"
+}

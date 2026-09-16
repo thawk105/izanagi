@@ -1,0 +1,445 @@
+{
+  "f49_compute_marker": {
+    "hostname": "bnode002",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-s2-pegasus-calibration/submit-tree-s2/output/pegasus-dispatch/05304983062b96833fdc38a27d8cd0ad/compute-visible.json",
+    "pbs_jobid": "0:2731.nqsv",
+    "present": true,
+    "valid": true
+  },
+  "f49_immediate": {
+    "qstat_succeeded": true,
+    "qstat_visible": true
+  },
+  "immediate_qstat": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "Request ID: 2731.nqsv\n    Request Name = izdw-0530498306\n    User  Name = tanab\n    Group Name = SFC\n    User  ID   = 31609\n    Group ID   = 30410\n    Current State           = Queued\n    Previous State          = (none)\n    State Transition Time   = Thu Sep 17 06:58:57 2026\n    State Transition Reason = SUBMIT\n    Queue = gen_S@nqsv (Execution Queue)\n    Job Topology = Distribute Job\n    Request Priority  = 0\n    Request Loglevel  = 0\n    Rerunable    = No\n    Holdable     = Yes\n    Hold Type    = (none)\n    Migratable   = Yes\n    Suspend Type = (none)\n    Account Code = SFC\n    Stdout = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-s2-pegasus-calibration/submit-tree-s2/output/pegasus-dispatch/05304983062b96833fdc38a27d8cd0ad/izdw-0530498306.o%s\n    Stderr = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-s2-pegasus-calibration/submit-tree-s2/output/pegasus-dispatch/05304983062b96833fdc38a27d8cd0ad/izdw-0530498306.e%s\n    Reqlog = (none)\n    Shell = (none)\n    Mail Address = tanab@pegasus02\n    Mail Option  = (none)\n    Job Condition:\n        Job NO: 0 \"\"\n    Number of Jobs = 1\n    Created Request Time = Thu Sep 17 06:58:57 2026\n    Entered Queue Time   = Thu Sep 17 06:58:57 2026\n    Planned Start Time   = (none)\n    Execute Request Time = (none)\n    Started Request Time = (none)\n    Ended Request Time   = (none)\n    Requested Start Time = (none)\n    Deadline Time        = (none)\n    UMASK = 022\n    Reservation ID      = (none)\n    qattach command = Enable\n    Attach = No\n    Cluster Type Select = NONE\n    UserPP Script = (none)\n    Exclusive = (none)\n    HCA Number = (none)\n    Accept Sigterm = No\n    Enable Cloud Bursting = No\n  Custom Resources:\n    Share           = 1\n  Execution Hosts(JSVNO):\n    -  \n  Resources Information:\n    Memory    = 0.000000B\n    CPU Time  = 0.000000S\n    Accumulated CPU Time = 0.000000S\n    Elapse    = 0S\n    Remaining Elapse = 1200S\n    Virtual Memory = 0.000000B\n  Logical Host Resources:\n    VE Node Number        = Max:         0 Warn:       --- \n    CPU Number            = Max:        48 Warn:       --- \n    GPU Number            = Max:         0 Warn:       --- \n    CPU Time              = Max: UNLIMITED Warn: UNLIMITED \n    Memory Size           = Max: UNLIMITED Warn: UNLIMITED \n    Virtual Memory Size   = Max: UNLIMITED Warn: UNLIMITED \n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n    Stdout Size           = Max: UNLIMITED Warn: UNLIMITED \n    Stderr Size           = Max: UNLIMITED Warn: UNLIMITED \n  VE Node Resources:\n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n  Resources Limits:\n    (Per-Req) Elapse Time Limit       = Max:     1200S Warn:     1200S \n    (Per-Job) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) CPU Number              = Max:        48 Warn:       --- \n    (Per-Job) Memory Size             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) GPU Number              = Max:         0 Warn:       --- \n    (Per-Prc) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Open File Number        = Max:    262144 Warn:       --- \n    (Per-Prc) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Data Segment Size       = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Stack Segment Size      = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Core File Size          = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Permanent File Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE CPU Time             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE Memory Size          = Max: UNLIMITED Warn: UNLIMITED \n  Kernel Parameter:\n    Resource Sharing Group     = 0\n    Nice Value                 = 0\n  User Attributes:\n    (none)\n\n"
+  },
+  "immediate_qstat_attempts": [
+    {
+      "attempt": 1,
+      "classification": "success-request-visible",
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "Request ID: 2731.nqsv\n    Request Name = izdw-0530498306\n    User  Name = tanab\n    Group Name = SFC\n    User  ID   = 31609\n    Group ID   = 30410\n    Current State           = Queued\n    Previous State          = (none)\n    State Transition Time   = Thu Sep 17 06:58:57 2026\n    State Transition Reason = SUBMIT\n    Queue = gen_S@nqsv (Execution Queue)\n    Job Topology = Distribute Job\n    Request Priority  = 0\n    Request Loglevel  = 0\n    Rerunable    = No\n    Holdable     = Yes\n    Hold Type    = (none)\n    Migratable   = Yes\n    Suspend Type = (none)\n    Account Code = SFC\n    Stdout = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-s2-pegasus-calibration/submit-tree-s2/output/pegasus-dispatch/05304983062b96833fdc38a27d8cd0ad/izdw-0530498306.o%s\n    Stderr = pegasus02:/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-s2-pegasus-calibration/submit-tree-s2/output/pegasus-dispatch/05304983062b96833fdc38a27d8cd0ad/izdw-0530498306.e%s\n    Reqlog = (none)\n    Shell = (none)\n    Mail Address = tanab@pegasus02\n    Mail Option  = (none)\n    Job Condition:\n        Job NO: 0 \"\"\n    Number of Jobs = 1\n    Created Request Time = Thu Sep 17 06:58:57 2026\n    Entered Queue Time   = Thu Sep 17 06:58:57 2026\n    Planned Start Time   = (none)\n    Execute Request Time = (none)\n    Started Request Time = (none)\n    Ended Request Time   = (none)\n    Requested Start Time = (none)\n    Deadline Time        = (none)\n    UMASK = 022\n    Reservation ID      = (none)\n    qattach command = Enable\n    Attach = No\n    Cluster Type Select = NONE\n    UserPP Script = (none)\n    Exclusive = (none)\n    HCA Number = (none)\n    Accept Sigterm = No\n    Enable Cloud Bursting = No\n  Custom Resources:\n    Share           = 1\n  Execution Hosts(JSVNO):\n    -  \n  Resources Information:\n    Memory    = 0.000000B\n    CPU Time  = 0.000000S\n    Accumulated CPU Time = 0.000000S\n    Elapse    = 0S\n    Remaining Elapse = 1200S\n    Virtual Memory = 0.000000B\n  Logical Host Resources:\n    VE Node Number        = Max:         0 Warn:       --- \n    CPU Number            = Max:        48 Warn:       --- \n    GPU Number            = Max:         0 Warn:       --- \n    CPU Time              = Max: UNLIMITED Warn: UNLIMITED \n    Memory Size           = Max: UNLIMITED Warn: UNLIMITED \n    Virtual Memory Size   = Max: UNLIMITED Warn: UNLIMITED \n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n    Stdout Size           = Max: UNLIMITED Warn: UNLIMITED \n    Stderr Size           = Max: UNLIMITED Warn: UNLIMITED \n  VE Node Resources:\n    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED \n    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED \n  Resources Limits:\n    (Per-Req) Elapse Time Limit       = Max:     1200S Warn:     1200S \n    (Per-Job) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) CPU Number              = Max:        48 Warn:       --- \n    (Per-Job) Memory Size             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Job) GPU Number              = Max:         0 Warn:       --- \n    (Per-Prc) CPU Time                = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Open File Number        = Max:    262144 Warn:       --- \n    (Per-Prc) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Data Segment Size       = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Stack Segment Size      = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Core File Size          = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) Permanent File Size     = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE CPU Time             = Max: UNLIMITED Warn: UNLIMITED \n    (Per-Prc) VE Memory Size          = Max: UNLIMITED Warn: UNLIMITED \n  Kernel Parameter:\n    Resource Sharing Group     = 0\n    Nice Value                 = 0\n  User Attributes:\n    (none)\n\n"
+    }
+  ],
+  "normalized_request_id": "2731.nqsv",
+  "outcome": {
+    "accounting_verified": true,
+    "kind": "child",
+    "rc": 1
+  },
+  "preflight": {
+    "qstat_Q": {
+      "returncode": 0,
+      "stderr": "",
+      "stdout": "[EXECUTION QUEUE] Batch Server Host: nqsv\n=========================================\nQueueName       SCH JSVs ENA STS  PRI  TOT ARR WAI QUE PRR RUN POR EXT HLD HOL SUS MIG STG\n--------------- --- ---- ------- ---- ----------------------------------------------------\ngen_L             1  149 ENA ACT   30    0   0   0   0   0   0   0   0   0   0   0   0   0 \ngen_M             1  149 ENA ACT   30    0   0   0   0   0   0   0   0   0   0   0   0   0 \ngen_S             1  149 ENA ACT   30    9   0   0   0   1   8   0   0   0   0   0   0   0 \n--------------- --- ---- ------- ---- ----------------------------------------------------\n <TOTAL>                                 9   0   0   0   1   8   0   0   0   0   0   0   0\n--------------- --- ---- ------- ---- ----------------------------------------------------\n\n[INTERACTIVE QUEUE] Batch Server Host: nqsv\n===========================================\nQueueName       SCH JSVs ENA STS  PRI  TOT ARR WAI QUE PRR RUN POR EXT HLD SUS\n--------------- --- ---- ------- ---- ----------------------------------------\ndebug             1  149 ENA ACT   60    0   0   0   0   0   0   0   0   0   0 \ninteractive       1  149 ENA ACT   20    0   0   0   0   0   0   0   0   0   0 \n--------------- --- ---- ------- ---- ----------------------------------------\n <TOTAL>                                 0   0   0   0   0   0   0   0   0   0\n--------------- --- ---- ------- ---- ----------------------------------------\n\nRouting Queue does not exist on nqsv.\n\n[NETWORK QUEUE] Batch Server Host: nqsv\n=======================================\nQueueName       StagingMachine       ENA STS PRI RLM  TOT WAI QUE RUN\n--------------- -------------------- --------------- ----------------\nDefaultNetQue    (any)               ENA ACT   0   4    0   0   0   0 \n--------------- -------------------- --------------- ----------------\n <TOTAL>                                        1000    0   0   0   0\n--------------- -------------------- --------------- ----------------\n\n"
+    }
+  },
+  "qdel": {
+    "attempted": false
+  },
+  "qsub": {
+    "returncode": 0,
+    "stderr": "",
+    "stdout": "Request 2731.nqsv submitted to queue: gen_S.\n"
+  },
+  "queue_wait_observed": true,
+  "queue_wait_s": 5.2175158250611275,
+  "request": {
+    "args": [
+      "env",
+      "TMPDIR=/scr",
+      "python3",
+      "-m",
+      "orchestrator.campaign.s2_verify_calibration"
+    ],
+    "job_name": "izdw-0530498306",
+    "nodes": 1,
+    "project": "SFC",
+    "queue": "gen_S",
+    "sha256": "27f5057eb2d9e92f930b26133c9026a38252f8ee409338f75ae8bda341e23316",
+    "task": "generic",
+    "walltime": "00:20:00"
+  },
+  "request_id": "2731.nqsv",
+  "result": {
+    "child_rc": 1,
+    "error": null,
+    "hostname": "bnode002",
+    "interpreter": "/usr/bin/python3.10",
+    "pbs_jobid": "0:2731.nqsv",
+    "request_sha256": "27f5057eb2d9e92f930b26133c9026a38252f8ee409338f75ae8bda341e23316",
+    "schema_version": "pegasus-dispatch-result/v1",
+    "stage": "child"
+  },
+  "scheduler_logs": {
+    "accounting_present": true,
+    "stderr": {
+      "omitted_bytes": 0,
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-s2-pegasus-calibration/submit-tree-s2/output/pegasus-dispatch/05304983062b96833fdc38a27d8cd0ad/izdw-0530498306.e2731",
+      "size": 3291,
+      "tail": "IZANAGI_DISPATCH_JOB_TRACE {\"event\": \"supervisor-wait-start\", \"pid\": 1424952, \"time_ns\": 1789596218674336461}\nIZANAGI_DISPATCH_JOB_TRACE {\"child_pid\": 1424972, \"event\": \"direct-child-wait-start\", \"pid\": 1424959, \"time_ns\": 1789596218701400755}\nTraceback (most recent call last):\n  File \"/usr/lib/python3.10/runpy.py\", line 196, in _run_module_as_main\n    return _run_code(code, main_globals, None,\n  File \"/usr/lib/python3.10/runpy.py\", line 86, in _run_code\n    exec(code, run_globals)\n  File \"/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-s2-pegasus-calibration/submit-tree-s2/orchestrator/campaign/s2_verify_calibration.py\", line 473, in <module>\n    sys.exit(main())\n  File \"/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-s2-pegasus-calibration/submit-tree-s2/orchestrator/campaign/s2_verify_calibration.py\", line 348, in main\n    condition_gates = _preflight_condition_gates(root, sub)\n  File \"/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-s2-pegasus-calibration/submit-tree-s2/orchestrator/campaign/s2_verify_calibration.py\", line 136, in _preflight_condition_gates\n    records.append(_require_condition_gate(sub, macro))\n  File \"/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-s2-pegasus-calibration/submit-tree-s2/orchestrator/campaign/s2_verify_calibration.py\", line 117, in _require_condition_gate\n    raise RuntimeError(\nRuntimeError: condition gate rejected IZANAGI_BREAK_NOREAD_VALIDATION: supply=red/compiler-failed, meaning=red/compiler-failed\nIZANAGI_DISPATCH_JOB_TRACE {\"child_pid\": 1424972, \"event\": \"direct-child-wait-complete\", \"pid\": 1424959, \"time_ns\": 1789596220941718407}\nIZANAGI_DISPATCH_JOB_TRACE {\"event\": \"supervisor-return\", \"pid\": 1424959, \"rc\": 0, \"time_ns\": 1789596220941792031}\nIZANAGI_DISPATCH_JOB_TRACE {\"event\": \"supervisor-wait-complete\", \"pid\": 1424952, \"rc\": 0, \"time_ns\": 1789596220946117793}\nIZANAGI_DISPATCH_JOB_TRACE {\"event\": \"result-file-fsync-start\", \"pid\": 1424952, \"time_ns\": 1789596220948538611}\nIZANAGI_DISPATCH_JOB_TRACE {\"event\": \"result-file-fsync-complete\", \"pid\": 1424952, \"time_ns\": 1789596220986268110}\nIZANAGI_DISPATCH_JOB_TRACE {\"event\": \"result-published\", \"pid\": 1424952, \"time_ns\": 1789596220987020799}\nIZANAGI_DISPATCH_JOB_TRACE {\"event\": \"result-dir-fsync-start\", \"pid\": 1424952, \"time_ns\": 1789596220987031009}\nIZANAGI_DISPATCH_JOB_TRACE {\"event\": \"result-dir-fsync-complete\", \"pid\": 1424952, \"time_ns\": 1789596220989011559}\nIZANAGI_DISPATCH_JOB_TRACE {\"event\": \"result-write-return\", \"pid\": 1424952, \"time_ns\": 1789596220989019065}\nIZANAGI_DISPATCH_JOB_TRACE {\"event\": \"job-return\", \"phase\": \"result-durable\", \"pid\": 1424952, \"rc\": 1, \"time_ns\": 1789596220989029440}\nIZANAGI_DISPATCH_JOB_TRACE {\"event\": \"job-run-returned\", \"pid\": 1424952, \"rc\": 1, \"time_ns\": 1789596220989043889}\n\n============================================================\nRequest ID:             2731.nqsv\nRequest Name:           izdw-0530498306\nQueue:                  gen_S@nqsv\nNumber of Jobs:         1\nUser Name:              tanab\nGroup Name:             SFC\nCreated Request Time:   Thu Sep 17 06:58:57 2026\nStarted Request Time:   Thu Sep 17 07:03:38 2026\nEnded Request Time:     Thu Sep 17 07:03:41 2026\nResources Information:\n  Elapse:               7S\n  Remaining Elapse:     1193S\n============================================================\n"
+    },
+    "stdout": {
+      "omitted_bytes": 0,
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-s2-pegasus-calibration/submit-tree-s2/output/pegasus-dispatch/05304983062b96833fdc38a27d8cd0ad/izdw-0530498306.o2731",
+      "size": 0,
+      "tail": ""
+    }
+  },
+  "schema_version": "pegasus-dispatch-receipt/v2",
+  "state_history": [
+    {
+      "elapsed_s": 1.3563857960980386,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "QUE"
+    },
+    {
+      "elapsed_s": 6.4791200330946594,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 11.603482864098623,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 16.727320387028158,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 21.859368050005287,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 26.991062521003187,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 32.11124392901547,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 37.23118982813321,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 42.36724195419811,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 47.48710161703639,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 52.611262042075396,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 57.731170679209754,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 62.85519967903383,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 67.98314804118127,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 73.10711958422326,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 78.2513731031213,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 83.37933136313222,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 88.49919999018312,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 93.6195653770119,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 98.74351491220295,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 103.86328524304554,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 108.9673975550104,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 114.09126526908949,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 119.21522823115811,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 124.33517696103081,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 129.45936262700707,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 134.57921817922033,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 139.70311472308822,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 144.82320222910494,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 149.94733656011522,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 155.07531375414692,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 160.19526355410926,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 165.31932215811685,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 170.45142319309525,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 175.5752541841939,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 180.6951734321192,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 185.83139593806118,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 190.95512392604724,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 196.07521296315826,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 201.19928716216236,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 206.31945204222575,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 211.4473286671564,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 216.56731932610273,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 221.69929121504538,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 226.83125751209445,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 231.95546696917154,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 237.07525259419344,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 242.19945001322776,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 247.3232315420173,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 252.4471725281328,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 257.5831595030613,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 262.7152965001296,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 267.83917555306107,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 272.96369340922683,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 278.0891271152068,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 283.21529881702736,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 288.35110339010134,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "RUN"
+    },
+    {
+      "elapsed_s": 293.47138976305723,
+      "qstat_rc": 0,
+      "request_present": true,
+      "state": "END"
+    }
+  ],
+  "submission_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-s2-pegasus-calibration/submit-tree-s2/output/pegasus-dispatch/05304983062b96833fdc38a27d8cd0ad",
+  "terminal_reason": "scheduler-end-state"
+}
