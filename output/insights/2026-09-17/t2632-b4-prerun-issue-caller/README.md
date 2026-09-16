@@ -127,6 +127,8 @@ probe の観測 node 集合は段 6 焦点再レビューの静的予測表 (15 
 本走: **baseline PASSED、負例 10/10 KILLED、等価対照 M0 SURVIVED、MISMATCH 0、期待 node 完全一致 (matching 11/11)**、
 harness rc=0。spec sha256 `f2ec609e8b8b3ad63ce4bbf0086bafe4bfff1362b49ffc9b34ff4e31db419193`
 (`verbatim/mutation-spec-final.json`)。dispatch 13 走 (collection + baseline + 11)、02:08〜02:21 JST。
+受入で test file に自走 harness (`__main__` の 2 行) を足した後 (`15f29fab8`、変異対象 file は不変) にも同じ spec で
+再走し、**同じ結果 (KILLED 10 / SURVIVED 1 / MISMATCH 0 / matching 11)**、02:52〜03:05 JST。
 生の結果 JSON (136 KB、job 側 path を含む) は job dir に残し repo へは複製していない。
 
 | ID | 変異 | 期待 = 観測 node | 分類 |
@@ -161,7 +163,12 @@ fail-closed の検出力として数えるのは M1 / M2 / M5 / M6 / M7 / M8 / M
   `test_p3_b4_material_report.py` / `test_p3_b4_producer_auth_experiment.py` / `test_p3_exploration_namespace.py` /
   `test_p3_b4_analysis_path.py` = 202 passed。
 - `tools/check_docs.py`、`tools/check_codex_agents.py`、全史 provenance 監査 (`check_ai_provenance.py`、10809 件) rc=0。
-- 受入全走は docs-only の記録 commit の後、tested tip で単独に投入する (結果は land の受領証が持つ)。
+- 受入全走 (計算ノード dispatch、3 shard): final-1 は `postcheck` rc=70 (受入 tool の main 取り込み中に main がさらに進んだ競走、
+  テスト未走行)。main 取り込みと受入を 1 本の script に連結した final-2 は **24403 passed / 1 failed** — 赤は
+  `test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted` (新 test file に自走 harness も
+  allowlist 記載も無い) で、**本 wave の変更に帰属する** (DW-O26 の「新規 test file を足す走は file 集合列挙のメタテストも
+  焦点走に含める」を親が怠った)。Codex author が兄弟 test と同形の `__main__` 2 行を足し (`15f29fab8`)、焦点走
+  60 passed (新 15 + coverage 3 + issuer 42)。最終の受入は記録 commit 後の tested tip で投げ、結果は land の受領証が持つ。
 
 ## 本書が閉じないこと
 

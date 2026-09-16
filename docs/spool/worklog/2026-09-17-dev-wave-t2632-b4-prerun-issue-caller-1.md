@@ -43,11 +43,16 @@ title: [T-2632] B-4 prerun publication 発行器の production 呼び手を足�
 - 焦点走: 新 test 15 + issuer 42 = 57 緑 (login)、consumer 5 file 202 緑 (dispatch、request 2284.nqsv、150 秒)、
   `check_docs` / `check_codex_agents` / 全史 provenance 監査 (10809 件) rc=0。
 - 変異 matrix (container worktree `2d71a0454`、`run_tests.py orchestrator/tests/test_p3_b4_prerun_caller.py`、dispatch):
-  probe (全件 SURVIVED 期待) で観測 node を集め、本走は baseline PASSED、負例 10 件 (M1〜M10) すべて KILLED で期待 node と観測 node が完全一致 (matching 11/11)、等価対照 M0 は SURVIVED、MISMATCH 0、harness rc=0。M3 / M4 / M9 は fail-closed の検出力に数えない診断感度 pin (DW-M08) として別枠にし、fail-closed 検出力は M1 / M2 / M5 / M6 / M7 / M8 / M10 の 7 件。probe の観測 node は段 6 焦点再レビューの静的予測表と完全一致した。
+  probe (全件 SURVIVED 期待) で観測 node を集め、本走は baseline PASSED、負例 10 件 (M1〜M10) すべて KILLED で期待 node と観測 node が完全一致 (matching 11/11)、等価対照 M0 は SURVIVED、MISMATCH 0、harness rc=0。M3 / M4 / M9 は fail-closed の検出力に数えない診断感度 pin (DW-M08) として別枠にし、fail-closed 検出力は M1 / M2 / M5 / M6 / M7 / M8 / M10 の 7 件。probe の観測 node は段 6 焦点再レビューの静的予測表と完全一致した。下記の test file 修正後 (`15f29fab8`) にも同 spec で再走し同じ結果。
+- **受入で自分に帰属する赤 1 件を出した。** final-1 は `postcheck` rc=70 (受入 tool の main 取り込み中に main が進む競走、テスト未走行) で、
+  main 取り込み + 受入を 1 本の script に連結して final-2 を投入したところ 24403 passed / 1 failed —
+  `test_plain_runner_coverage.py::test_every_test_file_is_self_runnable_or_allowlisted` (新 test file に自走 harness も allowlist 記載も無い)。
+  DW-O26「新規 test file を足す走は file 集合列挙のメタテストも焦点走に含める」を親が怠った結果で、Codex author が兄弟 test と同形の
+  `__main__` 2 行を足して閉じた (commit `15f29fab8`、焦点走 60 緑)。受入 1 走ぶん (約 12 分) を空費した。
 - 裁定パッケージ候補 3 件 (insight に本文): (1) 本 wave の成果の認定範囲、(2) bootstrap 集合の定義と固定時点、
   (3) proposal・走行・参照点の対応証拠の出所。いずれも「推奨どおりなら新しい許可は不要」の形で、実装は伴わない。
 - 工数: codex 子 7 本 (plan 1、consult 2、author 1、review 2、fix 1、focus review 1 = 全段 `gpt-6-astra` / `medium`)。
-  計算ノード job: consumer 焦点走 1、変異 (probe 13 + 本走 13 走)、受入 1。
+  codex fix 子をもう 1 本 (harness 2 行) 使い計 8 本。計算ノード job: consumer 焦点走 1、変異 (probe 13 + 本走 13 + 再走 13 走)、受入 3 (postcheck 競走 1、赤 1、最終 1)。
 
 ## 次の一手差分
 
