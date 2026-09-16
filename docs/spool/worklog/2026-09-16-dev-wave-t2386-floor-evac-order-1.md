@@ -49,8 +49,15 @@ title: [T-2386] official 床値成果物の退避と再配置の順序を一方�
 - **変異 matrix 本走は baseline PASSED・11/11 KILLED・SURVIVED 0・期待 node 完全一致**
   (対象 commit `99af814c3`)。M5・M8 は 6 node、M9 は 5 node を殺す過剰決定なので、単独の
   検出力証拠には数えない (`DW-M03`)。
-- 工数: codex 子 9 本 (plan 186 秒 / 6 call、consult 2 = 137 / 6 と 124 / 5、author 874 / 27、
-  review 2 = 85 / 5 と 114 / 5、fix 341 / 30、focus 92 / 3、fix2 375 / 25)。
+- **受入全走 1 回目は 24098 passed / 2 failed / 1 error で、赤 2 件は自分の変更に帰属した。**
+  新設 module の `bundle_root` が呼ぶ `git rev-parse --git-common-dir` が、
+  `test_ccbench_spawn_sites.py` の process 起動台帳 (exact 比較) に未登録の起動箇所として出ていた。
+  実装子の制約 meta-test 洗い出しも親の焦点走も、この横断台帳を集合に入れていなかった。
+  台帳へ件数 1 で登録して閉じた (比較は緩めていない)。残る 1 件
+  (`test_s8c_preregistration_predicates.py::test_repository_candidate_uses_real_s8c_budget_module`
+  の setup error) は変更から到達しない module で、wave tip の単独再走で緑だったので受入再走で扱った。
+- 工数: codex 子 10 本 (plan 186 秒 / 6 call、consult 2 = 137 / 6 と 124 / 5、author 874 / 27、
+  review 2 = 85 / 5 と 114 / 5、fix 341 / 30、focus 92 / 3、fix2 375 / 25、fix3 272 / 24)。
   計算ノード job は変異 probe 12 走と本走 12 走、runner argv の所要実測 1 走 (72 秒)。
 - **real だが scope 外**の 3 件は実装せず、発火条件付きの次の一手として残した。外部依存物
   (binary store / submission receipt / job staging) の完全 bundle 化は {{T:floor-evacuation-external-deps}}、
