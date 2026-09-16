@@ -34,7 +34,12 @@ title: [T-1209] T126 qualification の code identity へ verifier の dsg / mode
   (期待 = 新 test のみ、既存 test は緑のまま) し、初回 spec と attempt json は erratum として job dir と insight に残した。
 - 変異 matrix (spec v2、4 file、dispatch): baseline PASSED、N1〜N6 すべて KILLED で期待 node と観測 node が完全一致、等価 E1 SURVIVED。
   N1〜N4 / N6 は新 test だけが赤 = 新規検出力。
-- land 用の最終受入全走は記録 commit を含む tip で単独に投げる (結果は land の受領証が持つ)。
+- **最終受入 1 走目 (tip `09b79657e`、main `1042a1bc9`、3 shard) は 1 failed / 24389 passed / 67 skipped で rc=70 (受領証なし)。**
+  赤は `test_dev_waves_integration.py::test_malformed_child_output_is_output_invalid[oversize]` が `LOG_LIMIT` を期待して
+  `SPAWN_FAILED` (子 process の起動失敗) を得た形。本 wave の差分 (contract.py の定数と T126 test) から到達しない file であり、
+  entry 462-465 / 557 に同 node・同 assertion のフレーク記録がある。DW-O18 に従い単独再走 (同 file `-k test_malformed_child_output_is_output_invalid`、
+  login node bounded local) は 7 passed / 17.0 秒 rc=0 で非再現 → 非帰属のフレークと判定し、この判定を含む tip で受入を再走した
+  (結果は land の受領証が持つ)。`flaky_test_holds.py` への登録は再赤時のみ (main に既存 F が無いので登録せず、再赤なら裁定送り)。
 - 工数: codex 子 6 本 (plan 1、consult 2、author 1、review 2、全段 `gpt-6-astra`、plan/consult `medium`)。計算ノード job: 焦点走 2、
   変異 9 走 (collection 1 + baseline 1 + 変異 7)、最終受入 1。
 
