@@ -1673,6 +1673,26 @@
   D2024 の「撤去授権を経路ごとに確認し、先行決定の授権を
   別集合へ流用しない」と、既存の `DW-S01`「brief 前に承認済み裁定と引数と一次資料の未了項目の
   前提を実測し、覆す新事実は brief に出して段 4 で再裁定する」。
+
+- **再発: 2026-09-16** — [T-2621] (land の lock 待ち予算) が、**実装の 2 日後に「実装手番」として
+  carry され、依頼引数もその状態語を写した**。裁定 D1996 と実装 commit `0ec8d0faf` はどちらも
+  2026-09-14、着手指示は 2026-09-16 である。既知 2 形態の合成: 実装 wave が別 task ID の branch
+  (`worktree-dev-wave-t758-docs-corrections`) で実装したため次の一手 delta の `完了` 節へ
+  `T-2621` を書かなかったこと (2026-08-18 形態) と、裁定を記録する側が「その手番は既に済んで
+  いないか」を照合しなかったこと (2026-07-24 形態)。
+  **新しい面は 2 つある。(1) 裁定台帳の側が、状態語の重複を避ける規則を通じて stale を固定した。**
+  D2044 項 6 は「entry (1527) が本項を D1996 により実装手番へ更新済みなので、状態語は重ねない」
+  と明記しており、照合の省略が規則の形で正当化されていた。前回 (2026-09-15) の「stale が依頼引数
+  の側から入った」型との差は、今回は carry 本文自体も誤っていた点にある。
+  **(2) 依頼引数が現物の行番号を正しく引いていたのに、その行が是正後の姿だった。** 定数 (65 行)、
+  `_run_outside_land_lock` (4059 行)、窓計算 3 箇所 (4980 / 5016 / 5302 行) はいずれも実在し、
+  うち 5016 / 5302 は既に `max(0.0, _LAND_LOCK_WAIT_SECONDS - waited_s)` で残予算を渡していた。
+  **行番号の一致は未実装の証拠にならない。**
+  検出は `DW-S01` の前提実測で、子を 1 本も起動する前に止まった。済み判定に効いたのは
+  `git log -S'<定数名または新設 symbol>' -- <file>` の pickaxe と、決定文と docstring の逐語照合
+  (「累積競合待機予算」が両方に現に在る) である。carry の語 (T 番号) では commit も実装 wave の
+  worklog エントリも 1 件も当たらない。恒久対応は既存の `DW-S01` の前提実測義務と D1980 のままで、
+  `/rulings` 側が済を照合する機構は引き続き未実装である。
 ### F36. 受入・検査の結果欄をプレースホルダのまま記録 commit し、恒久対応の実行が空証明になった [恒真ゲート] [手順漏れ]
 
 - 事象: `<受入結果を反映>` `<反映>` というリテラルのプレースホルダが埋められないまま記録 commit に
@@ -11703,6 +11723,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   保留 node は collection されるので通ってしまう。
   `_HOLD_ROWS` との突き合わせは未実装であり、当面は親の目視に依存する。
 
+
+- **再発: 2026-09-16** — 向きが逆の同型。段 2 plan 子と段 3 レンズ B が、`attempts/*/calibration.md` を
+  固定集合と完全一致で比較する `test_env_attestation.py::test_probe_output_v1_corpus_is_exact_and_replays_all_physical_copies`
+  の本文だけを読み、「新しい attempt を 1 件足すと赤になるので実装子が要る」と独立に判定した。
+  実際には同 node は `orchestrator/tests/growth_test_holds.py:300` に
+  `hold_axis=output_artifacts` で登録済みで、実走は `1 skipped` になる。親が実走して反証し、
+  不要な実装子と変異 matrix を立てずに済んだ。F348 は「保留 node を期待赤に選ぶ」= 赤になると
+  思った node が走らない型で、本件は「走らない node を根拠に作業を増やす」型である。
+  **どちらも根は同じ — テストの実在と実行は別問題で、子は `_HOLD_ROWS` を見ない。**
+  親の brief も「赤の予測は hold 台帳を見てから書け」と指示していなかった。
+  ただし hold による skip は整合性の確認ではない。本 wave は投入前から 6 件あったコーパス乖離と
+  増分 1 件を `output/insights/2026-09-16/t2515-rr5-calibration/README.md` §7 に記録した。
 ### F349. module fixture を壊す変異が PARSE_ERROR になり採点できなかった [手順漏れ]
 
 - 事象: `_build_snapshot_base` から seal 呼出を削る変異を流したところ、
@@ -23225,6 +23257,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 同じ変異 (gate policy open の `O_NONBLOCK` 削除) を変異 spec へ登録済み。回収経路が壊れれば
   この変異が再び walltime まで走り、期待 node と一致しない形で露見する。台帳は
   `output/insights/2026-09-07_t2195-policy-binding/mutation-ledger-final.json`。
+- **supersede: 2026-09-16** — 計算ノードで 4 条件の分離実験を行った結果、根本原因欄の「孫が job の stdout / stderr を掴んだまま残るため」は機序として確定できない。子が出力 fd を即座に (または 30 秒後に) 手放しても、子が 75 秒生きる間 job の会計終了は遅れた (`E − J` = 69.731 / 69.586 / 69.870 秒、子孫なしの統制は -0.076 秒、request 558/559/560/568.nqsv、bnode013)。**fd の保持は遅延の必要条件ではない。** ただし当時の機序 (FIFO で block した孫) は再現していないので反証ではなく、NQSV が session / process group / 追跡集合のどれを見ているかも未特定である (全記録で `sid == pgid`)。**D1684 の是正は撤回しない** — 所属分離と子孫終了を同時に変えており各要素の寄与は未分離である。一次資料は `output/insights/2026-09-16/t2622-compute-job-exit-hang/`。
 
 ### F854. 負例 patch の裸 directive が 2 site に重複し、実 patch 束縛 test が set() で重複を許していた [恒真ゲート] [テスト代表性]
 
@@ -23349,6 +23382,23 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 隔離 session の最初の Bash が上記の拒否文言を返したかどうか。返したら
   `cd` を試さず即座に `EnterWorktree({path})` を呼ぶ。
 
+
+- **再発: 2026-09-16** — 3 回目。背景 job の dev-wave で submodule 初期化を
+  `cd <主 checkout> && python3 tools/dev_wave_submodule_init.py --worktree <wave>` の形で打ち、
+  永続 shell の cwd が共有 checkout へ移って以後 3 回の Bash が全拒否された。
+  `EnterWorktree({path: <wave worktree>})` で復旧し、実害は時間のみ。
+  **本 wave の本題は、その先で起きた重複検討である。** 段 8 でこの作法を**新規候補**として扱い、
+  `DW-C01` (追記で 1223 > 1000 bytes、exact 契約 pin) と `DW-O20` (1111 > 1000 bytes) への収容を
+  試し、D730 / D782 の手順で「実施しない」へ落とすところまでをやり直した。
+  **F859 の恒久対応節は同じ結論 (「`DW-O20` へ復旧経路を足す案は byte 予算が満杯のため採らない。
+  安全義務を削って捻出しない」) を 2026-09-07 に既に書いている。**
+  原因は段 8 の routing 前に failures を主題で引かなかったこと。
+  `grep -n "EnterWorktree" docs/failures.md` は 16 hit あり F859 は 23328 行にあるが、
+  `head -10` で切って上位だけを読み、F100 (4719 行) を見て「同型なし」と判断した。
+  CLAUDE.md の「既存被覆を性質で decisions / failures / archive まで検索し、純増だけ書く」
+  (`DW-S01`) に反している。
+- 追加の再発検知: 段 8 の候補を routing する前に、候補の**主題語**で `docs/failures.md` を引き、
+  **hit 件数を数えてから全 hit の F 見出しを確認する**。先頭だけを読んで同型なしと判断しない。
 ### F860. node の所要時間を wall の増減として数えた [計測汚染]
 
 - 事象: 受入高速化 wave で親が同じ取り違えを 2 回した。(1) collection の per-item
@@ -25856,6 +25906,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   複数走っていれば本件である。`status=lock-busy` かつ `waited_s << limit_s` かつ
   `window_elapsed_s > limit_s` の組が `post-provenance` 位相の署名、
   `waited_s == window_elapsed_s == limit_s` が `initial` 位相の署名になる。
+- **supersede: 2026-09-16** — 恒久対応「未実施」は `0ec8d0faf` (2026-09-14) で実施済み。候補 (a) 窓の起点の移動を D1996 として実装し、`_LAND_LOCK_WAIT_SECONDS` は累積競合待機予算になった (値 180 秒と、監査を lock の外で走らせる設計は不変)。候補 (b) 受領証の再利用は D2044 項 6 で却下。実体は `orchestrator/tests/test_dev_wave_land.py` の `test_cumulative_wait_budget_*` 8 本で、満額補充・絶対期限の復活・reason 文面・窓前の key 省略を固定する。
 
 ### F976. 実 repo ロックの deadline が並行受入で尽き、setup error になる [資源競合] [テスト代表性]
 
@@ -26410,3 +26461,49 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   引く。`git grep -n "dir=_REPO" -- orchestrator tools` で同型の生成箇所を数える。
 - **判定の注意:** 被害者 test を `flaky_test_holds.py` へ登録して迂回しない。落ちているのは
   被害者であって原因ではなく、登録すると作業ツリー清浄の検査が受入から消える。
+
+### F999. 受入全走が自分の作業ツリーへ作る未 tracked scratch が、repo 状態の不変を assert するテストを落とす [テスト代表性] [計測汚染]
+
+- 事象: provenance 差分監査 wave の受入全走を 7 回投げ、テストまで到達した 6 回すべてで非帰属赤が出た
+  (1 回は shard の dispatch-infrastructure 障害でテストへ到達せず)。**落ちた node は毎回違い、
+  のべ 8 種類**。同じ file の単独走はいずれも緑。1 回目は 3 件
+  (`test_p3_b4_producer_auth_experiment.py::test_case_failure_records_aborted_and_remaining_cases_continue`、
+  同 `::test_disposable_tree_mutation_does_not_change_main_worktree`、
+  `test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`)、
+  2 回目は 1 件 (`test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops`)。
+  4 回目は `test_campaign::test_certified_writer_authorization_caller_inventory_is_closed`、
+  5 回目は `test_p3_b4_wiring_probe::test_source_and_test_are_the_only_non_output_worktree_changes`、
+  7 回目は `test_p3_b4_producer_auth_experiment` の 2 件 +
+  `test_t338_submission_gate_unit5::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink`。
+  **落ちる node が回ごとに違い、同じ file の単独走は緑**である (競走であって決定的赤ではない)。
+- 根本原因: 受入全走は 1 つの wave worktree で shard を並行に走らせる。`t316` 系のテストは repo 直下へ
+  `.t316-live-<8 文字>/` という **`.gitignore` の対象外**の scratch directory を作る。一方で、
+  `git status --porcelain -z --untracked-files=all` の出力 bytes が走行前後で変わらないことを要求する
+  テストが複数ある。前者が後者の観測窓に入ると後者が落ちる。
+  - `cap_oom` 族 (`_run_bounded_scope` を monkeypatch して `cap_oom` を返させる 2 つの双子テスト) は、
+    その後 **production が実 repository の指紋を before/after で取り、変化していれば fallback を拒否する**
+    分岐へ入る。期待した「ログインの余裕もキューも無いため、いまは実行できません」ではなく
+    「local 試行の前後で tree / submodule 状態が変化しました」が出る。実測は
+    `各状態出力 bytes (0, 0, 313, 0, 0) -> (51, 0, 313, 0, 0)` で、未 tracked が 1 件増えている。
+  - `ScratchTree` 族は `assert_repository_unchanged` が同じ理由で落ちる。
+- 帰属の判定: 同 wave の差分は `tools/check_ai_provenance.py` と
+  `orchestrator/tests/test_check_ai_provenance.py` だけで、**作業ツリーへ未 tracked path を作らない**
+  (受領証は共通 git-dir 配下で `git status` に現れない)。`output/pegasus-dispatch/` は `.gitignore`
+  対象なので dispatch 成果物も原因ではない。したがって非帰属である。
+- 恒久対応: **部分的。** 同 wave は `cap_oom` 族の双子テスト 2 件 —
+  `test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops` と
+  `test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`
+  — を、production の指紋採取を monkeypatch して周囲の churn から隔離した。前者を直した 3 回目の
+  受入で後者だけが落ち、族であることが確定したので同じ隔離を入れている。
+  **`ScratchTree` 族の 2 node (`test_p3_b4_producer_auth_experiment`) は手を付けていない**
+  (1 回目の受入でしか観測しておらず、2・3 回目では落ちていない)。本質的な是正は
+  「`t316` 系の scratch を repo 外へ出す」か「repo 状態の不変を要求するテストを一律に隔離する」の
+  どちらかで、main 全体のテスト隔離に当たるため別 wave の scope である。
+- **負荷との無関係を実測した。** 「非帰属赤の連発は load の下降局面を待って投げ直す」という既存の
+  処方は、この族には効かない。1〜5 走目は load 180 超・並行 wave 20 本超だったが、6・7 走目は
+  **load 2.77 / 2.26 / 2.05 の下降局面、同時走行中の受入 0 本**で投げ、それでも赤になった。
+  競走は機械負荷ではなく **1 つの worktree 内で並行する xdist worker 同士**なので、
+  機械が空いても窓は閉じない。**この族に対して投げ直しは有効な手ではない。**
+- 再発検知: 受入全走でこの族のいずれかの node が落ち、かつ同じ file の単独走が緑であること。
+  落ちる node が回ごとに変わることが競走の署名である。**「N 走完全一致」は flake の証拠にならない**
+  (`DW-O18`) が、本件は逆に **node が回ごとに変わる**ので決定的赤ではないと言える。
