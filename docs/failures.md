@@ -1673,6 +1673,26 @@
   D2024 の「撤去授権を経路ごとに確認し、先行決定の授権を
   別集合へ流用しない」と、既存の `DW-S01`「brief 前に承認済み裁定と引数と一次資料の未了項目の
   前提を実測し、覆す新事実は brief に出して段 4 で再裁定する」。
+
+- **再発: 2026-09-16** — [T-2621] (land の lock 待ち予算) が、**実装の 2 日後に「実装手番」として
+  carry され、依頼引数もその状態語を写した**。裁定 D1996 と実装 commit `0ec8d0faf` はどちらも
+  2026-09-14、着手指示は 2026-09-16 である。既知 2 形態の合成: 実装 wave が別 task ID の branch
+  (`worktree-dev-wave-t758-docs-corrections`) で実装したため次の一手 delta の `完了` 節へ
+  `T-2621` を書かなかったこと (2026-08-18 形態) と、裁定を記録する側が「その手番は既に済んで
+  いないか」を照合しなかったこと (2026-07-24 形態)。
+  **新しい面は 2 つある。(1) 裁定台帳の側が、状態語の重複を避ける規則を通じて stale を固定した。**
+  D2044 項 6 は「entry (1527) が本項を D1996 により実装手番へ更新済みなので、状態語は重ねない」
+  と明記しており、照合の省略が規則の形で正当化されていた。前回 (2026-09-15) の「stale が依頼引数
+  の側から入った」型との差は、今回は carry 本文自体も誤っていた点にある。
+  **(2) 依頼引数が現物の行番号を正しく引いていたのに、その行が是正後の姿だった。** 定数 (65 行)、
+  `_run_outside_land_lock` (4059 行)、窓計算 3 箇所 (4980 / 5016 / 5302 行) はいずれも実在し、
+  うち 5016 / 5302 は既に `max(0.0, _LAND_LOCK_WAIT_SECONDS - waited_s)` で残予算を渡していた。
+  **行番号の一致は未実装の証拠にならない。**
+  検出は `DW-S01` の前提実測で、子を 1 本も起動する前に止まった。済み判定に効いたのは
+  `git log -S'<定数名または新設 symbol>' -- <file>` の pickaxe と、決定文と docstring の逐語照合
+  (「累積競合待機予算」が両方に現に在る) である。carry の語 (T 番号) では commit も実装 wave の
+  worklog エントリも 1 件も当たらない。恒久対応は既存の `DW-S01` の前提実測義務と D1980 のままで、
+  `/rulings` 側が済を照合する機構は引き続き未実装である。
 ### F36. 受入・検査の結果欄をプレースホルダのまま記録 commit し、恒久対応の実行が空証明になった [恒真ゲート] [手順漏れ]
 
 - 事象: `<受入結果を反映>` `<反映>` というリテラルのプレースホルダが埋められないまま記録 commit に
@@ -11703,6 +11723,18 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   保留 node は collection されるので通ってしまう。
   `_HOLD_ROWS` との突き合わせは未実装であり、当面は親の目視に依存する。
 
+
+- **再発: 2026-09-16** — 向きが逆の同型。段 2 plan 子と段 3 レンズ B が、`attempts/*/calibration.md` を
+  固定集合と完全一致で比較する `test_env_attestation.py::test_probe_output_v1_corpus_is_exact_and_replays_all_physical_copies`
+  の本文だけを読み、「新しい attempt を 1 件足すと赤になるので実装子が要る」と独立に判定した。
+  実際には同 node は `orchestrator/tests/growth_test_holds.py:300` に
+  `hold_axis=output_artifacts` で登録済みで、実走は `1 skipped` になる。親が実走して反証し、
+  不要な実装子と変異 matrix を立てずに済んだ。F348 は「保留 node を期待赤に選ぶ」= 赤になると
+  思った node が走らない型で、本件は「走らない node を根拠に作業を増やす」型である。
+  **どちらも根は同じ — テストの実在と実行は別問題で、子は `_HOLD_ROWS` を見ない。**
+  親の brief も「赤の予測は hold 台帳を見てから書け」と指示していなかった。
+  ただし hold による skip は整合性の確認ではない。本 wave は投入前から 6 件あったコーパス乖離と
+  増分 1 件を `output/insights/2026-09-16/t2515-rr5-calibration/README.md` §7 に記録した。
 ### F349. module fixture を壊す変異が PARSE_ERROR になり採点できなかった [手順漏れ]
 
 - 事象: `_build_snapshot_base` から seal 呼出を削る変異を流したところ、
@@ -23350,6 +23382,23 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 隔離 session の最初の Bash が上記の拒否文言を返したかどうか。返したら
   `cd` を試さず即座に `EnterWorktree({path})` を呼ぶ。
 
+
+- **再発: 2026-09-16** — 3 回目。背景 job の dev-wave で submodule 初期化を
+  `cd <主 checkout> && python3 tools/dev_wave_submodule_init.py --worktree <wave>` の形で打ち、
+  永続 shell の cwd が共有 checkout へ移って以後 3 回の Bash が全拒否された。
+  `EnterWorktree({path: <wave worktree>})` で復旧し、実害は時間のみ。
+  **本 wave の本題は、その先で起きた重複検討である。** 段 8 でこの作法を**新規候補**として扱い、
+  `DW-C01` (追記で 1223 > 1000 bytes、exact 契約 pin) と `DW-O20` (1111 > 1000 bytes) への収容を
+  試し、D730 / D782 の手順で「実施しない」へ落とすところまでをやり直した。
+  **F859 の恒久対応節は同じ結論 (「`DW-O20` へ復旧経路を足す案は byte 予算が満杯のため採らない。
+  安全義務を削って捻出しない」) を 2026-09-07 に既に書いている。**
+  原因は段 8 の routing 前に failures を主題で引かなかったこと。
+  `grep -n "EnterWorktree" docs/failures.md` は 16 hit あり F859 は 23328 行にあるが、
+  `head -10` で切って上位だけを読み、F100 (4719 行) を見て「同型なし」と判断した。
+  CLAUDE.md の「既存被覆を性質で decisions / failures / archive まで検索し、純増だけ書く」
+  (`DW-S01`) に反している。
+- 追加の再発検知: 段 8 の候補を routing する前に、候補の**主題語**で `docs/failures.md` を引き、
+  **hit 件数を数えてから全 hit の F 見出しを確認する**。先頭だけを読んで同型なしと判断しない。
 ### F860. node の所要時間を wall の増減として数えた [計測汚染]
 
 - 事象: 受入高速化 wave で親が同じ取り違えを 2 回した。(1) collection の per-item
@@ -25857,6 +25906,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   複数走っていれば本件である。`status=lock-busy` かつ `waited_s << limit_s` かつ
   `window_elapsed_s > limit_s` の組が `post-provenance` 位相の署名、
   `waited_s == window_elapsed_s == limit_s` が `initial` 位相の署名になる。
+- **supersede: 2026-09-16** — 恒久対応「未実施」は `0ec8d0faf` (2026-09-14) で実施済み。候補 (a) 窓の起点の移動を D1996 として実装し、`_LAND_LOCK_WAIT_SECONDS` は累積競合待機予算になった (値 180 秒と、監査を lock の外で走らせる設計は不変)。候補 (b) 受領証の再利用は D2044 項 6 で却下。実体は `orchestrator/tests/test_dev_wave_land.py` の `test_cumulative_wait_budget_*` 8 本で、満額補充・絶対期限の復活・reason 文面・窓前の key 省略を固定する。
 
 ### F976. 実 repo ロックの deadline が並行受入で尽き、setup error になる [資源競合] [テスト代表性]
 
