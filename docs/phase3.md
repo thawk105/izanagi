@@ -591,6 +591,15 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
        特定でき、原因は **Masstree の autoconf 生成 header `config.h` が前処理の include path に
        無いこと** (`BACKOFF_FIXED` の供給自体は成功)。build 供給の subsystem なので後続に残す。
        実測と統合記録は `output/insights/2026-09-15/t1851-c3c-official-floor-run/README.md`。
+     - [x] [T-2698] official 床値の完走 (2026-09-16): [T-2650] の Masstree `config.h` 供給修正を載せた
+       main から official 床値 campaign を再投入し (`1818.nqsv`)、**cell build 段を越えて 96 attempt を
+       すべて計測し `driver_rc=0` で完走した (official 床値の計測段到達は初)**。official 床値の実値は
+       rr20 = 35,817.945 / rr80 = 46,065.78 で、いずれも `wired_min_rel_floor` 0.03 × stock 中央値
+       (実測 noise 項が配線下限を下回る)。**試行台帳側 gate の実値域を取得した** (registry 481 行、
+       planned 96 slot すべて observed、retry / 競合 / replay 分岐は未発火)。共有 admission root の消費は
+       admit +12 / consume +96。result は floor 案であり**未発効**、freeze v2 再凍結は後続 (W-3)。
+       凍結23件の bytes・FORMULA_ID は不変。実測と統合記録は
+       `output/insights/2026-09-16/t2698-official-floor-resubmit/README.md`。
      - [x] T-2525 / T-2526 (2026-09-10): D1859・D1936 項19に従い、要求側の静的物理量宣言を
        screening へ転送し、T-2418 新走の campaign/report を v2 に整合した。乱択を静的量へ
        変換せず、過去 artifact は保持する。適用範囲は
