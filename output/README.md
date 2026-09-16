@@ -12,6 +12,7 @@ output/
 │   ├── reports/                  report・plot・provenance の決定論的射影先
 │   └── insights/                 campaign 固有 insight / whiteboard
 ├── env/<env-tag>/                環境ごと・入力非依存 (= 測定の物差し。env スコープ)
+│   ├── binaries/                 測定に使う binary bytes の content-addressed store (`<binary_sha256>`)。**追跡外** (`.gitignore`)。B-4 凍結 spec の `artifacts[].binary_relpath` はここを指し、s8b floor campaign も同じ規則で置く ([T-2697])。**凍結するのは path・期待 sha256・receipt であって bytes の可用性ではない** — 全複製を失えば消費側は正しく拒否するが、bit 同一の復旧は保証しない。調達済み record からの配置は `python3 -m orchestrator.campaign.b4_binary_record place`
 │   ├── calibration/              レコード数飽和点 + noise floor (within-run / between-run, A2)
 │   ├── characterization/         正しさ検査の歯の実証 (correctness-only、fitness 非計測。例: t152 write-intent。必須 env は各 driver docstring が正本)
 │   └── profile/                  perf 機序プロファイル (spin 分離・有用 IPC 等, P2-4)
