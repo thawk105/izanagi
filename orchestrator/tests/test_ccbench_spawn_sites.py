@@ -84,6 +84,10 @@ _DIRECT_CCBENCH_DIAGNOSTIC_SITES = Counter({
 # intentionally a site inventory, not a command-expression heuristic: a new
 # launch must be classified in review before this test can pass.
 _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
+    # CMake installs gflags/glog only; the helper verifies/hydrates sources.
+    # Neither site launches a CCBench measurement binary.
+    ("campaign/b4_binary_record.py", "<module>._install_dependency"): 1,
+    ("campaign/b4_binary_record.py", "<module>.prepare_dependencies"): 2,
     # Bounded qstat query reads the current job's start and reservation only.
     ("campaign/b10_backoff_static_tail_formal.py", "<module>.scheduler_coordinates"): 1,
     ("calibrator/cli.py", "<module>._assert_trace_disabled_binary"): 1,
@@ -905,6 +909,14 @@ class _DeferredGateMember:
 
 _DEFERRED_GATE_MEMBERS = (
     _DeferredGateMember(
+        "orchestrator/campaign/b4_binary_record.py",
+        "wave t2636",
+        "稼働 wave が所有する非 sort floor 依存供給の build_fn seam",
+        "buildcache",
+        "<module>._build_with_dependencies",
+        127,
+    ),
+    _DeferredGateMember(
         "orchestrator/campaign/b10_backoff_shape_sweep.py",
         "wave t1905",
         "active wave owns this driver",
@@ -934,7 +946,7 @@ _DEFERRED_GATE_MEMBERS = (
         "active wave owns the build_fn injection seam",
         "injected-build_fn",
         "<module>.build_cells.invoke_build",
-        4720,
+        4722,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/s8b_floor_campaign.py",
@@ -942,7 +954,7 @@ _DEFERRED_GATE_MEMBERS = (
         "稼働 wave t2027 の所有面。動的 protocol 経由の campaign sink",
         "campaign",
         "<module>.main",
-        8673,
+        8675,
     ),
     _DeferredGateMember(
         "tools/pegasus/probes/t2187_adaptive_const_probe.py",
@@ -2700,6 +2712,10 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         for item in _DEFERRED_GATE_MEMBERS
     } == {
         (
+            "orchestrator/campaign/b4_binary_record.py",
+            "wave t2636", "buildcache", "<module>._build_with_dependencies", 127,
+        ),
+        (
             "orchestrator/campaign/b10_backoff_shape_sweep.py",
             "wave t1905", "buildcache", "<module>._build_binary", 3644,
         ),
@@ -2714,11 +2730,11 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
             "wave t2027", "injected-build_fn",
-            "<module>.build_cells.invoke_build", 4720,
+            "<module>.build_cells.invoke_build", 4722,
         ),
         (
             "orchestrator/campaign/s8b_floor_campaign.py",
-            "wave t2027", "campaign", "<module>.main", 8673,
+            "wave t2027", "campaign", "<module>.main", 8675,
         ),
         (
             "tools/pegasus/probes/t2187_adaptive_const_probe.py",

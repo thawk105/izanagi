@@ -15866,5 +15866,99 @@ def test_freeze_allowlist_path_rejects_unselected_versioned_protocol(tmp_path):
         fc._validate_freeze_allowlist_path(selected)
 
 
+# Capture the real issuer before the portable-reader autouse fixture runs.
+_F10_REAL_ISSUER = s8b_binary_admission.issue_binary_admission_receipt
+from orchestrator.tests.s8b_v2_freeze_fixture import (
+    in_sealed_fixture_process as _f10_sealed_process,
+    sealed_source_protection_fixture as _f10_source_protection,
+)
+
+
+@pytest.mark.parametrize("root_mode", ["present", "empty", "absent"])
+@_f10_sealed_process
+def test_f10_non_sort_result_root_reaches_real_receipt(tmp_path, monkeypatch, root_mode):
+    freeze = _freeze_document()
+    cells = [cell for cell in s8b_floor_campaign.enumerate_cells(
+        freeze, stock_configuration=_STOCK,
+    ) if cell["configuration_id"] == _STOCK][:1]
+    dependency = tmp_path / "supplied-masstree"
+    dependency.mkdir()
+    header = dependency / "fixture.hh"
+    header.write_bytes(b"actual supplied masstree input\n")
+    fake_build = _make_fake_build(tmp_path / "bin")
+
+    def build(genome, **kwargs):
+        result = fake_build(genome, **kwargs)
+        manifest = {
+            "schema_version": "s8b-compiler-input/v2",
+            "metadata_schema": "cmake-unix-makefiles-cxx-depfile/v1",
+            "input_policy": "snapshot-and-external-hashes/v1",
+            "target": f"ycsb_{genome.protocol}.exe", "depfile_count": 1,
+            "inputs": [{"root": "fetchcontent-masstree", "path": "fixture.hh",
+                        "sha256": hashlib.sha256(header.read_bytes()).hexdigest()}],
+        }
+        result.compiler_input_manifest = manifest
+        result.compiler_input_manifest_sha256 = (
+            buildcache.s8b_compiler_input.manifest_sha256(manifest)
+        )
+        if root_mode != "absent":
+            result.compiler_input_masstree_root = str(dependency) if root_mode == "present" else ""
+        if root_mode == "present":
+            protection = _f10_source_protection(
+                source=kwargs["source_evidence"], binary_sha256=result.bin_sha256,
+                compiler_input_manifest_sha256=result.compiler_input_manifest_sha256,
+            )
+            result.source_protection = protection
+            result.source_snapshot_sha256 = protection.source_snapshot_sha256
+            result.expected_materialization_sha256 = protection.expected_materialization_sha256
+        return result
+
+    observed = []
+    def issue(**kwargs):
+        observed.append(kwargs["current_compiler_input_masstree_root"])
+        return _F10_REAL_ISSUER(**kwargs)
+
+    monkeypatch.setattr(s8b_binary_admission, "issue_binary_admission_receipt", issue)
+    contract = ec.lookup(ENV_TAG)
+    def run():
+        return s8b_floor_campaign.build_cells(
+            freeze, cells, ccbench_pin="0" * 40, out_root=tmp_path / "out",
+            prepare_fn=_fake_prepare, build_fn=build, contract=contract,
+            verified_calibration=env_attestation.load_verified_calibration(contract, ROOT),
+        )
+
+    if root_mode == "present":
+        built = run()
+        record = built[cells[0]["cell_id"]]
+        assert record["admission_receipt"]["schema"] == "s8b-binary-admission/v3"
+        assert str(dependency) not in json.dumps(record["admission_receipt"])
+        assert observed == [str(dependency)]
+    else:
+        with pytest.raises(s8b_floor_campaign.FloorCampaignError,
+                           match="current FetchContent masstree root is required"):
+            run()
+        assert observed == [None]
+
+
+def test_f10_dependency_binding_wins_over_result_root(tmp_path, monkeypatch):
+    original_factory = _make_fake_build
+    seen = []
+    def factory(*args, **kwargs):
+        original_build = original_factory(*args, **kwargs)
+        def build(*args, **kwargs):
+            result = original_build(*args, **kwargs)
+            result.compiler_input_masstree_root = str(tmp_path / "wrong-result-root")
+            seen.append(result)
+            return result
+        return build
+    monkeypatch.setattr(sys.modules[__name__], "_make_fake_build", factory)
+    # Existing production sort/non-sort fixture asserts every issuer argument is
+    # the shared dependency binding, even with a conflicting additive field.
+    test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
+        tmp_path, monkeypatch,
+    )
+    assert len(seen) == len(_CONFIGS)
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main(["-q", str(Path(__file__).resolve())]))
