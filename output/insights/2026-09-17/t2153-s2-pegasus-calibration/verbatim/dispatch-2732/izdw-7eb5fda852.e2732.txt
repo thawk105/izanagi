@@ -1,0 +1,28 @@
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 75424, "time_ns": 1789596160239555973}
+IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 75446, "event": "direct-child-wait-start", "pid": 75432, "time_ns": 1789596160267235128}
+IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 75446, "event": "direct-child-wait-complete", "pid": 75432, "time_ns": 1789596164294768620}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 75432, "rc": 0, "time_ns": 1789596164294848465}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 75424, "rc": 0, "time_ns": 1789596164299372803}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 75424, "time_ns": 1789596164301257663}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 75424, "time_ns": 1789596164330345136}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 75424, "time_ns": 1789596164331024158}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 75424, "time_ns": 1789596164331033932}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 75424, "time_ns": 1789596164341712843}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 75424, "time_ns": 1789596164341722906}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 75424, "rc": 0, "time_ns": 1789596164341732874}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 75424, "rc": 0, "time_ns": 1789596164341746340}
+
+============================================================
+Request ID:             2732.nqsv
+Request Name:           izdw-7eb5fda852
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Thu Sep 17 06:59:01 2026
+Started Request Time:   Thu Sep 17 07:02:39 2026
+Ended Request Time:     Thu Sep 17 07:02:44 2026
+Resources Information:
+  Elapse:               9S
+  Remaining Elapse:     1791S
+============================================================
