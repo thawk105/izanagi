@@ -11468,6 +11468,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   hold は `output/pegasus-dispatch/orphan-hold.json` と `orphan-holds/<request>.json` の
   **2 箇所**にあり、`qstat` の行頭照合で対象が一覧から消えたことを確認したうえで両方を消して復旧した。
   以後この監査には打ち切らない長さの timeout を掛ける。
+
+- **再発: 2026-09-17** — docs-only wave (K2 ループ次巡の裁定パッケージ) の段 7 で、親が
+  `check_ai_provenance.py` の全史監査を `timeout 200` で包んで起動した。この checker は既定で
+  計算ノードへ dispatch するため、親が SIGTERM された時点で request `2730.nqsv` が孤児化し
+  (`{"kind":"infra","reason":"signal-abort"}`)、wave worktree に `orphan-hold.json` と
+  `orphan-holds/2730.nqsv.json` の 2 箇所が武装した。直後の再監査は
+  `{"child_started":false,"kind":"infra","reason":"orphan-hold"}` rc=16。2026-08-23 / 08-24 と
+  同型で、Bash tool 側の 120 秒自動背景化に加えて親が自前の `timeout` を重ねたのが直接原因。
+  復旧は hold の `recovery` field どおり — qdel せず、`qstat` 一覧の行頭 RequestID で消滅を
+  待ち、submission dir の終端証拠と tree clean / HEAD を確かめてから 2 箇所を job dir へ退避して
+  削除した。dispatch 経路の command に呼び出し側 timeout を重ねない。
 ### F334. 正本 runbook が「無い」と実測記録した kernel field を、後発の gate が必須条件にした — 機構全体が一度も動かないまま land した [恒真ゲート] [テスト代表性]
 
 - 事象: `tools/mutation_fanout.py` の admission は、measurement log の
