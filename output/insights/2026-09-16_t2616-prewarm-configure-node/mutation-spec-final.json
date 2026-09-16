@@ -1,0 +1,110 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M2-worker-resolves-on-timeout",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/real_repo_receipt_memo.py",
+          "old": "            if time.monotonic() >= deadline:\n                raise self._error(\n                    \"publication-timeout\", cache_path=path, run_id=run_id,\n                    head=head, prewarm=False,\n                )\n            time.sleep(min(0.01, max(0.0, deadline - time.monotonic())))\n",
+          "new": "            if time.monotonic() >= deadline:\n                return _resolve_now()\n            time.sleep(min(0.01, max(0.0, deadline - time.monotonic())))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-back-to-collection-barrier",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    if _early_memo_selected(node.config):\n        _start_early_memo_job(node)\n",
+          "new": "    if False:\n        _start_early_memo_job(node)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_all_workers_wait_before_test_body_without_resolving",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_close_failure_and_lock_contention_are_fail_closed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_starts_before_worker_collection_notification",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_unlock_failure_never_publishes_ready"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-drop-keyword-narrowing",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    \"keyword\", \"markexpr\", \"deselect\", \"lf\", \"failedfirst\", \"stepwise\",\n",
+          "new": "    \"markexpr\", \"deselect\", \"lf\", \"failedfirst\", \"stepwise\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_narrowing_destinations_match_real_parser",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_parsed_narrowing_keeps_nonce_and_never_resolves"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-failed-marker-not-preferred",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/real_repo_receipt_memo.py",
+          "old": "            if failed.exists():\n                raise self._error(\n                    \"prewarm-failed\", cache_path=path, run_id=run_id,\n                    head=head, prewarm=False,\n                )\n",
+          "new": "            if False:\n                raise self._error(\n                    \"prewarm-failed\", cache_path=path, run_id=run_id,\n                    head=head, prewarm=False,\n                )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_close_failure_and_lock_contention_are_fail_closed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_publication_wait_is_explicit_bounded_and_fail_closed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_unlock_failure_never_publishes_ready"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-drop-post-io-deadline-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/real_repo_receipt_memo.py",
+          "old": "            # Include read, unlock and close in the shared early-job deadline.\n            if early_job is not None and time.monotonic() >= deadline:\n",
+          "new": "            # Include read, unlock and close in the shared early-job deadline.\n            if False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_success_checks_shared_deadline_after_io"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-unannounced-miss-waits",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/real_repo_receipt_memo.py",
+          "old": "            if early_job is not None and pending.exists():\n",
+          "new": "            if pending.exists():\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_publication_wait_is_explicit_bounded_and_fail_closed"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
