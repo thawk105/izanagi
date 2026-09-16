@@ -1,0 +1,51 @@
+{
+  "campaign_dir": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-20260909b/jobs/rr95/campaigns/paper-story-a2-rr95-paper-story-a6-certification-rr95-a4efd902",
+  "output_root": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-20260909b/jobs/rr95",
+  "before": {
+    "campaign.lock": {
+      "ok": true,
+      "sha256": "5812a6d729c51bce49170c0a0d858f83c05aecc8672821db0143a82b25fc26fa"
+    },
+    "runs/wal.jsonl": {
+      "ok": true,
+      "sha256": "c25e0873f0c5c7309abe904e2ba0bc7d9a8958a2f9b713034f79031f4e786cbf"
+    }
+  },
+  "CERTIFIED_ACCEPTANCE": {
+    "ok": true,
+    "type": "DecodedCampaignLock"
+  },
+  "HISTORICAL_RAW": {
+    "ok": true,
+    "type": "DecodedHistoricalCampaignLock",
+    "identity_keys": [
+      "ccbench_commit",
+      "search_config",
+      "search_tag",
+      "spec_content",
+      "trial"
+    ],
+    "recorded_contract_loader_relative_paths_length": 63
+  },
+  "build_report": {
+    "ok": false,
+    "type": "Layer3ReportError",
+    "message": "campaign search_config の records/threads が整数でない",
+    "cause": null,
+    "traceback": "Traceback (most recent call last):\n  File \"/home/SFC/tanab/.claude/jobs/f3d94a9d/tmp/wave-t2718/t2718_real_corpus_probe.py\", line 60, in _probe\n    report = layer3_report.build_report(\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2718-layer3-lock-purpose/orchestrator/campaign/layer3_report.py\", line 852, in build_report\n    raise Layer3ReportError(\"campaign search_config の records/threads が整数でない\")\norchestrator.campaign.layer3_report.Layer3ReportError: campaign search_config の records/threads が整数でない\n"
+  },
+  "after": {
+    "campaign.lock": {
+      "ok": true,
+      "sha256": "5812a6d729c51bce49170c0a0d858f83c05aecc8672821db0143a82b25fc26fa"
+    },
+    "runs/wal.jsonl": {
+      "ok": true,
+      "sha256": "c25e0873f0c5c7309abe904e2ba0bc7d9a8958a2f9b713034f79031f4e786cbf"
+    }
+  },
+  "unchanged": {
+    "campaign.lock": true,
+    "runs/wal.jsonl": true
+  }
+}

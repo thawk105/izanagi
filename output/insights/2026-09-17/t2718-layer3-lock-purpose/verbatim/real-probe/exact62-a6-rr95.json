@@ -1,0 +1,54 @@
+{
+  "campaign_dir": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-20260908b/jobs/rr95/campaigns/paper-story-a2-rr95-paper-story-a6-certification-rr95-1e7d99f2",
+  "output_root": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-20260908b/jobs/rr95",
+  "before": {
+    "campaign.lock": {
+      "ok": true,
+      "sha256": "f2c841a5c4ff1c930511dab2ff2f99ec5f1e4563bd8bded9518c0b0ef25fc00e"
+    },
+    "runs/wal.jsonl": {
+      "ok": true,
+      "sha256": "36d11c6bf461c9acf6d2ede24ba13549005d0552bac87950d0df4d95da55eaeb"
+    }
+  },
+  "CERTIFIED_ACCEPTANCE": {
+    "ok": false,
+    "type": "Layer3ReportError",
+    "message": "campaign.lock schema が不正",
+    "cause": "CampaignLockCodecError: authority.contract_loader_blob_sha256s の exact key 集合が不正",
+    "traceback": "Traceback (most recent call last):\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2718-layer3-lock-purpose/orchestrator/campaign/layer3_report.py\", line 128, in _read_campaign_lock\n    return campaign_lock.decode_campaign_lock(text)\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2718-layer3-lock-purpose/orchestrator/campaign/campaign_lock.py\", line 638, in decode_campaign_lock\n    authority = _validate_authority(value[\"authority\"])\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2718-layer3-lock-purpose/orchestrator/campaign/campaign_lock.py\", line 405, in _validate_authority\n    raise CampaignLockCodecError(\norchestrator.campaign.campaign_lock.CampaignLockCodecError: authority.contract_loader_blob_sha256s の exact key 集合が不正\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"/home/SFC/tanab/.claude/jobs/f3d94a9d/tmp/wave-t2718/t2718_real_corpus_probe.py\", line 46, in _probe\n    decoded = layer3_report._read_campaign_lock(\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2718-layer3-lock-purpose/orchestrator/campaign/layer3_report.py\", line 132, in _read_campaign_lock\n    raise Layer3ReportError(\"campaign.lock schema が不正\") from exc\norchestrator.campaign.layer3_report.Layer3ReportError: campaign.lock schema が不正\n"
+  },
+  "HISTORICAL_RAW": {
+    "ok": true,
+    "type": "DecodedHistoricalCampaignLock",
+    "identity_keys": [
+      "ccbench_commit",
+      "search_config",
+      "search_tag",
+      "spec_content",
+      "trial"
+    ],
+    "recorded_contract_loader_relative_paths_length": 62
+  },
+  "build_report": {
+    "ok": false,
+    "type": "Layer3ReportError",
+    "message": "campaign search_config の records/threads が整数でない",
+    "cause": null,
+    "traceback": "Traceback (most recent call last):\n  File \"/home/SFC/tanab/.claude/jobs/f3d94a9d/tmp/wave-t2718/t2718_real_corpus_probe.py\", line 60, in _probe\n    report = layer3_report.build_report(\n  File \"/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2718-layer3-lock-purpose/orchestrator/campaign/layer3_report.py\", line 852, in build_report\n    raise Layer3ReportError(\"campaign search_config の records/threads が整数でない\")\norchestrator.campaign.layer3_report.Layer3ReportError: campaign search_config の records/threads が整数でない\n"
+  },
+  "after": {
+    "campaign.lock": {
+      "ok": true,
+      "sha256": "f2c841a5c4ff1c930511dab2ff2f99ec5f1e4563bd8bded9518c0b0ef25fc00e"
+    },
+    "runs/wal.jsonl": {
+      "ok": true,
+      "sha256": "36d11c6bf461c9acf6d2ede24ba13549005d0552bac87950d0df4d95da55eaeb"
+    }
+  },
+  "unchanged": {
+    "campaign.lock": true,
+    "runs/wal.jsonl": true
+  }
+}
