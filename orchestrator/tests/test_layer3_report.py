@@ -1897,6 +1897,12 @@ def test_historical_policy_version_report_schema(tmp_path, monkeypatch):
     with monkeypatch.context() as issuing:
         issuing.setattr(B, "CURRENT_PIN", "d706650")
         issuing.setattr(support, "CURRENT_PIN", "d706650")
+        issuing.setattr(support.receipt_support, "CURRENT_PIN", "d706650")
+        # Recreate the cached proof policy only for this campaign's issuance.
+        issuing.setattr(
+            support.receipt_support, "_PROOF_BUILD_CONTEXT",
+            B.build_run_context(generator_id=B.GeneratorId.BACKOFF_SWEEP),
+        )
         campaign = support._new_schema_campaign(tmp_path / "recorded")
     report = layer3_report.build_report(
         campaign, generated_from_head="fixed", output_root=tmp_path,

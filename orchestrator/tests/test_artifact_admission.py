@@ -59,6 +59,12 @@ def recorded_policy_campaign(tmp_path, monkeypatch):
             if change == "pin":
                 issuing.setattr(B, "CURRENT_PIN", "d706650")
                 issuing.setitem(globals(), "CURRENT_PIN", "d706650")
+                issuing.setattr(receipt_support, "CURRENT_PIN", "d706650")
+                # The import-time proof context also retains the issuing policy.
+                issuing.setattr(
+                    receipt_support, "_PROOF_BUILD_CONTEXT",
+                    B.build_run_context(generator_id=B.GeneratorId.BACKOFF_SWEEP),
+                )
             elif change == "generator":
                 old = Enum("GeneratorId", {
                     member.name: member.value for member in B.GeneratorId
