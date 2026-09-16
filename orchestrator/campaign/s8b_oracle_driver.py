@@ -423,11 +423,13 @@ def _gate_check_core(*, freeze_path=None, manifest_path=None, root,
     manifest 実 bytes の canonical hash、approved spec hash を再束縛する。
 
     v2 (floor/budget のいずれかが non-null) の freeze は exact type
-    ``LaunchValidatedFreeze`` を要求する。無ければ refusal
+    ``LaunchValidatedFreeze`` が無い限り admission しない。``ratified_error``
+    (呼出側の active 世代解決失敗の構造化 message) があれば ``freeze-ratify:``
+    refusal へ翻訳する。無くて token も無ければ refusal
     ``v2-execution: launch-validate: LaunchValidatedFreeze exact type が必要``
-    を積み admission しない (拒否理由の集約は継続する)。``ratified_error``
-    (呼出側の active 世代解決失敗の構造化 message) は ``freeze-ratify:`` refusal
-    へ翻訳する。core は ``load_ratified_freeze`` を呼ばない。
+    を積む。error が無くて token があれば sha256 を照合する。いずれの場合も
+    拒否理由の集約 (known-axes / floor / budget / manifest) は継続する。
+    core は ``load_ratified_freeze`` を呼ばない。
     """
     if (launch_validated is not None
             and type(launch_validated) is not s8b_ratified_freeze.LaunchValidatedFreeze):
@@ -587,7 +589,7 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
                verified_manifest: Optional["VerifiedManifest"] = None,
                ratified: Optional["s8b_ratified_freeze.RatifiedFreeze"] = None,
                ratified_error: Optional[str] = None) -> GateDecision:
-    """standalone gate。v2 freeze は必ず full launch validation を実行する。
+    """standalone gate。v2 freeze は full launch validation を通らない限り受理しない。
 
     ``RatifiedFreeze`` の注入は active static loader の代替候補にすぎず、検証済み型の
     注入口にはしない。v2 候補は同一 object のまま ``launch_validate`` へ厳密 1 回
