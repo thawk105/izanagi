@@ -52,6 +52,14 @@ title: [T-2117] 復元不能な当時の bytes 一致の要求を撤去し、二
   baseline を再走せず前回の `PARSE_ERROR` を使うので壊れた baseline から回復できない。
   さらに共有木の事後検査が並行 churn で落ちた。container へ `tools/mutation_harness.py` を
   直接当てて解決した。
+- **受入 1 走目は 24085 passed・3 error で赤だった。3 件とも非帰属と判定した。**
+  2 件は `test_t1259_qsub_env_delivery_probe.py` の setup で
+  `git ls-files --others --exclude-standard -z` が 30 秒 timeout、1 件は
+  `test_s8c_preregistration_predicates.py::test_repository_candidate_uses_real_s8c_budget_module` の
+  setup で `real-repo lock deadline exceeded` (parent write lock を READ 4 本が保持) である。
+  いずれも本 wave の差分 (`test_codex_reasoning_ab.py` 1 file、新 node は共有 fixture も
+  real-repo lock も使わない) から到達しない。同じ tip で 3 件を単独再走し 8 passed
+  (parametrize 展開後) で再現しなかったため、DW-O18 に従い受入を 1 度だけ再走した。
 - 設計判断は {{D:m2-golden-synthetic-restore}}。
 - **実装子はテストを 1 件も走らせられなかった。** dispatch の `qstat -Q` が socket 作成制限で
   失敗し rc=16。子は `closed` と書かず「実装済み・未実走」と報告し、実測は親が行った。
