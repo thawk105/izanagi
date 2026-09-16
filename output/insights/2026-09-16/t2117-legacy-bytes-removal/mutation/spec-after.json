@@ -1,0 +1,92 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 330,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    if reasons:\n        raise ValidationError(reasons, RC_SNAPSHOT)\n    return dict(route_a)",
+          "new": "    if False:\n        raise ValidationError(reasons, RC_SNAPSHOT)\n    return dict(route_a)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m2_production_golden_rejects_route_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    return _compare_golden_routes(route_a, route_b)",
+          "new": "    return dict(route_a)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m2_production_golden_requires_both_routes",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m2_production_golden_rejects_route_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    route_a = _apply_patch_set(route_a, fix2_patches, reverse=True)",
+          "new": "    route_a = _apply_patch_set(route_a, fix2_patches, reverse=False)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m2_production_golden_requires_both_routes",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m2_production_golden_rejects_route_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "            for label in (\"author\", \"fix1\")",
+          "new": "            for label in (\"fix1\", \"author\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m2_production_golden_requires_both_routes",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m2_production_golden_rejects_route_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/codex_reasoning_ab.py",
+          "old": "    route_b = _apply_patch_set_independent(",
+          "new": "    route_b = _apply_patch_set("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m2_production_golden_requires_both_routes",
+        "orchestrator/tests/test_codex_reasoning_ab.py::test_m2_production_golden_rejects_route_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
