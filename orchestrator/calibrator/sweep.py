@@ -166,11 +166,12 @@ def calibrate(binary: str, env_tag: str, threads: int,
               log=print,
               calibration_observation_capability: Optional[
                   CalibrationObservationCapability
-              ] = None) -> CalibrationResult:
+              ] = None,
+              use_perf: bool = True) -> CalibrationResult:
     """フル校正を実行して CalibrationResult を返す。
 
     ``certify`` は既存 mode と別の fail-closed 経路である。TSC fallback、partial rep、
-    missing perf/maxrss を許さず、各 sweep/noise/scale point を ``window_probe`` の
+    missing maxrss と perf 有り時の missing counter を許さず、各 point を ``window_probe`` の
     pre/post で挟む。既定 False の挙動は従来どおり。
     """
     workload = dict(workload or {})
@@ -222,6 +223,8 @@ def calibrate(binary: str, env_tag: str, threads: int,
             window_probe(f"{kind}:pre:{records}:{threads_arg}")
         point: Optional[ScalePoint] = None
         measurement_kwargs = dict(kwargs)
+        if not use_perf:
+            measurement_kwargs["use_perf"] = False
         if calibration_observation_capability is not None:
             measurement_kwargs.update({
                 "calibration_observation_capability": (
@@ -266,6 +269,10 @@ def calibrate(binary: str, env_tag: str, threads: int,
     result.sweep = sweep
     result.saturation = analyze.find_saturation(sweep, l3_bytes=l3_bytes)
     sat = result.saturation
+    if not use_perf:
+        result.notes.extend(sat.notes)
+        result.saturation = None
+        return result
     log(f"[calibrate] 飽和: {'YES' if sat.saturated else 'NO'}"
         f"{' (下限基準)' if sat.lower_bound_selected else ''} "
         f"→ records={sat.records:,}")
