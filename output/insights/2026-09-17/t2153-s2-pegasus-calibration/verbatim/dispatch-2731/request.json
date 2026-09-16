@@ -1,0 +1,14 @@
+{
+  "args": [
+    "env",
+    "TMPDIR=/scr",
+    "python3",
+    "-m",
+    "orchestrator.campaign.s2_verify_calibration"
+  ],
+  "environment": {},
+  "repo_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-s2-pegasus-calibration/submit-tree-s2",
+  "request_binding": "sha256-job-script/v1",
+  "schema_version": "pegasus-dispatch-request/v2",
+  "task": "generic"
+}
