@@ -22,7 +22,7 @@ import socket
 import stat
 import subprocess
 import time
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional
 
@@ -685,6 +685,8 @@ class BuildResult:
     compiler_input_manifest_sha256: Optional[str] = None
     # live validation だけに使う。completion / receipt へ絶対 root を保存しない。
     compiler_input_dependency_prefix_roots: tuple[str, ...] = ()
+    # live validation だけに使う。completion / receipt へ絶対 root を保存しない。
+    compiler_input_masstree_root: str = field(default="", kw_only=True)
     # Declaration gate output.  Descriptor-less callers retain None exactly.
     source_snapshot_sha256: Optional[str] = None
     expected_materialization_sha256: Optional[str] = None
@@ -2122,6 +2124,7 @@ def _v2_result(
         compiler_input_manifest_sha256: Optional[str] = None,
         compiler_input_dependency_prefix_roots: tuple[str, ...] = (),
         post_oracle_dependency_binding: Optional[Mapping[str, object]] = None,
+        compiler_input_masstree_root: str = "",
 ) -> BuildResult:
     configure, build_cmd = _v2_commands(
         genome, trace, sub, bdir, toolchain, site=site,
@@ -2148,6 +2151,7 @@ def _v2_result(
         compiler_input_dependency_prefix_roots=(
             compiler_input_dependency_prefix_roots
         ),
+        compiler_input_masstree_root=compiler_input_masstree_root,
         fetchcontent_base_dir=fetchcontent_base_dir,
         masstree_source_root_sha256=masstree_source_root_sha256,
     )
@@ -3097,6 +3101,7 @@ def _build_v2_impl(
                     compiler_input_manifest, compiler_input_manifest_sha256,
                     compiler_input_dependency_prefix_roots,
                     post_oracle_binding,
+                    compiler_input_masstree_root=effective_root or "",
                 )
                 if pending_publications is None:
                     raise BuildCacheError("sealed publication requires a caller-owned cleanup list")
@@ -3162,6 +3167,7 @@ def _build_v2_impl(
             compiler_input_manifest, compiler_input_manifest_sha256,
             compiler_input_dependency_prefix_roots,
             post_oracle_binding,
+            compiler_input_masstree_root=effective_root or "",
         )
     finally:
         if pending is None:

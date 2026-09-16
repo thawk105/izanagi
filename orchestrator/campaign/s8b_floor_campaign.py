@@ -4602,7 +4602,9 @@ def _build_cells_impl(
                     ),
                     current_compiler_input_masstree_root=(
                         str(dependency_binding.source_root)
-                        if dependency_binding is not None else None
+                        if dependency_binding is not None else (
+                            getattr(result, "compiler_input_masstree_root", "") or None
+                        )
                     ),
                     current_compiler_input_dependency_prefix_roots=(
                         compiler_input_dependency_prefix_roots

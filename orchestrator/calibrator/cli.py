@@ -80,6 +80,7 @@ _EARLY_CLOCK_REJECTION_NOT_EVALUATED = (
     "post-isolation",
     "certification-quality",
     "late-effective-clock-self-comparison",
+    "late-effective-clock-pre-post-comparison",
     "final-artifact-assembly-and-schema-validation",
     "publish-policy-identity",
     "publish",
@@ -1036,6 +1037,35 @@ def _certify_main(
         reasons.extend(certification_quality_reasons(result, evidence))
         if not _effective_clock_self_comparison_passes(profile):
             reasons.append("effective-clock-self-comparison-failed")
+        expected_clock = {
+            "samples_mhz": profile["effective_clock"]["samples_mhz"],
+            "tolerance_pct": profile["effective_clock"]["tolerance_pct"],
+        }
+        observed_clock = {
+            "samples_mhz": static_post["effective_clock"]["samples_mhz"],
+        }
+        if not effective_clock_comparison_passes(expected_clock, observed_clock):
+            reasons.append("effective-clock-pre-post-comparison-failed")
+            _write_exclusive(
+                os.path.join(staging, "effective-clock-pre-post-comparison.json"),
+                _canonical_json_bytes({
+                    "schema": "izanagi/effective-clock-pre-post-comparison/v1",
+                    "passed": False,
+                    "attestation_profile": profile,
+                    "attestation_profile_sha256": hashlib.sha256(
+                        _canonical_json_bytes(profile),
+                    ).hexdigest(),
+                    "canonicalization": _ATTESTATION_PROFILE_CANONICALIZATION,
+                    "expected": expected_clock,
+                    "observed": observed_clock,
+                    "diagnostics": effective_clock_comparison_diagnostics(
+                        expected_clock, observed_clock,
+                    ),
+                    "policy_at_comparison": (
+                        effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT
+                    ),
+                }) + b"\n",
+            )
         status = "accepted" if not reasons else "rejected"
         _, artifact = _assemble_v2(
             result, profile=profile, receipt=receipt, genome=genome,
