@@ -30,6 +30,7 @@ import time
 from typing import Callable, Dict, List, Optional
 
 from .model import CalibrationResult, CertificationEvidence
+from .perf_preflight import use_perf_from_receipt
 from . import effective_clock_policy
 from .report import (certification_quality_reasons, render_text,
                      result_to_dict)
@@ -158,6 +159,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="calibration/v2 registration certification mode")
     p.add_argument("--receipt-json", default=None,
                    help="certification job が作った acquisition receipt JSON")
+    p.add_argument("--perf-preflight-json", default=None,
+                   help="certification job が保存した perf preflight receipt JSON")
     p.add_argument("--binary-sha256", default=None,
                    help="certification 対象 binary の事前凍結 SHA-256")
     return p
@@ -795,6 +798,8 @@ def _write_rejection(
 
 
 def _validate_cli(args) -> Optional[str]:
+    if args.perf_preflight_json and not args.certify:
+        return "--perf-preflight-json requires --certify"
     if args.start_records <= 0 or args.start_records > args.max_records:
         return "require 0 < start_records <= max_records"
     for name in ("threads", "extime", "sweep_reps", "noise_reps"):
@@ -851,6 +856,15 @@ def _certify_main(
     try:
         # C3-3(i): no build/hash/cooldown work precedes the static hardware probe.
         static_pre = _profile_dict(probe_fn())
+
+        perf_receipt = (_strict_json_file(args.perf_preflight_json)
+                        if args.perf_preflight_json else None)
+        if perf_receipt is not None:
+            _write_exclusive(
+                os.path.join(staging, "perf-preflight.json"),
+                _canonical_json_bytes(perf_receipt),
+            )
+        use_perf = use_perf_from_receipt(perf_receipt)
 
         _assert_trace_disabled_binary(binary, subprocess_runner=subprocess_runner)
         actual_hash = _binary_sha256(binary, subprocess_runner)
@@ -956,7 +970,7 @@ def _certify_main(
                 "records_multiplier": 2,
                 "numactl": list(numactl or ()),
                 "timeout_s": BENCH_TIMEOUT_S,
-                "use_perf": True,
+                "use_perf": use_perf,
                 "extra_env": {},
             }
             plan_sha256 = _calibration_observation_marker(
@@ -977,7 +991,7 @@ def _certify_main(
                 records_multiplier=2,
                 numactl=tuple(numactl or ()),
                 timeout_s=BENCH_TIMEOUT_S,
-                use_perf=True,
+                use_perf=use_perf,
                 extra_env=None,
                 plan_sha256=plan_sha256,
             )
@@ -988,6 +1002,7 @@ def _certify_main(
             )
 
         # C3-3(iv): every sweep/noise/scale group is bracketed in sweep.calibrate.
+        perf_kwargs = {} if use_perf else {"use_perf": False}
         result = calibrate_fn(
             binary=binary, env_tag=args.env_tag, threads=args.threads,
             workload=workload, start_records=args.start_records,
@@ -1000,7 +1015,14 @@ def _certify_main(
             calibration_observation_capability=(
                 calibration_observation_capability
             ),
+            **perf_kwargs,
         )
+        if not use_perf:
+            result.host["perf"] = "unavailable"
+            result.notes.append(
+                "perf unavailable: counters not acquired; compare only within "
+                "the same perf condition; certification records cannot be selected."
+            )
 
         # C3-3(v): reacquire static profile, compare, then final isolation probe.
         static_post = _profile_dict(probe_fn())

@@ -379,7 +379,7 @@ def _fake_calibrate(*, bad_cv: bool = False):
 def _invoke(tmp_path: Path, monkeypatch, *, load1=None, bad_cv=False,
             composite=None, extra_args=None, receipt_mutator=None,
             profile_fn=None, clock_fn=None,
-            calibrate_fn=None) -> tuple[int, Path, Path]:
+            calibrate_fn=None, bench_runner=None) -> tuple[int, Path, Path]:
     binary = tmp_path / "ycsb_silo.exe"
     binary.write_bytes(b"trace-disabled fixture")
     digest = hashlib.sha256(binary.read_bytes()).hexdigest()
@@ -403,6 +403,8 @@ def _invoke(tmp_path: Path, monkeypatch, *, load1=None, bad_cv=False,
             return _Completed(stdout="0000 T stock_symbol\n")
         if argv[0] == "sha256sum":
             return _Completed(stdout=f"{digest}  {binary}\n")
+        if bench_runner is not None:
+            return bench_runner(argv, **kwargs)
         raise AssertionError(argv)
 
     fake_time = _FakeTime()
@@ -1650,6 +1652,147 @@ def test_cli_link_fallback_rejects_existing_target(
     assert any("publish-collision" in reason for reason in rejection.quality.reasons)
     assert not (attempt2 / "publish.json").exists()
     assert not list(registered2.glob(".publish-*.tmp"))
+
+
+def _perf_receipt(tmp_path, *, probe_error=False):
+    from orchestrator.calibrator.perf_preflight import probe_perf_availability
+
+    receipt = probe_perf_availability(
+        subprocess_runner=lambda *a, **kw: _Completed(
+            returncode=-15 if probe_error else 2,
+        ),
+    )
+    path = tmp_path / "perf-preflight-input.json"
+    path.write_text(json.dumps(receipt), encoding="utf-8")
+    return path, receipt
+
+
+def _three_point_reservation(receipt):
+    receipt["walltime"]["required_s"] = (
+        cli.reservation_budget(1000, 4000, 2, 3)["required_s"]
+        + receipt["walltime"]["reserve_s"]
+    )
+    receipt["qsub"]["elapstim_req_s"] = receipt["walltime"]["required_s"]
+
+
+@pytest.mark.parametrize("ratio", [20, 50, 80])
+def test_cli_no_perf_preserves_all_sweep_reps(tmp_path, monkeypatch, ratio):
+    receipt_path, receipt = _perf_receipt(tmp_path)
+    commands = []
+    transitions = []
+    results = []
+    original = sweep._transition_calibration_observation_to_noise
+
+    def observe(*args, **kwargs):
+        transitions.append(kwargs)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(sweep, "_transition_calibration_observation_to_noise", observe)
+
+    def observe_calibrate(**kwargs):
+        result = sweep.calibrate(**kwargs)
+        results.append(result)
+        return result
+
+    def bench(argv, **kwargs):
+        commands.append(argv)
+        return _Completed(stdout="throughput[tps]:\t100\nmaxrss:\t4096 kB\n")
+
+    rc, attempt, registered = _invoke(
+        tmp_path, monkeypatch, calibrate_fn=observe_calibrate, bench_runner=bench,
+        receipt_mutator=_three_point_reservation,
+        extra_args=["--max-records", "4000", "--workload", f"ycsb_rratio={ratio}",
+                    "--perf-preflight-json", str(receipt_path)],
+    )
+    # Observe before holdout_observation can reject a records=0 noise transition.
+    assert transitions == []
+    assert len(commands) == 6
+    assert [next(a for a in cmd if a.startswith("-ycsb_tuple_num=")) for cmd in commands] == [
+        "-ycsb_tuple_num=1000", "-ycsb_tuple_num=1000",
+        "-ycsb_tuple_num=2000", "-ycsb_tuple_num=2000",
+        "-ycsb_tuple_num=4000", "-ycsb_tuple_num=4000",
+    ]
+    assert all("perf" not in cmd for cmd in commands)
+    assert len(results) == 1
+    assert results[0].noise_floor is None
+    for point in results[0].sweep:
+        assert vars(point.counters) == {
+            "llc_load_misses": None, "llc_loads": None,
+            "instructions": None, "cycles": None, "raw": {},
+        }
+    assert rc == 1
+    artifact = json.loads((attempt / "calibration.json").read_text())
+    validate_calibration_v2(artifact)
+    assert artifact["saturation"] is None
+    assert artifact["noise_floor"]["throughputs"] == []
+    assert artifact["quality"]["status"] == "rejected"
+    assert artifact["host"]["perf"] == "unavailable"
+    assert len(artifact["sweep"]) == 3
+    for point in artifact["sweep"]:
+        assert point["throughputs"] == [100.0, 100.0]
+        assert point["throughput_median_tps"] == 100.0
+        assert point["llc_load_misses"] is None
+        assert point["llc_loads"] is None
+        assert point["llc_miss_rate"] is None
+    assert json.loads((attempt / "perf-preflight.json").read_text()) == receipt
+    assert not registered.exists()
+
+
+@pytest.mark.parametrize("failure,reason", [
+    ("maxrss", "rep1/2 missing required metrics at records=1000: maxrss"),
+    ("throughput", "rep1/2 missing required metrics at records=1000: throughput"),
+    ("rc", "rep1/2 fatal at records=1000 threads=2: RuntimeError: ccbench failed. rc=7"),
+], ids=["maxrss", "throughput", "rc"])
+def test_cli_no_perf_fatal_stops_at_bad_rep(tmp_path, monkeypatch, failure, reason):
+    receipt_path, _ = _perf_receipt(tmp_path)
+    commands = []
+
+    def bench(argv, **kwargs):
+        commands.append(argv)
+        bad = len(commands) == 2
+        stdout = ""
+        if not (bad and failure == "throughput"):
+            stdout += "throughput[tps]:\t100\n"
+        if not (bad and failure == "maxrss"):
+            stdout += "maxrss:\t4096 kB\n"
+        return _Completed(returncode=7 if bad and failure == "rc" else 0, stdout=stdout)
+
+    rc, attempt, registered = _invoke(
+        tmp_path, monkeypatch, calibrate_fn=sweep.calibrate, bench_runner=bench,
+        receipt_mutator=_three_point_reservation,
+        extra_args=["--max-records", "4000", "--workload", "ycsb_rratio=80",
+                    "--perf-preflight-json", str(receipt_path)],
+    )
+    assert len(commands) == 2
+    assert all("-ycsb_tuple_num=1000" in cmd for cmd in commands)
+    assert rc == 1
+    rejection = json.loads((attempt / "rejection.json").read_text())
+    assert rejection["quality"]["status"] == "rejected"
+    assert any(reason in item for item in rejection["quality"]["reasons"])
+    assert not (attempt / "calibration.json").exists()
+    assert not registered.exists()
+
+
+def test_cli_perf_probe_error_stops_before_calibrate(tmp_path, monkeypatch):
+    receipt_path, receipt = _perf_receipt(tmp_path, probe_error=True)
+    calls = []
+    original = sweep.calibrate
+
+    def observe(**kwargs):
+        calls.append(kwargs)
+        return original(**kwargs)
+
+    rc, attempt, registered = _invoke(
+        tmp_path, monkeypatch, calibrate_fn=observe,
+        extra_args=["--perf-preflight-json", str(receipt_path)],
+    )
+    assert calls == []
+    assert rc == 1
+    assert json.loads((attempt / "perf-preflight.json").read_text()) == receipt
+    rejection = json.loads((attempt / "rejection.json").read_text())
+    assert any("PerfPreflightError" in item and "probe-signal" in item
+               for item in rejection["quality"]["reasons"])
+    assert not registered.exists()
 
 
 if __name__ == "__main__":
