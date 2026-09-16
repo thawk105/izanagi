@@ -53,12 +53,13 @@ final で裁定候補として返し、実装・記録・commit は後から明�
 削除の直前に対象ごと `python3 tools/check_worktree_occupancy.py <worktree>`。rc0 のみ進み、
 rc1=占有/rc2=判定不能は停止。submodule は `git worktree remove` 禁止、F26 の手順にする:
 
-1. `git -C <worktree> checkout --detach` (branch を解放)
+1. `git -C <worktree> checkout --detach`
 2. `git branch -d <branch>` (取り込み済み確認の上)
-3. dir 撤去は 1 件 1 process・各長い timeout。一括ループ禁止、path 相互非包含時のみ並列可。
-   detach・branch 削除・prune は直列。全撤去 process 終了・成功確認後
-   (不明・中断なら停止)、`git worktree prune --dry-run --verbose` の
-   全候補＝今回所有確認済み対象なら `git worktree prune`。余分・不明候補時は real prune せず引渡し
+3. 全対象の 1・2・占有検査の後、dir 撤去は
+   `python3 tools/cleanup_remove_dirs.py -- <絶対path>...` を前景 1 回 (setsid・nohup・& 禁止)。
+   rc0 (全件 removed) 以外は停止。detach・branch 削除・prune は直列。rc0 後
+   `git worktree prune --dry-run --verbose` の全候補＝今回所有確認済み対象なら
+   `git worktree prune`。余分・不明候補時は real prune せず引渡し
 
 **`git submodule deinit` は使わない**。誤実行時は追加修復せず停止し、必要な
 `git submodule update --init external/ccbench` を final で引き渡す。正本は `docs/failures.md` F26。
