@@ -1,0 +1,28 @@
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 2850880, "time_ns": 1789576495293765716}
+IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2850901, "event": "direct-child-wait-start", "pid": 2850887, "time_ns": 1789576495321265566}
+IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2850901, "event": "direct-child-wait-complete", "pid": 2850887, "time_ns": 1789576537527684262}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 2850887, "rc": 0, "time_ns": 1789576537527778852}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 2850880, "rc": 0, "time_ns": 1789576537532290982}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 2850880, "time_ns": 1789576537542924746}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 2850880, "time_ns": 1789576537577366169}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 2850880, "time_ns": 1789576537579475299}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 2850880, "time_ns": 1789576537579491843}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 2850880, "time_ns": 1789576537582169430}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 2850880, "time_ns": 1789576537582177781}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 2850880, "rc": 1, "time_ns": 1789576537582188557}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 2850880, "rc": 1, "time_ns": 1789576537582202147}
+
+============================================================
+Request ID:             2319.nqsv
+Request Name:           izdw-df382f5e33
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Thu Sep 17 01:34:47 2026
+Started Request Time:   Thu Sep 17 01:34:55 2026
+Ended Request Time:     Thu Sep 17 01:35:37 2026
+Resources Information:
+  Elapse:               46S
+  Remaining Elapse:     5354S
+============================================================
