@@ -1,0 +1,120 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "        failure_only_diagnostic is True\n        and campaign_output_root is None",
+          "new": "        True\n        and campaign_output_root is None"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "    if not (set(cell) == keys or set(cell) == keys | {\"error\"}):\n        return False",
+          "new": "    if not (keys <= set(cell)):\n        return False"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "    assert_campaign_layer3_chain(report=report, output_root=campaign_root.parent.parent)",
+          "new": "    _ = campaign_root"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "        raw_path, _raw = read_and_verify_bytes(\n            event.get(\"raw_response_path\"), root=run_root,\n            expected_sha256=event.get(\"raw_response_sha256\"),\n            gate=\"failure-only-raw\", label=\"valid role raw response\",\n        )\n        expected_raw = run_root / \"raw\" / f\"raw_{event['invocation_id']}.txt\"\n        if raw_path != expected_raw.resolve():\n            _fail(\"failure-only-raw\", \"raw response differs from invocation path\")",
+          "new": "        pass"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "            failure_only_diagnostic=args.failure_only_diagnostic,",
+          "new": "            failure_only_diagnostic=False,"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "        failure_only_diagnostic is True\n        and campaign_output_root is None\n        and not fatal_without_cells",
+          "new": "        False\n        and campaign_output_root is None\n        and not fatal_without_cells"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "        if \"proposal\" in generation:\n            # P:4409 declares proposals only with arm_execution, which this\n            # exploratory diagnostic shape excludes.\n            _fail(\"failure-only-proposal\", \"exploratory generation declares proposal\")",
+          "new": "        if \"proposal\" in generation:\n            continue"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "        if any(key in event for key in (\n            \"arm_binding_digest_sha256\", \"provider_artifacts\",\n            \"provider_payload_sha256\", \"provider_envelope_sha256\",\n        )):\n            _fail(\"failure-only-provider\", \"exploratory role declares arm-bound artifacts\")",
+          "new": "        if False:\n            _fail(\"failure-only-provider\", \"exploratory role declares arm-bound artifacts\")"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
