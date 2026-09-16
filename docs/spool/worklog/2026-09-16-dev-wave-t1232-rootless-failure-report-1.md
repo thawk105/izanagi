@@ -38,9 +38,19 @@ title: [T-1232] failure-only の診断 report を root 引数なしで独立検�
 - **`EnterWorktree` はこの repo で両形とも使えなかった。** name 形は `Could not read the repository git config`、
   path 形は内部の `git worktree list --porcelain` が 10 秒上限を超えた (実測 17.6 秒 / 19.7 秒、worktree 113 本)。
   手動 `git worktree add` と絶対 path で進めた。add は 1 本あたり約 18 分かかった。
-- 工数: codex 子 7 本 (plan 379 秒 / 9 call、consult 175 秒 / 6 call と 203 秒 / 9 call、
-  author 1243 秒 / 55 call、review 226 秒 / 8 call と 148 秒 / 7 call、fix 646 秒 / 38 call)。
-  変異走 2 回 (job 所要の和: probe 787 秒、final 340 秒)。
+- **受入全走の 1 回目は 1 failed / 24109 passed で、赤は本 wave に帰属した。** 実装子が足した test helper が
+  coder build authority の低レベル発行 helper を直接呼んでおり、その呼び出し箇所を repo 全体の AST で
+  数えて許可台帳との完全一致を要求する検査に当たった。**pin の key が path でも wave の symbol でもなく
+  「新たに呼ぶ callee の名前」で走査範囲が全域**だったため、段 1 の pin 閉包・段 6 の焦点走・レビュー 2 本の
+  いずれも拾えなかった。F30 の再発として記録した。許可台帳へ行を足さず、既に台帳に載っている helper の
+  流用へ置き換えて直し (test file の +2 / -4 行)、変異 matrix を取り直した (8/8 KILLED・完全一致)。
+- **受入前の main 取り込みで所要台帳の `nodeid_count` が衝突した。** 台帳は実装面なので Codex 子に解決させた。
+  その子の報告が 477 byte で出力検査の下限 500 byte に届かず不受理になったため、別の子に変更させずに
+  独立監査させて受理した。**作業が小さいほど報告が短くなり下限に掛かる**という型である。
+- 工数: codex 子 10 本 (plan 379 秒 / 9 call、consult 175 秒 / 6 call と 203 秒 / 9 call、
+  author 1243 秒 / 55 call、review 226 秒 / 8 call と 148 秒 / 7 call、fix 646 秒 / 38 call、
+  台帳衝突の解決 32 秒 / 2 call (不受理) と監査 1 本、authority 修正 1 本)。
+  変異走 3 回 (job 所要の和: probe 787 秒、final 340 秒、final2 は insight の ledger)。受入全走 2 回。
 
 ## 次の一手差分
 

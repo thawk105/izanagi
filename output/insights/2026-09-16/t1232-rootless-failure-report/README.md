@@ -96,6 +96,9 @@ opt-in であることと `certifying=false` であることを「受理集合�
 - **final** (`spec-final.json` / `result-final.json`): 観測 node を完全集合として KILLED 期待で登録。
   **baseline PASSED・8/8 KILLED・MISMATCH 0・SURVIVED 0・8 変異すべてで期待 node と完全一致。**
   repo head `7bf2a8c9be9ca8bab584cbe6aaaaf3232c4142f7`。
+- **final2** (`spec-final.json` / `result-final2.json`): §9 の authority 修正で test file が変わったので、
+  同じ spec で取り直した。**baseline PASSED・8/8 KILLED・MISMATCH 0・SURVIVED 0・期待 node 完全一致。**
+  repo head `72b15a4848fe3aeb3cb3a29bc1f198659b60b3b9`。
 
 | # | 殺す機構 | 赤 node 数 |
 |---|---|---|
@@ -131,7 +134,7 @@ opt-in であることと `certifying=false` であることを「受理集合�
 
 ## 7. 工数
 
-codex 子 7 本 (model `gpt-6-astra`、effort すべて medium)。
+codex 子 10 本 (model `gpt-6-astra`、effort すべて medium)。
 
 | 段 | 本数 | 所要 / call |
 |---|---|---|
@@ -140,8 +143,10 @@ codex 子 7 本 (model `gpt-6-astra`、effort すべて medium)。
 | 段 5 author | 1 | 1243 秒 / 55 |
 | 段 6 review | 2 | 226 秒 / 8、148 秒 / 7 |
 | 段 6 fix | 1 | 646 秒 / 38 |
+| 段 6 台帳衝突の解決 (不受理) + 監査 | 2 | 解決 32 秒 / 2 (報告 477 byte で不受理)、監査 1 本 |
+| 段 6 authority 修正 (受入赤) | 1 | 1 本 |
 
-変異走 2 回 (job 所要の和: probe 787 秒、final 340 秒)。
+変異走 3 回 (job 所要の和: probe 787 秒、final 340 秒、final2 は `result-final2.json`)。受入全走 2 回。
 
 ## 8. 逐語
 
@@ -153,3 +158,37 @@ codex の出力が Markdown の強制改行 (行末の空白 2 個) を含み、
 可視文字は変えていない。原本の sha256・byte 数と、除去した行番号・空白数を
 `verbatim-whitespace-normalization.json` に記録した。記録どおり空白を戻すと、5 file すべてが原本と
 byte 一致することを親が検算した。
+
+## 9. 受入全走の赤 1 件と修正
+
+1 回目の受入全走 (tested tip `724286fb3`、local main `e667c8c13` を取り込み済み) は
+**1 failed / 24109 passed / 68 skipped** だった。赤は本 wave に帰属する。
+
+- 赤: `orchestrator/tests/test_p3_build_authority_cli.py::test_tracked_python_coder_authority_ast_closure_is_exact`
+  (`test_p3_build_authority_cli.py:681`)。
+- 本文: `low_level_calls` に
+  `('orchestrator/tests/test_autonomous_trial_completeness.py', '_failure_only_producer', 'add_coder_build_authority_argument'): 1`
+  が余分に 1 件あり、許可台帳 `_LOW_LEVEL_ISSUER_ALLOWLIST` と一致しない。
+- 原因: 段 5 の実装子が足した test helper `_failure_only_producer` が、coder build authority の低レベル発行
+  helper を直接呼んで authority を作っていた。この検査は呼び出し箇所を tracked な Python 全体の AST で数え、
+  台帳との完全一致を要求する authority 境界の構造検査である。
+- **取り逃した理由:** pin の key が file path ではなく**呼び先の helper 名**で、走査範囲が repo 全体だった。
+  段 1 の pin 閉包は編集面の path で引いたので hit せず、段 6 の焦点走 (`DW-O26`) は本 wave の symbol を
+  参照する consumer test を集めたのでこの検査を含まず、段 6 レビュー 2 本も拾わなかった。
+  F30 の再発として記録した。
+- **直し方: 許可台帳へ行を足さない。** authority 発行箇所の許可集合を増やすことになるからである。
+  既に台帳に載っている `orchestrator/tests/test_p3_autonomous_workload_trial.py` の `_coder_authority()` を
+  module import して流用した (先例 `orchestrator/tests/test_reflux_originless_compatibility.py`)。
+  変更は test file の +2 / -4 行だけ (commit `72b15a484`)。修正子の自走 harness で
+  `test_p3_build_authority_cli.py` 19 件と `test_autonomous_trial_completeness.py` 283 件が緑。
+- test file が変わったので、変異 matrix を同じ最終 spec で取り直した (`mutation/result-final2.json`)。
+
+### 受入前の local main 取り込みで起きた台帳衝突
+
+受入の直前に local main が 27 commit 進んでおり、wave 開始時に編集面の重複として記録していた
+`throughput_ops_sec` → `throughput_tps` 改名の wave が land していた。本 wave の編集面 3 file はすべて
+main 側でも変わっていたが、実装 file と test file は自動 merge でき、所要台帳は `nodeid_count` の 1 行だけが
+衝突した (本 wave 側 23142、main 側 23121)。台帳は実装面なので Codex 子に解決させた (merge 後の key 実数 23145)。
+その子の報告は 477 byte で出力検査の下限 500 byte に届かず不受理になったため、別の Codex 子に変更させずに
+独立監査させて受理した (marker 0、JSON 解析成功、key 数 = 件数、重複 0、両親との差分が過不足なく説明できる)。
+merge commit は `724286fb3`。
