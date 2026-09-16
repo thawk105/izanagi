@@ -928,6 +928,106 @@ def test_partial_receipt_cannot_drop_c02_reason_without_descriptor_proof(
         receipt.verify_acceptance_receipt(path, repository_root=repo)
 
 
+@pytest.mark.parametrize("schema_version", [
+    receipt.PREVIOUS_SCHEMA_VERSION,
+    receipt.SCHEMA_VERSION,
+], ids=["v2", "v5"])
+def test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02(
+    tmp_path: Path, schema_version: str,
+) -> None:
+    repo, path, value = _fixture(tmp_path)
+    row = _trial(value, "H2", "off")
+    report_path = repo / row["report_path"]
+    report = json.loads(report_path.read_bytes())
+    assert report["status"] == row["status"] == "complete"
+    assert report["do_build"] is False
+    report["cells"] = []
+    report_bytes = _canonical(report)
+    report_path.write_bytes(report_bytes)
+    row["report_sha256"] = hashlib.sha256(report_bytes).hexdigest()
+    value["non_certifying_reason_codes"] = sorted({
+        *value["non_certifying_reason_codes"], receipt.C02_ARM_BINDING_UNPROVEN,
+    })
+    if schema_version == receipt.SCHEMA_VERSION:
+        _upgrade_to_current(repo, value)
+    _rewrite_receipt(repo, path, value, "complete receipt without descriptor proof")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=r"^\[receipt-arm-binding\] complete trial lacks descriptor proof$",
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells(
+    tmp_path: Path,
+) -> None:
+    repo, path, value = _fixture(tmp_path)
+    row = _trial(value, "H1", "on")
+    report_path = repo / row["report_path"]
+    report = json.loads(report_path.read_bytes())
+    descriptor = report["cells"][0]["descriptor"]
+    assert type(descriptor["read_write"]["read_ratio_percent"]) is int
+    assert descriptor["read_write"]["read_ratio_percent"] == 80
+    descriptor["read_write"]["read_ratio_percent"] = 79
+    report_bytes = _canonical(report)
+    report_path.write_bytes(report_bytes)
+    row["report_sha256"] = hashlib.sha256(report_bytes).hexdigest()
+    _rewrite_receipt(repo, path, value, "conflicting descriptor with original digest")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=(r"^\[receipt-arm-binding\] cell descriptor content digest "
+               r"differs from receipt$"),
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+    report["cells"] = []
+    report_bytes = _canonical(report)
+    report_path.write_bytes(report_bytes)
+    row["report_sha256"] = hashlib.sha256(report_bytes).hexdigest()
+    value["non_certifying_reason_codes"] = sorted({
+        *value["non_certifying_reason_codes"], receipt.C02_ARM_BINDING_UNPROVEN,
+    })
+    _upgrade_to_current(repo, value)
+    _rewrite_receipt(repo, path, value, "conflicting descriptor dropped from cells")
+
+    with pytest.raises(
+        receipt.AcceptanceReceiptError,
+        match=r"^\[receipt-arm-binding\] complete trial lacks descriptor proof$",
+    ):
+        receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def test_partial_receipt_with_c02_and_no_cells_passes_current_capability(
+    tmp_path: Path,
+) -> None:
+    repo, path, value = _fixture(tmp_path)
+    row = _trial(value, "H2", "off")
+    report_path = repo / row["report_path"]
+    report = json.loads(report_path.read_bytes())
+    report["cells"] = []
+    report_bytes = _canonical(report)
+    report_path.write_bytes(report_bytes)
+    row["report_sha256"] = hashlib.sha256(report_bytes).hexdigest()
+    value["non_certifying_reason_codes"] = sorted({
+        *value["non_certifying_reason_codes"], receipt.C02_ARM_BINDING_UNPROVEN,
+    })
+    _upgrade_to_current(
+        repo, value, terminal_failure_trials=frozenset({row["trial_id"]}),
+    )
+    _rewrite_receipt(repo, path, value, "partial receipt retains c02 without cells")
+
+    verified = receipt.verify_acceptance_receipt(path, repository_root=repo)
+    trial = next(
+        trial for trial in verified.trials if trial.trial_id == row["trial_id"]
+    )
+    assert trial.status == "partial"
+    assert receipt.C02_ARM_BINDING_UNPROVEN in verified.receipt.non_certifying_reason_codes
+    assert verified.certifying is False
+    assert receipt.require_current_verified_receipt(verified).sha256 == verified.sha256
+
+
 def test_origin_terminal_projection_is_retained_and_reverified(
     tmp_path: Path,
 ) -> None:
