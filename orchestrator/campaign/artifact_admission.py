@@ -81,9 +81,9 @@ CAMPAIGN_VERIFIER_EPOCH_SCOPE = (
 CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE = (
     "同実測の発見集合の未収載 99 module、同発見集合に入らない module、"
     "orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、"
-    "package 外の orchestrator/verify.py、および収載 path の source bytes を除く "
-    "data/schema、生成物、subprocess、外部 command/Git、toolchain、binary、動的 "
-    "import を含む非 import 委譲は本 map の外であり、完全性を主張しない"
+    "package 外の orchestrator/verify.py、および data/schema、生成物、subprocess、"
+    "外部 command/Git、toolchain、binary、動的 import を含む非 import 委譲は本 map の外であり "
+    "(収載 path の source bytes は委譲先であっても本 map の内)、完全性を主張しない"
 )
 PRE_T733_CAMPAIGN_VERIFIER_EPOCH_SCOPE = (
     "enforcement source closure (exact 24 path; witness gate、S8C 判定器、"
