@@ -41,7 +41,7 @@ worklog 末尾と phase3.md)。矛盾があれば正典が勝つ。
 `Agent(subagent_type='planner-v4')`。入力は段4b runbook と同型 (JSON):
 ```json
 {
-  "current_perf": {"throughput_ops_sec": <baseline>, "abort_rate_pct": <baseline>, "last_delta_pct": null},
+  "current_perf": {"throughput_tps": <baseline>, "abort_rate_pct": <baseline>, "last_delta_pct": null},
   "leading_indicators": {"cache_miss_rate_pct": <baseline>, "contention_level": "<...>", "IPC_overall": <baseline>},
   "whiteboard": <loop_state.json の whiteboard (抽象・機序なし)>
 }
@@ -64,7 +64,7 @@ axis は `"silo-writeset-sort"` (段4b は `"silo-backoff-magnitude"`)。**direc
   "leakproof_context": "<src/coder-leakproof-context.md の内容を inline で>",
   "sort_spec": "<coder-v4-autonomous-sort.md の「合成対象と制約」節を inline で>",
   "planner_direction": <(a) の proposal>,
-  "baseline": {"throughput_ops_sec": <baseline>, "abort_rate_pct": <baseline>},
+  "baseline": {"throughput_tps": <baseline>, "abort_rate_pct": <baseline>},
   "whiteboard": <抽象 whiteboard>
 }
 ```

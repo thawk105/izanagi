@@ -257,6 +257,47 @@ class BuildAdmissionPolicy:
         return json.loads(self._preimage_json)
 
 
+_HISTORICAL_POLICY_KEYS = frozenset({
+    "schema", "repo_stock_pin", "coder_authority",
+    "generator_registry", "review_registry",
+})
+_HISTORICAL_POLICY_SCHEMA = "build-admission-policy/v1"
+
+
+@dataclass(frozen=True, slots=True, init=False)
+class HistoricalBuildAdmissionPolicy:
+    """Recorded policy shape and identity, not proof of historical authority."""
+
+    _preimage_json: str
+    sha256: str
+
+    def __init__(self, preimage: Mapping[str, object], *, _seal: object = None) -> None:
+        if _seal is not _SEAL:
+            raise BuildAdmissionError("HistoricalBuildAdmissionPolicy requires historical decoder")
+        rendered = _canonical_json(preimage)
+        object.__setattr__(self, "_preimage_json", rendered)
+        object.__setattr__(self, "sha256", hashlib.sha256(rendered.encode("utf-8")).hexdigest())
+
+    def as_preimage(self) -> Mapping[str, object]:
+        return json.loads(self._preimage_json)
+
+
+def decode_historical_build_admission_policy(value: object) -> HistoricalBuildAdmissionPolicy:
+    """Preserve recorded values; validate only the independently fixed v1 shape."""
+    if type(value) is not dict:
+        raise BuildAdmissionError("historical build admission policy requires exact dict")
+    body = _require_exact_keys(value, _HISTORICAL_POLICY_KEYS, "historical build admission policy")
+    if body["schema"] != _HISTORICAL_POLICY_SCHEMA:
+        raise BuildAdmissionError("historical build admission policy schema differs")
+    for key in ("repo_stock_pin", "coder_authority"):
+        if type(body[key]) is not str:
+            raise BuildAdmissionError(f"historical build admission policy {key} requires exact str")
+    for key in ("generator_registry", "review_registry"):
+        if type(body[key]) is not list or any(type(item) is not str for item in body[key]):
+            raise BuildAdmissionError(f"historical build admission policy {key} requires list of exact str")
+    return HistoricalBuildAdmissionPolicy(body, _seal=_SEAL)
+
+
 @dataclass(frozen=True, slots=True, init=False)
 class BuildRunContext:
     """One process-local run context for generator and optional CLI authority receipts."""
@@ -683,8 +724,18 @@ def _validate_admission_body(
 ) -> Mapping[str, object]:
     if type(expected_policy) is not BuildAdmissionPolicy:
         raise BuildAdmissionError("expected_policy は BuildRunContext.policy の exact value が必要")
+    return _validate_admission_body_against_policy(
+        value, policy_sha256=expected_policy.sha256, stock_pin=CURRENT_PIN,
+        expected_source=expected_source,
+    )
+
+
+def _validate_admission_body_against_policy(
+    value: object, *, policy_sha256: str, stock_pin: str,
+    expected_source: SourceEvidence | None,
+) -> Mapping[str, object]:
     body = _require_exact_keys(value, _ADMISSION_KEYS, "build admission receipt")
-    if body["schema"] != ADMISSION_SCHEMA or body["policy_sha256"] != expected_policy.sha256:
+    if body["schema"] != ADMISSION_SCHEMA or body["policy_sha256"] != policy_sha256:
         raise BuildAdmissionError("build admission receipt の schema/policy が不一致")
     source_body = body["source"]
     try:
@@ -706,7 +757,7 @@ def _validate_admission_body(
 
     if provenance is BuildProvenance.STOCK_BASELINE:
         if not (source.src_token == STOCK and source.tracked_clean is True
-                and source.ccbench_commit == CURRENT_PIN):
+                and source.ccbench_commit == stock_pin):
             raise BuildAdmissionError("stock class を repo pin/clean/source evidence が支持しない")
         expected_null = ("generator_id", "review_id", "input_sha256",
                          "generator_receipt", "review_receipt", "authority_kind")
@@ -774,5 +825,20 @@ def validate_build_admission_receipt(
 
     checked = _validate_admission_body(
         value, expected_policy=expected_policy, expected_source=expected_source
+    )
+    return json.loads(_canonical_json(checked))
+
+
+def validate_historical_build_admission_receipt(
+    value: object, *, expected_policy: HistoricalBuildAdmissionPolicy,
+    expected_source: SourceEvidence | None = None,
+) -> Mapping[str, object]:
+    """Check recorded policy/stock consistency, retaining current registries and authority."""
+    if type(expected_policy) is not HistoricalBuildAdmissionPolicy:
+        raise BuildAdmissionError("expected_policy requires exact HistoricalBuildAdmissionPolicy")
+    checked = _validate_admission_body_against_policy(
+        value, policy_sha256=expected_policy.sha256,
+        stock_pin=expected_policy.as_preimage()["repo_stock_pin"],
+        expected_source=expected_source,
     )
     return json.loads(_canonical_json(checked))
