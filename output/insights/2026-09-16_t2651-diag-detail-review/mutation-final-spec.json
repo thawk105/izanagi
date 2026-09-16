@@ -1,0 +1,117 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "timeout_seconds": 900,
+ "hang_timeout_seconds": 1200,
+ "estimated_run_seconds": 600,
+ "mutations": [
+  {
+   "id": "M1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s1_direct_comparison.py",
+     "old": "        for record in (*supply_records, *meaning_records):\n",
+     "new": "        for record in ():\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_detail_formatter_failure_preserves_rejection[GeneratorExit]",
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_detail_formatter_failure_preserves_rejection[KeyboardInterrupt]",
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_detail_formatter_failure_preserves_rejection[RuntimeError]",
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_detail_formatter_failure_preserves_rejection[SystemExit]",
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_real_process_detail_within_diagnostic_budget_is_complete",
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_rejection_preserves_every_real_red_detail[changed volatile source]",
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_rejection_preserves_every_real_red_detail[first source]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s1_direct_comparison.py",
+     "old": "        for record in (*supply_records, *meaning_records):\n",
+     "new": "        for record in tuple(\n            record for record in (*supply_records, *meaning_records)\n            if record.terminal_status != \"green\"\n        )[:1]:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_detail_formatter_failure_preserves_rejection[RuntimeError]",
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_rejection_preserves_every_real_red_detail[changed volatile source]",
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_rejection_preserves_every_real_red_detail[first source]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s1_direct_comparison.py",
+     "old": "            except Exception:\n                rejection += \"\\n<condition detail unavailable>\"\n",
+     "new": "            except ():\n                rejection += \"\\n<condition detail unavailable>\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_detail_formatter_failure_preserves_rejection[RuntimeError]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M5",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s1_direct_comparison.py",
+     "old": "        tail = encoded[-tail_bytes:].decode(\"utf-8\", errors=\"ignore\")\n",
+     "new": "        tail = \"\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_long_record_detail_keeps_both_ends_and_omission_evidence[/u5171/u901a.hh-tail]",
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_long_record_detail_keeps_both_ends_and_omission_evidence[common.hh-tail]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s1_direct_comparison.py",
+     "old": "        head = encoded[:head_bytes].decode(\"utf-8\", errors=\"ignore\")\n",
+     "new": "        head = \"\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_long_record_detail_keeps_both_ends_and_omission_evidence[/u5171/u901a.hh-head]",
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_long_record_detail_keeps_both_ends_and_omission_evidence[common.hh-head]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s1_direct_comparison.py",
+     "old": "                f\"sha256={digest}>...\"\n",
+     "new": "                \">...\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_long_record_detail_keeps_both_ends_and_omission_evidence[/u5171/u901a.hh-omitted]",
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_long_record_detail_keeps_both_ends_and_omission_evidence[/u5171/u901a.hh-sha256]",
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_long_record_detail_keeps_both_ends_and_omission_evidence[common.hh-omitted]",
+    "orchestrator/tests/test_s1_direct_comparison.py::test_condition_long_record_detail_keeps_both_ends_and_omission_evidence[common.hh-sha256]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
