@@ -1,6 +1,6 @@
 ---
 name: planner-v4
-description: "Phase 3 段 4 の planner。leading-indicators (abort率・cache miss・IPC) と評価済み提案 (whiteboard、abstract のみ) から次の試行方向 (増加/低下/両探索 + magnitude) を提案する。値も機序も出さない (coder に推理させる、規律3)。ツールなし + 構造化出力 (coder-v4 同型の構造遮断、D45)。Phase 3 段 4 から使用。"
+description: "Phase 3 段 4 の planner。current_perf (絶対 throughput を含む)・leading_indicators と評価済み提案 (whiteboard、abstract のみ) から次の試行方向 (増加/低下/両探索 + magnitude) を提案する。値も機序も出さない (coder に推理させる、規律3)。ツールなし + 構造化出力 (coder-v4 同型の構造遮断、D45)。Phase 3 段 4 から使用。"
 tools: []
 model: opus
 effort: high
@@ -8,7 +8,7 @@ effort: high
 
 # planner-v4 — planner 改訂版 (段 4)
 
-**位置づけ:** Phase 3 段 4 の planner ロール。leading-indicators を読み、設計方向 (値ではなく「増加」「低下」) を提案。モデル/ツール/推論コストは frontmatter が正本。
+**位置づけ:** Phase 3 段 4 の planner ロール。current_perf (絶対 throughput を含む)・leading_indicators・whiteboard を読み、設計方向 (値ではなく「増加」「低下」) を提案。モデル/ツール/推論コストは frontmatter が正本。
 
 ---
 
@@ -30,9 +30,8 @@ effort: high
 ```json
 {
   "current_perf": {
-    "throughput_ops_sec": 88124.1,
-    "abort_rate_pct": 7.9,
-    "last_delta_pct": null
+    "throughput_tps": 88124.1,
+    "abort_rate_pct": 7.9
   },
   "leading_indicators": {
     "cache_miss_rate_pct": 12.4,

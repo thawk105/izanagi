@@ -1,0 +1,78 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1-projection-perf-keys",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_generation_projection.py",
+          "old": "_PERF_KEYS = frozenset({\n    \"throughput_tps\",",
+          "new": "_PERF_KEYS = frozenset({\n    \"throughput_ops_sec\","
+        }
+      ]
+    },
+    {
+      "id": "M2-completeness-perf-keys",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "_PERF_KEYS = {\n    \"throughput_tps\", \"abort_rate_pct\",",
+          "new": "_PERF_KEYS = {\n    \"throughput_ops_sec\", \"abort_rate_pct\","
+        }
+      ]
+    },
+    {
+      "id": "M3-producer-schema-version",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "old": "SCHEMA_VERSION = \"p3-autonomous-workload-trial/v4\"",
+          "new": "SCHEMA_VERSION = \"p3-autonomous-workload-trial/v3\""
+        }
+      ]
+    },
+    {
+      "id": "M4-adapter-source-pin",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": ".codex/role-adapters/planner-v4.json",
+          "old": "\"path\": \".claude/agents/planner-v4.md\",\n    \"sha256\": \"c47cf0ff81bb88d1ad65d5b0b92ac35feb40f49e4d2a8eef9007b48c286bf5f9\"",
+          "new": "\"path\": \".claude/agents/planner-v4.md\",\n    \"sha256\": \"1d6b1603dbbb7c776202cd20a300e60e01b9119b55068ddfcce3e83714f646da\""
+        }
+      ]
+    },
+    {
+      "id": "M5-originless-golden-correction",
+      "category": "negative",
+      "hang_risk": false,
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+          "old": "_extend_t304_role_name_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)\n",
+          "new": ""
+        }
+      ]
+    }
+  ]
+}

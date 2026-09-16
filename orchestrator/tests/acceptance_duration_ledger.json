@@ -1,5 +1,8 @@
 {
   "duration_seconds_by_nodeid": {
+    "orchestrator/tests/test_autonomous_trial_completeness.py::test_role_schema_v4_and_report_schema_v3_are_required": 0.006,
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_updated_metric_reinsertion_fails_before_target_provider[_coder_baseline_payload-payload.baseline.throughput_tps-coder]": 0.18,
+    "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_generation_updated_metric_reinsertion_fails_before_target_provider[_planner_current_perf_payload-payload.current_perf.throughput_tps-planner]": 0.21,
     "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_non_preregistered_root_is_rejected_before_rng_or_root_inspection[b4-prerun-publication-extra]": 0.004,
     "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_non_preregistered_root_is_rejected_before_rng_or_root_inspection[different-publication]": 0.004,
     "orchestrator/tests/test_p3_b4_prerun_issuer.py::test_preregistered_root_declaration_fails_closed[ambiguous]": 0.051,
@@ -23143,7 +23146,7 @@
     "orchestrator/tests/test_autonomous_trial_completeness.py::test_failure_only_diagnostic_rejects_declared_proposal": 0.0,
     "orchestrator/tests/test_autonomous_trial_completeness.py::test_failure_only_diagnostic_requires_explicit_opt_in": 0.0
   },
-  "nodeid_count": 23142,
+  "nodeid_count": 23145,
   "schema_version": 1,
   "unit": "seconds"
 }
