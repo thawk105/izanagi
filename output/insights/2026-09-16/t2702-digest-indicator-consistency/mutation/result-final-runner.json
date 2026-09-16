@@ -1,0 +1,658 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/ff0049f0b0ae4059efe2cc15925b0695/izdw-ff0049f0b0.o2020",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/ff0049f0b0ae4059efe2cc15925b0695/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [78 items]\n\n........................................................................ [ 92%]\n......                                                                   [100%]\n============================== 78 passed in 4.29s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "78ce2d31ce69611d0c91a0a641d90e7a3d3436f25bbe02dd1f181fccb80d15de"
+    },
+    "artifact_error": null,
+    "collection_sha256": "bf2d10abb32da6d3a2b399280ad2b3aa61ceb35b2ce8bded70c974d995f71b96",
+    "duration_s": 27.563,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "a675fcb6f3e4866f7981d7db75bdb6ed3475e5365aab89388d3a5c90163e7f15",
+    "repo_head": "d586abff51e97b9cfd0d6594dbcf893f81a5851a",
+    "runner_sha256": "af743a97c6e3527b474cda0499c22e16909180eaa58acc4891b58047c8c51f94",
+    "spec_sha256": "cc06443976606e4819bf9c61ac65b1df43c25ecae5dab7eca22d81e1fd95615d",
+    "status": "PASSED",
+    "test_output_sha256": "78ce2d31ce69611d0c91a0a641d90e7a3d3436f25bbe02dd1f181fccb80d15de",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "ab85ea19bb8e17b2aad49c8f902da854d0172deaacd0868807911760c9a877b6"
+  },
+  "date": "2026-09-16T12:09:03.980055+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/56a969b3682612aef0caf20fea8e050b/izdw-56a969b368.o2022",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/56a969b3682612aef0caf20fea8e050b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [78 items]\n\n....................................................................FFFF [ 92%]\nFF....                                                                   [100%]\n=================================== FAILURES ===================================\n_______ test_measure_point_even_reps_average_central_indicators[direct] ________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'direct'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_even_reps_average_central_indicators(api):\n        point = _measure_indicator_reps(api, [\n            (400, .9, 10_000_000, 100), (100, .8, 40_000_000, 200),\n            (300, .6, 14_000_000, 300), (200, .2, 20_000_000, 400),\n        ])\n        assert point.throughputs == [400, 100, 300, 200]\n        assert point.throughput == 250\n>       assert point.abort_rate == .4\nE       AssertionError: assert 0.6 == 0.4\nE        +  where 0.6 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.6, latency_ns=17000000.0, notes=[], rep_observations=None).abort_rate\n\norchestrator/tests/test_calibrator.py:497: AssertionError\n_______ test_measure_point_parity_uses_valid_reps_not_requested[direct] ________\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'direct'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_parity_uses_valid_reps_not_requested(api):\n        point = _measure_indicator_reps(api, [\n            (400, .9, 10_000_000, 100), (None, .99, 99_000_000, 999),\n            (100, .8, 40_000_000, 200), (300, .6, 14_000_000, 300),\n            (200, .2, 20_000_000, 400),\n        ], returncodes=[0, 7, 0, 0, 0])\n        assert point.throughputs == [400, 100, 300, 200]\n        assert point.throughput == 250\n>       assert (point.abort_rate, point.latency_ns, point.maxrss_kb) == (.4, 17_000_000, 300)\nE       assert (0.6, 17000000.0, 300) == (0.4, 17000000, 300)\nE         \nE         At index 0 diff: 0.6 != 0.4\nE         Use -v to get more diff\n\norchestrator/tests/test_calibrator.py:562: AssertionError\n______ test_measure_point_even_reps_average_central_indicators[deferred] _______\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'deferred'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_even_reps_average_central_indicators(api):\n        point = _measure_indicator_reps(api, [\n            (400, .9, 10_000_000, 100), (100, .8, 40_000_000, 200),\n            (300, .6, 14_000_000, 300), (200, .2, 20_000_000, 400),\n        ])\n        assert point.throughputs == [400, 100, 300, 200]\n        assert point.throughput == 250\n>       assert point.abort_rate == .4\nE       AssertionError: assert 0.6 == 0.4\nE        +  where 0.6 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.6, latency_ns=17000000.0, notes=[], rep_observations=None).abort_rate\n\norchestrator/tests/test_calibrator.py:497: AssertionError\n______ test_measure_point_parity_uses_valid_reps_not_requested[deferred] _______\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'deferred'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_parity_uses_valid_reps_not_requested(api):\n        point = _measure_indicator_reps(api, [\n            (400, .9, 10_000_000, 100), (None, .99, 99_000_000, 999),\n            (100, .8, 40_000_000, 200), (300, .6, 14_000_000, 300),\n            (200, .2, 20_000_000, 400),\n        ], returncodes=[0, 7, 0, 0, 0])\n        assert point.throughputs == [400, 100, 300, 200]\n        assert point.throughput == 250\n>       assert (point.abort_rate, point.latency_ns, point.maxrss_kb) == (.4, 17_000_000, 300)\nE       assert (0.6, 17000000.0, 300) == (0.4, 17000000, 300)\nE         \nE         At index 0 diff: 0.6 != 0.4\nE         Use -v to get more diff\n\norchestrator/tests/test_calibrator.py:562: AssertionError\n_________ test_measure_point_even_reps_none_indicator_is_none[direct] __________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'direct'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_even_reps_none_indicator_is_none(api):\n        for field in (1, 2):\n            # Exercise each indicator independently; outside reps must not fill gaps.\n            cases = ([(None, .6, None), (.6, None, None), (None, None, None), (0, .6, .3)]\n                     if field == 1 else\n                     [(None, 14_000_000, None), (14_000_000, None, None),\n                      (None, None, None), (0, 14_000_000, 7_000_000)])\n            for low, high, expected in cases:\n                rows = [[400, .9, 10_000_000, 100], [100, .8, 40_000_000, 200],\n                        [300, .6, 14_000_000, 300], [200, .2, 20_000_000, 400]]\n                rows[3][field], rows[2][field] = low, high\n                point = _measure_indicator_reps(api, rows)\n                assert point.throughput == 250\n>               assert point.abort_rate == (expected if field == 1 else .4)\nE               AssertionError: assert 0.6 == None\nE                +  where 0.6 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.6, latency_ns=17000000.0, notes=[], rep_observations=None).abort_rate\n\norchestrator/tests/test_calibrator.py:548: AssertionError\n________ test_measure_point_even_reps_none_indicator_is_none[deferred] _________\n[gw45] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'deferred'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_even_reps_none_indicator_is_none(api):\n        for field in (1, 2):\n            # Exercise each indicator independently; outside reps must not fill gaps.\n            cases = ([(None, .6, None), (.6, None, None), (None, None, None), (0, .6, .3)]\n                     if field == 1 else\n                     [(None, 14_000_000, None), (14_000_000, None, None),\n                      (None, None, None), (0, 14_000_000, 7_000_000)])\n            for low, high, expected in cases:\n                rows = [[400, .9, 10_000_000, 100], [100, .8, 40_000_000, 200],\n                        [300, .6, 14_000_000, 300], [200, .2, 20_000_000, 400]]\n                rows[3][field], rows[2][field] = low, high\n                point = _measure_indicator_reps(api, rows)\n                assert point.throughput == 250\n>               assert point.abort_rate == (expected if field == 1 else .4)\nE               AssertionError: assert 0.6 == None\nE                +  where 0.6 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.6, latency_ns=17000000.0, notes=[], rep_observations=None).abort_rate\n\norchestrator/tests/test_calibrator.py:548: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[deferred]\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]\n========================= 6 failed, 72 passed in 4.22s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=1451 retained_bytes=1451 omitted_bytes=0 rendered_excerpt_bytes=1498 sha256=c9a2f432f5237384ee37febead4cbab94be8192a0901b3b860f675bf86b04a46\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw45] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'deferred'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_even_reps_none_indicator_is_none(api):\n>         for field in (1, 2):\n>             # Exercise each indicator independently; outside reps must not fill gaps.\n>             cases = ([(None, .6, None), (.6, None, None), (None, None, None), (0, .6, .3)]\n>                      if field == 1 else\n>                      [(None, 14_000_000, None), (14_000_000, None, None),\n>                       (None, None, None), (0, 14_000_000, 7_000_000)])\n>             for low, high, expected in cases:\n>                 rows = [[400, .9, 10_000_000, 100], [100, .8, 40_000_000, 200],\n>                         [300, .6, 14_000_000, 300], [200, .2, 20_000_000, 400]]\n>                 rows[3][field], rows[2][field] = low, high\n>                 point = _measure_indicator_reps(api, rows)\n>                 assert point.throughput == 250\n> >               assert point.abort_rate == (expected if field == 1 else .4)\n> E               AssertionError: assert 0.6 == None\n> E                +  where 0.6 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.6, latency_ns=17000000.0, notes=[], rep_observations=None).abort_rate\n> \n> orchestrator/tests/test_calibrator.py:548: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=1449 retained_bytes=1449 omitted_bytes=0 rendered_excerpt_bytes=1496 sha256=5ae17440f9f5aad08eb8b708091704a596b94103b7dc18a1ac870b82b9c3bb02\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'direct'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_even_reps_none_indicator_is_none(api):\n>         for field in (1, 2):\n>             # Exercise each indicator independently; outside reps must not fill gaps.\n>             cases = ([(None, .6, None), (.6, None, None), (None, None, None), (0, .6, .3)]\n>                      if field == 1 else\n>                      [(None, 14_000_000, None), (14_000_000, None, None),\n>                       (None, None, None), (0, 14_000_000, 7_000_000)])\n>             for low, high, expected in cases:\n>                 rows = [[400, .9, 10_000_000, 100], [100, .8, 40_000_000, 200],\n>                         [300, .6, 14_000_000, 300], [200, .2, 20_000_000, 400]]\n>                 rows[3][field], rows[2][field] = low, high\n>                 point = _measure_indicator_reps(api, rows)\n>                 assert point.throughput == 250\n> >               assert point.abort_rate == (expected if field == 1 else .4)\n> E               AssertionError: assert 0.6 == None\n> E                +  where 0.6 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.6, latency_ns=17000000.0, notes=[], rep_observations=None).abort_rate\n> \n> orchestrator/tests/test_calibrator.py:548: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[deferred]\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=928 retained_bytes=928 omitted_bytes=0 rendered_excerpt_bytes=963 sha256=bc4f2a5dcaca7af7f35ab4616df0be8367065caea232180063f2769b8f7c00cf\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'deferred'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_even_reps_average_central_indicators(api):\n>         point = _measure_indicator_reps(api, [\n>             (400, .9, 10_000_000, 100), (100, .8, 40_000_000, 200),\n>             (300, .6, 14_000_000, 300), (200, .2, 20_000_000, 400),\n>         ])\n>         assert point.throughputs == [400, 100, 300, 200]\n>         assert point.throughput == 250\n> >       assert point.abort_rate == .4\n> E       AssertionError: assert 0.6 == 0.4\n> E        +  where 0.6 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.6, latency_ns=17000000.0, notes=[], rep_observations=None).abort_rate\n> \n> orchestrator/tests/test_calibrator.py:497: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=926 retained_bytes=926 omitted_bytes=0 rendered_excerpt_bytes=961 sha256=ecbfa2d8852eafa04c093940c48daa5c4a89e24dafdc8ac353b063aa1f1c832a\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'direct'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_even_reps_average_central_indicators(api):\n>         point = _measure_indicator_reps(api, [\n>             (400, .9, 10_000_000, 100), (100, .8, 40_000_000, 200),\n>             (300, .6, 14_000_000, 300), (200, .2, 20_000_000, 400),\n>         ])\n>         assert point.throughputs == [400, 100, 300, 200]\n>         assert point.throughput == 250\n> >       assert point.abort_rate == .4\n> E       AssertionError: assert 0.6 == 0.4\n> E        +  where 0.6 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.6, latency_ns=17000000.0, notes=[], rep_observations=None).abort_rate\n> \n> orchestrator/tests/test_calibrator.py:497: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=882 retained_bytes=882 omitted_bytes=0 rendered_excerpt_bytes=923 sha256=fe4b4a8346074ece3f94afc5860d1243f60fdefed8c45e1cb8b36bfa5061f819\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw47] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'deferred'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_parity_uses_valid_reps_not_requested(api):\n>         point = _measure_indicator_reps(api, [\n>             (400, .9, 10_000_000, 100), (None, .99, 99_000_000, 999),\n>             (100, .8, 40_000_000, 200), (300, .6, 14_000_000, 300),\n>             (200, .2, 20_000_000, 400),\n>         ], returncodes=[0, 7, 0, 0, 0])\n>         assert point.throughputs == [400, 100, 300, 200]\n>         assert point.throughput == 250\n> >       assert (point.abort_rate, point.latency_ns, point.maxrss_kb) == (.4, 17_000_000, 300)\n> E       assert (0.6, 17000000.0, 300) == (0.4, 17000000, 300)\n> E         \n> E         At index 0 diff: 0.6 != 0.4\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_calibrator.py:562: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=880 retained_bytes=880 omitted_bytes=0 rendered_excerpt_bytes=921 sha256=8305fe69999c8a8d4aabb39ee42c30c1bbfa1949cb2e227f35ed45ca02742bc9\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw46] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'direct'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_parity_uses_valid_reps_not_requested(api):\n>         point = _measure_indicator_reps(api, [\n>             (400, .9, 10_000_000, 100), (None, .99, 99_000_000, 999),\n>             (100, .8, 40_000_000, 200), (300, .6, 14_000_000, 300),\n>             (200, .2, 20_000_000, 400),\n>         ], returncodes=[0, 7, 0, 0, 0])\n>         assert point.throughputs == [400, 100, 300, 200]\n>         assert point.throughput == 250\n> >       assert (point.abort_rate, point.latency_ns, point.maxrss_kb) == (.4, 17_000_000, 300)\n> E       assert (0.6, 17000000.0, 300) == (0.4, 17000000, 300)\n> E         \n> E         At index 0 diff: 0.6 != 0.4\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_calibrator.py:562: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=6 failed=6 errors=0 selected=6 omitted_failures=0 source_bytes=6516 retained_bytes=6516 omitted_bytes=0 budget_bytes=49152 rendered_bytes=9692 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5792199ddd8dd3c27c18956d338eb9f642204749074d76489b36e28ee118459e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "bf2d10abb32da6d3a2b399280ad2b3aa61ceb35b2ce8bded70c974d995f71b96",
+      "duration_s": 27.514,
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]"
+      ],
+      "hang_risk": false,
+      "id": "M1",
+      "injection_diff_sha256": "d519e26645eba2976c411e64bd29bce2bf9df756ef34e5ca6eb84c59e37396fe",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "105c4fdc7a31a17bd7fb875dec08226f3181c2b6fd87874a079790e2f59f5e8c",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "new": "        abort_rate = hi[4]\n",
+          "old": "        abort_rate = (_median([lo[4], hi[4]])\n                      if lo[4] is not None and hi[4] is not None else None)\n"
+        }
+      ],
+      "repo_head": "d586abff51e97b9cfd0d6594dbcf893f81a5851a",
+      "runner_sha256": "af743a97c6e3527b474cda0499c22e16909180eaa58acc4891b58047c8c51f94",
+      "spec_sha256": "cc06443976606e4819bf9c61ac65b1df43c25ecae5dab7eca22d81e1fd95615d",
+      "status": "KILLED",
+      "test_output_sha256": "5792199ddd8dd3c27c18956d338eb9f642204749074d76489b36e28ee118459e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ab85ea19bb8e17b2aad49c8f902da854d0172deaacd0868807911760c9a877b6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/7168b5f5a3563fc856a04ac59ec4b11e/izdw-7168b5f5a3.o2025",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/7168b5f5a3563fc856a04ac59ec4b11e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [78 items]\n\n....................................................................FFFF [ 92%]\nFF....                                                                   [100%]\n=================================== FAILURES ===================================\n______ test_measure_point_even_reps_average_central_indicators[deferred] _______\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'deferred'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_even_reps_average_central_indicators(api):\n        point = _measure_indicator_reps(api, [\n            (400, .9, 10_000_000, 100), (100, .8, 40_000_000, 200),\n            (300, .6, 14_000_000, 300), (200, .2, 20_000_000, 400),\n        ])\n        assert point.throughputs == [400, 100, 300, 200]\n        assert point.throughput == 250\n        assert point.abort_rate == .4\n>       assert point.latency_ns == 17_000_000\nE       AssertionError: assert 14000000.0 == 17000000\nE        +  where 14000000.0 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.4, latency_ns=14000000.0, notes=[], rep_observations=None).latency_ns\n\norchestrator/tests/test_calibrator.py:498: AssertionError\n_______ test_measure_point_parity_uses_valid_reps_not_requested[direct] ________\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'direct'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_parity_uses_valid_reps_not_requested(api):\n        point = _measure_indicator_reps(api, [\n            (400, .9, 10_000_000, 100), (None, .99, 99_000_000, 999),\n            (100, .8, 40_000_000, 200), (300, .6, 14_000_000, 300),\n            (200, .2, 20_000_000, 400),\n        ], returncodes=[0, 7, 0, 0, 0])\n        assert point.throughputs == [400, 100, 300, 200]\n        assert point.throughput == 250\n>       assert (point.abort_rate, point.latency_ns, point.maxrss_kb) == (.4, 17_000_000, 300)\nE       assert (0.4, 14000000.0, 300) == (0.4, 17000000, 300)\nE         \nE         At index 1 diff: 14000000.0 != 17000000\nE         Use -v to get more diff\n\norchestrator/tests/test_calibrator.py:562: AssertionError\n_________ test_measure_point_even_reps_none_indicator_is_none[direct] __________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'direct'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_even_reps_none_indicator_is_none(api):\n        for field in (1, 2):\n            # Exercise each indicator independently; outside reps must not fill gaps.\n            cases = ([(None, .6, None), (.6, None, None), (None, None, None), (0, .6, .3)]\n                     if field == 1 else\n                     [(None, 14_000_000, None), (14_000_000, None, None),\n                      (None, None, None), (0, 14_000_000, 7_000_000)])\n            for low, high, expected in cases:\n                rows = [[400, .9, 10_000_000, 100], [100, .8, 40_000_000, 200],\n                        [300, .6, 14_000_000, 300], [200, .2, 20_000_000, 400]]\n                rows[3][field], rows[2][field] = low, high\n                point = _measure_indicator_reps(api, rows)\n                assert point.throughput == 250\n                assert point.abort_rate == (expected if field == 1 else .4)\n>               assert point.latency_ns == (expected if field == 2 else 17_000_000)\nE               AssertionError: assert 14000000.0 == 17000000\nE                +  where 14000000.0 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc...tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=None, latency_ns=14000000.0, notes=[], rep_observations=None).latency_ns\n\norchestrator/tests/test_calibrator.py:549: AssertionError\n________ test_measure_point_even_reps_none_indicator_is_none[deferred] _________\n[gw45] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'deferred'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_even_reps_none_indicator_is_none(api):\n        for field in (1, 2):\n            # Exercise each indicator independently; outside reps must not fill gaps.\n            cases = ([(None, .6, None), (.6, None, None), (None, None, None), (0, .6, .3)]\n                     if field == 1 else\n                     [(None, 14_000_000, None), (14_000_000, None, None),\n                      (None, None, None), (0, 14_000_000, 7_000_000)])\n            for low, high, expected in cases:\n                rows = [[400, .9, 10_000_000, 100], [100, .8, 40_000_000, 200],\n                        [300, .6, 14_000_000, 300], [200, .2, 20_000_000, 400]]\n                rows[3][field], rows[2][field] = low, high\n                point = _measure_indicator_reps(api, rows)\n                assert point.throughput == 250\n                assert point.abort_rate == (expected if field == 1 else .4)\n>               assert point.latency_ns == (expected if field == 2 else 17_000_000)\nE               AssertionError: assert 14000000.0 == 17000000\nE                +  where 14000000.0 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc...tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=None, latency_ns=14000000.0, notes=[], rep_observations=None).latency_ns\n\norchestrator/tests/test_calibrator.py:549: AssertionError\n_______ test_measure_point_even_reps_average_central_indicators[direct] ________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'direct'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_even_reps_average_central_indicators(api):\n        point = _measure_indicator_reps(api, [\n            (400, .9, 10_000_000, 100), (100, .8, 40_000_000, 200),\n            (300, .6, 14_000_000, 300), (200, .2, 20_000_000, 400),\n        ])\n        assert point.throughputs == [400, 100, 300, 200]\n        assert point.throughput == 250\n        assert point.abort_rate == .4\n>       assert point.latency_ns == 17_000_000\nE       AssertionError: assert 14000000.0 == 17000000\nE        +  where 14000000.0 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.4, latency_ns=14000000.0, notes=[], rep_observations=None).latency_ns\n\norchestrator/tests/test_calibrator.py:498: AssertionError\n______ test_measure_point_parity_uses_valid_reps_not_requested[deferred] _______\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'deferred'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_parity_uses_valid_reps_not_requested(api):\n        point = _measure_indicator_reps(api, [\n            (400, .9, 10_000_000, 100), (None, .99, 99_000_000, 999),\n            (100, .8, 40_000_000, 200), (300, .6, 14_000_000, 300),\n            (200, .2, 20_000_000, 400),\n        ], returncodes=[0, 7, 0, 0, 0])\n        assert point.throughputs == [400, 100, 300, 200]\n        assert point.throughput == 250\n>       assert (point.abort_rate, point.latency_ns, point.maxrss_kb) == (.4, 17_000_000, 300)\nE       assert (0.4, 14000000.0, 300) == (0.4, 17000000, 300)\nE         \nE         At index 1 diff: 14000000.0 != 17000000\nE         Use -v to get more diff\n\norchestrator/tests/test_calibrator.py:562: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[deferred]\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]\n========================= 6 failed, 72 passed in 4.33s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=1553 retained_bytes=1553 omitted_bytes=0 rendered_excerpt_bytes=1602 sha256=993785494497efd3c806facd77d9af9fb72fb1e91cdea835d7f0d80f091a23e8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw45] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'deferred'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_even_reps_none_indicator_is_none(api):\n>         for field in (1, 2):\n>             # Exercise each indicator independently; outside reps must not fill gaps.\n>             cases = ([(None, .6, None), (.6, None, None), (None, None, None), (0, .6, .3)]\n>                      if field == 1 else\n>                      [(None, 14_000_000, None), (14_000_000, None, None),\n>                       (None, None, None), (0, 14_000_000, 7_000_000)])\n>             for low, high, expected in cases:\n>                 rows = [[400, .9, 10_000_000, 100], [100, .8, 40_000_000, 200],\n>                         [300, .6, 14_000_000, 300], [200, .2, 20_000_000, 400]]\n>                 rows[3][field], rows[2][field] = low, high\n>                 point = _measure_indicator_reps(api, rows)\n>                 assert point.throughput == 250\n>                 assert point.abort_rate == (expected if field == 1 else .4)\n> >               assert point.latency_ns == (expected if field == 2 else 17_000_000)\n> E               AssertionError: assert 14000000.0 == 17000000\n> E                +  where 14000000.0 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc...tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=None, latency_ns=14000000.0, notes=[], rep_observations=None).latency_ns\n> \n> orchestrator/tests/test_calibrator.py:549: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=1551 retained_bytes=1551 omitted_bytes=0 rendered_excerpt_bytes=1600 sha256=2c5c4e9278ea099ffccf411183e854d4cb83284d696709c949765a5920e8d4fa\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'direct'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_even_reps_none_indicator_is_none(api):\n>         for field in (1, 2):\n>             # Exercise each indicator independently; outside reps must not fill gaps.\n>             cases = ([(None, .6, None), (.6, None, None), (None, None, None), (0, .6, .3)]\n>                      if field == 1 else\n>                      [(None, 14_000_000, None), (14_000_000, None, None),\n>                       (None, None, None), (0, 14_000_000, 7_000_000)])\n>             for low, high, expected in cases:\n>                 rows = [[400, .9, 10_000_000, 100], [100, .8, 40_000_000, 200],\n>                         [300, .6, 14_000_000, 300], [200, .2, 20_000_000, 400]]\n>                 rows[3][field], rows[2][field] = low, high\n>                 point = _measure_indicator_reps(api, rows)\n>                 assert point.throughput == 250\n>                 assert point.abort_rate == (expected if field == 1 else .4)\n> >               assert point.latency_ns == (expected if field == 2 else 17_000_000)\n> E               AssertionError: assert 14000000.0 == 17000000\n> E                +  where 14000000.0 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc...tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=None, latency_ns=14000000.0, notes=[], rep_observations=None).latency_ns\n> \n> orchestrator/tests/test_calibrator.py:549: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[deferred]\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=993 retained_bytes=993 omitted_bytes=0 rendered_excerpt_bytes=1030 sha256=7eeda73764a1e48b3f27b92308d2d04e120486fa7b94391c473844a802b8a2a5\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'deferred'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_even_reps_average_central_indicators(api):\n>         point = _measure_indicator_reps(api, [\n>             (400, .9, 10_000_000, 100), (100, .8, 40_000_000, 200),\n>             (300, .6, 14_000_000, 300), (200, .2, 20_000_000, 400),\n>         ])\n>         assert point.throughputs == [400, 100, 300, 200]\n>         assert point.throughput == 250\n>         assert point.abort_rate == .4\n> >       assert point.latency_ns == 17_000_000\n> E       AssertionError: assert 14000000.0 == 17000000\n> E        +  where 14000000.0 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.4, latency_ns=14000000.0, notes=[], rep_observations=None).latency_ns\n> \n> orchestrator/tests/test_calibrator.py:498: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=991 retained_bytes=991 omitted_bytes=0 rendered_excerpt_bytes=1028 sha256=fdf6454ba9ce0f04629d495ecb2d1a025fe0f8a69e1fcf27644509024770c0e7\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'direct'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_even_reps_average_central_indicators(api):\n>         point = _measure_indicator_reps(api, [\n>             (400, .9, 10_000_000, 100), (100, .8, 40_000_000, 200),\n>             (300, .6, 14_000_000, 300), (200, .2, 20_000_000, 400),\n>         ])\n>         assert point.throughputs == [400, 100, 300, 200]\n>         assert point.throughput == 250\n>         assert point.abort_rate == .4\n> >       assert point.latency_ns == 17_000_000\n> E       AssertionError: assert 14000000.0 == 17000000\n> E        +  where 14000000.0 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.4, latency_ns=14000000.0, notes=[], rep_observations=None).latency_ns\n> \n> orchestrator/tests/test_calibrator.py:498: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=894 retained_bytes=894 omitted_bytes=0 rendered_excerpt_bytes=935 sha256=6e73242081cc99c1a59c360994e07f0631401696ee15affbc06bf43c6ab93e4b\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw47] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'deferred'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_parity_uses_valid_reps_not_requested(api):\n>         point = _measure_indicator_reps(api, [\n>             (400, .9, 10_000_000, 100), (None, .99, 99_000_000, 999),\n>             (100, .8, 40_000_000, 200), (300, .6, 14_000_000, 300),\n>             (200, .2, 20_000_000, 400),\n>         ], returncodes=[0, 7, 0, 0, 0])\n>         assert point.throughputs == [400, 100, 300, 200]\n>         assert point.throughput == 250\n> >       assert (point.abort_rate, point.latency_ns, point.maxrss_kb) == (.4, 17_000_000, 300)\n> E       assert (0.4, 14000000.0, 300) == (0.4, 17000000, 300)\n> E         \n> E         At index 1 diff: 14000000.0 != 17000000\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_calibrator.py:562: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=892 retained_bytes=892 omitted_bytes=0 rendered_excerpt_bytes=933 sha256=18aa58e578576d53d81bc7ba79febfdb53b7fb4f3f3e1b77e0c3c28926fce50a\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw46] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'direct'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_parity_uses_valid_reps_not_requested(api):\n>         point = _measure_indicator_reps(api, [\n>             (400, .9, 10_000_000, 100), (None, .99, 99_000_000, 999),\n>             (100, .8, 40_000_000, 200), (300, .6, 14_000_000, 300),\n>             (200, .2, 20_000_000, 400),\n>         ], returncodes=[0, 7, 0, 0, 0])\n>         assert point.throughputs == [400, 100, 300, 200]\n>         assert point.throughput == 250\n> >       assert (point.abort_rate, point.latency_ns, point.maxrss_kb) == (.4, 17_000_000, 300)\n> E       assert (0.4, 14000000.0, 300) == (0.4, 17000000, 300)\n> E         \n> E         At index 1 diff: 14000000.0 != 17000000\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_calibrator.py:562: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=6 failed=6 errors=0 selected=6 omitted_failures=0 source_bytes=6874 retained_bytes=6874 omitted_bytes=0 budget_bytes=49152 rendered_bytes=10061 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6ba4494f227b9905ec4c4f49b76cb019b903ee5c7fe97806236b8a1f974d295e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "bf2d10abb32da6d3a2b399280ad2b3aa61ceb35b2ce8bded70c974d995f71b96",
+      "duration_s": 27.19,
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]"
+      ],
+      "hang_risk": false,
+      "id": "M2",
+      "injection_diff_sha256": "64dbacecb9929c532029e784e2da25689fb9303a3b8eed1aeeb67e6c90f4be86",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bfac881b2179da92cecd9c291ad3057e269651b1ee9027f9167db4a3b4a657a4",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "new": "        latency_ns = hi[5]\n",
+          "old": "        latency_ns = (_median([lo[5], hi[5]])\n                      if lo[5] is not None and hi[5] is not None else None)\n"
+        }
+      ],
+      "repo_head": "d586abff51e97b9cfd0d6594dbcf893f81a5851a",
+      "runner_sha256": "af743a97c6e3527b474cda0499c22e16909180eaa58acc4891b58047c8c51f94",
+      "spec_sha256": "cc06443976606e4819bf9c61ac65b1df43c25ecae5dab7eca22d81e1fd95615d",
+      "status": "KILLED",
+      "test_output_sha256": "6ba4494f227b9905ec4c4f49b76cb019b903ee5c7fe97806236b8a1f974d295e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ab85ea19bb8e17b2aad49c8f902da854d0172deaacd0868807911760c9a877b6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/b22c02d2cc491b6b91c83b29c99aafea/izdw-b22c02d2cc.o2026",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/b22c02d2cc491b6b91c83b29c99aafea/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [78 items]\n\n........................................................................ [ 92%]\nFF....                                                                   [100%]\n=================================== FAILURES ===================================\n________ test_measure_point_even_reps_none_indicator_is_none[deferred] _________\n[gw45] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'deferred'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_even_reps_none_indicator_is_none(api):\n        for field in (1, 2):\n            # Exercise each indicator independently; outside reps must not fill gaps.\n            cases = ([(None, .6, None), (.6, None, None), (None, None, None), (0, .6, .3)]\n                     if field == 1 else\n                     [(None, 14_000_000, None), (14_000_000, None, None),\n                      (None, None, None), (0, 14_000_000, 7_000_000)])\n            for low, high, expected in cases:\n                rows = [[400, .9, 10_000_000, 100], [100, .8, 40_000_000, 200],\n                        [300, .6, 14_000_000, 300], [200, .2, 20_000_000, 400]]\n                rows[3][field], rows[2][field] = low, high\n                point = _measure_indicator_reps(api, rows)\n                assert point.throughput == 250\n>               assert point.abort_rate == (expected if field == 1 else .4)\nE               AssertionError: assert 0.6 == None\nE                +  where 0.6 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.6, latency_ns=17000000.0, notes=[], rep_observations=None).abort_rate\n\norchestrator/tests/test_calibrator.py:548: AssertionError\n_________ test_measure_point_even_reps_none_indicator_is_none[direct] __________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'direct'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_even_reps_none_indicator_is_none(api):\n        for field in (1, 2):\n            # Exercise each indicator independently; outside reps must not fill gaps.\n            cases = ([(None, .6, None), (.6, None, None), (None, None, None), (0, .6, .3)]\n                     if field == 1 else\n                     [(None, 14_000_000, None), (14_000_000, None, None),\n                      (None, None, None), (0, 14_000_000, 7_000_000)])\n            for low, high, expected in cases:\n                rows = [[400, .9, 10_000_000, 100], [100, .8, 40_000_000, 200],\n                        [300, .6, 14_000_000, 300], [200, .2, 20_000_000, 400]]\n                rows[3][field], rows[2][field] = low, high\n                point = _measure_indicator_reps(api, rows)\n                assert point.throughput == 250\n>               assert point.abort_rate == (expected if field == 1 else .4)\nE               AssertionError: assert 0.6 == None\nE                +  where 0.6 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.6, latency_ns=17000000.0, notes=[], rep_observations=None).abort_rate\n\norchestrator/tests/test_calibrator.py:548: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]\n========================= 2 failed, 76 passed in 4.31s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=1451 retained_bytes=1451 omitted_bytes=0 rendered_excerpt_bytes=1498 sha256=c9a2f432f5237384ee37febead4cbab94be8192a0901b3b860f675bf86b04a46\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw45] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'deferred'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_even_reps_none_indicator_is_none(api):\n>         for field in (1, 2):\n>             # Exercise each indicator independently; outside reps must not fill gaps.\n>             cases = ([(None, .6, None), (.6, None, None), (None, None, None), (0, .6, .3)]\n>                      if field == 1 else\n>                      [(None, 14_000_000, None), (14_000_000, None, None),\n>                       (None, None, None), (0, 14_000_000, 7_000_000)])\n>             for low, high, expected in cases:\n>                 rows = [[400, .9, 10_000_000, 100], [100, .8, 40_000_000, 200],\n>                         [300, .6, 14_000_000, 300], [200, .2, 20_000_000, 400]]\n>                 rows[3][field], rows[2][field] = low, high\n>                 point = _measure_indicator_reps(api, rows)\n>                 assert point.throughput == 250\n> >               assert point.abort_rate == (expected if field == 1 else .4)\n> E               AssertionError: assert 0.6 == None\n> E                +  where 0.6 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.6, latency_ns=17000000.0, notes=[], rep_observations=None).abort_rate\n> \n> orchestrator/tests/test_calibrator.py:548: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=1449 retained_bytes=1449 omitted_bytes=0 rendered_excerpt_bytes=1496 sha256=5ae17440f9f5aad08eb8b708091704a596b94103b7dc18a1ac870b82b9c3bb02\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'direct'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_even_reps_none_indicator_is_none(api):\n>         for field in (1, 2):\n>             # Exercise each indicator independently; outside reps must not fill gaps.\n>             cases = ([(None, .6, None), (.6, None, None), (None, None, None), (0, .6, .3)]\n>                      if field == 1 else\n>                      [(None, 14_000_000, None), (14_000_000, None, None),\n>                       (None, None, None), (0, 14_000_000, 7_000_000)])\n>             for low, high, expected in cases:\n>                 rows = [[400, .9, 10_000_000, 100], [100, .8, 40_000_000, 200],\n>                         [300, .6, 14_000_000, 300], [200, .2, 20_000_000, 400]]\n>                 rows[3][field], rows[2][field] = low, high\n>                 point = _measure_indicator_reps(api, rows)\n>                 assert point.throughput == 250\n> >               assert point.abort_rate == (expected if field == 1 else .4)\n> E               AssertionError: assert 0.6 == None\n> E                +  where 0.6 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.6, latency_ns=17000000.0, notes=[], rep_observations=None).abort_rate\n> \n> orchestrator/tests/test_calibrator.py:548: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2900 retained_bytes=2900 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4160 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e43b4435997c30c3a53881e56ad039ccdc10b2d53fd7a99753cbbe72185beeb0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "bf2d10abb32da6d3a2b399280ad2b3aa61ceb35b2ce8bded70c974d995f71b96",
+      "duration_s": 27.274,
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]"
+      ],
+      "hang_risk": false,
+      "id": "M3",
+      "injection_diff_sha256": "8483d0d72bda2dacc72a5cb2b00c86198450125abdafb3a474d9e74f6e07e547",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4636ca9087130c3af3d0aea2cf02273af8b793a7953dfa6916613b1c8fdd9a10",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "new": "        abort_rate = (_median([v for v in (lo[4], hi[4]) if v is not None])\n                      if lo[4] is not None or hi[4] is not None else None)\n        latency_ns = (_median([v for v in (lo[5], hi[5]) if v is not None])\n                      if lo[5] is not None or hi[5] is not None else None)\n",
+          "old": "        abort_rate = (_median([lo[4], hi[4]])\n                      if lo[4] is not None and hi[4] is not None else None)\n        latency_ns = (_median([lo[5], hi[5]])\n                      if lo[5] is not None and hi[5] is not None else None)\n"
+        }
+      ],
+      "repo_head": "d586abff51e97b9cfd0d6594dbcf893f81a5851a",
+      "runner_sha256": "af743a97c6e3527b474cda0499c22e16909180eaa58acc4891b58047c8c51f94",
+      "spec_sha256": "cc06443976606e4819bf9c61ac65b1df43c25ecae5dab7eca22d81e1fd95615d",
+      "status": "KILLED",
+      "test_output_sha256": "e43b4435997c30c3a53881e56ad039ccdc10b2d53fd7a99753cbbe72185beeb0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ab85ea19bb8e17b2aad49c8f902da854d0172deaacd0868807911760c9a877b6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/df2ebadad2a9882207ff7cd2b8a3dc1f/izdw-df2ebadad2.o2028",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/df2ebadad2a9882207ff7cd2b8a3dc1f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [78 items]\n\n........................................................................ [ 92%]\nFF....                                                                   [100%]\n=================================== FAILURES ===================================\n_________ test_measure_point_odd_reps_preserve_legacy_values[deferred] _________\n[gw43] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'deferred'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_odd_reps_preserve_legacy_values(api):\n        cases = [\n            ([(300, .3, 30, 300), (100, .1, 10, 100), (200, .2, 20, 200)],\n             [300, 100, 200], 200, .2, 20, 200, 3),\n            ([(500, .5, 50, 500), (100, .1, 10, 100), (300, .3, 30, 300),\n              (400, .4, 40, 400), (200, .2, 20, 200)],\n             [500, 100, 300, 400, 200], 300, .3, 30, 300, 3),\n            ([(200, .1, 10, 100), (200, .2, 20, 200), (200, .3, 30, 300)],\n             [200, 200, 200], 200, .1, 10, 100, 1),\n        ]\n        for rows, throughputs, tps, abort, latency, maxrss, wall in cases:\n            point = _measure_indicator_reps(api, rows)\n            assert point.throughputs == throughputs\n            assert point.throughput == tps\n>           assert (point.counters, point.walltime_s, point.maxrss_kb,\n                    point.abort_rate, point.latency_ns) == (\n                        PerfCounters(), wall, maxrss, abort, latency)\nE           assert (PerfCounters...00, 0.2, 20.0) == (PerfCounters... 100, 0.1, 10)\nE             \nE             At index 1 diff: 2 != 1\nE             Use -v to get more diff\n\norchestrator/tests/test_calibrator.py:529: AssertionError\n__________ test_measure_point_odd_reps_preserve_legacy_values[direct] __________\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'direct'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_odd_reps_preserve_legacy_values(api):\n        cases = [\n            ([(300, .3, 30, 300), (100, .1, 10, 100), (200, .2, 20, 200)],\n             [300, 100, 200], 200, .2, 20, 200, 3),\n            ([(500, .5, 50, 500), (100, .1, 10, 100), (300, .3, 30, 300),\n              (400, .4, 40, 400), (200, .2, 20, 200)],\n             [500, 100, 300, 400, 200], 300, .3, 30, 300, 3),\n            ([(200, .1, 10, 100), (200, .2, 20, 200), (200, .3, 30, 300)],\n             [200, 200, 200], 200, .1, 10, 100, 1),\n        ]\n        for rows, throughputs, tps, abort, latency, maxrss, wall in cases:\n            point = _measure_indicator_reps(api, rows)\n            assert point.throughputs == throughputs\n            assert point.throughput == tps\n>           assert (point.counters, point.walltime_s, point.maxrss_kb,\n                    point.abort_rate, point.latency_ns) == (\n                        PerfCounters(), wall, maxrss, abort, latency)\nE           assert (PerfCounters...00, 0.2, 20.0) == (PerfCounters... 100, 0.1, 10)\nE             \nE             At index 1 diff: 2 != 1\nE             Use -v to get more diff\n\norchestrator/tests/test_calibrator.py:529: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_odd_reps_preserve_legacy_values[deferred]\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_odd_reps_preserve_legacy_values[direct]\n========================= 2 failed, 76 passed in 4.25s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_odd_reps_preserve_legacy_values[deferred]\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=1352 retained_bytes=1352 omitted_bytes=0 rendered_excerpt_bytes=1409 sha256=f593f7e17bf7baa8510501f575f51d7665d7d6ce35d53fc59bfb95109ebeb89d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw43] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'deferred'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_odd_reps_preserve_legacy_values(api):\n>         cases = [\n>             ([(300, .3, 30, 300), (100, .1, 10, 100), (200, .2, 20, 200)],\n>              [300, 100, 200], 200, .2, 20, 200, 3),\n>             ([(500, .5, 50, 500), (100, .1, 10, 100), (300, .3, 30, 300),\n>               (400, .4, 40, 400), (200, .2, 20, 200)],\n>              [500, 100, 300, 400, 200], 300, .3, 30, 300, 3),\n>             ([(200, .1, 10, 100), (200, .2, 20, 200), (200, .3, 30, 300)],\n>              [200, 200, 200], 200, .1, 10, 100, 1),\n>         ]\n>         for rows, throughputs, tps, abort, latency, maxrss, wall in cases:\n>             point = _measure_indicator_reps(api, rows)\n>             assert point.throughputs == throughputs\n>             assert point.throughput == tps\n> >           assert (point.counters, point.walltime_s, point.maxrss_kb,\n>                     point.abort_rate, point.latency_ns) == (\n>                         PerfCounters(), wall, maxrss, abort, latency)\n> E           assert (PerfCounters...00, 0.2, 20.0) == (PerfCounters... 100, 0.1, 10)\n> E             \n> E             At index 1 diff: 2 != 1\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_calibrator.py:529: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_odd_reps_preserve_legacy_values[direct]\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=1350 retained_bytes=1350 omitted_bytes=0 rendered_excerpt_bytes=1407 sha256=67dd9dbb6e8d6dea29c608da9ed580b7a63972235a11123cd8876164b50a5158\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'direct'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_odd_reps_preserve_legacy_values(api):\n>         cases = [\n>             ([(300, .3, 30, 300), (100, .1, 10, 100), (200, .2, 20, 200)],\n>              [300, 100, 200], 200, .2, 20, 200, 3),\n>             ([(500, .5, 50, 500), (100, .1, 10, 100), (300, .3, 30, 300),\n>               (400, .4, 40, 400), (200, .2, 20, 200)],\n>              [500, 100, 300, 400, 200], 300, .3, 30, 300, 3),\n>             ([(200, .1, 10, 100), (200, .2, 20, 200), (200, .3, 30, 300)],\n>              [200, 200, 200], 200, .1, 10, 100, 1),\n>         ]\n>         for rows, throughputs, tps, abort, latency, maxrss, wall in cases:\n>             point = _measure_indicator_reps(api, rows)\n>             assert point.throughputs == throughputs\n>             assert point.throughput == tps\n> >           assert (point.counters, point.walltime_s, point.maxrss_kb,\n>                     point.abort_rate, point.latency_ns) == (\n>                         PerfCounters(), wall, maxrss, abort, latency)\n> E           assert (PerfCounters...00, 0.2, 20.0) == (PerfCounters... 100, 0.1, 10)\n> E             \n> E             At index 1 diff: 2 != 1\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_calibrator.py:529: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2702 retained_bytes=2702 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3979 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a2d8f52a827eb151216195b9a260f1794afb17b3d6fb51ca66ed4025b0f10053"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "bf2d10abb32da6d3a2b399280ad2b3aa61ceb35b2ce8bded70c974d995f71b96",
+      "duration_s": 27.34,
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_odd_reps_preserve_legacy_values[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_odd_reps_preserve_legacy_values[direct]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_odd_reps_preserve_legacy_values[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_odd_reps_preserve_legacy_values[direct]"
+      ],
+      "hang_risk": false,
+      "id": "M4",
+      "injection_diff_sha256": "8a2f47bda01dbac7c252bfd9a3b46bc7730489aea708c952dbf3607e76f807e2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a76fd4bc8b92d7f0a21d986900c4a32599f124aa9f9bfc453dd34f2c443dc7a9",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "new": "    rep = sorted(valid, key=lambda r: r[0])[len(valid) // 2]\n",
+          "old": "    rep = min(valid, key=lambda r: abs(r[0] - median_ref))\n"
+        }
+      ],
+      "repo_head": "d586abff51e97b9cfd0d6594dbcf893f81a5851a",
+      "runner_sha256": "af743a97c6e3527b474cda0499c22e16909180eaa58acc4891b58047c8c51f94",
+      "spec_sha256": "cc06443976606e4819bf9c61ac65b1df43c25ecae5dab7eca22d81e1fd95615d",
+      "status": "KILLED",
+      "test_output_sha256": "a2d8f52a827eb151216195b9a260f1794afb17b3d6fb51ca66ed4025b0f10053",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ab85ea19bb8e17b2aad49c8f902da854d0172deaacd0868807911760c9a877b6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/9afcda80f29842ff19cddba708acb662/izdw-9afcda80f2.o2033",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/9afcda80f29842ff19cddba708acb662/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [78 items]\n\n........................................................................ [ 92%]\nFF....                                                                   [100%]\n=================================== FAILURES ===================================\n_______ test_measure_point_parity_uses_valid_reps_not_requested[direct] ________\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'direct'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_parity_uses_valid_reps_not_requested(api):\n        point = _measure_indicator_reps(api, [\n            (400, .9, 10_000_000, 100), (None, .99, 99_000_000, 999),\n            (100, .8, 40_000_000, 200), (300, .6, 14_000_000, 300),\n            (200, .2, 20_000_000, 400),\n        ], returncodes=[0, 7, 0, 0, 0])\n        assert point.throughputs == [400, 100, 300, 200]\n        assert point.throughput == 250\n>       assert (point.abort_rate, point.latency_ns, point.maxrss_kb) == (.4, 17_000_000, 300)\nE       assert (0.6, 14000000.0, 300) == (0.4, 17000000, 300)\nE         \nE         At index 0 diff: 0.6 != 0.4\nE         Use -v to get more diff\n\norchestrator/tests/test_calibrator.py:562: AssertionError\n______ test_measure_point_parity_uses_valid_reps_not_requested[deferred] _______\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'deferred'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_parity_uses_valid_reps_not_requested(api):\n        point = _measure_indicator_reps(api, [\n            (400, .9, 10_000_000, 100), (None, .99, 99_000_000, 999),\n            (100, .8, 40_000_000, 200), (300, .6, 14_000_000, 300),\n            (200, .2, 20_000_000, 400),\n        ], returncodes=[0, 7, 0, 0, 0])\n        assert point.throughputs == [400, 100, 300, 200]\n        assert point.throughput == 250\n>       assert (point.abort_rate, point.latency_ns, point.maxrss_kb) == (.4, 17_000_000, 300)\nE       assert (0.6, 14000000.0, 300) == (0.4, 17000000, 300)\nE         \nE         At index 0 diff: 0.6 != 0.4\nE         Use -v to get more diff\n\norchestrator/tests/test_calibrator.py:562: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]\n========================= 2 failed, 76 passed in 4.23s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=882 retained_bytes=882 omitted_bytes=0 rendered_excerpt_bytes=923 sha256=be4a276641a4ce9d57f37ec4c6fd4c614a80e6be73e246389656814ae23a97f1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw47] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'deferred'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_parity_uses_valid_reps_not_requested(api):\n>         point = _measure_indicator_reps(api, [\n>             (400, .9, 10_000_000, 100), (None, .99, 99_000_000, 999),\n>             (100, .8, 40_000_000, 200), (300, .6, 14_000_000, 300),\n>             (200, .2, 20_000_000, 400),\n>         ], returncodes=[0, 7, 0, 0, 0])\n>         assert point.throughputs == [400, 100, 300, 200]\n>         assert point.throughput == 250\n> >       assert (point.abort_rate, point.latency_ns, point.maxrss_kb) == (.4, 17_000_000, 300)\n> E       assert (0.6, 14000000.0, 300) == (0.4, 17000000, 300)\n> E         \n> E         At index 0 diff: 0.6 != 0.4\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_calibrator.py:562: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=880 retained_bytes=880 omitted_bytes=0 rendered_excerpt_bytes=921 sha256=10865458b14b43dd42d2947e7017f1d797605e6cdba7f777542a5f6d798692e9\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw46] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'direct'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_parity_uses_valid_reps_not_requested(api):\n>         point = _measure_indicator_reps(api, [\n>             (400, .9, 10_000_000, 100), (None, .99, 99_000_000, 999),\n>             (100, .8, 40_000_000, 200), (300, .6, 14_000_000, 300),\n>             (200, .2, 20_000_000, 400),\n>         ], returncodes=[0, 7, 0, 0, 0])\n>         assert point.throughputs == [400, 100, 300, 200]\n>         assert point.throughput == 250\n> >       assert (point.abort_rate, point.latency_ns, point.maxrss_kb) == (.4, 17_000_000, 300)\n> E       assert (0.6, 14000000.0, 300) == (0.4, 17000000, 300)\n> E         \n> E         At index 0 diff: 0.6 != 0.4\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_calibrator.py:562: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1762 retained_bytes=1762 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3013 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "554c5292a4694602ba31193bd763933e05df28b229a2708616ebc0ffbe7206f1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "bf2d10abb32da6d3a2b399280ad2b3aa61ceb35b2ce8bded70c974d995f71b96",
+      "duration_s": 28.401,
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]"
+      ],
+      "hang_risk": false,
+      "id": "M5",
+      "injection_diff_sha256": "26d9e93093f3c6f35f579349c0faf601da50367d0326f330ef2198164c39ef73",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a9cb01be374fd408ef6ebe8be8ba2c7d5f70d8b971c573d4b2b2bfdba28bafaa",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "new": "    if len(rep_results) % 2:\n",
+          "old": "    if len(valid) % 2:\n"
+        }
+      ],
+      "repo_head": "d586abff51e97b9cfd0d6594dbcf893f81a5851a",
+      "runner_sha256": "af743a97c6e3527b474cda0499c22e16909180eaa58acc4891b58047c8c51f94",
+      "spec_sha256": "cc06443976606e4819bf9c61ac65b1df43c25ecae5dab7eca22d81e1fd95615d",
+      "status": "KILLED",
+      "test_output_sha256": "554c5292a4694602ba31193bd763933e05df28b229a2708616ebc0ffbe7206f1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ab85ea19bb8e17b2aad49c8f902da854d0172deaacd0868807911760c9a877b6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/da7db2ac8af5974bf9036b80c3005c03/izdw-da7db2ac8a.o2035",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/da7db2ac8af5974bf9036b80c3005c03/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [78 items]\n\n.......................................................................F [ 92%]\nFF....                                                                   [100%]\n=================================== FAILURES ===================================\n_________ test_measure_point_even_reps_none_indicator_is_none[direct] __________\n[gw44] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'direct'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_even_reps_none_indicator_is_none(api):\n        for field in (1, 2):\n            # Exercise each indicator independently; outside reps must not fill gaps.\n            cases = ([(None, .6, None), (.6, None, None), (None, None, None), (0, .6, .3)]\n                     if field == 1 else\n                     [(None, 14_000_000, None), (14_000_000, None, None),\n                      (None, None, None), (0, 14_000_000, 7_000_000)])\n            for low, high, expected in cases:\n                rows = [[400, .9, 10_000_000, 100], [100, .8, 40_000_000, 200],\n                        [300, .6, 14_000_000, 300], [200, .2, 20_000_000, 400]]\n                rows[3][field], rows[2][field] = low, high\n                point = _measure_indicator_reps(api, rows)\n                assert point.throughput == 250\n>               assert point.abort_rate == (expected if field == 1 else .4)\nE               AssertionError: assert 0.6 == None\nE                +  where 0.6 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.6, latency_ns=14000000.0, notes=[], rep_observations=None).abort_rate\n\norchestrator/tests/test_calibrator.py:548: AssertionError\n_______ test_measure_point_even_reps_average_central_indicators[direct] ________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'direct'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_even_reps_average_central_indicators(api):\n        point = _measure_indicator_reps(api, [\n            (400, .9, 10_000_000, 100), (100, .8, 40_000_000, 200),\n            (300, .6, 14_000_000, 300), (200, .2, 20_000_000, 400),\n        ])\n        assert point.throughputs == [400, 100, 300, 200]\n        assert point.throughput == 250\n>       assert point.abort_rate == .4\nE       AssertionError: assert 0.6 == 0.4\nE        +  where 0.6 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.6, latency_ns=14000000.0, notes=[], rep_observations=None).abort_rate\n\norchestrator/tests/test_calibrator.py:497: AssertionError\n_______ test_measure_point_parity_uses_valid_reps_not_requested[direct] ________\n[gw46] linux -- Python 3.10.12 /bin/python3.10\n\napi = 'direct'\n\n    @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n    def test_measure_point_parity_uses_valid_reps_not_requested(api):\n        point = _measure_indicator_reps(api, [\n            (400, .9, 10_000_000, 100), (None, .99, 99_000_000, 999),\n            (100, .8, 40_000_000, 200), (300, .6, 14_000_000, 300),\n            (200, .2, 20_000_000, 400),\n        ], returncodes=[0, 7, 0, 0, 0])\n        assert point.throughputs == [400, 100, 300, 200]\n        assert point.throughput == 250\n>       assert (point.abort_rate, point.latency_ns, point.maxrss_kb) == (.4, 17_000_000, 300)\nE       assert (0.6, 14000000.0, 300) == (0.4, 17000000, 300)\nE         \nE         At index 0 diff: 0.6 != 0.4\nE         Use -v to get more diff\n\norchestrator/tests/test_calibrator.py:562: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]\nFAILED orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]\n========================= 3 failed, 75 passed in 4.25s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=1449 retained_bytes=1449 omitted_bytes=0 rendered_excerpt_bytes=1496 sha256=b3d7b39857b598826664d5bb73131e094d22bbd081e9b942148ef7a1820466b0\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw44] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'direct'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_even_reps_none_indicator_is_none(api):\n>         for field in (1, 2):\n>             # Exercise each indicator independently; outside reps must not fill gaps.\n>             cases = ([(None, .6, None), (.6, None, None), (None, None, None), (0, .6, .3)]\n>                      if field == 1 else\n>                      [(None, 14_000_000, None), (14_000_000, None, None),\n>                       (None, None, None), (0, 14_000_000, 7_000_000)])\n>             for low, high, expected in cases:\n>                 rows = [[400, .9, 10_000_000, 100], [100, .8, 40_000_000, 200],\n>                         [300, .6, 14_000_000, 300], [200, .2, 20_000_000, 400]]\n>                 rows[3][field], rows[2][field] = low, high\n>                 point = _measure_indicator_reps(api, rows)\n>                 assert point.throughput == 250\n> >               assert point.abort_rate == (expected if field == 1 else .4)\n> E               AssertionError: assert 0.6 == None\n> E                +  where 0.6 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.6, latency_ns=14000000.0, notes=[], rep_observations=None).abort_rate\n> \n> orchestrator/tests/test_calibrator.py:548: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=926 retained_bytes=926 omitted_bytes=0 rendered_excerpt_bytes=961 sha256=57b95284107c4d3954910cb31460df8a217a13b65c456239571f3d9211dc85ac\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'direct'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_even_reps_average_central_indicators(api):\n>         point = _measure_indicator_reps(api, [\n>             (400, .9, 10_000_000, 100), (100, .8, 40_000_000, 200),\n>             (300, .6, 14_000_000, 300), (200, .2, 20_000_000, 400),\n>         ])\n>         assert point.throughputs == [400, 100, 300, 200]\n>         assert point.throughput == 250\n> >       assert point.abort_rate == .4\n> E       AssertionError: assert 0.6 == 0.4\n> E        +  where 0.6 = ScalePoint(records=1000, threads=4, counters=PerfCounters(llc_load_misses=None, llc_loads=None, instructions=None, cyc..._tuple_num=1000 -extime=3 -clocks_per_us=1800', abort_rate=0.6, latency_ns=14000000.0, notes=[], rep_observations=None).abort_rate\n> \n> orchestrator/tests/test_calibrator.py:497: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=880 retained_bytes=880 omitted_bytes=0 rendered_excerpt_bytes=921 sha256=10865458b14b43dd42d2947e7017f1d797605e6cdba7f777542a5f6d798692e9\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw46] linux -- Python 3.10.12 /bin/python3.10\n> \n> api = 'direct'\n> \n>     @pytest.mark.parametrize(\"api\", [\"direct\", \"deferred\"], ids=[\"direct\", \"deferred\"])\n>     def test_measure_point_parity_uses_valid_reps_not_requested(api):\n>         point = _measure_indicator_reps(api, [\n>             (400, .9, 10_000_000, 100), (None, .99, 99_000_000, 999),\n>             (100, .8, 40_000_000, 200), (300, .6, 14_000_000, 300),\n>             (200, .2, 20_000_000, 400),\n>         ], returncodes=[0, 7, 0, 0, 0])\n>         assert point.throughputs == [400, 100, 300, 200]\n>         assert point.throughput == 250\n> >       assert (point.abort_rate, point.latency_ns, point.maxrss_kb) == (.4, 17_000_000, 300)\n> E       assert (0.6, 14000000.0, 300) == (0.4, 17000000, 300)\n> E         \n> E         At index 0 diff: 0.6 != 0.4\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_calibrator.py:562: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3255 retained_bytes=3255 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4983 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5119a39f8431a722b84be46d51d2fbb1e6ae2b23337b325649d47e2536103e4b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "bf2d10abb32da6d3a2b399280ad2b3aa61ceb35b2ce8bded70c974d995f71b96",
+      "duration_s": 27.686,
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]"
+      ],
+      "hang_risk": false,
+      "id": "M6",
+      "injection_diff_sha256": "99a58c9dce1e607cd3a7e51f522a3d8fba57657dad71c0d40c1bec69123165a3",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "246e657b30da57de81b20ab1594e1b343d9fe50d9513b5234ed9f4e110c13de6",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "new": "    _valid = [r for r in rep_results if r[0] is not None]\n    _rep = min(_valid, key=lambda r: abs(r[0] - sorted(x[0] for x in _valid)[len(_valid) // 2])) if _valid else rep_results[-1]\n    (point.counters, point.walltime_s, point.maxrss_kb,\n     point.abort_rate, point.latency_ns) = _rep[1:]\n",
+          "old": "    (point.counters, point.walltime_s, point.maxrss_kb,\n     point.abort_rate, point.latency_ns) = _summarize_rep_results(rep_results)\n"
+        }
+      ],
+      "repo_head": "d586abff51e97b9cfd0d6594dbcf893f81a5851a",
+      "runner_sha256": "af743a97c6e3527b474cda0499c22e16909180eaa58acc4891b58047c8c51f94",
+      "spec_sha256": "cc06443976606e4819bf9c61ac65b1df43c25ecae5dab7eca22d81e1fd95615d",
+      "status": "KILLED",
+      "test_output_sha256": "5119a39f8431a722b84be46d51d2fbb1e6ae2b23337b325649d47e2536103e4b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ab85ea19bb8e17b2aad49c8f902da854d0172deaacd0868807911760c9a877b6"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/f58f35aaca1e113c7781cad5945b6e90/izdw-f58f35aaca.o2039",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/f58f35aaca1e113c7781cad5945b6e90/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [78 items]\n\n........................................................................ [ 92%]\n......                                                                   [100%]\n============================== 78 passed in 4.25s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "8fc336e374c3ae22b7a5cdfd030ac7967140470a9e2967a806b7c0cda7914f30"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "bf2d10abb32da6d3a2b399280ad2b3aa61ceb35b2ce8bded70c974d995f71b96",
+      "duration_s": 27.481,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M8",
+      "injection_diff_sha256": "05bf0e5ec32aba949c0b4717d9348f148949e330a305687ed1fe6f9280c7fba8",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "e06cd40d379f582679c22328510ef86b6e4b9448e271ec5c4a91983ae952c316",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "new": "    valid = [*(r for r in rep_results if r[0] is not None)]\n    if not valid:\n        return rep_results[-1][1:]\n",
+          "old": "    valid = [r for r in rep_results if r[0] is not None]\n    if not valid:\n        return rep_results[-1][1:]\n"
+        }
+      ],
+      "repo_head": "d586abff51e97b9cfd0d6594dbcf893f81a5851a",
+      "runner_sha256": "af743a97c6e3527b474cda0499c22e16909180eaa58acc4891b58047c8c51f94",
+      "spec_sha256": "cc06443976606e4819bf9c61ac65b1df43c25ecae5dab7eca22d81e1fd95615d",
+      "status": "SURVIVED",
+      "test_output_sha256": "8fc336e374c3ae22b7a5cdfd030ac7967140470a9e2967a806b7c0cda7914f30",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ab85ea19bb8e17b2aad49c8f902da854d0172deaacd0868807911760c9a877b6"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/b362f9a2d993f372eafcbf510bff5959/izdw-b362f9a2d9.o2019",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/output/pegasus-dispatch/b362f9a2d993f372eafcbf510bff5959/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_calibrator.py::test_perfparse_csv\norchestrator/tests/test_calibrator.py::test_perfparse_human_readable\norchestrator/tests/test_calibrator.py::test_perfparse_missing_counter\norchestrator/tests/test_calibrator.py::test_perfparse_zero_loads_no_div0\norchestrator/tests/test_calibrator.py::test_benchparse_metrics\norchestrator/tests/test_calibrator.py::test_benchparse_throughput_and_extime\norchestrator/tests/test_calibrator.py::test_benchparse_throughput_fallback\norchestrator/tests/test_calibrator.py::test_benchparse_nan_is_none\norchestrator/tests/test_calibrator.py::test_benchparse_abort_rate_and_latency\norchestrator/tests/test_calibrator.py::test_benchparse_abort_rate_nan_falls_back_to_counts\norchestrator/tests/test_calibrator.py::test_perfcounters_ipc\norchestrator/tests/test_calibrator.py::test_scalepoint_leading_indicators\norchestrator/tests/test_calibrator.py::test_saturation_fast\norchestrator/tests/test_calibrator.py::test_saturation_never\norchestrator/tests/test_calibrator.py::test_saturation_non_monotonic\norchestrator/tests/test_calibrator.py::test_lower_bound_when_no_plateau\norchestrator/tests/test_calibrator.py::test_lower_bound_unavailable_without_l3_or_maxrss\norchestrator/tests/test_calibrator.py::test_lower_bound_even_max_too_small\norchestrator/tests/test_calibrator.py::test_plateau_preferred_over_lower_bound\norchestrator/tests/test_calibrator.py::test_saturation_cache_floor_warning\norchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_rr5\norchestrator/tests/test_calibrator.py::test_saturation_cache_floor_minimum_records\norchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_no_match\norchestrator/tests/test_calibrator.py::test_saturation_cache_floor_final_point_excluded\norchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_final_point_included\norchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_and_rss_same_point\norchestrator/tests/test_calibrator.py::test_saturation_cache_floor_boundary_and_override\norchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_boundary\norchestrator/tests/test_calibrator.py::test_saturation_cache_floor_warning_inside_margin\norchestrator/tests/test_calibrator.py::test_saturation_single_point\norchestrator/tests/test_calibrator.py::test_saturation_drops_missing_miss_rate\norchestrator/tests/test_calibrator.py::test_scale_linear_not_suspect\norchestrator/tests/test_calibrator.py::test_scale_sublinear_suspect\norchestrator/tests/test_calibrator.py::test_noise_floor_low_cv\norchestrator/tests/test_calibrator.py::test_noise_floor_high_cv\norchestrator/tests/test_calibrator.py::test_noise_floor_single_sample\norchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]\norchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[deferred]\norchestrator/tests/test_calibrator.py::test_measure_point_odd_reps_preserve_legacy_values[direct]\norchestrator/tests/test_calibrator.py::test_measure_point_odd_reps_preserve_legacy_values[deferred]\norchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]\norchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]\norchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]\norchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]\norchestrator/tests/test_calibrator.py::test_measure_point_no_valid_reps_keeps_last_parsed_fields\norchestrator/tests/test_calibrator.py::test_runner_default_perf_commands_are_unchanged\norchestrator/tests/test_calibrator.py::test_run_once_without_perf_executes_binary_and_keeps_counters_missing\norchestrator/tests/test_calibrator.py::test_measure_point_without_perf_records_matching_direct_repro_command\norchestrator/tests/test_calibrator.py::test_run_once_records_rc_and_keeps_three_tuple_when_not_strict\norchestrator/tests/test_calibrator.py::test_run_once_records_rc_before_strict_failure\norchestrator/tests/test_calibrator.py::test_run_once_records_rc_before_metrics_parse_failure\norchestrator/tests/test_calibrator.py::test_measure_point_survives_partial_rep_failure\norchestrator/tests/test_calibrator.py::test_measure_point_require_all_reps_rejects_partial_rep_failure\norchestrator/tests/test_calibrator.py::test_measure_point_rep_observations_are_indexed_across_timeout_exception_and_rc\norchestrator/tests/test_calibrator.py::test_measure_point_execution_failure_is_exact_bool_for_all_outcomes\norchestrator/tests/test_calibrator.py::test_measure_point_rep_timestamps_are_generated_around_each_runner_call\norchestrator/tests/test_calibrator.py::test_measure_point_rep_observations_no_perf_are_not_required\norchestrator/tests/test_calibrator.py::test_perf_raw_evidence_rejects_duplicate_and_infinite_values\norchestrator/tests/test_calibrator.py::test_measure_point_all_reps_fail_raises\norchestrator/tests/test_calibrator.py::test_clocks_fallback_recorded_in_result\norchestrator/tests/test_calibrator.py::test_competing_bench_pids_pattern_is_path_independent\norchestrator/tests/test_calibrator.py::test_competing_bench_pids_excludes_own_pid_only\norchestrator/tests/test_calibrator.py::test_competing_bench_pids_non_self_descendant_pid_is_competing\norchestrator/tests/test_calibrator.py::test_competing_bench_pids_unparseable_pid_kept_fails_closed\norchestrator/tests/test_calibrator.py::test_competing_bench_pids_rc1_clean_is_no_competition\norchestrator/tests/test_calibrator.py::test_recorded_competing_bench_probes_pass_admission\norchestrator/tests/test_calibrator.py::test_competing_bench_pids_rc1_with_stderr_is_probe_error\norchestrator/tests/test_calibrator.py::test_competing_bench_pids_rc1_with_stdout_is_probe_error\norchestrator/tests/test_calibrator.py::test_competing_bench_pids_rc0_empty_stdout_is_inconsistent\norchestrator/tests/test_calibrator.py::test_competing_bench_pids_rc2_is_probe_error\norchestrator/tests/test_calibrator.py::test_competing_bench_pids_rc3_is_probe_error\norchestrator/tests/test_calibrator.py::test_competing_bench_pids_negative_rc_is_probe_error\norchestrator/tests/test_calibrator.py::test_competing_bench_pids_oserror_is_probe_error\norchestrator/tests/test_calibrator.py::test_competing_bench_pids_subprocess_error_is_probe_error\norchestrator/tests/test_calibrator.py::test_competing_bench_probe_error_as_dict_carries_structured_fields\norchestrator/tests/test_calibrator.py::test_competing_bench_pids_real_orphan_under_s8b_build_cache_detected\norchestrator/tests/test_calibrator.py::test_competing_bench_pids_real_own_child_detected\norchestrator/tests/test_calibrator.py::test_competing_bench_pids_missing_dependency_is_visible_skip\n\n78 tests collected in 0.40s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "39557a03a048a6dc9ce7e8da676e5a3887882e3ad04cb7e1eb2cdd4bbeb68a0b"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_perfparse_csv",
+        "orchestrator/tests/test_calibrator.py::test_perfparse_human_readable",
+        "orchestrator/tests/test_calibrator.py::test_perfparse_missing_counter",
+        "orchestrator/tests/test_calibrator.py::test_perfparse_zero_loads_no_div0",
+        "orchestrator/tests/test_calibrator.py::test_benchparse_metrics",
+        "orchestrator/tests/test_calibrator.py::test_benchparse_throughput_and_extime",
+        "orchestrator/tests/test_calibrator.py::test_benchparse_throughput_fallback",
+        "orchestrator/tests/test_calibrator.py::test_benchparse_nan_is_none",
+        "orchestrator/tests/test_calibrator.py::test_benchparse_abort_rate_and_latency",
+        "orchestrator/tests/test_calibrator.py::test_benchparse_abort_rate_nan_falls_back_to_counts",
+        "orchestrator/tests/test_calibrator.py::test_perfcounters_ipc",
+        "orchestrator/tests/test_calibrator.py::test_scalepoint_leading_indicators",
+        "orchestrator/tests/test_calibrator.py::test_saturation_fast",
+        "orchestrator/tests/test_calibrator.py::test_saturation_never",
+        "orchestrator/tests/test_calibrator.py::test_saturation_non_monotonic",
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_when_no_plateau",
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_unavailable_without_l3_or_maxrss",
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_even_max_too_small",
+        "orchestrator/tests/test_calibrator.py::test_plateau_preferred_over_lower_bound",
+        "orchestrator/tests/test_calibrator.py::test_saturation_cache_floor_warning",
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_rr5",
+        "orchestrator/tests/test_calibrator.py::test_saturation_cache_floor_minimum_records",
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_no_match",
+        "orchestrator/tests/test_calibrator.py::test_saturation_cache_floor_final_point_excluded",
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_final_point_included",
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_and_rss_same_point",
+        "orchestrator/tests/test_calibrator.py::test_saturation_cache_floor_boundary_and_override",
+        "orchestrator/tests/test_calibrator.py::test_lower_bound_cache_floor_boundary",
+        "orchestrator/tests/test_calibrator.py::test_saturation_cache_floor_warning_inside_margin",
+        "orchestrator/tests/test_calibrator.py::test_saturation_single_point",
+        "orchestrator/tests/test_calibrator.py::test_saturation_drops_missing_miss_rate",
+        "orchestrator/tests/test_calibrator.py::test_scale_linear_not_suspect",
+        "orchestrator/tests/test_calibrator.py::test_scale_sublinear_suspect",
+        "orchestrator/tests/test_calibrator.py::test_noise_floor_low_cv",
+        "orchestrator/tests/test_calibrator.py::test_noise_floor_high_cv",
+        "orchestrator/tests/test_calibrator.py::test_noise_floor_single_sample",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_odd_reps_preserve_legacy_values[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_odd_reps_preserve_legacy_values[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_no_valid_reps_keeps_last_parsed_fields",
+        "orchestrator/tests/test_calibrator.py::test_runner_default_perf_commands_are_unchanged",
+        "orchestrator/tests/test_calibrator.py::test_run_once_without_perf_executes_binary_and_keeps_counters_missing",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_without_perf_records_matching_direct_repro_command",
+        "orchestrator/tests/test_calibrator.py::test_run_once_records_rc_and_keeps_three_tuple_when_not_strict",
+        "orchestrator/tests/test_calibrator.py::test_run_once_records_rc_before_strict_failure",
+        "orchestrator/tests/test_calibrator.py::test_run_once_records_rc_before_metrics_parse_failure",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_survives_partial_rep_failure",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_require_all_reps_rejects_partial_rep_failure",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_rep_observations_are_indexed_across_timeout_exception_and_rc",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_execution_failure_is_exact_bool_for_all_outcomes",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_rep_timestamps_are_generated_around_each_runner_call",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_rep_observations_no_perf_are_not_required",
+        "orchestrator/tests/test_calibrator.py::test_perf_raw_evidence_rejects_duplicate_and_infinite_values",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_all_reps_fail_raises",
+        "orchestrator/tests/test_calibrator.py::test_clocks_fallback_recorded_in_result",
+        "orchestrator/tests/test_calibrator.py::test_competing_bench_pids_pattern_is_path_independent",
+        "orchestrator/tests/test_calibrator.py::test_competing_bench_pids_excludes_own_pid_only",
+        "orchestrator/tests/test_calibrator.py::test_competing_bench_pids_non_self_descendant_pid_is_competing",
+        "orchestrator/tests/test_calibrator.py::test_competing_bench_pids_unparseable_pid_kept_fails_closed",
+        "orchestrator/tests/test_calibrator.py::test_competing_bench_pids_rc1_clean_is_no_competition",
+        "orchestrator/tests/test_calibrator.py::test_recorded_competing_bench_probes_pass_admission",
+        "orchestrator/tests/test_calibrator.py::test_competing_bench_pids_rc1_with_stderr_is_probe_error",
+        "orchestrator/tests/test_calibrator.py::test_competing_bench_pids_rc1_with_stdout_is_probe_error",
+        "orchestrator/tests/test_calibrator.py::test_competing_bench_pids_rc0_empty_stdout_is_inconsistent",
+        "orchestrator/tests/test_calibrator.py::test_competing_bench_pids_rc2_is_probe_error",
+        "orchestrator/tests/test_calibrator.py::test_competing_bench_pids_rc3_is_probe_error",
+        "orchestrator/tests/test_calibrator.py::test_competing_bench_pids_negative_rc_is_probe_error",
+        "orchestrator/tests/test_calibrator.py::test_competing_bench_pids_oserror_is_probe_error",
+        "orchestrator/tests/test_calibrator.py::test_competing_bench_pids_subprocess_error_is_probe_error",
+        "orchestrator/tests/test_calibrator.py::test_competing_bench_probe_error_as_dict_carries_structured_fields",
+        "orchestrator/tests/test_calibrator.py::test_competing_bench_pids_real_orphan_under_s8b_build_cache_detected",
+        "orchestrator/tests/test_calibrator.py::test_competing_bench_pids_real_own_child_detected",
+        "orchestrator/tests/test_calibrator.py::test_competing_bench_pids_missing_dependency_is_visible_skip"
+      ],
+      "duration_s": 22.187,
+      "rc": 0,
+      "repo_head": "d586abff51e97b9cfd0d6594dbcf893f81a5851a",
+      "runner_sha256": "af743a97c6e3527b474cda0499c22e16909180eaa58acc4891b58047c8c51f94",
+      "spec_sha256": "cc06443976606e4819bf9c61ac65b1df43c25ecae5dab7eca22d81e1fd95615d",
+      "status": "PASSED",
+      "tool_sha256": "ab85ea19bb8e17b2aad49c8f902da854d0172deaacd0868807911760c9a877b6"
+    },
+    "hang_timeout_seconds": 2400.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[deferred]",
+          "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]",
+          "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]",
+          "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]",
+          "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]",
+          "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d519e26645eba2976c411e64bd29bce2bf9df756ef34e5ca6eb84c59e37396fe",
+        "replacements": [
+          {
+            "file": "orchestrator/calibrator/runner.py",
+            "new": "        abort_rate = hi[4]\n",
+            "old": "        abort_rate = (_median([lo[4], hi[4]])\n                      if lo[4] is not None and hi[4] is not None else None)\n"
+          }
+        ]
+      },
+      "M2": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[deferred]",
+          "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]",
+          "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]",
+          "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]",
+          "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]",
+          "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "64dbacecb9929c532029e784e2da25689fb9303a3b8eed1aeeb67e6c90f4be86",
+        "replacements": [
+          {
+            "file": "orchestrator/calibrator/runner.py",
+            "new": "        latency_ns = hi[5]\n",
+            "old": "        latency_ns = (_median([lo[5], hi[5]])\n                      if lo[5] is not None and hi[5] is not None else None)\n"
+          }
+        ]
+      },
+      "M3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]",
+          "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8483d0d72bda2dacc72a5cb2b00c86198450125abdafb3a474d9e74f6e07e547",
+        "replacements": [
+          {
+            "file": "orchestrator/calibrator/runner.py",
+            "new": "        abort_rate = (_median([v for v in (lo[4], hi[4]) if v is not None])\n                      if lo[4] is not None or hi[4] is not None else None)\n        latency_ns = (_median([v for v in (lo[5], hi[5]) if v is not None])\n                      if lo[5] is not None or hi[5] is not None else None)\n",
+            "old": "        abort_rate = (_median([lo[4], hi[4]])\n                      if lo[4] is not None and hi[4] is not None else None)\n        latency_ns = (_median([lo[5], hi[5]])\n                      if lo[5] is not None and hi[5] is not None else None)\n"
+          }
+        ]
+      },
+      "M4": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_calibrator.py::test_measure_point_odd_reps_preserve_legacy_values[deferred]",
+          "orchestrator/tests/test_calibrator.py::test_measure_point_odd_reps_preserve_legacy_values[direct]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "8a2f47bda01dbac7c252bfd9a3b46bc7730489aea708c952dbf3607e76f807e2",
+        "replacements": [
+          {
+            "file": "orchestrator/calibrator/runner.py",
+            "new": "    rep = sorted(valid, key=lambda r: r[0])[len(valid) // 2]\n",
+            "old": "    rep = min(valid, key=lambda r: abs(r[0] - median_ref))\n"
+          }
+        ]
+      },
+      "M5": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]",
+          "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "26d9e93093f3c6f35f579349c0faf601da50367d0326f330ef2198164c39ef73",
+        "replacements": [
+          {
+            "file": "orchestrator/calibrator/runner.py",
+            "new": "    if len(rep_results) % 2:\n",
+            "old": "    if len(valid) % 2:\n"
+          }
+        ]
+      },
+      "M6": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]",
+          "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]",
+          "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "99a58c9dce1e607cd3a7e51f522a3d8fba57657dad71c0d40c1bec69123165a3",
+        "replacements": [
+          {
+            "file": "orchestrator/calibrator/runner.py",
+            "new": "    _valid = [r for r in rep_results if r[0] is not None]\n    _rep = min(_valid, key=lambda r: abs(r[0] - sorted(x[0] for x in _valid)[len(_valid) // 2])) if _valid else rep_results[-1]\n    (point.counters, point.walltime_s, point.maxrss_kb,\n     point.abort_rate, point.latency_ns) = _rep[1:]\n",
+            "old": "    (point.counters, point.walltime_s, point.maxrss_kb,\n     point.abort_rate, point.latency_ns) = _summarize_rep_results(rep_results)\n"
+          }
+        ]
+      },
+      "M8": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "05bf0e5ec32aba949c0b4717d9348f148949e330a305687ed1fe6f9280c7fba8",
+        "replacements": [
+          {
+            "file": "orchestrator/calibrator/runner.py",
+            "new": "    valid = [*(r for r in rep_results if r[0] is not None)]\n    if not valid:\n        return rep_results[-1][1:]\n",
+            "old": "    valid = [r for r in rep_results if r[0] is not None]\n    if not valid:\n        return rep_results[-1][1:]\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "a675fcb6f3e4866f7981d7db75bdb6ed3475e5365aab89388d3a5c90163e7f15",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_calibrator.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 2400.0
+  },
+  "repo_head": "d586abff51e97b9cfd0d6594dbcf893f81a5851a",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "orchestrator/tests/test_calibrator.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "dispatch_head_blob_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "e8996f0f2cae62191644e09c15bc1b7f58441812",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "af743a97c6e3527b474cda0499c22e16909180eaa58acc4891b58047c8c51f94",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "cc06443976606e4819bf9c61ac65b1df43c25ecae5dab7eca22d81e1fd95615d",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 7,
+    "matching": 7,
+    "recorded": 7,
+    "registered": 7
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2702-digest-indicator-consistency/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "ab85ea19bb8e17b2aad49c8f902da854d0172deaacd0868807911760c9a877b6",
+  "updated_at": "2026-09-16T12:14:13.269902+00:00"
+}

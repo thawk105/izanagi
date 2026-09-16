@@ -31,7 +31,7 @@ from . import reflux_origin_binding
 from . import trigger_gate_binding
 from . import wal as wal_codec
 from .env_contract import ExecutionEnvironmentContract
-from .layout import CampaignLayout, validate_campaign_id
+from .layout import CampaignLayout, ExplorationCampaignLayout, validate_campaign_id
 from .model import STAGE_ABORT, STAGE_COMMIT
 from .reflux_ir import TriggerGateIR, encode_wire
 from .reflux_origin_artifacts import (
@@ -444,8 +444,13 @@ def _issuance_refused(message: str) -> None:
 def _ordered_attempt_materials(
     *, layout: object, build_attempt_id: str,
 ) -> tuple[tuple[wal_codec.OrderedAttemptFrame, ...], bytes]:
-    if type(layout) is not CampaignLayout:
-        raise ResultEvidenceError("layout must be an exact CampaignLayout")
+    if (
+        type(layout) is not CampaignLayout
+        and type(layout) is not ExplorationCampaignLayout
+    ):
+        raise ResultEvidenceError(
+            "layout must be an exact CampaignLayout or ExplorationCampaignLayout"
+        )
     if type(build_attempt_id) is not str or not build_attempt_id:
         _issuance_refused("build attempt identity is absent or invalid")
     try:
@@ -1087,7 +1092,8 @@ def _issued_context_capability(
 
 
 def _context_roots(
-    *, layout: CampaignLayout, context: ResultEvidenceIssuanceContext,
+    *, layout: CampaignLayout | ExplorationCampaignLayout,
+    context: ResultEvidenceIssuanceContext,
 ) -> tuple[Path, Path]:
     try:
         evidence_root = Path(os.path.abspath(context.evidence_root))
@@ -1210,8 +1216,13 @@ def issue_campaign_result_evidence(
         raise ResultEvidenceError(
             "context must be an exact ResultEvidenceIssuanceContext"
         )
-    if type(layout) is not CampaignLayout:
-        raise ResultEvidenceError("layout must be an exact CampaignLayout")
+    if (
+        type(layout) is not CampaignLayout
+        and type(layout) is not ExplorationCampaignLayout
+    ):
+        raise ResultEvidenceError(
+            "layout must be an exact CampaignLayout or ExplorationCampaignLayout"
+        )
     if type(environment_contract) is not ExecutionEnvironmentContract:
         raise ResultEvidenceError(
             "environment_contract must be an exact "
