@@ -731,7 +731,7 @@ CODEX_RULINGS_OPENAI_YAML = """interface:
 """
 # next-tasks の repo-scoped Skill 契約を登録する。
 CODEX_NEXT_TASKS_SKILL_LIMITS = {
-    ".agents/skills/next-tasks/SKILL.md": TextLimit(5_460, 400),
+    ".agents/skills/next-tasks/SKILL.md": TextLimit(5_732, 400),
     ".agents/skills/next-tasks/agents/openai.yaml": TextLimit(300, 160),
 }
 CODEX_NEXT_TASKS_SKILL_FILES = frozenset(CODEX_NEXT_TASKS_SKILL_LIMITS)

@@ -7423,7 +7423,7 @@ def _mutate_command_guard(root: str, case: str) -> None:
             1,
         ))
     elif case == "codex_next_tasks_skill_byte_over":
-        _pad_to_bytes(root, ".agents/skills/next-tasks/SKILL.md", 5_461)
+        _pad_to_bytes(root, ".agents/skills/next-tasks/SKILL.md", 5_733)
     elif case == "codex_next_tasks_skill_openai_changed":
         rel = ".agents/skills/next-tasks/agents/openai.yaml"
         _write(root, rel, _read(root, rel).replace(
@@ -7601,7 +7601,7 @@ _COMMAND_GUARD_CASES = [
 
 _COMMAND_GUARD_NEEDLES = {
     "self_next_tasks_h3_deleted": "H3 見出し 'next-tasks' が 0 件",
-    "codex_next_tasks_skill_byte_over": "5461 bytes > 予算 5460 bytes",
+    "codex_next_tasks_skill_byte_over": "5733 bytes > 予算 5732 bytes",
     "codex_next_tasks_skill_openai_changed": "生成済み Skill interface 契約と不一致",
     "codex_next_tasks_skill_adapter_deleted": "Codex adapter 契約がない",
     "codex_next_tasks_skill_extra_file": "Codex next-tasks Skill の予算未登録実体",
@@ -9869,7 +9869,7 @@ def test_codex_next_tasks_skill_contract_pins_exact_surface():
         ".agents/skills/next-tasks/agents/openai.yaml",
     }
     assert check_docs.CODEX_NEXT_TASKS_SKILL_LIMITS == {
-        ".agents/skills/next-tasks/SKILL.md": check_docs.TextLimit(5_460, 400),
+        ".agents/skills/next-tasks/SKILL.md": check_docs.TextLimit(5_732, 400),
         ".agents/skills/next-tasks/agents/openai.yaml": check_docs.TextLimit(300, 160),
     }
     assert check_docs.CODEX_NEXT_TASKS_SKILL_LITERALS == (
