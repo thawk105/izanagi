@@ -1,0 +1,550 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/output/pegasus-dispatch/6f5dd02ad47063aa451aa729c7204350/izdw-6f5dd02ad4.o1616",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/output/pegasus-dispatch/6f5dd02ad47063aa451aa729c7204350/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [43 items]\n\n...........................................                              [100%]\n============================== 43 passed in 4.65s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "716ff9cd1efeebfc85c729f61e9d6def2ff4844df06a20074de86212aa0be50d"
+    },
+    "artifact_error": null,
+    "collection_sha256": "9caaca4eb349051fa038895214a4f8c7416bd897a5890db622b9bb32c4e619c1",
+    "duration_s": 27.94,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "27eaeece3c27d8c52779aeeb4d56e6263e0f5c32cf12a302c58502201c99fcd5",
+    "repo_head": "29b0f70d70d4386af04f6624644945abea7dda8d",
+    "runner_sha256": "998ae37537f650536babbfccfe7f1ebec032a50f4367d1e00ba7be96761c9cb3",
+    "spec_sha256": "84b71d4b3c74f83e52fecb82aae0b766ecb6eae358d8fd7dd9cfe81e3c8e6590",
+    "status": "PASSED",
+    "test_output_sha256": "716ff9cd1efeebfc85c729f61e9d6def2ff4844df06a20074de86212aa0be50d",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "2d0bb49c276d5d90769a788b82cb75ca23c7c1a29437532d7bc97e5b4abb4600"
+  },
+  "date": "2026-09-16T09:35:20.504137+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/output/pegasus-dispatch/fe682921065685ff08b8218879ed2fef/izdw-fe68292106.o1618",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/output/pegasus-dispatch/fe682921065685ff08b8218879ed2fef/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [43 items]\n\n......................F...............F.F..                              [100%]\n=================================== FAILURES ===================================\n_ test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2] _\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_partial_receipt_cannot_cl0')\nschema_version = 'p3-8c-trial-acceptance-receipt/v2'\n\n    @pytest.mark.parametrize(\"schema_version\", [\n        receipt.PREVIOUS_SCHEMA_VERSION,\n        receipt.SCHEMA_VERSION,\n    ], ids=[\"v2\", \"v5\"])\n    def test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02(\n        tmp_path: Path, schema_version: str,\n    ) -> None:\n        repo, path, value = _fixture(tmp_path)\n        row = _trial(value, \"H2\", \"off\")\n        report_path = repo / row[\"report_path\"]\n        report = json.loads(report_path.read_bytes())\n        assert report[\"status\"] == row[\"status\"] == \"complete\"\n        assert report[\"do_build\"] is False\n        report[\"cells\"] = []\n        report_bytes = _canonical(report)\n        report_path.write_bytes(report_bytes)\n        row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n        value[\"non_certifying_reason_codes\"] = sorted({\n            *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n        })\n        if schema_version == receipt.SCHEMA_VERSION:\n            _upgrade_to_current(repo, value)\n        _rewrite_receipt(repo, path, value, \"complete receipt without descriptor proof\")\n    \n>       with pytest.raises(\n            receipt.AcceptanceReceiptError,\n            match=r\"^\\[receipt-arm-binding\\] complete trial lacks descriptor proof$\",\n        ):\nE       Failed: DID NOT RAISE AcceptanceReceiptError\n\norchestrator/tests/test_s8c_acceptance_receipt_v2.py:955: Failed\n_ test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5] _\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_partial_receipt_cannot_cl0')\nschema_version = 'p3-8c-trial-acceptance-receipt/v5'\n\n    @pytest.mark.parametrize(\"schema_version\", [\n        receipt.PREVIOUS_SCHEMA_VERSION,\n        receipt.SCHEMA_VERSION,\n    ], ids=[\"v2\", \"v5\"])\n    def test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02(\n        tmp_path: Path, schema_version: str,\n    ) -> None:\n        repo, path, value = _fixture(tmp_path)\n        row = _trial(value, \"H2\", \"off\")\n        report_path = repo / row[\"report_path\"]\n        report = json.loads(report_path.read_bytes())\n        assert report[\"status\"] == row[\"status\"] == \"complete\"\n        assert report[\"do_build\"] is False\n        report[\"cells\"] = []\n        report_bytes = _canonical(report)\n        report_path.write_bytes(report_bytes)\n        row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n        value[\"non_certifying_reason_codes\"] = sorted({\n            *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n        })\n        if schema_version == receipt.SCHEMA_VERSION:\n            _upgrade_to_current(repo, value)\n        _rewrite_receipt(repo, path, value, \"complete receipt without descriptor proof\")\n    \n>       with pytest.raises(\n            receipt.AcceptanceReceiptError,\n            match=r\"^\\[receipt-arm-binding\\] complete trial lacks descriptor proof$\",\n        ):\nE       Failed: DID NOT RAISE AcceptanceReceiptError\n\norchestrator/tests/test_s8c_acceptance_receipt_v2.py:955: Failed\n__ test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells ___\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_partial_receipt_cannot_hi0')\n\n    def test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells(\n        tmp_path: Path,\n    ) -> None:\n        repo, path, value = _fixture(tmp_path)\n        row = _trial(value, \"H1\", \"on\")\n        report_path = repo / row[\"report_path\"]\n        report = json.loads(report_path.read_bytes())\n        descriptor = report[\"cells\"][0][\"descriptor\"]\n        assert type(descriptor[\"read_write\"][\"read_ratio_percent\"]) is int\n        assert descriptor[\"read_write\"][\"read_ratio_percent\"] == 80\n        descriptor[\"read_write\"][\"read_ratio_percent\"] = 79\n        report_bytes = _canonical(report)\n        report_path.write_bytes(report_bytes)\n        row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n        _rewrite_receipt(repo, path, value, \"conflicting descriptor with original digest\")\n    \n        with pytest.raises(\n            receipt.AcceptanceReceiptError,\n            match=(r\"^\\[receipt-arm-binding\\] cell descriptor content digest \"\n                   r\"differs from receipt$\"),\n        ):\n            receipt.verify_acceptance_receipt(path, repository_root=repo)\n    \n        report[\"cells\"] = []\n        report_bytes = _canonical(report)\n        report_path.write_bytes(report_bytes)\n        row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n        value[\"non_certifying_reason_codes\"] = sorted({\n            *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n        })\n        _upgrade_to_current(repo, value)\n        _rewrite_receipt(repo, path, value, \"conflicting descriptor dropped from cells\")\n    \n>       with pytest.raises(\n            receipt.AcceptanceReceiptError,\n            match=r\"^\\[receipt-arm-binding\\] complete trial lacks descriptor proof$\",\n        ):\nE       Failed: DID NOT RAISE AcceptanceReceiptError\n\norchestrator/tests/test_s8c_acceptance_receipt_v2.py:995: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]\nFAILED orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]\nFAILED orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells\n========================= 3 failed, 40 passed in 5.03s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells\" nodeid_bytes=127 nodeid_omitted_bytes=0 source_bytes=2020 retained_bytes=2020 omitted_bytes=0 rendered_excerpt_bytes=2121 sha256=95209f810003795d1099d8d1058fc86e8a8c083685cfdd689a1c662b9e944895\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_partial_receipt_cannot_hi0')\n> \n>     def test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells(\n>         tmp_path: Path,\n>     ) -> None:\n>         repo, path, value = _fixture(tmp_path)\n>         row = _trial(value, \"H1\", \"on\")\n>         report_path = repo / row[\"report_path\"]\n>         report = json.loads(report_path.read_bytes())\n>         descriptor = report[\"cells\"][0][\"descriptor\"]\n>         assert type(descriptor[\"read_write\"][\"read_ratio_percent\"]) is int\n>         assert descriptor[\"read_write\"][\"read_ratio_percent\"] == 80\n>         descriptor[\"read_write\"][\"read_ratio_percent\"] = 79\n>         report_bytes = _canonical(report)\n>         report_path.write_bytes(report_bytes)\n>         row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n>         _rewrite_receipt(repo, path, value, \"conflicting descriptor with original digest\")\n>     \n>         with pytest.raises(\n>             receipt.AcceptanceReceiptError,\n>             match=(r\"^\\x5c[receipt-arm-binding\\x5c] cell descriptor content digest \"\n>                    r\"differs from receipt$\"),\n>         ):\n>             receipt.verify_acceptance_receipt(path, repository_root=repo)\n>     \n>         report[\"cells\"] = []\n>         report_bytes = _canonical(report)\n>         report_path.write_bytes(report_bytes)\n>         row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n>         value[\"non_certifying_reason_codes\"] = sorted({\n>             *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n>         })\n>         _upgrade_to_current(repo, value)\n>         _rewrite_receipt(repo, path, value, \"conflicting descriptor dropped from cells\")\n>     \n> >       with pytest.raises(\n>             receipt.AcceptanceReceiptError,\n>             match=r\"^\\x5c[receipt-arm-binding\\x5c] complete trial lacks descriptor proof$\",\n>         ):\n> E       Failed: DID NOT RAISE AcceptanceReceiptError\n> \n> orchestrator/tests/test_s8c_acceptance_receipt_v2.py:995: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]\" nodeid_bytes=139 nodeid_omitted_bytes=0 source_bytes=1613 retained_bytes=1613 omitted_bytes=0 rendered_excerpt_bytes=1692 sha256=6245d9186d0ba3b612f411e78cb255f049977a536a1155a95d49670ce86378b5\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw39] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_partial_receipt_cannot_cl0')\n> schema_version = 'p3-8c-trial-acceptance-receipt/v2'\n> \n>     @pytest.mark.parametrize(\"schema_version\", [\n>         receipt.PREVIOUS_SCHEMA_VERSION,\n>         receipt.SCHEMA_VERSION,\n>     ], ids=[\"v2\", \"v5\"])\n>     def test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02(\n>         tmp_path: Path, schema_version: str,\n>     ) -> None:\n>         repo, path, value = _fixture(tmp_path)\n>         row = _trial(value, \"H2\", \"off\")\n>         report_path = repo / row[\"report_path\"]\n>         report = json.loads(report_path.read_bytes())\n>         assert report[\"status\"] == row[\"status\"] == \"complete\"\n>         assert report[\"do_build\"] is False\n>         report[\"cells\"] = []\n>         report_bytes = _canonical(report)\n>         report_path.write_bytes(report_bytes)\n>         row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n>         value[\"non_certifying_reason_codes\"] = sorted({\n>             *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n>         })\n>         if schema_version == receipt.SCHEMA_VERSION:\n>             _upgrade_to_current(repo, value)\n>         _rewrite_receipt(repo, path, value, \"complete receipt without descriptor proof\")\n>     \n> >       with pytest.raises(\n>             receipt.AcceptanceReceiptError,\n>             match=r\"^\\x5c[receipt-arm-binding\\x5c] complete trial lacks descriptor proof$\",\n>         ):\n> E       Failed: DID NOT RAISE AcceptanceReceiptError\n> \n> orchestrator/tests/test_s8c_acceptance_receipt_v2.py:955: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]\" nodeid_bytes=139 nodeid_omitted_bytes=0 source_bytes=1613 retained_bytes=1613 omitted_bytes=0 rendered_excerpt_bytes=1692 sha256=295629ff771f25b2f8b0cc1af2369c1e87b4c23bfa014159b1b13de81f3c974e\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_partial_receipt_cannot_cl0')\n> schema_version = 'p3-8c-trial-acceptance-receipt/v5'\n> \n>     @pytest.mark.parametrize(\"schema_version\", [\n>         receipt.PREVIOUS_SCHEMA_VERSION,\n>         receipt.SCHEMA_VERSION,\n>     ], ids=[\"v2\", \"v5\"])\n>     def test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02(\n>         tmp_path: Path, schema_version: str,\n>     ) -> None:\n>         repo, path, value = _fixture(tmp_path)\n>         row = _trial(value, \"H2\", \"off\")\n>         report_path = repo / row[\"report_path\"]\n>         report = json.loads(report_path.read_bytes())\n>         assert report[\"status\"] == row[\"status\"] == \"complete\"\n>         assert report[\"do_build\"] is False\n>         report[\"cells\"] = []\n>         report_bytes = _canonical(report)\n>         report_path.write_bytes(report_bytes)\n>         row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n>         value[\"non_certifying_reason_codes\"] = sorted({\n>             *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n>         })\n>         if schema_version == receipt.SCHEMA_VERSION:\n>             _upgrade_to_current(repo, value)\n>         _rewrite_receipt(repo, path, value, \"complete receipt without descriptor proof\")\n>     \n> >       with pytest.raises(\n>             receipt.AcceptanceReceiptError,\n>             match=r\"^\\x5c[receipt-arm-binding\\x5c] complete trial lacks descriptor proof$\",\n>         ):\n> E       Failed: DID NOT RAISE AcceptanceReceiptError\n> \n> orchestrator/tests/test_s8c_acceptance_receipt_v2.py:955: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=5246 retained_bytes=5246 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7220 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a0897c6c1907007bcc1e470e7b0ee543066ae7514c8b0f18fc79738813a4c641"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "9caaca4eb349051fa038895214a4f8c7416bd897a5890db622b9bb32c4e619c1",
+      "duration_s": 355.061,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T1789-M1-DELETE-GATE",
+      "injection_diff_sha256": "835928f401ea6880e1f2fee63e795716c831d11024423443911990d84414192b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e924797d7af0ee90d8df28e14265b489e34348f3ca6989a693ce523a7628ddab",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "new": "    if False and rederive_arm_execution and any(\n        trial.status == \"complete\" and not descriptor_proven\n",
+          "old": "    if rederive_arm_execution and any(\n        trial.status == \"complete\" and not descriptor_proven\n"
+        }
+      ],
+      "repo_head": "29b0f70d70d4386af04f6624644945abea7dda8d",
+      "runner_sha256": "998ae37537f650536babbfccfe7f1ebec032a50f4367d1e00ba7be96761c9cb3",
+      "spec_sha256": "84b71d4b3c74f83e52fecb82aae0b766ecb6eae358d8fd7dd9cfe81e3c8e6590",
+      "status": "KILLED",
+      "test_output_sha256": "a0897c6c1907007bcc1e470e7b0ee543066ae7514c8b0f18fc79738813a4c641",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d0bb49c276d5d90769a788b82cb75ca23c7c1a29437532d7bc97e5b4abb4600"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/output/pegasus-dispatch/81ec00ee4f4524d58da5b68b13327f35/izdw-81ec00ee4f.o1627",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/output/pegasus-dispatch/81ec00ee4f4524d58da5b68b13327f35/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [43 items]\n\n....................F.......F..........F.F.                              [100%]\n=================================== FAILURES ===================================\n_ test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2] _\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_partial_receipt_cannot_cl0')\nschema_version = 'p3-8c-trial-acceptance-receipt/v2'\n\n    @pytest.mark.parametrize(\"schema_version\", [\n        receipt.PREVIOUS_SCHEMA_VERSION,\n        receipt.SCHEMA_VERSION,\n    ], ids=[\"v2\", \"v5\"])\n    def test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02(\n        tmp_path: Path, schema_version: str,\n    ) -> None:\n        repo, path, value = _fixture(tmp_path)\n        row = _trial(value, \"H2\", \"off\")\n        report_path = repo / row[\"report_path\"]\n        report = json.loads(report_path.read_bytes())\n        assert report[\"status\"] == row[\"status\"] == \"complete\"\n        assert report[\"do_build\"] is False\n        report[\"cells\"] = []\n        report_bytes = _canonical(report)\n        report_path.write_bytes(report_bytes)\n        row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n        value[\"non_certifying_reason_codes\"] = sorted({\n            *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n        })\n        if schema_version == receipt.SCHEMA_VERSION:\n            _upgrade_to_current(repo, value)\n        _rewrite_receipt(repo, path, value, \"complete receipt without descriptor proof\")\n    \n>       with pytest.raises(\n            receipt.AcceptanceReceiptError,\n            match=r\"^\\[receipt-arm-binding\\] complete trial lacks descriptor proof$\",\n        ):\nE       Failed: DID NOT RAISE AcceptanceReceiptError\n\norchestrator/tests/test_s8c_acceptance_receipt_v2.py:955: Failed\n_____ test_partial_receipt_with_c02_and_no_cells_passes_current_capability _____\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_partial_receipt_with_c02_0')\n\n    def test_partial_receipt_with_c02_and_no_cells_passes_current_capability(\n        tmp_path: Path,\n    ) -> None:\n        repo, path, value = _fixture(tmp_path)\n        row = _trial(value, \"H2\", \"off\")\n        report_path = repo / row[\"report_path\"]\n        report = json.loads(report_path.read_bytes())\n        report[\"cells\"] = []\n        report_bytes = _canonical(report)\n        report_path.write_bytes(report_bytes)\n        row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n        value[\"non_certifying_reason_codes\"] = sorted({\n            *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n        })\n        _upgrade_to_current(\n            repo, value, terminal_failure_trials=frozenset({row[\"trial_id\"]}),\n        )\n        _rewrite_receipt(repo, path, value, \"partial receipt retains c02 without cells\")\n    \n>       verified = receipt.verify_acceptance_receipt(path, repository_root=repo)\n\norchestrator/tests/test_s8c_acceptance_receipt_v2.py:1021: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s8c_acceptance_receipt.py:2057: in verify_acceptance_receipt\n    _fail(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ngate = 'receipt-arm-binding', message = 'complete trial lacks descriptor proof'\n\n    def _fail(gate: str, message: str) -> None:\n>       raise AcceptanceReceiptError(f\"[{gate}] {message}\")\nE       orchestrator.campaign.s8c_acceptance_receipt.AcceptanceReceiptError: [receipt-arm-binding] complete trial lacks descriptor proof\n\norchestrator/campaign/s8c_acceptance_receipt.py:195: AcceptanceReceiptError\n_ test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5] _\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_partial_receipt_cannot_cl0')\nschema_version = 'p3-8c-trial-acceptance-receipt/v5'\n\n    @pytest.mark.parametrize(\"schema_version\", [\n        receipt.PREVIOUS_SCHEMA_VERSION,\n        receipt.SCHEMA_VERSION,\n    ], ids=[\"v2\", \"v5\"])\n    def test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02(\n        tmp_path: Path, schema_version: str,\n    ) -> None:\n        repo, path, value = _fixture(tmp_path)\n        row = _trial(value, \"H2\", \"off\")\n        report_path = repo / row[\"report_path\"]\n        report = json.loads(report_path.read_bytes())\n        assert report[\"status\"] == row[\"status\"] == \"complete\"\n        assert report[\"do_build\"] is False\n        report[\"cells\"] = []\n        report_bytes = _canonical(report)\n        report_path.write_bytes(report_bytes)\n        row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n        value[\"non_certifying_reason_codes\"] = sorted({\n            *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n        })\n        if schema_version == receipt.SCHEMA_VERSION:\n            _upgrade_to_current(repo, value)\n        _rewrite_receipt(repo, path, value, \"complete receipt without descriptor proof\")\n    \n>       with pytest.raises(\n            receipt.AcceptanceReceiptError,\n            match=r\"^\\[receipt-arm-binding\\] complete trial lacks descriptor proof$\",\n        ):\nE       Failed: DID NOT RAISE AcceptanceReceiptError\n\norchestrator/tests/test_s8c_acceptance_receipt_v2.py:955: Failed\n__ test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells ___\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_partial_receipt_cannot_hi0')\n\n    def test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells(\n        tmp_path: Path,\n    ) -> None:\n        repo, path, value = _fixture(tmp_path)\n        row = _trial(value, \"H1\", \"on\")\n        report_path = repo / row[\"report_path\"]\n        report = json.loads(report_path.read_bytes())\n        descriptor = report[\"cells\"][0][\"descriptor\"]\n        assert type(descriptor[\"read_write\"][\"read_ratio_percent\"]) is int\n        assert descriptor[\"read_write\"][\"read_ratio_percent\"] == 80\n        descriptor[\"read_write\"][\"read_ratio_percent\"] = 79\n        report_bytes = _canonical(report)\n        report_path.write_bytes(report_bytes)\n        row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n        _rewrite_receipt(repo, path, value, \"conflicting descriptor with original digest\")\n    \n        with pytest.raises(\n            receipt.AcceptanceReceiptError,\n            match=(r\"^\\[receipt-arm-binding\\] cell descriptor content digest \"\n                   r\"differs from receipt$\"),\n        ):\n            receipt.verify_acceptance_receipt(path, repository_root=repo)\n    \n        report[\"cells\"] = []\n        report_bytes = _canonical(report)\n        report_path.write_bytes(report_bytes)\n        row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n        value[\"non_certifying_reason_codes\"] = sorted({\n            *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n        })\n        _upgrade_to_current(repo, value)\n        _rewrite_receipt(repo, path, value, \"conflicting descriptor dropped from cells\")\n    \n>       with pytest.raises(\n            receipt.AcceptanceReceiptError,\n            match=r\"^\\[receipt-arm-binding\\] complete trial lacks descriptor proof$\",\n        ):\nE       Failed: DID NOT RAISE AcceptanceReceiptError\n\norchestrator/tests/test_s8c_acceptance_receipt_v2.py:995: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]\nFAILED orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_with_c02_and_no_cells_passes_current_capability\nFAILED orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]\nFAILED orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells\n========================= 4 failed, 39 passed in 4.94s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells\" nodeid_bytes=127 nodeid_omitted_bytes=0 source_bytes=2020 retained_bytes=2020 omitted_bytes=0 rendered_excerpt_bytes=2121 sha256=95209f810003795d1099d8d1058fc86e8a8c083685cfdd689a1c662b9e944895\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_partial_receipt_cannot_hi0')\n> \n>     def test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells(\n>         tmp_path: Path,\n>     ) -> None:\n>         repo, path, value = _fixture(tmp_path)\n>         row = _trial(value, \"H1\", \"on\")\n>         report_path = repo / row[\"report_path\"]\n>         report = json.loads(report_path.read_bytes())\n>         descriptor = report[\"cells\"][0][\"descriptor\"]\n>         assert type(descriptor[\"read_write\"][\"read_ratio_percent\"]) is int\n>         assert descriptor[\"read_write\"][\"read_ratio_percent\"] == 80\n>         descriptor[\"read_write\"][\"read_ratio_percent\"] = 79\n>         report_bytes = _canonical(report)\n>         report_path.write_bytes(report_bytes)\n>         row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n>         _rewrite_receipt(repo, path, value, \"conflicting descriptor with original digest\")\n>     \n>         with pytest.raises(\n>             receipt.AcceptanceReceiptError,\n>             match=(r\"^\\x5c[receipt-arm-binding\\x5c] cell descriptor content digest \"\n>                    r\"differs from receipt$\"),\n>         ):\n>             receipt.verify_acceptance_receipt(path, repository_root=repo)\n>     \n>         report[\"cells\"] = []\n>         report_bytes = _canonical(report)\n>         report_path.write_bytes(report_bytes)\n>         row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n>         value[\"non_certifying_reason_codes\"] = sorted({\n>             *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n>         })\n>         _upgrade_to_current(repo, value)\n>         _rewrite_receipt(repo, path, value, \"conflicting descriptor dropped from cells\")\n>     \n> >       with pytest.raises(\n>             receipt.AcceptanceReceiptError,\n>             match=r\"^\\x5c[receipt-arm-binding\\x5c] complete trial lacks descriptor proof$\",\n>         ):\n> E       Failed: DID NOT RAISE AcceptanceReceiptError\n> \n> orchestrator/tests/test_s8c_acceptance_receipt_v2.py:995: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_with_c02_and_no_cells_passes_current_capability\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=1807 retained_bytes=1807 omitted_bytes=0 rendered_excerpt_bytes=1884 sha256=94d999ab47d1a74b403b498418f0cb88229278c03b45453b316aaf57d2f055a0\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_partial_receipt_with_c02_0')\n> \n>     def test_partial_receipt_with_c02_and_no_cells_passes_current_capability(\n>         tmp_path: Path,\n>     ) -> None:\n>         repo, path, value = _fixture(tmp_path)\n>         row = _trial(value, \"H2\", \"off\")\n>         report_path = repo / row[\"report_path\"]\n>         report = json.loads(report_path.read_bytes())\n>         report[\"cells\"] = []\n>         report_bytes = _canonical(report)\n>         report_path.write_bytes(report_bytes)\n>         row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n>         value[\"non_certifying_reason_codes\"] = sorted({\n>             *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n>         })\n>         _upgrade_to_current(\n>             repo, value, terminal_failure_trials=frozenset({row[\"trial_id\"]}),\n>         )\n>         _rewrite_receipt(repo, path, value, \"partial receipt retains c02 without cells\")\n>     \n> >       verified = receipt.verify_acceptance_receipt(path, repository_root=repo)\n> \n> orchestrator/tests/test_s8c_acceptance_receipt_v2.py:1021: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s8c_acceptance_receipt.py:2057: in verify_acceptance_receipt\n>     _fail(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> gate = 'receipt-arm-binding', message = 'complete trial lacks descriptor proof'\n> \n>     def _fail(gate: str, message: str) -> None:\n> >       raise AcceptanceReceiptError(f\"[{gate}] {message}\")\n> E       orchestrator.campaign.s8c_acceptance_receipt.AcceptanceReceiptError: [receipt-arm-binding] complete trial lacks descriptor proof\n> \n> orchestrator/campaign/s8c_acceptance_receipt.py:195: AcceptanceReceiptError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]\" nodeid_bytes=139 nodeid_omitted_bytes=0 source_bytes=1613 retained_bytes=1613 omitted_bytes=0 rendered_excerpt_bytes=1692 sha256=6245d9186d0ba3b612f411e78cb255f049977a536a1155a95d49670ce86378b5\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw39] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_partial_receipt_cannot_cl0')\n> schema_version = 'p3-8c-trial-acceptance-receipt/v2'\n> \n>     @pytest.mark.parametrize(\"schema_version\", [\n>         receipt.PREVIOUS_SCHEMA_VERSION,\n>         receipt.SCHEMA_VERSION,\n>     ], ids=[\"v2\", \"v5\"])\n>     def test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02(\n>         tmp_path: Path, schema_version: str,\n>     ) -> None:\n>         repo, path, value = _fixture(tmp_path)\n>         row = _trial(value, \"H2\", \"off\")\n>         report_path = repo / row[\"report_path\"]\n>         report = json.loads(report_path.read_bytes())\n>         assert report[\"status\"] == row[\"status\"] == \"complete\"\n>         assert report[\"do_build\"] is False\n>         report[\"cells\"] = []\n>         report_bytes = _canonical(report)\n>         report_path.write_bytes(report_bytes)\n>         row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n>         value[\"non_certifying_reason_codes\"] = sorted({\n>             *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n>         })\n>         if schema_version == receipt.SCHEMA_VERSION:\n>             _upgrade_to_current(repo, value)\n>         _rewrite_receipt(repo, path, value, \"complete receipt without descriptor proof\")\n>     \n> >       with pytest.raises(\n>             receipt.AcceptanceReceiptError,\n>             match=r\"^\\x5c[receipt-arm-binding\\x5c] complete trial lacks descriptor proof$\",\n>         ):\n> E       Failed: DID NOT RAISE AcceptanceReceiptError\n> \n> orchestrator/tests/test_s8c_acceptance_receipt_v2.py:955: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]\" nodeid_bytes=139 nodeid_omitted_bytes=0 source_bytes=1613 retained_bytes=1613 omitted_bytes=0 rendered_excerpt_bytes=1692 sha256=295629ff771f25b2f8b0cc1af2369c1e87b4c23bfa014159b1b13de81f3c974e\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_partial_receipt_cannot_cl0')\n> schema_version = 'p3-8c-trial-acceptance-receipt/v5'\n> \n>     @pytest.mark.parametrize(\"schema_version\", [\n>         receipt.PREVIOUS_SCHEMA_VERSION,\n>         receipt.SCHEMA_VERSION,\n>     ], ids=[\"v2\", \"v5\"])\n>     def test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02(\n>         tmp_path: Path, schema_version: str,\n>     ) -> None:\n>         repo, path, value = _fixture(tmp_path)\n>         row = _trial(value, \"H2\", \"off\")\n>         report_path = repo / row[\"report_path\"]\n>         report = json.loads(report_path.read_bytes())\n>         assert report[\"status\"] == row[\"status\"] == \"complete\"\n>         assert report[\"do_build\"] is False\n>         report[\"cells\"] = []\n>         report_bytes = _canonical(report)\n>         report_path.write_bytes(report_bytes)\n>         row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n>         value[\"non_certifying_reason_codes\"] = sorted({\n>             *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n>         })\n>         if schema_version == receipt.SCHEMA_VERSION:\n>             _upgrade_to_current(repo, value)\n>         _rewrite_receipt(repo, path, value, \"complete receipt without descriptor proof\")\n>     \n> >       with pytest.raises(\n>             receipt.AcceptanceReceiptError,\n>             match=r\"^\\x5c[receipt-arm-binding\\x5c] complete trial lacks descriptor proof$\",\n>         ):\n> E       Failed: DID NOT RAISE AcceptanceReceiptError\n> \n> orchestrator/tests/test_s8c_acceptance_receipt_v2.py:955: Failed\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=7053 retained_bytes=7053 omitted_bytes=0 budget_bytes=49152 rendered_bytes=9567 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f364669dcf22082ca8fcc89b3df519d31e71455fd07df89a27386b9421135bf2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "9caaca4eb349051fa038895214a4f8c7416bd897a5890db622b9bb32c4e619c1",
+      "duration_s": 759.904,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_with_c02_and_no_cells_passes_current_capability"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_with_c02_and_no_cells_passes_current_capability",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T1789-M2-INVERT-STATUS",
+      "injection_diff_sha256": "480f420f3bc1cc86de25de8ef67bc5d2aa5de9934dffee7642577c0039cf9a4c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "96096dd0b1e5e52732b46eb0909e7ef3b76b5a017743c4aa35d9d6f18415d0ab",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "new": "        trial.status != \"complete\" and not descriptor_proven\n",
+          "old": "        trial.status == \"complete\" and not descriptor_proven\n"
+        }
+      ],
+      "repo_head": "29b0f70d70d4386af04f6624644945abea7dda8d",
+      "runner_sha256": "998ae37537f650536babbfccfe7f1ebec032a50f4367d1e00ba7be96761c9cb3",
+      "spec_sha256": "84b71d4b3c74f83e52fecb82aae0b766ecb6eae358d8fd7dd9cfe81e3c8e6590",
+      "status": "KILLED",
+      "test_output_sha256": "f364669dcf22082ca8fcc89b3df519d31e71455fd07df89a27386b9421135bf2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d0bb49c276d5d90769a788b82cb75ca23c7c1a29437532d7bc97e5b4abb4600"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/output/pegasus-dispatch/6a777213dbe03b27d7dd32159f080f19/izdw-6a777213db.o1645",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/output/pegasus-dispatch/6a777213dbe03b27d7dd32159f080f19/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [43 items]\n\n......................F...............F.F..                              [100%]\n=================================== FAILURES ===================================\n_ test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2] _\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_partial_receipt_cannot_cl0')\nschema_version = 'p3-8c-trial-acceptance-receipt/v2'\n\n    @pytest.mark.parametrize(\"schema_version\", [\n        receipt.PREVIOUS_SCHEMA_VERSION,\n        receipt.SCHEMA_VERSION,\n    ], ids=[\"v2\", \"v5\"])\n    def test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02(\n        tmp_path: Path, schema_version: str,\n    ) -> None:\n        repo, path, value = _fixture(tmp_path)\n        row = _trial(value, \"H2\", \"off\")\n        report_path = repo / row[\"report_path\"]\n        report = json.loads(report_path.read_bytes())\n        assert report[\"status\"] == row[\"status\"] == \"complete\"\n        assert report[\"do_build\"] is False\n        report[\"cells\"] = []\n        report_bytes = _canonical(report)\n        report_path.write_bytes(report_bytes)\n        row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n        value[\"non_certifying_reason_codes\"] = sorted({\n            *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n        })\n        if schema_version == receipt.SCHEMA_VERSION:\n            _upgrade_to_current(repo, value)\n        _rewrite_receipt(repo, path, value, \"complete receipt without descriptor proof\")\n    \n>       with pytest.raises(\n            receipt.AcceptanceReceiptError,\n            match=r\"^\\[receipt-arm-binding\\] complete trial lacks descriptor proof$\",\n        ):\nE       Failed: DID NOT RAISE AcceptanceReceiptError\n\norchestrator/tests/test_s8c_acceptance_receipt_v2.py:955: Failed\n_ test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5] _\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_partial_receipt_cannot_cl0')\nschema_version = 'p3-8c-trial-acceptance-receipt/v5'\n\n    @pytest.mark.parametrize(\"schema_version\", [\n        receipt.PREVIOUS_SCHEMA_VERSION,\n        receipt.SCHEMA_VERSION,\n    ], ids=[\"v2\", \"v5\"])\n    def test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02(\n        tmp_path: Path, schema_version: str,\n    ) -> None:\n        repo, path, value = _fixture(tmp_path)\n        row = _trial(value, \"H2\", \"off\")\n        report_path = repo / row[\"report_path\"]\n        report = json.loads(report_path.read_bytes())\n        assert report[\"status\"] == row[\"status\"] == \"complete\"\n        assert report[\"do_build\"] is False\n        report[\"cells\"] = []\n        report_bytes = _canonical(report)\n        report_path.write_bytes(report_bytes)\n        row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n        value[\"non_certifying_reason_codes\"] = sorted({\n            *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n        })\n        if schema_version == receipt.SCHEMA_VERSION:\n            _upgrade_to_current(repo, value)\n        _rewrite_receipt(repo, path, value, \"complete receipt without descriptor proof\")\n    \n>       with pytest.raises(\n            receipt.AcceptanceReceiptError,\n            match=r\"^\\[receipt-arm-binding\\] complete trial lacks descriptor proof$\",\n        ):\nE       Failed: DID NOT RAISE AcceptanceReceiptError\n\norchestrator/tests/test_s8c_acceptance_receipt_v2.py:955: Failed\n__ test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells ___\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_partial_receipt_cannot_hi0')\n\n    def test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells(\n        tmp_path: Path,\n    ) -> None:\n        repo, path, value = _fixture(tmp_path)\n        row = _trial(value, \"H1\", \"on\")\n        report_path = repo / row[\"report_path\"]\n        report = json.loads(report_path.read_bytes())\n        descriptor = report[\"cells\"][0][\"descriptor\"]\n        assert type(descriptor[\"read_write\"][\"read_ratio_percent\"]) is int\n        assert descriptor[\"read_write\"][\"read_ratio_percent\"] == 80\n        descriptor[\"read_write\"][\"read_ratio_percent\"] = 79\n        report_bytes = _canonical(report)\n        report_path.write_bytes(report_bytes)\n        row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n        _rewrite_receipt(repo, path, value, \"conflicting descriptor with original digest\")\n    \n        with pytest.raises(\n            receipt.AcceptanceReceiptError,\n            match=(r\"^\\[receipt-arm-binding\\] cell descriptor content digest \"\n                   r\"differs from receipt$\"),\n        ):\n            receipt.verify_acceptance_receipt(path, repository_root=repo)\n    \n        report[\"cells\"] = []\n        report_bytes = _canonical(report)\n        report_path.write_bytes(report_bytes)\n        row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n        value[\"non_certifying_reason_codes\"] = sorted({\n            *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n        })\n        _upgrade_to_current(repo, value)\n        _rewrite_receipt(repo, path, value, \"conflicting descriptor dropped from cells\")\n    \n>       with pytest.raises(\n            receipt.AcceptanceReceiptError,\n            match=r\"^\\[receipt-arm-binding\\] complete trial lacks descriptor proof$\",\n        ):\nE       Failed: DID NOT RAISE AcceptanceReceiptError\n\norchestrator/tests/test_s8c_acceptance_receipt_v2.py:995: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]\nFAILED orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]\nFAILED orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells\n========================= 3 failed, 40 passed in 4.94s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells\" nodeid_bytes=127 nodeid_omitted_bytes=0 source_bytes=2020 retained_bytes=2020 omitted_bytes=0 rendered_excerpt_bytes=2121 sha256=95209f810003795d1099d8d1058fc86e8a8c083685cfdd689a1c662b9e944895\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_partial_receipt_cannot_hi0')\n> \n>     def test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells(\n>         tmp_path: Path,\n>     ) -> None:\n>         repo, path, value = _fixture(tmp_path)\n>         row = _trial(value, \"H1\", \"on\")\n>         report_path = repo / row[\"report_path\"]\n>         report = json.loads(report_path.read_bytes())\n>         descriptor = report[\"cells\"][0][\"descriptor\"]\n>         assert type(descriptor[\"read_write\"][\"read_ratio_percent\"]) is int\n>         assert descriptor[\"read_write\"][\"read_ratio_percent\"] == 80\n>         descriptor[\"read_write\"][\"read_ratio_percent\"] = 79\n>         report_bytes = _canonical(report)\n>         report_path.write_bytes(report_bytes)\n>         row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n>         _rewrite_receipt(repo, path, value, \"conflicting descriptor with original digest\")\n>     \n>         with pytest.raises(\n>             receipt.AcceptanceReceiptError,\n>             match=(r\"^\\x5c[receipt-arm-binding\\x5c] cell descriptor content digest \"\n>                    r\"differs from receipt$\"),\n>         ):\n>             receipt.verify_acceptance_receipt(path, repository_root=repo)\n>     \n>         report[\"cells\"] = []\n>         report_bytes = _canonical(report)\n>         report_path.write_bytes(report_bytes)\n>         row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n>         value[\"non_certifying_reason_codes\"] = sorted({\n>             *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n>         })\n>         _upgrade_to_current(repo, value)\n>         _rewrite_receipt(repo, path, value, \"conflicting descriptor dropped from cells\")\n>     \n> >       with pytest.raises(\n>             receipt.AcceptanceReceiptError,\n>             match=r\"^\\x5c[receipt-arm-binding\\x5c] complete trial lacks descriptor proof$\",\n>         ):\n> E       Failed: DID NOT RAISE AcceptanceReceiptError\n> \n> orchestrator/tests/test_s8c_acceptance_receipt_v2.py:995: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]\" nodeid_bytes=139 nodeid_omitted_bytes=0 source_bytes=1613 retained_bytes=1613 omitted_bytes=0 rendered_excerpt_bytes=1692 sha256=6245d9186d0ba3b612f411e78cb255f049977a536a1155a95d49670ce86378b5\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw39] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_partial_receipt_cannot_cl0')\n> schema_version = 'p3-8c-trial-acceptance-receipt/v2'\n> \n>     @pytest.mark.parametrize(\"schema_version\", [\n>         receipt.PREVIOUS_SCHEMA_VERSION,\n>         receipt.SCHEMA_VERSION,\n>     ], ids=[\"v2\", \"v5\"])\n>     def test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02(\n>         tmp_path: Path, schema_version: str,\n>     ) -> None:\n>         repo, path, value = _fixture(tmp_path)\n>         row = _trial(value, \"H2\", \"off\")\n>         report_path = repo / row[\"report_path\"]\n>         report = json.loads(report_path.read_bytes())\n>         assert report[\"status\"] == row[\"status\"] == \"complete\"\n>         assert report[\"do_build\"] is False\n>         report[\"cells\"] = []\n>         report_bytes = _canonical(report)\n>         report_path.write_bytes(report_bytes)\n>         row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n>         value[\"non_certifying_reason_codes\"] = sorted({\n>             *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n>         })\n>         if schema_version == receipt.SCHEMA_VERSION:\n>             _upgrade_to_current(repo, value)\n>         _rewrite_receipt(repo, path, value, \"complete receipt without descriptor proof\")\n>     \n> >       with pytest.raises(\n>             receipt.AcceptanceReceiptError,\n>             match=r\"^\\x5c[receipt-arm-binding\\x5c] complete trial lacks descriptor proof$\",\n>         ):\n> E       Failed: DID NOT RAISE AcceptanceReceiptError\n> \n> orchestrator/tests/test_s8c_acceptance_receipt_v2.py:955: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]\" nodeid_bytes=139 nodeid_omitted_bytes=0 source_bytes=1613 retained_bytes=1613 omitted_bytes=0 rendered_excerpt_bytes=1692 sha256=295629ff771f25b2f8b0cc1af2369c1e87b4c23bfa014159b1b13de81f3c974e\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_partial_receipt_cannot_cl0')\n> schema_version = 'p3-8c-trial-acceptance-receipt/v5'\n> \n>     @pytest.mark.parametrize(\"schema_version\", [\n>         receipt.PREVIOUS_SCHEMA_VERSION,\n>         receipt.SCHEMA_VERSION,\n>     ], ids=[\"v2\", \"v5\"])\n>     def test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02(\n>         tmp_path: Path, schema_version: str,\n>     ) -> None:\n>         repo, path, value = _fixture(tmp_path)\n>         row = _trial(value, \"H2\", \"off\")\n>         report_path = repo / row[\"report_path\"]\n>         report = json.loads(report_path.read_bytes())\n>         assert report[\"status\"] == row[\"status\"] == \"complete\"\n>         assert report[\"do_build\"] is False\n>         report[\"cells\"] = []\n>         report_bytes = _canonical(report)\n>         report_path.write_bytes(report_bytes)\n>         row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n>         value[\"non_certifying_reason_codes\"] = sorted({\n>             *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n>         })\n>         if schema_version == receipt.SCHEMA_VERSION:\n>             _upgrade_to_current(repo, value)\n>         _rewrite_receipt(repo, path, value, \"complete receipt without descriptor proof\")\n>     \n> >       with pytest.raises(\n>             receipt.AcceptanceReceiptError,\n>             match=r\"^\\x5c[receipt-arm-binding\\x5c] complete trial lacks descriptor proof$\",\n>         ):\n> E       Failed: DID NOT RAISE AcceptanceReceiptError\n> \n> orchestrator/tests/test_s8c_acceptance_receipt_v2.py:955: Failed\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=5246 retained_bytes=5246 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7220 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a3b180dd4766ba84e2fb5c2e7f1f471a36d08762cfb445163d2561a86b1316be"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "9caaca4eb349051fa038895214a4f8c7416bd897a5890db622b9bb32c4e619c1",
+      "duration_s": 212.003,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T1789-M3-STATUS-LITERAL",
+      "injection_diff_sha256": "5ce0cb521f942f143d98acfd338184f4f7d738c3db42ca2666d0e219b50fde75",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "894e595c1e3caf41c92553cfc4a749dd4ea00c0223c16834f8b282c8f903b6b7",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "new": "        trial.status == \"completed\" and not descriptor_proven\n",
+          "old": "        trial.status == \"complete\" and not descriptor_proven\n"
+        }
+      ],
+      "repo_head": "29b0f70d70d4386af04f6624644945abea7dda8d",
+      "runner_sha256": "998ae37537f650536babbfccfe7f1ebec032a50f4367d1e00ba7be96761c9cb3",
+      "spec_sha256": "84b71d4b3c74f83e52fecb82aae0b766ecb6eae358d8fd7dd9cfe81e3c8e6590",
+      "status": "KILLED",
+      "test_output_sha256": "a3b180dd4766ba84e2fb5c2e7f1f471a36d08762cfb445163d2561a86b1316be",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d0bb49c276d5d90769a788b82cb75ca23c7c1a29437532d7bc97e5b4abb4600"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/output/pegasus-dispatch/66354afe4d64f8f2fcd0f2598f94107d/izdw-66354afe4d.o1660",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/output/pegasus-dispatch/66354afe4d64f8f2fcd0f2598f94107d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [43 items]\n\n..........................F................                              [100%]\n=================================== FAILURES ===================================\n_ test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2] _\n[gw39] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_partial_receipt_cannot_cl0')\nschema_version = 'p3-8c-trial-acceptance-receipt/v2'\n\n    @pytest.mark.parametrize(\"schema_version\", [\n        receipt.PREVIOUS_SCHEMA_VERSION,\n        receipt.SCHEMA_VERSION,\n    ], ids=[\"v2\", \"v5\"])\n    def test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02(\n        tmp_path: Path, schema_version: str,\n    ) -> None:\n        repo, path, value = _fixture(tmp_path)\n        row = _trial(value, \"H2\", \"off\")\n        report_path = repo / row[\"report_path\"]\n        report = json.loads(report_path.read_bytes())\n        assert report[\"status\"] == row[\"status\"] == \"complete\"\n        assert report[\"do_build\"] is False\n        report[\"cells\"] = []\n        report_bytes = _canonical(report)\n        report_path.write_bytes(report_bytes)\n        row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n        value[\"non_certifying_reason_codes\"] = sorted({\n            *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n        })\n        if schema_version == receipt.SCHEMA_VERSION:\n            _upgrade_to_current(repo, value)\n        _rewrite_receipt(repo, path, value, \"complete receipt without descriptor proof\")\n    \n>       with pytest.raises(\n            receipt.AcceptanceReceiptError,\n            match=r\"^\\[receipt-arm-binding\\] complete trial lacks descriptor proof$\",\n        ):\nE       Failed: DID NOT RAISE AcceptanceReceiptError\n\norchestrator/tests/test_s8c_acceptance_receipt_v2.py:955: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]\n========================= 1 failed, 42 passed in 4.97s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]\" nodeid_bytes=139 nodeid_omitted_bytes=0 source_bytes=1613 retained_bytes=1613 omitted_bytes=0 rendered_excerpt_bytes=1692 sha256=6245d9186d0ba3b612f411e78cb255f049977a536a1155a95d49670ce86378b5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw39] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw39/test_partial_receipt_cannot_cl0')\n> schema_version = 'p3-8c-trial-acceptance-receipt/v2'\n> \n>     @pytest.mark.parametrize(\"schema_version\", [\n>         receipt.PREVIOUS_SCHEMA_VERSION,\n>         receipt.SCHEMA_VERSION,\n>     ], ids=[\"v2\", \"v5\"])\n>     def test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02(\n>         tmp_path: Path, schema_version: str,\n>     ) -> None:\n>         repo, path, value = _fixture(tmp_path)\n>         row = _trial(value, \"H2\", \"off\")\n>         report_path = repo / row[\"report_path\"]\n>         report = json.loads(report_path.read_bytes())\n>         assert report[\"status\"] == row[\"status\"] == \"complete\"\n>         assert report[\"do_build\"] is False\n>         report[\"cells\"] = []\n>         report_bytes = _canonical(report)\n>         report_path.write_bytes(report_bytes)\n>         row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n>         value[\"non_certifying_reason_codes\"] = sorted({\n>             *value[\"non_certifying_reason_codes\"], receipt.C02_ARM_BINDING_UNPROVEN,\n>         })\n>         if schema_version == receipt.SCHEMA_VERSION:\n>             _upgrade_to_current(repo, value)\n>         _rewrite_receipt(repo, path, value, \"complete receipt without descriptor proof\")\n>     \n> >       with pytest.raises(\n>             receipt.AcceptanceReceiptError,\n>             match=r\"^\\x5c[receipt-arm-binding\\x5c] complete trial lacks descriptor proof$\",\n>         ):\n> E       Failed: DID NOT RAISE AcceptanceReceiptError\n> \n> orchestrator/tests/test_s8c_acceptance_receipt_v2.py:955: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1613 retained_bytes=1613 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2459 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "014ffd6dead453f223871ad0ff52675f9adce4a4878f6f4e03a3e202683a9974"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "9caaca4eb349051fa038895214a4f8c7416bd897a5890db622b9bb32c4e619c1",
+      "duration_s": 401.301,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T1789-M4-V5-ONLY",
+      "injection_diff_sha256": "23bdf3170976a9b8b10d4b6c29325ad268550a45e694a0a5b3c4ba2b1cd695ce",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "263358f5fc9bcfd690a827f35b76517e5243159a2e3feccc7aca106d2226abfb",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "new": "    if receipt.schema_version == SCHEMA_VERSION and any(\n        trial.status == \"complete\" and not descriptor_proven\n",
+          "old": "    if rederive_arm_execution and any(\n        trial.status == \"complete\" and not descriptor_proven\n"
+        }
+      ],
+      "repo_head": "29b0f70d70d4386af04f6624644945abea7dda8d",
+      "runner_sha256": "998ae37537f650536babbfccfe7f1ebec032a50f4367d1e00ba7be96761c9cb3",
+      "spec_sha256": "84b71d4b3c74f83e52fecb82aae0b766ecb6eae358d8fd7dd9cfe81e3c8e6590",
+      "status": "KILLED",
+      "test_output_sha256": "014ffd6dead453f223871ad0ff52675f9adce4a4878f6f4e03a3e202683a9974",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d0bb49c276d5d90769a788b82cb75ca23c7c1a29437532d7bc97e5b4abb4600"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/output/pegasus-dispatch/0d2ee9d1624f16dfc833dcbb1afaad7e/izdw-0d2ee9d162.o1665",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/output/pegasus-dispatch/0d2ee9d1624f16dfc833dcbb1afaad7e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [43 items]\n\n......................F....................                              [100%]\n=================================== FAILURES ===================================\n_____ test_partial_receipt_cannot_drop_c02_reason_without_descriptor_proof _____\n[gw16] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_partial_receipt_cannot_dr0')\n\n    def test_partial_receipt_cannot_drop_c02_reason_without_descriptor_proof(\n        tmp_path: Path,\n    ) -> None:\n        repo, path, value = _fixture(tmp_path)\n        assert all(set(row[\"arm_execution\"]) == {\n            \"input_schema_version\",\n            \"content_digest_sha256\",\n            \"arm_binding_digest_sha256\",\n        } for row in value[\"trials\"])\n        row = _trial(value, \"H2\", \"off\")\n        report_path = repo / row[\"report_path\"]\n        report = json.loads(report_path.read_bytes())\n        report[\"cells\"] = []\n        report_bytes = _canonical(report)\n        report_path.write_bytes(report_bytes)\n        row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n        _rewrite_receipt(repo, path, value, \"partial receipt without descriptor proof\")\n>       with pytest.raises(\n            receipt.AcceptanceReceiptError,\n            match=(r\"\\[receipt-mandatory-reasons\\] c02-arm-binding-unproven \"\n                   r\"was dropped without descriptor proof$\"),\n        ):\nE       AssertionError: Regex pattern did not match.\nE         Expected regex: '\\\\[receipt-mandatory-reasons\\\\] c02-arm-binding-unproven was dropped without descriptor proof$'\nE         Actual message: '[receipt-arm-binding] complete trial lacks descriptor proof'\n\norchestrator/tests/test_s8c_acceptance_receipt_v2.py:923: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_drop_c02_reason_without_descriptor_proof\n========================= 1 failed, 42 passed in 4.95s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_drop_c02_reason_without_descriptor_proof\" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=1492 retained_bytes=1492 omitted_bytes=0 rendered_excerpt_bytes=1573 sha256=7102dc4fbba26ca1f5f393491f3398292ee224109c49f5c6112e903818cbb909\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw16/test_partial_receipt_cannot_dr0')\n> \n>     def test_partial_receipt_cannot_drop_c02_reason_without_descriptor_proof(\n>         tmp_path: Path,\n>     ) -> None:\n>         repo, path, value = _fixture(tmp_path)\n>         assert all(set(row[\"arm_execution\"]) == {\n>             \"input_schema_version\",\n>             \"content_digest_sha256\",\n>             \"arm_binding_digest_sha256\",\n>         } for row in value[\"trials\"])\n>         row = _trial(value, \"H2\", \"off\")\n>         report_path = repo / row[\"report_path\"]\n>         report = json.loads(report_path.read_bytes())\n>         report[\"cells\"] = []\n>         report_bytes = _canonical(report)\n>         report_path.write_bytes(report_bytes)\n>         row[\"report_sha256\"] = hashlib.sha256(report_bytes).hexdigest()\n>         _rewrite_receipt(repo, path, value, \"partial receipt without descriptor proof\")\n> >       with pytest.raises(\n>             receipt.AcceptanceReceiptError,\n>             match=(r\"\\x5c[receipt-mandatory-reasons\\x5c] c02-arm-binding-unproven \"\n>                    r\"was dropped without descriptor proof$\"),\n>         ):\n> E       AssertionError: Regex pattern did not match.\n> E         Expected regex: '\\x5c\\x5c[receipt-mandatory-reasons\\x5c\\x5c] c02-arm-binding-unproven was dropped without descriptor proof$'\n> E         Actual message: '[receipt-arm-binding] complete trial lacks descriptor proof'\n> \n> orchestrator/tests/test_s8c_acceptance_receipt_v2.py:923: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1492 retained_bytes=1492 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2323 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "766b80787f0bcecef492f4bccfe313604546b4d6cebb9d48a8e83d48f19fcf34"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "9caaca4eb349051fa038895214a4f8c7416bd897a5890db622b9bb32c4e619c1",
+      "duration_s": 28.303,
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_drop_c02_reason_without_descriptor_proof"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_drop_c02_reason_without_descriptor_proof"
+      ],
+      "hang_risk": false,
+      "id": "MUT-T1789-M5-BEFORE-MANDATORY",
+      "injection_diff_sha256": "becb0382bc3c155d1e8b7fd5314252887f8218c1240a4d995b2b12fe2371c84a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ec1f32a19e554f1c594aa44e7aba2dfbcc81f2b5c4507e1e96f29f4f4089b2e5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "new": "",
+          "old": "    if rederive_arm_execution and any(\n        trial.status == \"complete\" and not descriptor_proven\n        for trial, descriptor_proven in zip(receipt.trials, descriptor_proofs)\n    ):\n        _fail(\n            \"receipt-arm-binding\",\n            \"complete trial lacks descriptor proof\",\n        )\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "new": "    if rederive_arm_execution and any(\n        trial.status == \"complete\" and not descriptor_proven\n        for trial, descriptor_proven in zip(receipt.trials, descriptor_proofs)\n    ):\n        _fail(\n            \"receipt-arm-binding\",\n            \"complete trial lacks descriptor proof\",\n        )\n    if (\n        receipt.schema_version in {\n            PREVIOUS_SCHEMA_VERSION,\n            CROSS_BINDING_V1_SCHEMA_VERSION,\n            CROSS_BINDING_V2_SCHEMA_VERSION,\n            SCHEMA_VERSION,\n        }\n        and C02_ARM_BINDING_UNPROVEN not in receipt.non_certifying_reason_codes\n",
+          "old": "    if (\n        receipt.schema_version in {\n            PREVIOUS_SCHEMA_VERSION,\n            CROSS_BINDING_V1_SCHEMA_VERSION,\n            CROSS_BINDING_V2_SCHEMA_VERSION,\n            SCHEMA_VERSION,\n        }\n        and C02_ARM_BINDING_UNPROVEN not in receipt.non_certifying_reason_codes\n"
+        }
+      ],
+      "repo_head": "29b0f70d70d4386af04f6624644945abea7dda8d",
+      "runner_sha256": "998ae37537f650536babbfccfe7f1ebec032a50f4367d1e00ba7be96761c9cb3",
+      "spec_sha256": "84b71d4b3c74f83e52fecb82aae0b766ecb6eae358d8fd7dd9cfe81e3c8e6590",
+      "status": "KILLED",
+      "test_output_sha256": "766b80787f0bcecef492f4bccfe313604546b4d6cebb9d48a8e83d48f19fcf34",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d0bb49c276d5d90769a788b82cb75ca23c7c1a29437532d7bc97e5b4abb4600"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/output/pegasus-dispatch/1ebdbdf596ca371d21276209cb434b51/izdw-1ebdbdf596.o1672",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/output/pegasus-dispatch/1ebdbdf596ca371d21276209cb434b51/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [43 items]\n\n...........................................                              [100%]\n============================== 43 passed in 4.93s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "678a8a8ea68f4f15a65f6ecdbcc51194a0e80546b3ea3b9f9a38416ee2e0e844"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "9caaca4eb349051fa038895214a4f8c7416bd897a5890db622b9bb32c4e619c1",
+      "duration_s": 759.934,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "MUT-T1789-M6-EQUIVALENT-OPERAND-ORDER",
+      "injection_diff_sha256": "f4a4ca6499f3e13a30a847780709aa1d337587d69719aeb1a5c4b5aa4a002e44",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "f6a6c5158c63b9e32bcdf7e57e212b02236541cf673c451be848beb29fb63c1e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "new": "        \"complete\" == trial.status and not descriptor_proven\n",
+          "old": "        trial.status == \"complete\" and not descriptor_proven\n"
+        }
+      ],
+      "repo_head": "29b0f70d70d4386af04f6624644945abea7dda8d",
+      "runner_sha256": "998ae37537f650536babbfccfe7f1ebec032a50f4367d1e00ba7be96761c9cb3",
+      "spec_sha256": "84b71d4b3c74f83e52fecb82aae0b766ecb6eae358d8fd7dd9cfe81e3c8e6590",
+      "status": "SURVIVED",
+      "test_output_sha256": "678a8a8ea68f4f15a65f6ecdbcc51194a0e80546b3ea3b9f9a38416ee2e0e844",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "2d0bb49c276d5d90769a788b82cb75ca23c7c1a29437532d7bc97e5b4abb4600"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/output/pegasus-dispatch/9a6481749828b1f01a2d9157853fb8a8/izdw-9a64817498.o1613",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/output/pegasus-dispatch/9a6481749828b1f01a2d9157853fb8a8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_verifier_keeps_registry_and_layer3_import_independence\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_receipt_import_is_cold_for_arm_authority_modules\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_arm_authority_imports_are_function_local\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_lazy_authority_import_failure_is_acceptance_receipt_error\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_resolver_exception_contract_is_fail_closed\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v2_producer_equivalent_full_verify_drops_only_c02\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_self_consistent_wrong_descriptor_is_rejected_by_freeze_rederivation\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_legacy_holdout_entry_key_drift_is_rejected\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_in_source_derangement_drift_is_rejected\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_binding_measurement_head_mismatch_is_rejected\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_pairwise_collision_is_rejected_after_binding_recalculation\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_receipt_digest_divergence_is_attributed_to_report_descriptor\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_drop_c02_reason_without_descriptor_proof\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_with_c02_and_no_cells_passes_current_capability\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_origin_terminal_projection_is_retained_and_reverified\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_run_start_mismatch_is_rejected_after_reference_hashes_match\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_trial_report_arm_execution_mismatch_is_rejected_after_reference_hashes_match\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v2_never_routes_through_v1_mandatory_reason_set\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v3_requires_cross_binding_receipt_sha256\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_attempt_binding_accepts_all_predeclared_observed_units\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_reaggregated_single_cross_binding_leaf_substitution\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_m4_downstream_capability_rejects_readable_v4_receipt\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_attempt_registry_bound_to_another_manifest\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_attempt_registry_bound_to_another_content_commit\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_attempt_registry_bound_to_another_effective_commit\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_registry_first_tracked_after_prereg_commit\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_second_registry_root_on_another_ref\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_m3_v5_rejects_predeclared_unit_without_final_terminal\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_m3b_v5_rejects_receipt_projection_divergent_from_registry\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_p1_v5_accepts_observed_and_terminal_failure_mix\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_p2_v5_accepts_retryable_failure_followed_by_next_attempt\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_missing_schema_version_is_acceptance_receipt_error[p3-8c-trial-acceptance-receipt/v1]\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_missing_schema_version_is_acceptance_receipt_error[p3-8c-trial-acceptance-receipt/v2]\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_missing_schema_version_is_acceptance_receipt_error[p3-8c-trial-acceptance-receipt/v3]\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_missing_schema_version_is_acceptance_receipt_error[p3-8c-trial-acceptance-receipt/v4]\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_missing_schema_version_is_acceptance_receipt_error[p3-8c-trial-acceptance-receipt/v5]\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v3_aggregate_is_recomputed_from_trial_leaves\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v3_remains_bound_to_cross_binding_v1_domain\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v4_remains_readable_without_v5_attempt_binding\norchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_binding_digest_is_rederived_from_self_consistent_three_way_claim\n\n43 tests collected in 0.62s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "df6accc02872e81a6502460aab9de64fb71f8723d9f4861370045b974503d50d"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_verifier_keeps_registry_and_layer3_import_independence",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_receipt_import_is_cold_for_arm_authority_modules",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_arm_authority_imports_are_function_local",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_lazy_authority_import_failure_is_acceptance_receipt_error",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_resolver_exception_contract_is_fail_closed",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v2_producer_equivalent_full_verify_drops_only_c02",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_self_consistent_wrong_descriptor_is_rejected_by_freeze_rederivation",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_legacy_holdout_entry_key_drift_is_rejected",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_in_source_derangement_drift_is_rejected",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_binding_measurement_head_mismatch_is_rejected",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_pairwise_collision_is_rejected_after_binding_recalculation",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_receipt_digest_divergence_is_attributed_to_report_descriptor",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_drop_c02_reason_without_descriptor_proof",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_with_c02_and_no_cells_passes_current_capability",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_origin_terminal_projection_is_retained_and_reverified",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_run_start_mismatch_is_rejected_after_reference_hashes_match",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_trial_report_arm_execution_mismatch_is_rejected_after_reference_hashes_match",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v2_never_routes_through_v1_mandatory_reason_set",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v3_requires_cross_binding_receipt_sha256",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_attempt_binding_accepts_all_predeclared_observed_units",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_reaggregated_single_cross_binding_leaf_substitution",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_m4_downstream_capability_rejects_readable_v4_receipt",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_attempt_registry_bound_to_another_manifest",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_attempt_registry_bound_to_another_content_commit",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_attempt_registry_bound_to_another_effective_commit",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_registry_first_tracked_after_prereg_commit",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v5_rejects_second_registry_root_on_another_ref",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_m3_v5_rejects_predeclared_unit_without_final_terminal",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_m3b_v5_rejects_receipt_projection_divergent_from_registry",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_p1_v5_accepts_observed_and_terminal_failure_mix",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_p2_v5_accepts_retryable_failure_followed_by_next_attempt",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_missing_schema_version_is_acceptance_receipt_error[p3-8c-trial-acceptance-receipt/v1]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_missing_schema_version_is_acceptance_receipt_error[p3-8c-trial-acceptance-receipt/v2]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_missing_schema_version_is_acceptance_receipt_error[p3-8c-trial-acceptance-receipt/v3]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_missing_schema_version_is_acceptance_receipt_error[p3-8c-trial-acceptance-receipt/v4]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_missing_schema_version_is_acceptance_receipt_error[p3-8c-trial-acceptance-receipt/v5]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v3_aggregate_is_recomputed_from_trial_leaves",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v3_remains_bound_to_cross_binding_v1_domain",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_v4_remains_readable_without_v5_attempt_binding",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_binding_digest_is_rederived_from_self_consistent_three_way_claim"
+      ],
+      "duration_s": 27.663,
+      "rc": 0,
+      "repo_head": "29b0f70d70d4386af04f6624644945abea7dda8d",
+      "runner_sha256": "998ae37537f650536babbfccfe7f1ebec032a50f4367d1e00ba7be96761c9cb3",
+      "spec_sha256": "84b71d4b3c74f83e52fecb82aae0b766ecb6eae358d8fd7dd9cfe81e3c8e6590",
+      "status": "PASSED",
+      "tool_sha256": "2d0bb49c276d5d90769a788b82cb75ca23c7c1a29437532d7bc97e5b4abb4600"
+    },
+    "hang_timeout_seconds": 300.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "MUT-T1789-M1-DELETE-GATE": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]",
+          "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]",
+          "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "835928f401ea6880e1f2fee63e795716c831d11024423443911990d84414192b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+            "new": "    if False and rederive_arm_execution and any(\n        trial.status == \"complete\" and not descriptor_proven\n",
+            "old": "    if rederive_arm_execution and any(\n        trial.status == \"complete\" and not descriptor_proven\n"
+          }
+        ]
+      },
+      "MUT-T1789-M2-INVERT-STATUS": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]",
+          "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]",
+          "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells",
+          "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_with_c02_and_no_cells_passes_current_capability"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "480f420f3bc1cc86de25de8ef67bc5d2aa5de9934dffee7642577c0039cf9a4c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+            "new": "        trial.status != \"complete\" and not descriptor_proven\n",
+            "old": "        trial.status == \"complete\" and not descriptor_proven\n"
+          }
+        ]
+      },
+      "MUT-T1789-M3-STATUS-LITERAL": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]",
+          "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]",
+          "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5ce0cb521f942f143d98acfd338184f4f7d738c3db42ca2666d0e219b50fde75",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+            "new": "        trial.status == \"completed\" and not descriptor_proven\n",
+            "old": "        trial.status == \"complete\" and not descriptor_proven\n"
+          }
+        ]
+      },
+      "MUT-T1789-M4-V5-ONLY": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "23bdf3170976a9b8b10d4b6c29325ad268550a45e694a0a5b3c4ba2b1cd695ce",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+            "new": "    if receipt.schema_version == SCHEMA_VERSION and any(\n        trial.status == \"complete\" and not descriptor_proven\n",
+            "old": "    if rederive_arm_execution and any(\n        trial.status == \"complete\" and not descriptor_proven\n"
+          }
+        ]
+      },
+      "MUT-T1789-M5-BEFORE-MANDATORY": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_drop_c02_reason_without_descriptor_proof"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "becb0382bc3c155d1e8b7fd5314252887f8218c1240a4d995b2b12fe2371c84a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+            "new": "",
+            "old": "    if rederive_arm_execution and any(\n        trial.status == \"complete\" and not descriptor_proven\n        for trial, descriptor_proven in zip(receipt.trials, descriptor_proofs)\n    ):\n        _fail(\n            \"receipt-arm-binding\",\n            \"complete trial lacks descriptor proof\",\n        )\n"
+          },
+          {
+            "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+            "new": "    if rederive_arm_execution and any(\n        trial.status == \"complete\" and not descriptor_proven\n        for trial, descriptor_proven in zip(receipt.trials, descriptor_proofs)\n    ):\n        _fail(\n            \"receipt-arm-binding\",\n            \"complete trial lacks descriptor proof\",\n        )\n    if (\n        receipt.schema_version in {\n            PREVIOUS_SCHEMA_VERSION,\n            CROSS_BINDING_V1_SCHEMA_VERSION,\n            CROSS_BINDING_V2_SCHEMA_VERSION,\n            SCHEMA_VERSION,\n        }\n        and C02_ARM_BINDING_UNPROVEN not in receipt.non_certifying_reason_codes\n",
+            "old": "    if (\n        receipt.schema_version in {\n            PREVIOUS_SCHEMA_VERSION,\n            CROSS_BINDING_V1_SCHEMA_VERSION,\n            CROSS_BINDING_V2_SCHEMA_VERSION,\n            SCHEMA_VERSION,\n        }\n        and C02_ARM_BINDING_UNPROVEN not in receipt.non_certifying_reason_codes\n"
+          }
+        ]
+      },
+      "MUT-T1789-M6-EQUIVALENT-OPERAND-ORDER": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "f4a4ca6499f3e13a30a847780709aa1d337587d69719aeb1a5c4b5aa4a002e44",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+            "new": "        \"complete\" == trial.status and not descriptor_proven\n",
+            "old": "        trial.status == \"complete\" and not descriptor_proven\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "27eaeece3c27d8c52779aeeb4d56e6263e0f5c32cf12a302c58502201c99fcd5",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8c_acceptance_receipt_v2.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 9000.0
+  },
+  "repo_head": "29b0f70d70d4386af04f6624644945abea7dda8d",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_s8c_acceptance_receipt_v2.py",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "dispatch_head_blob_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "c4a5aea17509b1d75d9645aef68dea5ba08220ef",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "998ae37537f650536babbfccfe7f1ebec032a50f4367d1e00ba7be96761c9cb3",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "84b71d4b3c74f83e52fecb82aae0b766ecb6eae358d8fd7dd9cfe81e3c8e6590",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1789-empty-cell-descriptor-proof/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "2d0bb49c276d5d90769a788b82cb75ca23c7c1a29437532d7bc97e5b4abb4600",
+  "updated_at": "2026-09-16T10:20:01.808649+00:00"
+}

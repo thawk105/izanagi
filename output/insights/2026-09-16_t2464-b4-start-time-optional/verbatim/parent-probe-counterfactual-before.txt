@@ -1,0 +1,20 @@
+現行 (未変更) コードでの受理判定 — 開始時刻は非 sentinel の実値
+owner の種類            開始時刻=実値      開始時刻=未記入    
+正常な識別子               ACCEPT       REJECT      
+説明文                  ACCEPT       REJECT      
+括弧つき                 ACCEPT       REJECT      
+NUL 1 文字             ACCEPT       REJECT      
+BEL 1 文字             ACCEPT       REJECT      
+ハイフン3つ+NUL           ACCEPT       REJECT      
+sentinel TBD         REJECT       REJECT      
+未記入                  REJECT       REJECT      
+
+参考: 対象行以外のセルへ同じ owner 文字列を入れた場合 (現行コード)
+  env_tag = 正常な識別子               ACCEPT
+  env_tag = 説明文                  ACCEPT
+  env_tag = 括弧つき                 ACCEPT
+  env_tag = NUL 1 文字             ACCEPT
+  env_tag = BEL 1 文字             ACCEPT
+  env_tag = ハイフン3つ+NUL           ACCEPT
+  env_tag = sentinel TBD         REJECT
+  env_tag = 未記入                  REJECT

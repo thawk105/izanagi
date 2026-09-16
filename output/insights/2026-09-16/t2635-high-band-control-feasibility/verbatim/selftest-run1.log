@@ -1,0 +1,1 @@
+{"selftest": {"wide": true, "j1_counts": true, "j1_values": true, "j1_verdict": true, "state": true, "inventory": true, "upper_self": true, "previous_edge_and_zero": true, "raw_signs": true, "boundary": true, "lattice": true, "applicability": true}}
