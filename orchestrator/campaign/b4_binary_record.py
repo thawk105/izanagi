@@ -16,7 +16,7 @@ import subprocess
 import sys
 import tempfile
 
-from orchestrator.campaign import buildcache, env_attestation, site_policy
+from orchestrator.campaign import buildcache, env_attestation, floor_pair_driver, site_policy
 from orchestrator.campaign import s8b_binary_admission as admission
 from orchestrator.campaign import s8b_floor_campaign as floor
 from orchestrator.campaign.s1_direct_comparison import prepare_cell
@@ -155,6 +155,36 @@ def store_record(built, cell_id, *, store_root, output, pin, contract_sha256):
     return record
 
 
+def place_record(record, *, source_root, env_tag, repo_root=ROOT) -> str:
+    """Place procured bytes and return their canonical repository-relative path.
+
+    source_root itself is resolved and trusted; only components beneath that
+    root are checked for symlinks, and the source must be a regular file.
+    The caller supplies the frozen spec's environment.env_tag; it is not
+    cross-checked here. Restoration requires the receipt's current policy.
+    """
+    source_root = Path(source_root).resolve()
+    source = floor_pair_driver._resolve_regular(
+        source_root, floor_pair_driver._relative_path(
+            record["store_path"], label="record.store_path"), label="source binary",
+    )
+    repo_root = Path(repo_root).resolve()
+    destination_root = repo_root / "output" / "env" / env_tag / "binaries"
+    destination = destination_root / record["binary_sha256"]
+    record["binary"]  # Require the original key before replacing its path.
+    placed = dict(record)
+    placed["binary"] = str(source)
+    placed["store_path"] = str(destination)
+    receipt = record["admission_receipt"]
+    floor.store_binaries(
+        {record["cell_id"]: placed}, destination_root, out_root=repo_root,
+        expected_ccbench_pin=receipt["admission"]["source"]["ccbench_commit"],
+        expected_contract_sha256=receipt["subject"]["contract_sha256"],
+    )
+    destination.chmod(stat.S_IMODE(destination.stat().st_mode) | stat.S_IXUSR)
+    return destination.relative_to(repo_root).as_posix()
+
+
 def produce_record(*, store_root, output, holdout_id=None, cache_root=None,
                    repo_root=ROOT):
     if not site_policy.is_pegasus_compute(site_policy.current_site()):
@@ -201,7 +231,32 @@ def produce_record(*, store_root, output, holdout_id=None, cache_root=None,
     )
 
 
+def placement_main(argv=None):
+    parser = argparse.ArgumentParser(
+        description="Place an existing portable binary record in a checkout.",
+        epilog="測定を投入する担当が、投入前に、使用する各 checkout へ配置する",
+    )
+    parser.add_argument("--record", required=True, type=Path)
+    parser.add_argument("--source-root", required=True, type=Path)
+    parser.add_argument("--env-tag", required=True,
+                        help="caller must match frozen spec environment.env_tag; not checked here")
+    parser.add_argument("--repo-root", type=Path, default=ROOT)
+    args = parser.parse_args(argv)
+    try:
+        record = json.loads(args.record.read_text(encoding="utf-8"))
+        relpath = place_record(record, source_root=args.source_root,
+                               env_tag=args.env_tag, repo_root=args.repo_root)
+    except (OSError, ValueError, RuntimeError, KeyError, TypeError) as exc:
+        print(f"b4-binary-record: {exc}", file=sys.stderr)
+        return 1
+    print(relpath)
+    return 0
+
+
 def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv[:1] == ["place"]:
+        return placement_main(argv[1:])
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path,
                         help="create-only destination for one portable JSON record")
