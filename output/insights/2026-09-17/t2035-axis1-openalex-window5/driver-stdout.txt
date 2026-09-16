@@ -1,0 +1,7 @@
+leaf=AX1-20260902-E1-Q6-SY2019@openalex state=pass_complete requests=7 remaining=879
+leaf=AX1-20260902-E1-Q6-SY2020@openalex state=pass_complete requests=9 remaining=789
+leaf=AX1-20260902-E1-Q6-SY2021@openalex state=blocked_on_ruling requests=11 remaining=679
+leaf=AX1-20260902-E1-Q6-SY2022@openalex state=pass_complete requests=12 remaining=559
+leaf=AX1-20260902-E1-Q6-SY2023@openalex state=pass_complete requests=16 remaining=399
+leaf=AX1-20260902-E1-Q6-SY2024@openalex state=blocked_on_ruling requests=24 remaining=159
+STOP remaining=159 < 200 before phase=A leaf=AX1-20260902-E1-Q6-SY2025@openalex
