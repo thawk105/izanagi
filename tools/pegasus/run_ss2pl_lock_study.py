@@ -2853,8 +2853,13 @@ def _run_phase_trial(
     clocks_per_us: int,
     occasion: Mapping[str, str],
 ) -> dict[str, Any]:
-    binary = Path(str(build["binary"]))
+    binary = Path(str(build["binary"])).resolve()
     argv = [str(binary), *_workload_argv(workload, threads=48, clocks_per_us=clocks_per_us, extime=10)]
+    trial_dir = Path(tempfile.mkdtemp(
+        dir=binary.parent, prefix=f"ss2pl-wfg-{phase}-{point}-t{trial}-",
+    ))
+    output_path = trial_dir / "final.json"
+    argv.append(f"-ss2pl_wfg_output={output_path}")
     start = time.monotonic()
     expected_timeout = False if phase == "phase2" else None
     returncode, stdout, stderr, timed_out, termination = _run_process(
@@ -2862,6 +2867,28 @@ def _run_phase_trial(
         expected_timeout=expected_timeout,
     )
     end = time.monotonic()
+    stdout_path = trial_dir / "stdout.txt"
+    stderr_path = trial_dir / "stderr.txt"
+    stdout_path.write_text(stdout, encoding="utf-8")
+    stderr_path.write_text(stderr, encoding="utf-8")
+    wfg_output = {
+        "path": str(output_path), "status": "missing",
+        "sha256": None, "json": None, "error": None,
+    }
+    try:
+        raw_output = output_path.read_bytes()
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        wfg_output.update(status="read_error", error=str(exc))
+    else:
+        wfg_output["sha256"] = _sha256_bytes(raw_output)
+        try:
+            wfg_output["json"] = json.loads(raw_output.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            wfg_output.update(status="invalid_json", error=str(exc))
+        else:
+            wfg_output["status"] = "present"
     admitted = _admit_output(
         stdout, arm=phase, workload=workload, build=build, binary=binary,
         thread_num=48, require_thread_commits=False,
@@ -2885,6 +2912,8 @@ def _run_phase_trial(
         "stdout_sha256": _sha256_bytes(stdout.encode()),
         "stderr_sha256": _sha256_bytes(stderr.encode()),
         "wfg_snapshots": snapshots,
+        "stdout_path": str(stdout_path), "stderr_path": str(stderr_path),
+        "wfg_output": wfg_output,
         "accepted_cycle": accepted_cycle,
         "cycle_observed": accepted_cycle is not None,
         "conflict_count": conflict_count,
