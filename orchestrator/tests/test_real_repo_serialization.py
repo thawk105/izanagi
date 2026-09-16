@@ -5951,6 +5951,451 @@ def test_tmpdir_guards_are_present_and_load_bearing():
     )
 
 
+@contextlib.contextmanager
+def _early_memo_cache_probe():
+    """Real hooks, memo writers/readers, flock and JSON; synthetic resolver inputs."""
+    from orchestrator.tests import real_repo_receipt_memo as receipt
+    from orchestrator.tests import sort_swo_oracle_receipt_memo as oracle
+
+    suite = _load_suite_conftest()
+    with tempfile.TemporaryDirectory(prefix="t2616-") as directory, contextlib.ExitStack() as stack:
+        root = Path(directory)
+        modules = (receipt, oracle)
+        values = (
+            receipt.migration.ReceiptResolution("never-issued", (), None, "a" * 40),
+            oracle.oracle.OracleEnvironment(root / "cxx", root / "ccbench", root / "masstree"),
+        )
+        calls = [[], []]
+        for index, module in enumerate(modules):
+            stack.enter_context(mock.patch.object(module, "_repo_head", return_value="a" * 40))
+            stack.enter_context(mock.patch.object(
+                module, "_cache_path_for",
+                side_effect=lambda run, head, nonce, prefix=module._CACHE_PREFIX:
+                    root / f"{prefix}{run}-{nonce}-{head}.json",
+            ))
+            def resolve(index=index):
+                calls[index].append("resolve")
+                return values[index]
+            stack.enter_context(mock.patch.object(module, "_resolve_now", side_effect=resolve))
+        stack.enter_context(mock.patch.object(receipt, "_RECEIPT_MEMO", receipt._make_receipt_memo()))
+        stack.enter_context(mock.patch.object(oracle, "_ORACLE_ENVIRONMENT_MEMO", oracle._make_oracle_environment_memo()))
+        stack.enter_context(mock.patch.object(suite, "_receipt_memo_module", return_value=receipt))
+        stack.enter_context(mock.patch.object(suite, "_oracle_environment_memo_module", return_value=oracle))
+        stack.enter_context(mock.patch.object(suite, "_real_repo_locks", lambda access: contextlib.nullcontext()))
+        stack.enter_context(mock.patch.dict(os.environ, {
+            receipt._RUN_ID_ENV: "early-run",
+            receipt._SESSION_NONCE_ENV: "session-test",
+            oracle._SESSION_NONCE_ENV: "oracle-session",
+        }))
+        config = _ReceiptHookConfig({"collectonly": False, "testrunuid": "early-run"})
+        config.args = [str(HERE)]
+        config.invocation_params = SimpleNamespace(args=(str(HERE),))
+        config._izanagi_acceptance_shard_spec = object()
+        setattr(config, suite._ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR, "oracle-session")
+        node = SimpleNamespace(config=config, workerinput={"testrunuid": "early-run"})
+        probe = SimpleNamespace(suite=suite, node=node, modules=modules, values=values,
+                                calls=calls, root=root)
+        try:
+            yield probe
+        finally:
+            suite._finish_memo_sessions(config, suppress_errors=True)
+
+
+def test_early_memo_starts_before_worker_collection_notification():
+    """M-3: real configure hook starts cache writers before collection callback."""
+    with _early_memo_cache_probe() as probe:
+        suite, node = probe.suite, probe.node
+        started = threading.Event()
+        release = threading.Event()
+        finished = threading.Event()
+        receipt = probe.modules[0]
+        original = receipt._resolve_now
+        def resolve():
+            started.set()
+            assert release.wait(5), "test did not release the receipt writer"
+            return original()
+        with mock.patch.object(receipt, "_resolve_now", side_effect=resolve):
+            try:
+                suite.pytest_configure_node(node)
+                # Moving prewarm back to collection-finished fails here. Neither
+                # hook nor memo endpoint is stubbed; the writer really owns flock.
+                assert started.wait(5), "receipt prewarm did not start before collection notification"
+                paths = node.workerinput[suite._EARLY_MEMO_INPUT_KEY]
+                assert Path(paths[0] + ".pending").exists()
+                suite.pytest_configure_node(node)
+                def notify_collection():
+                    suite.pytest_xdist_node_collection_finished(node, ())
+                    finished.set()
+                notification = threading.Thread(target=notify_collection)
+                notification.start()
+                assert finished.wait(5), "collection callback joined pending prewarm"
+                notification.join()
+                assert probe.calls[0] == []
+            finally:
+                release.set()
+                suite._finish_early_memo_job(node.config)
+        assert probe.calls == [["resolve"], ["resolve"]]
+        worker = _ReceiptHookConfig(worker=True)
+        worker.workerinput = dict(node.workerinput)
+        suite.pytest_collection_finish(SimpleNamespace(config=worker, items=[]))
+        assert probe.calls == [["resolve"], ["resolve"]]
+        assert all(Path(path).exists() and not Path(path + ".pending").exists() for path in paths)
+
+
+def test_early_memo_all_workers_wait_before_test_body_without_resolving():
+    with _early_memo_cache_probe() as probe:
+        started = threading.Event()
+        release = threading.Event()
+        reader_entered = threading.Event()
+        body_started = threading.Event()
+        errors = []
+        receipt = probe.modules[0]
+        original_resolve = receipt._resolve_now
+        original_locked = receipt._ReceiptMemo._locked
+        def resolve():
+            started.set()
+            assert release.wait(5)
+            return original_resolve()
+        def locked(self, *args, **kwargs):
+            if not kwargs["prewarm"]:
+                reader_entered.set()
+            return original_locked(self, *args, **kwargs)
+        def worker_collection():
+            worker = _ReceiptHookConfig(worker=True)
+            worker.workerinput = dict(probe.node.workerinput)
+            try:
+                # Empty collection still waits: this is not a consumer getter gate.
+                probe.suite.pytest_collection_finish(SimpleNamespace(config=worker, items=[]))
+                body_started.set()
+            except BaseException as exc:
+                errors.append(exc)
+        thread = None
+        with mock.patch.object(receipt, "_resolve_now", side_effect=resolve), \
+                mock.patch.object(receipt._ReceiptMemo, "_locked", locked):
+            try:
+                probe.suite.pytest_configure_node(probe.node)
+                assert started.wait(5)
+                thread = threading.Thread(target=worker_collection)
+                thread.start()
+                assert reader_entered.wait(5)
+                assert not body_started.is_set()
+            finally:
+                release.set()
+                if thread is not None:
+                    thread.join(5)
+                    assert not thread.is_alive()
+                probe.suite._finish_early_memo_job(probe.node.config)
+        assert not errors
+        assert body_started.is_set()
+        assert probe.calls == [["resolve"], ["resolve"]]
+
+
+def test_early_memo_order_rejects_collection_barrier_mutant():
+    """Explicit negative control for M-3 uses the same order test as the positive."""
+    original_load = _load_suite_conftest
+    def mutated_load():
+        suite = original_load()
+        source = inspect.getsource(suite.pytest_configure_node)
+        anchor = "        _start_early_memo_job(node)"
+        assert source.count(anchor) == 1
+        namespace = dict(vars(suite))
+        exec(compile(source.replace(anchor, "        pass"), "M-3", "exec"), namespace)
+        suite.pytest_configure_node = namespace["pytest_configure_node"]
+        return suite
+    with mock.patch.dict(globals(), {"_load_suite_conftest": mutated_load}):
+        with pytest.raises(AssertionError, match="prewarm did not start before collection notification"):
+            test_early_memo_starts_before_worker_collection_notification()
+
+
+def test_early_memo_parsed_narrowing_keeps_nonce_and_never_resolves():
+    # Parsed results of CLI, ini and PYTEST_ADDOPTS; argv stays suite-only.
+    for name, value in (
+        ("keyword", "selected"), ("markexpr", "slow"), ("deselect", ["node"]),
+        ("lf", True), ("failedfirst", True), ("last_failed", True), ("ignore", ["file"]),
+        ("stepwise", True), ("stepwise_skip", True),
+        ("override_ini", ["python_files=test_selected.py"]),
+        ("ignore_glob", ["*receipt*"]), ("pyargs", True), ("collectonly", True),
+    ):
+        with _early_memo_cache_probe() as probe:
+            setattr(probe.node.config.option, name, value)
+            probe.suite.pytest_configure_node(probe.node)
+            assert probe.calls == [[], []], name
+            assert probe.suite._EARLY_MEMO_INPUT_KEY not in probe.node.workerinput
+            assert probe.node.workerinput[probe.suite._RECEIPT_MEMO_SESSION_ID_ATTR] == "session-test"
+            assert probe.node.workerinput[probe.suite._ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR] == "oracle-session"
+    for shape in ("no-spec", "file", "worker"):
+        with _early_memo_cache_probe() as probe:
+            config = probe.node.config
+            if shape == "no-spec":
+                del config._izanagi_acceptance_shard_spec
+            elif shape == "file":
+                config.args = [__file__]
+            else:
+                config.workerinput = {}
+            probe.suite.pytest_configure_node(probe.node)
+            assert probe.calls == [[], []], shape
+            assert probe.suite._EARLY_MEMO_INPUT_KEY not in probe.node.workerinput
+
+
+def test_early_memo_narrowing_destinations_match_real_parser():
+    from _pytest import cacheprovider, helpconfig, main, mark, stepwise
+    from _pytest.config.argparsing import Parser
+
+    parser = Parser(_ispytest=True)
+    for plugin in (cacheprovider, helpconfig, main, mark, stepwise):
+        plugin.pytest_addoption(parser)
+    destinations = {
+        option.dest for group in [parser._anonymous, *parser._groups]
+        for option in group.options
+    }
+    suite = _load_suite_conftest()
+    assert set(suite._EARLY_MEMO_NARROWING_OPTIONS) <= destinations
+    # Independent CLI inputs catch omissions as well as misspelled destinations.
+    cases = (
+        (["-k", "selected"], "keyword", "selected"),
+        (["-m", "slow"], "markexpr", "slow"),
+        (["--last-failed"], "lf", True),
+        (["--ff"], "failedfirst", True),
+        (["--stepwise"], "stepwise", True),
+        (["--sw-skip"], "stepwise_skip", True),
+        (["--deselect="], "deselect", [""]),
+        (["--ignore="], "ignore", [""]),
+        (["--ignore-glob="], "ignore_glob", [""]),
+        (["--pyargs"], "pyargs", True),
+        (["-o", "python_files="], "override_ini", ["python_files="]),
+        (["-o", "python_functions="], "override_ini", ["python_functions="]),
+    )
+    with _early_memo_cache_probe() as probe:
+        config = probe.node.config
+        for argv, destination, value in cases:
+            config.option = parser.parse(argv)
+            assert getattr(config.option, destination) == value
+            assert not probe.suite._early_memo_selected(config), argv
+        for argv in ([], ["-k", ""], ["-m", ""]):
+            config.option = parser.parse(argv)
+            assert probe.suite._early_memo_selected(config), argv
+
+
+def test_early_memo_success_checks_shared_deadline_after_io():
+    # Real cache reads and lock cleanup; advance time at each I/O boundary.
+    for index in range(2):
+        for boundary in ("read", "unlock", "close"):
+            for elapsed in (119.0, 120.0, 121.0):
+                with _early_memo_cache_probe() as probe:
+                    paths = []
+                    for module, value in zip(probe.modules, probe.values):
+                        path = module._session_cache_path()
+                        module._cache_store(path, value)
+                        paths.append(str(path))
+                    worker = SimpleNamespace(workerinput={
+                        probe.suite._EARLY_MEMO_INPUT_KEY: paths,
+                    })
+                    now = [0.0]
+                    module = probe.modules[index]
+                    other = probe.modules[0]
+                    reading_target = [False]
+                    load = module._cache_load
+                    flock = module.fcntl.flock
+                    import builtins
+                    def read(*args, **kwargs):
+                        value = load(*args, **kwargs)
+                        reading_target[0] = True
+                        if boundary == "read":
+                            now[0] = elapsed
+                        return value
+                    def unlock(fd, flags):
+                        result = flock(fd, flags)
+                        if boundary == "unlock" and reading_target[0] and flags == module.fcntl.LOCK_UN:
+                            now[0] = elapsed
+                        return result
+                    class Handle:
+                        def __init__(self, handle):
+                            self.handle = handle
+                        def fileno(self):
+                            return self.handle.fileno()
+                        def close(self):
+                            self.handle.close()
+                            now[0] = elapsed
+                    def open_lock(path, *args, **kwargs):
+                        handle = builtins.open(path, *args, **kwargs)
+                        return Handle(handle) if str(path).endswith(".lock") else handle
+                    with contextlib.ExitStack() as stack:
+                        stack.enter_context(mock.patch.object(module.time, "monotonic", side_effect=lambda: now[0]))
+                        # Spend 60 seconds in receipt before oracle starts: the
+                        # oracle must still use the original 120-second deadline.
+                        if index == 1:
+                            receipt_load = other._cache_load
+                            def receipt_read(*args, **kwargs):
+                                result = receipt_load(*args, **kwargs)
+                                now[0] = 60.0
+                                return result
+                            stack.enter_context(mock.patch.object(other, "_cache_load", side_effect=receipt_read))
+                        stack.enter_context(mock.patch.object(module, "_cache_load", side_effect=read))
+                        if boundary == "unlock":
+                            stack.enter_context(mock.patch.object(module.fcntl, "flock", side_effect=unlock))
+                        if boundary == "close":
+                            stack.enter_context(mock.patch.object(module, "open", open_lock, create=True))
+                        if elapsed < 120.0:
+                            probe.suite._wait_early_memo_job(worker)
+                        else:
+                            error = module.ReceiptMemoError if index == 0 else module.OracleEnvironmentMemoError
+                            with pytest.raises(error) as caught:
+                                probe.suite._wait_early_memo_job(worker)
+                            assert caught.value.payload["reason"] == "publication-timeout"
+                    assert probe.calls == [[], []]
+
+
+def _early_probe_reader(module):
+    if hasattr(module, "_make_receipt_memo"):
+        return module._make_receipt_memo()
+    return module._make_oracle_environment_memo()
+
+
+def test_early_memo_publication_wait_is_explicit_bounded_and_fail_closed():
+    import errno
+    for index in range(2):
+        with _early_memo_cache_probe() as probe:
+            module = probe.modules[index]
+            path = module._session_cache_path()
+            pending = path.with_name(path.name + ".pending")
+            failed = path.with_name(path.name + ".failed")
+            pending.touch()
+            reader = _early_probe_reader(module)
+            error_type = module.ReceiptMemoError if index == 0 else module.OracleEnvironmentMemoError
+            def fails(reason, **kwargs):
+                with pytest.raises(error_type) as caught:
+                    reader.get(**kwargs)
+                assert caught.value.payload["reason"] == reason
+            fails("cache-missing")
+            fails("early-job-identity-mismatch", early_job=str(path) + "wrong")
+            now = [0.0]
+            def publish(delay):
+                now[0] += delay
+                module._cache_store(path, probe.values[index])
+                pending.unlink()
+            with mock.patch.object(module.time, "monotonic", side_effect=lambda: now[0]), \
+                    mock.patch.object(module.time, "sleep", side_effect=publish):
+                assert reader.get(early_job=str(path)) == probe.values[index]
+            failed.touch()
+            fails("prewarm-failed", early_job=str(path))
+            failed.unlink()
+            path.unlink()
+            fails("cache-missing", early_job=str(path))
+            pending.touch()
+            fails("publication-regressed", early_job=str(path))
+            reader = _early_probe_reader(module)
+            now[0] = 0.0
+            assert module._EARLY_WAIT_TIMEOUT_S == 120.0
+            def advance(delay):
+                now[0] += 60.0
+            with mock.patch.object(module.time, "monotonic", side_effect=lambda: now[0]), \
+                    mock.patch.object(module.time, "sleep", side_effect=advance):
+                with pytest.raises(error_type):
+                    reader.get(early_job=str(path))
+                assert now[0] == 120.0
+            real_flock = module.fcntl.flock
+            attempts = []
+            def eio_once(fd, flags):
+                if flags & module.fcntl.LOCK_EX:
+                    attempts.append(flags)
+                    if len(attempts) == 1:
+                        raise OSError(errno.EIO, "injected disk error")
+                return real_flock(fd, flags)
+            with mock.patch.object(module.fcntl, "flock", side_effect=eio_once):
+                fails("lock-acquire-failed", early_job=str(path))
+            assert len(attempts) == 1
+            assert probe.calls == [[], []]
+
+
+def test_early_memo_unlock_failure_never_publishes_ready():
+    import errno
+    for index in range(2):
+        with _early_memo_cache_probe() as probe:
+            module = probe.modules[index]
+            real_flock = module.fcntl.flock
+            def fail_writer_unlock(fd, flags):
+                if flags == module.fcntl.LOCK_UN:
+                    target = os.readlink(f"/proc/self/fd/{fd}")
+                    if module._CACHE_PREFIX in target:
+                        raise OSError(errno.EIO, "injected writer unlock error")
+                return real_flock(fd, flags)
+            with mock.patch.object(module.fcntl, "flock", side_effect=fail_writer_unlock):
+                probe.suite.pytest_configure_node(probe.node)
+                with pytest.raises(RuntimeError):
+                    probe.suite._finish_early_memo_job(probe.node.config)
+            paths = probe.node.workerinput[probe.suite._EARLY_MEMO_INPUT_KEY]
+            assert Path(paths[index]).exists()  # atomic replace really succeeded
+            assert Path(paths[index] + ".failed").exists()
+            assert not Path(paths[index] + ".pending").exists()
+            worker = _ReceiptHookConfig(worker=True)
+            worker.workerinput = dict(probe.node.workerinput)
+            with pytest.raises(RuntimeError):
+                probe.suite.pytest_collection_finish(SimpleNamespace(config=worker, items=[]))
+            assert probe.calls == [["resolve"], ["resolve"]]
+
+
+def test_early_memo_stale_markers_are_pruned_except_current_job():
+    for index in range(2):
+        with _early_memo_cache_probe() as probe:
+            module = probe.modules[index]
+            current = module._session_cache_path()
+            old = current.with_name(module._CACHE_PREFIX + "old.json")
+            for base in (current, old):
+                for suffix in (".pending", ".failed"):
+                    path = base.with_name(base.name + suffix)
+                    path.touch()
+                    os.utime(path, (1, 1))
+            module._prune_stale_caches(probe.root, current_path=current)
+            for suffix in (".pending", ".failed"):
+                assert current.with_name(current.name + suffix).exists()
+                assert not old.with_name(old.name + suffix).exists()
+
+
+def test_early_memo_close_failure_and_lock_contention_are_fail_closed():
+    import builtins
+    import errno
+    for index in range(2):
+        with _early_memo_cache_probe() as probe:
+            module = probe.modules[index]
+            class CloseFailure:
+                def __init__(self, handle):
+                    self.handle = handle
+                def fileno(self):
+                    return self.handle.fileno()
+                def close(self):
+                    self.handle.close()
+                    raise OSError(errno.EIO, "injected writer close error")
+            def open_lock(path, *args, **kwargs):
+                handle = builtins.open(path, *args, **kwargs)
+                if str(path).endswith(".lock"):
+                    return CloseFailure(handle)
+                return handle
+            with mock.patch.object(module, "open", open_lock, create=True):
+                probe.suite.pytest_configure_node(probe.node)
+                with pytest.raises(RuntimeError):
+                    probe.suite._finish_early_memo_job(probe.node.config)
+            path = module._session_cache_path()
+            assert path.exists()
+            assert Path(str(path) + ".failed").exists()
+            with pytest.raises(RuntimeError):
+                _early_probe_reader(module).get(early_job=str(path))
+        with _early_memo_cache_probe() as probe:
+            module = probe.modules[index]
+            path = module._session_cache_path()
+            now = [0.0]
+            def advance(delay):
+                now[0] += 60.0
+            def contended(fd, flags):
+                raise BlockingIOError(errno.EAGAIN, "injected competing writer")
+            with mock.patch.object(module.time, "monotonic", side_effect=lambda: now[0]), \
+                    mock.patch.object(module.time, "sleep", side_effect=advance), \
+                    mock.patch.object(module.fcntl, "flock", side_effect=contended):
+                with pytest.raises(RuntimeError):
+                    _early_probe_reader(module).get(early_job=str(path))
+            assert now[0] == 120.0
+            assert probe.calls == [[], []]
+
+
 def _run() -> int:
     passed = failed = skipped = 0
     for name, fn in sorted(globals().items()):
