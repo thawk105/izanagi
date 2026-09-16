@@ -265,6 +265,17 @@ def _make_git_fixture(tmp_path: Path) -> SimpleNamespace:
         "correctness/mode1.bin": b"correctness-mode1\n",
         "correctness/modeX.bin": b"correctness-modeX\n",
         "correctness/stock-w1.json": b'{"expected":{"value":1},"actual":{"value":1}}\n',
+        "correctness/stock-w2.json": b'{"expected":{"value":1},"actual":{"value":1}}\n',
+        "correctness/mode1-w1.json": b'{"expected":{"value":1},"actual":{"value":1}}\n',
+        "correctness/mode1-w2.json": b'{"expected":{"value":1},"actual":{"value":1}}\n',
+        "correctness/modeX-w1.json": b'{"expected":{"value":1},"actual":{"value":1}}\n',
+        "correctness/modeX-w2.json": b'{"expected":{"value":1},"actual":{"value":1}}\n',
+        "liveness/stock-w1.log": b"liveness stock W1 ok\n",
+        "liveness/stock-w2.log": b"liveness stock W2 ok\n",
+        "liveness/mode1-w1.log": b"liveness mode1 W1 ok\n",
+        "liveness/mode1-w2.log": b"liveness mode1 W2 ok\n",
+        "liveness/modeX-w1.log": b"liveness modeX W1 ok\n",
+        "liveness/modeX-w2.log": b"liveness modeX W2 ok\n",
     }
     for index, arm in enumerate(semantic._ARMS):
         tree_files[f"build/{arm}.bin"] = f"performance-{arm}\n".encode()
@@ -644,6 +655,79 @@ def _full_receipt(fixture: SimpleNamespace) -> tuple[dict[str, Any], ReceiptSche
     return value, schema
 
 
+def _certified_receipt(fixture: SimpleNamespace) -> tuple[dict[str, Any], ReceiptSchema]:
+    original, schema = _full_receipt(fixture)
+    value = copy.deepcopy(original)
+    root = fixture.root
+
+    def pointer(path: str) -> dict[str, object]:
+        data = fixture.tree_files.get(path, (root / path).read_bytes())
+        return _file_record(root, path, data)
+
+    for attempt in value["attempts"]:
+        if attempt["attempt_id"] == "attempt-verification":
+            attempt.update(
+                reason_code="completed",
+                qsub_result={"returncode": 0, "raw": pointer("build/qsub-verification")},
+                failure_evidence=None,
+                performance_started_marker=None,
+            )
+    template = value["correctness_evidence"][0]
+    value["correctness_evidence"] = []
+    value["liveness"] = []
+    pairs = [(arm, workload) for arm in ("stock", "mode1", "modeX") for workload in ("W1", "W2")]
+    for ordinal, (arm, workload) in enumerate(pairs, 1):
+        entry = copy.deepcopy(template)
+        entry.update(ordinal=ordinal, arm=arm, workload=workload)
+        entry["build"]["source"] = copy.deepcopy(value["arms"][arm]["compile"]["source"])
+        entry["build"]["binary"] = pointer(f"correctness/{arm}.bin")
+        entry["outputs"] = [pointer(f"correctness/{arm}-{workload.lower()}.json")]
+        entry["run_scope"] = {"allocation_id": "alloc-verification", "run_ordinal": ordinal}
+        value["correctness_evidence"].append(entry)
+        value["liveness"].append({
+            "ordinal": ordinal,
+            "allocation_id": "alloc-verification",
+            "probe": "liveness_run",
+            "arm_or_null": arm,
+            "workload_or_null": workload,
+            "monotonic_ns": 105 + ordinal,
+            "raw": pointer(f"liveness/{arm}-{workload.lower()}.log"),
+        })
+    return value, schema
+
+
+def _without_verification_attempt(value: dict[str, Any]) -> dict[str, Any]:
+    value = copy.deepcopy(value)
+    value["attempts"] = [
+        attempt for attempt in value["attempts"]
+        if attempt["cluster_slot_or_null"] is not None
+    ]
+    return value
+
+
+def _completed_performance_reason_payload() -> dict[str, Any]:
+    return {
+        "planned_execution": {
+            "consumed_cluster_slots": [1],
+            "runs": [{"run_id": f"run-{i}", "cluster_slot": 1} for i in range(36)],
+        },
+        "attempts": [{
+            "attempt_id": "p",
+            "cluster_slot_or_null": 1,
+            "reason_code": "completed",
+            "allocation_id": "alloc-performance",
+            "performance_started_marker": {"path": "marker"},
+            "failure_evidence": None,
+            "replaces_attempt_id": None,
+        }],
+        "actual_runs": [{"run_id": f"run-{i}", "attempt_id": "p"} for i in range(36)],
+        "correctness_evidence": [
+            {"arm": arm, "workload": workload, "run_scope": {"allocation_id": "alloc-verification"}}
+            for arm in ("stock", "mode1", "modeX") for workload in ("W1", "W2")
+        ],
+    }
+
+
 def _assert_semantic(code: str, callable_object, *args, **kwargs) -> None:
     with pytest.raises(semantic.SemanticValidationError) as info:
         callable_object(*args, **kwargs)
@@ -667,6 +751,79 @@ def test_semantic_validator_accepts_complete_performance_receipt(tmp_path: Path)
     semantic._validate_receipt_semantics(
         fixture.root, document, schema=schema, binding=fixture.binding
     )
+
+
+def test_certified_receipt_accepts_six_pairs(tmp_path: Path) -> None:
+    fixture = _make_git_fixture(tmp_path)
+    value, schema = _certified_receipt(fixture)
+    semantic._validate_receipt_semantics(
+        fixture.root, _receipt_document(value), schema=schema, binding=fixture.binding
+    )
+
+
+@pytest.mark.parametrize("count", [0, 1], ids=["0", "1"])
+def test_completed_performance_requires_correctness_top_level(tmp_path: Path, count: int) -> None:
+    fixture = _make_git_fixture(tmp_path)
+    value, schema = _full_receipt(fixture)
+    value = _without_verification_attempt(value)
+    value["correctness_evidence"] = value["correctness_evidence"][:count]
+    _assert_semantic(
+        "correctness", semantic._validate_receipt_semantics,
+        fixture.root, _receipt_document(value), schema=schema, binding=fixture.binding,
+    )
+
+
+@pytest.mark.parametrize("count", [0, 1, 5], ids=["0", "1", "5"])
+def test_completed_performance_requires_correctness_reason_branches(count: int) -> None:
+    value = _completed_performance_reason_payload()
+    value["correctness_evidence"] = value["correctness_evidence"][:count]
+    _assert_semantic("correctness", semantic._validate_reason_branches, value, {}, anomaly=False)
+
+
+def test_completed_performance_rejects_duplicate_correctness_pair(tmp_path: Path) -> None:
+    fixture = _make_git_fixture(tmp_path)
+    value, schema = _certified_receipt(fixture)
+    value = _without_verification_attempt(value)
+    value["correctness_evidence"][5] = copy.deepcopy(value["correctness_evidence"][0])
+    value["correctness_evidence"][5]["ordinal"] = 6
+    value["correctness_evidence"][5]["run_scope"]["run_ordinal"] = 6
+    _assert_semantic(
+        "correctness", semantic._validate_receipt_semantics,
+        fixture.root, _receipt_document(value), schema=schema, binding=fixture.binding,
+    )
+
+
+def test_completed_performance_rejects_seven_correctness_entries() -> None:
+    value = _completed_performance_reason_payload()
+    value["correctness_evidence"].append(copy.deepcopy(value["correctness_evidence"][0]))
+    _assert_semantic("correctness", semantic._validate_reason_branches, value, {}, anomaly=False)
+
+
+@pytest.mark.parametrize("count", [0, 5], ids=["0", "5"])
+def test_failed_performance_accepts_partial_correctness(count: int) -> None:
+    value = _completed_performance_reason_payload()
+    value["attempts"][0].update(
+        reason_code="pre_performance_infra_failure",
+        performance_started_marker=None,
+        failure_evidence={"kind": "scheduler", "pointer": {"path": "failure"}},
+    )
+    value["actual_runs"] = []
+    value["correctness_evidence"] = value["correctness_evidence"][:count]
+    semantic._validate_reason_branches(value, {}, anomaly=False)
+
+
+def test_recorded_verification_failure_accepts_empty_correctness() -> None:
+    value = _completed_performance_reason_payload()
+    value["attempts"].append({
+        "attempt_id": "v",
+        "cluster_slot_or_null": None,
+        "reason_code": "pre_performance_infra_failure",
+        "allocation_id": "alloc-verification",
+        "performance_started_marker": None,
+        "failure_evidence": {"kind": "scheduler", "pointer": {"path": "failure"}},
+    })
+    value["correctness_evidence"] = []
+    semantic._validate_reason_branches(value, {}, anomaly=False)
 
 
 def test_completed_performance_requires_full_bijection(tmp_path: Path) -> None:
