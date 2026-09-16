@@ -218,6 +218,35 @@ v4 の下で完了した 135 cell は v4 のまま残す。
 (同じ campaign に別 ID が積まれる)。逐語と検査の正本は
 `orchestrator/campaign/b10_backoff_shape_sweep.py` の `EXPECTED_HOLE_LINE` と実行時 preflight。
 
+#### 式 v1 の patch は `silo-backoff-fixed-v1.patch` として別名で凍結してある
+
+2026-09-16 に、合成枝の式が v2 へ変わる直前の本 patch (v1) を bytes のまま
+`patches/silo-backoff-fixed-v1.patch` として保存した (D1098 / D1281、[T-1907])。
+
+| 項目 | 値 |
+|---|---|
+| 取得元 | `4dfd3785b^:patches/silo-backoff-fixed.patch` (この bytes を入れた commit は `4f7bb3c76`、2026-07-02) |
+| git blob | `f7a54445764025112317151106712bb9d97678ab` |
+| sha256 | `35237d314df708c6a6cb6fece0a8a59cd199bb57337013f95f6ed50ea2a2f911` |
+| 前提とする元 blob | `cmake/Options.cmake` = `b9a3c74`、`include/backoff.hh` = `3db8c08` (CCBench `6656e93` と `511c953` の両方で同一) |
+
+- 中身は v1 の最終版で、合成枝の式 `static_cast<double>(BACKOFF_FIXED)`、noinline 計器、
+  EVOLVE-BLOCK マーカー、`BACKOFF_FIXED` 未供給時の `#error` を含む。v2 との差は合成枝の式 1 行だけである。
+- 初版 (2026-06-22 の blob `476a128`) とは bytes が同じではない。式の行は同じだが、noinline 計器・
+  マーカー・`#error` を含まない。旧 static-backoff sweep の 3 WAL (`output/s1-freeze/` と
+  `output/s8b-freeze/` の凍結 file が path と SHA を持つ) を生んだ patch の bytes は WAL にも lock にも
+  記録が無いので、この file をその生成時の bytes とは呼ばない。
+- 用途は、歴史的な v1 のソースを repo 内の固定 path で参照し、必要なら明示的に適用することに限る。
+  旧実験の完全な再現や、現行 consumer が v1 を使うことは保証しない。
+- 現行の `silo-backoff-fixed.patch`・各 consumer の参照先・凍結成果物・WAL・`ledger.json` は変えていない。
+  この file を自動で読む driver は無い。
+- **bytes を pin する検査は置いていない** (依頼が pin・gate・台帳の追加を scope 外とした)。この file を
+  改変しないこと。直下の `*.patch` を走査する既存の在庫検査 (define 在庫と `IZANAGI_` token 在庫) の
+  走査対象には入る。
+- 上の v2 節の「旧 campaign へ resume してはならない」は残す。補足として、現行の `backoff_sweep.py` と
+  `backoff_repro.py` は campaign 識別子へ build admission policy を必ず束縛し、policy を持たない旧 lock
+  への resume は識別子の照合で拒否する (コードの読解による。実走では確かめていない)。
+
 ### BACKOFF_NOINLINE — perf 帰属用の診断計器 (P2-4)
 
 backoff ケーススタディ [P0] の機序純度を解くため、backoff() の `_mm_pause`+`rdtscp` busy-wait スピンを
