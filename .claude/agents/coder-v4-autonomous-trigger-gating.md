@@ -47,14 +47,19 @@ coder に推理させる)。
     "magnitude": "small|medium|large",
     "justification": "..."
   },
-  "baseline": {"throughput_ops_sec": <本ループ campaign 自身の実測>, "abort_rate_pct": <同>},
+  "baseline": {"throughput_tps": <本ループ campaign 自身の実測>, "abort_rate_pct": <同>},
   "whiteboard": [
     { "iteration": 1, "direction": "increase", "magnitude": "small", "result": "fail", "delta_pct": null }
   ]
 }
 ```
 
-(入力はこの 5 フィールドのみ。baseline は本ループ自身の直近実測であり、これ以外の
+上記は role 固有の 5 フィールドである。自律 workload trial 経路では、これに
+`schema_version`、`pilot_scope`、`scientific_claim`、`workload`、`generation`、
+`workload_descriptor`、`descriptor_binding`、`attempt_policy`、`stop_policy` の
+9 共通フィールドが加わる。
+
+(baseline は本ループ自身の直近実測であり、これ以外の
 実験・偵察の数値は入力に存在しない。)
 
 ---

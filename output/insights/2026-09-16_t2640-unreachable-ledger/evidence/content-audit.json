@@ -1,0 +1,821 @@
+[
+ {
+  "author_date": "2026-08-18T21:49:23+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 8485,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-18T22:41:45+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "0b92c254b830bc333386eacafdc5d113292116be",
+  "parents": [
+   "d5294c9e6522d15cc22599c52bd4a39af22d946a"
+  ],
+  "subject": "docs(s8c): [T-1348] 変異 spec (probe) と段 1-6 の逐語を記録する"
+ },
+ {
+  "author_date": "2026-08-18T21:49:23+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 8485,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-18T21:49:23+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "0decf0a4eae5be07e59961e1d9fc735b42bae962",
+  "parents": [
+   "77aa740bdf4379b25baba3dfc7a551676269ea2d"
+  ],
+  "subject": "docs(s8c): [T-1348] 変異 spec (probe) と段 1-6 の逐語を記録する"
+ },
+ {
+  "author_date": "2026-08-11T20:24:48+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 13662,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-11_t812-lease-self-renew-mutation-spec.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-11T20:24:48+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "1aa5ae77aa862ea68f5a5509ee748bd26ce18dab",
+  "parents": [
+   "b365e4777908b5fac873790e91a697185fba189f"
+  ],
+  "subject": "test(mutation): [T-812] 受入 lease 自己保持の変異 spec を事前登録する"
+ },
+ {
+  "author_date": "2026-09-09T13:23:58+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 6595,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-09-09_codex-worktree-delta-manifest-interrupted/README.md",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-09-09T13:23:58+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "1d41c41714b66ecb54eb23d52602fb7f8170602a",
+  "parents": [
+   "c6c7cee216d4a0d0ce01e7ead7538acd59a5954c"
+  ],
+  "subject": "docs: 中断した worktree delta manifest wave の実測を残す"
+ },
+ {
+  "author_date": "2026-08-17T04:18:49+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 339993,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-17_t1262-submodule-identity-gate/mutation-result.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-17T04:18:49+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "2620635f74883f6162a4838b547344c3d8695b1c",
+  "parents": [
+   "8ee06f4566dc6ce6da56a3462e9b91dfffc80141"
+  ],
+  "subject": "[T-1262] 変異結果と台帳 fragment を記録する"
+ },
+ {
+  "author_date": "2026-08-18T22:20:51+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 309575,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json",
+    "readable": true
+   },
+   {
+    "bytes": 278735,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json",
+    "readable": true
+   },
+   {
+    "bytes": 11548,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-18T22:41:45+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd",
+  "parents": [
+   "0b92c254b830bc333386eacafdc5d113292116be"
+  ],
+  "subject": "docs(s8c): [T-1348] C09 / C10 consumer 配線の記録 — insight と台帳 fragment を書く"
+ },
+ {
+  "author_date": "2026-08-18T21:49:23+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 8485,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-18T22:35:03+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7",
+  "parents": [
+   "0d5b45aa05cf467776b19f2a05194a12993a398f"
+  ],
+  "subject": "docs(s8c): [T-1348] 変異 spec (probe) と段 1-6 の逐語を記録する"
+ },
+ {
+  "author_date": "2026-08-18T22:20:51+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 309575,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json",
+    "readable": true
+   },
+   {
+    "bytes": 278735,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json",
+    "readable": true
+   },
+   {
+    "bytes": 11548,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-18T22:35:03+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "3905db91ed815d051e0916f12144e01934431d0a",
+  "parents": [
+   "2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7"
+  ],
+  "subject": "docs(s8c): [T-1348] C09 / C10 consumer 配線の記録 — insight と台帳 fragment を書く"
+ },
+ {
+  "author_date": "2026-08-26T14:11:14+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 1651,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-26_t1798-floor-oracle-manifest/acceptance-receipt.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-26T14:11:14+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "3ea6ed7428605ce73ce5e05121fc74d5985146f1",
+  "parents": [
+   "b8576e0c9a8d0633b36eeabd9581c4aec8b7e1f3"
+  ],
+  "subject": "受入全走の結果を記録する"
+ },
+ {
+  "author_date": "2026-08-16T18:19:18+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 511579,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-result-round1-probe.json",
+    "readable": true
+   },
+   {
+    "bytes": 401993,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-result-round2.json",
+    "readable": true
+   },
+   {
+    "bytes": 11295,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-spec-round1-probe.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-16T18:19:18+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "4a62da8c3c3302d0e11a5cf951736e8be10e68b3",
+  "parents": [
+   "1918464458b6c2bed3bb54ef0d0159a78628c783"
+  ],
+  "subject": "[T-1155] / [T-1178] wave の記録 — spool fragment 3 本と insights (逐語・変異台帳・erratum 2 件)"
+ },
+ {
+  "author_date": "2026-08-17T02:38:38+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 264005,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger-probe.json",
+    "readable": true
+   },
+   {
+    "bytes": 231678,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger.json",
+    "readable": true
+   },
+   {
+    "bytes": 5057,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec-probe.json",
+    "readable": true
+   },
+   {
+    "bytes": 7760,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-17T02:38:38+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "4c2b4805915416a8ca8ce520a20e220b391ea176",
+  "parents": [
+   "53b0139044707a9f21b84fc49068fd1deecfb92c"
+  ],
+  "subject": "docs(t1250): 第 4 世代の変異台帳・逐語・台帳 fragment を記録する"
+ },
+ {
+  "author_date": "2026-09-09T13:24:06+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 8881,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-09-09_t2487-rescue-scale/README.md",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-09-09T13:28:58+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "54d4dd9b3eb270307e6294b9ac9b1484f7ba868f",
+  "parents": [
+   "c6c7cee216d4a0d0ce01e7ead7538acd59a5954c"
+  ],
+  "subject": "docs(t2487): [T-2487] 段 1 の実測だけを残して wave を中断する"
+ },
+ {
+  "author_date": "2026-08-21T18:56:47+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 3213,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "docs/handoff/2026-08-21-rulings-calibration-main-land.md",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-21T19:00:07+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "5b3ff770ddf2de1d7df528596636c1abcfd3d55b",
+  "parents": [
+   "46fbce3d7151044c9450bdf3f422ea839e7fcc0f"
+  ],
+  "subject": "feat(pegasus): enable AI-driven rr20 rr80 calibration registration"
+ },
+ {
+  "author_date": "2026-08-17T03:07:42+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 233804,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-17_t190-launcher-failure-artifact/mutation-ledger.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-17T03:07:42+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "66dccb28fedca606f96dcf9baf5c7f7a6979a599",
+  "parents": [],
+  "subject": "untracked files on worktree-dev-wave-t190-failure-artifact: 2f6a83da Pre-register the mutation matrix for the launcher diagnostics wave"
+ },
+ {
+  "author_date": "2026-08-16T04:38:11+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 541658,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-16_t1109-admission-grammar/mutation-ledger.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-16T04:38:11+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "6902920cdf39e03e1fdfcbc3e6dc18e31a564918",
+  "parents": [
+   "d5a441b6dbac644cb82df2a1695b2d24226ff88f"
+  ],
+  "subject": "docs(t1109): 変異を最終 commit で再走した結果へ更新し、base digest を現 main へ採り直す"
+ },
+ {
+  "author_date": "2026-09-08T05:48:06+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 1681,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-09-08_t2265-itt-seq0/verbatim/analyze.py",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-09-08T05:48:06+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "75d55ccd8d192203b0f04b3fa46130735edb967b",
+  "parents": [
+   "aa4f601a3afdc86d8387fff540bc1aedb42db720"
+  ],
+  "subject": "[T-2265] 段 7 記録 — insight、逐語 12 本、変異台帳 2 巡、spool fragment 3 本"
+ },
+ {
+  "author_date": "2026-08-21T18:56:47+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 3153,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "docs/handoff/2026-08-21-rulings-calibration-main-land.md",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-21T18:58:12+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "8c2e4e3f8ed8a7925072a5b9a381a5ee9257c8b5",
+  "parents": [
+   "46fbce3d7151044c9450bdf3f422ea839e7fcc0f"
+  ],
+  "subject": "feat(pegasus): enable AI-driven rr20 rr80 calibration registration"
+ },
+ {
+  "author_date": "2026-08-18T22:20:51+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 309575,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json",
+    "readable": true
+   },
+   {
+    "bytes": 278735,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json",
+    "readable": true
+   },
+   {
+    "bytes": 11548,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-18T22:20:51+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "aab5adbbcb599a72a9355e060ec32e825028298a",
+  "parents": [
+   "0decf0a4eae5be07e59961e1d9fc735b42bae962"
+  ],
+  "subject": "docs(s8c): [T-1348] C09 / C10 consumer 配線の記録 — insight と台帳 fragment を書く"
+ },
+ {
+  "author_date": "2026-08-12T23:27:29+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 137088,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-12_t930-hold-no-bypass/mutation-final.json",
+    "readable": true
+   },
+   {
+    "bytes": 7241,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-12_t930-hold-no-bypass/mutation-spec-final.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-12T23:27:29+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "accabf0b5d9e9cf3e8ec33008a92c8f41a158787",
+  "parents": [
+   "4b3f823720727fe5ee7750b25d7e2d5a310066de"
+  ],
+  "subject": "docs(t930): 保留の迂回封鎖を記録し、裁定 fragment を相乗りさせる"
+ },
+ {
+  "author_date": "2026-08-21T18:56:47+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 3214,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "docs/handoff/2026-08-21-rulings-calibration-main-land.md",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-21T18:59:07+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "c0439777fcf27a56605821d206519d4efa6487e5",
+  "parents": [
+   "46fbce3d7151044c9450bdf3f422ea839e7fcc0f"
+  ],
+  "subject": "feat(pegasus): enable AI-driven rr20 rr80 calibration registration"
+ },
+ {
+  "author_date": "2026-08-11T20:24:48+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 14576,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-11_t812-lease-self-renew-mutation-spec.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-11T20:27:24+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "c3e2218c383e8c6a47ae2343fe78e558241d4e01",
+  "parents": [
+   "b365e4777908b5fac873790e91a697185fba189f"
+  ],
+  "subject": "test(mutation): [T-812] 受入 lease 自己保持の変異 spec を事前登録する"
+ },
+ {
+  "author_date": "2026-08-11T08:58:55+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 406539,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-11_t657-stage0-rulings/mutation-ledger-discovery.json",
+    "readable": true
+   },
+   {
+    "bytes": 469846,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-11_t657-stage0-rulings/mutation-ledger.json",
+    "readable": true
+   },
+   {
+    "bytes": 10223,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-11_t657-stage0-rulings/mutation-spec.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-11T08:58:55+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "c5d79e7050fecc229fd81f4879137be8bae49cb7",
+  "parents": [
+   "1f7027c30ec2dc62445e1ac2a8d6b333e32c4f05"
+  ],
+  "subject": "docs(t657): 段 0 裁定実施 wave の記録を凍結する"
+ },
+ {
+  "author_date": "2026-09-09T13:28:53+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 29130,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-09-09_worktree-lock-reason-audit/README.md",
+    "readable": true
+   },
+   {
+    "bytes": 21107,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-09-09_worktree-lock-reason-audit/evidence.tsv",
+    "readable": true
+   },
+   {
+    "bytes": 37364,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-09-09_worktree-lock-reason-audit/worktree-snapshot-130853.txt",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-09-09T13:28:53+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "c656d831e30ee0c261538889991af6c30bb45e89",
+  "parents": [
+   "c6c7cee216d4a0d0ce01e7ead7538acd59a5954c"
+  ],
+  "subject": "docs(lock-audit): 理由なし worktree lock 133 本の所有者証拠と施錠機構の提案"
+ },
+ {
+  "author_date": "2026-08-21T18:56:47+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 3213,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "docs/handoff/2026-08-21-rulings-calibration-main-land.md",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-21T19:01:08+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "c7a57d642fe72ce5c5480b761515054ac7817e63",
+  "parents": [
+   "46fbce3d7151044c9450bdf3f422ea839e7fcc0f"
+  ],
+  "subject": "feat(pegasus): enable AI-driven rr20 rr80 calibration registration"
+ },
+ {
+  "author_date": "2026-08-21T18:56:47+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 3153,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "docs/handoff/2026-08-21-rulings-calibration-main-land.md",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-21T18:56:47+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "cb0d930525930aef2e2d78ec420a5a386d3e63c7",
+  "parents": [
+   "46fbce3d7151044c9450bdf3f422ea839e7fcc0f"
+  ],
+  "subject": "feat(pegasus): enable AI-driven rr20 rr80 calibration registration"
+ },
+ {
+  "author_date": "2026-08-19T10:40:16+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 265263,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-19_t1379-c05-activation/mutation/mutation-out.json",
+    "readable": true
+   },
+   {
+    "bytes": 5011,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-19_t1379-c05-activation/mutation/mutation-spec.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-19T10:40:16+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "cbd9d812141f5010ba90403c513a7dbad8cc7edc",
+  "parents": [
+   "c31c8fea93387b524badba186688b2f09c4cbc1d"
+  ],
+  "subject": "feat(s8c): [T-1379] 条件5 (C05) を machine_checkable へ昇格し DECIDER_VERSION を v5 へ bump する"
+ },
+ {
+  "author_date": "2026-08-18T17:13:56+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 4051553,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-probe1.json",
+    "readable": true
+   },
+   {
+    "bytes": 4039951,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v2.json",
+    "readable": true
+   },
+   {
+    "bytes": 3132342,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v3-baseline-flake.json",
+    "readable": true
+   },
+   {
+    "bytes": 3274046,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v4.json",
+    "readable": true
+   },
+   {
+    "bytes": 13568,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-probe1.json",
+    "readable": true
+   },
+   {
+    "bytes": 16201,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v2.json",
+    "readable": true
+   },
+   {
+    "bytes": 4375,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v3.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-18T17:13:56+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "cd066a0487af0376fac76bcfb58b2c4462f9085d",
+  "parents": [
+   "1fa23613cfeae4302648458b91cb75a442ddb3ee"
+  ],
+  "subject": "docs(s8b): [T-1086] の記録 — insight package と台帳 fragment を書く"
+ },
+ {
+  "author_date": "2026-08-17T03:32:40+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 7706,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-17_t1262-submodule-identity-gate/mutation-spec.json",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-17T03:32:40+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "e0a80472fb37255903fd1a658a553369d8ba1a76",
+  "parents": [
+   "1e634544ac5259ddcef916d2ce3742f80ba133b4"
+  ],
+  "subject": "[T-1262] 変異事前登録と材料レポートを置く"
+ },
+ {
+  "author_date": "2026-09-09T13:24:06+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 8881,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-09-09_t2487-rescue-scale/README.md",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-09-09T13:24:06+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "f181f703d1d68ab2bbd03ad2d6f594dfe039f030",
+  "parents": [
+   "c6c7cee216d4a0d0ce01e7ead7538acd59a5954c"
+  ],
+  "subject": "docs(t2487): [T-2487] 段 1 の実測だけを残して wave を中断する"
+ },
+ {
+  "author_date": "2026-08-11T19:58:31+09:00",
+  "author_email": "thawk105@gmail.com",
+  "author_name": "thawk105",
+  "blobs": [
+   {
+    "bytes": 18470,
+    "instruction_shaped_hits": [],
+    "is_text": true,
+    "path": "output/insights/2026-08-11_t817-verifier-epoch/log-survival-scan.txt",
+    "readable": true
+   }
+  ],
+  "commit_date": "2026-08-11T19:58:31+09:00",
+  "committer_email": "thawk105@gmail.com",
+  "committer_name": "thawk105",
+  "oid": "f1feb592af5bc21a9754f64250039238da82454d",
+  "parents": [
+   "276ab6cc113ea9ab78817829be8af7abac2b73c2"
+  ],
+  "subject": "docs(t817): 実測で裁定の前提が覆ったので実装せず再裁定へ返す — 突き合わせ対象 0 件、機構は健全に作れず、除外の面は 8 経路"
+ }
+]

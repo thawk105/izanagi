@@ -1,0 +1,2762 @@
+[
+ {
+  "oid": "0b92c254b830bc333386eacafdc5d113292116be",
+  "ref": "refs/rescue/t2640/0b92c254b830bc333386eacafdc5d113292116be",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "0b92c254b830bc333386eacafdc5d113292116be"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/0b92c254b830bc333386eacafdc5d113292116be"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "0b92c254b830bc333386eacafdc5d113292116be",
+     "refs/rescue/t2640/0b92c254b830bc333386eacafdc5d113292116be"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/0b92c254b830bc333386eacafdc5d113292116be^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "0b92c254b830bc333386eacafdc5d113292116be"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/0b92c254b830bc333386eacafdc5d113292116be"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "0b92c254b830bc333386eacafdc5d113292116be"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/0b92c254b830bc333386eacafdc5d113292116be",
+     "0b92c254b830bc333386eacafdc5d113292116be",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "0decf0a4eae5be07e59961e1d9fc735b42bae962",
+  "ref": "refs/rescue/t2640/0decf0a4eae5be07e59961e1d9fc735b42bae962",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "0decf0a4eae5be07e59961e1d9fc735b42bae962"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/0decf0a4eae5be07e59961e1d9fc735b42bae962"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "0decf0a4eae5be07e59961e1d9fc735b42bae962",
+     "refs/rescue/t2640/0decf0a4eae5be07e59961e1d9fc735b42bae962"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/0decf0a4eae5be07e59961e1d9fc735b42bae962^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "0decf0a4eae5be07e59961e1d9fc735b42bae962"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/0decf0a4eae5be07e59961e1d9fc735b42bae962"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "0decf0a4eae5be07e59961e1d9fc735b42bae962"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/0decf0a4eae5be07e59961e1d9fc735b42bae962",
+     "0decf0a4eae5be07e59961e1d9fc735b42bae962",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "1aa5ae77aa862ea68f5a5509ee748bd26ce18dab",
+  "ref": "refs/rescue/t2640/1aa5ae77aa862ea68f5a5509ee748bd26ce18dab",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "1aa5ae77aa862ea68f5a5509ee748bd26ce18dab"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/1aa5ae77aa862ea68f5a5509ee748bd26ce18dab"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "1aa5ae77aa862ea68f5a5509ee748bd26ce18dab",
+     "refs/rescue/t2640/1aa5ae77aa862ea68f5a5509ee748bd26ce18dab"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/1aa5ae77aa862ea68f5a5509ee748bd26ce18dab^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "1aa5ae77aa862ea68f5a5509ee748bd26ce18dab"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/1aa5ae77aa862ea68f5a5509ee748bd26ce18dab"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "1aa5ae77aa862ea68f5a5509ee748bd26ce18dab"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/1aa5ae77aa862ea68f5a5509ee748bd26ce18dab",
+     "1aa5ae77aa862ea68f5a5509ee748bd26ce18dab",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "1d41c41714b66ecb54eb23d52602fb7f8170602a",
+  "ref": "refs/rescue/t2640/1d41c41714b66ecb54eb23d52602fb7f8170602a",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "1d41c41714b66ecb54eb23d52602fb7f8170602a"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/1d41c41714b66ecb54eb23d52602fb7f8170602a"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "1d41c41714b66ecb54eb23d52602fb7f8170602a",
+     "refs/rescue/t2640/1d41c41714b66ecb54eb23d52602fb7f8170602a"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/1d41c41714b66ecb54eb23d52602fb7f8170602a^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "1d41c41714b66ecb54eb23d52602fb7f8170602a"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/1d41c41714b66ecb54eb23d52602fb7f8170602a"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "1d41c41714b66ecb54eb23d52602fb7f8170602a"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/1d41c41714b66ecb54eb23d52602fb7f8170602a",
+     "1d41c41714b66ecb54eb23d52602fb7f8170602a",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "2620635f74883f6162a4838b547344c3d8695b1c",
+  "ref": "refs/rescue/t2640/2620635f74883f6162a4838b547344c3d8695b1c",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "2620635f74883f6162a4838b547344c3d8695b1c"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/2620635f74883f6162a4838b547344c3d8695b1c"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "2620635f74883f6162a4838b547344c3d8695b1c",
+     "refs/rescue/t2640/2620635f74883f6162a4838b547344c3d8695b1c"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/2620635f74883f6162a4838b547344c3d8695b1c^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "2620635f74883f6162a4838b547344c3d8695b1c"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/2620635f74883f6162a4838b547344c3d8695b1c"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "2620635f74883f6162a4838b547344c3d8695b1c"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/2620635f74883f6162a4838b547344c3d8695b1c",
+     "2620635f74883f6162a4838b547344c3d8695b1c",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd",
+  "ref": "refs/rescue/t2640/2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd",
+     "refs/rescue/t2640/2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd",
+     "2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7",
+  "ref": "refs/rescue/t2640/2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7",
+     "refs/rescue/t2640/2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7",
+     "2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "3905db91ed815d051e0916f12144e01934431d0a",
+  "ref": "refs/rescue/t2640/3905db91ed815d051e0916f12144e01934431d0a",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "3905db91ed815d051e0916f12144e01934431d0a"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/3905db91ed815d051e0916f12144e01934431d0a"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "3905db91ed815d051e0916f12144e01934431d0a",
+     "refs/rescue/t2640/3905db91ed815d051e0916f12144e01934431d0a"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/3905db91ed815d051e0916f12144e01934431d0a^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "3905db91ed815d051e0916f12144e01934431d0a"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/3905db91ed815d051e0916f12144e01934431d0a"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "3905db91ed815d051e0916f12144e01934431d0a"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/3905db91ed815d051e0916f12144e01934431d0a",
+     "3905db91ed815d051e0916f12144e01934431d0a",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "3ea6ed7428605ce73ce5e05121fc74d5985146f1",
+  "ref": "refs/rescue/t2640/3ea6ed7428605ce73ce5e05121fc74d5985146f1",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "3ea6ed7428605ce73ce5e05121fc74d5985146f1"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/3ea6ed7428605ce73ce5e05121fc74d5985146f1"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "3ea6ed7428605ce73ce5e05121fc74d5985146f1",
+     "refs/rescue/t2640/3ea6ed7428605ce73ce5e05121fc74d5985146f1"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/3ea6ed7428605ce73ce5e05121fc74d5985146f1^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "3ea6ed7428605ce73ce5e05121fc74d5985146f1"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/3ea6ed7428605ce73ce5e05121fc74d5985146f1"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "3ea6ed7428605ce73ce5e05121fc74d5985146f1"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/3ea6ed7428605ce73ce5e05121fc74d5985146f1",
+     "3ea6ed7428605ce73ce5e05121fc74d5985146f1",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "4a62da8c3c3302d0e11a5cf951736e8be10e68b3",
+  "ref": "refs/rescue/t2640/4a62da8c3c3302d0e11a5cf951736e8be10e68b3",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "4a62da8c3c3302d0e11a5cf951736e8be10e68b3"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/4a62da8c3c3302d0e11a5cf951736e8be10e68b3"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "4a62da8c3c3302d0e11a5cf951736e8be10e68b3",
+     "refs/rescue/t2640/4a62da8c3c3302d0e11a5cf951736e8be10e68b3"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/4a62da8c3c3302d0e11a5cf951736e8be10e68b3^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "4a62da8c3c3302d0e11a5cf951736e8be10e68b3"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/4a62da8c3c3302d0e11a5cf951736e8be10e68b3"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "4a62da8c3c3302d0e11a5cf951736e8be10e68b3"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/4a62da8c3c3302d0e11a5cf951736e8be10e68b3",
+     "4a62da8c3c3302d0e11a5cf951736e8be10e68b3",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "4c2b4805915416a8ca8ce520a20e220b391ea176",
+  "ref": "refs/rescue/t2640/4c2b4805915416a8ca8ce520a20e220b391ea176",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "4c2b4805915416a8ca8ce520a20e220b391ea176"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/4c2b4805915416a8ca8ce520a20e220b391ea176"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "4c2b4805915416a8ca8ce520a20e220b391ea176",
+     "refs/rescue/t2640/4c2b4805915416a8ca8ce520a20e220b391ea176"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/4c2b4805915416a8ca8ce520a20e220b391ea176^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "4c2b4805915416a8ca8ce520a20e220b391ea176"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/4c2b4805915416a8ca8ce520a20e220b391ea176"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "4c2b4805915416a8ca8ce520a20e220b391ea176"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/4c2b4805915416a8ca8ce520a20e220b391ea176",
+     "4c2b4805915416a8ca8ce520a20e220b391ea176",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "54d4dd9b3eb270307e6294b9ac9b1484f7ba868f",
+  "ref": "refs/rescue/t2640/54d4dd9b3eb270307e6294b9ac9b1484f7ba868f",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "54d4dd9b3eb270307e6294b9ac9b1484f7ba868f"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/54d4dd9b3eb270307e6294b9ac9b1484f7ba868f"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "54d4dd9b3eb270307e6294b9ac9b1484f7ba868f",
+     "refs/rescue/t2640/54d4dd9b3eb270307e6294b9ac9b1484f7ba868f"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/54d4dd9b3eb270307e6294b9ac9b1484f7ba868f^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "54d4dd9b3eb270307e6294b9ac9b1484f7ba868f"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/54d4dd9b3eb270307e6294b9ac9b1484f7ba868f"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "54d4dd9b3eb270307e6294b9ac9b1484f7ba868f"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/54d4dd9b3eb270307e6294b9ac9b1484f7ba868f",
+     "54d4dd9b3eb270307e6294b9ac9b1484f7ba868f",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "5b3ff770ddf2de1d7df528596636c1abcfd3d55b",
+  "ref": "refs/rescue/t2640/5b3ff770ddf2de1d7df528596636c1abcfd3d55b",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "5b3ff770ddf2de1d7df528596636c1abcfd3d55b"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/5b3ff770ddf2de1d7df528596636c1abcfd3d55b"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "5b3ff770ddf2de1d7df528596636c1abcfd3d55b",
+     "refs/rescue/t2640/5b3ff770ddf2de1d7df528596636c1abcfd3d55b"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/5b3ff770ddf2de1d7df528596636c1abcfd3d55b^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "5b3ff770ddf2de1d7df528596636c1abcfd3d55b"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/5b3ff770ddf2de1d7df528596636c1abcfd3d55b"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "5b3ff770ddf2de1d7df528596636c1abcfd3d55b"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/5b3ff770ddf2de1d7df528596636c1abcfd3d55b",
+     "5b3ff770ddf2de1d7df528596636c1abcfd3d55b",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "66dccb28fedca606f96dcf9baf5c7f7a6979a599",
+  "ref": "refs/rescue/t2640/66dccb28fedca606f96dcf9baf5c7f7a6979a599",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "66dccb28fedca606f96dcf9baf5c7f7a6979a599"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/66dccb28fedca606f96dcf9baf5c7f7a6979a599"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "66dccb28fedca606f96dcf9baf5c7f7a6979a599",
+     "refs/rescue/t2640/66dccb28fedca606f96dcf9baf5c7f7a6979a599"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/66dccb28fedca606f96dcf9baf5c7f7a6979a599^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "66dccb28fedca606f96dcf9baf5c7f7a6979a599"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/66dccb28fedca606f96dcf9baf5c7f7a6979a599"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "66dccb28fedca606f96dcf9baf5c7f7a6979a599"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/66dccb28fedca606f96dcf9baf5c7f7a6979a599",
+     "66dccb28fedca606f96dcf9baf5c7f7a6979a599",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "6902920cdf39e03e1fdfcbc3e6dc18e31a564918",
+  "ref": "refs/rescue/t2640/6902920cdf39e03e1fdfcbc3e6dc18e31a564918",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "6902920cdf39e03e1fdfcbc3e6dc18e31a564918"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/6902920cdf39e03e1fdfcbc3e6dc18e31a564918"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "6902920cdf39e03e1fdfcbc3e6dc18e31a564918",
+     "refs/rescue/t2640/6902920cdf39e03e1fdfcbc3e6dc18e31a564918"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/6902920cdf39e03e1fdfcbc3e6dc18e31a564918^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "6902920cdf39e03e1fdfcbc3e6dc18e31a564918"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/6902920cdf39e03e1fdfcbc3e6dc18e31a564918"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "6902920cdf39e03e1fdfcbc3e6dc18e31a564918"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/6902920cdf39e03e1fdfcbc3e6dc18e31a564918",
+     "6902920cdf39e03e1fdfcbc3e6dc18e31a564918",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "75d55ccd8d192203b0f04b3fa46130735edb967b",
+  "ref": "refs/rescue/t2640/75d55ccd8d192203b0f04b3fa46130735edb967b",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "75d55ccd8d192203b0f04b3fa46130735edb967b"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/75d55ccd8d192203b0f04b3fa46130735edb967b"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "75d55ccd8d192203b0f04b3fa46130735edb967b",
+     "refs/rescue/t2640/75d55ccd8d192203b0f04b3fa46130735edb967b"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/75d55ccd8d192203b0f04b3fa46130735edb967b^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "75d55ccd8d192203b0f04b3fa46130735edb967b"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/75d55ccd8d192203b0f04b3fa46130735edb967b"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "75d55ccd8d192203b0f04b3fa46130735edb967b"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/75d55ccd8d192203b0f04b3fa46130735edb967b",
+     "75d55ccd8d192203b0f04b3fa46130735edb967b",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "8c2e4e3f8ed8a7925072a5b9a381a5ee9257c8b5",
+  "ref": "refs/rescue/t2640/8c2e4e3f8ed8a7925072a5b9a381a5ee9257c8b5",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "8c2e4e3f8ed8a7925072a5b9a381a5ee9257c8b5"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/8c2e4e3f8ed8a7925072a5b9a381a5ee9257c8b5"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "8c2e4e3f8ed8a7925072a5b9a381a5ee9257c8b5",
+     "refs/rescue/t2640/8c2e4e3f8ed8a7925072a5b9a381a5ee9257c8b5"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/8c2e4e3f8ed8a7925072a5b9a381a5ee9257c8b5^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "8c2e4e3f8ed8a7925072a5b9a381a5ee9257c8b5"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/8c2e4e3f8ed8a7925072a5b9a381a5ee9257c8b5"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "8c2e4e3f8ed8a7925072a5b9a381a5ee9257c8b5"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/8c2e4e3f8ed8a7925072a5b9a381a5ee9257c8b5",
+     "8c2e4e3f8ed8a7925072a5b9a381a5ee9257c8b5",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "aab5adbbcb599a72a9355e060ec32e825028298a",
+  "ref": "refs/rescue/t2640/aab5adbbcb599a72a9355e060ec32e825028298a",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "aab5adbbcb599a72a9355e060ec32e825028298a"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/aab5adbbcb599a72a9355e060ec32e825028298a"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "aab5adbbcb599a72a9355e060ec32e825028298a",
+     "refs/rescue/t2640/aab5adbbcb599a72a9355e060ec32e825028298a"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/aab5adbbcb599a72a9355e060ec32e825028298a^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "aab5adbbcb599a72a9355e060ec32e825028298a"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/aab5adbbcb599a72a9355e060ec32e825028298a"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "aab5adbbcb599a72a9355e060ec32e825028298a"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/aab5adbbcb599a72a9355e060ec32e825028298a",
+     "aab5adbbcb599a72a9355e060ec32e825028298a",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "accabf0b5d9e9cf3e8ec33008a92c8f41a158787",
+  "ref": "refs/rescue/t2640/accabf0b5d9e9cf3e8ec33008a92c8f41a158787",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "accabf0b5d9e9cf3e8ec33008a92c8f41a158787"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/accabf0b5d9e9cf3e8ec33008a92c8f41a158787"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "accabf0b5d9e9cf3e8ec33008a92c8f41a158787",
+     "refs/rescue/t2640/accabf0b5d9e9cf3e8ec33008a92c8f41a158787"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/accabf0b5d9e9cf3e8ec33008a92c8f41a158787^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "accabf0b5d9e9cf3e8ec33008a92c8f41a158787"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/accabf0b5d9e9cf3e8ec33008a92c8f41a158787"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "accabf0b5d9e9cf3e8ec33008a92c8f41a158787"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/accabf0b5d9e9cf3e8ec33008a92c8f41a158787",
+     "accabf0b5d9e9cf3e8ec33008a92c8f41a158787",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "c0439777fcf27a56605821d206519d4efa6487e5",
+  "ref": "refs/rescue/t2640/c0439777fcf27a56605821d206519d4efa6487e5",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "c0439777fcf27a56605821d206519d4efa6487e5"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/c0439777fcf27a56605821d206519d4efa6487e5"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "c0439777fcf27a56605821d206519d4efa6487e5",
+     "refs/rescue/t2640/c0439777fcf27a56605821d206519d4efa6487e5"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/c0439777fcf27a56605821d206519d4efa6487e5^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "c0439777fcf27a56605821d206519d4efa6487e5"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/c0439777fcf27a56605821d206519d4efa6487e5"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "c0439777fcf27a56605821d206519d4efa6487e5"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/c0439777fcf27a56605821d206519d4efa6487e5",
+     "c0439777fcf27a56605821d206519d4efa6487e5",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "c3e2218c383e8c6a47ae2343fe78e558241d4e01",
+  "ref": "refs/rescue/t2640/c3e2218c383e8c6a47ae2343fe78e558241d4e01",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "c3e2218c383e8c6a47ae2343fe78e558241d4e01"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/c3e2218c383e8c6a47ae2343fe78e558241d4e01"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "c3e2218c383e8c6a47ae2343fe78e558241d4e01",
+     "refs/rescue/t2640/c3e2218c383e8c6a47ae2343fe78e558241d4e01"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/c3e2218c383e8c6a47ae2343fe78e558241d4e01^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "c3e2218c383e8c6a47ae2343fe78e558241d4e01"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/c3e2218c383e8c6a47ae2343fe78e558241d4e01"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "c3e2218c383e8c6a47ae2343fe78e558241d4e01"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/c3e2218c383e8c6a47ae2343fe78e558241d4e01",
+     "c3e2218c383e8c6a47ae2343fe78e558241d4e01",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "c5d79e7050fecc229fd81f4879137be8bae49cb7",
+  "ref": "refs/rescue/t2640/c5d79e7050fecc229fd81f4879137be8bae49cb7",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "c5d79e7050fecc229fd81f4879137be8bae49cb7"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/c5d79e7050fecc229fd81f4879137be8bae49cb7"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "c5d79e7050fecc229fd81f4879137be8bae49cb7",
+     "refs/rescue/t2640/c5d79e7050fecc229fd81f4879137be8bae49cb7"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/c5d79e7050fecc229fd81f4879137be8bae49cb7^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "c5d79e7050fecc229fd81f4879137be8bae49cb7"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/c5d79e7050fecc229fd81f4879137be8bae49cb7"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "c5d79e7050fecc229fd81f4879137be8bae49cb7"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/c5d79e7050fecc229fd81f4879137be8bae49cb7",
+     "c5d79e7050fecc229fd81f4879137be8bae49cb7",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "c656d831e30ee0c261538889991af6c30bb45e89",
+  "ref": "refs/rescue/t2640/c656d831e30ee0c261538889991af6c30bb45e89",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "c656d831e30ee0c261538889991af6c30bb45e89"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/c656d831e30ee0c261538889991af6c30bb45e89"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "c656d831e30ee0c261538889991af6c30bb45e89",
+     "refs/rescue/t2640/c656d831e30ee0c261538889991af6c30bb45e89"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/c656d831e30ee0c261538889991af6c30bb45e89^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "c656d831e30ee0c261538889991af6c30bb45e89"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/c656d831e30ee0c261538889991af6c30bb45e89"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "c656d831e30ee0c261538889991af6c30bb45e89"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/c656d831e30ee0c261538889991af6c30bb45e89",
+     "c656d831e30ee0c261538889991af6c30bb45e89",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "c7a57d642fe72ce5c5480b761515054ac7817e63",
+  "ref": "refs/rescue/t2640/c7a57d642fe72ce5c5480b761515054ac7817e63",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "c7a57d642fe72ce5c5480b761515054ac7817e63"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/c7a57d642fe72ce5c5480b761515054ac7817e63"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "c7a57d642fe72ce5c5480b761515054ac7817e63",
+     "refs/rescue/t2640/c7a57d642fe72ce5c5480b761515054ac7817e63"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/c7a57d642fe72ce5c5480b761515054ac7817e63^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "c7a57d642fe72ce5c5480b761515054ac7817e63"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/c7a57d642fe72ce5c5480b761515054ac7817e63"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "c7a57d642fe72ce5c5480b761515054ac7817e63"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/c7a57d642fe72ce5c5480b761515054ac7817e63",
+     "c7a57d642fe72ce5c5480b761515054ac7817e63",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "cb0d930525930aef2e2d78ec420a5a386d3e63c7",
+  "ref": "refs/rescue/t2640/cb0d930525930aef2e2d78ec420a5a386d3e63c7",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "cb0d930525930aef2e2d78ec420a5a386d3e63c7"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/cb0d930525930aef2e2d78ec420a5a386d3e63c7"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "cb0d930525930aef2e2d78ec420a5a386d3e63c7",
+     "refs/rescue/t2640/cb0d930525930aef2e2d78ec420a5a386d3e63c7"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/cb0d930525930aef2e2d78ec420a5a386d3e63c7^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "cb0d930525930aef2e2d78ec420a5a386d3e63c7"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/cb0d930525930aef2e2d78ec420a5a386d3e63c7"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "cb0d930525930aef2e2d78ec420a5a386d3e63c7"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/cb0d930525930aef2e2d78ec420a5a386d3e63c7",
+     "cb0d930525930aef2e2d78ec420a5a386d3e63c7",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "cbd9d812141f5010ba90403c513a7dbad8cc7edc",
+  "ref": "refs/rescue/t2640/cbd9d812141f5010ba90403c513a7dbad8cc7edc",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "cbd9d812141f5010ba90403c513a7dbad8cc7edc"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/cbd9d812141f5010ba90403c513a7dbad8cc7edc"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "cbd9d812141f5010ba90403c513a7dbad8cc7edc",
+     "refs/rescue/t2640/cbd9d812141f5010ba90403c513a7dbad8cc7edc"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/cbd9d812141f5010ba90403c513a7dbad8cc7edc^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "cbd9d812141f5010ba90403c513a7dbad8cc7edc"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/cbd9d812141f5010ba90403c513a7dbad8cc7edc"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "cbd9d812141f5010ba90403c513a7dbad8cc7edc"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/cbd9d812141f5010ba90403c513a7dbad8cc7edc",
+     "cbd9d812141f5010ba90403c513a7dbad8cc7edc",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "cd066a0487af0376fac76bcfb58b2c4462f9085d",
+  "ref": "refs/rescue/t2640/cd066a0487af0376fac76bcfb58b2c4462f9085d",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "cd066a0487af0376fac76bcfb58b2c4462f9085d"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/cd066a0487af0376fac76bcfb58b2c4462f9085d"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "cd066a0487af0376fac76bcfb58b2c4462f9085d",
+     "refs/rescue/t2640/cd066a0487af0376fac76bcfb58b2c4462f9085d"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/cd066a0487af0376fac76bcfb58b2c4462f9085d^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "cd066a0487af0376fac76bcfb58b2c4462f9085d"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/cd066a0487af0376fac76bcfb58b2c4462f9085d"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "cd066a0487af0376fac76bcfb58b2c4462f9085d"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/cd066a0487af0376fac76bcfb58b2c4462f9085d",
+     "cd066a0487af0376fac76bcfb58b2c4462f9085d",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "e0a80472fb37255903fd1a658a553369d8ba1a76",
+  "ref": "refs/rescue/t2640/e0a80472fb37255903fd1a658a553369d8ba1a76",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "e0a80472fb37255903fd1a658a553369d8ba1a76"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/e0a80472fb37255903fd1a658a553369d8ba1a76"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "e0a80472fb37255903fd1a658a553369d8ba1a76",
+     "refs/rescue/t2640/e0a80472fb37255903fd1a658a553369d8ba1a76"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/e0a80472fb37255903fd1a658a553369d8ba1a76^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "e0a80472fb37255903fd1a658a553369d8ba1a76"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/e0a80472fb37255903fd1a658a553369d8ba1a76"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "e0a80472fb37255903fd1a658a553369d8ba1a76"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/e0a80472fb37255903fd1a658a553369d8ba1a76",
+     "e0a80472fb37255903fd1a658a553369d8ba1a76",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "f181f703d1d68ab2bbd03ad2d6f594dfe039f030",
+  "ref": "refs/rescue/t2640/f181f703d1d68ab2bbd03ad2d6f594dfe039f030",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "f181f703d1d68ab2bbd03ad2d6f594dfe039f030"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/f181f703d1d68ab2bbd03ad2d6f594dfe039f030"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "f181f703d1d68ab2bbd03ad2d6f594dfe039f030",
+     "refs/rescue/t2640/f181f703d1d68ab2bbd03ad2d6f594dfe039f030"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/f181f703d1d68ab2bbd03ad2d6f594dfe039f030^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "f181f703d1d68ab2bbd03ad2d6f594dfe039f030"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/f181f703d1d68ab2bbd03ad2d6f594dfe039f030"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "f181f703d1d68ab2bbd03ad2d6f594dfe039f030"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/f181f703d1d68ab2bbd03ad2d6f594dfe039f030",
+     "f181f703d1d68ab2bbd03ad2d6f594dfe039f030",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ },
+ {
+  "oid": "f1feb592af5bc21a9754f64250039238da82454d",
+  "ref": "refs/rescue/t2640/f1feb592af5bc21a9754f64250039238da82454d",
+  "rescued": true,
+  "steps": {
+   "cat_file_type": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "cat-file",
+     "-t",
+     "f1feb592af5bc21a9754f64250039238da82454d"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "commit"
+   },
+   "check_ref_format": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "check-ref-format",
+     "refs/rescue/t2640/f1feb592af5bc21a9754f64250039238da82454d"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "merge_base_ancestor": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "merge-base",
+     "--is-ancestor",
+     "f1feb592af5bc21a9754f64250039238da82454d",
+     "refs/rescue/t2640/f1feb592af5bc21a9754f64250039238da82454d"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   },
+   "rev_parse_commit": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "rev-parse",
+     "--verify",
+     "refs/rescue/t2640/f1feb592af5bc21a9754f64250039238da82454d^{commit}"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "f1feb592af5bc21a9754f64250039238da82454d"
+   },
+   "show_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "--no-replace-objects",
+     "show-ref",
+     "--verify",
+     "--hash",
+     "refs/rescue/t2640/f1feb592af5bc21a9754f64250039238da82454d"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": "f1feb592af5bc21a9754f64250039238da82454d"
+   },
+   "update_ref": {
+    "argv": [
+     "git",
+     "-C",
+     "/work/1/SFC/tanab/izanagi",
+     "update-ref",
+     "--no-deref",
+     "refs/rescue/t2640/f1feb592af5bc21a9754f64250039238da82454d",
+     "f1feb592af5bc21a9754f64250039238da82454d",
+     "0000000000000000000000000000000000000000"
+    ],
+    "rc": 0,
+    "stderr": "",
+    "stdout": ""
+   }
+  }
+ }
+]

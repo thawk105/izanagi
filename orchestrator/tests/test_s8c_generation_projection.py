@@ -48,7 +48,7 @@ def _whiteboard() -> list[dict]:
 
 def _source_metrics() -> dict:
     return {
-        "throughput_ops_sec": 999_999.0,
+        "throughput_tps": 999_999.0,
         "abort_rate": 0.125,
         "latency_ns": 42.0,
         "llc_miss_rate": None,
@@ -82,7 +82,7 @@ def _common(*, workload: str = "ycsb-a", generation: int = 2) -> dict:
 
 def _null_perf() -> dict:
     return {
-        "throughput_ops_sec": None,
+        "throughput_tps": None,
         "abort_rate_pct": None,
         "latency_ns": None,
         "llc_miss_rate": None,
@@ -205,7 +205,7 @@ def test_validation_receipt_seals_payload_spec_and_safe_projection() -> None:
         _critic(), source_metrics=_source_metrics(), source_generation=1,
     )
     payload = _planner_payload(dict(applied.planner_projection))
-    payload["current_perf"]["throughput_ops_sec"] = 12345.0
+    payload["current_perf"]["throughput_tps"] = 12345.0
     expected_perf = copy.deepcopy(payload["current_perf"])
     receipt = _validate_planner(
         payload,
@@ -217,7 +217,7 @@ def test_validation_receipt_seals_payload_spec_and_safe_projection() -> None:
     assert stored["schema_version"] == P.VALIDATION_RECEIPT_SCHEMA_VERSION
     assert stored["payload_allowlist_sha256"] == ALLOWLIST_SHA256
     assert stored["safe_projection"]["current_perf_nullness"][
-        "throughput_ops_sec"
+        "throughput_tps"
     ] is False
     diagnostics = stored["safe_projection"]["critic_feedback"]["diagnostics"]
     assert all(set(item) == {"metric", "value_is_null", "value_sha256"} for item in diagnostics)
@@ -246,7 +246,7 @@ def test_critic_free_text_and_winning_metric_do_not_reach_second_layer() -> None
     assert "AVOID_SENTINEL_8C_A903" not in encoded
     assert "critic-claims" not in encoded
     assert "uncertain free text" not in encoded
-    assert "throughput_ops_sec" not in encoded
+    assert "throughput_tps" not in encoded
     assert "999999.0" not in encoded
 
 
@@ -287,7 +287,7 @@ def test_uncertainty_is_reduced_to_presence_and_reverse_stays_bool() -> None:
         (lambda critic, metrics: critic.__setitem__("extra", "x"),),
         (lambda critic, metrics: critic.__setitem__("recommend", 1),),
         (lambda critic, metrics: critic.__setitem__("reverse_recommended", 1),),
-        (lambda critic, metrics: metrics.pop("throughput_ops_sec"),),
+        (lambda critic, metrics: metrics.pop("throughput_tps"),),
         (lambda critic, metrics: metrics.__setitem__("extra", None),),
         (lambda critic, metrics: metrics.__setitem__("ipc", True),),
         (lambda critic, metrics: metrics.__setitem__("ipc", float("inf")),),
@@ -358,7 +358,7 @@ def test_planner_rejects_non_none_current_perf_metric() -> None:
         _critic(), source_metrics=_source_metrics(), source_generation=1,
     ).planner_projection)
     payload = _planner_payload(projection)
-    payload["current_perf"]["throughput_ops_sec"] = 123.0
+    payload["current_perf"]["throughput_tps"] = 123.0
     with pytest.raises(P.PayloadValidationError):
         _validate_planner(payload, projection)
 
@@ -378,7 +378,7 @@ def test_payload_validators_accept_finite_external_metric_snapshots() -> None:
         _critic(), source_metrics=_source_metrics(), source_generation=1,
     ).planner_projection)
     perf = {
-        "throughput_ops_sec": 12345.0,
+        "throughput_tps": 12345.0,
         "abort_rate_pct": 7.9,
         "latency_ns": 456.0,
         "llc_miss_rate": 0.124,
