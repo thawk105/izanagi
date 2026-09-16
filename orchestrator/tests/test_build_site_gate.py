@@ -650,6 +650,7 @@ def test_m11_coverage_configure_gates_are_independent():
                 if (
                         Path(command[0]).resolve() == Path(compilers[1]).resolve()
                         or any("izanagi_condition_supply_" in item
+                               or "izanagi_compile_time_branch_" in item
                                for item in command)):
                     return real_subprocess_run(*args, **kwargs)
                 calls.append((args, kwargs))
