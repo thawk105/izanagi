@@ -1,0 +1,40 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "m1-next-tasks-actual-bytes-pin",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": ".claude/commands/next-tasks.md",
+          "old": "- **「これをやったら投げられる」型 (現在着手不能) は出さない。**\n",
+          "new": "- **「これをやったら投げられる」型 (現在着手不能) は出さないこと。**\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_next_tasks_command_budget_literal_is_exact"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-next-tasks-budget-limit-pin",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    \".claude/commands/next-tasks.md\": TextLimit(27_100, 100),\n",
+          "new": "    \".claude/commands/next-tasks.md\": TextLimit(27_101, 100),\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_docs.py::test_next_tasks_command_budget_literal_is_exact"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
