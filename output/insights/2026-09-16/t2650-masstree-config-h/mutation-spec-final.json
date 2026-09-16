@@ -1,0 +1,72 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "m1-floor-prepare-passes-empty-condition-args",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "                    cxx=cxx,\n                    condition_configure_args=_dependency.condition_configure_args,\n",
+          "new": "                    cxx=cxx,\n                    condition_configure_args=(),\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-masstree-and-googletest-source-dirs-swapped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "            masstree_source_dir=prepare_kwargs[\"masstree_source_dir\"],\n            mimalloc_source_dir=prepare_kwargs[\"mimalloc_source_dir\"],\n            googletest_source_dir=prepare_kwargs[\"googletest_source_dir\"],\n",
+          "new": "            masstree_source_dir=prepare_kwargs[\"googletest_source_dir\"],\n            mimalloc_source_dir=prepare_kwargs[\"mimalloc_source_dir\"],\n            googletest_source_dir=prepare_kwargs[\"masstree_source_dir\"],\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_dependency_prebuild_uses_pinned_checkout_and_exact_helper_once"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-binding-does-not-store-condition-args",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "        condition_configure_args=_condition_gate_offline_configure_args(\n            dependency_prefix=prepare_kwargs.get(\"dependency_prefix\", \"\"),\n            fetchcontent_base_dir=prepare_kwargs[\"fetchcontent_base_dir\"],\n            masstree_source_dir=prepare_kwargs[\"masstree_source_dir\"],\n            mimalloc_source_dir=prepare_kwargs[\"mimalloc_source_dir\"],\n            googletest_source_dir=prepare_kwargs[\"googletest_source_dir\"],\n        ),\n",
+          "new": "        condition_configure_args=(),\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_floor_dependency_prebuild_uses_pinned_checkout_and_exact_helper_once"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-condition-args-regress-to-sort-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_floor_campaign.py",
+          "old": "                    cxx=cxx,\n                    condition_configure_args=_dependency.condition_configure_args,\n",
+          "new": "                    cxx=cxx,\n                    condition_configure_args=(\n                        _dependency.condition_configure_args\n                        if configuration_id == \"sort_best\" else ()\n                    ),\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
