@@ -1,0 +1,8 @@
+== (a) 旧 lock の内容から旧 hash を再計算 ==
+balanced lock_keys= ['ccbench_commit', 'search_config', 'search_tag', 'spec_content', 'trial'] search_config_keys= ['base', 'records', 'scale', 'sweep_us', 'threads', 'workload', 'ycsb'] recomputed= 484c663e dir= 484c663e match= True
+write-heavy lock_keys= ['ccbench_commit', 'search_config', 'search_tag', 'spec_content', 'trial'] search_config_keys= ['base', 'records', 'scale', 'sweep_us', 'threads', 'workload', 'ycsb'] recomputed= 493813a7 dir= 493813a7 match= True
+read-heavy lock_keys= ['ccbench_commit', 'search_config', 'search_tag', 'spec_content', 'trial'] search_config_keys= ['base', 'records', 'scale', 'sweep_us', 'threads', 'workload', 'ycsb'] recomputed= 610004b9 dir= 610004b9 match= True
+== (b) 現行 backoff_sweep.config_for + admission policy bind の campaign id ==
+write-heavy ccbench_commit= 511c953 search_config_keys= ['base', 'build_admission', 'records', 'scale', 'sweep_us', 'threads', 'workload', 'ycsb'] campaign_id= backoff-sweep-silo-write-heavy-sweep-172b45ad collides_with_old= False
+balanced ccbench_commit= 511c953 search_config_keys= ['base', 'build_admission', 'records', 'scale', 'sweep_us', 'threads', 'workload', 'ycsb'] campaign_id= backoff-sweep-silo-balanced-sweep-2899b6a7 collides_with_old= False
+read-heavy ccbench_commit= 511c953 search_config_keys= ['base', 'build_admission', 'records', 'scale', 'sweep_us', 'threads', 'workload', 'ycsb'] campaign_id= backoff-sweep-silo-read-heavy-sweep-57160b6c collides_with_old= False
