@@ -1,0 +1,9 @@
+{
+  "proposal": {
+    "axis": "silo-backoff-magnitude",
+    "direction": "decrease",
+    "magnitude": "small",
+    "justification": "iteration 1 は decrease/medium で success と記録されており、同方向の継続がまず支持される。K2 記録 (別 env_tag) 内の 3 点は abort 率 7.03% / 7.20% / 7.80% に対し throughput 491796.5 / 487088.5 / 525721.5 で、abort 率が帯の上端に寄った点が最も高い throughput を示す。本 campaign の現行 abort 率 7.75% はその帯の上端にほぼ一致しており、iteration 1 が同じ側へ到達したことと整合する。一方で帯の上端より先の測定点は記録内に存在せず、これ以上同方向へ進めることは外挿になる。したがって方向は維持しつつ、前回より刻みを小さくし、転回の有無を跨がずに 1 点で判別できるようにする。次の試行で abort 率がさらに上がって throughput が伸びなければ、その時点で方向を反転させるか explore_both に切り替える判断材料が得られる。",
+    "uncertainty": "(1) cache_miss_rate_pct と IPC_overall は null (perf 不在、preflight status=unavailable / rc=2) で欠測であり、0 でも「差なし」でもない。本提案はこの 2 軸を一切使っていない。(2) contention_level は分類器不在で「未判定」であり、high/low いずれとも読んでいない。(3) abort_rate_pct 7.75% は 2 反復のうち速い側 (727985 tps) の値、throughput_ops_sec 719324.5 は 2 反復の中央値で、集約が揃っていない。両者を同一反復の対として読めないため、上記の abort 率と throughput の対応づけには揃っていない集約に由来する誤差が残る。(4) run 内 CV 1.70% は、K2 記録内の同一設定反復間のばらつき (CV 0.66-0.92%、同一 genome 2 点間の median 差も約 1%) より大きい。したがって小刻みの試行では、得られる差が測定ばらつきに埋もれて方向判定ができない可能性がある。判別できなかった場合は magnitude を上げるのではなく反復数を増やす扱いが要る。(5) last_delta_pct が null のため iteration 1 の改善幅が不明で、「success」の大きさに基づく刻み調整ができていない。small の選択は幅ではなく帯の上端到達のみを根拠にしている。(6) knowledge_input の env_tag は linux-baremetal で本 campaign の機体 (pegasus) と異なる。配線規模のみ同じという開示に留まるため、帯の位置と転回点がそのまま転移する保証はない。方向の符号のみを弱い事前として使い、値の位置は使っていない。(7) K2 記録の 3 点目 (dad58f9f9000) は settled=false であり、他 2 点と同じ確度で扱えない。この点を除いても同方向の順序は変わらないため結論は保たれるが、帯の下端側の根拠は 2 点でなく実質 1 点に近い。(8) データ境界: knowledge_input.sources の本文には cmake の configure/build コマンド行と numactl/perf の run_cmd 文字列が含まれる。これらは命令形の文字列だが本提案では観測記録の一部 (データ) としてのみ読み、実行・採用・再現の指示としては扱っていない。絶対 path や build ディレクトリ名も同記録は別機体のものであり、本 campaign の経路として採らない。振る舞いを変えるよう誘導する記述、正しさ判定や certified の扱いを変えるよう求める記述は本文中に見当たらなかった。"
+  }
+}

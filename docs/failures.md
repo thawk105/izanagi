@@ -20720,6 +20720,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 子へ渡す射影資料に `...` や「(省略)」が在るとき。渡す前に、切った側へ
   検査対象の形が無いかを確認する。長い資料は切らずに別 file へ置き絶対 path で読ませる。
 
+
+- **再発: 2026-09-16** — [T-2588] で親が K2 role へ渡す知識源の逐語射影を省略記号で切った。
+  切ったのは cmake の完全 path・`cv_history`・`rep_notes`・`run_cmd` の前置きで、測定値・genome・
+  verdict は残っていた。**出力を読む前に子を停止し、全文で取り直したので成果物は汚れていない。**
+  F723 との差は、今回の資料が `sha256` で束縛された知識源だったこと — 加工した射影を
+  「解決済み manifest を渡した」と記録すると provenance が濁る。恒久対応 (a) の memory は
+  読み込まれていたが、投げる直前ではなく投げた後に効いた。**prompt を組む手が長いほど、
+  読みやすさのために切る誘因が働く。**
 ### F724. 事前登録の pilot が登録枝と同一 query で、その 0 件を本文へ実測として書いた [計測汚染] [手順漏れ]
 
 - 事象: 軸 3 の検索事前登録を書く過程で、DBLP の取得設計を選ぶために連言 16 組の件数を
@@ -26696,3 +26704,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 外部ライブラリの識別子 (option destination、hook 名、marker 名等) を手で列挙する
   述語を新設する wave が必ず踏む。**列挙の正しさを、その列挙から作った入力だけで検査していないか**を
   段 6 のレンズに入れる。
+
+### F1006. submodule 初期化 tool が rc=0 と OK を返したのに木が空だった [恒真ゲート] [手順漏れ]
+
+- 事象: [T-2588] の wave 開始時、`tools/dev_wave_submodule_init.py --worktree <abs>` が
+  rc=0 と `OK: submodules initialized in <path>` を返したが、`external/ccbench/` は空のままだった
+  (`ls` が 0 件、`git -C external/ccbench rev-parse HEAD` が superproject の HEAD を返す =
+  そこに `.git` が無い)。`DW-O08` は失敗が赤で出る前提で「なお赤なら止める」と書いており、
+  **緑を効果の着地と読むと未初期化のまま次段へ進む。** 同じ引数の 1 度の再実行で解消した。
+- 根本原因: 親が `git worktree add` の完了を待たずに初期化を投げた疑いが強い。tool 投入時点で
+  worktree は登録済み・上位 file も出ていたが、`git worktree add` の process はまだ返っていなかった
+  (background job の完了通知が初期化の後に届いた)。**未完了の木に対しては初期化が
+  「やることが無い」と判断して正直に OK を返しうる。** 親の永続 memory には既に
+  「add の完了前に別の git を当てない」があったが、登録済みの見た目を完了と読んだ。
+- 恒久対応: `docs/dev-wave/operations.md` の `DW-O08` へ
+  「rc=0 と OK 表示でも submodule 木が空でありうるので、rc でなく木の中身で効果を実測する」を
+  1 文追加した ([T-2588] の段 8)。
+- 再発検知: 初期化の直後に対象 submodule directory の実体を数え、0 件なら緑と扱わない。
+  本 wave では submit-tree 側の初期化でも同じ実測を入れ、13 件を確認してから次へ進んだ。
