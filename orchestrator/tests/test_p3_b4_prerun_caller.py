@@ -264,3 +264,7 @@ def test_all_candidates_have_all_missing_fields(tmp_path, capsys, observed_issue
         (str(campaigns[0]), 0, 1), (str(campaigns[0]), 2, 3), (str(campaigns[1]), 0, 1),
     ]
     assert calls == []
+
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-q"])
