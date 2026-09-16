@@ -30,6 +30,7 @@ title: [T-304] throughput_ops_sec を実体名 throughput_tps へ改め、live r
   変異は `test_codex_agents.py` を **import 時に落として 48 件の collection error** にするため、
   node 抽出が test ID を作れず `PARSE_ERROR` になった。同じ pin 閉包を adapter 側の source sha で
   突く形へ差し替えて 5/5 KILLED になった。初回・二回目の結果は erratum として insight に残す。
+  原因の読み違いは {{F:mutation-collect-error-yields-no-node}} に記録した。
 - **`test_reflux_originless_compatibility.py` の凍結 golden は M1 / M2 / M3 に対して冗長 gate である**
   (payload bytes が変われば発火する)。意味の gate は M1 が projection の exact-key、M2 / M3 が
   producer 実走経路である。単独変異の証拠としては意味 gate の側を読む。
