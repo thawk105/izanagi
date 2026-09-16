@@ -728,6 +728,40 @@ def _scan_main_history(git: Git, main_oid: str, scan_limit: int) -> dict[str, An
     }
 
 
+def _batch_check_path_candidates(
+    git: Git, candidates: Sequence[str], path: str,
+) -> list[tuple[str, str] | None]:
+    """Validate the entire tagged chunk before exposing any positive candidate."""
+    if not candidates:
+        raise AssessmentError("path-batch-parse-error", "empty candidate batch")
+    expressions = [f"{commit}:{path}".encode("utf-8") for commit in candidates]
+    data = b"".join(expr + f" {index}\n".encode("ascii")
+                    for index, expr in enumerate(expressions))
+    raw = git.run([
+        "cat-file", "--batch-check=%(objectname) %(objecttype) %(objectsize) %(rest)",
+    ], input_data=data).stdout
+    rows = raw.split(b"\n")
+    if rows[-1] != b"" or len(rows) != len(candidates) + 1:
+        raise AssessmentError("path-batch-parse-error", "candidate batch line count or terminator invalid")
+    parsed: list[tuple[str, str] | None] = []
+    for index, (expr, row) in enumerate(zip(expressions, rows[:-1])):
+        if git.remaining() <= 0:
+            raise AssessmentError("assessment-timeout", "candidate batch deadline expired", outcome="truncated")
+        if row == expr + b" missing":
+            parsed.append(None)
+            continue
+        try:
+            oid, object_type, size, tag = row.decode("ascii").split(" ")
+        except (UnicodeDecodeError, ValueError) as exc:
+            raise AssessmentError("path-batch-parse-error", "invalid candidate batch row") from exc
+        if (not OID_RE.fullmatch(oid) or len(oid) != len(candidates[index])
+                or object_type not in {"blob", "tree", "commit", "tag"}
+                or re.fullmatch(r"[0-9]+", size) is None or tag != str(index)):
+            raise AssessmentError("path-batch-parse-error", "invalid candidate batch fields or order")
+        parsed.append((oid, object_type))
+    return parsed
+
+
 def _find_exact_state(
     git: Git,
     main_oid: str,
@@ -746,13 +780,23 @@ def _find_exact_state(
     if any(not OID_RE.fullmatch(row) for row in candidates):
         raise AssessmentError("history-candidate-parse-error", "cannot parse history candidates")
     # Positive proof is checked before a candidate-limit truncation is reported.
-    for commit in candidates:
-        observed = _tree_entry(git, commit, required.path, len(required.oid))
-        if _entry_matches(required, observed):
-            return SearchResult(
-                "matched", "exact-state-in-main-history", commit, len(candidates),
-                candidate_limit, time.monotonic() - started,
-            )
+    batch_safe = (
+        not required.missing and required.object_type == "blob"
+        and required.mode in {"100644", "100755"}
+        and not any(char.isspace() for char in required.path)
+    )
+    for offset in range(0, len(candidates), 1024):
+        chunk = candidates[offset:offset + 1024]
+        metadata = _batch_check_path_candidates(git, chunk, required.path) if batch_safe else None
+        for index, commit in enumerate(chunk):
+            if metadata is not None and metadata[index] != (required.oid, required.object_type):
+                continue
+            observed = _tree_entry(git, commit, required.path, len(required.oid))
+            if _entry_matches(required, observed):
+                return SearchResult(
+                    "matched", "exact-state-in-main-history", commit, len(candidates),
+                    candidate_limit, time.monotonic() - started,
+                )
     if len(candidates) > candidate_limit:
         return SearchResult(
             "truncated", "history-candidate-limit-exceeded", None, len(candidates),
@@ -1284,6 +1328,16 @@ def _spool_decision(registry: ReceiptRegistry, receipt_match: bool, receipt_reas
     return _decision("indeterminate", receipt_reason), False
 
 
+def _spool_exact_positive_decision(
+    search: SearchResult, receipt_reason: str,
+) -> tuple[dict[str, Any], bool]:
+    if search.outcome == "matched":
+        return _decision("landed", search.reason), False
+    if search.incomplete:
+        return _decision("indeterminate", search.reason), True
+    return _decision("indeterminate", receipt_reason), False
+
+
 def _regular_decision(
     state: IntroducedState,
     search: SearchResult,
@@ -1314,6 +1368,7 @@ def _proof_unit(
     receipt_registry: ReceiptRegistry,
 ) -> tuple[dict[str, Any], bool, dict[str, Any] | None]:
     is_spool = bool(SPOOL_RE.fullmatch(state.required.path))
+    spool_exact_decisive = False
     if is_spool:
         search = SearchResult(
             "not-applicable", "spool-uses-folded-receipt", None, 0,
@@ -1356,11 +1411,23 @@ def _proof_unit(
             decision, incomplete = _spool_decision(
                 receipt_registry, receipt_match, receipt_reason,
             )
+            if receipt_registry.outcome == "error":
+                receipt_reason = receipt_registry.reason
             receipt_outcome = (
                 "error" if receipt_registry.outcome == "error" else
                 "matched" if receipt_match else "not-matched"
             )
-            if not receipt_match and receipt_registry.outcome != "error":
+            if (not receipt_match and receipt_registry.outcome != "error"
+                    and not state.required.missing and state.required.object_type == "blob"
+                    and state.required.mode in {"100644", "100755"}):
+                try:
+                    search = _find_exact_state(git, main_oid, state.required, candidate_limit)
+                except AssessmentError as exc:
+                    search = SearchResult(exc.outcome, exc.code, None, 0, candidate_limit, 0.0)
+                decision, incomplete = _spool_exact_positive_decision(search, receipt_reason)
+                spool_exact_decisive = search.outcome == "matched" or search.incomplete
+            if (not receipt_match and receipt_registry.outcome != "error"
+                    and decision["verdict"] == "indeterminate"):
                 body = _strip_frontmatter(blob)
                 pending_probe = {
                     "path": state.required.path,
@@ -1374,7 +1441,7 @@ def _proof_unit(
                 }
         receipt_evidence = {
             "layer": "folded-receipt",
-            "decisive": True,
+            "decisive": not spool_exact_decisive,
             "outcome": receipt_outcome,
             "reason": receipt_reason,
             "content_sha256": exact_receipt,
@@ -1395,7 +1462,7 @@ def _proof_unit(
         "required_state": state.required.as_json(),
         "decision": decision,
         "evidence": [
-            search.as_json(),
+            {**search.as_json(), "decisive": spool_exact_decisive if is_spool else True},
             receipt_evidence,
             ({
                 **any_path.as_json(),

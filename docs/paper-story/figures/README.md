@@ -19,6 +19,7 @@
 | `fig4_s1a_9pair_direct_comparison.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_s1_9pair.py` | 縮小主張 S' の**失敗報告図**。既存図の後継ではなく独立した新図 |
 | `fig5_a2_certification_reject.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | A-2 正式 certification (outer `reject`) の**結果図**。既存図の後継ではなく独立した新図。判定は凍結 `certification.json` から読み、生成器は再計算しない。**測定条件の記述に erratum あり (同節の Erratum)。測ったのは採用静的 backoff ではなく `BACK_OFF` の有効/無効であり、取り直しまで論文の A-2 の結論にも図にも使わない (D1645)** |
 | `fig6_a2_certification_observed_positive.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | A-2 正式 certification (outer `observed-positive`) の**結果図**。D1644 の pin + patch 束縛 src_token で identity を計算する driver で取り直した attempt `t2364-20260907b` を描く。`fig5_` の後継ではなく、**別の条件を測った別の attempt** の独立した図である (絶対規律 7)。判定は `certification.json` から読み、生成器は再計算しない |
+| `fig7_a2_builtin_backoff_onoff_reject.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | `fig5_` と**同じ attempt `t2022-20260828c`・同じ値・同じ outer `reject`** を、**効いた条件の記述へ訂正**して描いた図。比較したのは CCBench 内蔵の適応 backoff の 有効/無効 (`BACK_OFF` の 0/1) である。`fig5_` の bytes は 1 byte も変えていない。**採用静的 backoff の結論・図としては使わない (D1936項21・D1993決定5、期限なし)** |
 
 **fig5 の用途制限の追補 (2026-09-11、D1936項21・T-2521):** 一覧の「取り直しまで」という期限は
 当該旧図には適用しない。採用静的 backoff に関する A-2 の結論・図として使えない制限は期限なしである。
@@ -607,4 +608,109 @@ supply / meaning records は残らない。** したがって caption は「関�
 - それらが着地後もずれないこと → `orchestrator/tests/test_plot_a2_certification.py`
 - 結果節・表・限定の材料 →
   `docs/paper-story/results/2026-09-07-a2-certification-observed-positive.md`
+- 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`
+
+---
+
+# `fig7_a2_builtin_backoff_onoff_reject` — 旧 A-2 attempt の条件記述を訂正した図 (outer `reject`)
+
+## 何を示す図か
+
+attempt `t2022-20260828c` (2026-08-28) の exact 4 cell を描く。**`fig5_a2_certification_reject` と
+同じ測定・同じ値・同じ外側 status であり、違うのは条件の記述だけである。**
+
+この attempt は patch が当たっていない stock の CCBench 木で走っており、adopted cell が要求した
+`BACKOFF_FIXED` (fixed 10 µs / 5 µs) は cmake の argv には渡ったものの、pin `511c9538` の CCBench に
+対応する option 定義が無いため compile definition にならなかった (F707 の再発)。**実際に効いた条件差は
+`BACK_OFF` の 0/1 だけである。** `BACK_OFF=1` が有効にするのは `include/backoff.hh` の適応制御
+(スループット勾配で待機量を固定幅で増減する) であって、指数 backoff ではない。
+
+したがって本図は x 軸を `BACK_OFF=0` / `BACK_OFF=1`、軸名を
+`CCBench built-in adaptive backoff` と表示し、caption も同じ条件対で書く。
+
+上段は cell ごとの trace-disabled 性能標本 5 点、短い横棒が median、ひし形と誤差棒が標本平均と
+t 分布 95% 信頼区間である。灰色の破線は同 workload の no-backoff median であり、効果の分母でもある。
+下段は記述的な先行指標として cell あたり 1 点の集計 abort 率を置く。信頼区間は付けず、
+因果の機序も主張しない。**backoff 有効側で abort 率が下がりながら throughput も下がっている、
+という並びを機序の説明として読んではならない。**
+
+## この図を使ってよい範囲・使ってはならない範囲
+
+- **使ってよい:** 当時の測定が何を比較したかの記述、および「内蔵の適応 backoff を有効にすると
+  この 2 workload では throughput が下がり、外側 protocol status は `reject` だった」という
+  歴史記録の説明。
+- **使ってはならない:** 採用静的 backoff についての結果・結論 (D1936 項21・D1993 決定 5 は
+  期限なしでこれを禁じる)。本図は番号を変えた旧図の複製ではなく条件記述の訂正版だが、
+  **禁じられている用途が復活するわけではない。**
+- 論文の A-2 の結論そのものは、正しい identity で取り直した attempt `t2364-20260907b` を描く
+  `fig6_a2_certification_observed_positive` が担う (D1993 決定 1)。
+
+## 既存図との関係
+
+- **`fig5_a2_certification_reject` の bytes は 1 byte も変えていない。** 訂正は追記でのみ行う
+  (絶対規律 7)。旧図・旧 provenance・旧キャプション正文と、それらを記録した
+  append-only の results 稿はそのまま残る。生成器は凍結 prefix の列挙
+  (`FROZEN_LEGACY_CAPTION_PREFIXES`) に載る出力名のときだけ旧文言と旧目盛を返す。
+  **legacy 権威 bytes から作る図の既定は訂正後の条件記述である。**
+- **`fig6_a2_certification_observed_positive` の後継でも前身でもない。** fig6 は別の attempt
+  (`t2364-20260907b`) で別の条件を測っている。両者を前後比較として読んではならない。
+- 値・median・効果・outer status・cell identity は fig5 と同一である。生成器は判定を再計算しない。
+
+## 入力
+
+- 権威 bytes: `output/insights/2026-08-24_paper-story-a2-certification/certification.json`
+  (`paper-story-a2-certification-result/v3`) と同 dir の `raw-manifest.json`
+  (`paper-story-a2-raw-manifest/v3`)。fig5 と同じ bytes であり、生成器は repo 所有の pin 表で
+  SHA-256 を照合する。**pin は CLI から渡せない。**
+- 条件記述の出所: `docs/paper-story/results/2026-09-07-a2-certification-reject.md`。
+  provenance の `tracked_inputs` に `kind: "caption_source"` として SHA-256 つきで記録する。
+  `authority_scope` は `condition description only; not measurement values or protocol status`
+  であり、**測定値と protocol status の権威ではない。** 同稿は自身を凍結物と宣言している。
+- 外部入力: attempt `t2022-20260828c` の WAL 2 本と raw cell 4 本。root 相対 path と SHA-256 を
+  provenance の `external_inputs` に記録する。
+
+## 再現
+
+repo root から、**計測機の外**で次を実行する (FIGURE_CONVENTIONS §7)。
+
+```bash
+python3 tools/plotting/plot_a2_certification.py \
+  --measurement-root /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-20260828c \
+  --certification output/insights/2026-08-24_paper-story-a2-certification/certification.json \
+  --raw-manifest output/insights/2026-08-24_paper-story-a2-certification/raw-manifest.json \
+  docs/paper-story/figures/fig7_a2_builtin_backoff_onoff_reject
+```
+
+図番号は出力 prefix の `fig<N>_` から導く。再現できるのは「値」であって「バイト列」ではない。
+
+## 作図規約への適合
+
+`FIGURE_CONVENTIONS.md` の §2 (反復があれば不確かさを描く)、§3 (ベースラインは基準線)、
+§6 (provenance を刻む)、§7 (計測機の外)、§9 (保存前に重なりを機械検査し、重なれば出力せず落とす)
+に従う。§9 の検査は `check_figure_layout` が担い、訂正後の目盛文言でも通ることを
+`orchestrator/tests/test_plot_a2_certification.py` が検査する。
+
+## キャプション正文
+
+キャプション正文は provenance JSON の `caption` と同一文字列であり、
+`orchestrator/tests/test_plot_a2_certification.py` が本 README への収録と生成器の決定的な
+組み立てとの一致を検査する。英文で書く。
+
+> Figure 7. A-2 formal certification attempt t2022-20260828c (outer status: reject). The two independent workload campaigns were requests 954194.nqsv on bnode141 at 2026-08-27T20:51:15.094458+00:00 and 954195.nqsv on bnode064 at 2026-08-27T20:52:50.071485+00:00, at distinct recorded times; the outer status is their logical conjunction. The top row shows all five trace-disabled performance samples per cell; short bars are medians, and diamonds with error bars are sample means with t-distribution 95% confidence intervals. The gray dashed line is the workload's no-backoff median and the effect denominator. Median effects copied from certification are rr5 CCBench built-in adaptive backoff enabled (BACK_OFF=1) versus disabled (BACK_OFF=0) -46.3902% and rr50 CCBench built-in adaptive backoff enabled (BACK_OFF=1) versus disabled (BACK_OFF=0) -65.9080%. The labels fixed 10 us / fixed 5 us and cell IDs rr5-fixed10 / rr50-fixed5 identify requested genomes, not effective conditions; BACKOFF_FIXED did not affect the build. BACK_OFF=1 enables CCBench built-in adaptive control, not exponential backoff. M tps means million transactions per second. Mean confidence intervals describe samples; they are not confidence intervals for effects, decisions, or medians, and this artifact makes no significance decision. Reject is the protocol status based on the predefined median ratio. The bottom row is a descriptive leading indicator: one aggregate abort-rate point per cell, no confidence interval, and no causal mechanism claim. Correctness comes from separate trace-enabled runs: all four cells were certified, but this is not a performance certification. L01 limits that evidence to point-key traces; under D1257 the correctness argv was not independently recorded. The D1198 gate family was not applied to this run. Conditions: 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s, five repetitions, CCBench pin 511c953, no perf, trace-disabled performance. Top-row y axes are scaled independently by workload; do not compare panel heights. The older series is not a comparator, and the cause of the sign difference has not been identified.
+
+## proof chain
+
+- 図に描いた標本・median・平均・CI・abort 率 → provenance JSON の `cells` と `artist_series`
+- 判定と効果 → `certification.json` の `status` / `effects`。生成器は再計算せず、
+  `effect_crosschecks` に再計算値との一致を記録する
+- 標本の由来 → durable authority の WAL `bench_done` と raw cell JSON
+  (provenance の `external_inputs` に root 相対 path と SHA-256)
+- 入力の束縛 → tracked `raw-manifest.json` の `files` (provenance の `tracked_inputs`)
+- 条件記述の出所 → `tracked_inputs` の `caption_source` 行 (SHA-256 で束縛)
+- 効いた条件が `BACK_OFF` だけであることの根拠 → WAL `build_start` の `src_token` /
+  `tracked_clean` / 空の tracked diff / `tracked_paths` と、`build_done` の実 cmake 引数、
+  および pin `511c9538` の CCBench 全木検索 (`CCBENCH_BACKOFF_FIXED` は 0 件)。
+  逐語は `docs/paper-story/results/2026-09-07-a2-certification-reject.md` §1
+- それらが着地後もずれないこと → `orchestrator/tests/test_plot_a2_certification.py`
+- 用途制限 → D1936 項21、D1993 決定 5
 - 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`

@@ -1636,3 +1636,177 @@ def test_m30_gc_prune_expire_never_is_determinate(tmp_path: Path):
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main(["-q", __file__]))
+
+
+@pytest.mark.parametrize("candidate_count", [0, 2])
+def test_real_checker_unlanded_spool_details(tmp_path, candidate_count):
+    repo = _init_repo(tmp_path)
+    _git(repo, "switch", "-c", "topic")
+    path = "docs/spool/worklog/2026-08-25-topic-1.md"
+    _write(repo, path, "---\nschema: izanagi-spool-v1\nledger: worklog\nauthored: 2026-08-25\n"
+           "wave: topic\nseq: 1\ntitle: Topic\n---\nBody.\n")
+    topic = _commit(repo, "fragment")
+    oid = _git(repo, "rev-parse", f"{topic}:{path}").stdout.strip()
+    _git(repo, "switch", "main")
+    if candidate_count:
+        _write(repo, path, "Different main content.\n")
+        _commit(repo, "main mismatch")
+        (repo / path).unlink()
+        _commit(repo, "remove mismatch")
+    assessment = TOOL._landed_assessment(repo, LANDED_PATH, topic, 30, 30)
+    assert {k: assessment[k] for k in ("verdict", "conclusive", "checker_rc", "complete")} == {
+        "verdict": "indeterminate", "conclusive": False, "checker_rc": 2, "complete": False,
+    }
+    details = assessment["unproven_unit_details"]
+    assert details == {
+        "units": [{
+            "commit": topic, "path": path, "change": "A",
+            "required_state": {"path": path, "mode": "100644", "object_type": "blob", "oid": oid},
+            "decision": {"reason": "folded-receipt-absent"},
+            "evidence": [{"layer": "exact-tree-state", "decisive": False,
+                          "outcome": "not-matched", "reason": "exact-state-absent-from-main-history",
+                          "candidate_count": candidate_count, "candidate_limit": 1024,
+                          "matched_commit": None},
+                         {"layer": "folded-receipt", "decisive": True, "outcome": "not-matched",
+                          "reason": "folded-receipt-absent", "candidate_count": None,
+                          "candidate_limit": None, "matched_commit": None}],
+        }],
+        "reason_counts": {"folded-receipt-absent": 1}, "unit_limit": 100,
+        "unproven_count": 1, "truncated": False, "complete": True, "missing_reason": None,
+    }
+    rc, payload, process = _run_tool(repo, "--branch", "topic", "--assessment-timeout-seconds", "30")
+    assert rc == 2
+    assert _commit_row(json.loads(process.stdout), topic)["landed_assessment"]["unproven_unit_details"] == details
+    assert payload["decision_inputs"]["indeterminate"] == 1
+    # The same fragment's exact historical state is sufficient even without a receipt.
+    content = _git(repo, "show", f"{topic}:{path}").stdout
+    _write(repo, path, content)
+    _commit(repo, "main witness")
+    (repo / path).unlink()
+    _commit(repo, "remove witness")
+    positive = TOOL._landed_assessment(repo, LANDED_PATH, topic, 30, 30)
+    assert {k: positive[k] for k in ("verdict", "conclusive", "checker_rc", "complete")} == {
+        "verdict": "landed", "conclusive": True, "checker_rc": 0, "complete": True,
+    }
+    assert positive["unproven_unit_details"]["units"] == []
+    assert positive["unproven_unit_details"]["complete"] is True
+
+
+def test_unproven_details_are_bounded_and_count_all_reasons():
+    unit = {
+        "commit": "a" * 40, "path": "f", "change": "M",
+        "required_state": {"path": "f", "mode": "100644", "object_type": "blob", "oid": "b" * 40},
+        "decision": {"verdict": "indeterminate", "reason": "exact-state-not-proven"},
+        "evidence": [{"layer": "exact-tree-state", "decisive": True, "outcome": "not-matched",
+                      "reason": "exact-state-absent-from-main-history", "candidate_count": 5,
+                      "candidate_limit": 1024, "matched_commit": None}],
+    }
+    payload = {"proof_units": [unit] * 101, "summary": {"proof_units": 101, "files_enumerated": True}}
+    result = TOOL._unproven_unit_details(payload)
+    assert len(result["units"]) == 100
+    assert result["unproven_count"] == 101
+    assert result["reason_counts"] == {"exact-state-not-proven": 101}
+    assert result["truncated"] is True
+    assert result["complete"] is False
+    assert result["missing_reason"] == "unit-output-limit"
+    assert result["units"][0] == {
+        "commit": "a" * 40, "path": "f", "change": "M", "required_state": unit["required_state"],
+        "decision": {"reason": "exact-state-not-proven"},
+        "evidence": [{"layer": "exact-tree-state", "decisive": True, "outcome": "not-matched",
+                      "reason": "exact-state-absent-from-main-history", "candidate_count": 5,
+                      "candidate_limit": 1024, "matched_commit": None}],
+    }
+
+
+@pytest.mark.parametrize("failure", ["timeout", "no-units", "partial-units"])
+def test_missing_child_unit_details_never_claim_complete(tmp_path, monkeypatch, failure):
+    if failure == "timeout":
+        def timeout(*args, **kwargs):
+            raise subprocess.TimeoutExpired(args[0], 1)
+        monkeypatch.setattr(TOOL.subprocess, "run", timeout)
+        assessment = TOOL._landed_assessment(tmp_path, LANDED_PATH, "a" * 40, 1, 1)
+        assert assessment["reason"] == "checker-timeout"
+        assert assessment["complete"] is False
+        assert assessment["checker_rc"] is None
+        result = assessment["unproven_unit_details"]
+        assert result["missing_reason"] == "child-report-unavailable"
+    else:
+        payload = {} if failure == "no-units" else {
+            "proof_units": [], "summary": {"proof_units": 3, "files_enumerated": True},
+        }
+        result = TOOL._unproven_unit_details(payload)
+        assert result["missing_reason"] == ("proof-units-unavailable" if failure == "no-units"
+                                             else "proof-unit-details-incomplete")
+    assert result["complete"] is False
+    assert result["units"] == []
+
+
+def test_unit_details_do_not_change_assessment_decisions(tmp_path, monkeypatch):
+    repo = _init_repo(tmp_path)
+    oid = _empty_child(repo)
+    checker = _make_fake_landed(tmp_path / "checker.py", "indeterminate")
+    monkeypatch.setattr(TOOL.time, "monotonic", lambda: 1.0)
+    before = TOOL._landed_assessment(repo, checker, oid, 30, 30)
+    calls = []
+    def injected_details(payload):
+        calls.append(payload)
+        return {"complete": True, "units": ["different"]}
+    monkeypatch.setattr(TOOL, "_unproven_unit_details", injected_details)
+    after = TOOL._landed_assessment(repo, checker, oid, 30, 30)
+    assert len(calls) == 1
+    assert calls[0] == {
+        "schema": "izanagi-branch-landed-v1",
+        "branch_delete_authorized": False,
+        "manual_review_required": True,
+        "decision": {
+            "verdict": "indeterminate", "reason": "fake-indeterminate", "conclusive": False,
+        },
+        "observations": {"ledger_corpus": {"bytes_read": 0}},
+        "branch": {"input": oid, "tip": oid},
+    }
+    assert after["unproven_unit_details"] == {"complete": True, "units": ["different"]}
+    assert before["unproven_unit_details"] != after["unproven_unit_details"]
+    assert {k: v for k, v in after.items() if k != "unproven_unit_details"} == {
+        k: v for k, v in before.items() if k != "unproven_unit_details"
+    }
+    assert (after["verdict"], after["conclusive"], after["checker_rc"], after["complete"]) == (
+        "indeterminate", False, 2, False,
+    )
+
+
+def test_unit_details_do_not_change_rescue_rc_or_decision_inputs(tmp_path, monkeypatch):
+    repo = _init_repo(tmp_path)
+    topic = _topic_with_file(repo)
+    checker = _make_fake_landed(tmp_path / "checker.py", "indeterminate")
+    args = ("--branch", "topic", "--landed-checker", str(checker))
+    before_rc, before, _ = _run_tool(repo, *args)
+    calls = []
+    def injected_details(payload):
+        calls.append(payload)
+        return {"complete": True, "units": ["rescue-injected"]}
+    monkeypatch.setattr(TOOL, "_unproven_unit_details", injected_details)
+    after_rc, after, process = _run_tool(repo, *args)
+    assert len(calls) == 1
+    assert calls[0] == {
+        "schema": "izanagi-branch-landed-v1",
+        "branch_delete_authorized": False,
+        "manual_review_required": True,
+        "decision": {
+            "verdict": "indeterminate", "reason": "fake-indeterminate", "conclusive": False,
+        },
+        "observations": {"ledger_corpus": {"bytes_read": 0}},
+        "branch": {"input": topic, "tip": topic},
+    }
+    after_details = _commit_row(after, topic)["landed_assessment"]["unproven_unit_details"]
+    assert after_details == {"complete": True, "units": ["rescue-injected"]}
+    assert _commit_row(json.loads(process.stdout), topic)["landed_assessment"]["unproven_unit_details"] == after_details
+    assert _commit_row(before, topic)["landed_assessment"]["unproven_unit_details"] != after_details
+    assert before_rc == after_rc == 2
+    assert before["decision_inputs"] == after["decision_inputs"]
+    assert after["decision_inputs"]["indeterminate"] == 1
+    assert after["decision_inputs"]["visualization_complete"] is False
+    for payload in (before, after):
+        assessment = _commit_row(payload, topic)["landed_assessment"]
+        assert (assessment["complete"], assessment["conclusive"], assessment["verdict"], assessment["checker_rc"]) == (
+            False, False, "indeterminate", 2,
+        )
