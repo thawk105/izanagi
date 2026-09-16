@@ -1,0 +1,244 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "    # require six pairs when performance completes with no verification outcome.\n",
+          "new": "    # require six pairs whenever performance completes with no verification outcome.\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-gate-deleted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "    verification_failure_recorded = any(\n        isinstance(attempt, Mapping)\n        and attempt.get(\"cluster_slot_or_null\") is None\n        and attempt.get(\"reason_code\") != \"completed\"\n        for attempt in attempts\n    )\n    if performance_slots and not verification_failure_recorded:\n        evidence = value.get(\"correctness_evidence\", ())\n        evidence_pairs = {\n            (entry.get(\"arm\"), entry.get(\"workload\"))\n            for entry in evidence\n            if isinstance(entry, Mapping)\n        }\n        expected_pairs = {(arm, workload) for arm in _ARMS for workload in _WORKLOADS}\n        if len(evidence) != 6 or evidence_pairs != expected_pairs:\n            _semantic(\n                \"correctness\",\n                \"completed performance without a recorded verification failure \"\n                \"requires six correctness arm/workload pairs\",\n            )\n",
+          "new": "    # M1: conditional correctness coverage gate removed\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_rejects_duplicate_correctness_pair",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_rejects_seven_correctness_entries",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_reason_branches[0]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_reason_branches[1]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_reason_branches[5]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_top_level[0]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_top_level[1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-condition-inverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "    if performance_slots and not verification_failure_recorded:\n",
+          "new": "    if not performance_slots and not verification_failure_recorded:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_rejects_duplicate_correctness_pair",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_rejects_seven_correctness_entries",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_reason_branches[0]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_reason_branches[1]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_reason_branches[5]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_top_level[0]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_top_level[1]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_failed_performance_accepts_partial_correctness[0]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_failed_performance_accepts_partial_correctness[5]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_post_failure_accepts_actual_run_route",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_post_failure_accepts_marker_route",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_post_failure_recomputes_a03_route"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-carveout-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "    if performance_slots and not verification_failure_recorded:\n",
+          "new": "    if performance_slots:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_recorded_verification_failure_accepts_empty_correctness",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_semantic_validator_accepts_complete_performance_receipt",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_study_receipts_require_order_coverage_and_verification_digest_identity",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-6.10-create-only-existing]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-6.9-phase-budget]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-6.9-phase-order]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-7.1-06-phase-closure]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-7.1-15-monotonic-order]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-7.1-18-time-cap]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[publish_rejected_missing_authority]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[semantic_positive]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[writer_publish_sealed_authority]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_publish_rejected_missing_authority_after_semantic_gate",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_semantic_positive_reuses_unit3_full_fixture"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-condition-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "    if performance_slots and not verification_failure_recorded:\n",
+          "new": "    if True:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_failed_performance_accepts_partial_correctness[0]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_failed_performance_accepts_partial_correctness[5]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_post_failure_accepts_actual_run_route",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_post_failure_accepts_marker_route",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_post_failure_recomputes_a03_route",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_recorded_verification_failure_accepts_empty_correctness",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_semantic_validator_accepts_complete_performance_receipt",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_study_receipts_require_order_coverage_and_verification_digest_identity",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-6.10-create-only-existing]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-6.9-phase-budget]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-6.9-phase-order]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-7.1-06-phase-closure]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-7.1-15-monotonic-order]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-7.1-18-time-cap]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[publish_rejected_missing_authority]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[semantic_positive]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[writer_publish_sealed_authority]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_publish_rejected_missing_authority_after_semantic_gate",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_semantic_positive_reuses_unit3_full_fixture"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-count-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "        if len(evidence) != 6 or evidence_pairs != expected_pairs:\n",
+          "new": "        if len(evidence) != 6:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_rejects_duplicate_correctness_pair"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-coverage-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "        if len(evidence) != 6 or evidence_pairs != expected_pairs:\n",
+          "new": "        if evidence_pairs != expected_pairs:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_rejects_seven_correctness_entries"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-reason-code-changed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "                \"correctness\",\n                \"completed performance without a recorded verification failure \"\n",
+          "new": "                \"reason\",\n                \"completed performance without a recorded verification failure \"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_rejects_duplicate_correctness_pair",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_rejects_seven_correctness_entries",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_reason_branches[0]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_reason_branches[1]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_reason_branches[5]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_top_level[0]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_top_level[1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-empty-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "        if len(evidence) != 6 or evidence_pairs != expected_pairs:\n",
+          "new": "        if not evidence:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_rejects_duplicate_correctness_pair",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_rejects_seven_correctness_entries",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_reason_branches[1]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_reason_branches[5]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_top_level[1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-carveout-inverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "    if performance_slots and not verification_failure_recorded:\n",
+          "new": "    if performance_slots and verification_failure_recorded:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_rejects_duplicate_correctness_pair",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_rejects_seven_correctness_entries",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_reason_branches[0]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_reason_branches[1]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_reason_branches[5]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_top_level[0]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_completed_performance_requires_correctness_top_level[1]",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_recorded_verification_failure_accepts_empty_correctness",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_semantic_validator_accepts_complete_performance_receipt",
+        "orchestrator/tests/test_t338_submission_gate_unit3.py::test_study_receipts_require_order_coverage_and_verification_digest_identity",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-6.10-create-only-existing]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-6.9-phase-budget]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-6.9-phase-order]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-7.1-06-phase-closure]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-7.1-15-monotonic-order]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[negative-7.1-18-time-cap]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[publish_rejected_missing_authority]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[semantic_positive]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_conformance_vector_is_executed[writer_publish_sealed_authority]",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_publish_rejected_missing_authority_after_semantic_gate",
+        "orchestrator/tests/test_t338_submission_gate_unit5.py::test_semantic_positive_reuses_unit3_full_fixture"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
