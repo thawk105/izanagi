@@ -1524,6 +1524,13 @@ def test_required_code_identity_closes_activation_receipt_imports_without_record
     }
 
 
+def test_required_code_identity_includes_verifier_core_dsg_model_parse():
+    assert "orchestrator/verifier/core.py" in REQUIRED_CODE_IDENTITY_PATHS
+    assert "orchestrator/verifier/dsg.py" in REQUIRED_CODE_IDENTITY_PATHS
+    assert "orchestrator/verifier/model.py" in REQUIRED_CODE_IDENTITY_PATHS
+    assert "orchestrator/verifier/parse.py" in REQUIRED_CODE_IDENTITY_PATHS
+
+
 def test_series_preimage_exact_code_identity_set_tracks_activation_closure(
     tmp_path,
 ):
