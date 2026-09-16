@@ -46,6 +46,17 @@ title: [T-2647] B-10 静的 backoff 右 tail の集団判定を両論文系列�
   dispatch、request 1199.nqsv)。受入全走 attempt 2 は `child-green` で
   24,070 passed / 68 skipped、`red_nodeids` と `flake_nodeids` はいずれも空、
   tested main `d97c423bd` / tested tip `3d1904fd4`。
+- **最終受入 attempt 3 は非帰属の赤だった (17 error、24,059 passed / 68 skipped)。** 内訳は
+  `test_t1259_qsub_env_delivery_probe.py` の 16 件と
+  `test_s8c_preregistration_predicates.py::test_repository_candidate_uses_real_s8c_budget_module`
+  の 1 件。shard の `junit.xml` が持つ本文は 2 種で、いずれも並行実行による資源競合である —
+  `RuntimeError: real-repo lock deadline exceeded; fails-closed: resource=parent mode=write ...
+  holders=pid=1247533,mode=READ,pid=1247437,mode=READ` と
+  `subprocess.TimeoutExpired: Command '['git', '-C', '<wave worktree>', 'ls-files', '--others',
+  '--exclude-standard', '-z']' timed out after 30.0 seconds`。
+  **本 wave の変更面は docs 5 file だけで、どちらの本文もその差分に到達しない。**
+  判定時刻に他 session の受入 leader が 9 本走り、`/tmp/izanagi-real-repo-*.lock` が 139 件
+  存在した。`DW-O18` に従い非帰属と判定し、同一 tip で受入を 1 回だけ再走した。
 
 ## 次の一手差分
 
