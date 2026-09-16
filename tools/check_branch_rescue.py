@@ -1495,7 +1495,71 @@ def _empty_landed(reason: str, elapsed: float = 0.0) -> dict[str, Any]:
         "report_sha256": None,
         "manual_review_required": True,
         "complete": False,
+        "unproven_unit_details": _unproven_unit_details(None),
     }
+
+
+def _unproven_unit_details(payload: dict[str, Any] | None) -> dict[str, Any]:
+    """Bounded explanation only; never contributes to the assessment decision."""
+    limit = 100
+    result: dict[str, Any] = {
+        "units": [], "reason_counts": {}, "unit_limit": limit,
+        "unproven_count": None, "truncated": False, "complete": False,
+        "missing_reason": "child-report-unavailable",
+    }
+    if payload is None:
+        return result
+    units = payload.get("proof_units")
+    summary = payload.get("summary")
+    if not isinstance(units, list):
+        result["missing_reason"] = "proof-units-unavailable"
+        return result
+    valid = True
+    count = 0
+    for unit in units:
+        if not isinstance(unit, dict) or not isinstance(unit.get("decision"), dict):
+            valid = False
+            continue
+        if unit["decision"].get("verdict") == "landed":
+            continue
+        count += 1
+        reason = unit["decision"].get("reason")
+        if not isinstance(reason, str):
+            valid = False
+            reason = "unit-reason-unavailable"
+        result["reason_counts"][reason] = result["reason_counts"].get(reason, 0) + 1
+        evidence = unit.get("evidence")
+        if not isinstance(evidence, list):
+            valid = False
+            evidence = []
+        layers = [
+            {key: layer.get(key) for key in (
+                "layer", "decisive", "outcome", "reason", "candidate_count", "candidate_limit",
+                "matched_commit",
+            )}
+            for layer in evidence if isinstance(layer, dict) and (
+                layer.get("decisive") is True
+                or (layer.get("layer") == "exact-tree-state"
+                    and layer.get("outcome") != "not-applicable")
+            )
+        ]
+        if not layers or any(key not in unit for key in ("commit", "path", "change", "required_state")):
+            valid = False
+        if len(result["units"]) < limit:
+            result["units"].append({
+                **{key: unit.get(key) for key in ("commit", "path", "change", "required_state")},
+                "decision": {"reason": reason}, "evidence": layers,
+            })
+    result["unproven_count"] = count
+    result["truncated"] = count > limit
+    enumerated = (isinstance(summary, dict) and summary.get("files_enumerated") is True
+                  and summary.get("proof_units") == len(units))
+    result["complete"] = valid and enumerated and not result["truncated"]
+    result["missing_reason"] = (
+        None if result["complete"] else "unit-output-limit" if result["truncated"]
+        else "proof-unit-details-incomplete"
+    )
+    return result
 
 
 def _landed_assessment(repo: Path, checker: Path, oid: str, timeout: float,
@@ -1565,6 +1629,7 @@ def _landed_assessment(repo: Path, checker: Path, oid: str, timeout: float,
         "report_sha256": hashlib.sha256(result.stdout).hexdigest(),
         "manual_review_required": payload.get("manual_review_required") is not False,
         "complete": expected_conclusive,
+        "unproven_unit_details": _unproven_unit_details(payload),
     }
 
 
