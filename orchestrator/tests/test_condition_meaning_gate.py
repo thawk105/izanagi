@@ -42,6 +42,8 @@ _COMPILE_TIME_BRANCH_MACROS = (
     "IZANAGI_BREAK_WRITE_INTENT_FORGE",
     "IZANAGI_BREAK_WRITE_INTENT_OPSWAP",
     "IZANAGI_BREAK_WRITE_INTENT_PTRSWAP",
+    "IZANAGI_BREAK_NOREAD_VALIDATION",
+    "IZANAGI_BREAK_HIGHKEY_VALIDATION",
 )
 
 
@@ -1336,6 +1338,88 @@ def test_compile_time_branch_selection_accepts_active_nested_context(
     )
 
 
+@pytest.mark.parametrize("macro", [
+    "IZANAGI_BREAK_NOREAD_VALIDATION",
+    "IZANAGI_BREAK_HIGHKEY_VALIDATION",
+])
+def test_compile_time_branch_selection_accepts_else_with_nested_analysis(
+    tmp_path: Path,
+    macro: str,
+):
+    # ADD_ANALYSIS 未定義の正例。実 patch の前処理構造を模した toy TU であり、
+    # 実 patch 適用後の TU の実測ではない。
+    if macro == "IZANAGI_BREAK_NOREAD_VALIDATION":
+        owner_text = f"""void validation_fixture() {{
+  if (true) {{
+#if {macro}
+    int izanagi_selected_body = 1;
+#else
+#if ADD_ANALYSIS
+    int izanagi_default_analysis = 1;
+#endif
+    int izanagi_default_body = 1;
+#endif
+  }}
+}}
+"""
+    else:
+        owner_text = f"""void validation_fixture() {{
+  if (true) {{
+#if {macro}
+    int izanagi_selected_body = 1;
+    if (izanagi_selected_body < 1000) {{
+#if ADD_ANALYSIS
+      int izanagi_selected_analysis = 1;
+#endif
+      int izanagi_selected_lowkey_body = 1;
+    }}
+#else
+#if ADD_ANALYSIS
+    int izanagi_default_analysis = 1;
+#endif
+    int izanagi_default_body = 1;
+#endif
+  }}
+}}
+"""
+    root = _compile_time_source_root(tmp_path, macro, owner_text=owner_text)
+    captured = G.capture_define_inputs(root)
+    request = _compile_time_request(macro)
+    declaration = G.declare_define_runtime_meaning(request)
+
+    assert type(declaration) is G.ConditionalBranchMeaningDeclaration
+    assert declaration.source_rel == "cc/silo/transaction.cc"
+    assert declaration.start_directive == f"#if {macro}"
+    supply = G.evaluate_define_supply_effectuation(
+        captured, request=request, cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    meaning = G.evaluate_define_runtime_meaning(
+        captured, request=request, declaration=declaration,
+        cxx=_any_cxx(), cmake=_any_cmake(),
+    )
+    admission = G.require_condition_gate_family(
+        [supply], [meaning], use_class="raw-measurement",
+    )
+
+    assert (supply.terminal_status, supply.reason_code) == (
+        "green", "requested-default-preprocess-different",
+    )
+    assert (meaning.terminal_status, meaning.reason_code) == (
+        "green", "declared-compile-time-branch-selection-observed",
+    )
+    for label, expected in (
+        ("requested", ("1", 1, 1)), ("default", ("0", 0, 1)),
+    ):
+        observation = meaning.evidence[label]
+        assert (
+            observation.define_value,
+            observation.selected_count,
+            observation.completed_count,
+        ) == expected
+    assert admission.admitted is True
+    assert admission.unestablished_meaning_macros == ()
+
+
 def test_compile_time_branch_selection_accepts_block_comment_prefix(
     tmp_path: Path,
 ):
@@ -1485,7 +1569,7 @@ def test_compile_time_branch_selection_rejects_unobserved_completion_marker(
 
 
 def test_compile_time_factory_keeps_unregistered_macro_unestablished(tmp_path: Path):
-    request = _compile_time_request("IZANAGI_BREAK_NOREAD_VALIDATION")
+    request = _compile_time_request("IZANAGI_BREAK_TRIGGER_MISATTR")
     assert G.declare_define_runtime_meaning(request) is None
 
     root = tmp_path / "ccbench"
