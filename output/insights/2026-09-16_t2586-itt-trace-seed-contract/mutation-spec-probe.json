@@ -1,0 +1,134 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 400,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "m1-cohort1-validator-drop-membership",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    if args.cells == COUNTERFACTUAL_TRACE_CELLS_TEXT and (\n        type(args.step_policy_seed) is not int\n        or args.step_policy_seed not in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS\n    ):\n",
+          "new": "    if args.cells == COUNTERFACTUAL_TRACE_CELLS_TEXT and (\n        type(args.step_policy_seed) is not int\n    ):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-cohort2-validator-drop-membership",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    if args.cells == COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT and (\n        type(args.step_policy_seed) is not int\n        or args.step_policy_seed not in CERT_PREREGISTERED_STEP_POLICY_SEEDS\n    ):\n",
+          "new": "    if args.cells == COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT and (\n        type(args.step_policy_seed) is not int\n    ):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-cohort1-metadata-drop-membership",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "        and type(step_policy_seed) is int\n        and step_policy_seed in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS\n",
+          "new": "        and type(step_policy_seed) is int\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-cohort2-metadata-drop-membership",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "        and type(step_policy_seed) is int\n        and step_policy_seed in CERT_PREREGISTERED_STEP_POLICY_SEEDS\n",
+          "new": "        and type(step_policy_seed) is int\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-cohort1-seed-table-slot00-corrupted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    5744733223455690259,\n",
+          "new": "    5744733223455690258,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-cohort1-metadata-accepts-union-of-both-cohorts",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "        and step_policy_seed in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS\n",
+          "new": "        and step_policy_seed in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS + CERT_PREREGISTERED_STEP_POLICY_SEEDS\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-cohort1-validator-drop-strict-type",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "        type(args.step_policy_seed) is not int\n        or args.step_policy_seed not in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS\n",
+          "new": "        args.step_policy_seed not in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-cohort1-metadata-over-rejects-all-but-slot00",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "        and step_policy_seed in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS\n    ):\n",
+          "new": "        and step_policy_seed == COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS[0]\n    ):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-seed-check-runs-before-axis-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    expected_contract = BACKOFF_TRACE_CONTRACTS.get(args.cells)\n",
+          "new": "    if args.cells == COUNTERFACTUAL_TRACE_CELLS_TEXT and (\n        type(args.step_policy_seed) is not int\n        or args.step_policy_seed not in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS\n    ):\n        raise ValueError(\"--step-policy-seed must be one preregistered cohort1 integer seed\")\n    if args.cells == COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT and (\n        type(args.step_policy_seed) is not int\n        or args.step_policy_seed not in CERT_PREREGISTERED_STEP_POLICY_SEEDS\n    ):\n        raise ValueError(\"--step-policy-seed must be one preregistered cohort2 integer seed\")\n    expected_contract = BACKOFF_TRACE_CONTRACTS.get(args.cells)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
