@@ -42,6 +42,7 @@ from .artifacts import (  # noqa: E402
     QualificationArtifactError,
     QualificationEventSink,
     QualificationRoot,
+    QualificationWriteCapability,
     ReceiptVerification,
     create_attempt,
     create_json,
@@ -100,6 +101,18 @@ class QualificationDriverError(RuntimeError):
     """The controller cannot produce a valid series result."""
 
     rc = RC_INFRASTRUCTURE
+
+
+class AttestationMismatchError(QualificationDriverError):
+    def __init__(
+            self, *, comparisons: list[dict[str, Any]],
+            expected_profile_sha256: str, observed_profile_sha256: str,
+            observed_profile_projection_schema: str) -> None:
+        super().__init__("attestation comparison contains a mismatch")
+        self.comparisons = comparisons
+        self.expected_profile_sha256 = expected_profile_sha256
+        self.observed_profile_sha256 = observed_profile_sha256
+        self.observed_profile_projection_schema = observed_profile_projection_schema
 
 
 def _exact_retry_index(value: object, label: str) -> int:
@@ -463,7 +476,12 @@ def _attest(repo_root: Path, contract) -> dict[str, Any]:
     except Exception as exc:
         raise QualificationDriverError(f"attestation failed: {type(exc).__name__}: {exc}") from exc
     if not comparisons or any(row.get("verdict") != "pass" for row in comparisons):
-        raise QualificationDriverError("attestation comparison contains a mismatch")
+        raise AttestationMismatchError(
+            comparisons=comparisons,
+            expected_profile_sha256=verified.attestation_profile_sha256,
+            observed_profile_sha256=observed_sha256,
+            observed_profile_projection_schema=parsed.schema_version,
+        )
     return {
         "schema_version": "t126-qualification-attestation/v2",
         "status": "accepted",
@@ -472,6 +490,60 @@ def _attest(repo_root: Path, contract) -> dict[str, Any]:
         "observed_profile_projection_schema": parsed.schema_version,
         "comparisons": comparisons,
     }
+
+
+def _run_attestation_child(
+        *, repo_root: Path, contract, capability: QualificationWriteCapability,
+        relative: str, stage: str, round_index: Optional[int]) -> int:
+    """Publish attestation evidence; diagnostic failures preserve rejection."""
+    try:
+        try:
+            payload = _attest(repo_root, contract)
+        except AttestationMismatchError as exc:
+            diagnostic = {
+                "schema_version": "t126-qualification-attestation-mismatch/v1",
+                "status": "rejected",
+                "stage": stage,
+                "round_index": round_index,
+                "expected_profile_sha256": exc.expected_profile_sha256,
+                "observed_profile_sha256": exc.observed_profile_sha256,
+                "observed_profile_projection_schema":
+                    exc.observed_profile_projection_schema,
+                "comparisons": exc.comparisons,
+                "failed_fields": [row["field"] for row in exc.comparisons
+                                  if row.get("verdict") != "pass"],
+            }
+            create_json(
+                capability, Path(relative).with_suffix(".mismatch.json").as_posix(),
+                diagnostic,
+            )
+            return RC_ATTESTATION
+        payload.update({"stage": stage, "round_index": round_index})
+        create_json(capability, relative, payload)
+        return RC_SUCCESS
+    except BaseException:
+        return RC_ATTESTATION
+
+
+def _attestation_rejection_message(
+        *, capability: QualificationWriteCapability, relative: str,
+        attempt_dir: Path) -> str:
+    message = "attestation child rejected"
+    try:
+        path = capability.root / Path(relative).with_suffix(".mismatch.json")
+        if not path.exists():
+            return message
+        diagnostic = path.relative_to(attempt_dir).as_posix()
+    except Exception:
+        return message
+    failed_fields = "unavailable"
+    try:
+        value = load_json_strict(path)["failed_fields"]
+        if isinstance(value, list) and all(isinstance(field, str) for field in value):
+            failed_fields = json.dumps(value, ensure_ascii=True)
+    except Exception:
+        pass
+    return f"{message}; diagnostic={diagnostic}; failed_fields={failed_fields}"
 
 
 def _member_identity(
@@ -1202,13 +1274,10 @@ def run(
         started = time.monotonic()
         pid, is_child = _fork_owned_process_group(process_groups)
         if is_child:
-            try:
-                payload = _attest(source_root, contract)
-                payload.update({"stage": stage, "round_index": round_index})
-                create_json(capability, relative, payload)
-                os._exit(0)
-            except BaseException:
-                os._exit(RC_ATTESTATION)
+            os._exit(_run_attestation_child(
+                repo_root=source_root, contract=contract, capability=capability,
+                relative=relative, stage=stage, round_index=round_index,
+            ))
         try:
             hard_deadline = started + remaining_s
             deadline = hard_deadline - min(
@@ -1240,7 +1309,10 @@ def run(
             if status is None:
                 _, status = os.waitpid(pid, 0)
             if os.waitstatus_to_exitcode(status) != 0:
-                raise AttestationError("attestation child rejected")
+                raise AttestationError(_attestation_rejection_message(
+                    capability=capability, relative=relative,
+                    attempt_dir=layout.attempt_dir,
+                ))
             try:
                 os.killpg(pid, 0)
             except ProcessLookupError:
