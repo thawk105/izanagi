@@ -1,0 +1,97 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "MUT-FIG7-M1-FROZEN-CAPTION-UNPROTECTED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_landed_fig5_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_a2_certification.py::test_frozen_fig5_caption_requires_frozen_prefix_entry"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "    if prefix.name in FROZEN_LEGACY_CAPTION_PREFIXES:\n",
+          "new": "    if prefix.name in ():\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-FIG7-M2-CAPTION-BRANCH-INVERTED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_landed_fig5_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_a2_certification.py::test_frozen_fig5_caption_requires_frozen_prefix_entry",
+        "orchestrator/tests/test_plot_a2_certification.py::test_corrected_legacy_caption_describes_effective_conditions[fig7_a2_builtin_backoff_onoff_reject]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_corrected_legacy_caption_describes_effective_conditions[fig8_legacy_condition_description]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_landed_fig7_repo_closure_and_caption_when_present"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "    if prefix.name in FROZEN_LEGACY_CAPTION_PREFIXES:\n",
+          "new": "    if prefix.name not in FROZEN_LEGACY_CAPTION_PREFIXES:\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-FIG7-M3-CAPTION-SOURCE-ROW-DROPPED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_corrected_legacy_provenance_tracks_condition_source",
+        "orchestrator/tests/test_plot_a2_certification.py::test_default_legacy_cli_provenance_argv_and_axis_labels"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "    if (data[\"measurement_conditions\"].get(\"artifact_profile\") != \"current-full\"\n            and _caption_prefix(outputs[0]).name not in FROZEN_LEGACY_CAPTION_PREFIXES):\n",
+          "new": "    if (data[\"measurement_conditions\"].get(\"artifact_profile\") == \"current-full\"\n            and _caption_prefix(outputs[0]).name not in FROZEN_LEGACY_CAPTION_PREFIXES):\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-FIG7-M4-TICKS-REVERTED-ONLY",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_legacy_backoff_axis_condition_labels[False]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_default_legacy_cli_provenance_argv_and_axis_labels"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "            axis.set_xticks((0, 1), (\"BACK_OFF=0\", \"BACK_OFF=1\") if corrected_legacy else\n",
+          "new": "            axis.set_xticks((0, 1), (\"no backoff\", f\"fixed {adopted['genome']['BACKOFF_FIXED']} us\") if corrected_legacy else\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-FIG7-M5-REQUESTED-GENOME-SENTENCE-WEAKENED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a2_certification.py::test_corrected_legacy_caption_describes_effective_conditions[fig7_a2_builtin_backoff_onoff_reject]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_corrected_legacy_caption_describes_effective_conditions[fig8_legacy_condition_description]",
+        "orchestrator/tests/test_plot_a2_certification.py::test_landed_fig7_repo_closure_and_caption_when_present"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a2_certification.py",
+          "old": "            \"requested genomes, not effective conditions; BACKOFF_FIXED did not affect the build. \"\n",
+          "new": "            \"requested genomes. \"\n"
+        }
+      ]
+    }
+  ]
+}

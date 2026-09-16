@@ -62852,3 +62852,110 @@ claude が負う。
 **実装:** `.claude/commands/next-tasks.md` のみ。byte 上限 27,100 は上げず、日付付き逸話 4 件の
 圧縮 (義務は全件保持) で相殺した。着地 26,903 bytes。逐語は
 `output/insights/2026-09-16_next-tasks-codex-authority/`。
+
+## D2052. 資格判定 attestation の受理集合を空から非空へ変える — 観測側 hash は parser を通し、判定条件は一切変えない (2026-09-16)
+
+**決定 ([T-541] / [T-507] のユーザー裁定 = 択 (a) の実装):** 資格判定 (T126) driver の環境 attestation に
+あった 2 層の型不整合を直し、成功経路を到達可能にする。**受理集合は「常に空」から「非空」へ変わる。**
+D96 が課す手続 (新しい設計判断の記録 + 境界テストの同時更新) を本 D と
+`test_t541_attest_*` が満たす。
+
+**射程は次の 3 点だけである。**
+
+1. 比較の expected を `verified.calibration.attestation_profile` にする
+   (従来は `CalibrationV2` そのものを渡しており、必ず型エラーになっていた)。
+2. 観測側 hash を、観測を `pegasus-probe-output/v2` の exact 4 key 文書へ落として既存
+   `parse_probe_output` に通し、既存 `observed_profile_sha256` で求める形にする。
+   比較の observed 側も同じ parser 復元値を見る。
+3. 出力 envelope を `t126-qualification-attestation/v2` (exact 6 field) へ上げ、
+   `observed_profile_projection_schema` を **parser の戻り値が持つ source schema から**記録する。
+
+**変えないもの (絶対規律 2):** `_recorded_verdict`、`EFFECTIVE_CLOCK_TOLERANCE_PCT`、比較 field 集合、
+全行 pass 要求、非空要求、共有 API の signature と意味、較正 artifact、contract registry。
+広げたのは「**型が合えば比較が実行される**」ところまでであり、**通る条件は 1 つも緩めていない**。
+
+**理由:**
+
+- 成功経路が一度も到達できない保証は、恒真な保証の最も重い形である。資格試行が主張する環境同一性は、
+  直すまで実データの裏づけを 1 件も持っていなかった。
+- 観測側 hash に in-process 専用の関数を新設せず parser を通すのは、2026-08-05 の R-3 が定めた
+  「projection version を呼出側の自由引数にせず、parser の戻り値が持つ source schema から導出する」を
+  守るためである。**ただし driver が生成文書の版を選んでいることは事実であり、「parser が版を独立に
+  発見する」とは書かない。** 守られているのは「hash 呼出し時に projection を自由選択する API を
+  作らない」という禁止の方である。
+- 実データでの到達を計算ノードで 1 回確認した (Request 861.nqsv、`status: accepted`、21 field 全 pass)。
+  login node では同じ較正に対し 6 field が**正当に** fail する — 96 論理コア・SMT 有効の観測が
+  48/48・SMT 無効の較正と一致しないためで、型の問題ではない。
+
+**この D が主張しないこと:**
+
+- **記録値の由来への感度は検証範囲外である。** `observed_profile_projection_schema` を
+  `parsed.schema_version` から取るか同値の literal で書くかは、driver が生成文書の版を v2 に
+  固定している現行経路では出力が変わらず、変異でも検出できない (段 6 のレビューが指摘し、親が
+  事前登録を SURVIVED 期待へ訂正した)。実装は由来から取る形を維持するが、**保護されているとは
+  数えない。**
+- attempt evidence への保存、資格試行の完走、certified 選択の成立は含まない。T126 result は
+  `evidence-only/no-promotion` であり、今回の到達をそこまで拡張して報告してはならない。
+- 不一致で終わったときに field 別の内容が成果物へ残らない既存の欠落は直していない
+  ([T-2683])。
+
+**却下した選択肢:**
+
+- **in-process 専用の projection / hash 関数を足す** — parser 起点の既存経路とは別に schema 決定経路と
+  canonicalization を増やし、R-3 の構造的な誤選択防止を弱める。
+- **`ParsedProbeOutput` を直接構築する** — parser の形状検査を飛ばす。
+- **`probe()` の戻り値型を変える** — 既存 consumer の契約へ波及する。
+- **expected 型へ変換して既存 `profile_sha256` を使う** — 観測に存在しない tolerance を持ち込み、
+  観測 projection の意味を変える。
+
+**境界テストの形 (D96 の 2 点目):** 現挙動 (一致入力も型不整合で拒否する) を保存していた
+`test_t452_attest_preserves_intentional_fail_closed_behavior` を、実比較・実 parser・実 hash を通す
+受理／拒否の境界テストへ置き換えた。stub は較正読込みと probe の 2 つだけ (空比較の負例のみ
+`compare_profiles` を差し替える)。観測 hash の期待値は入力 mapping から独立に算出する。
+拒否側は governor 不一致・帯の端の直外・空比較・probe 例外を固定する。
+
+**テスト入力の tolerance について:** 共有 fixture の `effective_clock.tolerance_pct` は 5.0 で、
+現行 policy の 2.0 と一致しない。比較実装は両者の一致を要求するため、**この不一致だけで必ず落ち、
+帯判定に到達しない**。境界テスト内で入力を policy 定数へ揃えた (literal は焼き込まない)。
+判定条件は変えておらず、policy 外 tolerance を拒否する保護は `test_env_attestation.py` の既存
+テストが引き続き固定している。共有 fixture 自体は変更していない。
+
+**研究状態への影響:** 資格試行の環境同一性主張が、初めて実データの裏づけを持つ。
+certified 選択・材料レポート・proof chain の値はこの wave では変わらない。
+
+## D2053. 凍結図の caption は prefix 列挙で例外にし、legacy 権威から作る図の条件記述は既定で訂正後にする (2026-09-16)
+
+**決定:** A-2 図生成器の legacy profile について、caption・x 軸目盛・`tracked_inputs` の
+**既定を訂正後の条件記述**とし、`FROZEN_LEGACY_CAPTION_PREFIXES` に列挙した出力 prefix の
+ときだけ凍結済みの旧文言・旧目盛・旧 2 行 provenance を返す。列挙は現在
+`fig5_a2_certification_reject` の 1 件だけである。
+
+- 列挙は機能の台帳ではなく、「この 1 成果物の caption は訂正前の文言で凍結されている」という
+  **凍結の記録**である。新しい gate・検査層は足さない。
+- caller は「どの成果物か」だけを選び、caption 文字列を注入できない (D1752 / D1753 の形を踏襲)。
+- 訂正側の図は `tracked_inputs` へ `kind: "caption_source"` の 1 行を足し、
+  `authority_scope` を `condition description only; not measurement values or protocol status`
+  と限定する。権威 bytes (certification / raw_manifest) の 2 行は保持する。
+
+**理由:**
+
+- 着地 closure が `provenance["caption"] == _caption(provenance, prefix)` を要求するため、
+  生成器の legacy caption 文言を**一律に**直すと凍結図を再生成しない限り検査が赤になる。
+  出力 prefix で分岐すれば、凍結 bytes の保持と条件記述の訂正が両立する。
+- **既定を訂正側に置く向きを採ったのは、allow-list だと将来 legacy 権威から別の図を作った人が
+  黙って誤った条件記述を得るからである。** 既定を正しい側にすれば、誤りを持つのは明示的に
+  凍結した 1 件だけになる。列挙の長さは同じで費用も変わらない。
+- 条件記述の訂正は caption だけでは足りない。x 軸の目盛が要求 genome の名
+  (`fixed 10 us`) を表示している限り、**絵そのものが誤った条件を述べ続ける。**
+  PDF を論文へ貼った時点で、別 file にある erratum は付いてこない。
+- 段 3 の 2 レンズが独立に、in-place の上書きは現在の授権では実施できないと判定した
+  (絶対規律 7、D1645、D1753、および `figures/README.md` の追補が bytes 保持を明記)。
+
+**却下した選択肢:**
+
+- **凍結図を in-place で作り直す** — 4 つの現行裁定と正面衝突する。訂正は追記でのみ行う。
+- **allow-list (新 prefix のときだけ訂正版を返す)** — 既定が誤った側に残る。段 2 プランの初版。
+- **caption だけ訂正し目盛は保持する** — 絵が誤った条件を述べ続け、依頼を満たさない。
+  段 2 プランはこれを「scope と最小差分」を理由に採ったが、両レンズが real な不履行と判定した。
+- **改訂稿で権威 bytes 2 行を置換する** — 実際に使った測定権威の出所記録を落とす。
+  機構上は可能だが採らない。
