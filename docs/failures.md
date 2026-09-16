@@ -9756,6 +9756,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   走り切り rc=0、hold は監査終端で自然に解除、焦点走は再投入で 6135 passed。qdel も hold の手動削除もしていない。
   既存恒久対応に修正すべき新事実はない — 背景へ回った dispatch は「完了通知まで同一 worktree から次の
   dispatch を投げない」対象に含める、の適用漏れである。
+
+- **再発: 2026-09-17** — [T-2153] S2 較正の Pegasus 実測 wave で、親が同一 wave worktree から計測用の
+  generic dispatch 2 本 (gate CLI の NORW / HIGHKEY) を 5 秒差で投げ、2 本目が 1 本目の pending orphan hold
+  (`phase: pending-qsub`、receipt 永続化まで残る) を検知して rc=16 (`child_started=false`、`reason=orphan-hold`)
+  になった (親の操作ミス)。1 本目 (`2732.nqsv`) は走り切り rc=0、hold は終端で自然に解除、2 本目は再投入
+  (`2733.nqsv`) で通った。qdel も hold の手動削除もしていない。別 checkout (detached submit-tree) からの
+  同時投入 (`2731.nqsv`) は通った。直列化の義務は `DW-O26` にあるが、同節は受入・テスト前の条件 (18) からしか
+  引かれず、計測用 generic dispatch の投入点には届かない。恒久対応として wave 開始時に必ず読む `DW-C00` へ
+  「同一 worktree の dispatch は全種直列」を 1 文で足した (入口と重複していた読み込み契約の 1 文を削って予算内に収めた)。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
@@ -11468,6 +11477,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   hold は `output/pegasus-dispatch/orphan-hold.json` と `orphan-holds/<request>.json` の
   **2 箇所**にあり、`qstat` の行頭照合で対象が一覧から消えたことを確認したうえで両方を消して復旧した。
   以後この監査には打ち切らない長さの timeout を掛ける。
+
+- **再発: 2026-09-17** — docs-only wave (K2 ループ次巡の裁定パッケージ) の段 7 で、親が
+  `check_ai_provenance.py` の全史監査を `timeout 200` で包んで起動した。この checker は既定で
+  計算ノードへ dispatch するため、親が SIGTERM された時点で request `2730.nqsv` が孤児化し
+  (`{"kind":"infra","reason":"signal-abort"}`)、wave worktree に `orphan-hold.json` と
+  `orphan-holds/2730.nqsv.json` の 2 箇所が武装した。直後の再監査は
+  `{"child_started":false,"kind":"infra","reason":"orphan-hold"}` rc=16。2026-08-23 / 08-24 と
+  同型で、Bash tool 側の 120 秒自動背景化に加えて親が自前の `timeout` を重ねたのが直接原因。
+  復旧は hold の `recovery` field どおり — qdel せず、`qstat` 一覧の行頭 RequestID で消滅を
+  待ち、submission dir の終端証拠と tree clean / HEAD を確かめてから 2 箇所を job dir へ退避して
+  削除した。dispatch 経路の command に呼び出し側 timeout を重ねない。
 ### F334. 正本 runbook が「無い」と実測記録した kernel field を、後発の gate が必須条件にした — 機構全体が一度も動かないまま land した [恒真ゲート] [テスト代表性]
 
 - 事象: `tools/mutation_fanout.py` の admission は、measurement log の
