@@ -63138,3 +63138,138 @@ floor 側は `current_compiler_input_masstree_root` を、sort_best の dependen
 - 一致要求から cmake の leg を外す — 検査の弱体化であり採らない。
 - 新しい較正を取り直す — 較正の取得は本 wave の scope 外であり、compiler の leg は既に一致している。
 - 既定値として module path を code へ埋める — site 依存を隠す。
+
+## D2059. 床値 campaign の condition gate へ共有 prebuild の FetchContent 定義を搬送する (2026-09-16)
+
+**決定:** 床値 campaign が `sort_best` を含む production 走行で 1 回だけ行う masstree prebuild の
+入力 (`FETCHCONTENT_BASE_DIR` と 3 依存の staged source dir) から、既存生成器
+`p3_s4_loop._condition_gate_offline_configure_args` で configure 引数を作り、
+`_FloorOracleDependencyBinding` の内部搬送 field で持ち回して、`floor_prepare` から
+**全 cell の** `prepare_cell(condition_configure_args=...)` へ渡す。
+搬送 field は `cache_receipt()` / `private_dict()` と永続 receipt に入れない。
+D424 が定めた sort 限定の **cell build への** base 注入は変更しない。
+
+**理由:**
+
+- masstree の `config.h` は `add_custom_command` の OUTPUT で build 時生成物である。
+  condition gate は使い捨て build dir へ configure を掛けるだけで build しないため、
+  prebuild 済みの source dir を指さない限り `#include <config.h>` が必ず解決できない。
+  official 床値 3 走行が `supply-effectuation:preprocess-failed` で止まった実体はこれである。
+- 同型の欠陥は段 4 loop 経路で解決済みで、生成器と pin test が既に存在する。
+  新しい共通層を作らずに再利用できる。
+- D424 が限定したのは cell build への注入であり、理由は非 sort cell の cache identity と
+  binary 参照を job ごとに変えないことである。gate の使い捨て configure はその両方に触れない。
+- 搬送 field を永続 receipt へ入れると保存 schema と cache identity が変わる。
+  gate へ渡す値は build の同一性の一部ではないので、内部搬送に留める。
+
+**却下した選択肢:**
+
+- **gate 自身に masstree を build させる** — 新しい `cmake --build` 起動点が増え、
+  materializer 登録簿と網羅 test に波及する。campaign 側に既存の prebuild 段があるのに
+  二重化する理由がない。
+- **非 sort 単独 campaign にも prebuild を新設する** — 本件の欠陥は「既にある prebuild の
+  結果を渡していない」ことであり、prebuild の発火条件を広げることとは別の判断である。
+  別途諮る。
+- **先例の「offline token はちょうど 5 本」をそのまま転用する** — 5 本目は明示
+  `dependency_prefix` を持つ regime の値である。床値は prefix を argv で渡さず
+  job script が環境変数で供給するため、正しい配線を誤拒否する。
+
+## D2060. 供給修正の生死確認は実 compiler の正例・負例で取り、base と source を分離する (2026-09-16)
+
+**決定:** condition gate への依存供給を直す変更は、配線の argv 一致 test だけを完了根拠にしない。
+実 compiler・実 CMake の最小 project で、(a) header が実在する source dir を指すと supply arm が
+green、(b) その SOURCE_DIR を落とす / header の無い dir へ向けると `preprocess-failed`、
+(c) **configure 引数を 1 bit も変えずに header だけを置き直すと green へ戻る**、の 3 点を取る。
+**base dir と source dir は必ず別 path に置く。**
+
+**理由:**
+
+- argv が一致することは、compiler がその header を実際に読めたことを何も示さない。
+  配線 test は生成器と campaign 側が同じ入力から同じ関数で作った値を突き合わせるので、
+  供給の実効性については恒真に近い。
+- 負例が reason code と detail の部分一致だけを見ると、原因を特定できない。
+  fixture 自身が owner TU へ入れる `#error` 等も同じ文字列条件を満たしうる。
+  引数を固定したまま header の有無だけで判定が反転することを示して初めて単一理由になる。
+- base と source を一致させると CMake の既定命名 `<BASE_DIR>/<name>-src` が複製を拾い、
+  `FETCHCONTENT_SOURCE_DIR_*` を 1 本落としても configure が通る。D1920 が扱った罠と同型で、
+  負例が baseline から恒真に緑になる。
+- この対照は gflags / glog の実 build を要さない。既存の実 compiler fixture で足りる。
+
+**却下した選択肢:**
+
+- **既存の失敗実測を継承して生死確認済みとする** — 失敗の実測は修正後の成功を証明しない。
+- **実機 campaign の再投入を完了条件にする** — 計測枠を要する別タスクであり、
+  供給実装の受入を実機の空き待ちに束縛することになる。到達範囲を記録して分ける。
+
+## D2061. 早期 prewarm の発火条件は parsed option 面で判定し、実 parser の destination と一致させる (2026-09-16)
+
+**決定:** receipt memo / oracle environment memo の prewarm を `pytest_configure_node` (collection 前)
+で起動する条件を、次の連言とする。(1) controller である、(2) `_izanagi_acceptance_shard_spec` が
+実在する、(3) `collectonly` でない、(4) 全 suite 選択であり parsed option に narrowing が一切ない。
+
+**(4) の判定面は `config.args` ではなく parsed option (`config.option`) を正本とする。**
+narrowing として扱う名前は pytest の**実 parser の destination** と一致させ、その一致を
+機械的に確かめる対照を同じ file に置く。最低限 `keyword` / `markexpr` / `deselect` / `lf` /
+`failedfirst` / `stepwise` / `stepwise_skip` / `ignore` / `ignore_glob` / `pyargs` /
+`override_ini` を含める。
+
+**理由:**
+- pytest は `PYTEST_ADDOPTS` と ini の `addopts` を parse 前に argv へ前置するため、
+  `config.args` には現れない絞り込みも parsed option には現れる。args 面で判定すると
+  環境由来の narrowing を取りこぼす。
+- 名前を手で列挙すると実 parser との食い違いが静かに入る。本 wave は実際に `--ff` の
+  destination を `ff` と誤記し、**同じ wave が足した test も同じ誤名を使ったため、test が
+  実装の誤りと自己整合して検出できなかった**。実 `Parser` へ plugin の addoption を登録して
+  destination を照合し、さらに独立した CLI 入力でも検査する対照だけが、綴り誤りと列挙漏れの
+  両方を落とす。
+- 条件を緩めると D518 が却下した「無条件 prewarm」が焦点走へ漏れ、consumer を含まない走行に
+  解決 1 回分が丸乗りしてテスト時間規則を破る。
+
+**却下した選択肢:**
+- shard spec の実在だけを条件にする — plugin 自体は焦点選択を禁じないので、spec があっても
+  焦点走でありうる。
+- `config.args` だけで全 suite を判定する — 環境由来の narrowing を取りこぼす。
+- 名前の列挙を手書きのまま対照を置かない — 本 wave が実際に踏んだ食い違いを再発させる。
+
+## D2062. 早期 prewarm の待ちは既存 flock の上の最小差分とし、待ち機構を作り直さない (2026-09-16)
+
+**決定:** worker 側の待ちは新規機構を作らず、既存の cache flock の上に次の 1 点だけを足す。
+controller が `workerinput` で**明示した早期 job があるときに限り**、lock 内で本体不在を見ても
+即赤にせず期限まで retry する。明示が無ければ従来どおり即 `cache-missing` で赤にする。
+期限の上限は 120 秒固定とし、**成功を返す直前にも共有 deadline を確認**して、越えていれば赤にする。
+lock の retry は競合 (`EAGAIN` / `EACCES`) だけを対象にし、`EIO` 等は最初の故障で赤にする。
+`.failed` marker は本体より優先する。
+
+**理由:**
+- `prewarm` の `write_once()` は `_locked(...)` の内側で production resolver を呼ぶので、
+  cache の flock は解決の全所要 (実測 28.328 秒) のあいだ保持される。reader も同じ blocking flock の
+  中にいる。**プロセス跨ぎの待ちは元から成立しており**、欠けているのは「reader が writer より先に
+  lock を取ったとき本体不在で即赤になる」1 点だけである。
+- 宣言した上限が実際には縛らない保証は、この repo が繰り返し戒めている恒真な保証である。
+  期限の確認が lock 取得の前にしか無ければ、期限を越えて成功した読取りをそのまま通してしまう。
+- 故障 (`EIO` 等) を競合と混同して再試行すると、一度赤になる故障が後続の成功で隠れる。
+
+**却下した選択肢:**
+- cache が無いときに既定値を返す、または worker が自分で resolver を呼ぶ — production resolver を
+  呼べる唯一の経路が prewarm であるという性質を壊す。
+- 上限を観測値の倍率だけで決める (`ceil(2 × max(W))` 等) — 上限が無く、設計が定めた 120 秒を
+  超えうる。
+- 未明示の miss も待つ — 現行の即赤を緩める。
+
+## D2063. production から到達しない防壁は、そう明記して gate と数えない (2026-09-16)
+
+**決定:** 実装に残るが production 経路からは到達しない分岐は、削除せずに**到達しないことと、
+同じ事象に対する production の fail-closed がどこで成立するか**をコメントで明記する。
+変異台帳では gate でなく診断として別枠に記録し、kill の本数に数えない。
+
+**理由:**
+- 本 wave の `publication-regressed` は、待機経路が使い捨ての reader を 1 回使うだけなので
+  同じ instance が再度その判定へ到達しない。test だけが到達する分岐を「効いている防壁」として
+  数えると、防壁の本数が実効性を伴わずに増える。
+- 同じ事象 (公開後の本体消失) に対する production の fail-closed は、consumer の読取りが
+  `cache-missing` を投げる別経路で成立している。所在を書けば、読み手は到達不能な分岐を
+  保護と誤解しない。
+
+**却下した選択肢:**
+- 分岐ごと削除する — test が失う検出力の代替を用意していない。
+- そのまま残して何も書かない — 恒真な保証を防壁として数える誤りを温存する。
