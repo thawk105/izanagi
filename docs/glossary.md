@@ -30,7 +30,7 @@ izanagi の探索ループ (層2) と Phase 2 主実験 (P2-5) を読むため�
 
 **winner-tied set / equivalence class (等価クラス)** — 最速のものと測定ノイズの床 (floor) 以内で並び「実質差なし」と判定できる候補の集合。*izanagi:* 探索がいつ正解に着いたと数えるかの定義。読み手 (pivot) に依存せず到達判定できるようにするための工夫 (phase2.md §P2-5)。
 
-**low-fidelity proxy (低忠実度プロキシ)** — 本番の高コスト評価の前に、短時間・低精度の簡易評価で候補を粗くふるいにかける代理指標。*izanagi:* bench-first screening v2 は方針採用済み・未実装 (D58)。実装後も偵察 sweep / 8b の opt-in に限り、正式な correctness gate や S-1 には使わない (phase3.md「現行チェックポイント」)。
+**low-fidelity proxy (低忠実度プロキシ)** — 本番の高コスト評価の前に、短時間・低精度の簡易評価で候補を粗くふるいにかける代理指標。*izanagi:* bench-first screening v2 は 2026-07-15 に実装済み (D58、監査 must-fix 対応込み)。偵察 sweep / 8b の opt-in に限り、正式な correctness gate や S-1 には使わない (phase3.md「現行チェックポイント」)。
 
 **island model (島モデル)** — 集団を複数の小集団 (島) に分け別々に進化させ時々個体を交換する、多様性を保ち早期収束を防ぐ進化計算手法。*izanagi:* 現行 sequential/hybrid search の機構ではない。多様性不足が実測で律速になったとき population/世代/migration を実装する任意拡張 (roadmap.md §2 層2 / Phase 3.5)。
 
