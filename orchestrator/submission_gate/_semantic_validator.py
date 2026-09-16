@@ -2048,6 +2048,30 @@ def _validate_reason_branches(
         else:
             _semantic("reason", f"unsupported reason_code for attempt {attempt_id}")
 
+    # Section 7.1(1) preserves 0-5 entries when verification records a failure;
+    # require six pairs when performance completes with no verification outcome.
+    # performance_slots passed the loop's raw checks, not just reason_code claims.
+    verification_failure_recorded = any(
+        isinstance(attempt, Mapping)
+        and attempt.get("cluster_slot_or_null") is None
+        and attempt.get("reason_code") != "completed"
+        for attempt in attempts
+    )
+    if performance_slots and not verification_failure_recorded:
+        evidence = value.get("correctness_evidence", ())
+        evidence_pairs = {
+            (entry.get("arm"), entry.get("workload"))
+            for entry in evidence
+            if isinstance(entry, Mapping)
+        }
+        expected_pairs = {(arm, workload) for arm in _ARMS for workload in _WORKLOADS}
+        if len(evidence) != 6 or evidence_pairs != expected_pairs:
+            _semantic(
+                "correctness",
+                "completed performance without a recorded verification failure "
+                "requires six correctness arm/workload pairs",
+            )
+
 
 def _planned_ids_for_slot(
     value: Mapping[str, Any], slot: int
