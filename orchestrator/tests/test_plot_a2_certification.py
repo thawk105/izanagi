@@ -1468,6 +1468,59 @@ def test_cli_writes_complete_provenance_with_repo_relative_argv(tmp_path, monkey
     assert str(REPO) not in " ".join(argv) and provenance["reproduction"]["cwd"] == "repository-root"
 
 
+def test_default_legacy_cli_provenance_argv_and_axis_labels(tmp_path, monkeypatch):
+    plot, fixture = _plot(), _fixture(tmp_path)
+    source = "docs/paper-story/results/2026-09-07-a2-certification-reject.md"
+    caption_source = tmp_path / source
+    caption_source.parent.mkdir(parents=True)
+    caption_source.write_bytes((REPO / source).read_bytes())
+    published = []
+    publish = plot._publish_outputs
+
+    def observe_publish(figure, axes, *args, **kwargs):
+        outputs = publish(figure, axes, *args, **kwargs)
+        published.append(axes)
+        return outputs
+
+    # Observe the actual main -> render -> publish path without replacing its work.
+    monkeypatch.setattr(plot, "_publish_outputs", observe_publish)
+    monkeypatch.setattr(plot, "REPO_ROOT", tmp_path)
+    assert _run_main(plot, fixture, _hashes(fixture)) == 0
+    outputs = [Path(str(fixture["prefix"]) + suffix) for suffix in (".png", ".pdf", ".provenance.json")]
+    assert all(path.is_file() and path.stat().st_size for path in outputs)
+    provenance = json.loads(outputs[-1].read_text())
+    assert set(provenance) == {
+        "schema", "generated_utc", "generator", "outputs", "tracked_inputs", "external_source_locator",
+        "external_inputs", "measurement_conditions", "cells", "artist_series", "outer_status", "effects",
+        "effect_crosschecks", "correctness", "correctness_performance_note", "gate_note", "caption", "reproduction"}
+    assert provenance["schema"] == plot.SCHEMA and provenance["outer_status"] == "reject"
+    assert [row["kind"] for row in provenance["tracked_inputs"]] == [
+        "certification", "raw_manifest", "caption_source"]
+    assert provenance["tracked_inputs"][2] == {
+        "kind": "caption_source", "path": source, "sha256": _sha(caption_source),
+        "authority_scope": "condition description only; not measurement values or protocol status",
+    }
+    assert len(provenance["external_inputs"]) == 6
+    assert len(provenance["cells"]) == 4 and len(provenance["artist_series"]) == 20
+    assert provenance["generator"]["sha256"] == _sha(REPO / provenance["generator"]["path"])
+    assert {row["path"]: row["sha256"] for row in provenance["outputs"]} == {
+        path.relative_to(tmp_path).as_posix(): _sha(path) for path in outputs[:2]}
+    conditions = provenance["measurement_conditions"]
+    assert conditions["izanagi_source_commit"] == "izanagi-source" and conditions["ccbench_pin"] == "511c953"
+    argv = provenance["reproduction"]["argv"]
+    assert argv[3] == str(fixture["root"].resolve())
+    assert argv[5:] == ["certification.json", "--raw-manifest", "raw-manifest.json", "fig5_fixture"]
+    assert str(REPO) not in " ".join(argv) and provenance["reproduction"]["cwd"] == "repository-root"
+
+    assert len(published) == 1
+    axes = published[0]
+    for column in (0, 1):
+        for row in (0, 1):
+            assert [tick.get_text() for tick in axes[row, column].get_xticklabels()] == [
+                "BACK_OFF=0", "BACK_OFF=1"]
+        assert axes[1, column].get_xlabel() == "CCBench built-in adaptive backoff"
+
+
 def test_tracked_authority_literals_and_run_readme_record_agree():
     plot = _plot()
     cert = REPO / "output/insights/2026-08-24_paper-story-a2-certification/certification.json"
