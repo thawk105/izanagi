@@ -658,6 +658,47 @@ def _extend_t2528_role_source_baseline(
 _extend_t2528_role_source_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)
 
 
+def _extend_t304_role_name_baseline(
+    baseline: dict[str, list[list[object]]],
+) -> None:
+    """Apply only the reviewed source/schema leaves surviving projection.
+
+    T1311 restores all four roles' payload hashes; T244 consumes validation
+    receipts and restores the report schema. Keep those frozen expectations.
+    """
+    journal_rows = baseline["journals/*/*/provenance/role_file_sha256"]
+    for role, old, new in (
+        (
+            "planner",
+            "1d6b1603dbbb7c776202cd20a300e60e01b9119b55068ddfcce3e83714f646da",
+            "c47cf0ff81bb88d1ad65d5b0b92ac35feb40f49e4d2a8eef9007b48c286bf5f9",
+        ),
+        (
+            "coder",
+            "00405a9639b150372cf0881699090090cf688d4a61fa22651e0aee27e8d5279a",
+            "2b46df2e4a5cbafcd3780b4cca54b3d81f3a73d9999cc6c859f1107aa398835a",
+        ),
+    ):
+        replaced = 0
+        for row in journal_rows:
+            if row[0] == old:
+                row[0] = new
+                replaced += 1
+        assert replaced == 6
+        report_rows = baseline[
+            f"reports/*/cells/*/generations/*/roles/{role}/"
+            "provenance/role_file_sha256"
+        ]
+        assert report_rows == [[old, 6]]
+        report_rows[0][0] = new
+    schema_rows = baseline["journals/*/*/schema_version"]
+    assert schema_rows == [["p3-autonomous-workload-trial/v3", 6]]
+    schema_rows[0][0] = "p3-autonomous-workload-trial/v4"
+
+
+_extend_t304_role_name_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)
+
+
 def _assert_same_structure(left: object, right: object, path=()) -> None:
     if type(left) is dict or type(right) is dict:
         assert type(left) is type(right) is dict, path

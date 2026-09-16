@@ -89,7 +89,7 @@ def _c05_authority() -> dict[str, object]:
             "ipc": None,
             "latency_ns": None,
             "llc_miss_rate": None,
-            "throughput_ops_sec": None,
+            "throughput_tps": None,
         },
         "leakproof_context": {
             "tools": ["declared-tool-set"],
