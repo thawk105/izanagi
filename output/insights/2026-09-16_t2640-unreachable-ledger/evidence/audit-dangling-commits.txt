@@ -1,0 +1,112 @@
+audit_dangling_commits: 進捗 root 検証 開始
+audit_dangling_commits: 進捗 root 検証 完了 elapsed_seconds=0.118 requested=0 accepted=0
+audit_dangling_commits: 進捗 fsck 開始
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=15.058
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=30.118
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=45.178
+audit_dangling_commits: 進捗 fsck 完了 elapsed_seconds=56.420 commits=1266
+audit_dangling_commits: 進捗 bulk log 開始
+audit_dangling_commits: 進捗 bulk log 完了 elapsed_seconds=19.033 commits=1266 changed_pairs=2352
+audit_dangling_commits: 進捗 main・tip tree 開始
+audit_dangling_commits: 進捗 main・tip tree 完了 elapsed_seconds=9.612 tips=67 finding_commits=30 finding_pairs=53
+audit_dangling_commits: 進捗 blob metadata 開始
+audit_dangling_commits: 進捗 blob metadata 完了 elapsed_seconds=0.000 candidates=0
+audit_dangling_commits: 進捗 repo 外走査の列挙 開始
+audit_dangling_commits: 進捗 repo 外走査の列挙 完了 elapsed_seconds=0.000 scan_performed=false
+audit_dangling_commits: 進捗 候補比較 開始
+audit_dangling_commits: 進捗 候補比較 完了 elapsed_seconds=0.000 candidate_oids=0 matched_keys=0 external_files=0 external_matches=0 max_matches_per_key=0
+audit_dangling_commits: 進捗 landed 参照 開始
+audit_dangling_commits: 進捗 landed 参照 完了 elapsed_seconds=0.000 matches=0 match_keys=0 external_matches=0 patterns=0 generated_patterns=0 grep_batches=0 metadata_batches=0 contents_read=0 bytes_read=0
+audit_dangling_commits: 進捗 抑止集約 開始
+audit_dangling_commits: 進捗 抑止集約 完了 elapsed_seconds=0.000 suppressions=0
+audit_dangling_commits: 進捗 最終報告 開始
+audit_dangling_commits: 再生成可能物として除外 0 (commit, path) 対
+audit_dangling_commits: repo 外の同一実体の探索を未実施
+  --offrepo-root / IZANAGI_DEV_WAVE_JOBS_DIR が未指定
+audit_dangling_commits: repo 外の同一実体で抑止 0 (commit, path) 対
+audit_dangling_commits: 要確認の到達不能変更 30 commit
+  commit 0b92c254b830bc333386eacafdc5d113292116be (docs(s8c): [T-1348] 変異 spec (probe) と段 1-6 の逐語を記録する)
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json
+  commit 0decf0a4eae5be07e59961e1d9fc735b42bae962 (docs(s8c): [T-1348] 変異 spec (probe) と段 1-6 の逐語を記録する)
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json
+  commit 1aa5ae77aa862ea68f5a5509ee748bd26ce18dab (test(mutation): [T-812] 受入 lease 自己保持の変異 spec を事前登録する)
+    main・全 local branch tip に不在: output/insights/2026-08-11_t812-lease-self-renew-mutation-spec.json
+  commit 1d41c41714b66ecb54eb23d52602fb7f8170602a (docs: 中断した worktree delta manifest wave の実測を残す)
+    main・全 local branch tip に不在: output/insights/2026-09-09_codex-worktree-delta-manifest-interrupted/README.md
+  commit 2620635f74883f6162a4838b547344c3d8695b1c ([T-1262] 変異結果と台帳 fragment を記録する)
+    main・全 local branch tip に不在: output/insights/2026-08-17_t1262-submodule-identity-gate/mutation-result.json
+  commit 2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd (docs(s8c): [T-1348] C09 / C10 consumer 配線の記録 — insight と台帳 fragment を書く)
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json
+  commit 2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7 (docs(s8c): [T-1348] 変異 spec (probe) と段 1-6 の逐語を記録する)
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json
+  commit 3905db91ed815d051e0916f12144e01934431d0a (docs(s8c): [T-1348] C09 / C10 consumer 配線の記録 — insight と台帳 fragment を書く)
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json
+  commit 3ea6ed7428605ce73ce5e05121fc74d5985146f1 (受入全走の結果を記録する)
+    main・全 local branch tip に不在: output/insights/2026-08-26_t1798-floor-oracle-manifest/acceptance-receipt.json
+  commit 4a62da8c3c3302d0e11a5cf951736e8be10e68b3 ([T-1155] / [T-1178] wave の記録 — spool fragment 3 本と insights (逐語・変異台帳・erratum 2 件))
+    main・全 local branch tip に不在: output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-result-round1-probe.json
+    main・全 local branch tip に不在: output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-result-round2.json
+    main・全 local branch tip に不在: output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-spec-round1-probe.json
+  commit 4c2b4805915416a8ca8ce520a20e220b391ea176 (docs(t1250): 第 4 世代の変異台帳・逐語・台帳 fragment を記録する)
+    main・全 local branch tip に不在: output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger-probe.json
+    main・全 local branch tip に不在: output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger.json
+    main・全 local branch tip に不在: output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec-probe.json
+    main・全 local branch tip に不在: output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec.json
+  commit 54d4dd9b3eb270307e6294b9ac9b1484f7ba868f (docs(t2487): [T-2487] 段 1 の実測だけを残して wave を中断する)
+    main・全 local branch tip に不在: output/insights/2026-09-09_t2487-rescue-scale/README.md
+  commit 5b3ff770ddf2de1d7df528596636c1abcfd3d55b (feat(pegasus): enable AI-driven rr20 rr80 calibration registration)
+    main・全 local branch tip に不在: docs/handoff/2026-08-21-rulings-calibration-main-land.md
+  commit 66dccb28fedca606f96dcf9baf5c7f7a6979a599 (untracked files on worktree-dev-wave-t190-failure-artifact: 2f6a83da Pre-register the mutation matrix for the launcher diagnostics wave)
+    main・全 local branch tip に不在: output/insights/2026-08-17_t190-launcher-failure-artifact/mutation-ledger.json
+  commit 6902920cdf39e03e1fdfcbc3e6dc18e31a564918 (docs(t1109): 変異を最終 commit で再走した結果へ更新し、base digest を現 main へ採り直す)
+    main・全 local branch tip に不在: output/insights/2026-08-16_t1109-admission-grammar/mutation-ledger.json
+  commit 75d55ccd8d192203b0f04b3fa46130735edb967b ([T-2265] 段 7 記録 — insight、逐語 12 本、変異台帳 2 巡、spool fragment 3 本)
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2265-itt-seq0/verbatim/analyze.py
+  commit 8c2e4e3f8ed8a7925072a5b9a381a5ee9257c8b5 (feat(pegasus): enable AI-driven rr20 rr80 calibration registration)
+    main・全 local branch tip に不在: docs/handoff/2026-08-21-rulings-calibration-main-land.md
+  commit aab5adbbcb599a72a9355e060ec32e825028298a (docs(s8c): [T-1348] C09 / C10 consumer 配線の記録 — insight と台帳 fragment を書く)
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json
+  commit accabf0b5d9e9cf3e8ec33008a92c8f41a158787 (docs(t930): 保留の迂回封鎖を記録し、裁定 fragment を相乗りさせる)
+    main・全 local branch tip に不在: output/insights/2026-08-12_t930-hold-no-bypass/mutation-final.json
+    main・全 local branch tip に不在: output/insights/2026-08-12_t930-hold-no-bypass/mutation-spec-final.json
+  commit c0439777fcf27a56605821d206519d4efa6487e5 (feat(pegasus): enable AI-driven rr20 rr80 calibration registration)
+    main・全 local branch tip に不在: docs/handoff/2026-08-21-rulings-calibration-main-land.md
+  commit c3e2218c383e8c6a47ae2343fe78e558241d4e01 (test(mutation): [T-812] 受入 lease 自己保持の変異 spec を事前登録する)
+    main・全 local branch tip に不在: output/insights/2026-08-11_t812-lease-self-renew-mutation-spec.json
+  commit c5d79e7050fecc229fd81f4879137be8bae49cb7 (docs(t657): 段 0 裁定実施 wave の記録を凍結する)
+    main・全 local branch tip に不在: output/insights/2026-08-11_t657-stage0-rulings/mutation-ledger-discovery.json
+    main・全 local branch tip に不在: output/insights/2026-08-11_t657-stage0-rulings/mutation-ledger.json
+    main・全 local branch tip に不在: output/insights/2026-08-11_t657-stage0-rulings/mutation-spec.json
+  commit c656d831e30ee0c261538889991af6c30bb45e89 (docs(lock-audit): 理由なし worktree lock 133 本の所有者証拠と施錠機構の提案)
+    main・全 local branch tip に不在: output/insights/2026-09-09_worktree-lock-reason-audit/README.md
+    main・全 local branch tip に不在: output/insights/2026-09-09_worktree-lock-reason-audit/evidence.tsv
+    main・全 local branch tip に不在: output/insights/2026-09-09_worktree-lock-reason-audit/worktree-snapshot-130853.txt
+  commit c7a57d642fe72ce5c5480b761515054ac7817e63 (feat(pegasus): enable AI-driven rr20 rr80 calibration registration)
+    main・全 local branch tip に不在: docs/handoff/2026-08-21-rulings-calibration-main-land.md
+  commit cb0d930525930aef2e2d78ec420a5a386d3e63c7 (feat(pegasus): enable AI-driven rr20 rr80 calibration registration)
+    main・全 local branch tip に不在: docs/handoff/2026-08-21-rulings-calibration-main-land.md
+  commit cbd9d812141f5010ba90403c513a7dbad8cc7edc (feat(s8c): [T-1379] 条件5 (C05) を machine_checkable へ昇格し DECIDER_VERSION を v5 へ bump する)
+    main・全 local branch tip に不在: output/insights/2026-08-19_t1379-c05-activation/mutation/mutation-out.json
+    main・全 local branch tip に不在: output/insights/2026-08-19_t1379-c05-activation/mutation/mutation-spec.json
+  commit cd066a0487af0376fac76bcfb58b2c4462f9085d (docs(s8b): [T-1086] の記録 — insight package と台帳 fragment を書く)
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-probe1.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v2.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v3-baseline-flake.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v4.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-probe1.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v2.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v3.json
+  commit e0a80472fb37255903fd1a658a553369d8ba1a76 ([T-1262] 変異事前登録と材料レポートを置く)
+    main・全 local branch tip に不在: output/insights/2026-08-17_t1262-submodule-identity-gate/mutation-spec.json
+  commit f181f703d1d68ab2bbd03ad2d6f594dfe039f030 (docs(t2487): [T-2487] 段 1 の実測だけを残して wave を中断する)
+    main・全 local branch tip に不在: output/insights/2026-09-09_t2487-rescue-scale/README.md
+  commit f1feb592af5bc21a9754f64250039238da82454d (docs(t817): 実測で裁定の前提が覆ったので実装せず再裁定へ返す — 突き合わせ対象 0 件、機構は健全に作れず、除外の面は 8 経路)
+    main・全 local branch tip に不在: output/insights/2026-08-11_t817-verifier-epoch/log-survival-scan.txt
+audit_dangling_commits: 進捗 最終報告 完了 elapsed_seconds=0.000
+audit_dangling_commits: elapsed_seconds=85.194
