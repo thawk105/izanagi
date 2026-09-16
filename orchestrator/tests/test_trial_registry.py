@@ -173,6 +173,7 @@ def _manifest_value(prereg_commit: str, prefix: str) -> dict:
                 holdout=holdout,
                 campaign_id="pending-campaign-identity",
                 generations=2,
+                n=2,
             )
             campaign_id, _identity_preimage = _fixture_campaign_identity(
                 provisional
@@ -183,6 +184,7 @@ def _manifest_value(prereg_commit: str, prefix: str) -> dict:
                 "holdout": provisional.holdout,
                 "campaign_id": campaign_id,
                 "generations": provisional.generations,
+                "n": provisional.n,
             })
     return {
         "schema_version": R.MANIFEST_SCHEMA_VERSION,
@@ -219,6 +221,7 @@ def _registration_value(manifest: R.TrialManifest) -> dict:
                 "holdout": trial.holdout,
                 "campaign_id": trial.campaign_id,
                 "generations": trial.generations,
+                "n": trial.n,
             }
             for trial in manifest.trials
         ],
@@ -5057,8 +5060,8 @@ def test_redundant_registry_duplicate_key_gate_rejects_before_canonical_bytes(
 ) -> None:
     row = _valid_registry_row(tmp_path)
     raw = _canonical(row).decode().replace(
-        '"schema_version":"p3-8c-trial-registration/v2"',
-        '"schema_version":"decoy","schema_version":"p3-8c-trial-registration/v2"',
+        '"schema_version":"p3-8c-trial-registration/v3"',
+        '"schema_version":"decoy","schema_version":"p3-8c-trial-registration/v3"',
         1,
     )
     path = tmp_path / "registry.jsonl"
@@ -5484,6 +5487,7 @@ def test_t525_runtime_cell_rejects_each_complete_condition_drift() -> None:
         holdout="H1",
         campaign_id="t525-runtime-campaign",
         generations=1,
+        n=2,
     )
     for section, field in cases:
         cell = _t525_condition_cell(trial)
@@ -6762,7 +6766,7 @@ def test_acceptance_rejects_extra_registry_trial(tmp_path: Path) -> None:
         R._assert_manifest_registry_trial_set(manifest, registration)
 
 
-@pytest.mark.parametrize("field", ["arm", "holdout", "campaign_id", "generations"])
+@pytest.mark.parametrize("field", ["arm", "holdout", "campaign_id", "generations", "n"])
 def test_acceptance_rejects_registry_canonical_tuple_mutation(
     tmp_path: Path, field: str,
 ) -> None:
@@ -6776,6 +6780,7 @@ def test_acceptance_rejects_registry_canonical_tuple_mutation(
         "holdout": "H2" if trial.holdout == "H1" else "H1",
         "campaign_id": trial.campaign_id + "-changed",
         "generations": 3,
+        "n": trial.n + 1,
     }[field]
     mutated = dataclasses.replace(trial, **{field: replacement})
     registration = _registration_with_trials(manifest, (mutated,) + manifest.trials[1:])
@@ -8738,6 +8743,102 @@ def test_attempt_registry_classification_rejection_preserves_receipt_bytes(
     with pytest.raises(R.TrialRegistryError, match=rf"\[{gate}\] create-only path already exists"):
         invoke()
     assert target.read_bytes() == before
+
+
+
+def test_t1957_schema_versions() -> None:
+    assert R.MANIFEST_SCHEMA_VERSION == "p3-8c-trial-manifest/v3"
+    assert R.REGISTRATION_SCHEMA_VERSION == "p3-8c-trial-registration/v3"
+
+
+def test_t1957_six_cell_n_round_trip(tmp_path: Path) -> None:
+    value = _manifest_value("a" * 40, "t1957")
+    for trial in value["trials"]:
+        trial["n"] = 3
+    path = tmp_path / "manifest.json"
+    _write_manifest(path, value)
+    manifest = R.load_trial_manifest(path)
+    assert len(manifest.trials) == 6
+    assert all(trial.n == 3 for trial in manifest.trials)
+    assert all(trial.generations == 2 for trial in manifest.trials)
+    registration = R._registration_for(
+        manifest, prereg_content_commit="b" * 40,
+        prereg_effective_commit="c" * 40,
+    )
+    row = R._registration_dict(registration)
+    assert all(trial["n"] == 3 for trial in row["trials"])
+    registry_path = tmp_path / "registry.jsonl"
+    _write_registry(registry_path, row)
+    (registration,) = R.load_trial_registry(registry_path)
+    assert registration.trials == manifest.trials
+
+
+@pytest.mark.parametrize(
+    ("source", "case"),
+    [
+        pytest.param(source, case, id=f"{source}-{case}")
+        for source in ("manifest", "registration")
+        for case in (
+            "missing", "string", "bool-true", "bool-false", "float",
+            "one", "zero", "negative", "cell-split", "holdout-split",
+            "v2-with-n", "v2-genuine",
+            "tail-float",
+        )
+    ],
+)
+def test_t1957_rejects_n(tmp_path: Path, source: str, case: str) -> None:
+    value = _manifest_value("a" * 40, "t1957")
+    path = tmp_path / "manifest.json"
+    _write_manifest(path, value)
+    if source == "registration":
+        value = _registration_value(R.load_trial_manifest(path))
+    label = "manifest.trials" if source == "manifest" else "registry line 1.trials"
+    if case in ("v2-with-n", "v2-genuine"):
+        value["schema_version"] = f"p3-8c-trial-{source}/v2"
+        if case == "v2-genuine":
+            for trial in value["trials"]:
+                del trial["n"]
+        expected = (
+            "[schema] manifest schema_version is not supported"
+            if source == "manifest" else
+            "[schema] registry line 1 has an unsupported schema_version"
+        )
+    elif case == "missing":
+        del value["trials"][0]["n"]
+        expected = f"[schema] {label}[0] key set differs: missing=['n'], unknown=[]"
+    elif case == "tail-float":
+        value["trials"][0]["n"] = 3
+        for trial in value["trials"][1:]:
+            trial["n"] = 3.0
+        expected = f"[field] {label}[1].n must be an integer"
+    elif case in ("cell-split", "holdout-split"):
+        if case == "cell-split":
+            value["trials"][0]["n"] = 4
+        else:
+            for trial in value["trials"]:
+                trial["n"] = 2 if trial["holdout"] == "H1" else 3
+        expected = f"[field] {label} n differs across cells"
+    else:
+        invalid = {
+            "string": "3", "bool-true": True, "bool-false": False,
+            "float": 3.0, "one": 1, "zero": 0, "negative": -1,
+        }[case]
+        for trial in value["trials"]:
+            trial["n"] = invalid
+        reason = (
+            "must be at least 2" if case in ("one", "zero", "negative")
+            else "must be an integer"
+        )
+        expected = f"[field] {label}[0].n {reason}"
+    if source == "manifest":
+        _write_manifest(path, value)
+        loader = R.load_trial_manifest
+    else:
+        _write_registry(path, value)
+        loader = R.load_trial_registry
+    with pytest.raises(R.TrialRegistryError) as caught:
+        loader(path)
+    assert str(caught.value) == expected
 
 
 if __name__ == "__main__":

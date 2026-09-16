@@ -1253,11 +1253,12 @@ def measure_point(binary: str, records: int, threads: int,
             missing = []
             if throughput is None:
                 missing.append("throughput")
-            for name in (
-                    "llc_load_misses", "llc_loads",
-                    "instructions", "cycles"):
-                if getattr(counters, name) is None:
-                    missing.append(name)
+            if use_perf:
+                for name in (
+                        "llc_load_misses", "llc_loads",
+                        "instructions", "cycles"):
+                    if getattr(counters, name) is None:
+                        missing.append(name)
             if maxrss is None:
                 missing.append("maxrss")
             if missing:
