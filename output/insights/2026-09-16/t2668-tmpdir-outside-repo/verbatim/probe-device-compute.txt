@@ -1,0 +1,24 @@
+host bnode009
+TMPDIR None
+gettempdir /tmp
+st_dev gettempdir /tmp -> 66309
+st_dev /tmp /tmp -> 66309
+st_dev shared-parent /work/1/SFC/tanab -> 743766374
+st_dev authority /work/1/SFC/tanab/dev-wave-authority/acceptance-issuer-public-key.pem -> 743766374
+device-branch-fires True
+os.link real-path OK, same-inode True
+
+============================================================
+Request ID:             1840.nqsv
+Request Name:           izdw-de557c66ed
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Wed Sep 16 20:19:51 2026
+Started Request Time:   Wed Sep 16 20:19:58 2026
+Ended Request Time:     Wed Sep 16 20:19:59 2026
+Resources Information:
+  Elapse:               5S
+  Remaining Elapse:     295S
+============================================================
