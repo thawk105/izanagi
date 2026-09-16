@@ -9714,6 +9714,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-10** — T-2340 docs wave、tip1f7f21dc9の受入でtest_sigterm_ignoring_child_is_killedがcommunicateの10秒TimeoutExpiredになった。bnode047/gw36/request991511、receiptなし、loadavg54.95。本文・入口・phase差分からlauncher制御への変更はなく、同tipの単独再走991516は1passed/7.53秒、rc0。DW-O18で受入を再走し、期待値・制限値・除外は変えない。
 
 - **再発: 2026-09-10** — 同precheckの受入でtest_manifest_is_appended_while_correlated_session_is_runningの3秒内manifest不在とtest_sigterm_ignoring_child_is_killedの10秒TimeoutExpiredが発生。docsによるlauncher制御変更はなく、9月11日の同fileを含む焦点走991663.nqsvは262passed。恒久的な再発解消とは主張せず、既存DW-O18と今回のユーザーによる該当case限定hold認可に従って残る赤を扱う。
+
+- **再発: 2026-09-16** — [T-2702] wave で、統合 commit 直後の full-history provenance 監査 (計算ノードへ
+  dispatch) が Bash tool の 120 秒上限で背景へ回った直後に、親が同一 worktree から焦点走を投入し、監査側の
+  pending orphan hold (`phase: pending-qsub`) を run_tests が検知して rc=16 (`child_started=false`,
+  `reason=orphan-hold`) になった (`DW-O26` の直列化義務違反、親の操作ミス)。監査は request 1944.nqsv で
+  走り切り rc=0、hold は監査終端で自然に解除、焦点走は再投入で 6135 passed。qdel も hold の手動削除もしていない。
+  既存恒久対応に修正すべき新事実はない — 背景へ回った dispatch は「完了通知まで同一 worktree から次の
+  dispatch を投げない」対象に含める、の適用漏れである。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
@@ -26662,6 +26670,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   引く。`git grep -n "dir=_REPO" -- orchestrator tools` で同型の生成箇所を数える。
 - **判定の注意:** 被害者 test を `flaky_test_holds.py` へ登録して迂回しない。落ちているのは
   被害者であって原因ではなく、登録すると作業ツリー清浄の検査が受入から消える。
+- **supersede: 2026-09-16** — 恒久対応の「別 wave が Codex author で直す」は実施済み: t316 の fixture は 9d9df64f1 が `main checkout の親/.izanagi-t316-live` へ、`test_hooks.py` の hardlink test は [T-2668] (cc6e1fc54) が同じ形で `main checkout の親/.izanagi-t2146-hardlink` へ移設した。同型で literal grep に掛からなかった `test_s1_9pair_figure_provenance.py` の test_p9 (`dir=ROOT`) は production の `_repo_path` が repo 外を拒否するため `.gitignore` 済みの `output/runs/` 配下へ移した。pytest 受入で発火する repo 直下の生成箇所は 0 件 (`test_calibration_freeze_authority_contract.py` の `dir=str(ROOT)` は plain runner 専用)。
 
 ### F999. 受入全走が自分の作業ツリーへ作る未 tracked scratch が、repo 状態の不変を assert するテストを落とす [テスト代表性] [計測汚染]
 
