@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-09-16
 wave: dev-wave-t2125-historical-policy-version
 seq: 1
-title: [T-2125] 歴史閲覧を記録 policy で読めるようにし、照合先は policy SHA と stock pin の 2 つに限った (コード + docs、branch worktree-dev-wave-t2125-historical-policy-version、変異 matrix = probe 1 回 + 本走 baseline PASSED・8/8 KILLED・MISMATCH 0・期待 node 完全一致)
+title: [T-2125] 歴史閲覧を記録 policy で読めるようにし、照合先は policy SHA と stock pin の 2 つに限った (コード + docs、branch worktree-dev-wave-t2125-historical-policy-version、変異 matrix = probe 1 回 + 本走 baseline PASSED・8/8 KILLED・MISMATCH 0・期待 node 完全一致・F358 核 5 node を除いた delta 空 0 本)
 ---
 
 ## 本文
@@ -47,6 +47,11 @@ title: [T-2125] 歴史閲覧を記録 policy で読めるようにし、照合�
 - **変異 matrix の 1 回目は probe だった。** baseline PASSED・M9 KILLED・7 本 MISMATCH。7 本とも赤には
   なったが期待 node が狭すぎた (M1 は 157 node が赤)。`DW-M08` に従い観測 node 集合で再登録して
   本走し、**baseline PASSED・8/8 KILLED・MISMATCH 0**。初回は insight に erratum として残した。
+- **F358 の共通核は 5 node、原因は `contract-loader-drift`。** 閉包 member を変異させた 7 本の
+  `failed_nodes` の交差を取り、核を差し引いた delta を変異ごとに確かめた。**delta が空の変異は 0 本で、
+  8/8 KILLED は核を除いても成立する。** M3・M4・M7 は delta = 1 で狙った node ちょうど
+  (M7 は裁定 R3 の現行入口負例)。**ただし親は段 6 で核を差し引く前に「8/8 KILLED・完全一致」と
+  書いており、段 8 で F358 を読み直すまで気づかなかった** (新規 F は採らず F358 の再発として記録)。
 - **未 commit 由来の偽赤を 1 回踏んだ。** 焦点走が 19 件赤になり、本文は
   `contract-loader-drift: disk bytes が HEAD blob と不一致: orchestrator/campaign/wal.py`。
   変更した 3 module は enforcement source closure の member で、commit したら消えた。

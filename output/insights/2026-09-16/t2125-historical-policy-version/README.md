@@ -166,6 +166,42 @@ spec: `mutation-spec-final.json` (sha256 `d8978ab23ffc8d327816ed62d548634749f60c
 
 M2 は上節の理由で登録していない。
 
+### F358 の共通核と delta (KILLED が意味に基づくことの証拠)
+
+M1〜M8 が変異させる `artifact_admission.py` / `build_admission.py` / `wal.py` は enforcement source
+closure の member であり、**変異の意味と無関係に 1 byte 変わっただけで落ちる node** が存在する (F358)。
+F358 の恒久対応に従い、閉包 member を変異させた 7 本 (M1・M3〜M8) の `failed_nodes` の交差を核として取り、
+変異ごとに核を差し引いた delta を確認した。**M9 は `layer3_schema.json` (閉包外) なので核の対象外。**
+
+**核 = 5 node、原因 = `contract-loader-drift`** (disk bytes が HEAD blob と不一致)。
+いずれも実 checkout の live closure を capture する `test_layer3_report.py` の certifying 系である。
+
+- `test_layer3_report.py::test_accepted_report_rejects_no_commit_campaign`
+- `test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch`
+- `test_layer3_report.py::test_certified_report_omits_current_verifier_conformance`
+- `test_layer3_report.py::test_render_accepted_persists_certifying_report`
+- `test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]`
+
+| # | 全 node | 核 | delta | delta の中身 |
+|---|---|---|---|---|
+| M1 | 157 | 5 | **152** | 歴史閲覧を使う既存・新規テスト全般 |
+| M3 | 6 | 5 | **1** | `test_historical_policy_shape_is_exact[extra-key 集合]` — 狙った node ちょうど |
+| M4 | 6 | 5 | **1** | `test_historical_policy_shape_is_exact[schema-schema differs]` — 狙った node ちょうど |
+| M5 | 22 | 5 | **17** | 旧 policy の歴史正例・構造検査・trigger 検査 |
+| M6 | 18 | 5 | **13** | 旧 pin fixture を使う歴史正例・構造検査 |
+| M7 | 6 | 5 | **1** | `test_receipt_rejects_invalid_current_comparison[current-stock-…]` — 狙った現行入口負例ちょうど |
+| M8 | 10 | 5 | **5** | classification を検査する 5 node |
+| M9 | 1 | — | 1 | `test_historical_policy_version_report_schema` |
+
+**delta が空の変異は 0 本。8/8 KILLED は核を除いても成立する。** M3・M4・M7 は delta = 1 で、
+その 1 node が唯一の killer であることの証拠になる (特に M7 は裁定 R3 の現行入口負例が
+恒真化を捕まえることの直接の証拠)。
+
+**親の手順漏れ (F358 再発、land 前に捕捉)。** 親は段 6 で「8/8 KILLED・期待 node 完全一致」と記録し、
+核の差し引きを段 8 の自己改善で F358 を読み直すまで行わなかった。`DW-M08` の
+「観測 node を期待 node として再登録」は核込みの集合を期待値にするので、**完全一致は核の有無を
+否定しない。**
+
 ## 残余 (scope 外)
 
 依頼は「仮想リスク向けの gate・検査・台帳・一般化の追加は scope 外」と定めている。
