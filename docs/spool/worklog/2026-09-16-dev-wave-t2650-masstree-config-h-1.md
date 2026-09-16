@@ -50,6 +50,13 @@ title: [T-2650] 床値 campaign の condition gate へ prebuild 済み masstree 
   {{T:floor-official-rerun-after-supply-fix}} へ分けた。
   remaining: none
   base: 9e49716cfc9304bfe92c345a64ac6f9e304a8ceee739d80f434ced9be006f971
+- [T-2480] 段 8 で `DW-O09` へ収容して閉じた。**行番号 pin の存在自体は本 wave の前から
+  同節に書かれていたが、示していた検索鍵が `<成果物パス>` だけだったため守られず、F39 が
+  4 度目の再発を起こした。** D782 が委ねた D730 の手順のうち第 1 段 (既存記述の削減) だけで
+  収容でき、上限引き上げには至っていない。検索鍵を「成果物と変更 source の path」に改め、
+  `分類して`→`分類し` 等の意味等価な縮約で 999 bytes に収めた (単節予算 1000)。
+  remaining: none
+  base: 3d8dfdade0c86569a16a17c5c0b1d1b4ff8351d078735137acfeb46c867c2785
 
 ### 新規
 
