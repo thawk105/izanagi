@@ -1,0 +1,14 @@
+live issue attempt (1 回だけ)
+started:  2026-09-17T01:38:14+0900
+finished: 2026-09-17T01:38:14+0900
+host:     pegasus02 (login node)
+cwd:      /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2632-b4-prerun-issue-caller (wave worktree)
+HEAD:     2d71a0454c2d81589b22de2638e932eb2207d63a
+command:  python3 -m orchestrator.campaign.p3_b4_prerun_caller --campaign-root output/campaigns/p3-s4-loop-s4-autonomous-0b53a387 output/campaigns/p3-s5-sort-loop-s5-sort-autonomous-3be89e0d output/campaigns/p3-s8a-trigger-loop-s8a-trigger-autonomous-3f72ecd5
+rc:       2
+stdout:   live-issue-attempt.stdout.json (1 行、sort_keys)
+stderr:   0 bytes
+output/b4-prerun-publication before: absent (ls: No such file or directory)
+output/b4-prerun-publication after:  absent (ls: No such file or directory)
+git status --porcelain=v1 --untracked-files=all after: 0 lines
+runner script: job dir run-prerun-issue-live.sh (既存出力があれば上書きせず中止する形)
