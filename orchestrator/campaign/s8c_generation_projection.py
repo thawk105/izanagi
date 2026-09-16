@@ -15,7 +15,7 @@ from types import MappingProxyType
 from typing import Any
 
 
-ROLE_SCHEMA_VERSION = "p3-autonomous-workload-trial/v3"
+ROLE_SCHEMA_VERSION = "p3-autonomous-workload-trial/v4"
 VALIDATION_RECEIPT_SCHEMA_VERSION = "s8c-role-payload-validation-receipt/v1"
 PILOT_SCOPE = "exploratory-ycsb-abc"
 PLANNER_AXIS = "silo-backoff-trigger-gating"
@@ -56,7 +56,7 @@ _CODER_ONLY_KEYS = frozenset({
     "whiteboard",
 })
 _PERF_KEYS = frozenset({
-    "throughput_ops_sec",
+    "throughput_tps",
     "abort_rate_pct",
     "latency_ns",
     "llc_miss_rate",
@@ -75,7 +75,7 @@ _CRITIC_KEYS = frozenset({
     "attribution", "recommend", "avoid", "uncertainty", "reverse_recommended",
 })
 _SOURCE_METRIC_KEYS = frozenset({
-    "throughput_ops_sec", "abort_rate", "latency_ns", "llc_miss_rate", "ipc",
+    "throughput_tps", "abort_rate", "latency_ns", "llc_miss_rate", "ipc",
 })
 _DIAGNOSTIC_METRICS = (
     "abort_rate", "latency_ns", "llc_miss_rate", "ipc",
