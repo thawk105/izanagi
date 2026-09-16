@@ -394,54 +394,108 @@ def test_certify_perf_stage_is_policy_driven_fail_closed_and_precedes_calibrate(
         'target.id == "PERF_EVENTS"',
         'stat -e "$PERF_EVENTS" -- sleep 0.1',
         "grep -Eqi '<not (supported|counted)>'",
-        'write_failure 2 perf "no policy perf candidate passed version and event smoke"',
         'ln -s "$PERF_SELECTED_REAL" "$TMPDIR/bin/perf"',
     ):
         assert required in source
     assert 'env "PATH=$CALIBRATE_PATH"' in source[calibrate_stage:]
+    selected = fragment.index('if [[ -n "$PERF_SELECTED" ]]; then')
+    selected_end = fragment.index('\nfi', selected)
+    for output in ('"$ATTEMPT_DIR/perf-selection.json"',
+                   'ln -s "$PERF_SELECTED_REAL" "$TMPDIR/bin/perf"'):
+        assert selected < fragment.index(output) < selected_end
+    final_path = fragment.rindex('CALIBRATE_PATH=')
+    probe = fragment.index('receipt = probe_perf_availability(')
+    decision = fragment.index('print(int(use_perf_from_receipt(receipt)))')
+    assert selected_end < probe < decision
+    assert final_path < fragment.index('env "PATH=$CALIBRATE_PATH"') < probe
+    assert fragment.count('receipt = probe_perf_availability(') == 1
+    assert '); then\n  write_failure 2 perf "canonical perf preflight failed"\n  exit 2\nfi' in fragment
+    argv_fragment = source[calibrate_stage:source.index('\ncalibrate_rc=0', calibrate_stage)]
+    assert ('if [[ "$USE_PERF" == 0 ]]; then\n'
+            '  calibrate_argv+=(--perf-preflight-json "$PERF_PREFLIGHT_RECEIPT")\nfi') in argv_fragment
 
 
 def _perf_stage_fragment() -> str:
     source = (TOOL_DIR / "certify_calibration.sh").read_text(encoding="utf-8")
     start = source.index("# (vii) policy-pinned perf dispatcher bypass")
-    end = source.index("# CLI ", start)
+    end = source.index("\ncalibrate_rc=0", start)
     return source[start:end]
 
 
-def _run_perf_stage(tmp_path: Path, candidates: list[Path]):
+def _run_perf_stage(tmp_path: Path, candidates: list[Path], literal_status: str):
+    """Run certify_calibration.sh selection, canonical probe and argv generation."""
     attempt = tmp_path / "attempt"
     attempt.mkdir()
     scratch = tmp_path / "scratch"
     scratch.mkdir()
-    runner = tmp_path / "orchestrator" / "calibrator" / "runner.py"
-    runner.parent.mkdir(parents=True)
-    runner.write_text(
-        'PERF_EVENTS = ["LLC-load-misses", "LLC-loads", "instructions", "cycles"]\n',
+    base = tmp_path / "base"
+    base.mkdir()
+    # Isolate Python's directory too, so host perf cannot enter the final PATH.
+    for name in ("python3", "dirname", "timeout", "grep", "realpath", "cat", "mkdir", "ln", "env"):
+        executable = sys.executable if name == "python3" else shutil.which(name)
+        assert executable is not None
+        (base / name).symlink_to(executable)
+    literal = base / "perf"
+    literal.write_text(
+        f"#!{sys.executable}\n"
+        "import os, signal, sys\n"
+        f"status = {literal_status!r}\n"
+        "if status == 'probe_error':\n"
+        "    # SIGKILL cannot inherit an ignored or blocked signal disposition.\n"
+        "    os.kill(os.getpid(), signal.SIGKILL)\n"
+        "if status == 'unavailable':\n"
+        "    sys.exit(2)\n"
+        "if '--version' in sys.argv:\n"
+        "    print('perf version fixture')\n"
+        "elif '-o' in sys.argv:\n"
+        "    events = sys.argv[sys.argv.index('-e') + 1].split(',')\n"
+        "    with open(sys.argv[sys.argv.index('-o') + 1], 'w') as out:\n"
+        "        out.write(''.join('1,,' + event + '\\n' for event in events))\n",
         encoding="utf-8",
     )
+    literal.chmod(0o755)
     quoted_candidates = " ".join(shlex.quote(str(path)) for path in candidates)
     prefix = f"""ATTEMPT_DIR={shlex.quote(str(attempt))}
 TMPDIR={shlex.quote(str(scratch))}
-REPO_ROOT={shlex.quote(str(tmp_path))}
+REPO_ROOT={shlex.quote(str(REPO))}
+CALIBRATE_PYTHON={shlex.quote(str(base / 'python3'))}
+export PATH={shlex.quote(str(base))}
+CALIBRATION_RRATIO=50
+BINARY=/unused/binary
+BINARY_SHA={'a' * 64}
 PERF_CANDIDATES=({quoted_candidates})
 """
     result = subprocess.run(
-        ["bash", "-c", _shell_failure_harness(prefix + _perf_stage_fragment())],
+        ["/bin/bash", "-c", _shell_failure_harness(prefix + _perf_stage_fragment())],
         capture_output=True, text=True,
     )
     return result, attempt
 
 
-def test_perf_stage_all_candidates_failed_writes_perf_failure(tmp_path):
+@pytest.mark.parametrize("literal_status", ["unavailable", "available", "probe_error"])
+def test_perf_stage_all_candidates_failed_uses_canonical_receipt(tmp_path, literal_status):
     result, attempt = _run_perf_stage(
-        tmp_path, [tmp_path / "missing-one", tmp_path / "missing-two"],
+        tmp_path, [tmp_path / "missing-one", tmp_path / "missing-two"], literal_status,
     )
-    assert result.returncode == 2, result.stderr
-    assert json.loads((attempt / "failure.json").read_text())["stage"] == "perf"
+    assert result.returncode == (2 if literal_status == "probe_error" else 0), result.stderr
+    assert json.loads((attempt / "perf-preflight.json").read_text())["status"] == literal_status
     assert not (attempt / "perf-selection.json").exists()
+    assert not (tmp_path / "scratch/bin/perf").is_symlink()
+    assert not (tmp_path / "scratch/bin/perf").exists()
+    if literal_status == "probe_error":
+        assert json.loads((attempt / "failure.json").read_text()) == {"rc": 2, "stage": "perf"}
+        assert not (attempt / "calibrate-argv.json").exists()
+        return
+    assert not (attempt / "failure.json").exists()
+    argv = json.loads((attempt / "calibrate-argv.json").read_text())
+    if literal_status == "unavailable":
+        assert argv[-2:] == ["--perf-preflight-json", str(attempt / "perf-preflight.json")]
+    else:
+        assert "--perf-preflight-json" not in argv
 
 
-def test_perf_stage_rejects_not_supported_smoke_output(tmp_path):
+@pytest.mark.parametrize("literal_status", ["unavailable", "available"])
+def test_perf_stage_rejects_not_supported_smoke_output(tmp_path, literal_status):
     unsupported = tmp_path / "unsupported-perf"
     unsupported.write_text(
         """#!/bin/sh
@@ -456,12 +510,20 @@ exit 0
     )
     unsupported.chmod(0o755)
     result, attempt = _run_perf_stage(
-        tmp_path, [unsupported, tmp_path / "missing-second"],
+        tmp_path, [unsupported, tmp_path / "missing-second"], literal_status,
     )
-    assert result.returncode == 2, result.stderr
-    assert json.loads((attempt / "failure.json").read_text())["stage"] == "perf"
+    assert result.returncode == 0, result.stderr
+    assert not (attempt / "failure.json").exists()
     assert "<not supported>" in (attempt / "perf-candidate-0.smoke").read_text()
     assert not (attempt / "perf-selection.json").exists()
+    assert not (tmp_path / "scratch/bin/perf").is_symlink()
+    assert not (tmp_path / "scratch/bin/perf").exists()
+    assert json.loads((attempt / "perf-preflight.json").read_text())["status"] == literal_status
+    argv = json.loads((attempt / "calibrate-argv.json").read_text())
+    if literal_status == "unavailable":
+        assert argv[-2:] == ["--perf-preflight-json", str(attempt / "perf-preflight.json")]
+    else:
+        assert "--perf-preflight-json" not in argv
 
 
 def test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench():
@@ -1440,6 +1502,7 @@ BINARY_SHA={'a' * 64}
 CURRENT_SCRIPT_SHA={'b' * 64}
 CALIBRATE_PATH=/fixture/perf/bin:/usr/bin
 CALIBRATE_PYTHON=/fixture/python3.10
+USE_PERF=1
 """
     result = subprocess.run(
         ["bash", "-c", _shell_failure_harness(prefix + fragment)],
@@ -1458,6 +1521,31 @@ CALIBRATE_PYTHON=/fixture/python3.10
     ]
     assert argv[3] == str(tmp_path / "orchestrator" / "calibrate.py")
     assert argv[argv.index("--binary") + 1] == "/unused/binary"
+    assert "--perf-preflight-json" not in argv
+
+    no_perf = tmp_path / "no-perf"
+    no_perf.mkdir()
+    no_perf_attempt = no_perf / "attempt"
+    no_perf_attempt.mkdir()
+    receipt = no_perf_attempt / "perf-preflight.json"
+    no_perf_prefix = prefix + (
+        f"ATTEMPT_DIR={shlex.quote(str(no_perf_attempt))}\n"
+        "USE_PERF=0\n"
+        f"PERF_PREFLIGHT_RECEIPT={shlex.quote(str(receipt))}\n"
+    )
+    result = subprocess.run(
+        ["bash", "-c", _shell_failure_harness(no_perf_prefix + fragment)],
+        capture_output=True, text=True, env=_stub_timeout(no_perf, 1),
+    )
+    assert result.returncode == 1, result.stderr
+    assert json.loads((no_perf_attempt / "failure.json").read_text()) == {
+        "rc": 1, "stage": "calibrate",
+    }
+    assert json.loads((no_perf_attempt / "job-result.json").read_text())["calibrate_rc"] == 1
+    no_perf_argv = json.loads((no_perf_attempt / "calibrate-argv.json").read_text())
+    expected = [str(no_perf_attempt / "acquisition-receipt.json")
+                if arg == str(attempt / "acquisition-receipt.json") else arg for arg in argv]
+    assert no_perf_argv == expected + ["--perf-preflight-json", str(receipt)]
 
 
 def test_certify_job_rejects_legacy_tolerance_environment():
