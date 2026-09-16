@@ -63477,3 +63477,80 @@ D1918 が定めた「最遅 shard は shard-2、床は xdist group `p3-b4-materi
   自然変動だけで 29.0 秒ある)。
 - テストを削除・保留登録して速くする — D747 と、保留を既定の答えにしないというユーザー裁定に反する。
 - 「成長比例を断った」と記録する — どの案も全件処理を残すので事実に反する。
+
+## D2069. B-4 凍結 spec の binary は `output/env/<env_tag>/binaries/<binary_sha256>` へ ignored 複写で置き、凍結するのは bytes の可用性でなく path・期待 sha256・receipt とする (2026-09-16)
+
+**決定:**
+
+1. **配置規則:** 凍結 spec の `artifacts[].binary_relpath` は
+   `output/env/<env_tag>/binaries/<binary_sha256>` とする。candidate と reference は同じ bytes
+   (D1641 決定 3) なので、同じ path・sha・receipt を共有してよい。
+2. **複写を採る。** 調達済み record と repo 外の durable store から、
+   `python3 -m orchestrator.campaign.b4_binary_record place --record <r> --source-root <s> --env-tag <t>`
+   で置く。実装は `s8b_floor_campaign.store_binaries()` を呼び、同関数が既に持つ検査
+   (record validator、source sha、既存 destination sha、書込み後 sha) を入口で複製しない。
+3. **tracked 化しない。** `.gitignore` に `output/env/*/binaries/` を置く。
+4. **凍結の射程を明示する。** 凍結されるのは path・期待 sha256・receipt であって bytes の可用性ではない。
+   全複製を失えば消費側は正しく拒否するが、bit 同一の復旧は保証しない。
+5. **path の env 成分は検査されない。** 消費側は `binary_relpath` の env 成分と
+   `environment.env_tag` を照合しない。`--env-tag` を spec と一致させるのは呼び手の責任であり、
+   この規則を環境整合の gate と説明しない。
+6. **配置による復旧は、receipt の policy が現行と一致する record に限る。** 配置経路は
+   `store_binaries` が現行 policy を要求するので、古い policy で発行された record は置けない。
+   消費側 (`expected_policy=None`) より厳しいが、緩めない。
+7. **測定を投入する担当が、投入前に、使用する各 checkout へ配置する。** ignored file は merge で
+   他 checkout へ移らない。
+
+**理由:**
+- **同種の物の既存規約があった。** `s8b_floor_campaign.py:7669` が測定用 binary を
+  `env_scope_dir(env_tag)/binaries/<sha>` へ置いている。`env_tag` の実値は `pegasus` と
+  `linux-baremetal` だけで、`output/env/pegasus/` には既に `calibration` と `profile` が並ぶ。
+  `binaries` はその兄弟であり、新しい分類を起こさずに済む。
+- **消費側は binary の tracked を要求しない。** `floor_pair_driver.py:614 _read_tracked_bound` は
+  spec・build receipt・calibration にだけ loaded HEAD blob との byte 一致を課し、binary は
+  `_resolve_regular` + sha + trace symbol 検査だけを通る。
+- repo の tracked executable に ELF は 1 件も無い (段 3 の実測、58 件中 0 件)。
+- 再 build は凍結 sha との bit 一致を保証しない。T-2636 の build は計算ノード 3 回でようやく成功した。
+- 入口で上流の検査を複製すると、変異が上流に mask されて「検証省略を殺した」という判定が偽になる。
+- 現物で確かめた。701,760 byte を置き、`_relative_path` / `_resolve_regular` /
+  `assert_binary_sha256` / `_assert_no_trace_symbols` の 4 検査を通した。700KB を置いても
+  `git status` は汚れない。
+
+**却下した選択肢:**
+- **新 namespace `output/b4-binaries/<sha256>`** (段 2 plan の案) — 既存規約と二重化し、
+  二軸 (D13) の外に「campaign 横断の実験補助 store」という新分類を要する。
+- **tracked 化** — 消費側が要求せず、repo に ELF の前例が無い。bytes の可用性は得られるが、
+  それを要求する consumer が無い。
+- **測定ごとの再 build** — 凍結 sha との bit 一致を保証しない。
+- **path の env 成分を `environment.env_tag` と照合する gate を足す** — 依頼が scope 外とした
+  仮想リスク向けの検査である。照合しないことを明記するに留める。
+- **配置経路の policy 要求を消費側に合わせて緩める** — 規律 2 に反する。
+
+## D2070. 復元不能な歴史 bytes を要求する node は、関数を消さず要求だけを外して合成入力へ戻す (2026-09-16)
+
+**決定:** 外部保持期限で失われた材料の exact bytes 一致を要求していた
+`test_m2_production_golden_requires_both_routes` について、関数を削除も改名もせず、
+実 corpus 参照・availability 判定・歴史 golden の SHA-256 assert だけを撤去し、
+一時 repo の合成 blob と合成 rollout で production の二経路導出を最後まで走らせる形へ戻す。
+あわせて mismatch 拒否の負例を隣に新設する。
+
+歴史 commit 定数 (`BASE_COMMIT` / `INTEGRATED_COMMIT`) は `monkeypatch` で合成 commit へ
+差し替える。実 commit を使って合成中間状態への patch を構成する案は採らない。
+
+**理由:**
+
+- 関数を消して別名で作り直すと、変異事前登録・所要台帳・過去の変異台帳が指す node 名が
+  すべて宙に浮く。撤去対象は「当時の bytes 一致」であって node の同一性ではない。
+- production 差分ゼロのまま、`_compare_golden_routes` の恒真化を殺せる負例が得られる。
+  D1367 が残した availability 判定と自己検査はそのまま生きる。
+- 実 commit を使う案は、大きな歴史本文への依存と親 repo reader の登録判断を持ち込む。
+  小さな 4 状態 (base / authored / golden / integrated) なら各段の寄与を明示でき、
+  実 `_git`・別 parser 2 種・SHA 検査をすべて通せる。
+
+**却下した選択肢:**
+
+- 恒久 skip または historical audit への格下げ — 被覆を暗黙に消す。
+- 関数を削除して新名の 2 node へ置き換える — node 名の参照が宙に浮く。
+- 実データ依存の assert だけを別 test へ切り出す — D1615 が要求外の一般化として却下済み。
+- `verify_source_sha` の拒否能力まで新 node で証明する — 撤去で生じた穴ではなく既存の
+  被覆限界であり、本 wave の scope を超える。
