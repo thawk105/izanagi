@@ -3917,6 +3917,19 @@
   **pytest は parametrize ID 内の非 ASCII を `\uXXXX` へ escape して nodeid に載せる**ため、
   日本語を含む ID は逐語では書けない。投入前に「全期待 node が権威 collection 出力に
   実在するか」を機械照合してから起動する運用にした。
+
+- **再発: 2026-09-17** — 変異 spec の期待 node に、**変異下でしか生まれない parametrize id**
+  (存在しない path を identity 集合へ足す変異で増える
+  `test_every_required_identity_path_is_tracked_in_this_repo[<新 path>]`) を書いたところ、
+  harness の起動前検査 `期待 node が pytest collection に実在しない` で fail-closed 停止した
+  (走行 0、作業ツリーは clean のまま)。preflight は **baseline の** pytest collection と突き合わせる
+  ので、baseline に存在しない node は正しい形式でも登録できない。F71 の「書き手が実 nodeid の形を
+  確かめずに書いた」型の派生で、今回は形式ではなく**存在する時点**を確かめていなかった。
+  是正は再照準 — 変異を「path を tracked な兄弟 file へ置換する」形にして、期待 node を baseline に
+  実在する新 test だけにした (KILLED 一致)。初回 spec と attempt json は
+  `output/insights/2026-09-17/t1209-verifier-identity/` に erratum として残した。
+  **期待 node は `--collect-only` の baseline 集合に含まれるものだけを書き、変異で増減する
+  parametrize id を期待に入れない。**
 ### F72. 宣言した禁止の既定値が禁止側で、機械 gate が無いまま 9 wave 放置された [恒真ゲート] [誤前提]
 - 事象: D106 残余 1 と 8c runbook 3 箇所が「`--max-generations >= 2` の運転を禁止する」と宣言
   していたが、CLI の既定値は `2` だった (`p3_autonomous_workload_trial.py` の `add_argument`)。
@@ -19806,6 +19819,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `32603d3858289e3851227f8cad60d97e2e01f761`、release_safe=true、retryable_same_request=false。
   直後の読取専用再確認では同pathのstrict解決と.git fileの存在を確認した。
   既存F672の復旧に従い、新しい受入とrequestで再試行する。他waveの登録は触らない。
+
+- **再発: 2026-09-17** — [T-2502] wave の land 2 巡目 (02:11 JST、1 巡目 rc=10 で main fa24e6ea8 を固定 SHA merge した
+  直後) が `rc=31 status=fold-gate-failed` / `registered worktree path cannot be resolved: [Errno 4] Interrupted system
+  call: '<共有 repo>/.codex/worktrees/t1994-fix5'` (別 wave の登録 path) で止まった。`release_safe=true` /
+  `retryable_same_request=false`、`main_before == main_after == fa24e6ea8`。受入 1 (child-green、24389 passed / 67 skipped) を
+  捨て、既存 F672 の復旧どおり同じ tip に本 fragment を積んで受入を取り直し、新しい request で land を再試行する
+  (結果は worklog 側に書く)。他 wave の登録は触っていない。
 ### F673. brief が「守るべき性質」と「現に成立している性質」を混同し、存在しない不変条件を根拠に暫定裁定した [誤前提]
 
 - 事象: 親は段 1 brief の不変条件へ「受理の根拠は完全に読み切った、矛盾のない 1 枚の scan」と書き、
