@@ -1,0 +1,152 @@
+[
+  {
+    "case": "A0-v2-baseline",
+    "schema_version": "p3-8c-trial-acceptance-receipt/v2",
+    "verdict": "verified",
+    "error": null,
+    "reason_codes": [
+      "t468-approval-authority-absent"
+    ],
+    "downstream": null,
+    "notes": {}
+  },
+  {
+    "case": "A1-v2-existing-node",
+    "schema_version": "p3-8c-trial-acceptance-receipt/v2",
+    "verdict": "rejected",
+    "error": "[receipt-mandatory-reasons] c02-arm-binding-unproven was dropped without descriptor proof",
+    "reason_codes": null,
+    "downstream": null,
+    "notes": {}
+  },
+  {
+    "case": "A2-v2-empty-cells-keep-c02",
+    "schema_version": "p3-8c-trial-acceptance-receipt/v2",
+    "verdict": "verified",
+    "error": null,
+    "reason_codes": [
+      "c02-arm-binding-unproven",
+      "t468-approval-authority-absent"
+    ],
+    "downstream": "[receipt-capability] downstream capability requires the current receipt schema",
+    "notes": {
+      "receipt_content_digest_sha256": "8ecce69906410c451aa20a242634ba8ce82525636ed912493af6d12487340e89",
+      "expected_arm_content_digest_sha256": "8ecce69906410c451aa20a242634ba8ce82525636ed912493af6d12487340e89",
+      "content_digest_matches_expected": true
+    }
+  },
+  {
+    "case": "A3-v2-all-six-empty-keep-c02",
+    "schema_version": "p3-8c-trial-acceptance-receipt/v2",
+    "verdict": "verified",
+    "error": null,
+    "reason_codes": [
+      "c02-arm-binding-unproven",
+      "t468-approval-authority-absent"
+    ],
+    "downstream": null,
+    "notes": {}
+  },
+  {
+    "case": "B1-v2-contradicting-descriptor",
+    "schema_version": "p3-8c-trial-acceptance-receipt/v2",
+    "verdict": "rejected",
+    "error": "[receipt-arm-binding] cell descriptor content digest differs from receipt",
+    "reason_codes": null,
+    "downstream": null,
+    "notes": {
+      "original_read_ratio_percent": 80,
+      "original_read_ratio_type": "int",
+      "original_read_ratio_is_int_80": true,
+      "descriptor_canonical_sha256": "44c6221c73eb5931125d942c2bc801dd7f18ed2b00c2008098bbceb8c7c8b031",
+      "receipt_content_digest_sha256": "80501db0235d88314edd4a4c29a1949e67acc2b466ae426fbbb1cb3da4b7d843"
+    }
+  },
+  {
+    "case": "B2-v2-contradicting-descriptor-then-empty-keep-c02",
+    "schema_version": "p3-8c-trial-acceptance-receipt/v2",
+    "verdict": "verified",
+    "error": null,
+    "reason_codes": [
+      "c02-arm-binding-unproven",
+      "t468-approval-authority-absent"
+    ],
+    "downstream": null,
+    "notes": {
+      "original_read_ratio_percent": 80,
+      "original_read_ratio_type": "int",
+      "original_read_ratio_is_int_80": true,
+      "descriptor_canonical_sha256": "44c6221c73eb5931125d942c2bc801dd7f18ed2b00c2008098bbceb8c7c8b031",
+      "receipt_content_digest_sha256": "80501db0235d88314edd4a4c29a1949e67acc2b466ae426fbbb1cb3da4b7d843"
+    }
+  },
+  {
+    "case": "C0-v5-baseline",
+    "schema_version": "p3-8c-trial-acceptance-receipt/v5",
+    "verdict": "verified",
+    "error": null,
+    "reason_codes": [
+      "t468-approval-authority-absent"
+    ],
+    "downstream": "accepted",
+    "notes": {}
+  },
+  {
+    "case": "C1-v5-existing-node",
+    "schema_version": "p3-8c-trial-acceptance-receipt/v5",
+    "verdict": "rejected",
+    "error": "[receipt-mandatory-reasons] c02-arm-binding-unproven was dropped without descriptor proof",
+    "reason_codes": null,
+    "downstream": null,
+    "notes": {}
+  },
+  {
+    "case": "C2-v5-empty-cells-keep-c02",
+    "schema_version": "p3-8c-trial-acceptance-receipt/v5",
+    "verdict": "verified",
+    "error": null,
+    "reason_codes": [
+      "c02-arm-binding-unproven",
+      "t468-approval-authority-absent"
+    ],
+    "downstream": {
+      "require_current_verified_receipt": "accepted",
+      "build_accepted_report": "acceptance receipt が certifying=true でない"
+    },
+    "notes": {
+      "receipt_content_digest_sha256": "8ecce69906410c451aa20a242634ba8ce82525636ed912493af6d12487340e89",
+      "expected_arm_content_digest_sha256": "8ecce69906410c451aa20a242634ba8ce82525636ed912493af6d12487340e89",
+      "content_digest_matches_expected": true
+    }
+  },
+  {
+    "case": "C3-v5-contradicting-descriptor-then-empty-keep-c02",
+    "schema_version": "p3-8c-trial-acceptance-receipt/v5",
+    "verdict": "verified",
+    "error": null,
+    "reason_codes": [
+      "c02-arm-binding-unproven",
+      "t468-approval-authority-absent"
+    ],
+    "downstream": {
+      "require_current_verified_receipt": "accepted",
+      "build_accepted_report": "acceptance receipt が certifying=true でない"
+    },
+    "notes": {
+      "original_read_ratio_percent": 80,
+      "original_read_ratio_type": "int",
+      "original_read_ratio_is_int_80": true,
+      "descriptor_canonical_sha256": "44c6221c73eb5931125d942c2bc801dd7f18ed2b00c2008098bbceb8c7c8b031",
+      "receipt_content_digest_sha256": "80501db0235d88314edd4a4c29a1949e67acc2b466ae426fbbb1cb3da4b7d843"
+    }
+  },
+  {
+    "case": "C4-v5-build-report-empty-keep-c02",
+    "schema_version": "p3-8c-trial-acceptance-receipt/v5",
+    "verdict": "rejected",
+    "error": "[receipt-cross-binding] [cross-binding] build report must contain at least one cell",
+    "reason_codes": null,
+    "downstream": null,
+    "notes": {}
+  }
+]
