@@ -24,8 +24,16 @@ title: [T-2237] sort 軸の文法版 cache 束縛は双子の [T-2253] で着地
   [T-2253] 段 4 が scope 外にした契約 ID の閉包改善は [T-2326] として別に生きており、D1548 の実体ではない。
 - **挙動の実測。** `orchestrator/tests/test_p3_s4_loop_sort.py` の単独走 (木 = main 0c292eff6、計算ノード 1510.nqsv) = rc=0、58 passed・赤 0。
 - 一次資料 = `output/insights/2026-09-16/t2237-sort-cache-twin-close/README.md` (段 1 brief・段 4 裁定・全数照合・実測)。
-- **agent 工数**: codex 子 0 本。焦点走 1 回 (login の bounded local が上限に当たり計算ノードへ自動 dispatch)。受入全走は本記録 commit を含む
-  最終 tip に 1 回だけ投入し、結果は受領証と land の出力を正本として本 entry へ後から書き足さない。
+- **受入は 3 回投げて 3 回とも受領証が出ず、いずれも本 wave の変更 (docs 3 file) に帰属しない。** attempt 1 = 待ち手が main を
+  取り込んだ後の全履歴監査中に main が進み `postcheck` rc=70 (テスト未投入)。attempt 2 (tip `ba0d7e762`) = 24,067 passed / 52 赤
+  (3 file、本文はすべて 30 秒 timeout: wave worktree への `git ls-files --others` / `git status`、`git archive`、real-repo lock 待ち、
+  launcher timeout。同時受入 4 本)。同 tip・同 3 file の単独再走は 480 passed / 105 秒で非再現。attempt 3 (tip `4b135deb7`) =
+  24,111 passed / 17 error (すべて `test_t1259_qsub_env_delivery_probe.py` の `git ls-files --others --exclude-standard -z` 30 秒
+  TimeoutExpired、F945 の型。投入時 load 38)。単独では同 argv が 12.4 秒 (load 30、未追跡 0 件) で完走した。F945 へ再発を追記し、
+  恒久対応は既報どおり変えない (timeout 拡大・除外・hold 登録をしない)。junit は
+  `/work/1/SFC/tanab/.izanagi-acceptance-shards/{fabfc14f91a4b38b13c8c5dd00a883eb,ccf889626b5ea4a544c6180206e0e126}/`。
+- **agent 工数**: codex 子 0 本。焦点走 1 回 (login の bounded local が上限に当たり計算ノードへ自動 dispatch)、赤の単独再走 1 回、
+  受入 3 回 (上記)。最終 tip に対する受入の結果は受領証と land の出力を正本とし、本 entry へ後から書き足さない。
 
 ## 次の一手差分
 
