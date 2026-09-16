@@ -51,6 +51,14 @@ title: [T-559] 凍結 pre profile と post observed clock の照合を publish �
   超過し、`DW-C01` へ 54 bytes 追記すると単節予算 (1000 bytes) 超過に加えて節の exact 契約と
   不一致になる。**安全義務を削って枠を作ることはせず、どちらも差し戻した。** 上限引き上げが要る
   ため報告に留める。
+- **受入 attempt 1 は非帰属赤で、attempt 2 を投げ直した。** 40 件すべてが
+  `orchestrator/tests/test_t1259_qsub_env_delivery_probe.py` の **setup error** で、本文は
+  `subprocess.TimeoutExpired` — fixture が呼ぶ `git ls-files --others` と
+  `git status --porcelain=v1` が 30 秒で切れていた。assertion ではなく、本 wave の差分
+  (較正 CLI のクロック照合) からは到達しない。同 file の単独再走は **51 passed / rc=0** で
+  非再現だった (`DW-O18` の「差分到達不能は単独再走」)。投入時の load average は 14.99 と低く、
+  効いていたのは**同時に走っている受入の本数**で、実測 6 本だった。3 本以下へ空くのを待ってから
+  attempt 2 を投げた。hold 登録はしていない。
 - 逐語・変異台帳・実測表は `output/insights/2026-09-16/t559-preclock-publish-gate/`。
 
 ## 次の一手差分
