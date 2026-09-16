@@ -3,9 +3,11 @@
 - wave: `dev-wave-next-tasks-codex-authority`
 - branch: `worktree-dev-wave-next-tasks-codex-authority`
 - 起点 main: `262c2993eae89f452dcea35fc61f97e41a689e8e`
-- 変更面: `.claude/commands/next-tasks.md` の 1 file だけ (docs-only。D95 決定 2 により
-  Markdown は実装面でないため親が直接編集し、実装子は起動していない)
-- 変異 matrix: 免除 (`DW-S04` — 実装面の差分ゼロ)
+- 変更面: `.claude/commands/next-tasks.md` (docs-only。D95 決定 2 により Markdown は実装面でない
+  ため親が直接編集) と `orchestrator/tests/test_check_docs.py` の実 bytes pin 1 行
+  (実装面。Codex `role=author` の実装子が書いた)
+- 変異 matrix: **baseline PASSED・KILLED 2・SURVIVED 0・MISMATCH 0・TIMEOUT 0**、
+  期待 node 完全一致。事前登録は `mutation-registration.md`、spec と台帳は `mutation/`
 
 ## ユーザー裁定 (2026-09-16、逐語)
 
@@ -51,6 +53,7 @@ T-2515 の 1 件だけだった。
 | 3 | 敵対 sol (意味論の破れ) | rc=0 | 所見 4 件。無修正採用は非推奨 |
 | 3 | 敵対 luna (実効性と予算) | rc=0 | 所見 5 件。所見 1〜4 込みで採用推奨 |
 | 6 | 焦点レビュー (適用済み現物) | rc=0 | must-fix 3 件。修正後の採用を推奨 |
+| 5 | 実装 author (workspace-write) | rc=0 | 実 bytes pin を現物から数えて更新。未実走は正直に申告 |
 
 **棄却した所見はない。段 3 の 9 件と段 6 の 3 件はすべて real として採った。**
 
@@ -61,6 +64,22 @@ T-2515 の 1 件だけだった。
 段 2 の byte 収支は親が実測で全件検算した。現行側 375 / 204 / 553 / 669、置換側
 476 / 272 / 172 / 536 / 229 がいずれも申告と一致した。
 
+## 受入で出た赤と、その原因
+
+受入 attempt 1 は `1 failed, 23960 passed, 68 skipped` で rc=70 (`child-verdict`)。
+落ちたのは `orchestrator/tests/test_check_docs.py::test_next_tasks_command_budget_literal_is_exact`
+の 1 件だけで、**本 wave の変更に帰属する**。同 test は実 bytes を `27_054` の literal で
+pin しており、書き換えで現物が 26,903 bytes になったため一致しなくなった。
+
+**段 1 の pin 閉包が漏れた原因も実測した。** 使ったのは
+`git grep -n "next-tasks" -- . | grep -v "^docs/worklog.md" | head -40` で、
+**`head -40` が 40 行で切り、`orchestrator/tests/` の hit がその外にあった。**
+`| cat` で取り直すと hit は 8 件で、生きた pin は 3 つだけだった。
+閉包検索の出力を `head` で切ってはならない。
+
+修復は Codex `role=author` の実装子が書いた (親は実装面を編集しない)。親は現物で検算し、
+焦点走で `1 passed`、`test_check_docs.py` 全体で `574 passed, 3 skipped` を実測した。
+
 ## 逐語
 
-`codex/` 配下に段 1 brief と子 4 本の出力をそのまま置いた。
+`codex/` 配下に段 1 brief と子 5 本の出力をそのまま置いた。

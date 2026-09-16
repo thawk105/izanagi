@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-09-16
 wave: dev-wave-next-tasks-codex-authority
 seq: 1
-title: /next-tasks の codex 相談規定を「事実は claude・判断は codex」の役割分担へ書き換えた (docs のみ、branch worktree-dev-wave-next-tasks-codex-authority、変異 matrix 免除)
+title: /next-tasks の codex 相談規定を「事実は claude・判断は codex」の役割分担へ書き換えた (command + 実 bytes pin、branch worktree-dev-wave-next-tasks-codex-authority、変異 matrix = baseline PASSED・KILLED 2・SURVIVED 0・MISMATCH 0・期待 node 完全一致)
 ---
 
 ## 本文
@@ -34,9 +34,22 @@ title: /next-tasks の codex 相談規定を「事実は claude・判断は code
   「維持」と判定している。着地 26,903 bytes = 残り 197 bytes。
 - **段 2 の byte 収支は親が全件検算した。** 現行側 375 / 204 / 553 / 669、置換側
   476 / 272 / 172 / 536 / 229 がいずれも申告と一致した。子の算術を鵜呑みにしていない。
-- **docs-only なので実装子は起動していない** (D95 決定 2 = Markdown は実装面でない)。変異 matrix は
-  `DW-S04` により免除。子は段 2 plan 1 本、段 3 敵対 2 本、段 6 焦点レビュー 1 本の計 4 本で、
-  いずれも read-only・受理検査 rc=0。
+- **受入 attempt 1 が赤を返し、段 1 の pin 閉包の漏れを暴いた。** 落ちたのは
+  `test_next_tasks_command_budget_literal_is_exact` 1 件 (23960 passed) で、本 wave に帰属する。
+  同 test は実 bytes を `27_054` の literal で pin していた。**漏れた原因は
+  `git grep ... | head -40` の `head` が 40 行で切り、`orchestrator/tests/` の hit が
+  その外にあったこと。** `| cat` で取り直すと hit は 8 件、生きた pin は 3 つだけだった。
+  **閉包検索の出力を `head` で切ってはならない** — 段 1 で「pin は 2 箇所」と断定した根拠が
+  切られた一覧だった。
+- **pin の更新で実装面の差分が出たので、変異 matrix の免除 (`DW-S04`) が外れた。** `DW-M01` に
+  従い変異 2 件 (実 bytes pin・上限 pin) を**実装前に**凍結し、Codex `role=author` の実装子に
+  書かせた。実装子は現物を自分で数えて書き、login node の hook で pytest が走らないことを
+  「実装済み・未実走」と正直に申告した。親が焦点走で `1 passed`、file 全体で
+  `574 passed, 3 skipped` を実測した。
+- 子は段 2 plan 1 本、段 3 敵対 2 本、段 6 焦点レビュー 1 本、段 5 実装 1 本の計 5 本で、
+  いずれも受理検査 rc=0。実装子だけ workspace-write、他は read-only。
+- **実装子の初回投入は射影 file の不在で正しく停止した。** 親が変異登録を実装子 worktree へ
+  置き忘れていたためで、子の側の誤りではない。file を配置し `--job-id` を変えて再投入した。
 - 逐語・run-card は `output/insights/2026-09-16_next-tasks-codex-authority/`。
 - **段 8 の自己改善候補は 2 件で、どちらも不採用と裁定した。** (i) 受入の投入形
   (`-- python3 tools/run_tests.py` が必須) が dev-wave の reference から辿れず、`--help` が
