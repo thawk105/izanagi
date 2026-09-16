@@ -1,0 +1,106 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 2700,
+  "hang_timeout_seconds": 2700,
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "# next-tasks の repo-scoped Skill 契約を登録する。\n",
+          "new": "# next-tasks の repo-scoped Skill 契約を登録する (equivalent mutation marker: comment only)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-drop-next-tasks-h3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    3: {\"dev-wave\", \"cleanup-branches\", \"rulings\", \"next-tasks\"},\n",
+          "new": "    3: {\"dev-wave\", \"cleanup-branches\", \"rulings\"},\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-drop-guard-call",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    _check_codex_skill_guard(\n        findings,\n        skill_name=\"next-tasks\",\n        limits=CODEX_NEXT_TASKS_SKILL_LIMITS,\n        expected_files=CODEX_NEXT_TASKS_SKILL_FILES,\n        literals=CODEX_NEXT_TASKS_SKILL_LITERALS,\n        openai_yaml=CODEX_NEXT_TASKS_OPENAI_YAML,\n    )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-huge-skill-budget",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    \".agents/skills/next-tasks/SKILL.md\": TextLimit(5_460, 400),\n",
+          "new": "    \".agents/skills/next-tasks/SKILL.md\": TextLimit(546_000, 400),\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-openai-yaml-one-char",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "  display_name: \"Next Tasks\"\n  short_description: \"今すぐ投げられる dev-wave タスク候補を提案\"\n",
+          "new": "  display_name: \"Next Taskx\"\n  short_description: \"今すぐ投げられる dev-wave タスク候補を提案\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-drop-agents-md-literal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    \"AGENTS.md\",\n    \"CLAUDE.md\",\n    \".claude/commands/next-tasks.md\",\n",
+          "new": "    \"CLAUDE.md\",\n    \".claude/commands/next-tasks.md\",\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-drop-yaml-from-files",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "CODEX_NEXT_TASKS_SKILL_FILES = frozenset(CODEX_NEXT_TASKS_SKILL_LIMITS)\n",
+          "new": "CODEX_NEXT_TASKS_SKILL_FILES = frozenset({\".agents/skills/next-tasks/SKILL.md\"})\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
