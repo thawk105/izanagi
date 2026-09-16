@@ -20,6 +20,17 @@ seq: 3
   「`timeout_seconds` は dispatch envelope 超」を発火段の節に明記した (従来は `DW-M06` の
   上限側だけが書かれ、下限側が操作直前の節に無かった)。
 
+### F945
+
+- **再発: 2026-09-16** — [T-2464] wave の受入 attempt 4 で 5 件 (t1259 4・s8c predicates 1)、
+  attempt 5 で 44 件 (t1259 39・s8c predicates 5) が setup error になった。t1259 は既報と同じ
+  `git ls-files --others` と `git status` の 30 秒 TimeoutExpired、s8c は real-repo lock の期限切れ。
+  2 file の単独再走は **269 passed / rc=0** で非再現。**既報が測っていなかった低負荷時の走査時間を
+  実測した** — load average 12.65 (1 分) の login node で、wave worktree の
+  `ls-files --others` は **18.81 秒**、base のままの実装子 worktree でも **15.48 秒**だった。
+  自分の `output/` 固有ではなく repo 規模由来で、低負荷でも 30 秒の半分を超えているので、
+  3 shard 並列と他 wave の受入 4 本が重なれば越える。恒久対応は既報のまま変えない。
+
 ### F818
 
 - **再発: 2026-09-16** — 段 3 のレンズ B が 8 model call・220 秒で
