@@ -3,6 +3,7 @@ from pathlib import Path
 import hashlib
 import json
 import os
+import shutil
 import sys
 import subprocess
 from types import SimpleNamespace
@@ -99,8 +100,8 @@ def test_stock_selection_and_explicit_holdout():
         b4.select_cell(freeze, protocol, "missing")
 
 
-@pytest.mark.parametrize("fails", [False, True])
-def test_production_wiring_and_environment_restore(tmp_path, monkeypatch, fails):
+@pytest.mark.parametrize("fails", [False, True, "oracle"])
+def test_production_wiring_and_environment_restore(tmp_path, monkeypatch, fails, capsys):
     protocol = {"stock_configuration": "stock_common", "ccbench_pin": "1" * 40,
                 "freeze": {"path": "freeze.json", "sha256": "2" * 64}}
     contract = SimpleNamespace(contract_sha256="3" * 64)
@@ -153,6 +154,12 @@ def test_production_wiring_and_environment_restore(tmp_path, monkeypatch, fails)
                 "masstree_head": "a" * 40, "config_sha256": hashlib.sha256(config).hexdigest()},
             masstree_source_dir=sources["masstree"], mimalloc_source_dir=sources["mimalloc"],
             googletest_source_dir=sources["googletest"])
+        if fails == "oracle":
+            error = floor._FloorOraclePreflightError(
+                "toolchain mismatch", detail_code="floor-toolchain-receipt-mismatch",
+                origin="calibration:toolchain-binding", outcome="invalid-path")
+            raise floor._persist_floor_oracle_preflight_failure(
+                kw["phase_marker_root"], error, verified_compiler=None)
         if fails:
             raise RuntimeError("build failure")
         return {"cell": {}}
@@ -161,15 +168,26 @@ def test_production_wiring_and_environment_restore(tmp_path, monkeypatch, fails)
     writer = Mock(return_value={})
     monkeypatch.setattr(b4, "store_record", writer)
     kwargs = dict(store_root=tmp_path / "durable", output=tmp_path / "record.json", repo_root=tmp_path)
-    if fails:
+    if fails == "oracle":
+        assert b4.main(["--store-root", str(kwargs["store_root"]),
+                        "--output", str(kwargs["output"])]) == 1
+        diagnostic, = kwargs["store_root"].glob("b4-build-*/phases/sort-swo-oracle-preflight-failure.json")
+        stderr = capsys.readouterr().err
+        assert str(diagnostic.resolve()) in stderr
+        assert diagnostic.read_text() in stderr
+        assert "floor-toolchain-receipt-mismatch" in stderr
+        assert "sort-swo-oracle-infrastructure-unavailable" in stderr
+        writer.assert_not_called()
+    elif fails:
         with pytest.raises(RuntimeError, match="build failure"):
             b4.produce_record(**kwargs)
         writer.assert_not_called()
     else:
         b4.produce_record(**kwargs)
         writer.assert_called_once()
-    resolver.assert_called_once_with(root=tmp_path)
-    loader.assert_called_once_with(tmp_path / "freeze.json", expected_hash="2" * 64)
+    expected_root = b4.ROOT if fails == "oracle" else tmp_path
+    resolver.assert_called_once_with(root=expected_root)
+    loader.assert_called_once_with(expected_root / "freeze.json", expected_hash="2" * 64)
     assert os.environ["CMAKE_PREFIX_PATH"] == "previous"
 
 
@@ -233,6 +251,51 @@ def test_cli_rejects_non_compute_without_build(tmp_path, monkeypatch, capsys):
     assert b4.main(["--output", str(tmp_path / "record.json")]) == 1
     builder.assert_not_called()
     assert "compute node" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("previous", [None, "", "/original/bin"])
+@pytest.mark.parametrize("fails", [False, True])
+def test_cli_path_prepend_and_restore(tmp_path, monkeypatch, previous, fails):
+    if previous is None:
+        monkeypatch.delenv("PATH", raising=False)
+    else:
+        monkeypatch.setenv("PATH", previous)
+    directories = [tmp_path / "first", tmp_path / "second"]
+    for directory in directories:
+        directory.mkdir()
+        tool = directory / "cmake"
+        tool.write_text("#!/bin/sh\nexit 0\n")
+        tool.chmod(0o700)
+    observed = []
+    def produce(**kwargs):
+        observed.append(os.environ["PATH"])
+        assert shutil.which("cmake") == str(directories[0] / "cmake")
+        if fails:
+            raise RuntimeError("build failure")
+    monkeypatch.setattr(b4, "produce_record", produce)
+    argv = ["--output", str(tmp_path / "record.json")]
+    for directory in directories:
+        argv += ["--path-prepend", str(directory)]
+    assert b4.main(argv) == (1 if fails else 0)
+    assert observed == [os.pathsep.join(
+        [str(directory) for directory in directories]
+        + ([] if previous is None else [previous]))]
+    assert os.environ.get("PATH") == previous
+
+
+@pytest.mark.parametrize("is_file", [False, True])
+def test_cli_path_prepend_rejects_invalid_before_start(tmp_path, monkeypatch, capsys, is_file):
+    invalid = tmp_path / "invalid"
+    if is_file:
+        invalid.write_text("not a directory")
+    previous = os.environ.get("PATH")
+    producer = Mock()
+    monkeypatch.setattr(b4, "produce_record", producer)
+    assert b4.main(["--output", str(tmp_path / "record.json"),
+                    "--path-prepend", str(invalid)]) == 1
+    producer.assert_not_called()
+    assert "requires an existing directory" in capsys.readouterr().err
+    assert os.environ.get("PATH") == previous
 
 
 if __name__ == "__main__":

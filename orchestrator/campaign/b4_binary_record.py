@@ -1,8 +1,8 @@
 """Build one stock binary for the B-4 identical candidate/reference pair.
-
 Run through the existing generic dispatcher on Pegasus compute. Record paths
 are relative to --store-root, which must remain available to consumers.
 This CLI performs no measurement or spec issuance.
+PATH prepends select the calibrated tools without relaxing toolchain matching.
 """
 from __future__ import annotations
 
@@ -187,6 +187,9 @@ def produce_record(*, store_root, output, holdout_id=None, cache_root=None,
             repo_root=repo_root,
             build_fn=partial(_build_with_dependencies, prefixes=prefixes, sources=sources),
         )
+    except floor.SortSwoOracleUnavailable as exc:
+        exc.b4_diagnostic_path = markers / floor._FLOOR_PREFLIGHT_FAILURE_FILENAME
+        raise
     finally:
         if previous is None:
             os.environ.pop("CMAKE_PREFIX_PATH", None)
@@ -207,12 +210,36 @@ def main(argv=None):
                         help="durable binary root; record paths are relative to this root")
     parser.add_argument("--holdout-id")
     parser.add_argument("--cache-root", type=Path, help="verified third-party source cache")
+    parser.add_argument("--path-prepend", type=Path, action="append", default=[],
+                        help="prepend an existing tool directory to PATH (repeatable, in argument order)")
     args = parser.parse_args(argv)
+    previous_path = os.environ.get("PATH")
     try:
+        directories = [path.resolve() for path in args.path_prepend]
+        for path in directories:
+            if not path.is_dir():
+                raise ValueError(f"--path-prepend requires an existing directory: {path}")
+        if directories:
+            os.environ["PATH"] = os.pathsep.join(
+                [str(path) for path in directories]
+                + ([] if previous_path is None else [previous_path]))
+        del args.path_prepend
         produce_record(**vars(args))
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
         print(f"b4-binary-record: {exc}", file=sys.stderr)
+        diagnostic_path = getattr(exc, "b4_diagnostic_path", None)
+        if diagnostic_path is not None:
+            print(f"b4-binary-record: diagnostic file: {diagnostic_path}", file=sys.stderr)
+            try:
+                print(diagnostic_path.read_text(encoding="utf-8"), file=sys.stderr)
+            except (OSError, UnicodeError) as diagnostic_error:
+                print(f"b4-binary-record: cannot read diagnostic: {diagnostic_error}", file=sys.stderr)
         return 1
+    finally:
+        if previous_path is None:
+            os.environ.pop("PATH", None)
+        else:
+            os.environ["PATH"] = previous_path
     return 0
 
 
