@@ -1,0 +1,2100 @@
+{
+ "candidate_search": "main の全 blob path から basename == B、または basename == B + '.gz' のものだけ",
+ "claim_scope": "監査が報告した (oid, path) について、候補集合内に Git blob OID 一致があったかだけを言う。commit 全体の着地・別名への改名・mode の同一性は言わない。",
+ "main_commit": "d97c423bdd14e0b416cb4f585d350e6c2b251287",
+ "observed_at": "2026-09-16T07:06:33Z",
+ "pairs": [
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "e8f08300055d644f66763bf484e93206428820f1",
+     "inner_blob": "e4e36c03d2c687283d02274fd96ddda07c8452e6",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1348-c09-c10-consumer/mutation/mutation-spec-probe.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "0b92c254b830bc333386eacafdc5d113292116be",
+   "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json",
+   "same_basename_non_match_count": 90,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "0a5d94daf19ae8777f45e8d54bc7db69c15eff47",
+     "inner_blob": "8f5d95d4d031916d4bd653a61728443c81a3823f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-15/t817-verifier-epoch/mutation-spec-probe.json.gz"
+    },
+    {
+     "blob": "08e1694301d5109a324ae0464048021680e5b8d0",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-15/t856-verified-oracle-verdict/mutation-spec-probe.json"
+    },
+    {
+     "gz_blob": "e9b8f3bf46032e26657d9e289a946cf7f75eee38",
+     "inner_blob": "3ec0cf08549f2b732b711d0a44fd27b4eb62fc0d",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1066-wait-signal-flake/mutation-spec-probe.json.gz"
+    },
+    {
+     "gz_blob": "a0520844ff54ef0d5827b4b5113f107a90b871eb",
+     "inner_blob": "be429eed92ea855a8a20a5171836153950ea1e34",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1128-floor-same-root/mutation-spec-probe.json.gz"
+    },
+    {
+     "gz_blob": "e6fea382d53ee6ddaee11ce239d624cdd0d36c91",
+     "inner_blob": "d549aca98dad8cad19bcf0b051968b56339f02dd",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1180-pilot-approval/mutation/mutation-spec-probe.json.gz"
+    }
+   ],
+   "source_blob": "e4e36c03d2c687283d02274fd96ddda07c8452e6",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "e8f08300055d644f66763bf484e93206428820f1",
+     "inner_blob": "e4e36c03d2c687283d02274fd96ddda07c8452e6",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1348-c09-c10-consumer/mutation/mutation-spec-probe.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "0decf0a4eae5be07e59961e1d9fc735b42bae962",
+   "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json",
+   "same_basename_non_match_count": 90,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "0a5d94daf19ae8777f45e8d54bc7db69c15eff47",
+     "inner_blob": "8f5d95d4d031916d4bd653a61728443c81a3823f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-15/t817-verifier-epoch/mutation-spec-probe.json.gz"
+    },
+    {
+     "blob": "08e1694301d5109a324ae0464048021680e5b8d0",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-15/t856-verified-oracle-verdict/mutation-spec-probe.json"
+    },
+    {
+     "gz_blob": "e9b8f3bf46032e26657d9e289a946cf7f75eee38",
+     "inner_blob": "3ec0cf08549f2b732b711d0a44fd27b4eb62fc0d",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1066-wait-signal-flake/mutation-spec-probe.json.gz"
+    },
+    {
+     "gz_blob": "a0520844ff54ef0d5827b4b5113f107a90b871eb",
+     "inner_blob": "be429eed92ea855a8a20a5171836153950ea1e34",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1128-floor-same-root/mutation-spec-probe.json.gz"
+    },
+    {
+     "gz_blob": "e6fea382d53ee6ddaee11ce239d624cdd0d36c91",
+     "inner_blob": "d549aca98dad8cad19bcf0b051968b56339f02dd",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1180-pilot-approval/mutation/mutation-spec-probe.json.gz"
+    }
+   ],
+   "source_blob": "e4e36c03d2c687283d02274fd96ddda07c8452e6",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [],
+   "match_found": false,
+   "oid": "1aa5ae77aa862ea68f5a5509ee748bd26ce18dab",
+   "path": "output/insights/2026-08-11_t812-lease-self-renew-mutation-spec.json",
+   "same_basename_non_match_count": 1,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "275aa92475974d25c9f276c430f094860052a095",
+     "inner_blob": "511923153a1013fbf49b31a42c53f09eca5d29aa",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-11_t812-lease-self-renew-mutation-spec.json.gz"
+    }
+   ],
+   "source_blob": "4423487cd51204f58b70eb6c82e263f3386ea4f4",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [],
+   "match_found": false,
+   "oid": "1d41c41714b66ecb54eb23d52602fb7f8170602a",
+   "path": "output/insights/2026-09-09_codex-worktree-delta-manifest-interrupted/README.md",
+   "same_basename_non_match_count": 803,
+   "same_basename_non_match_sample": [
+    {
+     "blob": "86e30cad5ad393cd0a88461d0abe26622ac75b58",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": ".codex/agents/README.md"
+    },
+    {
+     "blob": "e474b0b16b9665a41254153eb49d09175d886d5a",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "README.md"
+    },
+    {
+     "blob": "840906cb17c25f3e0d13e620ceea4c9a15307c50",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "docs/README.md"
+    },
+    {
+     "blob": "abf81160b2ee8031a7e2ecfdef4ff61c6c5e0ddf",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "docs/archive/README.md"
+    },
+    {
+     "blob": "2ed49e28a0490153fd7428b12e81eceb60a17253",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "docs/handoff/README.md"
+    }
+   ],
+   "source_blob": "238c15313e91deefa744bd756e8ead5a6ddc19f4",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "9ad8bd6db570cfa82ebfda056534c8c8a8e3147f",
+     "inner_blob": "1703c19d222b5aef978dd0abd3ce5802548ba06e",
+     "mode": "100644",
+     "path": "output/insights/2026-08-17/t1262-submodule-identity-gate/mutation-result.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "2620635f74883f6162a4838b547344c3d8695b1c",
+   "path": "output/insights/2026-08-17_t1262-submodule-identity-gate/mutation-result.json",
+   "same_basename_non_match_count": 21,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "7c6142be93e471098642c2097b8188e66b19c6fb",
+     "inner_blob": "7534fc6a75fa193b673f9d42ab395f874c8b50b1",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-04_t419-attestation-clock/mutation-result.json.gz"
+    },
+    {
+     "gz_blob": "863926696fa7a8f97d742ecff5e3136c02204621",
+     "inner_blob": "bdee411cb78a076c3911b7b0885f3abec80ab6c1",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-05/t452-t453-clock-authority-impl/mutation-result.json.gz"
+    },
+    {
+     "gz_blob": "c96ca8ce9641333022d3964f698c82c974e366c7",
+     "inner_blob": "4eb40251736287ed60ce4a1aad6d37c866c28c5c",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-12/t922-measure-happypath/mutation/mutation-result.json.gz"
+    },
+    {
+     "gz_blob": "374899cd53a8e0172aaf5def8869cee12b2f7b0f",
+     "inner_blob": "63c68cfe96a704a18fa870e1fa73f9640af1aca9",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-13/t1027-acceptance-reds-checker/mutation-result.json.gz"
+    },
+    {
+     "gz_blob": "6ecbae44e9a5d647c4d9da0eeca0f46f0072e501",
+     "inner_blob": "5d9103d89be5f04d60aec7c8a154082734786013",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-13/t1053-dispatch-env-allowlist/mutation-result.json.gz"
+    }
+   ],
+   "source_blob": "1703c19d222b5aef978dd0abd3ce5802548ba06e",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "965d5f59b06da05361696e773574cb22842b1d45",
+     "inner_blob": "330b63fd72891a0f724a92c46cceedb25078ebc0",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd",
+   "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json",
+   "same_basename_non_match_count": 57,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "5805737f9ef9221f16b029423f4d02601bdc30d1",
+     "inner_blob": "764aae763210eb82954d3dcf59744186a5bd0564",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-12/acceptance-bottleneck/mutation/mutation-ledger-probe.json.gz"
+    },
+    {
+     "gz_blob": "0ee35cc5688481027e73c3fb7f27740d189c807b",
+     "inner_blob": "6441900d5fbfa2d99bcadb4de93406020f2eba7f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-13_exec-loc-and-usage-fixes/mutation-ledger-probe.json.gz"
+    },
+    {
+     "gz_blob": "378134d91ed7a9383ecdd349a56f1df7ee98cae7",
+     "inner_blob": "9e11bb6a8192cb0426d9cd62fd24bb5e1af02cbf",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-13_login-headroom-unreclaimable/mutation-ledger-probe.json.gz"
+    },
+    {
+     "gz_blob": "5ce7f6a4d6e89a4ef9875ec4a7647ae29f855528",
+     "inner_blob": "9e69790dc729d117eef1335560b690d5eaad6284",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-14/t971-swo-oracle-floor/mutation-ledger-probe.json.gz"
+    },
+    {
+     "gz_blob": "fd0aa9e8b7274c86640a71c2b140fa066ac1ce68",
+     "inner_blob": "2d871db27dcb418db864ae4f8c2250ceead2ef10",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-15/t1076-waiter-bytes/mutation-ledger-probe.json.gz"
+    }
+   ],
+   "source_blob": "330b63fd72891a0f724a92c46cceedb25078ebc0",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "292053442c8f1f7868dd4ba38570fdcb8abad57c",
+     "inner_blob": "1d5d068bed51f80ba139b32ae931fb8fb589519f",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1348-c09-c10-consumer/mutation/mutation-ledger.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd",
+   "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json",
+   "same_basename_non_match_count": 193,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "d1987e7f4522dcb248663af77c7c0e09ecaeebf8",
+     "inner_blob": "553abd0f508bff133b40fb9954e328fd8a2fb255",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29/ai-provenance-forward-fix-wave/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "5826796d3f18c6f513e91bdc522b33864b3758a3",
+     "inner_blob": "7d293b1159584ed59767596bd1c396c928dd2f3f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29_t146-probe-cleanup-wave/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "df6fc216bd2e8456fe5736e8821bc06454803fb8",
+     "inner_blob": "c0dee4008a60092164fe21bbb992d9da12fe6162",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-31_t194-dispatch-stdout-relay/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "44fb9b0695df9ca31b0be4f6689b0122b0285efd",
+     "inner_blob": "6125a9193a87cd1723ee1751ad7d7bac95e7009f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-01/t249-pegasus-policy-split/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "6632b8f4928be36c14b59332b380f7695debcb3a",
+     "inner_blob": "b8f8ed742243dbc170f130e01af5771baa750bc0",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-01_t244-generation-gate/mutation-ledger.json.gz"
+    }
+   ],
+   "source_blob": "1d5d068bed51f80ba139b32ae931fb8fb589519f",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "b0c086a1bd16b643525847f5972acec7cfa54f4e",
+     "inner_blob": "7caad3bee62013e8d1db764667353d7b5442bd3b",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1348-c09-c10-consumer/mutation/mutation-spec.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd",
+   "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json",
+   "same_basename_non_match_count": 270,
+   "same_basename_non_match_sample": [
+    {
+     "blob": "701dd45ad31948b38336ea1706988763cbc0cdd9",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29_t180-resource-envelope-wave/mutation-spec.json"
+    },
+    {
+     "blob": "a87e151d7f2aee1d2196c087a10cf0b7de77c1b1",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-02/t316-build-admission/mutation-spec.json"
+    },
+    {
+     "gz_blob": "9b8329d02ab82a3f7b6c85a29a22d3154e915616",
+     "inner_blob": "a51422edef541c542a23ff9cf7070f3f7c44b249",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-02_t243-parallel-docs-spool/mutation-spec.json.gz"
+    },
+    {
+     "gz_blob": "117a2a2e868660fdc2c14eaf3be2e34ebb34d9ec",
+     "inner_blob": "89f2945d188ecae430cc62d161da2781116ad862",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-03/fold-rotation-copy/mutation-spec.json.gz"
+    },
+    {
+     "gz_blob": "3216a0ec50011bbf4cfa600c80552783b17fb920",
+     "inner_blob": "51e46710c9cc60547cd1c31d28797e0cd35e763b",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-03/land-merge-signature/mutation-spec.json.gz"
+    }
+   ],
+   "source_blob": "7caad3bee62013e8d1db764667353d7b5442bd3b",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "e8f08300055d644f66763bf484e93206428820f1",
+     "inner_blob": "e4e36c03d2c687283d02274fd96ddda07c8452e6",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1348-c09-c10-consumer/mutation/mutation-spec-probe.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7",
+   "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json",
+   "same_basename_non_match_count": 90,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "0a5d94daf19ae8777f45e8d54bc7db69c15eff47",
+     "inner_blob": "8f5d95d4d031916d4bd653a61728443c81a3823f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-15/t817-verifier-epoch/mutation-spec-probe.json.gz"
+    },
+    {
+     "blob": "08e1694301d5109a324ae0464048021680e5b8d0",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-15/t856-verified-oracle-verdict/mutation-spec-probe.json"
+    },
+    {
+     "gz_blob": "e9b8f3bf46032e26657d9e289a946cf7f75eee38",
+     "inner_blob": "3ec0cf08549f2b732b711d0a44fd27b4eb62fc0d",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1066-wait-signal-flake/mutation-spec-probe.json.gz"
+    },
+    {
+     "gz_blob": "a0520844ff54ef0d5827b4b5113f107a90b871eb",
+     "inner_blob": "be429eed92ea855a8a20a5171836153950ea1e34",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1128-floor-same-root/mutation-spec-probe.json.gz"
+    },
+    {
+     "gz_blob": "e6fea382d53ee6ddaee11ce239d624cdd0d36c91",
+     "inner_blob": "d549aca98dad8cad19bcf0b051968b56339f02dd",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1180-pilot-approval/mutation/mutation-spec-probe.json.gz"
+    }
+   ],
+   "source_blob": "e4e36c03d2c687283d02274fd96ddda07c8452e6",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "965d5f59b06da05361696e773574cb22842b1d45",
+     "inner_blob": "330b63fd72891a0f724a92c46cceedb25078ebc0",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "3905db91ed815d051e0916f12144e01934431d0a",
+   "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json",
+   "same_basename_non_match_count": 57,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "5805737f9ef9221f16b029423f4d02601bdc30d1",
+     "inner_blob": "764aae763210eb82954d3dcf59744186a5bd0564",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-12/acceptance-bottleneck/mutation/mutation-ledger-probe.json.gz"
+    },
+    {
+     "gz_blob": "0ee35cc5688481027e73c3fb7f27740d189c807b",
+     "inner_blob": "6441900d5fbfa2d99bcadb4de93406020f2eba7f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-13_exec-loc-and-usage-fixes/mutation-ledger-probe.json.gz"
+    },
+    {
+     "gz_blob": "378134d91ed7a9383ecdd349a56f1df7ee98cae7",
+     "inner_blob": "9e11bb6a8192cb0426d9cd62fd24bb5e1af02cbf",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-13_login-headroom-unreclaimable/mutation-ledger-probe.json.gz"
+    },
+    {
+     "gz_blob": "5ce7f6a4d6e89a4ef9875ec4a7647ae29f855528",
+     "inner_blob": "9e69790dc729d117eef1335560b690d5eaad6284",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-14/t971-swo-oracle-floor/mutation-ledger-probe.json.gz"
+    },
+    {
+     "gz_blob": "fd0aa9e8b7274c86640a71c2b140fa066ac1ce68",
+     "inner_blob": "2d871db27dcb418db864ae4f8c2250ceead2ef10",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-15/t1076-waiter-bytes/mutation-ledger-probe.json.gz"
+    }
+   ],
+   "source_blob": "330b63fd72891a0f724a92c46cceedb25078ebc0",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "292053442c8f1f7868dd4ba38570fdcb8abad57c",
+     "inner_blob": "1d5d068bed51f80ba139b32ae931fb8fb589519f",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1348-c09-c10-consumer/mutation/mutation-ledger.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "3905db91ed815d051e0916f12144e01934431d0a",
+   "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json",
+   "same_basename_non_match_count": 193,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "d1987e7f4522dcb248663af77c7c0e09ecaeebf8",
+     "inner_blob": "553abd0f508bff133b40fb9954e328fd8a2fb255",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29/ai-provenance-forward-fix-wave/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "5826796d3f18c6f513e91bdc522b33864b3758a3",
+     "inner_blob": "7d293b1159584ed59767596bd1c396c928dd2f3f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29_t146-probe-cleanup-wave/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "df6fc216bd2e8456fe5736e8821bc06454803fb8",
+     "inner_blob": "c0dee4008a60092164fe21bbb992d9da12fe6162",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-31_t194-dispatch-stdout-relay/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "44fb9b0695df9ca31b0be4f6689b0122b0285efd",
+     "inner_blob": "6125a9193a87cd1723ee1751ad7d7bac95e7009f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-01/t249-pegasus-policy-split/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "6632b8f4928be36c14b59332b380f7695debcb3a",
+     "inner_blob": "b8f8ed742243dbc170f130e01af5771baa750bc0",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-01_t244-generation-gate/mutation-ledger.json.gz"
+    }
+   ],
+   "source_blob": "1d5d068bed51f80ba139b32ae931fb8fb589519f",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "b0c086a1bd16b643525847f5972acec7cfa54f4e",
+     "inner_blob": "7caad3bee62013e8d1db764667353d7b5442bd3b",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1348-c09-c10-consumer/mutation/mutation-spec.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "3905db91ed815d051e0916f12144e01934431d0a",
+   "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json",
+   "same_basename_non_match_count": 270,
+   "same_basename_non_match_sample": [
+    {
+     "blob": "701dd45ad31948b38336ea1706988763cbc0cdd9",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29_t180-resource-envelope-wave/mutation-spec.json"
+    },
+    {
+     "blob": "a87e151d7f2aee1d2196c087a10cf0b7de77c1b1",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-02/t316-build-admission/mutation-spec.json"
+    },
+    {
+     "gz_blob": "9b8329d02ab82a3f7b6c85a29a22d3154e915616",
+     "inner_blob": "a51422edef541c542a23ff9cf7070f3f7c44b249",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-02_t243-parallel-docs-spool/mutation-spec.json.gz"
+    },
+    {
+     "gz_blob": "117a2a2e868660fdc2c14eaf3be2e34ebb34d9ec",
+     "inner_blob": "89f2945d188ecae430cc62d161da2781116ad862",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-03/fold-rotation-copy/mutation-spec.json.gz"
+    },
+    {
+     "gz_blob": "3216a0ec50011bbf4cfa600c80552783b17fb920",
+     "inner_blob": "51e46710c9cc60547cd1c31d28797e0cd35e763b",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-03/land-merge-signature/mutation-spec.json.gz"
+    }
+   ],
+   "source_blob": "7caad3bee62013e8d1db764667353d7b5442bd3b",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [],
+   "match_found": false,
+   "oid": "3ea6ed7428605ce73ce5e05121fc74d5985146f1",
+   "path": "output/insights/2026-08-26_t1798-floor-oracle-manifest/acceptance-receipt.json",
+   "same_basename_non_match_count": 8,
+   "same_basename_non_match_sample": [
+    {
+     "blob": "2c307d99688f014b60a760151e102bffe47b67c6",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-28/t1933-acceptance-longest-node/acceptance-receipt.json"
+    },
+    {
+     "blob": "70daa29cda4918daa1b85cfc788330a0d269b255",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-09-02_t2067-oracle-manifest-selection/acceptance-receipt.json"
+    },
+    {
+     "blob": "126210ed3a65cadb1c849842931efa6fb5126110",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-09-07_t1851-unit-c-launcher-raw-facts/acceptance-receipt.json"
+    },
+    {
+     "blob": "1aea76294ad6f4461e7a519b63b12d756f35c66b",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-09-07_t1851-unit-c1b-contract-v2-defects/acceptance-receipt.json"
+    },
+    {
+     "blob": "549ec5e06d7a3f0459fafe443a98cb7410b62562",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-09-08/t2333-shard-session-timeline/acceptance-receipt.json"
+    }
+   ],
+   "source_blob": "724e525abf3e84bb859199c81407c29fea0c8397",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "d4cddfb2118814906957445712c6e62627b89329",
+     "inner_blob": "7954e6c65e4a2db01fc08a993a310ffe6da45a70",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1155-t1178-floor-receipt/mutation/mutation-result-round1-probe.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "4a62da8c3c3302d0e11a5cf951736e8be10e68b3",
+   "path": "output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-result-round1-probe.json",
+   "same_basename_non_match_count": 2,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "c360df1bc893ce2f1a0f530348612df994d4ab6e",
+     "inner_blob": "4bafc9838c03f115df1b5e01e34d006272a7159f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t523-holdout-admission/mutation/mutation-result-round1-probe.json.gz"
+    },
+    {
+     "gz_blob": "9fb0882e0a5d12406684aeee68a65a2eb8fcd122",
+     "inner_blob": "80a00e0ac44b97c7ef99a1f65f3e1e6acabc968a",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t936-rollout-identity/mutation/mutation-result-round1-probe.json.gz"
+    }
+   ],
+   "source_blob": "7954e6c65e4a2db01fc08a993a310ffe6da45a70",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "73e8f7c495573c3e0d1b5841e0301e02b5eb33e8",
+     "inner_blob": "47397b2efc0022321c224100a18af3493a72f414",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1155-t1178-floor-receipt/mutation/mutation-result-round2.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "4a62da8c3c3302d0e11a5cf951736e8be10e68b3",
+   "path": "output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-result-round2.json",
+   "same_basename_non_match_count": 1,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "3c5e58dbc93c19b68eee379cbc33d8c443c338f8",
+     "inner_blob": "bcf74eb738047935888ce13be65afa6707462781",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t936-rollout-identity/mutation/mutation-result-round2.json.gz"
+    }
+   ],
+   "source_blob": "47397b2efc0022321c224100a18af3493a72f414",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "5a40bad274fb27be652df826d5ce30ba5d898667",
+     "inner_blob": "d74574d0e241efb3b074600d9e4d1df71933d61d",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1155-t1178-floor-receipt/mutation/mutation-spec-round1-probe.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "4a62da8c3c3302d0e11a5cf951736e8be10e68b3",
+   "path": "output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-spec-round1-probe.json",
+   "same_basename_non_match_count": 2,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "0abef2b75b27c5652d9eedd1d6f0fc13d1e917ee",
+     "inner_blob": "66cb45d63bed2304878afae137bdcd406ca7c19a",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t523-holdout-admission/mutation/mutation-spec-round1-probe.json.gz"
+    },
+    {
+     "gz_blob": "54cfe11bc0f788336921d25c9fa694ae361072c9",
+     "inner_blob": "c4d3b44d7597c0427ea53a4708235a241b913f0a",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t936-rollout-identity/mutation/mutation-spec-round1-probe.json.gz"
+    }
+   ],
+   "source_blob": "d74574d0e241efb3b074600d9e4d1df71933d61d",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "c9f420436f8eccdff9ac8a17b878630849665f1d",
+     "inner_blob": "b3cda3e5da923b6e10ca85fd9e1db450c7e6f8e0",
+     "mode": "100644",
+     "path": "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger-probe.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "4c2b4805915416a8ca8ce520a20e220b391ea176",
+   "path": "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger-probe.json",
+   "same_basename_non_match_count": 57,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "5805737f9ef9221f16b029423f4d02601bdc30d1",
+     "inner_blob": "764aae763210eb82954d3dcf59744186a5bd0564",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-12/acceptance-bottleneck/mutation/mutation-ledger-probe.json.gz"
+    },
+    {
+     "gz_blob": "0ee35cc5688481027e73c3fb7f27740d189c807b",
+     "inner_blob": "6441900d5fbfa2d99bcadb4de93406020f2eba7f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-13_exec-loc-and-usage-fixes/mutation-ledger-probe.json.gz"
+    },
+    {
+     "gz_blob": "378134d91ed7a9383ecdd349a56f1df7ee98cae7",
+     "inner_blob": "9e11bb6a8192cb0426d9cd62fd24bb5e1af02cbf",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-13_login-headroom-unreclaimable/mutation-ledger-probe.json.gz"
+    },
+    {
+     "gz_blob": "5ce7f6a4d6e89a4ef9875ec4a7647ae29f855528",
+     "inner_blob": "9e69790dc729d117eef1335560b690d5eaad6284",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-14/t971-swo-oracle-floor/mutation-ledger-probe.json.gz"
+    },
+    {
+     "gz_blob": "fd0aa9e8b7274c86640a71c2b140fa066ac1ce68",
+     "inner_blob": "2d871db27dcb418db864ae4f8c2250ceead2ef10",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-15/t1076-waiter-bytes/mutation-ledger-probe.json.gz"
+    }
+   ],
+   "source_blob": "b3cda3e5da923b6e10ca85fd9e1db450c7e6f8e0",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "48d1ecb190d4991a77d7e9836134ba0b3553e909",
+     "inner_blob": "1b61ded646ba09c2d19229780058c889a2c0edd4",
+     "mode": "100644",
+     "path": "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "4c2b4805915416a8ca8ce520a20e220b391ea176",
+   "path": "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger.json",
+   "same_basename_non_match_count": 193,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "d1987e7f4522dcb248663af77c7c0e09ecaeebf8",
+     "inner_blob": "553abd0f508bff133b40fb9954e328fd8a2fb255",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29/ai-provenance-forward-fix-wave/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "5826796d3f18c6f513e91bdc522b33864b3758a3",
+     "inner_blob": "7d293b1159584ed59767596bd1c396c928dd2f3f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29_t146-probe-cleanup-wave/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "df6fc216bd2e8456fe5736e8821bc06454803fb8",
+     "inner_blob": "c0dee4008a60092164fe21bbb992d9da12fe6162",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-31_t194-dispatch-stdout-relay/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "44fb9b0695df9ca31b0be4f6689b0122b0285efd",
+     "inner_blob": "6125a9193a87cd1723ee1751ad7d7bac95e7009f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-01/t249-pegasus-policy-split/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "6632b8f4928be36c14b59332b380f7695debcb3a",
+     "inner_blob": "b8f8ed742243dbc170f130e01af5771baa750bc0",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-01_t244-generation-gate/mutation-ledger.json.gz"
+    }
+   ],
+   "source_blob": "1b61ded646ba09c2d19229780058c889a2c0edd4",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "b384506b9e10ef3df17be0a2a5e234a5258eee90",
+     "inner_blob": "e635cf7ab1d1a5664a253d2e4c9e6f28385768a8",
+     "mode": "100644",
+     "path": "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec-probe.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "4c2b4805915416a8ca8ce520a20e220b391ea176",
+   "path": "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec-probe.json",
+   "same_basename_non_match_count": 90,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "0a5d94daf19ae8777f45e8d54bc7db69c15eff47",
+     "inner_blob": "8f5d95d4d031916d4bd653a61728443c81a3823f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-15/t817-verifier-epoch/mutation-spec-probe.json.gz"
+    },
+    {
+     "blob": "08e1694301d5109a324ae0464048021680e5b8d0",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-15/t856-verified-oracle-verdict/mutation-spec-probe.json"
+    },
+    {
+     "gz_blob": "e9b8f3bf46032e26657d9e289a946cf7f75eee38",
+     "inner_blob": "3ec0cf08549f2b732b711d0a44fd27b4eb62fc0d",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1066-wait-signal-flake/mutation-spec-probe.json.gz"
+    },
+    {
+     "gz_blob": "a0520844ff54ef0d5827b4b5113f107a90b871eb",
+     "inner_blob": "be429eed92ea855a8a20a5171836153950ea1e34",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1128-floor-same-root/mutation-spec-probe.json.gz"
+    },
+    {
+     "gz_blob": "e6fea382d53ee6ddaee11ce239d624cdd0d36c91",
+     "inner_blob": "d549aca98dad8cad19bcf0b051968b56339f02dd",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1180-pilot-approval/mutation/mutation-spec-probe.json.gz"
+    }
+   ],
+   "source_blob": "e635cf7ab1d1a5664a253d2e4c9e6f28385768a8",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "3b36188d29d1583328ff9692d7fb47de63d05b44",
+     "inner_blob": "8bb8647d3a2c22350457339a61756005b4cf883f",
+     "mode": "100644",
+     "path": "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "4c2b4805915416a8ca8ce520a20e220b391ea176",
+   "path": "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec.json",
+   "same_basename_non_match_count": 270,
+   "same_basename_non_match_sample": [
+    {
+     "blob": "701dd45ad31948b38336ea1706988763cbc0cdd9",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29_t180-resource-envelope-wave/mutation-spec.json"
+    },
+    {
+     "blob": "a87e151d7f2aee1d2196c087a10cf0b7de77c1b1",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-02/t316-build-admission/mutation-spec.json"
+    },
+    {
+     "gz_blob": "9b8329d02ab82a3f7b6c85a29a22d3154e915616",
+     "inner_blob": "a51422edef541c542a23ff9cf7070f3f7c44b249",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-02_t243-parallel-docs-spool/mutation-spec.json.gz"
+    },
+    {
+     "gz_blob": "117a2a2e868660fdc2c14eaf3be2e34ebb34d9ec",
+     "inner_blob": "89f2945d188ecae430cc62d161da2781116ad862",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-03/fold-rotation-copy/mutation-spec.json.gz"
+    },
+    {
+     "gz_blob": "3216a0ec50011bbf4cfa600c80552783b17fb920",
+     "inner_blob": "51e46710c9cc60547cd1c31d28797e0cd35e763b",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-03/land-merge-signature/mutation-spec.json.gz"
+    }
+   ],
+   "source_blob": "8bb8647d3a2c22350457339a61756005b4cf883f",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [],
+   "match_found": false,
+   "oid": "54d4dd9b3eb270307e6294b9ac9b1484f7ba868f",
+   "path": "output/insights/2026-09-09_t2487-rescue-scale/README.md",
+   "same_basename_non_match_count": 803,
+   "same_basename_non_match_sample": [
+    {
+     "blob": "86e30cad5ad393cd0a88461d0abe26622ac75b58",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": ".codex/agents/README.md"
+    },
+    {
+     "blob": "e474b0b16b9665a41254153eb49d09175d886d5a",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "README.md"
+    },
+    {
+     "blob": "840906cb17c25f3e0d13e620ceea4c9a15307c50",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "docs/README.md"
+    },
+    {
+     "blob": "abf81160b2ee8031a7e2ecfdef4ff61c6c5e0ddf",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "docs/archive/README.md"
+    },
+    {
+     "blob": "2ed49e28a0490153fd7428b12e81eceb60a17253",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "docs/handoff/README.md"
+    }
+   ],
+   "source_blob": "1144e7e85bbd7d6f5e8dd4e8008f0669048bd782",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [],
+   "match_found": false,
+   "oid": "5b3ff770ddf2de1d7df528596636c1abcfd3d55b",
+   "path": "docs/handoff/2026-08-21-rulings-calibration-main-land.md",
+   "same_basename_non_match_count": 0,
+   "same_basename_non_match_sample": [],
+   "source_blob": "64281fbccb8bbb1970257cacb7026bc6f5b2149e",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "2b556c6f286e54d52f3c10cdcebcdf9b295b82ca",
+     "inner_blob": "79b3ab885e18f572b7f9f24cacc07f100c1e0690",
+     "mode": "100644",
+     "path": "output/insights/2026-08-17/t190-launcher-failure-artifact/mutation-ledger.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "66dccb28fedca606f96dcf9baf5c7f7a6979a599",
+   "path": "output/insights/2026-08-17_t190-launcher-failure-artifact/mutation-ledger.json",
+   "same_basename_non_match_count": 193,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "d1987e7f4522dcb248663af77c7c0e09ecaeebf8",
+     "inner_blob": "553abd0f508bff133b40fb9954e328fd8a2fb255",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29/ai-provenance-forward-fix-wave/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "5826796d3f18c6f513e91bdc522b33864b3758a3",
+     "inner_blob": "7d293b1159584ed59767596bd1c396c928dd2f3f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29_t146-probe-cleanup-wave/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "df6fc216bd2e8456fe5736e8821bc06454803fb8",
+     "inner_blob": "c0dee4008a60092164fe21bbb992d9da12fe6162",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-31_t194-dispatch-stdout-relay/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "44fb9b0695df9ca31b0be4f6689b0122b0285efd",
+     "inner_blob": "6125a9193a87cd1723ee1751ad7d7bac95e7009f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-01/t249-pegasus-policy-split/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "6632b8f4928be36c14b59332b380f7695debcb3a",
+     "inner_blob": "b8f8ed742243dbc170f130e01af5771baa750bc0",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-01_t244-generation-gate/mutation-ledger.json.gz"
+    }
+   ],
+   "source_blob": "79b3ab885e18f572b7f9f24cacc07f100c1e0690",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "12d290c983d44baa72ec4518a3a017498e9c2098",
+     "inner_blob": "763d3ff5835f70a65c279f2ba06232adb2bbb167",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1109-admission-grammar/mutation-ledger.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "6902920cdf39e03e1fdfcbc3e6dc18e31a564918",
+   "path": "output/insights/2026-08-16_t1109-admission-grammar/mutation-ledger.json",
+   "same_basename_non_match_count": 193,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "d1987e7f4522dcb248663af77c7c0e09ecaeebf8",
+     "inner_blob": "553abd0f508bff133b40fb9954e328fd8a2fb255",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29/ai-provenance-forward-fix-wave/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "5826796d3f18c6f513e91bdc522b33864b3758a3",
+     "inner_blob": "7d293b1159584ed59767596bd1c396c928dd2f3f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29_t146-probe-cleanup-wave/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "df6fc216bd2e8456fe5736e8821bc06454803fb8",
+     "inner_blob": "c0dee4008a60092164fe21bbb992d9da12fe6162",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-31_t194-dispatch-stdout-relay/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "44fb9b0695df9ca31b0be4f6689b0122b0285efd",
+     "inner_blob": "6125a9193a87cd1723ee1751ad7d7bac95e7009f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-01/t249-pegasus-policy-split/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "6632b8f4928be36c14b59332b380f7695debcb3a",
+     "inner_blob": "b8f8ed742243dbc170f130e01af5771baa750bc0",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-01_t244-generation-gate/mutation-ledger.json.gz"
+    }
+   ],
+   "source_blob": "763d3ff5835f70a65c279f2ba06232adb2bbb167",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [],
+   "match_found": false,
+   "oid": "75d55ccd8d192203b0f04b3fa46130735edb967b",
+   "path": "output/insights/2026-09-08_t2265-itt-seq0/verbatim/analyze.py",
+   "same_basename_non_match_count": 1,
+   "same_basename_non_match_sample": [
+    {
+     "blob": "2271b83c5edd16ea09d71738363ef93c406b4369",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "orchestrator/calibrator/analyze.py"
+    }
+   ],
+   "source_blob": "19abe4aa3723b9f1ee2b163ac74e643bacb6a9c1",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [],
+   "match_found": false,
+   "oid": "8c2e4e3f8ed8a7925072a5b9a381a5ee9257c8b5",
+   "path": "docs/handoff/2026-08-21-rulings-calibration-main-land.md",
+   "same_basename_non_match_count": 0,
+   "same_basename_non_match_sample": [],
+   "source_blob": "a83bfd59ac65d85248599081f9b542708a0031dd",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "965d5f59b06da05361696e773574cb22842b1d45",
+     "inner_blob": "330b63fd72891a0f724a92c46cceedb25078ebc0",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "aab5adbbcb599a72a9355e060ec32e825028298a",
+   "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json",
+   "same_basename_non_match_count": 57,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "5805737f9ef9221f16b029423f4d02601bdc30d1",
+     "inner_blob": "764aae763210eb82954d3dcf59744186a5bd0564",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-12/acceptance-bottleneck/mutation/mutation-ledger-probe.json.gz"
+    },
+    {
+     "gz_blob": "0ee35cc5688481027e73c3fb7f27740d189c807b",
+     "inner_blob": "6441900d5fbfa2d99bcadb4de93406020f2eba7f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-13_exec-loc-and-usage-fixes/mutation-ledger-probe.json.gz"
+    },
+    {
+     "gz_blob": "378134d91ed7a9383ecdd349a56f1df7ee98cae7",
+     "inner_blob": "9e11bb6a8192cb0426d9cd62fd24bb5e1af02cbf",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-13_login-headroom-unreclaimable/mutation-ledger-probe.json.gz"
+    },
+    {
+     "gz_blob": "5ce7f6a4d6e89a4ef9875ec4a7647ae29f855528",
+     "inner_blob": "9e69790dc729d117eef1335560b690d5eaad6284",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-14/t971-swo-oracle-floor/mutation-ledger-probe.json.gz"
+    },
+    {
+     "gz_blob": "fd0aa9e8b7274c86640a71c2b140fa066ac1ce68",
+     "inner_blob": "2d871db27dcb418db864ae4f8c2250ceead2ef10",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-15/t1076-waiter-bytes/mutation-ledger-probe.json.gz"
+    }
+   ],
+   "source_blob": "330b63fd72891a0f724a92c46cceedb25078ebc0",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "292053442c8f1f7868dd4ba38570fdcb8abad57c",
+     "inner_blob": "1d5d068bed51f80ba139b32ae931fb8fb589519f",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1348-c09-c10-consumer/mutation/mutation-ledger.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "aab5adbbcb599a72a9355e060ec32e825028298a",
+   "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json",
+   "same_basename_non_match_count": 193,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "d1987e7f4522dcb248663af77c7c0e09ecaeebf8",
+     "inner_blob": "553abd0f508bff133b40fb9954e328fd8a2fb255",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29/ai-provenance-forward-fix-wave/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "5826796d3f18c6f513e91bdc522b33864b3758a3",
+     "inner_blob": "7d293b1159584ed59767596bd1c396c928dd2f3f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29_t146-probe-cleanup-wave/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "df6fc216bd2e8456fe5736e8821bc06454803fb8",
+     "inner_blob": "c0dee4008a60092164fe21bbb992d9da12fe6162",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-31_t194-dispatch-stdout-relay/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "44fb9b0695df9ca31b0be4f6689b0122b0285efd",
+     "inner_blob": "6125a9193a87cd1723ee1751ad7d7bac95e7009f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-01/t249-pegasus-policy-split/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "6632b8f4928be36c14b59332b380f7695debcb3a",
+     "inner_blob": "b8f8ed742243dbc170f130e01af5771baa750bc0",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-01_t244-generation-gate/mutation-ledger.json.gz"
+    }
+   ],
+   "source_blob": "1d5d068bed51f80ba139b32ae931fb8fb589519f",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "b0c086a1bd16b643525847f5972acec7cfa54f4e",
+     "inner_blob": "7caad3bee62013e8d1db764667353d7b5442bd3b",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1348-c09-c10-consumer/mutation/mutation-spec.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "aab5adbbcb599a72a9355e060ec32e825028298a",
+   "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json",
+   "same_basename_non_match_count": 270,
+   "same_basename_non_match_sample": [
+    {
+     "blob": "701dd45ad31948b38336ea1706988763cbc0cdd9",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29_t180-resource-envelope-wave/mutation-spec.json"
+    },
+    {
+     "blob": "a87e151d7f2aee1d2196c087a10cf0b7de77c1b1",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-02/t316-build-admission/mutation-spec.json"
+    },
+    {
+     "gz_blob": "9b8329d02ab82a3f7b6c85a29a22d3154e915616",
+     "inner_blob": "a51422edef541c542a23ff9cf7070f3f7c44b249",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-02_t243-parallel-docs-spool/mutation-spec.json.gz"
+    },
+    {
+     "gz_blob": "117a2a2e868660fdc2c14eaf3be2e34ebb34d9ec",
+     "inner_blob": "89f2945d188ecae430cc62d161da2781116ad862",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-03/fold-rotation-copy/mutation-spec.json.gz"
+    },
+    {
+     "gz_blob": "3216a0ec50011bbf4cfa600c80552783b17fb920",
+     "inner_blob": "51e46710c9cc60547cd1c31d28797e0cd35e763b",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-03/land-merge-signature/mutation-spec.json.gz"
+    }
+   ],
+   "source_blob": "7caad3bee62013e8d1db764667353d7b5442bd3b",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "8a7c945673297aa7fadc597e4669aefc17b4d4d3",
+     "inner_blob": "9d4f4eb3659024a57fe9faa23a085e499e99925b",
+     "mode": "100644",
+     "path": "output/insights/2026-08-12/t930-hold-no-bypass/mutation-final.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "accabf0b5d9e9cf3e8ec33008a92c8f41a158787",
+   "path": "output/insights/2026-08-12_t930-hold-no-bypass/mutation-final.json",
+   "same_basename_non_match_count": 6,
+   "same_basename_non_match_sample": [
+    {
+     "blob": "8c5e939d723fffaa52dabf4a43648ad1871c3073",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-09-04/t2227-noinline-meaning/mutation-final.json"
+    },
+    {
+     "blob": "a28e1d22cfc508e6b4dadee2b137af4512704f9f",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-09-07/t2146-authority-guard/mutation-final.json"
+    },
+    {
+     "blob": "5167a067b9c949f4ac0267ca7e51855ca7c0ed36",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-09-08/t2408-lock-identity/mutation/mutation-final.json"
+    },
+    {
+     "blob": "9eab21b1d8494409bb9191ee60b6967e834700e6",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-09-09/t2419-meaning-decl/mutation-final.json"
+    },
+    {
+     "blob": "c1840c12482bb2e5594b52345f2988658f32a7a3",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-09-10/t2515-rr95-rr5-calibration/mutation-final.json"
+    }
+   ],
+   "source_blob": "9d4f4eb3659024a57fe9faa23a085e499e99925b",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "547961f29f431d9b4cdd8610ab1fbe2ab37926f7",
+     "inner_blob": "f0af421c1126a4a53e26b64e2e39a5ceaf570794",
+     "mode": "100644",
+     "path": "output/insights/2026-08-12/t930-hold-no-bypass/mutation-spec-final.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "accabf0b5d9e9cf3e8ec33008a92c8f41a158787",
+   "path": "output/insights/2026-08-12_t930-hold-no-bypass/mutation-spec-final.json",
+   "same_basename_non_match_count": 86,
+   "same_basename_non_match_sample": [
+    {
+     "blob": "ba920b22389524ba19cf415aab83c37a51fcaa12",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-06/t454-testification/mutation-spec-final.json"
+    },
+    {
+     "gz_blob": "f32f26c96b309df5d85b6b1cfc6d948874173ae0",
+     "inner_blob": "b2756fd31ca6ee4dff42d4bebff91eaecaee4f5e",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-07/t595-reasoning-ab-latch/mutation-spec-final.json.gz"
+    },
+    {
+     "gz_blob": "3672b6dc75720849b28db25681418dc98f207df1",
+     "inner_blob": "b75333b17799982e009ffdb18e7009c93f444c89",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-11/t695-t700-l2-routing/mutation-spec-final.json.gz"
+    },
+    {
+     "gz_blob": "923e5d423ca402b0943d70be46ae4d2e9e3c9e31",
+     "inner_blob": "4a9333c4f9d1d3c0242c47111dbe594414afe286",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1066-wait-signal-flake/mutation-spec-final.json.gz"
+    },
+    {
+     "gz_blob": "42472c4812bc8ea22ac4c1ac5c5642058b46fd95",
+     "inner_blob": "549394b10811441ee4a277e04bac45591e8f650b",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-16/t1143-epoch-closure/mutation-spec-final.json.gz"
+    }
+   ],
+   "source_blob": "f0af421c1126a4a53e26b64e2e39a5ceaf570794",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [],
+   "match_found": false,
+   "oid": "c0439777fcf27a56605821d206519d4efa6487e5",
+   "path": "docs/handoff/2026-08-21-rulings-calibration-main-land.md",
+   "same_basename_non_match_count": 0,
+   "same_basename_non_match_sample": [],
+   "source_blob": "8c44a863b343871928bb6bf1fe7db3575569db7e",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [],
+   "match_found": false,
+   "oid": "c3e2218c383e8c6a47ae2343fe78e558241d4e01",
+   "path": "output/insights/2026-08-11_t812-lease-self-renew-mutation-spec.json",
+   "same_basename_non_match_count": 1,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "275aa92475974d25c9f276c430f094860052a095",
+     "inner_blob": "511923153a1013fbf49b31a42c53f09eca5d29aa",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-11_t812-lease-self-renew-mutation-spec.json.gz"
+    }
+   ],
+   "source_blob": "3e43c36146e6e96c9b5bf89cbebccc61414ee896",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "53b76215832e9923b7ea98ed3cf6e9adcc96252d",
+     "inner_blob": "eba946b13ef8997cd46a87981b50a366093f9d4c",
+     "mode": "100644",
+     "path": "output/insights/2026-08-11/t657-stage0-rulings/mutation-ledger-discovery.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "c5d79e7050fecc229fd81f4879137be8bae49cb7",
+   "path": "output/insights/2026-08-11_t657-stage0-rulings/mutation-ledger-discovery.json",
+   "same_basename_non_match_count": 2,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "a055577a2338697328beadfed9fbb4b40889606c",
+     "inner_blob": "59710a3b1a97e72962e4ad302be5b5a89e589dc3",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-11/t657-stage0-fold/mutation-ledger-discovery.json.gz"
+    },
+    {
+     "gz_blob": "ca451eec0a9f0dad1cb6262c4b90876f6593ba51",
+     "inner_blob": "b67095e3f0e9629c5cdfc7549797d4c307b14c3b",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-11/t695-t700-l2-routing/mutation-ledger-discovery.json.gz"
+    }
+   ],
+   "source_blob": "eba946b13ef8997cd46a87981b50a366093f9d4c",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "6948b0edb468142a56988889874e817a03a60244",
+     "inner_blob": "4249c8f708d7a848b54905af4045a1b7d71f555b",
+     "mode": "100644",
+     "path": "output/insights/2026-08-11/t657-stage0-rulings/mutation-ledger.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "c5d79e7050fecc229fd81f4879137be8bae49cb7",
+   "path": "output/insights/2026-08-11_t657-stage0-rulings/mutation-ledger.json",
+   "same_basename_non_match_count": 193,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "d1987e7f4522dcb248663af77c7c0e09ecaeebf8",
+     "inner_blob": "553abd0f508bff133b40fb9954e328fd8a2fb255",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29/ai-provenance-forward-fix-wave/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "5826796d3f18c6f513e91bdc522b33864b3758a3",
+     "inner_blob": "7d293b1159584ed59767596bd1c396c928dd2f3f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29_t146-probe-cleanup-wave/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "df6fc216bd2e8456fe5736e8821bc06454803fb8",
+     "inner_blob": "c0dee4008a60092164fe21bbb992d9da12fe6162",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-31_t194-dispatch-stdout-relay/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "44fb9b0695df9ca31b0be4f6689b0122b0285efd",
+     "inner_blob": "6125a9193a87cd1723ee1751ad7d7bac95e7009f",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-01/t249-pegasus-policy-split/mutation-ledger.json.gz"
+    },
+    {
+     "gz_blob": "6632b8f4928be36c14b59332b380f7695debcb3a",
+     "inner_blob": "b8f8ed742243dbc170f130e01af5771baa750bc0",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-01_t244-generation-gate/mutation-ledger.json.gz"
+    }
+   ],
+   "source_blob": "4249c8f708d7a848b54905af4045a1b7d71f555b",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "63313d4c6fd35c55ed37834b5c3d74a7c940d423",
+     "inner_blob": "c492c9870f538bfbc8013096361063fdcd5c67e7",
+     "mode": "100644",
+     "path": "output/insights/2026-08-11/t657-stage0-rulings/mutation-spec.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "c5d79e7050fecc229fd81f4879137be8bae49cb7",
+   "path": "output/insights/2026-08-11_t657-stage0-rulings/mutation-spec.json",
+   "same_basename_non_match_count": 270,
+   "same_basename_non_match_sample": [
+    {
+     "blob": "701dd45ad31948b38336ea1706988763cbc0cdd9",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29_t180-resource-envelope-wave/mutation-spec.json"
+    },
+    {
+     "blob": "a87e151d7f2aee1d2196c087a10cf0b7de77c1b1",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-02/t316-build-admission/mutation-spec.json"
+    },
+    {
+     "gz_blob": "9b8329d02ab82a3f7b6c85a29a22d3154e915616",
+     "inner_blob": "a51422edef541c542a23ff9cf7070f3f7c44b249",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-02_t243-parallel-docs-spool/mutation-spec.json.gz"
+    },
+    {
+     "gz_blob": "117a2a2e868660fdc2c14eaf3be2e34ebb34d9ec",
+     "inner_blob": "89f2945d188ecae430cc62d161da2781116ad862",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-03/fold-rotation-copy/mutation-spec.json.gz"
+    },
+    {
+     "gz_blob": "3216a0ec50011bbf4cfa600c80552783b17fb920",
+     "inner_blob": "51e46710c9cc60547cd1c31d28797e0cd35e763b",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-03/land-merge-signature/mutation-spec.json.gz"
+    }
+   ],
+   "source_blob": "c492c9870f538bfbc8013096361063fdcd5c67e7",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [],
+   "match_found": false,
+   "oid": "c656d831e30ee0c261538889991af6c30bb45e89",
+   "path": "output/insights/2026-09-09_worktree-lock-reason-audit/README.md",
+   "same_basename_non_match_count": 803,
+   "same_basename_non_match_sample": [
+    {
+     "blob": "86e30cad5ad393cd0a88461d0abe26622ac75b58",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": ".codex/agents/README.md"
+    },
+    {
+     "blob": "e474b0b16b9665a41254153eb49d09175d886d5a",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "README.md"
+    },
+    {
+     "blob": "840906cb17c25f3e0d13e620ceea4c9a15307c50",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "docs/README.md"
+    },
+    {
+     "blob": "abf81160b2ee8031a7e2ecfdef4ff61c6c5e0ddf",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "docs/archive/README.md"
+    },
+    {
+     "blob": "2ed49e28a0490153fd7428b12e81eceb60a17253",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "docs/handoff/README.md"
+    }
+   ],
+   "source_blob": "4cb37a8b86a5f323472b51c66c0a3e5f70be989a",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [],
+   "match_found": false,
+   "oid": "c656d831e30ee0c261538889991af6c30bb45e89",
+   "path": "output/insights/2026-09-09_worktree-lock-reason-audit/evidence.tsv",
+   "same_basename_non_match_count": 0,
+   "same_basename_non_match_sample": [],
+   "source_blob": "eddeef26dd8bda86d62002926e766df9d64bccfe",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [],
+   "match_found": false,
+   "oid": "c656d831e30ee0c261538889991af6c30bb45e89",
+   "path": "output/insights/2026-09-09_worktree-lock-reason-audit/worktree-snapshot-130853.txt",
+   "same_basename_non_match_count": 0,
+   "same_basename_non_match_sample": [],
+   "source_blob": "788091a518a834a955b653390b7750615b2ca3a5",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [],
+   "match_found": false,
+   "oid": "c7a57d642fe72ce5c5480b761515054ac7817e63",
+   "path": "docs/handoff/2026-08-21-rulings-calibration-main-land.md",
+   "same_basename_non_match_count": 0,
+   "same_basename_non_match_sample": [],
+   "source_blob": "64281fbccb8bbb1970257cacb7026bc6f5b2149e",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [],
+   "match_found": false,
+   "oid": "cb0d930525930aef2e2d78ec420a5a386d3e63c7",
+   "path": "docs/handoff/2026-08-21-rulings-calibration-main-land.md",
+   "same_basename_non_match_count": 0,
+   "same_basename_non_match_sample": [],
+   "source_blob": "a83bfd59ac65d85248599081f9b542708a0031dd",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "8eef28d024c453754a78d4deb23f8771be402c43",
+     "inner_blob": "f15ade0e87eaf27edd44fcc87d53674ae783b729",
+     "mode": "100644",
+     "path": "output/insights/2026-08-19/t1379-c05-activation/mutation/mutation-out.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "cbd9d812141f5010ba90403c513a7dbad8cc7edc",
+   "path": "output/insights/2026-08-19_t1379-c05-activation/mutation/mutation-out.json",
+   "same_basename_non_match_count": 21,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "9730305e2bff371fddbfac08f3dc281a46719d8c",
+     "inner_blob": "0a64d064c7f07c695f20b1631add7ed6bc595b13",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-06_token-hygiene/mutation-out.json.gz"
+    },
+    {
+     "gz_blob": "f0d228e1e2ecc9285e86ead2db6a61845a1d8c33",
+     "inner_blob": "6da99b72fb51f2f6fccd55e3764ec504fc39a767",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-12/freeze-hold-residual/mutation-out.json.gz"
+    },
+    {
+     "gz_blob": "74c9041e80f52661f63de0a9540bc24ee6d59935",
+     "inner_blob": "d35a86cbd9eb93f516415d654d8fcd6426425031",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-13/t940-ledger-count-literal/mutation-out.json.gz"
+    },
+    {
+     "gz_blob": "db73bcb496bf2818531910620cd83575efcd245f",
+     "inner_blob": "6121732b4cdb0b2962792f09004b1f04383802b2",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-17/t1226-hold-guard-callonly/mutation-out.json.gz"
+    },
+    {
+     "gz_blob": "32b358e93eded152f4172c8a04d9bfd35717d6f1",
+     "inner_blob": "8cca25a648a7327b3ecdb363911dba1129660c34",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/s8c-c12-c04-consumer/mutation/mutation-out.json.gz"
+    }
+   ],
+   "source_blob": "f15ade0e87eaf27edd44fcc87d53674ae783b729",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "854c685f9fb5c3cad25b682f739fe7d1036864f0",
+     "inner_blob": "6b8df8262c4d8ac1f45fec915174992e20f664b6",
+     "mode": "100644",
+     "path": "output/insights/2026-08-19/t1379-c05-activation/mutation/mutation-spec.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "cbd9d812141f5010ba90403c513a7dbad8cc7edc",
+   "path": "output/insights/2026-08-19_t1379-c05-activation/mutation/mutation-spec.json",
+   "same_basename_non_match_count": 270,
+   "same_basename_non_match_sample": [
+    {
+     "blob": "701dd45ad31948b38336ea1706988763cbc0cdd9",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29_t180-resource-envelope-wave/mutation-spec.json"
+    },
+    {
+     "blob": "a87e151d7f2aee1d2196c087a10cf0b7de77c1b1",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-02/t316-build-admission/mutation-spec.json"
+    },
+    {
+     "gz_blob": "9b8329d02ab82a3f7b6c85a29a22d3154e915616",
+     "inner_blob": "a51422edef541c542a23ff9cf7070f3f7c44b249",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-02_t243-parallel-docs-spool/mutation-spec.json.gz"
+    },
+    {
+     "gz_blob": "117a2a2e868660fdc2c14eaf3be2e34ebb34d9ec",
+     "inner_blob": "89f2945d188ecae430cc62d161da2781116ad862",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-03/fold-rotation-copy/mutation-spec.json.gz"
+    },
+    {
+     "gz_blob": "3216a0ec50011bbf4cfa600c80552783b17fb920",
+     "inner_blob": "51e46710c9cc60547cd1c31d28797e0cd35e763b",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-03/land-merge-signature/mutation-spec.json.gz"
+    }
+   ],
+   "source_blob": "6b8df8262c4d8ac1f45fec915174992e20f664b6",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "6436e3b85bdec2e7fb86e690160feddd455000a2",
+     "inner_blob": "ce10b91cf6d61c056ffd354256698144a0c24f74",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1086-report-receipt/mutation/mutation-out-probe1.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "cd066a0487af0376fac76bcfb58b2c4462f9085d",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-probe1.json",
+   "same_basename_non_match_count": 2,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "a7e10ec4da21aab9e92c2d95ec26a7644328fb3a",
+     "inner_blob": "0c65fe6a9ae9954e9efeb29b32ecdf33d93d270b",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-12/freeze-hold-residual/mutation-out-probe1.json.gz"
+    },
+    {
+     "blob": "c5bf02b7bd6675c0f9fce69a5382836ccf795f15",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-21/t567-attempt-binding/mutation-out-probe1.json"
+    }
+   ],
+   "source_blob": "ce10b91cf6d61c056ffd354256698144a0c24f74",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "fb9cf1314ce5266ac60ab6a3413dc000b838d8b0",
+     "inner_blob": "eb7412da9800bbbf78941d7d499107518e0825a7",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1086-report-receipt/mutation/mutation-out-v2.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "cd066a0487af0376fac76bcfb58b2c4462f9085d",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v2.json",
+   "same_basename_non_match_count": 1,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "366ddae98ca7ee720a323633e4c104a606b6d66e",
+     "inner_blob": "4ade0cc72153669c3b5843137f8d3e6f818c7f10",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-06_token-hygiene/mutation-out-v2.json.gz"
+    }
+   ],
+   "source_blob": "eb7412da9800bbbf78941d7d499107518e0825a7",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "b273ffb608765b6d3b455326c24c0ba1293fe7f2",
+     "inner_blob": "d5aa872e1670019e1e96aad19fb7be8805e5cae7",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1086-report-receipt/mutation/mutation-out-v3-baseline-flake.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "cd066a0487af0376fac76bcfb58b2c4462f9085d",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v3-baseline-flake.json",
+   "same_basename_non_match_count": 0,
+   "same_basename_non_match_sample": [],
+   "source_blob": "d5aa872e1670019e1e96aad19fb7be8805e5cae7",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "4b035ff7004c5e44658e9b764ec98ce1468015c8",
+     "inner_blob": "a0985d663f9a9307c120a07422eec164335f1dd4",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1086-report-receipt/mutation/mutation-out-v4.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "cd066a0487af0376fac76bcfb58b2c4462f9085d",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v4.json",
+   "same_basename_non_match_count": 0,
+   "same_basename_non_match_sample": [],
+   "source_blob": "a0985d663f9a9307c120a07422eec164335f1dd4",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "7ff275c62d0de585f0f6b608a856aa229ab5911b",
+     "inner_blob": "55849e1ddc065fdb6ca990894d983ea083dafd59",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1086-report-receipt/mutation/mutation-spec-probe1.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "cd066a0487af0376fac76bcfb58b2c4462f9085d",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-probe1.json",
+   "same_basename_non_match_count": 2,
+   "same_basename_non_match_sample": [
+    {
+     "blob": "e27d06fe401a59cf3385931cecbe9516a8b7ca08",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-12/freeze-hold-residual/mutation-spec-probe1.json"
+    },
+    {
+     "blob": "e495df71e4eae19eab28df2605aa8bb8fe1ae499",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-09-09_t2154-n-pilot-prereg-successor/evidence/mutation-spec-probe1.json"
+    }
+   ],
+   "source_blob": "55849e1ddc065fdb6ca990894d983ea083dafd59",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "8ef4007d1c48da76f8719e46fd7cb8e8d0d69562",
+     "inner_blob": "897dfc949ca91664bf839543e4c7d4b8b691a7c7",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1086-report-receipt/mutation/mutation-spec-v2.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "cd066a0487af0376fac76bcfb58b2c4462f9085d",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v2.json",
+   "same_basename_non_match_count": 21,
+   "same_basename_non_match_sample": [
+    {
+     "gz_blob": "f633dc077ad15c95c89413c78e992f6bc69235d7",
+     "inner_blob": "3a5922fd0ada6f96f8b6e86db93669e0e27649ac",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-04_t244-p5-injection-gate/mutation-spec-v2.json.gz"
+    },
+    {
+     "blob": "199e1590a23093bb69b5abe28e90370b444e4f6a",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-05/t419-u2-contract-generation/mutation-spec-v2.json"
+    },
+    {
+     "gz_blob": "082325c61cf03a4862790b1d893701b3af8311cb",
+     "inner_blob": "a99f44ad207818ef26bf3adb58cc26fdd35bdf4c",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-05/t450-t412-preface/mutation-spec-v2.json.gz"
+    },
+    {
+     "blob": "1c1c49e32ac8c0cc4a041a99af730fa63d2dae3a",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-05/t455-guard-bash-sanction/mutation-spec-v2.json"
+    },
+    {
+     "gz_blob": "bf676a09ffe07753a3e6571a403d79f9cadfe1a8",
+     "inner_blob": "9992e191fa9fc0f902874cc5f33a57319717ca39",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-05/t481-pegasus-admission/mutation-spec-v2.json.gz"
+    }
+   ],
+   "source_blob": "897dfc949ca91664bf839543e4c7d4b8b691a7c7",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "a159f81752f1e16200d7693395553aa54633ce9a",
+     "inner_blob": "ee496dc51805325a4ac733ab5998dccd76cb0273",
+     "mode": "100644",
+     "path": "output/insights/2026-08-18/t1086-report-receipt/mutation/mutation-spec-v3.json.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "cd066a0487af0376fac76bcfb58b2c4462f9085d",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v3.json",
+   "same_basename_non_match_count": 8,
+   "same_basename_non_match_sample": [
+    {
+     "blob": "8fb0025e6372220a079c2c5fa7480723b7f5e923",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-05/t419-u2-contract-generation/mutation-spec-v3.json"
+    },
+    {
+     "gz_blob": "f3248e7a68b0a1a8302fe7531680af84fe3194bf",
+     "inner_blob": "ca167dcd6841ce4412c09a130cb7d044e913c978",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-06_token-hygiene/mutation-spec-v3.json.gz"
+    },
+    {
+     "gz_blob": "07711694cf6999c7aab4ef67650416485f7a018d",
+     "inner_blob": "1f48cbc29e3649d7f1178b501f20765b26c9e5de",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-07/t529-impl-reraise/mutation-spec-v3.json.gz"
+    },
+    {
+     "gz_blob": "f26a8ff0ea4eadc05c28a050abcd3b1afc773d26",
+     "inner_blob": "4816a6c2ba6fb8a20d820599cd26146b3796f66b",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-08/dangling-audit-offrepo-authority/mutation-spec-v3.json.gz"
+    },
+    {
+     "gz_blob": "196135a056bd21014319470441c2850478e55444",
+     "inner_blob": "70656c2150f45eb0b24d7fc3e3e25a1178269ebc",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-08/t627-noop-binding/mutation-spec-v3.json.gz"
+    }
+   ],
+   "source_blob": "ee496dc51805325a4ac733ab5998dccd76cb0273",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [],
+   "match_found": false,
+   "oid": "e0a80472fb37255903fd1a658a553369d8ba1a76",
+   "path": "output/insights/2026-08-17_t1262-submodule-identity-gate/mutation-spec.json",
+   "same_basename_non_match_count": 271,
+   "same_basename_non_match_sample": [
+    {
+     "blob": "701dd45ad31948b38336ea1706988763cbc0cdd9",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-07-29_t180-resource-envelope-wave/mutation-spec.json"
+    },
+    {
+     "blob": "a87e151d7f2aee1d2196c087a10cf0b7de77c1b1",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-02/t316-build-admission/mutation-spec.json"
+    },
+    {
+     "gz_blob": "9b8329d02ab82a3f7b6c85a29a22d3154e915616",
+     "inner_blob": "a51422edef541c542a23ff9cf7070f3f7c44b249",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-02_t243-parallel-docs-spool/mutation-spec.json.gz"
+    },
+    {
+     "gz_blob": "117a2a2e868660fdc2c14eaf3be2e34ebb34d9ec",
+     "inner_blob": "89f2945d188ecae430cc62d161da2781116ad862",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-03/fold-rotation-copy/mutation-spec.json.gz"
+    },
+    {
+     "gz_blob": "3216a0ec50011bbf4cfa600c80552783b17fb920",
+     "inner_blob": "51e46710c9cc60547cd1c31d28797e0cd35e763b",
+     "kind": "gz-candidate-different-inner-blob",
+     "mode": "100644",
+     "path": "output/insights/2026-08-03/land-merge-signature/mutation-spec.json.gz"
+    }
+   ],
+   "source_blob": "6fcaf1db5ba73f7944f0c93f447d39855bdc9535",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [],
+   "match_found": false,
+   "oid": "f181f703d1d68ab2bbd03ad2d6f594dfe039f030",
+   "path": "output/insights/2026-09-09_t2487-rescue-scale/README.md",
+   "same_basename_non_match_count": 803,
+   "same_basename_non_match_sample": [
+    {
+     "blob": "86e30cad5ad393cd0a88461d0abe26622ac75b58",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": ".codex/agents/README.md"
+    },
+    {
+     "blob": "e474b0b16b9665a41254153eb49d09175d886d5a",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "README.md"
+    },
+    {
+     "blob": "840906cb17c25f3e0d13e620ceea4c9a15307c50",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "docs/README.md"
+    },
+    {
+     "blob": "abf81160b2ee8031a7e2ecfdef4ff61c6c5e0ddf",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "docs/archive/README.md"
+    },
+    {
+     "blob": "2ed49e28a0490153fd7428b12e81eceb60a17253",
+     "kind": "same-basename-different-blob",
+     "mode": "100644",
+     "path": "docs/handoff/README.md"
+    }
+   ],
+   "source_blob": "1144e7e85bbd7d6f5e8dd4e8008f0669048bd782",
+   "source_mode": "100644"
+  },
+  {
+   "exact_matches": [],
+   "gz_matches": [
+    {
+     "gz_blob": "96b4685b4165950d085ecf20a7df0d1e4e97b952",
+     "inner_blob": "547985b659c13b4442e17a1972a7e59f0bcab8e7",
+     "mode": "100644",
+     "path": "output/insights/2026-08-11/t817-verifier-epoch/log-survival-scan.txt.gz"
+    }
+   ],
+   "match_found": true,
+   "oid": "f1feb592af5bc21a9754f64250039238da82454d",
+   "path": "output/insights/2026-08-11_t817-verifier-epoch/log-survival-scan.txt",
+   "same_basename_non_match_count": 0,
+   "same_basename_non_match_sample": [],
+   "source_blob": "547985b659c13b4442e17a1972a7e59f0bcab8e7",
+   "source_mode": "100644"
+  }
+ ],
+ "replace_objects": "disabled (--no-replace-objects)",
+ "repo": "/work/1/SFC/tanab/izanagi",
+ "trim": "same_basename_non_matches の全列挙だけを件数と先頭 5 件へ縮めた。判断に効く source_blob / source_mode / exact_matches / gz_matches / match_found は無削除。"
+}

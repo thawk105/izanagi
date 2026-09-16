@@ -1,0 +1,358 @@
+audit_dangling_commits: 進捗 root 検証 開始
+audit_dangling_commits: 進捗 root 検証 完了 elapsed_seconds=0.230 requested=1 accepted=1
+audit_dangling_commits: 進捗 fsck 開始
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=15.068
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=30.148
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=45.236
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=60.308
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=75.372
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=90.460
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=105.540
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=120.612
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=135.683
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=150.756
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=165.848
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=180.928
+audit_dangling_commits: 進捗 fsck heartbeat elapsed_seconds=196.036
+audit_dangling_commits: 進捗 fsck 完了 elapsed_seconds=198.220 commits=1266
+audit_dangling_commits: 進捗 bulk log 開始
+audit_dangling_commits: 進捗 bulk log 完了 elapsed_seconds=65.974 commits=1266 changed_pairs=2352
+audit_dangling_commits: 進捗 main・tip tree 開始
+audit_dangling_commits: 進捗 main・tip tree 完了 elapsed_seconds=37.543 tips=67 finding_commits=30 finding_pairs=53
+audit_dangling_commits: 進捗 blob metadata 開始
+audit_dangling_commits: 進捗 blob metadata 完了 elapsed_seconds=7.384 candidates=53 failures=0
+audit_dangling_commits: 進捗 repo 外走査の列挙 開始
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=523 files=4255
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=974 files=8075
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=1620 files=15505
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=2203 files=21182
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=2545 files=25549
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=2928 files=32299
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=3285 files=34388
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=3613 files=36758
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=3910 files=40872
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=4685 files=49759
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=5459 files=58116
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=5985 files=63970
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=6329 files=71094
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=6923 files=74668
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=7521 files=82231
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=8151 files=91853
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=8796 files=94681
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=9243 files=102189
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=9726 files=111275
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=10113 files=119392
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=10758 files=129713
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=11162 files=137925
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=11960 files=152922
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=12573 files=163108
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=13121 files=173480
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=13662 files=184313
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=14339 files=197327
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=15026 files=197706
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=15658 files=197865
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=16187 files=198429
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=16688 files=199172
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=17385 files=200747
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=18426 files=202224
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=20123 files=208879
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=21626 files=211355
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=22310 files=212325
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=23296 files=216905
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=24016 files=218317
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=25024 files=220059
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=26316 files=231463
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=27177 files=232632
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=28800 files=244944
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=30044 files=268259
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=31391 files=284631
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=32662 files=302697
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=33654 files=304074
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=35342 files=306360
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=36459 files=311872
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=38143 files=315150
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=39874 files=333687
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=42016 files=338146
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=44251 files=344914
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=46558 files=348888
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=48264 files=353190
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=50500 files=356890
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=51895 files=358781
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=53087 files=360590
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=54445 files=366666
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=55586 files=368263
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=56622 files=369671
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=57788 files=374427
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=59102 files=376187
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=60159 files=377628
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=60613 files=378209
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=61383 files=379274
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=62246 files=380611
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=63397 files=384126
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=64369 files=385906
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=65746 files=388730
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=66793 files=390732
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=67229 files=399616
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=67894 files=401222
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=68560 files=402084
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=69232 files=403536
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=70232 files=405552
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=70793 files=414768
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=71388 files=422097
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=71770 files=424944
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=72200 files=425572
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=72761 files=435033
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=73258 files=441762
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=73621 files=442188
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=74012 files=442640
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=74357 files=443133
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=74837 files=443814
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=75247 files=444282
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=75704 files=445104
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=76127 files=445720
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=76627 files=446166
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=77110 files=446806
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=77603 files=447950
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=78159 files=448874
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=78889 files=450247
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=79396 files=450865
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=79915 files=451534
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=80350 files=453501
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=80926 files=462511
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=81519 files=471685
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=82050 files=472420
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=82721 files=473415
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=83334 files=474606
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=83672 files=475019
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=84281 files=475818
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=84806 files=476602
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=85328 files=477240
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=86067 files=478216
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=86723 files=479111
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=87327 files=480080
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=88132 files=482099
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=88750 files=487357
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=89173 files=493020
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=90177 files=499650
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=90795 files=501545
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=91384 files=511233
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=92351 files=512591
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=93173 files=513714
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=94037 files=515953
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=94924 files=517199
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=95833 files=518454
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=96659 files=519541
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=97324 files=520520
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=97997 files=521920
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=98395 files=522459
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=99245 files=524121
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=99868 files=524992
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=100929 files=526472
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=102040 files=527986
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=102815 files=529631
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=103735 files=531676
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=104073 files=532104
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=104397 files=532526
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=105073 files=533520
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=106055 files=534773
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=106780 files=535695
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=107180 files=536255
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=107792 files=537088
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=109250 files=539920
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=110740 files=542442
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=111783 files=544651
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=113507 files=546924
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=115164 files=552419
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=116624 files=554938
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=118261 files=557644
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=119866 files=563381
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=121050 files=565028
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=122299 files=567805
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=123721 files=579546
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=124835 files=600403
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=126056 files=605933
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=127244 files=608031
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=128638 files=619646
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=130179 files=623720
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=132093 files=628814
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=133940 files=639675
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=135957 files=644399
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=137434 files=646425
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=139055 files=659805
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=140463 files=686498
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=142234 files=704919
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=143412 files=720125
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=145290 files=739466
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=146901 files=753958
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=147711 files=763184
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=148167 files=770007
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=148740 files=774652
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=149327 files=784113
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=149828 files=787967
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=150626 files=798991
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=151330 files=806773
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=151843 files=813419
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=152232 files=816393
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=152929 files=827093
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=153794 files=834644
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=154787 files=854856
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=155293 files=862379
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=156322 files=875527
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=157540 files=894857
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=159255 files=923704
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=161012 files=949384
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=162758 files=963271
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=164136 files=972503
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=165812 files=996320
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=167386 files=1019132
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=169127 files=1031348
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=171011 files=1050269
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=172368 files=1066490
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=174304 files=1089381
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=175588 files=1103768
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=177218 files=1125840
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=178571 files=1143864
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=180486 files=1172620
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=181743 files=1188534
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=183212 files=1206268
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=185283 files=1235564
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=187315 files=1259640
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=188549 files=1274494
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=189847 files=1280880
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=191281 files=1281952
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=192303 files=1282633
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=194269 files=1308562
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=195955 files=1325349
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=197967 files=1347131
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=200083 files=1375946
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=202303 files=1400340
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=205117 files=1429022
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=207448 files=1449981
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=209406 files=1466809
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=211393 files=1482986
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=213925 files=1499673
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=215949 files=1514576
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=218488 files=1546256
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=220041 files=1562430
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=221871 files=1587713
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=223282 files=1603753
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=225903 files=1633747
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=227758 files=1658905
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=229188 files=1675206
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=231549 files=1697038
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=233689 files=1721137
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=235479 files=1741564
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=237243 files=1758151
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=239621 files=1782642
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=241271 files=1785481
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=242966 files=1787076
+audit_dangling_commits: 進捗 repo 外走査 heartbeat directories=244120 files=1788350
+audit_dangling_commits: 進捗 repo 外走査の列挙 完了 elapsed_seconds=3386.707 candidate_oids=18 scan_performed=true
+audit_dangling_commits: 進捗 候補比較 開始
+audit_dangling_commits: 進捗 候補比較 完了 elapsed_seconds=0.818 candidate_oids=18 matched_keys=23 external_files=17 external_matches=23 max_matches_per_key=1
+audit_dangling_commits: 進捗 landed 参照 開始
+audit_dangling_commits: 進捗 landed 参照 heartbeat grep_batches=1/1 phase=start
+audit_dangling_commits: 進捗 landed 参照 heartbeat grep_batches=1/1 phase=complete rc=0
+audit_dangling_commits: 進捗 landed 参照 heartbeat ls_tree_batches=1/4 phase=start
+audit_dangling_commits: 進捗 landed 参照 heartbeat ls_tree_batches=1/4 phase=complete rc=0
+audit_dangling_commits: 進捗 landed 参照 heartbeat ls_tree_batches=2/4 phase=start
+audit_dangling_commits: 進捗 landed 参照 heartbeat ls_tree_batches=2/4 phase=complete rc=0
+audit_dangling_commits: 進捗 landed 参照 heartbeat ls_tree_batches=3/4 phase=start
+audit_dangling_commits: 進捗 landed 参照 heartbeat ls_tree_batches=3/4 phase=complete rc=0
+audit_dangling_commits: 進捗 landed 参照 heartbeat ls_tree_batches=4/4 phase=start
+audit_dangling_commits: 進捗 landed 参照 heartbeat ls_tree_batches=4/4 phase=complete rc=0
+audit_dangling_commits: 進捗 landed 参照 完了 elapsed_seconds=11.778 matches=0 match_keys=23 external_matches=23 patterns=25 generated_patterns=47 grep_batches=1 metadata_batches=4 contents_read=1664 bytes_read=50582497
+audit_dangling_commits: 進捗 抑止集約 開始
+audit_dangling_commits: 進捗 抑止集約 完了 elapsed_seconds=0.000 suppressions=0 findings=30
+audit_dangling_commits: 進捗 最終報告 開始
+audit_dangling_commits: 再生成可能物として除外 0 (commit, path) 対
+audit_dangling_commits: repo 外の同一実体の探索根 1 件
+  探索根: /work/1/SFC/tanab/dev-wave-jobs
+audit_dangling_commits: repo 外の同一実体で抑止 0 (commit, path) 対
+audit_dangling_commits: 要確認の到達不能変更 30 commit
+  commit 0b92c254b830bc333386eacafdc5d113292116be (docs(s8c): [T-1348] 変異 spec (probe) と段 1-6 の逐語を記録する)
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json
+  commit 0decf0a4eae5be07e59961e1d9fc735b42bae962 (docs(s8c): [T-1348] 変異 spec (probe) と段 1-6 の逐語を記録する)
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json
+  commit 1aa5ae77aa862ea68f5a5509ee748bd26ce18dab (test(mutation): [T-812] 受入 lease 自己保持の変異 spec を事前登録する)
+    main・全 local branch tip に不在: output/insights/2026-08-11_t812-lease-self-renew-mutation-spec.json
+  commit 1d41c41714b66ecb54eb23d52602fb7f8170602a (docs: 中断した worktree delta manifest wave の実測を残す)
+    main・全 local branch tip に不在: output/insights/2026-09-09_codex-worktree-delta-manifest-interrupted/README.md
+  commit 2620635f74883f6162a4838b547344c3d8695b1c ([T-1262] 変異結果と台帳 fragment を記録する)
+    main・全 local branch tip に不在: output/insights/2026-08-17_t1262-submodule-identity-gate/mutation-result.json
+  commit 2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd (docs(s8c): [T-1348] C09 / C10 consumer 配線の記録 — insight と台帳 fragment を書く)
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/wave-t1348-c09-c10-consumer/mutation-ledger-probe.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/wave-t1348-c09-c10-consumer/mutation-ledger.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/wave-t1348-c09-c10-consumer/mutation-spec.json
+  commit 2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7 (docs(s8c): [T-1348] 変異 spec (probe) と段 1-6 の逐語を記録する)
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json
+  commit 3905db91ed815d051e0916f12144e01934431d0a (docs(s8c): [T-1348] C09 / C10 consumer 配線の記録 — insight と台帳 fragment を書く)
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/wave-t1348-c09-c10-consumer/mutation-ledger-probe.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/wave-t1348-c09-c10-consumer/mutation-ledger.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/wave-t1348-c09-c10-consumer/mutation-spec.json
+  commit 3ea6ed7428605ce73ce5e05121fc74d5985146f1 (受入全走の結果を記録する)
+    main・全 local branch tip に不在: output/insights/2026-08-26_t1798-floor-oracle-manifest/acceptance-receipt.json
+  commit 4a62da8c3c3302d0e11a5cf951736e8be10e68b3 ([T-1155] / [T-1178] wave の記録 — spool fragment 3 本と insights (逐語・変異台帳・erratum 2 件))
+    main・全 local branch tip に不在: output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-result-round1-probe.json
+    main・全 local branch tip に不在: output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-result-round2.json
+    main・全 local branch tip に不在: output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-spec-round1-probe.json
+  commit 4c2b4805915416a8ca8ce520a20e220b391ea176 (docs(t1250): 第 4 世代の変異台帳・逐語・台帳 fragment を記録する)
+    main・全 local branch tip に不在: output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger-probe.json
+    main・全 local branch tip に不在: output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger.json
+    main・全 local branch tip に不在: output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec-probe.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/t1250-decider-version-generation/mutation-spec-probe.json
+    main・全 local branch tip に不在: output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/t1250-decider-version-generation/mutation-spec.json
+  commit 54d4dd9b3eb270307e6294b9ac9b1484f7ba868f (docs(t2487): [T-2487] 段 1 の実測だけを残して wave を中断する)
+    main・全 local branch tip に不在: output/insights/2026-09-09_t2487-rescue-scale/README.md
+  commit 5b3ff770ddf2de1d7df528596636c1abcfd3d55b (feat(pegasus): enable AI-driven rr20 rr80 calibration registration)
+    main・全 local branch tip に不在: docs/handoff/2026-08-21-rulings-calibration-main-land.md
+  commit 66dccb28fedca606f96dcf9baf5c7f7a6979a599 (untracked files on worktree-dev-wave-t190-failure-artifact: 2f6a83da Pre-register the mutation matrix for the launcher diagnostics wave)
+    main・全 local branch tip に不在: output/insights/2026-08-17_t190-launcher-failure-artifact/mutation-ledger.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/wave-t190-launcher-failure-artifact/mutation-ledger.json
+  commit 6902920cdf39e03e1fdfcbc3e6dc18e31a564918 (docs(t1109): 変異を最終 commit で再走した結果へ更新し、base digest を現 main へ採り直す)
+    main・全 local branch tip に不在: output/insights/2026-08-16_t1109-admission-grammar/mutation-ledger.json
+  commit 75d55ccd8d192203b0f04b3fa46130735edb967b ([T-2265] 段 7 記録 — insight、逐語 12 本、変異台帳 2 巡、spool fragment 3 本)
+    main・全 local branch tip に不在: output/insights/2026-09-08_t2265-itt-seq0/verbatim/analyze.py — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2265-itt-seq0/s6/analyze.py
+  commit 8c2e4e3f8ed8a7925072a5b9a381a5ee9257c8b5 (feat(pegasus): enable AI-driven rr20 rr80 calibration registration)
+    main・全 local branch tip に不在: docs/handoff/2026-08-21-rulings-calibration-main-land.md
+  commit aab5adbbcb599a72a9355e060ec32e825028298a (docs(s8c): [T-1348] C09 / C10 consumer 配線の記録 — insight と台帳 fragment を書く)
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/wave-t1348-c09-c10-consumer/mutation-ledger-probe.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/wave-t1348-c09-c10-consumer/mutation-ledger.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/wave-t1348-c09-c10-consumer/mutation-spec.json
+  commit accabf0b5d9e9cf3e8ec33008a92c8f41a158787 (docs(t930): 保留の迂回封鎖を記録し、裁定 fragment を相乗りさせる)
+    main・全 local branch tip に不在: output/insights/2026-08-12_t930-hold-no-bypass/mutation-final.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t930-hold-no-bypass/mutation-final.json
+    main・全 local branch tip に不在: output/insights/2026-08-12_t930-hold-no-bypass/mutation-spec-final.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t930-hold-no-bypass/mutation-spec-final.json
+  commit c0439777fcf27a56605821d206519d4efa6487e5 (feat(pegasus): enable AI-driven rr20 rr80 calibration registration)
+    main・全 local branch tip に不在: docs/handoff/2026-08-21-rulings-calibration-main-land.md
+  commit c3e2218c383e8c6a47ae2343fe78e558241d4e01 (test(mutation): [T-812] 受入 lease 自己保持の変異 spec を事前登録する)
+    main・全 local branch tip に不在: output/insights/2026-08-11_t812-lease-self-renew-mutation-spec.json
+  commit c5d79e7050fecc229fd81f4879137be8bae49cb7 (docs(t657): 段 0 裁定実施 wave の記録を凍結する)
+    main・全 local branch tip に不在: output/insights/2026-08-11_t657-stage0-rulings/mutation-ledger-discovery.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t657-stage0-rulings/mutation-ledger-discovery.json
+    main・全 local branch tip に不在: output/insights/2026-08-11_t657-stage0-rulings/mutation-ledger.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t657-stage0-rulings/mutation-ledger.json
+    main・全 local branch tip に不在: output/insights/2026-08-11_t657-stage0-rulings/mutation-spec.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t657-stage0-rulings/mutation-spec.json
+  commit c656d831e30ee0c261538889991af6c30bb45e89 (docs(lock-audit): 理由なし worktree lock 133 本の所有者証拠と施錠機構の提案)
+    main・全 local branch tip に不在: output/insights/2026-09-09_worktree-lock-reason-audit/README.md
+    main・全 local branch tip に不在: output/insights/2026-09-09_worktree-lock-reason-audit/evidence.tsv
+    main・全 local branch tip に不在: output/insights/2026-09-09_worktree-lock-reason-audit/worktree-snapshot-130853.txt
+  commit c7a57d642fe72ce5c5480b761515054ac7817e63 (feat(pegasus): enable AI-driven rr20 rr80 calibration registration)
+    main・全 local branch tip に不在: docs/handoff/2026-08-21-rulings-calibration-main-land.md
+  commit cb0d930525930aef2e2d78ec420a5a386d3e63c7 (feat(pegasus): enable AI-driven rr20 rr80 calibration registration)
+    main・全 local branch tip に不在: docs/handoff/2026-08-21-rulings-calibration-main-land.md
+  commit cbd9d812141f5010ba90403c513a7dbad8cc7edc (feat(s8c): [T-1379] 条件5 (C05) を machine_checkable へ昇格し DECIDER_VERSION を v5 へ bump する)
+    main・全 local branch tip に不在: output/insights/2026-08-19_t1379-c05-activation/mutation/mutation-out.json
+    main・全 local branch tip に不在: output/insights/2026-08-19_t1379-c05-activation/mutation/mutation-spec.json
+  commit cd066a0487af0376fac76bcfb58b2c4462f9085d (docs(s8b): [T-1086] の記録 — insight package と台帳 fragment を書く)
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-probe1.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1086-report-receipt/mutation-out-probe1.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v2.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1086-report-receipt/mutation-out-v2.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v3-baseline-flake.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v4.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1086-report-receipt/mutation-out-v4.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-probe1.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v2.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1086-report-receipt/mutation-spec-v2.json
+    main・全 local branch tip に不在: output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v3.json — repo 外に同一 bytes の実体あり (landed 参照なし): /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1086-report-receipt/mutation-spec-v3.json
+  commit e0a80472fb37255903fd1a658a553369d8ba1a76 ([T-1262] 変異事前登録と材料レポートを置く)
+    main・全 local branch tip に不在: output/insights/2026-08-17_t1262-submodule-identity-gate/mutation-spec.json
+  commit f181f703d1d68ab2bbd03ad2d6f594dfe039f030 (docs(t2487): [T-2487] 段 1 の実測だけを残して wave を中断する)
+    main・全 local branch tip に不在: output/insights/2026-09-09_t2487-rescue-scale/README.md
+  commit f1feb592af5bc21a9754f64250039238da82454d (docs(t817): 実測で裁定の前提が覆ったので実装せず再裁定へ返す — 突き合わせ対象 0 件、機構は健全に作れず、除外の面は 8 経路)
+    main・全 local branch tip に不在: output/insights/2026-08-11_t817-verifier-epoch/log-survival-scan.txt
+audit_dangling_commits: 進捗 最終報告 完了 elapsed_seconds=0.000
+audit_dangling_commits: 所要上限超過 elapsed_seconds=3708.671 limit_seconds=300.000
+audit_dangling_commits: elapsed_seconds=3708.671

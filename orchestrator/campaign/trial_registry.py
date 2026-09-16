@@ -52,8 +52,8 @@ if TYPE_CHECKING:
 
 
 
-MANIFEST_SCHEMA_VERSION = "p3-8c-trial-manifest/v2"
-REGISTRATION_SCHEMA_VERSION = "p3-8c-trial-registration/v2"
+MANIFEST_SCHEMA_VERSION = "p3-8c-trial-manifest/v3"
+REGISTRATION_SCHEMA_VERSION = "p3-8c-trial-registration/v3"
 DEFAULT_REGISTRY_PATH = Path("output/s8c-trial-registry/registry.jsonl")
 DEFAULT_EFFECTIVE_BINDING_PATH = Path(
     "output/s8c-preregistration/prereg-effective-binding.v1.json"
@@ -115,7 +115,7 @@ _COMMIT_RE = re.compile(r"[0-9a-f]{40}")
 _SHA256_RE = re.compile(r"[0-9a-f]{64}")
 _MANIFEST_KEYS = frozenset({"schema_version", "prereg_commit", "trials"})
 _TRIAL_KEYS = frozenset({
-    "trial_id", "arm", "holdout", "campaign_id", "generations",
+    "trial_id", "arm", "holdout", "campaign_id", "generations", "n",
 })
 _REGISTRATION_KEYS = frozenset({
     "schema_version", "manifest_sha256", "prereg_commit",
@@ -279,6 +279,7 @@ class TrialSpec:
     holdout: str
     campaign_id: str
     generations: int
+    n: int
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -782,7 +783,12 @@ def _parse_trials(
             _fail("field", f"{label}[{index}].campaign_id must be a non-empty string")
         if not (type(generations) is int and generations == 2):
             _fail("field", f"{label}[{index}].generations must be the integer 2")
-        trials.append(TrialSpec(trial_id, arm, holdout, campaign_id, generations))
+        n = raw_trial["n"]
+        if type(n) is not int:
+            _fail("field", f"{label}[{index}].n must be an integer")
+        if n < 2:
+            _fail("field", f"{label}[{index}].n must be at least 2")
+        trials.append(TrialSpec(trial_id, arm, holdout, campaign_id, generations, n))
     if len({item.trial_id for item in trials}) != len(trials):
         _fail("uniqueness", f"{label} reuses a trial_id")
     if len({item.campaign_id for item in trials}) != len(trials):
@@ -791,6 +797,8 @@ def _parse_trials(
     actual_universe = {(item.holdout, item.arm) for item in trials}
     if actual_universe != expected_universe:
         _fail("trial-universe", f"{label} is not the H1/H2 x on/off/swapped product")
+    if len({item.n for item in trials}) != 1:
+        _fail("field", f"{label} n differs across cells")
     holdout_order = {value: index for index, value in enumerate(HOLDOUTS)}
     arm_order = {value: index for index, value in enumerate(ARMS)}
     canonical = tuple(sorted(
@@ -831,6 +839,7 @@ def _trial_dict(trial: TrialSpec) -> dict[str, str | int]:
         "holdout": trial.holdout,
         "campaign_id": trial.campaign_id,
         "generations": trial.generations,
+        "n": trial.n,
     }
 
 
@@ -1564,13 +1573,14 @@ def _find_registration(
 
 
 def _trial_canonical_tuple(trial: TrialSpec) -> tuple[object, ...]:
-    """The complete manifest/registry identity, not only trial_id."""
+    """The complete manifest/registry identity, including replicate count n."""
     return (
         trial.trial_id,
         trial.arm,
         trial.holdout,
         trial.campaign_id,
         trial.generations,
+        trial.n,
     )
 
 
@@ -1581,7 +1591,7 @@ def _assert_manifest_registry_trial_set(
     """Require the six manifest trials and one registry row to be identical.
 
     A registry that contains every manifest trial with a changed arm,
-    holdout, campaign, or generations is rejected, and a registry with an
+    holdout, campaign, generations, or n is rejected, and a registry with an
     extra or missing trial is rejected.  The report ``cells`` collection is
     intentionally not inspected here; it is a one-run runtime object and is
     checked by a separate helper below.

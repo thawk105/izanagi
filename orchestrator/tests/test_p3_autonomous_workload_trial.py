@@ -1110,20 +1110,20 @@ def test_metric_projection_uses_ratio_keys_and_units() -> None:
     })
 
     assert set(metrics) == {
-        "throughput_ops_sec",
+        "throughput_tps",
         "abort_rate",
         "latency_ns",
         "llc_miss_rate",
         "ipc",
     }
     assert metrics == {
-        "throughput_ops_sec": 12345.0,
+        "throughput_tps": 12345.0,
         "abort_rate": 0.079,
         "latency_ns": 456.0,
         "llc_miss_rate": 0.124,
         "ipc": 2.5,
     }
-    assert type(metrics["throughput_ops_sec"]) is float
+    assert type(metrics["throughput_tps"]) is float
 
 
 def test_metric_projection_rejects_only_invalid_numbers() -> None:
@@ -1166,7 +1166,7 @@ def test_finite_metric_or_none_accepts_finite_boundaries() -> None:
 def test_role_metric_payloads_convert_only_percent_fields() -> None:
     perf_payload, leading_payload = A._role_metric_payloads(
         {
-            "throughput_ops_sec": 12345.0,
+            "throughput_tps": 12345.0,
             "abort_rate": 0.079,
             "latency_ns": 456.0,
             "llc_miss_rate": 0.124,
@@ -1176,7 +1176,7 @@ def test_role_metric_payloads_convert_only_percent_fields() -> None:
     )
 
     assert set(perf_payload) == {
-        "throughput_ops_sec",
+        "throughput_tps",
         "abort_rate_pct",
         "latency_ns",
         "llc_miss_rate",
@@ -1190,7 +1190,7 @@ def test_role_metric_payloads_convert_only_percent_fields() -> None:
     assert perf_payload["abort_rate_pct"] == 7.9
     assert leading_payload["cache_miss_rate_pct"] == 12.4
     assert perf_payload["llc_miss_rate"] == 0.124
-    assert perf_payload["throughput_ops_sec"] == 12345.0
+    assert perf_payload["throughput_tps"] == 12345.0
     assert perf_payload["latency_ns"] == 456.0
     assert perf_payload["ipc"] == 2.5
     assert leading_payload["IPC_overall"] == 2.5
@@ -1199,7 +1199,7 @@ def test_role_metric_payloads_convert_only_percent_fields() -> None:
 def test_role_metric_payloads_preserve_out_of_range_ratios() -> None:
     perf_payload, leading_payload = A._role_metric_payloads(
         {
-            "throughput_ops_sec": 12345.0,
+            "throughput_tps": 12345.0,
             "abort_rate": 1.5,
             "latency_ns": 456.0,
             "llc_miss_rate": -0.001,
@@ -1217,7 +1217,7 @@ def test_role_metric_payloads_preserve_out_of_range_ratios() -> None:
 def test_role_metric_payloads_reject_percent_overflow() -> None:
     perf_payload, leading_payload = A._role_metric_payloads(
         {
-            "throughput_ops_sec": sys.float_info.max,
+            "throughput_tps": sys.float_info.max,
             "abort_rate": sys.float_info.max,
             "latency_ns": sys.float_info.max,
             "llc_miss_rate": sys.float_info.max,
@@ -1234,7 +1234,7 @@ def test_role_metric_payloads_reject_percent_overflow() -> None:
 def test_role_metric_payloads_preserve_unobserved_none() -> None:
     perf_payload, leading_payload = A._role_metric_payloads(
         {
-            "throughput_ops_sec": None,
+            "throughput_tps": None,
             "abort_rate": None,
             "latency_ns": None,
             "llc_miss_rate": None,
@@ -1371,9 +1371,9 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
         providers["critic"].payloads,
         strict=True,
     ):
-        assert planner_payload["schema_version"] == "p3-autonomous-workload-trial/v3"
-        assert coder_payload["schema_version"] == "p3-autonomous-workload-trial/v3"
-        assert critic_payload["schema_version"] == "p3-autonomous-workload-trial/v3"
+        assert planner_payload["schema_version"] == "p3-autonomous-workload-trial/v4"
+        assert coder_payload["schema_version"] == "p3-autonomous-workload-trial/v4"
+        assert critic_payload["schema_version"] == "p3-autonomous-workload-trial/v4"
         critic_keys = json.dumps(critic_payload, sort_keys=True)
         assert "trigger_gate_binding" not in critic_keys
         assert '"mask"' not in critic_keys
@@ -1386,7 +1386,7 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
         baseline = coder_payload["baseline"]
         critic_metrics = critic_payload["harness_result"]["metrics"]
         assert set(current_perf) == {
-            "throughput_ops_sec",
+            "throughput_tps",
             "abort_rate_pct",
             "latency_ns",
             "llc_miss_rate",
@@ -1398,14 +1398,14 @@ def test_fixture_trial_runs_ycsb_abc_and_binds_descriptor(tmp_path) -> None:
             "IPC_overall",
         }
         assert set(baseline) == {
-            "throughput_ops_sec",
+            "throughput_tps",
             "abort_rate_pct",
             "latency_ns",
             "llc_miss_rate",
             "ipc",
         }
         assert set(critic_metrics) == {
-            "throughput_ops_sec",
+            "throughput_tps",
             "abort_rate",
             "latency_ns",
             "llc_miss_rate",
@@ -1480,7 +1480,7 @@ def test_generation_one_recipient_wiring_uses_role_projection(
     tmp_path, monkeypatch,
 ) -> None:
     expected_perf = {
-        "throughput_ops_sec": 12345.0,
+        "throughput_tps": 12345.0,
         "abort_rate_pct": 7.9,
         "latency_ns": 456.0,
         "llc_miss_rate": 0.124,
@@ -1519,7 +1519,7 @@ def test_generation_one_recipient_wiring_uses_role_projection(
     assert report["status"] == "complete"
     assert len(calls) == 1
     assert set(calls[0][0]) == {
-        "throughput_ops_sec",
+        "throughput_tps",
         "abort_rate",
         "latency_ns",
         "llc_miss_rate",
@@ -1608,7 +1608,7 @@ def test_generation_one_finite_metrics_preserve_recipient_units_and_report_schem
 
     critic_metrics = critic_payload["harness_result"]["metrics"]
     assert critic_metrics == {
-        "throughput_ops_sec": 12345.0,
+        "throughput_tps": 12345.0,
         "abort_rate": 0.079,
         "latency_ns": 456.0,
         "llc_miss_rate": 0.124,
@@ -3949,7 +3949,7 @@ def test_pending_critic_phase_sets_role_invalid_directly(tmp_path) -> None:
                     "stop_reason": "continue",
                 },
                 "metrics": {
-                    "throughput_ops_sec": None,
+                    "throughput_tps": None,
                     "abort_rate": None,
                     "latency_ns": None,
                     "llc_miss_rate": None,
@@ -4613,7 +4613,7 @@ def test_two_generation_role_metric_snapshot_fields_are_byte_identical(
     tmp_path, monkeypatch,
 ) -> None:
     expected_perf = {
-        "throughput_ops_sec": 12345.0,
+        "throughput_tps": 12345.0,
         "abort_rate_pct": 7.9,
         "latency_ns": 456.0,
         "llc_miss_rate": 0.124,
@@ -4701,7 +4701,7 @@ def test_finite_generation_one_metrics_do_not_refresh_generation_two_payload(
     [
         (
             "_planner_current_perf_payload",
-            "payload.current_perf.throughput_ops_sec",
+            "payload.current_perf.throughput_tps",
             "planner",
         ),
         (
@@ -4711,7 +4711,7 @@ def test_finite_generation_one_metrics_do_not_refresh_generation_two_payload(
         ),
         (
             "_coder_baseline_payload",
-            "payload.baseline.throughput_ops_sec",
+            "payload.baseline.throughput_tps",
             "coder",
         ),
     ],
@@ -4965,7 +4965,7 @@ def test_generation_one_payload_bytes_are_exactly_legacy_shape(tmp_path) -> None
     )
     cell = report["cells"][0]
     common = {
-        "schema_version": "p3-autonomous-workload-trial/v3",
+        "schema_version": "p3-autonomous-workload-trial/v4",
         "pilot_scope": "exploratory-ycsb-abc",
         "scientific_claim": False,
         "workload": "ycsb-a",
@@ -4979,7 +4979,7 @@ def test_generation_one_payload_bytes_are_exactly_legacy_shape(tmp_path) -> None
         },
     }
     null_perf = {
-        "throughput_ops_sec": None,
+        "throughput_tps": None,
         "abort_rate_pct": None,
         "latency_ns": None,
         "llc_miss_rate": None,
@@ -5363,7 +5363,7 @@ def test_off_critic_payload_does_not_reintroduce_campaign_identity(
                     "verdict": "pass",
                     "stop_reason": "continue",
                 },
-                "metrics": {"throughput_ops_sec": 1.0},
+                "metrics": {"throughput_tps": 1.0},
                 "raw_variant": raw_variant,
                 "critic_digest_generated": digest_generated,
                 "critic_attempted": False,
@@ -5400,7 +5400,7 @@ def test_off_critic_payload_does_not_reintroduce_campaign_identity(
             "descriptor_binding"
         ]
     assert generated_payload["harness_result"]["metrics"] == {
-        "throughput_ops_sec": 1.0,
+        "throughput_tps": 1.0,
     }
 
 
@@ -5909,7 +5909,7 @@ def test_direct_run_workload_defers_critic_to_finish_trial(tmp_path) -> None:
     assert pending == {
         "generation": 1,
         "common": {
-            "schema_version": "p3-autonomous-workload-trial/v3",
+            "schema_version": "p3-autonomous-workload-trial/v4",
             "pilot_scope": "exploratory-ycsb-abc",
             "scientific_claim": False,
             "workload": "ycsb-a",
@@ -5935,7 +5935,7 @@ def test_direct_run_workload_defers_critic_to_finish_trial(tmp_path) -> None:
             "critic_digest_generated": False,
         },
         "metrics": {
-            "throughput_ops_sec": None,
+            "throughput_tps": None,
             "abort_rate": None,
             "latency_ns": None,
             "llc_miss_rate": None,
@@ -7224,6 +7224,7 @@ def t325_registered_trial(tmp_path, monkeypatch):
                 "holdout": holdout,
                 "campaign_id": prepared.campaign_id,
                 "generations": 2,
+                "n": 2,
             })
     manifest_path = repo / "manifests" / "trial.json"
     manifest_path.parent.mkdir()
@@ -10365,6 +10366,7 @@ def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
                 "holdout": holdout,
                 "campaign_id": campaign_id,
                 "generations": 2,
+                "n": 2,
             })
     manifest_path = t325_registered_trial.repo / "manifests" / "m13-prime.json"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)

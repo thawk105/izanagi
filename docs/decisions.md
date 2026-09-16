@@ -63273,3 +63273,378 @@ lock の retry は競合 (`EAGAIN` / `EACCES`) だけを対象にし、`EIO` 等
 **却下した選択肢:**
 - 分岐ごと削除する — test が失う検出力の代替を用意していない。
 - そのまま残して何も書かない — 恒真な保証を防壁として数える誤りを温存する。
+
+## D2064. role payload の throughput field を実体名へ改め、旧名の読み替えを版で分ける (2026-09-16)
+
+**決定 (1): 新名は `throughput_tps` とする。** 旧名 `throughput_ops_sec` の実体は
+transactions/sec である。producer の源値は `outcome["fitness_tps"]`、その源は
+`pipeline.py` の `bench.median_tps` であり、CCBench 側は `common/result.cc` の `throughput[tps]` で
+ある。YCSB 既定 `ycsb_max_ope=10` (`include/ycsb.hh`) の下で名前どおり operations/sec と読むと
+**名目 10 倍ずれる**。値は正しく名前だけが誤りであった。`throughput_tps` は
+`orchestrator/calibrator/benchparse.py` と `orchestrator/calibrator/model.py` が既に同じ単位で
+使っており、新しい別表記を導入しない。**値・`x100` 換算・ゲートの定義と順序と閾値は変えない。**
+
+**決定 (2): role schema を `p3-autonomous-workload-trial/v4` へ上げる。** 理由は値の意味変更では
+なく **exact-key 契約の変更**である。`s8c_generation_projection.py` の `_PERF_KEYS` と
+`autonomous_trial_completeness.py` の独立 `_PERF_KEYS` は、payload の key 集合を完全一致で要求する。
+改名は受理される payload の集合を変えるため、同じ版が互換でない 2 契約を表さないように版を分ける。
+`REPORT_SCHEMA_VERSION` は report の形を変えないので v3 のまま据え置く。
+`autonomous_trial_completeness.py` の二重定義は意図的な独立再計算であり、producer から import する
+形へ置き換えない。
+
+**決定 (3): 旧名で書かれた既存成果物は書き換えず、版で読み替える。** role schema v4 以降は
+`throughput_tps` を使う。**v3 以前の role payload に現れる `throughput_ops_sec` は同じ
+transactions/sec を表し、読み替えに数値の乗除は伴わない。** 既存成果物の再検証には生成時のコード版と
+契約を用いる。旧名を持つのは当該 metric object であり、すべての record がその field を持つという
+意味ではない。role schema の系列と、据え置く report schema の系列は別である。
+**読み手側に旧名を受理する alias を足さない。** 旧版と新版の throughput field を読み分けて横断
+利用する本番 consumer は、`orchestrator/**/*.py` と `tools/**/*.py` の journal reader・completeness・
+trial registry・acceptance consumer を探索した範囲で不在であった。
+
+**決定 (4): 事前登録判定器の版 `DECIDER_VERSION` は bump しない。**
+`docs/phase3-8c-preregistration.md` の改訂手続きは「判定器・評価器・射影のいずれかで受理集合・
+拒否理由・射影された判定入力の意味を変える変更」に bump を要求する。本改名はそのいずれにも
+当たらない。`s8c_preregistration_evidence.py` に `_PERF_KEYS` / `_SOURCE_METRIC_KEYS` /
+`throughput` は 0 件であり、評価器が射影 module へ要求するのは module 級代入
+`_CRITIC_KEYS` / `_DIAGNOSTIC_METRICS` と関数 `apply_critic_feedback` /
+`_validate_critic_projection` / `validate_planner_payload` の実在だけである。
+`s8c_preregistration.py` の `_projection_module_identity()` が射影 module に対して行うのは
+live bytes と登録 commit の blob の同一性照合だけで、`_PERF_KEYS` を読まない。
+過去に `DECIDER_VERSION` を動かした 9 commit はすべて条件の machine_checkable 昇格または
+証拠契約の変更であり、射影 module 内の key 集合変更による先例は 0 件であった。
+
+**決定 (5): 射影 module の blob 同一性が変わることは開示し、pin は緩めない。**
+`s8c_generation_projection.py` は `campaign_lock.py` の `CONTRACT_LOADER_RELATIVE_PATHS` に含まれ、
+`s8c_preregistration.py` の `PROJECTION_MODULE_PATH` でもある。改名は同 file の bytes を変えるため、
+**改名前 commit を指す既存の登録は改名後の live code に対して `projection-blob-mismatch` を返す。**
+これは contract-loader path を触る全変更に共通の帰結であり、本決定が新設する制約ではない。
+**記録済みの測定は無効にならない** (規律 7 — 当時そのコードでその測定をした事実は後から変わらない)。
+新しい実走には新しい登録 commit が要る。既存実走を改名後の checkout で再受理させる必要があるか、
+その手順は本決定の範囲外とし、別途の裁定に委ねる。
+
+**理由:**
+
+- 論文の実験節と図表、および手動射影の runbook が role へ渡した入力を旧名で記す。名前どおり
+  読むと 10 倍の取り違えが起きる面であり、値が正しいぶん誤りが表に出にくい。
+- 版を据え置いて 3 実装の key を揃えるだけでも新規出力の経路は動くが、旧 v3 の receipt は新しい
+  key 集合と一致しなくなり、同じ v3 が互換でない 2 契約を表す。
+- 旧成果物を新しいコードで通すための alias を足すと、名前の誤りを直した意味が薄れ、
+  どの版の契約で検証したのかが payload から読めなくなる。
+
+**却下した選択肢:**
+
+- **`throughput_txn_sec`** — `latency_ns` と並びは揃うが、producer の源 field `fitness_tps` と
+  CCBench の出力名 `throughput[tps]` から離れ、repo 内に既に在る `throughput_tps` と二表記になる。
+- **role 定義側に単位を注記するだけで名前は残す** — 論文の図表と runbook は field 名で引かれる。
+  注記は読まれない側に置かれる。
+- **読み手側へ旧名 alias を足す** — 横断利用する本番 consumer の実在を確認できなかった。
+  仮想の互換要求のために受理形を増やすのは、要求外の一般化である。
+- **`DECIDER_VERSION` を念のため bump する** — 受理意味を変えていないのに bump すると、
+  次世代の条件凍結 record の発行と、その `ruling_reference` が指す決定の先行着地が必要になり、
+  変更単位が 2 wave へ割れる。判定器の版は「受理意味が変わった」という主張であり、
+  変わっていない主張を記録すると版の意味が薄まる。
+- **`src/coder-spec.md` の §4 も改名する** — 同節は「旧設計 (D39 以前) で superseded」「この
+  throughput/abort/latency 値は現行運用で coder に一切渡らない」「本節は経緯記録として残す」と
+  自ら明記する歴史記録である。記録された当時の字面を後から書き換えない。
+
+## D2065. 到達不能 object の `accepted-loss` は AI の内容照合で代替しない (2026-09-16)
+
+**決定:** `docs/unreachable-object-ledger.md` の `accepted-loss` は、台帳の逐語どおり
+**人間が喪失を明示的に受容した場合にだけ**使う。AI が「内容が main に残っている」と照合できたことを
+受容へ読み替えてはならない。AI が閉じられるのは救出 (`rescued`)、再到達確認
+(`reachable-again`)、不在確認 (`object-missing`) の 3 つである。
+
+救出か喪失受容かを AI に判断させる裁定 (D2044 項 7 など) は、**救出を選べば追加の承認待ちなしに
+閉じられる**。救出の代償は小さい — 30 件の実測で恒久的に延命した object は 322 個 (commit 40 本)
+だった。ref を作るだけなので working tree も main も変わらない。
+
+**理由:**
+- 台帳は `accepted-loss` を「人間が喪失を明示的に受容した場合」と定義している。この状態は監査が
+  再報告しても stale 通知を出さない唯一の状態であり、通知対象集合を恒久的に縮める。
+  根拠の強さを人間の受容に固定するのは、その効果に見合う。
+- 内容照合は着地の証明ではない。basename と basename + `.gz` の候補集合に blob OID 一致が
+  あったかしか言えず、別名への改名・mode・object type・探索範囲外の同一内容は見ていない。
+  これで `accepted-loss` を出すと、`assessment_verdict` が `indeterminate` のまま
+  実質的に `landed` を主張することになる。
+- 救出は object を実際に保持するので、判定を甘くする方向の変更に当たらない。
+
+**却下した選択肢:**
+- 内容一致を人間の受容の代理とする — 裁定の拡大解釈であり、通知対象集合が根拠不足で縮む。
+  段 2 plan と段 3 の敵対 2 レンズが独立に blocker と判定した。
+- `pending` のまま記帳して閉じたことにする — 下界が近いか過ぎた entry は毎回
+  `pending-ledger-entry` を出すので、常時 due の通知は止まらない。
+- 既知良性の類型を記帳なしで認める契約へ変える — D2044 項 7 が明示的に却下している。
+
+## D2066. 歴史閲覧は記録 policy と照合し、記録側へ向ける比較は policy SHA と stock pin の 2 つに限る (2026-09-16)
+
+**決定:** `CampaignReadPurpose.HISTORICAL_RAW` で v2 campaign を読むときだけ、campaign lock に記録された
+build admission policy を別型 (`HistoricalBuildAdmissionPolicy`) の専用 decoder で読み、現行 policy との
+一致は要求しない。記録側へ向ける比較は、build receipt の `policy_sha256` と stock class の
+source commit (`repo_stock_pin`) の **2 つだけ**とする。generator 登録・review 登録・coder authority の
+照合は現行の登録簿と literal のまま残す。診断は `classification="historical-policy-version"` に出し、
+`admission_status` は既存の `historical-not-reclassified` を再利用する。epoch は変えない。
+`CERTIFIED_ACCEPTANCE` は従来どおり現行 policy との一致を要求する。
+
+**理由:**
+- 照合が purpose 分岐より手前にあり、policy の版が上がると過去の v2 campaign を purpose を問わず
+  読めなくしていた。D1653 / D1770 が decoder 層で、D1841 が認証 attempt 層で同型の問題を
+  「記録どおりに読む」方向で解いており、本決定は policy 層の同型である。
+- 5 つの比較すべてを記録側へ向けると、外部の登録簿・authority との照合が自己申告の整合確認へ
+  変わる。実測された版上げ事象は `CURRENT_PIN` の前進 (`fb5e74a17`、2026-08-12) だけであり、
+  registry への member 追加では receipt が指す ID は現行 enum に残るので現行照合を通る。
+  **registry と authority を現行照合のまま残せば、偽造 policy が架空 generator / authority を
+  名乗っても現行の登録簿が拒否する。**
+- 既存 status を再利用すると、`layer3_report.py` と `autonomous_trial_completeness.py` の
+  certifying 条件 (`admission_status == "admitted"`) を構造的に満たさない。`layer3_schema.json` は
+  classification enum を広げる代わりに `certifying_input=true` 側を従来 2 値に制限して相殺する。
+- 歴史閲覧で成立する保証は「記録 policy と記録 receipt の内的整合」までであり、記録値が当時
+  実在した policy だったことは保証しない。この限界は classification と
+  `current_verifier_conformance = "unknown"` (D1365) で表に出す。
+
+**却下した選択肢:**
+- **5 つの比較すべてを記録側へ向ける (段 2 plan の案)** — 外部照合が自己申告へ落ちる。
+  registry 削除・authority 変更は未実測の事象で、`DW-G05` の仮想リスクに当たる。
+- **歴史閲覧では policy 照合そのものを外す** (`s8b_binary_admission.validate_portable_binary_record` の
+  `expected_policy=None` と同型) — lock と WAL の receipt が同じ policy に束縛されているという
+  内的整合まで失う。
+- **識別子を epoch の `reason_code` に足す** — D1365 が記録 epoch の reason enum と certified 側の
+  `current-closure-unavailable` を変えないと定めている。policy 差は verifier closure の理由でもない。
+- **`BuildAdmissionPolicy` の subclass にする** — `wal.py` の exact 型検査を通らず、別入口・別返却型を
+  求める D1653 の条件にも反する。
+
+**残余:** registry からの member 削除・改名、`_AUTHORITY_KIND` / `POLICY_SCHEMA` literal の変更が
+起きると歴史閲覧はまた塞がる。いずれも実測されていない事象であり、本決定では扱わない。
+
+## D2067. 受入短縮の対象を shard-0 の t080 e2e へ実測で改める (2026-09-16)
+
+**決定:** 受入全走で 5 分上限を超えているのは **shard-0 だけ**であり、その床は
+`orchestrator/tests/test_s8b_oracle_driver.py` の t080 e2e 群であると記録する。
+D1918 が定めた「最遅 shard は shard-2、床は xdist group `p3-b4-material-report`」は
+**2026-09-16 時点で失効している**。以後の受入短縮タスクはこの対象を起点にする。
+
+**理由:**
+
+- 2026-09-16 の直近 7 走の `junit.xml` の `testsuite time` 中央値は shard-0 = 325.5 秒、
+  shard-1 = 229.8 秒、shard-2 = 236.6 秒である。300 秒を超えるのは shard-0 だけだった。
+- shard-0 の内訳 (中央値) は pre 約 65 秒 + disp 29.6 秒 + test span 231.0 秒で、
+  span と最長単体 node (222.51 秒) の差は 8.49 秒しかない。**span は最長 node で決まっている。**
+- `p3-b4-material-report` group は現在 shard-1 の最忙 worker (169.5 秒) であり、最遅ではない。
+- t080 系 38 node の所要総和は 2611.1 秒で、shard-0 の node 所要総和の 32% を占める
+  (junit の所要は待ちを含むので CPU 時間ではない)。次点の非 t080 node は 161.1 秒である。
+- 対象を実測で選ぶことは、受入短縮についての既存のユーザー裁定が明示的に求めている。
+
+**却下した選択肢:**
+
+- D1918 の記述をそのまま使う — 一次資料が最遅 shard の identity の変化を示している。
+- 最長 node 1 本だけを名指しする — 200〜222 秒の t080 が 10 本並んでおり、1 本を消しても
+  次の t080 が床になる。D1714 が同型の誤りを既に否定している。
+
+## D2068. t080 fixture の index 化高速案は現時点で採らない (2026-09-16)
+
+**決定:** t080 e2e の base 構築を速くする 3 案 —
+(A) 複製する git 可視 output を固定 whitelist へ限定する、
+(B) 実 repo の object store 全体を alternates で借りる、
+(C) 必要 blob だけを fixture 内へ移送して独立 index を組む —
+を**いずれも採らない**。意味を変えない圧縮設定の変更も採らない。
+
+**理由:**
+
+- **(A) は受理集合を変える。** 非除外 output の任意の可視 file に三軸 conjunction が入ると、
+  現行は fixture へ複製され発行 subprocess の production scan が拒否する。whitelist はこの拒否経路を
+  消す。既存の未知性負例は fixture 作成**後**に root 直下へ file を置く形なので、この脱落を検出しない。
+  known-axes 側にも同型がある (glob に一致する追加候補を隠すと複数候補拒否が消える)。規律 2 に反する。
+- **(B) は観測を変え、既存 assert が検出しない。** 実 repo にあり fixture に無い recorded commit が
+  alternates 経由で見えると、ancestry が `missing-commit` から `not-ancestor` へ変わりうる。
+  report の独立検算は 17 observation のうち先頭 15 件しか覆わず、report と verifier は同じ
+  object store を見るため一致してしまう。貸出元の prune で借り手が object を失う risk もある。
+- **(C) は効果の符号が未確認である。** 親の実測では、現行 `git add -A` の 79.33〜191.30 秒に対し
+  既存 blob OID の `update-index --index-info` は 0.03〜0.04 秒 + `write-tree` 0.60 秒 +
+  `commit-tree` 0.01 秒だった。しかしこの下限は実 repo の object store を fixture へ見せることで
+  成立しており、(B) と同じ問題を持つ。自己完結化には 660 MB の pack 化が要り、削減分を食う見込みで
+  ある (未測定)。効果を先に測り未確認のまま実装しないという既存のユーザー裁定に従う。
+- **圧縮設定は意味不変だが時間効果が確認できない。** `core.compression=0` と
+  `+core.looseCompression=0` は 3 方式とも tree OID が同一だったが、所要は round 1 で +2.99 /
+  +18.68 秒、round 2 で −18.81 / −19.30 秒と符号が反転した。
+- **login node の単発測定は根拠にならない。** 同一内容の `output/` 複製が 20.64〜571.40 秒 (28 倍) に
+  振れた。受入高速化の判断に使う測定は、同一 tree 内で方式を交互に測った対比較に限る。
+- **(C) を採っても成長比例は断てない。** 全件列挙・全件配置・全件 scan・base→test コピーが残る。
+  係数削減であって、件数依存を除く変更ではない。
+
+**却下した選択肢:**
+
+- 効果未確認のまま (C) を land する — 受入全走は共有資源であり、単発 A/B では目標の 25.5 秒を
+  走間変動から分離できない (同日 n=103 の代表 node 分布は幅 283.9 秒、中央値から最小への
+  自然変動だけで 29.0 秒ある)。
+- テストを削除・保留登録して速くする — D747 と、保留を既定の答えにしないというユーザー裁定に反する。
+- 「成長比例を断った」と記録する — どの案も全件処理を残すので事実に反する。
+
+## D2069. B-4 凍結 spec の binary は `output/env/<env_tag>/binaries/<binary_sha256>` へ ignored 複写で置き、凍結するのは bytes の可用性でなく path・期待 sha256・receipt とする (2026-09-16)
+
+**決定:**
+
+1. **配置規則:** 凍結 spec の `artifacts[].binary_relpath` は
+   `output/env/<env_tag>/binaries/<binary_sha256>` とする。candidate と reference は同じ bytes
+   (D1641 決定 3) なので、同じ path・sha・receipt を共有してよい。
+2. **複写を採る。** 調達済み record と repo 外の durable store から、
+   `python3 -m orchestrator.campaign.b4_binary_record place --record <r> --source-root <s> --env-tag <t>`
+   で置く。実装は `s8b_floor_campaign.store_binaries()` を呼び、同関数が既に持つ検査
+   (record validator、source sha、既存 destination sha、書込み後 sha) を入口で複製しない。
+3. **tracked 化しない。** `.gitignore` に `output/env/*/binaries/` を置く。
+4. **凍結の射程を明示する。** 凍結されるのは path・期待 sha256・receipt であって bytes の可用性ではない。
+   全複製を失えば消費側は正しく拒否するが、bit 同一の復旧は保証しない。
+5. **path の env 成分は検査されない。** 消費側は `binary_relpath` の env 成分と
+   `environment.env_tag` を照合しない。`--env-tag` を spec と一致させるのは呼び手の責任であり、
+   この規則を環境整合の gate と説明しない。
+6. **配置による復旧は、receipt の policy が現行と一致する record に限る。** 配置経路は
+   `store_binaries` が現行 policy を要求するので、古い policy で発行された record は置けない。
+   消費側 (`expected_policy=None`) より厳しいが、緩めない。
+7. **測定を投入する担当が、投入前に、使用する各 checkout へ配置する。** ignored file は merge で
+   他 checkout へ移らない。
+
+**理由:**
+- **同種の物の既存規約があった。** `s8b_floor_campaign.py:7669` が測定用 binary を
+  `env_scope_dir(env_tag)/binaries/<sha>` へ置いている。`env_tag` の実値は `pegasus` と
+  `linux-baremetal` だけで、`output/env/pegasus/` には既に `calibration` と `profile` が並ぶ。
+  `binaries` はその兄弟であり、新しい分類を起こさずに済む。
+- **消費側は binary の tracked を要求しない。** `floor_pair_driver.py:614 _read_tracked_bound` は
+  spec・build receipt・calibration にだけ loaded HEAD blob との byte 一致を課し、binary は
+  `_resolve_regular` + sha + trace symbol 検査だけを通る。
+- repo の tracked executable に ELF は 1 件も無い (段 3 の実測、58 件中 0 件)。
+- 再 build は凍結 sha との bit 一致を保証しない。T-2636 の build は計算ノード 3 回でようやく成功した。
+- 入口で上流の検査を複製すると、変異が上流に mask されて「検証省略を殺した」という判定が偽になる。
+- 現物で確かめた。701,760 byte を置き、`_relative_path` / `_resolve_regular` /
+  `assert_binary_sha256` / `_assert_no_trace_symbols` の 4 検査を通した。700KB を置いても
+  `git status` は汚れない。
+
+**却下した選択肢:**
+- **新 namespace `output/b4-binaries/<sha256>`** (段 2 plan の案) — 既存規約と二重化し、
+  二軸 (D13) の外に「campaign 横断の実験補助 store」という新分類を要する。
+- **tracked 化** — 消費側が要求せず、repo に ELF の前例が無い。bytes の可用性は得られるが、
+  それを要求する consumer が無い。
+- **測定ごとの再 build** — 凍結 sha との bit 一致を保証しない。
+- **path の env 成分を `environment.env_tag` と照合する gate を足す** — 依頼が scope 外とした
+  仮想リスク向けの検査である。照合しないことを明記するに留める。
+- **配置経路の policy 要求を消費側に合わせて緩める** — 規律 2 に反する。
+
+## D2070. 復元不能な歴史 bytes を要求する node は、関数を消さず要求だけを外して合成入力へ戻す (2026-09-16)
+
+**決定:** 外部保持期限で失われた材料の exact bytes 一致を要求していた
+`test_m2_production_golden_requires_both_routes` について、関数を削除も改名もせず、
+実 corpus 参照・availability 判定・歴史 golden の SHA-256 assert だけを撤去し、
+一時 repo の合成 blob と合成 rollout で production の二経路導出を最後まで走らせる形へ戻す。
+あわせて mismatch 拒否の負例を隣に新設する。
+
+歴史 commit 定数 (`BASE_COMMIT` / `INTEGRATED_COMMIT`) は `monkeypatch` で合成 commit へ
+差し替える。実 commit を使って合成中間状態への patch を構成する案は採らない。
+
+**理由:**
+
+- 関数を消して別名で作り直すと、変異事前登録・所要台帳・過去の変異台帳が指す node 名が
+  すべて宙に浮く。撤去対象は「当時の bytes 一致」であって node の同一性ではない。
+- production 差分ゼロのまま、`_compare_golden_routes` の恒真化を殺せる負例が得られる。
+  D1367 が残した availability 判定と自己検査はそのまま生きる。
+- 実 commit を使う案は、大きな歴史本文への依存と親 repo reader の登録判断を持ち込む。
+  小さな 4 状態 (base / authored / golden / integrated) なら各段の寄与を明示でき、
+  実 `_git`・別 parser 2 種・SHA 検査をすべて通せる。
+
+**却下した選択肢:**
+
+- 恒久 skip または historical audit への格下げ — 被覆を暗黙に消す。
+- 関数を削除して新名の 2 node へ置き換える — node 名の参照が宙に浮く。
+- 実データ依存の assert だけを別 test へ切り出す — D1615 が要求外の一般化として却下済み。
+- `verify_source_sha` の拒否能力まで新 node で証明する — 撤去で生じた穴ではなく既存の
+  被覆限界であり、本 wave の scope を超える。
+
+## D2071. 8c trial manifest の反復数は全 cell で同一を要求する (2026-09-16)
+
+**決定:** `p3-8c-trial-manifest/v3` と `p3-8c-trial-registration/v3` の trial は必須 key `n` を持つ。
+`n` は整数かつ 2 以上で、**6 cell すべてで同一**でなければならない。holdout ごとに異なる `n` は
+受理しない。`n` は `_trial_dict` の serialization と `_trial_canonical_tuple` の identity にも入り、
+manifest と registration の trial 集合照合が反復数の差も拒否する。
+
+**理由:**
+- 8b 設計 §10.2 は逐語で「manifest は cell ごとに `n` を持ち、全 cell の観測反復集合が登録値と
+  完全一致しないときは当該対比を判定不能とする」と要求する。旧 key 集合
+  (trial id・arm・holdout・campaign id・世代数) ではこの要求を満たす manifest を書けなかった。
+- 8b §10.1 は「各反復が全 (holdout, 構成) を 1 度ずつ持つ完全 block であることを要求する。
+  欠測・重複・1 始まりでない連番・**cell 間の反復集合不一致**は判定不能とし」と定める。
+  事前登録 §5 が `n` を H1 / H2 の 2 欄で持つのは記入の単位であって、両者が異なってよいという
+  許可ではない。割れたときは狭い側へ倒す。
+- 記録済みの manifest / registration は repo 全域で 0 件である。移行対象が無いので、
+  旧版受理分岐も既定値も作らない。必須 key にして受理形を 1 つに保つ。
+
+**却下した選択肢:**
+- **`n` を holdout 単位で一致させ、H1 と H2 では異なってよいとする** — §5 の欄割りには合うが、
+  8b §10.1 の cell 間一致要求と衝突する。実装が仕様より広い受理集合を持つことになる。
+- **`n` を optional にして既存 manifest との後方互換を残す** — 書かなくても通る恒真 field になる。
+  そもそも既存 manifest が 0 件なので互換の対象が無い。
+- **manifest 直下に 1 つだけ置く** — 8b の逐語は cell ごとの保持を求めており、
+  cell 単位の記録から離れると将来 cell ごとに異なる `n` を認める改訂ができない。
+
+## D2072. schema の固定は事前登録 §5 記入の前提工程であり、閉塞の先行解除ではない (2026-09-16)
+
+**決定:** 8c trial manifest の schema を広げる作業は、D959 が「順序を入れ替えて先に解除してはならない」
+と定めた下流症状 (b)〜(e) の解除に当たらない。artifact を 1 件も発行せず、事前登録 §5 も記入せず、
+正式起動の閉塞も動かさない限り、schema の固定は先に行ってよい。
+**ただしその成果を「manifest の不在を解除した」「反復束縛が完成した」「§5 を記入できるように
+なった」と記録してはならない。** 記録できるのは保存・読込・identity の契約を用意したことまでである。
+
+**理由:**
+- 8b §10.2 は `n` を §5 へ記入してよい条件の先頭に「schedule generator・manifest・反復束縛が
+  固定済みであること」を置く。8c 事前登録の §5 記入規約も「型・単位・範囲を機械検証する consumer が
+  実在するときに限る」と定める。**schema の固定と検証子の実在は §5 記入の前提であり、順序は逆でない。**
+- 「受理集合が狭まる向きだから安全」という論法は成立しない。生 JSON 集合としては入れ替わる —
+  旧版で通っていた `n` 無しの入力は拒否され、新版 + `n` の入力が新たに通る。
+  正しい根拠は「**既存の受理条件を 1 つも撤去・緩和せず、追加 field への制約だけを増やす**」である。
+  段 3 の敵対相談が親の当初の言い方を反証した。
+- 観測反復集合との exact 一致は本作業では完成しない。genesis slot の受入検査は反復添字を 0 に
+  固定したままであり、そこを直すと受理集合が広がるため、事前登録の発効が先である。
+
+**却下した選択肢:**
+- **schema の固定も (a) の完了証明層が閉じるまで待つ** — §5 記入の前提工程まで止めると、
+  前提が揃わないので (a) を閉じても次へ進めない。D959 は下流症状の**解除**を禁じたのであって、
+  前提工程を禁じてはいない。
+- **同じ変更で genesis 受入の反復添字固定も外す** — 受理集合を広げる変更であり、
+  D959 が絶対規律 2 に反すると名指しした形になる。
+
+## D2073. 較正認証でも perf 有無は probe が決め、受理集合の変化は到達可能性と最終受理へ分けて記録する (2026-09-16)
+
+**決定:** 較正認証 (`tools/pegasus/certify_calibration.sh`) は、policy の perf 候補が 1 本も
+smoke を通らないことを理由に測定前に停止しない。D494 の順序に従い、候補解決を済ませた
+`PATH` の下で canonical probe を 1 度だけ呼び、`use_perf_from_receipt` の結果だけで分岐する。
+`probe_error` は `unavailable` へ変換せず停止する。`use_perf` は CLI から `sweep.calibrate` の
+closure を経て `runner.measure_point` へ伝播させ、**counter 必須検査だけを perf 有りに限定する**。
+throughput 検査・maxrss 検査・rep 失敗処理は変更しない。
+
+**決定 (2):** 本変更のような「停止点を後ろへ動かす」改修では、受理集合の変化を
+**到達可能性の変化**と**最終受理の変化**に分けて記録する。「増分はちょうど X」と書けるのは
+既存の品質・登録条件も満たす部分集合に限られ、無条件の等式としては書かない。
+D494 の順序を守ることで生じる縮小 (旧 smoke は通るが canonical probe だけ失敗する候補) は
+限界として記録し、**第二の probe や fallback を足して隠さない**。
+
+**理由:**
+
+- D352 は性能測定に calibration を明示的に含めて「preflight は可用性を検出して記録し、
+  実行を止めるためには使わない」と定める。候補全滅での即時 `exit 2` はこれに正面から反する。
+  発火頻度が未確定でも是正根拠は独立に成立する — 段 3 の 2 レンズが独立に追認した。
+- 候補全滅を直接 degrade の根拠にすると判定入口が 2 本になり、canonical receipt を経由しない
+  迂回路ができる (D494 の却下理由と同じ)。`use_perf_from_receipt` 1 本のままにする。
+- **perf が本当に要る判定は通さない。** レコード数の飽和選択は LLC miss 率を要し、
+  `analyze.py` は全欠損なら判定不能を返す。no-perf 成果物が `accepted` になれないことは
+  新しい gate ではなく、`sweep.py` → `report.py` → `cli.py` → `schema_v2.py` の既存多層が保証する。
+  この保証を実装で代替・迂回しない。規律 2 は緩めない。
+- counter 必須検査を perf 有りに限定するのは「測定の完了条件を取得可能量に対応させる」変更で
+  あって、認証の counter 必須条件を削除する変更ではない。認証 predicate は 1 文字も変えない。
+- 受理集合を「ちょうど」と書くと、到達可能性の拡大を受理の拡大と読ませる。段 6 の焦点再レビューが
+  具体的な反例 (品質理由が残れば rejected のまま) と第三の縮小経路 (policy 候補の重複が
+  `perf_preflight` の重複検査で rc=2 になる) を示した。
+
+**却下した選択肢:**
+
+- **acquisition 判定後に測定せず終える** — D352 の「動かない環境では perf なしで測定を進める」を
+  満たさない。差分は小さいが、perf 不在が測定停止理由として残る。
+- **旧 smoke の成功を新しい gate として再要求して縮小を消す** — D494 が定めた判定順序を壊し、
+  「literal `perf` は PATH に無いが policy 候補は動く」入力の受理を付け替える。目的に逆行する。
+- **degraded な較正成果物を accepted にする分岐を新設する** — 本 wave の scope 外であり、
+  D493 の「degraded は緩い分岐ではなく別の厳しい分岐」に従う新しい認証契約が要る。裁定へ返す。
+- **候補全滅を直接 no-perf の根拠にする** — 判定入口が 2 本になる (D494 の却下理由)。

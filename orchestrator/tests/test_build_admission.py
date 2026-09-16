@@ -87,6 +87,110 @@ def _context(*, authority=None):
     )
 
 
+def test_policy_shape_literal_matches_current_schema():
+    from orchestrator.campaign import build_admission as B
+
+    current = B.resolve_current_build_admission_policy()
+    preimage = current.as_preimage()
+    assert B._HISTORICAL_POLICY_KEYS == frozenset(preimage)
+    assert B._HISTORICAL_POLICY_SCHEMA == preimage["schema"]
+    historical = B.decode_historical_build_admission_policy(preimage)
+    assert type(historical) is B.HistoricalBuildAdmissionPolicy
+    assert not isinstance(historical, B.BuildAdmissionPolicy)
+    assert historical.sha256 == current.sha256
+    # Recorded order is identity, not something the decoder may repair.
+    preimage["generator_registry"].reverse()
+    historical = B.decode_historical_build_admission_policy(preimage)
+    assert historical.as_preimage() == preimage
+    assert historical.sha256 == _outer_sha(preimage)
+    preimage["generator_registry"].append("later-mutation")
+    assert historical.as_preimage() != preimage
+
+
+def test_historical_policy_cannot_enter_current_consumers(tmp_path):
+    from orchestrator.campaign import build_admission as B, wal
+    from orchestrator.campaign.layout import CampaignLayout
+
+    context = _context()
+    source = _source()
+    admission = derive_build_admission(context, source)
+    policy = B.decode_historical_build_admission_policy(context.policy.as_preimage())
+    with pytest.raises(TypeError, match="exact value"):
+        wal._validate_attempt_topology([], admission_policy=policy, campaign_lock={})
+    with pytest.raises(TypeError, match="exact value"):
+        wal._recover_interrupted_attempts(
+            CampaignLayout(root=str(tmp_path)), admission_policy=policy,
+        )
+    with pytest.raises(BuildAdmissionError, match="exact value"):
+        require_build_admission(admission, expected_policy=policy, expected_source=source)
+    with pytest.raises(BuildAdmissionError, match="exact value"):
+        validate_build_admission_receipt(admission.as_wal_receipt(), expected_policy=policy)
+
+
+@pytest.mark.parametrize("mutation, message", [
+    ("stock", "stock class を repo pin/clean/source evidence が支持しない"),
+    ("generator", "generator receipt の generator_id が未登録"),
+    ("authority", "coder-authored class は CLI authority kind が必要"),
+])
+@pytest.mark.parametrize("entry", ["current", "historical"])
+def test_receipt_rejects_invalid_current_comparison(mutation, message, entry):
+    from orchestrator.campaign import build_admission as B, wal
+    from orchestrator.campaign.model import WalRecord
+
+    source = _source() if mutation == "stock" else _source(token=_SHA_C, clean=False)
+    context = _context(authority=_parser_authority()) if mutation == "authority" else _context()
+    kwargs = {}
+    if mutation == "generator":
+        kwargs["generator_receipt"] = attest_generator_output(
+            context, source, generator_input_sha256=_SHA_A,
+        )
+    body = derive_build_admission(context, source, **kwargs).as_wal_receipt()
+    if mutation == "stock":
+        body["source"]["ccbench_commit"] = "d706650"
+    elif mutation == "generator":
+        generator = body["generator_receipt"]
+        generator["generator_id"] = "unregistered-generator"
+        generator["receipt_sha256"] = _outer_sha({
+            k: v for k, v in generator.items() if k != "receipt_sha256"
+        })
+        body["generator_id"] = generator["generator_id"]
+    else:
+        body["authority_kind"] = "other-authority"
+    body["receipt_sha256"] = _outer_sha({
+        k: v for k, v in body.items() if k != "receipt_sha256"
+    })
+    assert body["policy_sha256"] == B.resolve_current_build_admission_policy().sha256
+    policy = context.policy
+    validate = validate_build_admission_receipt
+    topology = wal._validate_attempt_topology
+    if entry == "historical":
+        recorded = policy.as_preimage()
+        if mutation == "generator":
+            recorded["generator_registry"].append(body["generator_id"])
+        elif mutation == "authority":
+            recorded["coder_authority"] = body["authority_kind"]
+        policy = B.decode_historical_build_admission_policy(recorded)
+        body["policy_sha256"] = policy.sha256
+        body["receipt_sha256"] = _outer_sha({
+            k: v for k, v in body.items() if k != "receipt_sha256"
+        })
+        validate = B.validate_historical_build_admission_receipt
+        topology = wal._validate_historical_attempt_topology
+    with pytest.raises(BuildAdmissionError, match=message):
+        validate(body, expected_policy=policy)
+    # Propagation is consistent as well: rejection must reach the class comparison.
+    records = [WalRecord(
+        ts=1.0, stage="build_start", variant="variant", env_tag="test",
+        payload={
+            "build_attempt_id": "attempt",
+            "build_admission": body,
+            "build_admission_receipt_sha256": body["receipt_sha256"],
+        },
+    )]
+    with pytest.raises(wal.AttemptTopologyError, match=message):
+        topology(records, admission_policy=policy, campaign_lock={})
+
+
 def _outer_sha(body: dict[str, object]) -> str:
     rendered = json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(rendered.encode("utf-8")).hexdigest()
