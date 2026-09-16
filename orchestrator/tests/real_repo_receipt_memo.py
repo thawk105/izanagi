@@ -658,6 +658,10 @@ class _ReceiptMemo:
                     head=head, prewarm=False,
                 )
             if early_job is not None and pending.exists():
+                # Only reachable when a caller reuses this early reader. Production
+                # waiting creates a reader and calls get once, so this branch cannot
+                # protect that path. If the body disappears after publication, the
+                # separate consumer reader fails via cache-missing below.
                 if early_job in self._early_ready_paths:
                     raise self._error(
                         "publication-regressed", cache_path=path, run_id=run_id,
@@ -679,6 +683,12 @@ class _ReceiptMemo:
                 path, run_id=run_id, head=head, prewarm=False,
                 operation=read_existing, deadline=deadline if early_job is not None else None,
             )
+            # Include read, unlock and close in the shared early-job deadline.
+            if early_job is not None and time.monotonic() >= deadline:
+                raise self._error(
+                    "publication-timeout", cache_path=path, run_id=run_id,
+                    head=head, prewarm=False,
+                )
             if resolution is not _MISSING:
                 if early_job is not None:
                     self._early_ready_paths.add(early_job)

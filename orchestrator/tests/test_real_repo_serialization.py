@@ -6111,7 +6111,9 @@ def test_early_memo_parsed_narrowing_keeps_nonce_and_never_resolves():
     # Parsed results of CLI, ini and PYTEST_ADDOPTS; argv stays suite-only.
     for name, value in (
         ("keyword", "selected"), ("markexpr", "slow"), ("deselect", ["node"]),
-        ("lf", True), ("ff", True), ("last_failed", True), ("ignore", ["file"]),
+        ("lf", True), ("failedfirst", True), ("last_failed", True), ("ignore", ["file"]),
+        ("stepwise", True), ("stepwise_skip", True),
+        ("override_ini", ["python_files=test_selected.py"]),
         ("ignore_glob", ["*receipt*"]), ("pyargs", True), ("collectonly", True),
     ):
         with _early_memo_cache_probe() as probe:
@@ -6133,6 +6135,114 @@ def test_early_memo_parsed_narrowing_keeps_nonce_and_never_resolves():
             probe.suite.pytest_configure_node(probe.node)
             assert probe.calls == [[], []], shape
             assert probe.suite._EARLY_MEMO_INPUT_KEY not in probe.node.workerinput
+
+
+def test_early_memo_narrowing_destinations_match_real_parser():
+    from _pytest import cacheprovider, helpconfig, main, mark, stepwise
+    from _pytest.config.argparsing import Parser
+
+    parser = Parser(_ispytest=True)
+    for plugin in (cacheprovider, helpconfig, main, mark, stepwise):
+        plugin.pytest_addoption(parser)
+    destinations = {
+        option.dest for group in [parser._anonymous, *parser._groups]
+        for option in group.options
+    }
+    suite = _load_suite_conftest()
+    assert set(suite._EARLY_MEMO_NARROWING_OPTIONS) <= destinations
+    # Independent CLI inputs catch omissions as well as misspelled destinations.
+    cases = (
+        (["-k", "selected"], "keyword", "selected"),
+        (["-m", "slow"], "markexpr", "slow"),
+        (["--last-failed"], "lf", True),
+        (["--ff"], "failedfirst", True),
+        (["--stepwise"], "stepwise", True),
+        (["--sw-skip"], "stepwise_skip", True),
+        (["--deselect="], "deselect", [""]),
+        (["--ignore="], "ignore", [""]),
+        (["--ignore-glob="], "ignore_glob", [""]),
+        (["--pyargs"], "pyargs", True),
+        (["-o", "python_files="], "override_ini", ["python_files="]),
+        (["-o", "python_functions="], "override_ini", ["python_functions="]),
+    )
+    with _early_memo_cache_probe() as probe:
+        config = probe.node.config
+        for argv, destination, value in cases:
+            config.option = parser.parse(argv)
+            assert getattr(config.option, destination) == value
+            assert not probe.suite._early_memo_selected(config), argv
+        for argv in ([], ["-k", ""], ["-m", ""]):
+            config.option = parser.parse(argv)
+            assert probe.suite._early_memo_selected(config), argv
+
+
+def test_early_memo_success_checks_shared_deadline_after_io():
+    # Real cache reads and lock cleanup; advance time at each I/O boundary.
+    for index in range(2):
+        for boundary in ("read", "unlock", "close"):
+            for elapsed in (119.0, 120.0, 121.0):
+                with _early_memo_cache_probe() as probe:
+                    paths = []
+                    for module, value in zip(probe.modules, probe.values):
+                        path = module._session_cache_path()
+                        module._cache_store(path, value)
+                        paths.append(str(path))
+                    worker = SimpleNamespace(workerinput={
+                        probe.suite._EARLY_MEMO_INPUT_KEY: paths,
+                    })
+                    now = [0.0]
+                    module = probe.modules[index]
+                    other = probe.modules[0]
+                    reading_target = [False]
+                    load = module._cache_load
+                    flock = module.fcntl.flock
+                    import builtins
+                    def read(*args, **kwargs):
+                        value = load(*args, **kwargs)
+                        reading_target[0] = True
+                        if boundary == "read":
+                            now[0] = elapsed
+                        return value
+                    def unlock(fd, flags):
+                        result = flock(fd, flags)
+                        if boundary == "unlock" and reading_target[0] and flags == module.fcntl.LOCK_UN:
+                            now[0] = elapsed
+                        return result
+                    class Handle:
+                        def __init__(self, handle):
+                            self.handle = handle
+                        def fileno(self):
+                            return self.handle.fileno()
+                        def close(self):
+                            self.handle.close()
+                            now[0] = elapsed
+                    def open_lock(path, *args, **kwargs):
+                        handle = builtins.open(path, *args, **kwargs)
+                        return Handle(handle) if str(path).endswith(".lock") else handle
+                    with contextlib.ExitStack() as stack:
+                        stack.enter_context(mock.patch.object(module.time, "monotonic", side_effect=lambda: now[0]))
+                        # Spend 60 seconds in receipt before oracle starts: the
+                        # oracle must still use the original 120-second deadline.
+                        if index == 1:
+                            receipt_load = other._cache_load
+                            def receipt_read(*args, **kwargs):
+                                result = receipt_load(*args, **kwargs)
+                                now[0] = 60.0
+                                return result
+                            stack.enter_context(mock.patch.object(other, "_cache_load", side_effect=receipt_read))
+                        stack.enter_context(mock.patch.object(module, "_cache_load", side_effect=read))
+                        if boundary == "unlock":
+                            stack.enter_context(mock.patch.object(module.fcntl, "flock", side_effect=unlock))
+                        if boundary == "close":
+                            stack.enter_context(mock.patch.object(module, "open", open_lock, create=True))
+                        if elapsed < 120.0:
+                            probe.suite._wait_early_memo_job(worker)
+                        else:
+                            error = module.ReceiptMemoError if index == 0 else module.OracleEnvironmentMemoError
+                            with pytest.raises(error) as caught:
+                                probe.suite._wait_early_memo_job(worker)
+                            assert caught.value.payload["reason"] == "publication-timeout"
+                    assert probe.calls == [[], []]
 
 
 def _early_probe_reader(module):

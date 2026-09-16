@@ -2242,8 +2242,8 @@ def pytest_runtest_protocol(item, nextitem):
 _EARLY_MEMO_JOB_ATTR = "_izanagi_early_memo_job"
 _EARLY_MEMO_INPUT_KEY = "izanagi_early_memo_paths"
 _EARLY_MEMO_NARROWING_OPTIONS = (
-    "keyword", "markexpr", "deselect", "lf", "ff", "last_failed",
-    "ignore", "ignore_glob", "pyargs",
+    "keyword", "markexpr", "deselect", "lf", "failedfirst", "stepwise",
+    "stepwise_skip", "ignore", "ignore_glob", "pyargs", "override_ini",
 )
 
 
@@ -2257,6 +2257,11 @@ def _early_memo_selected(config) -> bool:
     option = getattr(config, "option", None)
     if option is None or getattr(option, "collectonly", False):
         return False
+    # last_failed is a defensive compatibility attribute, not a pytest destination.
+    if getattr(option, "last_failed", False):
+        return False
+    # Append options retain empty arguments as [""], which is truthy. Empty
+    # keyword/markexpr strings and absent append options do not narrow collection.
     if any(getattr(option, name, False) for name in _EARLY_MEMO_NARROWING_OPTIONS):
         return False
     return _is_un_narrowed_flaky_hold_collection(config)
