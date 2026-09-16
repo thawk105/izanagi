@@ -63648,3 +63648,72 @@ D494 の順序を守ることで生じる縮小 (旧 smoke は通るが canonica
 - **degraded な較正成果物を accepted にする分岐を新設する** — 本 wave の scope 外であり、
   D493 の「degraded は緩い分岐ではなく別の厳しい分岐」に従う新しい認証契約が要る。裁定へ返す。
 - **候補全滅を直接 no-perf の根拠にする** — 判定入口が 2 本になる (D494 の却下理由)。
+
+## D2074. failure-only report の独立検証は、成功集合を閉じた形について増やす非 certifying の診断経路で与える (2026-09-16)
+
+**決定:**
+1. standalone verifier `verify_autonomous_trial_files` に、明示 opt-in の非 certifying 診断検証経路を足す。
+   発火条件は「flag が真」「campaign output root 未指定」「既存 2 免除 (`fatal_without_cells`、
+   `failure_without_campaign`) に当たらない」の積とする。root を渡した呼出しは従来検証をそのまま実行し、
+   flag による検査省略を認めない。
+2. **この経路は standalone verifier の成功集合を増やす変更であると明示する。** opt-in であることと
+   `certifying=false` であることを、受理集合不変の証拠に使わない。
+3. 受理形は閉じた厳密一致の述語に限る。導出できない形は受理せず狭める (広げない)。
+4. **欠けている束縛は素通りさせず、不在を report 側の事実と突き合わせて証明する。**
+   「あれば検査、無ければ素通り」という presence 条件だけの分岐を書かない。
+5. 戻り値の receipt は検証範囲の申告であり、署名ではない。root 束縛は `not-verified`、
+   cross-binding は `not-established` と申告し、`campaigns/<ID>` 配下という包含関係を主張しない。
+6. certifying 受入 `assert_trial_registry_acceptance`、producer、`verify_s8c_cross_binding` 本体、
+   `assert_campaign_layer3_chain` 本体は変更しない。
+
+**理由:**
+- 対象 report (campaign identity を宣言した admission 失敗 cell を持つ failure-only report) は、
+  root を与えても cross-binding が build population 要件で落とす。**受理を 1 つも増やさない案では、
+  独立検証できるようにするという依頼を満たせない。** 成功集合が増えること自体が依頼の内容である。
+- 規律 2 の射程は certified な結果を守る正しさゲートである。この経路は非 certifying で、
+  certifying 受入は不変であり、段 3 で 3 方向からの bypass (admitted cell の流入、registry 受入の迂回、
+  既存免除の暗黙拡大) を検査して反証した。
+- 依頼が置いた歯止めは「束縛検査の**一律撤去**に広げない」である。閉じた述語・明示 opt-in・既定経路無改変は
+  一律撤去に当たらない。
+- D1460 は「層 3 の空走は受入限定で閉じ、より強い gate を全 verifier へ広げない」と決めた。
+  本決定は standalone verifier に検証経路を足すものであり、D1460 が却下した拡張とは向きが逆で抵触しない。
+- 束縛の不在を証明させるのは、救済対象の report が provider 成果物も raw 参照も持たないことがあるためである。
+  既存検査をそのまま流用すると救済対象自身を落とし、条件分岐で飛ばすと fail-open になる。
+
+**却下した選択肢:**
+- **root 要求だけを外す** — 対象 report は root の有無と無関係に cross-binding で落ちるので効かない。
+  また「root を省くと失われるのは path identity 束縛だけ」という前提は誤りだった。
+- **従来の成功集合維持を必須として案を戻す** — 依頼を満たさない。
+- **既存の role / provider 束縛検査をそのまま流用する** — 救済対象自身を落とす。
+- **欠けている束縛を presence 条件で飛ばす** — fail-open になり、規律 2 に反する。
+- **診断情報付きの形を受理する** — 生成器を mock せずに正例を作れず、受理を実走で裏取りできない。
+- **正式 registered 系列まで回復させる** — publish 前の digest 検査で拒否されており、producer と digest 契約の
+  一体改訂になる。依頼の scope 外。
+
+## D2075. 別名凍結する v1 patch は式 v2 導入直前の版とし、consumer の配線と bytes pin は足さない (2026-09-16)
+
+**決定:** D1098 / D1281 の「v1 patch の別名凍結」は、`patches/silo-backoff-fixed.patch` の履歴のうち
+**合成枝の式が v2 へ変わる直前の版** (git blob `f7a54445764025112317151106712bb9d97678ab`、
+sha256 `35237d314df708c6a6cb6fece0a8a59cd199bb57337013f95f6ed50ea2a2f911`) を、
+`patches/silo-backoff-fixed-v1.patch` として bytes のまま保存することで実装する。
+旧 consumer を v1 へ配線し直すこと、この file の bytes を pin する検査、`patches/ledger.json` への entry は足さない。
+
+**理由:**
+- 起票元 (2026-08-26 の裁定パッケージ A-2) の論点は「合成枝の式が v1 から v2 へ変わった」ことであり、
+  その直接の前像がこの版である。`git diff` で v2 との差は式 1 行だけと確認した。
+- 旧 static-backoff sweep の 3 WAL を生んだ patch の bytes は WAL にも lock にも記録が無く、生成期 (2026-06-22〜28)
+  の初版 `476a128` を選んでも「生成時の bytes」と証明できない。初版は noinline 計器・EVOLVE-BLOCK マーカー・
+  `BACKOFF_FIXED` 未供給時の `#error` を含まず、保存する v1 の骨格として不完全である。
+- ユーザーの依頼が「対象は既存 v1 の保存に限定する」「仮想リスク向けの gate・検査・台帳・一般化の追加は
+  scope 外」と定めた。現行 consumer が旧 campaign へ追記する経路は、現行の campaign identity が
+  admission policy を必ず束縛し、policy を持たない旧 lock を照合で拒否するため成立しない (コードの読解)。
+- `patches/` 直下の別名は、既存の在庫検査 (define 在庫と `IZANAGI_` token 在庫) の走査対象に自然に入り、
+  新しい macro も token も加えないので既存テストの期待値を変えない (焦点走 10 passed、変異 M1 KILLED)。
+
+**却下した選択肢:**
+- 初版 `476a128` を凍結する — 旧 WAL の生成期に当たるが、生成時の bytes である証明が無く、骨格も不完全。
+- 旧 consumer を v1 patch へ配線し直す — 依頼の「保存に限定」を超え、D1098 の「旧消費者はそのまま動き」を
+  実現するには identity の版分けが要る (D1281 が却下した移行の一部を再導入する)。
+- 保存 bytes の sha256 を pin するテストを足す — 依頼が scope 外とした。式の改変 (変異 M2) と内容の喪失 (M4) を
+  既存テストが検出しないことは、隠さず記録した。
+- `patches/` 配下に版別のサブディレクトリを作る — 直下 `*.patch` の在庫検査から外れ、既存の命名慣行とも違う。
