@@ -47,6 +47,7 @@ from orchestrator.campaign.source_digest import (                    # noqa: E40
 )
 from orchestrator.tests.campaign_lock_test_support import build_v2_lock  # noqa: E402
 from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
+from orchestrator.tests import test_p3_autonomous_workload_trial as p3_test  # noqa: E402
 
 
 _ROLES = ("planner", "coder", "auditor", "critic")
@@ -5697,10 +5698,7 @@ def test_t325_optional_commit_fields_preserve_existing_completeness_acceptance(
 
 def _failure_only_producer(tmp_path, monkeypatch, *, mode="partial"):
     """Inject producer faults, leaving finalization and all verifiers real."""
-    import argparse
-    parser = argparse.ArgumentParser()
-    A.add_coder_build_authority_argument(parser)
-    authority = parser.parse_args(["--allow-coder-derived-build"]).coder_build_authority
+    authority = p3_test._coder_authority()
     factory = A.exploration_campaign_layout
     monkeypatch.setattr(A, "exploration_campaign_layout",
                         lambda cid: factory(cid, str(tmp_path / "output")))
