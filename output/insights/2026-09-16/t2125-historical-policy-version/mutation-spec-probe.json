@@ -1,0 +1,142 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "m1-dispatch-always-current-entry",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "    _validate_read_purpose(purpose)\n    if purpose is CampaignReadPurpose.HISTORICAL_RAW:\n        try:\n            return decode_historical_build_admission_policy(recorded)\n        except BuildAdmissionError as exc:\n            raise ArtifactAdmissionError(str(exc)) from exc\n    policy = _current_policy()\n",
+          "new": "    _validate_read_purpose(purpose)\n    policy = _current_policy()\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_historical_policy_version_reads_recorded_v2[pin]",
+        "orchestrator/tests/test_artifact_admission.py::test_historical_policy_version_reads_recorded_v2[generator]",
+        "orchestrator/tests/test_artifact_admission.py::test_historical_policy_version_reads_recorded_v2[review]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-historical-policy-exact-key-set-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/build_admission.py",
+          "old": "    body = _require_exact_keys(value, _HISTORICAL_POLICY_KEYS, \"historical build admission policy\")\n",
+          "new": "    body = value\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_historical_policy_shape_is_exact[extra-key \\u96c6\\u5408]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-historical-policy-schema-literal-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/build_admission.py",
+          "old": "    if body[\"schema\"] != _HISTORICAL_POLICY_SCHEMA:\n        raise BuildAdmissionError(\"historical build admission policy schema differs\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_historical_policy_shape_is_exact[schema-schema differs]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-historical-receipt-uses-current-policy-sha",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/build_admission.py",
+          "old": "    checked = _validate_admission_body_against_policy(\n        value, policy_sha256=expected_policy.sha256,\n        stock_pin=expected_policy.as_preimage()[\"repo_stock_pin\"],\n        expected_source=expected_source,\n    )\n",
+          "new": "    checked = _validate_admission_body_against_policy(\n        value, policy_sha256=resolve_current_build_admission_policy().sha256,\n        stock_pin=expected_policy.as_preimage()[\"repo_stock_pin\"],\n        expected_source=expected_source,\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_historical_policy_version_reads_recorded_v2[pin]",
+        "orchestrator/tests/test_artifact_admission.py::test_historical_policy_version_reads_recorded_v2[generator]",
+        "orchestrator/tests/test_artifact_admission.py::test_historical_policy_version_reads_recorded_v2[review]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-historical-stock-pin-back-to-current",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/build_admission.py",
+          "old": "        stock_pin=expected_policy.as_preimage()[\"repo_stock_pin\"],\n        expected_source=expected_source,\n    )\n    return json.loads(_canonical_json(checked))",
+          "new": "        stock_pin=CURRENT_PIN,\n        expected_source=expected_source,\n    )\n    return json.loads(_canonical_json(checked))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_historical_policy_version_reads_recorded_v2[pin]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-current-entry-stock-pin-becomes-vacuous",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/build_admission.py",
+          "old": "    return _validate_admission_body_against_policy(\n        value, policy_sha256=expected_policy.sha256, stock_pin=CURRENT_PIN,\n        expected_source=expected_source,\n    )\n",
+          "new": "    _pin = value[\"source\"][\"ccbench_commit\"] if type(value) is dict else CURRENT_PIN\n    return _validate_admission_body_against_policy(\n        value, policy_sha256=expected_policy.sha256, stock_pin=_pin,\n        expected_source=expected_source,\n    )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_build_admission.py::test_receipt_rejects_invalid_current_comparison[current-stock-stock class \\u3092 repo pin/clean/source evidence \\u304c\\u652f\\u6301\\u3057\\u306a\\u3044]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-decision-classification-back-to-admitted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "        classification=(\n            \"historical-policy-version\" if historical_policy_version else \"admitted-new-schema\"\n        ),\n",
+          "new": "        classification=\"admitted-new-schema\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_historical_policy_version_reads_recorded_v2[pin]",
+        "orchestrator/tests/test_artifact_admission.py::test_historical_policy_version_reads_recorded_v2[generator]",
+        "orchestrator/tests/test_artifact_admission.py::test_historical_policy_version_reads_recorded_v2[review]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-schema-certifying-classification-restriction-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_schema.json",
+          "old": "              \"classification\": {\"enum\": [\"admitted-new-schema\", \"historical-pre-admission-schema\"]}\n",
+          "new": "              \"classification\": {\"type\": \"string\"}\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_historical_policy_version_report_schema"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
