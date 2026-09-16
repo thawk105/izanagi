@@ -1,0 +1,209 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        if not effective_clock_comparison_passes(expected_clock, observed_clock):\n            reasons.append(\"effective-clock-pre-post-comparison-failed\")",
+          "new": "        if False:\n            reasons.append(\"effective-clock-pre-post-comparison-failed\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[bad-cv]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[low-outlier]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[policy-change]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[post-self-pass]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[0]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[24]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[47]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        expected_clock = {\n            \"samples_mhz\": profile[\"effective_clock\"][\"samples_mhz\"],\n            \"tolerance_pct\": profile[\"effective_clock\"][\"tolerance_pct\"],\n        }\n        observed_clock = {\n            \"samples_mhz\": static_post[\"effective_clock\"][\"samples_mhz\"],\n        }",
+          "new": "        expected_clock = {\n            \"samples_mhz\": static_post[\"effective_clock\"][\"samples_mhz\"],\n            \"tolerance_pct\": profile[\"effective_clock\"][\"tolerance_pct\"],\n        }\n        observed_clock = {\n            \"samples_mhz\": profile[\"effective_clock\"][\"samples_mhz\"],\n        }"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[bad-cv]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[low-outlier]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[post-self-pass]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[0]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[24]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[47]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        observed_clock = {\n            \"samples_mhz\": static_post[\"effective_clock\"][\"samples_mhz\"],\n        }",
+          "new": "        observed_clock = {\n            \"samples_mhz\": profile[\"effective_clock\"][\"samples_mhz\"],\n        }"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[bad-cv]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[low-outlier]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[post-self-pass]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[0]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[24]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[47]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        expected_clock = {\n            \"samples_mhz\": profile[\"effective_clock\"][\"samples_mhz\"],",
+          "new": "        expected_clock = {\n            \"samples_mhz\": static_pre[\"effective_clock\"][\"samples_mhz\"],"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_accepts_using_dynamic_pre[2300.0]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[0]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[24]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[47]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        if not effective_clock_comparison_passes(expected_clock, observed_clock):",
+          "new": "        if not effective_clock_comparison_diagnostics(expected_clock, observed_clock)[\"band_pass\"]:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[policy-change]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[0]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[24]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[47]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "            reasons.append(\"effective-clock-pre-post-comparison-failed\")\n            _write_exclusive(",
+          "new": "            _write_exclusive("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[bad-cv]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[low-outlier]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[policy-change]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[post-self-pass]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[0]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[24]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[47]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "            \"tolerance_pct\": profile[\"effective_clock\"][\"tolerance_pct\"],\n        }\n        observed_clock = {",
+          "new": "            \"tolerance_pct\": effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT,\n        }\n        observed_clock = {"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[policy-change]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        expected_clock = {\n            \"samples_mhz\": profile[\"effective_clock\"][\"samples_mhz\"],\n            \"tolerance_pct\": profile[\"effective_clock\"][\"tolerance_pct\"],\n        }",
+          "new": "        status = \"accepted\" if not reasons else \"rejected\"\n        expected_clock = {\n            \"samples_mhz\": profile[\"effective_clock\"][\"samples_mhz\"],\n            \"tolerance_pct\": profile[\"effective_clock\"][\"tolerance_pct\"],\n        }"
+        },
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        status = \"accepted\" if not reasons else \"rejected\"\n        _, artifact = _assemble_v2(",
+          "new": "        _, artifact = _assemble_v2("
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[low-outlier]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejection_mechanisms[post-self-pass]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[0]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[24]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[47]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        if not effective_clock_comparison_passes(expected_clock, observed_clock):\n            reasons.append(\"effective-clock-pre-post-comparison-failed\")",
+          "new": "        if True:\n            reasons.append(\"effective-clock-pre-post-comparison-failed\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_accepted_publish_is_content_addressed_and_duplicate_fatal",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_acquisition_gate_accepts_zero_subrequest_prefix_via_production_entry",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_artifact_injects_effective_clock_policy",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_certified_attempt_and_published_artifact_record_receipt_genome",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_exact_2101_profile_passes_both_gates_and_publishes",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_link_fallback_rejects_existing_target",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_accepts_using_dynamic_pre[2095.0]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_accepts_using_dynamic_pre[2300.0]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[0]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[24]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_pre_post_clock_rejects_high_outlier[47]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_publish_falls_back_to_link_on_renameat2_einval",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_publish_gate_rejects_policy_change_after_late_gate",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_publish_rename_failure_cleans_completed_temp",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_publish_temp_cleanup_failure_is_structured",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_publish_temp_write_failure_removes_partial_file",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_published_artifact_passes_runtime_effective_clock_self_comparison",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_rr50_certify_keeps_capability_none_and_writes_no_marker",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_rr80_certify_issues_once_and_marker_blocks_staging_replay",
+        "orchestrator/tests/test_calibrator_certify.py::test_effective_clock_policy_metamorphic_wiring_producer_loader_issuer_consumer_self",
+        "orchestrator/tests/test_calibrator_certify.py::test_independent_published_bytes_self_comparison_detects_tampering"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

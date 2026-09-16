@@ -62959,3 +62959,134 @@ certified 選択・材料レポート・proof chain の値はこの wave では�
   段 2 プランはこれを「scope と最小差分」を理由に採ったが、両レンズが real な不履行と判定した。
 - **改訂稿で権威 bytes 2 行を置換する** — 実際に使った測定権威の出所記録を落とす。
   機構上は可能だが採らない。
+
+## D2054. spool fragment の着地証明は fold receipt を一次とし、exact-state 履歴探索を正例専用の fallback に据える (2026-09-16)
+
+**決定:** `tools/check_branch_landed.py` は spool fragment に対し、従来どおり fold receipt の
+`content_sha256` と identity の一致を一次判定とする。**一致しないときは、通常 blob
+(mode `100644` / `100755`) に限り D922 の決定的証拠 (a) すなわち exact-state の履歴探索へ落とす。**
+落とし先の判定関数は `search` と receipt の理由だけを受け取り、`state` を受け取らない。
+戻り値は `landed` と `indeterminate` の 2 値に限る。
+
+削除 fragment (`required.missing`) は fallback の対象外とする。receipt の parse error・blob 上限・
+fragment 解析失敗は fallback の成功で覆い隠さない。
+
+**理由:**
+- **これは新しい証拠種別ではなく、既に認可された証拠の適用範囲の拡大である。** D922 点 2 の (a) は
+  `(path, mode, object type, oid)` の同時状態が main から到達可能であることを決定的証拠としており、
+  spool fragment を除外していない。除外していたのは実装の分岐であって裁定ではない。
+- **着地済み wave の fragment は main 履歴に実在する。** land merge が追加し fold commit が削除
+  するため、path は main 履歴に残る。実測では、着地済み wave の fragment blob は候補 6 commit の
+  うち 5 commit で四要素一致し、残り 1 件 (main tip) が `missing` だった。
+- **未着地 wave の fragment は候補 0 件で落ちる。** 実測した未着地 wave の fragment 2 本は、
+  main 履歴の候補 commit が 0 件、exact blob も不在だった。正例専用にすれば負例は
+  `indeterminate` のまま残る。
+- **`state` を渡さないことが D922 点 5 の構造的な担保になる。** 通常の判定関数へ流すと、候補 0 件の
+  pure add が `not-landed` へ落ち、fold receipt の不在を未着地の証拠に使ってしまう。引数から
+  `state` を外せば、この枝へ到達する経路がコード上存在しない。
+- 変異で裏取りした。正例専用の戻り値を `not-landed` へ変える変異は、wave 開始前から在った 10 本を
+  含む 12 本のテストを赤にした。
+
+**却下した選択肢:**
+- **fold receipt を identity (`authored`, `wave`, `seq`) でも索引する** — 最終条件を保つなら
+  新しい正例を増やさず、保たないなら決定的証拠そのものを変える。再 home では wave も
+  `content_sha256` も変わる実例があり、identity 索引だけでも解決しない。
+- **path が `docs/spool/` 配下であることを既知正常の根拠にする** — 述語が候補集合に含意されて
+  恒真になる。未着地の fragment も同じ path の下に在る。
+- **削除 fragment にも fallback を足す** — required の不在を探索すると main tip の不在だけで
+  受理でき、old blob を探索すると分岐前の共通履歴だけで成功しうる。どちらも削除という required
+  state の到達を証明していない。
+
+## D2055. 掃除の可視化は未証明 unit の理由を consumer へ運ぶ (2026-09-16)
+
+**決定:** `tools/check_branch_rescue.py` は `landed_assessment` に `unproven_unit_details` を足し、
+未証明 unit ごとの `commit` / `path` / `change` / `required_state` / 判定理由と、証拠層の
+`layer` / `decisive` / `outcome` / `reason` / `candidate_count` / `candidate_limit` /
+`matched_commit`、および理由別の件数表を運ぶ。件数は 100 を上限とし、超過は `truncated` を明示する。
+子 report を得られなかった場合は欠落理由を書き、「全 unit を説明できた」と書かない。
+
+運ぶ証拠層は decisive な層に加え、**`exact-tree-state` 層は `outcome` が `not-applicable` でない
+とき非 decisive でも運ぶ**。各層には `decisive` の真偽を必ず付ける。
+
+`complete` / `conclusive` / `verdict` / rc / `decision_inputs` の既存 field は 1 bit も変えない。
+
+**理由:**
+- **rc だけでは情報を運べない。** D1231 により rc は「完全な絵を描けたか」しか表さず、
+  未証明が 1 件でも残れば 2 である。何が未証明かを人が知る経路が別に要る。
+- **従来は集約理由と report の sha256 しか返していなかった。** hash から説明は復元できない。
+  実データでは、判定不能の commit について「どの path がなぜ未証明か」が JSON から読めなかった。
+- **decisive な層だけでは spool の探索事情が落ちる。** 正常な receipt 不在 + exact 不一致では
+  exact 層が非 decisive になるため、「候補 0 件」と「複数候補を調べたが不一致」を区別できない。
+  実際に探索が走った層は、判定を決めていなくても人の次の一手を決める材料である。
+- **`decisive` を付けないと「運ばれた層はすべて判定を決めた」と誤読される。** 非 spool では
+  receipt 層が `not-applicable` のまま decisive であり、この誤読は実際に起こりうる。
+
+**却下した選択肢:**
+- **「decisive な層はちょうど 1 つ」という一般不変条件を新設する** — D922 は証拠種別を限定して
+  いるが、層の本数を要求していない。そのためだけの状態管理とテストは複雑さだけを増やす。
+- **本文の逐語一致や別 path の同一 object を説明へ昇格する** — D922 点 3 が観測に留めている。
+  運ぶのは既存の証拠層の値だけとし、新しい探索を足さない。
+- **説明を無制限に出す** — 出力が膨らむ。上限と `truncated` の明示で足りる。
+
+## D2056. 較正 publish の直前に、凍結 pre profile と benchmark 後の観測 clock を canonical 述語で照合する (2026-09-16)
+
+**決定:**
+
+1. 較正取得 CLI の `_certify_main` に、既存の late 自己整合検査の直後・`status` 決定の直前で、
+   凍結した pre profile の実効クロックと benchmark 直後に取得済みの post profile のクロックを
+   照合する gate を置く。判定は canonical 述語 `effective_clock_comparison_passes` の
+   **戻り値だけ**で行い、帯計算を再実装せず、診断値を受理判断に使わない (D191 決定 1・決定 6)。
+2. 比較の expected 側は**凍結した dynamic pre profile** とし、最初の static probe でも post でも
+   置き換えない。tolerance は attempt 開始時に policy 定数から焼いた凍結値を使う。
+3. post 側の供給源は既に取得している post profile とし、新しい probe を足さない。
+4. 失敗は既存の reason list の末尾へ足し、既存 reason を消さず・上書きせず・統合しない。
+   `status` が `rejected` になることで publish より前に止まる。**publish transaction の位置と
+   順序は変えない。** 拒否時に published artifact を削除しない (D191 が既に却下している)。
+5. 失敗時だけ attempt staging へ診断 sidecar を 1 つ残す。凍結 attestation profile 全体と
+   その SHA-256、canonicalization 識別子、canonical へ渡した実入力、診断値、および
+   **照合時点の policy 値**を含める。
+6. **gate を通った attempt の published artifact の bytes を変えない。** calibration artifact に
+   新しい field を足さず、既存 field にも post 情報を混入させない。
+
+**理由:**
+
+- D191 の「射程」節が、benchmark 中および benchmark 後のクロックは依然として検査されないと
+  自ら記録していた。外側の post probe は CLI 終了後に走り、canonical 述語を一度も通らず、
+  publish を取り消さない。凍結した事前状態と事後の観測値の照合を公表前に課すのが
+  ユーザー裁定 (択 (a)) である。
+- publish transaction 自体を後ろへ移す案は影響範囲が広く、裁定が採らないと定めた。
+  受理判定へ reason を足す形なら、publish の位置・順序・公開後再読を 1 行も動かさずに
+  「公表前に止める」を満たせる。
+- 照合時の policy 値を sidecar に残すのは、benchmark 中に policy 定数が変わった場合に
+  帯内の標本でも canonical が False を返すためである。この値が無いと、後日 policy が戻った
+  環境で sidecar を再計算すると判定が反転し、成果物だけからの再計算が成立しない。
+- 判定を canonical の戻り値に固定するのは、診断の `band_pass` で分岐する実装が
+  policy 不一致を見逃すからである。policy 変更時に帯内でも拒否することを要求する負例で、
+  この違いを実際に撃てる。
+- published bytes を変えない制約は、凍結 pin の保全に不可欠だからではない。artifact schema の
+  exact keys 検証に触れず、登録済み較正を束縛する既存の参照と digest をこの wave の射程外に
+  保つための、保守的な自己制約である。
+
+**射程 (この決定が保証しないこと):**
+
+- benchmark **中**に帯外へ振れて post 観測までに戻った変動は検出しない。
+  post 観測は `calibrate_fn` の返却直後の 1 回だけである。
+- CLI 終了後に外側 job wrapper が撮る post attestation は本 gate の検査対象外であり、
+  それを評価して publish を取り消す経路は依然として無い。
+- probe の観測者効果 (F108) は是正しない。D155 決定 (4) がユーザー再裁定へ返した項である。
+- **成功した照合の証拠は成果物に残らない。** sidecar は失敗時だけ書くため、成功時の
+  pre→post 判定を成果物から再計算できない。受理集合・published bytes・参照を変えないので
+  本 wave の must-fix にはせず、裁定パッケージへ返した。
+- 本 gate が守るのは CLI publish 経路だけである。git 直接追加・旧 worktree からの持ち込み・
+  attempt からの複製・pin 更新は、D155 決定 (3) のとおり本 gate も loader も拒否しない。
+
+**却下した選択肢:**
+
+- **publish transaction を後ろへ移す** — 裁定が影響範囲の広さを理由に採らないと定めた。
+- **calibration artifact に post 標本や比較結果の field を足す** — top-level・profile・quality は
+  exact keys 検証であり、schema を広げれば accepted artifact の bytes と digest が変わる。
+  登録済み較正を束縛する既存の参照へ波及する。
+- **判定に診断値 (`band_pass`) を使う** — policy 不一致を見逃す。D191 決定 6 が
+  3 者の連言を canonical 述語に限ると定めている。
+- **拒否時に published artifact を削除する** — content-addressed で immutable な公開領域を
+  事後に壊し、並行 publish との race も生む (D191 が却下済み)。
