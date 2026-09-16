@@ -1,0 +1,15 @@
+
+============================================================
+Request ID:             1818.nqsv
+Request Name:           floor_campaign.sh
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Wed Sep 16 20:07:08 2026
+Started Request Time:   Wed Sep 16 20:19:02 2026
+Ended Request Time:     Wed Sep 16 21:38:27 2026
+Resources Information:
+  Elapse:               4769S
+  Remaining Elapse:     31231S
+============================================================

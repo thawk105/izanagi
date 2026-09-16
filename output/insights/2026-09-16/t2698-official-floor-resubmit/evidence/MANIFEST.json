@@ -1,0 +1,74 @@
+[
+ {
+  "name": "admission-snapshot-presubmit.txt",
+  "source": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2698-official-floor-resubmit/admission-snapshot-presubmit.txt",
+  "bytes": 1834,
+  "sha256": "f8825275cede3e23e9635cbb0ede0cf74970e4a7d07c18a67f303bec8364b7ff"
+ },
+ {
+  "name": "admission-snapshot-postsubmit.txt",
+  "source": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2698-official-floor-resubmit/admission-snapshot-postsubmit.txt",
+  "bytes": 2369,
+  "sha256": "6f7b9cf165eec73f8231e8ff2f81465c4babcc6ef667c511ba25a0c6a1eb3261"
+ },
+ {
+  "name": "1818-submit-receipt.json",
+  "source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2698-official-floor-resubmit/output/env/pegasus/floor/attempts/submissions/eb2759286496ac320307d0b3c3064e18/submit-receipt.json",
+  "bytes": 4330,
+  "sha256": "f0ea4b3b59768a594bbff5299c5a80376e87c31a3a61662b8cc2f26a9a2a7351"
+ },
+ {
+  "name": "1818-scheduler-accounting.txt",
+  "source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2698-official-floor-resubmit/output/env/pegasus/floor/attempts/submissions/eb2759286496ac320307d0b3c3064e18/scheduler.stderr",
+  "bytes": 549,
+  "sha256": "2041d3e845a43c6c8db995ac2db0e56618629225a3fe1215756c94856b41854f"
+ },
+ {
+  "name": "1818-job-result.json",
+  "source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2698-official-floor-resubmit/output/env/pegasus/floor/job-staging/0:1818.nqsv/job-result.json",
+  "bytes": 659,
+  "sha256": "e050841531e9bff6dc623c2a1a60e047e2d13f1dd1d0bf34f3556e2e1bb1f3a0"
+ },
+ {
+  "name": "1818-reservation.json",
+  "source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2698-official-floor-resubmit/output/env/pegasus/floor/job-staging/0:1818.nqsv/reservation.json",
+  "bytes": 368,
+  "sha256": "b7551d10e761deec782eae5e9a36de3889e50c399680b541dffe88151e474b69"
+ },
+ {
+  "name": "1818-scheduler-elapse.json",
+  "source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2698-official-floor-resubmit/output/env/pegasus/floor/job-staging/0:1818.nqsv/scheduler-elapse.json",
+  "bytes": 203,
+  "sha256": "909c81eaf4521787dfaaf98110c568e34cd0ecec30cdc1c8243ed203caae765d"
+ },
+ {
+  "name": "1818-checkpoint.jsonl",
+  "source": "/work/1/SFC/tanab/izanagi-job-evidence/pegasus/1818.nqsv/eb2759286496ac320307d0b3c3064e18/checkpoint.jsonl",
+  "bytes": 9479,
+  "sha256": "b070cfd312fdf8bed5d32f1b49781932ad01dd21bb7c7861ffd45b32fa281955"
+ },
+ {
+  "name": "20260916T111925Z-2c8cf9be-launch_certificate.json",
+  "source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2698-official-floor-resubmit/output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/launch_certificate.json",
+  "bytes": 423,
+  "sha256": "744528c2d0011e7be17ccc24bcdd2ce8a996149e5f64e24a5cf06f19040b6dd5"
+ },
+ {
+  "name": "attempt-registry-315b1eb8-2c8cf9be-registry.jsonl",
+  "source": "/work/1/SFC/tanab/izanagi/.git/izanagi/s8b-holdout-admission-v1/floor-attempt-registries/315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688/2c8cf9be929d83653814ecf5f2d5ed134a2af89686d796b8144da2fd45dfa58a/registry.jsonl",
+  "bytes": 550876,
+  "sha256": "8975bf3a2aeb42535eb75689e264e37bfe22f9730694a810decd9347c4ed09cc"
+ },
+ {
+  "name": "1818-compute-receipt.json",
+  "source": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2698-official-floor-resubmit/1818.compute-receipt.json",
+  "bytes": 566,
+  "sha256": "15be701294b1f145538adc52dc5cba2edbf2a0f1415641a66d0c42a3db138631"
+ },
+ {
+  "name": "20260916T111925Z-2c8cf9be-result-floors-extract.json",
+  "source": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2698-official-floor-resubmit/output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json (projection)",
+  "bytes": 7299,
+  "sha256": "a01aa4b499338e5ea26da421017b9a219f6dda7442e9641f0a450c2a605cf3f1"
+ }
+]
