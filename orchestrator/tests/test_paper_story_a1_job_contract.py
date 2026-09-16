@@ -8,6 +8,7 @@ import os
 import re
 import shlex
 import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -2240,6 +2241,9 @@ def test_v3_measurement_runs_one_selected_campaign_but_registers_exact_triple() 
     materializer = next(node for node in ast.walk(producer) if isinstance(node, ast.With)
                         and "a1_source.materialized" in ast.unparse(node.items[0].context_expr))
     inner_calls = [node for node in ast.walk(materializer) if isinstance(node, ast.Call)]
+    assert {k.arg: ast.unparse(k.value) for k in materializer.items[0].context_expr.keywords} == {
+        "study_id": "study_id",
+    }
     by_name = {ast.unparse(node.func): node for node in inner_calls}
     gate_args = {k.arg: ast.unparse(k.value) for k in by_name["_require_v3_backoff_fixed_condition_gate"].keywords}
     campaign_args = {k.arg: ast.unparse(k.value) for k in by_name["run_campaign"].keywords if k.arg}
@@ -3185,12 +3189,13 @@ def test_complete_only_issues_completion_receipt_without_materialize(
 
 def _v3_submit_cli_fixture(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    *, study_id: str = paired.V3_PILOT_STUDY_ID, attempt_name: str = "attempt-0004",
 ) -> tuple[Path, Path, str, dict]:
-    policy, policy_sha = paired.load_policy(paired.V3_PILOT_STUDY_ID)
+    policy, policy_sha = paired.load_policy(study_id)
     repo = tmp_path / "v3-submit-repo"
     for relative in paired.V3_NON_CERTIFYING_SOURCE_RELATIVE_PATHS:
         active = (
-            paired.V3_PILOT_POLICY_RELATIVE_PATH
+            paired._policy_relative_path(policy)
             if relative == paired.POLICY_RELATIVE_PATH else relative
         )
         source = repo / active
@@ -3198,14 +3203,15 @@ def _v3_submit_cli_fixture(
         source.write_text(f"fixture source: {active}\n", encoding="utf-8")
     base = (tmp_path / "v3-measurement").resolve()
     base.mkdir()
-    for relative in (*paired.a1_source.SOURCE_PATHS,
-                     paired.V3_PILOT_POLICY_RELATIVE_PATH,
-                     paired.V3_PILOT_PREREGISTRATION_RELATIVE_PATH):
+    for relative in (*paired.a1_source.CONTRACTS[study_id][2],
+                     paired._policy_relative_path(policy),
+                     policy["preregistration"]["path"],
+                     *(item["path"] for item in policy.get("sizing_inputs", {}).values())):
         target = repo / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes((REPO_ROOT / relative).read_bytes())
     (repo / "hydrated").mkdir()
-    attempt = base / "attempt-0004"
+    attempt = base / attempt_name
     head = "a" * 40
     monkeypatch.setattr(paired, "_repo_root", lambda: repo)
     monkeypatch.setattr(
@@ -3231,6 +3237,302 @@ def _v3_submit_cli_fixture(
     monkeypatch.setattr(paired, "_run_git", run_git)
     monkeypatch.setattr(paired.socket, "gethostname", lambda: "submit.example")
     return repo, attempt, head, policy
+
+
+def test_sized_source_closures_match_job_and_driver(monkeypatch):
+    script = JOB.read_text()
+    shell = script[script.index("NON_CERTIFYING_SOURCE_RELATIVE_PATHS=("):
+                   script.index('[[ -n "${PBS_JOBID:-}" ]]')]
+    first_start = script.index("source_paths = (")
+    first = script[first_start:script.index("files = {}", first_start)]
+    last_start = script.index("source_paths = [")
+    last = script[last_start:script.index("driver_rc = int", last_start)]
+    for study, policy_path, extras in (
+        (paired.a1_source.PILOT_STUDY_ID, paired.V3_PILOT_POLICY_RELATIVE_PATH, (
+            "orchestrator/campaign/paper_story_a1_source.v1.json",
+            "orchestrator/campaign/paper_story_a1_source.py",
+            "patches/silo-backoff-fixed.patch",
+            "output/insights/2026-09-11/t2397-a1-source-amendment/README.md")),
+        (paired.a1_source.SIZED_STUDY_ID, paired.V3_SIZED_POLICY_RELATIVE_PATH, (
+            "orchestrator/campaign/paper_story_a1_source.v2.json",
+            "orchestrator/campaign/paper_story_a1_source.py",
+            "patches/silo-backoff-fixed.patch",
+            "output/insights/2026-09-17/t2590-a1-sized-source-amendment/README.md")),
+    ):
+        policy = paired.load_policy(study)[0]
+        for relative in extras:
+            assert script.count(f'"{relative}"') == 3
+        expected = (
+            "orchestrator/campaign/paper_story_a1_paired.py", policy_path,
+            "orchestrator/campaign/pipeline.py", "tools/pegasus/paper_story_a1_paired.sh",
+            "orchestrator/calibrator/runner.py", *extras,
+        )
+        expected_noncert = (
+            *expected[:4], "orchestrator/campaign/campaign_lock.py",
+            "orchestrator/campaign/ident.py", "orchestrator/campaign/wal.py",
+            "orchestrator/campaign/loop.py", "orchestrator/campaign/trial_registry.py",
+            expected[4], *extras,
+        )
+        assert paired._source_relative_paths(policy, non_certifying=False) == expected
+        assert paired._source_relative_paths(policy, non_certifying=True) == expected_noncert
+        result = subprocess.run(
+            ["bash", "-c", shell + '\nprintf "%s\\n" "${NON_CERTIFYING_SOURCE_RELATIVE_PATHS[@]}"'],
+            env={**os.environ, "V3_STUDY": "1", "POLICY_RELATIVE": policy_path},
+            text=True, capture_output=True, check=True,
+        )
+        assert tuple(result.stdout.splitlines()) == expected_noncert
+        namespace = {"policy_relative": policy_path}
+        exec(first, namespace)
+        assert tuple(namespace["source_paths"]) == expected
+        for key, value in zip(("DRIVER", "POLICY", "PIPELINE", "JOB", "RUNNER"), expected[:5]):
+            monkeypatch.setenv("IZANAGI_A1_TERMINAL_" + key + "_RELATIVE", value)
+        namespace = {"os": os, "v3_study": True}
+        exec(last, namespace)
+        assert tuple(namespace["source_paths"]) == expected
+
+
+def test_sized_submit_requires_hydrate_and_preserves_attempt_names(tmp_path, monkeypatch):
+    study = paired.a1_source.SIZED_STUDY_ID
+    for index, supply in enumerate(("ok", "ok", None, "missing", "file")):
+        with monkeypatch.context() as mp:
+            repo, attempt, head, policy = _v3_submit_cli_fixture(
+                tmp_path / str(index), mp, study_id=study,
+                attempt_name=f"attempt-{index + 1:04d}")
+            calls = []
+            def qsub(argv, *, cwd):
+                calls.append(argv)
+                return subprocess.CompletedProcess(argv, 0, f"{122 + len(calls)}.server\n", "")
+            mp.setattr(paired, "_run_qsub", qsub)
+            mp.setattr(paired, "_observe_qstat_visibility", _v3_visibility)
+            supplied = repo / "hydrated"
+            if supply in ("missing", "file"):
+                supplied = repo / supply
+                if supply == "file":
+                    supplied.write_text("not a directory")
+            args = SimpleNamespace(study_id=study, expected_head=head, attempt_root=str(attempt),
+                                   third_party_source_root=None if supply is None else str(supplied))
+            if supply == "ok":
+                assert paired.run_submit(args) == 0
+                assert len(calls) == 3
+            else:
+                with pytest.raises(paired.PaperStoryError, match="hydrated third-party source root is unavailable"):
+                    paired.run_submit(args)
+                assert calls == []
+                assert not paired._attempt_intent_path(attempt).exists()
+
+
+def test_sized_group_intent_requires_hydrate(tmp_path, monkeypatch):
+    repo, attempt, head, policy = _v3_submit_cli_fixture(
+        tmp_path, monkeypatch, study_id=paired.a1_source.SIZED_STUDY_ID,
+        attempt_name="attempt-0001")
+    kwargs = dict(repo_root=repo, policy=policy, source_commit=head, attempt=attempt)
+    with pytest.raises(paired.PaperStoryError, match="requires hydrated"):
+        paired._v3_group_intent(**kwargs)
+    supplied = str(repo / "hydrated")
+    intent = paired._v3_group_intent(**kwargs, third_party_source_root=supplied)
+    assert len(intent["jobs"]) == 3
+    assert all(job["qsub_options"]["variables"]["IZANAGI_A1_THIRD_PARTY_SOURCE_ROOT"] == supplied
+               for job in intent["jobs"])
+    attempt.mkdir()
+    paired._attempt_intent_path(attempt).write_text(json.dumps(intent))
+    assert paired._v3_group_intent(**kwargs) == intent
+
+
+def test_sized_job_stages_hydrate_for_measurement(tmp_path):
+    script = JOB.read_text()
+    start = script.index("THIRD_PARTY_ARGS=()")
+    body = script[start:script.index("\nset +e", start)]
+    hydrated, dependency = tmp_path / "hydrated", tmp_path / "dependencies"
+    dependency.mkdir()
+    for name in ("masstree", "mimalloc", "googletest"):
+        directory = hydrated / name
+        directory.mkdir(parents=True)
+        (directory / "marker").write_text(name)
+    result = subprocess.run(["bash", "-eu", "-c",
+        'refuse() { echo "$1" >&2; exit 1; }\n' + body +
+        '\nprintf "%s\\n" "${THIRD_PARTY_ARGS[@]}"'],
+        env={**os.environ, "POLICY_RELATIVE": paired.V3_SIZED_POLICY_RELATIVE_PATH,
+             "DEPENDENCY_ROOT": str(dependency), "IZANAGI_A1_THIRD_PARTY_SOURCE_ROOT": str(hydrated)},
+        text=True, capture_output=True, check=True)
+    assert result.stdout.splitlines() == ["--third-party-source-root", str(dependency / "fetchcontent")]
+    for name in ("masstree", "mimalloc", "googletest"):
+        assert (dependency / "fetchcontent" / (name + "-src") / "marker").read_text() == name
+
+
+def test_sized_ccbench_acceptance_rejects_dirty_source(tmp_path, monkeypatch):
+    policy = paired.load_policy(paired.a1_source.SIZED_STUDY_ID)[0]
+    for boundary in ("login-submit", "driver-measurement", "artifact-consumer"):
+        for mode, error in (("clean", None), ("dirty", "tracked files are dirty"),
+                            ("wrong", "canonical HEAD mismatch"), ("unresolved", "cannot resolve submodule HEAD")):
+            calls = []
+            def git(root, *args):
+                calls.append((root, args))
+                if root == tmp_path:
+                    assert args == ("status", "--ignore-submodules=all", "--porcelain", "--untracked-files=all")
+                    return ""
+                assert root == tmp_path / "external/ccbench"
+                if args == ("rev-parse", "HEAD"):
+                    if mode == "unresolved":
+                        raise paired.PaperStoryError("unresolved")
+                    return "0" * 40 if mode == "wrong" else paired.CANONICAL_CCBENCH_OID
+                assert args == ("status", "--porcelain", "--untracked-files=no")
+                return " M tracked" if mode == "dirty" else ""
+            monkeypatch.setattr(paired, "_run_git", git)
+            assert paired._parent_porcelain(tmp_path, policy) == ""
+            if error:
+                with pytest.raises(paired.PaperStoryError, match=f"CCBench {boundary}: {error}"):
+                    paired._assert_ccbench_acceptance(tmp_path, policy, boundary=boundary)
+            else:
+                paired._assert_ccbench_acceptance(tmp_path, policy, boundary=boundary)
+                assert len(calls) == 3
+
+
+def test_sized_source_context_reaches_trace_and_perf_validation(tmp_path, monkeypatch):
+    from orchestrator.campaign import pipeline
+    source = paired.a1_source
+    observed = []
+    monkeypatch.setattr(source.patchharness, "assert_pinned_clean", lambda *args: None)
+    def produce(**kwargs):
+        assert kwargs["configuration"] == "a1-balanced5-sized-v1"
+        return "a" * 64
+    monkeypatch.setattr(source.s8b_expected_materialization,
+                        "produce_expected_materialization_sha256", produce)
+    context = source.SourceContext(REPO_ROOT, tmp_path, tmp_path,
+                                   study_id=source.SIZED_STUDY_ID)
+    monkeypatch.setattr(source.patchharness, "_git",
+                        lambda *args: SimpleNamespace(returncode=0, stdout=context.pin))
+    monkeypatch.setattr(source.s8b_expected_materialization, "assert_expected_materialization",
+                        lambda root, expected: observed.append((root, expected)))
+    for kind in ("trace", "perf"):
+        pipeline._require_canonical_build_source_state(str(tmp_path), context.pin,
+            build_kind=kind, a1_source_context=context)
+    assert observed == [(tmp_path, "a" * 64)] * 2
+    for kind in ("trace", "perf"):
+        with pytest.raises(RuntimeError, match="root or canonical pin differs"):
+            pipeline._require_canonical_build_source_state(str(tmp_path), "0" * 40,
+                build_kind=kind, a1_source_context=context)
+
+
+def _amended_measurement_fixture(tmp_path, monkeypatch, *, study_id, attempt_name):
+    loader = paired._load_policy_for_study
+    repo, attempt, head, policy = _v3_submit_cli_fixture(
+        tmp_path, monkeypatch, study_id=study_id, attempt_name=attempt_name)
+    monkeypatch.setattr(paired, "_load_policy_for_study", loader)
+    policy, policy_sha = paired._load_policy_for_study(study_id)
+    attempt.mkdir()
+    hydrate = str(repo / "hydrated")
+    intent = paired._v3_group_intent(repo_root=repo, policy=policy,
+        source_commit=head, attempt=attempt, third_party_source_root=hydrate)
+    paired._attempt_intent_path(attempt).write_text(json.dumps(intent))
+    acquisition = dict(intent, jobs=[dict(job, request_id=f"{123 + i}.server")
+                                    for i, job in enumerate(intent["jobs"])])
+    receipt = attempt / "acquisition.json"
+    receipt.write_text(json.dumps(acquisition))
+    roots = {key: str(attempt / key) for key in
+             ("output_root", "cache_root", "result_root", "raw_root")}
+    roots.update(attempt_root=str(attempt), submission_receipt=str(receipt))
+    scratch = tmp_path / "dependency-scratch"
+    staged = scratch / "fetchcontent"
+    staged.mkdir(parents=True)
+    args = SimpleNamespace(workload=paired.WORKLOAD_ORDER[0], study_id=study_id,
+        acquisition_receipt=str(receipt), acquisition_receipt_sha256=paired._sha256_file(receipt),
+        expected_head=head, pbs_jobid="123.server", output_root=roots["output_root"],
+        cache_root=roots["cache_root"], result_root=roots["result_root"],
+        dependency_prefix=f"{scratch / 'gflags-install'};{scratch / 'glog-install'}",
+        third_party_source_root=str(staged))
+    # Scheduler, runtime admission and persistence are outside this route test.
+    # Intent reconstruction, source hashes, policy and hydrate checks stay real.
+    monkeypatch.setattr(paired, "validate_acquisition_receipt", lambda *a, **kw: roots)
+    monkeypatch.setattr(paired, "validate_measure_environment", lambda **kw: roots)
+    monkeypatch.setattr(paired, "_pbs_environment_observation", lambda: {})
+    monkeypatch.setattr(paired.site_policy, "current_site", lambda: site_policy.PEGASUS_COMPUTE)
+    monkeypatch.setattr(paired, "_under_scr", lambda path: True)
+    monkeypatch.setattr(paired, "_reservation_binding_from_environment", lambda env: {
+        "nonce": f"{attempt.name}.{args.workload}", "job_id": args.pbs_jobid})
+    contract = paired.p2_2._legacy_linux_contract()
+    monkeypatch.setattr(paired.p2_2, "resolve_site_runtime",
+                        lambda: (site_policy.PEGASUS_COMPUTE, contract, None))
+    monkeypatch.setattr(paired.p2_2, "_assert_matches_calibration", lambda c: None)
+    monkeypatch.setattr(paired.p2_2, "_campaign_cfg_for_site", lambda cfg, *a: cfg)
+    monkeypatch.setattr(paired, "_prepare_runtime_roots", lambda *a: None)
+    monkeypatch.setattr(paired.buildcache, "compilers_for_current_site", lambda: ("cc", "c++"))
+    monkeypatch.setattr(paired.buildcache, "observed_toolchain_manifest", lambda *a: {})
+    monkeypatch.setattr(paired, "_preseed_v3_workload_lock",
+                        lambda **kw: SimpleNamespace(root=attempt))
+    monkeypatch.setattr(paired, "_assert_single_tenant", lambda: None)
+    monkeypatch.setattr(paired, "collect_workload", lambda *a, **kw: {})
+    monkeypatch.setattr(paired, "_workload_has_terminal_result", lambda result: True)
+    monkeypatch.setattr(paired, "_revalidate_attempt_root", lambda roots: None)
+    Path(roots["result_root"]).mkdir()
+    context = SimpleNamespace(root=tmp_path / "amended-source")
+    observed = {"materialized": [], "dependencies": [], "gate": [], "campaign": []}
+    @contextmanager
+    def materializer(root, *, study_id=paired.a1_source.PILOT_STUDY_ID):
+        observed["materialized"].append((root, study_id))
+        yield context, tmp_path / "stock"
+    def dependencies(**kwargs):
+        observed["dependencies"].append(kwargs)
+        return {}
+    def campaign(*args, **kwargs):
+        observed["campaign"].append(kwargs)
+        return SimpleNamespace(campaign_id="fixture", layout_root=attempt,
+                               balanced_schedule_receipt=None)
+    monkeypatch.setattr(paired.a1_source, "materialized", materializer)
+    monkeypatch.setattr(paired.a1_source, "prepare_dependencies", dependencies)
+    monkeypatch.setattr(paired, "_require_v3_backoff_fixed_condition_gate",
+                        lambda **kw: observed["gate"].append(kw))
+    monkeypatch.setattr(paired, "run_campaign", campaign)
+    monkeypatch.setenv("IZANAGI_A1_THIRD_PARTY_SOURCE_ROOT", hydrate)
+    return args, dict(repo_root=repo, policy=policy, policy_sha=policy_sha), context, observed
+
+
+def test_sized_measurement_routes_amended_source_and_hydrate(tmp_path, monkeypatch):
+    study = paired.a1_source.SIZED_STUDY_ID
+    for mode in ("ok", "env", "scratch"):
+        with monkeypatch.context() as mp:
+            args, kwargs, context, observed = _amended_measurement_fixture(
+                tmp_path / mode, mp, study_id=study, attempt_name="attempt-0002")
+            if mode == "env":
+                mp.setenv("IZANAGI_A1_THIRD_PARTY_SOURCE_ROOT", str(tmp_path / "other"))
+            if mode == "scratch":
+                args.third_party_source_root = str(kwargs["repo_root"] / "hydrated")
+            if mode != "ok":
+                message = ("third-party source origin differs from intent" if mode == "env"
+                           else "third-party staged root differs from dependency scratch")
+                with pytest.raises(paired.PaperStoryError, match=message):
+                    paired._run_measurement_v3(args, **kwargs)
+                assert observed == {key: [] for key in observed}
+                continue
+            assert paired._run_measurement_v3(args, **kwargs) == 0
+            assert observed["materialized"] == [(kwargs["repo_root"], study)]
+            assert len(observed["dependencies"]) == len(observed["gate"]) == len(observed["campaign"]) == 1
+            assert observed["dependencies"][0]["root"] == Path(args.third_party_source_root)
+            assert observed["dependencies"][0]["source"] == context.root
+            assert observed["gate"][0]["source_root"] == context.root
+            assert observed["campaign"][0]["ccbench_dir"] == str(context.root)
+            assert observed["campaign"][0]["a1_source_context"] is context
+
+
+def test_pilot_measurement_attempt_pin_remains_enforced(tmp_path, monkeypatch):
+    args, kwargs, context, observed = _amended_measurement_fixture(
+        tmp_path, monkeypatch, study_id=paired.V3_PILOT_STUDY_ID,
+        attempt_name="attempt-0001")
+    with pytest.raises(paired.PaperStoryError,
+                       match="A1 source amendment requires pilot attempt-0004"):
+        paired._run_measurement_v3(args, **kwargs)
+    assert observed == {key: [] for key in observed}
+
+
+def test_pilot_attempt_pin_remains_enforced(tmp_path, monkeypatch):
+    repo, attempt, head, policy = _v3_submit_cli_fixture(
+        tmp_path, monkeypatch, attempt_name="attempt-0001")
+    def unexpected_qsub(*args, **kwargs):
+        raise AssertionError("rejected pilot attempt reached qsub")
+    monkeypatch.setattr(paired, "_run_qsub", unexpected_qsub)
+    with pytest.raises(paired.PaperStoryError, match="new pilot submission requires source amendment attempt-0004"):
+        paired.run_submit(SimpleNamespace(study_id=paired.V3_PILOT_STUDY_ID,
+            expected_head=head, attempt_root=str(attempt), third_party_source_root=str(repo / "hydrated")))
+    assert not paired._attempt_intent_path(attempt).exists()
 
 
 def _v3_visibility(request_id: str) -> dict:

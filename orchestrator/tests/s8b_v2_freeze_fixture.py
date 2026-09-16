@@ -736,6 +736,7 @@ def attach_v5_attempt_registry(
 
 def candidate_repository(
         tmp_path: Path, module, *, manifest_kind: str = "v3",
+        versioned_protocol: bool = False,
         result_schema: str = _floor_contract.LEGACY_RESULT_SCHEMA,
         mutate_attempt_registry: Optional[Callable[[dict], None]] = None) -> dict:
     """v2 producer 正例用の synthetic-only tmp git repository を作る。"""
@@ -780,6 +781,14 @@ def candidate_repository(
     v1 = json.loads((root / module.FREEZE_REL).read_bytes())
     protocol_raw = (root / module.FLOOR_PROTOCOL_REL).read_bytes()
     protocol_document = json.loads(protocol_raw)
+    if versioned_protocol:
+        from orchestrator.campaign import s8b_floor_campaign
+
+        protocol_document["ccbench_pin"] = _git(ccbench, "rev-parse", "HEAD")
+        protocol_rel = s8b_floor_campaign._derived_reseal_protocol_relpath(
+            protocol_document["contract_sha256"], protocol_document["ccbench_pin"],
+        )
+        _write(root, protocol_rel, canonical_bytes(protocol_document))
     protocol = contract.validate_protocol(
         protocol_document,
         contract_sha256_lookup=lambda env_tag: env_contract.lookup(

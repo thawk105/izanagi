@@ -1,0 +1,13 @@
+{
+  "schema_version": "paper-story-a1-source/v2",
+  "study_id": "paper-story-a1-20260901-balanced5-sized-v1",
+  "canonical_head": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+  "patch": "patches/silo-backoff-fixed.patch",
+  "patch_sha256": "a5e0710c3f76744755b58ec66024c277daba00e49ce3cbf3d6d263cd7228580a",
+  "policy": "orchestrator/campaign/paper_story_a1_paired.v3-sized.json",
+  "policy_sha256": "a6228bcd5d2db3eca45fed6e148ab7ba92dd4d179f60e9c9c4ed0ffcf4942f1a",
+  "preregistration": "output/insights/2026-09-13/paper-story-a1-balanced5-sized-preregistration/README.md",
+  "preregistration_sha256": "6047eff005fbd94bad8df0313124bd4ca037dedf0f2e3db05224d04ad34fd3c2",
+  "amendment": "output/insights/2026-09-17/t2590-a1-sized-source-amendment/README.md",
+  "amendment_sha256": "6093de244e6fc90607094608617032f427db4951ebffc847c7bcaa795309789b"
+}

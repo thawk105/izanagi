@@ -1,0 +1,154 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment-before-registry",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "_CONDITIONAL_BRANCH_WITNESSES = {\n",
+          "new": "# equivalent mutation control (comment only)\n_CONDITIONAL_BRANCH_WITNESSES = {\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-noread-directive-text",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "        \"cc/silo/transaction.cc\", \"#if IZANAGI_BREAK_NOREAD_VALIDATION\",\n",
+          "new": "        \"cc/silo/transaction.cc\", \"#if IZANAGI_BREAK_NOREAD_VALIDATION_X\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_NOREAD_VALIDATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_else_with_nested_analysis[IZANAGI_BREAK_NOREAD_VALIDATION]",
+        "orchestrator/tests/test_s5_permutation_coverage.py::test_s2_condition_gate_passes_factory_declaration_to_meaning_evaluator[False-IZANAGI_BREAK_NOREAD_VALIDATION]",
+        "orchestrator/tests/test_s5_permutation_coverage.py::test_s2_condition_gate_passes_factory_declaration_to_meaning_evaluator[True-IZANAGI_BREAK_NOREAD_VALIDATION]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-highkey-directive-text",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "        \"cc/silo/transaction.cc\", \"#if IZANAGI_BREAK_HIGHKEY_VALIDATION\",\n",
+          "new": "        \"cc/silo/transaction.cc\", \"#if IZANAGI_BREAK_HIGHKEY_VALIDATION_X\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_HIGHKEY_VALIDATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_else_with_nested_analysis[IZANAGI_BREAK_HIGHKEY_VALIDATION]",
+        "orchestrator/tests/test_s5_permutation_coverage.py::test_s2_condition_gate_passes_factory_declaration_to_meaning_evaluator[False-IZANAGI_BREAK_HIGHKEY_VALIDATION]",
+        "orchestrator/tests/test_s5_permutation_coverage.py::test_s2_condition_gate_passes_factory_declaration_to_meaning_evaluator[True-IZANAGI_BREAK_HIGHKEY_VALIDATION]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-s2-wiring-reverted-to-none",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s2_verify_calibration.py",
+          "old": "        declaration=condition_meaning_gate.declare_define_runtime_meaning(request),\n",
+          "new": "        declaration=None,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s5_permutation_coverage.py::test_condition_preflight_dominates_first_benchmark_build[orchestrator.campaign.s2_verify_calibration]",
+        "orchestrator/tests/test_s5_permutation_coverage.py::test_s2_condition_gate_passes_factory_declaration_to_meaning_evaluator[False-IZANAGI_BREAK_HIGHKEY_VALIDATION]",
+        "orchestrator/tests/test_s5_permutation_coverage.py::test_s2_condition_gate_passes_factory_declaration_to_meaning_evaluator[False-IZANAGI_BREAK_NOREAD_VALIDATION]",
+        "orchestrator/tests/test_s5_permutation_coverage.py::test_s2_condition_gate_passes_factory_declaration_to_meaning_evaluator[True-IZANAGI_BREAK_HIGHKEY_VALIDATION]",
+        "orchestrator/tests/test_s5_permutation_coverage.py::test_s2_condition_gate_passes_factory_declaration_to_meaning_evaluator[True-IZANAGI_BREAK_NOREAD_VALIDATION]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-meaning-supported-excludes-new-macros",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "MEANING_SUPPORTED_MACROS = frozenset(\n    {\"BACKOFF_FIXED\", *CONDITIONAL_BRANCH_WITNESSES},\n)\n",
+          "new": "MEANING_SUPPORTED_MACROS = frozenset(\n    {\"BACKOFF_FIXED\", *CONDITIONAL_BRANCH_WITNESSES}\n    - {\"IZANAGI_BREAK_NOREAD_VALIDATION\", \"IZANAGI_BREAK_HIGHKEY_VALIDATION\"},\n)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_HIGHKEY_VALIDATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_NOREAD_VALIDATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_else_with_nested_analysis[IZANAGI_BREAK_HIGHKEY_VALIDATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_else_with_nested_analysis[IZANAGI_BREAK_NOREAD_VALIDATION]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-uniqueness-relaxed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    if len(starts) != 1:\n",
+          "new": "    if len(starts) < 1:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_duplicate_start_directive"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-factory-accepts-zero-request",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    elif requested != \"1\" or default != \"0\" \\\n",
+          "new": "    elif requested not in {\"0\", \"1\"} or default != \"0\" \\\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[0-0]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-non-discriminating-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    if requested_counts == default_counts:\n        raise ConditionMeaningGateError(\n            \"compile-time-branch-selection-not-discriminating\",\n            \"requested and default values produced the same branch observation\",\n            expected=expected_observations,\n            observed=f\"requested={requested_counts},default={default_counts}\",\n        )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[block-comment]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_declared_line_in_non_directive_text[raw-string]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_line_spliced_comment_endif",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_non_discriminating_observation",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_rejects_owner_prefix_undef"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

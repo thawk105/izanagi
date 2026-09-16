@@ -1,0 +1,862 @@
+{
+  "abort_counter_ownership": {
+    "expected_workload_abort_increment_count": 2,
+    "transaction_sha256": "2cc0de96b021536fa109078ac5e46c1c123856740ab9fdf8264d66d2e44ace6b",
+    "transaction_source": "cc/ss2pl/transaction.cc",
+    "txexecutor_abort_increment_count": 0,
+    "workload_abort_increment_count": 2,
+    "workload_sha256": "ac921c2359c6df7702850399a862260207138c88470c419e9086736b4b01017a",
+    "workload_source": "include/ycsb.hh"
+  },
+  "absence_S": {
+    "arm": "S",
+    "backoff": 1,
+    "binary": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/builds/S-plain/cc/ss2pl/ycsb_ss2pl.exe",
+    "binary_sha256": "dd910551aea2ad90a9077e1ca0ac6a23e296ac5cd171f4e3b4357b0386c79e3c",
+    "build_id": "S",
+    "compile_definitions": [
+      {
+        "definitions": {
+          "ADD_ANALYSIS": "0",
+          "BACK_OFF": "1",
+          "BOOST_ALL_NO_LIB": "1",
+          "BOOST_FILESYSTEM_DYN_LINK": "1",
+          "DLR1": "1",
+          "KEY_SIZE": "8",
+          "KEY_SORT": "0",
+          "Linux": "1",
+          "MASSTREE_USE": "1",
+          "NDEBUG": "1",
+          "SS2PL_DLR": "1",
+          "SS2PL_LOCK_IMPL": "0",
+          "SS2PL_LOCK_KIND": "1",
+          "SS2PL_WFG_DIAG": "0",
+          "SS2PL_WORKLOAD_YCSB": "1",
+          "TRACE": "0",
+          "VAL_SIZE": "8"
+        },
+        "file": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/ccbench/cc/ss2pl/ycsb_ss2pl.cc"
+      },
+      {
+        "definitions": {
+          "ADD_ANALYSIS": "0",
+          "BACK_OFF": "1",
+          "BOOST_ALL_NO_LIB": "1",
+          "BOOST_FILESYSTEM_DYN_LINK": "1",
+          "DLR1": "1",
+          "KEY_SIZE": "8",
+          "KEY_SORT": "0",
+          "Linux": "1",
+          "MASSTREE_USE": "1",
+          "NDEBUG": "1",
+          "SS2PL_DLR": "1",
+          "SS2PL_LOCK_IMPL": "0",
+          "SS2PL_LOCK_KIND": "1",
+          "SS2PL_WFG_DIAG": "0",
+          "SS2PL_WORKLOAD_YCSB": "1",
+          "TRACE": "0",
+          "VAL_SIZE": "8"
+        },
+        "file": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/ccbench/cc/ss2pl/transaction.cc"
+      },
+      {
+        "definitions": {
+          "ADD_ANALYSIS": "0",
+          "BACK_OFF": "1",
+          "BOOST_ALL_NO_LIB": "1",
+          "BOOST_FILESYSTEM_DYN_LINK": "1",
+          "DLR1": "1",
+          "KEY_SIZE": "8",
+          "KEY_SORT": "0",
+          "Linux": "1",
+          "MASSTREE_USE": "1",
+          "NDEBUG": "1",
+          "SS2PL_DLR": "1",
+          "SS2PL_LOCK_IMPL": "0",
+          "SS2PL_LOCK_KIND": "1",
+          "SS2PL_WFG_DIAG": "0",
+          "SS2PL_WORKLOAD_YCSB": "1",
+          "TRACE": "0",
+          "VAL_SIZE": "8"
+        },
+        "file": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/ccbench/cc/ss2pl/util.cc"
+      }
+    ],
+    "condition_gates": "skipped: stock-tree owner TU unresolved (pre-existing, see facts)",
+    "mode": "plain",
+    "observed_cache": {
+      "CCBENCH_BACK_OFF": "1",
+      "CCBENCH_KEY_SORT": "0",
+      "CCBENCH_SS2PL_DLR": "1",
+      "CCBENCH_SS2PL_LOCK_IMPL": "0",
+      "CCBENCH_SS2PL_LOCK_KIND": "1",
+      "CCBENCH_SS2PL_WFG_DIAG": "0",
+      "CCBENCH_TRACE": "0",
+      "CCBENCH_VAL_SIZE": "8",
+      "CMAKE_BUILD_TYPE": "Release",
+      "ENABLE_SANITIZER": "OFF"
+    },
+    "requested_cache": {
+      "CCBENCH_BACK_OFF": "1",
+      "CCBENCH_KEY_SORT": "0",
+      "CCBENCH_SS2PL_DLR": "1",
+      "CCBENCH_SS2PL_LOCK_IMPL": "0",
+      "CCBENCH_SS2PL_LOCK_KIND": "1",
+      "CCBENCH_SS2PL_WFG_DIAG": "0",
+      "CCBENCH_TRACE": "0",
+      "CCBENCH_VAL_SIZE": "8",
+      "CMAKE_BUILD_TYPE": "Release",
+      "ENABLE_SANITIZER": "OFF"
+    },
+    "target": "ycsb_ss2pl.exe",
+    "wfg_absence": {
+      "allowed_axis_label": {
+        "binary_count": 1,
+        "binary_string": ": SS2PL_WFG_DIAG ",
+        "function": "ShowOptParameters",
+        "source": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/ccbench/cc/ss2pl/util.cc",
+        "token_count": 1
+      },
+      "checked_translation_units": 3,
+      "preprocessed": [
+        {
+          "cache_hit": false,
+          "cache_key_sha256": "c1548f30c98a1bdb82331e42e4f70e70fa27177e3c443acf47903c55e65c6a67",
+          "compile_argv_sha256": "645f4ddff913975e081de36c695fad76e36a432cb8c6a195c80ff2a2f4992b5c",
+          "directory_sha256": "e697daa947ed8269bb715714377444196b834d60a14ef212072e53a5cc163583",
+          "preprocess_duration_s": 0.1777307859956636,
+          "preprocessed_bytes": 4903202,
+          "request_duration_s": 2.6077694470004644,
+          "scan_config_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sha256": "05bdd79a02861e04847d826cf9a580f0adb30f860c45910884d5da742148ff0b",
+          "source": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/ccbench/cc/ss2pl/ycsb_ss2pl.cc",
+          "source_content_sha256": "f4cd385e4f3c9b8e457a2826db027925390ae99f1f9fdd909412709e3bd1f105",
+          "source_path_sha256": "5038558901f12fc45b12e4c131514fc0d16cf3261c4a0767820becd3e062ca21",
+          "source_state_sha256": "0811f2ac82366ee1964efd3d7d05b995da839345c55139109cadf9ce214cfb9c",
+          "token_count": 945805,
+          "tokenize_duration_s": 2.428571516997181
+        },
+        {
+          "cache_hit": false,
+          "cache_key_sha256": "db95b8d12b4bb1f299ef3637516bf262a3e448e026d04d4591e8025bfb298ed0",
+          "compile_argv_sha256": "5f1a3f99bde7445a423c456350be99fcb6bad68f4c8e8cabe905414064358e36",
+          "directory_sha256": "e697daa947ed8269bb715714377444196b834d60a14ef212072e53a5cc163583",
+          "preprocess_duration_s": 0.16923178800061578,
+          "preprocessed_bytes": 4893872,
+          "request_duration_s": 2.592997687999741,
+          "scan_config_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sha256": "279f097616a86c947350eca98d10c5b9842cf7a759c2a14b828c046e68a3ed14",
+          "source": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/ccbench/cc/ss2pl/transaction.cc",
+          "source_content_sha256": "2cc0de96b021536fa109078ac5e46c1c123856740ab9fdf8264d66d2e44ace6b",
+          "source_path_sha256": "0ded9c6c58ee5d7cd5856d56c6e2c28b9598b12ffb7e772f72a4b06c2452694b",
+          "source_state_sha256": "0811f2ac82366ee1964efd3d7d05b995da839345c55139109cadf9ce214cfb9c",
+          "token_count": 944289,
+          "tokenize_duration_s": 2.4222210009975242
+        },
+        {
+          "cache_hit": false,
+          "cache_key_sha256": "e650393a76021987d4ca40ca5e19289a8ef241dde57de5c00275227b837589db",
+          "compile_argv_sha256": "f7507280bda38aab0331b4a100d2dcd27dd4ad14b5cb6fe20965ae7eb80bf0cc",
+          "directory_sha256": "e697daa947ed8269bb715714377444196b834d60a14ef212072e53a5cc163583",
+          "preprocess_duration_s": 0.14306858800409827,
+          "preprocessed_bytes": 3357660,
+          "request_duration_s": 1.8576382249957533,
+          "scan_config_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sha256": "5eb8f3186179acd3edd8899e39d31f1513c61e09171045545f65caf7d30b7751",
+          "source": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/ccbench/cc/ss2pl/util.cc",
+          "source_content_sha256": "6607c1db6685510a3c9ee233fe6e90c4ccc571c9b6e006c34f3890930d0d98fc",
+          "source_path_sha256": "bbce062a04522a13d027e8b6335c732894128df55142dde7b2d664c4473af27b",
+          "source_state_sha256": "0811f2ac82366ee1964efd3d7d05b995da839345c55139109cadf9ce214cfb9c",
+          "token_count": 670115,
+          "tokenize_duration_s": 1.7132184119982412
+        }
+      ],
+      "source_files": [
+        "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/ccbench/cc/ss2pl/ycsb_ss2pl.cc",
+        "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/ccbench/cc/ss2pl/transaction.cc",
+        "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/ccbench/cc/ss2pl/util.cc"
+      ],
+      "strings_sha256": "28bb23be1a0e9f8952f871cc29a857eb63f8c472dab8860a98381d886d6dcc05",
+      "symbols_sha256": "3913fec49c73e9360758c070f4425b408478be9e494c2107e63de67fa11890f2"
+    }
+  },
+  "build_phase1": {
+    "arm": "phase1",
+    "backoff": 1,
+    "binary": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/builds/phase1-plain/cc/ss2pl/ycsb_ss2pl.exe",
+    "binary_sha256": "1f90f671010fd9ecac1216966fc56eda0b70a570a747471d2d77d1cfa663e92c",
+    "build_id": "phase1",
+    "compile_definitions": [
+      {
+        "definitions": {
+          "ADD_ANALYSIS": "0",
+          "BACK_OFF": "1",
+          "BOOST_ALL_NO_LIB": "1",
+          "BOOST_FILESYSTEM_DYN_LINK": "1",
+          "DLR0": "1",
+          "KEY_SIZE": "8",
+          "KEY_SORT": "0",
+          "Linux": "1",
+          "MASSTREE_USE": "1",
+          "NDEBUG": "1",
+          "SS2PL_DLR": "0",
+          "SS2PL_LOCK_IMPL": "1",
+          "SS2PL_LOCK_KIND": "0",
+          "SS2PL_WFG_DIAG": "1",
+          "SS2PL_WORKLOAD_YCSB": "1",
+          "TRACE": "0",
+          "VAL_SIZE": "8"
+        },
+        "file": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/ccbench/cc/ss2pl/ycsb_ss2pl.cc"
+      },
+      {
+        "definitions": {
+          "ADD_ANALYSIS": "0",
+          "BACK_OFF": "1",
+          "BOOST_ALL_NO_LIB": "1",
+          "BOOST_FILESYSTEM_DYN_LINK": "1",
+          "DLR0": "1",
+          "KEY_SIZE": "8",
+          "KEY_SORT": "0",
+          "Linux": "1",
+          "MASSTREE_USE": "1",
+          "NDEBUG": "1",
+          "SS2PL_DLR": "0",
+          "SS2PL_LOCK_IMPL": "1",
+          "SS2PL_LOCK_KIND": "0",
+          "SS2PL_WFG_DIAG": "1",
+          "SS2PL_WORKLOAD_YCSB": "1",
+          "TRACE": "0",
+          "VAL_SIZE": "8"
+        },
+        "file": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/ccbench/cc/ss2pl/transaction.cc"
+      },
+      {
+        "definitions": {
+          "ADD_ANALYSIS": "0",
+          "BACK_OFF": "1",
+          "BOOST_ALL_NO_LIB": "1",
+          "BOOST_FILESYSTEM_DYN_LINK": "1",
+          "DLR0": "1",
+          "KEY_SIZE": "8",
+          "KEY_SORT": "0",
+          "Linux": "1",
+          "MASSTREE_USE": "1",
+          "NDEBUG": "1",
+          "SS2PL_DLR": "0",
+          "SS2PL_LOCK_IMPL": "1",
+          "SS2PL_LOCK_KIND": "0",
+          "SS2PL_WFG_DIAG": "1",
+          "SS2PL_WORKLOAD_YCSB": "1",
+          "TRACE": "0",
+          "VAL_SIZE": "8"
+        },
+        "file": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/ccbench/cc/ss2pl/util.cc"
+      },
+      {
+        "definitions": {
+          "ADD_ANALYSIS": "0",
+          "BACK_OFF": "1",
+          "BOOST_ALL_NO_LIB": "1",
+          "BOOST_FILESYSTEM_DYN_LINK": "1",
+          "DLR0": "1",
+          "KEY_SIZE": "8",
+          "KEY_SORT": "0",
+          "Linux": "1",
+          "MASSTREE_USE": "1",
+          "NDEBUG": "1",
+          "SS2PL_DLR": "0",
+          "SS2PL_LOCK_IMPL": "1",
+          "SS2PL_LOCK_KIND": "0",
+          "SS2PL_WFG_DIAG": "1",
+          "SS2PL_WORKLOAD_YCSB": "1",
+          "TRACE": "0",
+          "VAL_SIZE": "8"
+        },
+        "file": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/ccbench/cc/ss2pl/wfg.cc"
+      }
+    ],
+    "condition_gates": "skipped: dependency-closure-drift / compile-command-drift (pre-existing, see facts)",
+    "observed_cache": {
+      "CCBENCH_BACK_OFF": "1",
+      "CCBENCH_KEY_SORT": "0",
+      "CCBENCH_SS2PL_DLR": "0",
+      "CCBENCH_SS2PL_LOCK_IMPL": "1",
+      "CCBENCH_SS2PL_LOCK_KIND": "0",
+      "CCBENCH_SS2PL_WFG_DIAG": "1",
+      "CCBENCH_TRACE": "0",
+      "CCBENCH_VAL_SIZE": "8",
+      "CMAKE_BUILD_TYPE": "Release",
+      "ENABLE_SANITIZER": "OFF"
+    },
+    "requested_cache": {
+      "CCBENCH_BACK_OFF": "1",
+      "CCBENCH_KEY_SORT": "0",
+      "CCBENCH_SS2PL_DLR": "0",
+      "CCBENCH_SS2PL_LOCK_IMPL": "1",
+      "CCBENCH_SS2PL_LOCK_KIND": "0",
+      "CCBENCH_SS2PL_WFG_DIAG": "1",
+      "CCBENCH_TRACE": "0",
+      "CCBENCH_VAL_SIZE": "8",
+      "CMAKE_BUILD_TYPE": "Release",
+      "ENABLE_SANITIZER": "OFF"
+    },
+    "target": "ycsb_ss2pl.exe"
+  },
+  "canonical": {
+    "gitlink": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+    "head": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2644-ss2pl-wfg-connect/external/ccbench",
+    "status_porcelain": ""
+  },
+  "clone_patched": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/ccbench",
+  "clone_stock": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/condition-gate-stock",
+  "hostname": "bnode007",
+  "inputs": {
+    "absence_mode": "plain",
+    "clocks_per_us": 2100,
+    "gflags_prefix": "/work/1/SFC/tanab/ss2pl-study-deps/gflags-install",
+    "glog_prefix": "/work/1/SFC/tanab/ss2pl-study-deps/glog-install",
+    "jobs": 48,
+    "output": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2644-ss2pl-wfg-connect/probe-result-3.json",
+    "patch": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2644-ss2pl-wfg-connect/patches/ss2pl-lock-protocol-study.patch",
+    "patch_sha256": "0386132a6cc0b902d67fe7394aeb2de5d78746f31d5bceadd080c769c98aa4b7",
+    "phase1_mode": "plain",
+    "policy": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2644-ss2pl-wfg-connect/tools/pegasus/policy.json",
+    "policy_sha256": "3a3c7d607de77e23368f9ce382b41e6e524de3ee1e2809e7c6d890ada95a6c90",
+    "probe": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2644-ss2pl-wfg-connect/tools/t2644_wfg_probe.py",
+    "probe_sha256": "8ed60cbaf3b89684cd919272c9b8c0e11652a23fb35297249ff3b113b6734587",
+    "repo_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2644-ss2pl-wfg-connect",
+    "runner": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2644-ss2pl-wfg-connect/tools/pegasus/run_ss2pl_lock_study.py",
+    "runner_sha256": "bee39b4e0ccc54426933f963a3d4aec51defb92a12465ccc09b7d358004eeb79",
+    "scratch_root": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3",
+    "selftest": false,
+    "thirdparty_root": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/thirdparty-src",
+    "warm_masstree": true
+  },
+  "patch_applied": true,
+  "patched_source_state_sha256": "0811f2ac82366ee1964efd3d7d05b995da839345c55139109cadf9ce214cfb9c",
+  "pbs_jobid": "0:2339.nqsv",
+  "pbs_jobid_source": {
+    "kind": "compute-visible",
+    "mtime_ns": 1789577262000000000,
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2644-ss2pl-wfg-connect/output/pegasus-dispatch/19c1a535f05bc7876b68b53736ed72ce/compute-visible.json"
+  },
+  "preprocess_cache": {
+    "avoided_preprocessed_bytes": 0,
+    "entries": 3,
+    "hits": 0,
+    "requests": 3
+  },
+  "required_commands": {
+    "ar": "/usr/bin/ar",
+    "as": "/usr/bin/as",
+    "c++": "/usr/bin/c++",
+    "cc": "/usr/bin/cc",
+    "cmake": "/usr/bin/cmake",
+    "git": "/usr/bin/git",
+    "ld": "/usr/bin/ld",
+    "make": "/usr/bin/make",
+    "nm": "/usr/bin/nm",
+    "ranlib": "/usr/bin/ranlib",
+    "strings": "/usr/bin/strings"
+  },
+  "schema": "t2644-wfg-probe/v1",
+  "scratch_path": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044",
+  "scratch_root": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3",
+  "stage": "completed",
+  "stage_seconds": {
+    "abort_ownership": 0.006493188004242256,
+    "absence_S": 12.362102309001784,
+    "apply_patch": 0.03436450399749447,
+    "build_phase1": 5.262079880005331,
+    "canonical": 0.6566727649988024,
+    "clone_patched": 0.4250316739999107,
+    "clone_stock": 0.438417074001336,
+    "import_driver": 0.18337537300249096,
+    "inputs": 0.0022333259985316545,
+    "pbs_jobid": 0.007571629001176916,
+    "required_commands": 0.00017179900169139728,
+    "scratch": 0.0008393089956371114,
+    "thirdparty": 0.4330110579976463,
+    "trial": 62.06575248599984,
+    "warm_masstree": 13.352682710996305
+  },
+  "status": "completed",
+  "thirdparty": [
+    {
+      "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+      "name": "masstree",
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/thirdparty-src/masstree",
+      "status_porcelain": ""
+    },
+    {
+      "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+      "name": "mimalloc",
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/thirdparty-src/mimalloc",
+      "status_porcelain": ""
+    },
+    {
+      "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+      "name": "googletest",
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/thirdparty-src/googletest",
+      "status_porcelain": ""
+    }
+  ],
+  "trial": {
+    "accepted_cycle": {
+      "snapshot": {
+        "conflict_count": 41,
+        "cycle_found": true,
+        "edges": [
+          {
+            "compatible": false,
+            "holder_mode": "write",
+            "holder_thread_id": 21,
+            "lock_id": "0x14d33800a740",
+            "request_mode": "write",
+            "waiter_thread_id": 16
+          },
+          {
+            "compatible": false,
+            "holder_mode": "write",
+            "holder_thread_id": 16,
+            "lock_id": "0x14d33800b1c0",
+            "request_mode": "write",
+            "waiter_thread_id": 21
+          }
+        ],
+        "event": "wfg_snapshot",
+        "no_wait_failure_count": 0,
+        "nodes": [
+          {
+            "abort_count": 0,
+            "attempt": 1,
+            "commit_count": 0,
+            "held_locks": [
+              {
+                "lock_id": "0x14d33800b1c0",
+                "mode": "write"
+              }
+            ],
+            "request_mode": "write",
+            "thread_id": 16,
+            "wait_lock_id": "0x14d33800a740"
+          },
+          {
+            "abort_count": 0,
+            "attempt": 1,
+            "commit_count": 0,
+            "held_locks": [
+              {
+                "lock_id": "0x14d338008280",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d33800a740",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d338007d40",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d33800e480",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d3380056c0",
+                "mode": "write"
+              }
+            ],
+            "request_mode": "write",
+            "thread_id": 21,
+            "wait_lock_id": "0x14d33800b1c0"
+          }
+        ],
+        "schema": "ss2pl-wfg/v2",
+        "tick": 5
+      },
+      "snapshot_indexes": [
+        0,
+        1,
+        2
+      ]
+    },
+    "argv": [
+      "-clocks_per_us=2100",
+      "-extime=10",
+      "-thread_num=48",
+      "-ycsb_tuple_num=100",
+      "-ycsb_rratio=50",
+      "-ycsb_rmw=0",
+      "-ycsb_zipf_skew=0",
+      "-ycsb_max_ope=10",
+      "-ss2pl_wfg_output=/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/builds/phase1-plain/cc/ss2pl/ss2pl-wfg-phase1-high-contention-t0-al9jgpvr/final.json"
+    ],
+    "binary_sha256": "1f90f671010fd9ecac1216966fc56eda0b70a570a747471d2d77d1cfa663e92c",
+    "block_id": 0,
+    "conflict_count": 41,
+    "conflict_observation": {
+      "collected": true,
+      "count": 41,
+      "statement": "Observed conflict count: 41."
+    },
+    "cycle_observed": true,
+    "duration_s": 62.06077228499635,
+    "ended_monotonic_s": 58042.371114755,
+    "layout": {
+      "collected": false,
+      "failure": {
+        "message": "sizeof/alignof/offsetof SS2PL layout record was not emitted",
+        "type": "ContractError"
+      }
+    },
+    "metrics": {},
+    "node": "bnode007",
+    "occasion_id": "t2644-5ea4bba79fd64ba7bf4c10cf06d4c044",
+    "pbs_jobid": "0:2339.nqsv",
+    "phase": "phase1",
+    "phase2_counters": null,
+    "point": "high-contention",
+    "returncode": -9,
+    "runtime_axes": {
+      "dlr": 0,
+      "impl": 1,
+      "kind": 0,
+      "wfg": 1
+    },
+    "runtime_workload_flag_lines": [
+      "#FLAGS_ycsb_max_ope:\t10",
+      "#FLAGS_ycsb_rmw:\t0",
+      "#FLAGS_ycsb_rratio:\t50",
+      "#FLAGS_ycsb_tuple_num:\t100",
+      "#FLAGS_ycsb_zipf_skew:\t0"
+    ],
+    "runtime_workload_flags": {
+      "ycsb_max_ope": "10",
+      "ycsb_rmw": "0",
+      "ycsb_rratio": "50",
+      "ycsb_tuple_num": "100",
+      "ycsb_zipf_skew": "0"
+    },
+    "show_opt_parameters_line": "#ShowOptParameters(): ADD_ANALYSIS 0: BACK_OFF 1: DLR0 : SS2PL_LOCK_IMPL 1: SS2PL_LOCK_KIND 0: SS2PL_DLR 0: SS2PL_WFG_DIAG 1: MASSTREE_USE 1: KEY_SIZE 8: KEY_SORT 0: VAL_SIZE 8",
+    "started_monotonic_s": 57980.31034247,
+    "stderr_path": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/builds/phase1-plain/cc/ss2pl/ss2pl-wfg-phase1-high-contention-t0-al9jgpvr/stderr.txt",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/builds/phase1-plain/cc/ss2pl/ss2pl-wfg-phase1-high-contention-t0-al9jgpvr/stdout.txt",
+    "stdout_sha256": "c98ea15b033a54c55dca34b77bd0d4a236f51609aac7dbf0ce4bd3c418784bf4",
+    "termination": "kill",
+    "thread_num": 48,
+    "timed_out": true,
+    "trial": 0,
+    "wfg_output": {
+      "error": null,
+      "json": {
+        "conflict_count": 41,
+        "cycle_found": true,
+        "edges": [
+          {
+            "compatible": false,
+            "holder_mode": "write",
+            "holder_thread_id": 21,
+            "lock_id": "0x14d33800a740",
+            "request_mode": "write",
+            "waiter_thread_id": 16
+          },
+          {
+            "compatible": false,
+            "holder_mode": "write",
+            "holder_thread_id": 16,
+            "lock_id": "0x14d33800b1c0",
+            "request_mode": "write",
+            "waiter_thread_id": 21
+          }
+        ],
+        "event": "wfg_snapshot",
+        "no_wait_failure_count": 0,
+        "nodes": [
+          {
+            "abort_count": 0,
+            "attempt": 1,
+            "commit_count": 0,
+            "held_locks": [
+              {
+                "lock_id": "0x14d33800b1c0",
+                "mode": "write"
+              }
+            ],
+            "request_mode": "write",
+            "thread_id": 16,
+            "wait_lock_id": "0x14d33800a740"
+          },
+          {
+            "abort_count": 0,
+            "attempt": 1,
+            "commit_count": 0,
+            "held_locks": [
+              {
+                "lock_id": "0x14d338008280",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d33800a740",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d338007d40",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d33800e480",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d3380056c0",
+                "mode": "write"
+              }
+            ],
+            "request_mode": "write",
+            "thread_id": 21,
+            "wait_lock_id": "0x14d33800b1c0"
+          }
+        ],
+        "schema": "ss2pl-wfg/v2",
+        "tick": 7
+      },
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/builds/phase1-plain/cc/ss2pl/ss2pl-wfg-phase1-high-contention-t0-al9jgpvr/final.json",
+      "sha256": "fecb3b1e5ab6e7c3cf88f9a2c06cee346a085739200128efacd8bf15051e7ef6",
+      "status": "present"
+    },
+    "wfg_snapshots": [
+      {
+        "conflict_count": 41,
+        "cycle_found": true,
+        "edges": [
+          {
+            "compatible": false,
+            "holder_mode": "write",
+            "holder_thread_id": 21,
+            "lock_id": "0x14d33800a740",
+            "request_mode": "write",
+            "waiter_thread_id": 16
+          },
+          {
+            "compatible": false,
+            "holder_mode": "write",
+            "holder_thread_id": 16,
+            "lock_id": "0x14d33800b1c0",
+            "request_mode": "write",
+            "waiter_thread_id": 21
+          }
+        ],
+        "event": "wfg_snapshot",
+        "no_wait_failure_count": 0,
+        "nodes": [
+          {
+            "abort_count": 0,
+            "attempt": 1,
+            "commit_count": 0,
+            "held_locks": [
+              {
+                "lock_id": "0x14d33800b1c0",
+                "mode": "write"
+              }
+            ],
+            "request_mode": "write",
+            "thread_id": 16,
+            "wait_lock_id": "0x14d33800a740"
+          },
+          {
+            "abort_count": 0,
+            "attempt": 1,
+            "commit_count": 0,
+            "held_locks": [
+              {
+                "lock_id": "0x14d338008280",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d33800a740",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d338007d40",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d33800e480",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d3380056c0",
+                "mode": "write"
+              }
+            ],
+            "request_mode": "write",
+            "thread_id": 21,
+            "wait_lock_id": "0x14d33800b1c0"
+          }
+        ],
+        "schema": "ss2pl-wfg/v2",
+        "tick": 5
+      },
+      {
+        "conflict_count": 41,
+        "cycle_found": true,
+        "edges": [
+          {
+            "compatible": false,
+            "holder_mode": "write",
+            "holder_thread_id": 21,
+            "lock_id": "0x14d33800a740",
+            "request_mode": "write",
+            "waiter_thread_id": 16
+          },
+          {
+            "compatible": false,
+            "holder_mode": "write",
+            "holder_thread_id": 16,
+            "lock_id": "0x14d33800b1c0",
+            "request_mode": "write",
+            "waiter_thread_id": 21
+          }
+        ],
+        "event": "wfg_snapshot",
+        "no_wait_failure_count": 0,
+        "nodes": [
+          {
+            "abort_count": 0,
+            "attempt": 1,
+            "commit_count": 0,
+            "held_locks": [
+              {
+                "lock_id": "0x14d33800b1c0",
+                "mode": "write"
+              }
+            ],
+            "request_mode": "write",
+            "thread_id": 16,
+            "wait_lock_id": "0x14d33800a740"
+          },
+          {
+            "abort_count": 0,
+            "attempt": 1,
+            "commit_count": 0,
+            "held_locks": [
+              {
+                "lock_id": "0x14d338008280",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d33800a740",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d338007d40",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d33800e480",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d3380056c0",
+                "mode": "write"
+              }
+            ],
+            "request_mode": "write",
+            "thread_id": 21,
+            "wait_lock_id": "0x14d33800b1c0"
+          }
+        ],
+        "schema": "ss2pl-wfg/v2",
+        "tick": 6
+      },
+      {
+        "conflict_count": 41,
+        "cycle_found": true,
+        "edges": [
+          {
+            "compatible": false,
+            "holder_mode": "write",
+            "holder_thread_id": 21,
+            "lock_id": "0x14d33800a740",
+            "request_mode": "write",
+            "waiter_thread_id": 16
+          },
+          {
+            "compatible": false,
+            "holder_mode": "write",
+            "holder_thread_id": 16,
+            "lock_id": "0x14d33800b1c0",
+            "request_mode": "write",
+            "waiter_thread_id": 21
+          }
+        ],
+        "event": "wfg_snapshot",
+        "no_wait_failure_count": 0,
+        "nodes": [
+          {
+            "abort_count": 0,
+            "attempt": 1,
+            "commit_count": 0,
+            "held_locks": [
+              {
+                "lock_id": "0x14d33800b1c0",
+                "mode": "write"
+              }
+            ],
+            "request_mode": "write",
+            "thread_id": 16,
+            "wait_lock_id": "0x14d33800a740"
+          },
+          {
+            "abort_count": 0,
+            "attempt": 1,
+            "commit_count": 0,
+            "held_locks": [
+              {
+                "lock_id": "0x14d338008280",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d33800a740",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d338007d40",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d33800e480",
+                "mode": "write"
+              },
+              {
+                "lock_id": "0x14d3380056c0",
+                "mode": "write"
+              }
+            ],
+            "request_mode": "write",
+            "thread_id": 21,
+            "wait_lock_id": "0x14d33800b1c0"
+          }
+        ],
+        "schema": "ss2pl-wfg/v2",
+        "tick": 7
+      }
+    ],
+    "workload": {
+      "ycsb_max_ope": 10,
+      "ycsb_rmw": 0,
+      "ycsb_rratio": 50,
+      "ycsb_tuple_num": 100,
+      "ycsb_zipf_skew": 0
+    }
+  },
+  "warm_masstree": {
+    "archive_exists_after": true,
+    "build_dir": "/work/1/SFC/tanab/dev-wave-jobs/t2644-deps/scratch-3/t2644-5ea4bba79fd64ba7bf4c10cf06d4c044/builds/warmup",
+    "config_h_exists_after": true
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "    # require six pairs when performance completes with no verification outcome.\n",
+          "new": "    # require six pairs whenever performance completes with no verification outcome.\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-gate-deleted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "    verification_failure_recorded = any(\n        isinstance(attempt, Mapping)\n        and attempt.get(\"cluster_slot_or_null\") is None\n        and attempt.get(\"reason_code\") != \"completed\"\n        for attempt in attempts\n    )\n    if performance_slots and not verification_failure_recorded:\n        evidence = value.get(\"correctness_evidence\", ())\n        evidence_pairs = {\n            (entry.get(\"arm\"), entry.get(\"workload\"))\n            for entry in evidence\n            if isinstance(entry, Mapping)\n        }\n        expected_pairs = {(arm, workload) for arm in _ARMS for workload in _WORKLOADS}\n        if len(evidence) != 6 or evidence_pairs != expected_pairs:\n            _semantic(\n                \"correctness\",\n                \"completed performance without a recorded verification failure \"\n                \"requires six correctness arm/workload pairs\",\n            )\n",
+          "new": "    # M1: conditional correctness coverage gate removed\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-condition-inverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "    if performance_slots and not verification_failure_recorded:\n",
+          "new": "    if not performance_slots and not verification_failure_recorded:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-carveout-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "    if performance_slots and not verification_failure_recorded:\n",
+          "new": "    if performance_slots:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-condition-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "    if performance_slots and not verification_failure_recorded:\n",
+          "new": "    if True:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-count-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "        if len(evidence) != 6 or evidence_pairs != expected_pairs:\n",
+          "new": "        if len(evidence) != 6:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-coverage-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "        if len(evidence) != 6 or evidence_pairs != expected_pairs:\n",
+          "new": "        if evidence_pairs != expected_pairs:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-reason-code-changed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "                \"correctness\",\n                \"completed performance without a recorded verification failure \"\n",
+          "new": "                \"reason\",\n                \"completed performance without a recorded verification failure \"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-empty-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "        if len(evidence) != 6 or evidence_pairs != expected_pairs:\n",
+          "new": "        if not evidence:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-carveout-inverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/submission_gate/_semantic_validator.py",
+          "old": "    if performance_slots and not verification_failure_recorded:\n",
+          "new": "    if performance_slots and verification_failure_recorded:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
