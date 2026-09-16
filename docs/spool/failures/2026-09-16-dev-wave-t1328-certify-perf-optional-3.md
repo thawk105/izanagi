@@ -31,3 +31,21 @@ seq: 3
   (login node の実行だけでは検出できない)。DW-O16 の「PATH 構築・interpreter 解決・
   外部 command 選定など実行環境に依存する実装は、レビュー通過だけで closed とせず実機で
   動かすまで確かめる」が、**signal 処理設定にも及ぶ**ことを本件が示した。
+
+### {{F:scanner-green-is-not-all-gates-green}}. 指定の走査器が緑でも別 gate の候補集合には当たる [恒真ゲート] [手順漏れ]
+
+- 事象: 段 7 で `docs/dev-wave/core.md` DW-S07 が指定する三軸語走査器
+  (`python3 -m orchestrator.campaign.s8b_holdout_freeze search`) を実行し rc=0 (検出なし) を得て
+  記録を commit した。**受入全走がその commit を原因とする 45 件の赤を返した** —
+  `test_s8b_oracle_driver.py` 40 件と `test_s8b_floor_campaign.py` 5 件が
+  `FreezeError: holdout hit 2 件` で落ちた。
+- 根本原因: 収容した変異 harness の生出力 2 本が pytest の収集一覧を丸ごと抱えており、
+  その中の test 関数名が `s8b_holdout_freeze._assert_search_pass` の conjunction に当たった。
+  **同じ module の `search` サブコマンドと、t080 e2e が走らせる `_assert_search_pass` は
+  候補集合が同じではない。** 前者の緑は後者の緑を含意しない。
+- 恒久対応: 機械が生成した大きな出力を insight へ入れるときは、生出力をそのまま収容せず、
+  **必要な field だけを抜いた派生形にして、生出力は repo 外に残し sha256 と byte 数で引用する。**
+  派生形に検出語が残っていないことを機械で確認する。本件では 418,586 bytes と 466,299 bytes の
+  生出力を 26,009 bytes の派生台帳へ替え、baseline・各変異の期待/観測 node・各種 hash は保持した。
+- 再発検知: 受入全走が検出者である。**走査器 1 本の緑を全 gate の緑と読まない。**
+  記録に「走査器 rc=0」と書くときは、その走査器の候補集合が何であるかを併記する。

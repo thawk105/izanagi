@@ -202,4 +202,30 @@ closed にしない型なので、親が login node で実走した。
 - `verbatim/s-review-a.md` / `s-review-b.md` — 段 6 敵対レビュー 2 レンズ
 - `verbatim/s-focus1.md` — 段 6 焦点再レビュー
 - `verbatim/s-fix1.md` / `s-fix2.md` — 段 6 fix 2 巡
-- `mutation/final-spec.json` / `final-out.json` / `probe-out.json` — 変異台帳
+- `mutation/final-spec.json` — 本走の変異 spec (親が authored)
+- `mutation/ledger.json` — 変異台帳 (probe と本走の派生形)
+
+## 変異台帳を派生形にした理由 (受入の赤で判明した erratum)
+
+初版は harness の生出力 `final-out.json` (418,586 bytes、
+sha256 `f702794ab971c240ce7070dc8dffbc2f3bebb6d48cbcb052fef25ee8af19c16e`) と
+`probe-out.json` (466,299 bytes、
+sha256 `7f261a9bd2dfe4310c4a20e78d00d30754580d9e619aa39ea7c51bfb53073843`) を
+そのまま収容した。**これが受入全走で 45 件の赤を出した。**
+
+生出力は pytest の収集一覧を丸ごと抱えており、その中の test 関数名
+(`test_cli_rr50_...` / `test_cli_rr80_...` が各 2 件) が
+`orchestrator/campaign/s8b_holdout_freeze._assert_search_pass` の conjunction に当たる。
+同関数は holdout の `conjunction_hits` が空であることを要求するので、
+`test_s8b_oracle_driver.py` と `test_s8b_floor_campaign.py` の 45 件が
+`FreezeError: holdout hit 2 件` で落ちた。
+
+**生出力は repo へ入れず、repo 外の `/work/1/SFC/tanab/mutation-scratch-t1328/` に残し、
+上記の sha256 と byte 数で引用する。** `mutation/ledger.json` は同じ生出力から派生した台帳で、
+baseline の status / rc / failed_nodes / collection_sha256、各変異の id / 期待 status /
+実 status / rc / 期待 node / 観測 node、および `repo_head` / `spec_sha256` / `runner_sha256` /
+`tool_sha256` を保持する。派生台帳自身に検出語が残っていないことを機械で確認している。
+
+**段 7 の三軸語走査 (`python3 -m orchestrator.campaign.s8b_holdout_freeze search`) は rc=0 だった。**
+同 CLI の候補集合と、t080 e2e が走らせる `_assert_search_pass` の候補集合は同じではない。
+**走査器 1 本の緑を全 gate の緑と読んではならない。** 検出者は受入全走だった。
