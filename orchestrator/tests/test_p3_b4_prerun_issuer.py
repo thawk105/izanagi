@@ -6,12 +6,22 @@ import json
 import os
 import stat
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
 from orchestrator.campaign import p3_b4_analysis_ledgers as ledgers
 from orchestrator.campaign import p3_b4_prerun_issuer as issuer
 from orchestrator.campaign.p3_b4_analysis_contract import EXPECTED_BLOCK_COUNT
+
+
+from p3_b4_proposal_binding_support import copy_preregistered_repository
+
+
+def _publication_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    root = copy_preregistered_repository(tmp_path)
+    monkeypatch.setattr(issuer, "_REPOSITORY_ROOT", tmp_path)
+    return root
 
 
 def _hash(label: str) -> str:
@@ -186,7 +196,7 @@ def test_issue_publishes_complete_bundle_and_existing_consumers_reverify(
     )
     attempts = eligible + exceptional
     planned = _planned(attempts, tmp_path / "results")
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     calls = _install_counted_seed(monkeypatch)
 
     publication = issuer.issue_b4_prerun_publication(
@@ -265,6 +275,85 @@ def test_issue_publishes_complete_bundle_and_existing_consumers_reverify(
     assert "file_drawer_risk_is_not_closed_end_to_end" in loaded.non_guarantees
 
 
+def test_real_repository_preregistered_publication_root() -> None:
+    """The source checkout must include its real preregistration document."""
+    repository = Path(__file__).resolve().parents[2]
+    assert issuer._REPOSITORY_ROOT == repository
+    document = (repository / "docs/phase3-b4-reflux-ablation-preregistration.md").read_bytes()
+    declarations = [
+        line for line in document.decode("utf-8").splitlines()
+        if "B-4 prerun publication root" in line
+    ]
+    assert declarations == [
+        "B-4 prerun publication root (repo 相対): `output/b4-prerun-publication`"
+    ]
+    assert issuer._preregistered_publication_root() == str(
+        repository / "output/b4-prerun-publication"
+    )
+
+
+@pytest.mark.parametrize("sibling", ("different-publication", "b4-prerun-publication-extra"))
+def test_non_preregistered_root_is_rejected_before_rng_or_root_inspection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, sibling: str,
+) -> None:
+    expected = _publication_root(tmp_path, monkeypatch)
+    root = expected.parent / sibling
+    assert root.parent.is_dir()
+    attempts = _eligible_attempts()
+    planned = _planned(attempts, tmp_path / "results")
+    with (
+        mock.patch.object(issuer.secrets, "token_bytes", wraps=issuer.secrets.token_bytes) as rng,
+        mock.patch.object(issuer, "_ensure_new_publication_root", wraps=issuer._ensure_new_publication_root) as inspect_root,
+        pytest.raises(issuer.B4PrerunIssuerError) as caught,
+    ):
+        issuer.issue_b4_prerun_publication(
+            scheduled_inputs=attempts, planned_result_artifacts=planned,
+            publication_root=str(root),
+        )
+    _assert_reason(caught, issuer.B4PrerunRejectionReason.PUBLICATION_ROOT_NOT_PREREGISTERED)
+    assert "does not match" in str(caught.value)
+    assert rng.call_count == 0
+    assert inspect_root.call_count == 0
+    assert not root.exists()
+
+
+@pytest.mark.parametrize("defect", ("missing", "duplicate", "ambiguous", "unreadable", "invalid-utf8"))
+def test_preregistered_root_declaration_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, defect: str,
+) -> None:
+    root = _publication_root(tmp_path, monkeypatch)
+    path = tmp_path / "docs/phase3-b4-reflux-ablation-preregistration.md"
+    document = path.read_bytes()
+    declaration = next(line for line in document.splitlines(keepends=True)
+                       if b"B-4 prerun publication root" in line)
+    if defect == "unreadable":
+        path.unlink()
+    elif defect == "invalid-utf8":
+        path.write_bytes(document + b"\xff")
+    else:
+        replacement = {"missing": b"", "duplicate": declaration * 2,
+                       "ambiguous": b" " + declaration}[defect]
+        path.write_bytes(document.replace(declaration, replacement))
+    attempts = _eligible_attempts()
+    planned = _planned(attempts, tmp_path / "results")
+    with (
+        mock.patch.object(issuer.secrets, "token_bytes", wraps=issuer.secrets.token_bytes) as rng,
+        mock.patch.object(issuer, "_ensure_new_publication_root", wraps=issuer._ensure_new_publication_root) as inspect_root,
+        pytest.raises(issuer.B4PrerunIssuerError) as caught,
+    ):
+        issuer.issue_b4_prerun_publication(
+            scheduled_inputs=attempts, planned_result_artifacts=planned,
+            publication_root=str(root),
+        )
+    _assert_reason(caught, issuer.B4PrerunRejectionReason.PUBLICATION_ROOT_NOT_PREREGISTERED)
+    detail = {"missing": "found 0", "duplicate": "found 2", "ambiguous": "malformed",
+              "unreadable": "cannot read", "invalid-utf8": "not UTF-8"}[defect]
+    assert detail in str(caught.value)
+    assert rng.call_count == 0
+    assert inspect_root.call_count == 0
+    assert not root.exists()
+
+
 def test_unplanned_attempt_is_rejected_before_rng_or_publication(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -280,7 +369,7 @@ def test_unplanned_attempt_is_rejected_before_rng_or_publication(
     assert {item.attempt_id for item in planned} != {
         item.attempt_id for item in attempts
     }
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     calls = _install_counted_seed(monkeypatch)
 
     with pytest.raises(issuer.B4PrerunIssuerError) as caught:
@@ -303,7 +392,7 @@ def test_replaced_seed_is_rejected_at_seed_source_edge(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     attempts = _eligible_attempts()
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     _install_counted_seed(monkeypatch)
     publication = issuer.issue_b4_prerun_publication(
         scheduled_inputs=attempts,
@@ -335,7 +424,7 @@ def test_source_receipt_reference_only_tamper_is_rejected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     attempts = _eligible_attempts()
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     _install_counted_seed(monkeypatch)
     publication = issuer.issue_b4_prerun_publication(
         scheduled_inputs=attempts,
@@ -386,7 +475,7 @@ def test_postresult_issuance_is_rejected_before_rng_or_publication(
         exact_result_path.write_bytes(b"observed")
     else:
         os.symlink("missing-result-target", exact_result_path)
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     calls = _install_counted_seed(monkeypatch)
 
     with pytest.raises(issuer.B4PrerunIssuerError) as caught:
@@ -409,7 +498,7 @@ def test_fewer_than_201_eligible_is_typed_before_root_creation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     attempts = _eligible_attempts(EXPECTED_BLOCK_COUNT - 1)
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     calls = _install_counted_seed(monkeypatch)
 
     with pytest.raises(issuer.B4PrerunIssuerError) as caught:
@@ -431,7 +520,7 @@ def test_duplicate_result_path_is_rejected_before_rng_or_publication(
     attempts = _eligible_attempts()
     planned = list(_planned(attempts, tmp_path / "results"))
     planned[1] = replace(planned[1], artifact_path=planned[0].artifact_path)
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     calls = _install_counted_seed(monkeypatch)
 
     with pytest.raises(issuer.B4PrerunIssuerError) as caught:
@@ -461,7 +550,7 @@ def test_ancestor_result_paths_are_rejected_before_rng_or_publication(
         planned[1],
         artifact_path=str(ancestor / "child.json"),
     )
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     calls = _install_counted_seed(monkeypatch)
 
     with pytest.raises(issuer.B4PrerunIssuerError) as caught:
@@ -481,6 +570,7 @@ def test_ancestor_result_paths_are_rejected_before_rng_or_publication(
 
 def test_result_path_string_prefix_without_component_boundary_is_allowed(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     attempts = _eligible_attempts()
     planned = list(_planned(attempts, tmp_path / "results"))
@@ -490,7 +580,7 @@ def test_result_path_string_prefix_without_component_boundary_is_allowed(
         planned[1],
         artifact_path=str(tmp_path / "results" / "shared-prefix-child.json"),
     )
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
 
     publication = issuer.issue_b4_prerun_publication(
         scheduled_inputs=attempts,
@@ -521,7 +611,7 @@ def test_result_path_symlink_component_is_rejected_before_rng(
         issuer.issue_b4_prerun_publication(
             scheduled_inputs=attempts,
             planned_result_artifacts=planned,
-            publication_root=str(tmp_path / "publication"),
+            publication_root=str(_publication_root(tmp_path, monkeypatch)),
         )
 
     _assert_reason(
@@ -547,7 +637,7 @@ def test_fixed_artifact_descendant_is_rejected_before_rng_or_publication(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     attempts = _eligible_attempts()
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     planned = list(_planned(attempts, tmp_path / "results"))
     planned[0] = replace(
         planned[0],
@@ -579,7 +669,7 @@ def test_rejection_ledger_exact_path_and_publication_root_are_reserved(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     attempts = _eligible_attempts()
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     planned = list(_planned(attempts, tmp_path / "results"))
     conflict = (
         publication_root / issuer.B4_RAW_RECORD_REJECTIONS_NAME
@@ -609,7 +699,7 @@ def test_other_future_result_path_below_publication_root_is_allowed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     attempts = _eligible_attempts()
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     planned = list(_planned(attempts, tmp_path / "results"))
     future_result = publication_root / "future-results" / "attempt-0000.json"
     planned[0] = replace(planned[0], artifact_path=str(future_result))
@@ -633,7 +723,7 @@ def test_loader_rejects_fully_rebound_fixed_artifact_conflict(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     attempts = _eligible_attempts()
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     _install_counted_seed(monkeypatch)
     publication = issuer.issue_b4_prerun_publication(
         scheduled_inputs=attempts,
@@ -663,7 +753,7 @@ def test_loader_rejects_fully_rebound_rejection_ledger_conflict(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     attempts = _eligible_attempts()
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     _install_counted_seed(monkeypatch)
     publication = issuer.issue_b4_prerun_publication(
         scheduled_inputs=attempts,
@@ -693,7 +783,7 @@ def test_loader_rejects_fully_rebound_ancestor_result_paths(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     attempts = _eligible_attempts()
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     _install_counted_seed(monkeypatch)
     publication = issuer.issue_b4_prerun_publication(
         scheduled_inputs=attempts,
@@ -724,7 +814,7 @@ def test_same_publication_root_cannot_be_reissued(
 ) -> None:
     attempts = _eligible_attempts()
     planned = _planned(attempts, tmp_path / "results")
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     calls = _install_counted_seed(monkeypatch)
     issuer.issue_b4_prerun_publication(
         scheduled_inputs=attempts,
@@ -748,7 +838,7 @@ def test_competing_final_receipt_is_not_replaced(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     attempts = _eligible_attempts()
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     sentinel_path = publication_root / "prerun-issuer-receipt.json"
     sentinel_bytes = b"competing-final-receipt-sentinel"
     original_read_relative = issuer._read_relative
@@ -783,7 +873,7 @@ def test_postlink_io_failure_is_commit_uncertain_and_loadable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     attempts = _eligible_attempts()
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     final_receipt = publication_root / "prerun-issuer-receipt.json"
     original_unlink = issuer.os.unlink
     original_fsync = issuer.os.fsync
@@ -847,7 +937,7 @@ def test_publication_uses_parent_dirfd_and_closes_every_fd_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     attempts = _eligible_attempts()
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     planned = _planned(attempts, tmp_path / "results")
     original_open = issuer.os.open
     original_close = issuer.os.close
@@ -926,7 +1016,7 @@ def test_float_commitment_count_is_not_equal_to_json_integer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     attempts = _eligible_attempts()
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     _install_counted_seed(monkeypatch)
     publication = issuer.issue_b4_prerun_publication(
         scheduled_inputs=attempts,
@@ -1013,7 +1103,7 @@ def test_receipt_unknown_key_is_rejected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     attempts = _eligible_attempts()
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     _install_counted_seed(monkeypatch)
     publication = issuer.issue_b4_prerun_publication(
         scheduled_inputs=attempts,
@@ -1037,7 +1127,7 @@ def test_partial_publication_root_is_poisoned_and_not_repaired(
 ) -> None:
     attempts = _eligible_attempts()
     planned = _planned(attempts, tmp_path / "results")
-    publication_root = tmp_path / "publication"
+    publication_root = _publication_root(tmp_path, monkeypatch)
     publication_root.mkdir()
     calls = _install_counted_seed(monkeypatch)
 

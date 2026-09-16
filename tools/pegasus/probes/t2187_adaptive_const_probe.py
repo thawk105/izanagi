@@ -110,6 +110,22 @@ DEFAULT_WORKLOADS = ("write-heavy", "balanced", "read-heavy")
 EXTIME = 3
 RUN_TIMEOUT_S = 180.0
 
+# Frozen cohort1 seeds: docs/backoff-counterfactual-preregistration.md §8.1.
+COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS = (
+    5744733223455690259,
+    781552995023334429,
+    1606918558588661,
+    16736322205931003081,
+    1227967287010452276,
+    2171878327641984105,
+    2057459156086657874,
+    11135758292722279839,
+    13576760736062537317,
+    5470969369189575692,
+    2410271300384854639,
+    13467815584134101060,
+)
+
 CERT_RECORDS = 1_000_000
 CERT_PREREGISTERED_STEP_POLICY_SEEDS = (
     14_481_721_328_008_317_845,
@@ -3517,6 +3533,17 @@ def _validate_backoff_trace_contract(
             "cell-specific extime/terminal settings"
         )
 
+    if args.cells == COUNTERFACTUAL_TRACE_CELLS_TEXT and (
+        type(args.step_policy_seed) is not int
+        or args.step_policy_seed not in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS
+    ):
+        raise ValueError("--step-policy-seed must be one preregistered cohort1 integer seed")
+    if args.cells == COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT and (
+        type(args.step_policy_seed) is not int
+        or args.step_policy_seed not in CERT_PREREGISTERED_STEP_POLICY_SEEDS
+    ):
+        raise ValueError("--step-policy-seed must be one preregistered cohort2 integer seed")
+
 
 def _is_backoff_policy_performance_cell_set(cells: tuple[Cell, ...]) -> bool:
     return len(cells) == 3 and frozenset(cells) == POLICY_PERFORMANCE_CELL_SET
@@ -3618,6 +3645,8 @@ def _artifact_contract_metadata(
         and rep_index == 0
         and reps_per_job == 1
         and extime == 3 and backoff_trace_terminal_us == 0
+        and type(step_policy_seed) is int
+        and step_policy_seed in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS
     ):
         metadata["counterfactual_preregistration"] = (
             _counterfactual_prereg_sha256()
@@ -3659,6 +3688,8 @@ def _artifact_contract_metadata(
         and reps_per_job == 1
         and extime == COHORT2_EXTIME
         and backoff_trace_terminal_us == COHORT2_BACKOFF_TRACE_TERMINAL_US
+        and type(step_policy_seed) is int
+        and step_policy_seed in CERT_PREREGISTERED_STEP_POLICY_SEEDS
     ):
         metadata["schema_version"] = COHORT2_TRACE_SCHEMA_VERSION
         metadata["counterfactual_preregistration"] = (

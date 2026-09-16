@@ -5490,6 +5490,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   敵対レビュー 2 本が「path 再利用時の見逃しを広げる」と反証し、真因の特定によって不要になった。
   **誤った修正案を実装前に捨てられたのは、レビューと実測の両方があったためである。**
 
+
+- **再発: 2026-09-16** — 向きが逆の同型 ([T-2638])。F119 は `git diff-tree -m` が merge で
+  **過大計上**する側だったが、今回は `git log --find-object` が merge で**過少計上**した。
+  `git log` は既定で merge commit の差分を作らないため、`merge(main):` 経由で main へ入った blob が
+  「どの commit にも無い」と判定される。実証: 同じ blob が `-m` / `--diff-merges=first-parent` を
+  付けると merge commit `9f2f8d3a3` に見つかり、`git rev-parse refs/heads/main:<path>` は
+  **その blob が main の現行内容そのもの**だと返した。この誤判定のまま「子 worktree に着地して
+  いない内容が 6 件ある」と報告する直前だった。**根本原因は F119 と同じで、merge commit に対する
+  git の差分生成の既定を確かめずに判定器へ据えたこと。** 恒久対応 = 内容の着地判定は
+  `git rev-parse <ref>:<path>` と `git hash-object` の直接比較を一次とし (O(1)・履歴を歩かない・
+  merge の影響を受けない)、履歴検索は `-m` 付きの補助に限り、**`--find-object` の無 hit を単独の
+  否定根拠にしない**。再発検知 = memory `git-find-object-misses-merge-commits`。
+  なお `--find-object` の hit も「その commit の tree にその blob がある」ことを意味しない
+  (削除された側でも hit する) ため、証拠 commit として記録するなら `ls-tree` で tree を直接照合する。
 ### F120. 実装面を Claude が書いた commit が provenance 契約に阻まれ、検査緑のまま land 不能になった [手順漏れ]
 
 - 事象: 上記恒久対応を先に実装した commit `e8d0c44c` は `check_docs` 緑・テスト緑だったが、
@@ -10297,6 +10311,44 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **検知点が 4 つ目である** ことを顕在化する — 走行前 `rc=2`、走行中の偽の赤、走行後の
   事後検査 `rc=125` に加えて、**`--plan-only` の事後検査**がある。これは 1 走も消費しないので
   4 者のうち最も安く、並行 churn が常態なら本走の前に必ず当たる。
+
+- **再発: 2026-09-16** — churn の出所が**同じ走行の内側**という変種 ([T-2638])。docs のみの wave で
+  受入全走が 5 回続けて赤になり、6 回目で緑になった (赤 3 件 → 33 件 → 1 件 → 2 件 → 1 件)。
+  **機序は最後の 1 件が明示した** —
+  `test_t338_submission_gate_unit5.py::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink`
+  は repo root 全体を `rglob("*.py")` で走査するが、その途中で
+  `.t316-live-<乱数>/repo/external/ccbench/.git/worktrees` に入ったところ、**同じ走行中の別テストが
+  その directory を削除**し `FileNotFoundError` で落ちた。他の赤も同じ scratch を観測した
+  `assert_repository_unchanged` 系である。**repo root を全走査する検査と、repo root 配下に scratch を
+  作っては消す検査が、同一走行内で競合している。** F300 の既往は「親が repo 内で別作業をした」
+  「別 session が local main を進めた」だったが、今回は**走行の内側で完結しており、親も他 session も
+  何もしていない**。
+  赤になった test の集合は走行ごとに変わり (同一 tip・同一差分)、単独走では全件緑
+  (3 件 → 3 passed、30 件 → 199 passed、1 件 → 1 passed)。変更した path
+  (`docs/spool/**`・`output/insights/**`) は赤になった 4 test file とその production module の
+  どこからも参照されておらず、差分到達不能を機械的に確認した。
+  **恒久対応は未定。** `orchestrator/tests/flaky_test_holds.py` への登録は `DW-O18` が
+  「main 既存 F を証拠に Codex role=author が登録」と定めるが、本再発追記が main へ着地するまで
+  その証拠が存在しない (循環)。影響を受ける test は
+  `test_p3_b4_producer_auth_experiment.py::test_disposable_tree_mutation_does_not_change_main_worktree`、
+  同 `::test_case_failure_records_aborted_and_remaining_cases_continue`、
+  `test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`、
+  `test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops`。
+  再発検知 = 受入 log の FAILED 行がこの 4 件のいずれかだけで、単独走が緑になること。
+
+- **再発: 2026-09-16 (2 本目の wave、[T-2599])** — 同日の [T-2638] が記録した「churn の出所が
+  同じ走行の内側」の変種を、**別の wave が独立に踏んだ**。docs のみ (`docs/spool/**` だけ) の wave で
+  受入全走が 4 回続けて赤になり、赤の集合は走行ごとに変わった (2 件 → 17 件 → 4 件 → 4 件)。
+  出た test はすべて F300 の既存追記が名指す 4 件の部分集合で、単独走はいずれも緑
+  (2 件 → 2 passed、4 file → 543 passed、3 file → 267 passed)。
+  **他 session の同時走行は原因ではないと実測で分かった** — 受入 leader が他に 1 本だけで
+  1 分平均負荷 1.95 の最も静かな窓でも同じ 4 件が赤になった。投入直前の leader 本数と負荷は
+  赤の有無を予測しない。
+  **2 例目が別 producer で揃ったので、族としての恒久対応を検討できる状態になった** (DW-G03)。
+  ただし本 wave は docs のみで実装面の差分を持たないため、`orchestrator/tests/flaky_test_holds.py`
+  への登録も走査側の設計変更も行っていない。恒久対応は依然として未定であり、
+  次に必要なのは「repo root 全走査の検査と repo root 配下に scratch を作る検査を同一走行内で
+  同居させない」設計の裁定である。
 ### F301. 編集対象ファイルを bytes pin している側を数え落とした [凍結 pin] [手順漏れ]
 
 - 事象: 受入全走で `test_s8b_oracle_manifest.py` の 2 node が
@@ -11919,6 +11971,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   変異を事前登録する段で対象 file が閉包の member かを確認し、member なら閉包外の consumer へ
   再照準する。本 wave は 2 件を `orchestrator/campaign/layer3_report.py` (閉包外) へ再照準し、
   probe 2 で単一 node を確認してから本走した。
+
+- **再発: 2026-09-16** — 判定手順が `contract-loader-drift` に限定されていたため、別 producer で
+  同じ形の偽赤を 1 本の焦点走 (9 test file・751 passed) を費やして踏んだ。今回の producer は
+  `orchestrator/tests/test_p3_b4_producer_auth_experiment.py::test_main_worktree_has_no_permanent_prototype_or_pin_change`
+  で、`orchestrator/campaign/p3_b4_producer_auth_experiment.py` の `PROTOTYPE_PATCHES` が名指す
+  保護 path について `git diff --exit-code <HEAD>` の無差分を要求する。発行器を編集して未 commit の
+  まま焦点走をかけると機械的に赤くなり、commit 後の単独再走は 50 passed・rc=0 だった。
+  **これで「disk bytes が HEAD blob と一致することを要求する gate」は独立 2 producer で再現した**
+  (契約 loader 閉包と producer-auth prototype pin)。判定手順を赤の理由行の語だけに依存させず、
+  実装面を編集した wave では焦点走の赤を実装へ帰属する前に統合 commit 後の再走で切り分ける。
 ### F358. byte 束縛されたソースへの変異は、意味に無関係な共通核で全変異が KILLED に見える [テスト代表性]
 
 - 事象: `pipeline.py` を対象にした変異 13 件が全て KILLED になったが、内訳を見ると
@@ -12370,6 +12432,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 修正後の焦点走が同じ node で再び赤になったら、まず「前回の根拠が切り取られていた
   のではないか」を疑う。出力に `truncated` / `omitted_bytes` が含まれていないかを見る。
 
+
+- **再発: 2026-09-16** — 今度は**検索結果の側**で再発した。F376 の根本原因は
+  「切り取られた出力を不在・網羅の根拠にしない」規律を検索結果には適用していたが
+  テストの失敗出力には適用していなかった、というものだった。[T-2586] の親はその逆をやった。
+  段 1 の pin 閉包検査で `git grep -n "t2187_adaptive_const_probe" | grep -v <自 test> | head -40`
+  を実行し、**自分で `head -40` を付けて切った出力**を閉包の全件として扱った。表示された 40 行は
+  `acceptance_duration_ledger.json` の node 行が大半を占め、行番号 pin を持つ
+  `orchestrator/tests/test_ccbench_spawn_sites.py` は切った側にあった。
+  結果、`_DEFERRED_GATE_MEMBERS` が pin する build sink 2 件の行番号が実装の +31 行で
+  ずれ、受入全走が決定的な赤 4 件 (cross-product 28 triple 分) を 2 回とも出した。
+  是正は `git grep -l` で全件 (185 path) を列挙し直し、行番号を pin しているのが
+  この 1 file だけであることを確かめたうえで anchor を再固定したこと。
+  **出力を切る `head` は自分で付けても truncation である。** 閉包を数えるときは
+  件数を先に出すか `-l` で path だけを全件出す。
 ### F377. 負例 fixture の文字列置換が一致せず変異が no-op になっていた [恒真ゲート] [テスト代表性]
 
 - 事象: 述語の負例 param が `VALUE_FLOW_C12.replace(old, new)` で被検体を作っていたが、`old` が
@@ -12636,6 +12712,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (判定境界が既存テストで pin 済み・登録較正の変動係数が判定関数から到達可能・従属項の要否が確定)
   を独立に否定しており、この運用が現に機能した実例である。
 
+
+- **再発: 2026-09-16** — 閉包の上限を「依頼文の編集面ヒント」ではなく
+  **「子が返した所見の列挙」**に置いた形で再発した。[T-2586] の親は、投入経路の検査を締めたとき
+  赤になる既存 test の集合を、段 2 プランと段 3 の 2 レンズが挙げた 2 件に自分の実測 1 件を
+  足して 3 件と裁定した。3 件は正しかったが**全数ではなかった**。4 件目
+  (`test_backoff_trace_contract_accepts_only_four_exact_cell_literals`) は、実装子が
+  「期待値のほうが誤りだと判断したときは実装を変えず報告して止まれ」という指示に従って
+  停止報告を返したことで初めて出た。子 2 体が metadata だけを締める前提で列挙していたため、
+  親が裁定で投入経路も締める方向へ変えた時点で、その列挙は閉包として無効になっていた。
+  親はそこで閉包を取り直さず、無効になった列挙へ足し算した。
+  是正は裁定の正誤表で、`_validate_backoff_trace_contract` と `_artifact_contract_metadata` の
+  test file 内**全 20 呼び出し点**を表にして全数を出し、そこから影響 4 件を導いたこと。
+  段 6 の敵対レビュー 2 本と焦点再レビューが独立に 5 件目の不在を確認した。
+  **裁定で層を変えたら、前段の列挙は閉包でなくなる。** 権威 (呼び出し点の全列挙) から取り直す。
 ### F387. help 文字列への 1 語追加が、行折り返しの移動だけで無関係な逐語 assertion を壊した [恒真ゲート] [手順漏れ]
 
 - 事象: `tools/dev_wave_codex.py` の `--evidence-grace-s` の help 先頭へ
@@ -26153,3 +26243,170 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   出力して**どこから来たか**を確かめる。install を伴う事前構築では registry 登録を無効にする。
 - 再発検知: 事前検査が緑のとき、解決先の絶対 path が期待した prefix の配下にあることを併せて表示し、
   期待外なら赤にする。
+
+### F992. 計測 wrapper がシェル関数を迂回し、測ったつもりのない実装を 26 分かけて測った [計測汚染] [誤前提]
+
+- 事象: 探索根 176 万 file の走査費用を測るため
+  `/usr/bin/time -f ... find <root> -type f` を 1583.99 秒かけて 1 走させ、
+  「C 実装・並列 (bfs 4.1.1 既定) の cold 走査」として段 1 brief・親の実測資料・
+  子への射影資料に記録した。**実際に走っていたのは GNU findutils 4.8.0 の単一 thread だった。**
+  この環境の `find` はシェル関数 (`claude` binary を `bfs` として起動する shim) だが、
+  `/usr/bin/time` は binary を exec するのでシェル関数を迂回する。
+  誤りに気づいたのは、同じ形で `-j1` / `-j16` を渡したときに
+  `find: 不明な述語です: '-j1'` が出たときである。
+- 影響: 「C + 並列でも 1.53 倍にしかならないので定数削減の余地は尽きた」という段 1 の判断が
+  誤った前提の上に立っていた。測り直すと並列は warm で 3.8〜4.4 倍効き、採る案の順序が変わった。
+  段 3 の 2 レンズはどちらも「言語・syscall 形態・並列度が混ざっている」と一般論で指摘したが、
+  **どちらも「そもそも並列で走っていない」には到達しなかった。** 実装の同定は静的レビューでは出ない。
+- 根本原因: 計測の対象を**コマンド名**で指定し、実行された**実体**を確認しなかった。
+  `find --version` は (シェル関数経由なので) `bfs 4.1.1` を返し、これが確認になったと誤認した。
+  `command -v`、`type -a`、`declare -f` のいずれも引いていない。
+- 恒久対応: memory `measure-the-resolved-binary-not-the-command-name`
+  (計測コマンドを書く前に `type -a <cmd>` を引き、wrapper 越しに走らせるなら実体の絶対 path を
+  argv へ書く。版の確認は計測と同じ起動経路で行う)。
+- 再発検知: 所要を根拠に設計を選ぶ wave では、計測の 1 走目に実体 path と版を
+  計測と同じ起動経路で記録し、成果物へ併記する。併記が無い所要値は設計の根拠に使わない。
+- 家族: F41 (worktree で測った wall を checkout 非依存の値として記録した)、
+  F74 (規範に書いた測定手順がその機体で実行不能だった) と同じ
+  「測定の意味を取り違えたまま数値だけが独り歩きする」型。
+  前 2 例は**測定条件**の取り違えで、本件は**測定対象そのもの**の取り違えである点が異なる。
+
+### F993. 編集面重複検査が worktree 作成直後の wave を 0 件と数え、2 wave が 28 秒差で同じ面を掴んだ [手順漏れ]
+
+- 事象: [T-2642] の着手前検査 (2026-09-16 ≈04:33 JST) で、全 74 worktree の未 commit 差分・
+  branch tip 差分・`ps` のいずれも 0 件と出た。14 分後に [T-2641] の plan 子が `ps` に現れ、
+  `.git/worktrees/*` の birth time が相手 04:34:10 / 自分 04:34:38 で**相手が 28 秒先発**と判明。
+  編集面 (`.claude/commands/cleanup-branches.md` の §1/§2/§3、`tools/check_docs.py` の
+  `CLEANUP_COMMAND_SHA256`) は完全衝突しており、依頼が定めた「重なれば後発が降りる」に従って
+  段 3 まで進んだ本 wave が実装を降りた。実害は wave 1 本ぶんの設計が実装へ届かなかったこと。
+- 根本原因: 既存の 2 段検査 (branch tip / 作業ツリーの未 commit) はどちらも「相手が既に編集したか」
+  を見る。worktree を作った直後でまだ 1 byte も書いていない相手は、定義上どの検査にも映らない。
+  dev-wave は worktree 作成から最初の編集まで brief・plan・裁定を挟むため 10 分以上あり、
+  この窓は狭くない。`ListAgents` の `started Nm ago` は session 開始であって worktree 作成では
+  ないので、同時投入された 2 本では先後を判定できない。
+- 恒久対応: memory `overlap-check-must-scan-worktree-dirt` に 3 段目 (存在検査) を追記した。
+  対象面が他 wave と衝突しうるときは worktree の存在一覧と `ListAgents` を突き合わせ、主題が近い
+  wave があれば `stat -c '%n %w' .git/worktrees/<name>` で birth time を取り、自分より早ければ
+  自分が後発と判定して**着手前に**降りる。`docs/dev-wave/operations.md` の `DW-O20` へ収容しようと
+  したが単節予算 1000 bytes に対し 1148 bytes となり、D782 の手順で memory 側へ落とした。
+- 再発検知: 同じ編集面の wave が 2 本 land しようとしたとき、後発の受入または land が pin 追従の
+  やり直しで止まる。段 1 の brief に「先後の判定根拠 (birth time)」を書かせることでも早期に出る。
+
+### F994. read-only 子が射影 file を全文 cat し、成果物が 2 回不採用になった [手順漏れ]
+
+- 事象: [T-2642] の段 3 敵対相談 (lane luna) で、子が
+  `/bin/bash -lc "cat orchestrator/tests/test_check_docs.py"` (476 KB / 12753 行) を実行し、
+  巨大出力を含む rollout の行が壊れて `evidence_issues: reason=event_invalid` となり
+  `outcome=not_accepted` で落ちた。`--job-id` を変えた再投入でも同じ 2 attempt とも同じ落ち方をした。
+  子は最後まで走っており (`codex_exit_code=0`、`output_tokens` は正常)、失われたのは出力の公開だけ。
+  prompt に読み方の制約を足した 3 回目で採用された。
+- 根本原因: `tools/codex_worker_launch.py` の stdout event 検証は 1 行 1 event を要求する
+  (`:1429` 付近)。数百 KB の command 出力を含む event 行はこの検証を通らない。射影 file の
+  大きさに応じた読み方の指示が prompt 契約に無く、子は既定で全文 `cat` を選ぶ。
+- 恒久対応: memory `codex-child-discipline` に節 `huge-file-cat-breaks-evidence` を追記した。
+  数百 KB 級を射影する prompt には「全文 `cat` を禁じ、`grep -n` で位置を出し `sed -n` で
+  200 行以内ずつ読む」を byte 数・行数の実数つきで書く。`docs/dev-wave/operations.md` の
+  `DW-O05` へ収容しようとしたが L1.5 層予算が 9870 > 9696 bytes となり、D782 の手順で
+  memory 側へ落とした。
+- 再発検知: `launcher_rc=1` かつ `codex_exit_code=0` かつ `.log` が空で成果物が作られない組み合わせ。
+  receipt の `attempts[].evidence_issues[].reason` を見れば `event_invalid` が直接出る。
+
+### F995. repo 全体を走ってから除外する走査が、同じ suite の一時 dir と競走して land を止めた [テスト代表性] [手順漏れ]
+
+- 事象: `orchestrator/tests/test_campaign.py` の
+  `test_certified_writer_authorization_caller_inventory_is_closed` が、受入全走 9 回のうち
+  **7 回**落ちた。逐語は毎回
+  `FileNotFoundError: [Errno 2] No such file or directory: '<repo>/.t316-live-<乱数>'`。
+  [T-2586] の成果はこれで 9 回 land できなかった。同 wave 自身の変更に帰属する赤は
+  別に 1 件あり、そちらは先に閉じている。残ったのはこの競走だけだった。
+- 根本原因: 当該 test は `sorted(repo_root.rglob("*.py"))` で repo 全体を走り、
+  **走り終えてから** `.git` / `.claude` / `.codex` / `external` / `__pycache__` / `output` /
+  `.venv` を除外していた。除外対象も一度は辿る。同じ受入走の
+  `orchestrator/tests/test_t316_sandbox_probe.py` の fixture `s6_bindable_root` が
+  `tempfile.TemporaryDirectory(prefix=".t316-live-", dir=_REPO)` で repo 直下に一時 dir を作り、
+  test 終了時に消す。走査がその dir を辿っている最中に消えると `rglob` が落ちる。
+  **除外を「辿った後の filter」で書くと、辿ること自体の副作用は消せない。**
+- 恒久対応: 走査を `os.walk` へ替え、repo 直下の dot-dir を**降下前に**刈る
+  (`orchestrator/tests/test_campaign.py`)。消えた entry はその entry だけ飛ばす。
+  既存の除外条件と末尾の `assert source_paths` はすべて残した。
+  t316 側は直していない — 同 fixture のコメントが repo 内に置く理由 (SandboxProfile が /tmp を
+  隠すため mount 可能な祖先が要る) を明記しており、外へ出すと別の前提が壊れる。
+- 再発検知: 被覆が恒等であることを実測で固定した。top-level dot-dir 配下に走査対象の `.py` は
+  0 件、走査対象は変更前後とも 420 件で追加・削除とも空集合。`.t316-live-*` を列挙後・降下前に
+  消す再現を 20 回行い、20 回とも落ちず 420 件を返す。被覆が動けばこの件数が動く。
+
+### F996. 掃除手順が命じる裸の `git status` が、同手順自身が禁じる index 書き換えを行っていた [恒真ゲート]
+
+- 事象: `/cleanup-branches` §0 は「surviving worktree の tracked/untracked file・index・設定の
+  作成/編集」を禁じるが、同 command §1 は全 worktree に対して裸の `git status --short` を命じていた。
+  本 wave の親が実測したところ、tracked file の mtime を変えた直後に裸の `git status --short` を
+  走らせると worktree の index の md5 が `622f9487ca7db6e31d7cab9adedbf62e` →
+  `107713b4710d1cdbf74ffd6734743ec0` へ変化した。同条件で
+  `GIT_OPTIONAL_LOCKS=0 git status --short` を走らせた場合は md5 が変化しなかった (負の対照)。
+  つまり入口が、自分の禁止に反する命令を出していた。
+- 根本原因: `git status` は stat cache が古いと index を書き戻す。掃除手順はこれを知らずに
+  読み取り probe として扱っていた。同じ repo の `tools/check_branch_rescue.py` は子 git へ
+  `GIT_OPTIONAL_LOCKS=0` を渡しており、対策は既に別経路に存在していた。
+- 恒久対応: `.claude/commands/cleanup-branches.md` §1 で `GIT_OPTIONAL_LOCKS=0 git status --short`
+  を明示する。
+- 再発検知: 掃除実行後の §4 事後検査 (surviving worktree・index・repo file に新しい差分が無い)。
+  index の bytes 不変までは §4 の status 比較では証明できないため、疑う場合は index の
+  digest を直接取る。
+
+### F997. 占有 checker が読み取り probe の argv を「占有」と数え、並列化が過剰な保持を生む [恒真ゲート]
+
+- 事象: `tools/check_worktree_occupancy.py` は自分と checker 起動祖先を除く全 process の
+  `/proc/<pid>/cmdline` を走査し、対象 path を argv に含むものを占有源 (`cmdline`) に数える
+  (`_argv_matches_targets`)。`/cleanup-branches` §1 は各 worktree の `git status` を、
+  §3 は「削除の直前に対象ごと」占有検査を命じるが、**両者の時間的関係を書いていなかった**。
+  対象 path を argv に持つ読み取り (`git -C <wt> status`、
+  `check_branch_rescue.py --retire-worktree <wt>`) を占有検査と並走させると rc1 になり、
+  削除してよい worktree が「占有」として保持される。並列化の利得を打ち消す。
+  同型は dev-wave 側でも既知で、wave 撤去が rc=21 になる原因と同じ機序である。
+- 根本原因: checker は「対象を名指す process が生きている」ことを占有の証拠にする設計で、
+  読み手の種別を区別しない。手順側に順序制約が無かった。
+- 恒久対応: `.claude/commands/cleanup-branches.md` §1 に
+  「読み取り・占有検査の起動親/wrapper (検査時も生存する親含む) の argv に対象 path 禁止」と
+  「対象入り argv の全読み取り終了後に §3 の占有検査へ」を置く。
+  checker 側は変更しない (読み手を無条件に無視させると占有検知そのものが弱まる)。
+- 再発検知: 掃除で rc1 (占有) が想定外に多い場合、まず自分の読み取り probe と wrapper の
+  argv を疑う。
+
+### F998. repo 直下に一時 dir を作る test が、並列受入で作業ツリー清浄を前提にする test を落とす [テスト代表性]
+
+- 事象: 2026-09-16 の受入全走 4 回すべてが child-verdict の赤で返った。赤の node は毎回異なるが
+  (1 回目 10 件、2 回目 2 件、3 回目 4 件、4 回目 4 件)、本文はいずれも作業ツリーが test 実行中に
+  変化したことを示していた。完全な本文に現れた実体は
+  `FileNotFoundError: .../.t316-live-5i6hap18` と
+  `assert {'.t316-live-butbiy4g/'} <= {...}` である。
+  生成元は `orchestrator/tests/test_t316_sandbox_probe.py:1736` の
+  `tempfile.TemporaryDirectory(prefix=".t316-live-", dir=_REPO)` で、**repo 直下**に一時 dir を作る。
+  導入は commit `168ad3d0bebc5f910e4ffa6aba9f445c101634ef` (2026-09-15 16:35、[T-2607])、
+  main に着地済み。
+- 被害者 (いずれも作業ツリーの清浄・不変を前提にする):
+  `test_p3_b4_producer_auth_experiment.py::test_case_failure_records_aborted_and_remaining_cases_continue`、
+  同 `::test_disposable_tree_mutation_does_not_change_main_worktree` (`ScratchTreeError:
+  main worktree status changed during experiment`)、
+  `test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`、
+  `test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops`、
+  `test_p3_b4_wiring_probe.py::test_source_and_test_are_the_only_non_output_worktree_changes`、
+  `test_t338_submission_gate_unit5.py::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink`。
+- 根本原因: 一時 dir の親が `_REPO` である。並列 shard の受入では、この dir が存在する数秒の間に
+  別 shard の test が `git status` / `git ls-files --others` を撮るため、同じ worktree を共有する
+  test 間で競合する。どの node が落ちるかは shard の割り当てと実行順で変わるので、赤は毎回違う。
+  変更を出した wave の受入では緑だったとみられるが、これは競合が確率的であるためで、
+  欠陥が無かったことを意味しない。
+- 恒久対応: 一時 dir を repo 外 (`tempfile.gettempdir()` 配下または専用 scratch root) へ移す。
+  repo 内に置く必要があるなら `output/` 配下など `.gitignore` 済みの場所にする。
+  本 wave の編集面 (`.claude/commands/cleanup-branches.md`、`tools/check_docs.py`、
+  `orchestrator/tests/test_check_docs.py`) の外なので、別 wave が Codex author で直す。
+- 同型の生成箇所 (2026-09-16 に `git grep -n "dir=_REPO" -- orchestrator tools` で実測、2 件):
+  `orchestrator/tests/test_t316_sandbox_probe.py:1736` (`prefix=".t316-live-"`) と
+  `orchestrator/tests/test_hooks.py:1513` (`prefix="t2146-hardlink-"`)。
+  `orchestrator/tests/test_run_tests_testops_observation.py:1083` は `dir=_REPO.parent` なので
+  repo 外であり該当しない。**独立 2 例あるので局所修復でなく族としての是正を検討してよい**
+  (`DW-G03`)。
+- 再発検知: 受入の赤 node が走行ごとに変わり、本文が worktree の状態変化を指す場合に本エントリを
+  引く。`git grep -n "dir=_REPO" -- orchestrator tools` で同型の生成箇所を数える。
+- **判定の注意:** 被害者 test を `flaky_test_holds.py` へ登録して迂回しない。落ちているのは
+  被害者であって原因ではなく、登録すると作業ツリー清浄の検査が受入から消える。

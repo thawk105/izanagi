@@ -1,0 +1,188 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 400,
+  "timeout_seconds": 1200,
+  "hang_timeout_seconds": 1200,
+  "mutations": [
+    {
+      "id": "m1-cohort1-validator-drop-membership",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    if args.cells == COUNTERFACTUAL_TRACE_CELLS_TEXT and (\n        type(args.step_policy_seed) is not int\n        or args.step_policy_seed not in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS\n    ):\n",
+          "new": "    if args.cells == COUNTERFACTUAL_TRACE_CELLS_TEXT and (\n        type(args.step_policy_seed) is not int\n    ):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_validator_rejects_invalid_seed[cohort1-compile-default]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_validator_rejects_invalid_seed[cohort1-other-cohort]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_validator_rejects_invalid_seed[cohort1-seven]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_validator_rejects_invalid_seed[cohort1-uint64-max]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_validator_rejects_invalid_seed[cohort1-zero]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-cohort2-validator-drop-membership",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    if args.cells == COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT and (\n        type(args.step_policy_seed) is not int\n        or args.step_policy_seed not in CERT_PREREGISTERED_STEP_POLICY_SEEDS\n    ):\n",
+          "new": "    if args.cells == COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT and (\n        type(args.step_policy_seed) is not int\n    ):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_validator_rejects_invalid_seed[cohort2-compile-default]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_validator_rejects_invalid_seed[cohort2-other-cohort]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_validator_rejects_invalid_seed[cohort2-seven]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_validator_rejects_invalid_seed[cohort2-uint64-max]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_validator_rejects_invalid_seed[cohort2-zero]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-cohort1-metadata-drop-membership",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "        and type(step_policy_seed) is int\n        and step_policy_seed in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS\n",
+          "new": "        and type(step_policy_seed) is int\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_omits_binding_for_invalid_seed[cohort1-compile-default]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_omits_binding_for_invalid_seed[cohort1-other-cohort]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_omits_binding_for_invalid_seed[cohort1-seven]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_omits_binding_for_invalid_seed[cohort1-uint64-max]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_omits_binding_for_invalid_seed[cohort1-zero]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_unregistered_seed_omits_binding_from_json_and_journal[cohort1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-cohort2-metadata-drop-membership",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "        and type(step_policy_seed) is int\n        and step_policy_seed in CERT_PREREGISTERED_STEP_POLICY_SEEDS\n",
+          "new": "        and type(step_policy_seed) is int\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_omits_binding_for_invalid_seed[cohort2-compile-default]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_omits_binding_for_invalid_seed[cohort2-other-cohort]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_omits_binding_for_invalid_seed[cohort2-seven]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_omits_binding_for_invalid_seed[cohort2-uint64-max]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_omits_binding_for_invalid_seed[cohort2-zero]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_unregistered_seed_omits_binding_from_json_and_journal[cohort2]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-cohort1-seed-table-slot00-corrupted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    5744733223455690259,\n",
+          "new": "    5744733223455690258,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_backoff_trace_contract_accepts_only_four_exact_cell_literals",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_cohort2_trace_metadata_uses_independent_exact_v4_predicate",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_artifacts_record_exact_preregistration_sha_only_on_exact_axes",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_accepts_every_registered_seed[cohort1-slot00]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_registered_seed_binding_reaches_json_and_journal[cohort1]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_seed_table_matches_frozen_section_8_1",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_validator_accepts_every_registered_seed[cohort1-slot00]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_public_dispatch_keeps_policy_grid_and_trace_validators_disjoint"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-cohort1-metadata-accepts-union-of-both-cohorts",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "        and step_policy_seed in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS\n",
+          "new": "        and step_policy_seed in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS + CERT_PREREGISTERED_STEP_POLICY_SEEDS\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_omits_binding_for_invalid_seed[cohort1-other-cohort]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-cohort1-validator-drop-strict-type",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "        type(args.step_policy_seed) is not int\n        or args.step_policy_seed not in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS\n",
+          "new": "        args.step_policy_seed not in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_validator_rejects_invalid_seed[cohort1-int-subclass]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_validator_rejects_invalid_seed[cohort1-type-alias]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-cohort1-metadata-over-rejects-all-but-slot00",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "        and step_policy_seed in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS\n    ):\n",
+          "new": "        and step_policy_seed == COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS[0]\n    ):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_accepts_every_registered_seed[cohort1-slot01]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_accepts_every_registered_seed[cohort1-slot02]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_accepts_every_registered_seed[cohort1-slot03]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_accepts_every_registered_seed[cohort1-slot04]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_accepts_every_registered_seed[cohort1-slot05]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_accepts_every_registered_seed[cohort1-slot06]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_accepts_every_registered_seed[cohort1-slot07]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_accepts_every_registered_seed[cohort1-slot08]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_accepts_every_registered_seed[cohort1-slot09]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_accepts_every_registered_seed[cohort1-slot10]",
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_counterfactual_metadata_accepts_every_registered_seed[cohort1-slot11]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-seed-check-runs-before-axis-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t2187_adaptive_const_probe.py",
+          "old": "    expected_contract = BACKOFF_TRACE_CONTRACTS.get(args.cells)\n",
+          "new": "    if args.cells == COUNTERFACTUAL_TRACE_CELLS_TEXT and (\n        type(args.step_policy_seed) is not int\n        or args.step_policy_seed not in COUNTERFACTUAL_PREREGISTERED_STEP_POLICY_SEEDS\n    ):\n        raise ValueError(\"--step-policy-seed must be one preregistered cohort1 integer seed\")\n    if args.cells == COUNTERFACTUAL_COHORT2_TRACE_CELLS_TEXT and (\n        type(args.step_policy_seed) is not int\n        or args.step_policy_seed not in CERT_PREREGISTERED_STEP_POLICY_SEEDS\n    ):\n        raise ValueError(\"--step-policy-seed must be one preregistered cohort2 integer seed\")\n    expected_contract = BACKOFF_TRACE_CONTRACTS.get(args.cells)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t2187_adaptive_const_probe.py::test_backoff_trace_contract_accepts_only_four_exact_cell_literals"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

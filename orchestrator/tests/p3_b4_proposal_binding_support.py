@@ -1,6 +1,8 @@
 """Real prerun-publication fixtures for B-4 bootstrap proposal binding tests."""
 from __future__ import annotations
 
+from contextlib import contextmanager
+from unittest import mock
 from dataclasses import dataclass
 import hashlib
 from pathlib import Path
@@ -9,6 +11,27 @@ from orchestrator.campaign import attempt_registry_core
 from orchestrator.campaign import p3_b4_analysis_ledgers as ledgers
 from orchestrator.campaign import p3_b4_prerun_issuer as issuer
 from orchestrator.campaign.p3_b4_analysis_contract import EXPECTED_BLOCK_COUNT
+
+
+_PREREGISTRATION_PATH = "docs/phase3-b4-reflux-ablation-preregistration.md"
+_EXPECTED_PUBLICATION_ROOT = "output/b4-prerun-publication"
+
+
+def copy_preregistered_repository(repository: Path) -> Path:
+    """Copy the real document unchanged; the expected root is independently fixed."""
+    source = Path(__file__).resolve().parents[2] / _PREREGISTRATION_PATH
+    destination = repository / _PREREGISTRATION_PATH
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_bytes(source.read_bytes())
+    (repository / "output").mkdir(parents=True, exist_ok=True)
+    return repository / _EXPECTED_PUBLICATION_ROOT
+
+
+@contextmanager
+def preregistered_publication_root(repository: Path):
+    root = copy_preregistered_repository(repository)
+    with mock.patch.object(issuer, "_REPOSITORY_ROOT", repository):
+        yield root
 
 
 @dataclass(frozen=True)
@@ -118,13 +141,31 @@ def issue_proposal_binding_fixture(
         )
         for attempt in attempts
     )
-    publication = issuer.issue_b4_prerun_publication(
-        scheduled_inputs=attempts,
-        planned_result_artifacts=planned,
-        publication_root=str(parent / f"{label}-publication"),
-    )
+    with preregistered_publication_root(parent / f"{label}-repository") as root:
+        publication = issuer.issue_b4_prerun_publication(
+            scheduled_inputs=attempts,
+            planned_result_artifacts=planned,
+            publication_root=str(root),
+        )
     return ProposalBindingFixture(
         publication=publication,
         attempt_id=attempts[bound_attempt_index].attempt_id,
         document=bound_document,
     )
+
+
+if __name__ == "__main__":
+    import tempfile
+
+    original_repository = issuer._REPOSITORY_ROOT
+    with tempfile.TemporaryDirectory() as directory:
+        parent = Path(directory)
+        fixture = issue_proposal_binding_fixture(parent, driver_kind="base")
+        assert fixture.publication.publication_root == str(
+            parent / "binding-repository/output/b4-prerun-publication"
+        )
+        assert issuer.load_b4_prerun_publication(
+            fixture.publication.publication_root
+        ) == fixture.publication
+        assert issuer._REPOSITORY_ROOT == original_repository
+    print("p3_b4_proposal_binding_support.py::__main__: real fixture and loader passed")

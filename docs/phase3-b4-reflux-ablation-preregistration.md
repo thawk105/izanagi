@@ -691,6 +691,17 @@ Clopper-Pearson の厳密両側 95% 区間とする。**これは `theta` の区
 
 ## 6. 実走の前提条件 (1 つでも未充足なら実走しない)
 
+B-4 prerun publication root (repo 相対): `output/b4-prerun-publication`
+
+上の 1 行が本書における publication root の名指しである (D1881)。発行器はこの repository root
+から解決した場所だけへ発行し、それ以外の root での発行を拒否する。呼び手は発行先を選べない。
+**ここでいう repository root は、import された発行器の file を置く、本書を同梱した source checkout
+である。** 呼び手の作業ディレクトリを基準にしない。本書を同梱しない配置から import した場合、
+発行器は名指しを読めないので発行を拒否する。
+**名指しが閉じるのは発行器を経由する発行だけである。** loader と bootstrap 束縛は呼び手から
+受け取った root をそのまま使うので、別の checkout で名指しどおりに発行した bundle を
+別の呼び手が絶対 path で指す経路は本項では閉じない。
+
 1. §5 の全欄が記入済みで、その版が commit されている。
 2. **D903 が確定した架構と一致している。** 本書と実走は critic への赤の可視性 on/off だけを扱い、
    機械が導いた制約の適用 on/off を含めない。
