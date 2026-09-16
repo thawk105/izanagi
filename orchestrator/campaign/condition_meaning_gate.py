@@ -279,6 +279,12 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     "IZANAGI_BREAK_WRITE_INTENT_PTRSWAP": (
         "cc/silo/transaction.cc", "#if IZANAGI_BREAK_WRITE_INTENT_PTRSWAP",
     ),
+    "IZANAGI_BREAK_NOREAD_VALIDATION": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_NOREAD_VALIDATION",
+    ),
+    "IZANAGI_BREAK_HIGHKEY_VALIDATION": (
+        "cc/silo/transaction.cc", "#if IZANAGI_BREAK_HIGHKEY_VALIDATION",
+    ),
 }
 CONDITIONAL_BRANCH_WITNESSES: Mapping[str, tuple[str, str]] = MappingProxyType(
     _CONDITIONAL_BRANCH_WITNESSES,

@@ -1,0 +1,14 @@
+{
+  "args": [
+    "bash",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-screening-liveness/run_screening_liveness.sh",
+    "/work/1/SFC/tanab/izanagi-job-evidence/t2228/attempt-20260917b-official",
+    "1042a1bc95057fa03117d504cfa2b0fafaae60d0",
+    "511c9538e4e8efa54b45cda62e72389ed3b706ec"
+  ],
+  "environment": {},
+  "repo_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-screening-liveness",
+  "request_binding": "sha256-job-script/v1",
+  "schema_version": "pegasus-dispatch-request/v2",
+  "task": "generic"
+}
