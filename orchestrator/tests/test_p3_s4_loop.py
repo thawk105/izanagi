@@ -6584,6 +6584,7 @@ def test_emit_context_and_run_iteration_share_manifest_campaign_identity(
     observed_ids.clear()
     assert L.main([
         *common, "--run-iteration", str(tmp_path / "proposal.json"), "--no-build",
+        "--coder-role", "coder-v4-autonomous-k2",
     ]) == 0
     run_ids = set(observed_ids)
     assert run_ids == context_ids
@@ -7200,6 +7201,96 @@ def _run_main_with_actual_proposal_loader(
         argv.extend(["--coder-role", coder_role])
     assert L.main(argv) == 0
     return observed
+
+
+def test_main_nonempty_manifest_requires_coder_role_before_prepare(
+    tmp_path, monkeypatch,
+):
+    from orchestrator.campaign import patchharness
+
+    _repo, _manifest_path, resolved = _resolved_knowledge_fixture(
+        tmp_path, name="missing-role",
+    )
+    document = _k2_proposal_document()
+    document["coder"] = document["coder"]["proposal"]
+    proposal_path = _write_k2_proposal(
+        tmp_path, document, "main-missing-role.json",
+    )
+    layout = CampaignLayout(root=str(tmp_path / "missing-role-campaign"))
+    monkeypatch.setattr(
+        L, "_resolve_knowledge_manifest_argument", lambda _path: resolved,
+    )
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(
+        patchharness, "assert_pinned_clean", lambda *_a, **_k: None,
+    )
+    prepare_spy = unittest.mock.Mock(wraps=L._prepare_knowledge_campaign)
+    monkeypatch.setattr(L, "_prepare_knowledge_campaign", prepare_spy)
+
+    def fail_drive(*_args, **_kwargs):
+        pytest.fail("drive_iteration reached")
+
+    monkeypatch.setattr(L, "drive_iteration", fail_drive)
+    with pytest.raises(ValueError, match="--coder-role") as exc_info:
+        L.main([
+            "--run-iteration", str(proposal_path),
+            "--no-build",
+            "--knowledge-manifest", str(tmp_path / "manifest.json"),
+        ])
+
+    prepare_spy.assert_not_called()
+    assert not Path(layout.root).exists()
+    assert "sources_count=1" in str(exc_info.value)
+
+
+def test_main_nonempty_manifest_and_k2_role_accept_k2_wrapper(
+    tmp_path, monkeypatch,
+):
+    _repo, _manifest_path, resolved = _resolved_knowledge_fixture(
+        tmp_path, name="k2-role",
+    )
+    document = _k2_proposal_document()
+    proposal_path = _write_k2_proposal(
+        tmp_path, document, "main-nonempty-k2-wrapper.json",
+    )
+
+    observed = _run_main_with_actual_proposal_loader(
+        tmp_path,
+        monkeypatch,
+        resolved=resolved,
+        proposal_path=proposal_path,
+        coder_role="coder-v4-autonomous-k2",
+    )
+
+    assert vars(observed["coder"]) == document["coder"]["proposal"]
+    assert observed["prior"] is None
+
+
+def test_main_fixture_route_accepts_nonempty_manifest_without_coder_role(
+    tmp_path, monkeypatch,
+):
+    from orchestrator.campaign import patchharness
+
+    _repo, _manifest_path, resolved = _resolved_knowledge_fixture(
+        tmp_path, name="fixture-route",
+    )
+    layout = CampaignLayout(root=str(tmp_path / "fixture-route-campaign"))
+    monkeypatch.setattr(
+        L, "_resolve_knowledge_manifest_argument", lambda _path: resolved,
+    )
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(
+        patchharness, "assert_pinned_clean", lambda *_a, **_k: None,
+    )
+    monkeypatch.setattr(
+        L, "_run_one_iteration_resolved",
+        lambda *_args, **_kwargs: {"outcome": "dry-pass", "variant": None},
+    )
+
+    assert L.main([
+        "--no-build",
+        "--knowledge-manifest", str(tmp_path / "manifest.json"),
+    ]) == 0
 
 
 def test_main_manifest_only_accepts_legacy_flattened_proposal(

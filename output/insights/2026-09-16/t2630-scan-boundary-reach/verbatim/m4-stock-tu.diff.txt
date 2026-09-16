@@ -1,0 +1,60 @@
+--- reference
++++ current
+@@ -86415,15 +86415,15 @@
+         B()();
+         return new_value;
+     }
+-    static inline type val_cmpxchg(type* object, type expected, type desired) {
++    static inline type val_cmpxchg(type* object, type expected, type expected) {
+         asm volatile("lock; cmpxchgb %2,%1"
+                      : "+a" (expected), "+m" (*object)
+-                     : "r" (desired) : "cc");
++                     : "r" (expected) : "cc");
+         B()();
+         return expected;
+     }
+-    static inline bool bool_cmpxchg(type* object, type expected, type desired) {
+-        return __sync_bool_compare_and_swap(object, expected, desired);
++    static inline bool bool_cmpxchg(type* object, type expected, type expected) {
++        return __sync_bool_compare_and_swap(object, expected, expected);
+     }
+     static inline type fetch_and_add(type *object, type addend) {
+         asm volatile("lock; xaddb %0,%1"
+@@ -86445,15 +86445,15 @@
+         B()();
+         return new_value;
+     }
+-    static inline type val_cmpxchg(type* object, type expected, type desired) {
++    static inline type val_cmpxchg(type* object, type expected, type expected) {
+         asm volatile("lock; cmpxchgw %2,%1"
+                      : "+a" (expected), "+m" (*object)
+-                     : "r" (desired) : "cc");
++                     : "r" (expected) : "cc");
+         B()();
+         return expected;
+     }
+-    static inline bool bool_cmpxchg(type* object, type expected, type desired) {
+-        return __sync_bool_compare_and_swap(object, expected, desired);
++    static inline bool bool_cmpxchg(type* object, type expected, type expected) {
++        return __sync_bool_compare_and_swap(object, expected, expected);
+     }
+     static inline type fetch_and_add(type* object, type addend) {
+         asm volatile("lock; xaddw %0,%1"
+@@ -86475,15 +86475,15 @@
+         B()();
+         return new_value;
+     }
+-    static inline type val_cmpxchg(type* object, type expected, type desired) {
++    static inline type val_cmpxchg(type* object, type expected, type expected) {
+         asm volatile("lock; cmpxchgl %2,%1"
+                      : "+a" (expected), "+m" (*object)
+-                     : "r" (desired) : "cc");
++                     : "r" (expected) : "cc");
+         B()();
+         return expected;
+     }
+-    static inline bool bool_cmpxchg(type* object, type expected, type desired) {
+-        return __sync_bool_compare_and_swap(object, expected, desired);
++    static inline bool bool_cmpxchg(type* object, type expected, type expected) {
++        return __sync_bool_compare_and_swap(object, expected, expected);
+     }
