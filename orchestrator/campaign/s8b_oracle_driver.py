@@ -409,9 +409,6 @@ def _gate_check_core(*, freeze_path=None, manifest_path=None, root,
                      launch_validated: Optional[
                          "s8b_ratified_freeze.LaunchValidatedFreeze"
                      ] = None,
-                     ratified: Optional[
-                         "s8b_ratified_freeze.RatifiedFreeze"
-                     ] = None,
                      ratified_error: Optional[str] = None) -> GateDecision:
     """検証済み入力を共通の gate predicates へ通す内部実装。
 
@@ -425,13 +422,12 @@ def _gate_check_core(*, freeze_path=None, manifest_path=None, root,
     その単一 object だけを使う (C2-9)。公開 gate の注入経路だけは token exact type、
     manifest 実 bytes の canonical hash、approved spec hash を再束縛する。
 
-    ``ratified`` (``load_ratified_freeze`` の戻り値) は v2 経路 (floor/budget が両方
-    null でない freeze) の承認束縛検証結果。**与えられた freeze の bytes sha256 が
-    active 世代の sha256 と完全一致すること** を要求する (不一致 = refusal
-    "freeze-not-active-generation")。resolve に失敗した場合 (``ratified_error`` に
-    構造化 message) は "freeze-ratify" refusal に翻訳する (RatifiedFreezeError を
-    例外として漏らさない)。単体 gate CLI 経路 (ratified 未指定) では自身で
-    ``load_ratified_freeze`` を一度呼ぶ。
+    v2 (floor/budget のいずれかが non-null) の freeze は exact type
+    ``LaunchValidatedFreeze`` を要求する。無ければ refusal
+    ``v2-execution: launch-validate: LaunchValidatedFreeze exact type が必要``
+    を積み admission しない (拒否理由の集約は継続する)。``ratified_error``
+    (呼出側の active 世代解決失敗の構造化 message) は ``freeze-ratify:`` refusal
+    へ翻訳する。core は ``load_ratified_freeze`` を呼ばない。
     """
     if (launch_validated is not None
             and type(launch_validated) is not s8b_ratified_freeze.LaunchValidatedFreeze):
@@ -485,22 +481,17 @@ def _gate_check_core(*, freeze_path=None, manifest_path=None, root,
                     f"holdout-freeze-verify: {type(exc).__name__}: {exc}"
                 )
         else:
-            # v2 (floor/budget 充填済み) freeze: 与えられた bytes が承認束縛済みの
-            # active 世代そのものであることを sha256 完全一致で要求する。
-            active = (launch_validated.ratified
-                      if launch_validated is not None else ratified)
-            error = ratified_error
-            if active is None and error is None:
-                # 単体 gate CLI 経路: 自身で active 世代を解決する。
-                try:
-                    active = s8b_ratified_freeze.load_ratified_freeze(root)
-                except s8b_ratified_freeze.RatifiedFreezeError as exc:
-                    error = f"[{exc.reason}] {exc}"
-                except Exception as exc:  # noqa: BLE001 (fail-closed)
-                    error = f"{type(exc).__name__}: {exc}"
-            if error is not None:
-                refusals.append(f"freeze-ratify: {error}")
-            elif active is None or freeze_sha is None or freeze_sha != active.sha256:
+            # v2 (floor または budget が non-null) freeze: exact な LaunchValidatedFreeze
+            # を要求する。core は active 世代を自分で解決しない (D1872)。
+            if ratified_error is not None:
+                refusals.append(f"freeze-ratify: {ratified_error}")
+            elif launch_validated is None:
+                refusals.append(
+                    "v2-execution: launch-validate: "
+                    "LaunchValidatedFreeze exact type が必要"
+                )
+            elif (freeze_sha is None
+                  or freeze_sha != launch_validated.ratified.sha256):
                 refusals.append(
                     "freeze-not-active-generation: "
                     "与えられた freeze bytes sha256 が承認束縛済み active 世代と不一致"
@@ -621,7 +612,7 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
                 t080_resolution=t080_resolution,
                 approved_spec=None, manifest_verification_error=None,
                 standalone_manifest_verification=True,
-                verified_manifest=verified_manifest, ratified=ratified,
+                verified_manifest=verified_manifest,
             )
 
     freeze = loaded.document
@@ -635,7 +626,6 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
             approved_spec=None, manifest_verification_error=None,
             standalone_manifest_verification=True,
             verified=loaded, verified_manifest=verified_manifest,
-            ratified=ratified,
         )
 
     candidate = ratified
