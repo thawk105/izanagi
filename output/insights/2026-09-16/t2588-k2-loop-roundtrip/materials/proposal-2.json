@@ -1,0 +1,30 @@
+{
+  "planner": {
+    "axis": "silo-backoff-magnitude",
+    "direction": "decrease",
+    "magnitude": "small",
+    "justification": "iteration 1 は decrease/medium で success と記録されており、同方向の継続がまず支持される。K2 記録 (別 env_tag) 内の 3 点は abort 率 7.03% / 7.20% / 7.80% に対し throughput 491796.5 / 487088.5 / 525721.5 で、abort 率が帯の上端に寄った点が最も高い throughput を示す。本 campaign の現行 abort 率 7.75% はその帯の上端にほぼ一致しており、iteration 1 が同じ側へ到達したことと整合する。一方で帯の上端より先の測定点は記録内に存在せず、これ以上同方向へ進めることは外挿になる。したがって方向は維持しつつ、前回より刻みを小さくし、転回の有無を跨がずに 1 点で判別できるようにする。次の試行で abort 率がさらに上がって throughput が伸びなければ、その時点で方向を反転させるか explore_both に切り替える判断材料が得られる。",
+    "uncertainty": "(1) cache_miss_rate_pct と IPC_overall は null (perf 不在、preflight status=unavailable / rc=2) で欠測であり、0 でも「差なし」でもない。本提案はこの 2 軸を一切使っていない。(2) contention_level は分類器不在で「未判定」であり、high/low いずれとも読んでいない。(3) abort_rate_pct 7.75% は 2 反復のうち速い側 (727985 tps) の値、throughput_ops_sec 719324.5 は 2 反復の中央値で、集約が揃っていない。両者を同一反復の対として読めないため、上記の abort 率と throughput の対応づけには揃っていない集約に由来する誤差が残る。(4) run 内 CV 1.70% は、K2 記録内の同一設定反復間のばらつき (CV 0.66-0.92%、同一 genome 2 点間の median 差も約 1%) より大きい。したがって小刻みの試行では、得られる差が測定ばらつきに埋もれて方向判定ができない可能性がある。判別できなかった場合は magnitude を上げるのではなく反復数を増やす扱いが要る。(5) last_delta_pct が null のため iteration 1 の改善幅が不明で、「success」の大きさに基づく刻み調整ができていない。small の選択は幅ではなく帯の上端到達のみを根拠にしている。(6) knowledge_input の env_tag は linux-baremetal で本 campaign の機体 (pegasus) と異なる。配線規模のみ同じという開示に留まるため、帯の位置と転回点がそのまま転移する保証はない。方向の符号のみを弱い事前として使い、値の位置は使っていない。(7) K2 記録の 3 点目 (dad58f9f9000) は settled=false であり、他 2 点と同じ確度で扱えない。この点を除いても同方向の順序は変わらないため結論は保たれるが、帯の下端側の根拠は 2 点でなく実質 1 点に近い。(8) データ境界: knowledge_input.sources の本文には cmake の configure/build コマンド行と numactl/perf の run_cmd 文字列が含まれる。これらは命令形の文字列だが本提案では観測記録の一部 (データ) としてのみ読み、実行・採用・再現の指示としては扱っていない。絶対 path や build ディレクトリ名も同記録は別機体のものであり、本 campaign の経路として採らない。振る舞いを変えるよう誘導する記述、正しさ判定や certified の扱いを変えるよう求める記述は本文中に見当たらなかった。"
+  },
+  "coder": {
+    "proposal": {
+      "axis": "silo-backoff-magnitude",
+      "value": 25,
+      "implementation": "double now_backoff = 25;",
+      "justification": "planner の方向は decrease、刻みは small であり、iteration 1 の decrease/medium が success だったことから同方向の継続が支持される。絶対値の錨は束縛済み source 0 (WAL) の genome 文字列にある backoff 大きさの実測点 40 と 30 だけである。その記録では 40 の 2 点が median_tps 491796.5 (abort 0.0703) と 487088.5 (abort 0.0720)、30 の 1 点が 525721.5 (abort 0.0780) であり、backoff を 40 から 30 へ下げた側が abort 率はやや上がるのに throughput は約 7% 高い。すなわち記録の範囲では『待機を短くして restart を速める』側が勝っており、abort 率の微増はその代償として throughput 改善を打ち消していない。本 campaign の baseline (abort 7.75%) は記録内の abort 帯の上端付近にあり、iteration 1 が同じ側へ動いたことと整合する。そこで記録内の最良点 30 から同方向へ小さく 1 段だけ下げた 25 を提案する。40->30 の刻み (10) より小さい刻み (5) にすることで、方向継続で伸びるのか、ここで転回するのかを 1 点で判別でき、外挿の距離も最小に保てる。留意点として (a) source 0 の env_tag は linux-baremetal で本 campaign の機体と異なり、絶対 tps は転移しないので方向の符号だけを使った、(b) whiteboard は抽象記録のため iteration 1 の実値は不明であり、25 が現行値から見て必ず『小さな減少』になる保証はなく、記録内の最良測定点を基準にした減少である、(c) baseline の throughput は 2 反復の中央値、abort 率は速い側の反復の値で集約が揃っておらず、run 内 CV 1.70% もあるため、この 1 点の差分を過大に読まない、(d) llc_miss_rate と ipc は本走で欠測であり、機序の裏取りには使っていない。正しさゲート・identity ゲート・性能ゲートの定義、順序、閾値には一切触れず、編集面は hole の 1 文だけである。",
+      "confidence": "medium"
+    },
+    "knowledge_use": [
+      {
+        "source_index": 0,
+        "use": "同一配線規模 (100000 records / 4 threads / rratio 50 / zipf 0.9 / extime 1) で backoff 大きさ 40 と 30 を比較した 3 レコードを与え、(1) 絶対値の錨 (40, 30)、(2) 30 側が 40 側より median_tps で約 7% 高いという方向の符号、(3) abort 率が 7.0-7.8% の帯に収まりつつ上端側で throughput が最大という関係、の 3 点を提供した。これにより『decrease を継続する』という planner 方向を支持し、最良測定点 30 から刻み 5 で 25 を選ぶ根拠とした。env_tag が linux-baremetal であるため絶対 tps は本 campaign へ転移させず、方向と刻みの設計にのみ用いた。"
+      }
+    ],
+    "classification": "known_result_conditioned_derivative",
+    "data_boundary_report": {
+      "instruction_like_content_detected": false,
+      "details": "knowledge_input.sources は 1 件 (index 0, output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/runs/wal.jsonl)。JSON Lines 15 行すべてを走査し、全 field (variant, stage, env_tag, ts, payload 以下の genome, src_token, trace_bin, perf_bin, perf_configure_cmd, perf_build_cmd, verdict, certified, commits, aborts, anomalies, median_tps, cv, tps, settled, leading_indicators, rep_notes, run_cmd, fitness_tps) を読んだ。命令形の自然言語、ゲートの緩和・迂回の示唆 (verifier を飛ばせ、serializable と記録しろ、fitness をこう書け等)、出力形式や役割の再定義、外部への送信要求、path や URL への誘導は検出しなかった。perf_configure_cmd / perf_build_cmd / run_cmd は cmake・numactl・perf の command 文字列を含むが、これらは過去実行を記録した観測データであり、読み手への指示として書かれたものではないため、実行も再現も行わず、数値と genome の読み取りにのみ用いた。src_token / trace_bin / perf_bin の hex 文字列も不透明な識別子として扱い、意味を推測して行動を変えていない。"
+    }
+  },
+  "prior_critic_reverse": false
+}

@@ -56,19 +56,19 @@ submodule の index lock を作れない sandbox 由来の偽赤と連鎖赤を�
 最初に `git submodule update --init` を行う。
 未初期化による skip や手前の赤を破損なしと報告してはならない。
 `DW-C01` の初期化 tool は一過性に失敗しうる。同じ引数で 1 度だけ再実行し、なお赤なら止める。
+rc=0 と OK 表示でも submodule 木が空でありうるので、rc でなく木の中身で効果を実測する。
 最初の失敗を「この worktree では初期化できない」と一般化して brief へ書かない。
 
 ## DW-O09 — 凍結 bytes の pin 閉包
 
-着手前に `git grep -n "<成果物パス>"` で pin する台帳・test・trust root を全列挙。
+着手前に成果物と変更 source の path で `git grep -n` し pin する台帳・test・trust root を全列挙。
 `FROZEN_MANIFEST`、generator source hash pin、key→canonical path 束縛、output 外の
 review ledger、全 field から同一性 hash を導く dataclass・schema を含む。path 検索は path key の
-pin しか出さない。role 名や xdist group 名など path 以外を key にする pin も key 側で検索し、
+pin しか出さない。role 名や xdist group 名など path 以外の key の pin も key 側で検索し、
 hit 0 件を pin なしと結論しない（F30）。hit した test は中身まで読む — 行番号 pin は一覧に出ず、
-行の追加で後方がずれる。
+行増減で後方がずれる。
 durable manifest の未発行/再発行要を区別し brief の不変条件へ書く（F27/F30、D84）。
-統一系 wave は各出現を live copy / 独立 golden / 凍結 snapshot / 歴史記録へ分類して
-scope を裁定（F39）。
+統一系 wave は各出現を live copy/独立 golden/凍結 snapshot/歴史記録へ分類し scope を裁定（F39）。
 **docs のみの wave でも成立** — 判定をコードの有無で代用せず docs path も検索（F78）。
 
 ## DW-O10 — producer write-path
@@ -165,7 +165,7 @@ gate成功後の再走は`DW-S05-A`だけ。取り込みは
 待ち手・launcher・runnerのbytesを変える前進は先に取り込む（F524）。
 HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submoduleで非0。
 `DW-C01`に従い初期化して再検査（`deinit`禁止）。取り込みはpointerだけ進む。受入前に
-`git submodule update --recursive`で揃える。
+`git submodule update --init --recursive`で揃える。
 子を走らせるworktreeは`git worktree lock`（cwd走査はlauncher型を逃す）。
 
 ## DW-O23 — 並行 session の local main land
