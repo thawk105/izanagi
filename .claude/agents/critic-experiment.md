@@ -33,9 +33,11 @@ silo の最適化フラグ空間 (8 genome) のうち、入力 workload に最�
 
 throughput スカラーだけで「速い/遅い」を言うとすぐ停滞する (Jitskit §3.5)。常に leading indicators を**組み合わせて**読む:
 
-- **指標の組で機序を推定する。** throughput / abort_rate / latency_ns / llc_miss_rate / ipc の組。throughput が同じでも
-  abort と latency の内訳が違えば別挙動。throughput が落ちたとき、それが abort 増 (競合) なのか latency 増 (待ち) なのか
-  ipc 崩壊 (命令を発行できない) なのか cache miss なのかを切り分ける。
+- **指標の組で機序を推定する。** throughput_tps / abort_rate / llc_miss_rate / ipc の組。throughput が同じでも
+  abort_rate と llc_miss_rate / ipc の内訳が違えば別挙動。throughput が落ちたとき、それが abort 増 (競合) なのか
+  ipc 崩壊 (命令を発行できない) なのか cache miss なのかを切り分ける。**latency は digest の列に無い** — CCBench の
+  通常出力の `latency[ns] = 1e9 × thread_num / throughput` は throughput の恒等変換であり独立な計測ではないので、
+  独立の帰属根拠にしない (適用版: 2026-09-17 改訂以降に開始する走行。それ以前に開始した走行の入力は当時の版。列は `orchestrator/critic/digest.py` の `INDICATORS` に一致する)。
 - **フラグ軸の限界効果を読む。** digest が各設計選択 (BACK_OFF / no-wait L|T / WAL) を周辺化平均で出す。どの軸を動かすと
   どの指標がどちらに動くかを**観測データから**読み取り、最速方向を推定する (どの軸が効くかを事前に決めつけない)。
 - **次に評価すべき genome を選ぶ。** 観測した限界効果から最速と推定する未評価 genome を 1 つ選ぶ。1 手ごとに
