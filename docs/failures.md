@@ -3395,6 +3395,16 @@
   恒久対応は既載のまま変えない。
 
 - **再発: 2026-09-11** — T-2273着地再開の関連走と単独走でtest_limit_stop_is_never_acceptedの子終了codeが-15対期待0。fakeのterm_successがtoken_countを公開した後にSIGTERM handlerを登録する順序を確認した。初回mask案は準備中に停止猶予を使い切り-9となり撤回。Codex authorが同modeだけoutput/terminal/handler準備後にcount evidenceを公開する局所修正を行い、期待値と本番制限は不変。単独1passed、file直列211passed。並列file走の他mode3件は証拠待ちで赤だが直列では緑であり、この修正でF57全体が解消したとは主張しない。実体はorchestrator/tests/test_codex_worker_launch.pyの_write_fake_codex、証拠はoutput/insights/2026-09-10/t2273-current-cost/README.md。M1の子exit7変異は既存assertで検出された。
+
+- **再発: 2026-09-16** — 診断本文保持の敵対レビュー wave (docs と計測成果物のみ) の受入 attempt 7 で
+  `test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed` が 1 件だけ落ちた
+  (24,129 passed / 67 skipped / 1 failed)。assertion 本文は
+  `LauncherReturncodeMismatch: actual rc timeout != expected rc 1; label=sigterm-ignoring launcher`。
+  receipt の `preparation_wall_clock_s` が **5.23 秒**で、`wall_clock_admission_bound_s=3.0` の
+  予算を準備段だけで使い切っている。計算ノード bnode009 の loadavg は **56.07 / 25.77 / 17.94** で、
+  1 分値だけが跳ねた瞬間に当たった。同 file の単独再走は **211 passed / 14.47 秒 / rc=0**
+  (1735.nqsv) で非再現。wave の差分は `tools/` にも `test_codex_worker_launch.py` にも
+  1 行も無く、非帰属である。既報どおり hold 登録はせず受入を再走する。
 ### F58. 並行 wave が land 済みの「次の一手」ID を別内容へ再利用し、裁定待ち 2 件が正本から消えた [手順漏れ] [恒真ゲート]
 
 - **事象 (2026-07-31, `/rulings`):** worklog (72) が land した 2 つの ID を、並行して走っていた
@@ -25334,6 +25344,28 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   単独再走 (1578.nqsv) は **269 passed / 121.41 秒 / rc=0** で非再現。2 走目の投入時は同時受入が
   他に 1 本だったが、走行中に増えて終了時は 3 本だった。恒久対応は既報のまま変えず、
   timeout 拡大・stub 化・除外・gate 新設はしていない。
+
+- **再発: 2026-09-16** — 診断本文保持の敵対レビュー wave (docs と計測成果物のみ) の受入で
+  テストが走った 4 回すべてに同型が出た。attempt 1 は 2 件 (24,084 passed / 68 skipped)、
+  attempt 2 は 1 件 (24,085 passed)、attempt 4 は 13 件 (24,072 passed、別に F976 が 1 件)、
+  attempt 6 は 2 件 (24,117 passed)。setup traceback の Git argv は既報と同一で、
+  `git -C <wave worktree> ls-files --others --exclude-standard -z` の 30.0 秒 TimeoutExpired。
+  単独再走は 1 file で **51 passed / 21.04 秒 / rc=0** (1417.nqsv)、2 file で
+  **269 passed / 111 秒 / rc=0** (1565.nqsv) といずれも非再現。
+  wave の変更は docs と計測成果物だけで、当該 fixture・probe・Git 呼出しは変更していない。
+  **既報と違うのは負荷の水準である。** 既報の再発は load average 68〜110 の高負荷だったが、
+  本 wave の投入時 load は 20.59 / 25.90 / 46.33 (attempt 1)、29.70 / 24.85 / 24.80 (attempt 4)、
+  50.85 / 39.64 / 35.14 (attempt 6) と低く、attempt 6 の終了時は 15.64 / 14.42 / 23.66 だった。
+  代わりに**同時に走る受入の待ち手が多かった** — wrapper を除いた実体 (`/proc/<pid>/comm` が
+  `python3`) で各 attempt の投入時に 4〜5 本。
+  同じ worktree で同 argv を単独で測ると、未追跡は **0 件**なのに wall **16.7 秒**
+  (user 0.023 秒 / sys 0.817 秒) で、ほぼすべてが I/O 待ちだった。素の走査が既に timeout の
+  半分を使っているので、共有 filesystem に受入 4〜5 本分の競合が乗ると 30 秒を跨ぐ。
+  これは「負荷の数値より、同時に走る受入の本数が効く」ことと整合するが、**因果の分離ではない。**
+  恒久対応は既報のまま変えず、timeout 拡大・stub 化・除外・hold 登録・gate 新設は行わず、
+  `DW-O18` に従って受入を再走した。attempt 3 は post-claim merge の競合 (別 wave が同じ
+  DW-M07 是正を先に着地)、attempt 5 は postcheck の競走 (merge 中に main が進んだ) で、
+  どちらもテストは走っていない。
 ### F946. 修正可能な検査失敗で作業を終了し、ユーザーへ再開を要求した [手順漏れ] [誤前提]
 
 - 事象: insights整理のauthorが実行ログ検査で未受理になり、親は原因の切り分けや安全な再試行をせず正式停止した。
@@ -26098,6 +26130,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `holders=` の mode 別内訳と `time` を記録し、投入時の load average と併記する。
   **単独再走が緑なら実装差分へ帰属させない** (`DW-O18`)。
 
+
+- **再発: 2026-09-16** — 同 wave の受入 attempt 4 で
+  `test_s8c_preregistration_predicates.py::test_repository_candidate_uses_real_s8c_budget_module`
+  が setup error になった。本文は `real-repo lock deadline exceeded; fails-closed: resource=parent
+  mode=write`、`holders=` は READ 2 本 (pid=4040008 / pid=4039887)、junit の `time` は **245.041 秒**で
+  既報とほぼ同値。投入時 load は 29.70 / 24.85 / 24.80 で既報の表 (73〜117) より低く、
+  同時走行の受入は wrapper 除外後で 4 本だった。単独再走は 2 file で 269 passed / rc=0 と非再現。
+  当座の運用 (下降局面かつ 1 分値 50 以下で 1 回投げる) を満たしていたにもかかわらず出ており、
+  **load の閾値だけでは避けられない**ことの 1 点になる。恒久対応は既報どおり未実施のまま、
+  機構側の対処は決めていない。
 ### F977. land の fold 失敗が main を merge 前まで巻き戻し、着地済みに見えた wave の記録が丸ごと列から消えた [手順漏れ] [観測]
 
 - 事象: 2026-09-14、別 session から「main が巻き戻っている」と通報を受け、自分の ref で裏取りした。
