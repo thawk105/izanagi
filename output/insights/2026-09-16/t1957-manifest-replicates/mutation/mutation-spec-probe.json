@@ -1,0 +1,232 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 900,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1957.m01",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        raw_trial = {**raw_trial, \"n\": raw_trial.get(\"n\", 2)}\n        _exact_keys(raw_trial, _TRIAL_KEYS, label=f\"{label}[{index}]\")\n",
+     "old": "        _exact_keys(raw_trial, _TRIAL_KEYS, label=f\"{label}[{index}]\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1957.m02",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        if not isinstance(n, (int, float)):\n",
+     "old": "        if type(n) is not int:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1957.m03",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        if n < 1:\n",
+     "old": "        if n < 2:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1957.m04",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        if False:\n            _fail(\"field\", f\"{label}[{index}].n must be at least 2\")\n",
+     "old": "        if n < 2:\n            _fail(\"field\", f\"{label}[{index}].n must be at least 2\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1957.m05",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "    if False:\n        _fail(\"field\", f\"{label} n differs across cells\")\n",
+     "old": "    if len({item.n for item in trials}) != 1:\n        _fail(\"field\", f\"{label} n differs across cells\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1957.m06",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "    if any(len({item.n for item in trials if item.holdout == holdout_key}) != 1 for holdout_key in HOLDOUTS):\n",
+     "old": "    if len({item.n for item in trials}) != 1:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1957.m07",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        trials.append(TrialSpec(trial_id, arm, holdout, campaign_id, generations, 2))\n",
+     "old": "        trials.append(TrialSpec(trial_id, arm, holdout, campaign_id, generations, n))\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1957.m08",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "    }\n",
+     "old": "        \"n\": trial.n,\n    }\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1957.m09",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        \"n\": 2,\n",
+     "old": "        \"n\": trial.n,\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1957.m10",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        trial.generations,\n    )\n",
+     "old": "        trial.generations,\n        trial.n,\n    )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1957.m11",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "MANIFEST_SCHEMA_VERSION = \"p3-8c-trial-manifest/v2\"\n",
+     "old": "MANIFEST_SCHEMA_VERSION = \"p3-8c-trial-manifest/v3\"\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1957.m12",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "REGISTRATION_SCHEMA_VERSION = \"p3-8c-trial-registration/v2\"\n",
+     "old": "REGISTRATION_SCHEMA_VERSION = \"p3-8c-trial-registration/v3\"\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1957.m13",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "    if value[\"schema_version\"] not in {MANIFEST_SCHEMA_VERSION, \"p3-8c-trial-manifest/v2\"}:\n",
+     "old": "    if value[\"schema_version\"] != MANIFEST_SCHEMA_VERSION:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1957.m14",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        if n < 4:\n",
+     "old": "        if n < 2:\n"
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1957.m15",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "    if len(set(item.n for item in trials)) != 1:\n",
+     "old": "    if len({item.n for item in trials}) != 1:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1957.m16",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        if index == 0 and type(n) is not int:\n",
+     "old": "        if type(n) is not int:\n"
+    }
+   ]
+  }
+ ]
+}
