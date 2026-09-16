@@ -34,7 +34,7 @@ effort: high
 {
   "leakproof_context": "<src/coder-leakproof-context.md の内容を inline で>",
   "baseline": {
-    "throughput_ops_sec": 88124.1,
+    "throughput_tps": 88124.1,
     "abort_rate_pct": 7.9
   },
   "planner_direction": {
