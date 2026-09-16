@@ -1,0 +1,205 @@
+#!/usr/bin/env python3
+"""Disposable T-2635 descriptive probe; frozen s4 specification, no decisions."""
+import argparse
+import hashlib
+import importlib.util
+import json
+import math
+import statistics
+import sys
+from collections import Counter, defaultdict
+from pathlib import Path
+
+ROOT = Path('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2635-high-band-control-feasibility')
+RULING = Path('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2635-high-band-control-feasibility/s4-adjudication.md')
+STEPS, N, BAND, K_MIN = (0.5, 1, 2, 25, 100), 1170, 50, 10
+WIDE = 'nm-step1-u2560'
+REGISTERED = ','.join(f'nm-step{s}:1:{s}:1000:{u}:0:0:0:100:100:0' for s, u in [('0.5', 10), ('1', 10), ('1-u2560', 2560), ('2', 10), ('25', 10), ('100', 10)]).replace(':1:1-u2560:', ':1:1:')
+
+def identity(path):
+    digest = hashlib.sha256()
+    with path.open('rb') as stream:
+        for block in iter(lambda: stream.read(1048576), b''): digest.update(block)
+    return dict(path=str(path), bytes=path.stat().st_size, sha256=digest.hexdigest())
+
+def driver_identity(path):
+    try: return identity(path)
+    except OSError as exc: return dict(path=str(path), sha256=None, status='measurement_incomplete', reason=str(exc))
+
+def module(path, name):
+    spec = importlib.util.spec_from_file_location(name, str(path))
+    obj = importlib.util.module_from_spec(spec)
+    sys.modules[name] = obj  # Required by driver dataclasses; no module attribute replacement.
+    spec.loader.exec_module(obj)
+    return obj
+
+def high(edge): return min(edge) > BAND
+def crossing(edge): return min(edge) <= BAND < max(edge)
+def maximum(events): return max(max(e['backoff_before'], e['backoff_after']) for e in events)
+def nonzero(a, events): return a._edge_counts(a._edge_observations(events))
+def lattice(s):
+    reach = (math.floor(BAND / s) + 1 + K_MIN) * s
+    return dict(U_S=int(1000 / s - math.floor(BAND / s) - 1), min_reach_for_K_high_ge_10=reach if reach <= 1000 else None)
+
+def edge_table(events):
+    counts = defaultdict(lambda: [0, 0, 0])
+    for previous, current in zip(events, events[1:]):
+        edge = tuple(sorted((previous['backoff_before'], previous['backoff_after'])))
+        counts[edge][{1: 0, -1: 1, 0: 2}[current['gradient_sign']]] += 1
+    return [[list(edge), *counts[edge]] for edge in sorted(counts)]
+
+def inventory(events, s):
+    rows = edge_table(events)
+    groups = {'high': [r for r in rows if high(r[0])], 'self': [r for r in rows if r[0][0] == r[0][1]], 'crossing': [r for r in rows if crossing(r[0])],
+              'outside_ideal_grid': [r for r in rows if not (all(0 <= b <= 1000 and b % s == 0 for b in r[0]) and (r[0][1] - r[0][0] == s or r[0] in ([0, 0], [1000, 1000])))]}
+    return {name: dict(edges=group, all_sign_edge_types=len(group), nonzero_edge_types=sum(r[1] + r[2] > 0 for r in group), n_plus=sum(r[1] for r in group), n_minus=sum(r[2] for r in group), n_zero=sum(r[3] for r in group)) for name, group in groups.items()}
+
+def auxiliary(raw):
+    events = raw['trace_events']
+    seq = [e.get('seq') for e in events]
+    valid = bool(seq) and all(type(v) is int and v >= 0 for v in seq)
+    monotonic = valid and all(x < y for x, y in zip(seq, seq[1:]))
+    contiguous = valid and all(y == x + 1 for x, y in zip(seq, seq[1:]))
+    start = raw['trace_summary']['dropped'] == 0 and valid and seq[0] == 0 and contiguous
+    levels = defaultdict(list)
+    for event in events: levels[event['backoff_before']].append(event)
+    moves = {}
+    for level, group in sorted(levels.items()):
+        delta = [e['backoff_after'] - e['backoff_before'] for e in group]
+        moves[str(level)] = dict(up=sum(d > 0 for d in delta), down=sum(d < 0 for d in delta), stay=sum(d == 0 for d in delta), mean_displacement=statistics.fmean(delta))
+        if raw['cell'] == WIDE:
+            commits = [e['window_commits'] for e in group]
+            moves[str(level)]['window_commits'] = dict(count=len(commits), mean=statistics.fmean(commits), variance=statistics.pvariance(commits))
+    return dict(seq_first=seq[0], seq_last=seq[-1], seq_strictly_monotonic=monotonic, seq_contiguous=contiguous, prefix_is_run_start=start,
+                prefix_window_us=sum(e['window_us'] for e in events[:N]) if start and len(events) >= N else None,
+                parity_branch=dict(Counter(e['parity_branch'] for e in events)), gradient_sign_zero=sum(e['gradient_sign'] == 0 for e in events), level_moves=moves)
+
+def window_stats(a, events):
+    result = {}
+    for field in ('window_commits', 'window_us'):
+        values = [e[field] for e in events]
+        result[field] = dict(count=len(values), mean=statistics.fmean(values), variance=statistics.pvariance(values), min=min(values), p50=a._quantile(values, .5), p90=a._quantile(values, .9), p99=a._quantile(values, .99), max=max(values))
+    return result
+
+def acf(events):
+    values = [e['gradient_sign'] for e in events]
+    mean = statistics.fmean(values)
+    centered = [v - mean for v in values]
+    denominator = sum(v * v for v in centered)
+    return dict(definition='sum((x[t]-mean)*(x[t+lag]-mean))/sum((x[t]-mean)^2); zeros retained', lag_1_to_10=[sum(x * y for x, y in zip(centered, centered[lag:])) / denominator if denominator and len(values) > lag else None for lag in range(1, 11)])
+
+def driver_admission(path):
+    info = dict(source='static_reading', status='measurement_incomplete', candidates={})
+    try: d = module(path, 't2635_driver')
+    except (Exception, SystemExit) as exc:
+        info.update(reason=f'{type(exc).__name__}: {exc}', static_evidence=str(RULING.parent / 'verbatim/driver-pbs-trace-mode-219-247.txt'), static_finding='PBS accepts four exact diagnostic sets and rejects other sets with rc=2; Python rep-index measurement unavailable')
+        return info, REGISTERED
+    registered = d.NONMONOTONIC_TRACE_CELLS_TEXT
+    info = dict(source='runtime', registered_contract_present=d.BACKOFF_TRACE_CONTRACTS.get(registered) is not None, candidates={})
+    for s in STEPS:
+        text = registered.replace('nm-step1-u2560:1:1:', f'nm-step{s}-u2560:1:{s}:')
+        row = dict(cell_text=text, contract_absent=d.BACKOFF_TRACE_CONTRACTS.get(text) is None)
+        try: d.parse_cells(text); row['parse_ok'] = True
+        except Exception as exc: row.update(parse_ok=False, reason=f'{type(exc).__name__}: {exc}')
+        info['candidates'][str(s)] = row
+    contract = d.BACKOFF_TRACE_CONTRACTS.get(registered)
+    if contract is None: info.update(status='measurement_incomplete', reason='registered trace contract absent'); return info, registered
+    cells, workloads, threads, extime, terminal = contract
+    args = argparse.Namespace(cells=registered, workloads=','.join(workloads), threads=','.join(map(str, threads)), rep_index=1, reps_per_job=1, extime=extime, backoff_trace_terminal_us=terminal, step_policy_seed=None)
+    try: d._validate_backoff_trace_contract(args, cells, workloads, threads); info['rep_index_1_rejected'] = False
+    except ValueError as exc: info.update(rep_index_1_rejected=True, rep_index_1_error=str(exc))
+    return info, registered
+
+def analyze(args, a):
+    with args.trace.open(encoding='utf-8') as stream: document = json.load(stream)
+    aux = {raw['cell']: auxiliary(raw) for raw in document['trace_runs']}
+    del document
+    _, runs = a._load_new_trace(args.trace)
+    j4, coverage = a._j4_effective_update_interval(runs)
+    j1 = a._j1_sign_instability(runs, coverage)
+    wide = runs[WIDE]['events']
+    for cell in runs:
+        if cell == WIDE: aux[cell]['gradient_sign_acf'] = acf(wide)
+        else: aux[cell]['window_statistics'] = window_stats(a, runs[cell]['events'])
+    common = [r['unordered_edge'] for r in j1['overall']['edges']]
+    wt = [r for r in edge_table(wide) if high(r[0])]
+    wh = {e: c for e, c in nonzero(a, wide).items() if high(e)}
+    kh = sum(high(e) for e in common)
+    state = 'no_high_band_observation' if not wt else 'no_nonzero_high_band_sign' if not wh else 'no_common_high_band_edge' if not kh else 'insufficient_common_support' if kh < K_MIN else 'executable'
+    bounds = {field: dict(min=min(e[field] for e in wide), max=max(e[field] for e in wide)) for field in ('backoff_before', 'backoff_after')}
+    contrast = dict(existing_j1_unmodified=j1, J4=j4, feasibility=state, events=len(wide), dropped=runs[WIDE]['dropped'], bounds=bounds,
+                    common_edges_by_band={name: [e for e in common if test(e)] for name, test in [('high', high), ('sensitivity', lambda e: max(e) > BAND), ('low', lambda e: max(e) <= BAND), ('crossing', crossing)]})
+    admission, registered = driver_admission(args.driver)
+    inventories, pa, pb, candidates = {}, {}, {}, []
+    for s in STEPS:
+        key, cell = str(s), f'nm-step{s}'
+        run, extra = runs[cell], aux[cell]
+        events = run['events']
+        inventories[cell] = inventory(events, s)
+        copied = [{**e, 'backoff_before': s * e['backoff_before'], 'backoff_after': s * e['backoff_after']} for e in wide]
+        mx = maximum(copied)
+        intersection = set(nonzero(a, copied)) & set(nonzero(a, events))
+        pa[key] = dict(simulation_only=True, applicable=mx <= 1000, reason=None if mx <= 1000 else 'upper bound exceeded; no clipping', max=mx, K_a_total=len(intersection), K_a_high=sum(high(e) for e in intersection))
+        ok = run['dropped'] == 0 and extra['prefix_is_run_start'] and len(events) >= N
+        prefix_edges = nonzero(a, events[:N]) if ok else {}
+        pb[key] = dict(simulation_only=True, applicable=ok, reason=None if ok else 'start prefix missing, sequence invalid, or fewer than 1170 events', prefix_is_run_start=extra['prefix_is_run_start'], seq_first=extra['seq_first'], seq_strictly_monotonic=extra['seq_strictly_monotonic'], seq_contiguous=extra['seq_contiguous'], dropped=run['dropped'], max=maximum(events[:N]) if ok else None, prefix_window_us=extra['prefix_window_us'] if ok else None, nonzero_edge_types=len(prefix_edges) if ok else None, nonzero_high_edge_types=sum(high(e) for e in prefix_edges) if ok else None)
+        reach = 'reach_undetermined'
+        if pa[key]['applicable'] and ok and (mx > BAND) == (pb[key]['max'] > BAND): reach = 'reach_predicted' if mx > BAND else 'reach_not_predicted'
+        measured = admission['candidates'].get(key)
+        candidates.append(dict(S=s, cell_text=registered.replace('nm-step1-u2560:1:1:', f'nm-step{s}-u2560:1:{s}:'), registered=s == 1, submittable_with_main_artifacts=(measured['parse_ok'] and not measured['contract_absent']) if measured else None,
+                               reach_verdict=reach, k_verdict='K_undetermined', **lattice(s), K_a_total=pa[key]['K_a_total'], K_a_high=pa[key]['K_a_high'], proxy_a_max=mx, proxy_b_max=pb[key]['max'], applicability=dict(proxy_a=pa[key]['applicable'], proxy_b=ok)))
+    return dict(schema_version='izanagi-t2635-high-band-control-feasibility/v1', input=identity(args.trace), analyzer={**identity(args.analyzer), 'reused_functions': ['_load_new_trace', '_j4_effective_update_interval', '_j1_sign_instability', '_edge_observations', '_edge_counts', '_quantile']}, driver=driver_identity(args.driver), preregistration={**identity(RULING), 'blinded': False}, headline_eligible=False, throughput_scope='diagnostic_only', certified=False,
+                scope='write-heavy / 48 threads / records 1000000 / extime 3 s / 1 rep / Pegasus; retained trace descriptive analysis only',
+                grounds=dict(registered_contrast=contrast, driver_admission=admission, lattice=dict(assumptions=['initial 0', 'fixed step', 'ceiling 1000', 'adjacent transitions only', 'stock update rule; saved representation not guaranteed'], candidates=[dict(S=s, **lattice(s), including_upper_self_edge=lattice(s)['U_S'] + 1) for s in STEPS]), narrow_side_inventory=inventories, wide_walk_descriptives={cell: dict(**extra, updates=runs[cell]['updates'], retained=runs[cell]['retained'], dropped=runs[cell]['dropped']) for cell, extra in aux.items()}),
+                reference_only=dict(proxy_a=pa, proxy_b=pb), candidates=candidates,
+                limitations=['No new runs; old J1, D2020 and D2021 unchanged.', 'Proxies transfer walk/sign/parity assumptions and 1170-update budget without validation; prefix is part of the same narrow run, not twin common support.', 'reach verdicts summarize two proxies only; they do not establish feasibility under D2044.', 'Proxy values and verdicts cannot justify candidate selection, new runs, rerun rejection, or mechanism decisions (F29).', 'No inference of mean-reversion cause, arrival probability, noise contribution or twin reproducibility; no headline/formal B-10/floor/fitness/variant use.', 'T-2583 five-state table retains its undefined narrow-empty branch; registered reproduction only.'], omitted=[])
+
+def selftest(result, a):
+    c = result['grounds']['registered_contrast']; overall = c['existing_j1_unmodified']['overall']
+    checks = {'wide': (c['events'], c['dropped'], c['bounds']) == (1170, 0, {'backoff_before': {'min': 0.0, 'max': 12.0}, 'backoff_after': {'min': 0.0, 'max': 12.0}}),
+              'j1_counts': (overall['common_edge_count'], overall['fixed_weight_sum']) == (12, 1168),
+              'j1_values': [round(overall[k], 4) for k in ('update10_sign_disagreement', 'update2560_sign_disagreement', 'difference_update10_minus_update2560')] == [0.4984, 0.4583, 0.0402],
+              'j1_verdict': c['existing_j1_unmodified']['verdict'] == 'not_supported' and 'direction_unstable' in c['existing_j1_unmodified']['qualifiers'], 'state': c['feasibility'] == 'no_high_band_observation'}
+    inv = result['grounds']['narrow_side_inventory']
+    checks['inventory'] = [inv[cell]['high']['all_sign_edge_types'] for cell in ('nm-step1', 'nm-step2', 'nm-step25', 'nm-step100')] == [307, 196, 38, 10]
+    checks['upper_self'] = [[r for r in inv[cell]['self']['edges'] if r[0] == [1000, 1000]] for cell in ('nm-step25', 'nm-step100')] == [[[[1000, 1000], 0, 0, 236]], [[[1000, 1000], 0, 0, 610]]]
+    synthetic = [dict(backoff_before=b, backoff_after=t, gradient_sign=g) for b, t, g in [(50, 75, 0), (75, 100, 1), (100, 125, 0), (125, 100, -1), (100, 75, 1), (75, 50, -1)]]
+    checks['previous_edge_and_zero'] = nonzero(a, synthetic) == {(50, 75): [1, 1], (100, 125): [2, 1], (75, 100): [1, 0]}
+    checks['raw_signs'] = edge_table(synthetic) == [[[50, 75], 1, 0, 0], [[75, 100], 0, 1, 1], [[100, 125], 1, 1, 0]]
+    checks['boundary'] = not high((50, 75)) and crossing((50, 75)) and high((75, 100))
+    checks['lattice'] = [lattice(s)['U_S'] for s in STEPS] == [1899, 949, 474, 37, 9] and lattice(25)['min_reach_for_K_high_ge_10'] == 325 and lattice(100)['min_reach_for_K_high_ge_10'] is None
+    checks['applicability'] = result['reference_only']['proxy_a']['100']['applicable'] is False and all(result['reference_only']['proxy_b'][s]['applicable'] is False for s in ('0.5', '1'))
+    if not all(checks.values()): raise ValueError('selftest mismatch: ' + ', '.join(k for k, v in checks.items() if not v))
+    print(json.dumps(dict(selftest=checks)))
+
+def absolute(text):
+    path = Path(text)
+    if not path.is_absolute(): raise argparse.ArgumentTypeError('absolute path required')
+    return path
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--trace', type=absolute, required=True)
+    parser.add_argument('--analyzer', type=absolute, default=ROOT / 'orchestrator/campaign/backoff_nonmonotonicity_analysis.py')
+    parser.add_argument('--driver', type=absolute, default=ROOT / 'tools/pegasus/probes/t2187_adaptive_const_probe.py')
+    parser.add_argument('--repo-root', type=absolute, default=ROOT)
+    parser.add_argument('--output', type=Path, help='create-only JSON output; required unless --selftest')
+    parser.add_argument('--selftest', action='store_true')
+    args = parser.parse_args()
+    if not args.selftest and args.output is None: parser.error('--output required unless --selftest')
+    try:
+        if not args.selftest and (args.output.exists() or args.output.is_symlink()): raise FileExistsError(args.output)
+        sys.path.insert(0, str(args.repo_root))
+        a = module(args.analyzer, 't2635_analyzer')
+        result = analyze(args, a)
+        if args.selftest: selftest(result, a)
+        else:
+            encoded = json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + '\n'
+            with args.output.open('x', encoding='utf-8') as stream: stream.write(encoded)
+        return 0
+    except (Exception, SystemExit) as exc:
+        print(json.dumps(dict(status='measurement_incomplete', reason=f'{type(exc).__name__}: {exc}')), file=sys.stderr)
+        return 1
+
+if __name__ == '__main__':
+    raise SystemExit(main())

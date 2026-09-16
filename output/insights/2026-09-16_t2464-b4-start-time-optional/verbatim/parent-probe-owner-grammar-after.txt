@@ -1,0 +1,11 @@
+変更後の実装での受理判定 — 追補の文面との差を測る
+  素の識別子                    ACCEPT
+  owner に = を含む            REJECT
+  owner に 、 を含む            REJECT
+  全角の = と区切り               ACCEPT
+  owner の前後に空白             ACCEPT
+  owner が空白のみ              REJECT
+  TBD123 (単語境界外)           ACCEPT
+
+--- expectation 行に説明文を置いた場合 (段 4 の「全 10 欄に共通」の検算) ---
+  expectation 行 = 説明文 : REJECT

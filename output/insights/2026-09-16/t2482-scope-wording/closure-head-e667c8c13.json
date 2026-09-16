@@ -1,0 +1,1646 @@
+{
+  "repo": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2482-scope-wording",
+  "commit": "e667c8c139004221723ee223b7d8f09fba5f9be1",
+  "enrolled_count": 63,
+  "enrolled": [
+    "orchestrator/campaign/env_contract.py",
+    "orchestrator/campaign/env_contract_activation.py",
+    "orchestrator/campaign/execution_guard.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/pipeline.py",
+    "orchestrator/campaign/wal.py",
+    "orchestrator/campaign/ident.py",
+    "orchestrator/campaign/artifact_admission.py",
+    "orchestrator/verifier/core.py",
+    "orchestrator/verifier/dsg.py",
+    "orchestrator/verifier/model.py",
+    "orchestrator/verifier/parse.py",
+    "orchestrator/verifier/__init__.py",
+    "orchestrator/verifier/report.py",
+    "orchestrator/campaign/s8c_preregistration.py",
+    "orchestrator/campaign/s8c_preregistration_evidence.py",
+    "orchestrator/campaign/s8c_generation_projection.py",
+    "orchestrator/campaign/campaign_lock.py",
+    "orchestrator/campaign/contract_loader_binding.py",
+    "orchestrator/campaign/guided.py",
+    "orchestrator/campaign/replay.py",
+    "orchestrator/qualification/artifacts.py",
+    "orchestrator/qualification/t126_driver.py",
+    "orchestrator/verifier/commit_receipt.py",
+    "orchestrator/calibrator/__init__.py",
+    "orchestrator/calibrator/effective_clock_policy.py",
+    "orchestrator/calibrator/perf_preflight.py",
+    "orchestrator/calibrator/runner.py",
+    "orchestrator/calibrator/schema_v2.py",
+    "orchestrator/calibrator/stability.py",
+    "orchestrator/campaign/__init__.py",
+    "orchestrator/campaign/axis_trigger_gating.py",
+    "orchestrator/campaign/build_admission.py",
+    "orchestrator/campaign/buildcache.py",
+    "orchestrator/campaign/calibration_verify.py",
+    "orchestrator/campaign/campaign_claim.py",
+    "orchestrator/campaign/diff_quarantine.py",
+    "orchestrator/campaign/env_attestation.py",
+    "orchestrator/campaign/genome.py",
+    "orchestrator/campaign/layout.py",
+    "orchestrator/campaign/lock.py",
+    "orchestrator/campaign/model.py",
+    "orchestrator/campaign/p2_2.py",
+    "orchestrator/campaign/p3_b4_launcher.py",
+    "orchestrator/campaign/p3_b4_protocol.py",
+    "orchestrator/campaign/reflux_ir.py",
+    "orchestrator/campaign/reservation.py",
+    "orchestrator/campaign/search_baselines.py",
+    "orchestrator/campaign/site_policy.py",
+    "orchestrator/campaign/source_digest.py",
+    "orchestrator/campaign/trigger_gate_binding.py",
+    "orchestrator/critic/__init__.py",
+    "orchestrator/critic/online_digest.py",
+    "orchestrator/holdout_observation.py",
+    "orchestrator/qualification/__init__.py",
+    "orchestrator/qualification/attempt_ledger.py",
+    "orchestrator/qualification/collector.py",
+    "orchestrator/qualification/contract.py",
+    "orchestrator/qualification/identity.py",
+    "orchestrator/qualification/qsub_binding.py",
+    "orchestrator/qualification/retry_index.py",
+    "orchestrator/qualification/series.py",
+    "orchestrator/campaign/verify_fanout_worker.py"
+  ],
+  "discovered_count": 162,
+  "unenrolled_count": 99,
+  "layer1_count": 83,
+  "layer1_unenrolled": [
+    "orchestrator/calibrator/analyze.py",
+    "orchestrator/calibrator/benchparse.py",
+    "orchestrator/calibrator/model.py",
+    "orchestrator/calibrator/perfparse.py",
+    "orchestrator/calibrator/tsc.py",
+    "orchestrator/campaign/backoff_hole_grammar.py",
+    "orchestrator/campaign/durable_root.py",
+    "orchestrator/campaign/materializer_admission.py",
+    "orchestrator/campaign/p3_b4_admission_record.py",
+    "orchestrator/campaign/p3_b4_closed_critic.py",
+    "orchestrator/campaign/p3_s4_loop.py",
+    "orchestrator/campaign/p3_s4_loop_sort.py",
+    "orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+    "orchestrator/campaign/paper_story_a1_source.py",
+    "orchestrator/campaign/pin.py",
+    "orchestrator/campaign/reflux_result_evidence.py",
+    "orchestrator/campaign/s8b_compiler_input.py",
+    "orchestrator/campaign/s8b_expected_materialization.py",
+    "orchestrator/campaign/sort_swo_dependency_material.py",
+    "orchestrator/critic/digest.py"
+  ],
+  "discovered": [
+    "orchestrator/calibrator/__init__.py",
+    "orchestrator/calibrator/analyze.py",
+    "orchestrator/calibrator/benchparse.py",
+    "orchestrator/calibrator/effective_clock_policy.py",
+    "orchestrator/calibrator/model.py",
+    "orchestrator/calibrator/perf_preflight.py",
+    "orchestrator/calibrator/perfparse.py",
+    "orchestrator/calibrator/runner.py",
+    "orchestrator/calibrator/schema_v2.py",
+    "orchestrator/calibrator/stability.py",
+    "orchestrator/calibrator/tsc.py",
+    "orchestrator/campaign/__init__.py",
+    "orchestrator/campaign/artifact_admission.py",
+    "orchestrator/campaign/attempt_registry_core.py",
+    "orchestrator/campaign/auditor_gate.py",
+    "orchestrator/campaign/autonomous_trial_completeness.py",
+    "orchestrator/campaign/axis_trigger_gating.py",
+    "orchestrator/campaign/backoff_hole_grammar.py",
+    "orchestrator/campaign/backoff_sweep.py",
+    "orchestrator/campaign/build_admission.py",
+    "orchestrator/campaign/buildcache.py",
+    "orchestrator/campaign/calibration_verify.py",
+    "orchestrator/campaign/campaign_claim.py",
+    "orchestrator/campaign/campaign_lock.py",
+    "orchestrator/campaign/claude_projected_provider.py",
+    "orchestrator/campaign/claude_transport.py",
+    "orchestrator/campaign/coder_effect_gate.py",
+    "orchestrator/campaign/condition_meaning_gate.py",
+    "orchestrator/campaign/contract_loader_binding.py",
+    "orchestrator/campaign/create_only_store.py",
+    "orchestrator/campaign/diff_quarantine.py",
+    "orchestrator/campaign/durable_root.py",
+    "orchestrator/campaign/env_attestation.py",
+    "orchestrator/campaign/env_contract.py",
+    "orchestrator/campaign/env_contract_activation.py",
+    "orchestrator/campaign/evolve_block.py",
+    "orchestrator/campaign/execution_guard.py",
+    "orchestrator/campaign/floor_job_checkpoint.py",
+    "orchestrator/campaign/floor_submit_receipt.py",
+    "orchestrator/campaign/freeze_verification_hold.py",
+    "orchestrator/campaign/genome.py",
+    "orchestrator/campaign/guided.py",
+    "orchestrator/campaign/ident.py",
+    "orchestrator/campaign/knowledge_manifest.py",
+    "orchestrator/campaign/layer3_report.py",
+    "orchestrator/campaign/layout.py",
+    "orchestrator/campaign/lock.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/masstree_archive_projection.py",
+    "orchestrator/campaign/materializer_admission.py",
+    "orchestrator/campaign/model.py",
+    "orchestrator/campaign/p2_2.py",
+    "orchestrator/campaign/p3_autonomous_workload_trial.py",
+    "orchestrator/campaign/p3_b4_admission_record.py",
+    "orchestrator/campaign/p3_b4_analysis_contract.py",
+    "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+    "orchestrator/campaign/p3_b4_closed_critic.py",
+    "orchestrator/campaign/p3_b4_launcher.py",
+    "orchestrator/campaign/p3_b4_prerun_issuer.py",
+    "orchestrator/campaign/p3_b4_protocol.py",
+    "orchestrator/campaign/p3_s4_loop.py",
+    "orchestrator/campaign/p3_s4_loop_sort.py",
+    "orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+    "orchestrator/campaign/paper_story_a1_source.py",
+    "orchestrator/campaign/patchharness.py",
+    "orchestrator/campaign/pin.py",
+    "orchestrator/campaign/pipeline.py",
+    "orchestrator/campaign/projection_guard.py",
+    "orchestrator/campaign/reflux_formal_consumer.py",
+    "orchestrator/campaign/reflux_ir.py",
+    "orchestrator/campaign/reflux_origin_artifacts.py",
+    "orchestrator/campaign/reflux_origin_binding.py",
+    "orchestrator/campaign/reflux_origin_client.py",
+    "orchestrator/campaign/reflux_origin_ledger.py",
+    "orchestrator/campaign/reflux_origin_topology.py",
+    "orchestrator/campaign/reflux_result_evidence.py",
+    "orchestrator/campaign/reflux_source_closure.py",
+    "orchestrator/campaign/replay.py",
+    "orchestrator/campaign/reservation.py",
+    "orchestrator/campaign/role_session_isolation.py",
+    "orchestrator/campaign/s1_direct_comparison.py",
+    "orchestrator/campaign/s1_known_axes_freeze.py",
+    "orchestrator/campaign/s1_measurement_freeze.py",
+    "orchestrator/campaign/s6_sort_sweep.py",
+    "orchestrator/campaign/s8a_trigger_sweep.py",
+    "orchestrator/campaign/s8b_approved.py",
+    "orchestrator/campaign/s8b_attempt_profile.py",
+    "orchestrator/campaign/s8b_attempt_registry.py",
+    "orchestrator/campaign/s8b_binary_admission.py",
+    "orchestrator/campaign/s8b_compiler_input.py",
+    "orchestrator/campaign/s8b_descriptor.py",
+    "orchestrator/campaign/s8b_expected_materialization.py",
+    "orchestrator/campaign/s8b_experiment_numbers.py",
+    "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+    "orchestrator/campaign/s8b_floor_campaign.py",
+    "orchestrator/campaign/s8b_floor_contract.py",
+    "orchestrator/campaign/s8b_floor_stats.py",
+    "orchestrator/campaign/s8b_freeze_io.py",
+    "orchestrator/campaign/s8b_holdout_admission.py",
+    "orchestrator/campaign/s8b_holdout_freeze.py",
+    "orchestrator/campaign/s8b_launch_cert.py",
+    "orchestrator/campaign/s8b_materialization.py",
+    "orchestrator/campaign/s8b_oracle_artifacts.py",
+    "orchestrator/campaign/s8b_oracle_manifest.py",
+    "orchestrator/campaign/s8b_oracle_spec.py",
+    "orchestrator/campaign/s8b_prediction_runner.py",
+    "orchestrator/campaign/s8b_ratified_freeze.py",
+    "orchestrator/campaign/s8b_scheduler_accounting.py",
+    "orchestrator/campaign/s8b_selector_freeze.py",
+    "orchestrator/campaign/s8b_selector_input.py",
+    "orchestrator/campaign/s8b_selector_output.py",
+    "orchestrator/campaign/s8b_sort_swo_receipt.py",
+    "orchestrator/campaign/s8b_terminal_evidence.py",
+    "orchestrator/campaign/s8c_acceptance_receipt.py",
+    "orchestrator/campaign/s8c_arm_inputs.py",
+    "orchestrator/campaign/s8c_budget.py",
+    "orchestrator/campaign/s8c_generation_projection.py",
+    "orchestrator/campaign/s8c_preregistration.py",
+    "orchestrator/campaign/s8c_preregistration_evidence.py",
+    "orchestrator/campaign/screening_driver.py",
+    "orchestrator/campaign/search_baselines.py",
+    "orchestrator/campaign/silo_ladder_rung1.py",
+    "orchestrator/campaign/silo_ladder_rung1_contract.py",
+    "orchestrator/campaign/site_policy.py",
+    "orchestrator/campaign/sort_comparator_authority.py",
+    "orchestrator/campaign/sort_swo_dependency_material.py",
+    "orchestrator/campaign/sort_swo_oracle.py",
+    "orchestrator/campaign/source_digest.py",
+    "orchestrator/campaign/t080_freeze_migration.py",
+    "orchestrator/campaign/toolchain_binding.py",
+    "orchestrator/campaign/trial_registry.py",
+    "orchestrator/campaign/trigger_gate_binding.py",
+    "orchestrator/campaign/verify_fanout_worker.py",
+    "orchestrator/campaign/wal.py",
+    "orchestrator/codex_roles/__init__.py",
+    "orchestrator/codex_roles/events.py",
+    "orchestrator/codex_roles/policy.py",
+    "orchestrator/codex_roles/review_ledger.py",
+    "orchestrator/codex_roles/spec.py",
+    "orchestrator/critic/__init__.py",
+    "orchestrator/critic/digest.py",
+    "orchestrator/critic/identity_projection.py",
+    "orchestrator/critic/online_digest.py",
+    "orchestrator/holdout_observation.py",
+    "orchestrator/qualification/__init__.py",
+    "orchestrator/qualification/artifacts.py",
+    "orchestrator/qualification/attempt_ledger.py",
+    "orchestrator/qualification/collector.py",
+    "orchestrator/qualification/contract.py",
+    "orchestrator/qualification/identity.py",
+    "orchestrator/qualification/qsub_binding.py",
+    "orchestrator/qualification/retry_index.py",
+    "orchestrator/qualification/series.py",
+    "orchestrator/qualification/t126_driver.py",
+    "orchestrator/scheduler_nqsv.py",
+    "orchestrator/verifier/__init__.py",
+    "orchestrator/verifier/commit_receipt.py",
+    "orchestrator/verifier/core.py",
+    "orchestrator/verifier/dsg.py",
+    "orchestrator/verifier/model.py",
+    "orchestrator/verifier/parse.py",
+    "orchestrator/verifier/report.py"
+  ],
+  "unenrolled": [
+    "orchestrator/calibrator/analyze.py",
+    "orchestrator/calibrator/benchparse.py",
+    "orchestrator/calibrator/model.py",
+    "orchestrator/calibrator/perfparse.py",
+    "orchestrator/calibrator/tsc.py",
+    "orchestrator/campaign/attempt_registry_core.py",
+    "orchestrator/campaign/auditor_gate.py",
+    "orchestrator/campaign/autonomous_trial_completeness.py",
+    "orchestrator/campaign/backoff_hole_grammar.py",
+    "orchestrator/campaign/backoff_sweep.py",
+    "orchestrator/campaign/claude_projected_provider.py",
+    "orchestrator/campaign/claude_transport.py",
+    "orchestrator/campaign/coder_effect_gate.py",
+    "orchestrator/campaign/condition_meaning_gate.py",
+    "orchestrator/campaign/create_only_store.py",
+    "orchestrator/campaign/durable_root.py",
+    "orchestrator/campaign/evolve_block.py",
+    "orchestrator/campaign/floor_job_checkpoint.py",
+    "orchestrator/campaign/floor_submit_receipt.py",
+    "orchestrator/campaign/freeze_verification_hold.py",
+    "orchestrator/campaign/knowledge_manifest.py",
+    "orchestrator/campaign/layer3_report.py",
+    "orchestrator/campaign/masstree_archive_projection.py",
+    "orchestrator/campaign/materializer_admission.py",
+    "orchestrator/campaign/p3_autonomous_workload_trial.py",
+    "orchestrator/campaign/p3_b4_admission_record.py",
+    "orchestrator/campaign/p3_b4_analysis_contract.py",
+    "orchestrator/campaign/p3_b4_analysis_ledgers.py",
+    "orchestrator/campaign/p3_b4_closed_critic.py",
+    "orchestrator/campaign/p3_b4_prerun_issuer.py",
+    "orchestrator/campaign/p3_s4_loop.py",
+    "orchestrator/campaign/p3_s4_loop_sort.py",
+    "orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+    "orchestrator/campaign/paper_story_a1_source.py",
+    "orchestrator/campaign/patchharness.py",
+    "orchestrator/campaign/pin.py",
+    "orchestrator/campaign/projection_guard.py",
+    "orchestrator/campaign/reflux_formal_consumer.py",
+    "orchestrator/campaign/reflux_origin_artifacts.py",
+    "orchestrator/campaign/reflux_origin_binding.py",
+    "orchestrator/campaign/reflux_origin_client.py",
+    "orchestrator/campaign/reflux_origin_ledger.py",
+    "orchestrator/campaign/reflux_origin_topology.py",
+    "orchestrator/campaign/reflux_result_evidence.py",
+    "orchestrator/campaign/reflux_source_closure.py",
+    "orchestrator/campaign/role_session_isolation.py",
+    "orchestrator/campaign/s1_direct_comparison.py",
+    "orchestrator/campaign/s1_known_axes_freeze.py",
+    "orchestrator/campaign/s1_measurement_freeze.py",
+    "orchestrator/campaign/s6_sort_sweep.py",
+    "orchestrator/campaign/s8a_trigger_sweep.py",
+    "orchestrator/campaign/s8b_approved.py",
+    "orchestrator/campaign/s8b_attempt_profile.py",
+    "orchestrator/campaign/s8b_attempt_registry.py",
+    "orchestrator/campaign/s8b_binary_admission.py",
+    "orchestrator/campaign/s8b_compiler_input.py",
+    "orchestrator/campaign/s8b_descriptor.py",
+    "orchestrator/campaign/s8b_expected_materialization.py",
+    "orchestrator/campaign/s8b_experiment_numbers.py",
+    "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+    "orchestrator/campaign/s8b_floor_campaign.py",
+    "orchestrator/campaign/s8b_floor_contract.py",
+    "orchestrator/campaign/s8b_floor_stats.py",
+    "orchestrator/campaign/s8b_freeze_io.py",
+    "orchestrator/campaign/s8b_holdout_admission.py",
+    "orchestrator/campaign/s8b_holdout_freeze.py",
+    "orchestrator/campaign/s8b_launch_cert.py",
+    "orchestrator/campaign/s8b_materialization.py",
+    "orchestrator/campaign/s8b_oracle_artifacts.py",
+    "orchestrator/campaign/s8b_oracle_manifest.py",
+    "orchestrator/campaign/s8b_oracle_spec.py",
+    "orchestrator/campaign/s8b_prediction_runner.py",
+    "orchestrator/campaign/s8b_ratified_freeze.py",
+    "orchestrator/campaign/s8b_scheduler_accounting.py",
+    "orchestrator/campaign/s8b_selector_freeze.py",
+    "orchestrator/campaign/s8b_selector_input.py",
+    "orchestrator/campaign/s8b_selector_output.py",
+    "orchestrator/campaign/s8b_sort_swo_receipt.py",
+    "orchestrator/campaign/s8b_terminal_evidence.py",
+    "orchestrator/campaign/s8c_acceptance_receipt.py",
+    "orchestrator/campaign/s8c_arm_inputs.py",
+    "orchestrator/campaign/s8c_budget.py",
+    "orchestrator/campaign/screening_driver.py",
+    "orchestrator/campaign/silo_ladder_rung1.py",
+    "orchestrator/campaign/silo_ladder_rung1_contract.py",
+    "orchestrator/campaign/sort_comparator_authority.py",
+    "orchestrator/campaign/sort_swo_dependency_material.py",
+    "orchestrator/campaign/sort_swo_oracle.py",
+    "orchestrator/campaign/t080_freeze_migration.py",
+    "orchestrator/campaign/toolchain_binding.py",
+    "orchestrator/campaign/trial_registry.py",
+    "orchestrator/codex_roles/__init__.py",
+    "orchestrator/codex_roles/events.py",
+    "orchestrator/codex_roles/policy.py",
+    "orchestrator/codex_roles/review_ledger.py",
+    "orchestrator/codex_roles/spec.py",
+    "orchestrator/critic/digest.py",
+    "orchestrator/critic/identity_projection.py",
+    "orchestrator/scheduler_nqsv.py"
+  ],
+  "unresolved_references": [],
+  "edges": {
+    "orchestrator/campaign/env_contract.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/calibration_verify.py",
+      "orchestrator/campaign/env_attestation.py",
+      "orchestrator/campaign/env_contract_activation.py",
+      "orchestrator/campaign/execution_guard.py"
+    ],
+    "orchestrator/campaign/env_contract_activation.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/execution_guard.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/effective_clock_policy.py",
+      "orchestrator/calibrator/schema_v2.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/env_attestation.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/env_contract_activation.py",
+      "orchestrator/campaign/site_policy.py"
+    ],
+    "orchestrator/campaign/loop.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/perf_preflight.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/backoff_hole_grammar.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/buildcache.py",
+      "orchestrator/campaign/campaign_claim.py",
+      "orchestrator/campaign/env_attestation.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/execution_guard.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/lock.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/reflux_result_evidence.py",
+      "orchestrator/campaign/reservation.py",
+      "orchestrator/campaign/source_digest.py",
+      "orchestrator/campaign/trigger_gate_binding.py",
+      "orchestrator/campaign/wal.py",
+      "orchestrator/holdout_observation.py"
+    ],
+    "orchestrator/campaign/pipeline.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/analyze.py",
+      "orchestrator/calibrator/perf_preflight.py",
+      "orchestrator/calibrator/runner.py",
+      "orchestrator/calibrator/stability.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/axis_trigger_gating.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/buildcache.py",
+      "orchestrator/campaign/campaign_lock.py",
+      "orchestrator/campaign/diff_quarantine.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/execution_guard.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/lock.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/paper_story_a1_source.py",
+      "orchestrator/campaign/reflux_ir.py",
+      "orchestrator/campaign/source_digest.py",
+      "orchestrator/campaign/trigger_gate_binding.py",
+      "orchestrator/campaign/wal.py",
+      "orchestrator/holdout_observation.py",
+      "orchestrator/qualification/__init__.py",
+      "orchestrator/qualification/artifacts.py",
+      "orchestrator/verifier/__init__.py",
+      "orchestrator/verifier/commit_receipt.py",
+      "orchestrator/verifier/model.py",
+      "orchestrator/verifier/parse.py"
+    ],
+    "orchestrator/campaign/wal.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/backoff_hole_grammar.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/campaign_lock.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/p3_b4_launcher.py",
+      "orchestrator/campaign/p3_b4_protocol.py",
+      "orchestrator/campaign/trigger_gate_binding.py",
+      "orchestrator/verifier/__init__.py",
+      "orchestrator/verifier/commit_receipt.py"
+    ],
+    "orchestrator/campaign/ident.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/campaign_lock.py",
+      "orchestrator/campaign/contract_loader_binding.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/wal.py"
+    ],
+    "orchestrator/campaign/artifact_admission.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/campaign_lock.py",
+      "orchestrator/campaign/contract_loader_binding.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/wal.py",
+      "orchestrator/verifier/__init__.py",
+      "orchestrator/verifier/commit_receipt.py"
+    ],
+    "orchestrator/verifier/core.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/source_digest.py",
+      "orchestrator/verifier/__init__.py",
+      "orchestrator/verifier/commit_receipt.py",
+      "orchestrator/verifier/dsg.py",
+      "orchestrator/verifier/model.py",
+      "orchestrator/verifier/parse.py",
+      "orchestrator/verifier/report.py"
+    ],
+    "orchestrator/verifier/dsg.py": [
+      "orchestrator/verifier/__init__.py",
+      "orchestrator/verifier/model.py",
+      "orchestrator/verifier/parse.py"
+    ],
+    "orchestrator/verifier/model.py": [
+      "orchestrator/verifier/__init__.py",
+      "orchestrator/verifier/parse.py"
+    ],
+    "orchestrator/verifier/parse.py": [
+      "orchestrator/verifier/__init__.py",
+      "orchestrator/verifier/model.py"
+    ],
+    "orchestrator/verifier/__init__.py": [
+      "orchestrator/verifier/__init__.py",
+      "orchestrator/verifier/commit_receipt.py",
+      "orchestrator/verifier/core.py",
+      "orchestrator/verifier/model.py",
+      "orchestrator/verifier/parse.py",
+      "orchestrator/verifier/report.py"
+    ],
+    "orchestrator/verifier/report.py": [
+      "orchestrator/verifier/__init__.py",
+      "orchestrator/verifier/model.py",
+      "orchestrator/verifier/parse.py"
+    ],
+    "orchestrator/campaign/s8c_preregistration.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/s8c_preregistration_evidence.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/s8c_preregistration.py"
+    ],
+    "orchestrator/campaign/s8c_generation_projection.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/campaign_lock.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/contract_loader_binding.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/campaign_lock.py"
+    ],
+    "orchestrator/campaign/guided.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/genome.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/p2_2.py",
+      "orchestrator/campaign/replay.py",
+      "orchestrator/campaign/search_baselines.py",
+      "orchestrator/campaign/wal.py",
+      "orchestrator/critic/__init__.py",
+      "orchestrator/critic/online_digest.py",
+      "orchestrator/verifier/__init__.py",
+      "orchestrator/verifier/commit_receipt.py"
+    ],
+    "orchestrator/campaign/replay.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/stability.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/artifact_admission.py",
+      "orchestrator/campaign/genome.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/p2_2.py",
+      "orchestrator/campaign/wal.py",
+      "orchestrator/verifier/__init__.py",
+      "orchestrator/verifier/commit_receipt.py"
+    ],
+    "orchestrator/qualification/artifacts.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/perf_preflight.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/campaign_lock.py",
+      "orchestrator/qualification/__init__.py",
+      "orchestrator/qualification/attempt_ledger.py",
+      "orchestrator/qualification/collector.py",
+      "orchestrator/qualification/contract.py",
+      "orchestrator/qualification/retry_index.py",
+      "orchestrator/verifier/__init__.py",
+      "orchestrator/verifier/commit_receipt.py"
+    ],
+    "orchestrator/qualification/t126_driver.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/perf_preflight.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/env_attestation.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/reservation.py",
+      "orchestrator/campaign/source_digest.py",
+      "orchestrator/qualification/__init__.py",
+      "orchestrator/qualification/artifacts.py",
+      "orchestrator/qualification/attempt_ledger.py",
+      "orchestrator/qualification/contract.py",
+      "orchestrator/qualification/identity.py",
+      "orchestrator/qualification/qsub_binding.py",
+      "orchestrator/qualification/retry_index.py",
+      "orchestrator/qualification/series.py"
+    ],
+    "orchestrator/verifier/commit_receipt.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/artifact_admission.py",
+      "orchestrator/verifier/__init__.py",
+      "orchestrator/verifier/core.py"
+    ],
+    "orchestrator/calibrator/__init__.py": [
+      "orchestrator/calibrator/__init__.py"
+    ],
+    "orchestrator/calibrator/effective_clock_policy.py": [
+      "orchestrator/calibrator/__init__.py"
+    ],
+    "orchestrator/calibrator/perf_preflight.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/runner.py"
+    ],
+    "orchestrator/calibrator/runner.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/benchparse.py",
+      "orchestrator/calibrator/model.py",
+      "orchestrator/calibrator/perfparse.py",
+      "orchestrator/holdout_observation.py"
+    ],
+    "orchestrator/calibrator/schema_v2.py": [
+      "orchestrator/calibrator/__init__.py"
+    ],
+    "orchestrator/calibrator/stability.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/analyze.py",
+      "orchestrator/calibrator/model.py"
+    ],
+    "orchestrator/campaign/__init__.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/axis_trigger_gating.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/pin.py"
+    ],
+    "orchestrator/campaign/build_admission.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/axis_trigger_gating.py",
+      "orchestrator/campaign/materializer_admission.py",
+      "orchestrator/campaign/pin.py",
+      "orchestrator/campaign/reflux_ir.py",
+      "orchestrator/campaign/source_digest.py"
+    ],
+    "orchestrator/campaign/buildcache.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/s8b_compiler_input.py",
+      "orchestrator/campaign/s8b_expected_materialization.py",
+      "orchestrator/campaign/site_policy.py",
+      "orchestrator/campaign/sort_swo_dependency_material.py",
+      "orchestrator/campaign/source_digest.py"
+    ],
+    "orchestrator/campaign/calibration_verify.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/effective_clock_policy.py",
+      "orchestrator/calibrator/schema_v2.py",
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/campaign_claim.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/diff_quarantine.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/env_attestation.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/effective_clock_policy.py",
+      "orchestrator/calibrator/schema_v2.py",
+      "orchestrator/calibrator/tsc.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/calibration_verify.py",
+      "orchestrator/campaign/env_contract.py"
+    ],
+    "orchestrator/campaign/genome.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/model.py"
+    ],
+    "orchestrator/campaign/layout.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/durable_root.py"
+    ],
+    "orchestrator/campaign/lock.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/model.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/env_contract.py"
+    ],
+    "orchestrator/campaign/p2_2.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/effective_clock_policy.py",
+      "orchestrator/calibrator/runner.py",
+      "orchestrator/calibrator/schema_v2.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/buildcache.py",
+      "orchestrator/campaign/env_attestation.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/genome.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/loop.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/site_policy.py"
+    ],
+    "orchestrator/campaign/p3_b4_launcher.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/p3_b4_admission_record.py",
+      "orchestrator/campaign/p3_b4_closed_critic.py",
+      "orchestrator/campaign/p3_s4_loop.py",
+      "orchestrator/campaign/p3_s4_loop_sort.py",
+      "orchestrator/campaign/p3_s4_loop_trigger_gating.py"
+    ],
+    "orchestrator/campaign/p3_b4_protocol.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/reflux_ir.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/axis_trigger_gating.py"
+    ],
+    "orchestrator/campaign/reservation.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/env_contract.py"
+    ],
+    "orchestrator/campaign/search_baselines.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/genome.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/p2_2.py",
+      "orchestrator/campaign/replay.py",
+      "orchestrator/critic/__init__.py",
+      "orchestrator/critic/digest.py"
+    ],
+    "orchestrator/campaign/site_policy.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/source_digest.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/verifier/__init__.py",
+      "orchestrator/verifier/model.py"
+    ],
+    "orchestrator/campaign/trigger_gate_binding.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/reflux_ir.py"
+    ],
+    "orchestrator/critic/__init__.py": [
+      "orchestrator/critic/__init__.py",
+      "orchestrator/critic/digest.py"
+    ],
+    "orchestrator/critic/online_digest.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/artifact_admission.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/critic/__init__.py",
+      "orchestrator/critic/digest.py"
+    ],
+    "orchestrator/holdout_observation.py": [],
+    "orchestrator/qualification/__init__.py": [
+      "orchestrator/qualification/__init__.py",
+      "orchestrator/qualification/contract.py"
+    ],
+    "orchestrator/qualification/attempt_ledger.py": [
+      "orchestrator/qualification/__init__.py",
+      "orchestrator/qualification/artifacts.py",
+      "orchestrator/qualification/contract.py",
+      "orchestrator/qualification/retry_index.py"
+    ],
+    "orchestrator/qualification/collector.py": [
+      "orchestrator/qualification/__init__.py",
+      "orchestrator/qualification/artifacts.py",
+      "orchestrator/qualification/attempt_ledger.py",
+      "orchestrator/qualification/contract.py",
+      "orchestrator/qualification/identity.py",
+      "orchestrator/qualification/qsub_binding.py",
+      "orchestrator/qualification/retry_index.py",
+      "orchestrator/qualification/series.py",
+      "orchestrator/qualification/t126_driver.py"
+    ],
+    "orchestrator/qualification/contract.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/perf_preflight.py",
+      "orchestrator/qualification/__init__.py",
+      "orchestrator/qualification/retry_index.py"
+    ],
+    "orchestrator/qualification/identity.py": [
+      "orchestrator/qualification/__init__.py",
+      "orchestrator/qualification/artifacts.py",
+      "orchestrator/qualification/contract.py"
+    ],
+    "orchestrator/qualification/qsub_binding.py": [
+      "orchestrator/qualification/__init__.py",
+      "orchestrator/qualification/artifacts.py",
+      "orchestrator/qualification/retry_index.py"
+    ],
+    "orchestrator/qualification/retry_index.py": [
+      "orchestrator/qualification/__init__.py"
+    ],
+    "orchestrator/qualification/series.py": [
+      "orchestrator/qualification/__init__.py",
+      "orchestrator/qualification/artifacts.py",
+      "orchestrator/qualification/contract.py"
+    ],
+    "orchestrator/campaign/verify_fanout_worker.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/runner.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/contract_loader_binding.py",
+      "orchestrator/campaign/lock.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/source_digest.py",
+      "orchestrator/verifier/__init__.py",
+      "orchestrator/verifier/commit_receipt.py"
+    ],
+    "orchestrator/campaign/backoff_hole_grammar.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/coder_effect_gate.py"
+    ],
+    "orchestrator/campaign/reflux_result_evidence.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/execution_guard.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/reflux_ir.py",
+      "orchestrator/campaign/reflux_origin_artifacts.py",
+      "orchestrator/campaign/reflux_origin_binding.py",
+      "orchestrator/campaign/reflux_origin_ledger.py",
+      "orchestrator/campaign/trigger_gate_binding.py",
+      "orchestrator/campaign/wal.py",
+      "orchestrator/verifier/__init__.py",
+      "orchestrator/verifier/model.py",
+      "orchestrator/verifier/report.py"
+    ],
+    "orchestrator/calibrator/analyze.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/model.py"
+    ],
+    "orchestrator/campaign/paper_story_a1_source.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/buildcache.py",
+      "orchestrator/campaign/patchharness.py",
+      "orchestrator/campaign/s8b_expected_materialization.py",
+      "orchestrator/campaign/s8b_floor_campaign.py"
+    ],
+    "orchestrator/calibrator/benchparse.py": [
+      "orchestrator/calibrator/__init__.py"
+    ],
+    "orchestrator/calibrator/model.py": [
+      "orchestrator/calibrator/__init__.py"
+    ],
+    "orchestrator/calibrator/perfparse.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/model.py"
+    ],
+    "orchestrator/campaign/pin.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/materializer_admission.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/s8b_compiler_input.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/s8b_expected_materialization.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/axis_trigger_gating.py",
+      "orchestrator/campaign/p3_s4_loop.py",
+      "orchestrator/campaign/p3_s4_loop_sort.py",
+      "orchestrator/campaign/patchharness.py",
+      "orchestrator/campaign/source_digest.py",
+      "orchestrator/campaign/trigger_gate_binding.py"
+    ],
+    "orchestrator/campaign/sort_swo_dependency_material.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/sort_swo_oracle.py"
+    ],
+    "orchestrator/calibrator/tsc.py": [
+      "orchestrator/calibrator/__init__.py"
+    ],
+    "orchestrator/campaign/durable_root.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/p3_b4_admission_record.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/p3_b4_closed_critic.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/artifact_admission.py",
+      "orchestrator/campaign/claude_projected_provider.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/p3_b4_admission_record.py",
+      "orchestrator/campaign/p3_b4_launcher.py",
+      "orchestrator/campaign/p3_b4_protocol.py",
+      "orchestrator/campaign/p3_s4_loop.py",
+      "orchestrator/campaign/p3_s4_loop_sort.py",
+      "orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+      "orchestrator/campaign/role_session_isolation.py",
+      "orchestrator/campaign/s8b_prediction_runner.py"
+    ],
+    "orchestrator/campaign/p3_s4_loop.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/artifact_admission.py",
+      "orchestrator/campaign/attempt_registry_core.py",
+      "orchestrator/campaign/axis_trigger_gating.py",
+      "orchestrator/campaign/backoff_hole_grammar.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/buildcache.py",
+      "orchestrator/campaign/campaign_lock.py",
+      "orchestrator/campaign/coder_effect_gate.py",
+      "orchestrator/campaign/condition_meaning_gate.py",
+      "orchestrator/campaign/diff_quarantine.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/execution_guard.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/knowledge_manifest.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/loop.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/p2_2.py",
+      "orchestrator/campaign/p3_b4_closed_critic.py",
+      "orchestrator/campaign/p3_b4_launcher.py",
+      "orchestrator/campaign/p3_b4_prerun_issuer.py",
+      "orchestrator/campaign/p3_b4_protocol.py",
+      "orchestrator/campaign/patchharness.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/projection_guard.py",
+      "orchestrator/campaign/s8b_prediction_runner.py",
+      "orchestrator/campaign/site_policy.py",
+      "orchestrator/campaign/sort_swo_oracle.py",
+      "orchestrator/campaign/trigger_gate_binding.py",
+      "orchestrator/campaign/wal.py",
+      "orchestrator/codex_roles/__init__.py",
+      "orchestrator/codex_roles/events.py",
+      "orchestrator/codex_roles/policy.py",
+      "orchestrator/codex_roles/spec.py",
+      "orchestrator/critic/__init__.py",
+      "orchestrator/critic/digest.py",
+      "orchestrator/critic/identity_projection.py"
+    ],
+    "orchestrator/campaign/p3_s4_loop_sort.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/artifact_admission.py",
+      "orchestrator/campaign/auditor_gate.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/buildcache.py",
+      "orchestrator/campaign/condition_meaning_gate.py",
+      "orchestrator/campaign/diff_quarantine.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/loop.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/p2_2.py",
+      "orchestrator/campaign/p3_b4_launcher.py",
+      "orchestrator/campaign/p3_b4_protocol.py",
+      "orchestrator/campaign/p3_s4_loop.py",
+      "orchestrator/campaign/patchharness.py",
+      "orchestrator/campaign/pin.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/projection_guard.py",
+      "orchestrator/campaign/sort_swo_oracle.py",
+      "orchestrator/campaign/wal.py",
+      "orchestrator/critic/__init__.py",
+      "orchestrator/critic/digest.py"
+    ],
+    "orchestrator/campaign/p3_s4_loop_trigger_gating.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/auditor_gate.py",
+      "orchestrator/campaign/axis_trigger_gating.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/buildcache.py",
+      "orchestrator/campaign/condition_meaning_gate.py",
+      "orchestrator/campaign/diff_quarantine.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/execution_guard.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/loop.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/p2_2.py",
+      "orchestrator/campaign/p3_b4_launcher.py",
+      "orchestrator/campaign/p3_b4_protocol.py",
+      "orchestrator/campaign/p3_s4_loop.py",
+      "orchestrator/campaign/patchharness.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/projection_guard.py",
+      "orchestrator/campaign/reflux_ir.py",
+      "orchestrator/campaign/site_policy.py",
+      "orchestrator/campaign/source_digest.py",
+      "orchestrator/campaign/trigger_gate_binding.py",
+      "orchestrator/campaign/wal.py",
+      "orchestrator/holdout_observation.py"
+    ],
+    "orchestrator/critic/digest.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/artifact_admission.py",
+      "orchestrator/campaign/backoff_hole_grammar.py",
+      "orchestrator/campaign/coder_effect_gate.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/p2_2.py",
+      "orchestrator/campaign/p3_s4_loop.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/replay.py",
+      "orchestrator/campaign/sort_swo_oracle.py",
+      "orchestrator/campaign/wal.py",
+      "orchestrator/critic/__init__.py",
+      "orchestrator/critic/identity_projection.py"
+    ],
+    "orchestrator/campaign/coder_effect_gate.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/reflux_origin_artifacts.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/reflux_origin_binding.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "orchestrator/campaign/reflux_origin_artifacts.py",
+      "orchestrator/campaign/reflux_origin_ledger.py",
+      "orchestrator/campaign/reflux_source_closure.py",
+      "orchestrator/campaign/s8b_descriptor.py",
+      "orchestrator/campaign/trial_registry.py"
+    ],
+    "orchestrator/campaign/reflux_origin_ledger.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/reflux_ir.py"
+    ],
+    "orchestrator/campaign/patchharness.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/s8b_floor_campaign.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/perf_preflight.py",
+      "orchestrator/calibrator/runner.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/buildcache.py",
+      "orchestrator/campaign/campaign_claim.py",
+      "orchestrator/campaign/durable_root.py",
+      "orchestrator/campaign/env_attestation.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/execution_guard.py",
+      "orchestrator/campaign/floor_job_checkpoint.py",
+      "orchestrator/campaign/floor_submit_receipt.py",
+      "orchestrator/campaign/freeze_verification_hold.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/masstree_archive_projection.py",
+      "orchestrator/campaign/p3_s4_loop.py",
+      "orchestrator/campaign/patchharness.py",
+      "orchestrator/campaign/reservation.py",
+      "orchestrator/campaign/s1_direct_comparison.py",
+      "orchestrator/campaign/s8b_approved.py",
+      "orchestrator/campaign/s8b_binary_admission.py",
+      "orchestrator/campaign/s8b_expected_materialization.py",
+      "orchestrator/campaign/s8b_floor_attempt_launcher.py",
+      "orchestrator/campaign/s8b_floor_contract.py",
+      "orchestrator/campaign/s8b_floor_stats.py",
+      "orchestrator/campaign/s8b_freeze_io.py",
+      "orchestrator/campaign/s8b_holdout_admission.py",
+      "orchestrator/campaign/s8b_holdout_freeze.py",
+      "orchestrator/campaign/s8b_launch_cert.py",
+      "orchestrator/campaign/s8b_materialization.py",
+      "orchestrator/campaign/s8b_prediction_runner.py",
+      "orchestrator/campaign/s8b_selector_freeze.py",
+      "orchestrator/campaign/s8b_sort_swo_receipt.py",
+      "orchestrator/campaign/silo_ladder_rung1.py",
+      "orchestrator/campaign/site_policy.py",
+      "orchestrator/campaign/sort_swo_dependency_material.py",
+      "orchestrator/campaign/sort_swo_oracle.py",
+      "orchestrator/campaign/source_digest.py",
+      "orchestrator/campaign/t080_freeze_migration.py",
+      "orchestrator/campaign/toolchain_binding.py"
+    ],
+    "orchestrator/campaign/sort_swo_oracle.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/evolve_block.py"
+    ],
+    "orchestrator/campaign/claude_projected_provider.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/claude_transport.py",
+      "orchestrator/campaign/role_session_isolation.py",
+      "orchestrator/campaign/s8b_prediction_runner.py"
+    ],
+    "orchestrator/campaign/role_session_isolation.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/s8b_prediction_runner.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/s8b_approved.py",
+      "orchestrator/campaign/s8b_descriptor.py",
+      "orchestrator/campaign/s8b_floor_campaign.py",
+      "orchestrator/campaign/s8b_selector_freeze.py",
+      "orchestrator/campaign/s8b_selector_input.py"
+    ],
+    "orchestrator/campaign/attempt_registry_core.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/condition_meaning_gate.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/evolve_block.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/source_digest.py"
+    ],
+    "orchestrator/campaign/knowledge_manifest.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/p3_b4_prerun_issuer.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/attempt_registry_core.py",
+      "orchestrator/campaign/p3_b4_analysis_ledgers.py"
+    ],
+    "orchestrator/campaign/projection_guard.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/reflux_ir.py"
+    ],
+    "orchestrator/codex_roles/__init__.py": [
+      "orchestrator/codex_roles/__init__.py",
+      "orchestrator/codex_roles/policy.py",
+      "orchestrator/codex_roles/spec.py"
+    ],
+    "orchestrator/codex_roles/events.py": [
+      "orchestrator/codex_roles/__init__.py"
+    ],
+    "orchestrator/codex_roles/policy.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/backoff_hole_grammar.py",
+      "orchestrator/codex_roles/__init__.py",
+      "orchestrator/codex_roles/spec.py"
+    ],
+    "orchestrator/codex_roles/spec.py": [
+      "orchestrator/codex_roles/__init__.py",
+      "orchestrator/codex_roles/policy.py",
+      "orchestrator/codex_roles/review_ledger.py"
+    ],
+    "orchestrator/critic/identity_projection.py": [
+      "orchestrator/critic/__init__.py"
+    ],
+    "orchestrator/campaign/auditor_gate.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/diff_quarantine.py",
+      "orchestrator/critic/__init__.py",
+      "orchestrator/critic/digest.py"
+    ],
+    "orchestrator/campaign/p3_autonomous_workload_trial.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/runner.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/artifact_admission.py",
+      "orchestrator/campaign/auditor_gate.py",
+      "orchestrator/campaign/autonomous_trial_completeness.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/claude_projected_provider.py",
+      "orchestrator/campaign/claude_transport.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/layer3_report.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/p3_s4_loop.py",
+      "orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+      "orchestrator/campaign/patchharness.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/reflux_formal_consumer.py",
+      "orchestrator/campaign/reflux_ir.py",
+      "orchestrator/campaign/reflux_origin_binding.py",
+      "orchestrator/campaign/reflux_origin_client.py",
+      "orchestrator/campaign/reflux_origin_ledger.py",
+      "orchestrator/campaign/reflux_origin_topology.py",
+      "orchestrator/campaign/reflux_result_evidence.py",
+      "orchestrator/campaign/reflux_source_closure.py",
+      "orchestrator/campaign/reservation.py",
+      "orchestrator/campaign/role_session_isolation.py",
+      "orchestrator/campaign/s8b_descriptor.py",
+      "orchestrator/campaign/s8b_holdout_freeze.py",
+      "orchestrator/campaign/s8b_prediction_runner.py",
+      "orchestrator/campaign/s8b_ratified_freeze.py",
+      "orchestrator/campaign/s8c_arm_inputs.py",
+      "orchestrator/campaign/s8c_budget.py",
+      "orchestrator/campaign/s8c_generation_projection.py",
+      "orchestrator/campaign/s8c_preregistration.py",
+      "orchestrator/campaign/trial_registry.py"
+    ],
+    "orchestrator/campaign/reflux_source_closure.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/axis_trigger_gating.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/reflux_ir.py",
+      "orchestrator/campaign/reflux_origin_artifacts.py",
+      "orchestrator/campaign/reflux_origin_ledger.py",
+      "orchestrator/campaign/s8b_descriptor.py"
+    ],
+    "orchestrator/campaign/s8b_descriptor.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/trial_registry.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/attempt_registry_core.py",
+      "orchestrator/campaign/autonomous_trial_completeness.py",
+      "orchestrator/campaign/reflux_formal_consumer.py",
+      "orchestrator/campaign/reflux_origin_binding.py",
+      "orchestrator/campaign/s8b_holdout_freeze.py",
+      "orchestrator/campaign/s8c_acceptance_receipt.py",
+      "orchestrator/campaign/s8c_arm_inputs.py",
+      "orchestrator/campaign/s8c_preregistration.py",
+      "orchestrator/holdout_observation.py"
+    ],
+    "orchestrator/campaign/floor_job_checkpoint.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/floor_submit_receipt.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/schema_v2.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/qualification/__init__.py",
+      "orchestrator/qualification/artifacts.py"
+    ],
+    "orchestrator/campaign/freeze_verification_hold.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/masstree_archive_projection.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/s1_direct_comparison.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/perf_preflight.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/axis_trigger_gating.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/buildcache.py",
+      "orchestrator/campaign/condition_meaning_gate.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/p2_2.py",
+      "orchestrator/campaign/p3_s4_loop.py",
+      "orchestrator/campaign/p3_s4_loop_sort.py",
+      "orchestrator/campaign/p3_s4_loop_trigger_gating.py",
+      "orchestrator/campaign/patchharness.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/s1_measurement_freeze.py",
+      "orchestrator/campaign/sort_swo_oracle.py",
+      "orchestrator/campaign/source_digest.py",
+      "orchestrator/campaign/trigger_gate_binding.py",
+      "orchestrator/campaign/wal.py"
+    ],
+    "orchestrator/campaign/s8b_approved.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/s8b_experiment_numbers.py",
+      "orchestrator/campaign/s8b_floor_stats.py",
+      "orchestrator/campaign/s8b_ratified_freeze.py"
+    ],
+    "orchestrator/campaign/s8b_binary_admission.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/s8b_compiler_input.py",
+      "orchestrator/campaign/s8b_expected_materialization.py",
+      "orchestrator/campaign/s8b_sort_swo_receipt.py",
+      "orchestrator/campaign/source_digest.py"
+    ],
+    "orchestrator/campaign/s8b_floor_attempt_launcher.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/perf_preflight.py",
+      "orchestrator/calibrator/runner.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/s8b_attempt_profile.py",
+      "orchestrator/campaign/s8b_attempt_registry.py",
+      "orchestrator/campaign/s8b_floor_contract.py",
+      "orchestrator/campaign/s8b_terminal_evidence.py"
+    ],
+    "orchestrator/campaign/s8b_floor_contract.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/perf_preflight.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/s8b_experiment_numbers.py"
+    ],
+    "orchestrator/campaign/s8b_floor_stats.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/perf_preflight.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/attempt_registry_core.py",
+      "orchestrator/campaign/s8b_attempt_profile.py",
+      "orchestrator/campaign/s8b_attempt_registry.py",
+      "orchestrator/campaign/s8b_binary_admission.py",
+      "orchestrator/campaign/s8b_floor_contract.py",
+      "orchestrator/campaign/s8b_holdout_admission.py"
+    ],
+    "orchestrator/campaign/s8b_freeze_io.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/s8b_holdout_admission.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/attempt_registry_core.py",
+      "orchestrator/campaign/s8b_attempt_profile.py",
+      "orchestrator/campaign/s8b_floor_campaign.py",
+      "orchestrator/campaign/s8b_floor_contract.py",
+      "orchestrator/campaign/s8b_holdout_freeze.py",
+      "orchestrator/campaign/s8b_oracle_manifest.py",
+      "orchestrator/campaign/s8b_ratified_freeze.py",
+      "orchestrator/campaign/s8b_scheduler_accounting.py",
+      "orchestrator/holdout_observation.py"
+    ],
+    "orchestrator/campaign/s8b_holdout_freeze.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/perf_preflight.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/freeze_verification_hold.py",
+      "orchestrator/campaign/s8b_binary_admission.py",
+      "orchestrator/campaign/s8b_floor_contract.py",
+      "orchestrator/campaign/s8b_floor_stats.py",
+      "orchestrator/campaign/s8b_holdout_admission.py",
+      "orchestrator/campaign/s8b_launch_cert.py",
+      "orchestrator/campaign/t080_freeze_migration.py"
+    ],
+    "orchestrator/campaign/s8b_launch_cert.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/s8b_materialization.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/materializer_admission.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/s1_direct_comparison.py",
+      "orchestrator/campaign/source_digest.py"
+    ],
+    "orchestrator/campaign/s8b_selector_freeze.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/s8b_descriptor.py",
+      "orchestrator/campaign/s8b_ratified_freeze.py",
+      "orchestrator/campaign/s8b_selector_input.py",
+      "orchestrator/campaign/s8b_selector_output.py"
+    ],
+    "orchestrator/campaign/s8b_sort_swo_receipt.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/sort_swo_oracle.py"
+    ],
+    "orchestrator/campaign/silo_ladder_rung1.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/condition_meaning_gate.py",
+      "orchestrator/campaign/env_attestation.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/execution_guard.py",
+      "orchestrator/campaign/patchharness.py",
+      "orchestrator/campaign/silo_ladder_rung1_contract.py",
+      "orchestrator/campaign/toolchain_binding.py",
+      "orchestrator/verifier/__init__.py",
+      "orchestrator/verifier/core.py",
+      "orchestrator/verifier/model.py",
+      "orchestrator/verifier/report.py"
+    ],
+    "orchestrator/campaign/t080_freeze_migration.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/freeze_verification_hold.py",
+      "orchestrator/campaign/s1_known_axes_freeze.py",
+      "orchestrator/campaign/s8b_holdout_freeze.py"
+    ],
+    "orchestrator/campaign/toolchain_binding.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/evolve_block.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/claude_transport.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/site_policy.py"
+    ],
+    "orchestrator/campaign/s8b_selector_input.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/s8b_descriptor.py"
+    ],
+    "orchestrator/campaign/p3_b4_analysis_ledgers.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/attempt_registry_core.py",
+      "orchestrator/campaign/p3_b4_analysis_contract.py"
+    ],
+    "orchestrator/codex_roles/review_ledger.py": [
+      "orchestrator/codex_roles/__init__.py"
+    ],
+    "orchestrator/campaign/autonomous_trial_completeness.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/artifact_admission.py",
+      "orchestrator/campaign/campaign_lock.py",
+      "orchestrator/campaign/layer3_report.py",
+      "orchestrator/campaign/p3_autonomous_workload_trial.py",
+      "orchestrator/campaign/pin.py",
+      "orchestrator/campaign/reflux_ir.py",
+      "orchestrator/campaign/role_session_isolation.py",
+      "orchestrator/campaign/s8b_holdout_freeze.py",
+      "orchestrator/campaign/s8b_ratified_freeze.py",
+      "orchestrator/campaign/s8c_generation_projection.py",
+      "orchestrator/campaign/source_digest.py",
+      "orchestrator/campaign/trial_registry.py",
+      "orchestrator/campaign/trigger_gate_binding.py",
+      "orchestrator/campaign/wal.py"
+    ],
+    "orchestrator/campaign/layer3_report.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/perf_preflight.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/artifact_admission.py",
+      "orchestrator/campaign/campaign_lock.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/genome.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/p3_s4_loop.py",
+      "orchestrator/campaign/s8c_acceptance_receipt.py",
+      "orchestrator/campaign/trigger_gate_binding.py",
+      "orchestrator/campaign/wal.py"
+    ],
+    "orchestrator/campaign/reflux_formal_consumer.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/campaign_lock.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/reflux_ir.py",
+      "orchestrator/campaign/reflux_origin_artifacts.py",
+      "orchestrator/campaign/reflux_origin_binding.py",
+      "orchestrator/campaign/reflux_origin_ledger.py",
+      "orchestrator/campaign/reflux_origin_topology.py",
+      "orchestrator/campaign/reflux_result_evidence.py",
+      "orchestrator/campaign/reflux_source_closure.py",
+      "orchestrator/campaign/trigger_gate_binding.py",
+      "orchestrator/campaign/wal.py"
+    ],
+    "orchestrator/campaign/reflux_origin_client.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/reflux_formal_consumer.py",
+      "orchestrator/campaign/reflux_origin_artifacts.py",
+      "orchestrator/campaign/reflux_origin_binding.py",
+      "orchestrator/campaign/reflux_origin_ledger.py"
+    ],
+    "orchestrator/campaign/reflux_origin_topology.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/reflux_ir.py",
+      "orchestrator/campaign/reflux_origin_artifacts.py",
+      "orchestrator/campaign/reflux_origin_ledger.py"
+    ],
+    "orchestrator/campaign/s8b_ratified_freeze.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/perf_preflight.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/env_attestation.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/execution_guard.py",
+      "orchestrator/campaign/s8b_binary_admission.py",
+      "orchestrator/campaign/s8b_floor_contract.py",
+      "orchestrator/campaign/s8b_floor_stats.py",
+      "orchestrator/campaign/s8b_holdout_admission.py",
+      "orchestrator/campaign/s8b_holdout_freeze.py",
+      "orchestrator/campaign/s8b_launch_cert.py",
+      "orchestrator/campaign/s8b_prediction_runner.py",
+      "orchestrator/campaign/s8b_selector_freeze.py"
+    ],
+    "orchestrator/campaign/s8c_arm_inputs.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/s8b_descriptor.py",
+      "orchestrator/campaign/s8b_holdout_freeze.py"
+    ],
+    "orchestrator/campaign/s8c_budget.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/s8c_acceptance_receipt.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/attempt_registry_core.py",
+      "orchestrator/campaign/autonomous_trial_completeness.py",
+      "orchestrator/campaign/s8b_holdout_freeze.py",
+      "orchestrator/campaign/s8b_ratified_freeze.py",
+      "orchestrator/campaign/s8c_arm_inputs.py"
+    ],
+    "orchestrator/campaign/s1_measurement_freeze.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/freeze_verification_hold.py",
+      "orchestrator/campaign/pin.py",
+      "orchestrator/campaign/s1_known_axes_freeze.py"
+    ],
+    "orchestrator/campaign/s8b_experiment_numbers.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/s8b_attempt_profile.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/attempt_registry_core.py",
+      "orchestrator/campaign/s8b_terminal_evidence.py"
+    ],
+    "orchestrator/campaign/s8b_attempt_registry.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/attempt_registry_core.py",
+      "orchestrator/campaign/s8b_attempt_profile.py",
+      "orchestrator/campaign/s8b_holdout_admission.py",
+      "orchestrator/campaign/s8b_scheduler_accounting.py",
+      "orchestrator/campaign/s8b_terminal_evidence.py"
+    ],
+    "orchestrator/campaign/s8b_terminal_evidence.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/attempt_registry_core.py",
+      "orchestrator/campaign/s8b_floor_stats.py"
+    ],
+    "orchestrator/campaign/s8b_oracle_manifest.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/s8b_experiment_numbers.py",
+      "orchestrator/campaign/s8b_oracle_artifacts.py",
+      "orchestrator/campaign/s8b_oracle_spec.py",
+      "orchestrator/campaign/s8b_ratified_freeze.py"
+    ],
+    "orchestrator/campaign/s8b_scheduler_accounting.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/attempt_registry_core.py",
+      "orchestrator/campaign/create_only_store.py",
+      "orchestrator/campaign/s8b_attempt_profile.py",
+      "orchestrator/scheduler_nqsv.py"
+    ],
+    "orchestrator/campaign/s8b_selector_output.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/silo_ladder_rung1_contract.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/s1_known_axes_freeze.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/axis_trigger_gating.py",
+      "orchestrator/campaign/backoff_sweep.py",
+      "orchestrator/campaign/freeze_verification_hold.py",
+      "orchestrator/campaign/genome.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/s6_sort_sweep.py",
+      "orchestrator/campaign/s8a_trigger_sweep.py",
+      "orchestrator/campaign/sort_comparator_authority.py",
+      "orchestrator/campaign/t080_freeze_migration.py",
+      "orchestrator/campaign/trigger_gate_binding.py"
+    ],
+    "orchestrator/campaign/p3_b4_analysis_contract.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/s8b_oracle_artifacts.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/perf_preflight.py",
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/campaign/s8b_oracle_spec.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/s8b_oracle_artifacts.py",
+      "orchestrator/campaign/s8b_oracle_manifest.py"
+    ],
+    "orchestrator/campaign/create_only_store.py": [
+      "orchestrator/campaign/__init__.py"
+    ],
+    "orchestrator/scheduler_nqsv.py": [],
+    "orchestrator/campaign/backoff_sweep.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/buildcache.py",
+      "orchestrator/campaign/condition_meaning_gate.py",
+      "orchestrator/campaign/durable_root.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/loop.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/p2_2.py",
+      "orchestrator/campaign/patchharness.py",
+      "orchestrator/campaign/pin.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/screening_driver.py",
+      "orchestrator/campaign/source_digest.py",
+      "orchestrator/campaign/wal.py"
+    ],
+    "orchestrator/campaign/s6_sort_sweep.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/artifact_admission.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/buildcache.py",
+      "orchestrator/campaign/campaign_lock.py",
+      "orchestrator/campaign/condition_meaning_gate.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/loop.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/p2_2.py",
+      "orchestrator/campaign/p3_s4_loop.py",
+      "orchestrator/campaign/p3_s4_loop_sort.py",
+      "orchestrator/campaign/patchharness.py",
+      "orchestrator/campaign/pin.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/screening_driver.py",
+      "orchestrator/campaign/source_digest.py",
+      "orchestrator/campaign/wal.py"
+    ],
+    "orchestrator/campaign/s8a_trigger_sweep.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/artifact_admission.py",
+      "orchestrator/campaign/axis_trigger_gating.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/buildcache.py",
+      "orchestrator/campaign/campaign_lock.py",
+      "orchestrator/campaign/condition_meaning_gate.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/loop.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/p2_2.py",
+      "orchestrator/campaign/p3_s4_loop.py",
+      "orchestrator/campaign/patchharness.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/screening_driver.py",
+      "orchestrator/campaign/source_digest.py",
+      "orchestrator/campaign/wal.py"
+    ],
+    "orchestrator/campaign/sort_comparator_authority.py": [
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/s6_sort_sweep.py"
+    ],
+    "orchestrator/campaign/screening_driver.py": [
+      "orchestrator/calibrator/__init__.py",
+      "orchestrator/calibrator/perf_preflight.py",
+      "orchestrator/campaign/__init__.py",
+      "orchestrator/campaign/build_admission.py",
+      "orchestrator/campaign/buildcache.py",
+      "orchestrator/campaign/condition_meaning_gate.py",
+      "orchestrator/campaign/env_attestation.py",
+      "orchestrator/campaign/env_contract.py",
+      "orchestrator/campaign/execution_guard.py",
+      "orchestrator/campaign/genome.py",
+      "orchestrator/campaign/ident.py",
+      "orchestrator/campaign/layout.py",
+      "orchestrator/campaign/model.py",
+      "orchestrator/campaign/patchharness.py",
+      "orchestrator/campaign/pipeline.py",
+      "orchestrator/campaign/source_digest.py",
+      "orchestrator/campaign/wal.py"
+    ]
+  }
+}

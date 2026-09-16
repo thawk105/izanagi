@@ -1,0 +1,7 @@
+raw sha256      : 0ceab4cd064eb8ff6c5dba22364fff04a6d708de8acb9d9cde52115f0891df30
+  pin と一致    : True
+semantic sha256 : 5d0b189bd68391b4a6876bd24400230e7186f6bc1fe374ea298d44edebcfd1a7
+  pin と一致    : True
+文書全体 sha256 : 1d91c1b4909eeffb3bc0dcd8a13918816de50bbad86f4652f2731b36f0a76635
+節の bytes 長   : 21833
+契約抽出        : OK ParsedPreregisteredAnalysisContract

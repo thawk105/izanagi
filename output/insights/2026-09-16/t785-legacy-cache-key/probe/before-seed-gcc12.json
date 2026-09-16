@@ -1,0 +1,160 @@
+{
+  "admission_provenance": "stock-baseline",
+  "admission_receipt_sha256": "c6a616c29923eff8db8b35baeeb70b251383ca6e85a7ba4a4099ce0010fac9af",
+  "binary": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t785-legacy-cache-key/probe/cache-before/silo_fed9a86c14_t0/cc/silo/ycsb_silo.exe",
+  "binary_sha256": "8ca3a7c866bbaedd639107912627a47689929172bc0b28983c79329870141d1e",
+  "build_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t785-legacy-cache-key/probe/cache-before/silo_fed9a86c14_t0",
+  "build_signature_defaults": {
+    "cc": "gcc-12",
+    "cxx": "g++-12"
+  },
+  "buildcache_source_sha256": "4072d1b6d27fa822448cbd0809368951002fda1852d4066715313450bcdbafb8",
+  "cache_key": "silo_fed9a86c14_t0",
+  "cache_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t785-legacy-cache-key/probe/cache-before",
+  "cached": false,
+  "ccbench_head": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+  "ccbench_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/external/ccbench",
+  "collision_precondition": null,
+  "compile_calls": [
+    {
+      "argv": [
+        "g++-12",
+        "-x",
+        "c++",
+        "-",
+        "-O0",
+        "-o",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t785-legacy-cache-key/probe/cache-before/silo_fed9a86c14_t0.staging-1982948-8d5bf553216297c0d8fe10f3879d5526/cc/silo/ycsb_silo.exe"
+      ],
+      "binary": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t785-legacy-cache-key/probe/cache-before/silo_fed9a86c14_t0.staging-1982948-8d5bf553216297c0d8fe10f3879d5526/cc/silo/ycsb_silo.exe",
+      "binary_sha256": "8ca3a7c866bbaedd639107912627a47689929172bc0b28983c79329870141d1e",
+      "compiler": {
+        "realpath": "/usr/bin/x86_64-linux-gnu-g++-12",
+        "requested": "g++-12",
+        "version_first_line": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0",
+        "version_number": "12.3.0",
+        "which": "/usr/bin/g++-12"
+      },
+      "requested_compiler": "g++-12",
+      "returncode": 0,
+      "stderr": "",
+      "stdout": ""
+    }
+  ],
+  "configure_argv": [
+    "cmake",
+    "-S",
+    "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/external/ccbench",
+    "-B",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t785-legacy-cache-key/probe/cache-before/silo_fed9a86c14_t0.staging-1982948-8d5bf553216297c0d8fe10f3879d5526",
+    "-DCMAKE_BUILD_TYPE=Release",
+    "-DENABLE_SANITIZER=OFF",
+    "-DCMAKE_C_COMPILER=gcc-12",
+    "-DCMAKE_CXX_COMPILER=g++-12",
+    "-DCCBENCH_BACK_OFF=1",
+    "-DCCBENCH_TRACE=0"
+  ],
+  "configure_compilers": {
+    "cc": "gcc-12",
+    "cxx": "g++-12"
+  },
+  "defaults": {
+    "cc": "gcc-12",
+    "cxx": "g++-12"
+  },
+  "elf_comment": "\n\u30bb\u30af\u30b7\u30e7\u30f3 '.comment' \u306e\u6587\u5b57\u5217\u30c0\u30f3\u30d7:\n  [     0]  GCC: (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0\n\n",
+  "expected_cached": false,
+  "fix_demonstrated": null,
+  "genome": {
+    "canonical": "silo|BACK_OFF=1",
+    "flags": {
+      "BACK_OFF": 1
+    },
+    "protocol": "silo"
+  },
+  "mode": "build",
+  "module_paths": {
+    "build_admission": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/orchestrator/campaign/build_admission.py",
+    "buildcache": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/orchestrator/campaign/buildcache.py",
+    "model": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/orchestrator/campaign/model.py",
+    "pin": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/orchestrator/campaign/pin.py",
+    "source_digest": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/orchestrator/campaign/source_digest.py"
+  },
+  "observed_as_expected": true,
+  "phase": "seed",
+  "repo": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key",
+  "repo_head": "0c292eff6f39d797afac7481b89c94de43c07386",
+  "reproduced_false_hit": null,
+  "requested_commit": "511c953",
+  "requested_compiler_versions": {
+    "cc": {
+      "realpath": "/usr/bin/x86_64-linux-gnu-gcc-12",
+      "requested": "gcc-12",
+      "version_first_line": "gcc-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0",
+      "version_number": "12.3.0",
+      "which": "/usr/bin/gcc-12"
+    },
+    "cxx": {
+      "realpath": "/usr/bin/x86_64-linux-gnu-g++-12",
+      "requested": "g++-12",
+      "version_first_line": "g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0",
+      "version_number": "12.3.0",
+      "which": "/usr/bin/g++-12"
+    }
+  },
+  "result_bin_sha256": "8ca3a7c866bbaedd639107912627a47689929172bc0b28983c79329870141d1e",
+  "run_calls": [
+    {
+      "argv": [
+        "cmake",
+        "-S",
+        "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/external/ccbench",
+        "-B",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t785-legacy-cache-key/probe/cache-before/silo_fed9a86c14_t0.staging-1982948-8d5bf553216297c0d8fe10f3879d5526",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DENABLE_SANITIZER=OFF",
+        "-DCMAKE_C_COMPILER=gcc-12",
+        "-DCMAKE_CXX_COMPILER=g++-12",
+        "-DCCBENCH_BACK_OFF=1",
+        "-DCCBENCH_TRACE=0"
+      ],
+      "build_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t785-legacy-cache-key/probe/cache-before/silo_fed9a86c14_t0.staging-1982948-8d5bf553216297c0d8fe10f3879d5526",
+      "compiler": "g++-12",
+      "elf_verified": true,
+      "site": null,
+      "what": "configure"
+    },
+    {
+      "argv": [
+        "cmake",
+        "--build",
+        "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t785-legacy-cache-key/probe/cache-before/silo_fed9a86c14_t0.staging-1982948-8d5bf553216297c0d8fe10f3879d5526",
+        "--target",
+        "ycsb_silo.exe",
+        "-j",
+        "1"
+      ],
+      "binary": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t785-legacy-cache-key/probe/cache-before/silo_fed9a86c14_t0.staging-1982948-8d5bf553216297c0d8fe10f3879d5526/cc/silo/ycsb_silo.exe",
+      "build_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t785-legacy-cache-key/probe/cache-before/silo_fed9a86c14_t0.staging-1982948-8d5bf553216297c0d8fe10f3879d5526",
+      "elf_verified": true,
+      "site": null,
+      "what": "build"
+    }
+  ],
+  "seed_comparison": null,
+  "source_bytes_sha256": "6454d9f34b04fdb148bc3324c5b07786d933dcc1ab0f7267aa0b91d414f70a84",
+  "source_evidence": {
+    "ccbench_commit": "511c953",
+    "genome_sha256": "5ada9374d1c8f008fa4b6d85351e0ef681c12e5e1fa6d06bc548580dfa1ab1b2",
+    "schema": "source-evidence/v1",
+    "source_bytes_sha256": "6454d9f34b04fdb148bc3324c5b07786d933dcc1ab0f7267aa0b91d414f70a84",
+    "source_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/external/ccbench",
+    "src_token": "stock",
+    "tracked_clean": true,
+    "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tracked_paths": []
+  },
+  "src_token": "stock",
+  "trace": false,
+  "tracked_clean": true
+}

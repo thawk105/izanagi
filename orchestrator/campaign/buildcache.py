@@ -632,11 +632,13 @@ def cache_key(genome: Genome, ccbench_commit: str, trace: bool,
     ツールチェーン (cc/cxx) も pre-image に織り込む — コンパイラを替えて再計測すると
     既評価 genome だけ旧コンパイラのバイナリで偽 hit し、同一 campaign 内で baseline と
     variant のビルド条件が食い違う (コンパイラ差はバックオフ級の差を容易に上回る)。
-    既定ツールチェーンは省いて旧キーを温存 (src_token と同型の後方互換規則)。"""
+    歴史的ツールチェーン (gcc-13, g++-13) だけを省いて旧キーを温存する。
+    省略条件は DEFAULT_CC/DEFAULT_CXX から独立させ、既定変更後の
+    新ツールチェーンが旧キーへ衝突することを防ぐ。"""
     if type(admission) is not BuildAdmission:
         raise TypeError("admission は derive_build_admission() 由来の exact value が必要")
     src = "" if src_token == source_digest.STOCK else f"|src={src_token}"
-    tc = "" if (cc, cxx) == (DEFAULT_CC, DEFAULT_CXX) else f"|cc={cc}|cxx={cxx}"
+    tc = "" if (cc, cxx) == ("gcc-13", "g++-13") else f"|cc={cc}|cxx={cxx}"
     raw = (f"{genome.canonical()}|{ccbench_commit}|trace={int(trace)}{src}{tc}"
            f"|adm={admission.receipt_sha256}")
     h = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:10]

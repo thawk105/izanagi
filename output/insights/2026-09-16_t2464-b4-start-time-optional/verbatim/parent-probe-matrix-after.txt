@@ -1,0 +1,12 @@
+現行 (未変更) コードでの受理判定 — 開始時刻は非 sentinel の実値
+owner の種類            開始時刻=実値      開始時刻=未記入    
+正常な識別子               ACCEPT       ACCEPT      
+説明文                  ACCEPT       ACCEPT      
+括弧つき                 ACCEPT       ACCEPT      
+NUL 1 文字             ACCEPT       ACCEPT      
+BEL 1 文字             ACCEPT       ACCEPT      
+ハイフン3つ+NUL           ACCEPT       ACCEPT      
+sentinel TBD         REJECT       REJECT      
+未記入                  REJECT       REJECT      
+
+参考: 対象行以外のセルへ同じ owner 文字列を入れた場合 (現行コード)
