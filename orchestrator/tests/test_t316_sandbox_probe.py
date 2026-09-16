@@ -19,6 +19,8 @@ from typing import Any
 
 import pytest
 
+from tools.acceptance_shards import _git_common_dir, _validate_shared_root
+
 
 _REPO = Path(__file__).resolve().parents[2]
 _MODULE_PATH = _REPO / "tools/pegasus/probes/t316_sandbox_backend_probe.py"
@@ -1731,12 +1733,25 @@ def test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs(
 def s6_bindable_root():
     # SandboxProfile masks /tmp before mounting source/cache/scratch. All live
     # inputs need mountable ancestors, not just the requested checkout. Keep
-    # them in a disposable sibling layout on the workspace filesystem; TMPDIR
-    # still names host-tmp, outside the writable scratch bind.
-    with tempfile.TemporaryDirectory(prefix=".t316-live-", dir=_REPO) as directory:
+    # them in a disposable sibling layout on the workspace filesystem, outside
+    # both this repository and the main checkout; TMPDIR still names host-tmp,
+    # outside the writable scratch bind.
+    main_repo = _git_common_dir(_REPO).parent
+    shared_root = (main_repo.parent / ".izanagi-t316-live").resolve()
+    _validate_shared_root(_REPO, main_repo, shared_root)
+    assert not shared_root.is_relative_to(main_repo)
+    shared_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".t316-live-", dir=shared_root) as directory:
         root = Path(directory).resolve(strict=True)
         assert not root.is_relative_to(Path("/tmp"))
         yield root
+
+
+def test_s6_bindable_root_is_outside_tmp_repo_and_main_checkout(s6_bindable_root):
+    main_repo = _git_common_dir(_REPO).parent
+    assert not s6_bindable_root.is_relative_to(Path("/tmp"))
+    assert not s6_bindable_root.is_relative_to(_REPO)
+    assert not s6_bindable_root.is_relative_to(main_repo)
 
 
 def _s6_fixture_git(root: Path, *args: str) -> str:
