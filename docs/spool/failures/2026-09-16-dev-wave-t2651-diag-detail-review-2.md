@@ -43,3 +43,15 @@ seq: 2
   当座の運用 (下降局面かつ 1 分値 50 以下で 1 回投げる) を満たしていたにもかかわらず出ており、
   **load の閾値だけでは避けられない**ことの 1 点になる。恒久対応は既報どおり未実施のまま、
   機構側の対処は決めていない。
+
+### F57
+
+- **再発: 2026-09-16** — 診断本文保持の敵対レビュー wave (docs と計測成果物のみ) の受入 attempt 7 で
+  `test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed` が 1 件だけ落ちた
+  (24,129 passed / 67 skipped / 1 failed)。assertion 本文は
+  `LauncherReturncodeMismatch: actual rc timeout != expected rc 1; label=sigterm-ignoring launcher`。
+  receipt の `preparation_wall_clock_s` が **5.23 秒**で、`wall_clock_admission_bound_s=3.0` の
+  予算を準備段だけで使い切っている。計算ノード bnode009 の loadavg は **56.07 / 25.77 / 17.94** で、
+  1 分値だけが跳ねた瞬間に当たった。同 file の単独再走は **211 passed / 14.47 秒 / rc=0**
+  (1735.nqsv) で非再現。wave の差分は `tools/` にも `test_codex_worker_launch.py` にも
+  1 行も無く、非帰属である。既報どおり hold 登録はせず受入を再走する。
