@@ -1,0 +1,31 @@
+/tmp/t2630-x79934bm/izanagi_wt_uk1jmon4/wt/cc/silo/transaction.cc:5:17: error: redefinition of ‘sized_compiler_operations<1, B>::type expected’
+    5 | #define desired expected
+/work/1/SFC/tanab/izanagi-thirdparty-cache/masstree/compiler.hh:165:70: note: in expansion of macro ‘desired’
+  165 |     static inline type val_cmpxchg(type* object, type expected, type desired) {
+      |                                                                      ^~~~~~~
+In file included from /tmp/t2630-x79934bm/izanagi_wt_uk1jmon4/wt/cc/silo/include/../../../include/masstree_wrapper.hh:22,
+                 from /tmp/t2630-x79934bm/izanagi_wt_uk1jmon4/wt/cc/silo/include/common.hh:12,
+                 from /tmp/t2630-x79934bm/izanagi_wt_uk1jmon4/wt/cc/silo/include/atomic_tool.hh:3,
+                 from /tmp/t2630-x79934bm/izanagi_wt_uk1jmon4/wt/cc/silo/transaction.cc:6:
+/work/1/SFC/tanab/izanagi-thirdparty-cache/masstree/compiler.hh:165:55: note: ‘sized_compiler_operations<1, B>::type expected’ previously declared here
+  165 |     static inline type val_cmpxchg(type* object, type expected, type desired) {
+      |                                                  ~~~~~^~~~~~~~
+/tmp/t2630-x79934bm/izanagi_wt_uk1jmon4/wt/cc/silo/transaction.cc:5:17: error: redefinition of ‘sized_compiler_operations<1, B>::type expected’
+    5 | #define desired expected
+/work/1/SFC/tanab/izanagi-thirdparty-cache/masstree/compiler.hh:176:71: note: in expansion of macro ‘desired’
+  176 |     static inline bool bool_cmpxchg(type* object, type expected, type desired) {
+      |                                                                       ^~~~~~~
+In file included from /tmp/t2630-x79934bm/izanagi_wt_uk1jmon4/wt/cc/silo/include/../../../include/masstree_wrapper.hh:22,
+                 from /tmp/t2630-x79934bm/izanagi_wt_uk1jmon4/wt/cc/silo/include/common.hh:12,
+                 from /tmp/t2630-x79934bm/izanagi_wt_uk1jmon4/wt/cc/silo/include/atomic_tool.hh:3,
+                 from /tmp/t2630-x79934bm/izanagi_wt_uk1jmon4/wt/cc/silo/transaction.cc:6:
+/work/1/SFC/tanab/izanagi-thirdparty-cache/masstree/compiler.hh:176:56: note: ‘sized_compiler_operations<1, B>::type expected’ previously declared here
+  176 |     static inline bool bool_cmpxchg(type* object, type expected, type desired) {
+      |                                                   ~~~~~^~~~~~~~
+/tmp/t2630-x79934bm/izanagi_wt_uk1jmon4/wt/cc/silo/transaction.cc:5:17: error: redefinition of ‘sized_compiler_operations<2, B>::type expected’
+    5 | #define desired expected
+/work/1/SFC/tanab/izanagi-thirdparty-cache/masstree/compiler.hh:221:70: note: in expansion of macro ‘desired’
+  221 |     static inline type val_cmpxchg(type* object, type expected, type desired) {
+      |                                                                      ^~~~~~~
+In file included from /tmp/t2630-x79934bm/izanagi_wt_uk1jmon4/wt/cc/silo/include/../../../include/masstree_wrapper.hh:22,
+                 from /tmp

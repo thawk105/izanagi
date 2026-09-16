@@ -1,0 +1,6 @@
+{
+  "requested": "g++",
+  "path": "/usr/bin/x86_64-linux-gnu-g++-11",
+  "executable_sha256": "2360901d864cf10bfd6296e261cb2c14053552a80377761ab07146ec9ec9a2c0",
+  "version_sha256": "b2673d1dc6f7deed98e0160d91438be4fd16932a4e13799fbda76847c9a5cf60"
+}

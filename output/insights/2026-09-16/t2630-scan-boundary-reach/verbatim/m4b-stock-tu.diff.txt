@@ -1,0 +1,60 @@
+--- reference
++++ current
+@@ -44557,8 +44557,7 @@
+        memory_order __m1, memory_order __m2) noexcept
+       {
+  do { if (__builtin_is_constant_evaluated() && !bool(__is_valid_cmpexch_failure_order(__m2))) __builtin_unreachable(); } while (false);
+- return __atomic_compare_exchange_n(&_M_i, &__i1, __i2, 1,
+-        int(__m1), int(__m2));
++ return __atomic_compare_exchange_n(&_M_i, &__i1, __i2, 1, 0, 0);
+       }
+       inline __attribute__((__always_inline__)) bool
+       compare_exchange_weak(__int_type& __i1, __int_type __i2,
+@@ -44566,8 +44565,7 @@
+        memory_order __m2) volatile noexcept
+       {
+  do { if (__builtin_is_constant_evaluated() && !bool(__is_valid_cmpexch_failure_order(__m2))) __builtin_unreachable(); } while (false);
+- return __atomic_compare_exchange_n(&_M_i, &__i1, __i2, 1,
+-        int(__m1), int(__m2));
++ return __atomic_compare_exchange_n(&_M_i, &__i1, __i2, 1, 0, 0);
+       }
+       inline __attribute__((__always_inline__)) bool
+       compare_exchange_weak(__int_type& __i1, __int_type __i2,
+@@ -44588,8 +44586,7 @@
+          memory_order __m1, memory_order __m2) noexcept
+       {
+  do { if (__builtin_is_constant_evaluated() && !bool(__is_valid_cmpexch_failure_order(__m2))) __builtin_unreachable(); } while (false);
+- return __atomic_compare_exchange_n(&_M_i, &__i1, __i2, 0,
+-        int(__m1), int(__m2));
++ return __atomic_compare_exchange_n(&_M_i, &__i1, __i2, 0, 0, 0);
+       }
+       inline __attribute__((__always_inline__)) bool
+       compare_exchange_strong(__int_type& __i1, __int_type __i2,
+@@ -44597,8 +44594,7 @@
+          memory_order __m2) volatile noexcept
+       {
+  do { if (__builtin_is_constant_evaluated() && !bool(__is_valid_cmpexch_failure_order(__m2))) __builtin_unreachable(); } while (false);
+- return __atomic_compare_exchange_n(&_M_i, &__i1, __i2, 0,
+-        int(__m1), int(__m2));
++ return __atomic_compare_exchange_n(&_M_i, &__i1, __i2, 0, 0, 0);
+       }
+       inline __attribute__((__always_inline__)) bool
+       compare_exchange_strong(__int_type& __i1, __int_type __i2,
+@@ -44815,8 +44811,7 @@
+          memory_order __m2) noexcept
+       {
+  do { if (__builtin_is_constant_evaluated() && !bool(__is_valid_cmpexch_failure_order(__m2))) __builtin_unreachable(); } while (false);
+- return __atomic_compare_exchange_n(&_M_p, &__p1, __p2, 0,
+-        int(__m1), int(__m2));
++ return __atomic_compare_exchange_n(&_M_p, &__p1, __p2, 0, 0, 0);
+       }
+       inline __attribute__((__always_inline__)) bool
+       compare_exchange_strong(__pointer_type& __p1, __pointer_type __p2,
+@@ -44824,8 +44819,7 @@
+          memory_order __m2) volatile noexcept
+       {
+  do { if (__builtin_is_constant_evaluated() && !bool(__is_valid_cmpexch_failure_order(__m2))) __builtin_unreachable(); } while (false);
+- return __atomic_compare_exchange_n(&_M_p, &__p1, __p2, 0,
+-        int(__m1), int(__m2));
++ return __atomic_compare_exchange_n(&_M_p, &__p1, __p2, 0, 0, 0);
+       }

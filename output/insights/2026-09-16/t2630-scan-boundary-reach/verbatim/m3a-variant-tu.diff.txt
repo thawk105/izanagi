@@ -1,0 +1,10 @@
+--- reference
++++ current
+@@ -141226,6 +141226,7 @@
+     expected = check;
+   }
+   read_set_.emplace_back(s, key, tuple, std::move(body), expected);
++  sleepTics(1);
+   return Status::OK;
+ }
+ Status TxExecutor::scan(const Storage s, std::string_view left_key,
