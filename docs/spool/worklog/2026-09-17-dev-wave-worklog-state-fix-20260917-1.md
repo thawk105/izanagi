@@ -33,7 +33,8 @@ title: 既裁定なのに「裁定待ち」のまま残っていた次の一手 
 - **T-2487 の保証限界の明記 (D1892) は `output/insights/2026-09-09/t2457-a6-fanout-live/README.md` の
   「保証しないこと」4 (hard bound は 12 時間の walltime だけ) が既に担っている**と読み、`完了` にした。
 - docs-only で子ゼロ (段 2・3・5・6 を省略)。実装面の差分は 0、変異 matrix は免除 (D95 決定 2)。
-  受入全走の結果は本エントリの末尾に書く。工数: codex 子 0 本、計算ノード job 0 件。
+  受入全走は land 前に `child-green` を要求し、受領証は land が tested tip に束縛して検証する (走行記録は
+  `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-worklog-state-fix-20260917/`)。工数: codex 子 0 本、計算ノード job 0 件。
 
 ## 次の一手差分
 
