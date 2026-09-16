@@ -1,0 +1,28 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/critic/digest.py",
+          "old": "INDICATORS = [\"throughput_tps\", \"abort_rate\", \"llc_miss_rate\", \"ipc\"]\n",
+          "new": "INDICATORS = [\"throughput_tps\", \"abort_rate\", \"latency_ns\", \"llc_miss_rate\", \"ipc\"]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_critic.py::test_digest_omits_latency_from_projection_table_and_axes",
+        "orchestrator/tests/test_critic.py::test_load_sorts_by_throughput_and_marginal_back_off",
+        "orchestrator/tests/test_critic.py::test_load_workload_preserves_legacy_commit_without_build_attempt_id",
+        "orchestrator/tests/test_critic.py::test_load_workload_uses_committed_retry_attempt_only",
+        "orchestrator/tests/test_critic.py::test_no_wait_axis_is_categorical_LT"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
