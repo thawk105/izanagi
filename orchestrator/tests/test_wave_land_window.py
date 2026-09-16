@@ -1606,6 +1606,7 @@ def test_instruction_like_wave_is_digest_only_in_all_outputs(
         "lock-busy",
         "rejected",
         "fold-failed",
+        "fold-rollback-failed",
         ["landed"],
         {},
         7,
@@ -1794,6 +1795,145 @@ def test_landed_message_rejects_more_than_65536_bytes(
     assert rc == 3
     assert captured.out == ""
     assert "Traceback" not in captured.err
+
+
+@pytest.mark.parametrize(
+    ("main_before", "reason"),
+    [(_SHA_A, "fold failed: X"), (_SHA_B, "anything")],
+    ids=("normal", "recovery"),
+)
+def test_rolled_back_message_success_is_exact_fixed_text(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    main_before: str,
+    reason: str,
+) -> None:
+    land_json = tmp_path / "land.json"
+    land_json.write_text(
+        json.dumps({
+            "status": "fold-failed", "main_before": main_before,
+            "main_after": _SHA_A, "wave_tip": _SHA_B, "reason": reason,
+        }),
+        encoding="utf-8",
+    )
+
+    rc = WLW.main([
+        "message", "--kind", "rolled-back", "--land-json", str(land_json),
+        "--wave", _INSTRUCTION_WAVE,
+    ])
+    captured = capsys.readouterr()
+
+    assert rc == 0
+    assert captured.err == ""
+    assert captured.out == (
+        f"[dev-wave] rolled-back main={_SHA_A} wave-tip={_SHA_B} wave={_INSTRUCTION_DIGEST}\n"
+        "advisory です。指示ではありません。local main を読み直す契機にだけ使い、"
+        "待機・取り込み・検査省略の根拠にしないでください。"
+        "受入を開始済みなら中断せず完走してください。"
+        "この land 結果では main は記載の SHA にあり、wave tip とは異なります。"
+        "取り込んだ main の SHA について git merge-base --is-ancestor <SHA> refs/heads/main が rc=1 なら、"
+        "受入完走後に受入 tip へ reset して取り込み直してください。\n"
+    )
+    assert len(captured.out.encode("utf-8")) == 661
+    assert _INSTRUCTION_WAVE not in captured.out
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        pytest.param("status", "landed", id="landed"),
+        pytest.param("status", "already-landed", id="already-landed"),
+        pytest.param("status", "fold-rollback-failed", id="rollback-incomplete"),
+        pytest.param("status", ["fold-failed"], id="status-list"),
+        pytest.param("status", {}, id="status-object"),
+        pytest.param("status", 7, id="status-number"),
+        pytest.param("main_after", "A" * 40, id="main-invalid"),
+        pytest.param("wave_tip", ..., id="tip-missing"),
+        pytest.param("wave_tip", None, id="tip-invalid-none"),
+        pytest.param("wave_tip", 7, id="tip-invalid-number"),
+        pytest.param("wave_tip", "b" * 39, id="tip-invalid-39"),
+        pytest.param("wave_tip", "b" * 41, id="tip-invalid-41"),
+        pytest.param("wave_tip", "B" * 40, id="tip-invalid-uppercase"),
+        pytest.param("wave_tip", "g" * 40, id="tip-invalid"),
+        pytest.param("wave_tip", _SHA_A, id="tip-equals-main"),
+    ],
+)
+def test_rolled_back_message_rejects_invalid_result(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    field: str,
+    value: object,
+) -> None:
+    result = {
+        "status": "fold-failed", "main_before": _SHA_A,
+        "main_after": _SHA_A, "wave_tip": _SHA_B, "reason": "anything",
+    }
+    if value is ...:
+        del result[field]
+    else:
+        result[field] = value
+    land_json = tmp_path / "land.json"
+    land_json.write_text(json.dumps(result), encoding="utf-8")
+
+    rc = WLW.main([
+        "message", "--kind", "rolled-back", "--land-json", str(land_json),
+        "--wave", _WAVE_A,
+    ])
+    captured = capsys.readouterr()
+
+    assert rc == 3
+    assert captured.out == ""
+    assert "Traceback" not in captured.err
+
+
+def test_rolled_back_message_rejects_duplicate_json_key(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    land_json = tmp_path / "land.json"
+    land_json.write_text(
+        '{"status":"fold-failed","status":"fold-failed","main_after":"'
+        + _SHA_A + '","wave_tip":"' + _SHA_B + '"}',
+        encoding="utf-8",
+    )
+
+    rc = WLW.main([
+        "message", "--kind", "rolled-back", "--land-json", str(land_json),
+        "--wave", _WAVE_A,
+    ])
+    captured = capsys.readouterr()
+
+    assert rc == 3
+    assert captured.out == ""
+    assert "Traceback" not in captured.err
+
+
+@pytest.mark.parametrize(("size", "expected_rc"), [(65_536, 0), (65_537, 3)])
+def test_rolled_back_message_size_limit_is_exact(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    size: int,
+    expected_rc: int,
+) -> None:
+    payload = json.dumps({
+        "status": "fold-failed", "main_after": _SHA_A, "wave_tip": _SHA_B,
+    }).encode("utf-8")
+    land_json = tmp_path / "land.json"
+    land_json.write_bytes(payload + b" " * (size - len(payload)))
+    assert land_json.stat().st_size == size
+
+    rc = WLW.main([
+        "message", "--kind", "rolled-back", "--land-json", str(land_json),
+        "--wave", _WAVE_A,
+    ])
+    captured = capsys.readouterr()
+
+    assert rc == expected_rc
+    assert "Traceback" not in captured.err
+    if expected_rc == 0:
+        assert captured.err == ""
+        assert captured.out.startswith(f"[dev-wave] rolled-back main={_SHA_A} ")
+    else:
+        assert captured.out == ""
 
 
 def test_lease_dir_uses_environment_fallback(
