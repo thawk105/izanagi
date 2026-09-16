@@ -55,7 +55,12 @@ fragment の title と本 dir 名は角括弧 ID なし。worktree dir 名は En
 | 三軸語・placeholder の機械走査 `python3 -m orchestrator.campaign.s8b_holdout_freeze search` | rc=0 (hit なし) |
 | `python3 tools/check_ai_provenance.py` (記録 commit 後、導入時点〜HEAD) | 10,908 件、新規違反なし |
 | 変異 matrix | 実装面差分 0 につき免除 (DW-S04) |
-| 受入全走 | 本記録 commit を含む最終 tip に対して land 前に 1 回だけ投入し、child-green でなければ land しない。受領証は job dir |
+| 受入全走 attempt 1 (`acceptance-final-1`、tested main `b4631a92e`、post-claim merge 後 tip `f994871c7`、07:23:59〜07:43:23) | **F945 型の非帰属赤**: 24,499 passed / 67 skipped / 2 error (shard-0 の `test_t1259_qsub_env_delivery_probe.py` 2 件が setup error)、子 rc=1、受領証未発行、待ち手 rc=70。junit.xml の traceback は `git -C <wave worktree> ls-files --others --exclude-standard -z` の 30.0 秒 TimeoutExpired |
+| 同 tip・同 file の単独再走 (`run_tests.py --force-dispatch`、2828.nqsv、D612 の 3600/600 上書き) | 51 passed / 16.94 秒、job Elapse 23 秒、rc=0 (非再現) |
+| 受入全走 attempt 2 (`acceptance-final-2`) | `DW-O18` に従い同型を 1 回だけ再走する。本記録 commit を含む tip に対して投入し、child-green でなければ land しない。受領証は job dir |
+
+F945 の再発は failures fragment (`docs/spool/failures/2026-09-17-dev-wave-prereg-s11-3-addendum-d2103-1.md`) に追記した。
+恒久対応は既報のまま (timeout 拡大・fixture の stub 化・除外・gate 新設はしない)。
 
 ## 段 8 (自己改善)
 

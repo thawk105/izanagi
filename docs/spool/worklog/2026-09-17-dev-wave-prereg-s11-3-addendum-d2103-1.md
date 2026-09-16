@@ -35,7 +35,11 @@ title: 事前登録 §11.3 の「生成器は本書を読まない (D1377)」を
 - 段 8 (自己改善): 候補 1 件「未起票の依頼に T 番号を想像で採らず branch・slug・title を主題だけにする」を `DW-S01` へ
   1 文統合しようとしたが L1 unique footprint 10,771 > 予算 10,625 bytes で赤。D782 / D730 の原則 (実害 3 例未満は実施
   しない — spool README の実害 2 例 + 本 wave の near miss) に従い実施せず、編集を戻した。上限引き上げに至らないので報告のみ。
+- **受入 attempt 1 (post-claim merge 後 tip `f994871c7`、tested main `b4631a92e`) は F945 型の非帰属赤** — `test_t1259_qsub_env_delivery_probe.py`
+  の 2 件が `git ls-files --others` の 30 秒 TimeoutExpired で setup error (24,499 passed / 67 skipped / 2 error、子 rc=1、
+  待ち手 rc=70)。同 tip・同 file の単独再走 (2828.nqsv) は 51 passed / 16.94 秒で非再現。F945 へ再発を追記し
+  (failures fragment)、`DW-O18` に従い受入を 1 回再走した (結果は land の受領証 `acceptance-receipt-final-2.json`)。
 - 工数: codex 子 0 本 (docs-only、DW-C00 の既定軽量版)。親の実測は check_docs 3 回、sha256 照合、焦点走 3 本、
-  三軸語走査 1 回、provenance full 1 回。
+  三軸語走査 1 回、provenance full 1 回、単独再走 1 本 (計算ノード)。
 
 ## 次の一手差分
