@@ -12116,6 +12116,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   stdout (pytest 標準の `short test summary info` セクションと ERROR excerpt) を
   読まないと区別できない** (ledger の `failed_nodes` だけでは FAILED/ERROR の別が
   失われる)。
+
+- **再発: 2026-09-16** — [T-2125] wave の親が、閉包 member (`artifact_admission.py` / `build_admission.py` / `wal.py`) を変異させた本走の結果を、核を差し引く前に「8/8 KILLED・期待 node 完全一致」と記録した。`DW-M08` に従って probe の観測 node 集合をそのまま期待 node に再登録していたため、**完全一致は核を含んだ集合どうしの一致であり、核の有無を何も否定しない。** 段 8 で F358 を読み直して交差を取ったところ、核は 5 node (`test_layer3_report.py` の certifying 系、原因 `contract-loader-drift`)、delta が空の変異は 0 本で、KILLED 判定自体は正しかった (M3・M4・M7 は delta = 1 で狙った node ちょうど)。land 前に捕捉した near miss である。**再登録で期待 node を観測集合に合わせる手順は、F358 の差し引きを代替しない。**
 ### F359. codex 子は `.git` が read-only で `git merge` を起動できない [手順漏れ]
 
 - 事象: 実装面の main 取り込みを Codex `role=author` の子に投げたところ、
