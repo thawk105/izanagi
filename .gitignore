@@ -17,6 +17,7 @@ build/
 # Izanagi の成果物 (生ログ等。reports/insights は残す判断もありうるので適宜調整)
 output/runs/
 output/variants/*/bin/
+output/env/*/binaries/
 # S-1 driver のビルドキャッシュ (数万ファイル・GB 級の生成物。WAL/report が正本で、キャッシュは再生成可能)
 output/s1-build-cache/
 # dev-wave supervisor の private runtime (control WAL・raw child 出力。tracked 化すると supervisor 自身が main の clean gate を壊す)

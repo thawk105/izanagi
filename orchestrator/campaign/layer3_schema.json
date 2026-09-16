@@ -12,6 +12,11 @@
       "then": {
         "not": {"required": ["current_verifier_conformance"]},
         "properties": {
+          "admission_decision": {
+            "properties": {
+              "classification": {"enum": ["admitted-new-schema", "historical-pre-admission-schema"]}
+            }
+          },
           "campaign_verifier_epoch": {
             "not": {"required": ["verifier_assessment_basis"]}
           }
@@ -290,7 +295,7 @@
       "required": ["schema_version", "classification", "admission_status", "verification_status", "campaign_id", "campaign_path", "campaign_lock_sha256", "wal_sha256", "policy_sha256", "attempt_receipt_sha256s", "validator", "overlay"],
       "properties": {
         "schema_version": {"const": "campaign-artifact-admission-decision/v1"},
-        "classification": {"enum": ["admitted-new-schema", "historical-pre-admission-schema"]},
+        "classification": {"enum": ["admitted-new-schema", "historical-pre-admission-schema", "historical-policy-version"]},
         "admission_status": {"enum": ["admitted", "historical-not-reclassified"]},
         "verification_status": {"const": "not-evaluated-by-overlay"},
         "campaign_id": {"type": "string", "minLength": 1},
