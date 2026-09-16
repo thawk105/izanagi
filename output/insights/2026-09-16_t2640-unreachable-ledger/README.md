@@ -203,6 +203,14 @@ working tree へ展開せず、checkout / cherry-pick / script 実行はして�
 
 ## 裁定へ返す項目
 
-**`tools/check_branch_landed.py` の per-command 5 秒上限が本 repo 規模に合っていない。**
-30/30 が `assessment-timeout` で `indeterminate` になることを実測した。判定器は着地の有無を
-この repo では一切判定できない。[T-2639] の path 優先判定 (未 land) と同じ面である。
+1. **`tools/check_branch_landed.py` の per-command 5 秒上限が本 repo 規模に合っていない。**
+   30/30 が `assessment-timeout` で `indeterminate` になることを実測した。判定器は着地の有無を
+   この repo では一切判定できない。[T-2639] の path 優先判定 (未 land) と同じ面である。
+2. **`--ledger-check` は entry を書くのに要る field を出さない。** 本台帳は
+   `check_branch_rescue.py` を「追記候補と判断材料を JSON へ出す」と説明するが、`--ledger-check`
+   単独で出るのは未記帳 OID と通知だけである。`storage_kind` / `object_mtime` /
+   `loss_possible_not_before` / `lower_bound_basis` / `assessment_*` を算出する
+   `_retention` と `_landed_assessment` は、削除候補がある preview mode でしか走らない
+   (`--branch` / `--retire-worktree` が無いと `deletion_loss_closure` が空になる)。
+   本 wave は job dir の一回限りのコードで代替した。次に記帳する者も同じ壁に当たる。
+   説明と実挙動のどちらへ寄せるかは決めていない。

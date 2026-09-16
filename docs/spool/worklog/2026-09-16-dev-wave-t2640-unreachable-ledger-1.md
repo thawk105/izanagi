@@ -61,3 +61,10 @@ title: [T-2640] 未記帳の到達不能 commit 30 件を記帳し全件を救�
   `--timeout-seconds` は全体予算で per-command ではないため CLI から変えられない。判定器は
   着地の有無をこの repo で 1 件も判定できていない。定数を上げると verdict の受理集合が変わるので、
   上げる前に何を受理するかを決める必要がある。
+- {{T:ledger-check-emits-no-entry-fields}} **P3・新規**: `docs/unreachable-object-ledger.md` は
+  `check_branch_rescue.py` を「追記候補と判断材料を JSON へ出す」と説明するが、`--ledger-check`
+  単独で出るのは未記帳 OID と通知だけで、entry を書くのに要る 26 field のうち
+  `storage_kind` / `object_mtime` / `loss_possible_not_before` / `lower_bound_basis` /
+  `assessment_*` は出ない。これらを算出する `_retention` / `_landed_assessment` は削除候補が
+  ある preview mode でしか走らないためである。本 wave は job dir の一回限りのコードで代替したが、
+  次に記帳する者も同じ壁に当たる。説明と実挙動のどちらへ寄せるかは未決。
