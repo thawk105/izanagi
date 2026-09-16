@@ -99,13 +99,12 @@ YCSB=✓: silo, tictoc, mocc, cicada, ermia, si, oze (7)。YCSB=—: ss2pl, mvto
 | `WAL` | silo (+ss2pl driver) | other (durability) | 0 | commit 時に write-ahead log。perf コスト | `cc/silo/transaction.cc:516`, `*_silo.cc` |
 
 **死にフラグ (この fork では `#if` ガード無し = トグルしても同一バイナリ。探索空間から除外):**
-- `NO_WAIT_OF_TICTOC` … 宣言・出力のみ、挙動 `#if` 無し。
 - `PARTITION_TABLE` … `ShowOptParameters()` の print のみ (`cc/silo/util.cc:167` 等)、挙動分岐ゼロ。
 - `PROCEDURE_SORT` (silo) … print のみ。意図 (キー順アクセス) は実際には `KEY_SORT` だけが実装、しかも silo はそれを渡していない。
 - `SLEEP_READ_PHASE`, `WORKER1_INSERT_DELAY_RPHASE`, `INSERT_{READ,BATCH}_DELAY_MS` … 実験/計測撹乱ノブであり最適化ではない。perf では OFF 固定。`DEBUG_MSG`(oze)/`ADD_ANALYSIS` は instrumentation (§5)。
 
 **相互排他 / 依存 (探索の制約として符号化する):**
-- `NO_WAIT_LOCKING_IN_VALIDATION` XOR `NO_WAIT_OF_TICTOC` (同一 `#if`/`#elif`)
+- `NO_WAIT_LOCKING_IN_VALIDATION` / `NO_WAIT_OF_TICTOC` (同一 `#if`/`#elif`): silo は XOR (両 1 は冗長、両 0 は livelock)。tictoc は両 1 だけを除く (両 0 は lock word を再読込して待つので生きている、D1418)
 - `DLR0` XOR `DLR1` (ss2pl、既定で DLR1 のみ build)、`RWLOCK` XOR `MQLOCK` (mocc、既定 RWLOCK のみ)
 - `INLINE_VERSION_PROMOTION` は `INLINE_VERSION_OPT` に hard 依存 (cicada 既定では `INLINE_VERSION_OPT_CICADA=0` なので両者 default で no-op)
 - `RWLOCK`(mocc)/`DLR1`(ss2pl) は CACHE entry 無しの bare define で CMakeLists にハードコード → `-DCCBENCH_*` で直交トグルできない (protocol 固有として扱う。off 分岐 `#else/#elif` はソースに存在するので、探索したいなら CMakeLists 編集が要る)。
@@ -123,7 +122,7 @@ YCSB=✓: silo, tictoc, mocc, cicada, ermia, si, oze (7)。YCSB=—: ss2pl, mvto
 - **[C] version-lifetime:** ⑦ timestamp history / version reuse / GC (`TIMESTAMP_HISTORY`, `REUSE_VERSION`, `SINGLE_EXEC`, `WRITE_LATEST_ONLY`)
 
 **探索空間サイズ (生きた最適化フラグのみ、全て on/off):**
-cicada 2^6=64、oze 2^7=128、silo 2^4=16、tictoc 2^4=16、mocc 2^3=8、ss2pl 4、ermia 4、si 4、d2pl 4、mvto 2 ≈ **250 個の最適化バイナリ** (この一覧の単純和。× protocol ごとの workload 数)。純粋なブール超立方体 (KEY_SIZE/VAL_SIZE は sizing で固定)。**初手の全探索が現実的** (roadmap §2 (a) の前提が確定)。mocc の軸は `TEMPERATURE_RESET_OPT`・`KEY_SORT`・全 protocol 共通の `BACK_OFF` の 3 つ — `RWLOCK` は bare define で cache option から操作できないため、ss2pl の `DLR1` と同様に数えない (2026-09-14 訂正、旧記載は `RWLOCK` を数えて 2^4=16 としていた)。実体化済み軸集合の正本は `orchestrator/campaign/genome.py` で、silo と mocc はこの数と一致する。tictoc・cicada の項は同 file の登録軸と食い違うが、未検証のまま残す。
+cicada 2^5=32、oze 2^7=128、silo 2^4=16、tictoc 2^5=32、mocc 2^3=8、ss2pl 4、ermia 4、si 4、d2pl 4、mvto 2 ≈ **234 個の最適化バイナリ** (この一覧の単純和。× protocol ごとの workload 数)。純粋なブール超立方体 (KEY_SIZE/VAL_SIZE は sizing で固定)。**初手の全探索が現実的** (roadmap §2 (a) の前提が確定)。mocc の軸は `TEMPERATURE_RESET_OPT`・`KEY_SORT`・全 protocol 共通の `BACK_OFF` の 3 つ — `RWLOCK` は bare define で cache option から操作できないため、ss2pl の `DLR1` と同様に数えない (2026-09-14 訂正、旧記載は `RWLOCK` を数えて 2^4=16 としていた)。tictoc の軸は `BACK_OFF`・`NO_WAIT_LOCKING_IN_VALIDATION`・`NO_WAIT_OF_TICTOC`・`PREEMPTIVE_ABORTS`・`TIMESTAMP_HISTORY` の 5 つ。cicada の軸は `BACK_OFF`・`INLINE_VERSION_OPT`・`INLINE_VERSION_PROMOTION`・`REUSE_VERSION`・`WRITE_LATEST_ONLY` の 5 つで、`SINGLE_EXEC` は多版を単版へ変えて測る対象そのものを変えるため数えない (D1419)。どの軸もソースでは `#if` か真偽式でしか使われず、候補は 0/1 の 2 値である。軸間の制約を掛けた有効数は両者とも 24 — tictoc は no-wait の両 1 (`#elif` が dead code になり (1,0) と同一) を除く (D1418)。cicada は `INLINE_VERSION_PROMOTION` の作用点 2 箇所がいずれも `#if INLINE_VERSION_OPT` の内側にあるため (OPT, PROMOTION)=(0,1) を除く (2026-09-16 訂正、旧記載は tictoc 2^4=16・cicada 2^6=64・合計 ≈250 とし、死にフラグ一覧に `NO_WAIT_OF_TICTOC` を挙げていた)。実体化済み軸集合の正本は `orchestrator/campaign/genome.py` で、silo・mocc・tictoc・cicada はこの数と一致する。
 
 **正しさに影響する (= verifier 必須通過) フラグ:** `SINGLE_EXEC` (MVCC→単版退化)、`WRITE_LATEST_ONLY` (版配置制約)、`MERGE_ON_READ` (cycle 検出タイミング)。これらをトグルしたら必ず verifier を通す。
 
