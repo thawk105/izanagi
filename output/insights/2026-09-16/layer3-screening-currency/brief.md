@@ -1,7 +1,7 @@
-# [T-2671] 段 1 brief — 層3 の bench-first screening 対応の現況確定 (論文ストーリー §8 B-9)
+# 段 1 brief — 層3 の bench-first screening 対応の現況確定 (論文ストーリー §8 B-9)
 
 **基準 commit:** `262c2993eae89f452dcea35fc61f97e41a689e8e` (local main tip)
-**worktree:** `.claude/worktrees/dev-wave-t2671-layer3-screening`
+**worktree:** `.claude/worktrees/dev-wave-t2671-layer3-screening` (branch は段 6 で `worktree-dev-wave-layer3-screening-currency` へ改名)
 **日付:** 2026-09-16
 
 ## 研究前進
@@ -46,8 +46,11 @@ tracked で存在し双射検査を通っていること、(2) その射影完�
   の 4 点へ広げ、**それぞれに落とすと赤になる負例を対で置く**。
 - **S3.** docs 現況化 (親)。`docs/phase3.md` の層3 項 (「bench-first screening campaign は対象外のまま」)
   を現況へ。`docs/paper-story/README.md` の stale 注記へ 1 項積む。
-- **S4.** 起票。**[T-2671]** = 本 wave 本体。**[T-2672]** = (c) 機序仮説層 v3 (発効条件付き)。
+- **S4.** 起票。本 wave 本体と (c) 機序仮説層 v3 (発効条件付き) を起こす。
   (b) は既存 [T-326] を指すだけで新規起票しない。
+  **(段 6 で訂正)** 起草時は 2 つへ具体的な T 番号を割り当てていたが、これは誤りだった。
+  採番は `docs/spool/` の `{{T:slug}}` による遅延採番で、fold が land の lock 内で行う。
+  正本は `s6-adjudication.md` の「採番方式の訂正」。
 - **S5.** insight に着手順と残件を残す。
 
 ## scope 外 (実装しない)
@@ -81,8 +84,11 @@ tracked で存在し双射検査を通っていること、(2) その射影完�
   任意の screening campaign について完全とは**主張しない** (DW-G03 の族一般化はしない)。
 - **(P3)** [T-326] の裁定射程は `layer3_report` 本体の**検査強度**であり、既存挙動を変えない
   test 追加はその射程外である。→ 反例: 追加 test が実質的に本体の受理集合を狭めるなら射程内。
-- **(P4)** T-2671 / T-2672 の採番は、稼働中の別 wave (`dev-wave-t2670-b7-three-run-materials`) が
-  T-2670 を未 land で使っているため 1 つずらした。段 7 直前に再走査する (D70)。
+- **(P4)** 起票する 2 件の採番は、稼働中の別 wave が近い番号を未 land で使っているため 1 つずらした。
+  段 7 直前に再走査する (D70)。
+  → **段 6 で覆された。** 番号を親が決めること自体が誤りで、`{{T:slug}}` の遅延採番を使う。
+  wave slug と branch 名にも未採番の T 番号を使わない (`docs/spool/worklog/README.md`)。
+  branch と insight dir は段 6 で改名した。
 
 ## 変更面 (実アンカー)
 
@@ -94,7 +100,7 @@ tracked で存在し双射検査を通っていること、(2) その射影完�
 | A4 | `docs/phase3.md` 層3 項 (664 行付近) | 「対象外のまま」を現況へ | 親 |
 | A5 | `docs/paper-story/README.md` stale 注記 (68 行節) | 1 項積む | 親 |
 | A6 | `docs/spool/` fragment | worklog / decisions | 親 |
-| A7 | `output/insights/2026-09-16/t2671-layer3-screening/` | brief・相談・残件 | 親 |
+| A7 | `output/insights/2026-09-16/layer3-screening-currency/` | brief・相談・残件 | 親 |
 
 **触らない:** `orchestrator/campaign/layer3_report.py`、`orchestrator/campaign/layer3_schema.json`、
 既存 7 件の `reports/layer3_report.json`、`docs/paper-story/2026-*.md`、`docs/paper-story/claim-evidence/`。

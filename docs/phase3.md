@@ -661,8 +661,19 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    2026-07-16 消化 (renderer 15d9e7c + 実レポート 24202e2)。同日 v2 で対象拡大: loop_state 非
    保持の sweep campaign 対応 (whiteboard_provenance)、floor の workload 込み within/between
    二種照合、abort stage 射影を追加し、p3-s8a-trigger-sweep 系 6 campaign の実レポートを生成
-   した。bench-first screening campaign (D58 の `screening` payload) は対象外のまま (拡張時は
-   schema 再凍結)。機序仮説層の原料配線は
+   した。**bench-first screening campaign (D58 の `screening` payload) は 2026-08-25 に
+   対象へ入った** — schema を 2 段で広げ (`screening` / `screening_disabled` を排他制約つき
+   optional property として追加、`settled` を boolean と null の 2 型へ拡張)、`schema_version` は
+   D828 に従い据え置いた。renderer は変えていない。名指しの実 artifact
+   `backoff-sweep-silo-read-heavy-sweep-6f169f90` が双射検査を通って描画でき、2026-09-16 に
+   その材料レポートを保存した。**これは歴史閲覧用途の非 certifying 材料で、現行の認証適合は
+   `unknown` である** (`admission_decision.admission_status` = `historical-not-reclassified`、
+   `admission_decision.classification` = `historical-pre-admission-schema`、
+   `certifying_input` = `false`、verifier epoch = `E0`)。
+   **任意の screening campaign について完全とは主張しない。**
+   既存 7 件の trigger 系 (sweep 6 件・loop 1 件) は D170 により `legacy-unclassified` で
+   現行 producer では再生成できない。生成当時に成立した双射は歴史的事実として残る。
+   経緯は `output/insights/2026-09-16/layer3-screening-currency/` を正本とする。機序仮説層の原料配線は
    `output/insights/2026-07-16_layer3-mechanism-wiring-design.md` に設計を凍結し、実装は v3
    (次の loop 再走と同時) に繰延。以下は当初仕様の正本:
    WAL/proof chain から次を決定論的に結ぶ renderer を作る:
