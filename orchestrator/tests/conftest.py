@@ -873,14 +873,14 @@ _ORACLE_ENVIRONMENT_MEMO_ENV_UNSET = object()
 _MEMO_PREWARM_TIMING = threading.local()
 
 
-def _prewarm_receipt_memo(config, nodeids, *, run_id: str | None) -> None:
-    """consumer がある controller/serial collection だけを一度 prewarm する。"""
+def _prewarm_receipt_memo(config, nodeids, *, run_id: str | None, early: bool = False) -> None:
+    """Prewarm once for collected consumers or an explicitly selected early job."""
     # pytest_collection_finish の外側 guard と意図的に冗長な defense-in-depth。
     # worker payer は両 guard が同時に失われない限り再発しない。
     if hasattr(config, "workerinput"):
         return
     nodeids = tuple(nodeids)
-    if not _receipt_memo_prewarm_prerequisites(config, nodeids):
+    if not early and not _receipt_memo_prewarm_prerequisites(config, nodeids):
         return
     if getattr(config, _RECEIPT_MEMO_PREWARMED_ATTR, False):
         previous = getattr(config, _RECEIPT_MEMO_RUN_ID_ATTR, None)
@@ -930,14 +930,14 @@ def _receipt_memo_consumer_selected(nodeids) -> bool:
     )
 
 
-def _prewarm_oracle_environment_memo(config, nodeids, *, run_id: str | None) -> None:
+def _prewarm_oracle_environment_memo(config, nodeids, *, run_id: str | None, early: bool = False) -> None:
     """Prewarm the oracle environment once before any consumer is scheduled."""
     # Keep the guard inside the helper as well as at each hook call site.  A
     # worker must never become a resolver payer through a hook refactor.
     if hasattr(config, "workerinput"):
         return
     nodeids = tuple(nodeids)
-    if not _oracle_environment_memo_prewarm_prerequisites(config, nodeids):
+    if not early and not _oracle_environment_memo_prewarm_prerequisites(config, nodeids):
         return
     if getattr(config, _ORACLE_ENVIRONMENT_MEMO_PREWARMED_ATTR, False):
         previous = getattr(config, _ORACLE_ENVIRONMENT_MEMO_RUN_ID_ATTR, None)
@@ -2239,6 +2239,139 @@ def pytest_runtest_protocol(item, nextitem):
             return (yield)
 
 
+_EARLY_MEMO_JOB_ATTR = "_izanagi_early_memo_job"
+_EARLY_MEMO_INPUT_KEY = "izanagi_early_memo_paths"
+_EARLY_MEMO_NARROWING_OPTIONS = (
+    "keyword", "markexpr", "deselect", "lf", "ff", "last_failed",
+    "ignore", "ignore_glob", "pyargs",
+)
+
+
+def _early_memo_selected(config) -> bool:
+    """Parsed options include ini/addopts and environment selectors."""
+    if (
+        hasattr(config, "workerinput")
+        or getattr(config, "_izanagi_acceptance_shard_spec", None) is None
+    ):
+        return False
+    option = getattr(config, "option", None)
+    if option is None or getattr(option, "collectonly", False):
+        return False
+    if any(getattr(option, name, False) for name in _EARLY_MEMO_NARROWING_OPTIONS):
+        return False
+    return _is_un_narrowed_flaky_hold_collection(config)
+
+
+def _start_early_memo_job(node) -> None:
+    config = node.config
+    job = getattr(config, _EARLY_MEMO_JOB_ATTR, None)
+    if job is None:
+        run_id = node.workerinput.get("testrunuid")
+        if run_id is None:
+            raise pytest.UsageError("early memo prewarm に testrunuid が無い")
+        modules = (_receipt_memo_module(), _oracle_environment_memo_module())
+        sessions = (
+            getattr(config, _RECEIPT_MEMO_SESSION_ID_ATTR),
+            getattr(config, _ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR),
+        )
+        paths = []
+        for module, session in zip(modules, sessions):
+            head = module._repo_head()
+            if head is None:
+                raise pytest.UsageError("early memo cache HEAD が無い")
+            path = module._session_cache_path(
+                run_id=run_id, head=head, session_id=session,
+            )
+            if path is None:
+                raise pytest.UsageError("early memo cache path が無い")
+            paths.append(path)
+        job = {"paths": tuple(map(str, paths)), "error": None, "thread": None,
+               "run_id": run_id}
+        # Publish every pending marker before any writer thread can start.
+        created = []
+        try:
+            for path in paths:
+                pending = path.with_name(f"{path.name}.pending")
+                with pending.open("x"):
+                    pass
+                created.append(pending)
+        except BaseException:
+            for pending in created:
+                pending.replace(pending.with_suffix(".failed"))
+            raise
+        setattr(config, _EARLY_MEMO_JOB_ATTR, job)
+
+        def endpoint(index, prewarm):
+            path = paths[index]
+            pending = path.with_name(f"{path.name}.pending")
+            try:
+                prewarm(config, (), run_id=run_id, early=True)
+                # Includes resolver, atomic store, unlock/close and repo-lock exit.
+                pending.unlink()
+            except BaseException:
+                pending.replace(path.with_name(f"{path.name}.failed"))
+                raise
+
+        def run():
+            try:
+                _run_memo_prewarm_barrier(
+                    lambda: endpoint(0, _prewarm_receipt_memo),
+                    lambda: endpoint(1, _prewarm_oracle_environment_memo),
+                    hook="configure_node",
+                )
+            except BaseException as exc:
+                job["error"] = exc
+                # Also covers thread startup failures before an endpoint ran.
+                for path in paths:
+                    pending = path.with_name(f"{path.name}.pending")
+                    if pending.exists():
+                        pending.replace(path.with_name(f"{path.name}.failed"))
+
+        thread = threading.Thread(target=run, daemon=False)
+        try:
+            thread.start()
+        except BaseException as exc:
+            job["error"] = exc
+            for path in paths:
+                path.with_name(f"{path.name}.pending").replace(
+                    path.with_name(f"{path.name}.failed"),
+                )
+            raise
+        job["thread"] = thread
+    if node.workerinput.get("testrunuid") != job["run_id"]:
+        raise pytest.UsageError("early memo prewarm の run ID が worker 間で不一致")
+    node.workerinput[_EARLY_MEMO_INPUT_KEY] = job["paths"]
+
+
+def _wait_early_memo_job(config) -> None:
+    workerinput = getattr(config, "workerinput", {})
+    if _EARLY_MEMO_INPUT_KEY not in workerinput:
+        return
+    paths = workerinput[_EARLY_MEMO_INPUT_KEY]
+    if not isinstance(paths, (list, tuple)) or len(paths) != 2 or any(
+        not isinstance(path, str) or not path for path in paths
+    ):
+        raise pytest.UsageError("early memo job identity が不正")
+    receipt = _receipt_memo_module()
+    oracle = _oracle_environment_memo_module()
+    # One shared budget for both memos; no resolver capability is exercised.
+    deadline = time.monotonic() + min(
+        receipt._EARLY_WAIT_TIMEOUT_S, oracle._EARLY_WAIT_TIMEOUT_S,
+    )
+    receipt._make_receipt_memo().get(early_job=paths[0], deadline=deadline)
+    oracle._make_oracle_environment_memo().get(early_job=paths[1], deadline=deadline)
+
+
+def _finish_early_memo_job(config) -> None:
+    job = getattr(config, _EARLY_MEMO_JOB_ATTR, None)
+    if job is None:
+        return
+    if job["thread"] is not None:
+        job["thread"].join()
+    if job["error"] is not None:
+        raise job["error"]
+
+
 def _run_memo_prewarm_barrier(receipt, oracle, *, hook: str) -> None:
     """Join both non-daemon jobs before returning or propagating either failure."""
     durations = [None, None]
@@ -2311,6 +2444,7 @@ def pytest_collection_finish(session) -> None:
                 run_id=None,
             )
 
+    _wait_early_memo_job(session.config)
     _run_memo_prewarm_barrier(receipt, oracle, hook="collection_finish")
     if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
         return
@@ -2353,6 +2487,8 @@ def pytest_configure_node(node) -> None:
                 "oracle environment memo controller session nonce が無い"
             )
         workerinput[_ORACLE_ENVIRONMENT_MEMO_SESSION_ID_ATTR] = oracle_session_id
+    if _early_memo_selected(node.config):
+        _start_early_memo_job(node)
 
 
 @pytest.hookimpl(optionalhook=True)
@@ -2419,9 +2555,10 @@ def pytest_xdist_node_collection_finished(node, ids) -> None:
             if run_id_available:
                 _prewarm_oracle_environment_memo(node.config, ids, run_id=run_id)
 
-    _run_memo_prewarm_barrier(
-        receipt, oracle, hook="xdist_node_collection_finished",
-    )
+    if getattr(node.config, _EARLY_MEMO_JOB_ATTR, None) is None:
+        _run_memo_prewarm_barrier(
+            receipt, oracle, hook="xdist_node_collection_finished",
+        )
     if not os.environ.get("IZANAGI_TASK_RUN_SIDECAR"):
         return
     try:
@@ -2705,7 +2842,7 @@ def _finish_memo_sessions(config, *, suppress_errors: bool) -> None:
     """Finish receipt and oracle sessions independently, preserving first error."""
     first_error: BaseException | None = None
     first_traceback = None
-    for finish in (_finish_receipt_memo_session, _finish_oracle_environment_memo_session):
+    for finish in (_finish_early_memo_job, _finish_receipt_memo_session, _finish_oracle_environment_memo_session):
         try:
             finish(config)
         except BaseException as exc:
@@ -3130,9 +3267,13 @@ def pytest_unconfigure(config):
         try:
             if unmark_pytest_session_enforcing is not None:
                 unmark_pytest_session_enforcing(config)
-            _finish_memo_sessions(
-                config, suppress_errors=inner_exception is not None,
-            )
+            memo_cleanup_exception = None
+            try:
+                _finish_memo_sessions(
+                    config, suppress_errors=inner_exception is not None,
+                )
+            except BaseException as exc:
+                memo_cleanup_exception = exc
             stashed = tuple(_FAILURE_REPORTS)
             _FAILURE_REPORTS.clear()
             # finally 内で return すると inner hook の例外を StopIteration で消すため、
@@ -3155,6 +3296,8 @@ def pytest_unconfigure(config):
                         _emit_failure_digest(stashed)
                     except BaseException:
                         pass
+            if memo_cleanup_exception is not None:
+                raise memo_cleanup_exception
         except BaseException as exc:
             cleanup_exception = exc
             raise
