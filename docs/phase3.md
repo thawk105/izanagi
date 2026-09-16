@@ -532,12 +532,22 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
        `orchestrator/campaign/axis_trigger_gating.py`・`auditor_gate.py`・`p3_s4_loop_trigger_gating.py`
    - **(8b 着手済み — 現在地・着手順は現行チェックポイントが正本) workload 次元のループ入力化 (次の主経路)** — 「ワークロード特化」のシステム主張に必須。
      - [x] [T-2515] rr5/rr95 の較正投入対応と条件関門の interpreter 修正、既存失敗実測を回収。
-       accepted calibration の取得自体は未完。正本 = `output/insights/2026-09-10/t2515-rr95-rr5-calibration/README.md`。
+       accepted calibration の取得自体は当時未完 (rr5 は 2026-09-16 に取得。下の T-2515 の項)。
+       正本 = `output/insights/2026-09-10/t2515-rr95-rr5-calibration/README.md`。
      - [x] [T-2534] D1936 項 6 に従い、供給されていない BACKOFF_FIXED=-1 の configure argv と
        専用条件関門を同時に取り下げた。rr95 は accepted calibration を取得
        (`output/env/pegasus/calibration/registered/calibration-5c836a22eff9ab40.json`)。
        rr5 は cache floor による `selection-invalid` で未取得のまま、迂回せず裁定へ返した。
        正本 = `output/insights/2026-09-13/t2515-t2534-backoff-withdraw/README.md`。
+     - [x] [T-2515] write-heavy (rr5) の accepted calibration を取得し、t48 / pegasus の
+       3 workload セル (rr5 / rr50 / rr95) が揃った
+       (`output/env/pegasus/calibration/registered/calibration-2b7ba072b88023ae.json`、
+       silo / request `478.nqsv`、records 2,000,000、採用点 LLC miss 1.567%、within-run CV 0.97%)。
+       D1986 項 1 の裁定を実装した D2026 の選択規則が着地した後に走らせ直した結果であり、
+       cache floor 0.50% は動いていない。2026-09-14 の却下記録
+       (`output/env/pegasus/calibration/attempts/0_995806.nqsv/`) は却下のまま残している。
+       非 silo の rr5 は未取得 (T-2224 の残件)。
+       正本 = `output/insights/2026-09-16/t2515-rr5-calibration/README.md`。
      - [x] 認定較正jobの3依存コピー並行化を1対比較し、効果帰属不能として候補を全撤回。
        186→182秒だが未変更工程に3秒差、コピー周辺は約1秒のまま。時間式再凍結は未完。
        記録 = `output/insights/2026-09-11/t2563-calibration-runtime/README.md`。
