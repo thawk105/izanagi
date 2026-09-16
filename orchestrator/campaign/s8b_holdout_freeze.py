@@ -1374,23 +1374,35 @@ def _project_floor_for_freeze(
 
 def _validate_floor_inputs(
     *, root: Path, head: str, floor_result_path, v1: Mapping,
-) -> Tuple[str, bytes, Dict, bytes, Dict, Dict, Dict]:
+) -> Tuple[str, bytes, Dict, bytes, Dict, Dict, Dict, str]:
     # v1 API の import・実行境界を v2 専用依存の import-time validation や
     # process-wide callback 登録から分離する。
     from . import env_contract
     from . import s8b_floor_contract
     from . import s8b_floor_stats
+    from . import s8b_floor_campaign as _floor_campaign
     from . import s8b_binary_admission
     from ..calibrator import perf_preflight as _perf_preflight
     from .s8b_holdout_admission import FloorHoldoutEvidenceError
     from .build_admission import resolve_current_build_admission_policy
     from .s8b_launch_cert import LaunchCertError, parse_official_run_path
 
+    # D460 型: caller に選ばせず index authority で解決する。
+    # 固定 path は index の anchor として残る。
+    try:
+        protocol_record = _floor_campaign.resolve_current_floor_protocol(root=root)
+    except _floor_campaign.FloorCampaignError as exc:
+        raise FreezeError(
+            f"floor protocol を index authority で解決できない: {exc}"
+        ) from exc
+    protocol_rel = protocol_record.path
+    if protocol_record.commit_oid != head:
+        raise FreezeError("floor protocol index record が captured HEAD と不一致")
     protocol_raw = _capture_regular_nofollow(
-        root / FLOOR_PROTOCOL_REL, label="floor protocol",
+        root / protocol_rel, label="floor protocol",
     )
     head_protocol_raw = _blob_at_head(
-        head, FLOOR_PROTOCOL_REL, root, label="floor protocol",
+        head, protocol_rel, root, label="floor protocol",
     )
     if protocol_raw != head_protocol_raw:
         raise FreezeError(
@@ -1466,7 +1478,7 @@ def _validate_floor_inputs(
     if result.get("freeze_sha256") != t080_freeze_migration.HOLDOUT_RAW_SHA256:
         raise FreezeError("floor result.freeze_sha256 が固定 v1 hash と不一致")
     if result.get("protocol_sha256") != protocol_sha256:
-        raise FreezeError("floor result.protocol_sha256 が固定 protocol hash と不一致")
+        raise FreezeError("floor result.protocol_sha256 が解決した protocol hash と不一致")
     if (result.get("env_tag") != protocol["env_tag"]
             or path_info["env_tag"] != protocol["env_tag"]):
         raise FreezeError("floor result/protocol/path の env_tag が不一致")
@@ -1659,7 +1671,7 @@ def _validate_floor_inputs(
     )
     return (
         result_rel, result_raw, result, protocol_raw, protocol,
-        floor, path_info,
+        floor, path_info, protocol_rel,
     )
 
 
@@ -1976,7 +1988,7 @@ def _assert_floor_selection_identity(
 
 
 def _measurement_closure(
-    *, root: Path, head: str, floor_result_rel: str,
+    *, root: Path, head: str, floor_result_rel: str, floor_protocol_rel: str,
 ) -> list[Dict[str, str]]:
     report = search_repository(root)
     hits = set()
@@ -1989,6 +2001,7 @@ def _measurement_closure(
     run_dir = floor_result_rel.rsplit("/", 1)[0]
     dedicated = {
         FLOOR_PROTOCOL_REL,
+        floor_protocol_rel,
         V2_CANDIDATE_REL,
         floor_result_rel,
         f"{run_dir}/manifest.json",
@@ -2058,7 +2071,7 @@ def build_v2_g1_candidate(
 
     (
         result_rel, result_raw, _result, protocol_raw, protocol, floor,
-        path_info,
+        path_info, protocol_rel,
     ) = _validate_floor_inputs(
         root=root, head=head, floor_result_path=floor_result_path, v1=v1,
     )
@@ -2079,6 +2092,7 @@ def build_v2_g1_candidate(
     )
     closure = _measurement_closure(
         root=root, head=head, floor_result_rel=result_rel,
+        floor_protocol_rel=protocol_rel,
     )
 
     document = copy.deepcopy(v1)
@@ -2097,7 +2111,7 @@ def build_v2_g1_candidate(
         "supersedes_sha256": v1_sha256,
         "env_tag": protocol["env_tag"],
         "floor_protocol": {
-            "path": FLOOR_PROTOCOL_REL,
+            "path": protocol_rel,
             "sha256": _sha256_bytes(protocol_raw),
         },
         "floor_source": {
