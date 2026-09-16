@@ -1,0 +1,139 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        if not effective_clock_comparison_passes(expected_clock, observed_clock):\n            reasons.append(\"effective-clock-pre-post-comparison-failed\")",
+          "new": "        if False:\n            reasons.append(\"effective-clock-pre-post-comparison-failed\")"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        expected_clock = {\n            \"samples_mhz\": profile[\"effective_clock\"][\"samples_mhz\"],\n            \"tolerance_pct\": profile[\"effective_clock\"][\"tolerance_pct\"],\n        }\n        observed_clock = {\n            \"samples_mhz\": static_post[\"effective_clock\"][\"samples_mhz\"],\n        }",
+          "new": "        expected_clock = {\n            \"samples_mhz\": static_post[\"effective_clock\"][\"samples_mhz\"],\n            \"tolerance_pct\": profile[\"effective_clock\"][\"tolerance_pct\"],\n        }\n        observed_clock = {\n            \"samples_mhz\": profile[\"effective_clock\"][\"samples_mhz\"],\n        }"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        observed_clock = {\n            \"samples_mhz\": static_post[\"effective_clock\"][\"samples_mhz\"],\n        }",
+          "new": "        observed_clock = {\n            \"samples_mhz\": profile[\"effective_clock\"][\"samples_mhz\"],\n        }"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        expected_clock = {\n            \"samples_mhz\": profile[\"effective_clock\"][\"samples_mhz\"],",
+          "new": "        expected_clock = {\n            \"samples_mhz\": static_pre[\"effective_clock\"][\"samples_mhz\"],"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        if not effective_clock_comparison_passes(expected_clock, observed_clock):",
+          "new": "        if not effective_clock_comparison_diagnostics(expected_clock, observed_clock)[\"band_pass\"]:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "            reasons.append(\"effective-clock-pre-post-comparison-failed\")\n            _write_exclusive(",
+          "new": "            _write_exclusive("
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "            \"tolerance_pct\": profile[\"effective_clock\"][\"tolerance_pct\"],\n        }\n        observed_clock = {",
+          "new": "            \"tolerance_pct\": effective_clock_policy.EFFECTIVE_CLOCK_TOLERANCE_PCT,\n        }\n        observed_clock = {"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        expected_clock = {\n            \"samples_mhz\": profile[\"effective_clock\"][\"samples_mhz\"],\n            \"tolerance_pct\": profile[\"effective_clock\"][\"tolerance_pct\"],\n        }",
+          "new": "        status = \"accepted\" if not reasons else \"rejected\"\n        expected_clock = {\n            \"samples_mhz\": profile[\"effective_clock\"][\"samples_mhz\"],\n            \"tolerance_pct\": profile[\"effective_clock\"][\"tolerance_pct\"],\n        }"
+        },
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        status = \"accepted\" if not reasons else \"rejected\"\n        _, artifact = _assemble_v2(",
+          "new": "        _, artifact = _assemble_v2("
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        if not effective_clock_comparison_passes(expected_clock, observed_clock):\n            reasons.append(\"effective-clock-pre-post-comparison-failed\")",
+          "new": "        if True:\n            reasons.append(\"effective-clock-pre-post-comparison-failed\")"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
