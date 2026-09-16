@@ -64474,3 +64474,89 @@ family admission は supply 全件緑 + meaning 緑または unestablished で�
 - **検証器に tick 連続性検査を足す:** 受理形の変更であり、本題の接続の外。phase1 (排他 + wait) では閉路が消えて
   同じ signature で再出現する経路が構成できないことを論証で担保した。
 - **counter を実更新時に同期する:** 本題の接続の外。watchdog から非 atomic な counter を無同期に読む設計を招く。
+
+## D2095. 軸 1 OpenAlex の窓ごとの取得を D1760 の打ち切り後にユーザー指示で再開し、2 走目の扱いは裁定パッケージへ返す (2026-09-17)
+
+**決定 (ユーザー直接指示、2026-09-17、`/dev-wave` 引数):** 無償枠の窓を使った軸 1 OpenAlex の
+継続取得を**再開する**。本決定は **D1760 の「以後の窓は回さない」を部分的に supersede** し、
+D1760 の次の射程はそのまま維持する。
+
+- 軸 1 の成熟度は `RW1` に据え置き、論文は世界の不在を主張しない (7.7.3 の制限は不変)。
+- 既存の生証拠 bundle、凍結実行記録、catalog、登録文書の bytes は変えない (D1208)。
+- 同じ登録 commit・同じ epoch を引き継ぐ (D1207)。送信 request は登録どおり匿名で、無料 API key も
+  web 検索も加えない (D1760 が却下した選択肢のまま)。
+- arXiv / DBLP へは本 epoch でまだ 1 request も出さない。
+
+**再開の順序は D1624 (中断 pass 1 の再開 → 未走 leaf の初回取得 → 独立 2 走目) を踏襲する。**
+打ち切り時点で裁定待ちだった `declared_total_drift` の 2 leaf は走らせず、裁定パッケージに載せる。
+
+**理由:**
+
+- 打ち切りはユーザー裁定であり、覆すのもユーザーの直接発話である。依頼は既存の継続項目を名指しし、
+  台帳側の主題照合 (D1836) が「既裁定 = 打ち切り」を指していた食い違いは、本決定を台帳へ置くことで
+  整合させる。中継ではなく直接発話なので、裁定文の裏取りは要らない。
+- 再開に要る実装差分はゼロで、費用は無償枠の窓だけである。D1760 が挙げた費用対効果の理由は、
+  ユーザーが窓を使うと決めた以上、本決定の前提ではない。
+
+**却下した選択肢:**
+
+- **新しい T を起こして再開する** — 4 窓目の記録の注記だが、依頼が既存項目を名指ししており、
+  同じ主題に 2 つの項目を立てる理由がない。
+- **D1760 を全面撤回する** — 打ち切りの射程のうち上に列挙した項目は依頼の範囲外であり、変えると
+  意味的 amendment (新 epoch・全枝の再実行) を伴う。
+
+**裁定パッケージ (本 wave の 5 窓目の取得結果を受けて、ユーザーへ返す設計択一):**
+
+1. **独立 2 走目を続けるか。** 12 日を隔てた 2 走目は 5 本とも `second_pass_digest_mismatch` で、
+   申告総数が同じ leaf でも ID が入れ替わり、順序も 5 本すべてで変わった。残る 2 走目待ち 53 本のうち
+   48 本は pass 1 が 9/5〜9/8 であり、同じ運命になる見込みが強い。選択肢は (a) 2 走目を止め、pass 1 の
+   証拠だけで「限定付きの未検出」の材料とする (完走条件は満たさないので `RW1` のまま)、(b) 続けて
+   不一致率を実測し尽くす (1 窓半の費用、得られるのは不一致の台帳)、(c) 完走条件の側 (同一集合の再現) を
+   契約改訂 (D1207: 意味的 amendment、新 epoch) で置き換える。親の推奨は (a)。
+2. **条件 5 (`distinct_work_id_total_mismatch`) と `declared_total_drift` の leaf の扱い。** 本窓で
+   頁境界を跨ぐ重複が通った leaf にも常態であることが分かり、通るか落ちるかは 1 件の押し出しが再出現するか
+   消えるかの差だった。落ちた leaf (`Q6-SY2021` / `SY2024`、`Q3-SY2025` / `SY2026`、`Q6-SY2014` / `SY2015`)
+   の扱いは D1564 / D1623 で現状維持 (据え置き) のまま。再取得を許すか、契約側で扱いを決めるかは 1. と
+   同じ包みで裁定する。親の推奨は据え置き。
+3. **未走 2 leaf (`Q6-SY2025` / `SY2026`) の初回取得。** 1 窓で収まる。1. の裁定に関係なく取得できる。
+
+## D2096. A-1 balanced5 sized の source 契約は pilot と別 file で束縛し、attempt を pin しない (2026-09-17)
+
+**決定:** sized 本走 (`paper-story-a1-20260901-balanced5-sized-v1`) の amended source 契約を
+`orchestrator/campaign/paper_story_a1_source.v2.json` (schema `paper-story-a1-source/v2`、11 key) として置き、
+module は study_id → (契約 path, sha256, source paths) の**固定 2 要素表**で pilot / sized を選ぶ。
+
+1. pilot の v1 契約 (`paper_story_a1_source.v1.json`) の bytes、pilot の source 閉包 (10+4 / 5+4 path、順序込み)、
+   `binding_matches` の既定判定、attempt-0004 の照合は変えない。pilot 公開受領証の判定は不変。
+2. v2 契約は sized policy・sized 事前登録・patch・canonical head・sized の source 追補 README
+   (`output/insights/2026-09-17/t2590-a1-sized-source-amendment/README.md`) を sha で束縛し、`attempt` key を持たない。
+   sized の attempt 名は driver で照合しない。
+3. hydrate 入力・依存 source の staging・source binding の生成・consumer の amended admission 発火を
+   「pilot か」から「amended source 契約を持つ study か」へ置換する。`_trace0_commands_match` (configure argv の
+   受理形) は変えない。
+4. `_v3_group_intent` の pilot attempt-0004 条件は既存受領証の再構成に使われるため残し、sized は全 attempt で
+   契約検算と hydrate を必須にする。
+5. 登録 API・3 study 目の枠組み・bytes 級同一性検査・新 gate は作らない (D1986 前文、D1323)。
+6. 受理集合の変化を記録する: 契約なし sized binding (5 / 10 path) は拒否へ、v2 契約入り sized binding
+   (9 / 14 path、digest 一致) は受理へ、hydrate なし sized submit は拒否へ、登録条件を満たす sized measurement は
+   全拒否から進行可能へ。pilot は不変。
+
+**理由:**
+
+- v1 契約の sha は pilot attempt-0004 の公開 source binding が `binding_matches` で照合する live pin である。
+  v1 を書き換えると pilot の公開済み受領証の再検証が落ちる。sized は別 file で束縛するしかない。
+- pilot の attempt pin は「走行中の study の attempt-0004 から追補を適用した」経緯の産物で、sized には追補前の
+  attempt が存在しない。契約が束縛するのは source (pin + 指定 patch) であって attempt ではない。bench 前の
+  infra 失敗のたびに契約版を切る形は、pilot の attempt 1〜3 の経験に照らして採らない。
+- 4 点は 1 箇所の限定解除では足りない (D1973 却下案)。段 3 の敵対相談 2 本が、pilot 履歴 binding の互換・両契約
+  混入・hydrate の無検査経路のいずれも反例を構成できないことを現物で検算した。
+- T-2081 (D1323) は既存 5 境界 (submodule 直接の canonical pin + tracked-clean、build 直前の期待 materialization、
+  consumer) が study 非依存に sized を覆うことを test で示して閉じる。sized 専用の検査は足さない。
+
+**却下した選択肢:**
+
+- v1 契約 JSON に sized を追記する — pilot の live pin を壊す。
+- sized の attempt を `attempt-0001` に pin する — bench 前失敗のたびに契約版が要る。
+- pilot の T-2397 追補 README を sized の `amendment` に流用する — 同 README は pilot study と attempt-0004 に
+  自己限定している。
+- 汎用の契約登録簿を作る — D1986 前文の「汎用化を足さない」に当たる。

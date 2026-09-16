@@ -2240,8 +2240,8 @@ def _source_relative_paths(
         if is_v3 else
         SOURCE_RELATIVE_PATHS
     )
-    if _policy_study_id(policy) == V3_PILOT_STUDY_ID:
-        paths = (*paths, *a1_source.SOURCE_PATHS)
+    if _policy_study_id(policy) in a1_source.CONTRACTS:
+        paths = (*paths, *a1_source.CONTRACTS[_policy_study_id(policy)][2])
     policy_relative = _policy_relative_path(policy)
     return tuple(
         policy_relative if item == POLICY_RELATIVE_PATH else item
@@ -2633,8 +2633,10 @@ def _v3_group_intent(
         if (not _canonical_absolute_token(third_party_source_root)
                 or any(c in third_party_source_root for c in ",\n\r")):
             raise PaperStoryError("third-party source root must be canonical absolute qsub data")
-    if _policy_study_id(policy) == V3_PILOT_STUDY_ID and attempt.name == "attempt-0004":
-        a1_source.load_contract(repo_root)
+    if (_policy_study_id(policy) in a1_source.CONTRACTS
+            and (_policy_study_id(policy) == a1_source.SIZED_STUDY_ID
+                 or attempt.name == "attempt-0004")):
+        a1_source.load_contract(repo_root, _policy_study_id(policy))
         if third_party_source_root is None:
             raise PaperStoryError("attempt-0004 requires hydrated third-party source root")
     jobs = []
@@ -3406,9 +3408,9 @@ def run_submit(args) -> int:
     base = _durable_measurement_base(policy)
     attempt = _validate_attempt_root(Path(args.attempt_root), base)
     base.mkdir(parents=True, exist_ok=True)
-    if _policy_study_id(policy) == V3_PILOT_STUDY_ID:
-        source_contract = a1_source.load_contract(repo_root)
-        if attempt.name != source_contract["attempt"]:
+    if _policy_study_id(policy) in a1_source.CONTRACTS:
+        source_contract = a1_source.load_contract(repo_root, _policy_study_id(policy))
+        if _policy_study_id(policy) == V3_PILOT_STUDY_ID and attempt.name != source_contract["attempt"]:
             raise PaperStoryError("new pilot submission requires source amendment attempt-0004")
         supplied = getattr(args, "third_party_source_root", None)
         if supplied is None or not Path(supplied).is_dir():
@@ -4857,8 +4859,9 @@ def _validate_source_binding_for_paths(
             or _FULL_SHA256.fullmatch(item["working_sha256"]) is None
         ):
             return False
-    if a1_source.CONTRACT_PATH in relative_paths and not a1_source.binding_matches(files):
-        return False
+    for study_id, (contract_path, _, _) in a1_source.CONTRACTS.items():
+        if contract_path in relative_paths and not a1_source.binding_matches(files, study_id=study_id):
+            return False
     return (
         type(binding.get("measurement_source_commit")) is str
         and _FULL_OID.fullmatch(binding["measurement_source_commit"]) is not None
@@ -5216,7 +5219,7 @@ def _validate_arm(
         errors.append("build-admission-binding-mismatch")
 
     amended_source_root = None
-    if a1_source.CONTRACT_PATH in source_binding.get("files", {}):
+    if any(path in source_binding.get("files", {}) for path, _, _ in a1_source.CONTRACTS.values()):
         admission = start.get("build_admission", {})
         source = admission.get("source", {})
         amended_source_root = source.get("source_root")
@@ -7123,8 +7126,10 @@ def _run_measurement_v3(
     execution_options = _require_registered_execution_options(
         policy, workload, _campaign_execution_options(policy, workload),
     )
-    contract_source = a1_source.load_contract(repo_root)
-    if study_id != contract_source["study_id"] or attempt.name != contract_source["attempt"]:
+    contract_source = a1_source.load_contract(repo_root, study_id)
+    if study_id != contract_source["study_id"]:
+        raise PaperStoryError("A1 source amendment study differs")
+    if study_id == V3_PILOT_STUDY_ID and attempt.name != contract_source["attempt"]:
         raise PaperStoryError("A1 source amendment requires pilot attempt-0004")
     expected_hydrate = submission_intent["jobs"][ordinal]["qsub_options"]["variables"].get(
         "IZANAGI_A1_THIRD_PARTY_SOURCE_ROOT")
@@ -7134,7 +7139,7 @@ def _run_measurement_v3(
     prefix_parent = _dependency_prefix_components(dependency_prefix)[0].parent
     if staged_root != prefix_parent / "fetchcontent":
         raise PaperStoryError("third-party staged root differs from dependency scratch")
-    with a1_source.materialized(repo_root) as (source_context, stock_root):
+    with a1_source.materialized(repo_root, study_id=study_id) as (source_context, stock_root):
         dependency_options = a1_source.prepare_dependencies(
             root=staged_root, source=source_context.root,
             repo_root=repo_root, dependency_prefix=dependency_prefix,

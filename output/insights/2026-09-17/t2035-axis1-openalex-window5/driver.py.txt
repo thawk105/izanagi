@@ -1,0 +1,425 @@
+#!/usr/bin/env python3
+"""窓 5 の OpenAlex leaf 駆動 loop (使い捨て、repo 外で実行)。
+
+D1624 に従い、中断した pass 1、未走 leaf の初回取得、独立 2 走目の順に置く。
+重複除去は bundle の page / pass2 ledger 証拠で行い、checkpoint は
+leaf_query_id で照合する。判定は runner の返り値でなく stdout JSON の state で行う。
+--run-id は段 A の初回取得だけに効き、段 A0・段 B は checkpoint の argv を逐語で使う。
+"""
+
+import argparse
+import datetime
+import json
+import pathlib
+import re
+import subprocess
+import sys
+import time
+
+
+TREE = "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2035-axis1-openalex-window5/fetch-tree"
+JOB = pathlib.Path("/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2035-axis1-openalex-window5")
+BUNDLE = pathlib.Path("/work/1/SFC/tanab/axis1-bundles/2026-09-03-t2090-openalex/bundle")
+REGISTRATION_COMMIT = "4ec3eba04354f9ba86117a2dd488c72d007045e6"
+CATALOG = "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json"
+LEAF_ORDER = JOB / "materials" / "leaf-order.txt"
+JST = datetime.timezone(datetime.timedelta(hours=9))
+RUN_ID_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*\Z")
+IMMEDIATE_STOP_STATES = {"quota_reserve"}
+
+# 条件 5 または 2 走不一致で後継 checkpoint を持たない leaf。page 証拠でも外れるが、
+# 再取得を誤って計画しないよう段 A0・段 A・段 B のすべてで明示的に除外する。
+EXCLUDED_LEAVES = {
+    "AX1-20260902-E1-Q1@openalex",
+    "AX1-20260902-E1-Q4@openalex",
+    "AX1-20260902-E1-Q5@openalex",
+    "AX1-20260902-E1-Q3-SY1992@openalex",
+    "AX1-20260902-E1-Q3-SY2025@openalex",
+    "AX1-20260902-E1-Q3-SY2026@openalex",
+    "AX1-20260902-E1-Q6-SY2014@openalex",
+    "AX1-20260902-E1-Q6-SY2015@openalex",
+}
+
+
+def valid_run_id(value):
+    if RUN_ID_RE.fullmatch(value) is None:
+        raise argparse.ArgumentTypeError(
+            "run ID must match [A-Za-z0-9][A-Za-z0-9._-]*"
+        )
+    return value
+
+
+def nonnegative_int(value):
+    try:
+        number = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("must be an integer") from exc
+    if number < 0:
+        raise argparse.ArgumentTypeError("must be non-negative")
+    return number
+
+
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dry-run", action="store_true", help="print the plan only")
+    parser.add_argument(
+        "--run-id",
+        required=True,
+        type=valid_run_id,
+        help=(
+            "run ID for phase A only; phases A0 and B use each checkpoint's "
+            "argv verbatim"
+        ),
+    )
+    parser.add_argument("--stop-remaining", type=nonnegative_int, default=200)
+    parser.add_argument("--backoff-seconds", type=nonnegative_int, default=60)
+    parser.add_argument("--max-transient-retries", type=nonnegative_int, default=5)
+    return parser.parse_args(argv)
+
+
+def now_jst():
+    return datetime.datetime.now(JST).isoformat()
+
+
+def remaining():
+    with open(BUNDLE / "state" / "runtime.json", encoding="utf-8") as handle:
+        runtime = json.load(handle)
+    return runtime["quota"]["openalex"]["remaining"]
+
+
+def initial_argv(run_id, leaf_id):
+    return [
+        "python3",
+        "tools/run_axis1_search.py",
+        "--registration-commit",
+        REGISTRATION_COMMIT,
+        "--catalog",
+        CATALOG,
+        "--bundle",
+        str(BUNDLE),
+        "--run-id",
+        run_id,
+        "--query-id",
+        leaf_id,
+    ]
+
+
+def checkpoint_argv_and_run_id(checkpoint):
+    canonical_argv = checkpoint["canonical_runner_argv"]
+    if not isinstance(canonical_argv, list) or not all(
+        isinstance(item, str) for item in canonical_argv
+    ):
+        raise ValueError("checkpoint canonical_runner_argv is not a list of strings")
+    run_id_positions = [
+        index for index, item in enumerate(canonical_argv) if item == "--run-id"
+    ]
+    if len(run_id_positions) != 1 or run_id_positions[0] + 1 >= len(canonical_argv):
+        raise ValueError("checkpoint canonical_runner_argv must contain one --run-id value")
+    return canonical_argv, canonical_argv[run_id_positions[0] + 1]
+
+
+def plan(run_id):
+    tasks = []
+
+    # 段 A0: 中断した pass 1 を、同じ leaf の最新 checkpoint から再開する。
+    latest_continue_by_leaf = {}
+    for checkpoint_path in sorted((BUNDLE / "checkpoints").glob("*.json")):
+        with open(checkpoint_path, encoding="utf-8") as handle:
+            checkpoint = json.load(handle)
+        if checkpoint["resume_action"] != "continue_cursor":
+            continue
+        leaf_id = checkpoint["leaf_query_id"]
+        if leaf_id in EXCLUDED_LEAVES:
+            continue
+        latest_continue_by_leaf[leaf_id] = (checkpoint_path, checkpoint)
+
+    for checkpoint_path, checkpoint in sorted(
+        latest_continue_by_leaf.values(), key=lambda item: item[0].name
+    ):
+        canonical_argv, effective_run_id = checkpoint_argv_and_run_id(checkpoint)
+        tasks.append(
+            {
+                "phase": "A0",
+                "key": checkpoint["leaf_query_id"],
+                "argv": canonical_argv,
+                "effective_run_id": effective_run_id,
+                "checkpoint_file": checkpoint_path.name,
+            }
+        )
+
+    # 段 A: catalog 登録順の未走 leaf を初回取得する (D1624)。
+    with open(LEAF_ORDER, encoding="utf-8") as handle:
+        for line in handle:
+            leaf_id = line.strip()
+            if not leaf_id or leaf_id in EXCLUDED_LEAVES:
+                continue
+            if (BUNDLE / "pages" / f"{leaf_id}_p0.a01.json").exists():
+                continue
+            tasks.append(
+                {
+                    "phase": "A",
+                    "key": leaf_id,
+                    "argv": initial_argv(run_id, leaf_id),
+                    "effective_run_id": run_id,
+                }
+            )
+
+    # 段 B: pass2 台帳が無く、同日取得でもない checkpoint の独立 2 走目。
+    today_jst = datetime.datetime.now(JST).date().isoformat()
+    for checkpoint_path in sorted((BUNDLE / "checkpoints").glob("*.json")):
+        with open(checkpoint_path, encoding="utf-8") as handle:
+            checkpoint = json.load(handle)
+
+        # query_id は shard 親 ID。pass2 台帳名との照合には leaf_query_id を使う。
+        leaf_id = checkpoint["leaf_query_id"]
+        if leaf_id in EXCLUDED_LEAVES:
+            continue
+        if checkpoint["quota"]["observed_at_jst"][:10] == today_jst:
+            continue
+        if checkpoint["resume_action"] != "start_independent_pass":
+            continue
+        if checkpoint["second_pass"]["state"] != "not_started":
+            continue
+        if any((BUNDLE / "ledgers").glob(f"{leaf_id}.pass2.*")):
+            continue
+        canonical_argv, effective_run_id = checkpoint_argv_and_run_id(checkpoint)
+        tasks.append(
+            {
+                "phase": "B",
+                "key": leaf_id,
+                "argv": canonical_argv,
+                "effective_run_id": effective_run_id,
+            }
+        )
+
+    return tasks
+
+
+def completed_launches(ledger_path):
+    launched = set()
+    transient_retries = 0
+    if not ledger_path.exists():
+        return launched, transient_retries
+    with open(ledger_path, encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, start=1):
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+                if row.get("event") == "transient_backoff":
+                    transient_retries = max(
+                        transient_retries, row["transient_retry_count"]
+                    )
+                    continue
+                checkpoint_file = (
+                    row.get("checkpoint_file") if row["phase"] == "A0" else None
+                )
+                launched.add((row["phase"], row["key"], checkpoint_file))
+            except (json.JSONDecodeError, KeyError, TypeError) as exc:
+                raise ValueError(
+                    f"invalid existing ledger row {ledger_path}:{line_number}"
+                ) from exc
+    return launched, transient_retries
+
+
+def launch_identity(task):
+    checkpoint_file = task.get("checkpoint_file") if task["phase"] == "A0" else None
+    return task["phase"], task["key"], checkpoint_file
+
+
+def append_line(path, text):
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(text)
+        handle.write("\n")
+        handle.flush()
+
+
+def parse_runner_stdout(stdout):
+    try:
+        result = json.loads(stdout)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if not isinstance(result, dict) or not isinstance(result.get("state"), str):
+        return None
+    return result
+
+
+def run_task(task, ledger_path, launch_order_path, remaining_before):
+    append_line(launch_order_path, task["key"])
+    started_at_jst = now_jst()
+    process = subprocess.run(
+        task["argv"],
+        cwd=TREE,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    finished_at_jst = now_jst()
+    result = parse_runner_stdout(process.stdout)
+
+    if result is None:
+        state = "parse_error"
+        reason_code = "stdout_json_parse_error"
+        request_count = None
+    else:
+        state = result["state"]
+        reason_code = result.get("reason_code")
+        request_count = result.get("request_count")
+
+    row = {
+        "key": task["key"],
+        "phase": task["phase"],
+        "effective_run_id": task["effective_run_id"],
+        "state": state,
+        "reason_code": reason_code,
+        "request_count": request_count,
+        "remaining_before": remaining_before,
+        "started_at_jst": started_at_jst,
+        "finished_at_jst": finished_at_jst,
+        # rc は診断記録にだけ残す。継続・停止の判定には使わない。
+        "rc": process.returncode,
+        "stderr_tail": process.stderr[-800:] if process.stderr else "",
+    }
+    if "checkpoint_file" in task:
+        row["checkpoint_file"] = task["checkpoint_file"]
+    if result is None:
+        row["stdout_tail"] = process.stdout[-800:] if process.stdout else ""
+    append_line(ledger_path, json.dumps(row, ensure_ascii=False))
+    return state, request_count
+
+
+def record_transient_backoff(
+    ledger_path, task, remaining_after, backoff_seconds, transient_retry_count
+):
+    row = {
+        "event": "transient_backoff",
+        "key": task["key"],
+        "phase": task["phase"],
+        "effective_run_id": task["effective_run_id"],
+        "remaining": remaining_after,
+        "backoff_seconds": backoff_seconds,
+        "transient_retry_count": transient_retry_count,
+        "recorded_at_jst": now_jst(),
+    }
+    if "checkpoint_file" in task:
+        row["checkpoint_file"] = task["checkpoint_file"]
+    append_line(ledger_path, json.dumps(row, ensure_ascii=False))
+
+
+def main(argv=None):
+    args = parse_args(argv)
+
+    if args.dry_run:
+        tasks = plan(args.run_id)
+        for task in tasks:
+            print(
+                json.dumps(
+                    {
+                        "phase": task["phase"],
+                        "key": task["key"],
+                        "argv": task["argv"],
+                    },
+                    ensure_ascii=False,
+                ),
+                flush=True,
+            )
+        print(f"planned={len(tasks)}", flush=True)
+        return 0
+
+    ledger_path = JOB / f"fetch-{args.run_id}.jsonl"
+    launch_order_path = JOB / f"launch-order-{args.run_id}.txt"
+    launched, transient_retries = completed_launches(ledger_path)
+
+    while True:
+        tasks = plan(args.run_id)
+        should_replan = False
+
+        for task in tasks:
+            launch_key = launch_identity(task)
+            if launch_key in launched:
+                print(
+                    f"SKIP phase={task['phase']} leaf={task['key']} "
+                    "already_in_ledger",
+                    flush=True,
+                )
+                continue
+
+            # 起動間で必ず runtime.json を読み直す。runner 自身の発行規範には触れない。
+            remaining_before = remaining()
+            if remaining_before < args.stop_remaining:
+                print(
+                    f"STOP remaining={remaining_before} < {args.stop_remaining} "
+                    f"before phase={task['phase']} leaf={task['key']}",
+                    flush=True,
+                )
+                return 0
+
+            state, request_count = run_task(
+                task, ledger_path, launch_order_path, remaining_before
+            )
+            launched.add(launch_key)
+
+            # paused_quota の判定には、起動直後に読み直した残量が必須。
+            if state == "paused_quota":
+                remaining_after = remaining()
+            else:
+                try:
+                    remaining_after = remaining()
+                except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+                    remaining_after = None
+            print(
+                f"leaf={task['key']} state={state} requests={request_count} "
+                f"remaining={remaining_after}",
+                flush=True,
+            )
+
+            if state == "parse_error":
+                print(f"STOP leaf={task['key']} state=parse_error", flush=True)
+                return 1
+            if state in IMMEDIATE_STOP_STATES:
+                print(f"STOP leaf={task['key']} state={state}", flush=True)
+                return 0
+            if state == "paused_quota":
+                if remaining_after < args.stop_remaining:
+                    print(
+                        f"STOP leaf={task['key']} state=paused_quota "
+                        f"remaining={remaining_after} < {args.stop_remaining}",
+                        flush=True,
+                    )
+                    return 0
+                if transient_retries >= args.max_transient_retries:
+                    print(
+                        f"STOP leaf={task['key']} state=paused_quota "
+                        f"max_transient_retries={args.max_transient_retries} exhausted",
+                        flush=True,
+                    )
+                    return 0
+
+                transient_retries += 1
+                record_transient_backoff(
+                    ledger_path,
+                    task,
+                    remaining_after,
+                    args.backoff_seconds,
+                    transient_retries,
+                )
+                print(
+                    f"BACKOFF leaf={task['key']} remaining={remaining_after} "
+                    f"seconds={args.backoff_seconds} "
+                    f"transient_retry={transient_retries}",
+                    flush=True,
+                )
+                time.sleep(args.backoff_seconds)
+                should_replan = True
+                break
+
+        if should_replan:
+            continue
+        break
+
+    print("ALL PLANNED LAUNCHES DONE", flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

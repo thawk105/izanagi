@@ -1,0 +1,194 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "m0-equivalent-contracts-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_source.py",
+          "old": "CONTRACTS = {\n",
+          "new": "CONTRACTS = {  # fixed pilot/sized contracts\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-drop-sized-contract-entry",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_source.py",
+          "old": "    SIZED_STUDY_ID: (SIZED_CONTRACT_PATH, SIZED_CONTRACT_SHA256, SIZED_SOURCE_PATHS),\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_sized_group_intent_requires_hydrate",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_sized_measurement_routes_amended_source_and_hydrate",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_sized_source_closures_match_job_and_driver",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_sized_source_context_reaches_trace_and_perf_validation",
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_sized_submit_requires_hydrate_and_preserves_attempt_names",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_sized_amendment_binding_rejects_single_changed_input",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_sized_consumer_accepts_amended_configure",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_sized_consumer_rejects_admission_mismatch",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_sized_source_contract_pins_bytes_and_four_bindings"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-skip-contract-bytes-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_source.py",
+          "old": "    if hashlib.sha256(raw).hexdigest() != contract_sha256:\n        raise RuntimeError(\"A1 source amendment bytes differ\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_sized_source_contract_pins_bytes_and_four_bindings"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-skip-amendment-binding-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_source.py",
+          "old": "    for key in (\"patch\", \"policy\", \"preregistration\", \"amendment\"):\n",
+          "new": "    for key in (\"patch\", \"policy\", \"preregistration\"):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_sized_source_contract_pins_bytes_and_four_bindings"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-source-paths-pilot-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    if _policy_study_id(policy) in a1_source.CONTRACTS:\n        paths = (*paths, *a1_source.CONTRACTS[_policy_study_id(policy)][2])\n",
+          "new": "    if _policy_study_id(policy) == V3_PILOT_STUDY_ID:\n        paths = (*paths, *a1_source.SOURCE_PATHS)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_sized_source_closures_match_job_and_driver",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_sized_amendment_binding_rejects_single_changed_input",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_sized_consumer_accepts_amended_configure",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_sized_consumer_rejects_admission_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-job-terminal-closure-pilot-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/paper_story_a1_paired.sh",
+          "old": "if os.environ[\"IZANAGI_A1_TERMINAL_POLICY_RELATIVE\"] in (\n        \"orchestrator/campaign/paper_story_a1_paired.v3-pilot.json\",\n        \"orchestrator/campaign/paper_story_a1_paired.v3-sized.json\"):\n",
+          "new": "if os.environ[\"IZANAGI_A1_TERMINAL_POLICY_RELATIVE\"] == \"orchestrator/campaign/paper_story_a1_paired.v3-pilot.json\":\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_sized_source_closures_match_job_and_driver"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-job-staging-pilot-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/paper_story_a1_paired.sh",
+          "old": "THIRD_PARTY_ARGS=()\nif [[ \"$POLICY_RELATIVE\" == \"orchestrator/campaign/paper_story_a1_paired.v3-pilot.json\" ||\n      \"$POLICY_RELATIVE\" == \"orchestrator/campaign/paper_story_a1_paired.v3-sized.json\" ]]; then\n",
+          "new": "THIRD_PARTY_ARGS=()\nif [[ \"$POLICY_RELATIVE\" == \"orchestrator/campaign/paper_story_a1_paired.v3-pilot.json\" ]]; then\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_sized_job_stages_hydrate_for_measurement"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-consumer-admission-v1-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    if any(path in source_binding.get(\"files\", {}) for path, _, _ in a1_source.CONTRACTS.values()):\n",
+          "new": "    if a1_source.CONTRACT_PATH in source_binding.get(\"files\", {}):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_sized_consumer_accepts_amended_configure",
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_sized_consumer_rejects_admission_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-attempt-pin-study-independent",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    if study_id == V3_PILOT_STUDY_ID and attempt.name != contract_source[\"attempt\"]:\n",
+          "new": "    if attempt.name != \"attempt-0004\":\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_sized_measurement_routes_amended_source_and_hydrate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-intent-hydrate-pilot-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    if (_policy_study_id(policy) in a1_source.CONTRACTS\n            and (_policy_study_id(policy) == a1_source.SIZED_STUDY_ID\n                 or attempt.name == \"attempt-0004\")):\n",
+          "new": "    if _policy_study_id(policy) == V3_PILOT_STUDY_ID and attempt.name == \"attempt-0004\":\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_job_contract.py::test_sized_group_intent_requires_hydrate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-binding-match-v1-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a1_paired.py",
+          "old": "    for study_id, (contract_path, _, _) in a1_source.CONTRACTS.items():\n        if contract_path in relative_paths and not a1_source.binding_matches(files, study_id=study_id):\n            return False\n",
+          "new": "    if a1_source.CONTRACT_PATH in relative_paths and not a1_source.binding_matches(files):\n        return False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a1_paired.py::test_sized_amendment_binding_rejects_single_changed_input"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
