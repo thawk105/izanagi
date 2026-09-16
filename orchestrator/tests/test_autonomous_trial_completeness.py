@@ -47,6 +47,7 @@ from orchestrator.campaign.source_digest import (                    # noqa: E40
 )
 from orchestrator.tests.campaign_lock_test_support import build_v2_lock  # noqa: E402
 from orchestrator.tests import commit_receipt_support as receipt_support  # noqa: E402
+from orchestrator.tests import test_p3_autonomous_workload_trial as p3_test  # noqa: E402
 
 
 _ROLES = ("planner", "coder", "auditor", "critic")
@@ -5693,6 +5694,282 @@ def test_t325_optional_commit_fields_preserve_existing_completeness_acceptance(
     _persist(run, events, report)
 
     _verify(run, report)
+
+
+def _failure_only_producer(tmp_path, monkeypatch, *, mode="partial"):
+    """Inject producer faults, leaving finalization and all verifiers real."""
+    authority = p3_test._coder_authority()
+    factory = A.exploration_campaign_layout
+    monkeypatch.setattr(A, "exploration_campaign_layout",
+                        lambda cid: factory(cid, str(tmp_path / "output")))
+    monkeypatch.setattr(A.trigger, "_current_site", lambda: A.trigger.site_policy.OTHER)
+    metric_payloads = A._role_metric_payloads
+
+    def fail_before_roles(*args, **kwargs):
+        raise RuntimeError("injected before first role")
+
+    def expire_inside_cell(*args, **kwargs):
+        result = metric_payloads(*args, **kwargs)
+        real_time = A.time
+        monkeypatch.setattr(A, "time", SimpleNamespace(
+            monotonic=lambda: real_time.monotonic() + 10000,
+            monotonic_ns=real_time.monotonic_ns, time_ns=real_time.time_ns,
+        ))
+        return result
+
+    def broken_preview(*args, **kwargs):
+        raise RuntimeError("injected after valid role raw writes")
+
+    if mode == "partial":
+        monkeypatch.setattr(A, "_role_metric_payloads", fail_before_roles)
+    elif mode == "normal":
+        monkeypatch.setattr(A, "_role_metric_payloads", expire_inside_cell)
+    providers = None
+    if mode in {"invalid-pre-raw", "invalid-post-raw"}:
+        class FaultyPlanner:
+            def invoke(self, **kwargs):
+                if mode == "invalid-pre-raw":
+                    raise RuntimeError("injected provider failure before response")
+                return A.ProviderResponse(raw_response="{}", provenance={"child_id": "fault-injection"})
+        providers = {role: A.FixtureRoleProvider(role) for role in _ROLES}
+        providers["planner"] = FaultyPlanner()
+    run = tmp_path / "run"
+    report = A.run_trial(
+        trial_id="rootless-failure", workloads=["ycsb-a", "ycsb-b"], generations=1,
+        provider_kind="fixture", run_root=run, sub="/unused", do_build=True,
+        preview=broken_preview, coder_authority=authority, providers=providers,
+        allow_unregistered_exploratory=True,
+    )
+    events = [json.loads(line) for line in (run / "attempts.jsonl").read_text().splitlines()]
+    assert report["cells"][0]["admission_decision"]["admission_status"] == "failed"
+    assert json.loads((run / "report.json").read_bytes()) == report
+    return run, events, report
+
+
+def _diagnostic_verify(run, **kwargs):
+    return C.verify_autonomous_trial_files(
+        run / "attempts.jsonl", run / "report.json",
+        failure_only_diagnostic=True, **kwargs,
+    )
+
+
+def test_failure_only_diagnostic_accepts_producer_partial_cell(tmp_path, monkeypatch):
+    run, events, report = _failure_only_producer(tmp_path, monkeypatch)
+    assert report["cells"][0]["stop_reason"] == "supervisor-error"
+    assert not [e for e in events if e["event"] == "role-attempt"]
+    assert report["honest_accounting"]["role_query_count"] == 0
+    assert _diagnostic_verify(run)["certifying"] is False
+
+
+def test_failure_only_diagnostic_accepts_producer_normal_return_failure(tmp_path, monkeypatch):
+    run, _, report = _failure_only_producer(tmp_path, monkeypatch, mode="normal")
+    assert report["cells"][0]["stop_reason"] == "supervisor-wall-budget"
+    assert "error" not in report["cells"][0]
+    assert _diagnostic_verify(run)["s8c_cross_binding"] == "not-established"
+
+
+def test_failure_only_diagnostic_accepts_producer_valid_roles(tmp_path, monkeypatch):
+    run, events, report = _failure_only_producer(tmp_path, monkeypatch, mode="roles")
+    roles = [e for e in events if e["event"] == "role-attempt"]
+    assert len(roles) == report["honest_accounting"]["role_query_count"] == 2
+    assert all(e["status"] == "valid" for e in roles)
+    assert _diagnostic_verify(run)["certifying"] is False
+
+
+def test_failure_only_diagnostic_rejects_declared_proposal(tmp_path, monkeypatch):
+    run, events, report = _failure_only_producer(tmp_path, monkeypatch, mode="roles")
+    assert _diagnostic_verify(run)["certifying"] is False
+    proposal_bytes = json.dumps({
+        "planner": {"axis": "silo-backoff-trigger-gating"},
+        "coder": {
+            "axis": "silo-backoff-trigger-gating", "wire": "00000",
+            "justification": "unrelated proposal", "confidence": 0.5,
+        },
+    }, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    proposal_path = run / "proposals" / "injected.json"
+    proposal_path.parent.mkdir(parents=True, exist_ok=True)
+    proposal_path.write_bytes(proposal_bytes)
+    report["cells"][0]["generations"][0]["proposal"] = {
+        "path": str(proposal_path),
+        "sha256": hashlib.sha256(proposal_bytes).hexdigest(),
+    }
+    _persist(run, events, report)
+    with pytest.raises(C.AutonomousTrialCompletenessError,
+                       match=r"\[failure-only-proposal\] exploratory generation declares proposal$"):
+        _diagnostic_verify(run)
+
+
+def test_failure_only_diagnostic_requires_explicit_opt_in(tmp_path, monkeypatch):
+    run, _, _ = _failure_only_producer(tmp_path, monkeypatch)
+    with pytest.raises(C.AutonomousTrialCompletenessError,
+                       match=r"\[campaign-chain\] build trial verification requires campaign_output_root$"):
+        C.verify_autonomous_trial_files(run / "attempts.jsonl", run / "report.json")
+
+
+@pytest.mark.parametrize("kind", ["file", "dangling-symlink"])
+def test_failure_only_diagnostic_rejects_persisted_layer3(tmp_path, monkeypatch, kind):
+    run, _, report = _failure_only_producer(tmp_path, monkeypatch)
+    path = Path(report["cells"][0]["campaign_root"]) / "reports" / "layer3_report.json"
+    path.parent.mkdir(parents=True)
+    if kind == "file":
+        path.write_text("{}")
+    else:
+        path.symlink_to("absent.json")
+    with pytest.raises(C.AutonomousTrialCompletenessError,
+                       match=r"\[campaign-chain\] cells\[0\] failure campaign has a persisted layer3 report$"):
+        _diagnostic_verify(run)
+
+
+def test_failure_only_diagnostic_preserves_supplied_root_checks(tmp_path, monkeypatch):
+    run, _, _ = _failure_only_producer(tmp_path, monkeypatch)
+    with pytest.raises(C.AutonomousTrialCompletenessError, match=r"\[cross-binding") as before:
+        C.verify_autonomous_trial_files(run / "attempts.jsonl", run / "report.json",
+                                       campaign_output_root=tmp_path / "wrong")
+    with pytest.raises(C.AutonomousTrialCompletenessError) as after:
+        _diagnostic_verify(run, campaign_output_root=tmp_path / "wrong")
+    assert str(before.value) == str(after.value)
+
+
+def test_failure_only_diagnostic_cli_emits_noncertifying_receipt(tmp_path, monkeypatch):
+    run, _, _ = _failure_only_producer(tmp_path, monkeypatch)
+    result = subprocess.run([
+        sys.executable, "-m", "orchestrator.campaign.autonomous_trial_completeness",
+        str(run / "attempts.jsonl"), str(run / "report.json"), "--failure-only-diagnostic",
+    ], cwd=_ROOT, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    receipt = json.loads(result.stdout)
+    assert receipt == _diagnostic_verify(run)
+    assert receipt["schema_version"] == "autonomous-trial-failure-only-diagnostic/v1"
+    assert receipt["certifying"] is False
+    assert receipt["campaign_output_root_binding"] == "not-verified"
+    assert receipt["s8c_cross_binding"] == "not-established"
+    assert receipt["attempt_journal_sha256"] == hashlib.sha256((run / "attempts.jsonl").read_bytes()).hexdigest()
+    assert receipt["report_json_sha256"] == hashlib.sha256((run / "report.json").read_bytes()).hexdigest()
+
+
+@pytest.mark.parametrize("kind", ["cell-extra", "error-extra", "decision-extra", "disposition-extra", "diagnosis"])
+def test_failure_only_diagnostic_rejects_nonexact_shape(tmp_path, monkeypatch, kind):
+    run, events, report = _failure_only_producer(tmp_path, monkeypatch)
+    cell = report["cells"][0]
+    expected = r"\[failure-only-diagnostic\] report is not an exact supported failure-only shape$"
+    if kind == "cell-extra":
+        cell["extra"] = True
+    elif kind == "error-extra":
+        cell["error"]["extra"] = True
+        expected = r"\[terminal-projection\] supervisor-error cell projection is inconsistent$"
+    elif kind == "decision-extra":
+        cell["admission_decision"]["extra"] = True
+        expected = r"\[run-envelope\] run-finish has a cell admission failure absent from report$"
+    elif kind == "disposition-extra":
+        cell["pending_critic_disposition"]["extra"] = True
+        expected = r"\[artifact-admission\] cells\[0\] failure disposition is not exact$"
+    else:
+        cell["layer3_admission_diagnosis"] = {
+            "schema_version": "p3-autonomous-workload-trial-layer3-admission-diagnosis/v1",
+            "status": "degraded", "validator": None, "validator_value": None,
+            "absolute_instance_path": [], "absolute_schema_path": [],
+            "offending_property": None, "degradation_reason": "validation-error-cause-not-found",
+        }
+        events[-1]["cell_admission_failures"][0]["layer3_admission_diagnosis"] = cell["layer3_admission_diagnosis"]
+    _persist(run, events, report)
+    with pytest.raises(C.AutonomousTrialCompletenessError, match=expected):
+        _diagnostic_verify(run)
+
+
+def test_failure_only_diagnostic_rejects_role_count_drift(tmp_path, monkeypatch):
+    run, events, report = _failure_only_producer(tmp_path, monkeypatch)
+    report["honest_accounting"]["role_query_count"] = 1
+    events[-1]["honest_accounting"]["role_query_count"] = 1
+    _persist(run, events, report)
+    with pytest.raises(C.AutonomousTrialCompletenessError,
+                       match=r"\[generation-accounting\] report role query total differs$"):
+        _diagnostic_verify(run)
+
+
+def test_failure_only_diagnostic_preserves_raw_binding(tmp_path, monkeypatch):
+    run, events, _ = _failure_only_producer(tmp_path, monkeypatch, mode="roles")
+    role = next(e for e in events if e["event"] == "role-attempt")
+    Path(role["raw_response_path"]).write_text("tampered")
+    with pytest.raises(C.AutonomousTrialCompletenessError,
+                       match=r"\[failure-only-raw\].*sha256"):
+        _diagnostic_verify(run)
+
+
+@pytest.mark.parametrize("mixed", [False, True], ids=["admitted", "mixed"])
+def test_failure_only_diagnostic_rejects_admitted_or_mixed_cells(tmp_path, mixed):
+    workloads = ("ycsb-a", "ycsb-b") if mixed else ("ycsb-a",)
+    run, events, report = _complete_trial(tmp_path, workloads=workloads)
+    report["do_build"] = events[0]["do_build"] = True
+    for cell in report["cells"]:
+        cell["admission_decision"] = {
+            "schema_version": "campaign-artifact-admission-decision/v1",
+            "admission_status": "admitted", "classification": "admitted-new-schema",
+        }
+    if mixed:
+        report["status"] = events[-1]["status"] = "partial"
+        cell = report["cells"][-1]
+        fallback = _campaignless_failure_cell()
+        cell["admission_decision"] = fallback["admission_decision"]
+        cell["pending_critic_disposition"] = fallback["pending_critic_disposition"]
+        events[-1]["cell_admission_failures"] = [{
+            "cell_index": 1, "workload": "ycsb-b",
+            "admission_decision": cell["admission_decision"],
+        }]
+    _persist(run, events, report)
+    with pytest.raises(C.AutonomousTrialCompletenessError,
+                       match=r"\[failure-only-diagnostic\] report is not an exact supported failure-only shape$"):
+        _diagnostic_verify(run)
+
+
+@pytest.mark.parametrize("kind", ["fatal-empty", "campaignless"])
+def test_failure_only_diagnostic_does_not_change_existing_exemptions(tmp_path, monkeypatch, kind):
+    if kind == "fatal-empty":
+        run, events, report = _provider_init_trial(tmp_path)
+        report["do_build"] = events[0]["do_build"] = True
+    else:
+        run, events, report = _failure_only_producer(tmp_path, monkeypatch)
+        cell = report["cells"][0]
+        report["cells"] = [{key: cell[key] for key in _campaignless_failure_cell()}]
+    _persist(run, events, report)
+    assert C.verify_autonomous_trial_files(run / "attempts.jsonl", run / "report.json") is None
+    assert _diagnostic_verify(run) is None
+
+
+def test_failure_only_diagnostic_rejects_independently_admitted_campaign(tmp_path, monkeypatch):
+    run, events, report = _failure_only_producer(tmp_path, monkeypatch)
+    output, campaign, persisted, _, admitted_cell = _layer3_campaign(tmp_path / "admitted")
+    persisted.unlink()
+    # Bind the failure report to the real admitted campaign, without replacing
+    # either admission checker or Layer-3 chain.
+    report["cells"][0]["campaign_id"] = admitted_cell["campaign_id"]
+    report["cells"][0]["campaign_root"] = admitted_cell["campaign_root"]
+    _persist(run, events, report)
+    with pytest.raises(C.AutonomousTrialCompletenessError,
+                       match=r"\[campaign-chain\] cells\[0\] failure campaign remains independently admitted$"):
+        _diagnostic_verify(run)
+
+
+def test_failure_only_diagnostic_rejects_exploratory_provider_claim(tmp_path, monkeypatch):
+    run, events, report = _failure_only_producer(tmp_path, monkeypatch, mode="roles")
+    event = next(e for e in events if e["event"] == "role-attempt")
+    event["provider_artifacts"] = {"payload_path": "absent"}
+    report["cells"][0]["generations"][0]["roles"][event["role"]]["provider_artifacts"] = event["provider_artifacts"]
+    _persist(run, events, report)
+    with pytest.raises(C.AutonomousTrialCompletenessError,
+                       match=r"\[failure-only-provider\] exploratory role declares arm-bound artifacts$"):
+        _diagnostic_verify(run)
+
+
+@pytest.mark.parametrize("mode", ["invalid-pre-raw", "invalid-post-raw"])
+def test_failure_only_diagnostic_rejects_unproven_error_artifact_absence(tmp_path, monkeypatch, mode):
+    run, events, report = _failure_only_producer(tmp_path, monkeypatch, mode=mode)
+    assert "fatal_error" not in report
+    event = next(e for e in events if e["event"] == "role-attempt")
+    assert event["status"] == "invalid"
+    assert ("raw_response_path" in event["error_artifacts"]) == (mode == "invalid-post-raw")
+    with pytest.raises(C.AutonomousTrialCompletenessError,
+                       match=r"\[failure-only-diagnostic\] report is not an exact supported failure-only shape$"):
+        _diagnostic_verify(run)
 
 
 if __name__ == "__main__":  # pragma: no cover - plain-runner false-green guard
