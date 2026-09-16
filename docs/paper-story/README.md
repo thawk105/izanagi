@@ -83,10 +83,20 @@ B-10「機序説明の帯域外への拡張」の測定が進んだこと (2026-
 これは書かれた時点で既に偽だった** — 下の results 系列の表は 2026-09-07 の稿と 2026-09-09 の
 英語稿の両方を登録している。**この食い違いも本改訂で解消した。**
 
-**現在この節に積んでいる項目は 0 である。** 2026-09-14 版は同日の local main
+**現在この節に積んでいる項目は 1 件である。** 2026-09-14 版は同日の local main
 (`af3762d62`、/rulings 全件 第 18 回の裁定 D1986〜D1988 を含む) から導出しており、
-執筆時点で腐っている箇所は無い。**次に正典が動いたら、その項目をここへ積む。**
+執筆時点で腐っている箇所は無かった。**次に正典が動いたら、その項目をここへ積む。**
 **項目が積まれること自体は、新しい日付の版を作る要求にはならない** (D1858)。
+
+- **B-2 — `delta_min` の保持群ラベルの追補を実施した (2026-09-16)。** 2026-09-14 版 §8 の B-2 は
+  「**追補は未実施**」と書いている。D1986 項 2 に従い、決定側の記述を追補で正した — 正典は
+  `docs/decisions.md` の「D1640 の保持群ラベルを H1 = rr80、H2 = rr20 と訂正し、他の決定内容は
+  維持する」。**凍結側 (`s8b_holdout_freeze.HOLDOUTS` / `trial_registry.HOLDOUT_BINDINGS` と
+  `output/s8b-freeze/holdout_freeze.json`) は 1 byte も変えていない。**
+  同版が「受理集合を広げる向き」と書いた箇所は、**過小な境界を与えられた側の holdout についての
+  説明**として読む — 他方の境界は過大になるので、両 holdout を合わせた受理集合が単純に広がるとは
+  言えない。どちらが過小になるかは rr80 と rr20 の参照値の大小に依存し、その参照測定は未取得である。
+  追補は参照測定の投入・値の記入・実装着手のいずれも新たに認可しない。
 
 **恒久の erratum は別の場所にある。**
 `figures/fig2_backoff_mechanism.png` の baseline 誤 label（横破線に `stock adaptive backoff` と
@@ -156,6 +166,7 @@ claim-evidence が「主張ごとに何を書けて何が弱めているか」�
 | 2026-09-07 | `results/2026-09-07-a2-certification-observed-positive.md` | D1644 の pin + patch 束縛 `src_token` で identity を計算する driver で取り直した**別の attempt** `t2364-20260907b` (write-heavy / balanced の exact 4 cell、図 6、限定 6 件)。上の 2 行とは測っている条件が違い、前後比較として読んではならない (絶対規律 7) | outer `observed-positive`。correctness は別の trace-enabled run で 4 cell とも certified (性能の判定ではない)。**この attempt の執筆材料にはこの稿を使う** |
 | 2026-09-09 | `results/2026-09-09-a2-certification-observed-positive-en.md` | 直上の 2026-09-07 observed-positive 稿の**英語稿**。同じ attempt `t2364-20260907b` について、事実命題を足さず一次資料へ再照合して英語で書き直したもの ([T-2329]) | outer `observed-positive` (直上の稿と同一)。日本語稿を改めるものではなく、どちらも凍結物として残る |
 | 2026-09-14 | `results/2026-09-14-b7-all-workload-regression.md` | 見送り台帳の項目 B-7 (全 workload の退行込み報告) の材料。現行環境・正式 protocol で判定の出ている 3 workload の 6 cell を、**2 つの attempt に分かれた記録のまま横断で併記する** (`t2364-20260907b` の rr5 / rr50 と `a6-20260908b` の rr95、生標本 6 cell、限定 11 件)。単位は失敗条件 (e) が報告を求める「全 workload」の集合。**2 attempt を統括する単一の正式実験は存在しない** | 単一の outer status を持たない。所属 attempt の status をそのまま併記する (rr5 / rr50 は `observed-positive`、rr95 は `reject`)。**B-7 の充足も床値超の退行も判定せず、D1645 の解除は 2026-09-14 版の判定を引き写すだけである** |
+| 2026-09-16 | `results/2026-09-16-b7-three-run-materials.md` | 同じく見送り台帳の項目 B-7 の材料。**直上の 2026-09-14 稿が対象外とした [T-1998] の balanced stock-inline 対を加え、3 走行・4 対比較・8 arm を一次資料から作り直して併記する** (`t2364-20260907b` の rr5 / rr50、`a6-20260908b` の rr95、別事前登録 v1 の balanced 対、生標本 8 arm、限定 20 件)。**直上の稿を改めるものではない** — 同稿は 2 attempt・6 cell の材料として有効なまま残る。3 走行を 1 file に収めたのは編集判断であり、系列の規則がそれを要求しているわけではない | 単一の outer status を持たない。所属する走行の出力をそのまま併記する (rr5 / rr50 は A-2 outer の `observed-positive`、rr95 は A-6 outer の `reject`、[T-1998] は consumer の `accepted`。producer 側の `complete` とは別)。**D1993 項 6 に従い 3 走行をプールせず、B-7 の充足も床値超の退行も判定しない。A-1 が定める横断実験の代わりにもしない** |
 
 **この系列の規則。**
 
