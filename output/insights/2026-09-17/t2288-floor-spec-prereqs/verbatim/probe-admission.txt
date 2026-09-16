@@ -1,0 +1,25 @@
+policy tolerance_pct = 2.0 method = None
+== calibration-2b7ba072b88023ae.json rr=5 genome='silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0'
+   tolerance_pct=2.0 method=proc-cpuinfo-rotating-min/k5/interval-ns50000000/sysfs-affinity-intersection-evenly-spaced-v1 keys=['governor', 'method', 'samples_mhz', 'tolerance_pct']
+   ADMITTED
+== calibration-449d0ad22f13e366.json rr=50 genome='mocc|BACK_OFF=1,KEY_SORT=0,TEMPERATURE_RESET_OPT=1'
+   tolerance_pct=2.0 method=proc-cpuinfo-rotating-min/k5/interval-ns50000000/sysfs-affinity-intersection-evenly-spaced-v1 keys=['governor', 'method', 'samples_mhz', 'tolerance_pct']
+   ADMITTED
+== calibration-5c836a22eff9ab40.json rr=95 genome='silo|BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0'
+   tolerance_pct=2.0 method=proc-cpuinfo-rotating-min/k5/interval-ns50000000/sysfs-affinity-intersection-evenly-spaced-v1 keys=['governor', 'method', 'samples_mhz', 'tolerance_pct']
+   ADMITTED
+== calibration-753f535a8d024727.json rr=50 genome=None
+   tolerance_pct=2.0 method=proc-cpuinfo keys=['governor', 'method', 'samples_mhz', 'tolerance_pct']
+   ADMITTED
+== calibration-94a4b79fa31bba3c.json rr=50 genome=None
+   tolerance_pct=2.0 method=proc-cpuinfo-rotating-min/k5/interval-ns50000000/sysfs-affinity-intersection-evenly-spaced-v1 keys=['governor', 'method', 'samples_mhz', 'tolerance_pct']
+   ADMITTED
+== calibration-9b49335d02ad4d2e.json rr=50 genome='tictoc|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,PREEMPTIVE_ABORTS=1,TIMESTAMP_HISTORY=1'
+   tolerance_pct=2.0 method=proc-cpuinfo-rotating-min/k5/interval-ns50000000/sysfs-affinity-intersection-evenly-spaced-v1 keys=['governor', 'method', 'samples_mhz', 'tolerance_pct']
+   ADMITTED
+== calibration-b3329d93417c76ad.json rr=95 genome='mocc|BACK_OFF=1,KEY_SORT=0,TEMPERATURE_RESET_OPT=1'
+   tolerance_pct=2.0 method=proc-cpuinfo-rotating-min/k5/interval-ns50000000/sysfs-affinity-intersection-evenly-spaced-v1 keys=['governor', 'method', 'samples_mhz', 'tolerance_pct']
+   ADMITTED
+== calibration-cb98513996e5ae35.json rr=95 genome='tictoc|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,PREEMPTIVE_ABORTS=1,TIMESTAMP_HISTORY=1'
+   tolerance_pct=2.0 method=proc-cpuinfo-rotating-min/k5/interval-ns50000000/sysfs-affinity-intersection-evenly-spaced-v1 keys=['governor', 'method', 'samples_mhz', 'tolerance_pct']
+   ADMITTED

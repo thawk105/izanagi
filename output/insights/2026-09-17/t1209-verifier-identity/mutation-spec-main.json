@@ -1,0 +1,119 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 150,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "e1-equivalent-test-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_t126_pegasus_tools.py",
+          "old": "def test_required_code_identity_includes_verifier_core_dsg_model_parse():\n",
+          "new": "def test_required_code_identity_includes_verifier_core_dsg_model_parse():\n    # T-1209 verifier identity coverage.\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "n1-drop-dsg",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/contract.py",
+          "old": "    \"orchestrator/verifier/core.py\",\n    \"orchestrator/verifier/dsg.py\",\n",
+          "new": "    \"orchestrator/verifier/core.py\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_required_code_identity_includes_verifier_core_dsg_model_parse"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "n2-drop-model",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/contract.py",
+          "old": "    \"orchestrator/verifier/dsg.py\",\n    \"orchestrator/verifier/model.py\",\n",
+          "new": "    \"orchestrator/verifier/dsg.py\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_required_code_identity_includes_verifier_core_dsg_model_parse"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "n3-drop-parse",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/contract.py",
+          "old": "    \"orchestrator/verifier/model.py\",\n    \"orchestrator/verifier/parse.py\",\n",
+          "new": "    \"orchestrator/verifier/model.py\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_required_code_identity_includes_verifier_core_dsg_model_parse"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "n4-drop-core",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/contract.py",
+          "old": "    \"orchestrator/verifier/core.py\",\n    \"orchestrator/verifier/dsg.py\",\n",
+          "new": "    \"orchestrator/verifier/dsg.py\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_required_code_identity_includes_verifier_core_dsg_model_parse"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "n5-misspell-parse",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/contract.py",
+          "old": "    \"orchestrator/verifier/parse.py\",\n",
+          "new": "    \"orchestrator/verifier/pars.py\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_every_required_identity_path_is_tracked_in_this_repo[orchestrator/verifier/pars.py]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_required_code_identity_includes_verifier_core_dsg_model_parse"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "n6-model-to-core-duplicate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/contract.py",
+          "old": "    \"orchestrator/verifier/model.py\",\n",
+          "new": "    \"orchestrator/verifier/core.py\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_required_code_identity_includes_verifier_core_dsg_model_parse"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

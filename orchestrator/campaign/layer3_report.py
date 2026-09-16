@@ -109,10 +109,22 @@ def _read_json(path: Path) -> Any:
         raise Layer3ReportError("JSON を読めない: %s" % path) from exc
 
 
-def _read_campaign_lock(path: Path) -> campaign_lock.DecodedCampaignLock:
-    """v1/v2 lock を検証し、report 投影用の inner identity を返せる形にする。"""
+def _read_campaign_lock(
+    path: Path, *, purpose: CampaignReadPurpose,
+) -> campaign_lock.DecodedCampaignLock | campaign_lock.DecodedHistoricalCampaignLock:
+    """v1/v2 lock を検証し、report 投影用の inner identity を返せる形にする。
+
+    HISTORICAL_RAW は歴史 decoder、それ以外の有効な purpose は通常 decoder を使う。
+    """
+    if type(purpose) is not CampaignReadPurpose:
+        raise TypeError(
+            "purpose は exact CampaignReadPurpose.CERTIFIED_ACCEPTANCE "
+            "または HISTORICAL_RAW が必要"
+        )
     try:
         text = path.read_text(encoding="utf-8")
+        if purpose is CampaignReadPurpose.HISTORICAL_RAW:
+            return campaign_lock.decode_historical_campaign_lock(text)
         return campaign_lock.decode_campaign_lock(text)
     except (OSError, UnicodeDecodeError) as exc:
         raise Layer3ReportError("campaign.lock を読めない: %s" % path) from exc
@@ -190,7 +202,7 @@ def _git_head(campaign_dir: Path) -> str:
 
 def _resolve_generated_from_head(
     campaign_dir: Path,
-    decoded_lock: campaign_lock.DecodedCampaignLock,
+    decoded_lock: campaign_lock.DecodedCampaignLock | campaign_lock.DecodedHistoricalCampaignLock,
     generated_from_head: Optional[str],
 ) -> str:
     if generated_from_head is not None:
@@ -373,7 +385,7 @@ def _campaign_protocol(records: Sequence[Mapping[str, Any]]) -> Optional[str]:
 
 
 def _contract_calibration_pin(
-    decoded_lock: campaign_lock.DecodedCampaignLock,
+    decoded_lock: campaign_lock.DecodedCampaignLock | campaign_lock.DecodedHistoricalCampaignLock,
     env_tag: str,
 ) -> Tuple[Optional[env_contract.CalibrationRef], Optional[Dict[str, Any]]]:
     """Resolve a v2 lock pin, or record why it does not apply to this WAL env."""
@@ -752,7 +764,9 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
     _reject_qualification_ancestry(
         campaign_dir, _qualification_ancestry_bound(campaign_dir, output_root),
     )
-    decoded_lock = _read_campaign_lock(campaign_dir / "campaign.lock")
+    decoded_lock = _read_campaign_lock(
+        campaign_dir / "campaign.lock", purpose=CampaignReadPurpose.HISTORICAL_RAW,
+    )
     lock = decoded_lock.identity
     state_path = campaign_dir / "loop_state.json"
     try:
@@ -812,7 +826,7 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
                     )
                     for record in records
                 ],
-                campaign_lock=decoded_lock,
+                campaign_lock=decoded_lock.identity,
             )
         )
     except wal.AttemptTopologyError as exc:
@@ -934,7 +948,10 @@ def build_accepted_report(
         raise Layer3ReportError(
             "acceptance receipt の campaign_id が対象 campaign と一意に一致しない"
         )
-    lock = _read_campaign_lock(resolved_campaign / "campaign.lock").identity
+    lock = _read_campaign_lock(
+        resolved_campaign / "campaign.lock",
+        purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    ).identity
     lock_trial = lock.get("trial")
     receipt_trial_id = matching[0].trial_id
     if not isinstance(lock_trial, str) or not (
