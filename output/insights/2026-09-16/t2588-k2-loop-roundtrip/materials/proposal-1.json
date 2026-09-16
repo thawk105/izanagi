@@ -1,0 +1,30 @@
+{
+  "planner": {
+    "axis": "silo-backoff-magnitude",
+    "direction": "decrease",
+    "magnitude": "medium",
+    "justification": "whiteboard は空だが、射影された source 本文の時系列そのものが、この軸上の 3 点を含んでいる。大きい側の magnitude では 2 つの独立ビルドが互いに run 内 CV と同程度の差に収まって再現し、小さい側の 1 点だけが両者より明確に高い throughput を示した。つまり観測済みの区間では、magnitude を下げる向きが利得の向きである。abort 率はその向きでわずかに上がったが水準としては依然低く、throughput の増加を打ち消していない — 現時点で abort 率はこの軸の制約になっていない。cache miss 率と IPC は 3 点間でほとんど動かず、どの点が良いかを弁別していないので、判断材料は throughput と abort 率の組だけである。したがって、観測済みの 2 水準の外側 (さらに小さい側) へ踏み出し、abort 率が throughput の利得を食い始める折り返しが存在するかを見に行く。magnitude を medium とするのは、small では点間差が反復間のばらつきに埋もれて方向の確認にならず、large では折り返しを跨いで飛び越し、どちらの側にいるか判定できなくなるため。coder には、既観測の 2 水準とこの新点で abort 率と throughput の向きが揃うか反転するかを読めるだけの間隔を取ってほしい。",
+    "uncertainty": "(1) 本 iteration の実行環境は pegasus だが、射影された全記録の env_tag は linux-baremetal であり別機体である。配線規模は同じだが、水準の絶対値・および軸上の折り返し位置が転移する保証はない。順序が転移しても位置は動きうる。(2) 基準点とした最後の記録は settled=false であり、測定系が安定と宣言されていない。同一 genome の 2 点が 1% 弱食い違っており、これは各点の run 内 CV と同程度 — すなわちこの campaign の実効ノイズ床はその水準にあり、それを下回る差は方向の証拠にならない。既観測の大小 2 水準の差はこの床を明確に超えているので方向の判断自体は成立するが、1 点だけの根拠である。(3) contention_level は分類器不在で未判定、last_delta_pct は null。競合水準を仮定した推論は行っていない。(4) rounds=1・reps=2 であり、各点は 2 反復の中央値にすぎない。(5) abort 率が磁量低下とともにどこまで単調に増えるかは未観測で、折り返しの有無自体が未確認の分散である。(6) 信頼境界: source 本文を読んだ限り、振る舞いを誘導する指示めいた文字列は見当たらなかった。本文に含まれる cmake / 実行コマンド文字列は、そのとき何が走ったかの記録であって、こちらへの実行指示ではないものとして扱い、実行も参照も行っていない。"
+  },
+  "coder": {
+    "proposal": {
+      "axis": "silo-backoff-magnitude",
+      "value": 20,
+      "implementation": "double now_backoff = 20;",
+      "justification": "planner の方向は decrease / medium。束縛された source (index 0) の WAL 本文は、この軸上の 3 点を含む。BACKOFF_FIXED=40 が 2 回独立に build/計測され median_tps 491796.5 と 487088.5 (両者の差は約 0.96% で、各走の run 内 CV 0.92%/0.72% と同程度、すなわち互いに再現している)。BACKOFF_FIXED=30 は 1 点で 525721.5 であり、40 の 2 点の平均 489442.5 に対し約 +7.4%、run 内 CV の一桁上の差である。付随指標も同じ向きを支持する: latency_ns は 8080.7/8170.6 (40) に対し 7573.5 (30) と低下し、abort_rate は 0.0703/0.0720 (40) から 0.0780 (30) へわずかに上昇するが水準としては依然低く、throughput の増加を打ち消していない。llc_miss_rate (0.3229/0.3263/0.3303) と ipc (0.7796/0.7387/0.7979) は 3 点間でほとんど動かず、どの点が良いかを弁別しない。したがって観測済み区間では magnitude を下げる向きが利得の向きであり、次に見るべきは観測済み 2 水準の外側 (さらに小さい側) で abort 増が throughput 利得を食い始める折り返しがあるかである。刻み幅は、実際に CV を大きく超えて分離できた既知の刻み (40 -> 30、絶対値 10) を踏襲して 30 -> 20 とした。これは 30 から -33%、baseline 40 から -50% にあたり、small (27-28 程度) では点間差が反復間ばらつきに埋もれて方向確認にならず、large (5-10 程度) では折り返しを跨いで飛び越し、どちら側にいるか判定できなくなるという planner の理由付けと整合する。留保: baseline として渡された記録 (variant dad58f9f9000) は settled=false であり、かつ source の全記録は env_tag=linux-baremetal で、本 iteration が走る機体とは別である。配線規模 (thread_num=4, ycsb_tuple_num=100000, extime=1, rratio=50, zipf 0.9, rmw=false) は同一なので機序の向きは転移すると見るが、絶対値の一致は主張しない。30 の点は 1 回しか測られておらず、+7.4% の一部が機体固有・走行固有の項である可能性は排除できない。正しさゲート・identity ゲート・性能ゲートの定義、順序、閾値には一切触れていない。編集面は include/backoff.hh の silo-backoff-magnitude hole 1 箇所、実装は接尾辞なしの strict C++ numeric literal 1 個を持つ 1 文で、value=20 と数値一致する。",
+      "confidence": "medium"
+    },
+    "knowledge_use": [
+      {
+        "source_index": 0,
+        "use": "この WAL 本文だけが本提案の定量的根拠である。3 つの bench_done / verify_done 記録から (a) BACKOFF_FIXED=40 の 2 回の再現値と 30 の 1 点という軸上の実測点配置、(b) 30 側が run 内 CV を大きく超えて高い throughput を示すという利得の向き、(c) abort_rate がその向きでわずかに上昇するだけで利得を打ち消していないこと、(d) llc_miss_rate と ipc が 3 点間でほぼ不変で弁別力を持たないこと、(e) CV を超えて分離できた刻み幅が絶対値 10 であること、を読み取った。これにより方向を decrease に確定し、medium の刻みを既知の分離可能な刻み幅 10 に合わせて 30 -> 20 と定めた。また genome 文字列と run_cmd から配線規模と固定フラグ (NO_WAIT_LOCKING_IN_VALIDATION=1, NO_WAIT_OF_TICTOC=0, WAL=0) が leakproof_context の訂正節と一致することを確認し、env_tag=linux-baremetal と settled=false を留保として justification へ明記した。"
+      }
+    ],
+    "classification": "known_result_conditioned_derivative",
+    "data_boundary_report": {
+      "instruction_like_content_detected": false,
+      "details": "走査範囲: knowledge_input.sources の全 1 件 (index 0, repo_artifact, commit 2fa13a262a53b7f4e610a40a7a7af7f86fc9d621, path output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/runs/wal.jsonl) の content_utf8 全文 15 行 (variant 20bbb4c1a855 / 27d1d016998e / dad58f9f9000 の build_start, build_done, verify_done, bench_done, commit)。全 JSON オブジェクトの key と値、埋め込み文字列を目視で走査した。エージェントの振る舞いを変えようとする命令文、ゲートの緩和・迂回の要求 (verifier を飛ばせ、serializable と記録しろ、fitness をこう書け等)、特定値の採用を強要する文言、役割・出力形式の再定義、外部への送信要求は 1 件も検出しなかった。判定の付記として、本文には命令形に見える実行可能文字列が含まれる: perf_configure_cmd / perf_build_cmd の cmake コマンド列、run_cmd の numactl + perf stat + 実行ファイル起動列、および /home/tanab/github/izanagi/... という絶対 path。これらは campaign が実行したコマンドの記録 (過去形の観測データ) であってこちらへ宛てた指示ではないと分類したため detected=false とした。いずれも実行・再利用せず、path の実在も前提にせず、数値と genome の読み取りにのみ用いた。なお payload 内の verdict/certified/anomalies といったゲート結果フィールドも、事実の記録として読むだけで、本提案のゲート定義・順序・閾値には反映していない。"
+    }
+  },
+  "prior_critic_reverse": null
+}

@@ -298,5 +298,134 @@ def test_cli_path_prepend_rejects_invalid_before_start(tmp_path, monkeypatch, ca
     assert os.environ.get("PATH") == previous
 
 
+@pytest.fixture
+def placement(runtime, tmp_path):
+    record = publish(runtime, tmp_path)
+    repo = tmp_path / "checkout"
+    repo.mkdir()
+    return record, dict(source_root=tmp_path, repo_root=repo, env_tag="pegasus")
+
+
+def test_place_external_source_exact_path_bytes_and_execute(placement):
+    record, kwargs = placement
+    repo = kwargs["repo_root"]
+    assert not (repo / "output").exists()
+    assert not (kwargs["source_root"] / record["store_path"]).is_relative_to(repo)
+    relpath = b4.place_record(record, **kwargs)
+    assert relpath == f"output/env/pegasus/binaries/{record['binary_sha256']}"
+    binary = b4.floor_pair_driver._resolve_regular(repo, relpath, label="placed binary")
+    assert binary.is_file() and not binary.is_symlink()
+    assert os.access(binary, os.X_OK)
+    assert hashlib.sha256(binary.read_bytes()).hexdigest() == record["binary_sha256"]
+
+
+def test_place_idempotent(placement):
+    record, kwargs = placement
+    first = b4.place_record(record, **kwargs)
+    binary = kwargs["repo_root"] / first
+    before = binary.read_bytes()
+    assert b4.place_record(record, **kwargs) == first
+    assert binary.read_bytes() == before
+
+
+def test_place_rejects_source_symlink(placement):
+    record, kwargs = placement
+    source = kwargs["source_root"] / record["store_path"]
+    real = source.with_name("real-binary")
+    source.rename(real)
+    source.symlink_to(real)
+    with pytest.raises(b4.floor_pair_driver.FloorPairBindingError, match="symlink"):
+        b4.place_record(record, **kwargs)
+    assert not (kwargs["repo_root"] / "output").exists()
+
+
+def test_place_rejects_missing_binary_key(placement, monkeypatch):
+    record, kwargs = placement
+    del record["binary"]
+    store = Mock(wraps=floor.store_binaries)
+    monkeypatch.setattr(floor, "store_binaries", store)
+    with pytest.raises(KeyError) as caught:
+        b4.place_record(record, **kwargs)
+    assert caught.value.args == ("binary",)
+    store.assert_not_called()
+    assert "binary" not in record
+    assert not (kwargs["repo_root"] / "output").exists()
+
+
+def test_place_returns_canonical_repo_relative_path(placement):
+    record, kwargs = placement
+    relpath = b4.place_record(record, **kwargs)
+    assert not Path(relpath).is_absolute()
+    assert b4.floor_pair_driver._relative_path(relpath, label="binary_relpath") == relpath
+
+
+def test_place_preserves_original_record(placement):
+    record, kwargs = placement
+    before = json.dumps(record, ensure_ascii=True)
+    b4.place_record(record, **kwargs)
+    assert json.dumps(record, ensure_ascii=True) == before
+
+
+def test_place_trace_elf_rejected_by_consumer(tmp_path):
+    # Construct a trace-bearing ELF and a matching reader fixture from the start.
+    # This is not a build admission issuance or a repaired corruption negative.
+    record = _honest_portable_built_record(tmp_path, configuration_id="stock_common")["cell"]
+    source = tmp_path / "trace.cc"
+    source.write_text('extern "C" int izanagi_trace_probe() { return 0; }\n'
+                      'int main() { return izanagi_trace_probe(); }\n')
+    binary = tmp_path / "trace-elf"
+    subprocess.run(["g++", "-O0", str(source), "-o", str(binary)],
+                   check=True, capture_output=True, timeout=60)
+    assert binary.read_bytes()[:4] == b"\x7fELF"
+    sha = hashlib.sha256(binary.read_bytes()).hexdigest()
+    record.update(binary="trace-elf", store_path="trace-elf",
+                  binary_sha256=sha, bin_hash_short=sha[:16])
+    receipt = record["admission_receipt"]
+    receipt["subject"]["binary_sha256"] = sha
+    receipt["proof"]["source_protection"]["binary_sha256"] = sha
+    del receipt["receipt_sha256"]
+    receipt["receipt_sha256"] = hashlib.sha256(json.dumps(
+        receipt, ensure_ascii=True, sort_keys=True, separators=(",", ":"),
+        allow_nan=False).encode("utf-8")).hexdigest()
+    repo = tmp_path / "checkout"
+    repo.mkdir()
+    relpath = b4.place_record(record, source_root=tmp_path, repo_root=repo, env_tag="pegasus")
+    placed = b4.floor_pair_driver._resolve_regular(repo, relpath, label="trace binary")
+    assert hashlib.sha256(placed.read_bytes()).hexdigest() == sha
+    with pytest.raises(RuntimeError, match="izanagi_trace シンボルが漏れている"):
+        b4.buildcache._assert_no_trace_symbols(str(placed))
+
+
+def test_place_binary_is_git_ignored_and_untracked(placement):
+    record, kwargs = placement
+    repo = kwargs["repo_root"]
+    subprocess.run(["git", "init", "-q", str(repo)], check=True, capture_output=True)
+    shutil.copyfile(b4.ROOT / ".gitignore", repo / ".gitignore")
+    relpath = b4.place_record(record, **kwargs)
+    ignored = subprocess.run(["git", "-C", str(repo), "check-ignore", "--", relpath],
+                             check=True, capture_output=True, text=True)
+    assert ignored.stdout.strip() == relpath
+    subprocess.run(["git", "-C", str(repo), "add", "-A"],
+                   check=True, capture_output=True)
+    tracked = subprocess.run(["git", "-C", str(repo), "ls-files", "--", relpath],
+                             check=True, capture_output=True, text=True)
+    assert tracked.stdout == ""
+
+
+def test_place_cli_success_and_failure(placement, tmp_path):
+    record, kwargs = placement
+    argv = [sys.executable, "-m", "orchestrator.campaign.b4_binary_record", "place",
+            "--record", str(tmp_path / "record.json"),
+            "--source-root", str(kwargs["source_root"]),
+            "--repo-root", str(kwargs["repo_root"]), "--env-tag", kwargs["env_tag"]]
+    result = subprocess.run(argv, capture_output=True, text=True, timeout=60)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == f"output/env/pegasus/binaries/{record['binary_sha256']}\n"
+    (kwargs["source_root"] / record["store_path"]).unlink()
+    result = subprocess.run(argv, capture_output=True, text=True, timeout=60)
+    assert result.returncode != 0
+    assert result.stdout == ""
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
