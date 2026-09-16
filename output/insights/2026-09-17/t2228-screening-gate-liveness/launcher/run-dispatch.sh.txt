@@ -1,0 +1,36 @@
+#!/bin/bash
+# [T-2228] 最小 screening の 1 走 — generic dispatch から job dir の launcher 経由で正規 CLI (backoff_sweep.py main) を起動する。
+# 投入元 = wave worktree (HEAD 1042a1bc9)。env は launcher (Codex author、段 4 裁定 1/2) が A-5 と同値で供給する。
+# attempt a (2319.nqsv) は official root を job dir 配下に置き、/work/1/SFC/tanab/dev-wave-jobs/.git (空 dir) を
+# .git 祖先として layout が拒否した。attempt b は前回 probe と同じ izanagi-job-evidence 配下に置く (全祖先に .git なし、実測済み)。
+ATTEMPT=b
+JOB=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2228-screening-liveness
+WT=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2228-screening-liveness
+LAUNCHER="$JOB/run_screening_liveness.sh"
+OFFICIAL_ROOT="/work/1/SFC/tanab/izanagi-job-evidence/t2228/attempt-20260917${ATTEMPT}-official"
+EXPECTED_HEAD=1042a1bc95057fa03117d504cfa2b0fafaae60d0
+EXPECTED_PIN=511c9538e4e8efa54b45cda62e72389ed3b706ec
+echo $$ > "$JOB/dispatch-$ATTEMPT.pid"
+cd "$WT" || exit 90
+if [[ -e "$OFFICIAL_ROOT" ]]; then
+  echo "official root already exists: $OFFICIAL_ROOT" >&2
+  echo 90 > "$JOB/dispatch-$ATTEMPT.done"
+  exit 90
+fi
+if [[ ! -f "$LAUNCHER" ]]; then
+  echo "launcher missing: $LAUNCHER" >&2
+  echo 90 > "$JOB/dispatch-$ATTEMPT.done"
+  exit 90
+fi
+sha256sum "$LAUNCHER" > "$JOB/launcher-$ATTEMPT.sha256"
+date '+%Y-%m-%dT%H:%M:%S%z start' > "$JOB/dispatch-$ATTEMPT.times"
+python3 -B tools/pegasus/dispatch_compute.py \
+  --task generic \
+  --walltime 01:30:00 \
+  --queue-wait-timeout 3600 \
+  --overall-grace 3600 \
+  -- bash "$LAUNCHER" "$OFFICIAL_ROOT" "$EXPECTED_HEAD" "$EXPECTED_PIN" \
+  > "$JOB/dispatch-$ATTEMPT.log" 2>&1
+rc=$?
+date "+%Y-%m-%dT%H:%M:%S%z end rc=$rc" >> "$JOB/dispatch-$ATTEMPT.times"
+echo "$rc" > "$JOB/dispatch-$ATTEMPT.done"

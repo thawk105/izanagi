@@ -2711,6 +2711,17 @@ def main(
             f.write(json.dumps(payload, ensure_ascii=False))
         print(f"planner context を出力しました: {a.emit_planner_context}")
         return 0
+    if (
+        a.run_iteration
+        and resolved_knowledge is not None
+        and resolved_knowledge.manifest.sources
+        and a.coder_role is None
+    ):
+        raise ValueError(
+            "--run-iteration: --knowledge-manifest の sources が非空 "
+            f"(sources_count={len(resolved_knowledge.manifest.sources)}) "
+            "のため --coder-role coder-v4-autonomous-k2 が必要"
+        )
     build_context = build_run_context(
         generator_id=GeneratorId.BACKOFF_SWEEP,
         coder_authority=None if a.no_build else a.coder_build_authority,

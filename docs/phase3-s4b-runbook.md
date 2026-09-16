@@ -41,6 +41,9 @@ trigger-gating (`phase3-s8a-trigger-runbook.md`) の loader も同一の検査�
 **K2 宣言アーム (`coder-v4-autonomous-k2`) を回すとき**、driver へ渡す `--knowledge-manifest` の
 知識源は `docs/agent-architecture.md` の `coder-v4-autonomous-k2` 節にある
 「知識源の選定 (送り手側の義務、D1936 項 2)」項に従って選ぶ。本書には規律本文を複製しない。
+driver で `--emit-planner-context` を指定せず `--run-iteration` を実行する場合、manifest の `sources` が
+非空なら `--coder-role coder-v4-autonomous-k2` が必須で、妥当な空取得 manifest (`sources: []`) では
+従来どおり role 省略を許す (D1878)。
 
 ### (a) planner-v4 を spawn (方向提案・値なし)
 `Agent(subagent_type='planner-v4')`。入力 (メインセッションが**射影して**渡す。JSON):

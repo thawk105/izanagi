@@ -1,0 +1,230 @@
+{
+  "bundle_root": "/work/1/SFC/tanab/axis1-bundles/2026-09-03-t2090-openalex/bundle",
+  "canonical_runner_argv": [
+    "python3",
+    "tools/run_axis1_search.py",
+    "--registration-commit",
+    "4ec3eba04354f9ba86117a2dd488c72d007045e6",
+    "--catalog",
+    "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json",
+    "--bundle",
+    "/work/1/SFC/tanab/axis1-bundles/2026-09-03-t2090-openalex/bundle",
+    "--run-id",
+    "t2035-openalex-20260917a",
+    "--checkpoint",
+    "/work/1/SFC/tanab/axis1-bundles/2026-09-03-t2090-openalex/bundle/checkpoints/000065.json"
+  ],
+  "catalog_path": "docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json",
+  "catalog_sha256": "8e23d63a799c8ab9d25151012c34bc738dbb422ac3dfb237999c359137c816ab",
+  "checkpoint_id": "000065",
+  "completed_ledger": {
+    "canonicalization": "canonical JSON object v1; primary digest is sorted unique index_work_id lines",
+    "distinct_count": 1598,
+    "ledger_sha256": "0b91753be7a2616c231229a3296d258fe91bba42d1441a94df8e2a65e0404a60",
+    "path": "ledgers/AX1-20260902-E1-Q6-SY2020@openalex.pass1.0b91753be7a2.json",
+    "primary_key_digest": "124c27b634a9311cce93623d5a4b0e233942fbf9d1e94c1e241999c17a9a5dc9",
+    "primary_key_kind": "index_work_id",
+    "row_count": 1600
+  },
+  "cursor_state": {
+    "leaf_ordinal": 8,
+    "page_number": 8,
+    "parent_response_sha256": "74f1e3ff777bf97d90bff0526ab9bc956b9bad24b495c2764cb37e7516cc401a",
+    "position_in": "IlswLjA5MjUxOTM0LCAxNTc3ODM2ODAwMDAwLCAnaHR0cHM6Ly9vcGVuYWxleC5vcmcvVzQ0MDgzMDY0MDMnXSI=",
+    "position_out": "IlswLjA5MjUxOTM0LCAxNTc3ODM2ODAwMDAwLCAnaHR0cHM6Ly9vcGVuYWxleC5vcmcvVzQ0MDgzMDY0MDMnXSI=",
+    "previous_request_id": "AX1-20260902-E1-Q6-SY2020@openalex#p8"
+  },
+  "index": "openalex",
+  "last_attempt": {
+    "attempt_number": 1,
+    "failure": null,
+    "raw_evidence_path": "raw/AX1-20260902-E1-Q6-SY2020@openalex_p8.a01.body.gz",
+    "request_id": "AX1-20260902-E1-Q6-SY2020@openalex#p8",
+    "state": "terminal"
+  },
+  "leaf_query_id": "AX1-20260902-E1-Q6-SY2020@openalex",
+  "pass_number": 1,
+  "previous_checkpoint": null,
+  "query_id": "AX1-20260902-E1-Q6@openalex",
+  "quota": {
+    "cost_usd": 0.001,
+    "credits_per_request": 10,
+    "header_evidence": [
+      [
+        "X-RateLimit-Cost-USD",
+        "0.001"
+      ],
+      [
+        "X-RateLimit-Credits-Used",
+        "10"
+      ],
+      [
+        "X-RateLimit-Limit",
+        "1000"
+      ],
+      [
+        "X-RateLimit-Remaining",
+        "789"
+      ],
+      [
+        "X-RateLimit-Reset",
+        "28718"
+      ]
+    ],
+    "index": "openalex",
+    "limit": 1000,
+    "observed_at_jst": "2026-09-17T01:01:22.493415+09:00",
+    "observed_at_utc": "2026-09-16T16:01:22.493415Z",
+    "observed_request_id": "AX1-20260902-E1-Q6-SY2020@openalex#p8",
+    "remaining": 789,
+    "reset_seconds": 28718
+  },
+  "registration_commit": "4ec3eba04354f9ba86117a2dd488c72d007045e6",
+  "registration_epoch": "AX1-20260902-E1",
+  "requests": {
+    "continue_cursor": {
+      "catalog_template_sha256": "56ebde766915cf201e0050065cbbdd940665c4f6a94c91561c4bd1e715a457cd",
+      "empty_body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "encoded_url": "https://api.openalex.org/works?filter=from_publication_date%3A2020-01-01%2Cto_publication_date%3A2020-12-31%2Ctitle_and_abstract.search%3A%28%22program+synthesis%22+OR+%22automatic+generation%22+OR+%22code+generation%22+OR+%22evolutionary+search%22+OR+%22genetic+programming%22+OR+%22large+language+model%22+OR+%22LLM+agent%22+OR+%22reinforcement+learning%22+OR+%22learned%22+OR+%22auto-tuning%22+OR+%22compiler+injection%22+OR+%22superoptimization%22%29+AND+%28%22protocol%22+OR+%22algorithm%22+OR+%22policy%22+OR+%22source+code%22+OR+%22implementation%22+OR+%22intermediate+representation%22+OR+%22action+space%22+OR+%22design+space%22+OR+%22variant%22%29+AND+%28%22workload%22+OR+%22benchmark%22+OR+%22YCSB%22+OR+%22TPC-C%22+OR+%22contention%22+OR+%22read-write+ratio%22+OR+%22skew%22+OR+%22many-core%22%29&per-page=200&cursor=IlswLjA5MjUxOTM0LCAxNTc3ODM2ODAwMDAwLCAnaHR0cHM6Ly9vcGVuYWxleC5vcmcvVzQ0MDgzMDY0MDMnXSI%3D",
+      "executable": false,
+      "expected_interpreted_query": "{\"filter_rows\":[{\"column_id\":\"from_publication_date\",\"value\":\"2020-01-01\"},{\"column_id\":\"to_publication_date\",\"value\":\"2020-12-31\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"program synthesis\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"automatic generation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"code generation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"evolutionary search\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"genetic programming\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"large language model\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"LLM agent\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"reinforcement learning\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"learned\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"auto-tuning\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"compiler injection\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"superoptimization\\\"\"}],\"join\":\"or\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"protocol\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"algorithm\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"policy\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"source code\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"implementation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"intermediate representation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"action space\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"design space\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"variant\\\"\"}],\"join\":\"or\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"workload\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"benchmark\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"YCSB\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"TPC-C\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"contention\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"read-write ratio\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"skew\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"many-core\\\"\"}],\"join\":\"or\"}],\"get_rows\":\"works\"}",
+      "headers": [
+        [
+          "Accept",
+          "application/json"
+        ]
+      ],
+      "host": "api.openalex.org",
+      "index": "openalex",
+      "leaf_query_id": "AX1-20260902-E1-Q6-SY2020@openalex",
+      "logical_query_id": "AX1-20260902-E1-Q6@openalex",
+      "method": "GET",
+      "page_number": 8,
+      "parent_response_sha256": "74f1e3ff777bf97d90bff0526ab9bc956b9bad24b495c2764cb37e7516cc401a",
+      "path": "/works",
+      "position_in": "IlswLjA5MjUxOTM0LCAxNTc3ODM2ODAwMDAwLCAnaHR0cHM6Ly9vcGVuYWxleC5vcmcvVzQ0MDgzMDY0MDMnXSI=",
+      "query_parameters": [
+        [
+          "filter",
+          "from_publication_date:2020-01-01,to_publication_date:2020-12-31,title_and_abstract.search:(\"program synthesis\" OR \"automatic generation\" OR \"code generation\" OR \"evolutionary search\" OR \"genetic programming\" OR \"large language model\" OR \"LLM agent\" OR \"reinforcement learning\" OR \"learned\" OR \"auto-tuning\" OR \"compiler injection\" OR \"superoptimization\") AND (\"protocol\" OR \"algorithm\" OR \"policy\" OR \"source code\" OR \"implementation\" OR \"intermediate representation\" OR \"action space\" OR \"design space\" OR \"variant\") AND (\"workload\" OR \"benchmark\" OR \"YCSB\" OR \"TPC-C\" OR \"contention\" OR \"read-write ratio\" OR \"skew\" OR \"many-core\")"
+        ],
+        [
+          "per-page",
+          "200"
+        ],
+        [
+          "cursor",
+          "IlswLjA5MjUxOTM0LCAxNTc3ODM2ODAwMDAwLCAnaHR0cHM6Ly9vcGVuYWxleC5vcmcvVzQ0MDgzMDY0MDMnXSI="
+        ]
+      ],
+      "request_id": "AX1-20260902-E1-Q6-SY2020@openalex#p8",
+      "request_role": "continue_cursor",
+      "scheme": "https",
+      "target_pass_number": 1,
+      "target_run_id": "t2035-openalex-20260917a",
+      "target_window_number": 1,
+      "timeout_s": 60.0
+    },
+    "restart_branch": {
+      "catalog_template_sha256": "faddc56fc35904df18d68a3d6e21b22a8d7192f6cffefcfb2f2a68f89552dcb8",
+      "empty_body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "encoded_url": "https://api.openalex.org/works?filter=from_publication_date%3A2020-01-01%2Cto_publication_date%3A2020-12-31%2Ctitle_and_abstract.search%3A%28%22program+synthesis%22+OR+%22automatic+generation%22+OR+%22code+generation%22+OR+%22evolutionary+search%22+OR+%22genetic+programming%22+OR+%22large+language+model%22+OR+%22LLM+agent%22+OR+%22reinforcement+learning%22+OR+%22learned%22+OR+%22auto-tuning%22+OR+%22compiler+injection%22+OR+%22superoptimization%22%29+AND+%28%22protocol%22+OR+%22algorithm%22+OR+%22policy%22+OR+%22source+code%22+OR+%22implementation%22+OR+%22intermediate+representation%22+OR+%22action+space%22+OR+%22design+space%22+OR+%22variant%22%29+AND+%28%22workload%22+OR+%22benchmark%22+OR+%22YCSB%22+OR+%22TPC-C%22+OR+%22contention%22+OR+%22read-write+ratio%22+OR+%22skew%22+OR+%22many-core%22%29&per-page=200&cursor=%2A",
+      "executable": false,
+      "expected_interpreted_query": "{\"filter_rows\":[{\"column_id\":\"from_publication_date\",\"value\":\"2020-01-01\"},{\"column_id\":\"to_publication_date\",\"value\":\"2020-12-31\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"program synthesis\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"automatic generation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"code generation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"evolutionary search\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"genetic programming\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"large language model\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"LLM agent\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"reinforcement learning\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"learned\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"auto-tuning\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"compiler injection\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"superoptimization\\\"\"}],\"join\":\"or\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"protocol\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"algorithm\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"policy\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"source code\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"implementation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"intermediate representation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"action space\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"design space\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"variant\\\"\"}],\"join\":\"or\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"workload\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"benchmark\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"YCSB\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"TPC-C\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"contention\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"read-write ratio\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"skew\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"many-core\\\"\"}],\"join\":\"or\"}],\"get_rows\":\"works\"}",
+      "headers": [
+        [
+          "Accept",
+          "application/json"
+        ]
+      ],
+      "host": "api.openalex.org",
+      "index": "openalex",
+      "leaf_query_id": "AX1-20260902-E1-Q6-SY2020@openalex",
+      "logical_query_id": "AX1-20260902-E1-Q6@openalex",
+      "method": "GET",
+      "page_number": 0,
+      "parent_response_sha256": null,
+      "path": "/works",
+      "position_in": "*",
+      "query_parameters": [
+        [
+          "filter",
+          "from_publication_date:2020-01-01,to_publication_date:2020-12-31,title_and_abstract.search:(\"program synthesis\" OR \"automatic generation\" OR \"code generation\" OR \"evolutionary search\" OR \"genetic programming\" OR \"large language model\" OR \"LLM agent\" OR \"reinforcement learning\" OR \"learned\" OR \"auto-tuning\" OR \"compiler injection\" OR \"superoptimization\") AND (\"protocol\" OR \"algorithm\" OR \"policy\" OR \"source code\" OR \"implementation\" OR \"intermediate representation\" OR \"action space\" OR \"design space\" OR \"variant\") AND (\"workload\" OR \"benchmark\" OR \"YCSB\" OR \"TPC-C\" OR \"contention\" OR \"read-write ratio\" OR \"skew\" OR \"many-core\")"
+        ],
+        [
+          "per-page",
+          "200"
+        ],
+        [
+          "cursor",
+          "*"
+        ]
+      ],
+      "request_id": "AX1-20260902-E1-Q6-SY2020@openalex#p0",
+      "request_role": "restart_branch",
+      "scheme": "https",
+      "target_pass_number": 1,
+      "target_run_id": "t2035-openalex-20260917a",
+      "target_window_number": 1,
+      "timeout_s": 60.0
+    },
+    "start_independent_pass": {
+      "catalog_template_sha256": "faddc56fc35904df18d68a3d6e21b22a8d7192f6cffefcfb2f2a68f89552dcb8",
+      "empty_body_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "encoded_url": "https://api.openalex.org/works?filter=from_publication_date%3A2020-01-01%2Cto_publication_date%3A2020-12-31%2Ctitle_and_abstract.search%3A%28%22program+synthesis%22+OR+%22automatic+generation%22+OR+%22code+generation%22+OR+%22evolutionary+search%22+OR+%22genetic+programming%22+OR+%22large+language+model%22+OR+%22LLM+agent%22+OR+%22reinforcement+learning%22+OR+%22learned%22+OR+%22auto-tuning%22+OR+%22compiler+injection%22+OR+%22superoptimization%22%29+AND+%28%22protocol%22+OR+%22algorithm%22+OR+%22policy%22+OR+%22source+code%22+OR+%22implementation%22+OR+%22intermediate+representation%22+OR+%22action+space%22+OR+%22design+space%22+OR+%22variant%22%29+AND+%28%22workload%22+OR+%22benchmark%22+OR+%22YCSB%22+OR+%22TPC-C%22+OR+%22contention%22+OR+%22read-write+ratio%22+OR+%22skew%22+OR+%22many-core%22%29&per-page=200&cursor=%2A",
+      "executable": true,
+      "expected_interpreted_query": "{\"filter_rows\":[{\"column_id\":\"from_publication_date\",\"value\":\"2020-01-01\"},{\"column_id\":\"to_publication_date\",\"value\":\"2020-12-31\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"program synthesis\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"automatic generation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"code generation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"evolutionary search\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"genetic programming\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"large language model\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"LLM agent\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"reinforcement learning\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"learned\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"auto-tuning\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"compiler injection\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"superoptimization\\\"\"}],\"join\":\"or\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"protocol\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"algorithm\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"policy\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"source code\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"implementation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"intermediate representation\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"action space\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"design space\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"variant\\\"\"}],\"join\":\"or\"},{\"filters\":[{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"workload\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"benchmark\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"YCSB\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"TPC-C\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"contention\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"read-write ratio\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"skew\\\"\"},{\"column_id\":\"title_and_abstract.search\",\"operator\":\"has\",\"value\":\"\\\"many-core\\\"\"}],\"join\":\"or\"}],\"get_rows\":\"works\"}",
+      "headers": [
+        [
+          "Accept",
+          "application/json"
+        ]
+      ],
+      "host": "api.openalex.org",
+      "index": "openalex",
+      "leaf_query_id": "AX1-20260902-E1-Q6-SY2020@openalex",
+      "logical_query_id": "AX1-20260902-E1-Q6@openalex",
+      "method": "GET",
+      "page_number": 0,
+      "parent_response_sha256": null,
+      "path": "/works",
+      "position_in": "*",
+      "query_parameters": [
+        [
+          "filter",
+          "from_publication_date:2020-01-01,to_publication_date:2020-12-31,title_and_abstract.search:(\"program synthesis\" OR \"automatic generation\" OR \"code generation\" OR \"evolutionary search\" OR \"genetic programming\" OR \"large language model\" OR \"LLM agent\" OR \"reinforcement learning\" OR \"learned\" OR \"auto-tuning\" OR \"compiler injection\" OR \"superoptimization\") AND (\"protocol\" OR \"algorithm\" OR \"policy\" OR \"source code\" OR \"implementation\" OR \"intermediate representation\" OR \"action space\" OR \"design space\" OR \"variant\") AND (\"workload\" OR \"benchmark\" OR \"YCSB\" OR \"TPC-C\" OR \"contention\" OR \"read-write ratio\" OR \"skew\" OR \"many-core\")"
+        ],
+        [
+          "per-page",
+          "200"
+        ],
+        [
+          "cursor",
+          "*"
+        ]
+      ],
+      "request_id": "AX1-20260902-E1-Q6-SY2020@openalex#p0",
+      "request_role": "start_independent_pass",
+      "scheme": "https",
+      "target_pass_number": 2,
+      "target_run_id": "t2035-openalex-20260917a",
+      "target_window_number": 1,
+      "timeout_s": 60.0
+    }
+  },
+  "resume_action": "start_independent_pass",
+  "run_id": "t2035-openalex-20260917a",
+  "schema_version": "izanagi-axis1-search-checkpoint/v2",
+  "second_pass": {
+    "accepted": null,
+    "first_primary_key_digest": "124c27b634a9311cce93623d5a4b0e233942fbf9d1e94c1e241999c17a9a5dc9",
+    "ledger_path": null,
+    "matches_first": null,
+    "primary_key_digest": null,
+    "required": true,
+    "state": "not_started"
+  },
+  "state": "pass_complete",
+  "waiting_ruling_ids": [],
+  "window_number": 1
+}
