@@ -9,8 +9,8 @@ critic は「生のカウンタでなく組み合わせて読み、特定の設�
 2. **フラグ軸ごとの限界効果** — 各設計選択 (BACK_OFF / no-wait 政策 / WAL) を
    フリップしたとき各指標がどう動くか (他フラグで周辺化した平均)。これが
    「fitness を設計選択に帰属させる」核心。例: BACK_OFF 0→1 で throughput が
-   下がるのに abort_rate がほぼ不変なら、backoff は競合を減らしておらず
-   待ち時間のコストだけを払っている、と読める。cache miss / IPC で機序を補強する。
+   下がるのに abort_rate がほぼ不変なら、abort 率の改善は観測されず、
+   待機コスト増が第一の仮説になる (cache miss / IPC で機序を裏取りする)。
 
 CCBench の通常出力 (result.cc の displayTps) では latency[ns] = 1e9 *
 thread_num / throughput で独立した latency 計測ではないため、digest の列には出さない。

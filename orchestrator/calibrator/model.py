@@ -72,6 +72,7 @@ class ScalePoint:
     # CC-native な leading indicator (roadmap §3.5) は throughput と同じ中央値演算:
     # 奇数有効 reps は代表の中央 rep の値、偶数は throughput 順の中央 2 rep の
     # 算術平均 (一方でも欠損なら None)。
+    # 有効 throughput が 0 件なら、最後に解析できた rep の 5 field をそのまま保持する。
     abort_rate: Optional[float] = None    # abort/(commit+abort)。競合の捌き方が直接出る
     latency_ns: Optional[float] = None    # 平均トランザクションレイテンシ [ns]
     notes: List[str] = field(default_factory=list)   # rep 失敗等の構造化記録 (規律3)
