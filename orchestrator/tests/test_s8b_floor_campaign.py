@@ -3949,12 +3949,13 @@ def test_floor_condition_gate_config_header_supply(
             f"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={empty}"
             if token == masstree_token else token for token in args
         )
+    captured = gate.capture_define_inputs(root, configure_args=args)
+    request = gate.make_define_request(
+        driver_id="s8b-floor-config-header-test", macro="BACKOFF_FIXED",
+        requested_value=5, default_value=-1,
+    )
     record = gate.evaluate_define_supply_effectuation(
-        gate.capture_define_inputs(root, configure_args=args),
-        request=gate.make_define_request(
-            driver_id="s8b-floor-config-header-test", macro="BACKOFF_FIXED",
-            requested_value=5, default_value=-1,
-        ),
+        captured, request=request,
         cxx=compilers[1], cmake=shutil.which("cmake"),
     )
     if source_mode == "supplied":
@@ -3969,6 +3970,16 @@ def test_floor_condition_gate_config_header_supply(
             "red", "preprocess-failed",
         ), dict(record.evidence)
         assert "config.h" in record.evidence["detail"]
+        if source_mode == "empty":
+            # Reuse the exact captured configure arguments; only supply the header.
+            (empty / "config.h").write_bytes(config.read_bytes())
+            restored = gate.evaluate_define_supply_effectuation(
+                captured, request=request,
+                cxx=compilers[1], cmake=shutil.which("cmake"),
+            )
+            assert (restored.terminal_status, restored.reason_code) == (
+                "green", "requested-default-preprocess-different",
+            ), dict(restored.evidence)
 
 
 def test_floor_dependency_prebuild_captures_shared_policy_pins_once(
