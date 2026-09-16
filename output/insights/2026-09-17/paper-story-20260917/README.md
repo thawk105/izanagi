@@ -5,9 +5,12 @@
 `docs/paper-story-backoff/` は 1 byte も変えていない。
 
 - wave: `dev-wave-paper-story-20260917`、branch `worktree-dev-wave-paper-story-20260917`
-- 起点: wave 開始時 local main `bf4f91f51` (2026-09-17 00:33 JST)。段 4 直前に `1042a1bc9` へ ff-only で取り込んだ
-  ([T-2630] の記録の fold 1 commit = worklog entry 1580・F1016・F1017・[T-2731])
-- 成果物: `docs/paper-story/2026-09-17.md` (新規、段 6 の fix 後で 2,765 行 / 約 302 KB) と
+- 起点: wave 開始時 local main `bf4f91f51` (2026-09-17 00:33 JST)。段 4 直前に `1042a1bc9` へ ff-only で取り込み
+  ([T-2630] の記録の fold 1 commit = worklog entry 1580・F1016・F1017・[T-2731])、段 6 の後に `fa24e6ea8` へ
+  merge で取り込んだ ([T-2288] の記録の着地と fold = entry 1581・D2088〜D2090。docs のみ、実装面と submodule に
+  差なし)。**導出の最終起点は `fa24e6ea8`。** T-2288 の反映 (§0 の前進 5・§2 (c)・§5・§7・§8 の B-4 と A-4・§9) は
+  レビュー子が読んでいない親の再導出であり、件数・path・固定表現・check_docs・三軸語走査は再走した
+- 成果物: `docs/paper-story/2026-09-17.md` (新規、段 6 の fix と T-2288 反映後で 2,819 行 / 約 310 KB) と
   `docs/paper-story/README.md` の 3 節の更新 (版の履歴表へ 1 行、訂正一覧を 09-17 版の 3 件へ、stale 注記を 0 件へ)
 - 依頼: 「論文ストーリー本体の新版を、その日付の local main の正典全体から全面再導出して作る。2026-09-14 版以後に
   確定した事実を本文へ取り込む。§8 の A/B 群の状態欄を現物で埋める。T-2647 (1) の 09-15 cohort の論文図は、置き場所を
