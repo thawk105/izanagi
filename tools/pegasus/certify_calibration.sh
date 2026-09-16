@@ -904,10 +904,8 @@ for perf_index in "${!PERF_CANDIDATES[@]}"; do
   PERF_SELECTED_SMOKE=$(cat "$perf_smoke_file")
   break
 done
-if [[ -z "$PERF_SELECTED" ]]; then
-  write_failure 2 perf "no policy perf candidate passed version and event smoke"
-  exit 2
-fi
+CALIBRATE_PATH="$(dirname "$CALIBRATE_PYTHON"):$PATH"
+if [[ -n "$PERF_SELECTED" ]]; then
 python3 - "$ATTEMPT_DIR/perf-selection.json" "$PERF_SELECTED_REAL" \
   "$PERF_SELECTED_VERSION" "$PERF_EVENTS" "$PERF_SELECTED_SMOKE" <<'PY'
 import json
@@ -926,9 +924,30 @@ with open(path, "x", encoding="utf-8") as handle:
 PY
 mkdir "$TMPDIR/bin"
 ln -s "$PERF_SELECTED_REAL" "$TMPDIR/bin/perf"
-CALIBRATE_PATH="$TMPDIR/bin:$PATH"
-
 CALIBRATE_PATH="$TMPDIR/bin:$(dirname "$CALIBRATE_PYTHON"):$PATH"
+fi
+
+PERF_PREFLIGHT_RECEIPT="$ATTEMPT_DIR/perf-preflight.json"
+if ! USE_PERF=$(env "PATH=$CALIBRATE_PATH" "$CALIBRATE_PYTHON" - \
+  "$REPO_ROOT" "$PERF_PREFLIGHT_RECEIPT" "${PERF_CANDIDATES[@]}" <<'PY'
+import json
+import sys
+
+sys.path.insert(0, sys.argv[1])
+from orchestrator.calibrator.perf_preflight import (
+    probe_perf_availability, use_perf_from_receipt,
+)
+
+receipt = probe_perf_availability(perf_candidates=sys.argv[3:])
+with open(sys.argv[2], "x", encoding="utf-8") as handle:
+    json.dump(receipt, handle, sort_keys=True, indent=2)
+    handle.write("\n")
+print(int(use_perf_from_receipt(receipt)))
+PY
+); then
+  write_failure 2 perf "canonical perf preflight failed"
+  exit 2
+fi
 
 # CLI 名は L4 と凍結共有。override/fallback 用 --clocks-per-us は渡さない。
 CALIBRATE_ARGV_JSON="$ATTEMPT_DIR/calibrate-argv.json"
@@ -943,6 +962,9 @@ calibrate_argv=(
   --binary-sha256 "$BINARY_SHA"
   --receipt-json "$ATTEMPT_DIR/acquisition-receipt.json"
 )
+if [[ "$USE_PERF" == 0 ]]; then
+  calibrate_argv+=(--perf-preflight-json "$PERF_PREFLIGHT_RECEIPT")
+fi
 python3 - "$CALIBRATE_ARGV_JSON" "${calibrate_argv[@]}" <<'PY'
 import json
 import sys
