@@ -4,8 +4,9 @@ import copy
 import hashlib
 import json
 import os
-from dataclasses import fields, replace
+from dataclasses import dataclass, fields, replace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -15,7 +16,9 @@ from orchestrator.campaign import reflux_result_evidence as evidence
 from orchestrator.campaign import env_attestation, env_contract, execution_guard
 from orchestrator.campaign import trigger_gate_binding
 from orchestrator.campaign import wal
-from orchestrator.campaign.layout import CampaignLayout
+from orchestrator.campaign.layout import (
+    CampaignLayout, ExplorationCampaignLayout, exploration_campaign_layout,
+)
 from orchestrator.campaign.model import (
     STAGE_ABORT,
     STAGE_BUILD_DONE,
@@ -308,7 +311,13 @@ def _producer_context(
     )
 
 
-def _producer_layout(evidence_root: Path) -> CampaignLayout:
+def _producer_layout(
+    evidence_root: Path, *, kind: str = "official",
+) -> CampaignLayout | ExplorationCampaignLayout:
+    if kind == "exploration":
+        return exploration_campaign_layout(
+            "fixture-physical-run", os.fspath(evidence_root)
+        ).ensure()
     return CampaignLayout(
         root=os.fspath(evidence_root / "campaigns" / "fixture-physical-run")
     ).ensure()
@@ -325,7 +334,7 @@ def _producer_binding() -> trigger_gate_binding.TriggerGateBinding:
 
 
 def _log_producer_attempt(
-    layout: CampaignLayout,
+    layout: object,
     *,
     build_attempt_id: str,
     result: VerifyResult,
@@ -397,7 +406,7 @@ def _required_execution_inputs() -> tuple[
 
 def _issue_producer_record(
     *,
-    layout: CampaignLayout,
+    layout: object,
     context: evidence.ResultEvidenceIssuanceContext,
     build_attempt_id: str,
     verify_result: object | None,
@@ -1120,12 +1129,223 @@ def test_formal_consumer_contract_issuer_writes_nine_keys_create_only(
         evidence.issue_result_evidence_record(evidence_root=root, record=assembled)
 
 
-def test_campaign_producer_issues_real_wal_projection_and_resolves_interval(
+def _layout_rejection_fixture(tmp_path: Path, *, kind: str = "official"):
+    root = tmp_path / "evidence"
+    root.mkdir()
+    real = _producer_layout(root, kind=kind)
+    context = _producer_context(root)
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    _log_producer_attempt(
+        real, build_attempt_id=_BUILD_ATTEMPT_ID, result=result, first_ts=10
+    )
+    return real, context, result
+
+
+def _layout_subclass(real):
+    class LayoutSubclass(type(real)):
+        pass
+
+    return LayoutSubclass(root=real.root)
+
+
+def _duck_layout(real, kind: str):
+    @dataclass(frozen=True)
+    class FrozenLayout:
+        root: str
+        wal_file: str
+
+    cls = FrozenLayout if kind == "frozen" else SimpleNamespace
+    return cls(root=real.root, wal_file=real.wal_file)
+
+
+def _non_layout_value(real, kind: str):
+    return {"str": str(real.root), "path": Path(real.root), "none": None}[kind]
+
+
+def _type_equality_impostor(real):
+    target = type(real)
+
+    class EqualLayoutType(type):
+        def __eq__(cls, other):
+            return other is target or other is cls
+
+        __hash__ = type.__hash__
+
+    class Impostor(metaclass=EqualLayoutType):
+        root = real.root
+        wal_file = real.wal_file
+
+    impostor = Impostor()
+    assert type(impostor) is not target
+    assert type(impostor) in (CampaignLayout, ExplorationCampaignLayout)
+    return impostor
+
+
+def _assert_layout_issuance_rejected(layout, context, result) -> None:
+    root = Path(context.evidence_root)
+    before = _file_snapshot(root)
+    with pytest.raises(
+        evidence.ResultEvidenceError,
+        match="^layout must be an exact CampaignLayout or ExplorationCampaignLayout$",
+    ):
+        _issue_producer_record(
+            layout=layout,
+            context=context,
+            build_attempt_id=_BUILD_ATTEMPT_ID,
+            verify_result=result,
+            execution_receipt=_execution_receipt(),
+        )
+    assert _file_snapshot(root) == before
+    assert not (root / context.expected_record_path).exists()
+
+
+def _assert_layout_projection_rejected(layout, real, context) -> None:
+    frames = wal.ordered_attempt_frames(real, _BUILD_ATTEMPT_ID)
+    terminal_prefix = Path(real.wal_file).read_bytes()[:frames[-1].byte_end]
+    source_ref = {
+        "path": Path(real.wal_file).relative_to(context.evidence_root).as_posix(),
+        "sha256": hashlib.sha256(terminal_prefix).hexdigest(),
+    }
+    with pytest.raises(
+        evidence.ResultEvidenceError,
+        match="^layout must be an exact CampaignLayout or ExplorationCampaignLayout$",
+    ):
+        evidence.produce_ordered_wal_projection(
+            layout=layout,
+            build_attempt_id=_BUILD_ATTEMPT_ID,
+            source_wal_ref=source_ref,
+        )
+
+
+@pytest.mark.parametrize("kind", ["official", "exploration"])
+def test_ordered_wal_projection_accepts_exact_layouts(
+    tmp_path: Path, kind: str,
+) -> None:
+    real, context, _result = _layout_rejection_fixture(tmp_path, kind=kind)
+    if kind == "exploration":
+        assert type(real) is ExplorationCampaignLayout
+    frames = wal.ordered_attempt_frames(real, _BUILD_ATTEMPT_ID)
+    terminal_prefix = Path(real.wal_file).read_bytes()[:frames[-1].byte_end]
+    source_ref = {
+        "path": Path(real.wal_file).relative_to(context.evidence_root).as_posix(),
+        "sha256": hashlib.sha256(terminal_prefix).hexdigest(),
+    }
+    projection = evidence.produce_ordered_wal_projection(
+        layout=real, build_attempt_id=_BUILD_ATTEMPT_ID, source_wal_ref=source_ref,
+    )
+    assert isinstance(projection, bytes) and projection
+    parsed = json.loads(projection)
+    assert isinstance(parsed, dict)
+    assert parsed["build_attempt_id"] == _BUILD_ATTEMPT_ID
+    assert parsed["schema_version"] == "ordered-wal-projection/v1"
+
+
+@pytest.mark.parametrize("kind", ["official", "exploration"])
+def test_campaign_producer_refuses_layout_subclasses_before_writes(
+    tmp_path: Path, kind: str,
+) -> None:
+    real, context, result = _layout_rejection_fixture(tmp_path, kind=kind)
+    _assert_layout_issuance_rejected(_layout_subclass(real), context, result)
+
+
+@pytest.mark.parametrize("kind", ["official", "exploration"])
+def test_ordered_wal_projection_refuses_layout_subclasses(
+    tmp_path: Path, kind: str,
+) -> None:
+    real, context, result = _layout_rejection_fixture(tmp_path, kind=kind)
+    _assert_layout_projection_rejected(_layout_subclass(real), real, context)
+
+
+@pytest.mark.parametrize("kind", ["frozen", "namespace"])
+def test_campaign_producer_refuses_duck_layout_before_writes(
+    tmp_path: Path, kind: str,
+) -> None:
+    real, context, result = _layout_rejection_fixture(tmp_path, kind="official")
+    _assert_layout_issuance_rejected(_duck_layout(real, kind), context, result)
+
+
+@pytest.mark.parametrize("kind", ["frozen", "namespace"])
+def test_ordered_wal_projection_refuses_duck_layout(
+    tmp_path: Path, kind: str,
+) -> None:
+    real, context, result = _layout_rejection_fixture(tmp_path, kind="official")
+    _assert_layout_projection_rejected(_duck_layout(real, kind), real, context)
+
+
+@pytest.mark.parametrize("kind", ["str", "path", "none"])
+def test_campaign_producer_refuses_non_layout_values_before_writes(
+    tmp_path: Path, kind: str,
+) -> None:
+    real, context, result = _layout_rejection_fixture(tmp_path, kind="official")
+    _assert_layout_issuance_rejected(_non_layout_value(real, kind), context, result)
+
+
+@pytest.mark.parametrize("kind", ["str", "path", "none"])
+def test_ordered_wal_projection_refuses_non_layout_values(
+    tmp_path: Path, kind: str,
+) -> None:
+    real, context, result = _layout_rejection_fixture(tmp_path, kind="official")
+    _assert_layout_projection_rejected(_non_layout_value(real, kind), real, context)
+
+
+@pytest.mark.parametrize("kind", ["official", "exploration"])
+def test_campaign_producer_refuses_type_equality_impostor_before_writes(
+    tmp_path: Path, kind: str,
+) -> None:
+    real, context, result = _layout_rejection_fixture(tmp_path, kind=kind)
+    _assert_layout_issuance_rejected(_type_equality_impostor(real), context, result)
+
+
+@pytest.mark.parametrize("kind", ["official", "exploration"])
+def test_ordered_wal_projection_refuses_type_equality_impostor(
+    tmp_path: Path, kind: str,
+) -> None:
+    real, context, result = _layout_rejection_fixture(tmp_path, kind=kind)
+    _assert_layout_projection_rejected(_type_equality_impostor(real), real, context)
+
+
+def test_campaign_producer_refuses_exploration_root_outside_evidence_root_before_writes(
     tmp_path: Path,
 ) -> None:
     root = tmp_path / "evidence"
     root.mkdir()
-    layout = _producer_layout(root)
+    outside = tmp_path / "outside-output"
+    layout = exploration_campaign_layout(
+        "fixture-physical-run", os.fspath(outside)
+    ).ensure()
+    context = _producer_context(root)
+    result = _verify_fixture(tmp_path, "r9_dense_cycle4")
+    _log_producer_attempt(
+        layout, build_attempt_id=_BUILD_ATTEMPT_ID, result=result, first_ts=10
+    )
+    before = _file_snapshot(root)
+    outside_before = _file_snapshot(outside)
+    with pytest.raises(
+        evidence.ResultEvidenceError,
+        match="^physical campaign root is outside the result evidence root$",
+    ):
+        _issue_producer_record(
+            layout=layout,
+            context=context,
+            build_attempt_id=_BUILD_ATTEMPT_ID,
+            verify_result=result,
+            execution_receipt=_execution_receipt(),
+        )
+    assert _file_snapshot(root) == before
+    assert _file_snapshot(outside) == outside_before
+    assert not (root / context.expected_record_path).exists()
+
+
+@pytest.mark.parametrize("kind", ["official", "exploration"])
+def test_campaign_producer_issues_real_wal_projection_and_resolves_interval(
+    tmp_path: Path, kind: str,
+) -> None:
+    root = tmp_path / "evidence"
+    root.mkdir()
+    layout = _producer_layout(root, kind=kind)
+    if kind == "exploration":
+        assert type(layout) is ExplorationCampaignLayout
+        assert Path(layout.namespace_file).is_file()
     context = _producer_context(root)
     result = _verify_fixture(tmp_path, "r9_dense_cycle4")
     attempt = "producer-attempt-one"

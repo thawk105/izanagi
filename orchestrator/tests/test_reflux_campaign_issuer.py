@@ -37,7 +37,9 @@ from orchestrator.campaign.build_admission import (  # noqa: E402
     attest_generator_output,
     build_run_context,
 )
-from orchestrator.campaign.layout import CampaignLayout  # noqa: E402
+from orchestrator.campaign.layout import (  # noqa: E402
+    CampaignLayout, ExplorationCampaignLayout, exploration_campaign_layout,
+)
 from orchestrator.campaign.model import (  # noqa: E402
     CampaignConfig,
     Genome,
@@ -396,6 +398,7 @@ def _drive_campaign(
         contract=None,
         durable_root_policy=None,
         suffix: str = "primary",
+        declared_use_class: str = "official",
 ):
     root.mkdir(exist_ok=True)
 
@@ -430,7 +433,7 @@ def _drive_campaign(
         authorization_contract=authorization,
         build_context=build_context,
         capability_resolver=capability_resolver,
-        declared_use_class="official",
+        declared_use_class=declared_use_class,
         trigger_gate_binding=_candidate_binding(),
         result_evidence_context=context,
         durable_root_policy=durable_root_policy,
@@ -537,6 +540,110 @@ def _drive_required_campaign(
             durable_root_policy=durable_root_policy,
             **kwargs,
         )
+
+
+@pytest.mark.usefixtures("ratified_enforcement_source")
+def test_real_run_campaign_exploration_issues_rejected_record(
+        tmp_path: Path, monkeypatch) -> None:
+    """A required contract reaches the real verifier-to-resolver mechanism."""
+    campaign_fixtures._refresh_certified_writer_authority()
+    _install_compiler_aliases(tmp_path, monkeypatch)
+    _install_fixture_trace_runner(monkeypatch)
+    authorization = env_contract.authorize("pegasus")
+    contract = authorization.contract
+    verified = env_attestation.load_verified_calibration(contract, _REPO)
+    _install_fixture_attestation_probe(monkeypatch, verified)
+    checkout, commit, predicate = _synthetic_silo_checkout(tmp_path)
+    build_context = build_run_context(generator_id=GeneratorId.S8A_TRIGGER_SWEEP)
+    cache_root = tmp_path / "build-cache"
+
+    issued_root = tmp_path / "output"
+    issued_root.mkdir()
+    context = _issuance_context(
+        issued_root,
+        contract,
+        verified_calibration=verified,
+    )
+    durable_root_policy = campaign_fixtures._single_process_test_policy(
+        issued_root
+    )
+    issued = _drive_required_campaign(
+        root=issued_root,
+        authorization=authorization,
+        contract=contract,
+        durable_root_policy=durable_root_policy,
+        checkout=checkout,
+        commit=commit,
+        build_context=build_context,
+        predicate=predicate,
+        cache_root=cache_root,
+        context=context,
+        declared_use_class="exploration",
+    )
+
+    assert issued.aborted == 1 and issued.committed == 0
+    assert len(issued.results) == 1
+    typed = issued.results[0].verify_result
+    assert typed is not None
+    assert typed.verdict == "non-serializable"
+    assert typed.integrity.clean()
+    assert typed.total_cycles == len(typed.anomalies) == 1
+
+    record_path = issued_root / context.expected_record_path
+    assert record_path.is_file()
+    record = evidence.parse_result_evidence_bytes(record_path.read_bytes())
+    assert record["physical_result"]["outcome"] == "rejected"
+    snapshot = result_to_dict(typed)
+    snapshot.pop("trace_dir", None)
+    expected_constraint = evidence.witness_class_sha256(
+        snapshot["anomalies"][0]
+    )
+    assert record["physical_result"]["constraint_sha256"] == expected_constraint
+
+    content_root = (
+        Path(issued.layout_root)
+        / "reports"
+        / "reflux-result-evidence-content"
+        / "v1"
+    )
+    content_files = {
+        category: tuple((content_root / category).glob("*"))
+        for category in (
+            "source-wal", "ordered-wal", "execution-provenance",
+        )
+    }
+    assert all(len(paths) == 1 for paths in content_files.values())
+
+    resolved = evidence.resolve_result_evidence(record, evidence_root=issued_root)
+    assert issued.layout_root == exploration_campaign_layout(
+        issued.campaign_id, os.fspath(issued_root)
+    ).root
+    layout = ExplorationCampaignLayout(root=issued.layout_root)
+    assert Path(layout.namespace_file).is_file()
+    attempt = issued.results[0].build_attempt_id
+    frames = wal.ordered_attempt_frames(layout, attempt)
+    interval = b"".join(frame.raw_bytes for frame in frames)
+    source = resolved.ordered_wal.source_wal_ref.raw_bytes
+    assert source[
+        resolved.ordered_wal.byte_start:resolved.ordered_wal.byte_end
+    ] == interval
+    assert resolved.ordered_wal.projection_ref.raw_bytes == (
+        content_files["ordered-wal"][0].read_bytes()
+    )
+    assert resolved.execution_provenance_ref.raw_bytes == (
+        content_files["execution-provenance"][0].read_bytes()
+    )
+
+    assert resolved.ordered_wal.byte_start == frames[0].byte_start
+    assert resolved.ordered_wal.byte_end == frames[-1].byte_end
+    assert source == content_files["source-wal"][0].read_bytes()
+    for ref, category in (
+        (resolved.ordered_wal.source_wal_ref, "source-wal"),
+        (resolved.ordered_wal.projection_ref, "ordered-wal"),
+        (resolved.execution_provenance_ref, "execution-provenance"),
+    ):
+        assert ref.normalized_path.parent == content_root / category
+        assert ref.normalized_path.is_file()
 
 
 @pytest.mark.usefixtures("ratified_enforcement_source")
