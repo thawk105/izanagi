@@ -1,0 +1,50 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "estimated_run_seconds": 120,
+  "mutations": [
+    {
+      "id": "MUT-A-VIEW-DROPS-SCREEN-KEY",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    return {**payload, \"variant\": event[\"variant\"],\n            \"source_ref\": canonical_record_ref(\"wal\", event)}\n",
+          "new": "    if isinstance(payload.get(\"screen\"), dict):\n        payload = {**payload, \"screen\": {\n            key: value for key, value in payload[\"screen\"].items()\n            if key != \"margin\"\n        }}\n    return {**payload, \"variant\": event[\"variant\"],\n            \"source_ref\": canonical_record_ref(\"wal\", event)}\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-B-REJECT-REF-POINTS-AT-FIRST-EVENT",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "                \"source_ref\": canonical_record_ref(\"wal\", events[-1])}\n",
+          "new": "                \"source_ref\": canonical_record_ref(\"wal\", events[0])}\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-C-FABRICATED-VERIFICATION-FROM-ABORT",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    verifications = [_view_row(event) for event in ordered if event[\"stage\"] == \"verify_done\"]\n",
+          "new": "    verifications = [_view_row(event) for event in ordered if event[\"stage\"] == \"verify_done\"] + [\n        {\"variant\": event[\"variant\"], \"verdict\": \"serializable\", \"certified\": True,\n         \"source_ref\": canonical_record_ref(\"wal\", event)}\n        for event in ordered if event[\"stage\"] == \"abort\"]\n"
+        }
+      ]
+    }
+  ]
+}

@@ -1444,6 +1444,7 @@ def test_m13_raw_source_commit_must_equal_current_pin_after_manifest_rebind(tmp_
 
 def test_cli_writes_complete_provenance_with_repo_relative_argv(tmp_path, monkeypatch):
     plot, fixture = _plot(), _fixture(tmp_path)
+    fixture["prefix"] = tmp_path / "fig5_a2_certification_reject"
     monkeypatch.setattr(plot, "REPO_ROOT", tmp_path)
     assert _run_main(plot, fixture, _hashes(fixture)) == 0
     outputs = [Path(str(fixture["prefix"]) + suffix) for suffix in (".png", ".pdf", ".provenance.json")]
@@ -1463,8 +1464,61 @@ def test_cli_writes_complete_provenance_with_repo_relative_argv(tmp_path, monkey
     assert conditions["izanagi_source_commit"] == "izanagi-source" and conditions["ccbench_pin"] == "511c953"
     argv = provenance["reproduction"]["argv"]
     assert argv[3] == str(fixture["root"].resolve())
+    assert argv[5:] == ["certification.json", "--raw-manifest", "raw-manifest.json", "fig5_a2_certification_reject"]
+    assert str(REPO) not in " ".join(argv) and provenance["reproduction"]["cwd"] == "repository-root"
+
+
+def test_default_legacy_cli_provenance_argv_and_axis_labels(tmp_path, monkeypatch):
+    plot, fixture = _plot(), _fixture(tmp_path)
+    source = "docs/paper-story/results/2026-09-07-a2-certification-reject.md"
+    caption_source = tmp_path / source
+    caption_source.parent.mkdir(parents=True)
+    caption_source.write_bytes((REPO / source).read_bytes())
+    published = []
+    publish = plot._publish_outputs
+
+    def observe_publish(figure, axes, *args, **kwargs):
+        outputs = publish(figure, axes, *args, **kwargs)
+        published.append(axes)
+        return outputs
+
+    # Observe the actual main -> render -> publish path without replacing its work.
+    monkeypatch.setattr(plot, "_publish_outputs", observe_publish)
+    monkeypatch.setattr(plot, "REPO_ROOT", tmp_path)
+    assert _run_main(plot, fixture, _hashes(fixture)) == 0
+    outputs = [Path(str(fixture["prefix"]) + suffix) for suffix in (".png", ".pdf", ".provenance.json")]
+    assert all(path.is_file() and path.stat().st_size for path in outputs)
+    provenance = json.loads(outputs[-1].read_text())
+    assert set(provenance) == {
+        "schema", "generated_utc", "generator", "outputs", "tracked_inputs", "external_source_locator",
+        "external_inputs", "measurement_conditions", "cells", "artist_series", "outer_status", "effects",
+        "effect_crosschecks", "correctness", "correctness_performance_note", "gate_note", "caption", "reproduction"}
+    assert provenance["schema"] == plot.SCHEMA and provenance["outer_status"] == "reject"
+    assert [row["kind"] for row in provenance["tracked_inputs"]] == [
+        "certification", "raw_manifest", "caption_source"]
+    assert provenance["tracked_inputs"][2] == {
+        "kind": "caption_source", "path": source, "sha256": _sha(caption_source),
+        "authority_scope": "condition description only; not measurement values or protocol status",
+    }
+    assert len(provenance["external_inputs"]) == 6
+    assert len(provenance["cells"]) == 4 and len(provenance["artist_series"]) == 20
+    assert provenance["generator"]["sha256"] == _sha(REPO / provenance["generator"]["path"])
+    assert {row["path"]: row["sha256"] for row in provenance["outputs"]} == {
+        path.relative_to(tmp_path).as_posix(): _sha(path) for path in outputs[:2]}
+    conditions = provenance["measurement_conditions"]
+    assert conditions["izanagi_source_commit"] == "izanagi-source" and conditions["ccbench_pin"] == "511c953"
+    argv = provenance["reproduction"]["argv"]
+    assert argv[3] == str(fixture["root"].resolve())
     assert argv[5:] == ["certification.json", "--raw-manifest", "raw-manifest.json", "fig5_fixture"]
     assert str(REPO) not in " ".join(argv) and provenance["reproduction"]["cwd"] == "repository-root"
+
+    assert len(published) == 1
+    axes = published[0]
+    for column in (0, 1):
+        for row in (0, 1):
+            assert [tick.get_text() for tick in axes[row, column].get_xticklabels()] == [
+                "BACK_OFF=0", "BACK_OFF=1"]
+        assert axes[1, column].get_xlabel() == "CCBench built-in adaptive backoff"
 
 
 def test_tracked_authority_literals_and_run_readme_record_agree():
@@ -1520,6 +1574,92 @@ def test_landed_fig5_repo_closure_and_caption_when_present():
     provenance = json.loads(paths[-1].read_text(encoding="utf-8"))
     plot.validate_repo_closure(provenance, REPO)
     assert provenance["caption"] in readme
+
+
+def test_frozen_fig5_caption_requires_frozen_prefix_entry(monkeypatch):
+    plot = _plot()
+    provenance = json.loads((REPO / "docs/paper-story/figures/fig5_a2_certification_reject.provenance.json").read_text())
+    plot.validate_repo_closure(provenance, REPO)
+    monkeypatch.setattr(plot, "FROZEN_LEGACY_CAPTION_PREFIXES", ())
+    with pytest.raises(plot.FigureDataError, match="landed artist/caption projection mismatch"):
+        plot.validate_repo_closure(provenance, REPO)
+
+
+@pytest.mark.parametrize("name", ["fig7_a2_builtin_backoff_onoff_reject", "fig8_legacy_condition_description"])
+def test_corrected_legacy_caption_describes_effective_conditions(name):
+    plot = _plot()
+    data = json.loads((REPO / "docs/paper-story/figures/fig5_a2_certification_reject.provenance.json").read_text())
+    caption = plot._caption(data, Path(name))
+    old_effect = (
+        f"rr5 fixed 10 us {100*data['effects']['rr5']:.4f}% and "
+        f"rr50 fixed 5 us {100*data['effects']['rr50']:.4f}%. "
+    )
+    corrected_effect = (
+        f"rr5 CCBench built-in adaptive backoff enabled (BACK_OFF=1) versus disabled (BACK_OFF=0) "
+        f"{100*data['effects']['rr5']:.4f}% and rr50 CCBench built-in adaptive backoff enabled "
+        f"(BACK_OFF=1) versus disabled (BACK_OFF=0) {100*data['effects']['rr50']:.4f}%. "
+        "The labels fixed 10 us / fixed 5 us and cell IDs rr5-fixed10 / rr50-fixed5 identify "
+        "requested genomes, not effective conditions; BACKOFF_FIXED did not affect the build. "
+        "BACK_OFF=1 enables CCBench built-in adaptive control, not exponential backoff. "
+    )
+    assert old_effect in data["caption"]
+    assert caption == data["caption"].replace("Figure 5.", f"Figure {name[3]}.").replace(old_effect, corrected_effect)
+    # The effect remains data-derived, including for another valid legacy figure name.
+    data["effects"] = {"rr5": -.123456, "rr50": -.234567}
+    changed = plot._caption(data, Path(name))
+    assert "-12.3456%" in changed and "-23.4567%" in changed
+
+
+@pytest.mark.parametrize("frozen", [False, True])
+def test_legacy_backoff_axis_condition_labels(frozen):
+    plot = _plot()
+    data = json.loads((REPO / "docs/paper-story/figures/fig5_a2_certification_reject.provenance.json").read_text())
+    figure, axes = plot.make_figure(data, frozen_legacy_caption=frozen)
+    try:
+        for column, fixed in enumerate((10, 5)):
+            for row in (0, 1):
+                assert [tick.get_text() for tick in axes[row, column].get_xticklabels()] == (
+                    ["no backoff", f"fixed {fixed} us"] if frozen else ["BACK_OFF=0", "BACK_OFF=1"])
+            assert axes[1, column].get_xlabel() == (
+                "performance arm" if frozen else "CCBench built-in adaptive backoff")
+        assert figure._a2_artist_series == data["artist_series"]
+        plot.check_figure_layout(figure, axes)
+    finally:
+        plot.plt.close(figure)
+
+
+def test_corrected_legacy_provenance_tracks_condition_source():
+    plot = _plot()
+    prefix = REPO / "docs/paper-story/figures/fig5_a2_certification_reject"
+    data = json.loads(Path(f"{prefix}.provenance.json").read_text())
+    data["external_root"] = data["external_source_locator"]["root_at_generation"]
+    sources = [Path(f"{prefix}.png"), Path(f"{prefix}.pdf")]
+    old = plot.build_provenance(data, sources, ["plot"])
+    assert len(old["tracked_inputs"]) == 2
+    outputs = [REPO / f"docs/paper-story/figures/fig7_a2_builtin_backoff_onoff_reject{suffix}"
+               for suffix in (".png", ".pdf")]
+    new = plot.build_provenance(data, outputs, ["plot"], hash_paths=sources)
+    assert set(new) == set(old)
+    assert [row["kind"] for row in new["tracked_inputs"]] == ["certification", "raw_manifest", "caption_source"]
+    assert new["tracked_inputs"][:2] == old["tracked_inputs"] == data["tracked_inputs"]
+    source = "docs/paper-story/results/2026-09-07-a2-certification-reject.md"
+    assert new["tracked_inputs"][2] == {
+        "kind": "caption_source", "path": source, "sha256": _sha(REPO / source),
+        "authority_scope": "condition description only; not measurement values or protocol status",
+    }
+    for key in ("cells", "effects", "outer_status", "artist_series"):
+        assert new[key] == old[key] == data[key]
+
+
+def test_landed_fig7_repo_closure_and_caption_when_present():
+    plot = _plot()
+    prefix = REPO / "docs/paper-story/figures/fig7_a2_builtin_backoff_onoff_reject"
+    paths = [Path(f"{prefix}{suffix}") for suffix in (".png", ".pdf", ".provenance.json")]
+    figures_readme = REPO / "docs/paper-story/figures/README.md"
+    readme = figures_readme.read_text(encoding="utf-8")
+    if not any(path.exists() for path in paths) and "fig7_a2_builtin_backoff_onoff_reject" not in readme:
+        skip("fig7 integration artifacts are parent-owned and not landed yet")
+    _assert_named_landed_bundle(plot, prefix, figures_readme)
 
 
 if __name__ == "__main__":
