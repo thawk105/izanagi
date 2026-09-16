@@ -1,0 +1,10 @@
+--- reference
++++ current
+@@ -140327,6 +140327,7 @@
+   static void backoff(size_t clocks_per_us) {
+     uint64_t start(rdtscp()), stop;
+     double now_backoff = (static_cast<uint64_t>(1) / 1000ULL == 0ULL) ? static_cast<double>(1) : ((static_cast<uint64_t>(1) / 1000ULL == 1ULL) ? static_cast<double>((static_cast<uint64_t>(1) % 1000ULL) + (((start * 0x9e3779b97f4a7c15ULL) >> 63) ? (2ULL * (static_cast<uint64_t>(1) % 1000ULL) - ((((start * 0x9e3779b97f4a7c15ULL) << 1) >> 1) % (2ULL * (static_cast<uint64_t>(1) % 1000ULL) + 1ULL))) : ((((start * 0x9e3779b97f4a7c15ULL) << 1) >> 1) % (2ULL * (static_cast<uint64_t>(1) % 1000ULL) + 1ULL)))) / 2.0 : ((static_cast<uint64_t>(1) / 1000ULL == 2ULL) ? static_cast<double>((static_cast<uint64_t>(1) % 1000ULL) + (((start * 0x9e3779b97f4a7c15ULL) >> 63) * (2ULL * (static_cast<uint64_t>(1) % 1000ULL)))) / 2.0 : static_cast<double>(static_cast<uint64_t>(1) - 2000ULL)));
++    now_backoff += 1.0;
+     for (;;) {
+       _mm_pause();
+       stop = rdtscp();

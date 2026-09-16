@@ -1,0 +1,210 @@
+{
+  "attempts": [
+    {
+      "artifact_error": null,
+      "console_sha256": "e6f52f14b7960dc430367d60d6e587b7440eb48af02531b0642dd8cde0d518d2",
+      "finished_at": "2026-09-16T14:38:11.262493+00:00",
+      "mutation_id": null,
+      "phase": "collection",
+      "rc": 0,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/74021b6f8d18f21c40be5368c8579b4c/izdw-74021b6f8d.o2246",
+        "outcome_rc": 0,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/74021b6f8d18f21c40be5368c8579b4c/receipt.json",
+        "request_id": "2246.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/74021b6f8d18f21c40be5368c8579b4c"
+      },
+      "run_attempt_ordinal": 1,
+      "started_at": "2026-09-16T14:37:49.470569+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "279ae25644688e2c6fddbb2613ae17b3a407a138b7598b3e867b45d37bdcf1ab",
+      "finished_at": "2026-09-16T14:39:09.788610+00:00",
+      "mutation_id": null,
+      "phase": "baseline",
+      "rc": 0,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/5a7ca1c0ebe8a6d8f6d88eabc92bf629/izdw-5a7ca1c0eb.o2247",
+        "outcome_rc": 0,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/5a7ca1c0ebe8a6d8f6d88eabc92bf629/receipt.json",
+        "request_id": "2247.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/5a7ca1c0ebe8a6d8f6d88eabc92bf629"
+      },
+      "run_attempt_ordinal": 2,
+      "started_at": "2026-09-16T14:38:16.315844+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "4a5dc8204a33022ad8805b1620bab1fa05b8c0c985c3939aed25ff6bfd1382fc",
+      "finished_at": "2026-09-16T14:40:01.947751+00:00",
+      "mutation_id": "M0-comment-only-cmake",
+      "phase": "mutation",
+      "rc": 0,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/9a84bf4ef7eaec61532572ce3a531d78/izdw-9a84bf4ef7.o2248",
+        "outcome_rc": 0,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/9a84bf4ef7eaec61532572ce3a531d78/receipt.json",
+        "request_id": "2248.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/9a84bf4ef7eaec61532572ce3a531d78"
+      },
+      "run_attempt_ordinal": 3,
+      "started_at": "2026-09-16T14:39:13.430741+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "ac626ed1fc5032d87900ff18fba9dcd73b6250a67cd0b1b6e11f0e7e2cdfc05b",
+      "finished_at": "2026-09-16T14:40:57.998808+00:00",
+      "mutation_id": "M1-synthetic-branch-code-edit",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/7f6be10b7ac4ea7a7da54d4a349edd69/izdw-7f6be10b7a.o2249",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/7f6be10b7ac4ea7a7da54d4a349edd69/receipt.json",
+        "request_id": "2249.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/7f6be10b7ac4ea7a7da54d4a349edd69"
+      },
+      "run_attempt_ordinal": 4,
+      "started_at": "2026-09-16T14:40:05.473504+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "7e5b726034cb72d2ff315dc1bf55a54de1be7dfc07c79fcf708961156ffe98cb",
+      "finished_at": "2026-09-16T14:41:43.953905+00:00",
+      "mutation_id": "M2-include-line-added",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/bf7981ae198bdb8c849a90d537169f6a/izdw-bf7981ae19.o2250",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/bf7981ae198bdb8c849a90d537169f6a/receipt.json",
+        "request_id": "2250.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/bf7981ae198bdb8c849a90d537169f6a"
+      },
+      "run_attempt_ordinal": 5,
+      "started_at": "2026-09-16T14:41:01.630659+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "324bbde9f405eebfceafeb927936ea214516127cabfa34305723b0780dca47f1",
+      "finished_at": "2026-09-16T14:42:41.603196+00:00",
+      "mutation_id": "M3a-hole-leak-sleep-read-phase",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/e691f300e7a0b2e0a2f1082c48b38467/izdw-e691f300e7.o2251",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/e691f300e7a0b2e0a2f1082c48b38467/receipt.json",
+        "request_id": "2251.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/e691f300e7a0b2e0a2f1082c48b38467"
+      },
+      "run_attempt_ordinal": 6,
+      "started_at": "2026-09-16T14:41:49.057841+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "7c09afad2dc03af5a397d57c96d1ab584b00768b054597c1ba599d80c29058e9",
+      "finished_at": "2026-09-16T14:43:39.068297+00:00",
+      "mutation_id": "M3b-toplevel-leak-sleep-read-phase",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/83b4854c0fbb51ea54a6ff87c3229c90/izdw-83b4854c0f.o2252",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/83b4854c0fbb51ea54a6ff87c3229c90/receipt.json",
+        "request_id": "2252.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/83b4854c0fbb51ea54a6ff87c3229c90"
+      },
+      "run_attempt_ordinal": 7,
+      "started_at": "2026-09-16T14:42:46.452259+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "26fdc34c279409d0eba2b194af3c7f6820582ee9b53d034c948eb140f6e0ba26",
+      "finished_at": "2026-09-16T14:44:30.070423+00:00",
+      "mutation_id": "M4-transaction-sandwich-desired-expected",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/1410b1dc6892e4219525b8b5d8343be0/izdw-1410b1dc68.o2253",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/1410b1dc6892e4219525b8b5d8343be0/receipt.json",
+        "request_id": "2253.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/1410b1dc6892e4219525b8b5d8343be0"
+      },
+      "run_attempt_ordinal": 8,
+      "started_at": "2026-09-16T14:43:42.590924+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "d946bab09c13c90b3d68db2a6a347dc1e4a5a870e70d420a23417e55e9662e4e",
+      "finished_at": "2026-09-16T14:45:27.514590+00:00",
+      "mutation_id": "M4b-transaction-sandwich-cas-relaxed",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/b8445d840de47d53d5ae5afe9be20d3d/izdw-b8445d840d.o2254",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/b8445d840de47d53d5ae5afe9be20d3d/receipt.json",
+        "request_id": "2254.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/b8445d840de47d53d5ae5afe9be20d3d"
+      },
+      "run_attempt_ordinal": 9,
+      "started_at": "2026-09-16T14:44:34.948746+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "449c834cbb1930c66a05075ae0d9ab52b5f635cc0b8b700644a63a672e2b31b9",
+      "finished_at": "2026-09-16T14:46:23.885871+00:00",
+      "mutation_id": "M6-toplevel-leak-trace",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/d0617f3f8587e843daf4a31727ab427e/izdw-d0617f3f85.o2255",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/d0617f3f8587e843daf4a31727ab427e/receipt.json",
+        "request_id": "2255.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2630-scan-boundary-reach-probe/output/pegasus-dispatch/d0617f3f8587e843daf4a31727ab427e"
+      },
+      "run_attempt_ordinal": 10,
+      "started_at": "2026-09-16T14:45:31.048655+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 2
+    }
+  ],
+  "expected_initial_requests": 10,
+  "repo_head": "e35fb7c4e931842133020874162d232a4213b393",
+  "runner_sha256": "0db2e362825b53c8f1f48cdf85fc43676b83bc3274f0a49d9fa320fa8aa66cba",
+  "schema": "izanagi-dev-wave-mutation-attempts/v1",
+  "spec_sha256": "3766d53ef981bd9020f0169eeac75b6cc49e14ac7982ee0ba0c248216777d41f",
+  "tool_sha256": "d0e163ecc74edfafe7eaff7b107f9ba5285418df17c26f7203025e28e7a46c95"
+}

@@ -1,0 +1,11 @@
+--- reference
++++ current
+@@ -11011,7 +11011,7 @@
+     aec2:	48 83 ec 08          	sub    $0x8,%rsp
+     aec6:	48 8b 3d 00 00 00 00 	mov    0x0(%rip),%rdi        # aecd <TxExecutor::writePhase()+0x16d>
+ 			aec9: R_X86_64_PC32	stderr-0x4
+-    aecd:	41 b9 b2 02 00 00    	mov    $0x2b2,%r9d
++    aecd:	41 b9 b4 02 00 00    	mov    $0x2b4,%r9d
+     aed3:	48 89 c1             	mov    %rax,%rcx
+     aed6:	48 8d 05 00 00 00 00 	lea    0x0(%rip),%rax        # aedd <TxExecutor::writePhase()+0x17d>
+ 			aed9: R_X86_64_PC32	.LC22-0x4
