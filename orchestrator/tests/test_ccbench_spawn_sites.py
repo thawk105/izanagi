@@ -2978,7 +2978,7 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     s8b_sink = _BuildSink(
         "orchestrator/campaign/s8b_oracle_driver.py",
         "<module>.run_block",
-        1783,
+        1775,
         "campaign",
     )
     assert classifications[s1_sink] == Counter({
