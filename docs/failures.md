@@ -5490,6 +5490,20 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   敵対レビュー 2 本が「path 再利用時の見逃しを広げる」と反証し、真因の特定によって不要になった。
   **誤った修正案を実装前に捨てられたのは、レビューと実測の両方があったためである。**
 
+
+- **再発: 2026-09-16** — 向きが逆の同型 ([T-2638])。F119 は `git diff-tree -m` が merge で
+  **過大計上**する側だったが、今回は `git log --find-object` が merge で**過少計上**した。
+  `git log` は既定で merge commit の差分を作らないため、`merge(main):` 経由で main へ入った blob が
+  「どの commit にも無い」と判定される。実証: 同じ blob が `-m` / `--diff-merges=first-parent` を
+  付けると merge commit `9f2f8d3a3` に見つかり、`git rev-parse refs/heads/main:<path>` は
+  **その blob が main の現行内容そのもの**だと返した。この誤判定のまま「子 worktree に着地して
+  いない内容が 6 件ある」と報告する直前だった。**根本原因は F119 と同じで、merge commit に対する
+  git の差分生成の既定を確かめずに判定器へ据えたこと。** 恒久対応 = 内容の着地判定は
+  `git rev-parse <ref>:<path>` と `git hash-object` の直接比較を一次とし (O(1)・履歴を歩かない・
+  merge の影響を受けない)、履歴検索は `-m` 付きの補助に限り、**`--find-object` の無 hit を単独の
+  否定根拠にしない**。再発検知 = memory `git-find-object-misses-merge-commits`。
+  なお `--find-object` の hit も「その commit の tree にその blob がある」ことを意味しない
+  (削除された側でも hit する) ため、証拠 commit として記録するなら `ls-tree` で tree を直接照合する。
 ### F120. 実装面を Claude が書いた commit が provenance 契約に阻まれ、検査緑のまま land 不能になった [手順漏れ]
 
 - 事象: 上記恒久対応を先に実装した commit `e8d0c44c` は `check_docs` 緑・テスト緑だったが、
@@ -10297,6 +10311,30 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **検知点が 4 つ目である** ことを顕在化する — 走行前 `rc=2`、走行中の偽の赤、走行後の
   事後検査 `rc=125` に加えて、**`--plan-only` の事後検査**がある。これは 1 走も消費しないので
   4 者のうち最も安く、並行 churn が常態なら本走の前に必ず当たる。
+
+- **再発: 2026-09-16** — churn の出所が**同じ走行の内側**という変種 ([T-2638])。docs のみの wave で
+  受入全走が 5 回続けて赤になり、6 回目で緑になった (赤 3 件 → 33 件 → 1 件 → 2 件 → 1 件)。
+  **機序は最後の 1 件が明示した** —
+  `test_t338_submission_gate_unit5.py::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink`
+  は repo root 全体を `rglob("*.py")` で走査するが、その途中で
+  `.t316-live-<乱数>/repo/external/ccbench/.git/worktrees` に入ったところ、**同じ走行中の別テストが
+  その directory を削除**し `FileNotFoundError` で落ちた。他の赤も同じ scratch を観測した
+  `assert_repository_unchanged` 系である。**repo root を全走査する検査と、repo root 配下に scratch を
+  作っては消す検査が、同一走行内で競合している。** F300 の既往は「親が repo 内で別作業をした」
+  「別 session が local main を進めた」だったが、今回は**走行の内側で完結しており、親も他 session も
+  何もしていない**。
+  赤になった test の集合は走行ごとに変わり (同一 tip・同一差分)、単独走では全件緑
+  (3 件 → 3 passed、30 件 → 199 passed、1 件 → 1 passed)。変更した path
+  (`docs/spool/**`・`output/insights/**`) は赤になった 4 test file とその production module の
+  どこからも参照されておらず、差分到達不能を機械的に確認した。
+  **恒久対応は未定。** `orchestrator/tests/flaky_test_holds.py` への登録は `DW-O18` が
+  「main 既存 F を証拠に Codex role=author が登録」と定めるが、本再発追記が main へ着地するまで
+  その証拠が存在しない (循環)。影響を受ける test は
+  `test_p3_b4_producer_auth_experiment.py::test_disposable_tree_mutation_does_not_change_main_worktree`、
+  同 `::test_case_failure_records_aborted_and_remaining_cases_continue`、
+  `test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`、
+  `test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops`。
+  再発検知 = 受入 log の FAILED 行がこの 4 件のいずれかだけで、単独走が緑になること。
 ### F301. 編集対象ファイルを bytes pin している側を数え落とした [凍結 pin] [手順漏れ]
 
 - 事象: 受入全走で `test_s8b_oracle_manifest.py` の 2 node が
@@ -11919,6 +11957,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   変異を事前登録する段で対象 file が閉包の member かを確認し、member なら閉包外の consumer へ
   再照準する。本 wave は 2 件を `orchestrator/campaign/layer3_report.py` (閉包外) へ再照準し、
   probe 2 で単一 node を確認してから本走した。
+
+- **再発: 2026-09-16** — 判定手順が `contract-loader-drift` に限定されていたため、別 producer で
+  同じ形の偽赤を 1 本の焦点走 (9 test file・751 passed) を費やして踏んだ。今回の producer は
+  `orchestrator/tests/test_p3_b4_producer_auth_experiment.py::test_main_worktree_has_no_permanent_prototype_or_pin_change`
+  で、`orchestrator/campaign/p3_b4_producer_auth_experiment.py` の `PROTOTYPE_PATCHES` が名指す
+  保護 path について `git diff --exit-code <HEAD>` の無差分を要求する。発行器を編集して未 commit の
+  まま焦点走をかけると機械的に赤くなり、commit 後の単独再走は 50 passed・rc=0 だった。
+  **これで「disk bytes が HEAD blob と一致することを要求する gate」は独立 2 producer で再現した**
+  (契約 loader 閉包と producer-auth prototype pin)。判定手順を赤の理由行の語だけに依存させず、
+  実装面を編集した wave では焦点走の赤を実装へ帰属する前に統合 commit 後の再走で切り分ける。
 ### F358. byte 束縛されたソースへの変異は、意味に無関係な共通核で全変異が KILLED に見える [テスト代表性]
 
 - 事象: `pipeline.py` を対象にした変異 13 件が全て KILLED になったが、内訳を見ると
@@ -26180,3 +26228,43 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   F74 (規範に書いた測定手順がその機体で実行不能だった) と同じ
   「測定の意味を取り違えたまま数値だけが独り歩きする」型。
   前 2 例は**測定条件**の取り違えで、本件は**測定対象そのもの**の取り違えである点が異なる。
+
+### F993. 編集面重複検査が worktree 作成直後の wave を 0 件と数え、2 wave が 28 秒差で同じ面を掴んだ [手順漏れ]
+
+- 事象: [T-2642] の着手前検査 (2026-09-16 ≈04:33 JST) で、全 74 worktree の未 commit 差分・
+  branch tip 差分・`ps` のいずれも 0 件と出た。14 分後に [T-2641] の plan 子が `ps` に現れ、
+  `.git/worktrees/*` の birth time が相手 04:34:10 / 自分 04:34:38 で**相手が 28 秒先発**と判明。
+  編集面 (`.claude/commands/cleanup-branches.md` の §1/§2/§3、`tools/check_docs.py` の
+  `CLEANUP_COMMAND_SHA256`) は完全衝突しており、依頼が定めた「重なれば後発が降りる」に従って
+  段 3 まで進んだ本 wave が実装を降りた。実害は wave 1 本ぶんの設計が実装へ届かなかったこと。
+- 根本原因: 既存の 2 段検査 (branch tip / 作業ツリーの未 commit) はどちらも「相手が既に編集したか」
+  を見る。worktree を作った直後でまだ 1 byte も書いていない相手は、定義上どの検査にも映らない。
+  dev-wave は worktree 作成から最初の編集まで brief・plan・裁定を挟むため 10 分以上あり、
+  この窓は狭くない。`ListAgents` の `started Nm ago` は session 開始であって worktree 作成では
+  ないので、同時投入された 2 本では先後を判定できない。
+- 恒久対応: memory `overlap-check-must-scan-worktree-dirt` に 3 段目 (存在検査) を追記した。
+  対象面が他 wave と衝突しうるときは worktree の存在一覧と `ListAgents` を突き合わせ、主題が近い
+  wave があれば `stat -c '%n %w' .git/worktrees/<name>` で birth time を取り、自分より早ければ
+  自分が後発と判定して**着手前に**降りる。`docs/dev-wave/operations.md` の `DW-O20` へ収容しようと
+  したが単節予算 1000 bytes に対し 1148 bytes となり、D782 の手順で memory 側へ落とした。
+- 再発検知: 同じ編集面の wave が 2 本 land しようとしたとき、後発の受入または land が pin 追従の
+  やり直しで止まる。段 1 の brief に「先後の判定根拠 (birth time)」を書かせることでも早期に出る。
+
+### F994. read-only 子が射影 file を全文 cat し、成果物が 2 回不採用になった [手順漏れ]
+
+- 事象: [T-2642] の段 3 敵対相談 (lane luna) で、子が
+  `/bin/bash -lc "cat orchestrator/tests/test_check_docs.py"` (476 KB / 12753 行) を実行し、
+  巨大出力を含む rollout の行が壊れて `evidence_issues: reason=event_invalid` となり
+  `outcome=not_accepted` で落ちた。`--job-id` を変えた再投入でも同じ 2 attempt とも同じ落ち方をした。
+  子は最後まで走っており (`codex_exit_code=0`、`output_tokens` は正常)、失われたのは出力の公開だけ。
+  prompt に読み方の制約を足した 3 回目で採用された。
+- 根本原因: `tools/codex_worker_launch.py` の stdout event 検証は 1 行 1 event を要求する
+  (`:1429` 付近)。数百 KB の command 出力を含む event 行はこの検証を通らない。射影 file の
+  大きさに応じた読み方の指示が prompt 契約に無く、子は既定で全文 `cat` を選ぶ。
+- 恒久対応: memory `codex-child-discipline` に節 `huge-file-cat-breaks-evidence` を追記した。
+  数百 KB 級を射影する prompt には「全文 `cat` を禁じ、`grep -n` で位置を出し `sed -n` で
+  200 行以内ずつ読む」を byte 数・行数の実数つきで書く。`docs/dev-wave/operations.md` の
+  `DW-O05` へ収容しようとしたが L1.5 層予算が 9870 > 9696 bytes となり、D782 の手順で
+  memory 側へ落とした。
+- 再発検知: `launcher_rc=1` かつ `codex_exit_code=0` かつ `.log` が空で成果物が作られない組み合わせ。
+  receipt の `attempts[].evidence_issues[].reason` を見れば `event_invalid` が直接出る。
