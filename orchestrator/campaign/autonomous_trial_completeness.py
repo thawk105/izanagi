@@ -424,7 +424,7 @@ _ROLE_PAYLOAD_ALLOWLIST_SHA256 = hashlib.sha256(
     ).encode("utf-8")
 ).hexdigest()
 _VALIDATION_RECEIPT_SCHEMA_VERSION = "s8c-role-payload-validation-receipt/v1"
-_ROLE_SCHEMA_VERSION = "p3-autonomous-workload-trial/v3"
+_ROLE_SCHEMA_VERSION = "p3-autonomous-workload-trial/v4"
 _PILOT_SCOPE = "exploratory-ycsb-abc"
 _LEAKPROOF_CONTEXT = (
     "Use only this campaign's projected descriptor, metrics, planner direction, "
@@ -433,7 +433,7 @@ _LEAKPROOF_CONTEXT = (
 )
 _PLANNER_AXIS = "silo-backoff-trigger-gating"
 _PERF_KEYS = {
-    "throughput_ops_sec", "abort_rate_pct", "latency_ns", "llc_miss_rate", "ipc",
+    "throughput_tps", "abort_rate_pct", "latency_ns", "llc_miss_rate", "ipc",
 }
 _LEADING_METRIC_KEYS = {"IPC_overall", "cache_miss_rate_pct"}
 _WHITEBOARD_KEYS = {"iteration", "direction", "magnitude", "result", "delta_pct"}
