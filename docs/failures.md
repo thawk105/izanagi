@@ -11946,6 +11946,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   変異結果自体は 6 変異とも完走しており、本走の `expected_nodes` はこの probe から採れた。
   失われたのは走行 1 回分の時間だけで、検知は fail-closed で効いている。
   **変異走行中は、親の直接編集だけでなく worktree へ書きうる子の起動も止める。**
+
+- **再発: 2026-09-17** — 書き込み先は同じ (`output/insights/` の逐語複製 13 file) だが、落ちた検査は変異
+  harness ではなく**受入 wrapper (`dev_wave_wait.py acceptance`) の走行後 clean-tree 検査 (`postrun-clean`)**で、
+  rc=70・受領証なしになった。child の test 自体は完走 (2 failed / 24401 passed、赤は別原因で fix 済み) していたので、
+  失われたのは受入 1 走分 (11 分) と再走である。親は「走行中に書いてよいのは `output/` 配下だけ」という
+  dispatch の source identity の規則を受入 wrapper にも当てはめてしまった。**受入・変異を問わず、木を走行後に
+  検査する wrapper が走っている間は、その worktree へ何も書かない** (逐語の配置は走行の終端後か、記録 commit の中で)。
 ### F351. 保留 guard が同 file 内の正規 consumer を壊し、受入で差し戻された [受理集合の過剰縮小] [手順漏れ]
 
 - 事象: 成長比例テストの恒久保留を `test_s8b_floor_campaign.py` へ登録し、
