@@ -1,0 +1,28 @@
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 1776371, "time_ns": 1789557403821809108}
+IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1776392, "event": "direct-child-wait-start", "pid": 1776378, "time_ns": 1789557403849927310}
+IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1776392, "event": "direct-child-wait-complete", "pid": 1776378, "time_ns": 1789557406831156400}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 1776378, "rc": 0, "time_ns": 1789557406831255752}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 1776371, "rc": 0, "time_ns": 1789557406835650503}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 1776371, "time_ns": 1789557406838724732}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 1776371, "time_ns": 1789557406849428501}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 1776371, "time_ns": 1789557406850096700}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 1776371, "time_ns": 1789557406850106398}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 1776371, "time_ns": 1789557406850979576}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 1776371, "time_ns": 1789557406850987072}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 1776371, "rc": 2, "time_ns": 1789557406850995958}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 1776371, "rc": 2, "time_ns": 1789557406851009695}
+
+============================================================
+Request ID:             1832.nqsv
+Request Name:           izdw-8a40522fbc
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Wed Sep 16 20:16:36 2026
+Started Request Time:   Wed Sep 16 20:16:43 2026
+Ended Request Time:     Wed Sep 16 20:16:46 2026
+Resources Information:
+  Elapse:               8S
+  Remaining Elapse:     1192S
+============================================================
