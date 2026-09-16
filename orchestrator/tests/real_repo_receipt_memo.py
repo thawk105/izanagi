@@ -19,6 +19,7 @@ ROOT 以外は従来どおり拒否する。解決回数や epoch drift 自体�
 from __future__ import annotations
 
 import base64
+import errno
 import fcntl
 import hashlib
 import json
@@ -47,6 +48,10 @@ _PRODUCTION_RESOLVE = driver._resolve_t080_receipt
 _RUN_ID_ENV = "PYTEST_XDIST_TESTRUNUID"
 _SESSION_NONCE_ENV = "IZANAGI_RECEIPT_MEMO_NONCE"
 _CACHE_PREFIX = "izanagi-t057-receipt-"
+# Observed prewarm: 28.328 s (acceptance shard-0, n=1); 120 s is about
+# 4.24 times that observation. With n=1 the tail is unknown. This is an
+# upper bound we expect not to reach; reaching it is a failure.
+_EARLY_WAIT_TIMEOUT_S = 120.0
 _CACHE_STALE_S = 6 * 3600
 _CACHE_MAX_BYTES = 8 * 1024 * 1024
 _CACHE_SCHEMA_VERSION = 1
@@ -382,6 +387,8 @@ def _prune_stale_caches(
             entry
             for pattern in (
                 f"{_CACHE_PREFIX}*.json",
+                f"{_CACHE_PREFIX}*.json.pending",
+                f"{_CACHE_PREFIX}*.json.failed",
                 f"{_CACHE_PREFIX}*.pickle",
                 f"{_CACHE_PREFIX}*.pickle.lock",
             )
@@ -391,7 +398,8 @@ def _prune_stale_caches(
         return
     protected = {current_path} if current_path is not None else set()
     if current_path is not None:
-        protected.add(current_path.with_name(f"{current_path.name}.lock"))
+        for suffix in (".lock", ".pending", ".failed"):
+            protected.add(current_path.with_name(f"{current_path.name}{suffix}"))
     for entry in entries:
         if entry in protected:
             continue
@@ -410,6 +418,7 @@ class _ReceiptMemo:
         self._process_resolution = _MISSING
         self._process_session_id = _SESSION_UNBOUND
         self._suspended_sessions: list[tuple[object, object]] = []
+        self._early_ready_paths: set[str] = set()
 
     @property
     def process_prewarmed(self) -> bool:
@@ -439,6 +448,7 @@ class _ReceiptMemo:
         head: str,
         prewarm: bool,
         operation: Callable[[], object],
+        deadline: Optional[float] = None,
     ):
         lock = path.with_name(f"{path.name}.lock")
         try:
@@ -449,7 +459,19 @@ class _ReceiptMemo:
                 head=head, prewarm=prewarm, cause=exc,
             ) from exc
         try:
-            fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            if deadline is None:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            else:
+                while True:
+                    if time.monotonic() >= deadline:
+                        raise TimeoutError(errno.ETIMEDOUT, "memo publication timeout")
+                    try:
+                        fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        break
+                    except OSError as exc:
+                        if exc.errno not in (errno.EAGAIN, errno.EACCES):
+                            raise
+                        time.sleep(min(0.01, max(0.0, deadline - time.monotonic())))
         except OSError as exc:
             try:
                 handle.close()
@@ -594,9 +616,9 @@ class _ReceiptMemo:
                 self._process_resolution,
             ) = self._suspended_sessions.pop()
 
-    def get(self):
+    def get(self, *, early_job: Optional[str] = None, deadline: Optional[float] = None):
         """prewarm 済み process state または既存 session cache だけを読む。"""
-        if self.process_prewarmed:
+        if self.process_prewarmed and early_job is None:
             return self._process_resolution
 
         run_id = os.environ.get(_RUN_ID_ENV)
@@ -618,7 +640,34 @@ class _ReceiptMemo:
                 head=head, prewarm=False,
             )
 
+        pending = path.with_name(f"{path.name}.pending")
+        failed = path.with_name(f"{path.name}.failed")
+        if early_job is not None:
+            if early_job != str(path):
+                raise self._error(
+                    "early-job-identity-mismatch", cache_path=path, run_id=run_id,
+                    head=head, prewarm=False,
+                )
+            limit = time.monotonic() + _EARLY_WAIT_TIMEOUT_S
+            deadline = limit if deadline is None else min(deadline, limit)
+
         def read_existing():
+            if failed.exists():
+                raise self._error(
+                    "prewarm-failed", cache_path=path, run_id=run_id,
+                    head=head, prewarm=False,
+                )
+            if early_job is not None and pending.exists():
+                # Only reachable when a caller reuses this early reader. Production
+                # waiting creates a reader and calls get once, so this branch cannot
+                # protect that path. If the body disappears after publication, the
+                # separate consumer reader fails via cache-missing below.
+                if early_job in self._early_ready_paths:
+                    raise self._error(
+                        "publication-regressed", cache_path=path, run_id=run_id,
+                        head=head, prewarm=False,
+                    )
+                return _MISSING
             if not path.exists():
                 raise self._error(
                     "cache-missing", cache_path=path, run_id=run_id,
@@ -629,10 +678,27 @@ class _ReceiptMemo:
                 process_prewarmed=self.process_prewarmed,
             )
 
-        resolution = self._locked(
-            path, run_id=run_id, head=head, prewarm=False,
-            operation=read_existing,
-        )
+        while True:
+            resolution = self._locked(
+                path, run_id=run_id, head=head, prewarm=False,
+                operation=read_existing, deadline=deadline if early_job is not None else None,
+            )
+            # Include read, unlock and close in the shared early-job deadline.
+            if early_job is not None and time.monotonic() >= deadline:
+                raise self._error(
+                    "publication-timeout", cache_path=path, run_id=run_id,
+                    head=head, prewarm=False,
+                )
+            if resolution is not _MISSING:
+                if early_job is not None:
+                    self._early_ready_paths.add(early_job)
+                break
+            if time.monotonic() >= deadline:
+                raise self._error(
+                    "publication-timeout", cache_path=path, run_id=run_id,
+                    head=head, prewarm=False,
+                )
+            time.sleep(min(0.01, max(0.0, deadline - time.monotonic())))
         self._process_resolution = resolution
         return resolution
 

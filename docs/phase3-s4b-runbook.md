@@ -46,7 +46,7 @@ trigger-gating (`phase3-s8a-trigger-runbook.md`) の loader も同一の検査�
 `Agent(subagent_type='planner-v4')`。入力 (メインセッションが**射影して**渡す。JSON):
 ```json
 {
-  "current_perf": {"throughput_ops_sec": <baseline>, "abort_rate_pct": <baseline>, "last_delta_pct": null},
+  "current_perf": {"throughput_tps": <baseline>, "abort_rate_pct": <baseline>, "last_delta_pct": null},
   "leading_indicators": {"cache_miss_rate_pct": <baseline>, "contention_level": "<...>", "IPC_overall": <baseline>},
   "whiteboard": <loop_state.json の whiteboard (抽象・機序なし)>
 }
@@ -65,7 +65,7 @@ trigger-gating (`phase3-s8a-trigger-runbook.md`) の loader も同一の検査�
 {
   "leakproof_context": "<src/coder-leakproof-context.md の内容を inline で>",
   "planner_direction": <(a) の proposal>,
-  "baseline": {"throughput_ops_sec": <baseline>, "abort_rate_pct": <baseline>},
+  "baseline": {"throughput_tps": <baseline>, "abort_rate_pct": <baseline>},
   "whiteboard": <抽象 whiteboard>
 }
 ```

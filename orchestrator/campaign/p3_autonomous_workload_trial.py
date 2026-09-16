@@ -139,12 +139,12 @@ from .build_admission import (  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 DECLARED_USE_CLASS = "exploration"
-SCHEMA_VERSION = "p3-autonomous-workload-trial/v3"
+SCHEMA_VERSION = "p3-autonomous-workload-trial/v4"
 REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v3"
 MAX_GENERATIONS = 10
 MAX_APPROVED_GENERATIONS = 2
 _INITIAL_ROLE_METRICS = MappingProxyType({
-    "throughput_ops_sec": None,
+    "throughput_tps": None,
     "abort_rate": None,
     "latency_ns": None,
     "llc_miss_rate": None,
@@ -2002,7 +2002,7 @@ def _metric_projection(outcome: Mapping[str, Any]) -> dict[str, Any]:
     )
     fitness = outcome.get("fitness_tps")
     return {
-        "throughput_ops_sec": _finite_metric_or_none(fitness),
+        "throughput_tps": _finite_metric_or_none(fitness),
         "abort_rate": _finite_metric_or_none(leading.get("abort_rate")),
         "latency_ns": _finite_metric_or_none(leading.get("latency_ns")),
         "llc_miss_rate": _finite_metric_or_none(leading.get("llc_miss_rate")),
@@ -2018,7 +2018,7 @@ def _role_metric_payloads(
     abort_rate = current_metrics["abort_rate"]
     llc_miss_rate = current_metrics["llc_miss_rate"]
     perf_payload = {
-        "throughput_ops_sec": current_metrics["throughput_ops_sec"],
+        "throughput_tps": current_metrics["throughput_tps"],
         "abort_rate_pct": (
             None
             if abort_rate is None
