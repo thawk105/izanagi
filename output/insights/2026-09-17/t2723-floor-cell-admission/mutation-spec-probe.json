@@ -1,0 +1,176 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 2700,
+  "hang_timeout_seconds": 2700,
+  "mutations": [
+    {
+      "id": "m0-equivalent-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "Complete admission Section 5 validation checks the fixed raw table shape, nonempty source cells,\n",
+          "new": "Complete admission Section 5 validation checks the fixed raw table shape, nonempty source cells\n(equivalent mutation marker: docstring only),\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-whole-document-prefix-scan",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "def _floor_cell(raw: bytes) -> str:\n    try:\n        values, raw_values, verbatim_labels = (\n            _parse_section5_fixed_table_source_cells(raw)\n        )\n",
+          "new": "def _floor_cell(raw: bytes) -> str:\n    prefix = f\"|{PREREGISTRATION_FLOOR_LABEL}|\"\n    matches = [line for line in raw.decode(\"utf-8\").splitlines() if line.startswith(prefix)]\n    if len(matches) != 1:\n        _fail(\"preregistration_floor_row_error\", \"exact 1\")\n    return matches[0][len(prefix) : -1]\n    try:\n        values, raw_values, verbatim_labels = (\n            _parse_section5_fixed_table_source_cells(raw)\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-drop-owner-predicate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "        _assert_section5_source_cell_has_nonempty_value_and_no_reserved_sentinel(\n            owner_label, values[owner_label]\n        )\n",
+          "new": "        pass\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-drop-label-set-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "    if set(values) != set(_SECTION5_LABELS):\n        raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)\n    return values, raw_values, verbatim_labels\n",
+          "new": "    return values, raw_values, verbatim_labels\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-drop-cell-strip",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "        raw_label, raw_value = (cell.strip() for cell in cells)\n",
+          "new": "        raw_label, raw_value = (cell for cell in cells)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-raw-values-get-normalized",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "        raw_values[label] = raw_value\n",
+          "new": "        raw_values[label] = value\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-ignore-fence-mask",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "    fenced_lines, html_commented_lines = _markdown_block_context(lines)\n",
+          "new": "    fenced_lines, html_commented_lines = _markdown_block_context(lines)\n    fenced_lines = tuple(False for _ in lines)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-ignore-comment-mask",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "    fenced_lines, html_commented_lines = _markdown_block_context(lines)\n",
+          "new": "    fenced_lines, html_commented_lines = _markdown_block_context(lines)\n    html_commented_lines = tuple(False for _ in lines)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-nfkc-pin-grammar",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "    match = _FLOOR_PIN_RE.fullmatch(raw_cell)\n",
+          "new": "    match = _FLOOR_PIN_RE.fullmatch(__import__(\"unicodedata\").normalize(\"NFKC\", raw_cell))\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-drop-exact-label-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "    if verbatim_labels[PREREGISTRATION_FLOOR_LABEL] != PREREGISTRATION_FLOOR_LABEL:\n        _fail(\n            \"preregistration_floor_row_error\",\n            \"§5 floor row label は既存の exact 表記でなければならない\",\n        )\n",
+          "new": "    _ = verbatim_labels\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-nfkc-sentinel",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "    if raw_cell == PREREGISTRATION_ABSENT_SENTINEL:\n",
+          "new": "    if __import__(\"unicodedata\").normalize(\"NFKC\", raw_cell) == PREREGISTRATION_ABSENT_SENTINEL:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-predicate-on-all-cells",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "        _assert_section5_source_cell_has_nonempty_value_and_no_reserved_sentinel(\n            owner_label, values[owner_label]\n        )\n",
+          "new": "        for _label, _value in values.items():\n            _assert_section5_source_cell_has_nonempty_value_and_no_reserved_sentinel(\n                _label, _value\n            )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+real (unchanged): OK -> None
+outside pin row appended: REJECT preregistration_floor_row_error: §5 floor row は exact 1 件でなければならない: observed=2
+owner unrecorded: OK -> None
+floor row removed + outside pin: REJECT path_error: authority artifact が存在しない: /tmp/tmpqac2p482/output: [Errno 2] No such file or directory: '
+pin in section 5 (artifact absent): REJECT path_error: authority artifact が存在しない: /tmp/tmp5zpr9174/output: [Errno 2] No such file or directory: '
+nfkc lookalike sentinel: REJECT preregistration_floor_grammar_error: floor cell は 'artifact_path=<repo relative>; sha256=<lowercase hex64>' でない
+padded sentinel: REJECT preregistration_floor_grammar_error: floor cell は 'artifact_path=<repo relative>; sha256=<lowercase hex64>' でない

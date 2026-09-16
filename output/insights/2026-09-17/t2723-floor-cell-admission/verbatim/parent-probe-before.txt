@@ -1,0 +1,14 @@
+doc bytes 117781
+resolve -> None
+admission -> rejected: [admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked
+boundaries [153] [168]
+rows 10
+未記入 rows 6
+  - 赤 precursor の母集合 (workload・赤形状・初期 propos
+  - floor (対象動作点で再実測した between-run floor) の
+  - 校正済み `PerfConfig` (records / threads / r
+  - 総計測予算 (role query 数・build/verify/bench a
+  - env_tag (実測環境)
+  - model snapshot / prompt hash / projectio
+label[4] == FLOOR_LABEL: True
+prefix hits in doc: 1

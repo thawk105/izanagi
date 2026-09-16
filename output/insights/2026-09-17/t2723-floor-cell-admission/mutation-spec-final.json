@@ -1,0 +1,258 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 2700,
+  "hang_timeout_seconds": 2700,
+  "mutations": [
+    {
+      "id": "m0-equivalent-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "Complete admission Section 5 validation checks the fixed raw table shape, nonempty source cells,\n",
+          "new": "Complete admission Section 5 validation checks the fixed raw table shape, nonempty source cells\n(equivalent mutation marker: docstring only),\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-whole-document-prefix-scan",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "def _floor_cell(raw: bytes) -> str:\n    try:\n        values, raw_values, verbatim_labels = (\n            _parse_section5_fixed_table_source_cells(raw)\n        )\n",
+          "new": "def _floor_cell(raw: bytes) -> str:\n    prefix = f\"|{PREREGISTRATION_FLOOR_LABEL}|\"\n    matches = [line for line in raw.decode(\"utf-8\").splitlines() if line.startswith(prefix)]\n    if len(matches) != 1:\n        _fail(\"preregistration_floor_row_error\", \"exact 1\")\n    return matches[0][len(prefix) : -1]\n    try:\n        values, raw_values, verbatim_labels = (\n            _parse_section5_fixed_table_source_cells(raw)\n        )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_exact_sentinel_is_the_only_absence",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_ignores_blocked_section5_decoys[comment]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_ignores_blocked_section5_decoys[fence]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_ignores_pin_outside_section5",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_preserves_encoding_error",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_preserves_raw_floor_pin",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_rejects_missing_floor_despite_outside_pin",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_rejects_missing_owner_row",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_rejects_unknown_label_at_fixed_row_count",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_rejects_unrecorded_owner_before_loading_pin"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-drop-owner-predicate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "        _assert_section5_source_cell_has_nonempty_value_and_no_reserved_sentinel(\n            owner_label, values[owner_label]\n        )\n",
+          "new": "        pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_rejects_unrecorded_owner_before_loading_pin"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-drop-label-set-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "    if set(values) != set(_SECTION5_LABELS):\n        raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)\n    return values, raw_values, verbatim_labels\n",
+          "new": "    return values, raw_values, verbatim_labels\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_rejects_unknown_label_at_fixed_row_count"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-drop-cell-strip",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "        raw_label, raw_value = (cell.strip() for cell in cells)\n",
+          "new": "        raw_label, raw_value = (cell for cell in cells)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_parser_preserves_raw_and_normalized_values",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_exact_sentinel_is_the_only_absence",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_preserves_raw_floor_pin"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-raw-values-get-normalized",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "        raw_values[label] = raw_value\n",
+          "new": "        raw_values[label] = value\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_expectation_row_rejects_nfkc_only_ascii_grammar_matches",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_parser_preserves_raw_and_normalized_values",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_preserves_raw_floor_pin",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_rejects_nfkc_only_absent_sentinel"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-ignore-fence-mask",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "    fenced_lines, html_commented_lines = _markdown_block_context(lines)\n",
+          "new": "    fenced_lines, html_commented_lines = _markdown_block_context(lines)\n    fenced_lines = tuple(False for _ in lines)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_accepts_one_leading_bom_and_rejects_bom_hidden_fence",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_commonmark_fence_openers_and_marker_lengths",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_fenced_region_nfkc_sentinel_and_format_character",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_ignores_blocked_section5_decoys[fence]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-ignore-comment-mask",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "old": "    fenced_lines, html_commented_lines = _markdown_block_context(lines)\n",
+          "new": "    fenced_lines, html_commented_lines = _markdown_block_context(lines)\n    html_commented_lines = tuple(False for _ in lines)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_known_over_rejection_for_literal_comment_openers",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_html_commented_region_but_accepts_comment_outside",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_ignores_blocked_section5_decoys[comment]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-nfkc-pin-grammar",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "    match = _FLOOR_PIN_RE.fullmatch(raw_cell)\n",
+          "new": "    match = _FLOOR_PIN_RE.fullmatch(__import__(\"unicodedata\").normalize(\"NFKC\", raw_cell))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_preserves_raw_floor_pin"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-drop-exact-label-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "    if verbatim_labels[PREREGISTRATION_FLOOR_LABEL] != PREREGISTRATION_FLOOR_LABEL:\n        _fail(\n            \"preregistration_floor_row_error\",\n            \"§5 floor row label は既存の exact 表記でなければならない\",\n        )\n",
+          "new": "    _ = verbatim_labels\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_keeps_exact_floor_label[fullwidth]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_keeps_exact_floor_label[padded]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-nfkc-sentinel",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "    if raw_cell == PREREGISTRATION_ABSENT_SENTINEL:\n",
+          "new": "    if __import__(\"unicodedata\").normalize(\"NFKC\", raw_cell) == PREREGISTRATION_ABSENT_SENTINEL:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_rejects_nfkc_only_absent_sentinel"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-predicate-on-all-cells",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_floor_artifact_issuer.py",
+          "old": "        _assert_section5_source_cell_has_nonempty_value_and_no_reserved_sentinel(\n            owner_label, values[owner_label]\n        )\n",
+          "new": "        for _label, _value in values.items():\n            _assert_section5_source_cell_has_nonempty_value_and_no_reserved_sentinel(\n                _label, _value\n            )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_accepts_valid_pin_with_other_cells_unrecorded",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_exact_sentinel_is_the_only_absence",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_ignores_blocked_section5_decoys[comment]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_ignores_blocked_section5_decoys[fence]",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_ignores_pin_outside_section5",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_preserves_encoding_error",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_real_preregistration_is_absent",
+        "orchestrator/tests/test_p3_b4_floor_artifact_issuer.py::test_resolver_rejects_nfkc_only_absent_sentinel",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_artifact_availability_is_frozen_once_per_planned_leaf@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_cli_clean_subprocess_runs_twice_and_refuses_overwrite@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_complete_projection_preserves_402_sources_fields_and_transcribed_binding@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[issuer_receipt]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[manifest]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_input_artifact_projection_rejects_one_byte_rewrite_through_public_builder[registry]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m01_m02_assembly_rejection_still_reports_201_blocks_and_missing_leaf@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[absent-to-zero]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[anomaly-class-alias]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[campaign-id]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[drop-one-arm]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[duplicate-one-arm]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[remove-transcribed-binding]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[rewrite-source-utf8]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m03_m04_m05_m06_m07_m14_m17_m18_public_builder_rejects_projection_mutations[terminal-reason]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m08_floor_absence_runs_existing_evaluator_as_protocol_violation@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[above]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[below]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m10_m11_m12_output_campaign_intersection_three_directions_write_nothing[equal]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m13_lexical_dotdot_alias_reaches_resolved_campaign_comparison@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m15_real_issuer_exception_is_wrapped_with_reason_and_writes_nothing@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m15_real_ledger_exception_type_is_wrapped_and_writes_nothing@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m16b_prepublication_race_check_rejects_new_target@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[False-False]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_m9_four_authority_and_assembly_states_project_exactly[False-True]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_markdown_provenance_argv_and_required_columns_match_json_rows@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_normal_path_assembles_binds_evaluates_and_builds_document@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_output_symlink_component_is_rejected_before_any_report_write@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_outputs_contain_no_combining_diacritic_codepoints@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[malformed]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_fails_closed_for_output_campaigns_path[missing]@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_partial_campaign_discovery_rejects_recovered_campaign_root_sibling@p3-b4-material-report",
+        "orchestrator/tests/test_p3_b4_material_report.py::test_publication_symlink_alias_remains_rejected_by_existing_loader@p3-b4-material-report"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

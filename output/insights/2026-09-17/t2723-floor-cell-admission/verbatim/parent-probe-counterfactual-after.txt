@@ -1,0 +1,7 @@
+real (unchanged): OK -> None
+outside pin row appended: OK -> None
+owner unrecorded: REJECT preregistration_floor_row_error: §5 実行責任者・開始時刻: [admission-preregistration] section 5 fixed table requires nonempty source
+floor row removed + outside pin: REJECT preregistration_floor_row_error: §5 fixed table: [admission-preregistration] section 5 fixed table requires nonempty source
+pin in section 5 (artifact absent): REJECT path_error: authority artifact が存在しない: /tmp/tmpcd32u8pv/output: [Errno 2] No such file or directory: '
+nfkc lookalike sentinel: REJECT preregistration_floor_grammar_error: floor cell は 'artifact_path=<repo relative>; sha256=<lowercase hex64>' でない
+padded sentinel: OK -> None
