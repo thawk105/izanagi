@@ -72,6 +72,7 @@ def _manifest_value(prereg_commit: str, selected_campaign_id: str) -> dict:
                     else f"fixture-other-campaign-{ordinal}"
                 ),
                 "generations": 2,
+                "n": 2,
             })
     return {
         "schema_version": registry.MANIFEST_SCHEMA_VERSION,
@@ -92,6 +93,7 @@ def _registration_value(manifest: registry.TrialManifest) -> dict:
                 "holdout": trial.holdout,
                 "campaign_id": trial.campaign_id,
                 "generations": trial.generations,
+                "n": trial.n,
             }
             for trial in manifest.trials
         ],

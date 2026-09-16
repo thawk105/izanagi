@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """variant の遺伝子空間 (最適化フラグ超立方体) と制約付き列挙器。
 
-CCBench の最適化は protocol ごとのブール超立方体 (anatomy §3: silo 2^4, cicada 2^6,
-oze 2^7 ... ≈ 258 binaries)。Phase 2 の「全探索」(roadmap §2(a)) はこの空間の列挙。
+CCBench の最適化は protocol ごとのブール超立方体 (anatomy §3: silo 2^4, cicada 2^5,
+oze 2^7 ... ≈ 234 binaries)。Phase 2 の「全探索」(roadmap §2(a)) はこの空間の列挙。
 Phase 1 タスク6 ではまず silo を実体化し、骨格 (列挙→ビルド→検証) を配線する。
 
 mutual-exclusion など「ビルドはできるが意味のない/無効な」組合せは constraint で弾く
