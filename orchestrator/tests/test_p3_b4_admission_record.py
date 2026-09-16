@@ -1170,6 +1170,19 @@ def test_record_path_rejects_symlink_components_and_git_control_paths():
     )
 
 
+def test_section5_parser_preserves_raw_and_normalized_values() -> None:
+    label = "env_tag (実測環境)"
+    document = _section5_document(value_overrides={label: "  Ａ  "}).replace(
+        f"|{label}|".encode(), f"| {label} |".encode(),
+    )
+    values, raw_values, verbatim_labels = A._parse_section5_fixed_table_source_cells(
+        document
+    )
+    assert values[label] == "A"
+    assert raw_values[label] == "Ａ"
+    assert verbatim_labels[label] == f" {label} "
+
+
 if __name__ == "__main__":
     import traceback
 

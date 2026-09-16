@@ -134,12 +134,9 @@ def _write_floor_preregistration(
             f"artifact_path={artifact_relpath}; sha256={artifact_sha256}"
         )
         expected_source = (artifact_relpath, artifact_sha256)
-    preregistration.write_text(
-        "|floor (対象動作点で再実測した between-run floor) の artifact パスと hash|"
-        + cell
-        + "|\n",
-        encoding="utf-8",
-    )
+    from orchestrator.tests.test_p3_b4_floor_artifact_issuer import _preregistration
+
+    preregistration.write_bytes(_preregistration(cell))
     return expected_source
 
 
@@ -1001,11 +998,11 @@ def test_aggregate_authoritative_floor_reaches_public_material_report(
     assert issued.artifact_sha256 == artifact_sha256
     preregistration = authority_repo / R._PREREGISTRATION_RELATIVE_PATH
     preregistration.parent.mkdir(parents=True)
-    preregistration.write_text(
-        f"|{floor_issuer.PREREGISTRATION_FLOOR_LABEL}|"
-        f"artifact_path={artifact_path}; sha256={artifact_sha256}|\n",
-        encoding="utf-8",
-    )
+    from orchestrator.tests.test_p3_b4_floor_artifact_issuer import _preregistration
+
+    preregistration.write_bytes(_preregistration(
+        f"artifact_path={artifact_path}; sha256={artifact_sha256}"
+    ))
     resolved = floor_issuer.resolve_preregistered_authoritative_floor(
         repo_root=authority_repo,
         preregistration_path=R._PREREGISTRATION_RELATIVE_PATH,
@@ -1110,13 +1107,11 @@ def test_m7_non_sentinel_resolver_failure_never_falls_back_or_calls_evaluator(
     docs.mkdir(parents=True)
     (authority_repo / "artifacts").mkdir()
     preregistration = docs / R._PREREGISTRATION_RELATIVE_PATH.name
-    preregistration.write_text(
-        "|floor (対象動作点で再実測した between-run floor) の artifact パスと hash|"
-        "artifact_path=artifacts/missing.json; sha256="
-        + "0" * 64
-        + "|\n",
-        encoding="utf-8",
-    )
+    from orchestrator.tests.test_p3_b4_floor_artifact_issuer import _preregistration
+
+    preregistration.write_bytes(_preregistration(
+        "artifact_path=artifacts/missing.json; sha256=" + "0" * 64
+    ))
     monkeypatch.setattr(R, "_REPOSITORY_ROOT", authority_repo)
     evaluator_called = False
 

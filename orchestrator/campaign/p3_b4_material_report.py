@@ -3,7 +3,8 @@
 The command in this module is a read-only consumer of campaign evidence.  It
 does not launch campaigns, build binaries, measure performance, or certify a
 selection.  It resolves the authoritative floor only from preregistration §5:
-the verbatim sentinel preserves the legacy ``floor=None`` path, while a valid
+the fixed-table floor cell's stripped raw sentinel preserves the legacy
+``floor=None`` path, while a valid
 pin supplies its exact :class:`fractions.Fraction` to the frozen evaluator.
 """
 

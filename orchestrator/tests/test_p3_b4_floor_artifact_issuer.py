@@ -186,13 +186,12 @@ def _rewrite_summary(root: Path, summary: dict[str, object]) -> None:
 
 
 def _preregistration(value: str) -> bytes:
-    return (
-        "# Synthetic preregistration fixture\n\n"
-        "## 5. 実走前に数値で埋める欄\n\n"
-        "|欄|値|\n"
-        "|---|---|\n"
-        f"|{issuer.PREREGISTRATION_FLOOR_LABEL}|{value}|\n"
-    ).encode("utf-8")
+    from orchestrator.tests.test_p3_b4_admission_record import _section5_document
+
+    return _section5_document(value_overrides={
+        issuer.PREREGISTRATION_FLOOR_LABEL: value,
+        "実行責任者・開始時刻": "実行責任者 = fixture-owner、開始時刻 = 未記入",
+    })
 
 
 def test_m04_summary_schema_pin_is_one_exact_string() -> None:
@@ -691,7 +690,12 @@ def test_resolver_exact_sentinel_is_the_only_absence(tmp_path: Path) -> None:
         )
         is None
     )
-    for malformed in (" 未記入", "未記入 ", "TBD", "artifact_path=x"):
+    for padded in (" 未記入", "未記入 "):
+        _write_bytes(tmp_path, prereg_path.as_posix(), _preregistration(padded))
+        assert issuer.resolve_preregistered_authoritative_floor(
+            repo_root=tmp_path, preregistration_path=prereg_path
+        ) is None
+    for malformed in ("TBD", "artifact_path=x"):
         _write_bytes(tmp_path, prereg_path.as_posix(), _preregistration(malformed))
         with pytest.raises(issuer.B4FloorArtifactError) as caught:
             issuer.resolve_preregistered_authoritative_floor(
@@ -751,7 +755,8 @@ def test_m05_m06_resolver_fails_closed_without_absence_fallback(
         artifact_sha = "0" * 64
     else:
         value = json.loads((tmp_path / artifact_path).read_text(encoding="utf-8"))
-        value["schema"] = "p3-b4-authoritative-floor/v2"
+        # v2 is the supported aggregate schema; use an unsupported version.
+        value["schema"] = "p3-b4-authoritative-floor/v999"
         raw = _canonical(value)
         (tmp_path / artifact_path).write_bytes(raw)
         artifact_sha = hashlib.sha256(raw).hexdigest()
@@ -763,25 +768,215 @@ def test_m05_m06_resolver_fails_closed_without_absence_fallback(
             f"artifact_path={artifact_path}; sha256={artifact_sha}"
         ),
     )
-    with pytest.raises(issuer.B4FloorArtifactError):
+    with pytest.raises(issuer.B4FloorArtifactError) as caught:
         issuer.resolve_preregistered_authoritative_floor(
             repo_root=tmp_path, preregistration_path=prereg_path
         )
+
+    assert caught.value.code == {
+        "missing": "path_error",
+        "hash": "artifact_hash_mismatch",
+        "schema": "artifact_schema_error",
+    }[mode]
 
 
 def test_resolver_rejects_duplicate_floor_rows(tmp_path: Path) -> None:
-    row = (
-        f"|{issuer.PREREGISTRATION_FLOOR_LABEL}|"
-        f"{issuer.PREREGISTRATION_ABSENT_SENTINEL}|\n"
+    raw = _preregistration("未記入").replace(
+        "|対象 driver と軸|".encode(),
+        f"|{issuer.PREREGISTRATION_FLOOR_LABEL}|".encode(),
     )
-    raw = ("# Fixture\n\n" + row + row).encode("utf-8")
     prereg_path = Path("docs/prereg.md")
     _write_bytes(tmp_path, prereg_path.as_posix(), raw)
-    with pytest.raises(issuer.B4FloorArtifactError, match="exact 1"):
+    with pytest.raises(issuer.B4FloorArtifactError) as caught:
         issuer.resolve_preregistered_authoritative_floor(
             repo_root=tmp_path, preregistration_path=prereg_path
         )
+    assert caught.value.code == "preregistration_floor_row_error"
 
+
+
+def _issued_floor_pin(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    summary_path, _ = _synthetic_source(
+        tmp_path, monkeypatch, genome_canonicals=_mocc_genome_canonicals(),
+    )
+    result = issuer.issue_authoritative_floor(
+        repo_root=tmp_path, summary_path=summary_path,
+    )
+    return result, f"artifact_path={result.artifact_path}; sha256={result.artifact_sha256}"
+
+
+def _resolve_document(tmp_path: Path, raw: bytes):
+    _write_bytes(tmp_path, "docs/prereg.md", raw)
+    return issuer.resolve_preregistered_authoritative_floor(
+        repo_root=tmp_path, preregistration_path=Path("docs/prereg.md"),
+    )
+
+
+def _forbid_floor_loading(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
+    calls = []
+
+    def unexpected_load(**kwargs):
+        calls.append(kwargs)
+        raise AssertionError("loader must not run")
+
+    monkeypatch.setattr(issuer, "load_authoritative_floor", unexpected_load)
+    return calls
+
+
+def test_resolver_real_preregistration_is_absent() -> None:
+    """現在の未登録状態の回帰。floor 登録 wave で更新する"""
+    root = Path(__file__).resolve().parents[2]
+    assert issuer.resolve_preregistered_authoritative_floor(
+        repo_root=root,
+        preregistration_path=Path("docs/phase3-b4-reflux-ablation-preregistration.md"),
+    ) is None
+
+
+def test_resolver_ignores_pin_outside_section5(tmp_path, monkeypatch) -> None:
+    _, pin = _issued_floor_pin(tmp_path, monkeypatch)
+    raw = _preregistration("未記入") + (
+        f"\n|{issuer.PREREGISTRATION_FLOOR_LABEL}|{pin}|\n"
+    ).encode()
+    calls = _forbid_floor_loading(monkeypatch)
+    assert _resolve_document(tmp_path, raw) is None
+    assert calls == []
+
+
+def test_resolver_rejects_missing_floor_despite_outside_pin(tmp_path, monkeypatch) -> None:
+    _, pin = _issued_floor_pin(tmp_path, monkeypatch)
+    row = f"|{issuer.PREREGISTRATION_FLOOR_LABEL}|{pin}|".encode()
+    raw = _preregistration(pin).replace(row + b"\n", b"") + b"\n" + row
+    calls = _forbid_floor_loading(monkeypatch)
+    with pytest.raises(issuer.B4FloorArtifactError) as caught:
+        _resolve_document(tmp_path, raw)
+    assert caught.value.code == "preregistration_floor_row_error"
+    assert calls == []
+
+
+def test_resolver_rejects_unrecorded_owner_before_loading_pin(tmp_path, monkeypatch) -> None:
+    _, pin = _issued_floor_pin(tmp_path, monkeypatch)
+    calls = _forbid_floor_loading(monkeypatch)
+    # The owner predicate must precede even the sentinel's absence return.
+    for cell in (pin, "未記入"):
+        raw = _preregistration(cell).replace(
+            b"fixture-owner", "未記入".encode(),
+        )
+        with pytest.raises(issuer.B4FloorArtifactError) as caught:
+            _resolve_document(tmp_path, raw)
+        assert caught.value.code == "preregistration_floor_row_error"
+        assert "§5 実行責任者・開始時刻:" in caught.value.detail
+        assert calls == []
+
+
+def test_resolver_rejects_missing_owner_row(tmp_path, monkeypatch) -> None:
+    _, pin = _issued_floor_pin(tmp_path, monkeypatch)
+    raw = _preregistration(pin).replace(
+        "|実行責任者・開始時刻|実行責任者 = fixture-owner、開始時刻 = 未記入|\n".encode(),
+        b"",
+    )
+    calls = _forbid_floor_loading(monkeypatch)
+    with pytest.raises(issuer.B4FloorArtifactError) as caught:
+        _resolve_document(tmp_path, raw)
+    assert caught.value.code == "preregistration_floor_row_error"
+    assert calls == []
+
+
+@pytest.mark.parametrize("block", [
+    pytest.param("fence", id="fence"),
+    pytest.param("comment", id="comment"),
+])
+def test_resolver_ignores_blocked_section5_decoys(tmp_path, monkeypatch, block) -> None:
+    _, pin = _issued_floor_pin(tmp_path, monkeypatch)
+    opening, closing = (b"```\n", b"\n```\n") if block == "fence" else (
+        b"<!--\n", b"\n-->\n",
+    )
+    raw = opening + _preregistration(pin) + closing + _preregistration("未記入")
+    calls = _forbid_floor_loading(monkeypatch)
+    assert _resolve_document(tmp_path, raw) is None
+    assert calls == []
+
+
+def test_preregistration_floor_label_matches_admission_label() -> None:
+    from orchestrator.campaign.p3_b4_admission_record import _SECTION5_LABELS
+
+    assert issuer.PREREGISTRATION_FLOOR_LABEL == (
+        "floor (対象動作点で再実測した between-run floor) の artifact パスと hash"
+    )
+    assert issuer.PREREGISTRATION_FLOOR_LABEL in _SECTION5_LABELS
+
+
+def test_resolver_accepts_valid_pin_with_other_cells_unrecorded(tmp_path, monkeypatch) -> None:
+    from orchestrator.campaign.p3_b4_admission_record import _SECTION5_LABELS
+
+    issued, pin = _issued_floor_pin(tmp_path, monkeypatch)
+    unrecorded_labels = {_SECTION5_LABELS[index] for index in (1, 5, 6, 7, 8)}
+    rows = _preregistration(pin).splitlines(keepends=True)
+    for index, row in enumerate(rows):
+        for label in unrecorded_labels:
+            if row.startswith(f"|{label}|".encode()):
+                rows[index] = f"|{label}|未記入|\n".encode()
+                break
+    resolved = _resolve_document(tmp_path, b"".join(rows))
+    assert resolved.artifact_path == issued.artifact_path
+    assert resolved.artifact_sha256 == issued.artifact_sha256
+
+
+def test_resolver_preserves_raw_floor_pin(tmp_path, monkeypatch) -> None:
+    issued, pin = _issued_floor_pin(tmp_path, monkeypatch)
+    resolved = _resolve_document(tmp_path, _preregistration(" \t" + pin + " \t"))
+    assert resolved.artifact_path == issued.artifact_path
+    assert resolved.artifact_sha256 == issued.artifact_sha256
+    # Real loading distinguishes the raw fullwidth path from its NFKC spelling.
+    raw_path = "artifacts/Ａ.json"
+    _write_bytes(tmp_path, raw_path, (tmp_path / issued.artifact_path).read_bytes())
+    raw_pin = f"artifact_path={raw_path}; sha256={issued.artifact_sha256}"
+    resolved = _resolve_document(tmp_path, _preregistration(" " + raw_pin + " "))
+    assert resolved.artifact_path == raw_path
+    assert resolved.artifact_sha256 == issued.artifact_sha256
+    for malformed in (
+        pin.replace("artifact_path=", "ａｒｔｉｆａｃｔ＿ｐａｔｈ="),
+        pin.replace(issued.artifact_sha256, "０" * 64),
+    ):
+        with pytest.raises(issuer.B4FloorArtifactError) as caught:
+            _resolve_document(tmp_path, _preregistration(malformed))
+        assert caught.value.code == "preregistration_floor_grammar_error"
+
+
+@pytest.mark.parametrize("spelling", [
+    pytest.param("padded", id="padded"),
+    pytest.param("fullwidth", id="fullwidth"),
+])
+def test_resolver_keeps_exact_floor_label(tmp_path, spelling) -> None:
+    label = issuer.PREREGISTRATION_FLOOR_LABEL
+    changed = " " + label + " " if spelling == "padded" else label.replace("floor", "ｆｌｏｏｒ")
+    raw = _preregistration("未記入").replace(
+        f"|{label}|".encode(), f"|{changed}|".encode(),
+    )
+    with pytest.raises(issuer.B4FloorArtifactError) as caught:
+        _resolve_document(tmp_path, raw)
+    assert caught.value.code == "preregistration_floor_row_error"
+
+
+def test_resolver_rejects_unknown_label_at_fixed_row_count(tmp_path) -> None:
+    raw = _preregistration("未記入").replace(
+        "|対象 driver と軸|".encode(), b"|unknown label|",
+    )
+    with pytest.raises(issuer.B4FloorArtifactError) as caught:
+        _resolve_document(tmp_path, raw)
+    assert caught.value.code == "preregistration_floor_row_error"
+
+
+def test_resolver_preserves_encoding_error(tmp_path) -> None:
+    with pytest.raises(issuer.B4FloorArtifactError) as caught:
+        _resolve_document(tmp_path, b"\xff" + _preregistration("未記入"))
+    assert caught.value.code == "preregistration_encoding_error"
+    assert _resolve_document(tmp_path, b"\xef\xbb\xbf" + _preregistration("未記入")) is None
+
+
+def test_resolver_rejects_nfkc_only_absent_sentinel(tmp_path) -> None:
+    with pytest.raises(issuer.B4FloorArtifactError) as caught:
+        _resolve_document(tmp_path, _preregistration("未記⼊"))
+    assert caught.value.code == "preregistration_floor_grammar_error"
 
 
 def _aggregate_coverage_case(root: Path, *, ordinal: int = 0):

@@ -24,10 +24,12 @@ field, committing a new record, and starting a new invocation.  Rebuilding a
 record after such a mismatch and continuing the same experiment is a protocol
 change, not maintenance.
 
-Section 5 validation checks the fixed raw table shape, nonempty source cells,
+Complete admission Section 5 validation checks the fixed raw table shape, nonempty source cells,
 a closed reserved-sentinel list, and fixed model, prompt, and driver-tagged
 projection declarations.  It does not check cell types, meanings, or rendered
 non-emptiness for the remaining cells.
+Floor reading shares the fixed-table parser and owner-cell predicate, but does
+not validate other cells' sentinels or expectation declarations.
 HTML comment detection is a line-oriented simple search: ``<!--`` inside an
 inline code span, an indented code block, or a backslash escape is also treated
 as a comment opener.  Thus otherwise valid documents containing those forms
@@ -599,21 +601,10 @@ def _markdown_block_context(
     return tuple(fenced), tuple(html_commented)
 
 
-def assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
+def _parse_section5_fixed_table_source_cells(
     document_blob: bytes,
-    *,
-    expected_claude_model_snapshot: str,
-    expected_effective_critic_prompt_sha256: str,
-) -> MappingProxyType[B4ProjectionDriverKind, str]:
-    """Check source cells, bind model and prompt, and return projections.
-
-    HTML comment detection is a line-oriented simple search: ``<!--`` inside
-    an inline code span, an indented code block, or a backslash escape is also
-    treated as a comment opener.  Thus otherwise valid documents containing
-    those forms before Section 5 are intentionally rejected fail-closed; this
-    over-rejection does not admit a document that must be rejected.  Raw HTML
-    blocks other than HTML comments are not checked.
-    """
+) -> tuple[dict[str, str], dict[str, str], dict[str, str]]:
+    """Return normalized values, stripped raw values, and verbatim labels."""
     try:
         text = document_blob.decode("utf-8-sig")
     except UnicodeError as exc:
@@ -649,6 +640,7 @@ def assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentin
         raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)
     values: dict[str, str] = {}
     raw_values: dict[str, str] = {}
+    verbatim_labels: dict[str, str] = {}
     for line in table[2:]:
         if not line.startswith("|") or not line.endswith("|"):
             raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)
@@ -662,28 +654,57 @@ def assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentin
             raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)
         values[label] = value
         raw_values[label] = raw_value
+        verbatim_labels[label] = cells[0]
     if set(values) != set(_SECTION5_LABELS):
         raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)
+    return values, raw_values, verbatim_labels
+
+
+def _assert_section5_source_cell_has_nonempty_value_and_no_reserved_sentinel(
+    label: str, value: str,
+) -> None:
+    """Apply the admission predicate to one already-normalized source cell."""
+    if label == "実行責任者・開始時刻":
+        match = re.fullmatch(
+            r"実行責任者 = (?P<owner>[^、=\r\n]+)、開始時刻 = 未記入",
+            value,
+        )
+        if match is not None:
+            owner = match.group("owner").strip()
+            if (
+                owner
+                and _RESERVED_SENTINEL_RE.search(owner) is None
+                and owner.casefold() not in _RESERVED_SENTINEL_WHOLE_VALUES
+            ):
+                return
+    if (
+        not value
+        or _RESERVED_SENTINEL_RE.search(value) is not None
+        or value.casefold() in _RESERVED_SENTINEL_WHOLE_VALUES
+    ):
+        raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)
+
+
+def assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
+    document_blob: bytes,
+    *,
+    expected_claude_model_snapshot: str,
+    expected_effective_critic_prompt_sha256: str,
+) -> MappingProxyType[B4ProjectionDriverKind, str]:
+    """Check source cells, bind model and prompt, and return projections.
+
+    HTML comment detection is a line-oriented simple search: ``<!--`` inside
+    an inline code span, an indented code block, or a backslash escape is also
+    treated as a comment opener.  Thus otherwise valid documents containing
+    those forms before Section 5 are intentionally rejected fail-closed; this
+    over-rejection does not admit a document that must be rejected.  Raw HTML
+    blocks other than HTML comments are not checked.
+    """
+    values, raw_values, _ = _parse_section5_fixed_table_source_cells(document_blob)
     for label, value in values.items():
-        if label == "実行責任者・開始時刻":
-            match = re.fullmatch(
-                r"実行責任者 = (?P<owner>[^、=\r\n]+)、開始時刻 = 未記入",
-                value,
-            )
-            if match is not None:
-                owner = match.group("owner").strip()
-                if (
-                    owner
-                    and _RESERVED_SENTINEL_RE.search(owner) is None
-                    and owner.casefold() not in _RESERVED_SENTINEL_WHOLE_VALUES
-                ):
-                    continue
-        if (
-            not value
-            or _RESERVED_SENTINEL_RE.search(value) is not None
-            or value.casefold() in _RESERVED_SENTINEL_WHOLE_VALUES
-        ):
-            raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)
+        _assert_section5_source_cell_has_nonempty_value_and_no_reserved_sentinel(
+            label, value
+        )
     _parse_closed_critic_expectation_row(raw_values[_EXPECTATION_ROW_LABEL])
     expectation_row = _parse_closed_critic_expectation_row(
         values[_EXPECTATION_ROW_LABEL]

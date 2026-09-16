@@ -31,6 +31,11 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
 
 from . import floor_pair_driver
 from .genome import protocol_from_floor_genome
+from .p3_b4_admission_record import (
+    B4AdmissionRecordError,
+    _assert_section5_source_cell_has_nonempty_value_and_no_reserved_sentinel,
+    _parse_section5_fixed_table_source_cells,
+)
 
 
 B4_FLOOR_ARTIFACT_SCHEMA_VERSION: Final[str] = (
@@ -1467,18 +1472,34 @@ def load_authoritative_floor(
     )
 
 
-def _floor_cell(document: str) -> str:
-    prefix = f"|{PREREGISTRATION_FLOOR_LABEL}|"
-    matches = [line for line in document.splitlines() if line.startswith(prefix)]
-    if len(matches) != 1:
+def _floor_cell(raw: bytes) -> str:
+    try:
+        values, raw_values, verbatim_labels = (
+            _parse_section5_fixed_table_source_cells(raw)
+        )
+    except B4AdmissionRecordError as exc:
+        if isinstance(exc.__cause__, UnicodeError):
+            raise B4FloorArtifactError(
+                "preregistration_encoding_error", "preregistration は UTF-8 でない"
+            ) from exc
+        raise B4FloorArtifactError(
+            "preregistration_floor_row_error", f"§5 fixed table: {exc}"
+        ) from exc
+    if verbatim_labels[PREREGISTRATION_FLOOR_LABEL] != PREREGISTRATION_FLOOR_LABEL:
         _fail(
             "preregistration_floor_row_error",
-            f"§5 floor row は exact 1 件でなければならない: observed={len(matches)}",
+            "§5 floor row label は既存の exact 表記でなければならない",
         )
-    line = matches[0]
-    if not line.endswith("|"):
-        _fail("preregistration_floor_row_error", "§5 floor row の終端が不正")
-    return line[len(prefix) : -1]
+    owner_label = "実行責任者・開始時刻"
+    try:
+        _assert_section5_source_cell_has_nonempty_value_and_no_reserved_sentinel(
+            owner_label, values[owner_label]
+        )
+    except B4AdmissionRecordError as exc:
+        raise B4FloorArtifactError(
+            "preregistration_floor_row_error", f"§5 実行責任者・開始時刻: {exc}"
+        ) from exc
+    return raw_values[PREREGISTRATION_FLOOR_LABEL]
 
 
 def resolve_preregistered_authoritative_floor(
@@ -1486,23 +1507,22 @@ def resolve_preregistered_authoritative_floor(
     repo_root: Path,
     preregistration_path: Path,
 ) -> B4AuthoritativeFloor | None:
-    """Resolve the exact §5 floor pin; only the verbatim sentinel means absent."""
+    """Resolve the floor using shared §5 boundaries, shape, labels, cell
+    normalization, and the owner-cell predicate. Only the stripped raw sentinel
+    means absent; pin grammar and loader arguments retain stripped raw spelling.
+    Other cells' sentinels and expectation declarations are not checked, so this
+    does not prove complete admission.
+    """
 
     root = _repo_root(repo_root)
     prereg_relpath = _argument_relpath(
         root, preregistration_path, label="preregistration_path"
     )
     raw = _read_regular(root, prereg_relpath, label="preregistration")
-    try:
-        document = raw.decode("utf-8")
-    except UnicodeError as exc:
-        raise B4FloorArtifactError(
-            "preregistration_encoding_error", "preregistration は UTF-8 でない"
-        ) from exc
-    cell = _floor_cell(document)
-    if cell == PREREGISTRATION_ABSENT_SENTINEL:
+    raw_cell = _floor_cell(raw)
+    if raw_cell == PREREGISTRATION_ABSENT_SENTINEL:
         return None
-    match = _FLOOR_PIN_RE.fullmatch(cell)
+    match = _FLOOR_PIN_RE.fullmatch(raw_cell)
     if match is None:
         _fail(
             "preregistration_floor_grammar_error",
