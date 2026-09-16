@@ -132,6 +132,36 @@ provenance の generator SHA-256 は**図を生成した時点の bytes の記�
 現行 source を縛る pin ではない。landed artifact の検査も live generator の再 hash を
 要求せず、生成時記録として扱う。
 
+## B-10 static-backoff right tail (09-15 formal cohort) figure
+
+`plot_b10_static_tail_formal.py` は、完走済み B-10 右 tail 正式 cohort (group
+`b10-backoff-grid-20260915T061814Z-545445`、事前登録 §4.1 の 8 点 × 3 workload × 5 反復) を
+3 列 × 2 段 (throughput / abort 率) で描く専用生成器である。既存生成器を import しない (自己完結)。
+
+```bash
+python3 tools/plotting/plot_b10_static_tail_formal.py \
+    [--measurement-root PATH] OUT_PREFIX
+```
+
+measurement root は option、`IZANAGI_B10_TAIL_MEASUREMENT_ROOT`、既定の
+`/work/1/SFC/tanab/b10-backoff-grid-t2500-formal` の順で決まる。入力は root 配下の集団報告 3 file
+(`group-report-20260915/t2500-backoff-static-tail-formal.json` / `.dat` / `-complete.json`) で、
+root 相対 path と生成器の pin 表 (SHA-256) で束縛する。pin は CLI から渡せない。
+
+- 判定 (`verdict`、workload の `state`、区間の `state` / `qhat` / `qL` / `qU` / `L` / `U`) は集団報告から
+  コピーし、再計算しない。`L = 1 − 2^qU` の一致だけを検査する。
+- 平均・t 分布 95% CI・abort 率 (整数カウンタから全精度)・変動係数・端点比は reps の生値から再計算し、
+  集団報告の `statistics` と fail-closed で相互検算する。
+- `performance_certified` が `false` 以外、正しさ記録 120 件のいずれかが `certified` でない、区間集合に
+  境界参照 1000 が入る、`.dat` が 120 行でない、SHA-256 不一致のいずれでも成果物を出さない。
+- 保存前に実寸 6 axis の renderer-backed layout check を実行し、text の重なり・逸脱があれば
+  3 成果物を 1 つも出さない。
+- 言い方は事前登録 §4.5 の固定表現の英訳に限り、caption に `performance_certified: false` を残す。
+
+出力は `OUT_PREFIX.png`、`.pdf`、`.provenance.json` の 3 本。provenance の schema は
+`izanagi-b10-static-tail-formal-figure-provenance/v1`。論文図の再現コマンド、caption、proof chain は
+`docs/paper-story/figures/README.md` の fig8 節を正本とする。
+
 ## S-1a 9 対 (失敗報告図) command example
 
 `plot_s1_9pair.py` は、縮小主張 S' の登録 9 対を凍結 report と admission 済み WAL から描く。
