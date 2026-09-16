@@ -29,11 +29,13 @@ import time
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
-from typing import Dict, Iterator, List, Optional
+from typing import Callable, Dict, Iterator, List, Mapping, Optional
 
 from .build_admission import (
     BuildAdmissionError,
     BuildAdmissionPolicy,
+    HistoricalBuildAdmissionPolicy,
+    validate_historical_build_admission_receipt,
     resolve_current_build_admission_policy,
     validate_build_admission_receipt,
 )
@@ -2123,6 +2125,32 @@ def _validate_attempt_topology(
 ) -> Dict[str, Dict[str, BuildAttemptState]]:
     if type(admission_policy) is not BuildAdmissionPolicy:
         raise TypeError("admission_policy は BuildRunContext.policy の exact value が必要")
+    return _validate_attempt_topology_body(
+        records, campaign_lock=campaign_lock,
+        validate_receipt=lambda receipt: validate_build_admission_receipt(
+            receipt, expected_policy=admission_policy,
+        ),
+    )
+
+
+def _validate_historical_attempt_topology(
+        records: List[WalRecord], *, admission_policy: HistoricalBuildAdmissionPolicy,
+        campaign_lock: object,
+) -> Dict[str, Dict[str, BuildAttemptState]]:
+    if type(admission_policy) is not HistoricalBuildAdmissionPolicy:
+        raise TypeError("admission_policy requires exact HistoricalBuildAdmissionPolicy")
+    return _validate_attempt_topology_body(
+        records, campaign_lock=campaign_lock,
+        validate_receipt=lambda receipt: validate_historical_build_admission_receipt(
+            receipt, expected_policy=admission_policy,
+        ),
+    )
+
+
+def _validate_attempt_topology_body(
+        records: List[WalRecord], *, campaign_lock: object,
+        validate_receipt: Callable[[object], Mapping[str, object]],
+) -> Dict[str, Dict[str, BuildAttemptState]]:
     validate_knowledge_provenance_bindings(
         records, campaign_lock=campaign_lock,
     )
@@ -2154,9 +2182,7 @@ def _validate_attempt_topology(
             receipt_sha = None
             if receipt is not None:
                 try:
-                    checked = validate_build_admission_receipt(
-                        receipt, expected_policy=admission_policy,
-                    )
+                    checked = validate_receipt(receipt)
                 except BuildAdmissionError as exc:
                     raise AttemptTopologyError(
                         f"build_start: admission receipt canonicality/policy 不一致: {exc}"
