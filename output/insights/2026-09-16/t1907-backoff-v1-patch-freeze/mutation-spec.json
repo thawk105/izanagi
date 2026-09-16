@@ -1,0 +1,52 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 600,
+  "mutations": [
+    {
+      "id": "M1-unregistered-izanagi-token",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/silo-backoff-fixed-v1.patch",
+          "old": "+# izanagi: static backoff magnitude (us) to bypass Cicada's adaptive hill-climb.",
+          "new": "+# izanagi: static backoff magnitude (us) to bypass Cicada's adaptive hill-climb. IZANAGI_FREEZE_PROBE"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-formula-offset",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/silo-backoff-fixed-v1.patch",
+          "old": "+    double now_backoff = static_cast<double>(BACKOFF_FIXED);",
+          "new": "+    double now_backoff = static_cast<double>(BACKOFF_FIXED) + 1.0;"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-empty-file",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/silo-backoff-fixed-v1.patch",
+          "old": "diff --git a/cmake/Options.cmake b/cmake/Options.cmake\nindex b9a3c74..14a06e8 100644\n--- a/cmake/Options.cmake\n+++ b/cmake/Options.cmake\n@@ -18,6 +18,13 @@ set(CCBENCH_ADD_ANALYSIS  0 CACHE STRING \"extra per-tx analysis counters\")\n # dir; never mix into a perf build (absolute discipline #1 / decisions.md D14).\n set(CCBENCH_TRACE         0 CACHE STRING \"izanagi correctness trace (0=off, perf)\")\n set(CCBENCH_BACK_OFF      1 CACHE STRING \"exponential backoff on abort\")\n+# izanagi: static backoff magnitude (us) to bypass Cicada's adaptive hill-climb.\n+# -1 (default) = stock adaptive Backoff_; >=0 = fixed value, ignores the leader's\n+# gradient update. Used to sweep backoff magnitude as a single axis (P2 case study).\n+set(CCBENCH_BACKOFF_FIXED -1 CACHE STRING \"izanagi: static backoff us (-1=stock adaptive)\")\n+# izanagi (P2-4 profiler): 1 = backoff() を noinline 化し perf record で spin を独立シンボルに。\n+# 有用 IPC (spin を除いた cycle/instruction) を分離する診断専用。0 (default) = inert (stock 不変)。\n+set(CCBENCH_BACKOFF_NOINLINE 0 CACHE STRING \"izanagi: noinline backoff() for perf attribution (0=inert)\")\n set(CCBENCH_KEY_SIZE      8 CACHE STRING \"key size in bytes (YCSB)\")\n set(CCBENCH_MASSTREE_USE  1 CACHE STRING \"use Masstree as the index\")\n set(CCBENCH_VAL_SIZE      4 CACHE STRING \"value size in bytes (YCSB)\")\n@@ -61,6 +68,8 @@ function(ccbench_universal_definitions out_var)\n   set(${out_var}\n     ADD_ANALYSIS=${CCBENCH_ADD_ANALYSIS}\n     BACK_OFF=${CCBENCH_BACK_OFF}\n+    BACKOFF_FIXED=${CCBENCH_BACKOFF_FIXED}\n+    BACKOFF_NOINLINE=${CCBENCH_BACKOFF_NOINLINE}\n     KEY_SIZE=${CCBENCH_KEY_SIZE}\n     MASSTREE_USE=${CCBENCH_MASSTREE_USE}\n     VAL_SIZE=${CCBENCH_VAL_SIZE}\ndiff --git a/include/backoff.hh b/include/backoff.hh\nindex 3db8c08..f38233b 100644\n--- a/include/backoff.hh\n+++ b/include/backoff.hh\n@@ -11,6 +11,15 @@\n #include \"tsc.hh\"\n #include \"util.hh\"\n \n+// izanagi: BACKOFF_FIXED は必ず -D で供給されること (CMake が既定 -1 を渡す)。\n+// 未定義だと下の条件コンパイル分岐 (EVOLVE-BLOCK 骨格) で未定義マクロが 0 に評価され\n+// 「0 >= 0 = 真」となり、stock のつもりが静的 backoff=0 (実質無効) で走る罠になる。\n+// 供給漏れはどのビルド経路でもここで止める (fails-closed)。定義済みならプリプロセス\n+// 出力は不変 (digest 不変)。このコメントは骨格走査の誤検出を避けるため生トークンを書かない。\n+#ifndef BACKOFF_FIXED\n+#error \"BACKOFF_FIXED must be defined (-DBACKOFF_FIXED=-1 for stock adaptive; CMake supplies the default)\"\n+#endif\n+\n using namespace std;\n \n class Backoff {\n@@ -91,9 +100,29 @@ public:\n     Backoff_.store(new_backoff, std::memory_order_release);\n   }\n \n+  // izanagi (P2-4 profiler): BACKOFF_NOINLINE=1 で spin ループを独立シンボル化し、\n+  // perf record で backoff の cycle%/instruction% を分離して「有用 IPC」を測れるようにする\n+  // 診断専用ノブ。既定 0 = stock (inline 候補のまま、挙動・命令列ともに完全不変 = inert)。\n+#if BACKOFF_NOINLINE\n+  __attribute__((noinline))\n+#endif\n   static void backoff(size_t clocks_per_us) {\n     uint64_t start(rdtscp()), stop;\n+    // EVOLVE-BLOCK-BEGIN silo-backoff-magnitude\n+    // izanagi Phase 3 (D22/phase3.md): この条件コンパイル骨格 (if/else/endif の三枝) だけが\n+    // coder (LLM) の編集面。coder が書くのは合成枝 (BACKOFF_FIXED が 0 以上のとき選ばれる枝) の\n+    // 中身のみ — backoff の量 (now_backoff) を Cicada 適応 hill-climbing の代わりに合成する純\n+    // timing 変異。stock 枝 (適応 Backoff_ を逐語温存) とマーカー・骨格は不可触 (人間が一度入れた)。\n+    // 既定 -1 は stock 枝を選び preprocess 後ソースが原本と同一 → inert (規律2、D18)。\n+    // 閉じた領域制約 (D23 道Y、hook が機械執行): 既存 silo API を呼ぶ straight-line code のみ。\n+    // ヘッダ取り込み・型/関数/マクロ定義の追加、生の条件指令 (if/ifdef/elif 系)、非決定ビルトイン\n+    // (DATE/TIME 系) を禁止 (このコメントは行頭アンカー走査で誤検出しないよう生トークンを避ける)。\n+#if BACKOFF_FIXED >= 0\n+    double now_backoff = static_cast<double>(BACKOFF_FIXED);\n+#else\n     double now_backoff = Backoff_.load(std::memory_order_acquire);\n+#endif\n+    // EVOLVE-BLOCK-END silo-backoff-magnitude\n \n     // printf(\"clocks_per_us * now_backoff:\\t%lu\\n\",\n     // static_cast<uint64_t>(static_cast<double>(clocks_per_us) * now_backoff));\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

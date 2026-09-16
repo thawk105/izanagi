@@ -1,0 +1,170 @@
+{
+  "attempts": [
+    {
+      "artifact_error": null,
+      "console_sha256": "b1bf3b925bc75d235cb457151d74754302e69eaf89a72739594c07c108386ce4",
+      "finished_at": "2026-09-16T07:00:43.029287+00:00",
+      "mutation_id": null,
+      "phase": "collection",
+      "rc": 0,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/6cd30c3bd4967df64794f33b38a1b5c1/izdw-6cd30c3bd4.o1223",
+        "outcome_rc": 0,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/6cd30c3bd4967df64794f33b38a1b5c1/receipt.json",
+        "request_id": "1223.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/6cd30c3bd4967df64794f33b38a1b5c1"
+      },
+      "run_attempt_ordinal": 1,
+      "started_at": "2026-09-16T07:00:19.526736+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "053be73211df742c302826b0afd6b2986538fd9eb9294795c6f71bd4d7b0e014",
+      "finished_at": "2026-09-16T07:02:36.829784+00:00",
+      "mutation_id": null,
+      "phase": "baseline",
+      "rc": 0,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/4b3daff588c4d2f7096fd5507a5468ca/izdw-4b3daff588.o1226",
+        "outcome_rc": 0,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/4b3daff588c4d2f7096fd5507a5468ca/receipt.json",
+        "request_id": "1226.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/4b3daff588c4d2f7096fd5507a5468ca"
+      },
+      "run_attempt_ordinal": 2,
+      "started_at": "2026-09-16T07:02:00.671779+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "d8b38aa6ab57daa4df69e5cc6a7be82be21e922a409cecae435d209b3c0989ec",
+      "finished_at": "2026-09-16T07:04:05.902565+00:00",
+      "mutation_id": "M1",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/d1fc082f236a320da0c23c19e3f6ad40/izdw-d1fc082f23.o1229",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/d1fc082f236a320da0c23c19e3f6ad40/receipt.json",
+        "request_id": "1229.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/d1fc082f236a320da0c23c19e3f6ad40"
+      },
+      "run_attempt_ordinal": 3,
+      "started_at": "2026-09-16T07:03:35.536784+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "b1e1992e043ba0395fd11ed8759ed88cdfb51d3d254d72c26d733eda05f4b7e6",
+      "finished_at": "2026-09-16T07:05:03.578872+00:00",
+      "mutation_id": "M2",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/e3655e7a5bd0514ddd50d389b2f93cc4/izdw-e3655e7a5b.o1233",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/e3655e7a5bd0514ddd50d389b2f93cc4/receipt.json",
+        "request_id": "1233.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/e3655e7a5bd0514ddd50d389b2f93cc4"
+      },
+      "run_attempt_ordinal": 4,
+      "started_at": "2026-09-16T07:04:34.972672+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "93237920c423c6d587b1e026d829beb97db9a348003e526ca5a515146951996e",
+      "finished_at": "2026-09-16T07:09:52.415286+00:00",
+      "mutation_id": "M3",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/6424020682d04f1d16a8ebbff6e63d75/izdw-6424020682.o1235",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/6424020682d04f1d16a8ebbff6e63d75/receipt.json",
+        "request_id": "1235.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/6424020682d04f1d16a8ebbff6e63d75"
+      },
+      "run_attempt_ordinal": 5,
+      "started_at": "2026-09-16T07:05:33.204761+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "2ab3340ad1db72479ae7de5790d6ceacc1b989395f3d9bd18d35d6e82b7fdf34",
+      "finished_at": "2026-09-16T07:10:47.089848+00:00",
+      "mutation_id": "M5",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/304432bbe8793db31ea342c54f372e74/izdw-304432bbe8.o1238",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/304432bbe8793db31ea342c54f372e74/receipt.json",
+        "request_id": "1238.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/304432bbe8793db31ea342c54f372e74"
+      },
+      "run_attempt_ordinal": 6,
+      "started_at": "2026-09-16T07:10:17.761661+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "0dc48f8717ec05eaa3724c2141cdf9834844d4cfe8c7f0b94334723f8556ab24",
+      "finished_at": "2026-09-16T07:11:35.029406+00:00",
+      "mutation_id": "M6",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/74b67eeb3713e07998ccb0ab4d5be01f/izdw-74b67eeb37.o1240",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/74b67eeb3713e07998ccb0ab4d5be01f/receipt.json",
+        "request_id": "1240.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/74b67eeb3713e07998ccb0ab4d5be01f"
+      },
+      "run_attempt_ordinal": 7,
+      "started_at": "2026-09-16T07:11:06.999428+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "d38af6227415a26c1147e52dd59d2edc565d37beeb99df1f9c90a4aa5d040cc2",
+      "finished_at": "2026-09-16T07:12:28.764578+00:00",
+      "mutation_id": "M7",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/8b24672e0879335dc2077d4467fe3b58/izdw-8b24672e08.o1242",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/8b24672e0879335dc2077d4467fe3b58/receipt.json",
+        "request_id": "1242.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2651-diag-detail-review/output/pegasus-dispatch/8b24672e0879335dc2077d4467fe3b58"
+      },
+      "run_attempt_ordinal": 8,
+      "started_at": "2026-09-16T07:11:59.696981+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    }
+  ],
+  "expected_initial_requests": 8,
+  "repo_head": "f5db705ec494e51a2550cc8c6c70bf78ce66f98d",
+  "runner_sha256": "98e486ac0fddf374e8e01ea98740a1f4f41922355eb961aa51029314264b9fe1",
+  "schema": "izanagi-dev-wave-mutation-attempts/v1",
+  "spec_sha256": "ae9588f449db683626177d7e0528dfb1e56049c1c237371ee867ee009f23b9b8",
+  "tool_sha256": "0f1efa7716483118c8a5bc4cb1c0bbcc034ba6f93b26cd19d41df31ce89edc07"
+}
