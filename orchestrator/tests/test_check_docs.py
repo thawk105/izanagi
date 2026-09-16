@@ -2538,7 +2538,7 @@ def test_next_tasks_command_budget_literal_is_exact():
 
     rel = ".claude/commands/next-tasks.md"
     assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(27_100, 100)
-    assert len(_read(_REPO, rel).encode("utf-8")) == 27_054
+    assert len(_read(_REPO, rel).encode("utf-8")) == 26_903
 
     root = _build_min_repo()
     try:
