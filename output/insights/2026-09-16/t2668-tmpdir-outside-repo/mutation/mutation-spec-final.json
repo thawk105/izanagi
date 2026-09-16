@@ -1,0 +1,70 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 2700,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_t2146_authority_hardlink_alias_is_denied_in_both_guards"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2668.m01",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_hooks.py",
+     "new": "    shared_root = Path(_REPO).resolve()\n",
+     "old": "    shared_root = (main_repo.parent / \".izanagi-t2146-hardlink\").resolve()\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_p9_production_provenance_keeps_historical_marker_for_every_campaign"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2668.m03",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_s1_9pair_figure_provenance.py",
+     "new": "        prefix=\".s1-current-provenance-\", dir=ROOT,\n",
+     "old": "        prefix=\".s1-current-provenance-\", dir=scratch_root,\n"
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t2668.m04-equivalent",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_s1_9pair_figure_provenance.py",
+     "new": "    scratch_root = ROOT.joinpath(\"output\", \"runs\")\n",
+     "old": "    scratch_root = ROOT / \"output\" / \"runs\"\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_t2146_authority_hardlink_alias_is_denied_in_both_guards"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t2668.m02",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_hooks.py",
+     "new": "        same_device_root = tempfile.mkdtemp(prefix=\"t2146-hardlink-\", dir=_REPO)\n",
+     "old": "        same_device_root = tempfile.mkdtemp(prefix=\"t2146-hardlink-\", dir=shared_root)\n"
+    }
+   ]
+  }
+ ]
+}
