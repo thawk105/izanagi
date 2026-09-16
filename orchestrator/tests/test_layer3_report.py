@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+from collections import Counter
 from contextlib import nullcontext
 import dataclasses
 import hashlib
@@ -1423,6 +1424,209 @@ def test_named_screening_artifact_builds_layer3_report_end_to_end():
         run.get("screening") is True and run.get("settled") is None
         for run in report["runs"]
     )
+
+
+def test_named_screening_abort_preserves_complete_screen_payload():
+    records = [
+        json.loads(line)
+        for line in (REAL_SCREENING_CAMPAIGN / "runs/wal.jsonl").read_text(
+            encoding="utf-8",
+        ).splitlines()
+        if line.strip()
+    ]
+    events = [
+        event for event in records
+        if event["variant"] == "610e879931c4" and event["stage"] == "abort"
+    ]
+    assert len(events) == 1
+    event = events[0]
+    report = layer3_report.build_report(
+        REAL_SCREENING_CAMPAIGN,
+        generated_from_head="fixed",
+        output_root=ROOT / "output",
+    )
+    rows = [
+        row for row in report["aborts"] if row["variant"] == event["variant"]
+    ]
+
+    assert len(rows) == 1
+    assert set(event["payload"]["screen"]) == {
+        "median_tps", "cv", "baseline_tps", "baseline_ref", "floor", "k", "margin",
+    }
+    assert rows[0]["screen"] == event["payload"]["screen"]
+    assert rows[0]["reason"] == "screen-slower-than-floor"
+    assert rows[0]["source_ref"] == layer3_report.canonical_record_ref("wal", event)
+
+
+def test_screening_abort_variant_is_listed_in_rejects(tmp_path):
+    screen = {
+        "median_tps": 1912074.0,
+        "cv": 0.009266208528432952,
+        "baseline_tps": 8470959.0,
+        "baseline_ref": "84319b1127a6",
+        "floor": 0.0010979692594382789,
+        "k": 1.5,
+        "margin": -0.7742789216663662,
+    }
+    start = _record("build_start", "screened", genome="g", src_token="s")
+    bench = _bench("screened", screening=True, settled=None)
+    abort = _record(
+        "abort", "screened", reason="screen-slower-than-floor", screen=screen,
+    )
+    start["ts"], bench["ts"], abort["ts"] = 1.0, 2.0, 3.0
+    campaign, output_root = _campaign(tmp_path, [start, bench, abort])
+    records = [
+        json.loads(line)
+        for line in (campaign / "runs/wal.jsonl").read_text(
+            encoding="utf-8",
+        ).splitlines()
+        if line.strip()
+    ]
+    abort_event, = [event for event in records if event["stage"] == "abort"]
+    assert not any(
+        event["variant"] == abort_event["variant"] and event["stage"] == "commit"
+        for event in records
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    assert [
+        row for row in report["rejects"]
+        if row["variant"] == abort_event["variant"]
+    ] == [{
+        "variant": abort_event["variant"],
+        "reason": "commit-event-absent",
+        "source_ref": layer3_report.canonical_record_ref("wal", abort_event),
+    }]
+
+
+def test_screening_abort_participates_in_input_ref_multiset(tmp_path):
+    screen = {
+        "median_tps": 1912074.0,
+        "cv": 0.009266208528432952,
+        "baseline_tps": 8470959.0,
+        "baseline_ref": "84319b1127a6",
+        "floor": 0.0010979692594382789,
+        "k": 1.5,
+        "margin": -0.7742789216663662,
+    }
+    start = _record("build_start", "screened", genome="g", src_token="s")
+    bench = _bench("screened", screening=True, settled=None)
+    abort = _record(
+        "abort", "screened", reason="screen-slower-than-floor", screen=screen,
+    )
+    start["ts"], bench["ts"], abort["ts"] = 1.0, 2.0, 3.0
+    campaign, output_root = _campaign(tmp_path, [start, bench, abort])
+    records = [
+        json.loads(line)
+        for line in (campaign / "runs/wal.jsonl").read_text(
+            encoding="utf-8",
+        ).splitlines()
+        if line.strip()
+    ]
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    expected = Counter(
+        layer3_report.canonical_record_ref("wal", event) for event in records
+    )
+    abort_event, = [event for event in records if event["stage"] == "abort"]
+    abort_ref = layer3_report.canonical_record_ref("wal", abort_event)
+
+    assert expected[abort_ref] == 1
+    assert Counter(report["source_refs"]) == expected
+    assert layer3_report._report_primary_refs(report) == expected
+    layer3_report._assert_bijection(records, [], report)
+
+
+def test_screening_abort_primary_mutation_fails_bijection_at_equal_count(tmp_path):
+    screen = {
+        "median_tps": 1912074.0,
+        "cv": 0.009266208528432952,
+        "baseline_tps": 8470959.0,
+        "baseline_ref": "84319b1127a6",
+        "floor": 0.0010979692594382789,
+        "k": 1.5,
+        "margin": -0.7742789216663662,
+    }
+    start = _record("build_start", "screened", genome="g", src_token="s")
+    bench = _bench("screened", screening=True, settled=None)
+    abort = _record(
+        "abort", "screened", reason="screen-slower-than-floor", screen=screen,
+    )
+    start["ts"], bench["ts"], abort["ts"] = 1.0, 2.0, 3.0
+    campaign, output_root = _campaign(tmp_path, [start, bench, abort])
+    records = [
+        json.loads(line)
+        for line in (campaign / "runs/wal.jsonl").read_text(
+            encoding="utf-8",
+        ).splitlines()
+        if line.strip()
+    ]
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+    layer3_report._assert_bijection(records, [], report)
+    mutated = json.loads(json.dumps(report))
+    abort_events = [
+        event for row in mutated["variants"] for event in row["events"]
+        if event["stage"] == "abort"
+    ]
+    assert len(abort_events) == 1
+    abort_events[0]["ts"] += 1.0
+    assert sum(len(row["events"]) for row in mutated["variants"]) == sum(
+        len(row["events"]) for row in report["variants"]
+    )
+
+    with pytest.raises(
+        layer3_report.Layer3ReportError,
+        match="source-ref multiset が入力 WAL/whiteboard と report 本体で一致しない",
+    ):
+        layer3_report._assert_bijection(records, [], mutated)
+    layer3_report._assert_bijection(records, [], report)
+
+
+def test_screening_abort_without_verify_done_builds_without_verification(tmp_path):
+    screen = {
+        "median_tps": 1912074.0,
+        "cv": 0.009266208528432952,
+        "baseline_tps": 8470959.0,
+        "baseline_ref": "84319b1127a6",
+        "floor": 0.0010979692594382789,
+        "k": 1.5,
+        "margin": -0.7742789216663662,
+    }
+    start = _record("build_start", "screened", genome="g", src_token="s")
+    bench = _bench("screened", screening=True, settled=None)
+    abort = _record(
+        "abort", "screened", reason="screen-slower-than-floor", screen=screen,
+    )
+    start["ts"], bench["ts"], abort["ts"] = 1.0, 2.0, 3.0
+    campaign, output_root = _campaign(tmp_path, [start, bench, abort])
+    records = [
+        json.loads(line)
+        for line in (campaign / "runs/wal.jsonl").read_text(
+            encoding="utf-8",
+        ).splitlines()
+        if line.strip()
+    ]
+    abort_event, = [event for event in records if event["stage"] == "abort"]
+    variant = abort_event["variant"]
+    assert not any(
+        event["variant"] == variant and event["stage"] == "verify_done"
+        for event in records
+    )
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=output_root,
+    )
+
+    runs = [row for row in report["runs"] if row["variant"] == variant]
+    assert len(runs) == 1
+    assert runs[0]["screening"] is True
+    assert runs[0]["settled"] is None
+    assert not any(row["variant"] == variant for row in report["verifications"])
+    layer3_report._validate_schema(report)
 
 
 def test_historical_v1_run_row_without_screening_fields_remains_valid():

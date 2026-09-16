@@ -83,9 +83,13 @@ B-10「機序説明の帯域外への拡張」の測定が進んだこと (2026-
 これは書かれた時点で既に偽だった** — 下の results 系列の表は 2026-09-07 の稿と 2026-09-09 の
 英語稿の両方を登録している。**この食い違いも本改訂で解消した。**
 
-**現在この節に積んでいる項目は 1 件である。** 2026-09-14 版は同日の local main
-(`af3762d62`、/rulings 全件 第 18 回の裁定 D1986〜D1988 を含む) から導出しており、
-執筆時点で腐っている箇所は無かった。**次に正典が動いたら、その項目をここへ積む。**
+**現在この節に積んでいる項目は 2 件である。** 2026-09-14 版は同日の local main
+(`af3762d62`、/rulings 全件 第 18 回の裁定 D1986〜D1988 を含む) から導出している。
+**ただし本 README が同版について「執筆時点で腐っている箇所は無い」と書いたのは誤りだった** —
+下の項目 2 が指す箇所は、**同版が書かれた時点で既に偽**である。後日状況が変わったのではなく、
+執筆時点の誤りを後から見つけた訂正である。前版の driver 不在の前提について、同じ形の訂正が
+先例としてある (上の「2026-09-14 版が前版を訂正した箇所は 4 つ」の 2)。
+**次に正典が動いたら、その項目をここへ積む。**
 **項目が積まれること自体は、新しい日付の版を作る要求にはならない** (D1858)。
 
 - **B-2 — `delta_min` の保持群ラベルの追補を実施した (2026-09-16)。** 2026-09-14 版 §8 の B-2 は
@@ -97,6 +101,59 @@ B-10「機序説明の帯域外への拡張」の測定が進んだこと (2026-
   説明**として読む — 他方の境界は過大になるので、両 holdout を合わせた受理集合が単純に広がるとは
   言えない。どちらが過小になるかは rr80 と rr20 の参照値の大小に依存し、その参照測定は未取得である。
   追補は参照測定の投入・値の記入・実装着手のいずれも新たに認可しない。
+
+**2. 層3 の事実層は bench-first screening campaign を 2026-08-25 から対象にしている
+(2026-09-16 追記)。** 2026-09-14 版は §1 (何のプロジェクトか)、§2 の第 3 幕、§3 (新規性の主張)、
+§6 の「言えること」、§7 の「前版から引き継ぐ項目」、§8 の「B. その主張をするなら必要になるもの」
+の B-9 — **計 6 箇所で、bench-first screening campaign を層3 の対象外あるいは未対応として
+扱っている。6 箇所とも同版が書かれた時点で既に偽だった。**
+
+対応は 2026-08-25 の [T-1291] で着地している。**描画を可能にしたのは schema の 2 段の変更であって
+renderer ではない** — `b8318b956` が `screening` / `screening_disabled` を排他制約つき optional
+property として足し (producer 側に 17 key の runtime 閉包検査を同時に置いた)、`ed251424d` が
+`settled` を boolean と null の 2 型へ広げた。`schema_version` は D828 に従い据え置いた。
+`ed251424d` の commit message 自身が「名指し artifact … が build_report を最後まで通ることを
+親が実測で確認した (runs 2 行、うち 1 行が screening true)」と記録している。
+2026-09-16 にその材料レポートを
+`output/campaigns/backoff-sweep-silo-read-heavy-sweep-6f169f90/reports/layer3_report.json` へ保存した。
+
+**次の 3 つを分けて読む。**
+
+1. **記録済み 7 件について生成当時に成立した双射** — 歴史的事実であり不変。
+   `claim-evidence/2026-08-26.md` の C11 が挙げる「7 件」は当時の保存件数であって誤記ではない。
+   内訳は trigger 系の sweep 6 件と loop autonomous 1 件である。
+2. **現行 producer で描画できる campaign 集合** — 1 と一致しない。D170 (2026-08-05) により
+   歴史枝の trigger 軸 campaign は `legacy-unclassified` となり、新しい raw view の発行と
+   そこから新規に材料レポートを起こすことが拒否される。既存 7 件はこれに当たる。
+   6f169f90 は `campaign.lock` に `search_config.axis` を持たない backoff-sweep なので射程外である。
+3. **本追記の時点で材料レポートを保存している 8 件** — 1 に 6f169f90 を足したもの。
+
+**保存した 1 件は歴史閲覧用途の非 certifying 材料であり、現行の認証適合は `unknown` である**
+(`admission_decision.admission_status` = `historical-not-reclassified`、
+`admission_decision.classification` = `historical-pre-admission-schema`、
+`certifying_input` = `false`、verifier epoch = `E0`。**top-level に `admission_status` /
+`classification` という key は存在しない**)。**「admitted」と書かない。**
+**任意の screening campaign について完全とも書かない。**
+
+**B-9 は閉じていない。** 3 項のうち残る 2 つの状態は次のとおりである。
+
+- **値の改変に対する深い一致検査** — 2026-08-03 のユーザー裁定 (択 (b)) が `layer3_report` 本体の
+  強化を**実施しないと決めている**。強化は新 verifier 経由だけとし、本体側へ着手するには
+  択 (a) の再裁定が要る。**未着手ではなく、裁定で止まっている。**
+  verifier 経由 (`--campaign-output-root` の fresh rebuild 深い一致) は実装済みである。
+  項目の正本は `docs/phase3.md` の見送り台帳。
+- **機序仮説層 (v3)** — 設計凍結のみで未実装。発効条件は
+  `output/insights/2026-07-16_layer3-mechanism-wiring-design.md` が定める
+  「次に agent 出力が生まれる loop 再走と同時」であり、要求する永続面
+  `runs/agent_outputs.jsonl` は repo 内に 1 件も無い。残件として起票した。
+
+`output/reports/layer3_paper_evidence_dossier.md` (2026-08-21) の「screening 非互換の扱い」節が
+「この非互換のため、両 campaign とも `reports/` ディレクトリ自体が存在しない」と書く点も、
+**6f169f90 については偽になった** (`8ff95955` については変わらない — 同 campaign は
+ccbench commit 不一致の build-error で screening / bench に到達していない)。
+同 dossier は日付入りの凍結資料なので訂正しない。
+
+経緯と実測の正本は `output/insights/2026-09-16/layer3-screening-currency/` である。
 
 **恒久の erratum は別の場所にある。**
 `figures/fig2_backoff_mechanism.png` の baseline 誤 label（横破線に `stock adaptive backoff` と
