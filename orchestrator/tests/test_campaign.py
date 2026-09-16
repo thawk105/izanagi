@@ -11981,10 +11981,10 @@ def test_source_digest_cpp_environment_prefix_mismatch_fails_closed():
         compiler.chmod(0o700)
         cxx = str(compiler)
         try:
-            with pytest.raises(RuntimeError):
+            with pytest.raises(RuntimeError, match="環境 prefix と不一致"):
                 source_digest._cpp_normalize("int x;\n", {}, cxx)
         finally:
-            source_digest._CPP_ENV_PREFIX_CACHE.pop((cxx, ()), None)
+            getattr(source_digest, "_CPP_ENV_PREFIX_CACHE", {}).pop((cxx, ()), None)
 
 
 def test_source_digest_same_value_source_redefine_changes_identity():

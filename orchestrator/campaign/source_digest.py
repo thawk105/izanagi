@@ -1671,6 +1671,8 @@ def _cpp_normalize(
     定義済みのまま維持する。prefix 不一致は RuntimeError で fails-closed。
     残る限界: include 行を除去するため指令と include の相対位置は識別せず、
     #pragma push_macro / pop_macro の復元値も出力に現れない (D2104 項 2 の scope 外)。
+    _trace_pair_diff (diff-of-diffs) の比較式 D_variant == D_stock は不変だが、
+    #if TRACE 内の未使用 #define / #undef も差分素材になるため受理集合は狭まる (規律 2 と同方向)。
     """
     prefix = ""
     if not _environment_only:
