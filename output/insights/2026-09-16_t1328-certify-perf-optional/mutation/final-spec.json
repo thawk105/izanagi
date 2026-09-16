@@ -1,0 +1,211 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "MUT-T1328-M1-RESTORE-BLANKET-EXIT",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_perf_preflight_argv[literal_available]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_perf_preflight_argv[probe_error]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_perf_preflight_argv[unavailable]",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_all_candidates_failed_uses_canonical_receipt[available]",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_all_candidates_failed_uses_canonical_receipt[probe_error]",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_all_candidates_failed_uses_canonical_receipt[unavailable]",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_rejects_not_supported_smoke_output[available]",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_rejects_not_supported_smoke_output[unavailable]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "CALIBRATE_PATH=\"$(dirname \"$CALIBRATE_PYTHON\"):$PATH\"\nif [[ -n \"$PERF_SELECTED\" ]]; then\n",
+          "new": "if [[ -z \"$PERF_SELECTED\" ]]; then\n  write_failure 2 perf \"no policy perf candidate passed version and event smoke\"\n  exit 2\nfi\nCALIBRATE_PATH=\"$(dirname \"$CALIBRATE_PYTHON\"):$PATH\"\nif [[ -n \"$PERF_SELECTED\" ]]; then\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1328-M2-PROBE-NOT-UNDER-RESOLVED-PATH",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_perf_preflight_argv[selected]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_perf_stage_is_policy_driven_fail_closed_and_precedes_calibrate"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "if ! USE_PERF=$(env \"PATH=$CALIBRATE_PATH\" \"$CALIBRATE_PYTHON\" - \\\n",
+          "new": "if ! USE_PERF=$(env \"PATH=$PATH\" \"$CALIBRATE_PYTHON\" - \\\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1328-M3-PROBE-ERROR-BECOMES-UNAVAILABLE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_perf_preflight_argv[probe_error]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_perf_stage_is_policy_driven_fail_closed_and_precedes_calibrate",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_all_candidates_failed_uses_canonical_receipt[probe_error]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "); then\n  write_failure 2 perf \"canonical perf preflight failed\"\n  exit 2\nfi\n",
+          "new": "); then\n  USE_PERF=0\nfi\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1328-M4-SELECTION-EMITTED-UNCONDITIONALLY",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_perf_preflight_argv[literal_available]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_perf_preflight_argv[probe_error]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_perf_preflight_argv[unavailable]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_perf_stage_is_policy_driven_fail_closed_and_precedes_calibrate",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_all_candidates_failed_uses_canonical_receipt[available]",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_all_candidates_failed_uses_canonical_receipt[probe_error]",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_all_candidates_failed_uses_canonical_receipt[unavailable]",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_rejects_not_supported_smoke_output[available]",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_rejects_not_supported_smoke_output[unavailable]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "if [[ -n \"$PERF_SELECTED\" ]]; then\npython3 - \"$ATTEMPT_DIR/perf-selection.json\"",
+          "new": "if true; then\npython3 - \"$ATTEMPT_DIR/perf-selection.json\""
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1328-M5-RECEIPT-ARG-ALWAYS-ADDED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_perf_preflight_argv[literal_available]",
+        "orchestrator/tests/test_pegasus_calibration_workload.py::test_certify_perf_preflight_argv[selected]",
+        "orchestrator/tests/test_pegasus_tools.py::test_calibrate_failure_survives_err_trap_and_writes_job_result",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_perf_stage_is_policy_driven_fail_closed_and_precedes_calibrate",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_all_candidates_failed_uses_canonical_receipt[available]",
+        "orchestrator/tests/test_pegasus_tools.py::test_perf_stage_rejects_not_supported_smoke_output[available]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/certify_calibration.sh",
+          "old": "if [[ \"$USE_PERF\" == 0 ]]; then\n  calibrate_argv+=(--perf-preflight-json \"$PERF_PREFLIGHT_RECEIPT\")\nfi\n",
+          "new": "calibrate_argv+=(--perf-preflight-json \"$PERF_PREFLIGHT_RECEIPT\")\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1328-M6-CLI-IGNORES-RECEIPT",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_fatal_stops_at_bad_rep[maxrss]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_fatal_stops_at_bad_rep[rc]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_fatal_stops_at_bad_rep[throughput]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_preserves_all_sweep_reps[20]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_preserves_all_sweep_reps[50]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_preserves_all_sweep_reps[80]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_perf_probe_error_stops_before_calibrate"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/cli.py",
+          "old": "        use_perf = use_perf_from_receipt(perf_receipt)\n",
+          "new": "        use_perf = True\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1328-M7-SWEEP-DOES-NOT-PROPAGATE",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_fatal_stops_at_bad_rep[maxrss]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_fatal_stops_at_bad_rep[rc]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_fatal_stops_at_bad_rep[throughput]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_preserves_all_sweep_reps[20]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_preserves_all_sweep_reps[50]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_preserves_all_sweep_reps[80]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/sweep.py",
+          "old": "        if not use_perf:\n            measurement_kwargs[\"use_perf\"] = False\n",
+          "new": "        if False:\n            measurement_kwargs[\"use_perf\"] = False\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1328-M8-NOISE-RUNS-WITHOUT-SATURATION",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_preserves_all_sweep_reps[20]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_preserves_all_sweep_reps[50]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_preserves_all_sweep_reps[80]"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/sweep.py",
+          "old": "    if not use_perf:\n        result.notes.extend(sat.notes)\n        result.saturation = None\n        return result\n",
+          "new": "    if not use_perf:\n        result.notes.extend(sat.notes)\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1328-M9-COUNTERS-ALWAYS-REQUIRED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_fatal_stops_at_bad_rep[maxrss]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_fatal_stops_at_bad_rep[rc]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_fatal_stops_at_bad_rep[throughput]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_preserves_all_sweep_reps[20]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_preserves_all_sweep_reps[50]",
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_preserves_all_sweep_reps[80]",
+        "orchestrator/tests/test_official_perf_closure.py::test_outer_perf_file_and_added_guard_inventory_is_exact"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "            if use_perf:\n                for name in (\n                        \"llc_load_misses\", \"llc_loads\",\n                        \"instructions\", \"cycles\"):\n                    if getattr(counters, name) is None:\n                        missing.append(name)\n",
+          "new": "            for name in (\n                    \"llc_load_misses\", \"llc_loads\",\n                    \"instructions\", \"cycles\"):\n                if getattr(counters, name) is None:\n                    missing.append(name)\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T1328-M10-MAXRSS-CHECK-OVER-RELAXED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator_certify.py::test_cli_no_perf_fatal_stops_at_bad_rep[maxrss]",
+        "orchestrator/tests/test_official_perf_closure.py::test_outer_perf_file_and_added_guard_inventory_is_exact"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "            if maxrss is None:\n                missing.append(\"maxrss\")\n",
+          "new": "            if use_perf and maxrss is None:\n                missing.append(\"maxrss\")\n"
+        }
+      ]
+    }
+  ]
+}
