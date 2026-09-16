@@ -43,6 +43,211 @@ from orchestrator.tests import commit_receipt_support as receipt_support
 ROOT = Path(__file__).resolve().parents[2]
 CERTIFIED = A.CampaignReadPurpose.CERTIFIED_ACCEPTANCE
 HISTORICAL = A.CampaignReadPurpose.HISTORICAL_RAW
+
+
+@pytest.fixture
+def recorded_policy_campaign(tmp_path, monkeypatch):
+    """Issue under an older policy; readers use the real current policy."""
+    from enum import Enum
+    from orchestrator.campaign import build_admission as B
+
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+
+    def issue(change):
+        with monkeypatch.context() as issuing:
+            if change == "pin":
+                issuing.setattr(B, "CURRENT_PIN", "d706650")
+                issuing.setitem(globals(), "CURRENT_PIN", "d706650")
+            elif change == "generator":
+                old = Enum("GeneratorId", {
+                    member.name: member.value for member in B.GeneratorId
+                    if member is not B.GeneratorId.BACKOFF_SWEEP
+                }, type=str)
+                issuing.setattr(B, "GeneratorId", old)
+                issuing.setattr(A, "GeneratorId", old)
+                issuing.setitem(globals(), "GeneratorId", old)
+            elif change == "review":
+                old = Enum("ReviewId", {
+                    member.name: member.value for member in B.ReviewId
+                    if member is not B.ReviewId.S8B_ORACLE
+                }, type=str)
+                issuing.setattr(B, "ReviewId", old)
+            campaign = _new_schema_campaign(tmp_path / change)
+            assert A.classify_campaign(campaign).admission_status == "admitted"
+        return campaign
+
+    return issue
+
+
+@pytest.mark.parametrize("change", ["pin", "generator", "review"])
+def test_historical_policy_version_reads_recorded_v2(recorded_policy_campaign, change):
+    from orchestrator.campaign import build_admission as B
+
+    campaign = recorded_policy_campaign(change)
+    paths = [campaign / "campaign.lock", campaign / "runs/wal.jsonl"]
+    before = [path.read_bytes() for path in paths]
+    recorded = campaign_lock.decode_campaign_lock_bytes(before[0]).identity[
+        "search_config"
+    ]["build_admission"]
+    assert recorded != B.resolve_current_build_admission_policy().as_preimage()
+    view = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+    assert type(view) is A.HistoricalCampaignView
+    assert view.current_verifier_conformance == "unknown"
+    assert view.decision.classification == "historical-policy-version"
+    assert view.decision.admission_status == "historical-not-reclassified"
+    assert view.decision.policy_sha256 == hashlib.sha256(
+        _canonical_json(recorded).encode("utf-8")
+    ).hexdigest()
+    assert [path.read_bytes() for path in paths] == before
+    with pytest.raises(TypeError, match="exact"):
+        A.require_certified_campaign_view(view)
+    for read in (
+        lambda: A.require_admitted_campaign(campaign, purpose=CERTIFIED),
+        lambda: A.classify_campaign(campaign),
+    ):
+        with pytest.raises(
+            A.ArtifactAdmissionError,
+            match="^post-policy campaign lock admission policy differs$",
+        ):
+            read()
+
+
+@pytest.mark.parametrize("purpose", [HISTORICAL, CERTIFIED])
+def test_current_policy_campaign_unchanged_for_both_purposes(recorded_policy_campaign, purpose):
+    campaign = recorded_policy_campaign("current")
+    view = A.require_admitted_campaign(campaign, purpose=purpose)
+    assert view.decision.classification == "admitted-new-schema"
+    assert view.decision.admission_status == "admitted"
+    assert view.campaign_verifier_epoch.campaign_verifier_epoch == _FIXED_SYNTHETIC_E1_EPOCH
+    assert view.decision.as_receipt() == A.classify_campaign(campaign).as_receipt()
+
+
+@pytest.mark.parametrize("mutation, message", [
+    ("extra", "key 集合"), ("schema", "schema differs"),
+    ("non-object", "exact dict"), ("pin-type", "repo_stock_pin requires exact str"),
+    ("authority-type", "coder_authority requires exact str"),
+    ("registry-type", "generator_registry requires list"),
+    ("registry-item-type", "review_registry requires list"),
+])
+def test_historical_policy_shape_is_exact(recorded_policy_campaign, mutation, message):
+    campaign = recorded_policy_campaign("current")
+    # An empty WAL prevents a receipt digest from masking the shape predicate.
+    (campaign / "runs/wal.jsonl").write_text("")
+
+    def mutate(identity):
+        policy = identity["search_config"]["build_admission"]
+        if mutation == "extra":
+            policy["extra"] = "value"
+        elif mutation == "schema":
+            policy["schema"] = "build-admission-policy/v0"
+        elif mutation == "non-object":
+            identity["search_config"]["build_admission"] = []
+        elif mutation == "pin-type":
+            policy["repo_stock_pin"] = 7
+        elif mutation == "authority-type":
+            policy["coder_authority"] = False
+        elif mutation == "registry-type":
+            policy["generator_registry"] = "not-a-list"
+        else:
+            policy["review_registry"] = [7]
+
+    _rewrite_v2_identity(campaign / "campaign.lock", mutate)
+    with pytest.raises(A.ArtifactAdmissionError, match=message):
+        A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+
+
+@pytest.mark.parametrize("mutation, message", [
+    ("attempt", "matching build_start"),
+    ("contract", "contract_sha256"),
+    ("source", "source evidence differs"),
+    ("variant", "variant differs"),
+    ("policy-sha", "schema/policy"),
+    ("stock-pin", "stock class"),
+])
+def test_historical_policy_drift_preserves_structure_checks(recorded_policy_campaign, mutation, message):
+    campaign = recorded_policy_campaign("pin")
+
+    def mutate(records):
+        start = records[0]["payload"]
+        if mutation == "attempt":
+            records[1]["payload"]["build_attempt_id"] = "unknown"
+        elif mutation == "contract":
+            records[-1]["payload"][COMMIT_CONTRACT_SHA256_KEY] = "0" * 64
+        elif mutation == "source":
+            start["genome"] += " "
+        elif mutation == "variant":
+            for record in records:
+                record["variant"] = "wrong-variant"
+        else:
+            receipt = start["build_admission"]
+            if mutation == "policy-sha":
+                receipt["policy_sha256"] = "0" * 64
+            else:
+                receipt["source"]["ccbench_commit"] = CURRENT_PIN
+            unsigned = {k: v for k, v in receipt.items() if k != "receipt_sha256"}
+            receipt["receipt_sha256"] = hashlib.sha256(_canonical_json(unsigned).encode()).hexdigest()
+            for record in records:
+                if "build_admission_receipt_sha256" in record["payload"]:
+                    record["payload"]["build_admission_receipt_sha256"] = receipt["receipt_sha256"]
+
+    _rewrite_wal(campaign, mutate)
+    with pytest.raises(A.ArtifactAdmissionError, match=message):
+        A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+
+
+@pytest.mark.parametrize("relative", ["campaign.lock", "runs/wal.jsonl"])
+def test_historical_policy_drift_rechecks_bytes(recorded_policy_campaign, monkeypatch, relative):
+    campaign = recorded_policy_campaign("pin")
+    original = A._validate_trigger_provenance
+
+    def validate_then_change(*args, **kwargs):
+        original(*args, **kwargs)
+        path = campaign / relative
+        path.write_bytes(path.read_bytes() + b"\n")
+
+    monkeypatch.setattr(A, "_validate_trigger_provenance", validate_then_change)
+    with pytest.raises(A.ArtifactAdmissionError, match="bytes changed"):
+        A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+
+
+@pytest.mark.parametrize("mutation, message", [
+    ("missing-binding", "一対一"),
+    ("binding", "binding record"),
+    ("provenance", "WAL build_start と不一致"),
+])
+def test_historical_policy_drift_preserves_trigger_checks(recorded_policy_campaign, mutation, message):
+    campaign = _classify_as_trigger(
+        recorded_policy_campaign("pin"), marker=True, proposal=True,
+        binding=mutation != "missing-binding",
+    )
+    if mutation == "binding":
+        def mutate(records):
+            record = next(r for r in records if r["stage"] == trigger_gate_binding.WAL_RECORD_STAGE)
+            record["payload"][wal.TRIGGER_BINDING_PAYLOAD_KEY]["mask"] = 10
+        _rewrite_wal(campaign, mutate)
+    elif mutation == "provenance":
+        path = campaign / "reports/p3_s8a_trigger_loop_provenance.json"
+        provenance = json.loads(path.read_text())
+        provenance["entries"]["1"][wal.TRIGGER_BINDING_COMMITMENT_KEY] = "0" * 64
+        path.write_text(json.dumps(provenance))
+    with pytest.raises(A.ArtifactAdmissionError, match=message):
+        A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+
+
+def test_historical_policy_version_preserves_pre_t733_epoch(recorded_policy_campaign):
+    campaign = recorded_policy_campaign("pin")
+    raw = _rewrite_as_pre_t733_lock(campaign)
+    view = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+    assert view.decision.classification == "historical-policy-version"
+    assert type(view.campaign_verifier_epoch) is A.HistoricalCampaignVerifierEpoch
+    assert view.campaign_verifier_epoch.campaign_verifier_epoch == _expected_pre_t733_fixture_epoch()
+    assert view.current_verifier_conformance == "unknown"
+    assert (campaign / "campaign.lock").read_bytes() == raw
+    with pytest.raises(A.ArtifactAdmissionError, match="codec validation failed"):
+        A.require_admitted_campaign(campaign, purpose=CERTIFIED)
+
+
 _EXPECTED_PRE_T733_CLOSURE_PATHS = (
     "orchestrator/campaign/env_contract.py",
     "orchestrator/campaign/env_contract_activation.py",
