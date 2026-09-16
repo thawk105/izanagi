@@ -1,0 +1,114 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 9000,
+  "hang_timeout_seconds": 300,
+  "mutations": [
+    {
+      "id": "MUT-T1789-M1-DELETE-GATE",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "old": "    if rederive_arm_execution and any(\n        trial.status == \"complete\" and not descriptor_proven\n",
+          "new": "    if False and rederive_arm_execution and any(\n        trial.status == \"complete\" and not descriptor_proven\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T1789-M2-INVERT-STATUS",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "old": "        trial.status == \"complete\" and not descriptor_proven\n",
+          "new": "        trial.status != \"complete\" and not descriptor_proven\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_with_c02_and_no_cells_passes_current_capability"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T1789-M3-STATUS-LITERAL",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "old": "        trial.status == \"complete\" and not descriptor_proven\n",
+          "new": "        trial.status == \"completed\" and not descriptor_proven\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v5]",
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_hide_conflicting_descriptor_by_dropping_cells"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T1789-M4-V5-ONLY",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "old": "    if rederive_arm_execution and any(\n        trial.status == \"complete\" and not descriptor_proven\n",
+          "new": "    if receipt.schema_version == SCHEMA_VERSION and any(\n        trial.status == \"complete\" and not descriptor_proven\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_claim_complete_without_descriptor_proof_even_with_c02[v2]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T1789-M5-BEFORE-MANDATORY",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "old": "    if rederive_arm_execution and any(\n        trial.status == \"complete\" and not descriptor_proven\n        for trial, descriptor_proven in zip(receipt.trials, descriptor_proofs)\n    ):\n        _fail(\n            \"receipt-arm-binding\",\n            \"complete trial lacks descriptor proof\",\n        )\n",
+          "new": ""
+        },
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "old": "    if (\n        receipt.schema_version in {\n            PREVIOUS_SCHEMA_VERSION,\n            CROSS_BINDING_V1_SCHEMA_VERSION,\n            CROSS_BINDING_V2_SCHEMA_VERSION,\n            SCHEMA_VERSION,\n        }\n        and C02_ARM_BINDING_UNPROVEN not in receipt.non_certifying_reason_codes\n",
+          "new": "    if rederive_arm_execution and any(\n        trial.status == \"complete\" and not descriptor_proven\n        for trial, descriptor_proven in zip(receipt.trials, descriptor_proofs)\n    ):\n        _fail(\n            \"receipt-arm-binding\",\n            \"complete trial lacks descriptor proof\",\n        )\n    if (\n        receipt.schema_version in {\n            PREVIOUS_SCHEMA_VERSION,\n            CROSS_BINDING_V1_SCHEMA_VERSION,\n            CROSS_BINDING_V2_SCHEMA_VERSION,\n            SCHEMA_VERSION,\n        }\n        and C02_ARM_BINDING_UNPROVEN not in receipt.non_certifying_reason_codes\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8c_acceptance_receipt_v2.py::test_partial_receipt_cannot_drop_c02_reason_without_descriptor_proof"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "MUT-T1789-M6-EQUIVALENT-OPERAND-ORDER",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_acceptance_receipt.py",
+          "old": "        trial.status == \"complete\" and not descriptor_proven\n",
+          "new": "        \"complete\" == trial.status and not descriptor_proven\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -780,7 +780,7 @@ def probe(
     ] = individual_attempted
 
     try:
-        toolchain = submission.prepare_toolchain(policy)
+        toolchain = submission.prepare_toolchain(policy, repo_root=repo_root)
         prepare = {"attempted": True, "ok": True, "result": toolchain}
     except submission.SubmissionPreparationError as exc:
         prepare = {"attempted": True, "ok": False, "error": _error(exc)}

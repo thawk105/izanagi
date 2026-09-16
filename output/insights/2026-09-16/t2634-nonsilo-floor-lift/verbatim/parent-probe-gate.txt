@@ -1,0 +1,4 @@
+trace-hook evidence (D1373 gate) at pin 511c953: silo=True mocc=False tictoc=False
+BASELINES keys: ['mocc', 'silo']
+argv --protocol tictoc -> unknown protocol: 'tictoc' (選択肢: ['mocc', 'silo'])
+argv --protocol mocc -> (None, 'mocc')

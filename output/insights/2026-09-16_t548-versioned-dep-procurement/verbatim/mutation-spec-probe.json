@@ -1,0 +1,134 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "MUT-T548-M1-URL-GIT-SUFFIX-CHECK-REMOVED",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "               or not item[\"url\"].endswith(\".git\") for item in sources)\n",
+          "new": "               or False for item in sources)\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T548-M3-VERIFY-CACHE-ALLOWS-SHALLOW",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "def _verify_cache(\n    cache_root: Path, sources: Sequence[Mapping[str, str]],\n) -> list[dict[str, str]]:\n    _ensure_root(cache_root, create=False, label=\"cache root\")\n    return [\n        _verify_source(\n            cache_root / item[\"source_name\"],\n            name=item[\"name\"],\n            pin=item[\"pin\"],\n            expected_url=item[\"url\"],\n        )\n",
+          "new": "def _verify_cache(\n    cache_root: Path, sources: Sequence[Mapping[str, str]],\n) -> list[dict[str, str]]:\n    _ensure_root(cache_root, create=False, label=\"cache root\")\n    return [\n        _verify_source(\n            cache_root / item[\"source_name\"],\n            name=item[\"name\"],\n            pin=item[\"pin\"],\n            expected_url=item[\"url\"],\n            allow_shallow=True,\n        )\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T548-M4-GFLAGS-DROPPED-FROM-ENUMERATION",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "        sources += dependencies\n",
+          "new": "        sources += dependencies[1:]\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T548-M5-P3S4-RESOLVES-FIXED-HOME-PATH",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "GFLAGS_SOURCE_PATH=\"$THIRDPARTY_SOURCE_ROOT/gflags\"\n",
+          "new": "GFLAGS_SOURCE_PATH=\"$HOME/github/gflags\"\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T548-M6-POLICY-GOLDEN-REVERTED-TO-OLD-BYTES",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/pegasus_policy_expected_goldens.py",
+          "old": "    \"3a3c7d607de77e23368f9ce382b41e6e524de3ee1e2809e7c6d890ada95a6c90\"\n",
+          "new": "    \"a8806c4a4da81f2cbadcb5cbeee54ce7c1106bd0d291c1a2725f86b8b8a8032a\"\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T548-M8-CACHE-ROOT-IGNORES-ENV",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "        raw = os.environ.get(CACHE_ENV)\n",
+          "new": "        raw = None\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T548-M9-SUBMISSION-ROOT-FROM-FILE-NOT-REPO-ROOT",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/submission.py",
+          "old": "                       or repo_root / THIRD_PARTY_STAGING_RELATIVE)\n",
+          "new": "                       or Path(__file__).resolve().parents[2] / THIRD_PARTY_STAGING_RELATIVE)\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T548-M10-SILO-JOB-DROPS-BUILD-DEPS-FROM-SCRATCH",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/silo_ladder_rung1.sh",
+          "old": "for row in \"${third_party_rows[@]}\" \"${build_dependency_rows[@]}\"; do\n",
+          "new": "for row in \"${third_party_rows[@]}\"; do\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T548-M11-MOCC-RESOLVES-BEFORE-HYDRATE-OUTPUT",
+      "category": "negative",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "old": "THIRDPARTY_SOURCE_ROOT=\"$THIRD_PARTY_SOURCE_ROOT\"\n",
+          "new": "THIRDPARTY_SOURCE_ROOT=\"${IZANAGI_THIRDPARTY_SOURCE_ROOT:-$REPO_ROOT/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src}\"\n"
+        }
+      ]
+    }
+  ]
+}

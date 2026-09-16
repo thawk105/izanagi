@@ -1,0 +1,44 @@
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Looking for C++ include pthread.h
+-- Looking for C++ include pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+-- Found gflags: /home/SFC/tanab/.claude/jobs/a68717bd/tmp/liveness/prefix/lib/libgflags.a  
+-- Found glog: /home/SFC/tanab/.claude/jobs/a68717bd/tmp/liveness/prefix/lib/libglog.a  
+-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version "1.74.0") found components: filesystem 
+-- The C compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- 
+-- No build type selected, default to 'Release'
+-- Architecture: x64
+-- Performing Test mi_has_libpthread
+-- Performing Test mi_has_libpthread - Success
+-- Performing Test mi_has_librt
+-- Performing Test mi_has_librt - Success
+-- Performing Test mi_has_libatomic
+-- Performing Test mi_has_libatomic - Success
+-- 
+-- Library name     : mimalloc
+-- Version          : 2.3.2
+-- Build type       : release
+-- C Compiler       : /usr/bin/cc
+-- Compiler flags   : -Wall;-Wextra;-Wno-unknown-pragmas;-fvisibility=hidden;-Wstrict-prototypes;-ftls-model=initial-exec
+-- Compiler defines : MI_CMAKE_BUILD_TYPE=release;MI_BUILD_RELEASE
+-- Link libraries   : pthread;rt;atomic
+-- Build targets    : static
+-- 
+-- Found Python3: /usr/bin/python3.10 (found version "3.10.12") found components: Interpreter 
+-- Wrote protocol×workload matrix to /home/SFC/tanab/.claude/jobs/a68717bd/tmp/liveness/ccbench-configure/PROTOCOL_MATRIX.md
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/SFC/tanab/.claude/jobs/a68717bd/tmp/liveness/ccbench-configure

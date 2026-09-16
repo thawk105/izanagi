@@ -393,9 +393,7 @@ with open(sys.argv[1], encoding="utf-8") as handle:
     policy = json.load(handle)
 print(policy["expected_cpu_model"])
 print(policy["expected_physical_cores"])
-print(policy["gflags_source_path"])
 print(policy["gflags_expected_head"])
-print(policy["glog_source_path"])
 print(policy["glog_expected_head"])
 for candidate in policy["perf_candidates"]:
     print(candidate)
@@ -406,16 +404,17 @@ if [[ "$rc" -ne 0 ]]; then
 fi
 mapfile -t POLICY_VALUES <"$JOB_DIR/policy-values.txt"
 rc=$?
-if [[ "$rc" -ne 0 || ${#POLICY_VALUES[@]} -lt 7 ]]; then
+if [[ "$rc" -ne 0 || ${#POLICY_VALUES[@]} -lt 5 ]]; then
   fail 2 policy "node/dependency/perf policy is incomplete"
 fi
 EXPECTED_CPU_MODEL=${POLICY_VALUES[0]}
 EXPECTED_PHYSICAL_CORES=${POLICY_VALUES[1]}
-GFLAGS_SOURCE_PATH=${POLICY_VALUES[2]}
-GFLAGS_EXPECTED_HEAD=${POLICY_VALUES[3]}
-GLOG_SOURCE_PATH=${POLICY_VALUES[4]}
-GLOG_EXPECTED_HEAD=${POLICY_VALUES[5]}
-PERF_CANDIDATES=("${POLICY_VALUES[@]:6}")
+THIRDPARTY_SOURCE_ROOT="${IZANAGI_THIRDPARTY_SOURCE_ROOT:-$IZANAGI_ROOT/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src}"
+GFLAGS_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/gflags"
+GLOG_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/glog"
+GFLAGS_EXPECTED_HEAD=${POLICY_VALUES[2]}
+GLOG_EXPECTED_HEAD=${POLICY_VALUES[3]}
+PERF_CANDIDATES=("${POLICY_VALUES[@]:4}")
 if [[ ! "$EXPECTED_PHYSICAL_CORES" =~ ^[1-9][0-9]*$ \
     || ${#PERF_CANDIDATES[@]} -eq 0 ]]; then
   fail 2 policy "expected physical cores or perf candidates are invalid"

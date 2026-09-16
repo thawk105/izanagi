@@ -2050,6 +2050,14 @@ def verify_acceptance_receipt(
             "receipt-mandatory-reasons",
             "c02-arm-binding-unproven was dropped without descriptor proof",
         )
+    if rederive_arm_execution and any(
+        trial.status == "complete" and not descriptor_proven
+        for trial, descriptor_proven in zip(receipt.trials, descriptor_proofs)
+    ):
+        _fail(
+            "receipt-arm-binding",
+            "complete trial lacks descriptor proof",
+        )
     if receipt.schema_version in {
         CROSS_BINDING_V1_SCHEMA_VERSION,
         CROSS_BINDING_V2_SCHEMA_VERSION,

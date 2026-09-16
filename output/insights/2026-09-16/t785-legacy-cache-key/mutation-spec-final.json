@@ -1,0 +1,57 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "m1-compare-against-mutable-defaults",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "    tc = \"\" if (cc, cxx) == (\"gcc-13\", \"g++-13\") else f\"|cc={cc}|cxx={cxx}\"\n",
+          "new": "    tc = \"\" if (cc, cxx) == (DEFAULT_CC, DEFAULT_CXX) else f\"|cc={cc}|cxx={cxx}\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_cache_key_default_toolchain_change_does_not_alias_historical_key"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-always-append-toolchain-suffix",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "    tc = \"\" if (cc, cxx) == (\"gcc-13\", \"g++-13\") else f\"|cc={cc}|cxx={cxx}\"\n",
+          "new": "    tc = f\"|cc={cc}|cxx={cxx}\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-always-omit-toolchain",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "old": "    tc = \"\" if (cc, cxx) == (\"gcc-13\", \"g++-13\") else f\"|cc={cc}|cxx={cxx}\"\n",
+          "new": "    tc = \"\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_cache_key_default_toolchain_change_does_not_alias_historical_key",
+        "orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

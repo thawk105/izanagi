@@ -390,7 +390,7 @@ def test_certify_perf_stage_is_policy_driven_fail_closed_and_precedes_calibrate(
     assert perf_stage < calibrate_stage
     fragment = source[perf_stage:calibrate_stage]
     for required in (
-        'PERF_CANDIDATES=("${policy_values[@]:11}")',
+        'PERF_CANDIDATES=("${policy_values[@]:9}")',
         'target.id == "PERF_EVENTS"',
         'stat -e "$PERF_EVENTS" -- sleep 0.1',
         "grep -Eqi '<not (supported|counted)>'",
@@ -527,8 +527,88 @@ exit 0
 
 
 def test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench():
+    # Every shell consumer resolves the hydrated source before passing it to
+    # git/build. Keep this alongside the existing configure/prefix contract.
+    for name, repo_var, source_var in (
+        ("a5_second_boot_backoff_sweep.sh", "REPO_BASE", "SOURCE"),
+        ("b10_backoff_grid.sh", "REPO_ROOT", "SOURCE"),
+        ("certify_calibration.sh", "REPO_ROOT", "SOURCE_PATH"),
+        ("floor_campaign.sh", "REPO_ROOT", "SOURCE_PATH"),
+        ("floor_scoping.sh", "REPO_ROOT", "SOURCE_PATH"),
+        ("mocc_trace_pilot.sh", "REPO_ROOT", "SOURCE_PATH"),
+        ("oracle_n_pilot.sh", "REPO_ROOT", "SOURCE_PATH"),
+        ("p3_s4_loop_pegasus.sh", "repo", "SOURCE_PATH"),
+        ("paper_story_a1_paired.sh", "REPO_ROOT", "SOURCE_PATH"),
+        ("silo_ladder_rung1.sh", "REPO_ROOT", "SOURCE"),
+        ("t126_qualification.sh", "REPO_ROOT", "SOURCE"),
+        ("t141_region_profile.sh", "IZANAGI_ROOT", "SOURCE_PATH"),
+        ("probes/t1683_rr5_cost_probe.pbs", "REPO_ROOT", "SOURCE_PATH"),
+        ("probes/t2187_adaptive_const_probe.pbs", "REPO_ROOT", "SOURCE_PATH"),
+        ("probes/t2228_driver_gate_liveness_probe.pbs", "REPO_ROOT", "SOURCE_PATH"),
+    ):
+        job = (TOOL_DIR / name).read_text(encoding="utf-8")
+        resolution = (
+            'THIRDPARTY_SOURCE_ROOT="$THIRD_PARTY_SOURCE_ROOT"'
+            if name == "mocc_trace_pilot.sh" else
+            'THIRDPARTY_SOURCE_ROOT="$IZANAGI_S4_THIRDPARTY_SOURCE_ROOT"'
+            if name == "p3_s4_loop_pegasus.sh" else
+            'THIRDPARTY_SOURCE_ROOT="${IZANAGI_THIRDPARTY_SOURCE_ROOT:-$'
+            + repo_var + '/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src}"'
+        )
+        assert job.count(resolution) == 1, name
+        if name == "mocc_trace_pilot.sh":
+            hydrate = 'timeout 20 python3 "$TOOLS/fetch_third_party.py" hydrate --repo-root "$REPO_ROOT"'
+            assert job.count(hydrate) == 1
+            cache_check = (
+                'CACHE_ROOT=${!THIRD_PARTY_CACHE_ENV:-}\n'
+                'if [[ -z "$CACHE_ROOT" ]]; then\n'
+                '  write_failure 2 third_party "$THIRD_PARTY_CACHE_ENV is missing"\n'
+                '  exit 2\nfi'
+            )
+            assert cache_check in job
+            root_read = 'THIRD_PARTY_SOURCE_ROOT=$(python3 - "$ATTEMPT_DIR/third-party-hydrate.json"'
+            hydrate_body = job[job.index(cache_check):job.index(resolution)]
+            for required in (
+                'THIRD_PARTY_STAGING_ROOT="$TMPDIR/thirdparty-src"',
+                '--cache-root "$CACHE_ROOT" --staging-root "$THIRD_PARTY_STAGING_ROOT"',
+                '>"$ATTEMPT_DIR/third-party-hydrate.json"',
+                '2>"$ATTEMPT_DIR/third-party-hydrate.stderr"',
+                'value = payload.get("source_root")',
+                'if type(value) is not str or not os.path.isabs(value):',
+                '    raise SystemExit("hydrate output .source_root is not an absolute path")',
+                'print(value)',
+                'if [[ ! -d "$THIRD_PARTY_SOURCE_ROOT" ]]; then\n'
+                '  write_failure 2 third_party "hydrate source_root is missing"\n'
+                '  exit 2\nfi',
+            ):
+                assert hydrate_body.count(required) == 1, required
+            assert (job.index("# END T1718 COMPILER VERSION BODY GATE")
+                    < job.index(cache_check) < job.index(hydrate)
+                    < job.index(root_read) < job.index(resolution))
+            assert "IZANAGI_THIRDPARTY_SOURCE_ROOT" not in job
+            assert "job-staging/thirdparty-src" not in job
+        for dep in ("gflags", "glog"):
+            assignment = f'{dep.upper()}_{source_var}="$THIRDPARTY_SOURCE_ROOT/{dep}"'
+            assert job.count(assignment) == 1, name
+            assert job.index(resolution) < job.index(assignment), name
+            if name == "mocc_trace_pilot.sh":
+                assert (job.index(assignment)
+                        < job.index(f'if [[ ! -d "${dep.upper()}_SOURCE_PATH" ]]; then')
+                        < job.index(f'git -C "${dep.upper()}_SOURCE_PATH" rev-parse HEAD'))
+            assert f'"{dep}_source_path"' not in job, name
+            if name == "t126_qualification.sh":
+                archive = f'git -C "${dep.upper()}_SOURCE" archive --format=tar'
+                staged = f'{dep.upper()}_SOURCE="${dep.upper()}_STAGE"'
+                configure = f'"$CMAKE_REAL" -S "${dep.upper()}_SOURCE"'
+                assert (job.index(assignment) < job.index(archive)
+                        < job.index(staged) < job.index(configure)), name
+            else:
+                configure = f'cmake -S "${dep.upper()}_{source_var}"'
+                if name in ("certify_calibration.sh", "t141_region_profile.sh"):
+                    configure = f'"$CMAKE_PATH" -S "${dep.upper()}_{source_var}"'
+                assert job.index(assignment) < job.index(configure), name
     policy = json.loads((TOOL_DIR / "policy.json").read_text(encoding="utf-8"))
-    assert policy["gflags_source_path"] == "/work/SFC/tanab/github/gflags"
+    assert policy["gflags_source_url"] == "https://github.com/gflags/gflags.git"
     assert policy["gflags_expected_head"] == (
         "e171aa2d15ed9eb17054558e0b3a6a413bb01067"
     )
@@ -562,7 +642,7 @@ def test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench():
 
 def test_certify_glog_stage_is_pinned_fail_closed_and_precedes_ccbench():
     policy = json.loads((TOOL_DIR / "policy.json").read_text(encoding="utf-8"))
-    assert policy["glog_source_path"] == "/work/SFC/tanab/github/glog"
+    assert policy["glog_source_url"] == "https://github.com/google/glog.git"
     assert policy["glog_expected_head"] == (
         "8f9ccfe770add9e4c64e9b25c102658e3c763b73"
     )

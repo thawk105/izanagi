@@ -3034,7 +3034,6 @@ _FETCH_THIRD_PARTY_SANCTIONED_SPELLINGS = (
     "python3 tools/pegasus/fetch_third_party.py fetch",
     "python3 ./tools/pegasus/fetch_third_party.py hydrate",
     "./tools/pegasus/fetch_third_party.py verify",
-    "python3 tools/pegasus/fetch_third_party.py verify-deps",
 )
 
 

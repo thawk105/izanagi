@@ -1,0 +1,8 @@
+IZANAGI_ACCEPTANCE_SHARD_ARTIFACTS_V1 {"session_root":"/work/1/SFC/tanab/.izanagi-acceptance-shards/f1af48429f1e26d588630be58b2d444f","shard_count":3}
+collected 24313 items
+FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_enforces_v2_wall_clock_admission_boundary[at-bound]
+FAILED orchestrator/tests/test_codex_worker_launch.py::test_web_search_duplicate_stdout_is_accepted_and_auditable
+FAILED orchestrator/tests/test_s8b_oracle_n_pilot.py::test_r33_protocol_document_loads_from_repository
+3 failed, 24243 passed, 67 skipped
+IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid

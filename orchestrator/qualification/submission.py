@@ -19,6 +19,11 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.qualification"
 
+from orchestrator.campaign.silo_ladder_rung1 import (
+    THIRD_PARTY_SOURCE_ROOT_ENV,
+    THIRD_PARTY_STAGING_RELATIVE,
+)
+
 from .contract import (  # noqa: E402
     REGISTERED_DEPENDENCY_BUILD_ARGV,
     canonical_json_bytes,
@@ -104,7 +109,7 @@ def _dependency(path: Path, expected_commit: str) -> dict[str, str]:
     return {"commit": commit, "tree": tree}
 
 
-def prepare_toolchain(policy: Mapping[str, Any]) -> dict[str, Any]:
+def prepare_toolchain(policy: Mapping[str, Any], *, repo_root: Path) -> dict[str, Any]:
     executables = {
         "python": _executable("python", ["python3", "python3.10", "python3.11"]),
         "cc": _executable("cc", ["gcc-13"]),
@@ -155,11 +160,13 @@ def prepare_toolchain(policy: Mapping[str, Any]) -> dict[str, Any]:
         if perf_row is None:  # pragma: no cover - guarded by the branch above
             raise SubmissionPreparationError("required executable unavailable: perf")
         executables["perf"] = perf_row
+    source_root = Path(os.environ.get(THIRD_PARTY_SOURCE_ROOT_ENV)
+                       or repo_root / THIRD_PARTY_STAGING_RELATIVE)
     dependencies = {
         "gflags": _dependency(
-            Path(policy["gflags_source_path"]), policy["gflags_expected_head"]),
+            source_root / "gflags", policy["gflags_expected_head"]),
         "glog": _dependency(
-            Path(policy["glog_source_path"]), policy["glog_expected_head"]),
+            source_root / "glog", policy["glog_expected_head"]),
     }
     build_argv = {
         name: list(argv)
@@ -205,7 +212,7 @@ def prepare(repo_root: Path, output_dir: Path) -> tuple[str, Path, Path]:
         (repo_root / "tools/pegasus/policy.json").read_text(encoding="utf-8"))
     protocol = load_protocol(
         repo_root / "orchestrator/qualification/t126_control_v1.json")
-    toolchain = prepare_toolchain(policy)
+    toolchain = prepare_toolchain(policy, repo_root=repo_root)
     preimage = build_series_preimage(repo_root, protocol, toolchain)
     series_id = series_identity(preimage)
     toolchain_path = output_dir / "toolchain-manifest.json"

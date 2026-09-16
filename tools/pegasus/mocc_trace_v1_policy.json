@@ -7,9 +7,9 @@
   "finalize_reserve_s": 300,
   "expected_cpu_model": "Intel Xeon Platinum 8468",
   "expected_physical_cores": 48,
-  "gflags_source_path": "/work/SFC/tanab/github/gflags",
+  "gflags_source_url": "https://github.com/gflags/gflags.git",
   "gflags_expected_head": "e171aa2d15ed9eb17054558e0b3a6a413bb01067",
-  "glog_source_path": "/work/SFC/tanab/github/glog",
+  "glog_source_url": "https://github.com/google/glog.git",
   "glog_expected_head": "8f9ccfe770add9e4c64e9b25c102658e3c763b73",
   "third_party_cache_env": "IZANAGI_PEGASUS_THIRDPARTY_CACHE",
   "expected_compiler_version_body_sha256": {

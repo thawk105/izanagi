@@ -293,7 +293,7 @@ tools/pegasus/submit_floor.sh --confirm-official-floor-run   # 床値 official �
 
 ## 6. third-party source を取得して worktree へ供給する (2026-08-04 実装、[T-340])
 
-masstree / mimalloc / googletest は CCBench の FetchContent 依存で、計算ノードには network が
+masstree / mimalloc / googletest の FetchContent 依存と gflags / glog の計 5 source を扱う。計算ノードには network が
 無いのでログインノードで取得して渡す。取得先を repo の中に置くと **worktree を畳んだ時点で
 実体が消える**ため、cache は repo の外に置く。cache root の機体固有値は
 `docs/pegasus-runbook.md` §6 が正本である。
@@ -304,8 +304,7 @@ export IZANAGI_PEGASUS_THIRDPARTY_CACHE=<永続 cache root の絶対パス>
 
 python3 tools/pegasus/fetch_third_party.py fetch        # 欠けている source だけ clone (network 要)
 python3 tools/pegasus/fetch_third_party.py hydrate      # cache から worktree の staging へ (offline)
-python3 tools/pegasus/fetch_third_party.py verify       # cache の 3 本を検査 (offline)
-python3 tools/pegasus/fetch_third_party.py verify-deps  # policy の gflags/glog を検査 (offline)
+python3 tools/pegasus/fetch_third_party.py verify       # cache の 5 本を検査 (offline)
 ```
 
 - `--cache-root` か `IZANAGI_PEGASUS_THIRDPARTY_CACHE` の**どちらかが必須**。policy から導出しない。
@@ -316,6 +315,12 @@ python3 tools/pegasus/fetch_third_party.py verify-deps  # policy の gflags/glog
 - consumer (`IZANAGI_THIRDPARTY_SOURCE_ROOT`) へ渡してよいのは **`hydrate` の出力 JSON の
   `.source_root`** だけである。`cache_root` は診断用で、`git status` に出ない ignored な
   ビルド生成物を含みうる。
+- gflags / glog の URL と pin は共有 policy の `gflags_source_url` / `gflags_expected_head`、
+  `glog_source_url` / `glog_expected_head` が正本。job body は hydrate 済み root の
+  `gflags` / `glog` を使う。既定 root は repo 相対の
+  `output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src`、既存の
+  `IZANAGI_THIRDPARTY_SOURCE_ROOT` で上書きする。P3 段 4 だけは既存の
+  `IZANAGI_S4_THIRDPARTY_SOURCE_ROOT` を使う。使用前の HEAD・dirty 検査は保持する。
 - 既存 clone を fetch / pull しない。pin が変わったら人間が cache を作り直す。
 - shallow / alternates / promisor / replace refs / grafts / commondir / config.worktree /
   sparse checkout / assume-unchanged / skip-worktree を fail-closed で拒否する。
@@ -333,8 +338,8 @@ python3 tools/pegasus/fetch_third_party.py verify-deps  # policy の gflags/glog
   `.codex/worktrees/` 配下の checkout は rc=2 で拒否する
 - `python3.10` を解決し、`python3` → 3.10 の shim (interpreter のみ) を PATH 先頭に置く。
   `cmake` / compiler の wrapper・launcher は置かない (F813、D1517)
-- `tools/pegasus/policy.json` の pin (`gflags_source_path` / `gflags_expected_head` /
-  `glog_source_path` / `glog_expected_head`) に exact 一致し clean な gflags / glog を `$TMPDIR`
+- hydrate 済み root 配下で `tools/pegasus/policy.json` の pin (`gflags_expected_head` /
+  `glog_expected_head`) に exact 一致し clean な gflags / glog を `$TMPDIR`
   (job 別 scratch) へ configure / build / install し、この 2 install prefix だけを
   `CMAKE_PREFIX_PATH="$GFLAGS_INSTALL_DIR:$GLOG_INSTALL_DIR"` として masstree 事前構築の前から
   driver 本走まで保持する (`floor_scoping.sh` の prologue の移植、D1773)。事前構築の

@@ -2033,8 +2033,11 @@ def _read_stub_calls(path: Path) -> list[list[str]]:
 def test_floor_job_builds_and_exports_dependency_prefixes(tmp_path: Path) -> None:
     attempt = tmp_path / "attempt"
     scratch = tmp_path / "scratch"
-    gflags_source = tmp_path / "gflags"
-    glog_source = tmp_path / "glog"
+    repo = tmp_path / "repo"
+    staging = repo / "output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src"
+    staging.mkdir(parents=True)
+    gflags_source = staging / "gflags"
+    glog_source = staging / "glog"
     for path in (attempt, scratch, gflags_source, glog_source):
         path.mkdir()
     bin_dir = tmp_path / "bin"
@@ -2079,8 +2082,14 @@ def test_floor_job_builds_and_exports_dependency_prefixes(tmp_path: Path) -> Non
             "set -Eeuo pipefail",
             f"ATTEMPT_DIR={shlex.quote(str(attempt))}",
             f"TMPDIR={shlex.quote(str(scratch))}",
-            f"GFLAGS_SOURCE_PATH={shlex.quote(str(gflags_source))}",
-            f"GLOG_SOURCE_PATH={shlex.quote(str(glog_source))}",
+            f"REPO_ROOT={shlex.quote(str(repo))}",
+            "unset IZANAGI_THIRDPARTY_SOURCE_ROOT",
+            *[
+                line for line in (TOOL_DIR / "floor_campaign.sh").read_text(
+                    encoding="utf-8").splitlines()
+                if line.startswith(("THIRDPARTY_SOURCE_ROOT=", "GFLAGS_SOURCE_PATH=",
+                                    "GLOG_SOURCE_PATH="))
+            ],
             f"GFLAGS_EXPECTED_HEAD={head}",
             f"GLOG_EXPECTED_HEAD={head}",
             f"PY={shlex.quote(sys.executable)}",

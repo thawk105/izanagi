@@ -63824,3 +63824,277 @@ git 呼出しの環境からは、repository の選択・探索・設定を変�
   敵対相談が具体的な操作列を示した。
 - 共有 admission 台帳の run 集合と bundle の run 集合を突き合わせる検査を新設する — 本課題の
   scope 外であり、固定導出で口自体が消えるなら検査は要らない。
+
+## D2079. B-4 の開始時刻の受理は「名前 = 値」1 形に固定し、責任者側の既存 sentinel 規則を保つ (2026-09-16)
+
+**決定:** D1871 の「開始時刻を発効条件から外す」を、次の 1 形だけの追加受理として実装する。
+値へ既存の正規化 (セル外周の空白除去と NFKC 正規化) を施した結果が
+`実行責任者 = <値>、開始時刻 = 未記入` へ全体一致し、`<値>` が読点・等号・改行を含まず、
+前後の空白を除いて非空で、既存の予約 sentinel に該当しないときだけ受理する。
+行 label 集合は変えず、他の欄へこの例外を広げない。この構文は D1871 が定めたものではなく、
+同裁定を実装するために本決定が定める形である。事前登録本文には同内容を追補で明記する。
+
+**決定 2:** 責任者側に意味検証 (説明文の禁止、制御文字の禁止、識別子形式の検査) を**足さない**。
+
+**理由:**
+
+- 行全体を sentinel 検査から免除する案は、責任者が `未記入` のままの文書まで受理する。
+  D1871 が外すのは開始時刻だけであり、責任者を実走前に不変の識別子で指名する義務は
+  D1812 (b) と事前登録 §5.1 に現に生きている。
+- 決定 2 の根拠は反実仮想の実測である。説明文・NUL・BEL を責任者に置いた値は、**変更前から**
+  開始時刻が非 sentinel の実値なら受理され、同じ文字列を他の欄へ置いても受理された
+  (expectation 行だけは別の exact grammar 検査で拒否される)。受理側の関数は
+  `types, meanings, and rendered non-emptiness are not checked` と非保証を宣言している。
+  この受理は本変更が持ち込むものではない。
+- 意味検証を足すと、対象行だけが他の 9 欄より厳しくなる。D1871 が
+  「§0 の原子性・sentinel 規則は他の欄についてはそのまま維持する」と定める前提の欄間の対称性を、
+  実装側から一方的に崩すことになる。
+
+**却下した選択肢:**
+
+- 対象行を sentinel 検査から丸ごと免除する — 受理集合が裁定より広がり、責任者未指名を通す。
+- §0 の原子性・sentinel 規則そのものを改訂する — 対象外の欄の発効条件まで緩める。
+- 責任者へ識別子形式の検査を新設する — 要求外の仮想リスク向け gate であり、欄間の対称性を壊す。
+
+## D2080. 高域の対照は記録済み走行と現制約からは成立を確認できず、新走行は取らずに裁定パッケージを返す (2026-09-16)
+
+**決定:** D2044 項 13 の「候補の設定について高域 (`Backoff_` > 50 µs) への到達と既存 J1 が要求する共通辺の成立を先に確かめる」に対する
+本 wave の答えは「**現制約と記録済み証拠では、既存の事前登録を変えずに高域の対照が作れるとは確認できない**」である。
+したがって新走行は取らず、同項の「分からなければ改めて諮る」に従い裁定パッケージを返す。択一は次の 3 つで、推奨は A。
+
+- **A: 見送り〔推奨〕** — 高域の条件間比較は未確定のまま据え置く。候補表と記録済み記述を材料として残し、新走行・登録追加には進まない。
+- **B: 将来の別 wave で刻み 25 の双子探索を認める** — 刻み 25 / 更新間隔 10 対 2560 / 初期値 0 / 上限 1000 / 時間トリガ / write-heavy /
+  48 threads / records 1,000,000 / extime 3 s / 各 1 rep。旧 J1 を保存した別登録 J1' は既存 J1 の方法 (順序なし完全一致辺・固定共通重み・
+  K >= 10・差 0.10・3 区間の同方向条件) をそのまま維持し、広窓側が高域へ入らない・主帯域の共通辺が 10 未満の場合は成功扱いしない。
+  現物 driver は登録済み 4 cell 集合しか受理しないため、driver (`t2187_adaptive_const_probe.pbs` / `.py`) と解析器
+  (`_NEW_TRACE_CELL_AXES`) への cell 集合の登録を伴う実装作業の許可も含む。主帯域の共通辺 10 種類には広窓側が 325 µs 以上へ登る必要がある (必要条件)。
+- **C: 登録集合の再走 1 回 (併記のみ、推奨しない)** — 設定を変えない唯一の候補で、rep_index 0 の別 job として現物で投入できる。
+  記録済み 1 rep からは再走の到達確率を評価できず、成立確認が無い。
+
+「将来も成立しない」とは主張しない。D2020 / D2021 / 旧 J1 の `not_supported` は変更しない。辺の同一性を帯へ束ねる案は D2044 が不採用のため戻さない。
+
+**理由:**
+
+- 既存の事前登録 (T-2188 の格子 §4 と J1 §6) は対照の 2 cell を名指しし、刻み・上限・トリガ型・workload・thread・extime・patch stack を全部固定する。
+  初期 `Backoff_` は stock で 0 固定 (`Backoff::Backoff_(0)`、patch は定義行を触らない) で knob が無い。**設定を変える候補はすべて旧登録外**であり、
+  J1 の方法を保った新 cell 対は「解析方法の継承」であって「登録された対照の継承」ではない (段 3 相談 A)。
+- 登録対照の記録済み走行では広窓側が 1,170 event すべて 0.0〜12.0 µs にあり高域へ入らない (D2020 の再現)。設定を変えない唯一の候補
+  (登録集合の再走) について、記録済み 1 rep は到達確率を評価する材料にならない。D2044 は「先に確かめ、分かれば新走行」の順序を定めており、
+  確かめられないまま投入するのはその順序を逆転させる。
+- main の現物 driver を無改変で import して実測した: 広窓 cell の刻みを 0.5 / 2 / 25 / 100 に変えた 6 cell 集合は文法上 parse できるが
+  `BACKOFF_TRACE_CONTRACTS` に無く投入不能、登録集合だけ contract 有り、`rep_index = 1` は `_validate_backoff_trace_contract` が拒否する。
+  候補 cell の走行は driver と解析器の登録変更と新しい事前登録を伴い、本 wave の scope (成立確認だけ) と権限を超える。
+- 記録済み走行から候補設定の到達・共通辺を予測する代理計算 (刻み転写、同刻み狭窓の開始 1,170 update) は、符号・parity・更新予算の
+  設定間移植が未検証で、prefix の共通辺は包含恒真である (段 3 相談 B)。F29 により模擬値は裁定根拠に用いない。参考として出した値では、
+  刻み 25 の転写最大 300 µs は必要到達水準 325 に届かず主帯域の共通辺は 9 本、刻み 2 は転写 24 / 開始区間 38 で不到達、刻み 100 は
+  転写が上限超過で適用不能である。
+- 段 1 brief の断定 3 件 (「高域へ届く広窓側は必ず別 cell」「刻み 100 は 9 本だから構造的に不可能」「再走は不到達を繰り返す見込み」) は
+  記録済み走行の不成立を設計一般の不可能性へ広げる危険があり、段 3 の指摘で「設定を変える候補は旧登録外」「理想格子と stock 更新則内の結論」
+  「条件付き投入許可を満たす根拠が無い」へ訂正した。
+
+**却下した選択肢:**
+
+- 本 wave で刻み 25 の双子を新走行として投入する — 現物 driver が受理せず、登録変更と新事前登録を要し、到達・共通辺の成立は未確認のまま。
+  「成立確認済みだから投入」ではないので D2044 の条件を満たさない。
+- 本 wave で登録集合の再走を 1 回投入して確かめる — 設定を変えない候補ではあるが、D2044 の「先に確かめる」を満たす根拠が無く、
+  順序を逆転させる。将来の裁定の択 C として併記するに留める。
+- 代理計算の一致 (`reach_predicted`) を成立確認として扱う — 二つの代理計算の一致の要約にすぎず、未観測走行の成立確率を示さない。
+- 辺の同一性を帯へ束ねる — D2044 が事前登録の改訂と旧判定との比較可能性の喪失を理由に不採用。
+
+## D2081. 保証の文言は単独で実態へ合わせ、発見集合の数値は日付と commit 付きの測定事実として書く (2026-09-16)
+
+**決定 (ユーザー直接指示による):** `campaign_verifier_epoch` の `identity_scope` / `excluded_scope` を
+生む 2 定数を、収載範囲の裁定 (D1884) の実装を待たずに単独で現物へ合わせる。D1896 の
+「同じ変更単位で同時に直す。単独で先に直さない」はこの指示が上書きする。文言は次の形とする。
+
+1. 収載 path 数は現行 tuple の値 (63) を書き、発見集合の定義 (収載 tuple を起点に静的 import と
+   package 初期化を辿った集合) と、測定した日付・commit・発見集合の大きさ・未収載数を
+   測定事実として併記する。発見集合に入らない module も対象外と明記する。
+2. 収載の内訳 (旧文言の「既存 24、明示 import 先 36、実行時 package 初期化 2」) は落とす。
+3. 非 import 委譲を対象外とする句には、収載 path の source bytes は委譲先であっても map の内である
+   ことを括弧で添える。例外の係り先が一意になる語順にする。
+4. 実行時に閉包を数えて文言を生成する機構、発行器の名前、記録済み成果物・歴史 scope 定数・
+   凍結 receipt の書き換えは行わない。
+
+**理由:**
+
+- 発見集合は収載 tuple が 63 のまま 2026-09-09 の 140 から 2026-09-16 の 162 へ動いた。
+  食い違いの源は収載の段階実装だけでなく、収載 member 側の import の変化にもある。
+  D1884 の次段階を待つ間も材料レポートは束縛していない集合を名乗り続けるので、単独で直す。
+- 日付・commit 付きの測定事実は将来古くなっても偽にならない。日付なしの数値は次の変化で偽になる。
+- 内訳は T-733 当時の追加根拠であり、現行の直接 import 被覆の分類ではない。63 本目の
+  `verify_fanout_worker.py` は import 先ではなく `pipeline.py` が ssh 経由で起動する subprocess
+  委譲先を明示収載したもので、旧文言の「subprocess を含む非 import 委譲は本 map の外」は
+  この 1 本について事実と食い違っていた。
+- 発行器名は snapshot 依存である (`autonomous_trial_completeness.py` は 09-09 には集合外、09-16 には
+  集合内)。文言へ焼くと次の変化で偽になる。
+- 実行時計算は新しい機構であり、依頼が scope 外と定めた「仮想リスク向けの一般化」に当たる。
+
+**却下した選択肢:**
+
+- D1884 の実装単位まで待つ (D1896) — 次段階の時期が未定で、その間の材料レポートが偽の集合を名乗る。
+- 実行時に閉包を数えて文言を生成する — 機構追加であり、収載 member の bytes に応じて文言が揮発する。
+- 内訳を「T-733 の 24/36/2 + T-2429 の 1」として残す — 現行被覆の分類と読ませ、63 本目の由来を誤らせる。
+- 発行器全体を網羅しないと明記する — 事実だが snapshot 依存の名前を文言へ持ち込む。集合の定義だけで足りる。
+
+**保証しない範囲 (記録):** `artifact_admission.py` は収載 path であり、本変更で blob が変わる。
+新規 lock の E1、admission receipt の validator sha256、B-4 projection hash は変わりうる
+(D170 (d) と B-4 事前登録本文が既に限界として記す)。記録済み map から再導出する E1 と、
+受理述語・一致検査・歴史 scope の判定は変わらない。
+
+## D2082. 受領証の complete trial は descriptor 証明を欠くと拒否し、部分 report の C02 保持は変えない (2026-09-16)
+
+**決定:** `orchestrator/campaign/s8c_acceptance_receipt.py` の `verify_acceptance_receipt` は、
+v2〜v5 の受領証について、`status` が `complete` の trial の report に実行 descriptor が無い
+(cells が空) 場合、`c02-arm-binding-unproven` の有無にかかわらず
+`[receipt-arm-binding] complete trial lacks descriptor proof` で拒否する。判定は既存の
+mandatory-reasons 判定の直後に置き、C02 を落とした形では従来の mandatory-reasons 文言が先に出る。
+`status` が `partial` の report が cells を持たず C02 を保持する形 (D519 の部分 report) は
+引き続き受理し、v5 の capability にも届く。
+
+**理由:**
+- 修正前の検証器は、report の cells を空にして C02 を残すだけで verified を返し、v5 では
+  `require_current_verified_receipt` まで通していた (login node の実走で再現、v2 と v5)。
+  期待と食い違う descriptor を持つ report は拒否されるのに、その cells を消して C02 を足すと
+  受理へ変わることも実測した。
+- D519 が descriptor 不在に例外を与えたのは「部分 report」であって、complete を名乗る report ではない。
+  本番 driver は complete を「全 workload の cell がそろい fatal_error なし」のときだけ付け、
+  登録 trial の workload は 1 件に束縛されるので、正規 producer は complete + cells 空を出さない。
+- v5 の status は attempt registry の最終 terminal と `complete⇔observed` / `partial⇔terminal-failure`
+  で束縛されるため、complete を partial に書き換えて逃げるには登録簿側も terminal-failure である
+  必要があり、その受領証は完了・観測成功を名乗らない。この保証は「完了・観測成功を名乗らない」
+  までであり、実行が始まらなかったことや証拠を消した過去が無いことまでは証明しない。
+- 新しい条件は既存 gate の含意ではない (D949)。期待 digest の一致と descriptor の不在は両立し、
+  修正前に verified を実測している。
+- v5 に限らず v2〜v5 共通にしたのは、legacy v2 でも反例を実測しており、D1757 が legacy への拡張を
+  退けた理由 (失われた campaign 現物の追加要求) を本件は伴わないため。v3 / v4 への効果は共通経路の
+  読解であって実測ではない。legacy の受理集合は complete + cells 空 + C02 の分だけ狭まる。
+
+**却下した選択肢:**
+- v5 限定にする — legacy v2 の実測反例を残す。版分岐の削減が理由ではない。
+- partial + cells 空 + C02 も拒否する — D519 の部分 report 許容と、producer が正規に発行する形
+  (`test_p6_one_cell_partial_terminal_outcome_passes_acceptance`) を拒否する。
+- legacy の任意の非空 status に値域 gate を足す — 静的には受理されるが、その形の実在・被害は
+  再現していない。仮想リスク向けの gate は本件の scope 外。
+- `require_current_verified_receipt` で C02 を一律拒否する — capability の意味を変える別仕様であり、
+  再現した欠陥の修正ではない。
+
+## D2083. 非 silo の within-run floor は既取得の較正 4 対に限って文書登録し、between-run の実測は D1373 の関門を維持したまま未実施と記録する (2026-09-16)
+
+**決定:** D2044 項 12 (非 silo の within-run floor の保留を、実測で示された protocol と workload に限って
+解除する) を次のとおり実装する。
+
+1. 解除の対象は、accepted な認定較正 record が存在する 4 対 — tictoc / rr50・rr95、mocc / rr50・rr95 —
+   に限る。登録する量は各 record の `noise_floor` (1 セッション内 reps=10 の throughput の変動係数) で
+   あり、性能比較の値でも、D1639 が「床値」と呼ぶ between-run noise floor でもない。
+2. 登録先は現行 phase doc の 8b 節とし、silo の rr95 / rr5 の accepted 較正と同じ形 (record の path、
+   request、node、records、採用点 LLC miss、within-run CV) で書く。値は insight の散文ではなく record
+   自身の `saturation.miss_rate_at` と `noise_floor.cv` から取る。環境契約の世代 registry
+   (`orchestrator/campaign/env_contract.py`) は変えない — これは世代ごとに 1 件の較正を契約値へ束縛する
+   pin であって、較正の一覧ではない。
+3. この登録は文書上の解除である。層 3 report の within-run 候補は `calibration/` 直下の glob と契約 pin の
+   和集合だけで `registered/` を走査しない (D1508) ので、登録によって 4 件が report へ流入するようには
+   ならない。silo の rr95 / rr5 も同じ状態にあり、登録の水準はそれと揃う。report へ接続するには契約世代の
+   登録・活性化と、その契約を持つ campaign が別に要る。本決定はそれを行わない。
+4. 依頼が名指した between-run floor の実測 (`orchestrator/campaign/between_run_floor.py --protocol
+   {tictoc,mocc}`) は行わない。現行 CCBench pin `511c9538` の checkout で、tictoc は driver の
+   `BASELINES` に無く引数解析で拒否され、mocc は `_protocol_source_has_trace_hook_evidence_only` が
+   偽を返し `main()` が build 前に拒否する。この関門は D1373 が「規律 2 の関門」と定めたものであり、
+   迂回も緩和もしない。親が login node で実測したのは述語の値 (silo=True、mocc=False、tictoc=False)・
+   `BASELINES` の鍵集合・引数解析の 3 点で、driver の rc=2 と `ValueError` は実装から導いた静的帰結である。
+   関門は checkout の source text だけを読むので計算ノードでも同じ判定になるが、計算ノードで実走して
+   確かめてはいない。
+5. between-run 実測の再開に必要な条件を必要条件として記す。mocc は、実際に checkout される
+   `cc/mocc/CMakeLists.txt` の SOURCES に列挙された同一 file に `trace.hh` の include・`#if TRACE`・
+   `izanagi_trace::` 呼出しの 3 証拠が (コメントと literal `#if 0` を除いて) 揃う pin へ進むこと。
+   現行の hook は submodule branch `izanagi-t1943-mocc-g2-readfrom-witness` にあり pin の祖先ではない。
+   tictoc はそれに加えて hook 自体の移植 (現行 phase doc 段 7 Group B) と driver の baseline 対応が要る。
+   いずれも関門を通る条件であって、測定の成功や verifier の通過を保証しない。
+6. 変えないもの: D1373 の関門、`orchestrator/tests/test_between_run_floor.py` の期待値、CCBench pin、
+   既存の較正 record 8 件と `between_run_noise_*.json` の bytes、非 silo の rr5・cicada・silo の状態語。
+   `BASELINES` へ tictoc を足すことも行わない — 足しても関門で止まり測定は開通せず、今回の登録に要らない。
+
+**理由:**
+- D2044 項 12 は「実証されていない組へ保証を広げない」ために範囲を 4 対に限った。登録の根拠はこの明示的な
+  用途限定の解除であり、「較正の変動係数は D1360 の禁止対象ではなかった」という読み替えには置かない。
+  D1360 は stock 専用計測経路の値を公式 report にも入れないと定めており、その一般解除は行っていない。
+- D1373 は判定を固定の許可リストでなく source の事実へ束縛した。pin が進んで hook が checkout に
+  現れれば判定は自動的に変わる。関門を触らずに待つのが設計どおりである。
+- accepted な較正は trace 分離検査 (binary に `izanagi_trace` が無い) を通っているが、それは正しさ検証の
+  通過ではない。登録に「certified」「検証済み」の語を付けない。
+
+**却下した選択肢:**
+- 全 protocol・全 workload の保留を一括解除する — 実証されていない組へ保証を広げる。
+- 較正の within-run CV を between-run floor の代わりに使う — 別の量であり、D19 / D1639 が塞いだ経路。
+- D1373 の関門を緩める、または pin を本 wave で進めて測る — 前者は規律 2 の弱体化、後者は凍結成果物が
+  束縛する pin の変更で本 wave の範囲を超える。
+- `BASELINES` へ tictoc を先に足しておく — 関門で止まるので測定は開通せず、今回の登録にも寄与しない。
+- 4 件を層 3 report へ接続するため契約世代を登録する — 依頼の範囲外で、登録・活性化・campaign の設計を
+  伴う別の変更単位。
+
+## D2084. gflags / glog の調達を url + pin の共通経路へ一本化し、機体固有の絶対 path を repo から消す (2026-09-17)
+
+**決定:** 共有 `tools/pegasus/policy.json` の `gflags_source_path` / `glog_source_path` (機体固有の
+絶対 path) を `gflags_source_url` / `glog_source_url` へ置き換える。pin は既存の `*_expected_head` を
+唯一の正本として据え置く。`tools/pegasus/fetch_third_party.py` の `fetch` / `hydrate` / `verify` は
+既定で 5 source (FetchContent 3 本 + find_package 2 本) を対象にし、`verify-deps` は廃止する。
+gflags / glog の列挙は FetchContent 側の `third_party_policy()` (CMake literal 同期検査つき) とは
+別権威にし、url 規約 (`https://github.com/` 前置・`.git` 終端) と pin 形式 (40 hex) は同じ強さで課す。
+旧 locator を読んでいた consumer (shell / PBS の job body 15 本、Python 5 本、data 1 本) は
+すべて同じ wave で、hydrate 済み staging root 配下 (`<root>/gflags`、`<root>/glog`) を使う形へ付け替える。
+staging root は既存の既定 (`silo_ladder_rung1.THIRD_PARTY_STAGING_RELATIVE`、repo 相対) と
+既存の env seam (`IZANAGI_THIRDPARTY_SOURCE_ROOT`) で解決し、新しい env・argv・submit 入力を足さない。
+凍結成果物の bytes は 1 byte も変えず、共有 policy の現行 bytes golden と silo 凍結 evidence の
+`pbs_job` / `submitter` binding は D200 の先例どおり「歴史値 + 現行 bytes の明示 pin」の 2 本立てへ移す。
+
+**理由:**
+
+- 2026-08-16 の裁定 (択 (b)) は「versioned な共通調達経路を新設」と「機体固有 path 結合の除去を
+  同じ wave で閉じる」を対にしている。段 3 の 2 レンズが独立に、「1 consumer だけ結線して残りを
+  後続へ残す」案が D1737 の却下 (同じ依存を 2 経路で pin する) に当たり、裁定の「同一 wave」にも
+  反すると結論した。
+- 依存の identity は変更前から版で縛られていた (`submission._dependency()` は `{commit, tree}` を記録し、
+  凍結 argv `REGISTERED_DEPENDENCY_BUILD_ARGV` は相対名)。機体固有だったのは locator だけで、
+  置換点は「git repo をどこから得るか」の 1 点に閉じる。
+- 廃止した `verify-deps` は `expected_url=None` / `allow_shallow=True` で、新 cache 経路
+  (origin 照合・非 shallow) への統合は受理集合の縮小であって弱体化ではない。
+- [T-2625] を通した「親が手で依存を建てて env で prefix を渡す」回避は、同裁定が択 (c) として
+  却下した形そのものだった。恒久の経路へ置き換える。
+- policy の bytes を変えると T-126 の series identity と campaign binding が変わる。これは D200 が
+  同じ変更で受理済みの影響であり、過去の成果物は書き換えない。
+
+**却下した選択肢:**
+
+- opt-in の入口 (`--include-build-deps` 等) で新経路を足し旧経路を残す — D1737 の却下状態を作る。
+- 別の task 別 policy file へ調達記述を置く — 凍結 policy の bytes は守れるが、gflags / glog の
+  正本が 2 箇所に割れる。
+- 既存 `third_party_policy()` の list へ gflags / glog を足す — 同関数は CMake の FetchContent literal
+  との同期を要求し、gflags / glog は `find_package` なので ContractFailure になる。
+- CCBench の `find_package` を optional にする — D1737 が却下済み。上流改変でありリンクで落ちる。
+- `tools/pegasus/` 配下に共通 helper を新設して 15 本から source する — 未登録 Pegasus 実行体として
+  機械防壁が拒否する (F660)。各 job body の同形 1 行で解決する。
+- 凍結 evidence の binding を新しい hash へ書き換える — 歴史の改竄 (D200)。
+
+## D2085. 依存 source の使用直前に hydrate と同等の検証を足すことは、本 wave では実装しない (2026-09-17)
+
+**決定:** job body が gflags / glog を build する直前の検査は、変更前と同じ「HEAD 完全一致 +
+`--untracked-files=all` を含む porcelain 空 + source 存在」のままとする。hydrate 時の
+`_verify_source` (index の隠蔽 bit、origin、shallow、ignored artifact) と同等の検査を使用直前へ
+足す案は、段 4 で一度採用 (R5) したが段 6 で訂正し、実装しない。
+**hydrate 時の検証結果が job の使用時点まで保証されるとは主張しない。** これは既知の限界として記録する。
+
+**理由:**
+
+- 段 6 のレビューが 15 本すべてについて「変更前の検査を消していない」と判定した。同じ改変
+  (`assume-unchanged` を立てた tracked 変更) は変更前も同じように見逃していた。本 wave の弱体化ではない。
+- 段 4 の R5 は、出所の相談所見が原文で「現行 floor の最低線より弱くなると確認できた回帰ではない」と
+  書いていたものを、親が scope 判定をせずに採ったものだった。
+- 通常の調達・投入の流れで hydrate 済み tree に `assume-unchanged` を立てる経路は無い。
+  ユーザーは本依頼で「仮想リスク向けの一般化・互換層の追加は scope 外」と明示し、D1736 は名指し外の
+  gate・検査を足さないと定める。
+- 規律 2 が禁じるのは正しさゲートを緩めることで、既存の検査は 1 つも緩めていない。
+
+**却下した選択肢:**
+
+- 使用直前に `_verify_source` 相当を全 15 本へ足す — 仮想リスクへの検査新設。規模も 15 本 × 契約テスト。
+- silo だけ足す — 一部だけ強い検査を持つ非対称は、名乗りを実装より強く見せる。

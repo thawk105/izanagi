@@ -2250,18 +2250,13 @@ def _require_condition_gates(
 
 
 def _dependency_contract() -> list[dict[str, Any]]:
-    policy = _load_json(_repo_root() / "tools/pegasus/policy.json")
+    source_root = Path(os.environ.get(THIRD_PARTY_SOURCE_ROOT_ENV)
+                       or _repo_root() / THIRD_PARTY_STAGING_RELATIVE)
     pins = _dependency_pins()
     records = []
-    for name, variable, source_key in (
-        (
-            "gflags", "IZANAGI_GFLAGS_INSTALL",
-            "gflags_source_path",
-        ),
-        (
-            "glog", "IZANAGI_GLOG_INSTALL",
-            "glog_source_path",
-        ),
+    for name, variable in (
+        ("gflags", "IZANAGI_GFLAGS_INSTALL"),
+        ("glog", "IZANAGI_GLOG_INSTALL"),
     ):
         pin = pins[name]
         value = os.environ.get(variable)
@@ -2270,7 +2265,7 @@ def _dependency_contract() -> list[dict[str, Any]]:
         path = Path(value).resolve(strict=True)
         if not path.is_dir():
             raise ContractFailure(f"dependency prefix is not a directory: {path}")
-        source = Path(policy[source_key]).resolve(strict=True)
+        source = (source_root / name).resolve(strict=True)
         head = _run([
             "git", "-C", str(source), "rev-parse", "--verify", "HEAD",
         ])

@@ -11,6 +11,11 @@ import subprocess
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
+from orchestrator.campaign.silo_ladder_rung1 import (
+    THIRD_PARTY_SOURCE_ROOT_ENV,
+    THIRD_PARTY_STAGING_RELATIVE,
+)
+
 from . import artifacts as qualification_artifacts
 from .artifacts import (
     QualificationArtifactError,
@@ -220,9 +225,11 @@ def verify_recorded_series_identity(
         if _fd_sha256(path) != row["sha256"]:
             raise IdentityVerificationError(
                 f"toolchain executable hash mismatch: {name}")
+    source_root = Path(os.environ.get(THIRD_PARTY_SOURCE_ROOT_ENV)
+                       or git_repo_root / THIRD_PARTY_STAGING_RELATIVE)
     dependency_paths = {
-        "gflags": policy.get("gflags_source_path"),
-        "glog": policy.get("glog_source_path"),
+        "gflags": source_root / "gflags",
+        "glog": source_root / "glog",
     }
     for name, row in toolchain["dependencies"].items():
         source = Path(dependency_paths.get(name, ""))

@@ -3201,6 +3201,33 @@ def test_cache_key_separates_compiler_request_name():
     )
 
 
+def test_cache_key_default_toolchain_change_does_not_alias_historical_key(monkeypatch):
+    # module global の差し替え + cc/cxx 明示は key 計算上の実編集と等価。
+    # 定義時既定を含む実編集での再現は T-785 の repo 外 probe が担う。
+    genome_value = Genome("silo", {"BACK_OFF": 1})
+    commit = "abc123"
+    src_token = "1" * 64
+    common = {
+        "trace": False,
+        "src_token": src_token,
+        "admission": _admission_for(genome_value, commit, src_token=src_token),
+    }
+    historical_key = buildcache.cache_key(genome_value, commit, **common)
+    changed_keys = []
+    for cc, cxx in (("gcc-12", "g++-12"), ("gcc", "g++")):
+        monkeypatch.setattr(buildcache, "DEFAULT_CC", cc)
+        monkeypatch.setattr(buildcache, "DEFAULT_CXX", cxx)
+        changed_key = buildcache.cache_key(
+            genome_value, commit, cc=cc, cxx=cxx, **common,
+        )
+        assert changed_key != historical_key
+        changed_keys.append(changed_key)
+        assert buildcache.cache_key(
+            genome_value, commit, cc="gcc-13", cxx="g++-13", **common,
+        ) == historical_key
+    assert changed_keys[0] != changed_keys[1]
+
+
 # ===== STAGE2: variant_id (WAL キー) =====
 
 def test_variant_id_deterministic_and_sensitive():

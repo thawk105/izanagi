@@ -664,7 +664,20 @@ def assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentin
         raw_values[label] = raw_value
     if set(values) != set(_SECTION5_LABELS):
         raise B4AdmissionRecordError(_SECTION5_SOURCE_CELL_CONTRACT_FAILED)
-    for value in values.values():
+    for label, value in values.items():
+        if label == "実行責任者・開始時刻":
+            match = re.fullmatch(
+                r"実行責任者 = (?P<owner>[^、=\r\n]+)、開始時刻 = 未記入",
+                value,
+            )
+            if match is not None:
+                owner = match.group("owner").strip()
+                if (
+                    owner
+                    and _RESERVED_SENTINEL_RE.search(owner) is None
+                    and owner.casefold() not in _RESERVED_SENTINEL_WHOLE_VALUES
+                ):
+                    continue
         if (
             not value
             or _RESERVED_SENTINEL_RE.search(value) is not None

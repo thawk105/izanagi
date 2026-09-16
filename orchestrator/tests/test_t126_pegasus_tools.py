@@ -16,6 +16,7 @@ import sys
 import time
 from copy import deepcopy
 from pathlib import Path
+from orchestrator.campaign.silo_ladder_rung1 import THIRD_PARTY_STAGING_RELATIVE
 
 import pytest
 from jsonschema import Draft7Validator
@@ -998,9 +999,7 @@ def _attempt(
             policy = json.loads(
                 (_ROOT / relative).read_text(encoding="utf-8"))
             policy.update({
-                "gflags_source_path": str(gflags),
                 "gflags_expected_head": gflags_commit,
-                "glog_source_path": str(glog),
                 "glog_expected_head": glog_commit,
             })
             path.write_text(json.dumps(policy) + "\n", encoding="utf-8")
@@ -1053,6 +1052,10 @@ def _attempt(
     commit = _git(repo, "rev-parse", "HEAD")
     tree = _git(repo, "rev-parse", "HEAD^{tree}")
     gitlink = _git(repo, "rev-parse", "HEAD:external/ccbench")
+    staging = repo / THIRD_PARTY_STAGING_RELATIVE
+    staging.mkdir(parents=True)
+    gflags.rename(staging / "gflags")
+    glog.rename(staging / "glog")
 
     external = (
         repo / "output/env/pegasus/qualification/t126/submissions"
@@ -3194,7 +3197,7 @@ def test_identity_consumer_rejects_protocol_policy_dependency_and_build_argv_tam
             reservation_policy=reservation_policy)
 
     dependency = json.loads(json.dumps(preimage))
-    dep_repo = Path(policy["gflags_source_path"])
+    dep_repo = repo / THIRD_PARTY_STAGING_RELATIVE / "gflags"
     (dep_repo / "second.txt").write_text("second\n", encoding="utf-8")
     _git(dep_repo, "add", ".")
     _git(dep_repo, "commit", "-qm", "second")
@@ -3290,7 +3293,7 @@ def _install_job_dependency_marker(
         fake_bin: Path, repo: Path, marker: Path) -> None:
     policy = json.loads(
         (repo / "tools/pegasus/policy.json").read_text(encoding="utf-8"))
-    gflags_source = policy["gflags_source_path"]
+    gflags_source = str(repo / THIRD_PARTY_STAGING_RELATIVE / "gflags")
     real_git = shutil.which("git")
     assert real_git is not None
     wrapper = fake_bin / "git"
@@ -3359,9 +3362,7 @@ def _submit_fixture(
     policy_path = tools / "policy.json"
     policy = json.loads(policy_path.read_text(encoding="utf-8"))
     policy.update({
-        "gflags_source_path": str(gflags),
         "gflags_expected_head": gflags_commit,
-        "glog_source_path": str(glog),
         "glog_expected_head": glog_commit,
         "perf_candidates": [str(perf)],
     })
@@ -3390,7 +3391,56 @@ def _submit_fixture(
          str(ccbench), "external/ccbench")
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "submit fixture")
+    staging = repo / THIRD_PARTY_STAGING_RELATIVE
+    staging.mkdir(parents=True)
+    gflags.rename(staging / "gflags")
+    glog.rename(staging / "glog")
     return repo, fake_bin, calls
+
+
+@pytest.mark.parametrize("missing_gflags", [False, True], ids=["hydrated", "missing-gflags"])
+def test_archived_submission_uses_checkout_dependency_staging(tmp_path, missing_gflags):
+    repo, fake_bin, _ = _submit_fixture(tmp_path)
+    helper_root = tmp_path / "archived-helper"
+    helper_root.mkdir()
+    archive = tmp_path / "helper.tar"
+    _git(repo, "archive", "--format=tar", f"--output={archive}", "HEAD",
+         "orchestrator", "tools/pegasus/policy.json")
+    shutil.unpack_archive(str(archive), str(helper_root))
+    assert not (helper_root / THIRD_PARTY_STAGING_RELATIVE).exists()
+    staging = repo / THIRD_PARTY_STAGING_RELATIVE
+    policy = json.loads((repo / "tools/pegasus/policy.json").read_text(encoding="utf-8"))
+    expected = {
+        name: {
+            "commit": policy[f"{name}_expected_head"],
+            "tree": _git(staging / name, "rev-parse", "HEAD^{tree}"),
+        }
+        for name in ("gflags", "glog")
+    }
+    if missing_gflags:
+        shutil.rmtree(staging / "gflags")
+    output_dir = tmp_path / "prepared"
+    output_dir.mkdir()
+    env = dict(os.environ)
+    env.pop("IZANAGI_THIRDPARTY_SOURCE_ROOT", None)
+    env.pop("PYTHONPATH", None)
+    env["PATH"] = str(fake_bin) + os.pathsep + env["PATH"]
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    completed = subprocess.run(
+        [sys.executable, "-I", "-B",
+         str(helper_root / "orchestrator/qualification/submission.py"),
+         "--repo-root", str(repo), "--output-dir", str(output_dir)],
+        cwd=helper_root, env=env, capture_output=True, text=True, timeout=120)
+    if missing_gflags:
+        assert completed.returncode == 2, completed.stderr
+        assert f"dependency source is unsafe: {staging / 'gflags'}" in completed.stderr
+        assert list(output_dir.iterdir()) == []
+    else:
+        assert completed.returncode == 0, completed.stderr
+        manifest = load_json_strict(output_dir / "toolchain-manifest.json")
+        assert manifest["dependencies"] == expected
+        preimage = load_json_strict(output_dir / "series-identity.json")
+        assert preimage["toolchain_manifest"] == manifest
 
 
 def _install_scheduler_stubs(
@@ -3977,11 +4027,16 @@ def test_submit_rejects_symlink_component_hidden_drift_and_skip_worktree(
     repo, fake_bin, calls = _submit_fixture(tmp_path)
     _install_scheduler_stubs(fake_bin, calls)
     outside = tmp_path / "outside"
-    outside.mkdir()
-    (repo / "output/env").parent.mkdir(parents=True, exist_ok=True)
+    (repo / "output/env").rename(outside)
     (repo / "output/env").symlink_to(outside, target_is_directory=True)
+    assert (repo / THIRD_PARTY_STAGING_RELATIVE / "gflags").is_dir()
+    assert (repo / THIRD_PARTY_STAGING_RELATIVE / "glog").is_dir()
+    fixture_entries = set(outside.rglob("*"))
     symlinked = _run_submit(repo, fake_bin)
     assert symlinked.returncode == 2
+    assert set(outside.rglob("*")) == fixture_entries
+    # Exclude the pre-existing fixture tree from the no-new-output check.
+    (outside / "pegasus").rename(tmp_path / "fixture-pegasus")
     assert list(outside.iterdir()) == []
 
     repo2, fake_bin2, calls2 = _submit_fixture(tmp_path / "hidden")
@@ -4585,7 +4640,8 @@ def test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_valu
         assert downstream_marker.is_file()
         assert completed.stderr == (
             "dependency source is not pinned-clean: "
-            + str(case_root / "gflags-case") + "\n")
+            + str(case_root / "repo-case" / THIRD_PARTY_STAGING_RELATIVE / "gflags")
+            + "\n")
     else:
         assert completed.stderr == "qualification envelope mismatch\n"
         assert not downstream_marker.exists()

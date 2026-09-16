@@ -1444,15 +1444,16 @@ def test_real_e0_is_rejected_only_by_certified_epoch_gate() -> None:
     assert excinfo.value.epoch_state == "E0"
     assert excinfo.value.reason_code == "v1-authority-absent"
     assert excinfo.value.identity_scope == (
-        "enforcement source closure (curated exact 62 path; 2026-09-01 の静的 import "
-        "発見集合 131 module のうち、既存 24、明示 import 先 36、実行時 package 初期化 "
-        "2 を収載; source-import 推移閉包ではない)"
+        "enforcement source closure (curated exact 63 path; source-import 推移閉包ではない; "
+        "発見集合は収載 tuple を起点に静的 import と package 初期化を辿った集合であり、"
+        "2026-09-16 (a1b40608c) の実測では 162 module、うち収載 63)"
     )
     assert excinfo.value.excluded_scope == (
-        "同発見集合の未収載 69 module、orchestrator/verifier/__main__.py、"
-        "orchestrator/verifier/cli.py、package 外の orchestrator/verify.py、および "
-        "data/schema、生成物、subprocess、外部 command/Git、toolchain、binary、動的 "
-        "import を含む非 import 委譲は本 map の外であり、完全性を主張しない"
+        "同実測の発見集合の未収載 99 module、同発見集合に入らない module、"
+        "orchestrator/verifier/__main__.py、orchestrator/verifier/cli.py、"
+        "package 外の orchestrator/verify.py、および data/schema、生成物、subprocess、"
+        "外部 command/Git、toolchain、binary、動的 import を含む非 import 委譲は本 map の外であり "
+        "(収載 path の source bytes は委譲先であっても本 map の内)、完全性を主張しない"
     )
 
 

@@ -195,23 +195,22 @@ def test_dependency_commands_use_verified_and_hydrated_paths(tmp_path, monkeypat
     calls = []
     (tmp_path / "third-party").mkdir()
     for name in ("masstree", "mimalloc", "googletest"):
-        (tmp_path / name).mkdir()
+        (tmp_path / "third-party" / name).mkdir()
     def run(argv, **kw):
         calls.append(argv)
         assert kw["check"] is True and kw["timeout"] > 0
-        names = ("gflags", "glog") if "verify-deps" in argv else ("masstree", "mimalloc", "googletest")
+        names = ("masstree", "mimalloc", "googletest", "gflags", "glog")
         return SimpleNamespace(stdout=json.dumps({"sources": [
-            {"name": name, "resolved_path": str(tmp_path / name)} for name in names]}))
+            {"name": name, "resolved_path": str(tmp_path / "third-party" / name)} for name in names]}))
     monkeypatch.setattr(b4.subprocess, "run", run)
     monkeypatch.setattr(b4.buildcache, "compilers_for_current_site", lambda: ("/cc", "/cxx"))
     prefixes, sources = b4.prepare_dependencies(tmp_path, cache_root=tmp_path / "cache")
-    assert "verify-deps" in calls[0]
+    assert "hydrate" in calls[0]
     assert calls[0][-2:] == ["--cache-root", str(tmp_path / "cache")]
-    assert "hydrate" in calls[-1]
-    assert calls[-1][-4:] == ["--staging-root", str(tmp_path / "third-party"), "--cache-root", str(tmp_path / "cache")]
-    assert len(calls) == 8
-    assert calls[1][2] == str(tmp_path / "gflags")
-    assert calls[4][2] == str(tmp_path / "glog")
+    assert calls[0][-4:] == ["--staging-root", str(tmp_path / "third-party"), "--cache-root", str(tmp_path / "cache")]
+    assert len(calls) == 7
+    assert calls[1][2] == str(tmp_path / "third-party" / "gflags")
+    assert calls[4][2] == str(tmp_path / "third-party" / "glog")
     assert f"-DCMAKE_PREFIX_PATH={prefixes[0]}" in calls[4]
     assert "-DCMAKE_CXX_COMPILER=/cxx" in calls[1]
     assert "-DWITH_GTEST=OFF" in calls[4]
@@ -223,7 +222,7 @@ def test_dependency_commands_use_verified_and_hydrated_paths(tmp_path, monkeypat
         assert Path(sources[name]).is_dir()
 
 
-@pytest.mark.parametrize("operation", ["verify-deps", "hydrate"])
+@pytest.mark.parametrize("operation", ["hydrate"])
 @pytest.mark.parametrize("timeout", [False, True])
 def test_helper_failure_retains_command_rc_and_output(tmp_path, monkeypatch, operation, timeout):
     monkeypatch.setattr(b4, "_install_dependency", lambda *a, **kw: None)
