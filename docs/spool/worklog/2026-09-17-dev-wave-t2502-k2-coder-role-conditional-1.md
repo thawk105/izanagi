@@ -19,7 +19,10 @@ title: [T-2502] driver の --run-iteration で manifest の sources が非空な
 - 実測 (いずれも HEAD c79437d24、Pegasus 計算ノード): 変異登録 6 node 焦点走 6 passed (request 2274)、`test_p3_s4_loop.py`
   単独走 414 passed (2290)、consumer 28 file 3204 passed / 28 skipped (2294)。変異 matrix は固定 commit の `-mut` worktree で
   baseline PASSED、M0 (comment 対照) SURVIVED、M1〜M5 KILLED、失敗 node 集合が事前登録と完全一致 (2291〜2302)。
-  敵対レビュー 2 レンズは GO / GO、must-fix 0。fix 子 0 本。受入全走は段 9 前に land 対象 tip で実走し結果は段 9 の記録に書く。
+  敵対レビュー 2 レンズは GO / GO、must-fix 0。fix 子 0 本。受入全走 1 (tip 4b3a8afd5、tested_main 1042a1bc9) は
+  child-green・24389 passed / 67 skipped・赤 0・flake 0。その land は 1 巡目 rc=10 (main fa24e6ea8 が先行、固定 SHA merge で
+  tip 08ba8f249)、2 巡目 rc=31 (F672 の EINTR 型、別 wave の登録 path、main 無傷) で止まり、F672 の復旧どおり受入を取り直した
+  (再発は failures fragment に記録。2 回目の受入と land の結果は land receipt と本エントリの着地 commit が正本)。
 - 裁定時に未記録だった新事実 (段 1 で実測、段 3 で real、段 4 で test 追随と裁定): 既存
   `test_emit_context_and_run_iteration_share_manifest_campaign_identity` は後半で sources 非空 manifest を `--run-iteration` + role 無しで
   通し `main == 0` を要求していた。D1878 の「正例を 1 件も壊さずに閉じられる」は意味上の正例 (空取得 + role 無し) には成り立つが、
