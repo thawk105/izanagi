@@ -18,6 +18,7 @@ import os
 import re
 import secrets
 import signal
+import shutil
 import stat
 import subprocess
 import sys
@@ -28,7 +29,7 @@ import unicodedata
 from collections.abc import Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -2120,14 +2121,314 @@ def _ledger_policy_is_visible(
     )
 
 
+_RECEIPT_SCHEMA = 1
+_RECEIPT_DIRECTORY = "provenance-audit-receipts"
+_RECEIPT_LIMIT = 64
+
+
+def _receipt_digest(value: object) -> str:
+    return hashlib.sha256(json.dumps(
+        value, sort_keys=True, ensure_ascii=True, separators=(",", ":"),
+    ).encode("ascii")).hexdigest()
+
+
+def _system_attributes_path():
+    """Resolve the attribute input, without attesting the Git executable."""
+    result = subprocess.run(
+        ["git", "var", "GIT_ATTR_SYSTEM"], cwd=REPO,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    if result.returncode == 0:
+        return os.fsdecode(result.stdout).rstrip("\n")
+    # Older Git lacks this var. Absolute compiled-in paths need no runtime
+    # prefix expansion. Unknown/relocatable builds conservatively miss cache.
+    executable = shutil.which("git")
+    if executable is None:
+        raise RuntimeError("cannot resolve system attributes")
+    paths = {os.fsdecode(item) for item in Path(executable).read_bytes().split(b"\0")
+             if item.startswith(b"/") and item.endswith(b"/gitattributes")
+             and b"\n" not in item}
+    if len(paths) != 1:
+        raise RuntimeError("cannot resolve system attributes")
+    return paths.pop()
+
+
+def _attribute_fingerprint(head):
+    """Bind worktree/index and local/global/system attribute inputs, independent of tip.
+
+    Untracked directories containing no tracked files are not enumerated for
+    .gitattributes discovery.
+    """
+    attribute_paths = {b".gitattributes"}
+
+    def add_ancestors(path):
+        directory = path.rpartition(b"/")[0]
+        while directory:
+            attribute_paths.add(directory + b"/.gitattributes")
+            directory = directory.rpartition(b"/")[0]
+
+    def file_bytes(path):
+        path = Path(path)
+        if not path.is_absolute():
+            path = REPO / path
+        try:
+            mode = stat.S_IFMT(path.lstat().st_mode)
+        except FileNotFoundError:
+            return {"kind": "absent"}
+        except OSError as error:
+            return {"kind": "unreadable", "errno": error.errno}
+        source = {"kind": mode}
+        try:
+            if stat.S_ISLNK(mode):
+                source["link"] = os.fsencode(os.readlink(path)).hex()
+            elif stat.S_ISREG(mode):
+                source["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError as error:
+            source["unreadable"] = error.errno
+        return source
+
+    info = _git("rev-parse", "--git-path", "info/attributes").rstrip("\n")
+    configured = subprocess.run(
+        ["git", "config", "--path", "--get", "-z", "core.attributesFile"],
+        cwd=REPO, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    if configured.returncode not in (0, 1):
+        raise RuntimeError("cannot resolve core.attributesFile")
+    if configured.returncode == 1:
+        xdg = os.environ.get("XDG_CONFIG_HOME")
+        home = os.environ.get("HOME")
+        default = (Path(xdg) / "git/attributes" if xdg else
+                   Path(home) / ".config/git/attributes" if home else None)
+        external = {"unset": True, "default":
+                    {"unresolved": True} if default is None else file_bytes(default)}
+    else:
+        external = {"unset": False, "file":
+                    file_bytes(os.fsdecode(configured.stdout[:-1]))}
+
+    index = subprocess.run(
+        ["git", "ls-files", "--stage", "-z"], cwd=REPO,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
+    ).stdout
+    indexed = []
+    for entry in index.split(b"\0"):
+        if entry:
+            metadata, name = entry.split(b"\t", 1)
+            add_ancestors(name)
+            if name.rsplit(b"/", 1)[-1] == b".gitattributes":
+                indexed.append([name.hex(), metadata.decode("ascii")])
+                attribute_paths.add(name)
+    # Probe only directories on index paths (plus the repository root). This includes
+    # untracked attributes along those paths without walking ignored outputs or
+    # submodule contents, and follows directory symlinks as Git does.
+    working = [[name.hex(), file_bytes(os.fsdecode(name))]
+               for name in sorted(attribute_paths)]
+    return _receipt_digest({"info": file_bytes(info),
+                            "configured": external, "index": sorted(indexed),
+                            "working": working,
+                            "system": file_bytes(_system_attributes_path())})
+
+
+def _receipt_bindings(head, scope_epoch, implementation_epoch, ancestry):
+    """Writer and reader share one OS user; receipts are no tamper barrier.
+    Attribute, environment, registry, or checker changes require the full audit.
+    Object storage and runtime versions are not attested.
+    """
+    common = Path(_git("rev-parse", "--git-common-dir").strip())
+    if not common.is_absolute():
+        common = REPO / common
+    common = common.resolve()
+    environment = {
+        "checker": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "schema": _RECEIPT_SCHEMA,
+        "config": _git("config", "--list"),
+        "inherited": {key: value for key, value in os.environ.items()
+                      if key.startswith(("GIT_", "LC_")) or key == "LANG"},
+    }
+    entries = _known_violation_head_entries(
+        _KNOWN_VIOLATION_REPO_ROOT,
+        _resolve_known_violation_head(_KNOWN_VIOLATION_REPO_ROOT),
+    )
+    manifest = [[name, mode.decode("ascii"), oid.decode("ascii")]
+                for name, (mode, oid) in sorted(entries.items())]
+    bindings = {
+        "environment": environment,
+        "repository": str(common),
+        "object_format": _git("rev-parse", "--show-object-format").strip(),
+        "policy": _policy_commit(head),
+        "scope_epoch": scope_epoch,
+        "implementation_epoch": implementation_epoch,
+        "cab_hits": sorted(oid for oid, i in ancestry.index.items()
+                           if ancestry.cab_policy_mask & (1 << i)),
+        "registry_manifest": _receipt_digest(manifest),
+        "attributes": _attribute_fingerprint(head),
+    }
+    return common / _RECEIPT_DIRECTORY / (
+        _receipt_digest(environment)) / (head + ".json"), bindings
+
+
+def _partition_receipts(path):
+    return path.parent.glob("*.json")
+
+
+def _prune_audit_receipts(path, head, ancestry):
+    # 64 tips cover several generations of 20+ concurrent waves while bounding
+    # lookup and storage per environment. Only regular receipt files are pruned.
+    saved = []
+    for candidate in _partition_receipts(path):
+        try:
+            info = candidate.lstat()
+            if stat.S_ISREG(info.st_mode):
+                receipt = _read_audit_receipt(candidate)
+                tip = receipt.get("tip") if isinstance(receipt, dict) else None
+                ancestor = (isinstance(tip, str)
+                            and ancestry.is_descendant(tip, head))
+                saved.append((ancestor, info.st_mtime_ns, candidate.name, candidate))
+        except FileNotFoundError:
+            continue
+    for _, _, _, candidate in sorted(saved)[:-_RECEIPT_LIMIT]:
+        try:
+            candidate.unlink()
+        except FileNotFoundError:
+            pass
+
+
+def _read_audit_receipt(path: Path):
+    """A cache miss has no diagnostic or authority; the full oracle decides."""
+    try:
+        directory = path.parent.lstat()
+        if not stat.S_ISDIR(directory.st_mode) or stat.S_IMODE(directory.st_mode) != 0o700:
+            return None
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        with os.fdopen(fd, "r", encoding="utf-8") as stream:
+            info = os.fstat(stream.fileno())
+            if not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600:
+                return None
+            return json.load(stream)
+    except (OSError, ValueError, UnicodeError, RecursionError):
+        return None
+
+
+def _publish_audit_receipt(state: dict) -> None:
+    """Writer and reader share one OS user; this is no tamper barrier.
+    Attribute, environment, registry, or checker changes require the full audit.
+    Only rc=0 publishes; failed persistence never reruns the audit.
+    """
+    if not state:
+        return
+    temporary = None
+    try:
+        path, receipt = state["path"], state["receipt"]
+        _assert_head_unchanged(receipt["tip"])
+        # Do not publish under bindings that changed during the audit.
+        _, current = _receipt_bindings(
+            receipt["tip"], receipt["bindings"]["scope_epoch"],
+            receipt["bindings"]["implementation_epoch"], state["ancestry"],
+        )
+        if current != receipt["bindings"]:
+            return
+        path.parent.parent.mkdir(mode=0o700, exist_ok=True)
+        path.parent.mkdir(mode=0o700, exist_ok=True)
+        info = path.parent.lstat()
+        if not stat.S_ISDIR(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o700:
+            return
+        fd, name = tempfile.mkstemp(prefix=".receipt-", dir=path.parent)
+        temporary = Path(name)
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            os.fchmod(stream.fileno(), 0o600)
+            json.dump(receipt, stream, sort_keys=True, ensure_ascii=True)
+            stream.flush()
+            os.fsync(stream.fileno())
+        _assert_head_unchanged(receipt["tip"])
+        os.replace(temporary, path)
+        temporary = None
+        _prune_audit_receipts(path, receipt["tip"], state["ancestry"])
+    except (OSError, RuntimeError, ValueError, UnicodeError, subprocess.CalledProcessError):
+        pass
+    finally:
+        if temporary is not None:
+            try:
+                temporary.unlink()
+            except OSError:
+                pass
+
+
+def _registry_specs(registry, selected):
+    return tuple(spec for oid, value in registry.items() if oid in selected
+                 for spec in ((value,) if isinstance(value, KnownViolationSpec) else value))
+
+
+def _receipt_prefix(receipt, bindings, commits, head, ancestry, registry):
+    """Validate every saved input and the complete successful prefix result."""
+    try:
+        if (not isinstance(receipt, dict)
+                or set(receipt) != {"schema", "returncode", "bindings", "tip",
+                                    "selection", "coverage", "candidate_count", "records"}
+                or type(receipt["schema"]) is not int
+                or receipt["schema"] != _RECEIPT_SCHEMA
+                or type(receipt["returncode"]) is not int
+                or receipt["returncode"] != 0
+                or receipt["bindings"] != bindings):
+            return None
+        tip = receipt["tip"]
+        if (not isinstance(tip, str)
+                or re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", tip) is None
+                or _git("cat-file", "-t", tip).strip() != "commit"
+                or not _is_descendant(tip, head)):
+            return None
+        prefix = [oid for oid in commits if ancestry.is_descendant(oid, tip)]
+        if (not isinstance(receipt["selection"], dict)
+                or type(receipt["selection"].get("count")) is not int
+                or receipt["selection"] != {
+                    "digest": _receipt_digest(sorted(prefix)), "count": len(prefix),
+                }):
+            return None
+        delta = _git("rev-list", "--reverse", f"{tip}..{head}").splitlines()
+        delta_set = set(delta)
+        if delta_set != set(commits) - set(prefix) or len(delta) != len(delta_set):
+            return None
+        records = receipt["records"]
+        if set(records) != {"findings", "corrected", "waived", "known_violations"} or records["findings"] != []:
+            return None
+        history = HistoryAudit(
+            [], [ForwardCorrected(**record) for record in records["corrected"]],
+            [ImplementationWaived(**record) for record in records["waived"]],
+            tuple(KnownViolationSpec(**record) for record in records["known_violations"]),
+        )
+        # Round-trip rejects extra/missing fields; all public payloads are strings.
+        if _receipt_digest(asdict(history)) != _receipt_digest(records):
+            return None
+        if any(not isinstance(value, str) for group in (
+                history.corrected, history.waived, history.known_violations)
+                for record in group for value in asdict(record).values()):
+            return None
+        eligible = _registry_specs(registry, set(prefix))
+        keys = sorted([list(_known_violation_key(spec)) for spec in eligible])
+        if (receipt["coverage"] != {"eligible": keys, "matched": keys}
+                or set(history.known_violations) != set(eligible)
+                or len(history.known_violations) != len(eligible)):
+            return None
+        count = receipt["candidate_count"]
+        if type(count) is not int or count not in (0, 1) or count != len(history.corrected):
+            return None
+        if any(record.target not in prefix or record.correction not in prefix
+               for record in history.corrected):
+            return None
+        if any(record.label not in prefix for record in history.waived):
+            return None
+        return prefix, [oid for oid in commits if oid in delta_set], history, count
+    except (OSError, RuntimeError, ValueError, TypeError, KeyError, UnicodeError):
+        return None
+
+
 def _audit_history(
     commits: list[str],
     *,
     authoritative: bool = False,
     head: str | None = None,
+    receipt_state: dict | None = None,
 ) -> HistoryAudit:
     """selected revision set を順序非依存の membership/lineage 条件で監査する。"""
-    if not commits:
+    if not commits and not authoritative:
         return HistoryAudit([], [], [])
     registry = _known_violation_registry()
     if authoritative:
@@ -2141,11 +2442,51 @@ def _audit_history(
         scope_epoch = _scope_policy_commit()
         implementation_epoch = _implementation_policy_commit()
     ancestry = _build_ancestry(
-        commits,
+        [head] if authoritative else commits,
         authoritative=authoritative,
         head=head,
     )
-    messages = _batch_commit_messages(commits) if ancestry is not None else None
+    if authoritative:
+        _isolated_parsed_trailers("provenance parser canary\n\nAI-Agent: none\n", no_divider=True)
+    path = bindings = reuse = None
+    if authoritative and receipt_state is not None:
+        receipt_state.clear()
+        try:
+            path, bindings = _receipt_bindings(head, scope_epoch, implementation_epoch, ancestry)
+            # Rank using the existing HEAD closure, before prefix validation.
+            selected_mask = 0
+            for oid in commits:
+                selected_mask |= 1 << ancestry.index[oid]
+            candidates = []
+            for candidate in sorted(_partition_receipts(path)):
+                receipt = _read_audit_receipt(candidate)
+                tip = receipt.get("tip") if isinstance(receipt, dict) else None
+                if not isinstance(tip, str) or not ancestry.is_descendant(tip, head):
+                    continue
+                distance = (selected_mask & ~ancestry.bits[ancestry.index[tip]]).bit_count()
+                candidates.append((distance, candidate.name, receipt))
+            for _, _, receipt in sorted(candidates, key=lambda item: item[:2]):
+                prefix = _receipt_prefix(
+                    receipt, bindings, commits, head, ancestry, registry,
+                )
+                if prefix is not None:
+                    reuse = prefix
+                    break
+        except (OSError, RuntimeError, ValueError, UnicodeError, subprocess.CalledProcessError):
+            pass
+    selected = commits if reuse is None else reuse[1]
+    messages = _batch_commit_messages(selected) if ancestry is not None else None
+    if reuse is not None:
+        # A raw candidate anywhere in D requires the full set-wide correction oracle.
+        try:
+            if messages is None or any(RAW_AI_AGENT_CORRECTION.search(record.message)
+                                       for record in messages.values()):
+                reuse = None
+        except (RuntimeError, UnicodeError):
+            reuse = None
+        if reuse is None:
+            selected = commits
+            messages = _batch_commit_messages(selected)
 
     def audit_one(commit: str) -> CommitAudit:
         return _normal_commit_audit(
@@ -2157,11 +2498,40 @@ def _audit_history(
             authoritative=authoritative,
         )
 
-    workers = max(1, min(AUDIT_WORKERS(), len(commits)))
+    workers = max(1, min(AUDIT_WORKERS(), len(selected)))
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        # Executor.map は入力順で結果を返し、list() 消費は入力順で最初の例外を
-        # 送出する。findings の逐語一致と rc=2 の例外同一性がここで保たれる。
-        audits = list(pool.map(audit_one, commits))
+        audits = list(pool.map(audit_one, selected))
+    history = _finish_history_audit(
+        selected, audits, registry=registry, implementation_epoch=implementation_epoch,
+        ancestry=ancestry, authoritative=authoritative,
+    )
+    candidate_count = sum(audit.correction.candidate_count for audit in audits)
+    if reuse is not None:
+        prefix, _, inherited, count = reuse
+        order = {oid: i for i, oid in enumerate(commits)}
+        history = HistoryAudit(
+            history.findings, inherited.corrected + history.corrected,
+            sorted(inherited.waived + history.waived, key=lambda record: order[record.label]),
+            tuple(sorted(inherited.known_violations + history.known_violations,
+                         key=lambda record: order[record.commit])),
+        )
+        candidate_count += count
+    if receipt_state is not None and path is not None and bindings is not None and not history.findings:
+        keys = sorted([list(_known_violation_key(spec))
+                       for spec in _registry_specs(registry, set(commits))])
+        receipt_state.update(path=path, ancestry=ancestry, receipt={
+            "schema": _RECEIPT_SCHEMA, "returncode": 0, "bindings": bindings,
+            "tip": head,
+            "selection": {"digest": _receipt_digest(sorted(commits)), "count": len(commits)},
+            "coverage": {"eligible": keys, "matched": keys},
+            "candidate_count": candidate_count, "records": asdict(history),
+        })
+    return history
+
+
+def _finish_history_audit(
+    commits, audits, *, registry, implementation_epoch, ancestry, authoritative,
+) -> HistoryAudit:
     by_commit = {audit.commit: audit for audit in audits}
     candidate_count = sum(
         audit.correction.candidate_count for audit in audits
@@ -3192,10 +3562,12 @@ def main(
                     _KNOWN_VIOLATION_REPO_ROOT
                 )
             commits = _commit_range(args.rev_range, head=head)
+            receipt_state = {} if authoritative else None
             history = _audit_history(
                 commits,
                 authoritative=authoritative,
                 head=head,
+                receipt_state=receipt_state,
             )
             if authoritative:
                 _assert_head_unchanged(head)
@@ -3272,6 +3644,8 @@ def main(
         _print_known_violation_groups(known_violation_groups)
     qualifier = "新規" if known_violations else ""
     print(f"check_ai_provenance: {checked} 件、{qualifier}違反なし")
+    if args.message_file is None and receipt_state is not None:
+        _publish_audit_receipt(receipt_state)
     return 0
 
 
