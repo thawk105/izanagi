@@ -354,7 +354,7 @@ for path_pattern, classification, reason in (
     (
         "trace0-preprocess-identity.json",
         "correctness_evidence",
-        "Certifies the TRACE=0 preprocess identity gate.",
+        "Certifies the D297 TRACE=0 preprocess identity gate, which is only one necessary condition for complete trace removal from the measurement build and does not prove that removal.",
     ),
     (
         "trace0-preprocess-identity.stderr",
@@ -423,7 +423,7 @@ if t1943_g2_i:
         (
             "trace0-preprocess-identity.json",
             "correctness_evidence",
-            "Certifies the TRACE=0 preprocess identity gate.",
+            "Certifies the D297 TRACE=0 preprocess identity gate, which is only one necessary condition for complete trace removal from the measurement build and does not prove that removal.",
         ),
         (
             "trace0-preprocess-identity.stderr",
@@ -1741,6 +1741,8 @@ PY
 if [[ "$TRACE_MODE" -eq 0 || "$T1943_G2" -eq 1 ]]; then
   # D297 checker is deliberately a hard gate.  Its nonzero result means that
   # TRACE=0 execution is skipped; no fallback or relaxed branch is permitted.
+  # This check proves the D297 guarantee and is one necessary condition for
+  # complete trace removal from the measurement build; it does not prove that removal.
   build_mode 0
   CHECKER_TOOL_PATH=$(realpath -e -- "$REPO_ROOT/tools/check_trace0_preprocess_identity.py")
   if [[ ! -f "$CHECKER_TOOL_PATH" || -L "$CHECKER_TOOL_PATH" ]]; then
