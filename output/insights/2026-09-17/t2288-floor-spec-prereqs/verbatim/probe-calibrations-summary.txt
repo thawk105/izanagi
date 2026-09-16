@@ -1,0 +1,64 @@
+== output/env/pegasus/calibration/registered/calibration-2b7ba072b88023ae.json
+   sha256=2b7ba072b88023aecb4361781229bb5343dbfa489f4c7cc3dd8369c33bd3a067
+   schema=None env_tag=pegasus threads=48 clocks_per_us=2100
+   workload={'ycsb_rmw': '0', 'ycsb_rratio': '5', 'ycsb_zipf_skew': '0.9'}
+   quality.status=accepted
+   saturation={'records': 2000000}
+   keys=['acquisition_receipt', 'attestation_profile', 'clocks_per_us', 'env_tag', 'genome', 'host', 'noise_floor', 'notes', 'quality', 'saturation', 'scale_sensitivity', 'schema_version', 'sweep', 'threads', 'workload']
+   provenance={}
+== output/env/pegasus/calibration/registered/calibration-449d0ad22f13e366.json
+   sha256=449d0ad22f13e3665ae8eb890c58a2fba25f7a5c95b0b039ce944f473e790008
+   schema=None env_tag=pegasus threads=48 clocks_per_us=2100
+   workload={'ycsb_rmw': '0', 'ycsb_rratio': '50', 'ycsb_zipf_skew': '0.9'}
+   quality.status=accepted
+   saturation={'records': 1000000}
+   keys=['acquisition_receipt', 'attestation_profile', 'clocks_per_us', 'env_tag', 'genome', 'host', 'noise_floor', 'notes', 'quality', 'saturation', 'scale_sensitivity', 'schema_version', 'sweep', 'threads', 'workload']
+   provenance={}
+== output/env/pegasus/calibration/registered/calibration-5c836a22eff9ab40.json
+   sha256=5c836a22eff9ab40cabb23cb597cd0b3c232979696c5784b6b3d358b92c789cc
+   schema=None env_tag=pegasus threads=48 clocks_per_us=2100
+   workload={'ycsb_rmw': '0', 'ycsb_rratio': '95', 'ycsb_zipf_skew': '0.9'}
+   quality.status=accepted
+   saturation={'records': 1000000}
+   keys=['acquisition_receipt', 'attestation_profile', 'clocks_per_us', 'env_tag', 'genome', 'host', 'noise_floor', 'notes', 'quality', 'saturation', 'scale_sensitivity', 'schema_version', 'sweep', 'threads', 'workload']
+   provenance={}
+== output/env/pegasus/calibration/registered/calibration-753f535a8d024727.json
+   sha256=753f535a8d02472781bb51b8f56cc383112a791ff2a1e80963039e83bcce5a49
+   schema=None env_tag=pegasus threads=48 clocks_per_us=2100
+   workload={'ycsb_rmw': '0', 'ycsb_rratio': '50', 'ycsb_zipf_skew': '0.9'}
+   quality.status=accepted
+   saturation={'records': 1000000}
+   keys=['acquisition_receipt', 'attestation_profile', 'clocks_per_us', 'env_tag', 'host', 'noise_floor', 'notes', 'quality', 'saturation', 'scale_sensitivity', 'schema_version', 'sweep', 'threads', 'workload']
+   provenance={}
+== output/env/pegasus/calibration/registered/calibration-94a4b79fa31bba3c.json
+   sha256=94a4b79fa31bba3c725bd9c18990ae60bea86dbcdb6eff19822a58a75fe5c5a9
+   schema=None env_tag=pegasus threads=48 clocks_per_us=2100
+   workload={'ycsb_rmw': '0', 'ycsb_rratio': '50', 'ycsb_zipf_skew': '0.9'}
+   quality.status=accepted
+   saturation={'records': 1000000}
+   keys=['acquisition_receipt', 'attestation_profile', 'clocks_per_us', 'env_tag', 'host', 'noise_floor', 'notes', 'quality', 'saturation', 'scale_sensitivity', 'schema_version', 'sweep', 'threads', 'workload']
+   provenance={}
+== output/env/pegasus/calibration/registered/calibration-9b49335d02ad4d2e.json
+   sha256=9b49335d02ad4d2e6fd82b241c600eb98d05cf6f31904e18863153a176a8e130
+   schema=None env_tag=pegasus threads=48 clocks_per_us=2100
+   workload={'ycsb_rmw': '0', 'ycsb_rratio': '50', 'ycsb_zipf_skew': '0.9'}
+   quality.status=accepted
+   saturation={'records': 1000000}
+   keys=['acquisition_receipt', 'attestation_profile', 'clocks_per_us', 'env_tag', 'genome', 'host', 'noise_floor', 'notes', 'quality', 'saturation', 'scale_sensitivity', 'schema_version', 'sweep', 'threads', 'workload']
+   provenance={}
+== output/env/pegasus/calibration/registered/calibration-b3329d93417c76ad.json
+   sha256=b3329d93417c76ad7cd8c61b1e1432224fe7abd078d8998d108f2ce4f4aae40f
+   schema=None env_tag=pegasus threads=48 clocks_per_us=2100
+   workload={'ycsb_rmw': '0', 'ycsb_rratio': '95', 'ycsb_zipf_skew': '0.9'}
+   quality.status=accepted
+   saturation={'records': 1000000}
+   keys=['acquisition_receipt', 'attestation_profile', 'clocks_per_us', 'env_tag', 'genome', 'host', 'noise_floor', 'notes', 'quality', 'saturation', 'scale_sensitivity', 'schema_version', 'sweep', 'threads', 'workload']
+   provenance={}
+== output/env/pegasus/calibration/registered/calibration-cb98513996e5ae35.json
+   sha256=cb98513996e5ae359c9c95abea053bbacbbe81c516c226e6c51f0ca8a130f3f3
+   schema=None env_tag=pegasus threads=48 clocks_per_us=2100
+   workload={'ycsb_rmw': '0', 'ycsb_rratio': '95', 'ycsb_zipf_skew': '0.9'}
+   quality.status=accepted
+   saturation={'records': 1000000}
+   keys=['acquisition_receipt', 'attestation_profile', 'clocks_per_us', 'env_tag', 'genome', 'host', 'noise_floor', 'notes', 'quality', 'saturation', 'scale_sensitivity', 'schema_version', 'sweep', 'threads', 'workload']
+   provenance={}
