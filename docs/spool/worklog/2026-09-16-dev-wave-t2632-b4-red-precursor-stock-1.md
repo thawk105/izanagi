@@ -55,9 +55,20 @@ title: [T-2632] B-4 の適格な赤 precursor は 0 件のままで、供給側�
   commit を amend し、受入を取り直した。attempt 1 の結果は上のとおりで、緑であることは変わらない。
 - 工数: codex 子 3 本、いずれも accepted (plan 1 = 334 秒 / 12 call、consult 2 = 256 秒 / 12 call と
   288 秒 / 9 call)。計算ノード job は 0 本。campaign・build・benchmark は 1 本も起動していない。
-- セッション異常: `tools/dev_wave_wait.py producer` が pid-only へ縮退して即座に rc=0 を返した。
-  `.done` と exit code で判定し直し、以後は `tail --pid` で待った。
-  `git worktree add` は共有 FS 上で 11 分超かかった。submodule 初期化は 1 度目が
+- **受入 attempt 2 は非帰属の赤だった。** rc=70 / child rc=1、内訳は `45 error, 24031 passed,
+  68 skipped`。45 件はいずれも **failure ではなく setup の error** で、本文は 3 件とも
+  `subprocess.TimeoutExpired`、対象は `git ls-files --others` / `git status --porcelain=v1` /
+  `git archive` が 30 秒で切れたものである (shard の `junit.xml` から読んだ。子 log には
+  FAILED 行しか出ない)。投入時の `/proc/loadavg` は `94.80 79.24 76.90` で上昇局面、
+  同時走行中の受入待ち手は 5 本だった。**本 wave の差分は docs のみで、落ちた 2 file
+  (`test_s8c_preregistration_predicates.py` / `test_t1259_qsub_env_delivery_probe.py`) の
+  どの assertion にも到達しない。** 署名一致ではなく error 本文と差分実体で非帰属と判定した。
+  同じ tip の attempt 1 相当は緑だった。
+- セッション異常は無かった。`tools/dev_wave_wait.py producer` が pid-only へ縮退して rc=0 を
+  返した場面があったが、`.done` の時刻を見ると producer は待ち手を張る前に正常終了しており、
+  **待ち手の判定は正しかった。** `DW-O01` の「完了は `.done` と exit code だけで判定し、
+  待ち手 rc を判定にしない」がそのまま効いた。
+- 環境の所要: `git worktree add` は共有 FS 上で 11 分超かかった。submodule 初期化は 1 度目が
   `runtime-io-failure: update-no-fetch` で落ち、DW-O08 に従い同じ引数で 1 度だけ再実行して通した。
 
 ## 次の一手差分
