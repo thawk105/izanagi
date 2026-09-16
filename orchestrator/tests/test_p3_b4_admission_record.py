@@ -480,6 +480,190 @@ def test_section5_source_cell_examples_and_expectation_bindings():
         )
 
 
+def test_section5_accepts_unrecorded_start_time_with_named_owner():
+    document = _section5_document(value_overrides={
+        "実行責任者・開始時刻": "実行責任者 = thawk105、開始時刻 = 未記入",
+    })
+    projection_by_driver = (
+        A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
+            document,
+            expected_claude_model_snapshot=_MODEL,
+            expected_effective_critic_prompt_sha256=_PROMPT,
+        )
+    )
+    assert dict(projection_by_driver) == _PROJECTIONS
+
+
+def test_section5_rejects_whole_unrecorded_owner_start_cell():
+    document = _section5_document(value_overrides={
+        "実行責任者・開始時刻": "未記入",
+    })
+    _raises(
+        A.B4AdmissionRecordError,
+        lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
+            document,
+            expected_claude_model_snapshot=_MODEL,
+            expected_effective_critic_prompt_sha256=_PROMPT,
+        ),
+        exact=_SECTION5_ERROR,
+    )
+
+
+def test_section5_rejects_unrecorded_owner_with_unrecorded_start():
+    document = _section5_document(value_overrides={
+        "実行責任者・開始時刻": "実行責任者 = 未記入、開始時刻 = 未記入",
+    })
+    _raises(
+        A.B4AdmissionRecordError,
+        lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
+            document,
+            expected_claude_model_snapshot=_MODEL,
+            expected_effective_critic_prompt_sha256=_PROMPT,
+        ),
+        exact=_SECTION5_ERROR,
+    )
+
+
+def test_section5_rejects_whitespace_owner_with_unrecorded_start():
+    document = _section5_document(value_overrides={
+        "実行責任者・開始時刻": "実行責任者 =    、開始時刻 = 未記入",
+    })
+    _raises(
+        A.B4AdmissionRecordError,
+        lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
+            document,
+            expected_claude_model_snapshot=_MODEL,
+            expected_effective_critic_prompt_sha256=_PROMPT,
+        ),
+        exact=_SECTION5_ERROR,
+    )
+
+
+def test_section5_rejects_reserved_owner_with_unrecorded_start():
+    for value in (
+        "実行責任者 = TBD、開始時刻 = 未記入",
+        "実行責任者 = ＴＢＤ、開始時刻 = 未記入",
+        "実行責任者 = N/A、開始時刻 = 未記入",
+        "実行責任者 = 要記入、開始時刻 = 未記入",
+        "実行責任者 = x、開始時刻 = 未記入",
+        "実行責任者 = ---、開始時刻 = 未記入",
+    ):
+        document = _section5_document(value_overrides={
+            "実行責任者・開始時刻": value,
+        })
+        _raises(
+            A.B4AdmissionRecordError,
+            lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
+                document,
+                expected_claude_model_snapshot=_MODEL,
+                expected_effective_critic_prompt_sha256=_PROMPT,
+            ),
+            exact=_SECTION5_ERROR,
+        )
+
+
+def test_section5_rejects_other_start_sentinels():
+    for value in (
+        "実行責任者 = thawk105、開始時刻 = TODO",
+        "実行責任者 = thawk105、開始時刻 = 要記入",
+    ):
+        document = _section5_document(value_overrides={
+            "実行責任者・開始時刻": value,
+        })
+        _raises(
+            A.B4AdmissionRecordError,
+            lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
+                document,
+                expected_claude_model_snapshot=_MODEL,
+                expected_effective_critic_prompt_sha256=_PROMPT,
+            ),
+            exact=_SECTION5_ERROR,
+        )
+
+
+def test_section5_rejects_unrecorded_start_suffix():
+    document = _section5_document(value_overrides={
+        "実行責任者・開始時刻": "実行責任者 = thawk105、開始時刻 = 未記入（後日記入）",
+    })
+    _raises(
+        A.B4AdmissionRecordError,
+        lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
+            document,
+            expected_claude_model_snapshot=_MODEL,
+            expected_effective_critic_prompt_sha256=_PROMPT,
+        ),
+        exact=_SECTION5_ERROR,
+    )
+
+
+def test_section5_rejects_reordered_unrecorded_start_fields():
+    document = _section5_document(value_overrides={
+        "実行責任者・開始時刻": "開始時刻 = 未記入、実行責任者 = thawk105",
+    })
+    _raises(
+        A.B4AdmissionRecordError,
+        lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
+            document,
+            expected_claude_model_snapshot=_MODEL,
+            expected_effective_critic_prompt_sha256=_PROMPT,
+        ),
+        exact=_SECTION5_ERROR,
+    )
+
+
+def test_section5_rejects_extra_owner_start_field():
+    document = _section5_document(value_overrides={
+        "実行責任者・開始時刻": "実行責任者 = thawk105、代理 = other、開始時刻 = 未記入",
+    })
+    _raises(
+        A.B4AdmissionRecordError,
+        lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
+            document,
+            expected_claude_model_snapshot=_MODEL,
+            expected_effective_critic_prompt_sha256=_PROMPT,
+        ),
+        exact=_SECTION5_ERROR,
+    )
+
+
+def test_section5_rejects_optional_start_syntax_in_other_label():
+    value = "実行責任者 = thawk105、開始時刻 = 未記入"
+    document = _section5_document(value_overrides={
+        "実行責任者・開始時刻": value,
+        "env_tag (実測環境)": value,
+    })
+    _raises(
+        A.B4AdmissionRecordError,
+        lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
+            document,
+            expected_claude_model_snapshot=_MODEL,
+            expected_effective_critic_prompt_sha256=_PROMPT,
+        ),
+        exact=_SECTION5_ERROR,
+    )
+
+
+def test_section5_rejects_unrecorded_other_rows_with_optional_start():
+    for label in _SECTION5_LABELS:
+        # The expectation row has a separate grammar contract; do not use
+        # a malformed expectation as evidence for sentinel preservation.
+        if label in ("実行責任者・開始時刻", _EXPECTATION_ROW_LABEL):
+            continue
+        document = _section5_document(value_overrides={
+            "実行責任者・開始時刻": "実行責任者 = thawk105、開始時刻 = 未記入",
+            label: "未記入",
+        })
+        _raises(
+            A.B4AdmissionRecordError,
+            lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(
+                document,
+                expected_claude_model_snapshot=_MODEL,
+                expected_effective_critic_prompt_sha256=_PROMPT,
+            ),
+            exact=_SECTION5_ERROR,
+        )
+
+
 def test_section5_expectation_row_rejects_nfkc_only_ascii_grammar_matches():
     live_projections = {
         kind: C.projection_sha256(kind)

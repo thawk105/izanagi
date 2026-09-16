@@ -1,0 +1,134 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 420,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_lock.py",
+          "old": "    if (type(blob_sha256s) is dict\n            and tuple(blob_sha256s)\n            == tuple(sorted(T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS))):\n        authority = _validate_t733_exact62_historical_authority(authority_value)\n    else:\n        authority = _validate_pre_t733_historical_authority(authority_value)\n",
+          "new": "    authority = _validate_pre_t733_historical_authority(authority_value)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_lock.py",
+          "old": "            PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS,\n            T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS,\n        ):\n",
+          "new": "            PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS,\n        ):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_lock.py",
+          "old": "    \"orchestrator/qualification/series.py\",\n)\n\n_HEX40_RE = re.compile(r\"[0-9a-f]{40}\\Z\")\n",
+          "new": "    \"orchestrator/qualification/retry_index.py\",\n)\n\n_HEX40_RE = re.compile(r\"[0-9a-f]{40}\\Z\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_lock.py",
+          "old": "T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS = (\n    \"orchestrator/campaign/env_contract.py\",\n    \"orchestrator/campaign/env_contract_activation.py\",\n",
+          "new": "T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS = (\n    \"orchestrator/campaign/env_contract_activation.py\",\n    \"orchestrator/campaign/env_contract.py\",\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_lock.py",
+          "old": "        if (type(self.contract_loader_blob_sha256s) is not dict\n                or tuple(self.contract_loader_blob_sha256s) != grammar):\n",
+          "new": "        if (type(self.contract_loader_blob_sha256s) is not dict\n                or set(self.contract_loader_blob_sha256s) != set(grammar)):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "                in (campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS,\n                    campaign_lock.T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS)):\n",
+          "new": "                in (campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS,)):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "    elif relative_paths == campaign_lock.T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS:\n        diagnostic = HistoricalCampaignVerifierEpoch(\n            campaign_verifier_epoch=display,\n            state=\"E1\",\n            reason_code=\"recorded-closure\",\n            identity_scope=T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_SCOPE,\n            excluded_scope=T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,\n        )\n",
+          "new": "    elif relative_paths == campaign_lock.T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS:\n        diagnostic = CampaignVerifierEpoch(\n            campaign_verifier_epoch=display,\n            state=\"E1\",\n            reason_code=\"recorded-closure\",\n        )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "            elif scopes == (\n                T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_SCOPE,\n                T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,\n            ):\n                expected_paths = campaign_lock.T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS\n            else:\n                raise TypeError(\"historical campaign verifier epoch scope の組が不正\")\n",
+          "new": "            else:\n                expected_paths = campaign_lock.T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/campaign_lock.py",
+          "old": "    if (type(blob_sha256s) is not dict\n            or tuple(sorted(blob_sha256s))\n            != tuple(sorted(CONTRACT_LOADER_RELATIVE_PATHS))):\n        raise CampaignLockCodecError(\n            \"authority.contract_loader_blob_sha256s の exact key 集合が不正\"\n        )\n    checked_blobs = {\n        path: _require_hex(\n            blob_sha256s[path], width=64,\n            label=f\"authority.contract_loader_blob_sha256s[{path!r}]\",\n        )\n        for path in CONTRACT_LOADER_RELATIVE_PATHS\n    }\n",
+          "new": "    if (type(blob_sha256s) is not dict\n            or not set(blob_sha256s) <= set(CONTRACT_LOADER_RELATIVE_PATHS)):\n        raise CampaignLockCodecError(\n            \"authority.contract_loader_blob_sha256s の exact key 集合が不正\"\n        )\n    checked_blobs = {\n        path: _require_hex(\n            blob_sha256s[path], width=64,\n            label=f\"authority.contract_loader_blob_sha256s[{path!r}]\",\n        )\n        for path in sorted(blob_sha256s)\n    }\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
