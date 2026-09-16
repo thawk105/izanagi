@@ -1713,6 +1713,19 @@
   (「累積競合待機予算」が両方に現に在る) である。carry の語 (T 番号) では commit も実装 wave の
   worklog エントリも 1 件も当たらない。恒久対応は既存の `DW-S01` の前提実測義務と D1980 のままで、
   `/rulings` 側が済を照合する機構は引き続き未実装である。
+
+- **再発: 2026-09-16** — [T-2655] (差分 provenance 監査) を entry (1529) が実装・記録しながら、
+  次の一手差分で自 task ID を `完了` 節へ明示しなかったため、暗黙 carry が `- [T-2655] (N)` を
+  (1528) から (1543) まで送り続けた。2026-08-18 型 (記録 commit 自身が未消化 carry を残す) の
+  再発である。新しい面は**起票側の不在確認が 3 つとも「正しいが不在証明でない」形をしていた**こと。
+  ユーザーは (a) `git log main --grep=T-2655` = 0 件、(b) 関連 2 branch の `main..branch` = 0、
+  (c) 中身の無い worktree 残骸、の 3 点を未着手の根拠として提示したが、(a) は着地 commit の題が
+  英文で task ID を含まないため、(b) は land 後の ff-only の結果であるため、(c) は撤去漏れの
+  land 済み残骸であるため、いずれも不在を示さない。**着地判定の一次は commit 題でも branch の
+  ahead 数でもなく成果物そのものの実在**であり、本 wave は `tools/check_ai_provenance.py` の
+  `_receipt_bindings` / `_receipt_prefix` / `_publish_audit_receipt` の実在を読んで初めて済を
+  確定した。恒久対応 1 (`DW-S01` の brief 前照合) は今回も投入前に機能し、実装子は 1 本も
+  走らなかった。機械防壁は無いままである。
 ### F36. 受入・検査の結果欄をプレースホルダのまま記録 commit し、恒久対応の実行が空証明になった [恒真ゲート] [手順漏れ]
 
 - 事象: `<受入結果を反映>` `<反映>` というリテラルのプレースホルダが埋められないまま記録 commit に
@@ -12103,6 +12116,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   stdout (pytest 標準の `short test summary info` セクションと ERROR excerpt) を
   読まないと区別できない** (ledger の `failed_nodes` だけでは FAILED/ERROR の別が
   失われる)。
+
+- **再発: 2026-09-16** — [T-2125] wave の親が、閉包 member (`artifact_admission.py` / `build_admission.py` / `wal.py`) を変異させた本走の結果を、核を差し引く前に「8/8 KILLED・期待 node 完全一致」と記録した。`DW-M08` に従って probe の観測 node 集合をそのまま期待 node に再登録していたため、**完全一致は核を含んだ集合どうしの一致であり、核の有無を何も否定しない。** 段 8 で F358 を読み直して交差を取ったところ、核は 5 node (`test_layer3_report.py` の certifying 系、原因 `contract-loader-drift`)、delta が空の変異は 0 本で、KILLED 判定自体は正しかった (M3・M4・M7 は delta = 1 で狙った node ちょうど)。land 前に捕捉した near miss である。**再登録で期待 node を観測集合に合わせる手順は、F358 の差し引きを代替しない。**
 ### F359. codex 子は `.git` が read-only で `git merge` を起動できない [手順漏れ]
 
 - 事象: 実装面の main 取り込みを Codex `role=author` の子に投げたところ、
@@ -26722,3 +26737,27 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   1 文追加した ([T-2588] の段 8)。
 - 再発検知: 初期化の直後に対象 submodule directory の実体を数え、0 件なら緑と扱わない。
   本 wave では submit-tree 側の初期化でも同じ実測を入れ、13 件を確認してから次へ進んだ。
+
+### F1007. import を壊す変異は collect error になり、node 抽出が 0 件で PARSE_ERROR になる [手順漏れ]
+
+- 事象: 2026-09-16、[T-304] wave の変異 probe。`orchestrator/codex_roles/review_ledger.py` の
+  `SOURCE_FILE_SHA256["planner-v4"]` を旧値へ戻す変異が、2 度続けて `PARSE_ERROR` (観測 node 0 件) で
+  終わった。1 度目は kill 集合 153 / 214 node の中継上限が疑われたが、対象を designated gate 4 本へ
+  絞って kill 集合を 1〜3 node にしても同じだった。**2 走ぶん (約 20 分) を誤った原因仮説に使った。**
+- 根本原因: この変異は `orchestrator/codex_roles/spec.py` の `load_role_specs()` を **module import 時**に
+  `RoleSpecError` で落とす。`orchestrator/tests/test_codex_agents.py` は
+  `tools/check_codex_agents.py` を module 級で exec するため、pytest の collect 段階で 48 件の
+  `when=collect` error になる。`DW-M08` の node 抽出は `FAILED` 行から `<file>::<test>` を取る規約なので、
+  **nodeid が file 級しかない collect error からは 1 件も取れない。**
+- 誤った結果は出ていない: `DW-M08` の「rc≠0 で 0 件は fail-closed 停止」が働き、harness は
+  `PARSE_ERROR` を返して後続を止めた。**防壁は破れておらず、破れたのは原因の読みである。**
+- 恒久対応: `docs/dev-wave/mutation.md` `DW-M07` の fail-closed 規約 (`KILLED`期待で node 空の spec は
+  起動前に中止、probe は全件 `SURVIVED` 登録) が誤った kill の記録を機械的に塞ぐ。本エントリが足すのは
+  **再照準の型**である — 同型に当たったら、同じ pin 閉包を import を壊さない別 file
+  (生成 adapter が埋め込む source sha256 等) で突く形へ変える。本 wave はこの形で 5/5 KILLED に
+  到達した (`output/insights/2026-09-16/t304-throughput-rename/README.md` の erratum 節)。
+  **この型を `DW-M07` の本文へ収容できなかった理由も記録する** — 同節は単節予算 1000 bytes に
+  飽和しており、`--out`/`--attempt-out` に `--spec` を足す 9 bytes の事実訂正を入れるだけで
+  超過したため、意味を変えない縮約で余白を作って事実訂正だけを収容した。
+- 再発検知: 変異 probe が `PARSE_ERROR` を返したら中継上限と即断せず、job stdout の
+  `when=collect` 行数を数える。0 件でなければ本型である。

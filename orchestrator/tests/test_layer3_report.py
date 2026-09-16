@@ -1888,6 +1888,44 @@ def test_historical_build_report_projects_unknown_current_verifier_conformance(
     assert report["current_verifier_conformance"] == "unknown"
 
 
+def test_historical_policy_version_report_schema(tmp_path, monkeypatch):
+    from orchestrator.campaign import build_admission as B
+    from orchestrator.tests import test_artifact_admission as support
+
+    repo = support._committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    with monkeypatch.context() as issuing:
+        issuing.setattr(B, "CURRENT_PIN", "d706650")
+        issuing.setattr(support, "CURRENT_PIN", "d706650")
+        issuing.setattr(support.receipt_support, "CURRENT_PIN", "d706650")
+        # Recreate the cached proof policy only for this campaign's issuance.
+        issuing.setattr(
+            support.receipt_support, "_PROOF_BUILD_CONTEXT",
+            B.build_run_context(generator_id=B.GeneratorId.BACKOFF_SWEEP),
+        )
+        campaign = support._new_schema_campaign(tmp_path / "recorded")
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=tmp_path,
+    )
+    assert report["admission_decision"]["classification"] == "historical-policy-version"
+    assert report["admission_decision"]["admission_status"] == "historical-not-reclassified"
+    assert report["current_verifier_conformance"] == "unknown"
+    assert report["certifying_input"] is False
+    layer3_report._validate_schema(report)
+
+    # Isolate classification from every other historical marker.
+    report.pop("current_verifier_conformance")
+    report.pop("campaign_verifier_epoch", None)
+    report["admission_decision"]["admission_status"] = "admitted"
+    report["acceptance_receipt"] = {"path": "acceptance/test.json", "sha256": "a" * 64}
+    report["certifying_input"] = True
+    report["admission_decision"]["classification"] = "admitted-new-schema"
+    layer3_report._validate_schema(report)
+    report["admission_decision"]["classification"] = "historical-policy-version"
+    with pytest.raises(layer3_report.Layer3ReportError, match="layer3 schema 検証に失敗$"):
+        layer3_report._validate_schema(report)
+
+
 def test_historical_build_report_displays_e0_without_rejection(
     tmp_path: Path, monkeypatch,
 ) -> None:

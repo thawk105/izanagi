@@ -47,7 +47,7 @@ sort-strategy は **スカラー値でなく閉じた 79 値 IR 文法の compar
     "magnitude": "small|medium|large",
     "justification": "..."
   },
-  "baseline": {"throughput_ops_sec": 88124.1, "abort_rate_pct": 7.9},
+  "baseline": {"throughput_tps": 88124.1, "abort_rate_pct": 7.9},
   "whiteboard": [
     { "iteration": 1, "direction": "increase", "magnitude": "small", "result": "fail", "delta_pct": null }
   ]

@@ -1,0 +1,2316 @@
+[
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-18T21:49:23+09:00",
+  "commit_date": "2026-08-18T22:41:45+09:00",
+  "oid": "0b92c254b830bc333386eacafdc5d113292116be",
+  "parents": [
+   "d5294c9e6522d15cc22599c52bd4a39af22d946a"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json"
+  ],
+  "same_subject_on_main": [
+   "9898d543388b26cd79fc0225d1339b6c71195b99 2026-08-18T22:50:17+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "docs(s8c): [T-1348] 変異 spec (probe) と段 1-6 の逐語を記録する",
+  "tree": "5a1a055881305fbf9d395f46cf16e60ddc11e62d"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-18T21:49:23+09:00",
+  "commit_date": "2026-08-18T21:49:23+09:00",
+  "oid": "0decf0a4eae5be07e59961e1d9fc735b42bae962",
+  "parents": [
+   "77aa740bdf4379b25baba3dfc7a551676269ea2d"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json"
+  ],
+  "same_subject_on_main": [
+   "9898d543388b26cd79fc0225d1339b6c71195b99 2026-08-18T22:50:17+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "docs(s8c): [T-1348] 変異 spec (probe) と段 1-6 の逐語を記録する",
+  "tree": "e6f5cb3bef43607ca57b11cc175ee89add64512b"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-11T20:24:48+09:00",
+  "commit_date": "2026-08-11T20:24:48+09:00",
+  "oid": "1aa5ae77aa862ea68f5a5509ee748bd26ce18dab",
+  "parents": [
+   "b365e4777908b5fac873790e91a697185fba189f"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights",
+    "parent_dir_entries": [
+     "output/insights/2026-06-18_calibration-no-cache-miss-saturation.md",
+     "output/insights/2026-06-18_phantom-predicate-out-of-scope.md",
+     "output/insights/2026-06-19_ccbench-silo-wal-ftruncate-xor-bug.md",
+     "output/insights/2026-06-19_invisible-reads-i2-reconciliation.md",
+     "output/insights/2026-06-19_oze-skew-pathology.md",
+     "output/insights/2026-06-22_ccbench-backoff-add-analysis-segfault.md",
+     "output/insights/2026-06-22_orphan-livelock-contaminated-measurement.md",
+     "output/insights/2026-06-22_p2-3-critic-leading-indicator-attribution.md",
+     "output/insights/2026-06-22_p2-case-study-backoff-synthesis.md",
+     "output/insights/2026-06-22_silo-both-no-wait-zero-livelock.md",
+     "output/insights/2026-06-29_p2-5-guided-vs-enumeration.md",
+     "output/insights/2026-06-30_git-log-divergence-causes-and-recovery.md",
+     "output/insights/2026-06-30_loop-src-token-consumer-followthrough.md",
+     "output/insights/2026-06-30_phase3-task2-evolve-block-adversarial-review.md",
+     "output/insights/2026-07-02_phase3-task3-h3-hooks-adversarial-review.md",
+     "output/insights/2026-07-03_phase3-kickoff-blocking-adversarial-review.md",
+     "output/insights/2026-07-03_phase3-task3-h3-hooks-round2-handoff.md",
+     "output/insights/2026-07-06_s2-design-adversarial-review.json.gz",
+     "output/insights/2026-07-06_s3-auditor-live-n1.md",
+     "output/insights/2026-07-06_s4-consumer-design-adversarial.json.gz",
+     "output/insights/2026-07-07_s4-loop-inherited-audit.json.gz",
+     "output/insights/2026-07-08_s4b-loopstate-audit.json",
+     "output/insights/2026-07-09_s2-pipeline-wiring-adversarial-review.json.gz",
+     "output/insights/2026-07-10_s6-sort-sweep-preliminary.md",
+     "output/insights/2026-07-10_s8a-axis-proposer-design-review.json.gz",
+     "output/insights/2026-07-10_s8a-axis-proposer-embodiment-review.json.gz",
+     "output/insights/2026-07-10_s8a-n1-proposal-and-scoring.json.gz",
+     "output/insights/2026-07-10_s8a-n1-provenance.json",
+     "output/insights/2026-07-10_s8a-stage-b-sheet-backoff-trigger-gating.md",
+     "output/insights/2026-07-11_docs-compression-verify.json.gz",
+     "output/insights/2026-07-11_docs-token-audit.json.gz",
+     "output/insights/2026-07-11_post-d-genjo-audit.json.gz",
+     "output/insights/2026-07-11_roadmap-consistency-audit.md",
+     "output/insights/2026-07-11_s8a-trigger-gating-recon.md",
+     "output/insights/2026-07-12_s6-headline-system-level-reframe-draft.md",
+     "output/insights/2026-07-12_s8a-stage-e-coder-agent-draft.md",
+     "output/insights/2026-07-12_s8a-stage-e-design-review.md",
+     "output/insights/2026-07-12_strategy-review-headline-axis.md",
+     "output/insights/2026-07-13_s6-canary-anonymized.patch",
+     "output/insights/2026-07-13_s6-canary-rename-provenance.json.gz",
+     "output/insights/2026-07-13_s6-canary-rename.md",
+     "output/insights/2026-07-13_s6-n-determination-review.json.gz",
+     "output/insights/2026-07-13_s6-n-determination.md",
+     "output/insights/2026-07-13_s6-report-language.md",
+     "output/insights/2026-07-13_s6-round-execution-design-review.json.gz",
+     "output/insights/2026-07-13_s6-round-execution-design.md",
+     "output/insights/2026-07-13_s6-rounds-content-analysis.md",
+     "output/insights/2026-07-13_s6-scoring-prompt-check.json.gz",
+     "output/insights/2026-07-14_bench-first-screening-design.md",
+     "output/insights/2026-07-14_codex-agent-adapter-reaudit.json.gz",
+     "output/insights/2026-07-14_codex-agent-adapter-remediation.json.gz",
+     "output/insights/2026-07-14_codex-role-adapter-completion.json.gz",
+     "output/insights/2026-07-14_strategy-review-overall-direction.md",
+     "output/insights/2026-07-15_codex-role-adapter-commit-review.json.gz",
+     "output/insights/2026-07-15_s1-sample-design.md",
+     "output/insights/2026-07-15_sequential-stopping-design.md",
+     "output/insights/2026-07-15_sequential-stopping-review.md",
+     "output/insights/2026-07-16_layer3-mechanism-wiring-design.md",
+     "output/insights/2026-07-16_s8b-floor-protocol-consultations.md",
+     "output/insights/2026-07-16_s8b-floor-protocol-package.md",
+     "output/insights/2026-07-16_s8b-freeze-consultations.md",
+     "output/insights/2026-07-16_s8b-freeze-v2-design-material.md",
+     "output/insights/2026-07-16_s8b-ruling-package.md",
+     "output/insights/2026-07-16_s8b-ruling-prep-consultations.md",
+     "output/insights/2026-07-16_s8b-selector-leak-control-case.md",
+     "output/insights/2026-07-16_s8b-third-wave-audit.md",
+     "output/insights/2026-07-16_s8b-two-wave-audit-reconstruction.md",
+     "output/insights/2026-07-17_clarity-blind-regression.json.gz",
+     "output/insights/2026-07-17_clarity-proposals-unadjudicated.md",
+     "output/insights/2026-07-17_clarity-survey-findings.json.gz",
+     "output/insights/2026-07-17_repo-refinement-consultations.md",
+     "output/insights/2026-07-17_roadmap-claudemd-clarity-consultations.md",
+     "output/insights/2026-07-17_s8b-v2-prereqs-consultations.md",
+     "output/insights/2026-07-17_test-fsync-speedup-adversarial-review.md",
+     "output/insights/2026-07-18_env-contract-pegasus-consultations.md",
+     "output/insights/2026-07-18_guard-agent-adversarial-review.md",
+     "output/insights/2026-07-18_s8b-c22-consultations.md",
+     "output/insights/2026-07-18_s8b-floor-v2-wave3-consultations.md",
+     "output/insights/2026-07-18_s8b-strict-v2-wave-consultations.md",
+     "output/insights/2026-07-18_s8b-v2-prereqs-wave2-consultations.md",
+     "output/insights/2026-07-19_agent-model-economy-audit.md",
+     "output/insights/2026-07-19_approved-waves-consultations.md",
+     "output/insights/2026-07-19_backlog-triage-consultations.md",
+     "output/insights/2026-07-19_backlog-triage.md",
+     "output/insights/2026-07-19_test-hygiene-consultations.md",
+     "output/insights/2026-07-19_test-suite-hygiene-survey.md",
+     "output/insights/2026-07-20_b004-experiment-numbers-consultations.md",
+     "output/insights/2026-07-20_backlog-guard-loop.md",
+     "output/insights/2026-07-20_backlog-guard-mutation-ledger.json.gz",
+     "output/insights/2026-07-20_pc2-pc1b-loop.md",
+     "output/insights/2026-07-20_pc2-pc1b-mutation-ledger.md",
+     "output/insights/2026-07-20_ruling-ac-loop.md",
+     "output/insights/2026-07-20_ruling-ac-mutation-ledger.md",
+     "output/insights/2026-07-20_task-run-ledger-consultations.md",
+     "output/insights/2026-07-20_task-run-ledger-mutation-ledger.json.gz",
+     "output/insights/2026-07-20_wave2-adjudicated-package-loop.md",
+     "output/insights/2026-07-20_wave2-mutation-ledger.json",
+     "output/insights/2026-07-21_dev-waves-supervisor-design.md",
+     "output/insights/2026-07-21_s1-freeze-downgrade-loop.md",
+     "output/insights/2026-07-21_s1-freeze-reissue-loop.md",
+     "output/insights/2026-07-21_t067-exact-refusal-and-s1-repackage.md",
+     "output/insights/2026-07-21_t076-supervisor-mech-layer.md",
+     "output/insights/2026-07-22_direction-audit-direction-verbatim.md",
+     "output/insights/2026-07-22_direction-audit-quant-verbatim.md",
+     "output/insights/2026-07-22_direction-audit-recovery-plan.md",
+     "output/insights/2026-07-22_env-strategy-audit-verbatim.md",
+     "output/insights/2026-07-22_t004-wal-framing-loop.md",
+     "output/insights/2026-07-22_t004-wal-framing-mutation-ledger.md",
+     "output/insights/2026-07-22_t080-freeze-design-stage2.md",
+     "output/insights/2026-07-22_t080-freeze-permanent-design.md",
+     "output/insights/2026-07-22_t080-migration-contract.md",
+     "output/insights/2026-07-22_waste-inventory-verbatim.md",
+     "output/insights/2026-07-22_wave2-protocol-seal.md",
+     "output/insights/2026-07-23_ruling-b-mutation-ledger.json.gz",
+     "output/insights/2026-07-23_ruling-b-verbatim.md",
+     "output/insights/2026-07-23_t002-stage1-mutation-ledger.json.gz",
+     "output/insights/2026-07-23_t002-stage1-verbatim.md",
+     "output/insights/2026-07-23_t066-golden-continuation-verbatim.md",
+     "output/insights/2026-07-23_t066-stock-common-trigger-flags-golden.md",
+     "output/insights/2026-07-23_wave3-floor-prereq.md",
+     "output/insights/2026-07-24_e2e-real-seal-mutation-ledger.json.gz",
+     "output/insights/2026-07-24_e2e-real-seal.md",
+     "output/insights/2026-07-24_t080-postr-audit-verbatim.md",
+     "output/insights/2026-07-24_t080-postr-mutation-ledger.json",
+     "output/insights/2026-07-24_t080-postr-test-debt-fix.md",
+     "output/insights/2026-07-24_t080-prediction-seal-mutation-ledger.json",
+     "output/insights/2026-07-24_t080-prediction-seal-verbatim.md",
+     "output/insights/2026-07-24_t080-prediction-seal.md",
+     "output/insights/2026-07-24_t086-keyset-mutation-ledger.json",
+     "output/insights/2026-07-24_t086-keyset-verbatim.md",
+     "output/insights/2026-07-24_t086-keyset.md",
+     "output/insights/2026-07-25_t067-exact-residual-mutation-ledger.json.gz",
+     "output/insights/2026-07-25_t067-exact-residual-verbatim.md",
+     "output/insights/2026-07-25_t067-exact-residual.md",
+     "output/insights/2026-07-25_t068-t077-t078-closure-verbatim.md",
+     "output/insights/2026-07-25_t068-t077-t078-closure.md",
+     "output/insights/2026-07-25_t088-floor-wrapper-mutation-ledger.json.gz",
+     "output/insights/2026-07-25_t088-floor-wrapper-verbatim.md",
+     "output/insights/2026-07-25_t088-floor-wrapper.md",
+     "output/insights/2026-07-25_t088-official-unlock-design.md",
+     "output/insights/2026-07-25_t088-official-unlock-verbatim.md",
+     "output/insights/2026-07-25_t094-placeholder-gate-mutation-ledger.json.gz",
+     "output/insights/2026-07-25_t094-placeholder-gate-verbatim.md",
+     "output/insights/2026-07-25_t094-placeholder-gate.md",
+     "output/insights/2026-07-26_s1-cross-protocol-consultations.md",
+     "output/insights/2026-07-26_s1-cross-protocol-gate-survey.md",
+     "output/insights/2026-07-26_t057-test-suite-speed.md",
+     "output/insights/2026-07-26_t091-t093-hardening-verbatim.md",
+     "output/insights/2026-07-26_t091-t093-hardening.md",
+     "output/insights/2026-07-26_t091-t093-mutation-ledger.json.gz",
+     "output/insights/2026-07-26_t098-selector-lp-reject-mutation-ledger.json.gz",
+     "output/insights/2026-07-26_t098-selector-lp-reject-verbatim.md",
+     "output/insights/2026-07-26_t098-selector-lp-reject.md",
+     "output/insights/2026-07-26_t103-never-issued-vector-verbatim.md",
+     "output/insights/2026-07-26_t103-never-issued-vector.md",
+     "output/insights/2026-07-26_t106-t107-parser-authoritative-mutation-ledger.json.gz",
+     "output/insights/2026-07-26_t106-t107-parser-authoritative-verbatim.md",
+     "output/insights/2026-07-26_t106-t107-parser-authoritative.md",
+     "output/insights/2026-07-27",
+     "output/insights/2026-07-27_external-consultation-scope-and-axes.md",
+     "output/insights/2026-07-27_suite-cost-structure-and-contention.md",
+     "output/insights/2026-07-27_t117-loadgroup-and-stopcont-race.md",
+     "output/insights/2026-07-27_t119-t105-stopcont-and-vanished-artifact-mutation-ledger.json.gz",
+     "output/insights/2026-07-27_t119-t105-stopcont-and-vanished-artifact.md",
+     "output/insights/2026-07-27_t120-quiescence-window-and-group-split.md",
+     "output/insights/2026-07-27_t128-t080-fixture-scan-inflation.md",
+     "output/insights/2026-07-27_t131-fixture-sharing-rejected.md",
+     "output/insights/2026-07-27_t132-group-split.md",
+     "output/insights/2026-07-27_t137-t138-socket-guard-mutation-ledger.json.gz",
+     "output/insights/2026-07-27_t137-t138-socket-guards.md",
+     "output/insights/2026-07-28",
+     "output/insights/2026-07-28_t136-timing-flake-generalized-limits.md",
+     "output/insights/2026-07-28_t140-datastructure-axis-package.md",
+     "output/insights/2026-07-28_t140-review-verbatim",
+     "output/insights/2026-07-28_t140-setsize-distribution.json",
+     "output/insights/2026-07-28_t140-setsize-distribution.md",
+     "output/insights/2026-07-28_t142-review-verbatim",
+     "output/insights/2026-07-28_t142-tiering-ruling-package.md",
+     "output/insights/2026-07-28_t147-budget-mutation-ledger.json",
+     "output/insights/2026-07-28_t147-budget-restructure-package.md",
+     "output/insights/2026-07-28_t147-budget-restructure-plan.md",
+     "output/insights/2026-07-28_t147-review-verbatim",
+     "output/insights/2026-07-28_t148-macro-context-mutation-ledger.json.gz",
+     "output/insights/2026-07-28_t148-macro-context.md",
+     "output/insights/2026-07-28_t155-crossover-microbench.json.gz",
+     "output/insights/2026-07-28_t155-crossover-microbench.md",
+     "output/insights/2026-07-28_t157-resolve-duplicate-identity.md",
+     "output/insights/2026-07-28_t160-reference-layering.md",
+     "output/insights/2026-07-29",
+     "output/insights/2026-07-29_t126-implementation-preflight.md",
+     "output/insights/2026-07-29_t139-ladder-verbatim",
+     "output/insights/2026-07-29_t139-silo-degradation-ladder-design.md",
+     "output/insights/2026-07-29_t139-silo-ladder-rung1-permanent.md",
+     "output/insights/2026-07-29_t141-region-distribution-calibration.md",
+     "output/insights/2026-07-29_t142-implementation-preflight.md",
+     "output/insights/2026-07-29_t142-output-promotion-verbatim",
+     "output/insights/2026-07-29_t143-ruleops-mutation-ledger.json.gz",
+     "output/insights/2026-07-29_t143-ruleops.md",
+     "output/insights/2026-07-29_t145-join-dichotomy-wave",
+     "output/insights/2026-07-29_t146-probe-cleanup-wave",
+     "output/insights/2026-07-29_t146-probe-cleanup.md",
+     "output/insights/2026-07-29_t149-edit-surface-drift.md",
+     "output/insights/2026-07-29_t149-review-verbatim",
+     "output/insights/2026-07-29_t152-write-intent-shadow.md",
+     "output/insights/2026-07-29_t153-t158-mutation-ledger.json.gz",
+     "output/insights/2026-07-29_t153-t158-review-verbatim",
+     "output/insights/2026-07-29_t153e-t15423-review-verbatim",
+     "output/insights/2026-07-29_t178-autonomous-ycsb-abc-dry-run.md",
+     "output/insights/2026-07-29_t179-worker-ledger-verbatim",
+     "output/insights/2026-07-29_t180-resource-envelope-wave",
+     "output/insights/2026-07-29_t182-model-routing-shadow-pilot.md",
+     "output/insights/2026-07-30",
+     "output/insights/2026-07-30_dev-wave-gate-cost-and-suite-floor.md",
+     "output/insights/2026-07-30_t181-reasoning-ab",
+     "output/insights/2026-07-31",
+     "output/insights/2026-07-31_t194-dispatch-stdout-relay",
+     "output/insights/2026-08-01",
+     "output/insights/2026-08-01_8c-one-allocation-budget-design.md",
+     "output/insights/2026-08-01_t139-remainder-adjudication.md",
+     "output/insights/2026-08-01_t207-adoption-audit",
+     "output/insights/2026-08-01_t229-devshm-removal.md",
+     "output/insights/2026-08-01_t244-generation-gate",
+     "output/insights/2026-08-01_t244-reflux-design",
+     "output/insights/2026-08-01_t247-envelope-reject",
+     "output/insights/2026-08-01_t288-recipient-matrix",
+     "output/insights/2026-08-01_token-hygiene-audit",
+     "output/insights/2026-08-02",
+     "output/insights/2026-08-02_t139-positive-control-probe",
+     "output/insights/2026-08-02_t243-parallel-docs-spool",
+     "output/insights/2026-08-02_t276-compute-role-unlock",
+     "output/insights/2026-08-03",
+     "output/insights/2026-08-03_t244-p6-contract",
+     "output/insights/2026-08-03_t293-perf-site",
+     "output/insights/2026-08-03_t338-rf-statistical-design",
+     "output/insights/2026-08-03_t357-mutation-transport-smoke",
+     "output/insights/2026-08-03_t361-t362-cluster-probes",
+     "output/insights/2026-08-03_task-inventory",
+     "output/insights/2026-08-04",
+     "output/insights/2026-08-04_t244-p3-origin-ledger",
+     "output/insights/2026-08-04_t244-p4-batch-freeze",
+     "output/insights/2026-08-04_t244-p5-injection-gate",
+     "output/insights/2026-08-04_t244-u2-na-bifurcation",
+     "output/insights/2026-08-04_t325-trial-registry-mutation-ledger.json.gz",
+     "output/insights/2026-08-04_t325-trial-registry-mutation-spec.json.gz",
+     "output/insights/2026-08-04_t399-t400-signal-mitigation",
+     "output/insights/2026-08-04_t419-attestation-clock",
+     "output/insights/2026-08-04_t419-probe-causality",
+     "output/insights/2026-08-04_t425-floor-scoping",
+     "output/insights/2026-08-04_t428-reflux-wiring",
+     "output/insights/2026-08-04_t433-p6-sufficiency-contract",
+     "output/insights/2026-08-04_t452-clock-tolerance-authority",
+     "output/insights/2026-08-04_wave-a-campaign-transport-smoke",
+     "output/insights/2026-08-05",
+     "output/insights/2026-08-05_t139-alt-x-probe",
+     "output/insights/2026-08-05_t213-redefinition-design.md",
+     "output/insights/2026-08-05_t213-shared-scratch-blockers.md",
+     "output/insights/2026-08-05_t244-p2-noninterference",
+     "output/insights/2026-08-05_t244-p3-design",
+     "output/insights/2026-08-05_t244-p3-liveness",
+     "output/insights/2026-08-05_t244-p3-producer-wiring",
+     "output/insights/2026-08-05_t244-p4-batch-freeze",
+     "output/insights/2026-08-05_t327-prereg-activation",
+     "output/insights/2026-08-05_t337-qualification-authority",
+     "output/insights/2026-08-05_t419-alpha-wiring",
+     "output/insights/2026-08-05_t452-t453-clock-authority-mutation-ledger.md",
+     "output/insights/2026-08-05_t471-restore-bound",
+     "output/insights/2026-08-05_t472-canonical-predicate-consumers.md",
+     "output/insights/2026-08-05_t478-calibration-contract-generation",
+     "output/insights/2026-08-06",
+     "output/insights/2026-08-06_t244-p2-noninterference",
+     "output/insights/2026-08-06_t244-u10-budget-values",
+     "output/insights/2026-08-06_t419-u2-recalibration",
+     "output/insights/2026-08-06_token-hygiene",
+     "output/insights/2026-08-07",
+     "output/insights/2026-08-07_t139-mainrun-design",
+     "output/insights/2026-08-07_t139-prereg-freeze",
+     "output/insights/2026-08-07_t244-p3-u8-critic-after-admission",
+     "output/insights/2026-08-08",
+     "output/insights/2026-08-08_t139-addendum-a",
+     "output/insights/2026-08-08_t139-producer-adjudication",
+     "output/insights/2026-08-08_t139-r4-env-probe",
+     "output/insights/2026-08-08_t182-luna-stage3-hybrid.md",
+     "output/insights/2026-08-09",
+     "output/insights/2026-08-09_t139-addendum-b",
+     "output/insights/2026-08-09_t181-certified-rerun",
+     "output/insights/2026-08-09_t313-read-budget-gate-mutation-spec.json.gz",
+     "output/insights/2026-08-09_t316-semantic-gate",
+     "output/insights/2026-08-09_t553-git-budget-mutation-spec.json.gz",
+     "output/insights/2026-08-09_t553-git-budget",
+     "output/insights/2026-08-09_t659-activation-deploy-window",
+     "output/insights/2026-08-09_t663-launcher-flake-diagnostic",
+     "output/insights/2026-08-09_t671-source-binding",
+     "output/insights/2026-08-09_t685-scorer-erratum-mutation-ledger.json.gz",
+     "output/insights/2026-08-09_t685-scorer-erratum-mutation-spec.json.gz",
+     "output/insights/2026-08-10",
+     "output/insights/2026-08-10_t139-manifest-w1-mutation-spec.json.gz",
+     "output/insights/2026-08-10_t139-manifest-w1",
+     "output/insights/2026-08-10_t139-producer-slice-mutation-spec-erratum.json",
+     "output/insights/2026-08-10_t139-producer-slice-mutation-spec.json.gz",
+     "output/insights/2026-08-10_t139-producer-slice",
+     "output/insights/2026-08-10_t139-publication-core",
+     "output/insights/2026-08-10_t184-reasoning-policy-adoption.md",
+     "output/insights/2026-08-10_t673-d-guard-measurement",
+     "output/insights/2026-08-10_t683-caller-closure-mutation-spec.json.gz",
+     "output/insights/2026-08-11",
+     "output/insights/2026-08-11_t139-manifest-land1",
+     "output/insights/2026-08-11_t139-manifest-land2-s2",
+     "output/insights/2026-08-11_t139-manifest-land2",
+     "output/insights/2026-08-11_t139-pubcore-stage2",
+     "output/insights/2026-08-11_t739-freeze-nul",
+     "output/insights/2026-08-11_t750-freeze-v2-manifest",
+     "output/insights/2026-08-11_t756-commit-witness",
+     "output/insights/2026-08-11_t804-spec-sha256",
+     "output/insights/2026-08-11_t812-lease-self-renew-mutation-spec.json.gz",
+     "output/insights/2026-08-11_t8b-restart-integration",
+     "output/insights/2026-08-12",
+     "output/insights/2026-08-12_t139-a12-stress-check",
+     "output/insights/2026-08-12_t139-land2-s4",
+     "output/insights/2026-08-12_t499-spec-producer-design",
+     "output/insights/2026-08-12_t933-submission-write-mutation-ledger.json.gz",
+     "output/insights/2026-08-12_t933-submission-write-mutation-spec.json",
+     "output/insights/2026-08-13",
+     "output/insights/2026-08-13_exec-loc-and-usage-fixes",
+     "output/insights/2026-08-13_login-headroom-unreclaimable",
+     "output/insights/2026-08-13_t1014-t1001-guards",
+     "output/insights/2026-08-13_t1034-usage-fixture",
+     "output/insights/2026-08-13_t1050-s8b-admission",
+     "output/insights/2026-08-13_t1062-acceptance-scheduler",
+     "output/insights/2026-08-14",
+     "output/insights/2026-08-15",
+     "output/insights/2026-08-15_t1087-acceptance-red-check",
+     "output/insights/2026-08-15_t1097-s8c-live-abc",
+     "output/insights/2026-08-16",
+     "output/insights/2026-08-16_t1132-t1134-prereg-contract",
+     "output/insights/2026-08-16_t1142-n-pilot-prereg",
+     "output/insights/2026-08-16_t1186-decider-version",
+     "output/insights/2026-08-16_t402-flock-execution-host",
+     "output/insights/2026-08-16_t987-oracle-spec-prereg",
+     "output/insights/2026-08-17",
+     "output/insights/2026-08-17_t1167-c12-allocation-binding",
+     "output/insights/2026-08-17_t1202-t1197-cross-module-reach",
+     "output/insights/2026-08-17_t1250-decider-version-generation",
+     "output/insights/2026-08-17_t1283-waiter-runner-main-blob",
+     "output/insights/2026-08-17_t1310-formal-workload-profile",
+     "output/insights/2026-08-18",
+     "output/insights/2026-08-18_t1283-trusted-launcher-mutation-spec.json.gz",
+     "output/insights/2026-08-18_t1312-evidence-grace-origin",
+     "output/insights/2026-08-18_t1333-t1310-workload-profile",
+     "output/insights/2026-08-18_t1352-c07-result-judge",
+     "output/insights/2026-08-19",
+     "output/insights/2026-08-19_t1303-spool-fold-digest",
+     "output/insights/2026-08-19_t1362-reasoning-pin-mutation-spec.json.gz",
+     "output/insights/2026-08-19_t222-scheduler-group",
+     "output/insights/2026-08-19_t338-submission-gate-unit12",
+     "output/insights/2026-08-19_t828-cfab-r4-mutation-ledger.json.gz",
+     "output/insights/2026-08-19_t828-cfab-r4-mutation-spec.json",
+     "output/insights/2026-08-19_t944-testops-pilot-v2",
+     "output/insights/2026-08-20",
+     "output/insights/2026-08-20_t1115-env-bytecode-check-mutation-result.json",
+     "output/insights/2026-08-20_t1115-env-bytecode-check-mutation-spec.json",
+     "output/insights/2026-08-20_t1142-n-pilot-r33-admission-redesign",
+     "output/insights/2026-08-20_t1403-walltime-sigterm-mitigation-leg.md",
+     "output/insights/2026-08-20_t1444-pegasus-env-tag-mutation-result.json.gz",
+     "output/insights/2026-08-20_t1444-pegasus-env-tag-mutation-spec.json",
+     "output/insights/2026-08-20_tictoc-cicada-cross-protocol-task-definition.md",
+     "output/insights/2026-08-20_worktree-agent-ab4539-stranded-branch-audit.md",
+     "output/insights/2026-08-21",
+     "output/insights/2026-08-21_cicada-selective-precheck-catalog-card.md",
+     "output/insights/2026-08-21_t1434-t189-cache-control-probe",
+     "output/insights/2026-08-21_t1472-h1h2-readiness-audit",
+     "output/insights/2026-08-22",
+     "output/insights/2026-08-22_t755-mocc-trace-v2-pilot-serializability.md",
+     "output/insights/2026-08-23",
+     "output/insights/2026-08-23_dev-wave-stage9-self-cleanup",
+     "output/insights/2026-08-23_t1506-mocc-trace0-unblock.md",
+     "output/insights/2026-08-24",
+     "output/insights/2026-08-24_paper-story-a1-paired",
+     "output/insights/2026-08-24_paper-story-a2-certification",
+     "output/insights/2026-08-24_paper-story-a3-evidence-integration",
+     "output/insights/2026-08-24_t1480-stage5-author-replayer.md",
+     "output/insights/2026-08-24_t1582-mocc-trace0-pilot.md",
+     "output/insights/2026-08-24_t1593-s8c-gate-report.md",
+     "output/insights/2026-08-24_t1601-t1602-8b-recovery-mutation.md",
+     "output/insights/2026-08-24_t1611-terminal-reason-match.md",
+     "output/insights/2026-08-24_t1618-xdist-controller-cost",
+     "output/insights/2026-08-24_t1621-suite-order-dependence.md",
+     "output/insights/2026-08-25",
+     "output/insights/2026-08-25_acceptance-pole-cost-mutation-ledger.json",
+     "output/insights/2026-08-25_acceptance-pole-cost-mutation-spec.json",
+     "output/insights/2026-08-25_acceptance-pole-cost-mutation.md",
+     "output/insights/2026-08-25_ccbench-ss2pl-ycsb-and-dlr0-findings.md",
+     "output/insights/2026-08-25_paper-story-a2-certification-driver.md",
+     "output/insights/2026-08-25_paper-story-a2-certification-run-defects.md",
+     "output/insights/2026-08-25_paper-story-a3-gain-unification",
+     "output/insights/2026-08-25_ss2pl-lock-protocol-study",
+     "output/insights/2026-08-25_t1291-t1282-mutation-ledger-final.json",
+     "output/insights/2026-08-25_t1291-t1282-mutation-spec-final.json",
+     "output/insights/2026-08-25_t1431-floor-mutation.md",
+     "output/insights/2026-08-25_t1431-floor-pilot-values",
+     "output/insights/2026-08-25_t1434-manifest-cli-cost",
+     "output/insights/2026-08-25_t1434-price-version-binding.md",
+     "output/insights/2026-08-25_t1536-semantic-subsumption-retirement.md",
+     "output/insights/2026-08-25_t1551-mutation-spec-final.json",
+     "output/insights/2026-08-25_t1551-stale-gate-mutation.md",
+     "output/insights/2026-08-25_t1578-t1579-floor-binding-mutation.md",
+     "output/insights/2026-08-25_t1584-mutation-ledger-final.json",
+     "output/insights/2026-08-25_t1584-mutation-spec-final.json",
+     "output/insights/2026-08-25_t1584-trace0-identity-holes.md",
+     "output/insights/2026-08-25_t1603-t1604-t1630-8b-production-mutation.md",
+     "output/insights/2026-08-25_t1633-stage0-blocker-scope-mutation.md",
+     "output/insights/2026-08-25_t1641-mutation-ledger-final.json",
+     "output/insights/2026-08-25_t1641-mutation-spec-final.json",
+     "output/insights/2026-08-25_t1641-report-binding.md",
+     "output/insights/2026-08-25_t1669-floor-ledger-recovery-mutation.md",
+     "output/insights/2026-08-25_t1669-mutation-spec-final.json",
+     "output/insights/2026-08-25_t1677-trace0-remeasure.md",
+     "output/insights/2026-08-26",
+     "output/insights/2026-08-26_8b-b2-precheck-package.md",
+     "output/insights/2026-08-26_a2-4cell-walltime-cost.md",
+     "output/insights/2026-08-26_b10-balanced-profile",
+     "output/insights/2026-08-26_b5-llm-necessity-contrast-design.md",
+     "output/insights/2026-08-26_flaky-holds-removal",
+     "output/insights/2026-08-26_mocc-g2-repro",
+     "output/insights/2026-08-26_mocc-trace-pair-mutation-spec-final.json",
+     "output/insights/2026-08-26_mocc-trace-pair-receipt.json",
+     "output/insights/2026-08-26_mocc-trace-pair.md",
+     "output/insights/2026-08-26_paper-story-a1-sized-preregistration",
+     "output/insights/2026-08-26_t1668-classify-collector.md",
+     "output/insights/2026-08-26_t1687-carry-obligation-caller-mutation-ledger.json",
+     "output/insights/2026-08-26_t1687-carry-obligation-caller-mutation-spec.json",
+     "output/insights/2026-08-26_t1687-carry-obligation-caller-mutation.md",
+     "output/insights/2026-08-26_t1759-t1742-ratification-history",
+     "output/insights/2026-08-26_t1784-prereg-admission-record",
+     "output/insights/2026-08-26_t1798-floor-oracle-manifest",
+     "output/insights/2026-08-26_t1814-shard-time-balance",
+     "output/insights/2026-08-26_t1848-env-coincidence-inventory.json",
+     "output/insights/2026-08-26_t1858-chain-shared-setup.md",
+     "output/insights/2026-08-26_t1858-mutation-ledger.json",
+     "output/insights/2026-08-26_t1858-mutation-spec-final.json",
+     "output/insights/2026-08-26_worklog-rotation-entry-1001-mmdd-collision.md",
+     "output/insights/2026-08-27",
+     "output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration",
+     "output/insights/2026-08-27_t1380-prereg-artifacts-blocked",
+     "output/insights/2026-08-27_t1434-prereg-attainment",
+     "output/insights/2026-08-27_t1629-ratification-broker",
+     "output/insights/2026-08-27_t1769-b4-wiring-probe",
+     "output/insights/2026-08-27_t1841-bootstrap-history-gate-mutation-ledger.json",
+     "output/insights/2026-08-27_t1873-generation-outcome-unit.md",
+     "output/insights/2026-08-27_t1901-env-coincidence-classification.json",
+     "output/insights/2026-08-27_t1969-axis1-search-execution",
+     "output/insights/2026-08-27_t1997-real-build-manifest-shapes.md",
+     "output/insights/2026-08-27_t2001-b4-analysis-path",
+     "output/insights/2026-08-27_t2018-condition-meaning-gate",
+     "output/insights/2026-08-28",
+     "output/insights/2026-08-28_t1905-b10-backoff-shape-run",
+     "output/insights/2026-08-28_t1941-backoff-requested-us",
+     "output/insights/2026-08-28_t1943-mocc-g2-discriminator",
+     "output/insights/2026-08-28_t2000-legacy-build-probe",
+     "output/insights/2026-08-28_t2022-a2-certification-run",
+     "output/insights/2026-08-29",
+     "output/insights/2026-08-29_t1905-b10-prereg-v2",
+     "output/insights/2026-08-29_t2033-axis1-retake",
+     "output/insights/2026-08-31_t1905-b10-formal-run",
+     "output/insights/2026-09-01",
+     "output/insights/2026-09-01_paper-story-a1-balanced5-pilot-preregistration",
+     "output/insights/2026-09-01_paper-story-a1-balanced5-pilot",
+     "output/insights/2026-09-01_t1777-pilot-preregistration",
+     "output/insights/2026-09-01_t1806-prereg-c10-fieldpaths",
+     "output/insights/2026-09-01_t1871-nonenum-axis-stage-b-package.md",
+     "output/insights/2026-09-01_t1875-pair-pilot-prereg-ruling",
+     "output/insights/2026-09-01_t1881-axis3-registration-preflight",
+     "output/insights/2026-09-02",
+     "output/insights/2026-09-02_b10-analysis-commit-unbind",
+     "output/insights/2026-09-02_b10-trace-truncation",
+     "output/insights/2026-09-02_backoff-thread-scaling.md",
+     "output/insights/2026-09-02_ccbench-adaptive-backoff-step-granularity.md",
+     "output/insights/2026-09-02_cicada-adaptive-three-constants-figures",
+     "output/insights/2026-09-02_cicada-adaptive-three-constants.md",
+     "output/insights/2026-09-02_default-adaptive-baseline-replacement.md",
+     "output/insights/2026-09-02_paper-story-a6-certification",
+     "output/insights/2026-09-02_t1851-unit-a-registry-generation",
+     "output/insights/2026-09-02_t2067-oracle-manifest-selection",
+     "output/insights/2026-09-02_t2098-session-job-gap",
+     "output/insights/2026-09-02_t2107-t1851-b1-capability",
+     "output/insights/2026-09-02_t2182-k2-arm-liveness",
+     "output/insights/2026-09-02_t2187-adaptive-const-mutation-spec.json",
+     "output/insights/2026-09-02_t2216-adaptive-backoff-nonmonotonicity-mechanism.md",
+     "output/insights/2026-09-03",
+     "output/insights/2026-09-03_t1851-a2alpha-generation-open",
+     "output/insights/2026-09-03_t2067-bcd-selection-closure",
+     "output/insights/2026-09-03_t2103-producer-auth-layer",
+     "output/insights/2026-09-03_t2258-axis1-cond5-confirmations",
+     "output/insights/2026-09-04",
+     "output/insights/2026-09-04_a2-reject-results-section",
+     "output/insights/2026-09-04_f241-perf-attribution",
+     "output/insights/2026-09-04_t1851-a2beta-blocked-on-rulings",
+     "output/insights/2026-09-04_t2189-adaptive-serializability-certification.md",
+     "output/insights/2026-09-04_t2216-figure-fixture-real-size",
+     "output/insights/2026-09-04_t2298-t2273-shard0-critical-path",
+     "output/insights/2026-09-05",
+     "output/insights/2026-09-05_dynamic-backoff-mechanism",
+     "output/insights/2026-09-05_t1851-b2-d1-prefix-inspector",
+     "output/insights/2026-09-05_t2090-axis1-openalex-window2",
+     "output/insights/2026-09-05_t2232-s4-loop-pegasus-job-script",
+     "output/insights/2026-09-05_t2341-b4-floor-driver-d1641",
+     "output/insights/2026-09-07",
+     "output/insights/2026-09-07_acceptance-wall-decomposition",
+     "output/insights/2026-09-07_b4-prereg-errata",
+     "output/insights/2026-09-07_backoff-tail-mechanism",
+     "output/insights/2026-09-07_t1851-unit-c-launcher-raw-facts",
+     "output/insights/2026-09-07_t1851-unit-c1b-contract-v2-defects",
+     "output/insights/2026-09-07_t2228-driver-gate-liveness",
+     "output/insights/2026-09-07_t2232-s4-loop-first-dispatch",
+     "output/insights/2026-09-07_t2265-backoff-counterfactual",
+     "output/insights/2026-09-07_t2265-backoff-itt",
+     "output/insights/2026-09-07_t2320-backoff-sweep-gate-layer2",
+     "output/insights/2026-09-07_t2364-paper-story-a2-certification",
+     "output/insights/2026-09-07_t2365-a2-plot-schema",
+     "output/insights/2026-09-08",
+     "output/insights/2026-09-08_dev-wave-research-gate",
+     "output/insights/2026-09-08_t1851-c1b-implementation",
+     "output/insights/2026-09-08_t1851-unit-c1b-sealed-terminal-evidence",
+     "output/insights/2026-09-08_t1851-unit-c2-derivation",
+     "output/insights/2026-09-08_t1998-stock-inline-parts",
+     "output/insights/2026-09-08_t2140-b4-prereg-fields",
+     "output/insights/2026-09-08_t2140-t2414-b4-prereg-rulings",
+     "output/insights/2026-09-08_t2265-cohort2",
+     "output/insights/2026-09-08_t2265-itt-seq0",
+     "output/insights/2026-09-08_t2380-b5-closure",
+     "output/insights/2026-09-08_t2411-paper-story-a6-certification",
+     "output/insights/2026-09-08_t2417-policy-arm-performance",
+     "output/insights/2026-09-09",
+     "output/insights/2026-09-09_t1851-unit-c3a-wiring",
+     "output/insights/2026-09-09_t2101-proposal-binding",
+     "output/insights/2026-09-09_t2154-n-pilot-prereg-successor",
+     "output/insights/2026-09-09_t2182-k2-eval-wiring",
+     "output/insights/2026-09-09_t2265-cohort2-cert",
+     "output/insights/2026-09-09_t2265-cohort2-figures",
+     "output/insights/2026-09-09_t2418-backoff-static-explore",
+     "output/insights/2026-09-10",
+     "output/insights/2026-09-10_cc-next-precheck",
+     "output/insights/2026-09-10_dev-wave-astra-medium-land-review.md",
+     "output/insights/2026-09-10_t1851-unit-d2",
+     "output/insights/2026-09-10_t2500-backoff-tail-prereg",
+     "output/insights/2026-09-10_t2514-a1-detail",
+     "output/insights/2026-09-10_t2525-t2526-screening-meaning",
+     "output/insights/2026-09-10_t2533-t1998-prereg-digest",
+     "output/insights/2026-09-10_t2579-recovery",
+     "output/insights/2026-09-10_t2581-k2-pin",
+     "output/insights/2026-09-11",
+     "output/insights/2026-09-13",
+     "output/insights/2026-09-13_t2557-balanced-stock-inline",
+     "output/insights/2026-09-14",
+     "output/insights/2026-09-14_acceptance-5min-floor",
+     "output/insights/2026-09-14_t1875-delta-min-gate",
+     "output/insights/2026-09-14_t2067-efg-residual",
+     "output/insights/2026-09-14_t2496-git-timeout",
+     "output/insights/2026-09-14_t2547-b4-descriptive-erratum",
+     "output/insights/2026-09-14_t2566-tail-formal-driver",
+     "output/insights/2026-09-14_t2582-knowledge-source-selection",
+     "output/insights/2026-09-14_t2589-consumer-real-artifact-repair",
+     "output/insights/2026-09-14_t575-silo-promotion-consumer",
+     "output/insights/2026-09-15",
+     "output/insights/2026-09-15_t2592-calibration-miss-floor",
+     "output/insights/2026-09-15_t2595-floor-query-legacy-symmetry",
+     "output/insights/2026-09-15_t2625-sealed-snapshot-qualification",
+     "output/insights/2026-09-16",
+     "output/insights/2026-09-16_next-tasks-codex-authority",
+     "output/insights/2026-09-16_t2545-b4-publication-root",
+     "output/insights/2026-09-16_t2565-certify-repo-root-binding",
+     "output/insights/2026-09-16_t2586-itt-trace-seed-contract",
+     "output/insights/2026-09-16_t2617-acceptance-collection-cost",
+     "output/insights/2026-09-16_t2639-branch-rescue-path-first",
+     "output/insights/2026-09-16_t541-t507-attestation-reach",
+     "output/insights/README.md",
+     "output/insights/ccbench-protocols-doc-ycsb-mismatch.md",
+     "output/insights/layout-index",
+     "output/insights/mocc-trace-pair-receipt.sha256"
+    ],
+    "parent_dir_in_main": true,
+    "path": "output/insights/2026-08-11_t812-lease-self-renew-mutation-spec.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-11_t812-lease-self-renew-mutation-spec.json"
+  ],
+  "same_subject_on_main": [
+   "bb53ccd4f3da41ac9e3741b02d20ec59cbfdb7f2 2026-08-11T20:42:23+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "test(mutation): [T-812] 受入 lease 自己保持の変異 spec を事前登録する",
+  "tree": "8f1f939bc3eb674c87eda7ce4b8046dc375aa50e"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-09-09T13:23:58+09:00",
+  "commit_date": "2026-09-09T13:23:58+09:00",
+  "oid": "1d41c41714b66ecb54eb23d52602fb7f8170602a",
+  "parents": [
+   "c6c7cee216d4a0d0ce01e7ead7538acd59a5954c"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-09-09_codex-worktree-delta-manifest-interrupted",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-09-09_codex-worktree-delta-manifest-interrupted/README.md",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-09-09_codex-worktree-delta-manifest-interrupted/README.md"
+  ],
+  "same_subject_on_main": [],
+  "storage": {
+   "loose_mtime": 1788927838.0,
+   "loose_present": true,
+   "object_type": "commit"
+  },
+  "subject": "docs: 中断した worktree delta manifest wave の実測を残す",
+  "tree": "f4bdb21ea48e4354ebb784a8091aa6452999d4e1"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-17T04:18:49+09:00",
+  "commit_date": "2026-08-17T04:18:49+09:00",
+  "oid": "2620635f74883f6162a4838b547344c3d8695b1c",
+  "parents": [
+   "8ee06f4566dc6ce6da56a3462e9b91dfffc80141"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-17_t1262-submodule-identity-gate",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-17_t1262-submodule-identity-gate/mutation-result.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-17_t1262-submodule-identity-gate/mutation-result.json"
+  ],
+  "same_subject_on_main": [
+   "22dcaf3b2399c06418fb9beac37c6fbb56589ea0 2026-08-17T04:21:58+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "[T-1262] 変異結果と台帳 fragment を記録する",
+  "tree": "2bd799228d84dafaf45c45d87a76eef85beae169"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-18T22:20:51+09:00",
+  "commit_date": "2026-08-18T22:41:45+09:00",
+  "oid": "2ba0ade14cdd253c53135ec24e8a6d1783d2a1fd",
+  "parents": [
+   "0b92c254b830bc333386eacafdc5d113292116be"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json",
+   "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json",
+   "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json"
+  ],
+  "same_subject_on_main": [
+   "b7c5b7f36c1890fe61885d321953cc26d7ce8bc6 2026-08-18T22:50:17+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "docs(s8c): [T-1348] C09 / C10 consumer 配線の記録 — insight と台帳 fragment を書く",
+  "tree": "aaaa7454a33eb88020dbd48c096cd39672939221"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-18T21:49:23+09:00",
+  "commit_date": "2026-08-18T22:35:03+09:00",
+  "oid": "2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7",
+  "parents": [
+   "0d5b45aa05cf467776b19f2a05194a12993a398f"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec-probe.json"
+  ],
+  "same_subject_on_main": [
+   "9898d543388b26cd79fc0225d1339b6c71195b99 2026-08-18T22:50:17+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "docs(s8c): [T-1348] 変異 spec (probe) と段 1-6 の逐語を記録する",
+  "tree": "9718f0e8ec89cbed373cbf8e33128e8b00728136"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-18T22:20:51+09:00",
+  "commit_date": "2026-08-18T22:35:03+09:00",
+  "oid": "3905db91ed815d051e0916f12144e01934431d0a",
+  "parents": [
+   "2f5b2c1773e9f193417dd3c42fc2aba52b30c8c7"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json",
+   "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json",
+   "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json"
+  ],
+  "same_subject_on_main": [
+   "b7c5b7f36c1890fe61885d321953cc26d7ce8bc6 2026-08-18T22:50:17+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "docs(s8c): [T-1348] C09 / C10 consumer 配線の記録 — insight と台帳 fragment を書く",
+  "tree": "c8b96f443c63bc7a4abc370442ebadc825adf131"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-26T14:11:14+09:00",
+  "commit_date": "2026-08-26T14:11:14+09:00",
+  "oid": "3ea6ed7428605ce73ce5e05121fc74d5985146f1",
+  "parents": [
+   "b8576e0c9a8d0633b36eeabd9581c4aec8b7e1f3"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-26_t1798-floor-oracle-manifest",
+    "parent_dir_entries": [
+     "output/insights/2026-08-26_t1798-floor-oracle-manifest/README.md",
+     "output/insights/2026-08-26_t1798-floor-oracle-manifest/mutation-ledger-prefix3.json",
+     "output/insights/2026-08-26_t1798-floor-oracle-manifest/mutation-ledger.json",
+     "output/insights/2026-08-26_t1798-floor-oracle-manifest/mutation-probe.json",
+     "output/insights/2026-08-26_t1798-floor-oracle-manifest/mutation-spec.json",
+     "output/insights/2026-08-26_t1798-floor-oracle-manifest/verbatim"
+    ],
+    "parent_dir_in_main": true,
+    "path": "output/insights/2026-08-26_t1798-floor-oracle-manifest/acceptance-receipt.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-26_t1798-floor-oracle-manifest/acceptance-receipt.json"
+  ],
+  "same_subject_on_main": [],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "受入全走の結果を記録する",
+  "tree": "770169bd37e1750eb9a88b95d27705537664d673"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-16T18:19:18+09:00",
+  "commit_date": "2026-08-16T18:19:18+09:00",
+  "oid": "4a62da8c3c3302d0e11a5cf951736e8be10e68b3",
+  "parents": [
+   "1918464458b6c2bed3bb54ef0d0159a78628c783"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-result-round1-probe.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-result-round2.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-spec-round1-probe.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-result-round1-probe.json",
+   "output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-result-round2.json",
+   "output/insights/2026-08-16_t1155-t1178-floor-receipt/mutation/mutation-spec-round1-probe.json"
+  ],
+  "same_subject_on_main": [
+   "810e5204ff96d54b265d7ad12465d3328df5d0f3 2026-08-16T18:22:51+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "[T-1155] / [T-1178] wave の記録 — spool fragment 3 本と insights (逐語・変異台帳・erratum 2 件)",
+  "tree": "69b8a02cbdd1e87be71fa35b1b5092bd0e2d093b"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-17T02:38:38+09:00",
+  "commit_date": "2026-08-17T02:38:38+09:00",
+  "oid": "4c2b4805915416a8ca8ce520a20e220b391ea176",
+  "parents": [
+   "53b0139044707a9f21b84fc49068fd1deecfb92c"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-17_t1250-decider-version-generation",
+    "parent_dir_entries": [
+     "output/insights/2026-08-17_t1250-decider-version-generation/README.md",
+     "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger-probe.json.gz",
+     "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger.json.gz",
+     "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec-probe.json.gz",
+     "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec.json.gz",
+     "output/insights/2026-08-17_t1250-decider-version-generation/verbatim"
+    ],
+    "parent_dir_in_main": true,
+    "path": "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger-probe.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-17_t1250-decider-version-generation",
+    "parent_dir_entries": [
+     "output/insights/2026-08-17_t1250-decider-version-generation/README.md",
+     "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger-probe.json.gz",
+     "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger.json.gz",
+     "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec-probe.json.gz",
+     "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec.json.gz",
+     "output/insights/2026-08-17_t1250-decider-version-generation/verbatim"
+    ],
+    "parent_dir_in_main": true,
+    "path": "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-17_t1250-decider-version-generation",
+    "parent_dir_entries": [
+     "output/insights/2026-08-17_t1250-decider-version-generation/README.md",
+     "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger-probe.json.gz",
+     "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger.json.gz",
+     "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec-probe.json.gz",
+     "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec.json.gz",
+     "output/insights/2026-08-17_t1250-decider-version-generation/verbatim"
+    ],
+    "parent_dir_in_main": true,
+    "path": "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec-probe.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-17_t1250-decider-version-generation",
+    "parent_dir_entries": [
+     "output/insights/2026-08-17_t1250-decider-version-generation/README.md",
+     "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger-probe.json.gz",
+     "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger.json.gz",
+     "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec-probe.json.gz",
+     "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec.json.gz",
+     "output/insights/2026-08-17_t1250-decider-version-generation/verbatim"
+    ],
+    "parent_dir_in_main": true,
+    "path": "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger-probe.json",
+   "output/insights/2026-08-17_t1250-decider-version-generation/mutation-ledger.json",
+   "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec-probe.json",
+   "output/insights/2026-08-17_t1250-decider-version-generation/mutation-spec.json"
+  ],
+  "same_subject_on_main": [
+   "f6761e355267c693bac834ac7a4ded77f7f554c8 2026-08-17T02:41:01+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "docs(t1250): 第 4 世代の変異台帳・逐語・台帳 fragment を記録する",
+  "tree": "15140f33a92764ce0eb7d0da8ec6b7fa84825709"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-09-09T13:24:06+09:00",
+  "commit_date": "2026-09-09T13:28:58+09:00",
+  "oid": "54d4dd9b3eb270307e6294b9ac9b1484f7ba868f",
+  "parents": [
+   "c6c7cee216d4a0d0ce01e7ead7538acd59a5954c"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-09-09_t2487-rescue-scale",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-09-09_t2487-rescue-scale/README.md",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-09-09_t2487-rescue-scale/README.md"
+  ],
+  "same_subject_on_main": [],
+  "storage": {
+   "loose_mtime": 1788928138.0,
+   "loose_present": true,
+   "object_type": "commit"
+  },
+  "subject": "docs(t2487): [T-2487] 段 1 の実測だけを残して wave を中断する",
+  "tree": "4473251e581b0b1f3f0ed7bfc49197247bdc1d8a"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-21T18:56:47+09:00",
+  "commit_date": "2026-08-21T19:00:07+09:00",
+  "oid": "5b3ff770ddf2de1d7df528596636c1abcfd3d55b",
+  "parents": [
+   "46fbce3d7151044c9450bdf3f422ea839e7fcc0f"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "docs/handoff",
+    "parent_dir_entries": [
+     "docs/handoff/2026-08-28-t1998-balanced-stock-inline-precheck.md",
+     "docs/handoff/README.md"
+    ],
+    "parent_dir_in_main": true,
+    "path": "docs/handoff/2026-08-21-rulings-calibration-main-land.md",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "docs/handoff/2026-08-21-rulings-calibration-main-land.md"
+  ],
+  "same_subject_on_main": [
+   "1c29f59171e1dcfa3462a3f7fb19115828763b9e 2026-08-21T19:03:24+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "feat(pegasus): enable AI-driven rr20 rr80 calibration registration",
+  "tree": "df68abaa220396bff98b5d40d6f99c207b1700fa"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-17T03:07:42+09:00",
+  "commit_date": "2026-08-17T03:07:42+09:00",
+  "oid": "66dccb28fedca606f96dcf9baf5c7f7a6979a599",
+  "parents": [],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-17_t190-launcher-failure-artifact",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-17_t190-launcher-failure-artifact/mutation-ledger.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-17_t190-launcher-failure-artifact/mutation-ledger.json"
+  ],
+  "same_subject_on_main": [],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "untracked files on worktree-dev-wave-t190-failure-artifact: 2f6a83da Pre-register the mutation matrix for the launcher diagnostics wave",
+  "tree": "cf26d822ea265cf0cd1c0d641c904bc9ed28b801"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-16T04:38:11+09:00",
+  "commit_date": "2026-08-16T04:38:11+09:00",
+  "oid": "6902920cdf39e03e1fdfcbc3e6dc18e31a564918",
+  "parents": [
+   "d5a441b6dbac644cb82df2a1695b2d24226ff88f"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-16_t1109-admission-grammar",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-16_t1109-admission-grammar/mutation-ledger.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-16_t1109-admission-grammar/mutation-ledger.json"
+  ],
+  "same_subject_on_main": [],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "docs(t1109): 変異を最終 commit で再走した結果へ更新し、base digest を現 main へ採り直す",
+  "tree": "7a09502dfbac65b94eedeb2ae79f72965325d463"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-09-08T05:48:06+09:00",
+  "commit_date": "2026-09-08T05:48:06+09:00",
+  "oid": "75d55ccd8d192203b0f04b3fa46130735edb967b",
+  "parents": [
+   "aa4f601a3afdc86d8387fff540bc1aedb42db720"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-09-08_t2265-itt-seq0/verbatim",
+    "parent_dir_entries": [
+     "output/insights/2026-09-08_t2265-itt-seq0/verbatim/brief.md",
+     "output/insights/2026-09-08_t2265-itt-seq0/verbatim/s2-plan.md",
+     "output/insights/2026-09-08_t2265-itt-seq0/verbatim/s3-consult-lensA.md",
+     "output/insights/2026-09-08_t2265-itt-seq0/verbatim/s3-consult-lensB.md",
+     "output/insights/2026-09-08_t2265-itt-seq0/verbatim/s4-ruling.md",
+     "output/insights/2026-09-08_t2265-itt-seq0/verbatim/s5-author-a.md",
+     "output/insights/2026-09-08_t2265-itt-seq0/verbatim/s5-author-b.md",
+     "output/insights/2026-09-08_t2265-itt-seq0/verbatim/s6-fix1.md",
+     "output/insights/2026-09-08_t2265-itt-seq0/verbatim/s6-fix2.md",
+     "output/insights/2026-09-08_t2265-itt-seq0/verbatim/s6-review-lensA.md",
+     "output/insights/2026-09-08_t2265-itt-seq0/verbatim/s6-review-lensB.md"
+    ],
+    "parent_dir_in_main": true,
+    "path": "output/insights/2026-09-08_t2265-itt-seq0/verbatim/analyze.py",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-09-08_t2265-itt-seq0/verbatim/analyze.py"
+  ],
+  "same_subject_on_main": [],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "[T-2265] 段 7 記録 — insight、逐語 12 本、変異台帳 2 巡、spool fragment 3 本",
+  "tree": "affcb5f90d5138811c92b8f08c8f58a3b5a32a17"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-21T18:56:47+09:00",
+  "commit_date": "2026-08-21T18:58:12+09:00",
+  "oid": "8c2e4e3f8ed8a7925072a5b9a381a5ee9257c8b5",
+  "parents": [
+   "46fbce3d7151044c9450bdf3f422ea839e7fcc0f"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "docs/handoff",
+    "parent_dir_entries": [
+     "docs/handoff/2026-08-28-t1998-balanced-stock-inline-precheck.md",
+     "docs/handoff/README.md"
+    ],
+    "parent_dir_in_main": true,
+    "path": "docs/handoff/2026-08-21-rulings-calibration-main-land.md",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "docs/handoff/2026-08-21-rulings-calibration-main-land.md"
+  ],
+  "same_subject_on_main": [
+   "1c29f59171e1dcfa3462a3f7fb19115828763b9e 2026-08-21T19:03:24+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "feat(pegasus): enable AI-driven rr20 rr80 calibration registration",
+  "tree": "3a3441781bf352aab6ddb675fc4b747b5659680e"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-18T22:20:51+09:00",
+  "commit_date": "2026-08-18T22:20:51+09:00",
+  "oid": "aab5adbbcb599a72a9355e060ec32e825028298a",
+  "parents": [
+   "0decf0a4eae5be07e59961e1d9fc735b42bae962"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger-probe.json",
+   "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-ledger.json",
+   "output/insights/2026-08-18_t1348-c09-c10-consumer/mutation/mutation-spec.json"
+  ],
+  "same_subject_on_main": [
+   "b7c5b7f36c1890fe61885d321953cc26d7ce8bc6 2026-08-18T22:50:17+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "docs(s8c): [T-1348] C09 / C10 consumer 配線の記録 — insight と台帳 fragment を書く",
+  "tree": "35020bc244c745d9b74a6ea650ad14a4a6e48619"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-12T23:27:29+09:00",
+  "commit_date": "2026-08-12T23:27:29+09:00",
+  "oid": "accabf0b5d9e9cf3e8ec33008a92c8f41a158787",
+  "parents": [
+   "4b3f823720727fe5ee7750b25d7e2d5a310066de"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-12_t930-hold-no-bypass",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-12_t930-hold-no-bypass/mutation-final.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-12_t930-hold-no-bypass",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-12_t930-hold-no-bypass/mutation-spec-final.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-12_t930-hold-no-bypass/mutation-final.json",
+   "output/insights/2026-08-12_t930-hold-no-bypass/mutation-spec-final.json"
+  ],
+  "same_subject_on_main": [],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "docs(t930): 保留の迂回封鎖を記録し、裁定 fragment を相乗りさせる",
+  "tree": "5b4050988fbe17118a830238209d0b5891ce556f"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-21T18:56:47+09:00",
+  "commit_date": "2026-08-21T18:59:07+09:00",
+  "oid": "c0439777fcf27a56605821d206519d4efa6487e5",
+  "parents": [
+   "46fbce3d7151044c9450bdf3f422ea839e7fcc0f"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "docs/handoff",
+    "parent_dir_entries": [
+     "docs/handoff/2026-08-28-t1998-balanced-stock-inline-precheck.md",
+     "docs/handoff/README.md"
+    ],
+    "parent_dir_in_main": true,
+    "path": "docs/handoff/2026-08-21-rulings-calibration-main-land.md",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "docs/handoff/2026-08-21-rulings-calibration-main-land.md"
+  ],
+  "same_subject_on_main": [
+   "1c29f59171e1dcfa3462a3f7fb19115828763b9e 2026-08-21T19:03:24+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "feat(pegasus): enable AI-driven rr20 rr80 calibration registration",
+  "tree": "c6bd5f27884fd952aadbea940ddf5089c646f3de"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-11T20:24:48+09:00",
+  "commit_date": "2026-08-11T20:27:24+09:00",
+  "oid": "c3e2218c383e8c6a47ae2343fe78e558241d4e01",
+  "parents": [
+   "b365e4777908b5fac873790e91a697185fba189f"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights",
+    "parent_dir_entries": [
+     "output/insights/2026-06-18_calibration-no-cache-miss-saturation.md",
+     "output/insights/2026-06-18_phantom-predicate-out-of-scope.md",
+     "output/insights/2026-06-19_ccbench-silo-wal-ftruncate-xor-bug.md",
+     "output/insights/2026-06-19_invisible-reads-i2-reconciliation.md",
+     "output/insights/2026-06-19_oze-skew-pathology.md",
+     "output/insights/2026-06-22_ccbench-backoff-add-analysis-segfault.md",
+     "output/insights/2026-06-22_orphan-livelock-contaminated-measurement.md",
+     "output/insights/2026-06-22_p2-3-critic-leading-indicator-attribution.md",
+     "output/insights/2026-06-22_p2-case-study-backoff-synthesis.md",
+     "output/insights/2026-06-22_silo-both-no-wait-zero-livelock.md",
+     "output/insights/2026-06-29_p2-5-guided-vs-enumeration.md",
+     "output/insights/2026-06-30_git-log-divergence-causes-and-recovery.md",
+     "output/insights/2026-06-30_loop-src-token-consumer-followthrough.md",
+     "output/insights/2026-06-30_phase3-task2-evolve-block-adversarial-review.md",
+     "output/insights/2026-07-02_phase3-task3-h3-hooks-adversarial-review.md",
+     "output/insights/2026-07-03_phase3-kickoff-blocking-adversarial-review.md",
+     "output/insights/2026-07-03_phase3-task3-h3-hooks-round2-handoff.md",
+     "output/insights/2026-07-06_s2-design-adversarial-review.json.gz",
+     "output/insights/2026-07-06_s3-auditor-live-n1.md",
+     "output/insights/2026-07-06_s4-consumer-design-adversarial.json.gz",
+     "output/insights/2026-07-07_s4-loop-inherited-audit.json.gz",
+     "output/insights/2026-07-08_s4b-loopstate-audit.json",
+     "output/insights/2026-07-09_s2-pipeline-wiring-adversarial-review.json.gz",
+     "output/insights/2026-07-10_s6-sort-sweep-preliminary.md",
+     "output/insights/2026-07-10_s8a-axis-proposer-design-review.json.gz",
+     "output/insights/2026-07-10_s8a-axis-proposer-embodiment-review.json.gz",
+     "output/insights/2026-07-10_s8a-n1-proposal-and-scoring.json.gz",
+     "output/insights/2026-07-10_s8a-n1-provenance.json",
+     "output/insights/2026-07-10_s8a-stage-b-sheet-backoff-trigger-gating.md",
+     "output/insights/2026-07-11_docs-compression-verify.json.gz",
+     "output/insights/2026-07-11_docs-token-audit.json.gz",
+     "output/insights/2026-07-11_post-d-genjo-audit.json.gz",
+     "output/insights/2026-07-11_roadmap-consistency-audit.md",
+     "output/insights/2026-07-11_s8a-trigger-gating-recon.md",
+     "output/insights/2026-07-12_s6-headline-system-level-reframe-draft.md",
+     "output/insights/2026-07-12_s8a-stage-e-coder-agent-draft.md",
+     "output/insights/2026-07-12_s8a-stage-e-design-review.md",
+     "output/insights/2026-07-12_strategy-review-headline-axis.md",
+     "output/insights/2026-07-13_s6-canary-anonymized.patch",
+     "output/insights/2026-07-13_s6-canary-rename-provenance.json.gz",
+     "output/insights/2026-07-13_s6-canary-rename.md",
+     "output/insights/2026-07-13_s6-n-determination-review.json.gz",
+     "output/insights/2026-07-13_s6-n-determination.md",
+     "output/insights/2026-07-13_s6-report-language.md",
+     "output/insights/2026-07-13_s6-round-execution-design-review.json.gz",
+     "output/insights/2026-07-13_s6-round-execution-design.md",
+     "output/insights/2026-07-13_s6-rounds-content-analysis.md",
+     "output/insights/2026-07-13_s6-scoring-prompt-check.json.gz",
+     "output/insights/2026-07-14_bench-first-screening-design.md",
+     "output/insights/2026-07-14_codex-agent-adapter-reaudit.json.gz",
+     "output/insights/2026-07-14_codex-agent-adapter-remediation.json.gz",
+     "output/insights/2026-07-14_codex-role-adapter-completion.json.gz",
+     "output/insights/2026-07-14_strategy-review-overall-direction.md",
+     "output/insights/2026-07-15_codex-role-adapter-commit-review.json.gz",
+     "output/insights/2026-07-15_s1-sample-design.md",
+     "output/insights/2026-07-15_sequential-stopping-design.md",
+     "output/insights/2026-07-15_sequential-stopping-review.md",
+     "output/insights/2026-07-16_layer3-mechanism-wiring-design.md",
+     "output/insights/2026-07-16_s8b-floor-protocol-consultations.md",
+     "output/insights/2026-07-16_s8b-floor-protocol-package.md",
+     "output/insights/2026-07-16_s8b-freeze-consultations.md",
+     "output/insights/2026-07-16_s8b-freeze-v2-design-material.md",
+     "output/insights/2026-07-16_s8b-ruling-package.md",
+     "output/insights/2026-07-16_s8b-ruling-prep-consultations.md",
+     "output/insights/2026-07-16_s8b-selector-leak-control-case.md",
+     "output/insights/2026-07-16_s8b-third-wave-audit.md",
+     "output/insights/2026-07-16_s8b-two-wave-audit-reconstruction.md",
+     "output/insights/2026-07-17_clarity-blind-regression.json.gz",
+     "output/insights/2026-07-17_clarity-proposals-unadjudicated.md",
+     "output/insights/2026-07-17_clarity-survey-findings.json.gz",
+     "output/insights/2026-07-17_repo-refinement-consultations.md",
+     "output/insights/2026-07-17_roadmap-claudemd-clarity-consultations.md",
+     "output/insights/2026-07-17_s8b-v2-prereqs-consultations.md",
+     "output/insights/2026-07-17_test-fsync-speedup-adversarial-review.md",
+     "output/insights/2026-07-18_env-contract-pegasus-consultations.md",
+     "output/insights/2026-07-18_guard-agent-adversarial-review.md",
+     "output/insights/2026-07-18_s8b-c22-consultations.md",
+     "output/insights/2026-07-18_s8b-floor-v2-wave3-consultations.md",
+     "output/insights/2026-07-18_s8b-strict-v2-wave-consultations.md",
+     "output/insights/2026-07-18_s8b-v2-prereqs-wave2-consultations.md",
+     "output/insights/2026-07-19_agent-model-economy-audit.md",
+     "output/insights/2026-07-19_approved-waves-consultations.md",
+     "output/insights/2026-07-19_backlog-triage-consultations.md",
+     "output/insights/2026-07-19_backlog-triage.md",
+     "output/insights/2026-07-19_test-hygiene-consultations.md",
+     "output/insights/2026-07-19_test-suite-hygiene-survey.md",
+     "output/insights/2026-07-20_b004-experiment-numbers-consultations.md",
+     "output/insights/2026-07-20_backlog-guard-loop.md",
+     "output/insights/2026-07-20_backlog-guard-mutation-ledger.json.gz",
+     "output/insights/2026-07-20_pc2-pc1b-loop.md",
+     "output/insights/2026-07-20_pc2-pc1b-mutation-ledger.md",
+     "output/insights/2026-07-20_ruling-ac-loop.md",
+     "output/insights/2026-07-20_ruling-ac-mutation-ledger.md",
+     "output/insights/2026-07-20_task-run-ledger-consultations.md",
+     "output/insights/2026-07-20_task-run-ledger-mutation-ledger.json.gz",
+     "output/insights/2026-07-20_wave2-adjudicated-package-loop.md",
+     "output/insights/2026-07-20_wave2-mutation-ledger.json",
+     "output/insights/2026-07-21_dev-waves-supervisor-design.md",
+     "output/insights/2026-07-21_s1-freeze-downgrade-loop.md",
+     "output/insights/2026-07-21_s1-freeze-reissue-loop.md",
+     "output/insights/2026-07-21_t067-exact-refusal-and-s1-repackage.md",
+     "output/insights/2026-07-21_t076-supervisor-mech-layer.md",
+     "output/insights/2026-07-22_direction-audit-direction-verbatim.md",
+     "output/insights/2026-07-22_direction-audit-quant-verbatim.md",
+     "output/insights/2026-07-22_direction-audit-recovery-plan.md",
+     "output/insights/2026-07-22_env-strategy-audit-verbatim.md",
+     "output/insights/2026-07-22_t004-wal-framing-loop.md",
+     "output/insights/2026-07-22_t004-wal-framing-mutation-ledger.md",
+     "output/insights/2026-07-22_t080-freeze-design-stage2.md",
+     "output/insights/2026-07-22_t080-freeze-permanent-design.md",
+     "output/insights/2026-07-22_t080-migration-contract.md",
+     "output/insights/2026-07-22_waste-inventory-verbatim.md",
+     "output/insights/2026-07-22_wave2-protocol-seal.md",
+     "output/insights/2026-07-23_ruling-b-mutation-ledger.json.gz",
+     "output/insights/2026-07-23_ruling-b-verbatim.md",
+     "output/insights/2026-07-23_t002-stage1-mutation-ledger.json.gz",
+     "output/insights/2026-07-23_t002-stage1-verbatim.md",
+     "output/insights/2026-07-23_t066-golden-continuation-verbatim.md",
+     "output/insights/2026-07-23_t066-stock-common-trigger-flags-golden.md",
+     "output/insights/2026-07-23_wave3-floor-prereq.md",
+     "output/insights/2026-07-24_e2e-real-seal-mutation-ledger.json.gz",
+     "output/insights/2026-07-24_e2e-real-seal.md",
+     "output/insights/2026-07-24_t080-postr-audit-verbatim.md",
+     "output/insights/2026-07-24_t080-postr-mutation-ledger.json",
+     "output/insights/2026-07-24_t080-postr-test-debt-fix.md",
+     "output/insights/2026-07-24_t080-prediction-seal-mutation-ledger.json",
+     "output/insights/2026-07-24_t080-prediction-seal-verbatim.md",
+     "output/insights/2026-07-24_t080-prediction-seal.md",
+     "output/insights/2026-07-24_t086-keyset-mutation-ledger.json",
+     "output/insights/2026-07-24_t086-keyset-verbatim.md",
+     "output/insights/2026-07-24_t086-keyset.md",
+     "output/insights/2026-07-25_t067-exact-residual-mutation-ledger.json.gz",
+     "output/insights/2026-07-25_t067-exact-residual-verbatim.md",
+     "output/insights/2026-07-25_t067-exact-residual.md",
+     "output/insights/2026-07-25_t068-t077-t078-closure-verbatim.md",
+     "output/insights/2026-07-25_t068-t077-t078-closure.md",
+     "output/insights/2026-07-25_t088-floor-wrapper-mutation-ledger.json.gz",
+     "output/insights/2026-07-25_t088-floor-wrapper-verbatim.md",
+     "output/insights/2026-07-25_t088-floor-wrapper.md",
+     "output/insights/2026-07-25_t088-official-unlock-design.md",
+     "output/insights/2026-07-25_t088-official-unlock-verbatim.md",
+     "output/insights/2026-07-25_t094-placeholder-gate-mutation-ledger.json.gz",
+     "output/insights/2026-07-25_t094-placeholder-gate-verbatim.md",
+     "output/insights/2026-07-25_t094-placeholder-gate.md",
+     "output/insights/2026-07-26_s1-cross-protocol-consultations.md",
+     "output/insights/2026-07-26_s1-cross-protocol-gate-survey.md",
+     "output/insights/2026-07-26_t057-test-suite-speed.md",
+     "output/insights/2026-07-26_t091-t093-hardening-verbatim.md",
+     "output/insights/2026-07-26_t091-t093-hardening.md",
+     "output/insights/2026-07-26_t091-t093-mutation-ledger.json.gz",
+     "output/insights/2026-07-26_t098-selector-lp-reject-mutation-ledger.json.gz",
+     "output/insights/2026-07-26_t098-selector-lp-reject-verbatim.md",
+     "output/insights/2026-07-26_t098-selector-lp-reject.md",
+     "output/insights/2026-07-26_t103-never-issued-vector-verbatim.md",
+     "output/insights/2026-07-26_t103-never-issued-vector.md",
+     "output/insights/2026-07-26_t106-t107-parser-authoritative-mutation-ledger.json.gz",
+     "output/insights/2026-07-26_t106-t107-parser-authoritative-verbatim.md",
+     "output/insights/2026-07-26_t106-t107-parser-authoritative.md",
+     "output/insights/2026-07-27",
+     "output/insights/2026-07-27_external-consultation-scope-and-axes.md",
+     "output/insights/2026-07-27_suite-cost-structure-and-contention.md",
+     "output/insights/2026-07-27_t117-loadgroup-and-stopcont-race.md",
+     "output/insights/2026-07-27_t119-t105-stopcont-and-vanished-artifact-mutation-ledger.json.gz",
+     "output/insights/2026-07-27_t119-t105-stopcont-and-vanished-artifact.md",
+     "output/insights/2026-07-27_t120-quiescence-window-and-group-split.md",
+     "output/insights/2026-07-27_t128-t080-fixture-scan-inflation.md",
+     "output/insights/2026-07-27_t131-fixture-sharing-rejected.md",
+     "output/insights/2026-07-27_t132-group-split.md",
+     "output/insights/2026-07-27_t137-t138-socket-guard-mutation-ledger.json.gz",
+     "output/insights/2026-07-27_t137-t138-socket-guards.md",
+     "output/insights/2026-07-28",
+     "output/insights/2026-07-28_t136-timing-flake-generalized-limits.md",
+     "output/insights/2026-07-28_t140-datastructure-axis-package.md",
+     "output/insights/2026-07-28_t140-review-verbatim",
+     "output/insights/2026-07-28_t140-setsize-distribution.json",
+     "output/insights/2026-07-28_t140-setsize-distribution.md",
+     "output/insights/2026-07-28_t142-review-verbatim",
+     "output/insights/2026-07-28_t142-tiering-ruling-package.md",
+     "output/insights/2026-07-28_t147-budget-mutation-ledger.json",
+     "output/insights/2026-07-28_t147-budget-restructure-package.md",
+     "output/insights/2026-07-28_t147-budget-restructure-plan.md",
+     "output/insights/2026-07-28_t147-review-verbatim",
+     "output/insights/2026-07-28_t148-macro-context-mutation-ledger.json.gz",
+     "output/insights/2026-07-28_t148-macro-context.md",
+     "output/insights/2026-07-28_t155-crossover-microbench.json.gz",
+     "output/insights/2026-07-28_t155-crossover-microbench.md",
+     "output/insights/2026-07-28_t157-resolve-duplicate-identity.md",
+     "output/insights/2026-07-28_t160-reference-layering.md",
+     "output/insights/2026-07-29",
+     "output/insights/2026-07-29_t126-implementation-preflight.md",
+     "output/insights/2026-07-29_t139-ladder-verbatim",
+     "output/insights/2026-07-29_t139-silo-degradation-ladder-design.md",
+     "output/insights/2026-07-29_t139-silo-ladder-rung1-permanent.md",
+     "output/insights/2026-07-29_t141-region-distribution-calibration.md",
+     "output/insights/2026-07-29_t142-implementation-preflight.md",
+     "output/insights/2026-07-29_t142-output-promotion-verbatim",
+     "output/insights/2026-07-29_t143-ruleops-mutation-ledger.json.gz",
+     "output/insights/2026-07-29_t143-ruleops.md",
+     "output/insights/2026-07-29_t145-join-dichotomy-wave",
+     "output/insights/2026-07-29_t146-probe-cleanup-wave",
+     "output/insights/2026-07-29_t146-probe-cleanup.md",
+     "output/insights/2026-07-29_t149-edit-surface-drift.md",
+     "output/insights/2026-07-29_t149-review-verbatim",
+     "output/insights/2026-07-29_t152-write-intent-shadow.md",
+     "output/insights/2026-07-29_t153-t158-mutation-ledger.json.gz",
+     "output/insights/2026-07-29_t153-t158-review-verbatim",
+     "output/insights/2026-07-29_t153e-t15423-review-verbatim",
+     "output/insights/2026-07-29_t178-autonomous-ycsb-abc-dry-run.md",
+     "output/insights/2026-07-29_t179-worker-ledger-verbatim",
+     "output/insights/2026-07-29_t180-resource-envelope-wave",
+     "output/insights/2026-07-29_t182-model-routing-shadow-pilot.md",
+     "output/insights/2026-07-30",
+     "output/insights/2026-07-30_dev-wave-gate-cost-and-suite-floor.md",
+     "output/insights/2026-07-30_t181-reasoning-ab",
+     "output/insights/2026-07-31",
+     "output/insights/2026-07-31_t194-dispatch-stdout-relay",
+     "output/insights/2026-08-01",
+     "output/insights/2026-08-01_8c-one-allocation-budget-design.md",
+     "output/insights/2026-08-01_t139-remainder-adjudication.md",
+     "output/insights/2026-08-01_t207-adoption-audit",
+     "output/insights/2026-08-01_t229-devshm-removal.md",
+     "output/insights/2026-08-01_t244-generation-gate",
+     "output/insights/2026-08-01_t244-reflux-design",
+     "output/insights/2026-08-01_t247-envelope-reject",
+     "output/insights/2026-08-01_t288-recipient-matrix",
+     "output/insights/2026-08-01_token-hygiene-audit",
+     "output/insights/2026-08-02",
+     "output/insights/2026-08-02_t139-positive-control-probe",
+     "output/insights/2026-08-02_t243-parallel-docs-spool",
+     "output/insights/2026-08-02_t276-compute-role-unlock",
+     "output/insights/2026-08-03",
+     "output/insights/2026-08-03_t244-p6-contract",
+     "output/insights/2026-08-03_t293-perf-site",
+     "output/insights/2026-08-03_t338-rf-statistical-design",
+     "output/insights/2026-08-03_t357-mutation-transport-smoke",
+     "output/insights/2026-08-03_t361-t362-cluster-probes",
+     "output/insights/2026-08-03_task-inventory",
+     "output/insights/2026-08-04",
+     "output/insights/2026-08-04_t244-p3-origin-ledger",
+     "output/insights/2026-08-04_t244-p4-batch-freeze",
+     "output/insights/2026-08-04_t244-p5-injection-gate",
+     "output/insights/2026-08-04_t244-u2-na-bifurcation",
+     "output/insights/2026-08-04_t325-trial-registry-mutation-ledger.json.gz",
+     "output/insights/2026-08-04_t325-trial-registry-mutation-spec.json.gz",
+     "output/insights/2026-08-04_t399-t400-signal-mitigation",
+     "output/insights/2026-08-04_t419-attestation-clock",
+     "output/insights/2026-08-04_t419-probe-causality",
+     "output/insights/2026-08-04_t425-floor-scoping",
+     "output/insights/2026-08-04_t428-reflux-wiring",
+     "output/insights/2026-08-04_t433-p6-sufficiency-contract",
+     "output/insights/2026-08-04_t452-clock-tolerance-authority",
+     "output/insights/2026-08-04_wave-a-campaign-transport-smoke",
+     "output/insights/2026-08-05",
+     "output/insights/2026-08-05_t139-alt-x-probe",
+     "output/insights/2026-08-05_t213-redefinition-design.md",
+     "output/insights/2026-08-05_t213-shared-scratch-blockers.md",
+     "output/insights/2026-08-05_t244-p2-noninterference",
+     "output/insights/2026-08-05_t244-p3-design",
+     "output/insights/2026-08-05_t244-p3-liveness",
+     "output/insights/2026-08-05_t244-p3-producer-wiring",
+     "output/insights/2026-08-05_t244-p4-batch-freeze",
+     "output/insights/2026-08-05_t327-prereg-activation",
+     "output/insights/2026-08-05_t337-qualification-authority",
+     "output/insights/2026-08-05_t419-alpha-wiring",
+     "output/insights/2026-08-05_t452-t453-clock-authority-mutation-ledger.md",
+     "output/insights/2026-08-05_t471-restore-bound",
+     "output/insights/2026-08-05_t472-canonical-predicate-consumers.md",
+     "output/insights/2026-08-05_t478-calibration-contract-generation",
+     "output/insights/2026-08-06",
+     "output/insights/2026-08-06_t244-p2-noninterference",
+     "output/insights/2026-08-06_t244-u10-budget-values",
+     "output/insights/2026-08-06_t419-u2-recalibration",
+     "output/insights/2026-08-06_token-hygiene",
+     "output/insights/2026-08-07",
+     "output/insights/2026-08-07_t139-mainrun-design",
+     "output/insights/2026-08-07_t139-prereg-freeze",
+     "output/insights/2026-08-07_t244-p3-u8-critic-after-admission",
+     "output/insights/2026-08-08",
+     "output/insights/2026-08-08_t139-addendum-a",
+     "output/insights/2026-08-08_t139-producer-adjudication",
+     "output/insights/2026-08-08_t139-r4-env-probe",
+     "output/insights/2026-08-08_t182-luna-stage3-hybrid.md",
+     "output/insights/2026-08-09",
+     "output/insights/2026-08-09_t139-addendum-b",
+     "output/insights/2026-08-09_t181-certified-rerun",
+     "output/insights/2026-08-09_t313-read-budget-gate-mutation-spec.json.gz",
+     "output/insights/2026-08-09_t316-semantic-gate",
+     "output/insights/2026-08-09_t553-git-budget-mutation-spec.json.gz",
+     "output/insights/2026-08-09_t553-git-budget",
+     "output/insights/2026-08-09_t659-activation-deploy-window",
+     "output/insights/2026-08-09_t663-launcher-flake-diagnostic",
+     "output/insights/2026-08-09_t671-source-binding",
+     "output/insights/2026-08-09_t685-scorer-erratum-mutation-ledger.json.gz",
+     "output/insights/2026-08-09_t685-scorer-erratum-mutation-spec.json.gz",
+     "output/insights/2026-08-10",
+     "output/insights/2026-08-10_t139-manifest-w1-mutation-spec.json.gz",
+     "output/insights/2026-08-10_t139-manifest-w1",
+     "output/insights/2026-08-10_t139-producer-slice-mutation-spec-erratum.json",
+     "output/insights/2026-08-10_t139-producer-slice-mutation-spec.json.gz",
+     "output/insights/2026-08-10_t139-producer-slice",
+     "output/insights/2026-08-10_t139-publication-core",
+     "output/insights/2026-08-10_t184-reasoning-policy-adoption.md",
+     "output/insights/2026-08-10_t673-d-guard-measurement",
+     "output/insights/2026-08-10_t683-caller-closure-mutation-spec.json.gz",
+     "output/insights/2026-08-11",
+     "output/insights/2026-08-11_t139-manifest-land1",
+     "output/insights/2026-08-11_t139-manifest-land2-s2",
+     "output/insights/2026-08-11_t139-manifest-land2",
+     "output/insights/2026-08-11_t139-pubcore-stage2",
+     "output/insights/2026-08-11_t739-freeze-nul",
+     "output/insights/2026-08-11_t750-freeze-v2-manifest",
+     "output/insights/2026-08-11_t756-commit-witness",
+     "output/insights/2026-08-11_t804-spec-sha256",
+     "output/insights/2026-08-11_t812-lease-self-renew-mutation-spec.json.gz",
+     "output/insights/2026-08-11_t8b-restart-integration",
+     "output/insights/2026-08-12",
+     "output/insights/2026-08-12_t139-a12-stress-check",
+     "output/insights/2026-08-12_t139-land2-s4",
+     "output/insights/2026-08-12_t499-spec-producer-design",
+     "output/insights/2026-08-12_t933-submission-write-mutation-ledger.json.gz",
+     "output/insights/2026-08-12_t933-submission-write-mutation-spec.json",
+     "output/insights/2026-08-13",
+     "output/insights/2026-08-13_exec-loc-and-usage-fixes",
+     "output/insights/2026-08-13_login-headroom-unreclaimable",
+     "output/insights/2026-08-13_t1014-t1001-guards",
+     "output/insights/2026-08-13_t1034-usage-fixture",
+     "output/insights/2026-08-13_t1050-s8b-admission",
+     "output/insights/2026-08-13_t1062-acceptance-scheduler",
+     "output/insights/2026-08-14",
+     "output/insights/2026-08-15",
+     "output/insights/2026-08-15_t1087-acceptance-red-check",
+     "output/insights/2026-08-15_t1097-s8c-live-abc",
+     "output/insights/2026-08-16",
+     "output/insights/2026-08-16_t1132-t1134-prereg-contract",
+     "output/insights/2026-08-16_t1142-n-pilot-prereg",
+     "output/insights/2026-08-16_t1186-decider-version",
+     "output/insights/2026-08-16_t402-flock-execution-host",
+     "output/insights/2026-08-16_t987-oracle-spec-prereg",
+     "output/insights/2026-08-17",
+     "output/insights/2026-08-17_t1167-c12-allocation-binding",
+     "output/insights/2026-08-17_t1202-t1197-cross-module-reach",
+     "output/insights/2026-08-17_t1250-decider-version-generation",
+     "output/insights/2026-08-17_t1283-waiter-runner-main-blob",
+     "output/insights/2026-08-17_t1310-formal-workload-profile",
+     "output/insights/2026-08-18",
+     "output/insights/2026-08-18_t1283-trusted-launcher-mutation-spec.json.gz",
+     "output/insights/2026-08-18_t1312-evidence-grace-origin",
+     "output/insights/2026-08-18_t1333-t1310-workload-profile",
+     "output/insights/2026-08-18_t1352-c07-result-judge",
+     "output/insights/2026-08-19",
+     "output/insights/2026-08-19_t1303-spool-fold-digest",
+     "output/insights/2026-08-19_t1362-reasoning-pin-mutation-spec.json.gz",
+     "output/insights/2026-08-19_t222-scheduler-group",
+     "output/insights/2026-08-19_t338-submission-gate-unit12",
+     "output/insights/2026-08-19_t828-cfab-r4-mutation-ledger.json.gz",
+     "output/insights/2026-08-19_t828-cfab-r4-mutation-spec.json",
+     "output/insights/2026-08-19_t944-testops-pilot-v2",
+     "output/insights/2026-08-20",
+     "output/insights/2026-08-20_t1115-env-bytecode-check-mutation-result.json",
+     "output/insights/2026-08-20_t1115-env-bytecode-check-mutation-spec.json",
+     "output/insights/2026-08-20_t1142-n-pilot-r33-admission-redesign",
+     "output/insights/2026-08-20_t1403-walltime-sigterm-mitigation-leg.md",
+     "output/insights/2026-08-20_t1444-pegasus-env-tag-mutation-result.json.gz",
+     "output/insights/2026-08-20_t1444-pegasus-env-tag-mutation-spec.json",
+     "output/insights/2026-08-20_tictoc-cicada-cross-protocol-task-definition.md",
+     "output/insights/2026-08-20_worktree-agent-ab4539-stranded-branch-audit.md",
+     "output/insights/2026-08-21",
+     "output/insights/2026-08-21_cicada-selective-precheck-catalog-card.md",
+     "output/insights/2026-08-21_t1434-t189-cache-control-probe",
+     "output/insights/2026-08-21_t1472-h1h2-readiness-audit",
+     "output/insights/2026-08-22",
+     "output/insights/2026-08-22_t755-mocc-trace-v2-pilot-serializability.md",
+     "output/insights/2026-08-23",
+     "output/insights/2026-08-23_dev-wave-stage9-self-cleanup",
+     "output/insights/2026-08-23_t1506-mocc-trace0-unblock.md",
+     "output/insights/2026-08-24",
+     "output/insights/2026-08-24_paper-story-a1-paired",
+     "output/insights/2026-08-24_paper-story-a2-certification",
+     "output/insights/2026-08-24_paper-story-a3-evidence-integration",
+     "output/insights/2026-08-24_t1480-stage5-author-replayer.md",
+     "output/insights/2026-08-24_t1582-mocc-trace0-pilot.md",
+     "output/insights/2026-08-24_t1593-s8c-gate-report.md",
+     "output/insights/2026-08-24_t1601-t1602-8b-recovery-mutation.md",
+     "output/insights/2026-08-24_t1611-terminal-reason-match.md",
+     "output/insights/2026-08-24_t1618-xdist-controller-cost",
+     "output/insights/2026-08-24_t1621-suite-order-dependence.md",
+     "output/insights/2026-08-25",
+     "output/insights/2026-08-25_acceptance-pole-cost-mutation-ledger.json",
+     "output/insights/2026-08-25_acceptance-pole-cost-mutation-spec.json",
+     "output/insights/2026-08-25_acceptance-pole-cost-mutation.md",
+     "output/insights/2026-08-25_ccbench-ss2pl-ycsb-and-dlr0-findings.md",
+     "output/insights/2026-08-25_paper-story-a2-certification-driver.md",
+     "output/insights/2026-08-25_paper-story-a2-certification-run-defects.md",
+     "output/insights/2026-08-25_paper-story-a3-gain-unification",
+     "output/insights/2026-08-25_ss2pl-lock-protocol-study",
+     "output/insights/2026-08-25_t1291-t1282-mutation-ledger-final.json",
+     "output/insights/2026-08-25_t1291-t1282-mutation-spec-final.json",
+     "output/insights/2026-08-25_t1431-floor-mutation.md",
+     "output/insights/2026-08-25_t1431-floor-pilot-values",
+     "output/insights/2026-08-25_t1434-manifest-cli-cost",
+     "output/insights/2026-08-25_t1434-price-version-binding.md",
+     "output/insights/2026-08-25_t1536-semantic-subsumption-retirement.md",
+     "output/insights/2026-08-25_t1551-mutation-spec-final.json",
+     "output/insights/2026-08-25_t1551-stale-gate-mutation.md",
+     "output/insights/2026-08-25_t1578-t1579-floor-binding-mutation.md",
+     "output/insights/2026-08-25_t1584-mutation-ledger-final.json",
+     "output/insights/2026-08-25_t1584-mutation-spec-final.json",
+     "output/insights/2026-08-25_t1584-trace0-identity-holes.md",
+     "output/insights/2026-08-25_t1603-t1604-t1630-8b-production-mutation.md",
+     "output/insights/2026-08-25_t1633-stage0-blocker-scope-mutation.md",
+     "output/insights/2026-08-25_t1641-mutation-ledger-final.json",
+     "output/insights/2026-08-25_t1641-mutation-spec-final.json",
+     "output/insights/2026-08-25_t1641-report-binding.md",
+     "output/insights/2026-08-25_t1669-floor-ledger-recovery-mutation.md",
+     "output/insights/2026-08-25_t1669-mutation-spec-final.json",
+     "output/insights/2026-08-25_t1677-trace0-remeasure.md",
+     "output/insights/2026-08-26",
+     "output/insights/2026-08-26_8b-b2-precheck-package.md",
+     "output/insights/2026-08-26_a2-4cell-walltime-cost.md",
+     "output/insights/2026-08-26_b10-balanced-profile",
+     "output/insights/2026-08-26_b5-llm-necessity-contrast-design.md",
+     "output/insights/2026-08-26_flaky-holds-removal",
+     "output/insights/2026-08-26_mocc-g2-repro",
+     "output/insights/2026-08-26_mocc-trace-pair-mutation-spec-final.json",
+     "output/insights/2026-08-26_mocc-trace-pair-receipt.json",
+     "output/insights/2026-08-26_mocc-trace-pair.md",
+     "output/insights/2026-08-26_paper-story-a1-sized-preregistration",
+     "output/insights/2026-08-26_t1668-classify-collector.md",
+     "output/insights/2026-08-26_t1687-carry-obligation-caller-mutation-ledger.json",
+     "output/insights/2026-08-26_t1687-carry-obligation-caller-mutation-spec.json",
+     "output/insights/2026-08-26_t1687-carry-obligation-caller-mutation.md",
+     "output/insights/2026-08-26_t1759-t1742-ratification-history",
+     "output/insights/2026-08-26_t1784-prereg-admission-record",
+     "output/insights/2026-08-26_t1798-floor-oracle-manifest",
+     "output/insights/2026-08-26_t1814-shard-time-balance",
+     "output/insights/2026-08-26_t1848-env-coincidence-inventory.json",
+     "output/insights/2026-08-26_t1858-chain-shared-setup.md",
+     "output/insights/2026-08-26_t1858-mutation-ledger.json",
+     "output/insights/2026-08-26_t1858-mutation-spec-final.json",
+     "output/insights/2026-08-26_worklog-rotation-entry-1001-mmdd-collision.md",
+     "output/insights/2026-08-27",
+     "output/insights/2026-08-27_paper-story-a1-headline-estimand-preregistration",
+     "output/insights/2026-08-27_t1380-prereg-artifacts-blocked",
+     "output/insights/2026-08-27_t1434-prereg-attainment",
+     "output/insights/2026-08-27_t1629-ratification-broker",
+     "output/insights/2026-08-27_t1769-b4-wiring-probe",
+     "output/insights/2026-08-27_t1841-bootstrap-history-gate-mutation-ledger.json",
+     "output/insights/2026-08-27_t1873-generation-outcome-unit.md",
+     "output/insights/2026-08-27_t1901-env-coincidence-classification.json",
+     "output/insights/2026-08-27_t1969-axis1-search-execution",
+     "output/insights/2026-08-27_t1997-real-build-manifest-shapes.md",
+     "output/insights/2026-08-27_t2001-b4-analysis-path",
+     "output/insights/2026-08-27_t2018-condition-meaning-gate",
+     "output/insights/2026-08-28",
+     "output/insights/2026-08-28_t1905-b10-backoff-shape-run",
+     "output/insights/2026-08-28_t1941-backoff-requested-us",
+     "output/insights/2026-08-28_t1943-mocc-g2-discriminator",
+     "output/insights/2026-08-28_t2000-legacy-build-probe",
+     "output/insights/2026-08-28_t2022-a2-certification-run",
+     "output/insights/2026-08-29",
+     "output/insights/2026-08-29_t1905-b10-prereg-v2",
+     "output/insights/2026-08-29_t2033-axis1-retake",
+     "output/insights/2026-08-31_t1905-b10-formal-run",
+     "output/insights/2026-09-01",
+     "output/insights/2026-09-01_paper-story-a1-balanced5-pilot-preregistration",
+     "output/insights/2026-09-01_paper-story-a1-balanced5-pilot",
+     "output/insights/2026-09-01_t1777-pilot-preregistration",
+     "output/insights/2026-09-01_t1806-prereg-c10-fieldpaths",
+     "output/insights/2026-09-01_t1871-nonenum-axis-stage-b-package.md",
+     "output/insights/2026-09-01_t1875-pair-pilot-prereg-ruling",
+     "output/insights/2026-09-01_t1881-axis3-registration-preflight",
+     "output/insights/2026-09-02",
+     "output/insights/2026-09-02_b10-analysis-commit-unbind",
+     "output/insights/2026-09-02_b10-trace-truncation",
+     "output/insights/2026-09-02_backoff-thread-scaling.md",
+     "output/insights/2026-09-02_ccbench-adaptive-backoff-step-granularity.md",
+     "output/insights/2026-09-02_cicada-adaptive-three-constants-figures",
+     "output/insights/2026-09-02_cicada-adaptive-three-constants.md",
+     "output/insights/2026-09-02_default-adaptive-baseline-replacement.md",
+     "output/insights/2026-09-02_paper-story-a6-certification",
+     "output/insights/2026-09-02_t1851-unit-a-registry-generation",
+     "output/insights/2026-09-02_t2067-oracle-manifest-selection",
+     "output/insights/2026-09-02_t2098-session-job-gap",
+     "output/insights/2026-09-02_t2107-t1851-b1-capability",
+     "output/insights/2026-09-02_t2182-k2-arm-liveness",
+     "output/insights/2026-09-02_t2187-adaptive-const-mutation-spec.json",
+     "output/insights/2026-09-02_t2216-adaptive-backoff-nonmonotonicity-mechanism.md",
+     "output/insights/2026-09-03",
+     "output/insights/2026-09-03_t1851-a2alpha-generation-open",
+     "output/insights/2026-09-03_t2067-bcd-selection-closure",
+     "output/insights/2026-09-03_t2103-producer-auth-layer",
+     "output/insights/2026-09-03_t2258-axis1-cond5-confirmations",
+     "output/insights/2026-09-04",
+     "output/insights/2026-09-04_a2-reject-results-section",
+     "output/insights/2026-09-04_f241-perf-attribution",
+     "output/insights/2026-09-04_t1851-a2beta-blocked-on-rulings",
+     "output/insights/2026-09-04_t2189-adaptive-serializability-certification.md",
+     "output/insights/2026-09-04_t2216-figure-fixture-real-size",
+     "output/insights/2026-09-04_t2298-t2273-shard0-critical-path",
+     "output/insights/2026-09-05",
+     "output/insights/2026-09-05_dynamic-backoff-mechanism",
+     "output/insights/2026-09-05_t1851-b2-d1-prefix-inspector",
+     "output/insights/2026-09-05_t2090-axis1-openalex-window2",
+     "output/insights/2026-09-05_t2232-s4-loop-pegasus-job-script",
+     "output/insights/2026-09-05_t2341-b4-floor-driver-d1641",
+     "output/insights/2026-09-07",
+     "output/insights/2026-09-07_acceptance-wall-decomposition",
+     "output/insights/2026-09-07_b4-prereg-errata",
+     "output/insights/2026-09-07_backoff-tail-mechanism",
+     "output/insights/2026-09-07_t1851-unit-c-launcher-raw-facts",
+     "output/insights/2026-09-07_t1851-unit-c1b-contract-v2-defects",
+     "output/insights/2026-09-07_t2228-driver-gate-liveness",
+     "output/insights/2026-09-07_t2232-s4-loop-first-dispatch",
+     "output/insights/2026-09-07_t2265-backoff-counterfactual",
+     "output/insights/2026-09-07_t2265-backoff-itt",
+     "output/insights/2026-09-07_t2320-backoff-sweep-gate-layer2",
+     "output/insights/2026-09-07_t2364-paper-story-a2-certification",
+     "output/insights/2026-09-07_t2365-a2-plot-schema",
+     "output/insights/2026-09-08",
+     "output/insights/2026-09-08_dev-wave-research-gate",
+     "output/insights/2026-09-08_t1851-c1b-implementation",
+     "output/insights/2026-09-08_t1851-unit-c1b-sealed-terminal-evidence",
+     "output/insights/2026-09-08_t1851-unit-c2-derivation",
+     "output/insights/2026-09-08_t1998-stock-inline-parts",
+     "output/insights/2026-09-08_t2140-b4-prereg-fields",
+     "output/insights/2026-09-08_t2140-t2414-b4-prereg-rulings",
+     "output/insights/2026-09-08_t2265-cohort2",
+     "output/insights/2026-09-08_t2265-itt-seq0",
+     "output/insights/2026-09-08_t2380-b5-closure",
+     "output/insights/2026-09-08_t2411-paper-story-a6-certification",
+     "output/insights/2026-09-08_t2417-policy-arm-performance",
+     "output/insights/2026-09-09",
+     "output/insights/2026-09-09_t1851-unit-c3a-wiring",
+     "output/insights/2026-09-09_t2101-proposal-binding",
+     "output/insights/2026-09-09_t2154-n-pilot-prereg-successor",
+     "output/insights/2026-09-09_t2182-k2-eval-wiring",
+     "output/insights/2026-09-09_t2265-cohort2-cert",
+     "output/insights/2026-09-09_t2265-cohort2-figures",
+     "output/insights/2026-09-09_t2418-backoff-static-explore",
+     "output/insights/2026-09-10",
+     "output/insights/2026-09-10_cc-next-precheck",
+     "output/insights/2026-09-10_dev-wave-astra-medium-land-review.md",
+     "output/insights/2026-09-10_t1851-unit-d2",
+     "output/insights/2026-09-10_t2500-backoff-tail-prereg",
+     "output/insights/2026-09-10_t2514-a1-detail",
+     "output/insights/2026-09-10_t2525-t2526-screening-meaning",
+     "output/insights/2026-09-10_t2533-t1998-prereg-digest",
+     "output/insights/2026-09-10_t2579-recovery",
+     "output/insights/2026-09-10_t2581-k2-pin",
+     "output/insights/2026-09-11",
+     "output/insights/2026-09-13",
+     "output/insights/2026-09-13_t2557-balanced-stock-inline",
+     "output/insights/2026-09-14",
+     "output/insights/2026-09-14_acceptance-5min-floor",
+     "output/insights/2026-09-14_t1875-delta-min-gate",
+     "output/insights/2026-09-14_t2067-efg-residual",
+     "output/insights/2026-09-14_t2496-git-timeout",
+     "output/insights/2026-09-14_t2547-b4-descriptive-erratum",
+     "output/insights/2026-09-14_t2566-tail-formal-driver",
+     "output/insights/2026-09-14_t2582-knowledge-source-selection",
+     "output/insights/2026-09-14_t2589-consumer-real-artifact-repair",
+     "output/insights/2026-09-14_t575-silo-promotion-consumer",
+     "output/insights/2026-09-15",
+     "output/insights/2026-09-15_t2592-calibration-miss-floor",
+     "output/insights/2026-09-15_t2595-floor-query-legacy-symmetry",
+     "output/insights/2026-09-15_t2625-sealed-snapshot-qualification",
+     "output/insights/2026-09-16",
+     "output/insights/2026-09-16_next-tasks-codex-authority",
+     "output/insights/2026-09-16_t2545-b4-publication-root",
+     "output/insights/2026-09-16_t2565-certify-repo-root-binding",
+     "output/insights/2026-09-16_t2586-itt-trace-seed-contract",
+     "output/insights/2026-09-16_t2617-acceptance-collection-cost",
+     "output/insights/2026-09-16_t2639-branch-rescue-path-first",
+     "output/insights/2026-09-16_t541-t507-attestation-reach",
+     "output/insights/README.md",
+     "output/insights/ccbench-protocols-doc-ycsb-mismatch.md",
+     "output/insights/layout-index",
+     "output/insights/mocc-trace-pair-receipt.sha256"
+    ],
+    "parent_dir_in_main": true,
+    "path": "output/insights/2026-08-11_t812-lease-self-renew-mutation-spec.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-11_t812-lease-self-renew-mutation-spec.json"
+  ],
+  "same_subject_on_main": [
+   "bb53ccd4f3da41ac9e3741b02d20ec59cbfdb7f2 2026-08-11T20:42:23+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "test(mutation): [T-812] 受入 lease 自己保持の変異 spec を事前登録する",
+  "tree": "0fbf8f47d1880576879247ad9f67f6619147af03"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-11T08:58:55+09:00",
+  "commit_date": "2026-08-11T08:58:55+09:00",
+  "oid": "c5d79e7050fecc229fd81f4879137be8bae49cb7",
+  "parents": [
+   "1f7027c30ec2dc62445e1ac2a8d6b333e32c4f05"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-11_t657-stage0-rulings",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-11_t657-stage0-rulings/mutation-ledger-discovery.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-11_t657-stage0-rulings",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-11_t657-stage0-rulings/mutation-ledger.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-11_t657-stage0-rulings",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-11_t657-stage0-rulings/mutation-spec.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-11_t657-stage0-rulings/mutation-ledger-discovery.json",
+   "output/insights/2026-08-11_t657-stage0-rulings/mutation-ledger.json",
+   "output/insights/2026-08-11_t657-stage0-rulings/mutation-spec.json"
+  ],
+  "same_subject_on_main": [
+   "09463bb3db7533c251d9ef2a88d013d903cad851 2026-08-11T08:59:50+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "docs(t657): 段 0 裁定実施 wave の記録を凍結する",
+  "tree": "1b92c5c0bbabf287731aff88c95c54207cf81722"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-09-09T13:28:53+09:00",
+  "commit_date": "2026-09-09T13:28:53+09:00",
+  "oid": "c656d831e30ee0c261538889991af6c30bb45e89",
+  "parents": [
+   "c6c7cee216d4a0d0ce01e7ead7538acd59a5954c"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-09-09_worktree-lock-reason-audit",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-09-09_worktree-lock-reason-audit/README.md",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-09-09_worktree-lock-reason-audit",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-09-09_worktree-lock-reason-audit/evidence.tsv",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-09-09_worktree-lock-reason-audit",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-09-09_worktree-lock-reason-audit/worktree-snapshot-130853.txt",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-09-09_worktree-lock-reason-audit/README.md",
+   "output/insights/2026-09-09_worktree-lock-reason-audit/evidence.tsv",
+   "output/insights/2026-09-09_worktree-lock-reason-audit/worktree-snapshot-130853.txt"
+  ],
+  "same_subject_on_main": [],
+  "storage": {
+   "loose_mtime": 1788928133.0,
+   "loose_present": true,
+   "object_type": "commit"
+  },
+  "subject": "docs(lock-audit): 理由なし worktree lock 133 本の所有者証拠と施錠機構の提案",
+  "tree": "16928270b9fa53589474717fc69ebad17fe708ea"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-21T18:56:47+09:00",
+  "commit_date": "2026-08-21T19:01:08+09:00",
+  "oid": "c7a57d642fe72ce5c5480b761515054ac7817e63",
+  "parents": [
+   "46fbce3d7151044c9450bdf3f422ea839e7fcc0f"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "docs/handoff",
+    "parent_dir_entries": [
+     "docs/handoff/2026-08-28-t1998-balanced-stock-inline-precheck.md",
+     "docs/handoff/README.md"
+    ],
+    "parent_dir_in_main": true,
+    "path": "docs/handoff/2026-08-21-rulings-calibration-main-land.md",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "docs/handoff/2026-08-21-rulings-calibration-main-land.md"
+  ],
+  "same_subject_on_main": [
+   "1c29f59171e1dcfa3462a3f7fb19115828763b9e 2026-08-21T19:03:24+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "feat(pegasus): enable AI-driven rr20 rr80 calibration registration",
+  "tree": "df68abaa220396bff98b5d40d6f99c207b1700fa"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-21T18:56:47+09:00",
+  "commit_date": "2026-08-21T18:56:47+09:00",
+  "oid": "cb0d930525930aef2e2d78ec420a5a386d3e63c7",
+  "parents": [
+   "46fbce3d7151044c9450bdf3f422ea839e7fcc0f"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "docs/handoff",
+    "parent_dir_entries": [
+     "docs/handoff/2026-08-28-t1998-balanced-stock-inline-precheck.md",
+     "docs/handoff/README.md"
+    ],
+    "parent_dir_in_main": true,
+    "path": "docs/handoff/2026-08-21-rulings-calibration-main-land.md",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "docs/handoff/2026-08-21-rulings-calibration-main-land.md"
+  ],
+  "same_subject_on_main": [
+   "1c29f59171e1dcfa3462a3f7fb19115828763b9e 2026-08-21T19:03:24+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "feat(pegasus): enable AI-driven rr20 rr80 calibration registration",
+  "tree": "3a3441781bf352aab6ddb675fc4b747b5659680e"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-19T10:40:16+09:00",
+  "commit_date": "2026-08-19T10:40:16+09:00",
+  "oid": "cbd9d812141f5010ba90403c513a7dbad8cc7edc",
+  "parents": [
+   "c31c8fea93387b524badba186688b2f09c4cbc1d"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-19_t1379-c05-activation/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-19_t1379-c05-activation/mutation/mutation-out.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-19_t1379-c05-activation/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-19_t1379-c05-activation/mutation/mutation-spec.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-19_t1379-c05-activation/mutation/mutation-out.json",
+   "output/insights/2026-08-19_t1379-c05-activation/mutation/mutation-spec.json"
+  ],
+  "same_subject_on_main": [
+   "9f89da3dc8642a9ef4a09a25476dca52f34a95b9 2026-08-19T10:42:05+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "feat(s8c): [T-1379] 条件5 (C05) を machine_checkable へ昇格し DECIDER_VERSION を v5 へ bump する",
+  "tree": "be8c37359e1613d3ae1349b320ea9c82188c858c"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-18T17:13:56+09:00",
+  "commit_date": "2026-08-18T17:13:56+09:00",
+  "oid": "cd066a0487af0376fac76bcfb58b2c4462f9085d",
+  "parents": [
+   "1fa23613cfeae4302648458b91cb75a442ddb3ee"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-18_t1086-report-receipt/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-probe1.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-18_t1086-report-receipt/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v2.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-18_t1086-report-receipt/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v3-baseline-flake.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-18_t1086-report-receipt/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v4.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-18_t1086-report-receipt/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-probe1.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-18_t1086-report-receipt/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v2.json",
+    "present_in_main": false
+   },
+   {
+    "parent_dir": "output/insights/2026-08-18_t1086-report-receipt/mutation",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v3.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-probe1.json",
+   "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v2.json",
+   "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v3-baseline-flake.json",
+   "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v4.json",
+   "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-probe1.json",
+   "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v2.json",
+   "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v3.json"
+  ],
+  "same_subject_on_main": [
+   "21ddb87e403e09f19e9921d5d86c2f7be611921c 2026-08-18T17:16:04+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "docs(s8b): [T-1086] の記録 — insight package と台帳 fragment を書く",
+  "tree": "9e1366012d4d458ed42d48677ccecff607d17203"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-17T03:32:40+09:00",
+  "commit_date": "2026-08-17T03:32:40+09:00",
+  "oid": "e0a80472fb37255903fd1a658a553369d8ba1a76",
+  "parents": [
+   "1e634544ac5259ddcef916d2ce3742f80ba133b4"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-17_t1262-submodule-identity-gate",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-17_t1262-submodule-identity-gate/mutation-spec.json",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-17_t1262-submodule-identity-gate/mutation-spec.json"
+  ],
+  "same_subject_on_main": [
+   "8742708ce8f57fb62cbda98b43ab85ad85569ad1 2026-08-17T03:33:31+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "[T-1262] 変異事前登録と材料レポートを置く",
+  "tree": "6d958b6edd577d73f70c0a59d510377e64c81d5d"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-09-09T13:24:06+09:00",
+  "commit_date": "2026-09-09T13:24:06+09:00",
+  "oid": "f181f703d1d68ab2bbd03ad2d6f594dfe039f030",
+  "parents": [
+   "c6c7cee216d4a0d0ce01e7ead7538acd59a5954c"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-09-09_t2487-rescue-scale",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-09-09_t2487-rescue-scale/README.md",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-09-09_t2487-rescue-scale/README.md"
+  ],
+  "same_subject_on_main": [],
+  "storage": {
+   "loose_mtime": 1788927846.0,
+   "loose_present": true,
+   "object_type": "commit"
+  },
+  "subject": "docs(t2487): [T-2487] 段 1 の実測だけを残して wave を中断する",
+  "tree": "4473251e581b0b1f3f0ed7bfc49197247bdc1d8a"
+ },
+ {
+  "author": "thawk105",
+  "author_date": "2026-08-11T19:58:31+09:00",
+  "commit_date": "2026-08-11T19:58:31+09:00",
+  "oid": "f1feb592af5bc21a9754f64250039238da82454d",
+  "parents": [
+   "276ab6cc113ea9ab78817829be8af7abac2b73c2"
+  ],
+  "path_evidence": [
+   {
+    "parent_dir": "output/insights/2026-08-11_t817-verifier-epoch",
+    "parent_dir_entries": [],
+    "parent_dir_in_main": false,
+    "path": "output/insights/2026-08-11_t817-verifier-epoch/log-survival-scan.txt",
+    "present_in_main": false
+   }
+  ],
+  "paths": [
+   "output/insights/2026-08-11_t817-verifier-epoch/log-survival-scan.txt"
+  ],
+  "same_subject_on_main": [
+   "af2f57958c61a2164eb4f0e31b89d83b997bfaf1 2026-08-11T20:02:26+09:00"
+  ],
+  "storage": {
+   "loose_mtime": null,
+   "loose_present": false,
+   "object_type": "commit"
+  },
+  "subject": "docs(t817): 実測で裁定の前提が覆ったので実装せず再裁定へ返す — 突き合わせ対象 0 件、機構は健全に作れず、除外の面は 8 経路",
+  "tree": "860e4b63a3fff9ab6639690704b10deb11a41862"
+ }
+]
