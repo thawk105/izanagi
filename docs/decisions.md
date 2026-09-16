@@ -63477,3 +63477,243 @@ D1918 が定めた「最遅 shard は shard-2、床は xdist group `p3-b4-materi
   自然変動だけで 29.0 秒ある)。
 - テストを削除・保留登録して速くする — D747 と、保留を既定の答えにしないというユーザー裁定に反する。
 - 「成長比例を断った」と記録する — どの案も全件処理を残すので事実に反する。
+
+## D2069. B-4 凍結 spec の binary は `output/env/<env_tag>/binaries/<binary_sha256>` へ ignored 複写で置き、凍結するのは bytes の可用性でなく path・期待 sha256・receipt とする (2026-09-16)
+
+**決定:**
+
+1. **配置規則:** 凍結 spec の `artifacts[].binary_relpath` は
+   `output/env/<env_tag>/binaries/<binary_sha256>` とする。candidate と reference は同じ bytes
+   (D1641 決定 3) なので、同じ path・sha・receipt を共有してよい。
+2. **複写を採る。** 調達済み record と repo 外の durable store から、
+   `python3 -m orchestrator.campaign.b4_binary_record place --record <r> --source-root <s> --env-tag <t>`
+   で置く。実装は `s8b_floor_campaign.store_binaries()` を呼び、同関数が既に持つ検査
+   (record validator、source sha、既存 destination sha、書込み後 sha) を入口で複製しない。
+3. **tracked 化しない。** `.gitignore` に `output/env/*/binaries/` を置く。
+4. **凍結の射程を明示する。** 凍結されるのは path・期待 sha256・receipt であって bytes の可用性ではない。
+   全複製を失えば消費側は正しく拒否するが、bit 同一の復旧は保証しない。
+5. **path の env 成分は検査されない。** 消費側は `binary_relpath` の env 成分と
+   `environment.env_tag` を照合しない。`--env-tag` を spec と一致させるのは呼び手の責任であり、
+   この規則を環境整合の gate と説明しない。
+6. **配置による復旧は、receipt の policy が現行と一致する record に限る。** 配置経路は
+   `store_binaries` が現行 policy を要求するので、古い policy で発行された record は置けない。
+   消費側 (`expected_policy=None`) より厳しいが、緩めない。
+7. **測定を投入する担当が、投入前に、使用する各 checkout へ配置する。** ignored file は merge で
+   他 checkout へ移らない。
+
+**理由:**
+- **同種の物の既存規約があった。** `s8b_floor_campaign.py:7669` が測定用 binary を
+  `env_scope_dir(env_tag)/binaries/<sha>` へ置いている。`env_tag` の実値は `pegasus` と
+  `linux-baremetal` だけで、`output/env/pegasus/` には既に `calibration` と `profile` が並ぶ。
+  `binaries` はその兄弟であり、新しい分類を起こさずに済む。
+- **消費側は binary の tracked を要求しない。** `floor_pair_driver.py:614 _read_tracked_bound` は
+  spec・build receipt・calibration にだけ loaded HEAD blob との byte 一致を課し、binary は
+  `_resolve_regular` + sha + trace symbol 検査だけを通る。
+- repo の tracked executable に ELF は 1 件も無い (段 3 の実測、58 件中 0 件)。
+- 再 build は凍結 sha との bit 一致を保証しない。T-2636 の build は計算ノード 3 回でようやく成功した。
+- 入口で上流の検査を複製すると、変異が上流に mask されて「検証省略を殺した」という判定が偽になる。
+- 現物で確かめた。701,760 byte を置き、`_relative_path` / `_resolve_regular` /
+  `assert_binary_sha256` / `_assert_no_trace_symbols` の 4 検査を通した。700KB を置いても
+  `git status` は汚れない。
+
+**却下した選択肢:**
+- **新 namespace `output/b4-binaries/<sha256>`** (段 2 plan の案) — 既存規約と二重化し、
+  二軸 (D13) の外に「campaign 横断の実験補助 store」という新分類を要する。
+- **tracked 化** — 消費側が要求せず、repo に ELF の前例が無い。bytes の可用性は得られるが、
+  それを要求する consumer が無い。
+- **測定ごとの再 build** — 凍結 sha との bit 一致を保証しない。
+- **path の env 成分を `environment.env_tag` と照合する gate を足す** — 依頼が scope 外とした
+  仮想リスク向けの検査である。照合しないことを明記するに留める。
+- **配置経路の policy 要求を消費側に合わせて緩める** — 規律 2 に反する。
+
+## D2070. 復元不能な歴史 bytes を要求する node は、関数を消さず要求だけを外して合成入力へ戻す (2026-09-16)
+
+**決定:** 外部保持期限で失われた材料の exact bytes 一致を要求していた
+`test_m2_production_golden_requires_both_routes` について、関数を削除も改名もせず、
+実 corpus 参照・availability 判定・歴史 golden の SHA-256 assert だけを撤去し、
+一時 repo の合成 blob と合成 rollout で production の二経路導出を最後まで走らせる形へ戻す。
+あわせて mismatch 拒否の負例を隣に新設する。
+
+歴史 commit 定数 (`BASE_COMMIT` / `INTEGRATED_COMMIT`) は `monkeypatch` で合成 commit へ
+差し替える。実 commit を使って合成中間状態への patch を構成する案は採らない。
+
+**理由:**
+
+- 関数を消して別名で作り直すと、変異事前登録・所要台帳・過去の変異台帳が指す node 名が
+  すべて宙に浮く。撤去対象は「当時の bytes 一致」であって node の同一性ではない。
+- production 差分ゼロのまま、`_compare_golden_routes` の恒真化を殺せる負例が得られる。
+  D1367 が残した availability 判定と自己検査はそのまま生きる。
+- 実 commit を使う案は、大きな歴史本文への依存と親 repo reader の登録判断を持ち込む。
+  小さな 4 状態 (base / authored / golden / integrated) なら各段の寄与を明示でき、
+  実 `_git`・別 parser 2 種・SHA 検査をすべて通せる。
+
+**却下した選択肢:**
+
+- 恒久 skip または historical audit への格下げ — 被覆を暗黙に消す。
+- 関数を削除して新名の 2 node へ置き換える — node 名の参照が宙に浮く。
+- 実データ依存の assert だけを別 test へ切り出す — D1615 が要求外の一般化として却下済み。
+- `verify_source_sha` の拒否能力まで新 node で証明する — 撤去で生じた穴ではなく既存の
+  被覆限界であり、本 wave の scope を超える。
+
+## D2071. 8c trial manifest の反復数は全 cell で同一を要求する (2026-09-16)
+
+**決定:** `p3-8c-trial-manifest/v3` と `p3-8c-trial-registration/v3` の trial は必須 key `n` を持つ。
+`n` は整数かつ 2 以上で、**6 cell すべてで同一**でなければならない。holdout ごとに異なる `n` は
+受理しない。`n` は `_trial_dict` の serialization と `_trial_canonical_tuple` の identity にも入り、
+manifest と registration の trial 集合照合が反復数の差も拒否する。
+
+**理由:**
+- 8b 設計 §10.2 は逐語で「manifest は cell ごとに `n` を持ち、全 cell の観測反復集合が登録値と
+  完全一致しないときは当該対比を判定不能とする」と要求する。旧 key 集合
+  (trial id・arm・holdout・campaign id・世代数) ではこの要求を満たす manifest を書けなかった。
+- 8b §10.1 は「各反復が全 (holdout, 構成) を 1 度ずつ持つ完全 block であることを要求する。
+  欠測・重複・1 始まりでない連番・**cell 間の反復集合不一致**は判定不能とし」と定める。
+  事前登録 §5 が `n` を H1 / H2 の 2 欄で持つのは記入の単位であって、両者が異なってよいという
+  許可ではない。割れたときは狭い側へ倒す。
+- 記録済みの manifest / registration は repo 全域で 0 件である。移行対象が無いので、
+  旧版受理分岐も既定値も作らない。必須 key にして受理形を 1 つに保つ。
+
+**却下した選択肢:**
+- **`n` を holdout 単位で一致させ、H1 と H2 では異なってよいとする** — §5 の欄割りには合うが、
+  8b §10.1 の cell 間一致要求と衝突する。実装が仕様より広い受理集合を持つことになる。
+- **`n` を optional にして既存 manifest との後方互換を残す** — 書かなくても通る恒真 field になる。
+  そもそも既存 manifest が 0 件なので互換の対象が無い。
+- **manifest 直下に 1 つだけ置く** — 8b の逐語は cell ごとの保持を求めており、
+  cell 単位の記録から離れると将来 cell ごとに異なる `n` を認める改訂ができない。
+
+## D2072. schema の固定は事前登録 §5 記入の前提工程であり、閉塞の先行解除ではない (2026-09-16)
+
+**決定:** 8c trial manifest の schema を広げる作業は、D959 が「順序を入れ替えて先に解除してはならない」
+と定めた下流症状 (b)〜(e) の解除に当たらない。artifact を 1 件も発行せず、事前登録 §5 も記入せず、
+正式起動の閉塞も動かさない限り、schema の固定は先に行ってよい。
+**ただしその成果を「manifest の不在を解除した」「反復束縛が完成した」「§5 を記入できるように
+なった」と記録してはならない。** 記録できるのは保存・読込・identity の契約を用意したことまでである。
+
+**理由:**
+- 8b §10.2 は `n` を §5 へ記入してよい条件の先頭に「schedule generator・manifest・反復束縛が
+  固定済みであること」を置く。8c 事前登録の §5 記入規約も「型・単位・範囲を機械検証する consumer が
+  実在するときに限る」と定める。**schema の固定と検証子の実在は §5 記入の前提であり、順序は逆でない。**
+- 「受理集合が狭まる向きだから安全」という論法は成立しない。生 JSON 集合としては入れ替わる —
+  旧版で通っていた `n` 無しの入力は拒否され、新版 + `n` の入力が新たに通る。
+  正しい根拠は「**既存の受理条件を 1 つも撤去・緩和せず、追加 field への制約だけを増やす**」である。
+  段 3 の敵対相談が親の当初の言い方を反証した。
+- 観測反復集合との exact 一致は本作業では完成しない。genesis slot の受入検査は反復添字を 0 に
+  固定したままであり、そこを直すと受理集合が広がるため、事前登録の発効が先である。
+
+**却下した選択肢:**
+- **schema の固定も (a) の完了証明層が閉じるまで待つ** — §5 記入の前提工程まで止めると、
+  前提が揃わないので (a) を閉じても次へ進めない。D959 は下流症状の**解除**を禁じたのであって、
+  前提工程を禁じてはいない。
+- **同じ変更で genesis 受入の反復添字固定も外す** — 受理集合を広げる変更であり、
+  D959 が絶対規律 2 に反すると名指しした形になる。
+
+## D2073. 較正認証でも perf 有無は probe が決め、受理集合の変化は到達可能性と最終受理へ分けて記録する (2026-09-16)
+
+**決定:** 較正認証 (`tools/pegasus/certify_calibration.sh`) は、policy の perf 候補が 1 本も
+smoke を通らないことを理由に測定前に停止しない。D494 の順序に従い、候補解決を済ませた
+`PATH` の下で canonical probe を 1 度だけ呼び、`use_perf_from_receipt` の結果だけで分岐する。
+`probe_error` は `unavailable` へ変換せず停止する。`use_perf` は CLI から `sweep.calibrate` の
+closure を経て `runner.measure_point` へ伝播させ、**counter 必須検査だけを perf 有りに限定する**。
+throughput 検査・maxrss 検査・rep 失敗処理は変更しない。
+
+**決定 (2):** 本変更のような「停止点を後ろへ動かす」改修では、受理集合の変化を
+**到達可能性の変化**と**最終受理の変化**に分けて記録する。「増分はちょうど X」と書けるのは
+既存の品質・登録条件も満たす部分集合に限られ、無条件の等式としては書かない。
+D494 の順序を守ることで生じる縮小 (旧 smoke は通るが canonical probe だけ失敗する候補) は
+限界として記録し、**第二の probe や fallback を足して隠さない**。
+
+**理由:**
+
+- D352 は性能測定に calibration を明示的に含めて「preflight は可用性を検出して記録し、
+  実行を止めるためには使わない」と定める。候補全滅での即時 `exit 2` はこれに正面から反する。
+  発火頻度が未確定でも是正根拠は独立に成立する — 段 3 の 2 レンズが独立に追認した。
+- 候補全滅を直接 degrade の根拠にすると判定入口が 2 本になり、canonical receipt を経由しない
+  迂回路ができる (D494 の却下理由と同じ)。`use_perf_from_receipt` 1 本のままにする。
+- **perf が本当に要る判定は通さない。** レコード数の飽和選択は LLC miss 率を要し、
+  `analyze.py` は全欠損なら判定不能を返す。no-perf 成果物が `accepted` になれないことは
+  新しい gate ではなく、`sweep.py` → `report.py` → `cli.py` → `schema_v2.py` の既存多層が保証する。
+  この保証を実装で代替・迂回しない。規律 2 は緩めない。
+- counter 必須検査を perf 有りに限定するのは「測定の完了条件を取得可能量に対応させる」変更で
+  あって、認証の counter 必須条件を削除する変更ではない。認証 predicate は 1 文字も変えない。
+- 受理集合を「ちょうど」と書くと、到達可能性の拡大を受理の拡大と読ませる。段 6 の焦点再レビューが
+  具体的な反例 (品質理由が残れば rejected のまま) と第三の縮小経路 (policy 候補の重複が
+  `perf_preflight` の重複検査で rc=2 になる) を示した。
+
+**却下した選択肢:**
+
+- **acquisition 判定後に測定せず終える** — D352 の「動かない環境では perf なしで測定を進める」を
+  満たさない。差分は小さいが、perf 不在が測定停止理由として残る。
+- **旧 smoke の成功を新しい gate として再要求して縮小を消す** — D494 が定めた判定順序を壊し、
+  「literal `perf` は PATH に無いが policy 候補は動く」入力の受理を付け替える。目的に逆行する。
+- **degraded な較正成果物を accepted にする分岐を新設する** — 本 wave の scope 外であり、
+  D493 の「degraded は緩い分岐ではなく別の厳しい分岐」に従う新しい認証契約が要る。裁定へ返す。
+- **候補全滅を直接 no-perf の根拠にする** — 判定入口が 2 本になる (D494 の却下理由)。
+
+## D2074. failure-only report の独立検証は、成功集合を閉じた形について増やす非 certifying の診断経路で与える (2026-09-16)
+
+**決定:**
+1. standalone verifier `verify_autonomous_trial_files` に、明示 opt-in の非 certifying 診断検証経路を足す。
+   発火条件は「flag が真」「campaign output root 未指定」「既存 2 免除 (`fatal_without_cells`、
+   `failure_without_campaign`) に当たらない」の積とする。root を渡した呼出しは従来検証をそのまま実行し、
+   flag による検査省略を認めない。
+2. **この経路は standalone verifier の成功集合を増やす変更であると明示する。** opt-in であることと
+   `certifying=false` であることを、受理集合不変の証拠に使わない。
+3. 受理形は閉じた厳密一致の述語に限る。導出できない形は受理せず狭める (広げない)。
+4. **欠けている束縛は素通りさせず、不在を report 側の事実と突き合わせて証明する。**
+   「あれば検査、無ければ素通り」という presence 条件だけの分岐を書かない。
+5. 戻り値の receipt は検証範囲の申告であり、署名ではない。root 束縛は `not-verified`、
+   cross-binding は `not-established` と申告し、`campaigns/<ID>` 配下という包含関係を主張しない。
+6. certifying 受入 `assert_trial_registry_acceptance`、producer、`verify_s8c_cross_binding` 本体、
+   `assert_campaign_layer3_chain` 本体は変更しない。
+
+**理由:**
+- 対象 report (campaign identity を宣言した admission 失敗 cell を持つ failure-only report) は、
+  root を与えても cross-binding が build population 要件で落とす。**受理を 1 つも増やさない案では、
+  独立検証できるようにするという依頼を満たせない。** 成功集合が増えること自体が依頼の内容である。
+- 規律 2 の射程は certified な結果を守る正しさゲートである。この経路は非 certifying で、
+  certifying 受入は不変であり、段 3 で 3 方向からの bypass (admitted cell の流入、registry 受入の迂回、
+  既存免除の暗黙拡大) を検査して反証した。
+- 依頼が置いた歯止めは「束縛検査の**一律撤去**に広げない」である。閉じた述語・明示 opt-in・既定経路無改変は
+  一律撤去に当たらない。
+- D1460 は「層 3 の空走は受入限定で閉じ、より強い gate を全 verifier へ広げない」と決めた。
+  本決定は standalone verifier に検証経路を足すものであり、D1460 が却下した拡張とは向きが逆で抵触しない。
+- 束縛の不在を証明させるのは、救済対象の report が provider 成果物も raw 参照も持たないことがあるためである。
+  既存検査をそのまま流用すると救済対象自身を落とし、条件分岐で飛ばすと fail-open になる。
+
+**却下した選択肢:**
+- **root 要求だけを外す** — 対象 report は root の有無と無関係に cross-binding で落ちるので効かない。
+  また「root を省くと失われるのは path identity 束縛だけ」という前提は誤りだった。
+- **従来の成功集合維持を必須として案を戻す** — 依頼を満たさない。
+- **既存の role / provider 束縛検査をそのまま流用する** — 救済対象自身を落とす。
+- **欠けている束縛を presence 条件で飛ばす** — fail-open になり、規律 2 に反する。
+- **診断情報付きの形を受理する** — 生成器を mock せずに正例を作れず、受理を実走で裏取りできない。
+- **正式 registered 系列まで回復させる** — publish 前の digest 検査で拒否されており、producer と digest 契約の
+  一体改訂になる。依頼の scope 外。
+
+## D2075. 別名凍結する v1 patch は式 v2 導入直前の版とし、consumer の配線と bytes pin は足さない (2026-09-16)
+
+**決定:** D1098 / D1281 の「v1 patch の別名凍結」は、`patches/silo-backoff-fixed.patch` の履歴のうち
+**合成枝の式が v2 へ変わる直前の版** (git blob `f7a54445764025112317151106712bb9d97678ab`、
+sha256 `35237d314df708c6a6cb6fece0a8a59cd199bb57337013f95f6ed50ea2a2f911`) を、
+`patches/silo-backoff-fixed-v1.patch` として bytes のまま保存することで実装する。
+旧 consumer を v1 へ配線し直すこと、この file の bytes を pin する検査、`patches/ledger.json` への entry は足さない。
+
+**理由:**
+- 起票元 (2026-08-26 の裁定パッケージ A-2) の論点は「合成枝の式が v1 から v2 へ変わった」ことであり、
+  その直接の前像がこの版である。`git diff` で v2 との差は式 1 行だけと確認した。
+- 旧 static-backoff sweep の 3 WAL を生んだ patch の bytes は WAL にも lock にも記録が無く、生成期 (2026-06-22〜28)
+  の初版 `476a128` を選んでも「生成時の bytes」と証明できない。初版は noinline 計器・EVOLVE-BLOCK マーカー・
+  `BACKOFF_FIXED` 未供給時の `#error` を含まず、保存する v1 の骨格として不完全である。
+- ユーザーの依頼が「対象は既存 v1 の保存に限定する」「仮想リスク向けの gate・検査・台帳・一般化の追加は
+  scope 外」と定めた。現行 consumer が旧 campaign へ追記する経路は、現行の campaign identity が
+  admission policy を必ず束縛し、policy を持たない旧 lock を照合で拒否するため成立しない (コードの読解)。
+- `patches/` 直下の別名は、既存の在庫検査 (define 在庫と `IZANAGI_` token 在庫) の走査対象に自然に入り、
+  新しい macro も token も加えないので既存テストの期待値を変えない (焦点走 10 passed、変異 M1 KILLED)。
+
+**却下した選択肢:**
+- 初版 `476a128` を凍結する — 旧 WAL の生成期に当たるが、生成時の bytes である証明が無く、骨格も不完全。
+- 旧 consumer を v1 patch へ配線し直す — 依頼の「保存に限定」を超え、D1098 の「旧消費者はそのまま動き」を
+  実現するには identity の版分けが要る (D1281 が却下した移行の一部を再導入する)。
+- 保存 bytes の sha256 を pin するテストを足す — 依頼が scope 外とした。式の改変 (変異 M2) と内容の喪失 (M4) を
+  既存テストが検出しないことは、隠さず記録した。
+- `patches/` 配下に版別のサブディレクトリを作る — 直下 `*.patch` の在庫検査から外れ、既存の命名慣行とも違う。
