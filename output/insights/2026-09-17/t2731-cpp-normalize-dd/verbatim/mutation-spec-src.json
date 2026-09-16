@@ -1,0 +1,74 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 8100,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "S0-comment-only-docstring",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "old": "    -dD で有効枝の source の #define / #undef を pre-image に残す (F1016: file 間へ\n",
+     "new": "    -dD で有効枝の source の #define / #undef を pre-image に残す (T2731 対照 S0) (F1016: file 間へ\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "S1-drop-dD",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "old": "    args = [cxx, \"-E\", \"-P\", \"-dD\", \"-nostdinc\", \"-Werror=undef\", *BUILD_FLAGS]\n",
+     "new": "    args = [cxx, \"-E\", \"-P\", \"-nostdinc\", \"-Werror=undef\", *BUILD_FLAGS]\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_source_digest_toplevel_macro_directives_change_identity",
+    "orchestrator/tests/test_campaign.py::test_source_digest_toplevel_trace_directives_change_identity",
+    "orchestrator/tests/test_campaign.py::test_source_digest_skipped_macro_directives_affect_only_live_variant",
+    "orchestrator/tests/test_campaign.py::test_source_digest_same_value_source_redefine_changes_identity"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "S2-drop-removeprefix",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "old": "    return r.stdout.removeprefix(prefix)\n",
+     "new": "    return r.stdout\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_source_digest_unused_universal_supply_preserves_stock",
+    "orchestrator/tests/test_campaign.py::test_source_digest_unused_protocol_supply_preserves_digest"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "S3-tautologize-startswith",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/source_digest.py",
+     "old": "    if not r.stdout.startswith(prefix):\n",
+     "new": "    if not True:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_campaign.py::test_source_digest_cpp_environment_prefix_mismatch_fails_closed"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
