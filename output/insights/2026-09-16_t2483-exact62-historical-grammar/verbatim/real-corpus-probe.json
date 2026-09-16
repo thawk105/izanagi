@@ -1,0 +1,536 @@
+{
+  "schema_version": "t2483-real-corpus-probe/v1",
+  "repo_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2483-exact62-historical-grammar",
+  "imports": {
+    "campaign_lock": {
+      "status": "ok",
+      "module_file": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2483-exact62-historical-grammar/orchestrator/campaign/campaign_lock.py"
+    },
+    "artifact_admission": {
+      "status": "ok",
+      "module_file": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2483-exact62-historical-grammar/orchestrator/campaign/artifact_admission.py"
+    }
+  },
+  "campaigns": [
+    {
+      "subject": "rr5",
+      "campaign_dir": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-a2-certification-rr5-1af9fc2b",
+      "expected_path_count": 62,
+      "hashes_before": {
+        "campaign.lock": {
+          "status": "ok",
+          "sha256": "085dfbf5d5f4ae9408797d344c36e11e753d8f30edb850a96c681b3683e6b052"
+        },
+        "runs/wal.jsonl": {
+          "status": "ok",
+          "sha256": "adf736557389f139574523d631d27727d40060a70d6a35f6d89952664cd4e158"
+        }
+      },
+      "A_decode": {
+        "status": "ok",
+        "decode_succeeded": true,
+        "return_type": "DecodedHistoricalCampaignLock",
+        "expected_grammar": "exact-62",
+        "recorded_contract_loader_relative_paths": [
+          "orchestrator/campaign/env_contract.py",
+          "orchestrator/campaign/env_contract_activation.py",
+          "orchestrator/campaign/execution_guard.py",
+          "orchestrator/campaign/loop.py",
+          "orchestrator/campaign/pipeline.py",
+          "orchestrator/campaign/wal.py",
+          "orchestrator/campaign/ident.py",
+          "orchestrator/campaign/artifact_admission.py",
+          "orchestrator/verifier/core.py",
+          "orchestrator/verifier/dsg.py",
+          "orchestrator/verifier/model.py",
+          "orchestrator/verifier/parse.py",
+          "orchestrator/verifier/__init__.py",
+          "orchestrator/verifier/report.py",
+          "orchestrator/campaign/s8c_preregistration.py",
+          "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "orchestrator/campaign/s8c_generation_projection.py",
+          "orchestrator/campaign/campaign_lock.py",
+          "orchestrator/campaign/contract_loader_binding.py",
+          "orchestrator/campaign/guided.py",
+          "orchestrator/campaign/replay.py",
+          "orchestrator/qualification/artifacts.py",
+          "orchestrator/qualification/t126_driver.py",
+          "orchestrator/verifier/commit_receipt.py",
+          "orchestrator/calibrator/__init__.py",
+          "orchestrator/calibrator/effective_clock_policy.py",
+          "orchestrator/calibrator/perf_preflight.py",
+          "orchestrator/calibrator/runner.py",
+          "orchestrator/calibrator/schema_v2.py",
+          "orchestrator/calibrator/stability.py",
+          "orchestrator/campaign/__init__.py",
+          "orchestrator/campaign/axis_trigger_gating.py",
+          "orchestrator/campaign/build_admission.py",
+          "orchestrator/campaign/buildcache.py",
+          "orchestrator/campaign/calibration_verify.py",
+          "orchestrator/campaign/campaign_claim.py",
+          "orchestrator/campaign/diff_quarantine.py",
+          "orchestrator/campaign/env_attestation.py",
+          "orchestrator/campaign/genome.py",
+          "orchestrator/campaign/layout.py",
+          "orchestrator/campaign/lock.py",
+          "orchestrator/campaign/model.py",
+          "orchestrator/campaign/p2_2.py",
+          "orchestrator/campaign/p3_b4_launcher.py",
+          "orchestrator/campaign/p3_b4_protocol.py",
+          "orchestrator/campaign/reflux_ir.py",
+          "orchestrator/campaign/reservation.py",
+          "orchestrator/campaign/search_baselines.py",
+          "orchestrator/campaign/site_policy.py",
+          "orchestrator/campaign/source_digest.py",
+          "orchestrator/campaign/trigger_gate_binding.py",
+          "orchestrator/critic/__init__.py",
+          "orchestrator/critic/online_digest.py",
+          "orchestrator/holdout_observation.py",
+          "orchestrator/qualification/__init__.py",
+          "orchestrator/qualification/attempt_ledger.py",
+          "orchestrator/qualification/collector.py",
+          "orchestrator/qualification/contract.py",
+          "orchestrator/qualification/identity.py",
+          "orchestrator/qualification/qsub_binding.py",
+          "orchestrator/qualification/retry_index.py",
+          "orchestrator/qualification/series.py"
+        ],
+        "path_count": 62,
+        "matches_expected_tuple": true,
+        "passed": true
+      },
+      "B_epoch": {
+        "status": "ok",
+        "return_type": "HistoricalCampaignVerifierEpoch",
+        "state": "E1",
+        "campaign_verifier_epoch": "E1:c560b2cac50f5b389ac8f20cf9a1400c26a1a99fd6564f46c64e6724212edb74",
+        "identity_scope": "enforcement source closure (curated exact 62 path; 2026-09-01 \u306e\u9759\u7684 import \u767a\u898b\u96c6\u5408 131 module \u306e\u3046\u3061\u3001\u65e2\u5b58 24\u3001\u660e\u793a import \u5148 36\u3001\u5b9f\u884c\u6642 package \u521d\u671f\u5316 2 \u3092\u53ce\u8f09; source-import \u63a8\u79fb\u9589\u5305\u3067\u306f\u306a\u3044)",
+        "excluded_scope": "\u540c\u767a\u898b\u96c6\u5408\u306e\u672a\u53ce\u8f09 69 module\u3001orchestrator/verifier/__main__.py\u3001orchestrator/verifier/cli.py\u3001package \u5916\u306e orchestrator/verify.py\u3001\u304a\u3088\u3073 data/schema\u3001\u751f\u6210\u7269\u3001subprocess\u3001\u5916\u90e8 command/Git\u3001toolchain\u3001binary\u3001\u52d5\u7684 import \u3092\u542b\u3080\u975e import \u59d4\u8b72\u306f\u672c map \u306e\u5916\u3067\u3042\u308a\u3001\u5b8c\u5168\u6027\u3092\u4e3b\u5f35\u3057\u306a\u3044",
+        "current_verifier_conformance": "unknown",
+        "scope_matches_expected": true,
+        "passed": true
+      },
+      "C_admission": {
+        "status": "ok",
+        "call_succeeded": true,
+        "return_type": "HistoricalCampaignView",
+        "read_purpose": "HISTORICAL_RAW",
+        "passed": true
+      },
+      "certified_rejection": {
+        "status": "ok",
+        "rejected": true,
+        "unexpected_success": false,
+        "expected_rejection_type": true,
+        "passed": true,
+        "exception": {
+          "chain": [
+            {
+              "type": "ArtifactAdmissionError",
+              "module": "orchestrator.campaign.artifact_admission",
+              "message": "campaign.lock codec validation failed: authority.contract_loader_blob_sha256s \u306e exact key \u96c6\u5408\u304c\u4e0d\u6b63"
+            },
+            {
+              "type": "CampaignLockCodecError",
+              "module": "orchestrator.campaign.campaign_lock",
+              "message": "authority.contract_loader_blob_sha256s \u306e exact key \u96c6\u5408\u304c\u4e0d\u6b63"
+            }
+          ],
+          "cause_cycle_to": null
+        }
+      },
+      "hashes_after": {
+        "campaign.lock": {
+          "status": "ok",
+          "sha256": "085dfbf5d5f4ae9408797d344c36e11e753d8f30edb850a96c681b3683e6b052"
+        },
+        "runs/wal.jsonl": {
+          "status": "ok",
+          "sha256": "adf736557389f139574523d631d27727d40060a70d6a35f6d89952664cd4e158"
+        }
+      },
+      "bytes_unchanged": {
+        "matches": {
+          "campaign.lock": true,
+          "runs/wal.jsonl": true
+        },
+        "passed": true
+      }
+    },
+    {
+      "subject": "rr50",
+      "campaign_dir": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b/jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-a2-certification-rr50-5efd479e",
+      "expected_path_count": 62,
+      "hashes_before": {
+        "campaign.lock": {
+          "status": "ok",
+          "sha256": "b6fc167593bd54c4ee792d276e1a1301e8e303d281a1f98167292e639b750641"
+        },
+        "runs/wal.jsonl": {
+          "status": "ok",
+          "sha256": "fb40ee26c89638cbec021be04f3ff25438f2c44a63a9153d1255bfb7bc018ec9"
+        }
+      },
+      "A_decode": {
+        "status": "ok",
+        "decode_succeeded": true,
+        "return_type": "DecodedHistoricalCampaignLock",
+        "expected_grammar": "exact-62",
+        "recorded_contract_loader_relative_paths": [
+          "orchestrator/campaign/env_contract.py",
+          "orchestrator/campaign/env_contract_activation.py",
+          "orchestrator/campaign/execution_guard.py",
+          "orchestrator/campaign/loop.py",
+          "orchestrator/campaign/pipeline.py",
+          "orchestrator/campaign/wal.py",
+          "orchestrator/campaign/ident.py",
+          "orchestrator/campaign/artifact_admission.py",
+          "orchestrator/verifier/core.py",
+          "orchestrator/verifier/dsg.py",
+          "orchestrator/verifier/model.py",
+          "orchestrator/verifier/parse.py",
+          "orchestrator/verifier/__init__.py",
+          "orchestrator/verifier/report.py",
+          "orchestrator/campaign/s8c_preregistration.py",
+          "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "orchestrator/campaign/s8c_generation_projection.py",
+          "orchestrator/campaign/campaign_lock.py",
+          "orchestrator/campaign/contract_loader_binding.py",
+          "orchestrator/campaign/guided.py",
+          "orchestrator/campaign/replay.py",
+          "orchestrator/qualification/artifacts.py",
+          "orchestrator/qualification/t126_driver.py",
+          "orchestrator/verifier/commit_receipt.py",
+          "orchestrator/calibrator/__init__.py",
+          "orchestrator/calibrator/effective_clock_policy.py",
+          "orchestrator/calibrator/perf_preflight.py",
+          "orchestrator/calibrator/runner.py",
+          "orchestrator/calibrator/schema_v2.py",
+          "orchestrator/calibrator/stability.py",
+          "orchestrator/campaign/__init__.py",
+          "orchestrator/campaign/axis_trigger_gating.py",
+          "orchestrator/campaign/build_admission.py",
+          "orchestrator/campaign/buildcache.py",
+          "orchestrator/campaign/calibration_verify.py",
+          "orchestrator/campaign/campaign_claim.py",
+          "orchestrator/campaign/diff_quarantine.py",
+          "orchestrator/campaign/env_attestation.py",
+          "orchestrator/campaign/genome.py",
+          "orchestrator/campaign/layout.py",
+          "orchestrator/campaign/lock.py",
+          "orchestrator/campaign/model.py",
+          "orchestrator/campaign/p2_2.py",
+          "orchestrator/campaign/p3_b4_launcher.py",
+          "orchestrator/campaign/p3_b4_protocol.py",
+          "orchestrator/campaign/reflux_ir.py",
+          "orchestrator/campaign/reservation.py",
+          "orchestrator/campaign/search_baselines.py",
+          "orchestrator/campaign/site_policy.py",
+          "orchestrator/campaign/source_digest.py",
+          "orchestrator/campaign/trigger_gate_binding.py",
+          "orchestrator/critic/__init__.py",
+          "orchestrator/critic/online_digest.py",
+          "orchestrator/holdout_observation.py",
+          "orchestrator/qualification/__init__.py",
+          "orchestrator/qualification/attempt_ledger.py",
+          "orchestrator/qualification/collector.py",
+          "orchestrator/qualification/contract.py",
+          "orchestrator/qualification/identity.py",
+          "orchestrator/qualification/qsub_binding.py",
+          "orchestrator/qualification/retry_index.py",
+          "orchestrator/qualification/series.py"
+        ],
+        "path_count": 62,
+        "matches_expected_tuple": true,
+        "passed": true
+      },
+      "B_epoch": {
+        "status": "ok",
+        "return_type": "HistoricalCampaignVerifierEpoch",
+        "state": "E1",
+        "campaign_verifier_epoch": "E1:c560b2cac50f5b389ac8f20cf9a1400c26a1a99fd6564f46c64e6724212edb74",
+        "identity_scope": "enforcement source closure (curated exact 62 path; 2026-09-01 \u306e\u9759\u7684 import \u767a\u898b\u96c6\u5408 131 module \u306e\u3046\u3061\u3001\u65e2\u5b58 24\u3001\u660e\u793a import \u5148 36\u3001\u5b9f\u884c\u6642 package \u521d\u671f\u5316 2 \u3092\u53ce\u8f09; source-import \u63a8\u79fb\u9589\u5305\u3067\u306f\u306a\u3044)",
+        "excluded_scope": "\u540c\u767a\u898b\u96c6\u5408\u306e\u672a\u53ce\u8f09 69 module\u3001orchestrator/verifier/__main__.py\u3001orchestrator/verifier/cli.py\u3001package \u5916\u306e orchestrator/verify.py\u3001\u304a\u3088\u3073 data/schema\u3001\u751f\u6210\u7269\u3001subprocess\u3001\u5916\u90e8 command/Git\u3001toolchain\u3001binary\u3001\u52d5\u7684 import \u3092\u542b\u3080\u975e import \u59d4\u8b72\u306f\u672c map \u306e\u5916\u3067\u3042\u308a\u3001\u5b8c\u5168\u6027\u3092\u4e3b\u5f35\u3057\u306a\u3044",
+        "current_verifier_conformance": "unknown",
+        "scope_matches_expected": true,
+        "passed": true
+      },
+      "C_admission": {
+        "status": "ok",
+        "call_succeeded": true,
+        "return_type": "HistoricalCampaignView",
+        "read_purpose": "HISTORICAL_RAW",
+        "passed": true
+      },
+      "certified_rejection": {
+        "status": "ok",
+        "rejected": true,
+        "unexpected_success": false,
+        "expected_rejection_type": true,
+        "passed": true,
+        "exception": {
+          "chain": [
+            {
+              "type": "ArtifactAdmissionError",
+              "module": "orchestrator.campaign.artifact_admission",
+              "message": "campaign.lock codec validation failed: authority.contract_loader_blob_sha256s \u306e exact key \u96c6\u5408\u304c\u4e0d\u6b63"
+            },
+            {
+              "type": "CampaignLockCodecError",
+              "module": "orchestrator.campaign.campaign_lock",
+              "message": "authority.contract_loader_blob_sha256s \u306e exact key \u96c6\u5408\u304c\u4e0d\u6b63"
+            }
+          ],
+          "cause_cycle_to": null
+        }
+      },
+      "hashes_after": {
+        "campaign.lock": {
+          "status": "ok",
+          "sha256": "b6fc167593bd54c4ee792d276e1a1301e8e303d281a1f98167292e639b750641"
+        },
+        "runs/wal.jsonl": {
+          "status": "ok",
+          "sha256": "fb40ee26c89638cbec021be04f3ff25438f2c44a63a9153d1255bfb7bc018ec9"
+        }
+      },
+      "bytes_unchanged": {
+        "matches": {
+          "campaign.lock": true,
+          "runs/wal.jsonl": true
+        },
+        "passed": true
+      }
+    },
+    {
+      "subject": "rr95",
+      "campaign_dir": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a6-cert-20260902/a6-20260908b/jobs/rr95/campaigns/paper-story-a2-rr95-paper-story-a6-certification-rr95-1e7d99f2",
+      "expected_path_count": 62,
+      "hashes_before": {
+        "campaign.lock": {
+          "status": "ok",
+          "sha256": "f2c841a5c4ff1c930511dab2ff2f99ec5f1e4563bd8bded9518c0b0ef25fc00e"
+        },
+        "runs/wal.jsonl": {
+          "status": "ok",
+          "sha256": "36d11c6bf461c9acf6d2ede24ba13549005d0552bac87950d0df4d95da55eaeb"
+        }
+      },
+      "A_decode": {
+        "status": "ok",
+        "decode_succeeded": true,
+        "return_type": "DecodedHistoricalCampaignLock",
+        "expected_grammar": "exact-62",
+        "recorded_contract_loader_relative_paths": [
+          "orchestrator/campaign/env_contract.py",
+          "orchestrator/campaign/env_contract_activation.py",
+          "orchestrator/campaign/execution_guard.py",
+          "orchestrator/campaign/loop.py",
+          "orchestrator/campaign/pipeline.py",
+          "orchestrator/campaign/wal.py",
+          "orchestrator/campaign/ident.py",
+          "orchestrator/campaign/artifact_admission.py",
+          "orchestrator/verifier/core.py",
+          "orchestrator/verifier/dsg.py",
+          "orchestrator/verifier/model.py",
+          "orchestrator/verifier/parse.py",
+          "orchestrator/verifier/__init__.py",
+          "orchestrator/verifier/report.py",
+          "orchestrator/campaign/s8c_preregistration.py",
+          "orchestrator/campaign/s8c_preregistration_evidence.py",
+          "orchestrator/campaign/s8c_generation_projection.py",
+          "orchestrator/campaign/campaign_lock.py",
+          "orchestrator/campaign/contract_loader_binding.py",
+          "orchestrator/campaign/guided.py",
+          "orchestrator/campaign/replay.py",
+          "orchestrator/qualification/artifacts.py",
+          "orchestrator/qualification/t126_driver.py",
+          "orchestrator/verifier/commit_receipt.py",
+          "orchestrator/calibrator/__init__.py",
+          "orchestrator/calibrator/effective_clock_policy.py",
+          "orchestrator/calibrator/perf_preflight.py",
+          "orchestrator/calibrator/runner.py",
+          "orchestrator/calibrator/schema_v2.py",
+          "orchestrator/calibrator/stability.py",
+          "orchestrator/campaign/__init__.py",
+          "orchestrator/campaign/axis_trigger_gating.py",
+          "orchestrator/campaign/build_admission.py",
+          "orchestrator/campaign/buildcache.py",
+          "orchestrator/campaign/calibration_verify.py",
+          "orchestrator/campaign/campaign_claim.py",
+          "orchestrator/campaign/diff_quarantine.py",
+          "orchestrator/campaign/env_attestation.py",
+          "orchestrator/campaign/genome.py",
+          "orchestrator/campaign/layout.py",
+          "orchestrator/campaign/lock.py",
+          "orchestrator/campaign/model.py",
+          "orchestrator/campaign/p2_2.py",
+          "orchestrator/campaign/p3_b4_launcher.py",
+          "orchestrator/campaign/p3_b4_protocol.py",
+          "orchestrator/campaign/reflux_ir.py",
+          "orchestrator/campaign/reservation.py",
+          "orchestrator/campaign/search_baselines.py",
+          "orchestrator/campaign/site_policy.py",
+          "orchestrator/campaign/source_digest.py",
+          "orchestrator/campaign/trigger_gate_binding.py",
+          "orchestrator/critic/__init__.py",
+          "orchestrator/critic/online_digest.py",
+          "orchestrator/holdout_observation.py",
+          "orchestrator/qualification/__init__.py",
+          "orchestrator/qualification/attempt_ledger.py",
+          "orchestrator/qualification/collector.py",
+          "orchestrator/qualification/contract.py",
+          "orchestrator/qualification/identity.py",
+          "orchestrator/qualification/qsub_binding.py",
+          "orchestrator/qualification/retry_index.py",
+          "orchestrator/qualification/series.py"
+        ],
+        "path_count": 62,
+        "matches_expected_tuple": true,
+        "passed": true
+      },
+      "B_epoch": {
+        "status": "ok",
+        "return_type": "HistoricalCampaignVerifierEpoch",
+        "state": "E1",
+        "campaign_verifier_epoch": "E1:bd9418227bc080d2f3f70e48cad7d1518a7141df0323c6d08f7e83f277bc68cd",
+        "identity_scope": "enforcement source closure (curated exact 62 path; 2026-09-01 \u306e\u9759\u7684 import \u767a\u898b\u96c6\u5408 131 module \u306e\u3046\u3061\u3001\u65e2\u5b58 24\u3001\u660e\u793a import \u5148 36\u3001\u5b9f\u884c\u6642 package \u521d\u671f\u5316 2 \u3092\u53ce\u8f09; source-import \u63a8\u79fb\u9589\u5305\u3067\u306f\u306a\u3044)",
+        "excluded_scope": "\u540c\u767a\u898b\u96c6\u5408\u306e\u672a\u53ce\u8f09 69 module\u3001orchestrator/verifier/__main__.py\u3001orchestrator/verifier/cli.py\u3001package \u5916\u306e orchestrator/verify.py\u3001\u304a\u3088\u3073 data/schema\u3001\u751f\u6210\u7269\u3001subprocess\u3001\u5916\u90e8 command/Git\u3001toolchain\u3001binary\u3001\u52d5\u7684 import \u3092\u542b\u3080\u975e import \u59d4\u8b72\u306f\u672c map \u306e\u5916\u3067\u3042\u308a\u3001\u5b8c\u5168\u6027\u3092\u4e3b\u5f35\u3057\u306a\u3044",
+        "current_verifier_conformance": "unknown",
+        "scope_matches_expected": true,
+        "passed": true
+      },
+      "C_admission": {
+        "status": "ok",
+        "call_succeeded": true,
+        "return_type": "HistoricalCampaignView",
+        "read_purpose": "HISTORICAL_RAW",
+        "passed": true
+      },
+      "certified_rejection": {
+        "status": "ok",
+        "rejected": true,
+        "unexpected_success": false,
+        "expected_rejection_type": true,
+        "passed": true,
+        "exception": {
+          "chain": [
+            {
+              "type": "ArtifactAdmissionError",
+              "module": "orchestrator.campaign.artifact_admission",
+              "message": "campaign.lock codec validation failed: authority.contract_loader_blob_sha256s \u306e exact key \u96c6\u5408\u304c\u4e0d\u6b63"
+            },
+            {
+              "type": "CampaignLockCodecError",
+              "module": "orchestrator.campaign.campaign_lock",
+              "message": "authority.contract_loader_blob_sha256s \u306e exact key \u96c6\u5408\u304c\u4e0d\u6b63"
+            }
+          ],
+          "cause_cycle_to": null
+        }
+      },
+      "hashes_after": {
+        "campaign.lock": {
+          "status": "ok",
+          "sha256": "f2c841a5c4ff1c930511dab2ff2f99ec5f1e4563bd8bded9518c0b0ef25fc00e"
+        },
+        "runs/wal.jsonl": {
+          "status": "ok",
+          "sha256": "36d11c6bf461c9acf6d2ede24ba13549005d0552bac87950d0df4d95da55eaeb"
+        }
+      },
+      "bytes_unchanged": {
+        "matches": {
+          "campaign.lock": true,
+          "runs/wal.jsonl": true
+        },
+        "passed": true
+      }
+    }
+  ],
+  "negative_control": {
+    "subject": "exact24",
+    "campaign_dir": "/work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2022-20260827/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-a2-certification-rr5-df07b695",
+    "expected_path_count": 24,
+    "hashes_before": {
+      "campaign.lock": {
+        "status": "ok",
+        "sha256": "4c704947d1d55b5287aae466a9e1b644cb2897f626a7832a52c6074303c0d39f"
+      },
+      "runs/wal.jsonl": {
+        "status": "ok",
+        "sha256": "fad8d4c9bff8c7bb9534e4a3cb6eea6b26e780a6313504d24a559a78dffc310e"
+      }
+    },
+    "A_decode": {
+      "status": "ok",
+      "decode_succeeded": true,
+      "return_type": "DecodedHistoricalCampaignLock",
+      "expected_grammar": "exact-24",
+      "recorded_contract_loader_relative_paths": [
+        "orchestrator/campaign/env_contract.py",
+        "orchestrator/campaign/env_contract_activation.py",
+        "orchestrator/campaign/execution_guard.py",
+        "orchestrator/campaign/loop.py",
+        "orchestrator/campaign/pipeline.py",
+        "orchestrator/campaign/wal.py",
+        "orchestrator/campaign/ident.py",
+        "orchestrator/campaign/artifact_admission.py",
+        "orchestrator/verifier/core.py",
+        "orchestrator/verifier/dsg.py",
+        "orchestrator/verifier/model.py",
+        "orchestrator/verifier/parse.py",
+        "orchestrator/verifier/__init__.py",
+        "orchestrator/verifier/report.py",
+        "orchestrator/campaign/s8c_preregistration.py",
+        "orchestrator/campaign/s8c_preregistration_evidence.py",
+        "orchestrator/campaign/s8c_generation_projection.py",
+        "orchestrator/campaign/campaign_lock.py",
+        "orchestrator/campaign/contract_loader_binding.py",
+        "orchestrator/campaign/guided.py",
+        "orchestrator/campaign/replay.py",
+        "orchestrator/qualification/artifacts.py",
+        "orchestrator/qualification/t126_driver.py",
+        "orchestrator/verifier/commit_receipt.py"
+      ],
+      "path_count": 24,
+      "matches_expected_tuple": true,
+      "passed": true
+    },
+    "B_epoch": {
+      "status": "ok",
+      "return_type": "HistoricalCampaignVerifierEpoch",
+      "state": "E1",
+      "campaign_verifier_epoch": "E1:dfbc6f7436669a305f31f4b652a51f01f398a239d351f970f295a814f2087e53",
+      "identity_scope": "enforcement source closure (exact 24 path; witness gate\u3001S8C \u5224\u5b9a\u5668\u3001receipt \u767a\u884c\u30fb\u691c\u8a3c\u9762\u3092\u542b\u3080)",
+      "excluded_scope": "verifier package \u306e\u3046\u3061 orchestrator/verifier/__main__.py \u3068 orchestrator/verifier/cli.py\u3001\u304a\u3088\u3073 package \u5916\u306e orchestrator/verify.py \u306e implementation bytes \u306f\u675f\u7e1b\u3057\u306a\u3044",
+      "current_verifier_conformance": "unknown",
+      "scope_matches_expected": true,
+      "passed": true
+    },
+    "hashes_after": {
+      "campaign.lock": {
+        "status": "ok",
+        "sha256": "4c704947d1d55b5287aae466a9e1b644cb2897f626a7832a52c6074303c0d39f"
+      },
+      "runs/wal.jsonl": {
+        "status": "ok",
+        "sha256": "fad8d4c9bff8c7bb9534e4a3cb6eea6b26e780a6313504d24a559a78dffc310e"
+      }
+    },
+    "bytes_unchanged": {
+      "matches": {
+        "campaign.lock": true,
+        "runs/wal.jsonl": true
+      },
+      "passed": true
+    }
+  },
+  "completed": true,
+  "required_checks_passed": true,
+  "errors": [],
+  "output": {
+    "status": "ok",
+    "path": "/home/SFC/tanab/.claude/jobs/37c94393/tmp/probe-result.json"
+  }
+}

@@ -94,6 +94,18 @@ PRE_T733_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE = (
     "implementation bytes は束縛しない"
 )
 
+T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_SCOPE = (
+    "enforcement source closure (curated exact 62 path; 2026-09-01 の静的 import "
+    "発見集合 131 module のうち、既存 24、明示 import 先 36、実行時 package 初期化 "
+    "2 を収載; source-import 推移閉包ではない)"
+)
+T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE = (
+    "同発見集合の未収載 69 module、orchestrator/verifier/__main__.py、"
+    "orchestrator/verifier/cli.py、package 外の orchestrator/verify.py、および "
+    "data/schema、生成物、subprocess、外部 command/Git、toolchain、binary、動的 "
+    "import を含む非 import 委譲は本 map の外であり、完全性を主張しない"
+)
+
 
 def _bind_replay_admission_capability_issuer():
     issuer_token = object()
@@ -218,7 +230,7 @@ class CampaignVerifierEpoch:
 
 @dataclass(frozen=True, slots=True)
 class HistoricalCampaignVerifierEpoch(CampaignVerifierEpoch):
-    """pre-T733 exact-24 grammar から再現した歴史閲覧専用 epoch。"""
+    """収載済みの旧 grammar から再現した歴史閲覧専用 epoch。"""
 
     identity_scope: str = PRE_T733_CAMPAIGN_VERIFIER_EPOCH_SCOPE
     excluded_scope: str = PRE_T733_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE
@@ -233,9 +245,12 @@ class HistoricalCampaignVerifierEpoch(CampaignVerifierEpoch):
             and _is_sha256(self.campaign_verifier_epoch[3:])
             and self.state == "E1"
             and self.reason_code == "recorded-closure"
-            and self.identity_scope == PRE_T733_CAMPAIGN_VERIFIER_EPOCH_SCOPE
-            and self.excluded_scope
-            == PRE_T733_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE
+            and (self.identity_scope, self.excluded_scope) in (
+                (PRE_T733_CAMPAIGN_VERIFIER_EPOCH_SCOPE,
+                 PRE_T733_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE),
+                (T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_SCOPE,
+                 T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE),
+            )
         )
         if not valid:
             raise TypeError("historical campaign verifier epoch diagnostic が不正")
@@ -275,11 +290,21 @@ class _RecordedCampaignVerifierEpoch:
             return
         if type(self.blob_sha256s) is not MappingProxyType:
             raise TypeError("E1 verifier epoch blob map は immutable projection が必要")
-        expected_paths = (
-            campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS
-            if type(self.diagnostic) is HistoricalCampaignVerifierEpoch
-            else campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
-        )
+        expected_paths = campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+        if type(self.diagnostic) is HistoricalCampaignVerifierEpoch:
+            scopes = (self.diagnostic.identity_scope, self.diagnostic.excluded_scope)
+            if scopes == (
+                PRE_T733_CAMPAIGN_VERIFIER_EPOCH_SCOPE,
+                PRE_T733_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,
+            ):
+                expected_paths = campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS
+            elif scopes == (
+                T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_SCOPE,
+                T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,
+            ):
+                expected_paths = campaign_lock.T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS
+            else:
+                raise TypeError("historical campaign verifier epoch scope の組が不正")
         if tuple(self.blob_sha256s) != expected_paths:
             raise TypeError("E1 verifier epoch blob map の exact path 順序が不正")
 
@@ -1026,7 +1051,8 @@ def _verify_committed_loader_binding(
     try:
         if (type(decoded) is campaign_lock.DecodedHistoricalCampaignLock
                 and authority.recorded_contract_loader_relative_paths
-                == campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS):
+                in (campaign_lock.PRE_T733_CONTRACT_LOADER_RELATIVE_PATHS,
+                    campaign_lock.T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS)):
             contract_loader_binding.verify_committed_contract_loader_blobs(
                 authority.contract_loader_commit,
                 authority.contract_loader_blob_sha256s,
@@ -1053,7 +1079,7 @@ def _recorded_campaign_verifier_epoch(
     """記録値だけから enforcement closure epoch を導出する。
 
     現行 grammar の scope は ``CAMPAIGN_VERIFIER_EPOCH_*``、pre-T733
-    exact-24 の scope は ``PRE_T733_CAMPAIGN_VERIFIER_EPOCH_*`` に固定する。
+    exact-24 / T733 exact-62 はそれぞれの歴史 scope 定数に固定する。
     v2 の記録 map は記録 commit に対して真正と検証してから表示 ID を作る。
     """
     authority = decoded.authority
@@ -1087,6 +1113,14 @@ def _recorded_campaign_verifier_epoch(
             campaign_verifier_epoch=display,
             state="E1",
             reason_code="recorded-closure",
+        )
+    elif relative_paths == campaign_lock.T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS:
+        diagnostic = HistoricalCampaignVerifierEpoch(
+            campaign_verifier_epoch=display,
+            state="E1",
+            reason_code="recorded-closure",
+            identity_scope=T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_SCOPE,
+            excluded_scope=T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,
         )
     else:
         diagnostic = CampaignVerifierEpoch(
@@ -1147,7 +1181,7 @@ def require_campaign_verifier_epoch(
 ) -> CampaignVerifierEpoch:
     """WAL を読まず campaign.lock だけで中央 epoch gate を適用する。
 
-    certified は現行 scope だけ、historical exact-24 は当時の scope を返す。
+    certified は現行 scope だけ、historical exact-24 / exact-62 は当時の scope を返す。
     """
     _validate_read_purpose(purpose)
     layout = _layout(campaign)

@@ -3144,5 +3144,55 @@ def test_v2_candidate_cli_surface_has_no_approval_or_root_arguments():
         assert caught.value.code == 2
 
 
+def _restored_floor_selection_fixture(tmp_path, *, earlier_resume):
+    from orchestrator.campaign import s8b_floor_evacuation as evacuation
+
+    fixture = V2FIX.candidate_repository(tmp_path, M)
+    root = fixture["root"]
+    selected_id = fixture["result_rel"].rsplit("/", 2)[-2]
+    earlier_id = f"20260810T235900Z-{selected_id.rsplit('-', 1)[1]}"
+    installed = _install_real_floor_selection_runs(fixture, [
+        {"run_id": earlier_id, "resume": earlier_resume},
+        {"run_id": selected_id},
+    ])
+    assert installed[earlier_id]["derived_eligible_for_refreeze"] is (not earlier_resume)
+    earlier_dir = (root / installed[earlier_id]["result_rel"]).parent
+    before = {p.relative_to(earlier_dir): p.read_bytes()
+              for p in earlier_dir.rglob("*") if p.is_file()}
+    assert before
+    env_tag = fixture["result_rel"].split("/")[2]
+    evacuation.evacuate(root=root, env_tag=env_tag)
+    assert not earlier_dir.exists()
+    assert not (root / fixture["result_rel"]).exists()
+    evacuation.restore(root=root, env_tag=env_tag)
+    # S4: independently establish earlier-run existence and every original byte.
+    assert earlier_dir.is_dir()
+    after = {p.relative_to(earlier_dir): p.read_bytes()
+             for p in earlier_dir.rglob("*") if p.is_file()}
+    assert after == before
+    assert (earlier_dir / "result.json").read_bytes() == before[Path("result.json")]
+    return fixture
+
+
+def test_restored_namespace_restores_candidate_inputs(tmp_path, monkeypatch):
+    fixture = _restored_floor_selection_fixture(tmp_path, earlier_resume=True)
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    document = M.build_v2_g1_candidate(
+        floor_result_path=fixture["result_rel"], budget_path=fixture["budget_rel"],
+        root=fixture["root"],
+    )
+    assert document["floor_source"]["path"] == fixture["result_rel"]
+
+
+def test_restored_namespace_rejects_later_eligible_run(tmp_path, monkeypatch):
+    fixture = _restored_floor_selection_fixture(tmp_path, earlier_resume=False)
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    with pytest.raises(M.FreezeError, match=r"^floor-selection-rule-mismatch: .*required_run_id=20260810T235900Z-"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"], budget_path=fixture["budget_rel"],
+            root=fixture["root"],
+        )
+
+
 from orchestrator.tests.growth_test_holds import enforce_held_functions  # noqa: E402
 enforce_held_functions(globals(), __file__, plain_runner="none")
