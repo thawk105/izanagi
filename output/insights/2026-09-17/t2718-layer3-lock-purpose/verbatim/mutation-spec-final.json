@@ -1,0 +1,297 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "        if purpose is CampaignReadPurpose.HISTORICAL_RAW:\n            return campaign_lock.decode_historical_campaign_lock(text)\n        return campaign_lock.decode_campaign_lock(text)\n",
+          "new": "        return campaign_lock.decode_campaign_lock(text)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_build_report[24]",
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_build_report[62]",
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_uses_authority_head_fallback[24]",
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_uses_authority_head_fallback[62]",
+        "orchestrator/tests/test_layer3_report.py::test_read_campaign_lock_current_and_v1_by_purpose[CERTIFIED_ACCEPTANCE-63]",
+        "orchestrator/tests/test_layer3_report.py::test_read_campaign_lock_current_and_v1_by_purpose[CERTIFIED_ACCEPTANCE-v1]",
+        "orchestrator/tests/test_layer3_report.py::test_read_campaign_lock_current_and_v1_by_purpose[HISTORICAL_RAW-63]",
+        "orchestrator/tests/test_layer3_report.py::test_read_campaign_lock_current_and_v1_by_purpose[HISTORICAL_RAW-v1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "        if purpose is CampaignReadPurpose.HISTORICAL_RAW:\n            return campaign_lock.decode_historical_campaign_lock(text)\n",
+          "new": "        if purpose is not CampaignReadPurpose.HISTORICAL_RAW:\n            return campaign_lock.decode_historical_campaign_lock(text)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_artifact_refs_accept_validated_knowledge_receipt_digest",
+        "orchestrator/tests/test_layer3_report.py::test_artifact_refs_reject_receipt_changed_after_provenance_read",
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_build_report[24]",
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_build_report[62]",
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_uses_authority_head_fallback[24]",
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_uses_authority_head_fallback[62]",
+        "orchestrator/tests/test_layer3_report.py::test_read_campaign_lock_current_and_v1_by_purpose[CERTIFIED_ACCEPTANCE-63]",
+        "orchestrator/tests/test_layer3_report.py::test_read_campaign_lock_current_and_v1_by_purpose[CERTIFIED_ACCEPTANCE-v1]",
+        "orchestrator/tests/test_layer3_report.py::test_read_campaign_lock_current_and_v1_by_purpose[HISTORICAL_RAW-63]",
+        "orchestrator/tests/test_layer3_report.py::test_read_campaign_lock_current_and_v1_by_purpose[HISTORICAL_RAW-v1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "        if purpose is CampaignReadPurpose.HISTORICAL_RAW:\n            return campaign_lock.decode_historical_campaign_lock(text)\n        return campaign_lock.decode_campaign_lock(text)\n",
+          "new": "        return campaign_lock.decode_historical_campaign_lock(text)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_accepted_report_rejects_historical_exact_grammar_at_lock[24]",
+        "orchestrator/tests/test_layer3_report.py::test_accepted_report_rejects_historical_exact_grammar_at_lock[62]",
+        "orchestrator/tests/test_layer3_report.py::test_artifact_refs_accept_validated_knowledge_receipt_digest",
+        "orchestrator/tests/test_layer3_report.py::test_artifact_refs_reject_receipt_changed_after_provenance_read",
+        "orchestrator/tests/test_layer3_report.py::test_read_campaign_lock_current_and_v1_by_purpose[CERTIFIED_ACCEPTANCE-63]",
+        "orchestrator/tests/test_layer3_report.py::test_read_campaign_lock_current_and_v1_by_purpose[CERTIFIED_ACCEPTANCE-v1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "        resolved_campaign / \"campaign.lock\",\n        purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,\n",
+          "new": "        resolved_campaign / \"campaign.lock\",\n        purpose=CampaignReadPurpose.HISTORICAL_RAW,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_accepted_report_rejects_historical_exact_grammar_at_lock[24]",
+        "orchestrator/tests/test_layer3_report.py::test_accepted_report_rejects_historical_exact_grammar_at_lock[62]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "        campaign_dir / \"campaign.lock\", purpose=CampaignReadPurpose.HISTORICAL_RAW,\n",
+          "new": "        campaign_dir / \"campaign.lock\", purpose=CampaignReadPurpose.CERTIFIED_ACCEPTANCE,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_build_report[24]",
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_build_report[62]",
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_uses_authority_head_fallback[24]",
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_uses_authority_head_fallback[62]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    if type(purpose) is not CampaignReadPurpose:\n        raise TypeError(\n            \"purpose は exact CampaignReadPurpose.CERTIFIED_ACCEPTANCE \"\n            \"または HISTORICAL_RAW が必要\"\n        )\n    try:\n        text = path.read_text(encoding=\"utf-8\")\n",
+          "new": "    try:\n        text = path.read_text(encoding=\"utf-8\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_read_campaign_lock_rejects_non_exact_purpose"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "                campaign_lock=decoded_lock.identity,\n",
+          "new": "                campaign_lock=decoded_lock,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_abort_event_renders_abort_view_and_commit_absent_reject",
+        "orchestrator/tests/test_layer3_report.py::test_accepted_report_rejects_e0_after_historical_projection",
+        "orchestrator/tests/test_layer3_report.py::test_accepted_report_rejects_historical_before_certifying_fields_are_set",
+        "orchestrator/tests/test_layer3_report.py::test_accepted_report_rejects_no_commit_campaign",
+        "orchestrator/tests/test_layer3_report.py::test_accepted_report_requires_e1_and_records_epoch",
+        "orchestrator/tests/test_layer3_report.py::test_bench_rep_returncodes_passes_real_view_and_schema",
+        "orchestrator/tests/test_layer3_report.py::test_between_run_schema_version_does_not_change_floor_classification",
+        "orchestrator/tests/test_layer3_report.py::test_body_event_omission_is_detected",
+        "orchestrator/tests/test_layer3_report.py::test_campaign_without_loop_state_has_empty_absent_whiteboard",
+        "orchestrator/tests/test_layer3_report.py::test_campaign_without_ycsb_has_honest_null_for_both_floor_kinds",
+        "orchestrator/tests/test_layer3_report.py::test_certified_report_omits_current_verifier_conformance",
+        "orchestrator/tests/test_layer3_report.py::test_certified_schema_forbids_current_verifier_conformance",
+        "orchestrator/tests/test_layer3_report.py::test_contract_pin_env_mismatch_is_recorded_without_blocking_report",
+        "orchestrator/tests/test_layer3_report.py::test_contract_pin_sha_mismatch_fails_closed_before_floor_use",
+        "orchestrator/tests/test_layer3_report.py::test_duplicate_matching_floor_of_same_kind_fails_closed",
+        "orchestrator/tests/test_layer3_report.py::test_existing_certifying_v3_missing_epoch_remains_readable",
+        "orchestrator/tests/test_layer3_report.py::test_existing_empty_loop_state_keeps_loop_state_provenance",
+        "orchestrator/tests/test_layer3_report.py::test_existing_report_without_floor_protocol_remains_schema_valid",
+        "orchestrator/tests/test_layer3_report.py::test_existing_v3_missing_new_admission_fields_remains_readable",
+        "orchestrator/tests/test_layer3_report.py::test_explicit_generated_from_head_still_wins",
+        "orchestrator/tests/test_layer3_report.py::test_external_v2_campaign_uses_lock_authority_for_build_and_render",
+        "orchestrator/tests/test_layer3_report.py::test_floor_candidate_without_workload_fails_closed",
+        "orchestrator/tests/test_layer3_report.py::test_floor_kinds_match_independently_and_classification_records_skips",
+        "orchestrator/tests/test_layer3_report.py::test_floor_match_uses_protocol_records_threads_and_workload",
+        "orchestrator/tests/test_layer3_report.py::test_generic_generators_have_no_certifying_input_parameter",
+        "orchestrator/tests/test_layer3_report.py::test_git_backed_campaign_head_precedes_v2_lock_authority",
+        "orchestrator/tests/test_layer3_report.py::test_historical_build_report_displays_e0_without_rejection",
+        "orchestrator/tests/test_layer3_report.py::test_historical_build_report_projects_unknown_current_verifier_conformance",
+        "orchestrator/tests/test_layer3_report.py::test_historical_build_report_remains_non_certifying",
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_build_report[24]",
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_build_report[62]",
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_uses_authority_head_fallback[24]",
+        "orchestrator/tests/test_layer3_report.py::test_historical_exact_grammar_uses_authority_head_fallback[62]",
+        "orchestrator/tests/test_layer3_report.py::test_historical_layer3_schema_accepts_legacy_recorded_current_closure_mismatch",
+        "orchestrator/tests/test_layer3_report.py::test_historical_policy_version_report_schema",
+        "orchestrator/tests/test_layer3_report.py::test_knowledge_report_projects_completed_empty_retrieval",
+        "orchestrator/tests/test_layer3_report.py::test_knowledge_report_projects_verified_receipt_sources",
+        "orchestrator/tests/test_layer3_report.py::test_layer3_report_uses_shared_whiteboard_value_domain_validator",
+        "orchestrator/tests/test_layer3_report.py::test_legacy_silo_within_floor_without_genome_states_match_basis",
+        "orchestrator/tests/test_layer3_report.py::test_legacy_v2_rejects_forward_knowledge_provenance_property",
+        "orchestrator/tests/test_layer3_report.py::test_legacy_v2_report_schema_remains_readable",
+        "orchestrator/tests/test_layer3_report.py::test_legacy_v2_without_policy_hint_remains_readable",
+        "orchestrator/tests/test_layer3_report.py::test_legacy_within_floor_without_genome_does_not_match_mocc",
+        "orchestrator/tests/test_layer3_report.py::test_linux_v2_keeps_direct_skew_zero_floor_in_addition_to_pin",
+        "orchestrator/tests/test_layer3_report.py::test_main_accepts_external_campaign_with_output_root",
+        "orchestrator/tests/test_layer3_report.py::test_mixed_protocol_campaign_cannot_receive_report_level_floor",
+        "orchestrator/tests/test_layer3_report.py::test_named_screening_abort_preserves_complete_screen_payload",
+        "orchestrator/tests/test_layer3_report.py::test_named_screening_artifact_builds_layer3_report_end_to_end",
+        "orchestrator/tests/test_layer3_report.py::test_nested_exploration_root_resolves_contract_pin_by_suffix",
+        "orchestrator/tests/test_layer3_report.py::test_nested_exploration_root_uses_direct_floor_when_pin_file_is_missing",
+        "orchestrator/tests/test_layer3_report.py::test_new_screening_fields_pass_real_view_and_run_schema[new_fields0]",
+        "orchestrator/tests/test_layer3_report.py::test_new_screening_fields_pass_real_view_and_run_schema[new_fields1]",
+        "orchestrator/tests/test_layer3_report.py::test_nonknowledge_report_emits_null_knowledge_provenance",
+        "orchestrator/tests/test_layer3_report.py::test_pegasus_g1_direct_copy_does_not_restore_within_run_match",
+        "orchestrator/tests/test_layer3_report.py::test_pegasus_g1_series_excludes_direct_within_but_keeps_between",
+        "orchestrator/tests/test_layer3_report.py::test_pegasus_v2_adds_only_contract_pin_not_registered_glob",
+        "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[available-status-has-unavailable-reason]",
+        "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[no-perf-counter-complete]",
+        "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[no-perf-reports-missing-indicators]",
+        "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[perf-complete-reports-missing-indicators]",
+        "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[perf-incomplete-reports-no-missing-indicators]",
+        "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[perf-required-but-counter-not-required]",
+        "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[probe-error-reaches-layer3]",
+        "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[unavailable-status-claims-available]",
+        "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[unavailable-status-has-probe-error-reason]",
+        "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[use-perf-false-disagrees-with-available]",
+        "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_producer_impossible_combinations[use-perf-true-disagrees-with-unavailable]",
+        "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_schema_valid_noncanonical_receipt",
+        "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_unknown_key[candidate]",
+        "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_unknown_key[observation]",
+        "orchestrator/tests/test_layer3_report.py::test_perf_observation_rejects_unknown_key[preflight]",
+        "orchestrator/tests/test_layer3_report.py::test_perf_observation_survives_render_and_legacy_run_remains_valid",
+        "orchestrator/tests/test_layer3_report.py::test_reader_rejects_acceptance_receipt_without_certifying_input",
+        "orchestrator/tests/test_layer3_report.py::test_reader_rejects_certifying_historical_admission",
+        "orchestrator/tests/test_layer3_report.py::test_reader_rejects_certifying_input_without_acceptance_receipt",
+        "orchestrator/tests/test_layer3_report.py::test_reader_rejects_historical_marker_on_certifying_input",
+        "orchestrator/tests/test_layer3_report.py::test_relative_and_absolute_campaign_paths_are_byte_identical",
+        "orchestrator/tests/test_layer3_report.py::test_render_accepted_persists_certifying_report",
+        "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render]",
+        "orchestrator/tests/test_layer3_report.py::test_render_and_render_accepted_race_rejects_second_writer[render_accepted]",
+        "orchestrator/tests/test_layer3_report.py::test_report_policy_hint_rejects_non_string_top_level",
+        "orchestrator/tests/test_layer3_report.py::test_report_projects_both_nonlegacy_protocol_match_bases",
+        "orchestrator/tests/test_layer3_report.py::test_report_records_present_policy_hint_at_top_level_and_workload",
+        "orchestrator/tests/test_layer3_report.py::test_report_uses_null_for_absent_policy_hint",
+        "orchestrator/tests/test_layer3_report.py::test_saved_report_without_current_verifier_conformance_remains_readable[v2]",
+        "orchestrator/tests/test_layer3_report.py::test_saved_report_without_current_verifier_conformance_remains_readable[v3]",
+        "orchestrator/tests/test_layer3_report.py::test_saved_v3_without_knowledge_provenance_remains_readable",
+        "orchestrator/tests/test_layer3_report.py::test_schema_rejects_empty_material_items[aborts]",
+        "orchestrator/tests/test_layer3_report.py::test_schema_rejects_empty_material_items[rejects]",
+        "orchestrator/tests/test_layer3_report.py::test_schema_rejects_empty_material_items[runs]",
+        "orchestrator/tests/test_layer3_report.py::test_schema_rejects_empty_material_items[variants]",
+        "orchestrator/tests/test_layer3_report.py::test_schema_rejects_empty_material_items[verifications]",
+        "orchestrator/tests/test_layer3_report.py::test_schema_rejects_empty_material_items[whiteboard]",
+        "orchestrator/tests/test_layer3_report.py::test_schema_rejects_inconsistent_floor_result_correlation",
+        "orchestrator/tests/test_layer3_report.py::test_schema_rejects_missing_or_invalid_whiteboard_provenance[None]",
+        "orchestrator/tests/test_layer3_report.py::test_schema_rejects_missing_or_invalid_whiteboard_provenance[unknown]",
+        "orchestrator/tests/test_layer3_report.py::test_schema_rejects_non_string_floor_protocol",
+        "orchestrator/tests/test_layer3_report.py::test_screening_abort_participates_in_input_ref_multiset",
+        "orchestrator/tests/test_layer3_report.py::test_screening_abort_primary_mutation_fails_bijection_at_equal_count",
+        "orchestrator/tests/test_layer3_report.py::test_screening_abort_variant_is_listed_in_rejects",
+        "orchestrator/tests/test_layer3_report.py::test_screening_abort_without_verify_done_builds_without_verification",
+        "orchestrator/tests/test_layer3_report.py::test_trigger_campaign_report_keeps_commitment_and_excludes_raw_binding",
+        "orchestrator/tests/test_layer3_report.py::test_v2_and_v3_reports_with_legacy_run_without_screening_remain_valid",
+        "orchestrator/tests/test_layer3_report.py::test_v2_lock_projects_only_inner_identity_without_authority_or_new_source_refs",
+        "orchestrator/tests/test_layer3_report.py::test_v2_report_rejects_invalid_screening_value_with_legacy_schema",
+        "orchestrator/tests/test_layer3_report.py::test_variant_without_commit_is_reject_with_primary_reference",
+        "orchestrator/tests/test_layer3_report.py::test_wrong_protocol_floor_is_reported_as_mismatch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    path: Path, *, purpose: CampaignReadPurpose,\n",
+          "new": "    path: Path, *, purpose: CampaignReadPurpose = CampaignReadPurpose.HISTORICAL_RAW,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_read_campaign_lock_requires_purpose"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    if type(purpose) is not CampaignReadPurpose:\n        raise TypeError(\n            \"purpose は exact CampaignReadPurpose.CERTIFIED_ACCEPTANCE \"\n            \"または HISTORICAL_RAW が必要\"\n        )\n    try:\n        text = path.read_text(encoding=\"utf-8\")\n",
+          "new": "    try:\n        text = path.read_text(encoding=\"utf-8\")\n        if type(purpose) is not CampaignReadPurpose:\n            raise TypeError(\n                \"purpose は exact CampaignReadPurpose.CERTIFIED_ACCEPTANCE \"\n                \"または HISTORICAL_RAW が必要\"\n            )\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_layer3_report.py::test_read_campaign_lock_rejects_non_exact_purpose"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "        if purpose is CampaignReadPurpose.HISTORICAL_RAW:\n            return campaign_lock.decode_historical_campaign_lock(text)\n        return campaign_lock.decode_campaign_lock(text)\n",
+          "new": "        decoder = (\n            campaign_lock.decode_historical_campaign_lock\n            if purpose is CampaignReadPurpose.HISTORICAL_RAW\n            else campaign_lock.decode_campaign_lock\n        )\n        return decoder(text)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import ast
 from collections import Counter
 from contextlib import nullcontext
 import dataclasses
+from enum import Enum
 import hashlib
 import inspect
 import json
@@ -563,6 +564,29 @@ def _historical_admitted_campaign(campaign: Path):
         admission_status="historical-not-reclassified",
     )
     return dataclasses.replace(admitted, decision=decision)
+
+
+def _historical_exact_grammar_campaign(tmp_path, monkeypatch, grammar):
+    from orchestrator.campaign import build_admission as B
+    from orchestrator.tests import test_artifact_admission as support
+
+    repo = support._committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    with monkeypatch.context() as issuing:
+        issuing.setattr(B, "CURRENT_PIN", "d706650")
+        issuing.setattr(support, "CURRENT_PIN", "d706650")
+        issuing.setattr(support.receipt_support, "CURRENT_PIN", "d706650")
+        issuing.setattr(
+            support.receipt_support, "_PROOF_BUILD_CONTEXT",
+            B.build_run_context(generator_id=B.GeneratorId.BACKOFF_SWEEP),
+        )
+        campaign = support._new_schema_campaign(tmp_path / "recorded")
+    if grammar == 62:
+        support._rewrite_as_t733_exact62_lock(campaign)
+    else:
+        assert grammar == 24
+        support._rewrite_as_pre_t733_lock(campaign)
+    return campaign
 
 
 def _certifying_receipt_for(campaign: Path):
@@ -1888,6 +1912,172 @@ def test_historical_build_report_projects_unknown_current_verifier_conformance(
     assert report["current_verifier_conformance"] == "unknown"
 
 
+@pytest.mark.parametrize("grammar", [62, 24])
+def test_historical_exact_grammar_build_report(tmp_path, monkeypatch, grammar):
+    campaign = _historical_exact_grammar_campaign(tmp_path, monkeypatch, grammar)
+    paths = [campaign / "campaign.lock", campaign / "runs/wal.jsonl"]
+    before = [path.read_bytes() for path in paths]
+
+    report = layer3_report.build_report(
+        campaign, generated_from_head="fixed", output_root=tmp_path,
+    )
+
+    assert report["certifying_input"] is False
+    assert report["acceptance_receipt"] is None
+    assert report["current_verifier_conformance"] == "unknown"
+    epoch = report["campaign_verifier_epoch"]
+    assert epoch["state"] == "E1"
+    assert epoch["reason_code"] == "recorded-closure"
+    # exact-24 was observed through real HISTORICAL_RAW admission of this fixture.
+    expected_epochs = {
+        62: "E1:78920efc47f4eb280b956a8fb92abed16b888495db544b62b1a15bf1f61004e9",
+        24: "E1:e1e397737e509b550482d3e815bcb69b87c0b5c42f6ac7feb6fccb657856cfc7",
+    }
+    assert epoch["campaign_verifier_epoch"] == expected_epochs[grammar]
+    assert report["workload"]["records"] == 1
+    assert report["workload"]["threads"] == 1
+    assert [path.read_bytes() for path in paths] == before
+    layer3_report._validate_schema(report)
+
+
+@pytest.mark.parametrize("grammar", [62, 24])
+def test_accepted_report_rejects_historical_exact_grammar_at_lock(
+    tmp_path, monkeypatch, grammar,
+):
+    campaign = _historical_exact_grammar_campaign(tmp_path, monkeypatch, grammar)
+    verified = _certifying_receipt_for(campaign)
+    verified.trials[0].trial_id = "test"
+    monkeypatch.setattr(
+        layer3_report.s8c_acceptance_receipt,
+        "require_current_verified_receipt", lambda _receipt: verified,
+    )
+    before = {path for path in tmp_path.rglob("*") if path.is_file()}
+    with pytest.raises(layer3_report.Layer3ReportError) as caught:
+        layer3_report.build_accepted_report(
+            campaign, acceptance_receipt=object(),
+            generated_from_head="fixed", output_root=tmp_path,
+        )
+    assert str(caught.value) == "campaign.lock schema が不正"
+    assert type(caught.value.__cause__) is campaign_lock.CampaignLockCodecError
+    assert {path for path in tmp_path.rglob("*") if path.is_file()} == before
+
+
+def test_read_campaign_lock_requires_purpose(tmp_path):
+    campaign, _ = _campaign(tmp_path, [])
+    with pytest.raises(TypeError):
+        layer3_report._read_campaign_lock(campaign / "campaign.lock")
+
+
+def test_read_campaign_lock_rejects_non_exact_purpose(tmp_path):
+    class S(str):
+        pass
+
+    class OtherPurpose(str, Enum):
+        HISTORICAL_RAW = "HISTORICAL_RAW"
+        CERTIFIED_ACCEPTANCE = "CERTIFIED_ACCEPTANCE"
+
+    campaign, _ = _campaign(tmp_path, [])
+    for path in (campaign / "campaign.lock", tmp_path / "missing.lock"):
+        for value in (
+            "HISTORICAL_RAW", "CERTIFIED_ACCEPTANCE",
+            S("HISTORICAL_RAW"), S("CERTIFIED_ACCEPTANCE"),
+            OtherPurpose.HISTORICAL_RAW, OtherPurpose.CERTIFIED_ACCEPTANCE,
+        ):
+            with pytest.raises(TypeError) as caught:
+                layer3_report._read_campaign_lock(path, purpose=value)
+            assert str(caught.value) == (
+                "purpose は exact CampaignReadPurpose.CERTIFIED_ACCEPTANCE "
+                "または HISTORICAL_RAW が必要"
+            )
+
+
+@pytest.mark.parametrize("grammar", [63, "v1"])
+@pytest.mark.parametrize("purpose", list(layer3_report.CampaignReadPurpose))
+def test_read_campaign_lock_current_and_v1_by_purpose(tmp_path, grammar, purpose):
+    identity = {
+        "ccbench_commit": "fixed", "search_config": {"records": 1, "threads": 2},
+        "search_tag": "fixture", "spec_content": "fixture", "trial": "fixture",
+    }
+    text = json.dumps(identity, sort_keys=True, separators=(",", ":"))
+    if grammar == 63:
+        text = build_v2_campaign_lock(text)
+    path = tmp_path / "campaign.lock"
+    path.write_text(text, encoding="utf-8")
+    result = layer3_report._read_campaign_lock(path, purpose=purpose)
+    expected_type = (
+        campaign_lock.DecodedHistoricalCampaignLock
+        if purpose is layer3_report.CampaignReadPurpose.HISTORICAL_RAW
+        else campaign_lock.DecodedCampaignLock
+    )
+    assert type(result) is expected_type
+    assert result.identity == identity
+    canonical_member = layer3_report.CampaignReadPurpose("HISTORICAL_RAW")
+    positive = layer3_report._read_campaign_lock(path, purpose=canonical_member)
+    assert type(positive) is campaign_lock.DecodedHistoricalCampaignLock
+    assert positive.identity == identity
+
+
+@pytest.mark.parametrize("grammar", [62, 24])
+def test_historical_exact_grammar_uses_authority_head_fallback(
+    tmp_path, monkeypatch, grammar,
+):
+    campaign = _historical_exact_grammar_campaign(tmp_path, monkeypatch, grammar)
+    _assert_external_campaign_without_git_head(campaign)
+    recorded = layer3_report._read_campaign_lock(
+        campaign / "campaign.lock",
+        purpose=layer3_report.CampaignReadPurpose.HISTORICAL_RAW,
+    )
+    report = layer3_report.build_report(campaign, output_root=tmp_path)
+    assert report["meta"]["generated_from_head"] == recorded.authority.contract_loader_commit
+    # Exercise the real reader and fallback with a fixed recorded authority.
+    # A fictitious Git commit cannot be admitted by the real blob verifier.
+    expected = "b" * 40
+    path = campaign / "campaign.lock"
+    value = json.loads(path.read_text(encoding="utf-8"))
+    value["authority"]["contract_loader_commit"] = expected
+    path.write_text(
+        json.dumps(value, sort_keys=True, separators=(",", ":")), encoding="utf-8",
+    )
+    decoded = layer3_report._read_campaign_lock(
+        path, purpose=layer3_report.CampaignReadPurpose.HISTORICAL_RAW,
+    )
+    assert layer3_report._resolve_generated_from_head(campaign, decoded, None) == expected
+
+
+@pytest.mark.parametrize("grammar", [63, "v1"])
+def test_material_knowledge_identity_argument_preserves_current_and_v1(
+    tmp_path, grammar,
+):
+    campaign, _, _resolved = _knowledge_campaign(tmp_path)
+    decoded = campaign_lock.decode_campaign_lock(
+        (campaign / "campaign.lock").read_text(encoding="utf-8"),
+    )
+    if grammar == "v1":
+        decoded = campaign_lock.decode_campaign_lock(decoded.identity_preimage)
+    layout = CampaignLayout(root=str(campaign))
+    records = wal.read_records(layout)
+    helper = wal.knowledge_provenance_and_receipt_sha256_for_material_report
+    object_result = helper(layout, records, campaign_lock=decoded)
+    identity_result = helper(layout, records, campaign_lock=decoded.identity)
+    assert object_result is not None
+    assert identity_result == object_result
+    assert object_result[1] == hashlib.sha256(
+        (campaign / knowledge_manifest.RECEIPT_FILENAME).read_bytes(),
+    ).hexdigest()
+
+    # Both representations must reject a one-sided knowledge binding identically.
+    identity = json.loads(json.dumps(decoded.identity))
+    del identity["search_config"]["knowledge_manifest_sha256"]
+    invalid_object = dataclasses.replace(decoded, identity=identity)
+    errors = []
+    for lock_value in (invalid_object, identity):
+        with pytest.raises(wal.AttemptTopologyError) as caught:
+            helper(layout, records, campaign_lock=lock_value)
+        assert type(caught.value) is wal.AttemptTopologyError
+        errors.append(str(caught.value))
+    assert errors[0] == errors[1]
+
+
 def test_historical_policy_version_report_schema(tmp_path, monkeypatch):
     from orchestrator.campaign import build_admission as B
     from orchestrator.tests import test_artifact_admission as support
@@ -2256,7 +2446,8 @@ def test_artifact_refs_accept_validated_knowledge_receipt_digest(tmp_path):
             CampaignLayout(root=str(campaign)),
             wal.read_records(CampaignLayout(root=str(campaign))),
             campaign_lock=layer3_report._read_campaign_lock(
-                campaign / "campaign.lock"
+                campaign / "campaign.lock",
+                purpose=layer3_report.CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
             ),
         )
     )
@@ -2276,7 +2467,10 @@ def test_artifact_refs_reject_receipt_changed_after_provenance_read(tmp_path):
     campaign, _output_root, _resolved = _knowledge_campaign(tmp_path)
     layout = CampaignLayout(root=str(campaign))
     records = wal.read_records(layout)
-    decoded_lock = layer3_report._read_campaign_lock(campaign / "campaign.lock")
+    decoded_lock = layer3_report._read_campaign_lock(
+        campaign / "campaign.lock",
+        purpose=layer3_report.CampaignReadPurpose.CERTIFIED_ACCEPTANCE,
+    )
     checked = (
         wal.knowledge_provenance_and_receipt_sha256_for_material_report(
             layout, records, campaign_lock=decoded_lock,
