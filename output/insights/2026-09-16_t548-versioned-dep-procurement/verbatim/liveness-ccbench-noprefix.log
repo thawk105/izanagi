@@ -1,0 +1,21 @@
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Looking for C++ include pthread.h
+-- Looking for C++ include pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE  
+CMake Error at /usr/share/cmake-3.22/Modules/FindPackageHandleStandardArgs.cmake:230 (message):
+  Could NOT find gflags (missing: gflags_LIBRARY_FILE gflags_INCLUDE_DIR)
+Call Stack (most recent call first):
+  /usr/share/cmake-3.22/Modules/FindPackageHandleStandardArgs.cmake:594 (_FPHSA_FAILURE_MESSAGE)
+  cmake/Findgflags.cmake:9 (find_package_handle_standard_args)
+  CMakeLists.txt:33 (find_package)
+
+
+-- Configuring incomplete, errors occurred!
+See also "/home/SFC/tanab/.claude/jobs/a68717bd/tmp/liveness/ccbench-noprefix/CMakeFiles/CMakeOutput.log".

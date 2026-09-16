@@ -225,16 +225,6 @@ def _prepare_dependencies(
     root: Path, policy: Mapping[str, Any], cache_root: Path, scratch: Path,
     toolchain: Mapping[str, Any],
 ) -> dict[str, Path]:
-    gflags_source = _assert_dependency_source(
-        policy.get("gflags_source_path"), policy.get("gflags_expected_head"), "gflags",
-    )
-    glog_source = _assert_dependency_source(
-        policy.get("glog_source_path"), policy.get("glog_expected_head"), "glog",
-    )
-    gflags = _install_dependency("gflags", gflags_source, scratch, toolchain)
-    glog = _install_dependency(
-        "glog", glog_source, scratch, toolchain, gflags_prefix=gflags,
-    )
     staging = scratch / "thirdparty-src"
     hydrate = _run_checked([
         sys.executable, os.fspath(root / "tools" / "pegasus" / "fetch_third_party.py"),
@@ -246,6 +236,16 @@ def _prepare_dependencies(
     if type(source_root_value) is not str or not os.path.isabs(source_root_value):
         raise RuntimeError("hydrate source_root is not absolute")
     source_root = Path(source_root_value).resolve(strict=True)
+    gflags_source = _assert_dependency_source(
+        os.fspath(source_root / "gflags"), policy.get("gflags_expected_head"), "gflags",
+    )
+    glog_source = _assert_dependency_source(
+        os.fspath(source_root / "glog"), policy.get("glog_expected_head"), "glog",
+    )
+    gflags = _install_dependency("gflags", gflags_source, scratch, toolchain)
+    glog = _install_dependency(
+        "glog", glog_source, scratch, toolchain, gflags_prefix=gflags,
+    )
     dependencies = {name: source_root / name for name in (
         "masstree", "mimalloc", "googletest",
     )}

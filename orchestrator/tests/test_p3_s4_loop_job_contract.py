@@ -316,10 +316,13 @@ def _assert_static_job_contract(source: str) -> None:
         "reservation-create-only": 'with open(destination, "x", encoding="utf-8")',
         "claim-root": 'mkdir -p -m 0700 -- "$claim_root"',
         "dependency-policy-path": "POLICY=$repo/tools/pegasus/policy.json",
+        "dependency-hydrated-sources": (
+            'THIRDPARTY_SOURCE_ROOT="$IZANAGI_S4_THIRDPARTY_SOURCE_ROOT"\n'
+            'GFLAGS_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/gflags"\n'
+            'GLOG_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/glog"'
+        ),
         "dependency-policy-fields": (
-            '"gflags_source_path",\n'
-            '    "gflags_expected_head",\n'
-            '    "glog_source_path",\n'
+            '"gflags_expected_head",\n'
             '    "glog_expected_head",'
         ),
         "dependency-compilers": (
@@ -706,13 +709,9 @@ def test_gate_refusals_share_the_fixed_rc2_boundary() -> None:
         ),
         pytest.param(
             "dependency-policy-fields",
-            '"gflags_source_path",\n'
-            '    "gflags_expected_head",\n'
-            '    "glog_source_path",\n'
+            '"gflags_expected_head",\n'
             '    "glog_expected_head",',
-            '"gflags_source_path",\n'
-            '    "gflags_expected_head",\n'
-            '    "glog_source_path",\n'
+            '"gflags_expected_head",\n'
             '    "glog_head",',
             id="dependency-policy-fields",
         ),
@@ -938,9 +937,9 @@ def test_fixture_driver_before_prebuild_is_rejected() -> None:
 
 def test_commented_dependency_policy_field_is_rejected() -> None:
     source = JOB.read_text(encoding="utf-8")
-    fragment = '    "gflags_source_path",'
+    fragment = '    "gflags_expected_head",'
     assert source.count(fragment) == 1
-    mutant = source.replace(fragment, '    # "gflags_source_path",', 1)
+    mutant = source.replace(fragment, '    # "gflags_expected_head",', 1)
     with pytest.raises(
         AssertionError, match="^job contract missing: dependency-policy-fields$"
     ):
@@ -1163,8 +1162,8 @@ def _run_actual_job_body_through_driver(
     repo_root = tmp_path / "repo"
     evidence_root = tmp_path / "evidence"
     thirdparty_root = tmp_path / "thirdparty"
-    gflags_source = tmp_path / "gflags-source"
-    glog_source = tmp_path / "glog-source"
+    gflags_source = thirdparty_root / "gflags"
+    glog_source = thirdparty_root / "glog"
     driver_argv = tmp_path / "driver-argv.json"
     for path in (
         binary_dir,
@@ -1207,9 +1206,9 @@ def _run_actual_job_body_through_driver(
         "elif 'status' in args:\n"
         "    pass\n"
         "elif 'rev-parse' in args:\n"
-        "    if 'gflags-source' in joined:\n"
+        f"    if args[:2] == ['-C', {str(gflags_source)!r}]:\n"
         f"        print({gflags_head!r})\n"
-        "    elif 'glog-source' in joined:\n"
+        f"    elif args[:2] == ['-C', {str(glog_source)!r}]:\n"
         f"        print({glog_head!r})\n"
         "    elif 'external/ccbench' in joined:\n"
         f"        print({ccbench_head!r})\n"
@@ -1243,9 +1242,7 @@ def _run_actual_job_body_through_driver(
         "    elif 'from orchestrator.campaign.p3_s4_loop import PIN' in code:\n"
         "        print('511c9538e4e8efa54b45cda62e72389ed3b706ec')\n"
         "elif args[:3] == ['-I', '-B', '-']:\n"
-        "    print(os.environ['IZANAGI_TEST_GFLAGS_SOURCE'])\n"
         "    print(os.environ['IZANAGI_TEST_GFLAGS_HEAD'])\n"
-        "    print(os.environ['IZANAGI_TEST_GLOG_SOURCE'])\n"
         "    print(os.environ['IZANAGI_TEST_GLOG_HEAD'])\n"
         "elif args and args[0] == '-' and len(args) == 2:\n"
         "    print('1000')\n"
@@ -1304,9 +1301,7 @@ def _run_actual_job_body_through_driver(
         "IZANAGI_S4_EVIDENCE_ROOT": str(evidence_root),
         "IZANAGI_S4_THIRDPARTY_SOURCE_ROOT": str(thirdparty_root),
         "IZANAGI_TEST_DRIVER_ARGV": str(driver_argv),
-        "IZANAGI_TEST_GFLAGS_SOURCE": str(gflags_source),
         "IZANAGI_TEST_GFLAGS_HEAD": gflags_head,
-        "IZANAGI_TEST_GLOG_SOURCE": str(glog_source),
         "IZANAGI_TEST_GLOG_HEAD": glog_head,
         **k2_environment,
     })

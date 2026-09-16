@@ -379,9 +379,7 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as handle:
     policy = json.load(handle)
 keys = (
-    "gflags_source_path",
     "gflags_expected_head",
-    "glog_source_path",
     "glog_expected_head",
 )
 for key in keys:
@@ -395,13 +393,14 @@ for key in keys:
 PY
 )
 readarray -t policy_values <<<"$policy_output"
-if [[ ${#policy_values[@]} -ne 4 ]]; then
+if [[ ${#policy_values[@]} -ne 2 ]]; then
   refuse "policy yielded an unexpected field count"
 fi
-GFLAGS_SOURCE_PATH=${policy_values[0]}
-GFLAGS_EXPECTED_HEAD=${policy_values[1]}
-GLOG_SOURCE_PATH=${policy_values[2]}
-GLOG_EXPECTED_HEAD=${policy_values[3]}
+THIRDPARTY_SOURCE_ROOT="$IZANAGI_S4_THIRDPARTY_SOURCE_ROOT"
+GFLAGS_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/gflags"
+GLOG_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/glog"
+GFLAGS_EXPECTED_HEAD=${policy_values[0]}
+GLOG_EXPECTED_HEAD=${policy_values[1]}
 
 CC_PATH=$(command -v gcc)
 CXX_PATH=$(command -v g++)

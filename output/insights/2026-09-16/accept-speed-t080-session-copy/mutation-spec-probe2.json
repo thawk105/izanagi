@@ -1,0 +1,64 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 180,
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 900,
+  "mutations": [
+    {
+      "id": "m7-key-marker-published-before-finish",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "                shutil.copytree(proto_root, root, symlinks=True)\n                root, _receipt, document = _finish_t080_stub_free_e2e_repo(\n",
+          "new": "                shutil.copytree(proto_root, root, symlinks=True)\n                marker.write_text(json.dumps({\"root\": root.relative_to(parent).as_posix(), \"document\": {}}), encoding=\"utf-8\")\n                root, _receipt, document = _finish_t080_stub_free_e2e_repo(\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-derived-copy-drops-symlinks-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "                shutil.copytree(proto_root, root, symlinks=True)\n",
+          "new": "                shutil.copytree(proto_root, root)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-cache-identity-drops-distinct-field",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "        digest = hashlib.sha256(json.dumps(key).encode(\"utf-8\")).hexdigest()\n        parent = self.parent / digest\n",
+          "new": "        digest = hashlib.sha256(json.dumps(key[:3]).encode(\"utf-8\")).hexdigest()\n        parent = self.parent / digest\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-first-close-removes-session-parent",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s8b_oracle_driver.py",
+          "old": "            except BlockingIOError:\n                return\n            if self.parent.exists():\n",
+          "new": "            except BlockingIOError:\n                pass\n            if self.parent.exists():\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

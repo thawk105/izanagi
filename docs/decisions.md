@@ -64031,3 +64031,137 @@ mandatory-reasons 判定の直後に置き、C02 を落とした形では従来�
 - `BASELINES` へ tictoc を先に足しておく — 関門で止まるので測定は開通せず、今回の登録にも寄与しない。
 - 4 件を層 3 report へ接続するため契約世代を登録する — 依頼の範囲外で、登録・活性化・campaign の設計を
   伴う別の変更単位。
+
+## D2084. gflags / glog の調達を url + pin の共通経路へ一本化し、機体固有の絶対 path を repo から消す (2026-09-17)
+
+**決定:** 共有 `tools/pegasus/policy.json` の `gflags_source_path` / `glog_source_path` (機体固有の
+絶対 path) を `gflags_source_url` / `glog_source_url` へ置き換える。pin は既存の `*_expected_head` を
+唯一の正本として据え置く。`tools/pegasus/fetch_third_party.py` の `fetch` / `hydrate` / `verify` は
+既定で 5 source (FetchContent 3 本 + find_package 2 本) を対象にし、`verify-deps` は廃止する。
+gflags / glog の列挙は FetchContent 側の `third_party_policy()` (CMake literal 同期検査つき) とは
+別権威にし、url 規約 (`https://github.com/` 前置・`.git` 終端) と pin 形式 (40 hex) は同じ強さで課す。
+旧 locator を読んでいた consumer (shell / PBS の job body 15 本、Python 5 本、data 1 本) は
+すべて同じ wave で、hydrate 済み staging root 配下 (`<root>/gflags`、`<root>/glog`) を使う形へ付け替える。
+staging root は既存の既定 (`silo_ladder_rung1.THIRD_PARTY_STAGING_RELATIVE`、repo 相対) と
+既存の env seam (`IZANAGI_THIRDPARTY_SOURCE_ROOT`) で解決し、新しい env・argv・submit 入力を足さない。
+凍結成果物の bytes は 1 byte も変えず、共有 policy の現行 bytes golden と silo 凍結 evidence の
+`pbs_job` / `submitter` binding は D200 の先例どおり「歴史値 + 現行 bytes の明示 pin」の 2 本立てへ移す。
+
+**理由:**
+
+- 2026-08-16 の裁定 (択 (b)) は「versioned な共通調達経路を新設」と「機体固有 path 結合の除去を
+  同じ wave で閉じる」を対にしている。段 3 の 2 レンズが独立に、「1 consumer だけ結線して残りを
+  後続へ残す」案が D1737 の却下 (同じ依存を 2 経路で pin する) に当たり、裁定の「同一 wave」にも
+  反すると結論した。
+- 依存の identity は変更前から版で縛られていた (`submission._dependency()` は `{commit, tree}` を記録し、
+  凍結 argv `REGISTERED_DEPENDENCY_BUILD_ARGV` は相対名)。機体固有だったのは locator だけで、
+  置換点は「git repo をどこから得るか」の 1 点に閉じる。
+- 廃止した `verify-deps` は `expected_url=None` / `allow_shallow=True` で、新 cache 経路
+  (origin 照合・非 shallow) への統合は受理集合の縮小であって弱体化ではない。
+- [T-2625] を通した「親が手で依存を建てて env で prefix を渡す」回避は、同裁定が択 (c) として
+  却下した形そのものだった。恒久の経路へ置き換える。
+- policy の bytes を変えると T-126 の series identity と campaign binding が変わる。これは D200 が
+  同じ変更で受理済みの影響であり、過去の成果物は書き換えない。
+
+**却下した選択肢:**
+
+- opt-in の入口 (`--include-build-deps` 等) で新経路を足し旧経路を残す — D1737 の却下状態を作る。
+- 別の task 別 policy file へ調達記述を置く — 凍結 policy の bytes は守れるが、gflags / glog の
+  正本が 2 箇所に割れる。
+- 既存 `third_party_policy()` の list へ gflags / glog を足す — 同関数は CMake の FetchContent literal
+  との同期を要求し、gflags / glog は `find_package` なので ContractFailure になる。
+- CCBench の `find_package` を optional にする — D1737 が却下済み。上流改変でありリンクで落ちる。
+- `tools/pegasus/` 配下に共通 helper を新設して 15 本から source する — 未登録 Pegasus 実行体として
+  機械防壁が拒否する (F660)。各 job body の同形 1 行で解決する。
+- 凍結 evidence の binding を新しい hash へ書き換える — 歴史の改竄 (D200)。
+
+## D2085. 依存 source の使用直前に hydrate と同等の検証を足すことは、本 wave では実装しない (2026-09-17)
+
+**決定:** job body が gflags / glog を build する直前の検査は、変更前と同じ「HEAD 完全一致 +
+`--untracked-files=all` を含む porcelain 空 + source 存在」のままとする。hydrate 時の
+`_verify_source` (index の隠蔽 bit、origin、shallow、ignored artifact) と同等の検査を使用直前へ
+足す案は、段 4 で一度採用 (R5) したが段 6 で訂正し、実装しない。
+**hydrate 時の検証結果が job の使用時点まで保証されるとは主張しない。** これは既知の限界として記録する。
+
+**理由:**
+
+- 段 6 のレビューが 15 本すべてについて「変更前の検査を消していない」と判定した。同じ改変
+  (`assume-unchanged` を立てた tracked 変更) は変更前も同じように見逃していた。本 wave の弱体化ではない。
+- 段 4 の R5 は、出所の相談所見が原文で「現行 floor の最低線より弱くなると確認できた回帰ではない」と
+  書いていたものを、親が scope 判定をせずに採ったものだった。
+- 通常の調達・投入の流れで hydrate 済み tree に `assume-unchanged` を立てる経路は無い。
+  ユーザーは本依頼で「仮想リスク向けの一般化・互換層の追加は scope 外」と明示し、D1736 は名指し外の
+  gate・検査を足さないと定める。
+- 規律 2 が禁じるのは正しさゲートを緩めることで、既存の検査は 1 つも緩めていない。
+
+**却下した選択肢:**
+
+- 使用直前に `_verify_source` 相当を全 15 本へ足す — 仮想リスクへの検査新設。規模も 15 本 × 契約テスト。
+- silo だけ足す — 一部だけ強い検査を持つ非対称は、名乗りを実装より強く見せる。
+
+## D2086. t080 e2e fixture の session 1 回 proto 化は実装・検証済みだが、受入 wall の中央値 −5.7% では採用せず branch に保存する (2026-09-17)
+
+**決定:** `orchestrator/tests/test_s8b_oracle_driver.py` の t080 stub-free e2e fixture を次の形へ変える実装 (commit `bdfa49950`、
+branch `impl-dev-wave-t080-accept-speed`) は、bytes 同一・変異 9/9 KILLED・レビュー must-fix 0・受入緑まで済んだが、
+**同時刻ペア 3 組の最遅 shard wall が −10.7% / −1.9% / −5.7% (中央値 −5.7%) で D357 (差 10% 未満は変化なし) と D1260
+(paired K=3 中央値 10% 未満なら採用しない) の基準の内側であるため、main へは取り込まない。** 実装は branch に保存し、
+採用 (D1260 とは別の明示裁定「共有資源削減を別目的として採用」または「10% 基準の緩和」) はユーザー裁定に委ねる。
+
+実装の形: key 非依存の準備
+(git init / `orchestrator/` と git 可視 `output/` の複製 / basis file / submodule add・pin checkout) を xdist session parent に
+1 回だけ組む proto とし、4 要素 key ごとの base は proto の `.git` 込み `copytree(symlinks=True)` から
+現行の key 側処理 (distinct の descriptor 変更 → `git add -A` → basis commit → 発行) で派生させる。
+descriptor 変更を submodule add の後へ移す順序交換は最終 `add -A` の前で tree を変えない。
+proto は exclusive lock (build 中のみ) + 完成 marker (pending→rename) で管理し、marker 不在は残骸削除して再構築、
+marker 有りの JSON 破損・root 欠損は例外伝播 (黙って再構築しない)。lock 順序は key → proto。
+単独走 (process memo 経路)・runtime source の key ごと複製・production scan は変えない。
+
+**bytes 同一 (I1) の定義:** 同一の source snapshot・key・Git 設定・commit metadata の下で、working tree の
+path/種類/bytes/mode/link target、basis tree OID、basis commit OID、receipt raw/document、発行後 HEAD tree OID が一致する。
+除外は index stat・reflog・`.git` 内部 timestamp・活性化 commit OID。実 corpus の probe (旧 module を base commit から exec し、
+両経路の commit metadata を固定) で default / distinct の両 key について全項目一致を実測した。
+
+**session snapshot:** proto は xdist session (= 1 shard の pytest run) の最初の要求時点の実 repo を写し、以後の key は
+その snapshot を使う。現行の「key ごとに実 repo を読み直す」性質は捨てる。session 中に実 repo の可視集合が変わっても
+後発 key には反映されないが、fixture の検出責任は「構築時点の可視集合」であり、session 中の実 repo 変化の検出は
+実 repo を直接 scan する検査の責務である。
+
+**理由:**
+- 計算ノード実測 (直列 1 process) で base 構築 118.2 秒の内訳は、実 repo (lustre) → node の `output/` 複製 52.9 秒 (45%)、
+  発行 subprocess 53.3 秒 (45%)、git 操作 11 回 9.5 秒 (8%)。複製は 5 key 分で延べ 190 秒 (5 走平均 38 秒) かかり、
+  温 cache でも同じ桁だった。session 1 回化は実 repo からの全件取得 4 回を省く。
+- 発行 subprocess は key 依存 (13 scan) で不変。非競合の critical path は縮まらない (同一 node の xdist `-n 12` 焦点走で
+  旧 136.7 / 136.3 秒・新 133.3 / 133.1 / 150.2 秒)。受入の同時刻ペアでは、通常負荷で最遅 shard 332.0 → 296.5 秒 (−10.7%、
+  e2e 10 node は各 −36 秒)、lustre 飽和下 (両側に F945 型赤) では 474.4 → 465.5 秒 (差なし)。一次資料は
+  `output/insights/2026-09-16/accept-speed-t080-session-copy/README.md` §5。
+- 変異 matrix は負例 9 件すべて KILLED (期待 node 完全一致)、等価変異 1 件 SURVIVED。実 corpus の probe で bytes 同一を実測。
+- 実装面は test file のみ、受理集合は「構築期間を通じて同一 source である場合」に不変で、production builder / verifier /
+  gate は stub しない。
+- 同時刻ペア 4 組目は 326.7 → 308.1 秒 (−5.7%)。3 ペアとも同方向で退行は無いが、D357 は node 秒を wall の代理としない。
+  基準は wave 開始時 (段 4 裁定 §6) に凍結しており、結果を見てから動かさない。
+
+**却下した選択肢:**
+- 中央値 −5.7% のまま land する — 凍結した採否基準 (D1260 の 10%) を結果を見てから緩めることになる。
+- 実装を捨てる — 検証済みの成果物であり、branch と一次資料を保存して裁定に委ねる。
+- process 内 proto memo (単独走にも proto を入れる) — 受入の critical path に無関係で、memo・失敗回復・cleanup が増える。
+- copy 中の shared lock — 完成 proto は不変で削除主体が無く、不要な状態遷移を増やす。
+- runtime source の session 1 回化 — 数 file の複製で性能上の根拠が無く、「どの世代の実装か」を変えうる。
+- 複製自体の高速化 (`is_file()` 検査の削除・copytree の並列化) — 前者は index と実体の不一致検査で削れず、
+  後者は lustre 律速なら悪化しうる。上限 28 秒級のモデルであり別件とする。
+- 第 2 proto (発行済み・未活性化を 3 key で共有) — 「production 発行を key ごとに走らせる」性質を変えるので裁定候補に留める。
+
+## D2087. D2068 の訂正 — 案 C (index 化) の効果は「効かない」で確定し、git 操作は build の 8% に過ぎない (2026-09-17)
+
+**決定:** D2068 の「(C) は効果の符号が未確認である」を次のとおり訂正する。
+案 C (既存 blob OID の `update-index --index-info` による index 化) は 2026-09-16 のユーザーの対比較 (温 cache、同一 tree 内で
+方式を交互に測り、現行 `git add -A` 9.66 秒に対し 9.55 秒) で**効かない**と確定した。同日の計算ノード実測でも
+git 操作 11 回 (init / config / submodule add / checkout / add -A / commit) の合計は base 構築 118.2 秒の 8% (9.5 秒) で、
+index 化は支配項に当たらない。D2068 の案 A / B の不採用理由と「圧縮設定は時間効果が確認できない」は変えない。
+
+**理由:**
+- D2068 が根拠にした login node の `git add -A` 79〜191 秒は冷 cache・外乱下の値で、温 cache では 10 秒弱である。
+  index 化の下限 0.6 秒との差は build 全体の 8% を超えない。
+- 支配項は実 repo からの `output/` 複製 (45%) と発行 subprocess (45%) であり、前者は D2086 で扱う。
+
+**却下した選択肢:**
+- D2068 を丸ごと差し替える — A / B の不採用理由と圧縮設定の観測は本日の実測と矛盾しない。訂正は C の符号だけに限る。

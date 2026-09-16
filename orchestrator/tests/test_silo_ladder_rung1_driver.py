@@ -2681,5 +2681,61 @@ def test_owned_pbs_assets_syntax_directives_policy_and_receipt_contract():
     )
 
 
+def test_silo_build_dependencies_reach_scratch_before_dependency_stage():
+    submit = (TOOLS / "submit_silo_ladder_rung1.sh").read_text()
+    job = (TOOLS / "silo_ladder_rung1.sh").read_text()
+    loop = 'for row in "${third_party_rows[@]}" "${build_dependency_rows[@]}"; do'
+    for source, interpreter in ((submit, "python3"), (job, '"$PY"')):
+        start = (
+            f'readarray -t build_dependency_rows < <({interpreter} -I -B - "$POLICY"'
+            " <<'PY_BUILD_DEPS'\n"
+        )
+        assert source.count(start) == 1
+        body = source.split(start, 1)[1].split("\nPY_BUILD_DEPS", 1)[0]
+        assert "orchestrator" not in body
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-", str(TOOLS / "policy.json")],
+            input=body, text=True, capture_output=True, check=True,
+        )
+        policy = json.loads((TOOLS / "policy.json").read_text())
+        expected = []
+        for name in ("gflags", "glog"):
+            fields = [name, name]
+            if source == submit:
+                fields.append(policy[f"{name}_source_url"])
+            fields.append(policy[f"{name}_expected_head"])
+            expected.append("\t".join(fields))
+        assert result.stdout.splitlines() == expected
+        assert '[[ ${#third_party_rows[@]} -eq 3 ]]' in source
+        assert '[[ ${#build_dependency_rows[@]} -eq 2 ]]' in source
+        assert source.count(loop) == 1
+        assert source.index(start) < source.index(loop)
+    submit_loop = submit.split(loop, 1)[1].split("\ndone", 1)[0]
+    for required in (
+        'destination="$THIRD_PARTY_ROOT/$third_source_name"',
+        'git clone --no-checkout -- "$third_url" "$stage/repo"',
+        'git -C "$stage/repo" checkout --detach "$third_pin"',
+        'verify_third_party_pinned_clean',
+        '"$destination" "$third_pin" "$third_name" || exit 2',
+    ):
+        assert required in submit_loop
+    job_loop = job.split(loop, 1)[1].split("\ndone", 1)[0]
+    ordered = (
+        'persistent="$THIRD_PARTY_PERSISTENT/$third_source_name"',
+        'scratch="$THIRD_PARTY_SCRATCH/$third_source_name"',
+        'verify_third_party_pinned_clean',
+        '"$persistent" "$third_pin" "$third_name"',
+        'cp -a -- "$persistent" "$scratch"',
+        'verify_third_party_pinned_clean "$scratch" "$third_pin" "$third_name"',
+    )
+    positions = [job_loop.index(fragment) for fragment in ordered]
+    assert positions == sorted(positions)
+    assert job_loop.count("verify_third_party_pinned_clean") == 2
+    assert (job.index(loop)
+            < job.index('export IZANAGI_THIRDPARTY_SOURCE_ROOT="$THIRD_PARTY_SCRATCH"')
+            < job.index('GFLAGS_SOURCE="$THIRDPARTY_SOURCE_ROOT/gflags"')
+            < job.index('git -C "$dep_source" rev-parse'))
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

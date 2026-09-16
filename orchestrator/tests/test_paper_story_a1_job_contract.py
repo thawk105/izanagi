@@ -1675,9 +1675,10 @@ def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
         json.dumps(_policy_for_base(base), sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    gflags_source = (tmp_path / "gflags-source").resolve()
-    glog_source = (tmp_path / "glog-source").resolve()
-    gflags_source.mkdir()
+    staging = repo / "output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src"
+    gflags_source = staging / "gflags"
+    glog_source = staging / "glog"
+    gflags_source.mkdir(parents=True)
     glog_source.mkdir()
     gflags_expected_head = "c" * 40
     glog_expected_head = "d" * 40
@@ -1685,9 +1686,7 @@ def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
     pegasus_policy.parent.mkdir(parents=True, exist_ok=True)
     pegasus_policy.write_text(
         json.dumps({
-            "gflags_source_path": os.fspath(gflags_source),
             "gflags_expected_head": gflags_expected_head,
-            "glog_source_path": os.fspath(glog_source),
             "glog_expected_head": glog_expected_head,
         }, sort_keys=True) + "\n",
         encoding="utf-8",
@@ -1712,14 +1711,14 @@ def _shell_fixture(tmp_path: Path, *, dirty: bool = False, mode: str = "ok"):
     git_stub.write_text(
         "#!/bin/bash\n"
         "if [[ \"$*\" == *\"rev-parse HEAD\"* ]]; then\n"
-        "  if [[ \"$*\" == *\"gflags-source\"* ]]; then echo \"$FAKE_GFLAGS_HEAD\"; "
-        "elif [[ \"$*\" == *\"glog-source\"* ]]; then echo \"$FAKE_GLOG_HEAD\"; "
+        f"  if [[ \"$1\" == -C && \"$2\" == {shlex.quote(str(gflags_source))} ]]; then echo \"$FAKE_GFLAGS_HEAD\"; "
+        f"elif [[ \"$1\" == -C && \"$2\" == {shlex.quote(str(glog_source))} ]]; then echo \"$FAKE_GLOG_HEAD\"; "
         "else echo \"$FAKE_HEAD\"; fi; exit 0\n"
         "fi\n"
         "if [[ \"$*\" == *\"status --porcelain\"* ]]; then\n"
-        "  if [[ \"$*\" == *\"gflags-source\"* ]]; then "
+        f"  if [[ \"$1\" == -C && \"$2\" == {shlex.quote(str(gflags_source))} ]]; then "
         "[[ \"${FAKE_GFLAGS_DIRTY:-0}\" == 1 ]] && echo ' M gflags.cc'; "
-        "elif [[ \"$*\" == *\"glog-source\"* ]]; then "
+        f"elif [[ \"$1\" == -C && \"$2\" == {shlex.quote(str(glog_source))} ]]; then "
         "[[ \"${FAKE_GLOG_DIRTY:-0}\" == 1 ]] && echo ' M glog.cc'; "
         "elif [[ \"${FAKE_DIRTY:-0}\" == 1 ]]; then echo ' M tracked.py'; fi; exit 0\n"
         "fi\n"
@@ -1910,7 +1909,10 @@ def test_production_job_narrow_stub_reaches_site_and_driver(tmp_path: Path) -> N
     assert (attempt / "raw/tmp").is_dir()
     logged = log.read_text(encoding="utf-8")
     assert paired.DRIVER_RELATIVE_PATH in logged
-    assert "cmake -S " in logged and "gflags-source" in logged
+    staging = (tmp_path / "repo"
+               / "output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src")
+    assert f"cmake -S {staging / 'gflags'} " in logged
+    assert f"cmake -S {staging / 'glog'} " in logged
     assert "cmake --install " in logged
     assert "-DCMAKE_PREFIX_PATH=" in logged
     assert "--dependency-prefix " in logged

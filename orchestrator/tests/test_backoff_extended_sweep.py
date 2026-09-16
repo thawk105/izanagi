@@ -1799,8 +1799,8 @@ def test_b10_job_builds_pinned_dependencies_in_job_scratch():
     budget = _shell_integer_assignments(job, ("DEPENDENCY_BUILD_CAP_S",))
 
     for key in (
-        "gflags_source_path", "gflags_expected_head",
-        "glog_source_path", "glog_expected_head",
+        "gflags_expected_head",
+        "glog_expected_head",
     ):
         assert key in policy
         assert f'"{key}"' in job

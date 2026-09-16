@@ -1,0 +1,48 @@
+HEAD=b86c6628dce3581f5dfa299c412c2016cdb6221d
+date=2026-09-16T21:56:20+09:00 host=pegasus02 load=35.30 64.14 71.93
+=== 1. fetch (login, network) ===
+fetch-rc=0
+=== cache の 5 本と HEAD ===
+masstree: b3c5d054b66b08374d7a6ff5a0faeaf28b041a38
+mimalloc: 02a2f5df9d7d46d30263b83832eebeeab62dc5fe
+googletest: f8d7d77c06936315286eb55f8de22cd23c188571
+gflags: e171aa2d15ed9eb17054558e0b3a6a413bb01067
+glog: 8f9ccfe770add9e4c64e9b25c102658e3c763b73
+=== 2. hydrate (offline) ===
+hydrate-rc=0
+=== staging の 5 本と HEAD ===
+masstree: b3c5d054b66b08374d7a6ff5a0faeaf28b041a38 clean=0
+mimalloc: 02a2f5df9d7d46d30263b83832eebeeab62dc5fe clean=0
+googletest: f8d7d77c06936315286eb55f8de22cd23c188571 clean=0
+gflags: e171aa2d15ed9eb17054558e0b3a6a413bb01067 clean=0
+glog: 8f9ccfe770add9e4c64e9b25c102658e3c763b73 clean=0
+=== 3. fresh build gflags -> prefix ===
+gflags-configure-rc=0
+gflags-build-rc=0
+gflags-install-rc=0
+=== 3. fresh build glog -> prefix ===
+glog-configure-rc=0
+glog-build-rc=0
+glog-install-rc=0
+prefix contents:
+cmake
+libgflags.a
+libgflags_nothreads.a
+libglog.a
+pkgconfig
+gflags
+glog
+=== 4. real CCBench configure with new prefix (module mode) ===
+ccbench-configure-rc=0
+12:-- Found gflags: /home/SFC/tanab/.claude/jobs/a68717bd/tmp/liveness/prefix/lib/libgflags.a  
+13:-- Found glog: /home/SFC/tanab/.claude/jobs/a68717bd/tmp/liveness/prefix/lib/libglog.a  
+=== resolved paths under new prefix? ===
+1
+1
+=== 5. negative control: no prefix ===
+noprefix-rc=1
+13:  Could NOT find gflags (missing: gflags_LIBRARY_FILE gflags_INCLUDE_DIR)
+16:  cmake/Findgflags.cmake:9 (find_package_handle_standard_args)
+17:  CMakeLists.txt:33 (find_package)
+=== wave 木が clean のままか ===
+dirt=45

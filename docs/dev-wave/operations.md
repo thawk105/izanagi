@@ -61,15 +61,15 @@ rc=0 と OK 表示でも submodule 木が空でありうるので、rc でなく
 
 ## DW-O09 — 凍結 bytes の pin 閉包
 
-着手前に成果物と変更 source の path で `git grep -n` し pin する台帳・test・trust root を全列挙。
+着手前に成果物・変更 source の path で `git grep -n` し pin する台帳・test・trust root を全列挙。
 `FROZEN_MANIFEST`、generator source hash pin、key→canonical path 束縛、output 外の
 review ledger、全 field から同一性 hash を導く dataclass・schema を含む。path 検索は path key の
-pin しか出さない。role 名や xdist group 名など path 以外の key の pin も key 側で検索し、
-hit 0 件を pin なしと結論しない（F30）。hit した test は中身まで読む — 行番号 pin は一覧に出ず、
-行増減で後方がずれる。
+pin しか出さない。role 名や xdist group 名など key 側でも検索し、hit 0 件を pin なしとしない（F30）。
+**変更 file の変更前 sha256 で output/ も検索**（F370）。hit した test は中身を読む —
+行番号・本数・live 比較の pin は一覧に出ない。
 durable manifest の未発行/再発行要を区別し brief の不変条件へ書く（F27/F30、D84）。
 統一系 wave は各出現を live copy/独立 golden/凍結 snapshot/歴史記録へ分類し scope を裁定（F39）。
-**docs のみの wave でも成立** — 判定をコードの有無で代用せず docs path も検索（F78）。
+docs のみの wave でも成立 — docs path も検索（F78）。
 
 ## DW-O10 — producer write-path
 

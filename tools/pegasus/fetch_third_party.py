@@ -64,29 +64,45 @@ def _driver_module() -> ModuleType:
         sys.path[:] = original_sys_path
 
 
+def _build_dependency_sources(document: Mapping[str, Any]) -> tuple[dict[str, str], ...]:
+    """find_package で使う gflags / glog の調達記述を列挙する。"""
+    sources = tuple(
+        {
+            "name": name,
+            "source_name": name,
+            "url": document[f"{name}_source_url"],
+            "pin": document[f"{name}_expected_head"],
+        }
+        for name in ("gflags", "glog")
+    )
+    keys = {"name", "source_name", "url", "pin"}
+    if (
+        any(set(item) != keys for item in sources)
+        or any(type(item[key]) is not str or not item[key]
+               for item in sources for key in keys)
+        or any(item["source_name"] != item["name"] for item in sources)
+        or any(not item["url"].startswith("https://github.com/")
+               or not item["url"].endswith(".git") for item in sources)
+        or any(re.fullmatch(r"[0-9a-f]{40}", item["pin"]) is None
+               for item in sources)
+    ):
+        raise OperationalError("build dependency source policy is invalid")
+    return sources
+
+
 def _load_policy(
     repo_root: Path,
-) -> tuple[tuple[dict[str, str], ...], tuple[dict[str, Any], ...], Path]:
-    """凍結 driver の policy/CMake 同期検査を唯一の列挙正本として使う。"""
+) -> tuple[tuple[dict[str, str], ...], tuple[dict[str, str], ...], Path]:
+    """FetchContent の同期検査に、find_package の 2 依存を加える。"""
     driver = _driver_module()
     try:
         sources = driver.third_party_policy(repo_root)
-        dependency_pins = driver._dependency_pins(repo_root)
         document = driver._load_json(repo_root / "tools/pegasus/policy.json")
+        dependencies = _build_dependency_sources(document)
+        driver._dependency_pins(repo_root)
         staging_relative = Path(driver.THIRD_PARTY_STAGING_RELATIVE)
-        dependencies = tuple(
-            {
-                "name": name,
-                "source_name": name,
-                "pin": dependency_pins[name],
-                "path": Path(document[f"{name}_source_path"]),
-            }
-            for name in ("gflags", "glog")
-        )
     except Exception as exc:
         raise OperationalError(f"policy validation failed: {exc}") from exc
-    if any(not item["path"].is_absolute() for item in dependencies):
-        raise OperationalError("dependency source paths must be absolute")
     return tuple(dict(item) for item in sources), dependencies, staging_relative
 
 
@@ -679,27 +695,12 @@ def _hydrate(
     ]
 
 
-def _verify_dependencies(
-    dependencies: Sequence[Mapping[str, Any]],
-) -> list[dict[str, str]]:
-    return [
-        _verify_source(
-            Path(item["path"]),
-            name=item["name"],
-            pin=item["pin"],
-            expected_url=None,
-            allow_shallow=True,
-        )
-        for item in dependencies
-    ]
-
-
 def _parser() -> argparse.ArgumentParser:
     parser = _ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(
         dest="operation", required=True, parser_class=_ArgumentParser
     )
-    for operation in ("fetch", "hydrate", "verify", "verify-deps"):
+    for operation in ("fetch", "hydrate", "verify"):
         command = subparsers.add_parser(operation)
         command.add_argument(
             "--repo-root", type=Path, default=_CODE_ROOT,
@@ -725,6 +726,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         args = _parser().parse_args(argv)
         repo_root = _resolve_repo_root(args.repo_root)
         sources, dependencies, staging_relative = _load_policy(repo_root)
+        sources += dependencies
         cache_root = _resolve_cache_root(args.cache_root, repo_root)
         staging_root = None
         if args.operation == "hydrate":
@@ -745,10 +747,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 staging_relative,
                 staging_root=staging_root,
             )
-        elif args.operation == "verify":
-            records = _verify_cache(cache_root, sources)
         else:
-            records = _verify_dependencies(dependencies)
+            records = _verify_cache(cache_root, sources)
         payload = {
             "schema_version": SCHEMA_VERSION,
             "operation": args.operation,

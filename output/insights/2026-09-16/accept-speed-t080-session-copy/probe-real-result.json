@@ -1,0 +1,69 @@
+{
+  "equal": true,
+  "base_commit": "08d56628e",
+  "selftest": false,
+  "cases": [
+    {
+      "equal": true,
+      "checks": {
+        "basis_commit": true,
+        "basis_tree": true,
+        "head_tree": true,
+        "receipt_raw": true,
+        "receipt_document": true,
+        "working_tree": true
+      },
+      "different_paths": [],
+      "old_oids": {
+        "basis_commit": "d2adeeb14632be5186c38e4a1153b29178cd073b",
+        "basis_tree": "9857c0c77f9559ad8ab55b8e6ba5f7ff3da62d0a",
+        "head_tree": "bea790d3e0b6164738a30b9023e3a0b5d6f116a3"
+      },
+      "new_oids": {
+        "basis_commit": "d2adeeb14632be5186c38e4a1153b29178cd073b",
+        "basis_tree": "9857c0c77f9559ad8ab55b8e6ba5f7ff3da62d0a",
+        "head_tree": "bea790d3e0b6164738a30b9023e3a0b5d6f116a3"
+      },
+      "key": [
+        "AI-Agent: none",
+        false,
+        true,
+        false
+      ],
+      "old_seconds": 89.25826266199874,
+      "new_seconds": 63.91885281500436
+    },
+    {
+      "equal": true,
+      "checks": {
+        "basis_commit": true,
+        "basis_tree": true,
+        "head_tree": true,
+        "receipt_raw": true,
+        "receipt_document": true,
+        "working_tree": true
+      },
+      "different_paths": [],
+      "old_oids": {
+        "basis_commit": "e4a93ef134d8f89d7052dc8dbc1fcfe6cb7fca3e",
+        "basis_tree": "d81b1a27a56f527d63a61dd07c484c34700d80a7",
+        "head_tree": "d4c4cef112dd61a7b4a33c81e45352736e445c71"
+      },
+      "new_oids": {
+        "basis_commit": "e4a93ef134d8f89d7052dc8dbc1fcfe6cb7fca3e",
+        "basis_tree": "d81b1a27a56f527d63a61dd07c484c34700d80a7",
+        "head_tree": "d4c4cef112dd61a7b4a33c81e45352736e445c71"
+      },
+      "key": [
+        "AI-Agent: none",
+        false,
+        true,
+        true
+      ],
+      "old_seconds": 88.58548373699887,
+      "new_seconds": 63.97623681100231
+    }
+  ],
+  "proto_seconds": 35.18062568300229,
+  "seconds": 349.7073453749981
+}

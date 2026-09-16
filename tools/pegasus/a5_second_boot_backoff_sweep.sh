@@ -503,18 +503,19 @@ readarray -t dependency_policy_values < <("$PY" -I -B - "$POLICY" <<'PY'
 import json, sys
 policy = json.load(open(sys.argv[1], encoding="utf-8"))
 for key in (
-    "gflags_source_path", "gflags_expected_head",
-    "glog_source_path", "glog_expected_head",
+    "gflags_expected_head",
+    "glog_expected_head",
 ):
     print(policy[key])
 PY
 )
-[[ ${#dependency_policy_values[@]} -eq 4 ]] || \
+[[ ${#dependency_policy_values[@]} -eq 2 ]] || \
   fail 2 "dependency policy values are unavailable"
-GFLAGS_SOURCE=${dependency_policy_values[0]}
-GFLAGS_EXPECTED_HEAD=${dependency_policy_values[1]}
-GLOG_SOURCE=${dependency_policy_values[2]}
-GLOG_EXPECTED_HEAD=${dependency_policy_values[3]}
+THIRDPARTY_SOURCE_ROOT="${IZANAGI_THIRDPARTY_SOURCE_ROOT:-$REPO_BASE/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src}"
+GFLAGS_SOURCE="$THIRDPARTY_SOURCE_ROOT/gflags"
+GLOG_SOURCE="$THIRDPARTY_SOURCE_ROOT/glog"
+GFLAGS_EXPECTED_HEAD=${dependency_policy_values[0]}
+GLOG_EXPECTED_HEAD=${dependency_policy_values[1]}
 [[ "$GFLAGS_SOURCE" == /* && "$GLOG_SOURCE" == /* \
   && "$GFLAGS_EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ \
   && "$GLOG_EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]] || \

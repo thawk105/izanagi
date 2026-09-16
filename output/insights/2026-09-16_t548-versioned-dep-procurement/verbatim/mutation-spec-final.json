@@ -1,0 +1,244 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "MUT-T548-M1-URL-GIT-SUFFIX-CHECK-REMOVED",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_build_dependency_policy_rejects_invalid_url_and_pin[source_url-https://github.com/fixture/source-gflags]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_build_dependency_policy_rejects_invalid_url_and_pin[source_url-https://github.com/fixture/source-glog]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_build_dependency_sources_rejects_url_without_git_suffix"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "               or not item[\"url\"].endswith(\".git\") for item in sources)\n",
+          "new": "               or False for item in sources)\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T548-M3-VERIFY-CACHE-ALLOWS-SHALLOW",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_build_dependencies_reject_mutated_cache[shallow-shallow-verify-gflags]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_build_dependencies_reject_mutated_cache[shallow-shallow-verify-glog]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m03_shallow_cache_is_rejected"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "def _verify_cache(\n    cache_root: Path, sources: Sequence[Mapping[str, str]],\n) -> list[dict[str, str]]:\n    _ensure_root(cache_root, create=False, label=\"cache root\")\n    return [\n        _verify_source(\n            cache_root / item[\"source_name\"],\n            name=item[\"name\"],\n            pin=item[\"pin\"],\n            expected_url=item[\"url\"],\n        )\n",
+          "new": "def _verify_cache(\n    cache_root: Path, sources: Sequence[Mapping[str, str]],\n) -> list[dict[str, str]]:\n    _ensure_root(cache_root, create=False, label=\"cache root\")\n    return [\n        _verify_source(\n            cache_root / item[\"source_name\"],\n            name=item[\"name\"],\n            pin=item[\"pin\"],\n            expected_url=item[\"url\"],\n            allow_shallow=True,\n        )\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T548-M4-GFLAGS-DROPPED-FROM-ENUMERATION",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_build_dependencies_reject_mutated_cache[dirty-not clean-fetch-gflags]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_build_dependencies_reject_mutated_cache[dirty-not clean-hydrate-gflags]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_build_dependencies_reject_mutated_cache[dirty-not clean-verify-gflags]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_build_dependencies_reject_mutated_cache[head-HEAD-fetch-gflags]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_build_dependencies_reject_mutated_cache[head-HEAD-hydrate-gflags]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_build_dependencies_reject_mutated_cache[head-HEAD-verify-gflags]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_build_dependencies_reject_mutated_cache[origin-origin URL-fetch-gflags]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_build_dependencies_reject_mutated_cache[origin-origin URL-hydrate-gflags]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_build_dependencies_reject_mutated_cache[origin-origin URL-verify-gflags]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_build_dependencies_reject_mutated_cache[shallow-shallow-fetch-gflags]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_build_dependencies_reject_mutated_cache[shallow-shallow-hydrate-gflags]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_build_dependencies_reject_mutated_cache[shallow-shallow-verify-gflags]",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_default_verify_requires_all_five_sources",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_fetch_verify_and_hydrate_emit_one_versioned_json_document",
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_m14_real_hydrate_uses_explicit_staging_root"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "        sources += dependencies\n",
+          "new": "        sources += dependencies[1:]\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T548-M5-P3S4-RESOLVES-FIXED-HOME-PATH",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_commented_dependency_policy_field_is_rejected",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_commented_prebuild_dependency_prefix_is_rejected",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_complete_k2_environment_reaches_actual_job_driver_argv",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_evidence_root_reaches_actual_job_driver_as_canonical_path[absolute]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_evidence_root_reaches_actual_job_driver_as_canonical_path[relative]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[c++]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[cc]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[cmake]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[g++]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[gcc]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[git]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[make]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_build_tool_shim_mutants_are_rejected[nm]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_CXX_COMPILER_LAUNCHER=/tmp/launcher]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_C_COMPILER_LAUNCHER=/tmp/launcher]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_PREFIX_PATH=/tmp/deps]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_PROJECT_INCLUDE=/tmp/inject.cmake]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_PROJECT_INCLUDE_BEFORE=/tmp/inject.cmake]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[CMAKE_PROJECT_TOP_LEVEL_INCLUDES=/tmp/inject.cmake]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[different-prefix-variables]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[partial-prefix]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_forbidden_cmake_environment_mutants_are_rejected[second-exact-prefix]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_job_body_static_contract",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_no_build_mutant_has_one_negative_failure",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_omitted_optional_k2_declarations_add_no_driver_argv",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[campaign-pin-import-'from orchestrator.campaign.p3_s4_loop import PIN; print(PIN)'-'from orchestrator.campaign.pin import CURRENT_PIN; print(CURRENT_PIN)']",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[claim-root-mkdir -p -m 0700 -- \"$claim_root\"-true # claim root provisioning removed]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[clean-tree-if ! superproject_status=$(git status --porcelain --untracked-files=no ///n  --ignore-submodules=all); then/n  refuse \"cannot inspect superproject tracked status\"/nfi/n[[ -z \"$superproject_status\" ]] || ///n  refuse \"superproject tracked worktree is not clean\"-true # superproject status gate removed]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[dependency-compilers]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[dependency-policy-fields]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[dependency-policy-path]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[evidence-outside-repo-if [[ \"$evidence_root\" == \"$repo\" || \"$evidence_root\" == \"$repo/\"* ///n   || \"$evidence_root\" == \"$git_common_repo\" ///n   || \"$evidence_root\" == \"$git_common_repo/\"* ]]; then-if [[ \"$evidence_root\" == \"/impossible\" ]]; then]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[expected-head-\"$observed_head\" != \"$IZANAGI_S4_EXPECTED_HEAD\"-\"$observed_head\" != \"\"]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[fixture]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[gflags-build-argv]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[gflags-dirty-all]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[gflags-head-exact]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[gflags-install-root]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[glog-configure-definitions]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[glog-install-root]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[glog-install-timeout]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[k2-proposal-required]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[k2-request-set-detection]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-base-equality]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-copy-destination]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-dependency-prefix]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[prebuild-scratch-copy-cp -a \"$source\"/. \"$destination\"/-source=$destination]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[proposal]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[qstat-jobid-qstat_jobid=${PBS_JOBID#0:}-qstat_jobid=$PBS_JOBID]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[receipt-create-only-with open(receipt_path, \"x\", encoding=\"utf-8\")-with open(receipt_path, \"w\", encoding=\"utf-8\")]",
+        "orchestrator/tests/test_p3_s4_loop_job_contract.py::test_registered_fragment_mutants_have_one_static_failure[reservation-export IZANAGI_RESERVATION_DEADLINE_EPOCH=\"$deadline_epoch\"-true # deadline export removed]",
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/p3_s4_loop_pegasus.sh",
+          "old": "GFLAGS_SOURCE_PATH=\"$THIRDPARTY_SOURCE_ROOT/gflags\"\n",
+          "new": "GFLAGS_SOURCE_PATH=\"$HOME/github/gflags\"\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T548-M6-POLICY-GOLDEN-REVERTED-TO-OLD-BYTES",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_shared_pegasus_policy_owns_no_t126_qualification_keys"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/pegasus_policy_expected_goldens.py",
+          "old": "    \"3a3c7d607de77e23368f9ce382b41e6e524de3ee1e2809e7c6d890ada95a6c90\"\n",
+          "new": "    \"a8806c4a4da81f2cbadcb5cbeee54ce7c1106bd0d291c1a2725f86b8b8a8032a\"\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T548-M8-CACHE-ROOT-IGNORES-ENV",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_thirdparty_fetch.py::test_verify_cache_root_must_be_explicit_or_environment"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/fetch_third_party.py",
+          "old": "        raw = os.environ.get(CACHE_ENV)\n",
+          "new": "        raw = None\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T548-M9-SUBMISSION-ROOT-FROM-FILE-NOT-REPO-ROOT",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_archived_submission_uses_checkout_dependency_staging[hydrated]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_archived_submission_uses_checkout_dependency_staging[missing-gflags]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_binding_publish_before_ledger_bind_is_exactly_recoverable",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_binding_staging_without_canonical_never_authorizes_resubmit",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_dry_run_does_not_consume_series_before_real_submit",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_duplicate_initial_is_rejected_before_any_additional_qsub",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_fake_qsub_qstat_exact_visibility_and_durable_receipt",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_invocation_claim_short_write_is_completed_and_bound",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m8a_create_only_invocation_claim_serializes_parallel_submit",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m8b_post_qsub_prebinding_crash_never_uses_raw_stdout_authority",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_m8c_qsub_nonzero_is_accepted_unknown_and_never_resubmitted",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_one_authorized_retry_submit_collector_chain_is_accepted_once",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_post_qsub_receipt_write_failure_is_durably_bound_and_fail_closed",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_qsub_visibility_mismatch_leaves_intent_binding_but_no_receipt",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_index_flag_gate_is_pipefail_safe_and_clean_repo_proceeds",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_receipt_hard_crash_recovers_without_second_qsub[after-fsync]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_receipt_hard_crash_recovers_without_second_qsub[after-open]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_receipt_hard_crash_recovers_without_second_qsub[after-publish]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_receipt_hard_crash_recovers_without_second_qsub[after-short-write]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_resume_rejects_boolean_invocation_retry_index[False]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_resume_rejects_boolean_invocation_retry_index[True]",
+        "orchestrator/tests/test_t126_pegasus_tools.py::test_submit_unsupported_policy_perf_uses_canonical_degraded_toolchain"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/submission.py",
+          "old": "                       or repo_root / THIRD_PARTY_STAGING_RELATIVE)\n",
+          "new": "                       or Path(__file__).resolve().parents[2] / THIRD_PARTY_STAGING_RELATIVE)\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T548-M10-SILO-JOB-DROPS-BUILD-DEPS-FROM-SCRATCH",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_ladder_rung1_driver.py::test_silo_build_dependencies_reach_scratch_before_dependency_stage",
+        "orchestrator/tests/test_silo_ladder_rung1_evidence.py::test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/silo_ladder_rung1.sh",
+          "old": "for row in \"${third_party_rows[@]}\" \"${build_dependency_rows[@]}\"; do\n",
+          "new": "for row in \"${third_party_rows[@]}\"; do\n"
+        }
+      ]
+    },
+    {
+      "id": "MUT-T548-M11-MOCC-RESOLVES-BEFORE-HYDRATE-OUTPUT",
+      "category": "negative",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_pegasus_tools.py::test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench"
+      ],
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "old": "THIRDPARTY_SOURCE_ROOT=\"$THIRD_PARTY_SOURCE_ROOT\"\n",
+          "new": "THIRDPARTY_SOURCE_ROOT=\"${IZANAGI_THIRDPARTY_SOURCE_ROOT:-$REPO_ROOT/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src}\"\n"
+        }
+      ]
+    }
+  ]
+}

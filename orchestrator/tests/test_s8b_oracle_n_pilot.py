@@ -31,6 +31,12 @@ R33_FROZEN_ARTIFACT_DRIVER_SHA256 = (
 R33_SUCCESSOR_ANALYSIS_DRIVER_SHA256 = (
     "65527f026d6e3cd55e513938d50d5454de55f562b9a289ce6a55101f03728301"
 )
+R33_FROZEN_ARTIFACT_JOB_SCRIPT_SHA256 = (
+    "566698b3a833224488dd4d0c3be0515dd812b75003f3f08f947e37aebfc50ad9"
+)
+EXPECTED_CURRENT_ORACLE_N_PILOT_JOB_SCRIPT_SHA256 = (
+    "3ceaabd1b8b3759fb24b136f44256e8ae76115dd6d1a283bc205c86de01a0ed1"
+)
 
 
 def _perf_receipt(status: str = "available") -> dict:
@@ -288,9 +294,14 @@ def test_r33_protocol_document_loads_from_repository():
     assert loaded.allocation_count == 3
     assert loaded.allocation_role == "primary-segment"
     assert loaded.driver_sha256 == R33_FROZEN_ARTIFACT_DRIVER_SHA256
-    assert loaded.job_script_sha256 == hashlib.sha256(
-        (ROOT / loaded.job_script_path).read_bytes()
-    ).hexdigest()
+    assert loaded.job_script_sha256 == R33_FROZEN_ARTIFACT_JOB_SCRIPT_SHA256
+    assert hashlib.sha256((ROOT / loaded.job_script_path).read_bytes()).hexdigest() == (
+        EXPECTED_CURRENT_ORACLE_N_PILOT_JOB_SCRIPT_SHA256
+    )
+    assert (
+        R33_FROZEN_ARTIFACT_JOB_SCRIPT_SHA256
+        != EXPECTED_CURRENT_ORACLE_N_PILOT_JOB_SCRIPT_SHA256
+    )
 
 
 def test_r33_successor_protocol_document_loads_from_repository():

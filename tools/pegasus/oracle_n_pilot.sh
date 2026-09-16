@@ -194,9 +194,7 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as handle:
     policy = json.load(handle)
 text_fields = (
-    "gflags_source_path",
     "gflags_expected_head",
-    "glog_source_path",
     "glog_expected_head",
 )
 for key in text_fields:
@@ -212,12 +210,13 @@ if [[ "$policy_rc" -ne 0 ]]; then
   fail "cannot load third-party policy"
 fi
 mapfile -t third_party_policy <"$RUN_DIR/third-party-policy.stdout"
-[[ "${#third_party_policy[@]}" -eq 4 ]] \
+[[ "${#third_party_policy[@]}" -eq 2 ]] \
   || fail "third-party policy produced an unexpected field count"
-GFLAGS_SOURCE_PATH=${third_party_policy[0]}
-GFLAGS_EXPECTED_HEAD=${third_party_policy[1]}
-GLOG_SOURCE_PATH=${third_party_policy[2]}
-GLOG_EXPECTED_HEAD=${third_party_policy[3]}
+THIRDPARTY_SOURCE_ROOT="${IZANAGI_THIRDPARTY_SOURCE_ROOT:-$REPO_ROOT/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src}"
+GFLAGS_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/gflags"
+GLOG_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/glog"
+GFLAGS_EXPECTED_HEAD=${third_party_policy[0]}
+GLOG_EXPECTED_HEAD=${third_party_policy[1]}
 
 if [[ ! -d "$GFLAGS_SOURCE_PATH" ]]; then
   fail "gflags source path missing"
