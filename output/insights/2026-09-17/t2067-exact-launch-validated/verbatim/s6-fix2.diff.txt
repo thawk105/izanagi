@@ -1,0 +1,25 @@
+diff --git a/orchestrator/tests/README.md b/orchestrator/tests/README.md
+index 1c1243ff8..49b0eccd4 100644
+--- a/orchestrator/tests/README.md
++++ b/orchestrator/tests/README.md
+@@ -163,6 +163,7 @@ pytest 専用テストで、`python3 file.py` 直接実行は no-op (偽緑で
+ - test_s8b_budget_approval_preflight.py
+ - test_s8b_descriptor.py
+ - test_s8b_floor_stats.py
++- test_s8b_gate_core_exact_launch_validated.py
+ - test_s8b_holdout_freeze.py
+ - test_s8b_materialization.py
+ - test_s8b_oracle_driver.py
+diff --git a/orchestrator/tests/test_ccbench_spawn_sites.py b/orchestrator/tests/test_ccbench_spawn_sites.py
+index 3e41959fa..38e368a1c 100644
+--- a/orchestrator/tests/test_ccbench_spawn_sites.py
++++ b/orchestrator/tests/test_ccbench_spawn_sites.py
+@@ -2978,7 +2978,7 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
+     s8b_sink = _BuildSink(
+         "orchestrator/campaign/s8b_oracle_driver.py",
+         "<module>.run_block",
+-        1783,
++        1775,
+         "campaign",
+     )
+     assert classifications[s1_sink] == Counter({

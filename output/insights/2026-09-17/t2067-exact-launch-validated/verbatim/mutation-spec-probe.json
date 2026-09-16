@@ -1,0 +1,163 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 200,
+ "timeout_seconds": 1500,
+ "hang_timeout_seconds": 1500,
+ "mutations": [
+  {
+   "id": "m0-equivalent-comment",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_driver.py",
+     "old": "            # を要求する。core は active 世代を自分で解決しない (D1872)。\n",
+     "new": "            # を要求する。core は active 世代を自分で解決しない (D1872、対照 M0)。\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": []
+  },
+  {
+   "id": "m1-restore-static-self-load-fallback",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_driver.py",
+     "old": "            if ratified_error is not None:\n                refusals.append(f\"freeze-ratify: {ratified_error}\")\n            elif launch_validated is None:\n                refusals.append(\n                    \"v2-execution: launch-validate: \"\n                    \"LaunchValidatedFreeze exact type が必要\"\n                )\n            elif (freeze_sha is None\n                  or freeze_sha != launch_validated.ratified.sha256):\n",
+     "new": "            active = (launch_validated.ratified\n                      if launch_validated is not None else None)\n            error = ratified_error\n            if active is None and error is None:\n                try:\n                    active = s8b_ratified_freeze.load_ratified_freeze(root)\n                except s8b_ratified_freeze.RatifiedFreezeError as exc:\n                    error = f\"[{exc.reason}] {exc}\"\n                except Exception as exc:  # noqa: BLE001 (fail-closed)\n                    error = f\"{type(exc).__name__}: {exc}\"\n            if error is not None:\n                refusals.append(f\"freeze-ratify: {error}\")\n            elif active is None or freeze_sha is None or freeze_sha != active.sha256:\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": []
+  },
+  {
+   "id": "m2-exact-type-to-isinstance",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_driver.py",
+     "old": "    if (launch_validated is not None\n            and type(launch_validated) is not s8b_ratified_freeze.LaunchValidatedFreeze):\n",
+     "new": "    if (launch_validated is not None\n            and not isinstance(launch_validated, s8b_ratified_freeze.LaunchValidatedFreeze)):\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": []
+  },
+  {
+   "id": "m3-drop-missing-token-refusal",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_driver.py",
+     "old": "            elif launch_validated is None:\n                refusals.append(\n                    \"v2-execution: launch-validate: \"\n                    \"LaunchValidatedFreeze exact type が必要\"\n                )\n",
+     "new": "            elif launch_validated is None:\n                pass\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": []
+  },
+  {
+   "id": "m4-restore-ratified-injection-port",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_driver.py",
+     "old": "                     ratified_error: Optional[str] = None) -> GateDecision:\n",
+     "new": "                     ratified: Optional[\"s8b_ratified_freeze.RatifiedFreeze\"] = None,\n                     ratified_error: Optional[str] = None) -> GateDecision:\n"
+    },
+    {
+     "file": "orchestrator/campaign/s8b_oracle_driver.py",
+     "old": "                standalone_manifest_verification=True,\n                verified_manifest=verified_manifest,\n            )\n",
+     "new": "                standalone_manifest_verification=True,\n                verified_manifest=verified_manifest, ratified=ratified,\n            )\n"
+    },
+    {
+     "file": "orchestrator/campaign/s8b_oracle_driver.py",
+     "old": "            verified=loaded, verified_manifest=verified_manifest,\n        )\n\n    candidate = ratified\n",
+     "new": "            verified=loaded, verified_manifest=verified_manifest,\n            ratified=ratified,\n        )\n\n    candidate = ratified\n"
+    },
+    {
+     "file": "orchestrator/campaign/s8b_oracle_driver.py",
+     "old": "            elif launch_validated is None:\n                refusals.append(\n                    \"v2-execution: launch-validate: \"\n                    \"LaunchValidatedFreeze exact type が必要\"\n                )\n",
+     "new": "            elif launch_validated is None:\n                if (ratified is None or freeze_sha is None\n                        or ratified.sha256 != freeze_sha):\n                    refusals.append(\n                        \"v2-execution: launch-validate: \"\n                        \"LaunchValidatedFreeze exact type が必要\"\n                    )\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": []
+  },
+  {
+   "id": "m5-drop-hash-refusal",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_driver.py",
+     "old": "            elif (freeze_sha is None\n                  or freeze_sha != launch_validated.ratified.sha256):\n                refusals.append(\n                    \"freeze-not-active-generation: \"\n                    \"与えられた freeze bytes sha256 が承認束縛済み active 世代と不一致\"\n                )\n",
+     "new": "            else:\n                pass\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": []
+  },
+  {
+   "id": "m6-v2-predicate-floor-only",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_driver.py",
+     "old": "        elif freeze.get(\"floor\") is None and freeze.get(\"budget\") is None:\n",
+     "new": "        elif freeze.get(\"floor\") is None:\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": []
+  },
+  {
+   "id": "m7-missing-token-before-error",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_driver.py",
+     "old": "            if ratified_error is not None:\n                refusals.append(f\"freeze-ratify: {ratified_error}\")\n            elif launch_validated is None:\n                refusals.append(\n                    \"v2-execution: launch-validate: \"\n                    \"LaunchValidatedFreeze exact type が必要\"\n                )\n",
+     "new": "            if launch_validated is None:\n                refusals.append(\n                    \"v2-execution: launch-validate: \"\n                    \"LaunchValidatedFreeze exact type が必要\"\n                )\n            elif ratified_error is not None:\n                refusals.append(f\"freeze-ratify: {ratified_error}\")\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": []
+  },
+  {
+   "id": "m8-missing-token-even-with-exact-token",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_driver.py",
+     "old": "            elif launch_validated is None:\n                refusals.append(\n                    \"v2-execution: launch-validate: \"\n                    \"LaunchValidatedFreeze exact type が必要\"\n                )\n",
+     "new": "            elif launch_validated is None or True:\n                refusals.append(\n                    \"v2-execution: launch-validate: \"\n                    \"LaunchValidatedFreeze exact type が必要\"\n                )\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": []
+  },
+  {
+   "id": "m9-missing-token-added-to-v1-branch",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_driver.py",
+     "old": "                refusals.append(\n                    f\"holdout-freeze-verify: {type(exc).__name__}: {exc}\"\n                )\n        else:\n            # v2 (floor または budget が non-null) freeze: exact な LaunchValidatedFreeze\n",
+     "new": "                refusals.append(\n                    f\"holdout-freeze-verify: {type(exc).__name__}: {exc}\"\n                )\n            refusals.append(\n                \"v2-execution: launch-validate: \"\n                \"LaunchValidatedFreeze exact type が必要\"\n            )\n        else:\n            # v2 (floor または budget が non-null) freeze: exact な LaunchValidatedFreeze\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_status": "SURVIVED",
+   "expected_nodes": []
+  }
+ ]
+}
