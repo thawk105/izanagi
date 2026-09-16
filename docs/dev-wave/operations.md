@@ -165,7 +165,7 @@ gate成功後の再走は`DW-S05-A`だけ。取り込みは
 待ち手・launcher・runnerのbytesを変える前進は先に取り込む（F524）。
 HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submoduleで非0。
 `DW-C01`に従い初期化して再検査（`deinit`禁止）。取り込みはpointerだけ進む。受入前に
-`git submodule update --recursive`で揃える。
+`git submodule update --init --recursive`で揃える。
 子を走らせるworktreeは`git worktree lock`（cwd走査はlauncher型を逃す）。
 
 ## DW-O23 — 並行 session の local main land
