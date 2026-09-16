@@ -1,0 +1,66 @@
+{
+  "admission_provenance": "stock-baseline",
+  "admission_receipt_sha256": "c6a616c29923eff8db8b35baeeb70b251383ca6e85a7ba4a4099ce0010fac9af",
+  "build_signature_defaults": {
+    "cc": "gcc-13",
+    "cxx": "g++-13"
+  },
+  "buildcache_source_sha256": "b6c02f1bede46d2655e9fe42cb0430faf4d7209017dc73f6f74a46a80cc20d0d",
+  "ccbench_head": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+  "ccbench_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/external/ccbench",
+  "collision_precondition": null,
+  "compile_calls": [],
+  "defaults": {
+    "cc": "gcc-13",
+    "cxx": "g++-13"
+  },
+  "expected_cached": null,
+  "fix_demonstrated": null,
+  "genome": {
+    "canonical": "silo|BACK_OFF=1",
+    "flags": {
+      "BACK_OFF": 1
+    },
+    "protocol": "silo"
+  },
+  "mode": "evidence",
+  "module_paths": {
+    "build_admission": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/orchestrator/campaign/build_admission.py",
+    "buildcache": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/orchestrator/campaign/buildcache.py",
+    "model": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/orchestrator/campaign/model.py",
+    "pin": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/orchestrator/campaign/pin.py",
+    "source_digest": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/orchestrator/campaign/source_digest.py"
+  },
+  "observed_as_expected": null,
+  "phase": "evidence",
+  "repo": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key",
+  "repo_head": "0c292eff6f39d797afac7481b89c94de43c07386",
+  "reproduced_false_hit": null,
+  "requested_commit": "511c953",
+  "requested_compiler_versions": {
+    "cxx": {
+      "realpath": "/usr/bin/x86_64-linux-gnu-g++-11",
+      "requested": "g++",
+      "version_first_line": "g++ (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+      "version_number": "11.4.0",
+      "which": "/usr/bin/g++"
+    }
+  },
+  "run_calls": [],
+  "seed_comparison": null,
+  "source_bytes_sha256": "6454d9f34b04fdb148bc3324c5b07786d933dcc1ab0f7267aa0b91d414f70a84",
+  "source_evidence": {
+    "ccbench_commit": "511c953",
+    "genome_sha256": "5ada9374d1c8f008fa4b6d85351e0ef681c12e5e1fa6d06bc548580dfa1ab1b2",
+    "schema": "source-evidence/v1",
+    "source_bytes_sha256": "6454d9f34b04fdb148bc3324c5b07786d933dcc1ab0f7267aa0b91d414f70a84",
+    "source_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/external/ccbench",
+    "src_token": "stock",
+    "tracked_clean": true,
+    "tracked_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tracked_paths": []
+  },
+  "src_token": "stock",
+  "trace": false,
+  "tracked_clean": true
+}

@@ -14,6 +14,73 @@ from orchestrator.campaign import campaign_lock, ident
 from orchestrator.campaign.build_admission import GeneratorId, build_run_context
 
 
+
+# Independent declaration copied from 2a9ba783f^; never derive from production.
+_EXPECTED_T733_EXACT62_CLOSURE_PATHS = (
+    "orchestrator/campaign/env_contract.py",
+    "orchestrator/campaign/env_contract_activation.py",
+    "orchestrator/campaign/execution_guard.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/pipeline.py",
+    "orchestrator/campaign/wal.py",
+    "orchestrator/campaign/ident.py",
+    "orchestrator/campaign/artifact_admission.py",
+    "orchestrator/verifier/core.py",
+    "orchestrator/verifier/dsg.py",
+    "orchestrator/verifier/model.py",
+    "orchestrator/verifier/parse.py",
+    "orchestrator/verifier/__init__.py",
+    "orchestrator/verifier/report.py",
+    "orchestrator/campaign/s8c_preregistration.py",
+    "orchestrator/campaign/s8c_preregistration_evidence.py",
+    "orchestrator/campaign/s8c_generation_projection.py",
+    "orchestrator/campaign/campaign_lock.py",
+    "orchestrator/campaign/contract_loader_binding.py",
+    "orchestrator/campaign/guided.py",
+    "orchestrator/campaign/replay.py",
+    "orchestrator/qualification/artifacts.py",
+    "orchestrator/qualification/t126_driver.py",
+    "orchestrator/verifier/commit_receipt.py",
+    "orchestrator/calibrator/__init__.py",
+    "orchestrator/calibrator/effective_clock_policy.py",
+    "orchestrator/calibrator/perf_preflight.py",
+    "orchestrator/calibrator/runner.py",
+    "orchestrator/calibrator/schema_v2.py",
+    "orchestrator/calibrator/stability.py",
+    "orchestrator/campaign/__init__.py",
+    "orchestrator/campaign/axis_trigger_gating.py",
+    "orchestrator/campaign/build_admission.py",
+    "orchestrator/campaign/buildcache.py",
+    "orchestrator/campaign/calibration_verify.py",
+    "orchestrator/campaign/campaign_claim.py",
+    "orchestrator/campaign/diff_quarantine.py",
+    "orchestrator/campaign/env_attestation.py",
+    "orchestrator/campaign/genome.py",
+    "orchestrator/campaign/layout.py",
+    "orchestrator/campaign/lock.py",
+    "orchestrator/campaign/model.py",
+    "orchestrator/campaign/p2_2.py",
+    "orchestrator/campaign/p3_b4_launcher.py",
+    "orchestrator/campaign/p3_b4_protocol.py",
+    "orchestrator/campaign/reflux_ir.py",
+    "orchestrator/campaign/reservation.py",
+    "orchestrator/campaign/search_baselines.py",
+    "orchestrator/campaign/site_policy.py",
+    "orchestrator/campaign/source_digest.py",
+    "orchestrator/campaign/trigger_gate_binding.py",
+    "orchestrator/critic/__init__.py",
+    "orchestrator/critic/online_digest.py",
+    "orchestrator/holdout_observation.py",
+    "orchestrator/qualification/__init__.py",
+    "orchestrator/qualification/attempt_ledger.py",
+    "orchestrator/qualification/collector.py",
+    "orchestrator/qualification/contract.py",
+    "orchestrator/qualification/identity.py",
+    "orchestrator/qualification/qsub_binding.py",
+    "orchestrator/qualification/retry_index.py",
+    "orchestrator/qualification/series.py",
+)
+
 def _identity() -> dict[str, object]:
     return {
         "spec_content": "codec fixture あ",
@@ -494,6 +561,120 @@ def test_non_certifying_mode_and_certifying_false_are_load_bearing(
     value["a1_non_certifying"]["common_record"][field] = replacement
     with pytest.raises(campaign_lock.CampaignLockCodecError):
         campaign_lock.decode_non_certifying_campaign_lock(_canonical(value))
+
+
+def _t733_exact62_v2_value() -> dict[str, object]:
+    value = _v2_value()
+    blobs = value["authority"]["contract_loader_blob_sha256s"]
+    value["authority"]["contract_loader_blob_sha256s"] = {
+        path: blobs[path] for path in _EXPECTED_T733_EXACT62_CLOSURE_PATHS
+    }
+    return value
+
+
+def test_t733_exact62_uses_dedicated_historical_decoder_type() -> None:
+    text = _canonical(_t733_exact62_v2_value())
+    for decoded in (
+        campaign_lock.decode_historical_campaign_lock(text),
+        campaign_lock.decode_historical_campaign_lock_bytes(text.encode("utf-8")),
+    ):
+        assert type(decoded) is campaign_lock.DecodedHistoricalCampaignLock
+        assert not isinstance(decoded, campaign_lock.DecodedCampaignLock)
+        assert decoded.original_text == text
+        assert decoded.identity == _identity()
+        assert type(decoded.authority) is campaign_lock.HistoricalCampaignLockAuthority
+        assert decoded.authority.recorded_contract_loader_relative_paths == (
+            _EXPECTED_T733_EXACT62_CLOSURE_PATHS
+        )
+        assert tuple(decoded.authority.contract_loader_blob_sha256s) == (
+            _EXPECTED_T733_EXACT62_CLOSURE_PATHS
+        )
+        with pytest.raises(ident.IdentityMismatch, match="exact v2 campaign.lock"):
+            ident.verify_recorded_activation_tuple(decoded)
+
+
+def test_t733_exact62_remains_rejected_by_normal_decoder() -> None:
+    text = _canonical(_t733_exact62_v2_value())
+    with pytest.raises(
+        campaign_lock.CampaignLockCodecError,
+        match="contract_loader_blob_sha256s の exact key",
+    ):
+        campaign_lock.decode_campaign_lock(text)
+    with pytest.raises(campaign_lock.CampaignLockCodecError):
+        campaign_lock.decode_campaign_lock_bytes(text.encode("utf-8"))
+
+
+@pytest.mark.parametrize(
+    "mutation", ["subset", "superset", "same-count-replacement", "order"],
+)
+def test_t733_exact62_rejects_unknown_grammars(mutation: str) -> None:
+    value = json.loads(_canonical(_t733_exact62_v2_value()))
+    blobs = value["authority"]["contract_loader_blob_sha256s"]
+    if mutation in {"subset", "same-count-replacement"}:
+        blobs.pop(_EXPECTED_T733_EXACT62_CLOSURE_PATHS[-1])
+    if mutation in {"superset", "same-count-replacement"}:
+        extra = "orchestrator/campaign/unknown_t2483.py"
+        assert extra not in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+        blobs[extra] = "f" * 64
+    if mutation == "order":
+        paths = tuple(blobs)
+        value["authority"]["contract_loader_blob_sha256s"] = {
+            p: blobs[p] for p in (paths[1], paths[0], *paths[2:])
+        }
+        text = json.dumps(value, separators=(",", ":"), ensure_ascii=False)
+    else:
+        text = _canonical(value)
+    # Wire order is checked independently of outer canonical JSON.
+    with pytest.raises(campaign_lock.CampaignLockCodecError, match="歴史 grammar"):
+        campaign_lock._validate_t733_exact62_historical_authority(
+            json.loads(text)["authority"],
+        )
+    with pytest.raises(campaign_lock.CampaignLockCodecError, match="歴史 grammar"):
+        campaign_lock.decode_historical_campaign_lock(text)
+
+
+def test_t733_exact62_authority_requires_exact_declared_order() -> None:
+    from dataclasses import replace
+
+    wire = json.loads(_canonical(_t733_exact62_v2_value()))["authority"]
+    authority = campaign_lock._validate_t733_exact62_historical_authority(wire)
+    paths = _EXPECTED_T733_EXACT62_CLOSURE_PATHS
+    assert campaign_lock.HistoricalCampaignLockAuthority(
+        **_t733_exact62_v2_value()["authority"],
+        recorded_contract_loader_relative_paths=paths,
+    ) == authority
+    swapped = (paths[1], paths[0], *paths[2:])
+    for grammar in (
+        paths[:-1], (*paths, "orchestrator/campaign/unknown_t2483.py"),
+        (*paths[:-1], "orchestrator/campaign/unknown_t2483.py"), swapped,
+    ):
+        with pytest.raises(TypeError, match="記録 grammar"):
+            replace(authority, recorded_contract_loader_relative_paths=grammar,
+                    contract_loader_blob_sha256s={p: "a" * 64 for p in grammar})
+    with pytest.raises(TypeError, match="blob map 順序"):
+        replace(authority, contract_loader_blob_sha256s={
+            p: authority.contract_loader_blob_sha256s[p] for p in swapped
+        })
+    for key in campaign_lock.AUTHORITY_KEYS:
+        malformed = dict(wire)
+        del malformed[key]
+        with pytest.raises(campaign_lock.CampaignLockCodecError, match="exact key"):
+            campaign_lock._validate_t733_exact62_historical_authority(malformed)
+    with pytest.raises(campaign_lock.CampaignLockCodecError, match="exact key"):
+        campaign_lock._validate_t733_exact62_historical_authority({**wire, "extra": 1})
+    for serial in (True, False, 0, -1, 1.0, "1", None):
+        with pytest.raises(campaign_lock.CampaignLockCodecError, match="正の exact int"):
+            campaign_lock._validate_t733_exact62_historical_authority(
+                {**wire, "activation_serial": serial},
+            )
+    for path in paths:
+        for bad in ("a" * 63, "A" * 64, "g" * 64, 4, None):
+            blobs = dict(wire["contract_loader_blob_sha256s"])
+            blobs[path] = bad
+            with pytest.raises(campaign_lock.CampaignLockCodecError):
+                campaign_lock._validate_t733_exact62_historical_authority(
+                    {**wire, "contract_loader_blob_sha256s": blobs},
+                )
 
 
 def _run() -> int:
