@@ -1,0 +1,29 @@
+Traceback (most recent call last):
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2288-binder-precheck/orchestrator/campaign/floor_pair_driver.py", line 498, in _assert_components_no_symlink
+    mode = cursor.lstat().st_mode
+  File "/usr/lib/python3.10/pathlib.py", line 1222, in lstat
+    return self.stat(follow_symlinks=False)
+  File "/usr/lib/python3.10/pathlib.py", line 1097, in stat
+    return self._accessor.stat(self, follow_symlinks=follow_symlinks)
+FileNotFoundError: [Errno 2] No such file or directory: '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2288-binder-precheck/output/env/pegasus/binaries/7cdf0dc345f7eccdb50604e77521ce625c1792cc0eb8966b544f65a15ef274a4'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/usr/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2288-binder-precheck/orchestrator/campaign/floor_pair_driver.py", line 3148, in <module>
+    raise SystemExit(main())
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2288-binder-precheck/orchestrator/campaign/floor_pair_driver.py", line 3123, in main
+    spec = load_frozen_spec(
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2288-binder-precheck/orchestrator/campaign/floor_pair_driver.py", line 1277, in load_frozen_spec
+    _bind_checkout_inputs(
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2288-binder-precheck/orchestrator/campaign/floor_pair_driver.py", line 1136, in _bind_checkout_inputs
+    binary = _resolve_regular(root, artifact.binary_relpath, label=f"binary {artifact.artifact_id}")
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2288-binder-precheck/orchestrator/campaign/floor_pair_driver.py", line 507, in _resolve_regular
+    _assert_components_no_symlink(root, target, label=label)
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2288-binder-precheck/orchestrator/campaign/floor_pair_driver.py", line 500, in _assert_components_no_symlink
+    raise FloorPairBindingError(f"{label} を lstat できない: {cursor}: {exc}") from exc
+__main__.FloorPairBindingError: binary b4-candidate を lstat できない: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2288-binder-precheck/output/env/pegasus/binaries/7cdf0dc345f7eccdb50604e77521ce625c1792cc0eb8966b544f65a15ef274a4: [Errno 2] No such file or directory: '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2288-binder-precheck/output/env/pegasus/binaries/7cdf0dc345f7eccdb50604e77521ce625c1792cc0eb8966b544f65a15ef274a4'
