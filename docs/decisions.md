@@ -63414,3 +63414,114 @@ source commit (`repo_stock_pin`) の **2 つだけ**とする。generator 登録
 
 **残余:** registry からの member 削除・改名、`_AUTHORITY_KIND` / `POLICY_SCHEMA` literal の変更が
 起きると歴史閲覧はまた塞がる。いずれも実測されていない事象であり、本決定では扱わない。
+
+## D2067. 受入短縮の対象を shard-0 の t080 e2e へ実測で改める (2026-09-16)
+
+**決定:** 受入全走で 5 分上限を超えているのは **shard-0 だけ**であり、その床は
+`orchestrator/tests/test_s8b_oracle_driver.py` の t080 e2e 群であると記録する。
+D1918 が定めた「最遅 shard は shard-2、床は xdist group `p3-b4-material-report`」は
+**2026-09-16 時点で失効している**。以後の受入短縮タスクはこの対象を起点にする。
+
+**理由:**
+
+- 2026-09-16 の直近 7 走の `junit.xml` の `testsuite time` 中央値は shard-0 = 325.5 秒、
+  shard-1 = 229.8 秒、shard-2 = 236.6 秒である。300 秒を超えるのは shard-0 だけだった。
+- shard-0 の内訳 (中央値) は pre 約 65 秒 + disp 29.6 秒 + test span 231.0 秒で、
+  span と最長単体 node (222.51 秒) の差は 8.49 秒しかない。**span は最長 node で決まっている。**
+- `p3-b4-material-report` group は現在 shard-1 の最忙 worker (169.5 秒) であり、最遅ではない。
+- t080 系 38 node の所要総和は 2611.1 秒で、shard-0 の node 所要総和の 32% を占める
+  (junit の所要は待ちを含むので CPU 時間ではない)。次点の非 t080 node は 161.1 秒である。
+- 対象を実測で選ぶことは、受入短縮についての既存のユーザー裁定が明示的に求めている。
+
+**却下した選択肢:**
+
+- D1918 の記述をそのまま使う — 一次資料が最遅 shard の identity の変化を示している。
+- 最長 node 1 本だけを名指しする — 200〜222 秒の t080 が 10 本並んでおり、1 本を消しても
+  次の t080 が床になる。D1714 が同型の誤りを既に否定している。
+
+## D2068. t080 fixture の index 化高速案は現時点で採らない (2026-09-16)
+
+**決定:** t080 e2e の base 構築を速くする 3 案 —
+(A) 複製する git 可視 output を固定 whitelist へ限定する、
+(B) 実 repo の object store 全体を alternates で借りる、
+(C) 必要 blob だけを fixture 内へ移送して独立 index を組む —
+を**いずれも採らない**。意味を変えない圧縮設定の変更も採らない。
+
+**理由:**
+
+- **(A) は受理集合を変える。** 非除外 output の任意の可視 file に三軸 conjunction が入ると、
+  現行は fixture へ複製され発行 subprocess の production scan が拒否する。whitelist はこの拒否経路を
+  消す。既存の未知性負例は fixture 作成**後**に root 直下へ file を置く形なので、この脱落を検出しない。
+  known-axes 側にも同型がある (glob に一致する追加候補を隠すと複数候補拒否が消える)。規律 2 に反する。
+- **(B) は観測を変え、既存 assert が検出しない。** 実 repo にあり fixture に無い recorded commit が
+  alternates 経由で見えると、ancestry が `missing-commit` から `not-ancestor` へ変わりうる。
+  report の独立検算は 17 observation のうち先頭 15 件しか覆わず、report と verifier は同じ
+  object store を見るため一致してしまう。貸出元の prune で借り手が object を失う risk もある。
+- **(C) は効果の符号が未確認である。** 親の実測では、現行 `git add -A` の 79.33〜191.30 秒に対し
+  既存 blob OID の `update-index --index-info` は 0.03〜0.04 秒 + `write-tree` 0.60 秒 +
+  `commit-tree` 0.01 秒だった。しかしこの下限は実 repo の object store を fixture へ見せることで
+  成立しており、(B) と同じ問題を持つ。自己完結化には 660 MB の pack 化が要り、削減分を食う見込みで
+  ある (未測定)。効果を先に測り未確認のまま実装しないという既存のユーザー裁定に従う。
+- **圧縮設定は意味不変だが時間効果が確認できない。** `core.compression=0` と
+  `+core.looseCompression=0` は 3 方式とも tree OID が同一だったが、所要は round 1 で +2.99 /
+  +18.68 秒、round 2 で −18.81 / −19.30 秒と符号が反転した。
+- **login node の単発測定は根拠にならない。** 同一内容の `output/` 複製が 20.64〜571.40 秒 (28 倍) に
+  振れた。受入高速化の判断に使う測定は、同一 tree 内で方式を交互に測った対比較に限る。
+- **(C) を採っても成長比例は断てない。** 全件列挙・全件配置・全件 scan・base→test コピーが残る。
+  係数削減であって、件数依存を除く変更ではない。
+
+**却下した選択肢:**
+
+- 効果未確認のまま (C) を land する — 受入全走は共有資源であり、単発 A/B では目標の 25.5 秒を
+  走間変動から分離できない (同日 n=103 の代表 node 分布は幅 283.9 秒、中央値から最小への
+  自然変動だけで 29.0 秒ある)。
+- テストを削除・保留登録して速くする — D747 と、保留を既定の答えにしないというユーザー裁定に反する。
+- 「成長比例を断った」と記録する — どの案も全件処理を残すので事実に反する。
+
+## D2069. B-4 凍結 spec の binary は `output/env/<env_tag>/binaries/<binary_sha256>` へ ignored 複写で置き、凍結するのは bytes の可用性でなく path・期待 sha256・receipt とする (2026-09-16)
+
+**決定:**
+
+1. **配置規則:** 凍結 spec の `artifacts[].binary_relpath` は
+   `output/env/<env_tag>/binaries/<binary_sha256>` とする。candidate と reference は同じ bytes
+   (D1641 決定 3) なので、同じ path・sha・receipt を共有してよい。
+2. **複写を採る。** 調達済み record と repo 外の durable store から、
+   `python3 -m orchestrator.campaign.b4_binary_record place --record <r> --source-root <s> --env-tag <t>`
+   で置く。実装は `s8b_floor_campaign.store_binaries()` を呼び、同関数が既に持つ検査
+   (record validator、source sha、既存 destination sha、書込み後 sha) を入口で複製しない。
+3. **tracked 化しない。** `.gitignore` に `output/env/*/binaries/` を置く。
+4. **凍結の射程を明示する。** 凍結されるのは path・期待 sha256・receipt であって bytes の可用性ではない。
+   全複製を失えば消費側は正しく拒否するが、bit 同一の復旧は保証しない。
+5. **path の env 成分は検査されない。** 消費側は `binary_relpath` の env 成分と
+   `environment.env_tag` を照合しない。`--env-tag` を spec と一致させるのは呼び手の責任であり、
+   この規則を環境整合の gate と説明しない。
+6. **配置による復旧は、receipt の policy が現行と一致する record に限る。** 配置経路は
+   `store_binaries` が現行 policy を要求するので、古い policy で発行された record は置けない。
+   消費側 (`expected_policy=None`) より厳しいが、緩めない。
+7. **測定を投入する担当が、投入前に、使用する各 checkout へ配置する。** ignored file は merge で
+   他 checkout へ移らない。
+
+**理由:**
+- **同種の物の既存規約があった。** `s8b_floor_campaign.py:7669` が測定用 binary を
+  `env_scope_dir(env_tag)/binaries/<sha>` へ置いている。`env_tag` の実値は `pegasus` と
+  `linux-baremetal` だけで、`output/env/pegasus/` には既に `calibration` と `profile` が並ぶ。
+  `binaries` はその兄弟であり、新しい分類を起こさずに済む。
+- **消費側は binary の tracked を要求しない。** `floor_pair_driver.py:614 _read_tracked_bound` は
+  spec・build receipt・calibration にだけ loaded HEAD blob との byte 一致を課し、binary は
+  `_resolve_regular` + sha + trace symbol 検査だけを通る。
+- repo の tracked executable に ELF は 1 件も無い (段 3 の実測、58 件中 0 件)。
+- 再 build は凍結 sha との bit 一致を保証しない。T-2636 の build は計算ノード 3 回でようやく成功した。
+- 入口で上流の検査を複製すると、変異が上流に mask されて「検証省略を殺した」という判定が偽になる。
+- 現物で確かめた。701,760 byte を置き、`_relative_path` / `_resolve_regular` /
+  `assert_binary_sha256` / `_assert_no_trace_symbols` の 4 検査を通した。700KB を置いても
+  `git status` は汚れない。
+
+**却下した選択肢:**
+- **新 namespace `output/b4-binaries/<sha256>`** (段 2 plan の案) — 既存規約と二重化し、
+  二軸 (D13) の外に「campaign 横断の実験補助 store」という新分類を要する。
+- **tracked 化** — 消費側が要求せず、repo に ELF の前例が無い。bytes の可用性は得られるが、
+  それを要求する consumer が無い。
+- **測定ごとの再 build** — 凍結 sha との bit 一致を保証しない。
+- **path の env 成分を `environment.env_tag` と照合する gate を足す** — 依頼が scope 外とした
+  仮想リスク向けの検査である。照合しないことを明記するに留める。
+- **配置経路の policy 要求を消費側に合わせて緩める** — 規律 2 に反する。
