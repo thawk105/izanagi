@@ -1,0 +1,307 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1907-backoff-v1-patch-freeze/output/pegasus-dispatch/b05b04292cd9801c9567c3d0b5a868e6/izdw-b05b04292c.o1594",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1907-backoff-v1-patch-freeze/output/pegasus-dispatch/b05b04292cd9801c9567c3d0b5a868e6/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1907-backoff-v1-patch-freeze\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [8 items]\n\n........                                                                 [100%]\n========================= 8 passed in 77.76s (0:01:17) =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "7c6d67feedd9373f4d01abc954e3c5940ef86832710ccf1faae904cca5f910f3"
+    },
+    "artifact_error": null,
+    "collection_sha256": "c286ae532b1fb67a061af4223c3d1c8f86ef11aa28ffa1639032826ecb352d89",
+    "duration_s": 100.209,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "6ec53137372f642e75af4bb38f1ca930a5ab370b23ccfb1457da47683b6b9ef7",
+    "repo_head": "7df8ad9d021ca934e4c1ffbb505abcad2d70b050",
+    "runner_sha256": "0d0bd5bb1d1eacb6f2ae5d7152a73af10e261104277bb51e21d5ec9ff016126e",
+    "spec_sha256": "26e4d8cbcb2f251f5866348d92f2c6b8157cccae90fe26019fc5054438709a90",
+    "status": "PASSED",
+    "test_output_sha256": "7c6d67feedd9373f4d01abc954e3c5940ef86832710ccf1faae904cca5f910f3",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "3b30c38b8865584b0bd4b695800d879c048954ef2891e2ef2a6629d301e5ca83"
+  },
+  "date": "2026-09-16T09:26:09.527084+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1907-backoff-v1-patch-freeze/output/pegasus-dispatch/44d6ef804d942e664f369c1c9f431f77/izdw-44d6ef804d.o1597",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1907-backoff-v1-patch-freeze/output/pegasus-dispatch/44d6ef804d942e664f369c1c9f431f77/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1907-backoff-v1-patch-freeze\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [8 items]\n\n....F...                                                                 [100%]\n=================================== FAILURES ===================================\n______ test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted ______\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted():\n        \"\"\"B-3: 新しい裸マクロ patch は ledger 登録なしでは patches/ に置けない。\"\"\"\n        ledger = json.loads(_LEDGER.read_text(encoding=\"utf-8\"))\n        registered = {entry[\"path\"] for entry in ledger[\"entries\"]}\n        allowed_non_variant_tokens = {\n            # These are diagnostic stdout marker string literals inside\n            # #if BACKOFF_TRACE, not naked macros. Patch macros are registered in\n            # condition_meaning_gate.DefineSpec; ledger.json stays unregistered for\n            # the rung1 contract (exactly 1 entry), per the stage 4 ruling P7.\n            \"patches/cicada-adaptive-dynamic.patch\": frozenset({\n                \"IZANAGI_BACKOFF_TRACE\",\n                \"IZANAGI_BACKOFF_TRACE_SUMMARY\",\n            }),\n            \"patches/cicada-adaptive-counterfactual.patch\": frozenset({\n                \"IZANAGI_BACKOFF_TRACE\",\n                \"IZANAGI_BACKOFF_TRACE_SUMMARY\",\n            }),\n            \"patches/broken-silo-early-unlock-validation.patch\": frozenset({\n                \"IZANAGI_BREAK_EARLY_UNLOCK\",\n            }),\n            \"patches/broken-silo-highkey-validation.patch\": frozenset({\n                \"IZANAGI_BREAK_HIGHKEY_VALIDATION\",\n            }),\n            \"patches/broken-silo-lockskip-validation.patch\": frozenset({\n                \"IZANAGI_BREAK_LOCK_COVERAGE\",\n            }),\n            \"patches/broken-silo-norw-validation.patch\": frozenset({\n                \"IZANAGI_BREAK_NOREAD_VALIDATION\",\n            }),\n            \"patches/broken-silo-permutation-erase.patch\": frozenset({\n                \"IZANAGI_BREAK_PERMUTATION\",\n            }),\n            \"patches/broken-silo-permutation-swap.patch\": frozenset({\n                \"IZANAGI_BREAK_PERMUTATION_SWAP\",\n            }),\n            \"patches/broken-silo-sort-nonswo.patch\": frozenset(),\n            \"patches/broken-silo-trigger-misattr.patch\": frozenset({\n                \"IZANAGI_BREAK_TRIGGER_MISATTR\",\n            }),\n            \"patches/broken-silo-write-intent-erase.patch\": frozenset({\n                \"IZANAGI_BREAK_WRITE_INTENT_ERASE\",\n            }),\n            \"patches/broken-silo-write-intent-forge.patch\": frozenset({\n                \"IZANAGI_BREAK_WRITE_INTENT_FORGE\",\n            }),\n            \"patches/broken-silo-write-intent-opswap.patch\": frozenset({\n                \"IZANAGI_BREAK_WRITE_INTENT_OPSWAP\",\n            }),\n            \"patches/broken-silo-write-intent-ptrswap.patch\": frozenset({\n                \"IZANAGI_BREAK_WRITE_INTENT_PTRSWAP\",\n            }),\n            \"patches/broken-mocc-lockskip-validation.patch\": frozenset({\n                \"IZANAGI_BREAK_MOCC_LOCK_COVERAGE\",\n            }),\n            \"patches/broken-mocc-permutation-erase.patch\": frozenset({\n                \"IZANAGI_BREAK_MOCC_PERMUTATION\",\n            }),\n            \"patches/broken-mocc-early-unlock.patch\": frozenset({\n                \"IZANAGI_BREAK_MOCC_EARLY_UNLOCK\",\n            }),\n            \"patches/instr-silo-backoff-trigger-gating-tally.patch\": frozenset(),\n        }\n        literal_only_tokens = {\n            relative: allowed_non_variant_tokens[relative]\n            for relative in (\n                \"patches/cicada-adaptive-dynamic.patch\",\n                \"patches/cicada-adaptive-counterfactual.patch\",\n            )\n        }\n        unregistered = {}\n        for patch_path in sorted((_ROOT / \"patches\").glob(\"*.patch\")):\n            patch_text = patch_path.read_text(encoding=\"utf-8\")\n            macros = sorted(\n                set(\n                    re.findall(\n                        r\"\\bIZANAGI_[A-Z0-9_]+\\b\",\n                        patch_text,\n                    )\n                )\n            )\n            relative = patch_path.relative_to(_ROOT).as_posix()\n            if relative in literal_only_tokens:\n                literal_spans = [\n                    match.span()\n                    for match in re.finditer(r'\"(?:\\\\.|[^\"\\\\\\n])*\"', patch_text)\n                ]\n                for token in literal_only_tokens[relative]:\n                    occurrences = list(\n                        re.finditer(rf\"\\b{re.escape(token)}\\b\", patch_text)\n                    )\n                    assert occurrences, f\"{relative}: missing marker literal {token}\"\n                    assert all(\n                        any(start <= match.start() < end for start, end in literal_spans)\n                        for match in occurrences\n                    ), f\"{relative}: {token} must occur only in string literals\"\n            if macros and relative not in registered:\n                unexpected = sorted(\n                    set(macros) - allowed_non_variant_tokens.get(relative, frozenset())\n                )\n                if unexpected:\n                    unregistered[relative] = unexpected\n>       assert not unregistered, (\n            \"IZANAGI_ 裸マクロを持つ未登録 patch または path 別許容集合外 token: \"\n            f\"{unregistered}\"\n        )\nE       AssertionError: IZANAGI_ 裸マクロを持つ未登録 patch または path 別許容集合外 token: {'patches/silo-backoff-fixed-v1.patch': ['IZANAGI_FREEZE_PROBE']}\nE       assert not {'patches/silo-backoff-fixed-v1.patch': ['IZANAGI_FREEZE_PROBE']}\n\norchestrator/tests/test_p3_s4_loop.py:7873: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted\n==================== 1 failed, 7 passed in 75.72s (0:01:15) ====================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=5402 retained_bytes=3792 omitted_bytes=1610 rendered_excerpt_bytes=4096 sha256=b9b5bb70f4d82a4459abd7c5cb075fb684fb919b35b0c5e37f882317039d6e24\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>      }),\n>             \"patches/broken-silo-permutation-erase.patch\": frozenset({\n>                 \"IZANAGI_BREAK_PERMUTATION\",\n>             }),\n>             \"patches/broken-silo-permutation-swap.patch\": frozenset({\n>                 \"IZANAGI_BREAK_PERMUTATION_SWAP\",\n>             }),\n>             \"patches/broken-silo-sort-nonswo.patch\": frozenset(),\n>             \"patches/broken-silo-trigger-misattr.patch\": frozenset({\n>                 \"IZANAGI_BREAK_TRIGGER_MISATTR\",\n>             }),\n>             \"patches/broken-silo-write-intent-erase.patch\": frozenset({\n>                 \"IZANAGI_BREAK_WRITE_INTENT_ERASE\",\n>             }),\n>             \"patches/broken-silo-write-intent-forge.patch\": frozenset({\n>                 \"IZANAGI_BREAK_WRITE_INTENT_FORGE\",\n>             }),\n>             \"patches/broken-silo-write-intent-opswap.patch\": frozenset({\n>                 \"IZANAGI_BREAK_WRITE_INTENT_OPSWAP\",\n>             }),\n>             \"patches/broken-silo-write-intent-ptrswap.patch\": frozenset({\n>                 \"IZANAGI_BREAK_WRITE_INTENT_PTRSWAP\",\n>             }),\n>             \"patches/broken-mocc-lockskip-validation.patch\": frozenset({\n>                 \"IZANAGI_BREAK_MOCC_LOCK_COVERAGE\",\n>             }),\n>             \"patches/broken-mocc-permutation-erase.patch\": frozenset({\n>                 \"IZANAGI_BREAK_MOCC_PERMUTATION\",\n>             }),\n>             \"patches/broken-mocc-early-unlock.patch\": frozenset({\n>                 \"IZANAGI_BREAK_MOCC_EARLY_UNLOCK\",\n>             }),\n>             \"patches/instr-silo-backoff-trigger-gating-tally.patch\": frozenset(),\n>         }\n>         literal_only_tokens = {\n>             relative: allowed_non_variant_tokens[relative]\n>             for relative in (\n>                 \"patches/cicada-adaptive-dynamic.patch\",\n>                 \"patches/cicada-adaptive-counterfactual.patch\",\n>             )\n>         }\n>         unregistered = {}\n>         for patch_path in sorted((_ROOT / \"patches\").glob(\"*.patch\")):\n>             patch_text = patch_path.read_text(encoding=\"utf-8\")\n>             macros = sorted(\n>                 set(\n>                     re.findall(\n>                         r\"\\x5cbIZANAGI_[A-Z0-9_]+\\x5cb\",\n>                         patch_text,\n>                     )\n>                 )\n>             )\n>             relative = patch_path.relative_to(_ROOT).as_posix()\n>             if relative in literal_only_tokens:\n>                 literal_spans = [\n>                     match.span()\n>                     for match in re.finditer(r'\"(?:\\x5c\\x5c.|[^\"\\x5c\\x5c\\x5cn])*\"', patch_text)\n>                 ]\n>                 for token in literal_only_tokens[relative]:\n>                     occurrences = list(\n>                         re.finditer(rf\"\\x5cb{re.escape(token)}\\x5cb\", patch_text)\n>                     )\n>                     assert occurrences, f\"{relative}: missing marker literal {token}\"\n>                     assert all(\n>                         any(start <= match.start() < end for start, end in literal_spans)\n>                         for match in occurrences\n>                     ), f\"{relative}: {token} must occur only in string literals\"\n>             if macros and relative not in registered:\n>                 unexpected = sorted(\n>                     set(macros) - allowed_non_variant_tokens.get(relative, frozenset())\n>                 )\n>                 if unexpected:\n>                     unregistered[relative] = unexpected\n> >       assert not unregistered, (\n>             \"IZANAGI_ \\u88f8\\u30de\\u30af\\u30ed\\u3092\\u6301\\u3064\\u672a\\u767b\\u9332 patch \\u307e\\u305f\\u306f path \\u5225\\u8a31\\u5bb9\\u96c6\\u5408\\u5916 token: \"\n>             f\"{unregistered}\"\n>         )\n> E       AssertionError: IZANAGI_ \\u88f8\\u30de\\u30af\\u30ed\\u3092\\u6301\\u3064\\u672a\\u767b\\u9332 patch \\u307e\\u305f\\u306f path \\u5225\\u8a31\\u5bb9\\u96c6\\u5408\\u5916 token: {'patches/silo-backoff-fixed-v1.patch': ['IZANAGI_FREEZE_PROBE']}\n> E       assert not {'patches/silo-backoff-fixed-v1.patch': ['IZANAGI_FREEZE_PROBE']}\n> \n> orchestrator/tests/test_p3_s4_loop.py:7873: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=5402 retained_bytes=3792 omitted_bytes=1610 budget_bytes=49152 rendered_bytes=4835 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4bf5358d20904482a32ec5082a16d9260e86983cbc050757b9a5321e0b5f9602"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c286ae532b1fb67a061af4223c3d1c8f86ef11aa28ffa1639032826ecb352d89",
+      "duration_s": 99.513,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted"
+      ],
+      "hang_risk": false,
+      "id": "M1-unregistered-izanagi-token",
+      "injection_diff_sha256": "fff6880752a0d1e61ec4ba117aa25cb001b01fde9d800e1360ca5711941b02ca",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c55a5b92a00c48a9858c49bb5c91a463e2cd38da6606c1ab7dfa0739067bf661",
+      "replacements": [
+        {
+          "file": "patches/silo-backoff-fixed-v1.patch",
+          "new": "+# izanagi: static backoff magnitude (us) to bypass Cicada's adaptive hill-climb. IZANAGI_FREEZE_PROBE",
+          "old": "+# izanagi: static backoff magnitude (us) to bypass Cicada's adaptive hill-climb."
+        }
+      ],
+      "repo_head": "7df8ad9d021ca934e4c1ffbb505abcad2d70b050",
+      "runner_sha256": "0d0bd5bb1d1eacb6f2ae5d7152a73af10e261104277bb51e21d5ec9ff016126e",
+      "spec_sha256": "26e4d8cbcb2f251f5866348d92f2c6b8157cccae90fe26019fc5054438709a90",
+      "status": "KILLED",
+      "test_output_sha256": "4bf5358d20904482a32ec5082a16d9260e86983cbc050757b9a5321e0b5f9602",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "3b30c38b8865584b0bd4b695800d879c048954ef2891e2ef2a6629d301e5ca83"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1907-backoff-v1-patch-freeze/output/pegasus-dispatch/4534dffc0a9eb4ef1766e4983bc9d2d7/izdw-4534dffc0a.o1601",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1907-backoff-v1-patch-freeze/output/pegasus-dispatch/4534dffc0a9eb4ef1766e4983bc9d2d7/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1907-backoff-v1-patch-freeze\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [8 items]\n\n........                                                                 [100%]\n========================= 8 passed in 75.82s (0:01:15) =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "e481be3b421217ed9d5269d9882137f512a80195617b1b0e3c9d8dd233871b4b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c286ae532b1fb67a061af4223c3d1c8f86ef11aa28ffa1639032826ecb352d89",
+      "duration_s": 104.364,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M2-formula-offset",
+      "injection_diff_sha256": "bb2ae7fe9514ec1a633067d07f51a6170b1273197523c5a93177bed9ee942834",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "388c4caaa142c1e754ea706d61b8ad7e034dea3b9461c2e70281f05c16f7d8c3",
+      "replacements": [
+        {
+          "file": "patches/silo-backoff-fixed-v1.patch",
+          "new": "+    double now_backoff = static_cast<double>(BACKOFF_FIXED) + 1.0;",
+          "old": "+    double now_backoff = static_cast<double>(BACKOFF_FIXED);"
+        }
+      ],
+      "repo_head": "7df8ad9d021ca934e4c1ffbb505abcad2d70b050",
+      "runner_sha256": "0d0bd5bb1d1eacb6f2ae5d7152a73af10e261104277bb51e21d5ec9ff016126e",
+      "spec_sha256": "26e4d8cbcb2f251f5866348d92f2c6b8157cccae90fe26019fc5054438709a90",
+      "status": "SURVIVED",
+      "test_output_sha256": "e481be3b421217ed9d5269d9882137f512a80195617b1b0e3c9d8dd233871b4b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "3b30c38b8865584b0bd4b695800d879c048954ef2891e2ef2a6629d301e5ca83"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1907-backoff-v1-patch-freeze/output/pegasus-dispatch/19720c2200114cdfe454bc4a54dca653/izdw-19720c2200.o1603",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1907-backoff-v1-patch-freeze/output/pegasus-dispatch/19720c2200114cdfe454bc4a54dca653/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1907-backoff-v1-patch-freeze\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [8 items]\n\n........                                                                 [100%]\n========================= 8 passed in 76.16s (0:01:16) =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "5893fca37e671eabbe323365387c1ebdf2a7b87f1b044f5906f28ce174b5b0f7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c286ae532b1fb67a061af4223c3d1c8f86ef11aa28ffa1639032826ecb352d89",
+      "duration_s": 102.684,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M4-empty-file",
+      "injection_diff_sha256": "6c189e25dec643fea4cb6122d7af16b361948092c3f56c6ed76d76803edaeae7",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "d2f2332a97e968d111dd4eb67a9d07afc78583407ffe1479fb909ccaf5865477",
+      "replacements": [
+        {
+          "file": "patches/silo-backoff-fixed-v1.patch",
+          "new": "",
+          "old": "diff --git a/cmake/Options.cmake b/cmake/Options.cmake\nindex b9a3c74..14a06e8 100644\n--- a/cmake/Options.cmake\n+++ b/cmake/Options.cmake\n@@ -18,6 +18,13 @@ set(CCBENCH_ADD_ANALYSIS  0 CACHE STRING \"extra per-tx analysis counters\")\n # dir; never mix into a perf build (absolute discipline #1 / decisions.md D14).\n set(CCBENCH_TRACE         0 CACHE STRING \"izanagi correctness trace (0=off, perf)\")\n set(CCBENCH_BACK_OFF      1 CACHE STRING \"exponential backoff on abort\")\n+# izanagi: static backoff magnitude (us) to bypass Cicada's adaptive hill-climb.\n+# -1 (default) = stock adaptive Backoff_; >=0 = fixed value, ignores the leader's\n+# gradient update. Used to sweep backoff magnitude as a single axis (P2 case study).\n+set(CCBENCH_BACKOFF_FIXED -1 CACHE STRING \"izanagi: static backoff us (-1=stock adaptive)\")\n+# izanagi (P2-4 profiler): 1 = backoff() を noinline 化し perf record で spin を独立シンボルに。\n+# 有用 IPC (spin を除いた cycle/instruction) を分離する診断専用。0 (default) = inert (stock 不変)。\n+set(CCBENCH_BACKOFF_NOINLINE 0 CACHE STRING \"izanagi: noinline backoff() for perf attribution (0=inert)\")\n set(CCBENCH_KEY_SIZE      8 CACHE STRING \"key size in bytes (YCSB)\")\n set(CCBENCH_MASSTREE_USE  1 CACHE STRING \"use Masstree as the index\")\n set(CCBENCH_VAL_SIZE      4 CACHE STRING \"value size in bytes (YCSB)\")\n@@ -61,6 +68,8 @@ function(ccbench_universal_definitions out_var)\n   set(${out_var}\n     ADD_ANALYSIS=${CCBENCH_ADD_ANALYSIS}\n     BACK_OFF=${CCBENCH_BACK_OFF}\n+    BACKOFF_FIXED=${CCBENCH_BACKOFF_FIXED}\n+    BACKOFF_NOINLINE=${CCBENCH_BACKOFF_NOINLINE}\n     KEY_SIZE=${CCBENCH_KEY_SIZE}\n     MASSTREE_USE=${CCBENCH_MASSTREE_USE}\n     VAL_SIZE=${CCBENCH_VAL_SIZE}\ndiff --git a/include/backoff.hh b/include/backoff.hh\nindex 3db8c08..f38233b 100644\n--- a/include/backoff.hh\n+++ b/include/backoff.hh\n@@ -11,6 +11,15 @@\n #include \"tsc.hh\"\n #include \"util.hh\"\n \n+// izanagi: BACKOFF_FIXED は必ず -D で供給されること (CMake が既定 -1 を渡す)。\n+// 未定義だと下の条件コンパイル分岐 (EVOLVE-BLOCK 骨格) で未定義マクロが 0 に評価され\n+// 「0 >= 0 = 真」となり、stock のつもりが静的 backoff=0 (実質無効) で走る罠になる。\n+// 供給漏れはどのビルド経路でもここで止める (fails-closed)。定義済みならプリプロセス\n+// 出力は不変 (digest 不変)。このコメントは骨格走査の誤検出を避けるため生トークンを書かない。\n+#ifndef BACKOFF_FIXED\n+#error \"BACKOFF_FIXED must be defined (-DBACKOFF_FIXED=-1 for stock adaptive; CMake supplies the default)\"\n+#endif\n+\n using namespace std;\n \n class Backoff {\n@@ -91,9 +100,29 @@ public:\n     Backoff_.store(new_backoff, std::memory_order_release);\n   }\n \n+  // izanagi (P2-4 profiler): BACKOFF_NOINLINE=1 で spin ループを独立シンボル化し、\n+  // perf record で backoff の cycle%/instruction% を分離して「有用 IPC」を測れるようにする\n+  // 診断専用ノブ。既定 0 = stock (inline 候補のまま、挙動・命令列ともに完全不変 = inert)。\n+#if BACKOFF_NOINLINE\n+  __attribute__((noinline))\n+#endif\n   static void backoff(size_t clocks_per_us) {\n     uint64_t start(rdtscp()), stop;\n+    // EVOLVE-BLOCK-BEGIN silo-backoff-magnitude\n+    // izanagi Phase 3 (D22/phase3.md): この条件コンパイル骨格 (if/else/endif の三枝) だけが\n+    // coder (LLM) の編集面。coder が書くのは合成枝 (BACKOFF_FIXED が 0 以上のとき選ばれる枝) の\n+    // 中身のみ — backoff の量 (now_backoff) を Cicada 適応 hill-climbing の代わりに合成する純\n+    // timing 変異。stock 枝 (適応 Backoff_ を逐語温存) とマーカー・骨格は不可触 (人間が一度入れた)。\n+    // 既定 -1 は stock 枝を選び preprocess 後ソースが原本と同一 → inert (規律2、D18)。\n+    // 閉じた領域制約 (D23 道Y、hook が機械執行): 既存 silo API を呼ぶ straight-line code のみ。\n+    // ヘッダ取り込み・型/関数/マクロ定義の追加、生の条件指令 (if/ifdef/elif 系)、非決定ビルトイン\n+    // (DATE/TIME 系) を禁止 (このコメントは行頭アンカー走査で誤検出しないよう生トークンを避ける)。\n+#if BACKOFF_FIXED >= 0\n+    double now_backoff = static_cast<double>(BACKOFF_FIXED);\n+#else\n     double now_backoff = Backoff_.load(std::memory_order_acquire);\n+#endif\n+    // EVOLVE-BLOCK-END silo-backoff-magnitude\n \n     // printf(\"clocks_per_us * now_backoff:\\t%lu\\n\",\n     // static_cast<uint64_t>(static_cast<double>(clocks_per_us) * now_backoff));\n"
+        }
+      ],
+      "repo_head": "7df8ad9d021ca934e4c1ffbb505abcad2d70b050",
+      "runner_sha256": "0d0bd5bb1d1eacb6f2ae5d7152a73af10e261104277bb51e21d5ec9ff016126e",
+      "spec_sha256": "26e4d8cbcb2f251f5866348d92f2c6b8157cccae90fe26019fc5054438709a90",
+      "status": "SURVIVED",
+      "test_output_sha256": "5893fca37e671eabbe323365387c1ebdf2a7b87f1b044f5906f28ce174b5b0f7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "3b30c38b8865584b0bd4b695800d879c048954ef2891e2ef2a6629d301e5ca83"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1907-backoff-v1-patch-freeze/output/pegasus-dispatch/72b07612472b5478b249f365c4892ee6/izdw-72b0761247.o1593",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1907-backoff-v1-patch-freeze/output/pegasus-dispatch/72b07612472b5478b249f365c4892ee6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal\norchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted\n\n8 tests collected in 1.56s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "0188d1d186dad58bf0ccc5a27007cc48ac5fe5e25f878e7ea7bf3ed2cb22d95d"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal",
+        "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted"
+      ],
+      "duration_s": 22.466,
+      "rc": 0,
+      "repo_head": "7df8ad9d021ca934e4c1ffbb505abcad2d70b050",
+      "runner_sha256": "0d0bd5bb1d1eacb6f2ae5d7152a73af10e261104277bb51e21d5ec9ff016126e",
+      "spec_sha256": "26e4d8cbcb2f251f5866348d92f2c6b8157cccae90fe26019fc5054438709a90",
+      "status": "PASSED",
+      "tool_sha256": "3b30c38b8865584b0bd4b695800d879c048954ef2891e2ef2a6629d301e5ca83"
+    },
+    "hang_timeout_seconds": 600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-unregistered-izanagi-token": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fff6880752a0d1e61ec4ba117aa25cb001b01fde9d800e1360ca5711941b02ca",
+        "replacements": [
+          {
+            "file": "patches/silo-backoff-fixed-v1.patch",
+            "new": "+# izanagi: static backoff magnitude (us) to bypass Cicada's adaptive hill-climb. IZANAGI_FREEZE_PROBE",
+            "old": "+# izanagi: static backoff magnitude (us) to bypass Cicada's adaptive hill-climb."
+          }
+        ]
+      },
+      "M2-formula-offset": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "bb2ae7fe9514ec1a633067d07f51a6170b1273197523c5a93177bed9ee942834",
+        "replacements": [
+          {
+            "file": "patches/silo-backoff-fixed-v1.patch",
+            "new": "+    double now_backoff = static_cast<double>(BACKOFF_FIXED) + 1.0;",
+            "old": "+    double now_backoff = static_cast<double>(BACKOFF_FIXED);"
+          }
+        ]
+      },
+      "M4-empty-file": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "6c189e25dec643fea4cb6122d7af16b361948092c3f56c6ed76d76803edaeae7",
+        "replacements": [
+          {
+            "file": "patches/silo-backoff-fixed-v1.patch",
+            "new": "",
+            "old": "diff --git a/cmake/Options.cmake b/cmake/Options.cmake\nindex b9a3c74..14a06e8 100644\n--- a/cmake/Options.cmake\n+++ b/cmake/Options.cmake\n@@ -18,6 +18,13 @@ set(CCBENCH_ADD_ANALYSIS  0 CACHE STRING \"extra per-tx analysis counters\")\n # dir; never mix into a perf build (absolute discipline #1 / decisions.md D14).\n set(CCBENCH_TRACE         0 CACHE STRING \"izanagi correctness trace (0=off, perf)\")\n set(CCBENCH_BACK_OFF      1 CACHE STRING \"exponential backoff on abort\")\n+# izanagi: static backoff magnitude (us) to bypass Cicada's adaptive hill-climb.\n+# -1 (default) = stock adaptive Backoff_; >=0 = fixed value, ignores the leader's\n+# gradient update. Used to sweep backoff magnitude as a single axis (P2 case study).\n+set(CCBENCH_BACKOFF_FIXED -1 CACHE STRING \"izanagi: static backoff us (-1=stock adaptive)\")\n+# izanagi (P2-4 profiler): 1 = backoff() を noinline 化し perf record で spin を独立シンボルに。\n+# 有用 IPC (spin を除いた cycle/instruction) を分離する診断専用。0 (default) = inert (stock 不変)。\n+set(CCBENCH_BACKOFF_NOINLINE 0 CACHE STRING \"izanagi: noinline backoff() for perf attribution (0=inert)\")\n set(CCBENCH_KEY_SIZE      8 CACHE STRING \"key size in bytes (YCSB)\")\n set(CCBENCH_MASSTREE_USE  1 CACHE STRING \"use Masstree as the index\")\n set(CCBENCH_VAL_SIZE      4 CACHE STRING \"value size in bytes (YCSB)\")\n@@ -61,6 +68,8 @@ function(ccbench_universal_definitions out_var)\n   set(${out_var}\n     ADD_ANALYSIS=${CCBENCH_ADD_ANALYSIS}\n     BACK_OFF=${CCBENCH_BACK_OFF}\n+    BACKOFF_FIXED=${CCBENCH_BACKOFF_FIXED}\n+    BACKOFF_NOINLINE=${CCBENCH_BACKOFF_NOINLINE}\n     KEY_SIZE=${CCBENCH_KEY_SIZE}\n     MASSTREE_USE=${CCBENCH_MASSTREE_USE}\n     VAL_SIZE=${CCBENCH_VAL_SIZE}\ndiff --git a/include/backoff.hh b/include/backoff.hh\nindex 3db8c08..f38233b 100644\n--- a/include/backoff.hh\n+++ b/include/backoff.hh\n@@ -11,6 +11,15 @@\n #include \"tsc.hh\"\n #include \"util.hh\"\n \n+// izanagi: BACKOFF_FIXED は必ず -D で供給されること (CMake が既定 -1 を渡す)。\n+// 未定義だと下の条件コンパイル分岐 (EVOLVE-BLOCK 骨格) で未定義マクロが 0 に評価され\n+// 「0 >= 0 = 真」となり、stock のつもりが静的 backoff=0 (実質無効) で走る罠になる。\n+// 供給漏れはどのビルド経路でもここで止める (fails-closed)。定義済みならプリプロセス\n+// 出力は不変 (digest 不変)。このコメントは骨格走査の誤検出を避けるため生トークンを書かない。\n+#ifndef BACKOFF_FIXED\n+#error \"BACKOFF_FIXED must be defined (-DBACKOFF_FIXED=-1 for stock adaptive; CMake supplies the default)\"\n+#endif\n+\n using namespace std;\n \n class Backoff {\n@@ -91,9 +100,29 @@ public:\n     Backoff_.store(new_backoff, std::memory_order_release);\n   }\n \n+  // izanagi (P2-4 profiler): BACKOFF_NOINLINE=1 で spin ループを独立シンボル化し、\n+  // perf record で backoff の cycle%/instruction% を分離して「有用 IPC」を測れるようにする\n+  // 診断専用ノブ。既定 0 = stock (inline 候補のまま、挙動・命令列ともに完全不変 = inert)。\n+#if BACKOFF_NOINLINE\n+  __attribute__((noinline))\n+#endif\n   static void backoff(size_t clocks_per_us) {\n     uint64_t start(rdtscp()), stop;\n+    // EVOLVE-BLOCK-BEGIN silo-backoff-magnitude\n+    // izanagi Phase 3 (D22/phase3.md): この条件コンパイル骨格 (if/else/endif の三枝) だけが\n+    // coder (LLM) の編集面。coder が書くのは合成枝 (BACKOFF_FIXED が 0 以上のとき選ばれる枝) の\n+    // 中身のみ — backoff の量 (now_backoff) を Cicada 適応 hill-climbing の代わりに合成する純\n+    // timing 変異。stock 枝 (適応 Backoff_ を逐語温存) とマーカー・骨格は不可触 (人間が一度入れた)。\n+    // 既定 -1 は stock 枝を選び preprocess 後ソースが原本と同一 → inert (規律2、D18)。\n+    // 閉じた領域制約 (D23 道Y、hook が機械執行): 既存 silo API を呼ぶ straight-line code のみ。\n+    // ヘッダ取り込み・型/関数/マクロ定義の追加、生の条件指令 (if/ifdef/elif 系)、非決定ビルトイン\n+    // (DATE/TIME 系) を禁止 (このコメントは行頭アンカー走査で誤検出しないよう生トークンを避ける)。\n+#if BACKOFF_FIXED >= 0\n+    double now_backoff = static_cast<double>(BACKOFF_FIXED);\n+#else\n     double now_backoff = Backoff_.load(std::memory_order_acquire);\n+#endif\n+    // EVOLVE-BLOCK-END silo-backoff-magnitude\n \n     // printf(\"clocks_per_us * now_backoff:\\t%lu\\n\",\n     // static_cast<uint64_t>(static_cast<double>(clocks_per_us) * now_backoff));\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "6ec53137372f642e75af4bb38f1ca930a5ab370b23ccfb1457da47683b6b9ef7",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+      "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+      "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate",
+      "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm",
+      "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member",
+      "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+      "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal",
+      "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 2400.0
+  },
+  "repo_head": "7df8ad9d021ca934e4c1ffbb505abcad2d70b050",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+      "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+      "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate",
+      "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm",
+      "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member",
+      "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+      "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal",
+      "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1907-backoff-v1-patch-freeze/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "dispatch_head_blob_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1907-backoff-v1-patch-freeze/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "fa7502dc9c885ca52dc7ef54a93c7c9e742d9883",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "0d0bd5bb1d1eacb6f2ae5d7152a73af10e261104277bb51e21d5ec9ff016126e",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "26e4d8cbcb2f251f5866348d92f2c6b8157cccae90fe26019fc5054438709a90",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 2,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1907-backoff-v1-patch-freeze/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "3b30c38b8865584b0bd4b695800d879c048954ef2891e2ef2a6629d301e5ca83",
+  "updated_at": "2026-09-16T09:34:13.561325+00:00"
+}
