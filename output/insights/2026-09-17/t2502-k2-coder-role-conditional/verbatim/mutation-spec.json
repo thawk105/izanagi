@@ -1,0 +1,105 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 8100,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M0-comment-only-control",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        and a.coder_role is None\n    ):\n        raise ValueError(\n",
+          "new": "        and a.coder_role is None\n    ):\n        # T2502 comment-only control\n        raise ValueError(\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1-delete-guard-block",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        return 0\n    if (\n        a.run_iteration\n        and resolved_knowledge is not None\n        and resolved_knowledge.manifest.sources\n        and a.coder_role is None\n    ):\n        raise ValueError(\n            \"--run-iteration: --knowledge-manifest の sources が非空 \"\n            f\"(sources_count={len(resolved_knowledge.manifest.sources)}) \"\n            \"のため --coder-role coder-v4-autonomous-k2 が必要\"\n        )\n    build_context = build_run_context(\n",
+          "new": "        return 0\n    build_context = build_run_context(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_main_nonempty_manifest_requires_coder_role_before_prepare"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-invert-sources-nonempty",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        and resolved_knowledge.manifest.sources\n        and a.coder_role is None\n    ):\n",
+          "new": "        and not resolved_knowledge.manifest.sources\n        and a.coder_role is None\n    ):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_main_nonempty_manifest_requires_coder_role_before_prepare",
+        "orchestrator/tests/test_p3_s4_loop.py::test_main_manifest_only_accepts_legacy_flattened_proposal"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-invert-coder-role-none",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        and resolved_knowledge.manifest.sources\n        and a.coder_role is None\n    ):\n",
+          "new": "        and resolved_knowledge.manifest.sources\n        and a.coder_role is not None\n    ):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_main_nonempty_manifest_requires_coder_role_before_prepare",
+        "orchestrator/tests/test_p3_s4_loop.py::test_main_nonempty_manifest_and_k2_role_accept_k2_wrapper",
+        "orchestrator/tests/test_p3_s4_loop.py::test_emit_context_and_run_iteration_share_manifest_campaign_identity"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-raise-to-return-zero",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        raise ValueError(\n            \"--run-iteration: --knowledge-manifest の sources が非空 \"\n            f\"(sources_count={len(resolved_knowledge.manifest.sources)}) \"\n            \"のため --coder-role coder-v4-autonomous-k2 が必要\"\n        )\n    build_context = build_run_context(\n",
+          "new": "        return 0\n    build_context = build_run_context(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_main_nonempty_manifest_requires_coder_role_before_prepare"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-drop-run-iteration-guard",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if (\n        a.run_iteration\n        and resolved_knowledge is not None\n        and resolved_knowledge.manifest.sources\n        and a.coder_role is None\n    ):\n",
+          "new": "    if (\n        resolved_knowledge is not None\n        and resolved_knowledge.manifest.sources\n        and a.coder_role is None\n    ):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_main_fixture_route_accepts_nonempty_manifest_without_coder_role"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
