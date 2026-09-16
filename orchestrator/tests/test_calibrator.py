@@ -2,7 +2,7 @@
 """calibrator 純ロジックの単体テスト (machine 非依存・モックデータ)。
 
 pytest でも素の `python orchestrator/tests/test_calibrator.py` でも走る
-(末尾に pytest 非依存 runner)。モック文字列は実 perf/ccbench 出力に合わせてある
+(末尾に自走 runner)。モック文字列は実 perf/ccbench 出力に合わせてある
 (perf CSV: `value,,event,...` / ccbench: `label:\\tvalue`)。
 """
 from __future__ import annotations
@@ -15,6 +15,9 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from unittest.mock import patch
+
+import pytest
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ORCH = os.path.dirname(_HERE)
@@ -456,6 +459,126 @@ def _completed_process(returncode, stdout=_BENCH):
         "stdout": stdout,
         "stderr": "injected stderr",
     })()
+
+
+def _measure_indicator_reps(api, rows, returncodes=None):
+    """Feed explicit CC stdout per rep; omit missing values and all count fallbacks."""
+    from orchestrator.calibrator import runner
+
+    completed = []
+    for index, (tps, abort, latency, maxrss) in enumerate(rows):
+        fields = [("throughput[tps]", tps), ("abort_rate", abort),
+                  ("latency[ns]", latency), ("maxrss", maxrss)]
+        stdout = "".join(f"{name}:\t{value}\n" for name, value in fields
+                         if value is not None)
+        completed.append(_completed_process(
+            0 if returncodes is None else returncodes[index], stdout=stdout))
+    results = iter(completed)
+    # Each rep has a distinct deterministic wall time: 1, 2, ... seconds.
+    ticks = [tick for i in range(len(rows)) for tick in (i * 10, i * 10 + i + 1)]
+    with patch.object(runner.time, "monotonic", side_effect=ticks):
+        kwargs = dict(records=1000, threads=4, clocks_per_us=1800,
+                      reps=len(rows), use_perf=False,
+                      subprocess_runner=lambda *_args, **_kwargs: next(results))
+        if api == "direct":
+            return runner.measure_point("/bench", **kwargs)
+        assert api == "deferred"
+        return runner.capture_measure_point("/bench", **kwargs).open()
+
+
+@pytest.mark.parametrize("api", ["direct", "deferred"], ids=["direct", "deferred"])
+def test_measure_point_even_reps_average_central_indicators(api):
+    point = _measure_indicator_reps(api, [
+        (400, .9, 10_000_000, 100), (100, .8, 40_000_000, 200),
+        (300, .6, 14_000_000, 300), (200, .2, 20_000_000, 400),
+    ])
+    assert point.throughputs == [400, 100, 300, 200]
+    assert point.throughput == 250
+    assert point.abort_rate == .4
+    assert point.latency_ns == 17_000_000
+    assert point.maxrss_kb == 300
+    assert point.walltime_s == 3
+    assert point.counters == PerfCounters()
+    point = _measure_indicator_reps(api, [
+        (200, .2, 20_000_000, 400), (300, .6, 14_000_000, 300),
+    ])
+    assert point.throughputs == [200, 300]
+    assert point.throughput == 250
+    assert point.abort_rate == .4
+    assert point.latency_ns == 17_000_000
+    assert point.maxrss_kb == 300
+    assert point.walltime_s == 2
+    assert point.counters == PerfCounters()
+
+
+@pytest.mark.parametrize("api", ["direct", "deferred"], ids=["direct", "deferred"])
+def test_measure_point_odd_reps_preserve_legacy_values(api):
+    cases = [
+        ([(300, .3, 30, 300), (100, .1, 10, 100), (200, .2, 20, 200)],
+         [300, 100, 200], 200, .2, 20, 200, 3),
+        ([(500, .5, 50, 500), (100, .1, 10, 100), (300, .3, 30, 300),
+          (400, .4, 40, 400), (200, .2, 20, 200)],
+         [500, 100, 300, 400, 200], 300, .3, 30, 300, 3),
+        ([(200, .1, 10, 100), (200, .2, 20, 200), (200, .3, 30, 300)],
+         [200, 200, 200], 200, .1, 10, 100, 1),
+    ]
+    for rows, throughputs, tps, abort, latency, maxrss, wall in cases:
+        point = _measure_indicator_reps(api, rows)
+        assert point.throughputs == throughputs
+        assert point.throughput == tps
+        assert (point.counters, point.walltime_s, point.maxrss_kb,
+                point.abort_rate, point.latency_ns) == (
+                    PerfCounters(), wall, maxrss, abort, latency)
+
+
+@pytest.mark.parametrize("api", ["direct", "deferred"], ids=["direct", "deferred"])
+def test_measure_point_even_reps_none_indicator_is_none(api):
+    for field in (1, 2):
+        # Exercise each indicator independently; outside reps must not fill gaps.
+        cases = ([(None, .6, None), (.6, None, None), (None, None, None), (0, .6, .3)]
+                 if field == 1 else
+                 [(None, 14_000_000, None), (14_000_000, None, None),
+                  (None, None, None), (0, 14_000_000, 7_000_000)])
+        for low, high, expected in cases:
+            rows = [[400, .9, 10_000_000, 100], [100, .8, 40_000_000, 200],
+                    [300, .6, 14_000_000, 300], [200, .2, 20_000_000, 400]]
+            rows[3][field], rows[2][field] = low, high
+            point = _measure_indicator_reps(api, rows)
+            assert point.throughput == 250
+            assert point.abort_rate == (expected if field == 1 else .4)
+            assert point.latency_ns == (expected if field == 2 else 17_000_000)
+            assert point.maxrss_kb == 300
+
+
+@pytest.mark.parametrize("api", ["direct", "deferred"], ids=["direct", "deferred"])
+def test_measure_point_parity_uses_valid_reps_not_requested(api):
+    point = _measure_indicator_reps(api, [
+        (400, .9, 10_000_000, 100), (None, .99, 99_000_000, 999),
+        (100, .8, 40_000_000, 200), (300, .6, 14_000_000, 300),
+        (200, .2, 20_000_000, 400),
+    ], returncodes=[0, 7, 0, 0, 0])
+    assert point.throughputs == [400, 100, 300, 200]
+    assert point.throughput == 250
+    assert (point.abort_rate, point.latency_ns, point.maxrss_kb) == (.4, 17_000_000, 300)
+    point = _measure_indicator_reps(api, [
+        (300, .3, 30, 300), (None, .99, 99, 999),
+        (100, .1, 10, 100), (200, .2, 20, 200),
+    ], returncodes=[0, 7, 0, 0])
+    assert point.throughputs == [300, 100, 200]
+    assert point.throughput == 200
+    assert (point.abort_rate, point.latency_ns, point.maxrss_kb) == (.2, 20, 200)
+
+
+def test_measure_point_no_valid_reps_keeps_last_parsed_fields():
+    for api in ("direct", "deferred"):
+        point = _measure_indicator_reps(api, [
+            (None, .1, 10, 100), (None, .2, 20, 200),
+        ])
+        assert point.throughputs == []
+        assert point.throughput is None
+        assert (point.counters, point.walltime_s, point.maxrss_kb,
+                point.abort_rate, point.latency_ns) == (
+                    PerfCounters(), 2, 200, .2, 20)
 
 
 def test_runner_default_perf_commands_are_unchanged():
@@ -1189,25 +1312,34 @@ def test_competing_bench_pids_missing_dependency_is_visible_skip():
         shutil.which = original_which
 
 
-# ---- 素の runner (pytest 無しでも) ----
+# ---- 自走 runner (api parametrize を別 node として実行) ----
 
 def _run():
     fns = [v for k, v in sorted(globals().items())
            if k.startswith("test_") and callable(v)]
-    passed = failed = skipped = 0
+    cases = []
     for fn in fns:
+        api_mark = next((mark for mark in getattr(fn, "pytestmark", ())
+                         if mark.name == "parametrize" and mark.args[0] == "api"), None)
+        if api_mark is None:
+            cases.append((fn.__name__, fn, ()))
+        else:
+            for api in api_mark.args[1]:
+                cases.append((f"{fn.__name__}[{api}]", fn, (api,)))
+    passed = failed = skipped = 0
+    for nodeid, fn, args in cases:
         try:
-            fn()
-            print(f"PASS {fn.__name__}")
+            fn(*args)
+            print(f"PASS {nodeid}")
             passed += 1
         except Skip as e:
-            print(f"SKIP {fn.__name__}: {e}")
+            print(f"SKIP {nodeid}: {e}")
             skipped += 1
         except AssertionError as e:
-            print(f"FAIL {fn.__name__}: {e}")
+            print(f"FAIL {nodeid}: {e}")
             failed += 1
         except Exception as e:  # noqa: BLE001
-            print(f"ERROR {fn.__name__}: {type(e).__name__}: {e}")
+            print(f"ERROR {nodeid}: {type(e).__name__}: {e}")
             failed += 1
     print(f"\n{passed} passed, {failed} failed, {skipped} skipped")
     return 1 if failed else 0

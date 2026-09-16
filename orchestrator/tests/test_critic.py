@@ -644,7 +644,7 @@ _G = "silo|BACK_OFF={b},NO_WAIT_LOCKING_IN_VALIDATION={l},NO_WAIT_OF_TICTOC={t},
 
 def test_load_sorts_by_throughput_and_marginal_back_off():
     lay = _tmp_layout()
-    # BACK_OFF 0→1: throughput 半減・latency 倍・abort 不変 (= backoff は latency コスト)
+    # BACK_OFF 0→1: throughput 半減・abort 不変 (競合低減がなく待ち時間のコスト)
     _write(lay, _G.format(b=0, l=1, t=0, w=0),
            throughput_tps=8_000_000, abort_rate=0.05, latency_ns=1000,
            llc_miss_rate=0.2, ipc=1.5)
@@ -664,7 +664,7 @@ def test_load_sorts_by_throughput_and_marginal_back_off():
     assert bo.means["throughput_tps"] == {"0": 8_000_000, "1": 4_000_000}
     assert abs(bo.rel_throughput - (-0.5)) < 1e-9     # 0→1 で -50%
     assert bo.means["abort_rate"]["0"] == bo.means["abort_rate"]["1"]  # abort 不変
-    assert bo.means["latency_ns"] == {"0": 1000, "1": 2000}            # latency 倍
+    assert "latency_ns" not in bo.means
 
 
 def test_no_wait_axis_is_categorical_LT():
@@ -680,7 +680,8 @@ def test_no_wait_axis_is_categorical_LT():
     assert set(nw.levels) == {"L", "T"}                # NWL=1→L / NWT=1→T に畳む
     assert nw.means["throughput_tps"]["L"] == 2_700_000
     assert nw.means["throughput_tps"]["T"] == 1_900_000
-    assert nw.means["latency_ns"]["L"] == 500 and nw.means["latency_ns"]["T"] == 700
+    assert "latency_ns" not in nw.means
+    assert nw.means["abort_rate"] == {"L": 0.40, "T": 0.50}
 
 
 def test_marginal_averages_over_other_flags():
@@ -728,7 +729,7 @@ def test_load_workload_uses_committed_retry_attempt_only():
     assert workload[0].genome == genome
     assert workload[0].li == {
         "throughput_tps": 2.0, "abort_rate": 0.81,
-        "latency_ns": 202.0, "llc_miss_rate": 0.22, "ipc": 0.22,
+        "llc_miss_rate": 0.22, "ipc": 0.22,
     }
 
 
@@ -800,7 +801,37 @@ def test_load_workload_preserves_legacy_commit_without_build_attempt_id():
 
     assert len(workload) == 1
     assert workload[0].genome == genome
-    assert workload[0].li == leading_indicators
+    assert workload[0].li == {
+        "throughput_tps": 123.0, "abort_rate": 0.2,
+        "llc_miss_rate": 0.3, "ipc": 1.2,
+    }
+
+
+def test_digest_omits_latency_from_projection_table_and_axes():
+    lay = _tmp_layout()
+    _write(lay, _G.format(b=0, l=1, t=0, w=0), throughput_tps=8_000_000,
+           abort_rate=0.05, latency_ns=1000, llc_miss_rate=0.2, ipc=1.5)
+    d = build_digest("balanced", {}, _view(lay))
+    assert len(d.genomes) == 1
+    assert d.genomes[0].li == {
+        "throughput_tps": 8_000_000, "abort_rate": 0.05,
+        "llc_miss_rate": 0.2, "ipc": 1.5,
+    }
+    assert d.axes
+    for axis in d.axes:
+        assert set(axis.means) == {
+            "throughput_tps", "abort_rate", "llc_miss_rate", "ipc",
+        }
+    text = render_text([d])
+    assert "genome | throughput_tps | abort_rate | llc_miss_rate | ipc" in text
+    assert "latency" not in text
+    benches = [r for r in wal.read_records(lay) if r.stage == STAGE_BENCH_DONE]
+    assert len(benches) == 1
+    assert benches[0].payload["leading_indicators"]["latency_ns"] == 1000
+    assert critic_digest.HIGHER_IS_BETTER == {
+        "throughput_tps": True, "abort_rate": False,
+        "llc_miss_rate": False, "ipc": True,
+    }
 
 
 def test_render_text_has_axes_and_indicators():
