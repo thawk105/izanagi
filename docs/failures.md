@@ -23225,6 +23225,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 同じ変異 (gate policy open の `O_NONBLOCK` 削除) を変異 spec へ登録済み。回収経路が壊れれば
   この変異が再び walltime まで走り、期待 node と一致しない形で露見する。台帳は
   `output/insights/2026-09-07_t2195-policy-binding/mutation-ledger-final.json`。
+- **supersede: 2026-09-16** — 計算ノードで 4 条件の分離実験を行った結果、根本原因欄の「孫が job の stdout / stderr を掴んだまま残るため」は機序として確定できない。子が出力 fd を即座に (または 30 秒後に) 手放しても、子が 75 秒生きる間 job の会計終了は遅れた (`E − J` = 69.731 / 69.586 / 69.870 秒、子孫なしの統制は -0.076 秒、request 558/559/560/568.nqsv、bnode013)。**fd の保持は遅延の必要条件ではない。** ただし当時の機序 (FIFO で block した孫) は再現していないので反証ではなく、NQSV が session / process group / 追跡集合のどれを見ているかも未特定である (全記録で `sid == pgid`)。**D1684 の是正は撤回しない** — 所属分離と子孫終了を同時に変えており各要素の寄与は未分離である。一次資料は `output/insights/2026-09-16/t2622-compute-job-exit-hang/`。
 
 ### F854. 負例 patch の裸 directive が 2 site に重複し、実 patch 束縛 test が set() で重複を許していた [恒真ゲート] [テスト代表性]
 
