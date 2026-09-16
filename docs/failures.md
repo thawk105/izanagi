@@ -19806,6 +19806,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `32603d3858289e3851227f8cad60d97e2e01f761`、release_safe=true、retryable_same_request=false。
   直後の読取専用再確認では同pathのstrict解決と.git fileの存在を確認した。
   既存F672の復旧に従い、新しい受入とrequestで再試行する。他waveの登録は触らない。
+
+- **再発: 2026-09-17** — [T-2502] wave の land 2 巡目 (02:11 JST、1 巡目 rc=10 で main fa24e6ea8 を固定 SHA merge した
+  直後) が `rc=31 status=fold-gate-failed` / `registered worktree path cannot be resolved: [Errno 4] Interrupted system
+  call: '<共有 repo>/.codex/worktrees/t1994-fix5'` (別 wave の登録 path) で止まった。`release_safe=true` /
+  `retryable_same_request=false`、`main_before == main_after == fa24e6ea8`。受入 1 (child-green、24389 passed / 67 skipped) を
+  捨て、既存 F672 の復旧どおり同じ tip に本 fragment を積んで受入を取り直し、新しい request で land を再試行する
+  (結果は worklog 側に書く)。他 wave の登録は触っていない。
 ### F673. brief が「守るべき性質」と「現に成立している性質」を混同し、存在しない不変条件を根拠に暫定裁定した [誤前提]
 
 - 事象: 親は段 1 brief の不変条件へ「受理の根拠は完全に読み切った、矛盾のない 1 枚の scan」と書き、
