@@ -2145,6 +2145,7 @@ class _FloorOracleDependencyBinding:
     payload_policy_sha256: Optional[str] = None
     payload_policy_pin: Optional[str] = None
     captured_policy_pins: tuple[tuple[str, str], ...] = ()
+    condition_configure_args: tuple[str, ...] = ()
 
     def cache_receipt(self) -> dict[str, str]:
         return {
@@ -3470,9 +3471,19 @@ def _prepare_floor_oracle_dependency(
         binding,
         captured_policy_pins=tuple(sorted(captured_policy_pins.items())),
     )
+    # Preserve source/payload failure diagnostics before normalizing transport.
+    from .p3_s4_loop import _condition_gate_offline_configure_args
+
     binding = replace(
         binding,
         transport_mode="source-dir",
+        condition_configure_args=_condition_gate_offline_configure_args(
+            dependency_prefix=prepare_kwargs.get("dependency_prefix", ""),
+            fetchcontent_base_dir=prepare_kwargs["fetchcontent_base_dir"],
+            masstree_source_dir=prepare_kwargs["masstree_source_dir"],
+            mimalloc_source_dir=prepare_kwargs["mimalloc_source_dir"],
+            googletest_source_dir=prepare_kwargs["googletest_source_dir"],
+        ),
     )
     binding, material = _materialize_floor_oracle_dependency(
         binding, lease_parent=effective_base,
@@ -4350,6 +4361,7 @@ def _build_cells_impl(
                     prepared_cell,
                     prepared_pin,
                     cxx=cxx,
+                    condition_configure_args=_dependency.condition_configure_args,
                     oracle_dependency_root=_dependency.oracle_root,
                     oracle_compiler=_compiler,
                     oracle_phase_marker=_marker,
