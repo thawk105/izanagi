@@ -42,11 +42,15 @@ title: [T-559] 凍結 pre profile と post observed clock の照合を publish �
   policy 変更負例 (帯内だが policy 不一致) を足して後者を撃てるようにした。診断の `band_pass` は
   True、canonical の戻り値は False になるので、戻り値を使わない実装ではこの負例の reason が出ない。
   変異 M05・M07 がこの経路で撃たれている。
-- **セッションの罠 (実測)。** `git worktree add` の完了前に `dev_wave_submodule_init.py` を当てると、
-  tool は rc=0 で「OK: submodules initialized」を返すが実際には未初期化のままで、直後の
-  `check_wave_startup.py --mode midflight` が NG になる。add の終了を確認してから初期化すること。
-- **guard は隔離 session からの `git -C <他 worktree>` を拒否する。** 実装子 worktree からの成果取り出しは
-  git を使えないため、`diff -u` で patch を作って wave worktree で `git apply` した。
+- **段 8 の自己改善候補 2 件のうち、1 件は台帳へ送り、1 件は予算の壁で当てられなかった。**
+  1 件目は {{F:submodule-init-false-ok-before-worktree-add-completes}} として登録した。
+  2 件目は「隔離 session は他 worktree へ `git -C` も `cd` も不可なので、`DW-S05-A` が書く
+  `git add -A`→`git diff --cached` の取出し手順を親が実行できない」という記載と実挙動の食い違いで、
+  実測で確認した (両形とも guard が拒否する)。回避は `diff -u` で patch を作って自分の worktree で
+  `git apply` すること。`DW-S05-A` へ 70 bytes 追記すると L1.5 層予算 (9696 bytes) を 70 bytes
+  超過し、`DW-C01` へ 54 bytes 追記すると単節予算 (1000 bytes) 超過に加えて節の exact 契約と
+  不一致になる。**安全義務を削って枠を作ることはせず、どちらも差し戻した。** 上限引き上げが要る
+  ため報告に留める。
 - 逐語・変異台帳・実測表は `output/insights/2026-09-16/t559-preclock-publish-gate/`。
 
 ## 次の一手差分
@@ -74,3 +78,8 @@ title: [T-559] 凍結 pre profile と post observed clock の照合を publish �
   [T-559] 原文が指す窓のうち CLI 外の部分は残る。wrapper 側で評価する案は publish 済み artifact の
   事後取り消しを伴うため、D191 が却下した「拒否時に published artifact を削除する」と衝突する。
   設計択一としてユーザーへ返す。
+- {{T:dev-wave-doc-budget-for-isolated-patch-extraction}} **P3・新規・ユーザー裁定待ち**: 段 8 の
+  自己改善候補 1 件が `docs/dev-wave/` の層予算に収まらない。隔離 session からの実装子成果の
+  取出し手順 (`diff -u`→`git apply`) を `DW-S05-A` へ書くと L1.5 予算を 70 bytes 超え、
+  `DW-C01` への追記は単節予算超過と節 exact 契約の不一致になる。予算のために既存の安全義務を
+  削らない方針で差し戻した。上限引き上げか、既存文の意味等価な縮約かの択一。
