@@ -1,0 +1,193 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 1500,
+  "hang_timeout_seconds": 1500,
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_caller.py",
+          "old": "    # All twelve sources are absent in the current storage format.\n",
+          "new": "    # Every one of the twelve sources is absent from the current storage format.\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-candidate-filter-not-success",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_caller.py",
+          "old": "                if row[\"result\"] == \"rejected\":\n",
+          "new": "                if row[\"result\"] != \"success\":\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_fail_row_is_not_a_candidate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-issue-despite-missing",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_caller.py",
+          "old": "        if missing:\n",
+          "new": "        if missing and False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_mixed_campaigns_report_all_missing_sources_and_never_call_issuer",
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_minimal_rejected_row_is_a_candidate",
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_all_candidates_have_all_missing_fields"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-drop-bootstrap-member-from-missing",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_caller.py",
+          "old": "    \"bootstrap_member\": \"No evidence of initial proposal membership in a bootstrap set fixed in advance.\",\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_mixed_campaigns_report_all_missing_sources_and_never_call_issuer",
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_minimal_rejected_row_is_a_candidate",
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_all_candidates_have_all_missing_fields"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-drop-arm-digest-received-from-missing",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_caller.py",
+          "old": "    \"arm_digest_received\": \"No per-attempt record establishes digest receipt or non-receipt.\",\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_mixed_campaigns_report_all_missing_sources_and_never_call_issuer",
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_minimal_rejected_row_is_a_candidate",
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_all_candidates_have_all_missing_fields"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-issue-per-campaign-early-return",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_caller.py",
+          "old": "    try:\n        batch, missing, campaigns = collect_scheduled_batch(args.campaign_root)\n",
+          "new": "    try:\n        batch, missing, campaigns = (), (), ()\n        for root in args.campaign_root:\n            campaign_batch, campaign_missing, campaign_info = collect_scheduled_batch((root,))\n            batch += campaign_batch\n            missing += campaign_missing\n            campaigns += campaign_info\n            if campaign_info[0][\"rejected_rows\"] == 0:\n                payload, rc = issue(())\n                if rc != 0:\n                    payload.update(\n                        candidate_count=sum(campaign[\"rejected_rows\"] for campaign in campaigns),\n                        campaigns=campaigns,\n                    )\n                    print(json.dumps(payload, sort_keys=True))\n                    return rc\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_success_only_campaigns_reach_issuer_once_with_empty_batch_and_no_root",
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_mixed_campaigns_report_all_missing_sources_and_never_call_issuer"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-root-from-cwd",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_caller.py",
+          "old": "    publication_root = issuer._REPOSITORY_ROOT / \"output/b4-prerun-publication\"\n",
+          "new": "    publication_root = Path.cwd() / \"output/b4-prerun-publication\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_success_only_campaigns_reach_issuer_once_with_empty_batch_and_no_root",
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_fail_row_is_not_a_candidate",
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_issue_half_serializes_real_receipt_for_a_complete_batch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-rejection-rc-zero",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_caller.py",
+          "old": "        }, 2\n",
+          "new": "        }, 0\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_success_only_campaigns_reach_issuer_once_with_empty_batch_and_no_root",
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_fail_row_is_not_a_candidate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-empty-batch-skips-issuer-as-success",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_caller.py",
+          "old": "            payload, rc = issue(batch)\n",
+          "new": "            payload, rc = (issue(batch) if batch else ({\"issued\": None}, 0))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_success_only_campaigns_reach_issuer_once_with_empty_batch_and_no_root",
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_fail_row_is_not_a_candidate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-drop-manifest-row-count",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_caller.py",
+          "old": "        \"manifest_row_count\": len(publication.manifest.rows),\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_issue_half_serializes_real_receipt_for_a_complete_batch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-planned-path-constant-name",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_prerun_caller.py",
+          "old": "            artifact_path=str(publication_root / \"results\" / f\"{attempt.attempt_id}.json\"),\n",
+          "new": "            artifact_path=str(publication_root / \"results\" / \"attempt.json\"),\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_prerun_caller.py::test_issue_half_serializes_real_receipt_for_a_complete_batch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
