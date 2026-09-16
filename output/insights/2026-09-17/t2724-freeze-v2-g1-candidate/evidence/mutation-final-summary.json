@@ -1,0 +1,62 @@
+{
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "cb6a7e4c1164683ed4a776ad2a6c11dce25ad0e163edcf44fd875983cfa87fb3",
+  "repo_head": "3b0b75496ff90e6c4d4a2d76d9fd80a840a7dabb",
+  "baseline_status": "PASSED",
+  "baseline_passed_line": "68 passed in 34.66s",
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment",
+      "status": "SURVIVED",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "failed_nodes": []
+    },
+    {
+      "id": "m1-literal-anchor-read",
+      "status": "KILLED",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_build_and_generate_versioned_protocol",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_legacy_hash_for_versioned_protocol"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_legacy_hash_for_versioned_protocol",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_build_and_generate_versioned_protocol"
+      ]
+    },
+    {
+      "id": "m2-record-anchor-path",
+      "status": "KILLED",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_build_and_generate_versioned_protocol"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_build_and_generate_versioned_protocol"
+      ]
+    },
+    {
+      "id": "m3-drop-head-bytes-check",
+      "status": "KILLED",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_worktree_only_floor_protocol_master_seed_mutation"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_worktree_only_floor_protocol_master_seed_mutation"
+      ]
+    },
+    {
+      "id": "m4-drop-result-hash-check",
+      "status": "KILLED",
+      "expected_status": "KILLED",
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_legacy_hash_for_versioned_protocol"
+      ],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_legacy_hash_for_versioned_protocol"
+      ]
+    }
+  ]
+}

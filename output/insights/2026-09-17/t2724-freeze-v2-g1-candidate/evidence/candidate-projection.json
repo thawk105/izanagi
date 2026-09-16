@@ -1,0 +1,65 @@
+{
+  "budget": {
+    "oracle_shared": true,
+    "per_holdout_bench_s": {
+      "rr20": 1200,
+      "rr80": 1200
+    },
+    "total_bench_s": 2400
+  },
+  "candidate_bytes": 20737,
+  "candidate_conjunction_hit_holdouts": [
+    "rr20",
+    "rr80"
+  ],
+  "candidate_path": "output/s8b-freeze-candidates/holdout_freeze.v2.g1.json",
+  "candidate_sha256": "7e1114068433b40dc459e5e9c5ffcfa9a38cd360fc798904b7a9842382e19c06",
+  "canonical_bytes_match": true,
+  "design_source": {
+    "path": "docs/phase3-8b-descriptor-design.md",
+    "sha256": "34f6f0dc869a5e309b72007ed0e96397723a381ba244424fe2194c6bd9b9f9eb"
+  },
+  "env_tag": "pegasus",
+  "floor_by_holdout": {
+    "rr20": {
+      "n_pairs": 5,
+      "scalar_alt": 35817.945,
+      "scale_ref": 1193931.5
+    },
+    "rr80": {
+      "n_pairs": 5,
+      "scalar_alt": 46065.78,
+      "scale_ref": 1535526.0
+    }
+  },
+  "floor_protocol": {
+    "path": "output/s8b-freeze/floor-protocols/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01--511c9538e4e8efa54b45cda62e72389ed3b706ec.json",
+    "sha256": "2c8cf9be929d83653814ecf5f2d5ed134a2af89686d796b8144da2fd45dfa58a"
+  },
+  "floor_protocol_matches_resolver": true,
+  "floor_source": {
+    "path": "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json",
+    "sha256": "b111831e9d002b523b57b0096a04bf03bb86b9b01fb5418511909f8ed4075620"
+  },
+  "floor_source_sha256_matches_worktree": true,
+  "frozen_at_head": "cc82edc8c9f90a9ee659c2d27f71b75b19a56490",
+  "frozen_at_head_is_HEAD": true,
+  "generation_number": 1,
+  "generator": {
+    "path": "orchestrator/campaign/s8b_holdout_freeze.py",
+    "sha256": "5a8798d482631918b2113c778f7eaf8c4c5ddf5b7203b582eaac1469694e978a"
+  },
+  "known_axes_freeze": {
+    "path": "output/s1-freeze/known_axes_freeze.json",
+    "sha256": "354f4b875a3c8106169252afc71cee1fd08df83b0f3024c72bda0a791e11f516"
+  },
+  "measurement_closure": [],
+  "ratified_parse_generation_document": "ok",
+  "refreeze_note": "floor/budget refreeze v2 g1; budget approval: output/s8b-freeze-budget-approvals/g1.json sha256=05d4d778826d7f0d93bdfbbd9e8c3ea09711b6c268bfba9086927bdc92f6549d",
+  "resolve_active_generation": "RatifiedFreezeError reason=no-active",
+  "resolved_protocol_path": "output/s8b-freeze/floor-protocols/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01--511c9538e4e8efa54b45cda62e72389ed3b706ec.json",
+  "schema_version": "8b-holdout-freeze/v2",
+  "supersedes_is_v1_pin": true,
+  "supersedes_sha256": "315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688",
+  "top_level_keys_match": true
+}

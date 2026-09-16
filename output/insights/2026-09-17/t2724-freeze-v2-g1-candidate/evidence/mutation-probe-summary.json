@@ -1,0 +1,53 @@
+{
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "b0504ec5db6dd7d2247b241334a22c8fa81b0ce481896c45ba1e3b077b77e2c8",
+  "repo_head": "3b0b75496ff90e6c4d4a2d76d9fd80a840a7dabb",
+  "baseline_status": "PASSED",
+  "baseline_passed_line": "68 passed in 34.93s",
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment",
+      "status": "SURVIVED",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "failed_nodes": []
+    },
+    {
+      "id": "m1-literal-anchor-read",
+      "status": "MISMATCH",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_legacy_hash_for_versioned_protocol",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_build_and_generate_versioned_protocol"
+      ]
+    },
+    {
+      "id": "m2-record-anchor-path",
+      "status": "MISMATCH",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_build_and_generate_versioned_protocol"
+      ]
+    },
+    {
+      "id": "m3-drop-head-bytes-check",
+      "status": "MISMATCH",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_worktree_only_floor_protocol_master_seed_mutation"
+      ]
+    },
+    {
+      "id": "m4-drop-result-hash-check",
+      "status": "MISMATCH",
+      "expected_status": "SURVIVED",
+      "expected_nodes": [],
+      "failed_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_legacy_hash_for_versioned_protocol"
+      ]
+    }
+  ]
+}

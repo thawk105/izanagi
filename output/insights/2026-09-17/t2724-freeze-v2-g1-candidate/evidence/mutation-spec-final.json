@@ -1,0 +1,92 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "    # 固定 path は index の anchor として残る。\n",
+          "new": "    # 固定 path は index の anchor として残る。\n    # (等価変異 M0: comment のみ)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-literal-anchor-read",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "        root / protocol_rel, label=\"floor protocol\",\n",
+          "new": "        root / FLOOR_PROTOCOL_REL, label=\"floor protocol\",\n"
+        },
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "        head, protocol_rel, root, label=\"floor protocol\",\n",
+          "new": "        head, FLOOR_PROTOCOL_REL, root, label=\"floor protocol\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_build_and_generate_versioned_protocol",
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_legacy_hash_for_versioned_protocol"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-record-anchor-path",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "            \"path\": protocol_rel,\n",
+          "new": "            \"path\": FLOOR_PROTOCOL_REL,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_build_and_generate_versioned_protocol"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-drop-head-bytes-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "    if protocol_raw != head_protocol_raw:\n",
+          "new": "    if False and protocol_raw != head_protocol_raw:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_worktree_only_floor_protocol_master_seed_mutation"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-drop-result-hash-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_holdout_freeze.py",
+          "old": "    if result.get(\"protocol_sha256\") != protocol_sha256:\n",
+          "new": "    if False and result.get(\"protocol_sha256\") != protocol_sha256:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_holdout_freeze.py::test_v2_candidate_rejects_legacy_hash_for_versioned_protocol"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
