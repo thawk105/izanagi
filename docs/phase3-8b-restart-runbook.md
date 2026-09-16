@@ -249,22 +249,39 @@ wrapper からは起動できない。
      挙動の正本は `tools/pegasus/README.md` の該当項
 - 背景 job セッションからの投入は F49 (ii) の例外で許されるが、投入直後に有効性検査 3 点
   (計算ノード側 marker の実在 / `qstat` 可視 / 会計痕跡) を必ず行う
-- **成果物を repo へ commit しない。** driver は `out_root = repo_output_root()` で repo の
-  `output/` 配下へ書き、`output/env/pegasus/calibration/s8b-floor-pilot/…` は gitignore されない。
+- **走行フェーズの間は成果物を repo に置いたままにしない。** driver は
+  `out_root = repo_output_root()` で repo の `output/` 配下へ書き、
+  `output/env/pegasus/calibration/s8b-floor-pilot/…` は gitignore されない。
   holdout clean-scan の除外は `output/s8b-freeze/` だけなので、床値 result を repo に置いたまま
   次の official 床値 job を起動すると **その起動証明 (`clean_scan_digest` の hit 0 件要求) が止まる**
-  (worklog 131-132 が同じ性質を記録している)。使い捨ての作業木で走らせ、repo 外へ退避する。
+  (worklog 131-132 が同じ性質を記録している)。使い捨ての作業木で走らせ、走行ごとに退避する。
   **退避は run directory だけでは足りない** — 次を 1 つの bundle にまとめ、構成 manifest と
   各 hash を残す。run directory / content-addressed の binary store
   (`output/env/<env>/binaries/<sha>`。manifest と result はここを `store_path` で参照する) /
   submission receipt / job staging。**run directory だけを残すと参照が dangling になる。**
-- **official result は、v2 candidate を生成する時点では repo 相対 path に在る必要がある。**
+  `s8b_floor_evacuation` が実体として保存するのは run directory の payload だけで、残り 3 種は
+  path と hash の参照として記録する。**参照を記録しても実体は復元されない**ので、元の binary
+  store・submission receipt・job staging は別途保持する。
+- **official result の退避と再配置の順序は [T-2386] で裁定した。順序は一方向である。**
   `s8b_holdout_freeze._validate_floor_inputs` は `_load_repo_object(root, floor_result_path, …)` で
   repo 相対に解決し、`parse_official_run_path` が official run path であることを要求する。
-  したがって「走行直後に repo 外へ退避する」と「candidate 生成時に repo 相対で読む」は同じ artifact に
-  ついて両方成り立たせる必要がある。**clean-scan の要求は緩めない** (規律 2)。
-  **退避と再配置の順序をどう運用するかは [T-2324] では決めていない** — candidate 生成を実際に
-  走らせる wave で決める。起票済み。
+  したがって「走行直後に退避する」と「candidate 生成時に repo 相対で読む」は同じ artifact について
+  両方成り立たせる必要がある。**clean-scan の要求は緩めない** (規律 2)。運用順序は次のとおり。
+  1. official を走らせ、`floor_campaign.sh` の driver 終了後検査が終わって wrapper が終了するまで
+     待つ。書込み中の run directory を退避しない。
+  2. `python3 -m orchestrator.campaign.s8b_floor_evacuation evacuate --env-tag <env>` で当該 env の
+     official namespace 全体を退避する。run directory と、空になった namespace directory が repo
+     から消える。退避先は固定導出で、引数でも環境変数でも差し替えられない (D475 と同じ形)。
+  3. 次の official 起動は従来どおり clean scan に従う。**退避が成功したことは起動証明の代用ではなく、
+     痕跡を消してよかったことの証明でもない。**
+  4. 当該 holdout 集合の official 走行を**打ち切ると決めてから** `restore` で namespace 全体を戻す。
+     run・時刻・proto8 を選ぶ引数は無く、部分復元の口は無い。
+  5. 戻した成果物を commit する。`_measurement_closure` が captured HEAD の blob 一致を要求し、
+     批准側の `_verify_generation_semantics` が「世代 commit の tree に blob 実在 + worktree ==
+     HEAD blob」を要求するため、commit は candidate 生成と批准の両方の必要条件である。
+  6. candidate を生成する。
+  7. **この commit を持つ branch では、以後 official 床値を起動できない。** 成果物が走査に hit して
+     clean scan が赤になる。これは弱体化ではなく設計どおりの帰結であり、順序が一方向である理由である。
 - **途中で死んだときの扱いは crash 点で分かれる。** wrapper は `--resume` を渡さず、
   reservation 再検査は余裕不足を `reservation-lost` terminal として numeric values を
   不適格にする。**「新規 job で最初から再実行する」が通るのは claim 発行前に死んだ場合だけである**

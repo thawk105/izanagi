@@ -1,0 +1,312 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/output/pegasus-dispatch/c68fad78bdf5c1617b3e6ca066a98f44/izdw-c68fad78bd.o1643",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/output/pegasus-dispatch/c68fad78bdf5c1617b3e6ca066a98f44/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n....                                                                     [100%]\n4 passed in 5.85s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "762c482f7595d69b6820aabf4e938bc3a490779f1532f112015abbb68e5f6376"
+    },
+    "artifact_error": null,
+    "collection_sha256": "18dd6a71654574932b248b80cac7ea1f130c6995a4d6cc16264b08cfb9a73274",
+    "duration_s": 27.874,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "9991837ecd6d509cd2100745d05d7c897014636093adac3f75b7ae60f50f9022",
+    "repo_head": "6022f70d7a87cc7518990c9a1c7c1de5f7b9c2ba",
+    "runner_sha256": "550c34c9b4f9007c8f291e63654f217a8d2b7b76e54fda9edc6c63bc3edea995",
+    "spec_sha256": "2380c5c169b647c4123020aa73b94951e78641d0e1f7b5231dda9d35e181fe91",
+    "status": "PASSED",
+    "test_output_sha256": "762c482f7595d69b6820aabf4e938bc3a490779f1532f112015abbb68e5f6376",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "27bd0c80092f48d75745ddd50933c81de1195d479db4514cf2a5953096f2054f"
+  },
+  "date": "2026-09-16T09:54:24.320175+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/output/pegasus-dispatch/9b7e27704b27f1a0cb1363ef9f9b75d6/izdw-9b7e27704b.o1644",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/output/pegasus-dispatch/9b7e27704b27f1a0cb1363ef9f9b75d6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...F                                                                     [100%]\n=================================== FAILURES ===================================\n____ test_cache_key_default_toolchain_change_does_not_alias_historical_key _____\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1490a8b8b9d0>\n\n    def test_cache_key_default_toolchain_change_does_not_alias_historical_key(monkeypatch):\n        # module global の差し替え + cc/cxx 明示は key 計算上の実編集と等価。\n        # 定義時既定を含む実編集での再現は T-785 の repo 外 probe が担う。\n        genome_value = Genome(\"silo\", {\"BACK_OFF\": 1})\n        commit = \"abc123\"\n        src_token = \"1\" * 64\n        common = {\n            \"trace\": False,\n            \"src_token\": src_token,\n            \"admission\": _admission_for(genome_value, commit, src_token=src_token),\n        }\n        historical_key = buildcache.cache_key(genome_value, commit, **common)\n        changed_keys = []\n        for cc, cxx in ((\"gcc-12\", \"g++-12\"), (\"gcc\", \"g++\")):\n            monkeypatch.setattr(buildcache, \"DEFAULT_CC\", cc)\n            monkeypatch.setattr(buildcache, \"DEFAULT_CXX\", cxx)\n            changed_key = buildcache.cache_key(\n                genome_value, commit, cc=cc, cxx=cxx, **common,\n            )\n>           assert changed_key != historical_key\nE           AssertionError: assert 'silo_1096b7306b_t0' != 'silo_1096b7306b_t0'\n\norchestrator/tests/test_campaign.py:3223: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_cache_key_default_toolchain_change_does_not_alias_historical_key\n1 failed, 3 passed in 5.91s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_cache_key_default_toolchain_change_does_not_alias_historical_key\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=1299 retained_bytes=1299 omitted_bytes=0 rendered_excerpt_bytes=1477 sha256=7a0c33692eb25de04edce5a4f766e2a7f04cac0fbdd7cd93cd6139398801f720\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1490a8b8b9d0>\n> \n>     def test_cache_key_default_toolchain_change_does_not_alias_historical_key(monkeypatch):\n>         # module global \\u306e\\u5dee\\u3057\\u66ff\\u3048 + cc/cxx \\u660e\\u793a\\u306f key \\u8a08\\u7b97\\u4e0a\\u306e\\u5b9f\\u7de8\\u96c6\\u3068\\u7b49\\u4fa1\\u3002\n>         # \\u5b9a\\u7fa9\\u6642\\u65e2\\u5b9a\\u3092\\u542b\\u3080\\u5b9f\\u7de8\\u96c6\\u3067\\u306e\\u518d\\u73fe\\u306f T-785 \\u306e repo \\u5916 probe \\u304c\\u62c5\\u3046\\u3002\n>         genome_value = Genome(\"silo\", {\"BACK_OFF\": 1})\n>         commit = \"abc123\"\n>         src_token = \"1\" * 64\n>         common = {\n>             \"trace\": False,\n>             \"src_token\": src_token,\n>             \"admission\": _admission_for(genome_value, commit, src_token=src_token),\n>         }\n>         historical_key = buildcache.cache_key(genome_value, commit, **common)\n>         changed_keys = []\n>         for cc, cxx in ((\"gcc-12\", \"g++-12\"), (\"gcc\", \"g++\")):\n>             monkeypatch.setattr(buildcache, \"DEFAULT_CC\", cc)\n>             monkeypatch.setattr(buildcache, \"DEFAULT_CXX\", cxx)\n>             changed_key = buildcache.cache_key(\n>                 genome_value, commit, cc=cc, cxx=cxx, **common,\n>             )\n> >           assert changed_key != historical_key\n> E           AssertionError: assert 'silo_1096b7306b_t0' != 'silo_1096b7306b_t0'\n> \n> orchestrator/tests/test_campaign.py:3223: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1299 retained_bytes=1299 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2211 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "455da78213af0873302b3a67c0f3f23b5c5a4a532dd755533bed72f804e6f6eb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "18dd6a71654574932b248b80cac7ea1f130c6995a4d6cc16264b08cfb9a73274",
+      "duration_s": 27.779,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_cache_key_default_toolchain_change_does_not_alias_historical_key"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_cache_key_default_toolchain_change_does_not_alias_historical_key"
+      ],
+      "hang_risk": false,
+      "id": "m1-compare-against-mutable-defaults",
+      "injection_diff_sha256": "1956f3e68e23c7cd7037970dafa9924e460a4f1d244445a0ca1033e668f10c6b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a5b83124754f59a912177135d5e9ee58b72955f01410520f52c3a24e5319f89d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "new": "    tc = \"\" if (cc, cxx) == (DEFAULT_CC, DEFAULT_CXX) else f\"|cc={cc}|cxx={cxx}\"\n",
+          "old": "    tc = \"\" if (cc, cxx) == (\"gcc-13\", \"g++-13\") else f\"|cc={cc}|cxx={cxx}\"\n"
+        }
+      ],
+      "repo_head": "6022f70d7a87cc7518990c9a1c7c1de5f7b9c2ba",
+      "runner_sha256": "550c34c9b4f9007c8f291e63654f217a8d2b7b76e54fda9edc6c63bc3edea995",
+      "spec_sha256": "2380c5c169b647c4123020aa73b94951e78641d0e1f7b5231dda9d35e181fe91",
+      "status": "KILLED",
+      "test_output_sha256": "455da78213af0873302b3a67c0f3f23b5c5a4a532dd755533bed72f804e6f6eb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "27bd0c80092f48d75745ddd50933c81de1195d479db4514cf2a5953096f2054f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/output/pegasus-dispatch/2efa9606a6942dc0730d84f133f90e05/izdw-2efa9606a6.o1646",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/output/pegasus-dispatch/2efa9606a6942dc0730d84f133f90e05/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...F                                                                     [100%]\n=================================== FAILURES ===================================\n____ test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit _____\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit():\n        \"\"\"variant_id は不変だが legacy cache key は T-343 receipt 束縛で意図的に変わる。\"\"\"\n        for g in genome.SILO_SPACE.enumerate():\n            assert pipeline.variant_id(g) == _GOLDEN_VID[g.canonical()], g.canonical()\n        # cache_key は純関数 (ccbench_commit を pre-image に織り込む・working-tree 非依存)。\n        # golden は kickoff pin (dff0f1e) で計算された値なので、live HEAD ではなくその固定 pin\n        # で導出を検証する — 後続段 3 の pin 前進 (028f34d, D38) で cache_key が変わるのは\n        # 設計どおり (content-addressed identity は pin と共に動く) で、backward-compat golden は\n        # 「dff0f1e 時点の導出が安定か」を pin 非依存にテストする (裁定12/IDENT-1)。\n        g0 = Genome(\"silo\", {\"BACK_OFF\": 0, \"NO_WAIT_LOCKING_IN_VALIDATION\": 0,\n                             \"NO_WAIT_OF_TICTOC\": 1, \"WAL\": 0})\n        # commit 軸は歴史的 golden と同じ full pin に固定し、差を admission 成分だけへ帰属する。\n        stock_admission = _admission_for(g0, pin.CURRENT_PIN)\n        current = buildcache.cache_key(\n            g0, pin.KICKOFF_PIN_FULL, False, admission=stock_admission,\n        )\n>       assert current == _T816_GOLDEN_CK0[g0.canonical()]\nE       AssertionError: assert 'silo_89383790a2_t0' == 'silo_2b19d78065_t0'\nE         \nE         - silo_2b19d78065_t0\nE         + silo_89383790a2_t0\n\norchestrator/tests/test_campaign.py:11220: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit\n1 failed, 3 passed in 5.85s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=1647 retained_bytes=1647 omitted_bytes=0 rendered_excerpt_bytes=2109 sha256=42cbabc1e27c46814d69f028a589bafdf0399c819aec0889545b210c93242a1f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit():\n>         \"\"\"variant_id \\u306f\\u4e0d\\u5909\\u3060\\u304c legacy cache key \\u306f T-343 receipt \\u675f\\u7e1b\\u3067\\u610f\\u56f3\\u7684\\u306b\\u5909\\u308f\\u308b\\u3002\"\"\"\n>         for g in genome.SILO_SPACE.enumerate():\n>             assert pipeline.variant_id(g) == _GOLDEN_VID[g.canonical()], g.canonical()\n>         # cache_key \\u306f\\u7d14\\u95a2\\u6570 (ccbench_commit \\u3092 pre-image \\u306b\\u7e54\\u308a\\u8fbc\\u3080\\u30fbworking-tree \\u975e\\u4f9d\\u5b58)\\u3002\n>         # golden \\u306f kickoff pin (dff0f1e) \\u3067\\u8a08\\u7b97\\u3055\\u308c\\u305f\\u5024\\u306a\\u306e\\u3067\\u3001live HEAD \\u3067\\u306f\\u306a\\u304f\\u305d\\u306e\\u56fa\\u5b9a pin\n>         # \\u3067\\u5c0e\\u51fa\\u3092\\u691c\\u8a3c\\u3059\\u308b \\u2014 \\u5f8c\\u7d9a\\u6bb5 3 \\u306e pin \\u524d\\u9032 (028f34d, D38) \\u3067 cache_key \\u304c\\u5909\\u308f\\u308b\\u306e\\u306f\n>         # \\u8a2d\\u8a08\\u3069\\u304a\\u308a (content-addressed identity \\u306f pin \\u3068\\u5171\\u306b\\u52d5\\u304f) \\u3067\\u3001backward-compat golden \\u306f\n>         # \\u300cdff0f1e \\u6642\\u70b9\\u306e\\u5c0e\\u51fa\\u304c\\u5b89\\u5b9a\\u304b\\u300d\\u3092 pin \\u975e\\u4f9d\\u5b58\\u306b\\u30c6\\u30b9\\u30c8\\u3059\\u308b (\\u88c1\\u5b9a12/IDENT-1)\\u3002\n>         g0 = Genome(\"silo\", {\"BACK_OFF\": 0, \"NO_WAIT_LOCKING_IN_VALIDATION\": 0,\n>                              \"NO_WAIT_OF_TICTOC\": 1, \"WAL\": 0})\n>         # commit \\u8ef8\\u306f\\u6b74\\u53f2\\u7684 golden \\u3068\\u540c\\u3058 full pin \\u306b\\u56fa\\u5b9a\\u3057\\u3001\\u5dee\\u3092 admission \\u6210\\u5206\\u3060\\u3051\\u3078\\u5e30\\u5c5e\\u3059\\u308b\\u3002\n>         stock_admission = _admission_for(g0, pin.CURRENT_PIN)\n>         current = buildcache.cache_key(\n>             g0, pin.KICKOFF_PIN_FULL, False, admission=stock_admission,\n>         )\n> >       assert current == _T816_GOLDEN_CK0[g0.canonical()]\n> E       AssertionError: assert 'silo_89383790a2_t0' == 'silo_2b19d78065_t0'\n> E         \n> E         - silo_2b19d78065_t0\n> E         + silo_89383790a2_t0\n> \n> orchestrator/tests/test_campaign.py:11220: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1647 retained_bytes=1647 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2843 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "86dee01e1cba813fafab551bbf36cbf5e2c952f6cb080e70e6e7bdd7f5692a65"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "18dd6a71654574932b248b80cac7ea1f130c6995a4d6cc16264b08cfb9a73274",
+      "duration_s": 32.817,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit"
+      ],
+      "hang_risk": false,
+      "id": "m2-always-append-toolchain-suffix",
+      "injection_diff_sha256": "2c92f6ad48b2fc66b04476567f9697ddb89a75a1c47760779a73aa99ad185af3",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b540eaab7483e9fed2afb8f09246892397d16ef119051021eae627d44a6d817e",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "new": "    tc = f\"|cc={cc}|cxx={cxx}\"\n",
+          "old": "    tc = \"\" if (cc, cxx) == (\"gcc-13\", \"g++-13\") else f\"|cc={cc}|cxx={cxx}\"\n"
+        }
+      ],
+      "repo_head": "6022f70d7a87cc7518990c9a1c7c1de5f7b9c2ba",
+      "runner_sha256": "550c34c9b4f9007c8f291e63654f217a8d2b7b76e54fda9edc6c63bc3edea995",
+      "spec_sha256": "2380c5c169b647c4123020aa73b94951e78641d0e1f7b5231dda9d35e181fe91",
+      "status": "KILLED",
+      "test_output_sha256": "86dee01e1cba813fafab551bbf36cbf5e2c952f6cb080e70e6e7bdd7f5692a65",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "27bd0c80092f48d75745ddd50933c81de1195d479db4514cf2a5953096f2054f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/output/pegasus-dispatch/ab8816bd620c3536612063ae257dcdb6/izdw-ab8816bd62.o1648",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/output/pegasus-dispatch/ab8816bd620c3536612063ae257dcdb6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..FF                                                                     [100%]\n=================================== FAILURES ===================================\n________________ test_cache_key_separates_compiler_request_name ________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_cache_key_separates_compiler_request_name():\n        genome_value = Genome(\"silo\", {\"BACK_OFF\": 1})\n        commit = \"abc123\"\n        src_token = \"1\" * 64\n        admission = _admission_for(\n            genome_value, commit, src_token=src_token,\n        )\n        common = {\n            \"trace\": False,\n            \"src_token\": src_token,\n            \"admission\": admission,\n        }\n    \n>       assert buildcache.cache_key(\n            genome_value, commit, cxx=\"g++-12\", **common,\n        ) != buildcache.cache_key(\n            genome_value, commit, cxx=\"g++-13\", **common,\n        )\nE       assert 'silo_1096b7306b_t0' != 'silo_1096b7306b_t0'\nE        +  where 'silo_1096b7306b_t0' = <function cache_key at 0x149a896c5a20>(Genome(protocol='silo', flags={'BACK_OFF': 1}), 'abc123', cxx='g++-12', **{'trace': False, 'src_token': '1111111111111111111111111111111111111111111111111111111111111111', 'admission': BuildAd..._sha256\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"tracked_paths\":[\"include/backoff.hh\"]}}')})\nE        +    where <function cache_key at 0x149a896c5a20> = buildcache.cache_key\nE        +  and   'silo_1096b7306b_t0' = <function cache_key at 0x149a896c5a20>(Genome(protocol='silo', flags={'BACK_OFF': 1}), 'abc123', cxx='g++-13', **{'trace': False, 'src_token': '1111111111111111111111111111111111111111111111111111111111111111', 'admission': BuildAd..._sha256\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"tracked_paths\":[\"include/backoff.hh\"]}}')})\nE        +    where <function cache_key at 0x149a896c5a20> = buildcache.cache_key\n\norchestrator/tests/test_campaign.py:3197: AssertionError\n____ test_cache_key_default_toolchain_change_does_not_alias_historical_key _____\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145d60f87a60>\n\n    def test_cache_key_default_toolchain_change_does_not_alias_historical_key(monkeypatch):\n        # module global の差し替え + cc/cxx 明示は key 計算上の実編集と等価。\n        # 定義時既定を含む実編集での再現は T-785 の repo 外 probe が担う。\n        genome_value = Genome(\"silo\", {\"BACK_OFF\": 1})\n        commit = \"abc123\"\n        src_token = \"1\" * 64\n        common = {\n            \"trace\": False,\n            \"src_token\": src_token,\n            \"admission\": _admission_for(genome_value, commit, src_token=src_token),\n        }\n        historical_key = buildcache.cache_key(genome_value, commit, **common)\n        changed_keys = []\n        for cc, cxx in ((\"gcc-12\", \"g++-12\"), (\"gcc\", \"g++\")):\n            monkeypatch.setattr(buildcache, \"DEFAULT_CC\", cc)\n            monkeypatch.setattr(buildcache, \"DEFAULT_CXX\", cxx)\n            changed_key = buildcache.cache_key(\n                genome_value, commit, cc=cc, cxx=cxx, **common,\n            )\n>           assert changed_key != historical_key\nE           AssertionError: assert 'silo_1096b7306b_t0' != 'silo_1096b7306b_t0'\n\norchestrator/tests/test_campaign.py:3223: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name\nFAILED orchestrator/tests/test_campaign.py::test_cache_key_default_toolchain_change_does_not_alias_historical_key\n2 failed, 2 passed in 5.80s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=1721 retained_bytes=1721 omitted_bytes=0 rendered_excerpt_bytes=1776 sha256=e3b51e5811355f17eb3a0a41d9e6d099bb03f885141bf8a535253e1277e511ab\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_cache_key_separates_compiler_request_name():\n>         genome_value = Genome(\"silo\", {\"BACK_OFF\": 1})\n>         commit = \"abc123\"\n>         src_token = \"1\" * 64\n>         admission = _admission_for(\n>             genome_value, commit, src_token=src_token,\n>         )\n>         common = {\n>             \"trace\": False,\n>             \"src_token\": src_token,\n>             \"admission\": admission,\n>         }\n>     \n> >       assert buildcache.cache_key(\n>             genome_value, commit, cxx=\"g++-12\", **common,\n>         ) != buildcache.cache_key(\n>             genome_value, commit, cxx=\"g++-13\", **common,\n>         )\n> E       assert 'silo_1096b7306b_t0' != 'silo_1096b7306b_t0'\n> E        +  where 'silo_1096b7306b_t0' = <function cache_key at 0x149a896c5a20>(Genome(protocol='silo', flags={'BACK_OFF': 1}), 'abc123', cxx='g++-12', **{'trace': False, 'src_token': '1111111111111111111111111111111111111111111111111111111111111111', 'admission': BuildAd..._sha256\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"tracked_paths\":[\"include/backoff.hh\"]}}')})\n> E        +    where <function cache_key at 0x149a896c5a20> = buildcache.cache_key\n> E        +  and   'silo_1096b7306b_t0' = <function cache_key at 0x149a896c5a20>(Genome(protocol='silo', flags={'BACK_OFF': 1}), 'abc123', cxx='g++-13', **{'trace': False, 'src_token': '1111111111111111111111111111111111111111111111111111111111111111', 'admission': BuildAd..._sha256\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"tracked_paths\":[\"include/backoff.hh\"]}}')})\n> E        +    where <function cache_key at 0x149a896c5a20> = buildcache.cache_key\n> \n> orchestrator/tests/test_campaign.py:3197: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_cache_key_default_toolchain_change_does_not_alias_historical_key\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=1299 retained_bytes=1299 omitted_bytes=0 rendered_excerpt_bytes=1477 sha256=6678b2c2667307a75dcca6a1d7a47c4c04a1d46b49aea7d9bd4b7ebdf207d8f5\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145d60f87a60>\n> \n>     def test_cache_key_default_toolchain_change_does_not_alias_historical_key(monkeypatch):\n>         # module global \\u306e\\u5dee\\u3057\\u66ff\\u3048 + cc/cxx \\u660e\\u793a\\u306f key \\u8a08\\u7b97\\u4e0a\\u306e\\u5b9f\\u7de8\\u96c6\\u3068\\u7b49\\u4fa1\\u3002\n>         # \\u5b9a\\u7fa9\\u6642\\u65e2\\u5b9a\\u3092\\u542b\\u3080\\u5b9f\\u7de8\\u96c6\\u3067\\u306e\\u518d\\u73fe\\u306f T-785 \\u306e repo \\u5916 probe \\u304c\\u62c5\\u3046\\u3002\n>         genome_value = Genome(\"silo\", {\"BACK_OFF\": 1})\n>         commit = \"abc123\"\n>         src_token = \"1\" * 64\n>         common = {\n>             \"trace\": False,\n>             \"src_token\": src_token,\n>             \"admission\": _admission_for(genome_value, commit, src_token=src_token),\n>         }\n>         historical_key = buildcache.cache_key(genome_value, commit, **common)\n>         changed_keys = []\n>         for cc, cxx in ((\"gcc-12\", \"g++-12\"), (\"gcc\", \"g++\")):\n>             monkeypatch.setattr(buildcache, \"DEFAULT_CC\", cc)\n>             monkeypatch.setattr(buildcache, \"DEFAULT_CXX\", cxx)\n>             changed_key = buildcache.cache_key(\n>                 genome_value, commit, cc=cc, cxx=cxx, **common,\n>             )\n> >           assert changed_key != historical_key\n> E           AssertionError: assert 'silo_1096b7306b_t0' != 'silo_1096b7306b_t0'\n> \n> orchestrator/tests/test_campaign.py:3223: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3020 retained_bytes=3020 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4410 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1cbfab6054ad23fd10482064c0a7f01e20eded6fe2ef2d63b58928d243cfb798"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "18dd6a71654574932b248b80cac7ea1f130c6995a4d6cc16264b08cfb9a73274",
+      "duration_s": 411.924,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_cache_key_default_toolchain_change_does_not_alias_historical_key",
+        "orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name",
+        "orchestrator/tests/test_campaign.py::test_cache_key_default_toolchain_change_does_not_alias_historical_key"
+      ],
+      "hang_risk": false,
+      "id": "m3-always-omit-toolchain",
+      "injection_diff_sha256": "c70be14236552a8e0ab990cdd3e89b9aad29136c8d3e73840f8471153e8f760e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9e8bf9380a30291313df94b82f52ff7d381469dbb0d5331804c5baa2023dc0ae",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/buildcache.py",
+          "new": "    tc = \"\"\n",
+          "old": "    tc = \"\" if (cc, cxx) == (\"gcc-13\", \"g++-13\") else f\"|cc={cc}|cxx={cxx}\"\n"
+        }
+      ],
+      "repo_head": "6022f70d7a87cc7518990c9a1c7c1de5f7b9c2ba",
+      "runner_sha256": "550c34c9b4f9007c8f291e63654f217a8d2b7b76e54fda9edc6c63bc3edea995",
+      "spec_sha256": "2380c5c169b647c4123020aa73b94951e78641d0e1f7b5231dda9d35e181fe91",
+      "status": "KILLED",
+      "test_output_sha256": "1cbfab6054ad23fd10482064c0a7f01e20eded6fe2ef2d63b58928d243cfb798",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "27bd0c80092f48d75745ddd50933c81de1195d479db4514cf2a5953096f2054f"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/output/pegasus-dispatch/e7d1a6faf8030fabcbaa111317f7a283/izdw-e7d1a6faf8.o1641",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/output/pegasus-dispatch/e7d1a6faf8030fabcbaa111317f7a283/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_campaign.py::test_cache_key_default_toolchain_change_does_not_alias_historical_key\norchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name\norchestrator/tests/test_campaign.py::test_cache_key_separates_trace_genome_and_commit\norchestrator/tests/test_campaign.py::test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit\n\n4 tests collected in 1.81s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "24c7224814ab7bb81a0bc715809ec306f79c26cacd910cb11a86e8d5a148d8a9"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_cache_key_default_toolchain_change_does_not_alias_historical_key",
+        "orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name",
+        "orchestrator/tests/test_campaign.py::test_cache_key_separates_trace_genome_and_commit",
+        "orchestrator/tests/test_campaign.py::test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit"
+      ],
+      "duration_s": 32.543,
+      "rc": 0,
+      "repo_head": "6022f70d7a87cc7518990c9a1c7c1de5f7b9c2ba",
+      "runner_sha256": "550c34c9b4f9007c8f291e63654f217a8d2b7b76e54fda9edc6c63bc3edea995",
+      "spec_sha256": "2380c5c169b647c4123020aa73b94951e78641d0e1f7b5231dda9d35e181fe91",
+      "status": "PASSED",
+      "tool_sha256": "27bd0c80092f48d75745ddd50933c81de1195d479db4514cf2a5953096f2054f"
+    },
+    "hang_timeout_seconds": 1800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m1-compare-against-mutable-defaults": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_cache_key_default_toolchain_change_does_not_alias_historical_key"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1956f3e68e23c7cd7037970dafa9924e460a4f1d244445a0ca1033e668f10c6b",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/buildcache.py",
+            "new": "    tc = \"\" if (cc, cxx) == (DEFAULT_CC, DEFAULT_CXX) else f\"|cc={cc}|cxx={cxx}\"\n",
+            "old": "    tc = \"\" if (cc, cxx) == (\"gcc-13\", \"g++-13\") else f\"|cc={cc}|cxx={cxx}\"\n"
+          }
+        ]
+      },
+      "m2-always-append-toolchain-suffix": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2c92f6ad48b2fc66b04476567f9697ddb89a75a1c47760779a73aa99ad185af3",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/buildcache.py",
+            "new": "    tc = f\"|cc={cc}|cxx={cxx}\"\n",
+            "old": "    tc = \"\" if (cc, cxx) == (\"gcc-13\", \"g++-13\") else f\"|cc={cc}|cxx={cxx}\"\n"
+          }
+        ]
+      },
+      "m3-always-omit-toolchain": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_cache_key_default_toolchain_change_does_not_alias_historical_key",
+          "orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c70be14236552a8e0ab990cdd3e89b9aad29136c8d3e73840f8471153e8f760e",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/buildcache.py",
+            "new": "    tc = \"\"\n",
+            "old": "    tc = \"\" if (cc, cxx) == (\"gcc-13\", \"g++-13\") else f\"|cc={cc}|cxx={cxx}\"\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "9991837ecd6d509cd2100745d05d7c897014636093adac3f75b7ae60f50f9022",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_campaign.py::test_cache_key_default_toolchain_change_does_not_alias_historical_key",
+      "orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name",
+      "orchestrator/tests/test_campaign.py::test_cache_key_separates_trace_genome_and_commit",
+      "orchestrator/tests/test_campaign.py::test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 1800.0
+  },
+  "repo_head": "6022f70d7a87cc7518990c9a1c7c1de5f7b9c2ba",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_campaign.py::test_cache_key_default_toolchain_change_does_not_alias_historical_key",
+      "orchestrator/tests/test_campaign.py::test_cache_key_separates_compiler_request_name",
+      "orchestrator/tests/test_campaign.py::test_cache_key_separates_trace_genome_and_commit",
+      "orchestrator/tests/test_campaign.py::test_source_digest_silo8_variant_id_and_t343_cache_break_are_explicit",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "dispatch_head_blob_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "a97766613acd4c7be4f491f822bc3dc5851bd87e",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "550c34c9b4f9007c8f291e63654f217a8d2b7b76e54fda9edc6c63bc3edea995",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "2380c5c169b647c4123020aa73b94951e78641d0e1f7b5231dda9d35e181fe91",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t785-legacy-cache-key/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "27bd0c80092f48d75745ddd50933c81de1195d479db4514cf2a5953096f2054f",
+  "updated_at": "2026-09-16T10:03:43.932403+00:00"
+}

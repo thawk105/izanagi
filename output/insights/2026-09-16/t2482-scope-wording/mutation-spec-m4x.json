@@ -1,0 +1,27 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "m4x-excluded-drop-source-bytes-exception-exact",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "本 map の外であり \"\n    \"(収載 path の source bytes は委譲先であっても本 map の内)、完全性を主張しない\"",
+          "new": "本 map の外であり\"\n    \"、完全性を主張しない\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_artifact_admission.py::test_real_e0_is_rejected_only_by_certified_epoch_gate",
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_p1_independent_real_wal_projection_matches_frozen_report",
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_p3_real_provenance_closes_bytes_admission_caption_and_freeze_chain",
+        "orchestrator/tests/test_s1_9pair_figure_provenance.py::test_p8_production_caption_matches_independent_parent_text"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
