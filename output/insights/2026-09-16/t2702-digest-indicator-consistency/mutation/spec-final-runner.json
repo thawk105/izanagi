@@ -1,0 +1,133 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 2400,
+  "hang_timeout_seconds": 2400,
+  "mutations": [
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "        abort_rate = (_median([lo[4], hi[4]])\n                      if lo[4] is not None and hi[4] is not None else None)\n",
+          "new": "        abort_rate = hi[4]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "        latency_ns = (_median([lo[5], hi[5]])\n                      if lo[5] is not None and hi[5] is not None else None)\n",
+          "new": "        latency_ns = hi[5]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "        abort_rate = (_median([lo[4], hi[4]])\n                      if lo[4] is not None and hi[4] is not None else None)\n        latency_ns = (_median([lo[5], hi[5]])\n                      if lo[5] is not None and hi[5] is not None else None)\n",
+          "new": "        abort_rate = (_median([v for v in (lo[4], hi[4]) if v is not None])\n                      if lo[4] is not None or hi[4] is not None else None)\n        latency_ns = (_median([v for v in (lo[5], hi[5]) if v is not None])\n                      if lo[5] is not None or hi[5] is not None else None)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "    rep = min(valid, key=lambda r: abs(r[0] - median_ref))\n",
+          "new": "    rep = sorted(valid, key=lambda r: r[0])[len(valid) // 2]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_odd_reps_preserve_legacy_values[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_odd_reps_preserve_legacy_values[direct]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "    if len(valid) % 2:\n",
+          "new": "    if len(rep_results) % 2:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[deferred]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "    (point.counters, point.walltime_s, point.maxrss_kb,\n     point.abort_rate, point.latency_ns) = _summarize_rep_results(rep_results)\n",
+          "new": "    _valid = [r for r in rep_results if r[0] is not None]\n    _rep = min(_valid, key=lambda r: abs(r[0] - sorted(x[0] for x in _valid)[len(_valid) // 2])) if _valid else rep_results[-1]\n    (point.counters, point.walltime_s, point.maxrss_kb,\n     point.abort_rate, point.latency_ns) = _rep[1:]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_average_central_indicators[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_even_reps_none_indicator_is_none[direct]",
+        "orchestrator/tests/test_calibrator.py::test_measure_point_parity_uses_valid_reps_not_requested[direct]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/calibrator/runner.py",
+          "old": "    valid = [r for r in rep_results if r[0] is not None]\n    if not valid:\n        return rep_results[-1][1:]\n",
+          "new": "    valid = [*(r for r in rep_results if r[0] is not None)]\n    if not valid:\n        return rep_results[-1][1:]\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
