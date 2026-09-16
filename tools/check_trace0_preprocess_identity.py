@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、および include 活性の同一性を検査する。"""
+"""選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、および include 活性の同一性を検査する。
+
+この検査は D297 の保証を証明するものであり、計測ビルドからの trace 完全除去に対しては必要条件の一つである。
+この検査だけで trace の完全除去を証明したと解釈してはならない。
+この保証は使用した compiler と選定した macro context に依存し、admission toolchain と同一であるとは主張しない。
+"""
 from __future__ import annotations
 
 import argparse
