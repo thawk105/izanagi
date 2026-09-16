@@ -73,7 +73,7 @@ source に束縛されていれば使ってよい。入力 schema が明示す�
     ]
   },
   "baseline": {
-    "throughput_ops_sec": 88124.1,
+    "throughput_tps": 88124.1,
     "abort_rate_pct": 7.9
   },
   "planner_direction": {

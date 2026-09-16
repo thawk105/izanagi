@@ -50,7 +50,7 @@ from orchestrator.tests import commit_receipt_support as receipt_support  # noqa
 
 
 _ROLES = ("planner", "coder", "auditor", "critic")
-_TRIAL_SCHEMA_VERSION = "p3-autonomous-workload-trial/v3"
+_TRIAL_SCHEMA_VERSION = "p3-autonomous-workload-trial/v4"
 _REPORT_SCHEMA_VERSION = "p3-autonomous-workload-trial-report/v3"
 _LAYER3_SCHEMA_VERSION = "layer3-material-report/v3"
 _LAYER3_GENERATOR_IDENTITY = "orchestrator.campaign.layer3_report"
@@ -2906,15 +2906,15 @@ def test_report_and_run_start_schema_versions_are_required(tmp_path, target) -> 
         _verify(run, report)
 
 
-def test_role_schema_v3_and_report_schema_v3_are_required(tmp_path) -> None:
-    assert A.SCHEMA_VERSION == "p3-autonomous-workload-trial/v3"
+def test_role_schema_v4_and_report_schema_v3_are_required(tmp_path) -> None:
+    assert A.SCHEMA_VERSION == "p3-autonomous-workload-trial/v4"
     assert A.REPORT_SCHEMA_VERSION == "p3-autonomous-workload-trial-report/v3"
-    assert _TRIAL_SCHEMA_VERSION == "p3-autonomous-workload-trial/v3"
+    assert _TRIAL_SCHEMA_VERSION == "p3-autonomous-workload-trial/v4"
     assert _REPORT_SCHEMA_VERSION == "p3-autonomous-workload-trial-report/v3"
     for target in ("start", "report"):
         run, events, report = _complete_trial(tmp_path / target)
         if target == "start":
-            events[0]["schema_version"] = "p3-autonomous-workload-trial/v2"
+            events[0]["schema_version"] = "p3-autonomous-workload-trial/v3"
             expected = "run-start.schema_version does not match producer version"
         else:
             report["schema_version"] = "p3-autonomous-workload-trial-report/v2"
