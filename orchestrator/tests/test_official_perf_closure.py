@@ -42,6 +42,8 @@ _TRACKED_CALLS = frozenset({
 })
 _PERF_DISCOVERY_CALLS = _TRACKED_CALLS - {"evaluate", "evaluate_fn"}
 _REVIEWED_PERF_FILES = frozenset({
+    "orchestrator/calibrator/cli.py",
+    "orchestrator/calibrator/sweep.py",
     "orchestrator/calibrator/perf_preflight.py",
     "orchestrator/calibrator/runner.py",
     "orchestrator/campaign/autonomous_trial_completeness.py",
@@ -446,7 +448,7 @@ _ADDED_REVIEWED_GUARDS = (
     ),
     _GuardSpec(
         "runner", "orchestrator/calibrator/runner.py", "measure_point",
-        ("use_perf",), ("not use_perf",),
+        ("use_perf",), ("not use_perf", "use_perf"),
     ),
 )
 
