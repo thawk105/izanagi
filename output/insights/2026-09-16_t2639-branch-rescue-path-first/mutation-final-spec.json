@@ -1,0 +1,205 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 900,
+  "hang_timeout_seconds": 1200,
+  "estimated_run_seconds": 300,
+  "mutations": [
+    {
+      "id": "N01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "    if search.incomplete:\n        return _decision(\"indeterminate\", search.reason), True\n    return _decision(\"indeterminate\", receipt_reason), False\n",
+          "new": "    if search.incomplete:\n        return _decision(\"indeterminate\", search.reason), True\n    return _decision(\"not-landed\", receipt_reason), False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_landed.py::test_placeholder_heading_text_is_a_ledger_identity_unit[failures-F-F900-docs/failures.md]",
+        "orchestrator/tests/test_check_branch_landed.py::test_worklog_title_identity_match_is_strong_but_indeterminate",
+        "orchestrator/tests/test_check_branch_landed.py::test_placeholder_heading_text_is_a_ledger_identity_unit[decisions-D-D900-docs/decisions.md]",
+        "orchestrator/tests/test_check_branch_landed.py::test_weak_ledger_hit_reports_coverage_without_moving_verdict",
+        "orchestrator/tests/test_check_branch_landed.py::test_hash_mentioned_as_prose_is_not_a_receipt",
+        "orchestrator/tests/test_check_branch_landed.py::test_worklog_title_mismatch_caps_structural_majority_at_weak_positive",
+        "orchestrator/tests/test_check_branch_landed.py::test_rehomed_fragment_without_receipt_is_indeterminate_and_probed",
+        "orchestrator/tests/test_check_branch_landed.py::test_receipt_identity_mismatch_does_not_prove_fragment",
+        "orchestrator/tests/test_check_branch_landed.py::test_unlanded_pure_add_spool_stays_indeterminate[matched]",
+        "orchestrator/tests/test_check_branch_landed.py::test_unlanded_pure_add_spool_stays_indeterminate[not-matched]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_real_checker_unlanded_spool_details[0]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_real_checker_unlanded_spool_details[2]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "            observed = _tree_entry(git, commit, required.path, len(required.oid))\n            if _entry_matches(required, observed):\n",
+          "new": "            observed = _tree_entry(git, commit, required.path, len(required.oid))\n            if metadata is not None or _entry_matches(required, observed):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_landed.py::test_content_and_mode_from_different_commits_do_not_compose",
+        "orchestrator/tests/test_check_branch_landed.py::test_batch_rejects_candidate_state_difference[mode]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "                or re.fullmatch(r\"[0-9]+\", size) is None or tag != str(index)):\n",
+          "new": "                or re.fullmatch(r\"[0-9]+\", size) is None):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_landed.py::test_batch_invalid_stdout_is_indeterminate[reordered]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "        and not any(char.isspace() for char in required.path)\n",
+          "new": "        and True\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_landed.py::test_batch_path_handling[lf]",
+        "orchestrator/tests/test_check_branch_landed.py::test_batch_path_handling[tab]",
+        "orchestrator/tests/test_check_branch_landed.py::test_batch_path_handling[space]",
+        "orchestrator/tests/test_check_branch_landed.py::test_batch_path_handling[cr]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "            if (not receipt_match and receipt_registry.outcome != \"error\"\n                    and not state.required.missing and state.required.object_type == \"blob\"\n",
+          "new": "            if (not receipt_match\n                    and not state.required.missing and state.required.object_type == \"blob\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_landed.py::test_spool_exact_does_not_hide_integrity_errors[receipt]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "    expressions = [f\"{commit}:{path}\".encode(\"utf-8\") for commit in candidates]\n",
+          "new": "    expressions = [f\"{commit}:{path.split(':')[0]}\".encode(\"utf-8\") for commit in candidates]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_landed.py::test_batch_path_handling[colon]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_rescue.py",
+          "old": "        \"unproven_unit_details\": _unproven_unit_details(payload),\n",
+          "new": "        \"unproven_unit_details\": _unproven_unit_details(None),\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_unit_details_do_not_change_assessment_decisions",
+        "orchestrator/tests/test_check_branch_rescue.py::test_unit_details_do_not_change_rescue_rc_or_decision_inputs",
+        "orchestrator/tests/test_check_branch_rescue.py::test_real_checker_unlanded_spool_details[0]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_real_checker_unlanded_spool_details[2]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_rescue.py",
+          "old": "    if payload is None:\n        return result\n",
+          "new": "    if payload is None:\n        result[\"complete\"] = True\n        return result\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_missing_child_unit_details_never_claim_complete[timeout]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "            if receipt_registry.outcome == \"error\":\n                receipt_reason = receipt_registry.reason\n",
+          "new": "            if False:\n                receipt_reason = receipt_registry.reason\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_landed.py::test_spool_exact_does_not_hide_integrity_errors[receipt]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_rescue.py",
+          "old": "                layer.get(\"decisive\") is True\n                or (layer.get(\"layer\") == \"exact-tree-state\"\n                    and layer.get(\"outcome\") != \"not-applicable\")\n",
+          "new": "                layer.get(\"decisive\") is True\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_real_checker_unlanded_spool_details[0]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_real_checker_unlanded_spool_details[2]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "N12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_rescue.py",
+          "old": "                \"layer\", \"decisive\", \"outcome\", \"reason\", \"candidate_count\", \"candidate_limit\",\n",
+          "new": "                \"layer\", \"outcome\", \"reason\", \"candidate_count\", \"candidate_limit\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_unproven_details_are_bounded_and_count_all_reasons",
+        "orchestrator/tests/test_check_branch_rescue.py::test_real_checker_unlanded_spool_details[2]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_real_checker_unlanded_spool_details[0]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
