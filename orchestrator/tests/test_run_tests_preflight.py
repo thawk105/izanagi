@@ -1443,6 +1443,12 @@ def test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch(
     monkeypatch,
     capsys,
 ):
+    # Parallel shards may create untracked files; this case assumes no tree change.
+    fingerprint = RT._TreeFingerprint("a" * 64, (0, 0, 0, 0, 0))
+    monkeypatch.setattr(
+        RT, "_tree_and_submodules_fingerprint", lambda repo: fingerprint,
+    )
+
     def grant_budget(**kwargs):
         if kwargs.get("min_bytes") == 0:
             return LH.Admission.LOCAL, 500, "観測余裕=500 bytes"

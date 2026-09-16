@@ -23225,6 +23225,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 同じ変異 (gate policy open の `O_NONBLOCK` 削除) を変異 spec へ登録済み。回収経路が壊れれば
   この変異が再び walltime まで走り、期待 node と一致しない形で露見する。台帳は
   `output/insights/2026-09-07_t2195-policy-binding/mutation-ledger-final.json`。
+- **supersede: 2026-09-16** — 計算ノードで 4 条件の分離実験を行った結果、根本原因欄の「孫が job の stdout / stderr を掴んだまま残るため」は機序として確定できない。子が出力 fd を即座に (または 30 秒後に) 手放しても、子が 75 秒生きる間 job の会計終了は遅れた (`E − J` = 69.731 / 69.586 / 69.870 秒、子孫なしの統制は -0.076 秒、request 558/559/560/568.nqsv、bnode013)。**fd の保持は遅延の必要条件ではない。** ただし当時の機序 (FIFO で block した孫) は再現していないので反証ではなく、NQSV が session / process group / 追跡集合のどれを見ているかも未特定である (全記録で `sid == pgid`)。**D1684 の是正は撤回しない** — 所属分離と子孫終了を同時に変えており各要素の寄与は未分離である。一次資料は `output/insights/2026-09-16/t2622-compute-job-exit-hang/`。
 
 ### F854. 負例 patch の裸 directive が 2 site に重複し、実 patch 束縛 test が set() で重複を許していた [恒真ゲート] [テスト代表性]
 
@@ -26410,3 +26411,49 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   引く。`git grep -n "dir=_REPO" -- orchestrator tools` で同型の生成箇所を数える。
 - **判定の注意:** 被害者 test を `flaky_test_holds.py` へ登録して迂回しない。落ちているのは
   被害者であって原因ではなく、登録すると作業ツリー清浄の検査が受入から消える。
+
+### F999. 受入全走が自分の作業ツリーへ作る未 tracked scratch が、repo 状態の不変を assert するテストを落とす [テスト代表性] [計測汚染]
+
+- 事象: provenance 差分監査 wave の受入全走を 7 回投げ、テストまで到達した 6 回すべてで非帰属赤が出た
+  (1 回は shard の dispatch-infrastructure 障害でテストへ到達せず)。**落ちた node は毎回違い、
+  のべ 8 種類**。同じ file の単独走はいずれも緑。1 回目は 3 件
+  (`test_p3_b4_producer_auth_experiment.py::test_case_failure_records_aborted_and_remaining_cases_continue`、
+  同 `::test_disposable_tree_mutation_does_not_change_main_worktree`、
+  `test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`)、
+  2 回目は 1 件 (`test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops`)。
+  4 回目は `test_campaign::test_certified_writer_authorization_caller_inventory_is_closed`、
+  5 回目は `test_p3_b4_wiring_probe::test_source_and_test_are_the_only_non_output_worktree_changes`、
+  7 回目は `test_p3_b4_producer_auth_experiment` の 2 件 +
+  `test_t338_submission_gate_unit5::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink`。
+  **落ちる node が回ごとに違い、同じ file の単独走は緑**である (競走であって決定的赤ではない)。
+- 根本原因: 受入全走は 1 つの wave worktree で shard を並行に走らせる。`t316` 系のテストは repo 直下へ
+  `.t316-live-<8 文字>/` という **`.gitignore` の対象外**の scratch directory を作る。一方で、
+  `git status --porcelain -z --untracked-files=all` の出力 bytes が走行前後で変わらないことを要求する
+  テストが複数ある。前者が後者の観測窓に入ると後者が落ちる。
+  - `cap_oom` 族 (`_run_bounded_scope` を monkeypatch して `cap_oom` を返させる 2 つの双子テスト) は、
+    その後 **production が実 repository の指紋を before/after で取り、変化していれば fallback を拒否する**
+    分岐へ入る。期待した「ログインの余裕もキューも無いため、いまは実行できません」ではなく
+    「local 試行の前後で tree / submodule 状態が変化しました」が出る。実測は
+    `各状態出力 bytes (0, 0, 313, 0, 0) -> (51, 0, 313, 0, 0)` で、未 tracked が 1 件増えている。
+  - `ScratchTree` 族は `assert_repository_unchanged` が同じ理由で落ちる。
+- 帰属の判定: 同 wave の差分は `tools/check_ai_provenance.py` と
+  `orchestrator/tests/test_check_ai_provenance.py` だけで、**作業ツリーへ未 tracked path を作らない**
+  (受領証は共通 git-dir 配下で `git status` に現れない)。`output/pegasus-dispatch/` は `.gitignore`
+  対象なので dispatch 成果物も原因ではない。したがって非帰属である。
+- 恒久対応: **部分的。** 同 wave は `cap_oom` 族の双子テスト 2 件 —
+  `test_check_ai_provenance.py::test_provenance_headroom_short_queue_unavailable_cap_oom_stops` と
+  `test_run_tests_preflight.py::test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch`
+  — を、production の指紋採取を monkeypatch して周囲の churn から隔離した。前者を直した 3 回目の
+  受入で後者だけが落ち、族であることが確定したので同じ隔離を入れている。
+  **`ScratchTree` 族の 2 node (`test_p3_b4_producer_auth_experiment`) は手を付けていない**
+  (1 回目の受入でしか観測しておらず、2・3 回目では落ちていない)。本質的な是正は
+  「`t316` 系の scratch を repo 外へ出す」か「repo 状態の不変を要求するテストを一律に隔離する」の
+  どちらかで、main 全体のテスト隔離に当たるため別 wave の scope である。
+- **負荷との無関係を実測した。** 「非帰属赤の連発は load の下降局面を待って投げ直す」という既存の
+  処方は、この族には効かない。1〜5 走目は load 180 超・並行 wave 20 本超だったが、6・7 走目は
+  **load 2.77 / 2.26 / 2.05 の下降局面、同時走行中の受入 0 本**で投げ、それでも赤になった。
+  競走は機械負荷ではなく **1 つの worktree 内で並行する xdist worker 同士**なので、
+  機械が空いても窓は閉じない。**この族に対して投げ直しは有効な手ではない。**
+- 再発検知: 受入全走でこの族のいずれかの node が落ち、かつ同じ file の単独走が緑であること。
+  落ちる node が回ごとに変わることが競走の署名である。**「N 走完全一致」は flake の証拠にならない**
+  (`DW-O18`) が、本件は逆に **node が回ごとに変わる**ので決定的赤ではないと言える。
