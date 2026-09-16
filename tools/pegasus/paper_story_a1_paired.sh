@@ -71,12 +71,20 @@ if [[ "$V3_STUDY" -eq 1 ]]; then
   NON_CERTIFYING_SOURCE_RELATIVE_PATHS+=("orchestrator/calibrator/runner.py")
 fi
 
-if [[ "$POLICY_RELATIVE" == "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json" ]]; then
+if [[ "$POLICY_RELATIVE" == "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json" ||
+      "$POLICY_RELATIVE" == "orchestrator/campaign/paper_story_a1_paired.v3-sized.json" ]]; then
+  if [[ "$POLICY_RELATIVE" == "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json" ]]; then
+    SOURCE_CONTRACT_RELATIVE="orchestrator/campaign/paper_story_a1_source.v1.json"
+    SOURCE_AMENDMENT_RELATIVE="output/insights/2026-09-11/t2397-a1-source-amendment/README.md"
+  else
+    SOURCE_CONTRACT_RELATIVE="orchestrator/campaign/paper_story_a1_source.v2.json"
+    SOURCE_AMENDMENT_RELATIVE="output/insights/2026-09-17/t2590-a1-sized-source-amendment/README.md"
+  fi
   NON_CERTIFYING_SOURCE_RELATIVE_PATHS+=(
-    "orchestrator/campaign/paper_story_a1_source.v1.json"
+    "$SOURCE_CONTRACT_RELATIVE"
     "orchestrator/campaign/paper_story_a1_source.py"
     "patches/silo-backoff-fixed.patch"
-    "output/insights/2026-09-11/t2397-a1-source-amendment/README.md"
+    "$SOURCE_AMENDMENT_RELATIVE"
   )
 fi
 
@@ -447,12 +455,17 @@ source_paths = (
     "tools/pegasus/paper_story_a1_paired.sh",
     "orchestrator/calibrator/runner.py",
 )
-if policy_relative == "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json":
+if policy_relative in ("orchestrator/campaign/paper_story_a1_paired.v3-pilot.json",
+                       "orchestrator/campaign/paper_story_a1_paired.v3-sized.json"):
     source_paths += (
-        "orchestrator/campaign/paper_story_a1_source.v1.json",
+        "orchestrator/campaign/paper_story_a1_source.v1.json"
+        if policy_relative == "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json"
+        else "orchestrator/campaign/paper_story_a1_source.v2.json",
         "orchestrator/campaign/paper_story_a1_source.py",
         "patches/silo-backoff-fixed.patch",
-        "output/insights/2026-09-11/t2397-a1-source-amendment/README.md",
+        "output/insights/2026-09-11/t2397-a1-source-amendment/README.md"
+        if policy_relative == "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json"
+        else "output/insights/2026-09-17/t2590-a1-sized-source-amendment/README.md",
     )
 files = {}
 for relative in source_paths:
@@ -981,12 +994,18 @@ source_paths = [
 ]
 if v3_study:
     source_paths.append(os.environ["IZANAGI_A1_TERMINAL_RUNNER_RELATIVE"])
-if os.environ["IZANAGI_A1_TERMINAL_POLICY_RELATIVE"] == "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json":
+if os.environ["IZANAGI_A1_TERMINAL_POLICY_RELATIVE"] in (
+        "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json",
+        "orchestrator/campaign/paper_story_a1_paired.v3-sized.json"):
     source_paths.extend([
-        "orchestrator/campaign/paper_story_a1_source.v1.json",
+        "orchestrator/campaign/paper_story_a1_source.v1.json"
+        if os.environ["IZANAGI_A1_TERMINAL_POLICY_RELATIVE"] == "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json"
+        else "orchestrator/campaign/paper_story_a1_source.v2.json",
         "orchestrator/campaign/paper_story_a1_source.py",
         "patches/silo-backoff-fixed.patch",
-        "output/insights/2026-09-11/t2397-a1-source-amendment/README.md",
+        "output/insights/2026-09-11/t2397-a1-source-amendment/README.md"
+        if os.environ["IZANAGI_A1_TERMINAL_POLICY_RELATIVE"] == "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json"
+        else "output/insights/2026-09-17/t2590-a1-sized-source-amendment/README.md",
     ])
 source_paths = tuple(source_paths)
 driver_rc = int(driver_rc_raw)
@@ -1358,7 +1377,8 @@ fi
 DEPENDENCY_PREFIX="$GFLAGS_INSTALL_DIR;$GLOG_INSTALL_DIR"
 
 THIRD_PARTY_ARGS=()
-if [[ "$POLICY_RELATIVE" == "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json" ]]; then
+if [[ "$POLICY_RELATIVE" == "orchestrator/campaign/paper_story_a1_paired.v3-pilot.json" ||
+      "$POLICY_RELATIVE" == "orchestrator/campaign/paper_story_a1_paired.v3-sized.json" ]]; then
   THIRD_PARTY_SOURCE=${IZANAGI_A1_THIRD_PARTY_SOURCE_ROOT:?hydrated source root required}
   [[ "$THIRD_PARTY_SOURCE" = /* && ! -L "$THIRD_PARTY_SOURCE" ]] || refuse "unsafe third-party source root"
   THIRD_PARTY_ROOT="$DEPENDENCY_ROOT/fetchcontent"

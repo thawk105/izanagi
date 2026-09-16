@@ -291,24 +291,45 @@ wrapper からは起動できない。
   (§5 R-4 の「束縛していない量」に既記)。
 - cygnus は使わない (frozen/standby)
 
-### W-3. freeze v2 の生成側 — **producer が存在しない**
+### W-3. freeze v2 g1 候補の生成と人間承認手番 — **producer は実装済み、候補は保存 branch に生成済み**
 
-- **現状:** `s8b_ratified_freeze.py` は**検証側だけ**である。承認束縛・世代連鎖・launch 検証の
-  機構は揃っているが、`generation_number` を持つ v2 document を**書く経路が repo に無い**
-  (`generation_number` の非テスト出現は同 module の検証コードのみ)
-- `s8b_holdout_freeze.py generate` は v1 用で、floor/budget を埋める引数を持たない
-- **path 規約は決まっている:** `output/s8b-freeze/holdout_freeze.v2.g{N}.json`。
-  同一 path への上書きは凍結の履歴不変条件 (式 2) を破るため、**別 path への一度きりの追加**で行う。
-  承認・世代 pointer の namespace (`approvals/`, `active/`) は未作成であり、これは設計どおり
-  (ファイルを作ること自体が「発効」)
-- **必要な wave:** v2 候補 document の producer + 人間承認の受領証発行
+- **現状 (2026-09-17):** `s8b_holdout_freeze.py generate-v2-candidate --floor-result <official result.json>
+  --budget <budget 文書>` が v2 g1 候補の producer である ([T-750] 裁定 (a)+(a)、2026-08-11 着地)。
+  official floor result と sibling manifest・journal・launch certificate、共有 admission 台帳
+  (v5 attempt registry の evidence を含む)、既承認 budget を検証し、未発効の候補を create-only で書く。
+  承認 authority は module 内 pinned literal `BUDGET_APPROVAL_SHA256` で、
+  `output/s8b-freeze-budget-approvals/g1.json` (2026-09-05 承認) と一致している。
+- **floor protocol は index authority で解決する** (D460 型)。official 走行と同じ
+  `resolve_current_floor_protocol` が版付き protocol (`output/s8b-freeze/floor-protocols/…`) を選び、
+  固定 `floor_protocol.json` は index の anchor として残る。旧実装の literal read は ccbench pin 前進後の
+  official result を `protocol_sha256` 不一致で拒否していた。
+- `--budget` には承認文書全体でなく、その `budget` と canonical 一致する budget 本体を渡す。
+  本 wave は fixture 規約に合わせ `output/s8b-freeze-budget-inputs/g1.json` に置いた (末尾改行なし)。
+- **path 規約は 2 段ある。** 候補 (未発効) は producer が固定 path
+  `output/s8b-freeze-candidates/holdout_freeze.v2.g{N}.json` に書く (走査除外ではない)。
+  世代文書は `output/s8b-freeze/holdout_freeze.v2.g{N}.json` で、批准側はその導入 commit G が
+  「非 merge・親 == 候補の `frozen_at_head`・`AI-Agent` trailer 付き」であることを要求する。
+  approvals/・active/ は人間 commit (`AI-Agent: none`、非 merge、X^ == A) で作り、file を作ること自体が発効。
+  `output/s8b-freeze/` への直接 Write は hook が誤操作抑止で拒否する。
+- **入力の順序は W-2 の一方向順序 (D2077) のとおり** — restore した official result を commit してから
+  生成する。成果物を持つ checkout では以後 official 床値の起動証明 (clean scan) が赤になる。
+- **候補の所在:** 保存 branch `freeze-g1-chain-t2724` (base = main、fix commit → 入力 commit →
+  候補 commit)。main には載せていない (載せる = D2077 step 4 の打ち切り決定であり人間裁定)。
+  一次資料 `output/insights/2026-09-17/t2724-freeze-v2-g1-candidate/README.md`、裁定パッケージは同 `package.md`。
+- **残る手番:** (a) 打ち切り = chain の main 取り込み、(b) 世代導入 commit G → approval A → pointer X の
+  人間 commit、(c) 床の採否 (この 1 走行の床は両 holdout とも配線下限 0.03 × stock 中央値で決まった)。
+  [T-750] package の残余 (P-1 pinned literal の恒久形、P-3 批准 proof chain に budget authorization field
+  が無い構造) は別管理のまま。
 
-### W-4. oracle manifest の production 配線
+### W-4. oracle manifest の production 配線 — **CLI は実装済み、spec 承認で止まる**
 
-- `s8b_oracle_manifest.build_manifest` は実装済みだが、**呼び出しているのはテストだけ**である。
-  CLI も production caller も無い
-- `s8b_oracle_driver.py run-block` は `--manifest` を必須で取るため、manifest を作る経路が
-  無いままでは oracle 実走に入れない
+- `s8b_oracle_manifest.py build-approved --output <path>` が production の呼出し入口で、active ratified
+  freeze と approved spec だけから manifest candidate を作る ([T-750] 単位 B)。実行主体は operator。
+  出力先は `output/s8b-oracle-manifest-candidates/` 配下に固定される。wrapper script は新設しない。
+- 現在は active freeze が無く `no-active-ratified-freeze` で拒否する。active 成立後も
+  `s8b_oracle_spec.APPROVED_SPEC_SHA256 = None` のため、人間が reviewed spec を承認して定数を置くまで
+  `no-approved-spec` で fail-closed する ([T-750] P-1 の手番)。
+- `s8b_oracle_driver.py run-block` は `--manifest` を必須で取る。CLI の存在は oracle 実走の認可を意味しない。
 
 ### W-5. oracle 実走
 
@@ -507,7 +528,7 @@ admission が次の ticket を渡さない。つまり **D739 の復帰機構は
 |---|---|
 | R-1 (順序の択一) | **決着。** [T-748] で第 1 世代のうちに実測する方針を維持 |
 | R-2 (verify CLI の罠) | **決着 = (a)。** [T-749] として実装済み (worklog 402) |
-| R-3 (W-3 + W-4 の分割) | **未裁定。** [T-750] として再裁定待ち。統合 wave の段 3 が producer identity と budget authority の 2 点を新たに出した |
+| R-3 (W-3 + W-4 の分割) | **裁定済み・実装済み。** [T-750] は producer identity・budget authority とも (a) で裁定し、2026-08-11 に producer と manifest CLI を実装した (worklog 405 / 417)。2026-09-17 に official result から g1 候補を保存 branch へ生成した (W-3)。残るのは打ち切り・候補採用・A/X の人間手番と reviewed spec の承認。[T-750] package の P-1 / P-3 の残余は別管理 |
 | R-4 (toolchain 前提) | **決着 = (B) ([T-747])、実装済み (2026-08-11、[T-783])。** 束縛検査は pilot / official を問わず build 前に発火する。残る穴は下記「束縛していない量」 |
 | R-5 (crash 復帰の再生成) | **優先順位は決着 (D510 決定4)、reuse 形状も決着 (D672)。共通 core と 8c facade は実装済み ([T-1505] 2026-08-24)。残り 3 点は未裁定。** 詳細は下記「R-5 の技術確認」と「R-5 の実装状況」 |
 

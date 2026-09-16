@@ -1835,6 +1835,76 @@ def test_v2_candidate_rejects_worktree_only_floor_protocol_master_seed_mutation(
     assert not output.parent.exists()
 
 
+def test_v2_candidate_build_and_generate_versioned_protocol(tmp_path, monkeypatch):
+    from orchestrator.campaign import s8b_floor_campaign
+
+    fixture = V2FIX.candidate_repository(tmp_path, M, versioned_protocol=True)
+    root = fixture["root"]
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    record = s8b_floor_campaign.resolve_current_floor_protocol(root=root)
+    assert record.path != M.FLOOR_PROTOCOL_REL
+    document = M.build_v2_g1_candidate(
+        floor_result_path=fixture["result_rel"],
+        budget_path=fixture["budget_rel"], root=root,
+    )
+    assert document["floor_protocol"] == {
+        "path": record.path,
+        "sha256": hashlib.sha256(record.raw_bytes).hexdigest(),
+    }
+    assert document["floor_source"]["path"].split("/")[-2].split("-")[-1] == (
+        FC.canonical_protocol_sha256(record.document)[:8]
+    )
+    assert record.path not in {
+        entry["canonical_path"] for entry in document["measurement_closure"]
+    }
+    generated = M.generate_v2_g1_candidate(
+        floor_result_path=fixture["result_rel"],
+        budget_path=fixture["budget_rel"], root=root,
+    )
+    assert generated == document
+    assert (root / M.V2_CANDIDATE_REL).read_bytes() == V2FIX.canonical_bytes(document)
+
+
+def test_v2_candidate_rejects_legacy_hash_for_versioned_protocol(tmp_path, monkeypatch):
+    fixture = V2FIX.candidate_repository(tmp_path, M, versioned_protocol=True)
+    root = fixture["root"]
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    result_path = root / fixture["result_rel"]
+    result = json.loads(result_path.read_bytes())
+    legacy = json.loads((root / M.FLOOR_PROTOCOL_REL).read_bytes())
+    legacy_sha256 = FC.canonical_protocol_sha256(legacy)
+    assert result["protocol_sha256"] != legacy_sha256
+    result["protocol_sha256"] = legacy_sha256
+    result_path.write_bytes(V2FIX.canonical_bytes(result))
+    with pytest.raises(M.FreezeError, match="floor result.protocol_sha256 が解決した protocol hash と不一致"):
+        M.build_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
+        )
+
+
+def test_v2_candidate_rejects_worktree_only_versioned_protocol_seed_mutation(
+        tmp_path, monkeypatch):
+    from orchestrator.campaign import s8b_floor_campaign
+
+    fixture = V2FIX.candidate_repository(tmp_path, M, versioned_protocol=True)
+    root = fixture["root"]
+    monkeypatch.setattr(M, "BUDGET_APPROVAL_SHA256", fixture["approval_sha256"])
+    record = s8b_floor_campaign.resolve_current_floor_protocol(root=root)
+    protocol = json.loads(record.raw_bytes)
+    protocol["master_seed"] += "-worktree-only"
+    changed_raw = V2FIX.canonical_bytes(protocol)
+    assert changed_raw != record.raw_bytes
+    (root / record.path).write_bytes(changed_raw)
+    with pytest.raises(M.FreezeError, match="floor protocol を index authority で解決できない"):
+        M.generate_v2_g1_candidate(
+            floor_result_path=fixture["result_rel"],
+            budget_path=fixture["budget_rel"], root=root,
+        )
+    assert not (root / M.V2_CANDIDATE_REL).exists()
+    assert not (root / M.V2_CANDIDATE_REL).parent.exists()
+
+
 def test_v2_candidate_build_and_generate_synthetic_g1(tmp_path, monkeypatch):
     fixture = V2FIX.candidate_repository(tmp_path, M)
     root = fixture["root"]
