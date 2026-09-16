@@ -1242,6 +1242,22 @@
   既存の恒久対応 (何を模擬したか・実差分との差を書く) は模擬と実差分の対比を想定していたが、
   **子の実測を親が反証するとき、親が使った入力の型が実型と一致するかを確かめる**義務は
   書かれていなかった。
+
+- **再発: 2026-09-16** — [T-1232] wave。段 1 brief で 2 つの前提を、命題と違う対象から導いた。
+  (1) producer が failure-only report を実際に publish する例として
+  `orchestrator/tests/test_p3_autonomous_workload_trial.py` の
+  `test_registered_formal_noncertifying_build_crash_is_indeterminate` を挙げたが、このテストは
+  `assert_autonomous_trial_completeness`・`assert_autonomous_trial_execution_digest_chain`・
+  `layer3_report.render` (admitted を返す fake)・`assert_campaign_layer3_chain` をすべて monkeypatch で
+  無効化しており、**実出力の証人にならなかった**。(2)「root を省くと失われるのは path identity 束縛だけ」と
+  結論したが、読んだのは `assert_campaign_layer3_chain` の失敗 cell 区間だけで、その手前で走る
+  `verify_s8c_cross_binding` の build population 要件を含めていなかった。実際には campaign identity を持つ
+  失敗 cell は **root を与えても** cross-binding が落とす。いずれも読解自体は正確で、
+  **読解対象が命題と違っていた。** 検出は段 2 の codex plan で、段 3 の敵対レンズ 2 本も独立に同じ 2 点を
+  指摘し、親が現物で裏取りして段 4 裁定で訂正した。brief は実測 1〜6 を「source 読解であって実走ではない」と
+  明記していたが、**テストを証拠に挙げるときにその検証機構が無効化されていないかを確かめる手順**は
+  書いていなかった。恒久対応は既存のまま (再発検知行どおりレンズに攻めさせる経路が機能した)。
+  逐語は `output/insights/2026-09-16/t1232-rootless-failure-report/verbatim/s4-ruling.md` §2。
 ### F30. 凍結成果物を触る wave で `FROZEN_MANIFEST` を見落とした [手順漏れ]
 
 - 事象: 同 wave で、S-1 成果物の bytes を変える設計を検討しながら、
@@ -1326,6 +1342,23 @@
   F30 は「成果物を bytes で pin している台帳」を数え落とす型だったが、本件は**逆向き** —
   **成果物 JSON の中に埋まった source pin** である。段 3 の敵対レンズが検出し、親が独立に裏取りした。
   pin 閉包は成果物側 (`output/`) も検索対象に含める。
+
+- **再発: 2026-09-16** — [T-1232] wave。実装子が新しい test helper `_failure_only_producer` の中で、
+  coder build authority の低レベル発行 helper `add_coder_build_authority_argument` を直接呼んだ。
+  `orchestrator/tests/test_p3_build_authority_cli.py` の
+  `test_tracked_python_coder_authority_ast_closure_is_exact` は、この helper の呼び出し箇所を
+  **tracked な Python 全体の AST で数え、許可台帳 `_LOW_LEVEL_ISSUER_ALLOWLIST` と完全一致を要求する**。
+  台帳に無い呼び出し箇所が 1 つ増えたので、**受入全走で初めて赤になった** (1 failed / 24109 passed)。
+  **pin の key は file path ではなく呼び先の helper 名であり、しかも走査範囲は repo 全体である。**
+  段 1 の pin 閉包は編集面の path (`autonomous_trial_completeness.py`) で引いたので hit しなかった。
+  段 6 の焦点走は `DW-O26` どおり変更した production symbol を参照する consumer test を集めたが、
+  この検査は本 wave の symbol を参照せず**呼び先 helper 名で全域を走査する**ので consumer 集合に入らなかった。
+  段 6 レビュー 2 本も実装子の報告も拾わなかった。今回の新しい角度は、**wave が変える path や symbol ではなく、
+  wave が新たに呼ぶ callee の名前を key にする全数 pin** であること。直し方は許可台帳へ行を足さず
+  (authority 発行箇所の許可集合を増やさない)、既に台帳に載っている
+  `test_p3_autonomous_workload_trial._coder_authority()` の流用へ置き換えた。恒久対応は既存のまま
+  (`DW-O09` の「path 以外を key にする pin も key 側で検索」に、新たに足した呼び出しの callee 名も含まれる)。
+  逐語は `output/insights/2026-09-16/t1232-rootless-failure-report/README.md` §9。
 ### F31. 裁定要約が元 decision の制約を落とし、迂回できたつもりで同じ閉包へ戻った [手順漏れ]
 
 - 事象: worklog 2026-07-21 (5) の [T-005] 裁定要約は「[T-068] の格下げを採れば再発行そのものが
@@ -10434,6 +10467,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `test_headroom_short_queue_unavailable_cap_oom_stops_without_dispatch` (4/10)、
   `test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink` (3/10)、
   `test_provenance_headroom_short_queue_unavailable_cap_oom_stops` (2/10)、ほか 5 件が各 1 回。
+
+- **再発: 2026-09-16** — `共有木の事後検査に失敗: source/main 共有木の観測 bytes が変化した` を
+  再び踏んだ。親は走行中に repo へ 1 byte も書いていない。原因は 2026-08-25 の 2 件と同じ
+  **並行 wave の churn** である (この機体では wave worktree が 89 本)。
+  **本エントリの 2026-08-25 追補 (対象 commit だけを持つ独立 clone を `--source-repo` へ渡す) を
+  適用していれば防げた。** 適用しなかったのは、追補が予算超過で reference へ入らず
+  本台帳だけに在るためである。追補が実務へ伝わっていないことの実例として記録する。
 ### F301. 編集対象ファイルを bytes pin している側を数え落とした [凍結 pin] [手順漏れ]
 
 - 事象: 受入全走で `test_s8b_oracle_manifest.py` の 2 node が
@@ -12116,6 +12156,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   stdout (pytest 標準の `short test summary info` セクションと ERROR excerpt) を
   読まないと区別できない** (ledger の `failed_nodes` だけでは FAILED/ERROR の別が
   失われる)。
+
+- **再発: 2026-09-16** — [T-2125] wave の親が、閉包 member (`artifact_admission.py` / `build_admission.py` / `wal.py`) を変異させた本走の結果を、核を差し引く前に「8/8 KILLED・期待 node 完全一致」と記録した。`DW-M08` に従って probe の観測 node 集合をそのまま期待 node に再登録していたため、**完全一致は核を含んだ集合どうしの一致であり、核の有無を何も否定しない。** 段 8 で F358 を読み直して交差を取ったところ、核は 5 node (`test_layer3_report.py` の certifying 系、原因 `contract-loader-drift`)、delta が空の変異は 0 本で、KILLED 判定自体は正しかった (M3・M4・M7 は delta = 1 で狙った node ちょうど)。land 前に捕捉した near miss である。**再登録で期待 node を観測集合に合わせる手順は、F358 の差し引きを代替しない。**
 ### F359. codex 子は `.git` が read-only で `git merge` を起動できない [手順漏れ]
 
 - 事象: 実装面の main 取り込みを Codex `role=author` の子に投げたところ、
@@ -19309,6 +19351,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 波及: 本件の hold は先行走行の自然終了で撤去された。手動削除も `qdel` もしていない
   (`qdel` は F47 の submission-disabled を武装させる)。
 
+
+- **再発: 2026-09-16** — [T-1957] の段 6 で、親が実装 commit 直後の provenance full 監査を背景投入し
+  (これも同一 worktree から計算ノードへ dispatch する)、それが走っている間に変異 harness を起動した。
+  harness は collection 段で監査側の `pending-qsub` orphan hold を検出して rc=2 で止まり、
+  orphan-stop sidecar を残した。変異は 1 件も注入されていない (`source_state: unchanged`)。
+  監査の自然終了で hold は消え、sidecar は復旧条件 (対象 job の qstat 不在・dirty path なし・
+  HEAD 一致・clean tree) を確かめてから撤去した。**種別の違う dispatch (provenance 監査) も
+  直列化の対象である**という本エントリの恒久対応を、変異 harness の起動直前に確かめなかった。
 ### F657. 環境の偶然への依存を消す是正が、別の環境依存を持ち込んだ [テスト代表性] [恒真ゲート]
 
 - 事象: process 全体の fd 件数比較をやめ、clean な子 process 内で「開始前後の全 fd identity
@@ -22853,6 +22903,13 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本件では pid が 9 分 39 秒生存しており、`.done` は 10 分前のものだった。
   関連: 完了は `.done` と exit code だけで判定するが、**その `.done` が今回の走行のものか**は別に確かめる。
 
+
+- **再発: 2026-09-16** — [T-1957] の変異 probe で、orphan-hold 中断走 (attempt 2) が書いた
+  `mutation-probe.done` (rc=2) を残したまま、launcher を phase だけで媒介変数化して
+  attempt 3 を**同じ path へ**再投入した。親は稼働中の attempt 3 を「rc=2 で終了」と 1 度誤読し、
+  台帳の記録件数 1/16 と整合しないことから `.done` の mtime (attempt 2 の時刻) と pid 生存を
+  突き合わせて気づいた。本エントリの再発検知がそのまま効いた。本走は `.done` を phase 別の
+  新 path にして投入した。
 ### F831. 変異走行中に親が repo を編集し、固定 HEAD 束縛で harness が全損した [手順漏れ]
 
 - 事象: 変異 harness が baseline を終えて変異へ進んでいる最中に、親が
@@ -25268,6 +25325,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **本 wave の走行は同時に 3 本の受入が走り、さらに終了しない job が資源を握っていた。**
   同じ shard の junit time は 602.867 秒で通常の倍であり、**赤の帰属判定だけでなく
   wall の測定としても無効**と判定して受入ごと投げ直した。
+
+- **再発: 2026-09-16** — [T-2117] wave (test 1 file のみ変更) の受入で 2 走続けて同型が出た。
+  1 走目 (tip `7d19ffbe4`) は 3 error (t1259 の `git ls-files --others` 30 秒 timeout 2 件、
+  `test_s8c_preregistration_predicates.py` の real-repo lock 期限超過 1 件)、単独再走 8 passed。
+  2 走目 (tip `6ae8d06da`) は **34 error** (t1259 が 29 件、s8c predicates が 5 件。原因は
+  `git ls-files` / `git archive` の 30 秒 timeout と real-repo lock 期限超過)、同 tip の 2 file
+  単独再走 (1578.nqsv) は **269 passed / 121.41 秒 / rc=0** で非再現。2 走目の投入時は同時受入が
+  他に 1 本だったが、走行中に増えて終了時は 3 本だった。恒久対応は既報のまま変えず、
+  timeout 拡大・stub 化・除外・gate 新設はしていない。
 ### F946. 修正可能な検査失敗で作業を終了し、ユーザーへ再開を要求した [手順漏れ] [誤前提]
 
 - 事象: insights整理のauthorが実行ログ検査で未受理になり、親は原因の切り分けや安全な再試行をせず正式停止した。
@@ -26759,3 +26825,122 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   超過したため、意味を変えない縮約で余白を作って事実訂正だけを収容した。
 - 再発検知: 変異 probe が `PARSE_ERROR` を返したら中継上限と即断せず、job stdout の
   `when=collect` 行数を数える。0 件でなければ本型である。
+
+### F1008. 移送用コピーへ必須 key を補うと、exact key 集合の検査が迂回されて欠損 record を受理した [恒真ゲート]
+
+- 事象: B-4 binary の配置経路 `b4_binary_record.place_record` は、portable record のコピーの
+  `binary` と `store_path` を絶対 path へ書き換えてから `store_binaries` へ渡す。実装は
+  `placed["binary"] = str(source)` を元 record に `binary` key があるか確かめずに実行していた。
+  `s8b_binary_admission.py:343-346` は portable record の exact key 集合を要求するので、
+  `binary` を欠く record は本来拒否される。ところが下流の検査は**補修後のコピー**を見るため、
+  欠損 record から配置物と成功 relpath が生まれた。段 6 の敵対レビュー (正しさ・受理集合レンズ) が
+  実走前に見つけた。
+- 根本原因: 形の検査 (exact key 集合) と、その検査へ渡す前の変形 (path の書き換え) が別の関数にある。
+  変形側は「既存 key の値を差し替える」つもりで書いたが、dict への代入は key の追加も兼ねるので、
+  **差し替えと補修の区別が消えた。** 他の必須 field は変形の前に読まれて欠落すれば `KeyError` に
+  なっていたので、読まれずに代入だけされる `binary` の 1 つだけが穴になった。
+- 恒久対応: 置換の前に元 record の `binary` を参照して欠落を `KeyError` にする
+  (`orchestrator/campaign/b4_binary_record.py` の `place_record`)。負例テスト
+  `orchestrator/tests/test_b4_binary_record.py::test_place_rejects_missing_binary_key` が
+  store 未到達と配置物なしまで確かめ、変異 M8 (guard 行の削除) がそのテストだけを単一理由で殺すことを
+  変異 matrix で確認した (`output/insights/2026-09-16/t2697-b4-binary-placement/mutation-final-result.json`)。
+- 再発検知: 検査へ渡す前にコピーを変形する経路では、**変形で触る key ごとに「元に無い場合」の負例**を
+  置く。敵対レビューのレンズに「変形が検査対象の形を補修していないか」を入れる。
+
+### F1009. 実データ走で置いた ignored な配置物が、ignore 行を消す変異の下で untracked として現れ、変異走行全体を中止させた [手順漏れ] [計測汚染]
+
+- 事象: 親が B-4 binary の実データ 1 走で 701KB の binary を `output/env/pegasus/binaries/<sha>` へ置いた。
+  `.gitignore` の `output/env/*/binaries/` に当たるので `git status --porcelain --untracked-files=all` は
+  空だった。その後の変異 probe 走は M1〜M6 を完了したが、M7 (その ignore 行を消す変異) を適用した時点で
+  配置物が untracked として現れ、`mutation harness aborted: runner/test 実行前に untracked file を検出` で
+  全体が中止した。配置物を退けて M7・M8 だけを再走し、本走を別に投入した。
+- 根本原因: 変異 harness の走行前 clean-tree 検査は**変異適用後の木**を見る。ignore 規則そのものを
+  変異させると、平時は不可視の ignored file が検査対象に入る。F134 の再発検知
+  (投入前に porcelain が空であることを確かめる) は変異適用前の木を見るので、この経路をすり抜ける。
+- 恒久対応: memory `mutation-discipline` に「ignore 規則を変異させる spec を走らせる前に、その規則に
+  当たる実 file を worktree から退ける」を追記した。
+- 再発検知: 変異 spec の replacement に `.gitignore` が含まれるとき、その規則に当たる実在 file を
+  `git ls-files --others --ignored --exclude-standard` で数え、0 件でなければ投入前に退ける。
+
+### F1010. 段 1 が「同種の物の既存の置き場」を production コードで引かず、plan が既存規約と二重化する新 namespace を提案した [手順漏れ]
+
+- 事象: B-4 binary の配置規則を決める wave で、段 2 plan は新しい namespace `output/b4-binaries/<sha256>` を
+  提案し「campaign 軸でも env 軸でもない実験補助 store」と位置づけた。ところが
+  `s8b_floor_campaign.py:7669` は既に同じ種類の物を `env_scope_dir(env_tag)/binaries/<sha>` へ置いていた。
+  親はこれを段 2 投入の**後**に見つけ、plan 子の prompt には間に合わなかった。段 3 レンズ B へ射影して
+  突き合わせさせ、段 4 で既存規約側を採って回収した。採っていれば、依頼が禁じた一般化 (新分類の新設) と
+  同種の物の置き場の二重化が起きていた。
+- 根本原因: 段 1 の閉包は「依頼の対象 path を pin する台帳・test」(`DW-O09`) と「依頼の性質で
+  decisions / failures / archive を検索する」(`DW-S01`) を課すが、**「依頼が作ろうとしている物と同じ種類の物を、
+  既存 production コードがどこへ置いているか」を引く義務は無い。** 親は消費側 (`floor_pair_driver`) から
+  辿ったので、producer 側の既存の置き場に後から当たった。
+- 恒久対応: memory `stage1-search-existing-home-for-same-kind` に「配置・命名・置き場を決める依頼では、
+  同種の物を既に置いている production の呼出し (`store_root` / `*_dir(` / `Path(...) /` の組み立て) を
+  段 1 で引き、brief の実アンカー表へ入れる」を書いた。段 3 の敵対レンズへ親の後発実測を射影する既存手順
+  (`DW-S03`) が本件を回収したことも併記する。
+- 再発検知: 段 2 plan が新しい directory・namespace・分類を提案したら、親は段 4 の前に
+  その置き場の同種の既存例を production で grep する。
+
+### F1011. 変異 wrapper が作る使い捨て worktree は submodule が未初期化で baseline が全滅する [手順漏れ]
+
+- 事象: `tools/mutation_worktree.py --commit <commit>` が作った使い捨て worktree で
+  baseline が `27 errors` になり、harness が
+  `baseline が緑でないため production write を開始しない: status=PARSE_ERROR` で中止した。
+  失敗本文は `ValidationError: submodule is not initialized:
+  external/ccbench/third_party/shirakami`。同じ spec・同じ runner が、submodule を初期化した
+  wave worktree では baseline PASSED で完走している。
+- 根本原因: `DW-C01` は「全新規 worktree を
+  `python3 tools/dev_wave_submodule_init.py --worktree <ABSOLUTE>` で再帰初期化する」と定めるが、
+  wrapper は worktree を**自分で作る**ため、親がその存在を知る前に harness が走り出す。
+  親が初期化を挟む隙が手順上に無い。
+- あわせて `--resume` は baseline を再走しない (`baseline=0 run(s)`)。前回の `PARSE_ERROR` を
+  そのまま使うため、container を初期化してから resume しても回復しない。
+- 恒久対応: `DW-C01` の初期化 tool を**wrapper が保持した container**
+  (`<scratch-root>/.izanagi-mutation-worktree/repo`) へ当て、`--resume` ではなく
+  `tools/mutation_harness.py --repo <container>` を**直接**起動する。
+  container は wrapper が中止時に保持するので作り直しは要らない。
+  DW-M05 が定める harness の固定 HEAD 束縛・`flock` 単一走行・signal 復元はこの経路でも効く。
+- 再発検知: baseline の `status` が `PARSE_ERROR` で、job stdout に
+  `submodule is not initialized:` が literal で出る。
+
+### F1012. 継承された signal 無視設定が signal 依存の fixture を無効化し、テストは緑のまま意図した経路を 1 度も検査しなかった [テスト代表性] [恒真ゲート]
+
+- 事象: 新規テストの `probe_error` 対照 2 件が、login node では緑だが Pegasus 計算ノードへ
+  dispatch すると `assert 0 == 2` で赤になった。赤の内容は「production 断片が `exit 2` へ
+  入らなかった」であり、receipt は `status=available / reason=available / rc=0` だった。
+  **login node の緑は「経路を検査して通った」ではなく「意図した経路に一度も入らなかった」**
+  を意味していた。
+- 根本原因: fixture の偽計測コマンドが `os.kill(os.getpid(), signal.SIGTERM)` で自分を殺し、
+  判定器の `rc < 0` → `probe-signal` → `probe_error` を作ることに依存していた。
+  **SIGTERM の無視設定 (SIG_IGN) は exec を越えて継承される。** その設定を持つ実行環境では
+  kill が何も起こさず、fixture は次の行へ進んで正常な出力を書き rc=0 で終わる。
+  結果として `probe_error` ではなく `available` が観測され、停止を期待する assertion が外れる。
+- 恒久対応: 自己終了を SIGKILL へ替えた。SIGKILL は無視・捕捉・ブロックのいずれもできないため、
+  親 process の signal 処理設定に依存しない。期待値 (断片が rc=2 で止まること) は緩めていない。
+  一般則は D2073 ではなく本項に置く —
+  **テスト fixture が process の終了手段に依存するとき、その手段が継承される設定で無効化されないか
+  を確かめる。** 無視できる signal を fixture の主機構にしない。
+- 再発検知: 修正前後の対照を login node で取った。親 Python に `SIGTERM=SIG_IGN` を設定すると
+  修正前は同じ本文で 2 件赤・receipt `available`、修正後は同じ条件で 2 件緑になる。
+  構造的には、変異 harness の baseline を計算ノードへ dispatch して走らせることが検出者である
+  (login node の実行だけでは検出できない)。DW-O16 の「PATH 構築・interpreter 解決・
+  外部 command 選定など実行環境に依存する実装は、レビュー通過だけで closed とせず実機で
+  動かすまで確かめる」が、**signal 処理設定にも及ぶ**ことを本件が示した。
+
+### F1013. 指定の走査器が緑でも別 gate の候補集合には当たる [恒真ゲート] [手順漏れ]
+
+- 事象: 段 7 で `docs/dev-wave/core.md` DW-S07 が指定する三軸語走査器
+  (`python3 -m orchestrator.campaign.s8b_holdout_freeze search`) を実行し rc=0 (検出なし) を得て
+  記録を commit した。**受入全走がその commit を原因とする 45 件の赤を返した** —
+  `test_s8b_oracle_driver.py` 40 件と `test_s8b_floor_campaign.py` 5 件が
+  `FreezeError: holdout hit 2 件` で落ちた。
+- 根本原因: 収容した変異 harness の生出力 2 本が pytest の収集一覧を丸ごと抱えており、
+  その中の test 関数名が `s8b_holdout_freeze._assert_search_pass` の conjunction に当たった。
+  **同じ module の `search` サブコマンドと、t080 e2e が走らせる `_assert_search_pass` は
+  候補集合が同じではない。** 前者の緑は後者の緑を含意しない。
+- 恒久対応: 機械が生成した大きな出力を insight へ入れるときは、生出力をそのまま収容せず、
+  **必要な field だけを抜いた派生形にして、生出力は repo 外に残し sha256 と byte 数で引用する。**
+  派生形に検出語が残っていないことを機械で確認する。本件では 418,586 bytes と 466,299 bytes の
+  生出力を 26,009 bytes の派生台帳へ替え、baseline・各変異の期待/観測 node・各種 hash は保持した。
+- 再発検知: 受入全走が検出者である。**走査器 1 本の緑を全 gate の緑と読まない。**
+  記録に「走査器 rc=0」と書くときは、その走査器の候補集合が何であるかを併記する。

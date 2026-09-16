@@ -1,0 +1,637 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 2700,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-missing]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-missing]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1957.m01",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        raw_trial = {**raw_trial, \"n\": raw_trial.get(\"n\", 2)}\n        _exact_keys(raw_trial, _TRIAL_KEYS, label=f\"{label}[{index}]\")\n",
+     "old": "        _exact_keys(raw_trial, _TRIAL_KEYS, label=f\"{label}[{index}]\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-bool-false]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-bool-true]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-float]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-tail-float]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-bool-false]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-bool-true]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-float]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-tail-float]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1957.m02",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        if not isinstance(n, (int, float)):\n",
+     "old": "        if type(n) is not int:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-one]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-one]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1957.m03",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        if n < 1:\n",
+     "old": "        if n < 2:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-negative]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-one]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-zero]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-negative]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-one]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-zero]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1957.m04",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        if False:\n            _fail(\"field\", f\"{label}[{index}].n must be at least 2\")\n",
+     "old": "        if n < 2:\n            _fail(\"field\", f\"{label}[{index}].n must be at least 2\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-cell-split]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-holdout-split]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-cell-split]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-holdout-split]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1957.m05",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "    if False:\n        _fail(\"field\", f\"{label} n differs across cells\")\n",
+     "old": "    if len({item.n for item in trials}) != 1:\n        _fail(\"field\", f\"{label} n differs across cells\")\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-holdout-split]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-holdout-split]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1957.m06",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "    if any(len({item.n for item in trials if item.holdout == holdout_key}) != 1 for holdout_key in HOLDOUTS):\n",
+     "old": "    if len({item.n for item in trials}) != 1:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-cell-split]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-holdout-split]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-cell-split]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-holdout-split]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_six_cell_n_round_trip"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1957.m07",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        trials.append(TrialSpec(trial_id, arm, holdout, campaign_id, generations, 2))\n",
+     "old": "        trials.append(TrialSpec(trial_id, arm, holdout, campaign_id, generations, n))\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_independently_rederives_historical_arm_execution[missing]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_independently_rederives_historical_arm_execution[wrong-digest]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_independently_requires_exact_rederived_launch_admission[missing-report]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_independently_requires_exact_rederived_launch_admission[run-start-mismatch]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_lifecycle_requires_origin_binding_and_run_plan_digest_iff[False]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_lifecycle_requires_origin_binding_and_run_plan_digest_iff[True]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_projects_identical_terminal_bytes_in_all_json_boundaries[False]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_projects_identical_terminal_bytes_in_all_json_boundaries[True]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[arm-forged-arm]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[campaign_id-forged-campaign]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[holdout-forged-holdout]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[manifest_sha256-0000000000000000000000000000000000000000000000000000000000000000]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[measurement_head-0000000000000000000000000000000000000000]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_registered_run_rejects_one_missing_digest",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_cell_descriptor_that_differs_from_arm_input",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_null_or_open_origin_binding_projection[None]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_null_or_open_origin_binding_projection[origin_binding_record1]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_start_run_root_outside_report_parent",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_report_argument_must_be_sibling_report_json",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_runs_digest_chain_once_per_registered_trial",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_v3_has_no_certifying_issuance_branch",
+    "orchestrator/tests/test_trial_registry.py::test_admit_registered_formal_noncertifying_validates_freeze_and_returns_binding",
+    "orchestrator/tests/test_trial_registry.py::test_bind_trial_arm_issues_exact_three_field_projection",
+    "orchestrator/tests/test_trial_registry.py::test_exploratory_gate_uses_head_registry_when_working_file_is_missing",
+    "orchestrator/tests/test_trial_registry.py::test_formal_acceptance_rejects_noncooperating_registry_rebind_without_receipt[parent-parent]",
+    "orchestrator/tests/test_trial_registry.py::test_formal_acceptance_rejects_noncooperating_registry_rebind_without_receipt[target-path]",
+    "orchestrator/tests/test_trial_registry.py::test_formal_acceptance_shared_lock_blocks_compat_writer_through_receipt",
+    "orchestrator/tests/test_trial_registry.py::test_formal_noncertifying_lifecycle_start_consumes_reserved_attempt_slot",
+    "orchestrator/tests/test_trial_registry.py::test_high_level_acceptance_routes_mismatch_to_formal_once_without_receipt",
+    "orchestrator/tests/test_trial_registry.py::test_launch_record_projects_the_same_issued_capability_object",
+    "orchestrator/tests/test_trial_registry.py::test_launch_record_rejects_an_issued_capability_for_another_trial",
+    "orchestrator/tests/test_trial_registry.py::test_launch_resolves_measurement_head_once",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_git_history_rejects_non_append_only_attacks[delete-recreate]",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_git_history_rejects_non_append_only_attacks[modify-revert]",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_rejects_canonical_unknown_event_before_append",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_rejects_noncanonical_json_before_append",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_start_requires_origin_binding_and_run_plan_digest_iff[binding-without-digest]",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_start_requires_origin_binding_and_run_plan_digest_iff[digest-without-binding]",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_start_requires_origin_binding_and_run_plan_digest_iff[invalid-digest]",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes[False]",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes[True]",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_updates_take_exclusive_flock_and_fsync",
+    "orchestrator/tests/test_trial_registry.py::test_literal_pathspec_registry_history_cannot_be_hidden",
+    "orchestrator/tests/test_trial_registry.py::test_m10_acceptance_rejects_missing_lifecycle_terminal",
+    "orchestrator/tests/test_trial_registry.py::test_m11_acceptance_receipt_is_exclusive_create",
+    "orchestrator/tests/test_trial_registry.py::test_m11_selected_manifest_membership_is_required",
+    "orchestrator/tests/test_trial_registry.py::test_m12_holdout_workload_binding_is_required",
+    "orchestrator/tests/test_trial_registry.py::test_m13_producer_campaign_derivation_is_independently_bound",
+    "orchestrator/tests/test_trial_registry.py::test_m16_report_prereg_binding_is_required[m16a-missing]",
+    "orchestrator/tests/test_trial_registry.py::test_m16_report_prereg_binding_is_required[m16b-different]",
+    "orchestrator/tests/test_trial_registry.py::test_m17_measurement_registry_must_already_contain_registration",
+    "orchestrator/tests/test_trial_registry.py::test_m20_report_trial_set_rejects_duplicate_or_foreign[duplicate]",
+    "orchestrator/tests/test_trial_registry.py::test_m20_report_trial_set_rejects_duplicate_or_foreign[foreign]",
+    "orchestrator/tests/test_trial_registry.py::test_m21_terminal_ratio_and_campaign_projection_is_bound[campaign]",
+    "orchestrator/tests/test_trial_registry.py::test_m21_terminal_ratio_and_campaign_projection_is_bound[ratio]",
+    "orchestrator/tests/test_trial_registry.py::test_m22_existing_completeness_verifier_is_mandatory",
+    "orchestrator/tests/test_trial_registry.py::test_m28_report_only_binding_without_run_start_binding_is_rejected",
+    "orchestrator/tests/test_trial_registry.py::test_m29_intermediate_committed_rewrite_is_rejected_by_history_walk",
+    "orchestrator/tests/test_trial_registry.py::test_m31_journal_snapshot_swap_cannot_compose_binding_and_completeness",
+    "orchestrator/tests/test_trial_registry.py::test_m31_same_inode_journal_rewrite_restore_cannot_compose_snapshots",
+    "orchestrator/tests/test_trial_registry.py::test_m7_append_preserves_inode_size_and_existing_prefix",
+    "orchestrator/tests/test_trial_registry.py::test_m8_registry_global_reuse_is_rejected[campaign]",
+    "orchestrator/tests/test_trial_registry.py::test_m8_registry_global_reuse_is_rejected[manifest]",
+    "orchestrator/tests/test_trial_registry.py::test_m8_registry_global_reuse_is_rejected[trial]",
+    "orchestrator/tests/test_trial_registry.py::test_origin_lifecycle_terminal_without_projection_is_failure_reason_gated[complete-without-projection]",
+    "orchestrator/tests/test_trial_registry.py::test_origin_lifecycle_terminal_without_projection_is_failure_reason_gated[indeterminate-with-empty-reason]",
+    "orchestrator/tests/test_trial_registry.py::test_origin_lifecycle_terminal_without_projection_is_failure_reason_gated[indeterminate-with-reason]",
+    "orchestrator/tests/test_trial_registry.py::test_origin_lifecycle_terminal_without_projection_is_failure_reason_gated[partial-with-empty-reason]",
+    "orchestrator/tests/test_trial_registry.py::test_origin_lifecycle_terminal_without_projection_is_failure_reason_gated[partial-with-reason]",
+    "orchestrator/tests/test_trial_registry.py::test_originless_lifecycle_terminal_shape_and_projection_rejection_are_unchanged",
+    "orchestrator/tests/test_trial_registry.py::test_p12_accept_cli_runs_from_clean_pythonpath",
+    "orchestrator/tests/test_trial_registry.py::test_p2_first_and_second_registration_append_pass",
+    "orchestrator/tests/test_trial_registry.py::test_p3_each_registered_trial_resolves_launch_binding",
+    "orchestrator/tests/test_trial_registry.py::test_p5_six_complete_terminal_reports_pass_acceptance",
+    "orchestrator/tests/test_trial_registry.py::test_p6_indeterminate_not_consumed_partial_fails_formal_acceptance",
+    "orchestrator/tests/test_trial_registry.py::test_p6_one_cell_partial_terminal_outcome_passes_acceptance",
+    "orchestrator/tests/test_trial_registry.py::test_p6_partial_terminal_outcomes_are_reported_not_dropped",
+    "orchestrator/tests/test_trial_registry.py::test_p7_later_registry_rows_do_not_hide_older_manifest",
+    "orchestrator/tests/test_trial_registry.py::test_p9_prime_existing_registry_unregistered_exploratory_id_passes",
+    "orchestrator/tests/test_trial_registry.py::test_rederived_launch_admission_accepts_formal_noncertifying_mode",
+    "orchestrator/tests/test_trial_registry.py::test_rederived_registered_effective_still_requires_effective_capability",
+    "orchestrator/tests/test_trial_registry.py::test_redundant_registry_prefix_defense_rejects_before_history_walk",
+    "orchestrator/tests/test_trial_registry.py::test_registered_admission_and_lifecycle_are_non_certifying_and_start_once",
+    "orchestrator/tests/test_trial_registry.py::test_registered_admission_does_not_implicitly_resolve_arm_input",
+    "orchestrator/tests/test_trial_registry.py::test_registered_trial_is_rejected_without_manifest_for_unit_b",
+    "orchestrator/tests/test_trial_registry.py::test_registry_history_rejects_delete_then_recreate_commit",
+    "orchestrator/tests/test_trial_registry.py::test_registry_history_rejects_git_mv_then_restore",
+    "orchestrator/tests/test_trial_registry.py::test_registry_history_rejects_merge_dag_with_deleted_parent",
+    "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_build_with_empty_cells_fails_closed_before_receipt",
+    "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_no_build_verifier_leaf_is_independently_recomputed",
+    "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloads",
+    "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_rejects_campaign_from_different_output_root",
+    "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_rejects_campaignless_failure_layer3_bypass_after_chain",
+    "orchestrator/tests/test_trial_registry.py::test_t1185_m3_m4_acceptance_checks_last_report_generation_budget",
+    "orchestrator/tests/test_trial_registry.py::test_t1185_pa_all_six_generation_two_reports_pass_acceptance",
+    "orchestrator/tests/test_trial_registry.py::test_t1185_pb_partial_one_generation_with_budget_two_passes_acceptance",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_six_cell_n_round_trip",
+    "orchestrator/tests/test_trial_registry.py::test_t525_terminal_projection_rejects_each_complete_condition_drift[records]",
+    "orchestrator/tests/test_trial_registry.py::test_t525_terminal_projection_rejects_each_complete_condition_drift[rmw]",
+    "orchestrator/tests/test_trial_registry.py::test_t525_terminal_projection_rejects_each_complete_condition_drift[skew]",
+    "orchestrator/tests/test_trial_registry.py::test_t525_terminal_projection_rejects_each_complete_condition_drift[threads]",
+    "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_allows_coherent_past_measurement_head",
+    "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_missing_layer3_in_complete_build_bundle",
+    "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_mixed_measurement_heads",
+    "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_one_layer3_ccbench_commit_mismatch",
+    "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_one_layer3_env_tag_mismatch",
+    "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_zero_layer3_reports_in_complete_build_bundle",
+    "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_reports_changed_layer3_snapshot_identity",
+    "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_strictly_rejects_duplicate_layer3_json_key"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1957.m08",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "    }\n",
+     "old": "        \"n\": trial.n,\n    }\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_t1957_six_cell_n_round_trip"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1957.m09",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        \"n\": 2,\n",
+     "old": "        \"n\": trial.n,\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_registry_canonical_tuple_mutation[n]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1957.m10",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        trial.generations,\n    )\n",
+     "old": "        trial.generations,\n        trial.n,\n    )\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-v2-genuine]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-v2-with-n]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_schema_versions"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1957.m11",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "MANIFEST_SCHEMA_VERSION = \"p3-8c-trial-manifest/v2\"\n",
+     "old": "MANIFEST_SCHEMA_VERSION = \"p3-8c-trial-manifest/v3\"\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_redundant_registry_duplicate_key_gate_rejects_before_canonical_bytes",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-v2-genuine]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-v2-with-n]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_schema_versions"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1957.m12",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "REGISTRATION_SCHEMA_VERSION = \"p3-8c-trial-registration/v2\"\n",
+     "old": "REGISTRATION_SCHEMA_VERSION = \"p3-8c-trial-registration/v3\"\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-v2-genuine]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-v2-with-n]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1957.m13",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "    if value[\"schema_version\"] not in {MANIFEST_SCHEMA_VERSION, \"p3-8c-trial-manifest/v2\"}:\n",
+     "old": "    if value[\"schema_version\"] != MANIFEST_SCHEMA_VERSION:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_independently_rederives_historical_arm_execution[missing]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_independently_rederives_historical_arm_execution[wrong-digest]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_independently_requires_exact_rederived_launch_admission[missing-report]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_independently_requires_exact_rederived_launch_admission[run-start-mismatch]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_lifecycle_requires_origin_binding_and_run_plan_digest_iff[False]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_lifecycle_requires_origin_binding_and_run_plan_digest_iff[True]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_projects_identical_terminal_bytes_in_all_json_boundaries[False]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_projects_identical_terminal_bytes_in_all_json_boundaries[True]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[arm-forged-arm]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[campaign_id-forged-campaign]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[holdout-forged-holdout]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[manifest_sha256-0000000000000000000000000000000000000000000000000000000000000000]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rederives_each_self_consistent_launch_binding_field[measurement_head-0000000000000000000000000000000000000000]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_registered_run_rejects_one_missing_digest",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_cell_descriptor_that_differs_from_arm_input",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_content_commit_without_manifest_ancestor",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_content_or_effective_commit_mismatch",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_extra_registry_trial",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_missing_registry_trial",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_null_or_open_origin_binding_projection[None]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_null_or_open_origin_binding_projection[origin_binding_record1]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_registry_canonical_tuple_mutation[arm]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_registry_canonical_tuple_mutation[campaign_id]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_registry_canonical_tuple_mutation[generations]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_registry_canonical_tuple_mutation[holdout]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_registry_canonical_tuple_mutation[n]",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_rejects_start_run_root_outside_report_parent",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_report_argument_must_be_sibling_report_json",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_runs_digest_chain_once_per_registered_trial",
+    "orchestrator/tests/test_trial_registry.py::test_acceptance_v3_has_no_certifying_issuance_branch",
+    "orchestrator/tests/test_trial_registry.py::test_admit_registered_formal_noncertifying_rejects_condition_freeze_failure",
+    "orchestrator/tests/test_trial_registry.py::test_admit_registered_formal_noncertifying_requires_explicit_opt_in",
+    "orchestrator/tests/test_trial_registry.py::test_admit_registered_formal_noncertifying_validates_freeze_and_returns_binding",
+    "orchestrator/tests/test_trial_registry.py::test_admit_registered_launch_rejects_ancestor_commit_capability",
+    "orchestrator/tests/test_trial_registry.py::test_admit_registered_launch_requires_manifest_commit_capability",
+    "orchestrator/tests/test_trial_registry.py::test_append_componentwise_open_rejects_parent_symlink_swap",
+    "orchestrator/tests/test_trial_registry.py::test_append_rebinds_parent_inode_after_lock",
+    "orchestrator/tests/test_trial_registry.py::test_append_rebinds_target_inode_after_lock",
+    "orchestrator/tests/test_trial_registry.py::test_append_uses_nofollow_append_flags_and_fsyncs_file_then_directory",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_acceptance_rejects_terminal_failure_report_observed_values",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_acceptance_rejects_unmanifested_replicate_slot",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[classification-directory_fsync]",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[classification-file_fsync]",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[classification-write]",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[classification-write_no_progress]",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[genesis-directory_fsync]",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[genesis-file_fsync]",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[genesis-write]",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_failure_removes_residue_and_allows_retry[genesis-write_no_progress]",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_keeps_file_extended_by_another_writer",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_create_only_keeps_replaced_inode_at_same_name",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_accepts_correct_formal_slot_consumption",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_accepts_observed_terminal_status_only",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_accepts_pre_observation_terminal_failure_without_report",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_classification_receipt_is_create_only",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_classification_rejection_preserves_receipt_bytes",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_classification_row_must_match_receipt",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_consumes_only_next_slot_for_same_failed_repeat",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_genesis_is_closed_before_first_performance_observation",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_records_seal_observation_and_monotonic_event_index",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_capability_digest_replacement",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_classification_seal_from_other_slot",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_event_index_tampering",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_event_sha256_tampering",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_legacy_performance_output_field_in_v2",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_non_string_schema_version[dict]",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_non_string_schema_version[list]",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_observation_value_replacement",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_observed_primary_value_null",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_previous_event_sha256_tampering",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_process_identity_replacement",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_raw_output_hash_replacement",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_reordered_observation_start_after_rehash",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_retry_after_observation_start",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_schedule_row_hash_replacement",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_second_root_in_full_history",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_successful_rerun_and_score_selected_slot",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_terminal_echo_mutation_after_rehash",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_terminal_failure_report_without_observation_start",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_terminal_from_copied_capability_owner",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_terminal_report_hash_replacement",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_v1_row_under_v2_genesis",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_rejects_v1_second_root_in_full_history",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_replays_legacy_v1_registry_after_v2_upgrade",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_requires_exact_external_failure_reason",
+    "orchestrator/tests/test_trial_registry.py::test_attempt_registry_v2_reader_remains_explicitly_mapped",
+    "orchestrator/tests/test_trial_registry.py::test_bind_trial_arm_issues_exact_three_field_projection",
+    "orchestrator/tests/test_trial_registry.py::test_create_only_interrupt_removes_residue_and_allows_retry",
+    "orchestrator/tests/test_trial_registry.py::test_create_only_unlink_failure_preserves_original_error",
+    "orchestrator/tests/test_trial_registry.py::test_effective_binding_parent_fixture_rejects_manifest_content_mismatch",
+    "orchestrator/tests/test_trial_registry.py::test_effective_binding_rejects_manifest_sha256_mismatch",
+    "orchestrator/tests/test_trial_registry.py::test_effective_commit_must_ancestor_measurement_head",
+    "orchestrator/tests/test_trial_registry.py::test_exploratory_gate_uses_head_registry_when_working_file_is_missing",
+    "orchestrator/tests/test_trial_registry.py::test_formal_acceptance_rejects_mismatch_that_legacy_accepts",
+    "orchestrator/tests/test_trial_registry.py::test_formal_acceptance_rejects_noncooperating_registry_rebind_without_receipt[parent-parent]",
+    "orchestrator/tests/test_trial_registry.py::test_formal_acceptance_rejects_noncooperating_registry_rebind_without_receipt[target-path]",
+    "orchestrator/tests/test_trial_registry.py::test_formal_acceptance_shared_lock_blocks_compat_writer_through_receipt",
+    "orchestrator/tests/test_trial_registry.py::test_formal_noncertifying_lifecycle_start_consumes_reserved_attempt_slot",
+    "orchestrator/tests/test_trial_registry.py::test_formal_reserve_rejects_compat_mismatch_prefix_without_append",
+    "orchestrator/tests/test_trial_registry.py::test_formal_reserve_rejects_target_inode_rebind_before_append",
+    "orchestrator/tests/test_trial_registry.py::test_formal_terminal_accepts_exact_positive_matrix[matching-retryable]",
+    "orchestrator/tests/test_trial_registry.py::test_formal_terminal_accepts_exact_positive_matrix[not-consumed-none]",
+    "orchestrator/tests/test_trial_registry.py::test_formal_terminal_accepts_exact_positive_matrix[observed-none]",
+    "orchestrator/tests/test_trial_registry.py::test_formal_terminal_rejects_parent_inode_rebind_before_append",
+    "orchestrator/tests/test_trial_registry.py::test_formal_terminal_rejects_reason_replacement_without_append",
+    "orchestrator/tests/test_trial_registry.py::test_genesis_cli_derives_manifest_digest_and_creates_canonical_registry",
+    "orchestrator/tests/test_trial_registry.py::test_genesis_cli_rejects_non_strict_slots_without_creating_artifact[duplicate-key]",
+    "orchestrator/tests/test_trial_registry.py::test_genesis_cli_rejects_non_strict_slots_without_creating_artifact[non-finite]",
+    "orchestrator/tests/test_trial_registry.py::test_genesis_cli_rejects_non_strict_slots_without_creating_artifact[non-utf8]",
+    "orchestrator/tests/test_trial_registry.py::test_genesis_cli_rejects_non_strict_slots_without_creating_artifact[object]",
+    "orchestrator/tests/test_trial_registry.py::test_genesis_cli_rejects_second_creation_without_changing_bytes",
+    "orchestrator/tests/test_trial_registry.py::test_genesis_cli_rejects_slot_generation_mismatch_before_creation",
+    "orchestrator/tests/test_trial_registry.py::test_genesis_cli_requires_prereg_generation",
+    "orchestrator/tests/test_trial_registry.py::test_high_level_acceptance_routes_mismatch_to_formal_once_without_receipt",
+    "orchestrator/tests/test_trial_registry.py::test_launch_record_projects_the_same_issued_capability_object",
+    "orchestrator/tests/test_trial_registry.py::test_launch_record_rejects_an_issued_capability_for_another_trial",
+    "orchestrator/tests/test_trial_registry.py::test_launch_resolves_measurement_head_once",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_git_history_rejects_non_append_only_attacks[delete-recreate]",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_git_history_rejects_non_append_only_attacks[modify-revert]",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_rejects_canonical_unknown_event_before_append",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_rejects_noncanonical_json_before_append",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_start_requires_origin_binding_and_run_plan_digest_iff[binding-without-digest]",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_start_requires_origin_binding_and_run_plan_digest_iff[digest-without-binding]",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_start_requires_origin_binding_and_run_plan_digest_iff[invalid-digest]",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes[False]",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_terminal_projects_the_formal_consumer_shape_by_bytes[True]",
+    "orchestrator/tests/test_trial_registry.py::test_lifecycle_updates_take_exclusive_flock_and_fsync",
+    "orchestrator/tests/test_trial_registry.py::test_literal_pathspec_registry_history_cannot_be_hidden",
+    "orchestrator/tests/test_trial_registry.py::test_m07_outer_manifest_capability_commit_check_is_unmasked",
+    "orchestrator/tests/test_trial_registry.py::test_m10_acceptance_rejects_missing_lifecycle_terminal",
+    "orchestrator/tests/test_trial_registry.py::test_m10_registration_must_exactly_match_manifest[m10a-arm]",
+    "orchestrator/tests/test_trial_registry.py::test_m10_registration_must_exactly_match_manifest[m10b-campaign]",
+    "orchestrator/tests/test_trial_registry.py::test_m10_registration_must_exactly_match_manifest[m10c-prereg]",
+    "orchestrator/tests/test_trial_registry.py::test_m10_registration_must_exactly_match_manifest[m10d-hash]",
+    "orchestrator/tests/test_trial_registry.py::test_m11_acceptance_receipt_is_exclusive_create",
+    "orchestrator/tests/test_trial_registry.py::test_m11_selected_manifest_membership_is_required",
+    "orchestrator/tests/test_trial_registry.py::test_m12_holdout_workload_binding_is_required",
+    "orchestrator/tests/test_trial_registry.py::test_m13_producer_campaign_derivation_is_independently_bound",
+    "orchestrator/tests/test_trial_registry.py::test_m16_report_prereg_binding_is_required[m16a-missing]",
+    "orchestrator/tests/test_trial_registry.py::test_m16_report_prereg_binding_is_required[m16b-different]",
+    "orchestrator/tests/test_trial_registry.py::test_m17_measurement_registry_must_already_contain_registration",
+    "orchestrator/tests/test_trial_registry.py::test_m1_v3_reader_accepts_single_generation_and_rejects_mixed_generation",
+    "orchestrator/tests/test_trial_registry.py::test_m20_report_trial_set_rejects_duplicate_or_foreign[duplicate]",
+    "orchestrator/tests/test_trial_registry.py::test_m20_report_trial_set_rejects_duplicate_or_foreign[foreign]",
+    "orchestrator/tests/test_trial_registry.py::test_m21_terminal_ratio_and_campaign_projection_is_bound[campaign]",
+    "orchestrator/tests/test_trial_registry.py::test_m21_terminal_ratio_and_campaign_projection_is_bound[ratio]",
+    "orchestrator/tests/test_trial_registry.py::test_m22_existing_completeness_verifier_is_mandatory",
+    "orchestrator/tests/test_trial_registry.py::test_m28_report_only_binding_without_run_start_binding_is_rejected",
+    "orchestrator/tests/test_trial_registry.py::test_m29_intermediate_committed_rewrite_is_rejected_by_history_walk",
+    "orchestrator/tests/test_trial_registry.py::test_m2_genesis_creator_requires_exact_slot_generation",
+    "orchestrator/tests/test_trial_registry.py::test_m31_journal_snapshot_swap_cannot_compose_binding_and_completeness",
+    "orchestrator/tests/test_trial_registry.py::test_m31_same_inode_journal_rewrite_restore_cannot_compose_snapshots",
+    "orchestrator/tests/test_trial_registry.py::test_m3_cartesian_gate_rejects_duplicate_and_missing_pair",
+    "orchestrator/tests/test_trial_registry.py::test_m4_trial_and_campaign_uniqueness_is_rejected[campaign_id]",
+    "orchestrator/tests/test_trial_registry.py::test_m4_trial_and_campaign_uniqueness_is_rejected[trial_id]",
+    "orchestrator/tests/test_trial_registry.py::test_m6a_registry_unterminated_line_is_rejected",
+    "orchestrator/tests/test_trial_registry.py::test_m6b_registry_noncanonical_line_is_rejected",
+    "orchestrator/tests/test_trial_registry.py::test_m7_append_preserves_inode_size_and_existing_prefix",
+    "orchestrator/tests/test_trial_registry.py::test_m8_registry_global_reuse_is_rejected[campaign]",
+    "orchestrator/tests/test_trial_registry.py::test_m8_registry_global_reuse_is_rejected[manifest]",
+    "orchestrator/tests/test_trial_registry.py::test_m8_registry_global_reuse_is_rejected[trial]",
+    "orchestrator/tests/test_trial_registry.py::test_m9_launcher_requires_committed_exact_registry[dirty]",
+    "orchestrator/tests/test_trial_registry.py::test_m9_launcher_requires_committed_exact_registry[untracked]",
+    "orchestrator/tests/test_trial_registry.py::test_manifest_committed_symlink_mode_is_rejected",
+    "orchestrator/tests/test_trial_registry.py::test_manifest_generations_rejects_bool_at_exact_path",
+    "orchestrator/tests/test_trial_registry.py::test_manifest_has_no_commit_self_reference",
+    "orchestrator/tests/test_trial_registry.py::test_origin_lifecycle_terminal_without_projection_is_failure_reason_gated[complete-without-projection]",
+    "orchestrator/tests/test_trial_registry.py::test_origin_lifecycle_terminal_without_projection_is_failure_reason_gated[indeterminate-with-empty-reason]",
+    "orchestrator/tests/test_trial_registry.py::test_origin_lifecycle_terminal_without_projection_is_failure_reason_gated[indeterminate-with-reason]",
+    "orchestrator/tests/test_trial_registry.py::test_origin_lifecycle_terminal_without_projection_is_failure_reason_gated[partial-with-empty-reason]",
+    "orchestrator/tests/test_trial_registry.py::test_origin_lifecycle_terminal_without_projection_is_failure_reason_gated[partial-with-reason]",
+    "orchestrator/tests/test_trial_registry.py::test_originless_lifecycle_terminal_shape_and_projection_rejection_are_unchanged",
+    "orchestrator/tests/test_trial_registry.py::test_p12_accept_cli_runs_from_clean_pythonpath",
+    "orchestrator/tests/test_trial_registry.py::test_p1_exact_six_trial_manifest_passes",
+    "orchestrator/tests/test_trial_registry.py::test_p2_first_and_second_registration_append_pass",
+    "orchestrator/tests/test_trial_registry.py::test_p3_each_registered_trial_resolves_launch_binding",
+    "orchestrator/tests/test_trial_registry.py::test_p5_six_complete_terminal_reports_pass_acceptance",
+    "orchestrator/tests/test_trial_registry.py::test_p6_indeterminate_not_consumed_partial_fails_formal_acceptance",
+    "orchestrator/tests/test_trial_registry.py::test_p6_one_cell_partial_terminal_outcome_passes_acceptance",
+    "orchestrator/tests/test_trial_registry.py::test_p6_partial_terminal_outcomes_are_reported_not_dropped",
+    "orchestrator/tests/test_trial_registry.py::test_p7_later_registry_rows_do_not_hide_older_manifest",
+    "orchestrator/tests/test_trial_registry.py::test_p9_prime_existing_registry_unregistered_exploratory_id_passes",
+    "orchestrator/tests/test_trial_registry.py::test_rederived_launch_admission_accepts_formal_noncertifying_mode",
+    "orchestrator/tests/test_trial_registry.py::test_rederived_registered_effective_still_requires_effective_capability",
+    "orchestrator/tests/test_trial_registry.py::test_redundant_registry_blank_line_gate_rejects_before_json_decoder",
+    "orchestrator/tests/test_trial_registry.py::test_redundant_registry_duplicate_key_gate_rejects_before_canonical_bytes",
+    "orchestrator/tests/test_trial_registry.py::test_redundant_registry_prefix_defense_rejects_before_history_walk",
+    "orchestrator/tests/test_trial_registry.py::test_redundant_six_report_argument_count_defense_is_required",
+    "orchestrator/tests/test_trial_registry.py::test_registered_admission_and_lifecycle_are_non_certifying_and_start_once",
+    "orchestrator/tests/test_trial_registry.py::test_registered_admission_does_not_implicitly_resolve_arm_input",
+    "orchestrator/tests/test_trial_registry.py::test_registered_trial_is_rejected_without_manifest_for_unit_b",
+    "orchestrator/tests/test_trial_registry.py::test_registration_trials_must_use_canonical_order",
+    "orchestrator/tests/test_trial_registry.py::test_registry_committed_symlink_mode_is_rejected",
+    "orchestrator/tests/test_trial_registry.py::test_registry_git_component_is_rejected_before_file_creation",
+    "orchestrator/tests/test_trial_registry.py::test_registry_history_rejects_delete_then_recreate_commit",
+    "orchestrator/tests/test_trial_registry.py::test_registry_history_rejects_git_mv_then_restore",
+    "orchestrator/tests/test_trial_registry.py::test_registry_history_rejects_merge_dag_with_deleted_parent",
+    "orchestrator/tests/test_trial_registry.py::test_registry_introduction_is_unique_history_not_approval_authority",
+    "orchestrator/tests/test_trial_registry.py::test_registry_parent_real_path_must_stay_inside_repository",
+    "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_build_with_empty_cells_fails_closed_before_receipt",
+    "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_does_not_swallow_unexpected_workload_resolver_error",
+    "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_no_build_verifier_leaf_is_independently_recomputed",
+    "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_registered_build_reports_reach_receipt_for_h1_h2_workloads",
+    "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_registered_build_reports_remain_fail_closed_for_unknown_workload",
+    "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_rejects_campaign_from_different_output_root",
+    "orchestrator/tests/test_trial_registry.py::test_s8c_acceptance_rejects_campaignless_failure_layer3_bypass_after_chain",
+    "orchestrator/tests/test_trial_registry.py::test_t1185_m1_manifest_generation_one_is_rejected_at_exact_path",
+    "orchestrator/tests/test_trial_registry.py::test_t1185_m3_m4_acceptance_checks_last_report_generation_budget",
+    "orchestrator/tests/test_trial_registry.py::test_t1185_pa_all_six_generation_two_reports_pass_acceptance",
+    "orchestrator/tests/test_trial_registry.py::test_t1185_pb_partial_one_generation_with_budget_two_passes_acceptance",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-cell-split]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-holdout-split]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-tail-float]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-bool-false]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-bool-true]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-cell-split]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-float]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-holdout-split]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-missing]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-negative]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-one]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-string]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-tail-float]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-v2-genuine]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-v2-with-n]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-zero]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_six_cell_n_round_trip",
+    "orchestrator/tests/test_trial_registry.py::test_t525_terminal_projection_rejects_each_complete_condition_drift[records]",
+    "orchestrator/tests/test_trial_registry.py::test_t525_terminal_projection_rejects_each_complete_condition_drift[rmw]",
+    "orchestrator/tests/test_trial_registry.py::test_t525_terminal_projection_rejects_each_complete_condition_drift[skew]",
+    "orchestrator/tests/test_trial_registry.py::test_t525_terminal_projection_rejects_each_complete_condition_drift[threads]",
+    "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_allows_coherent_past_measurement_head",
+    "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_missing_layer3_in_complete_build_bundle",
+    "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_mixed_measurement_heads",
+    "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_one_layer3_ccbench_commit_mismatch",
+    "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_one_layer3_env_tag_mismatch",
+    "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_rejects_zero_layer3_reports_in_complete_build_bundle",
+    "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_reports_changed_layer3_snapshot_identity",
+    "orchestrator/tests/test_trial_registry.py::test_t822_acceptance_strictly_rejects_duplicate_layer3_json_key"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1957.m14",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        if n < 4:\n",
+     "old": "        if n < 2:\n"
+    }
+   ]
+  },
+  {
+   "category": "positive",
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false,
+   "id": "t1957.m15",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "    if len(set(item.n for item in trials)) != 1:\n",
+     "old": "    if len({item.n for item in trials}) != 1:\n"
+    }
+   ]
+  },
+  {
+   "category": "negative",
+   "expected_nodes": [
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[manifest-tail-float]",
+    "orchestrator/tests/test_trial_registry.py::test_t1957_rejects_n[registration-tail-float]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false,
+   "id": "t1957.m16",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/trial_registry.py",
+     "new": "        if index == 0 and type(n) is not int:\n",
+     "old": "        if type(n) is not int:\n"
+    }
+   ]
+  }
+ ]
+}

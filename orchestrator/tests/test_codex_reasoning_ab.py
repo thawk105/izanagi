@@ -3566,25 +3566,156 @@ def test_m1_snapshot_head_pin_is_independent(
         )
 
 
+def _synthetic_m2_golden_inputs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, mismatch: bool = False,
+) -> tuple[Path, Path, dict[str, Any], dict[str, str]]:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    TOOL._run(("git", "init", "--quiet"), cwd=repo)
+    base = {path: b"base\n" for path in TOOL.PATCH_PATHS}
+    authored = {path: b"authored\n" for path in TOOL.PATCH_PATHS}
+    golden = {path: b"golden\n" for path in TOOL.PATCH_PATHS}
+    integrated = {path: b"integrated\n" for path in TOOL.PATCH_PATHS}
+    for constant, files in (("BASE_COMMIT", base), ("INTEGRATED_COMMIT", integrated)):
+        for path, data in files.items():
+            target = repo / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data)
+        TOOL._run(("git", "add", *TOOL.PATCH_PATHS), cwd=repo)
+        TOOL._run(
+            (
+                "git", "-c", "user.name=T2117",
+                "-c", "user.email=t2117@example.invalid",
+                "commit", "--quiet", "-m", constant,
+            ),
+            cwd=repo,
+        )
+        monkeypatch.setattr(
+            TOOL, constant, TOOL._git(repo, "rev-parse", "HEAD").decode().strip()
+        )
+
+    patches = {}
+    for label, before, after in (
+        ("author", base, authored),
+        ("fix1", authored, golden),
+        ("fix2", golden, integrated),
+    ):
+        blocks = ["*** Begin Patch\n"]
+        for path in TOOL.PATCH_PATHS:
+            added = after[path]
+            if mismatch and label == "fix1" and path == TOOL.PATCH_PATHS[0]:
+                added = b"golden-mismatch\n"
+            blocks.append(
+                f"*** Update File: {path}\n@@\n"
+                f"-{before[path].decode()}+{added.decode()}"
+            )
+        patches[label] = "".join([*blocks, "*** End Patch\n"])
+
+    sessions_root = tmp_path / "sessions"
+    manifest = _synthetic_task_manifest()
+    for label, patch in patches.items():
+        session_id = f"synthetic-m2-{label}"
+        rollout, _ = _write_synthetic_benchmark_rollout(
+            sessions_root, session_id, f"Synthetic M2 {label}."
+        )
+        with rollout.open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps({
+                "type": "response_item",
+                "payload": {
+                    "type": "custom_tool_call", "name": "apply_patch", "input": patch,
+                },
+            }) + "\n")
+        manifest["shared_provenance"]["auxiliary_sessions"][label].update({
+            "session_id": session_id,
+            "rollout_sha256": hashlib.sha256(rollout.read_bytes()).hexdigest(),
+        })
+    return repo, sessions_root, manifest, patches
+
+
 def test_m2_production_golden_requires_both_routes(
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    sessions_root = TOOL._sessions_default()
-    _require_pinned_rollouts(sessions_root)
-    called = False
+    repo, sessions_root, manifest, patches = _synthetic_m2_golden_inputs(
+        tmp_path, monkeypatch
+    )
+    route_a_calls = []
+    route_b_calls = []
+    comparisons = []
+    original_a = TOOL._apply_patch_set
+    original_b = TOOL._apply_patch_set_independent
+    original_compare = TOOL._compare_golden_routes
+
+    def observed_a(files: Any, patches: Any, **kwargs: Any) -> dict[str, bytes]:
+        recorded = list(patches)
+        route_a_calls.append((dict(files), recorded, dict(kwargs)))
+        return original_a(files, recorded, **kwargs)
+
+    def observed_b(files: Any, patches: Any, **kwargs: Any) -> dict[str, bytes]:
+        recorded = list(patches)
+        route_b_calls.append((dict(files), recorded, dict(kwargs)))
+        return original_b(files, recorded, **kwargs)
+
+    def observed_compare(route_a: Any, route_b: Any) -> dict[str, bytes]:
+        comparisons.append((dict(route_a), dict(route_b)))
+        return original_compare(route_a, route_b)
+
+    monkeypatch.setattr(TOOL, "_apply_patch_set", observed_a)
+    monkeypatch.setattr(TOOL, "_apply_patch_set_independent", observed_b)
+    monkeypatch.setattr(TOOL, "_compare_golden_routes", observed_compare)
+    golden = TOOL.derive_independent_golden(
+        repo, sessions_root, task_manifest=manifest
+    )
+    expected = {path: b"golden\n" for path in TOOL.PATCH_PATHS}
+    assert route_a_calls == [(
+        {path: b"integrated\n" for path in TOOL.PATCH_PATHS},
+        [patches["fix2"]], {"reverse": True},
+    )]
+    assert route_b_calls == [(
+        {path: b"base\n" for path in TOOL.PATCH_PATHS},
+        [patches["author"], patches["fix1"]], {"parse_allowed": TOOL.TRACKED_PATHS},
+    )]
+    assert comparisons == [(expected, expected)]
+    assert golden == expected
+
+
+def test_m2_production_golden_rejects_route_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, sessions_root, manifest, patches = _synthetic_m2_golden_inputs(
+        tmp_path, monkeypatch, mismatch=True
+    )
+    route_b_calls = []
+    original_b = TOOL._apply_patch_set_independent
+    comparisons = []
     original = TOOL._compare_golden_routes
 
+    def observed_b(files: Any, patches: Any, **kwargs: Any) -> dict[str, bytes]:
+        recorded = list(patches)
+        route_b_calls.append((dict(files), recorded, dict(kwargs)))
+        return original_b(files, recorded, **kwargs)
+
     def observed(route_a: Any, route_b: Any) -> dict[str, bytes]:
-        nonlocal called
-        called = True
+        comparisons.append((dict(route_a), dict(route_b)))
         return original(route_a, route_b)
 
+    monkeypatch.setattr(TOOL, "_apply_patch_set_independent", observed_b)
     monkeypatch.setattr(TOOL, "_compare_golden_routes", observed)
-    golden = TOOL.derive_independent_golden(_ROOT, sessions_root)
-    assert called is True
-    assert hashlib.sha256(golden[TOOL.PATCH_PATHS[0]]).hexdigest() == (
-        "bc3f5f95f5c9c3f44955bbd1b2e3affbbafb6e62fda8e836173e1b9d5998c3af"
+    with pytest.raises(TOOL.ValidationError) as caught:
+        TOOL.derive_independent_golden(repo, sessions_root, task_manifest=manifest)
+
+    expected_a = {path: b"golden\n" for path in TOOL.PATCH_PATHS}
+    expected_b = {path: b"golden\n" for path in TOOL.PATCH_PATHS}
+    expected_b[TOOL.PATCH_PATHS[0]] = b"golden-mismatch\n"
+    assert caught.value.rc == TOOL.RC_SNAPSHOT
+    assert caught.value.reasons == (
+        f"independent golden mismatch for {TOOL.PATCH_PATHS[0]}",
     )
+    assert route_b_calls == [(
+        {path: b"base\n" for path in TOOL.PATCH_PATHS},
+        [patches["author"], patches["fix1"]], {"parse_allowed": TOOL.TRACKED_PATHS},
+    )]
+    assert comparisons == [(expected_a, expected_b)]
+    assert expected_a != expected_b
 
 
 def test_m3_snapshot_mode_change(
