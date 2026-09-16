@@ -7224,6 +7224,7 @@ def t325_registered_trial(tmp_path, monkeypatch):
                 "holdout": holdout,
                 "campaign_id": prepared.campaign_id,
                 "generations": 2,
+                "n": 2,
             })
     manifest_path = repo / "manifests" / "trial.json"
     manifest_path.parent.mkdir()
@@ -10365,6 +10366,7 @@ def test_m13_prime_public_launcher_rejects_producer_campaign_derivation_bypass(
                 "holdout": holdout,
                 "campaign_id": campaign_id,
                 "generations": 2,
+                "n": 2,
             })
     manifest_path = t325_registered_trial.repo / "manifests" / "m13-prime.json"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
