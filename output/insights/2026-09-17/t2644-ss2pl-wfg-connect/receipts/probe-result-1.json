@@ -1,0 +1,111 @@
+{
+  "abort_counter_ownership": {
+    "expected_workload_abort_increment_count": 2,
+    "transaction_sha256": "2cc0de96b021536fa109078ac5e46c1c123856740ab9fdf8264d66d2e44ace6b",
+    "transaction_source": "cc/ss2pl/transaction.cc",
+    "txexecutor_abort_increment_count": 0,
+    "workload_abort_increment_count": 2,
+    "workload_sha256": "ac921c2359c6df7702850399a862260207138c88470c419e9086736b4b01017a",
+    "workload_source": "include/ycsb.hh"
+  },
+  "canonical": {
+    "gitlink": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+    "head": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2644-ss2pl-wfg-connect/external/ccbench",
+    "status_porcelain": ""
+  },
+  "clone_patched": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2644-ss2pl-wfg-connect/scratch-1/t2644-b96716762cb24b5a919f07217f062b88/ccbench",
+  "clone_stock": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2644-ss2pl-wfg-connect/scratch-1/t2644-b96716762cb24b5a919f07217f062b88/condition-gate-stock",
+  "error": {
+    "message": "condition gate rejected SS2PL study: SS2PL_LOCK_IMPL=red/owner-tu-unresolved, SS2PL_LOCK_KIND=red/configure-failed, SS2PL_DLR=red/owner-tu-unresolved, SS2PL_WFG_DIAG=red/owner-tu-unresolved, SS2PL_LOCK_IMPL=unestablished/meaning-witness-undeclared, SS2PL_LOCK_KIND=unestablished/meaning-witness-undeclared, SS2PL_DLR=unestablished/meaning-witness-undeclared, SS2PL_WFG_DIAG=unestablished/meaning-witness-undeclared",
+    "stage": "build_S",
+    "type": "ContractError"
+  },
+  "hostname": "bnode015",
+  "inputs": {
+    "absence_arm": "S",
+    "clocks_per_us": 2100,
+    "gflags_prefix": "/work/1/SFC/tanab/ss2pl-study-deps/gflags-install",
+    "glog_prefix": "/work/1/SFC/tanab/ss2pl-study-deps/glog-install",
+    "jobs": 48,
+    "output": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2644-ss2pl-wfg-connect/probe-result-1.json",
+    "patch": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2644-ss2pl-wfg-connect/patches/ss2pl-lock-protocol-study.patch",
+    "patch_sha256": "0386132a6cc0b902d67fe7394aeb2de5d78746f31d5bceadd080c769c98aa4b7",
+    "policy": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2644-ss2pl-wfg-connect/tools/pegasus/policy.json",
+    "policy_sha256": "3a3c7d607de77e23368f9ce382b41e6e524de3ee1e2809e7c6d890ada95a6c90",
+    "probe": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2644-ss2pl-wfg-connect/tools/t2644_wfg_probe.py",
+    "probe_sha256": "f50974da9dca38461aebbc0728d400bfd475febd888c1d2c08fa34a91a740baa",
+    "repo_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2644-ss2pl-wfg-connect",
+    "runner": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2644-ss2pl-wfg-connect/tools/pegasus/run_ss2pl_lock_study.py",
+    "runner_sha256": "bee39b4e0ccc54426933f963a3d4aec51defb92a12465ccc09b7d358004eeb79",
+    "scratch_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2644-ss2pl-wfg-connect/scratch-1",
+    "selftest": false,
+    "thirdparty_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2644-ss2pl-wfg-connect/thirdparty-src"
+  },
+  "patch_applied": true,
+  "patched_source_state_sha256": "0811f2ac82366ee1964efd3d7d05b995da839345c55139109cadf9ce214cfb9c",
+  "pbs_jobid": "0:2301.nqsv",
+  "pbs_jobid_source": {
+    "kind": "compute-visible",
+    "mtime_ns": 1789575849000000000,
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2644-ss2pl-wfg-connect/output/pegasus-dispatch/d7c3377b729bfdc73b6600793c861885/compute-visible.json"
+  },
+  "preprocess_cache": {
+    "avoided_preprocessed_bytes": 0,
+    "entries": 0,
+    "hits": 0,
+    "requests": 0
+  },
+  "required_commands": {
+    "ar": "/usr/bin/ar",
+    "as": "/usr/bin/as",
+    "c++": "/usr/bin/c++",
+    "cc": "/usr/bin/cc",
+    "cmake": "/usr/bin/cmake",
+    "git": "/usr/bin/git",
+    "ld": "/usr/bin/ld",
+    "make": "/usr/bin/make",
+    "nm": "/usr/bin/nm",
+    "ranlib": "/usr/bin/ranlib",
+    "strings": "/usr/bin/strings"
+  },
+  "schema": "t2644-wfg-probe/v1",
+  "scratch_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2644-ss2pl-wfg-connect/scratch-1/t2644-b96716762cb24b5a919f07217f062b88",
+  "scratch_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2644-ss2pl-wfg-connect/scratch-1",
+  "stage": "build_S",
+  "stage_seconds": {
+    "abort_ownership": 0.0060998230474069715,
+    "apply_patch": 0.033115695929154754,
+    "build_S": 6.581024874001741,
+    "canonical": 0.6986936019966379,
+    "clone_patched": 0.4308689220342785,
+    "clone_stock": 0.4536448090802878,
+    "import_driver": 0.08598173595964909,
+    "inputs": 0.002406761981546879,
+    "pbs_jobid": 0.001642397022806108,
+    "required_commands": 0.0003559159813448787,
+    "scratch": 0.0011636039707809687,
+    "thirdparty": 0.35928878595586866
+  },
+  "status": "error",
+  "thirdparty": [
+    {
+      "head": "b3c5d054b66b08374d7a6ff5a0faeaf28b041a38",
+      "name": "masstree",
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2644-ss2pl-wfg-connect/thirdparty-src/masstree",
+      "status_porcelain": ""
+    },
+    {
+      "head": "02a2f5df9d7d46d30263b83832eebeeab62dc5fe",
+      "name": "mimalloc",
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2644-ss2pl-wfg-connect/thirdparty-src/mimalloc",
+      "status_porcelain": ""
+    },
+    {
+      "head": "f8d7d77c06936315286eb55f8de22cd23c188571",
+      "name": "googletest",
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2644-ss2pl-wfg-connect/thirdparty-src/googletest",
+      "status_porcelain": ""
+    }
+  ]
+}

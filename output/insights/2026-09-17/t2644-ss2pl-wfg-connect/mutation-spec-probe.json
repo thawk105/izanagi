@@ -1,0 +1,162 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 120,
+ "timeout_seconds": 900,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "m0-equivalent-workload-dict",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ss2pl_lock_study.py",
+     "old": "    return {**driver.WORKLOAD_DEFAULT, \"ycsb_tuple_num\": 100, \"ycsb_zipf_skew\": 0}\n",
+     "new": "    return dict(driver.WORKLOAD_DEFAULT, ycsb_tuple_num=100, ycsb_zipf_skew=0)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-runner-drop-wfg-output-flag",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/run_ss2pl_lock_study.py",
+     "old": "    argv.append(f\"-ss2pl_wfg_output={output_path}\")\n",
+     "new": "    pass  # mutation m1: flag not passed\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-runner-fixed-trial-dir",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/run_ss2pl_lock_study.py",
+     "old": "    trial_dir = Path(tempfile.mkdtemp(\n        dir=binary.parent, prefix=f\"ss2pl-wfg-{phase}-{point}-t{trial}-\",\n    ))\n",
+     "new": "    trial_dir = binary.parent / f\"ss2pl-wfg-{phase}-{point}-t{trial}-fixed\"\n    trial_dir.mkdir(exist_ok=True)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-runner-drop-file-sha256",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/run_ss2pl_lock_study.py",
+     "old": "        wfg_output[\"sha256\"] = _sha256_bytes(raw_output)\n",
+     "new": "        wfg_output[\"sha256\"] = None  # mutation m3\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-runner-empty-stdout-file",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/run_ss2pl_lock_study.py",
+     "old": "    stdout_path.write_text(stdout, encoding=\"utf-8\")\n",
+     "new": "    stdout_path.write_text(\"\", encoding=\"utf-8\")  # mutation m4\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-runner-drop-toplevel-snapshot-branch",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/run_ss2pl_lock_study.py",
+     "old": "        elif isinstance(event.get(\"nodes\"), list) and isinstance(event.get(\"edges\"), list) and \"wfg\" in str(event.get(\"event\", \"\")).lower():\n            snapshots.append(dict(event))\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-fixture-counter-drift-tick6",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ss2pl_lock_study.py",
+     "old": "{\"schema\":\"ss2pl-wfg/v2\",\"event\":\"wfg_snapshot\",\"tick\":6,\"cycle_found\":true,\"conflict_count\":41,\"no_wait_failure_count\":0,\"nodes\":[{\"thread_id\":16,\"attempt\":1,\"wait_lock_id\":\"0x14d33800a740\",\"request_mode\":\"write\",\"commit_count\":0,\"abort_count\":0,\"held_locks\":[{\"lock_id\":\"0x14d33800b1c0\",\"mode\":\"write\"}]},{\"thread_id\":21,\"attempt\":1,\"wait_lock_id\":\"0x14d33800b1c0\",\"request_mode\":\"write\",\"commit_count\":0,\"abort_count\":0,\"held_locks\":[{\"lock_id\":\"0x14d338008280\",\"mode\":\"write\"},{\"lock_id\":\"0x14d33800a740\",\"mode\":\"write\"},{\"lock_id\":\"0x14d338007d40\",\"mode\":\"write\"},{\"lock_id\":\"0x14d33800e480\",\"mode\":\"write\"},{\"lock_id\":\"0x14d3380056c0\",\"mode\":\"write\"}]}],\"edges\":[{\"waiter_thread_id\":16,\"holder_thread_id\":21,\"lock_id\":\"0x14d33800a740\",\"request_mode\":\"write\",\"holder_mode\":\"write\",\"compatible\":false},{\"waiter_thread_id\":21,\"holder_thread_id\":16,\"lock_id\":\"0x14d33800b1c0\",\"request_mode\":\"write\",\"holder_mode\":\"write\",\"compatible\":false}]}\n",
+     "new": "{\"schema\":\"ss2pl-wfg/v2\",\"event\":\"wfg_snapshot\",\"tick\":6,\"cycle_found\":true,\"conflict_count\":41,\"no_wait_failure_count\":0,\"nodes\":[{\"thread_id\":16,\"attempt\":1,\"wait_lock_id\":\"0x14d33800a740\",\"request_mode\":\"write\",\"commit_count\":1,\"abort_count\":0,\"held_locks\":[{\"lock_id\":\"0x14d33800b1c0\",\"mode\":\"write\"}]},{\"thread_id\":21,\"attempt\":1,\"wait_lock_id\":\"0x14d33800b1c0\",\"request_mode\":\"write\",\"commit_count\":0,\"abort_count\":0,\"held_locks\":[{\"lock_id\":\"0x14d338008280\",\"mode\":\"write\"},{\"lock_id\":\"0x14d33800a740\",\"mode\":\"write\"},{\"lock_id\":\"0x14d338007d40\",\"mode\":\"write\"},{\"lock_id\":\"0x14d33800e480\",\"mode\":\"write\"},{\"lock_id\":\"0x14d3380056c0\",\"mode\":\"write\"}]}],\"edges\":[{\"waiter_thread_id\":16,\"holder_thread_id\":21,\"lock_id\":\"0x14d33800a740\",\"request_mode\":\"write\",\"holder_mode\":\"write\",\"compatible\":false},{\"waiter_thread_id\":21,\"holder_thread_id\":16,\"lock_id\":\"0x14d33800b1c0\",\"request_mode\":\"write\",\"holder_mode\":\"write\",\"compatible\":false}]}\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-fixture-drop-held-locks-tick7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ss2pl_lock_study.py",
+     "old": "{\"schema\":\"ss2pl-wfg/v2\",\"event\":\"wfg_snapshot\",\"tick\":7,\"cycle_found\":true,\"conflict_count\":41,\"no_wait_failure_count\":0,\"nodes\":[{\"thread_id\":16,\"attempt\":1,\"wait_lock_id\":\"0x14d33800a740\",\"request_mode\":\"write\",\"commit_count\":0,\"abort_count\":0,\"held_locks\":[{\"lock_id\":\"0x14d33800b1c0\",\"mode\":\"write\"}]},{\"thread_id\":21,\"attempt\":1,\"wait_lock_id\":\"0x14d33800b1c0\",\"request_mode\":\"write\",\"commit_count\":0,\"abort_count\":0,\"held_locks\":[{\"lock_id\":\"0x14d338008280\",\"mode\":\"write\"},{\"lock_id\":\"0x14d33800a740\",\"mode\":\"write\"},{\"lock_id\":\"0x14d338007d40\",\"mode\":\"write\"},{\"lock_id\":\"0x14d33800e480\",\"mode\":\"write\"},{\"lock_id\":\"0x14d3380056c0\",\"mode\":\"write\"}]}],\"edges\":[{\"waiter_thread_id\":16,\"holder_thread_id\":21,\"lock_id\":\"0x14d33800a740\",\"request_mode\":\"write\",\"holder_mode\":\"write\",\"compatible\":false},{\"waiter_thread_id\":21,\"holder_thread_id\":16,\"lock_id\":\"0x14d33800b1c0\",\"request_mode\":\"write\",\"holder_mode\":\"write\",\"compatible\":false}]}\n",
+     "new": "{\"schema\":\"ss2pl-wfg/v2\",\"event\":\"wfg_snapshot\",\"tick\":7,\"cycle_found\":true,\"conflict_count\":41,\"no_wait_failure_count\":0,\"nodes\":[{\"thread_id\":16,\"attempt\":1,\"wait_lock_id\":\"0x14d33800a740\",\"request_mode\":\"write\",\"commit_count\":0,\"abort_count\":0},{\"thread_id\":21,\"attempt\":1,\"wait_lock_id\":\"0x14d33800b1c0\",\"request_mode\":\"write\",\"commit_count\":0,\"abort_count\":0,\"held_locks\":[{\"lock_id\":\"0x14d338008280\",\"mode\":\"write\"},{\"lock_id\":\"0x14d33800a740\",\"mode\":\"write\"},{\"lock_id\":\"0x14d338007d40\",\"mode\":\"write\"},{\"lock_id\":\"0x14d33800e480\",\"mode\":\"write\"},{\"lock_id\":\"0x14d3380056c0\",\"mode\":\"write\"}]}],\"edges\":[{\"waiter_thread_id\":16,\"holder_thread_id\":21,\"lock_id\":\"0x14d33800a740\",\"request_mode\":\"write\",\"holder_mode\":\"write\",\"compatible\":false},{\"waiter_thread_id\":21,\"holder_thread_id\":16,\"lock_id\":\"0x14d33800b1c0\",\"request_mode\":\"write\",\"holder_mode\":\"write\",\"compatible\":false}]}\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m8-fixture-drop-compatible-tick7",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ss2pl_lock_study.py",
+     "old": "{\"schema\":\"ss2pl-wfg/v2\",\"event\":\"wfg_snapshot\",\"tick\":7,\"cycle_found\":true,\"conflict_count\":41,\"no_wait_failure_count\":0,\"nodes\":[{\"thread_id\":16,\"attempt\":1,\"wait_lock_id\":\"0x14d33800a740\",\"request_mode\":\"write\",\"commit_count\":0,\"abort_count\":0,\"held_locks\":[{\"lock_id\":\"0x14d33800b1c0\",\"mode\":\"write\"}]},{\"thread_id\":21,\"attempt\":1,\"wait_lock_id\":\"0x14d33800b1c0\",\"request_mode\":\"write\",\"commit_count\":0,\"abort_count\":0,\"held_locks\":[{\"lock_id\":\"0x14d338008280\",\"mode\":\"write\"},{\"lock_id\":\"0x14d33800a740\",\"mode\":\"write\"},{\"lock_id\":\"0x14d338007d40\",\"mode\":\"write\"},{\"lock_id\":\"0x14d33800e480\",\"mode\":\"write\"},{\"lock_id\":\"0x14d3380056c0\",\"mode\":\"write\"}]}],\"edges\":[{\"waiter_thread_id\":16,\"holder_thread_id\":21,\"lock_id\":\"0x14d33800a740\",\"request_mode\":\"write\",\"holder_mode\":\"write\",\"compatible\":false},{\"waiter_thread_id\":21,\"holder_thread_id\":16,\"lock_id\":\"0x14d33800b1c0\",\"request_mode\":\"write\",\"holder_mode\":\"write\",\"compatible\":false}]}\n",
+     "new": "{\"schema\":\"ss2pl-wfg/v2\",\"event\":\"wfg_snapshot\",\"tick\":7,\"cycle_found\":true,\"conflict_count\":41,\"no_wait_failure_count\":0,\"nodes\":[{\"thread_id\":16,\"attempt\":1,\"wait_lock_id\":\"0x14d33800a740\",\"request_mode\":\"write\",\"commit_count\":0,\"abort_count\":0,\"held_locks\":[{\"lock_id\":\"0x14d33800b1c0\",\"mode\":\"write\"}]},{\"thread_id\":21,\"attempt\":1,\"wait_lock_id\":\"0x14d33800b1c0\",\"request_mode\":\"write\",\"commit_count\":0,\"abort_count\":0,\"held_locks\":[{\"lock_id\":\"0x14d338008280\",\"mode\":\"write\"},{\"lock_id\":\"0x14d33800a740\",\"mode\":\"write\"},{\"lock_id\":\"0x14d338007d40\",\"mode\":\"write\"},{\"lock_id\":\"0x14d33800e480\",\"mode\":\"write\"},{\"lock_id\":\"0x14d3380056c0\",\"mode\":\"write\"}]}],\"edges\":[{\"waiter_thread_id\":16,\"holder_thread_id\":21,\"lock_id\":\"0x14d33800a740\",\"request_mode\":\"write\",\"holder_mode\":\"write\"},{\"waiter_thread_id\":21,\"holder_thread_id\":16,\"lock_id\":\"0x14d33800b1c0\",\"request_mode\":\"write\",\"holder_mode\":\"write\"}]}\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m9-test-drop-startup-axes-line",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ss2pl_lock_study.py",
+     "old": "        line for line in _wfg_stdout_fixture().splitlines() if not line.startswith(\"{\")\n",
+     "new": "        line for line in _wfg_stdout_fixture().splitlines() if not line.startswith(\"{\") and not line.startswith(\"#ShowOpt\")\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m10-runner-perf-argv-gets-wfg-flag",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/run_ss2pl_lock_study.py",
+     "old": "    argv = [str(binary), *_workload_argv(workload, threads=thread_num, clocks_per_us=clocks_per_us, extime=10)]\n",
+     "new": "    argv = [str(binary), *_workload_argv(workload, threads=thread_num, clocks_per_us=clocks_per_us, extime=10), \"-ss2pl_wfg_output=x\"]\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

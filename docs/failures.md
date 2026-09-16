@@ -10146,6 +10146,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   恒久対応: memory `closure-and-search-discipline` へ「『N 本だけ』『唯一』も不在と同じ全数検査が
   要る」「除外指定が効いたかを出力で確かめる」の 2 点を追記した。
   **適用先が「不在の実測」から「件数・一意性の主張」へ広がった点が本追記の顕在化である。**
+
+- **再発: 2026-09-17** — [T-2228] wave で、official output root を job dir 配下に置くにあたり
+  「`/work/1/SFC/tanab/dev-wave-jobs/` 配下に `.git` 祖先が無い」を `ls -la | head -5` で切った出力から
+  段 1 brief に書いた。実際は `/work/1/SFC/tanab/dev-wave-jobs/.git` (空 directory) があり、
+  `layout._has_git_ancestor` が official root を拒否して attempt a (`2319.nqsv`) が screening 関門に
+  到達する前に赤になった。段 3・段 6 のレンズはいずれも「親確認済み」を前提にしており、検出したのは
+  実走そのものだった (計算ノード job 1 本、46 秒を消費)。**「無い」の実測は全件を見ないと成立しない**型の
+  再発で、是正は各祖先を 1 段ずつ `ls -ld` で実測してから別 root へ回避した。
 ### F288. 敵対レビュー依頼が防御目的を明記していても依頼の**形**で上流分類器に拒否された [手順漏れ]
 
 - 事象: 段 3 レンズ A が 17 分・39 model call まで進んだ後、上流分類器の
@@ -19436,6 +19444,11 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   監査の自然終了で hold は消え、sidecar は復旧条件 (対象 job の qstat 不在・dirty path なし・
   HEAD 一致・clean tree) を確かめてから撤去した。**種別の違う dispatch (provenance 監査) も
   直列化の対象である**という本エントリの恒久対応を、変異 harness の起動直前に確かめなかった。
+
+- **再発: 2026-09-17** — [T-2644] wave で、親が probe の generic dispatch を背景投入した直後に同一 worktree から
+  焦点走を投げ、後発が `reason=orphan-hold` で子を起動せずに戻った (rc=16)。焦点走は別 worktree (実装子 A の
+  worktree、同じ差分) から投げ直して実害なし。`DW-O26` の「同一 worktree からの dispatch は全種を直列にする」を
+  親が投入直前に確かめなかった遵守の失敗。
 ### F657. 環境の偶然への依存を消す是正が、別の環境依存を持ち込んだ [テスト代表性] [恒真ゲート]
 
 - 事象: process 全体の fd 件数比較をやめ、clean な子 process 内で「開始前後の全 fd identity
@@ -27157,3 +27170,56 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `_detect_site_under_test` を要求し、`environment.json` に `site_policy.current_site()` を記録して `PEGASUS_COMPUTE` を
   実測で確認する。fix commit は probe branch `e35fb7c4e`。
 - 再発検知: probe の環境記録に `site` が無い、または `PEGASUS_COMPUTE` でない run の結果を本走として読まない。
+
+### F1018. 親が子 (launcher) の必須入力を、起動経路が実際に渡す env 集合と突き合わせずに仕様化した [誤前提] [手順漏れ]
+
+- 事象: 計算ノードで正規 CLI を起動する job dir の launcher の author 仕様で、親が `PBS_JOBID` を
+  必須入力 (未設定なら rc=2) にした。起動経路 `tools/pegasus/dispatch_compute.py --task generic` は
+  clean env (`HOME LANG LANGUAGE LC_ALL LC_CTYPE LOGNAME PATH TZ USER` だけ) で子を起動し、
+  `PBS_JOBID` を渡さない。そのまま投入していれば launcher は前提検査で必ず rc=2 になり、
+  本題 (screening 関門) は 1 度も走らなかった。
+- 根本原因: 親は段 1 brief に generic dispatch の clean env の鍵集合を書いていながら、段 5 の
+  author 仕様を書くときに「子が要求する入力 × 起動経路が実際に渡す env」を突き合わせなかった。
+  `DW-O13` (gate 入力の実在 — 設計前に入力が実成果物のどの field に存在するか確認する) を
+  gate の述語にだけ適用し、一回限りの実行体の入力には適用しなかった。
+- 検出経路: 段 6 の敵対レビュー 2 本が独立に `dispatch_compute.py` の `_CLEAN_CHILD_ENV_KEYS` /
+  `_child_environment` を読んで must-fix にした。fix 1 巡 (`mktemp -d` で scratch を確保し job の帰属は
+  dispatcher の receipt に委ねる) で閉じ、実害なし (near miss)。
+- 恒久対応: `DW-O13` の適用対象に「子・launcher が要求する env 入力」を含めて読む。memory
+  `child-required-inputs-must-match-launch-env` (子の必須入力は起動経路の実 env 集合 — clean env なら
+  その allowlist — と段 5 仕様の前に突き合わせる。dispatch 経由なら `_CLEAN_CHILD_ENV_KEYS` と task の
+  `env_allowlist` を実測して brief と仕様の両方に書く)。
+- 再発検知: `DW-S06-A` の敵対レビュー 2 本が「dispatch 環境との整合」を攻撃面に持つこと。
+  本件はその契約が働いた。
+
+### F1019. condition gate を計測 driver の build 経路へ統合した後、その driver を一度も実走せず、gate の前提が patch の設計と合わないまま 3 週間残った [手順漏れ] [ドリフト]
+
+- 事象: 2026-08-27 に `tools/pegasus/run_ss2pl_lock_study.py` の `build_target` へ condition gate
+  (`_require_condition_gates`) が入った後、SS2PL runner は一度も計算ノードで build を実走していなかった。
+  2026-09-17 に初めて走らせると、inert な arm は stock 木対照で `ycsb_ss2pl.exe` の owner TU が解決できず
+  (`owner-tu-unresolved`、companion define の未使用警告で `configure-failed`)、非 inert な arm は軸ごとに header /
+  marker define を切り替える patch の設計と「define 1 個だけの差」を要求する gate が合わず
+  (`dependency-closure-drift` / `compile-command-drift`)、全 arm が拒否された。pristine な thirdparty staging では
+  masstree の `config.h` 不在で gate の前処理も落ちる (永続 cache に残った生成物で T-2213 の実測は通っていた)。
+  一次資料 `output/insights/2026-09-17/t2644-ss2pl-wfg-connect/README.md` §5。
+- 根本原因: gate の統合 wave は unit test (合成 fixture) で緑を取り、統合先 driver の実走 (生死確認) を省いた。
+  driver 側の test も `build_target` を stub する。runner の build 経路が「動く」と誰も確かめないまま docs と
+  台帳は接続済みとして扱われた。
+- 恒久対応: `DW-G01` (生死実験先行) を、新機構の実装前だけでなく**既存 driver への gate 統合時**にも適用する —
+  統合先 driver の production 経路で 1 走を通すまで完成と扱わない。memory
+  `gate-tools-need-parent-live-dogfood` (gate tool は親が実データで 1 回通すまで完成でない) と同じ規律。
+  修正そのものは [T-2737]。
+- 再発検知: driver の build 経路を stub する test しか無い gate 統合 commit。段 1 で「その driver は統合後に
+  実走したか」を worklog / insight で照合する。
+
+### F1020. 文字列連結で組まれる policy key の読み手が literal 検索の消費者列挙から漏れ、「読み手 0」の主張のまま launcher が壊れた [consumer 取り残し] [手順漏れ]
+
+- 事象: T-548 (2026-09-17 entry 1578) は `gflags_source_path` / `glog_source_path` を policy から消し「読み手は 0」と
+  記録したが、`tools/pegasus/ss2pl_lock_study.sh:207` は `policy[name + "_source_path"]` と key を連結で組んで
+  読んでおり、`dependency_policy` 段で KeyError 相当で落ちる。同日の [T-2644] wave が launcher を読んで見つけた。
+- 根本原因: 消費者列挙を `gflags_source_path` の literal 検索で行い、接尾辞 `_source_path` や `"_source_path"` の
+  断片では検索しなかった。連結で組まれる key は literal 検索に現れない。
+- 恒久対応: memory `closure-and-search-discipline` に「key 名を文字列連結で組む読み手は literal 検索から漏れる。
+  接尾辞・断片 (`_source_path`) でも検索し、shell の heredoc 内 python も対象に含める」を追記した。
+  修正は [T-2741]。
+- 再発検知: 「読み手 0」と書く前に、識別子の断片検索が 0 件であることも併記する。

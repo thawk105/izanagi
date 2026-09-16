@@ -64353,3 +64353,124 @@ index 化は支配項に当たらない。D2068 の案 A / B の不採用理由�
   T126 の個別 code hash の対象外に残ることは事実として記録し、別件の裁定パッケージとして返す。
 - 旧 37-key 形を読める互換層 / 二重受理 — 受理形を増やす向きであり、裁定の条件は「据え置き」であって「読み続ける」ではない。
 - verifier package の census gate を T126 側にも新設する — 依頼の scope 外 (仮想リスク向けの gate・検査の追加)。
+
+## D2092. screening 関門の生死確認は generic dispatch + job dir の最小 launcher から正規 CLI を起動する形で行い、投入元への CLI の一時 patch は正規挙動として許容する (2026-09-17)
+
+**決定:** `backoff_sweep` の screening 関門の生死確認 (D1784 の再訪条件) は、既存の
+`tools/pegasus/dispatch_compute.py --task generic` から、repo 外 (job dir) に置いた最小 launcher
+(bash 1 本、Codex author が書き、敵対レビュー 2 本と焦点再レビューを通す) 経由で、現行の正規 CLI
+`python3.10 -I -B -u orchestrator/campaign/backoff_sweep.py write-heavy --screening --screening-fixed-us 2`
+を 1 回起動する形で行う。A-5 job body (`tools/pegasus/a5_second_boot_backoff_sweep.sh`) は改修しない。
+launcher の責務は、前提検査 (HEAD・CCBench pin・tracked-clean・official root 未存在・`/scr`)、
+割当ノード上の単独性の観測と拒否、A-5 と同値の env 供給 (固定 PATH・unset 群・`TMPDIR` を `/scr` の
+`mktemp -d`・job 固有 bench lock・official root・gflags/glog prefix・proxy)、正規 CLI の 1 回起動、
+終了後の tree 状態の出力に限る。clone による実行木の隔離は行わず、CLI が投入元 submodule へ
+`patchharness.applied` (pinned-clean 検査 → `git apply` → revert) と stock checkout の一時 worktree
+登録・撤去を行うことを **CLI の正規挙動として許容**する。代わりに、投入から終了まで親は wave worktree に
+git 操作・test 実走・編集を行わず (worktree は lock 済み)、launcher が起動前に両 tree の HEAD/pin と
+tracked-clean を検査し終了後に status と worktree list を出力し、親が終了後に login で同じ検査を再実測する。
+
+launcher は generic dispatch の clean env (`HOME LANG LANGUAGE LC_ALL LC_CTYPE LOGNAME PATH TZ USER`) だけを
+前提にし、`PBS_JOBID` を要求しない。job の帰属は dispatcher の result / receipt が持つ。
+
+**理由:**
+- 依頼は「現行の正規入口 (CLI の `screening_fixed_us`、tools/pegasus の投入 script) から」「実装差分は
+  既定でゼロ」「本題の 1 走だけ」を求めた。A-5 job body は `--screening` を渡さず finalize が 8 genome 全 commit を
+  要求し、submitter は 2 workload 固定なので、最小 screening を A-5 経由で走らせるには実装差分が要る。
+  generic dispatcher から現行 `main` を起動する形は、production 無編集で CLI 入口を通る (段 3 レンズ A が
+  「A-5 改修は不要」と裁定)。
+- CLI 単体は環境 (official root・prefix・proxy・TMPDIR) を要求し、generic の clean env では届かない。
+  最小 launcher は env 供給と単独性の観測のためだけに要り、D1786 (probe 投入 script を repo へ実行体として
+  置かない) に従い repo 外に置いて `.txt` の写しだけを証拠に残す。
+- 独立 clone で実行木を隔離する形 (前回 probe・A-5) は launcher を膨らませ clone 所要と失敗面を増やす。
+  CLI の in-place patch は pinned-clean 検査と revert を伴う正規挙動であり、専用 worktree を lock して
+  親が触らなければ source identity は保たれる。異常終了時は親が終了後検査で dirty・dangling を検出して復旧する。
+- generic の clean env に `PBS_JOBID` が無いことは、段 6 の敵対レビュー 2 本が独立に見つけた。親の author 仕様が
+  brief で clean env の鍵集合を書きながら `PBS_JOBID` を必須にした誤りで、DW-O13 (gate 入力の実在) の型である。
+
+**却下した選択肢:**
+- A-5 へ screening option を足す — 実装差分 (job body・submitter・finalize・sha 束縛の再計算) と Codex author・
+  受入が要り、依頼の「実装差分は既定でゼロ」に反する。
+- `env` 前置だけで launcher を置かない — 単独性の観測 (依頼の「単独性を確認してから投入」) と `TMPDIR` の job 固有化・
+  終了後の tree 状態の記録ができない。
+- launcher で独立 clone を作る — 上記のとおり最小性に反する。
+
+## D2093. screening 関門の緑は baseline の新規 WAL record と会計照合済み rc=0 による間接証拠として記録し、arm record・meaning 腕・成功 reason の限定を明記する (2026-09-17)
+
+**決定:** `backoff_sweep` の screening 関門 (`screening_driver._run_condition_gate_for_genome`) について
+「緑になった」と名乗る条件を、次の証拠組をすべて満たすこととする。
+1. 未使用の official root と今回の dispatch request が対応する。
+2. `campaign.lock` が対象 workload・`screening_fixed_us`・実行契約を示す。
+3. baseline の `build-start.payload.genome` が `BACK_OFF=0, BACKOFF_FIXED=-1` を示す。
+4. 同じ variant・同じ `build_attempt_id` に新規 `bench-done` と後続 `commit` があり、`build-done`
+   (toolchain・binary hash・configure/build argv) も保存されている。
+5. dispatch の `result.stage=child`・`child_rc=0`、receipt の `outcome.kind=child`・`rc=0`・会計照合済み。
+6. stdout の campaign ID・結果と WAL が一致し、production file・dispatcher・launcher の sha256 を記録している。
+
+これは**間接証拠**である。production 経路は関門の arm record を作って捨て (`evaluate_candidate` が
+戻り値を破棄し、赤は try/except の外で例外として process を止める。D1912 が `backoff_sweep.py` を名指し)、
+緑を直接記録する仕組みは無い。「関門が走った」ことは、その実行コードの制御フロー — 対象 baseline は
+request 非空 (`BACKOFF_FIXED=-1`、stock 比較) かつ `force=True` で、関門呼び出しが build・bench の前に
+あり、拒否は process を止める — からの推論で支える。
+
+README には次の限定を必ず書く: baseline の meaning 腕は `unestablished / meaning-witness-undeclared`
+(`_backoff_fixed_declarations` は非負値にしか declaration を作らない)、成功 supply reason
+(`stock-inert-preprocess-identical` / `stock-inert-preprocess-root-location-only`) は WAL からは識別できない、
+family admission は supply 全件緑 + meaning 緑または unestablished で通る既存条件である、rc=0 は候補の
+`screen-slower-than-floor` と両立する、被覆は 1 workload・2 genome・1 走で、通常 7 値 family・他 workload・
+他 driver・将来 HEAD・adaptive の実行時動作・A-5 環境との等価性を保証しない。
+候補段で赤でも baseline の関門通過は否定しないが、「CLI 全体正常終了」の完了条件は未達とする。
+
+**理由:**
+- 段 3 レンズ B が、空 request・`force=True`・WAL replay・stock checkout 失敗の握り潰し・空 preprocess・
+  既存成果物の更新の 6 経路を file:line で検査し、今回の baseline に限れば恒真経路が無いことを裏取りした。
+- 環境供給 (official root・prefix・proxy・TMPDIR・PATH) は関門の判定式・既定値を変えないが到達性を変える。
+  D1784 の「制御された拡張」を環境も含めた不変性へ読み替えない (規律 2)。
+- 記録される緑は「当時・そのコード・その道具」の事実であり、現行主張と分ける (規律 7)。
+
+**却下した選択肢:**
+- `strace` / Python `trace` による関門実行の直接痕跡の採取 — `trace` と `cProfile` は `SystemExit` を捕捉して
+  CLI の rc を壊し、`strace` は計測に干渉する。仮想リスク向けの観測追加であり本 wave の scope 外。
+- arm record の永続化を `backoff_sweep` へ横展開 — D1912 が DW-G03 (独立 2 例) で保留中。裁定パッケージ候補として残す。
+
+## D2094. SS2PL 待ちグラフ計器は標準出力の 1 行 event を一次伝達とし、mode は実 lock mode で出し、検証器の述語は変えない (2026-09-17)
+
+**決定:** D791 の証拠を採る計器 (`patches/ss2pl-lock-protocol-study.patch` の `wfg.cc`) と runner の検証器
+(`tools/pegasus/run_ss2pl_lock_study.py` の `validate_deadlock_evidence`) の接続は次の形にする。
+
+1. 計器は閉路の立った watchdog tick ごとに、検証器の要求形 (`ss2pl-wfg/v2`: `nodes[thread_id, attempt,
+   wait_lock_id, request_mode, commit_count, abort_count, held_locks[{lock_id, mode}]]`、
+   `edges[waiter_thread_id, holder_thread_id, lock_id, request_mode, holder_mode, compatible:false]`、`tick`)
+   の compact 1 行 JSON を標準出力へ出す。書き込みは `cout_mutex` と `flockfile(stdout)` の中で `fwrite` 1 回 +
+   `fflush`。durable file には最後に emit した同じ文字列を書く (副次成果物であり、受理条件にも代用証拠にもしない)。
+2. `held_locks` は同一 snapshot 内のその worker の保持一覧全件。`holder_holds_lock` のような自己申告 boolean は出さない。
+   holder の保持一覧に無い辺は出さない。
+3. mode は実 lock mode で出す: `SS2PL_LOCK_IMPL=1 && SS2PL_LOCK_KIND=0` (study lock の排他版) では全箇所 `write`、
+   それ以外は既存の read / write。取得 counter の分類は変えない。
+4. hang して kill される走行でも build 軸を読めるよう、YCSB main は `chkArg()` 直後に `#if SS2PL_WFG_DIAG` の中で
+   `ShowOptParameters()` を呼ぶ。追加はすべて `wfg.cc` か `#if SS2PL_WFG_DIAG` の内側に置く。
+5. runner の `_run_phase_trial` は trial ごとの directory に `-ss2pl_wfg_output=` を渡し、生の stdout / stderr と
+   durable file を保全して受領証に残す。`validate_deadlock_evidence` / `_extract_snapshots` / `_holder_evidence` /
+   `_edge_is_incompatible` / `_admit_output` は変えない。tick の連続性検査は検証器に足さない。
+6. 条件 3 (counter 不変) は計器が attempt 開始時に写した値で判定され、attempt 不変と冗長である。この冗長性は
+   受領証の説明に明記し、実更新時の同期は行わない。
+
+**理由:**
+- 標準出力 event は runner の既存経路 (`_json_events` → `_extract_snapshots`) をそのまま使え、SIGTERM / SIGKILL の後も
+  flush 済み行は `communicate()` が回収する。file を一次にすると runner 側の受理経路を作り直すことになる。
+- 排他 lock は `writer_` に格納する 1 種の mode しか持たない。read 操作を `read` と出すと検証器の
+  `_edge_is_incompatible` が read/read を両立と判定し、実閉路を拒否する。計器側の表現を実 lock mode に合わせれば
+  検証器 (規律 2 の権威) を触らずに済む。
+- `held_locks` は registry の写しで独立観測源ではないが、辺との照合と非両立の再導出を検証器に残すことで、boolean の
+  自己申告より偽りにくい。
+- 計算ノード 1 走 (高競合点、48 threads、hard timeout 60 秒) で、この形のまま production 経路が 2 node 閉路を 3 snapshot で
+  受理した (`output/insights/2026-09-17/t2644-ss2pl-wfg-connect/README.md`)。
+
+**却下した選択肢:**
+- **durable file を一次伝達にする:** runner の受理経路を file 読取りへ作り直す必要があり、hang して kill された走行では
+  file の有無が受理条件へ紛れ込む。
+- **field 名を検証器側で計器に合わせる:** 検証器は既存 test 3 件の権威であり、`holder_holds_lock` の boolean 枝を残す限り
+  自己申告が受理される形が残る。
+- **検証器に tick 連続性検査を足す:** 受理形の変更であり、本題の接続の外。phase1 (排他 + wait) では閉路が消えて
+  同じ signature で再出現する経路が構成できないことを論証で担保した。
+- **counter を実更新時に同期する:** 本題の接続の外。watchdog から非 atomic な counter を無同期に読む設計を招く。
