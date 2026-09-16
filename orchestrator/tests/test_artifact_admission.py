@@ -516,6 +516,81 @@ EXPECTED_EVIDENCE_CAMPAIGN_LOCKS = frozenset({
 })
 
 
+
+# Independent declaration copied from 2a9ba783f^; never derive from production.
+_EXPECTED_T733_EXACT62_CLOSURE_PATHS = (
+    "orchestrator/campaign/env_contract.py",
+    "orchestrator/campaign/env_contract_activation.py",
+    "orchestrator/campaign/execution_guard.py",
+    "orchestrator/campaign/loop.py",
+    "orchestrator/campaign/pipeline.py",
+    "orchestrator/campaign/wal.py",
+    "orchestrator/campaign/ident.py",
+    "orchestrator/campaign/artifact_admission.py",
+    "orchestrator/verifier/core.py",
+    "orchestrator/verifier/dsg.py",
+    "orchestrator/verifier/model.py",
+    "orchestrator/verifier/parse.py",
+    "orchestrator/verifier/__init__.py",
+    "orchestrator/verifier/report.py",
+    "orchestrator/campaign/s8c_preregistration.py",
+    "orchestrator/campaign/s8c_preregistration_evidence.py",
+    "orchestrator/campaign/s8c_generation_projection.py",
+    "orchestrator/campaign/campaign_lock.py",
+    "orchestrator/campaign/contract_loader_binding.py",
+    "orchestrator/campaign/guided.py",
+    "orchestrator/campaign/replay.py",
+    "orchestrator/qualification/artifacts.py",
+    "orchestrator/qualification/t126_driver.py",
+    "orchestrator/verifier/commit_receipt.py",
+    "orchestrator/calibrator/__init__.py",
+    "orchestrator/calibrator/effective_clock_policy.py",
+    "orchestrator/calibrator/perf_preflight.py",
+    "orchestrator/calibrator/runner.py",
+    "orchestrator/calibrator/schema_v2.py",
+    "orchestrator/calibrator/stability.py",
+    "orchestrator/campaign/__init__.py",
+    "orchestrator/campaign/axis_trigger_gating.py",
+    "orchestrator/campaign/build_admission.py",
+    "orchestrator/campaign/buildcache.py",
+    "orchestrator/campaign/calibration_verify.py",
+    "orchestrator/campaign/campaign_claim.py",
+    "orchestrator/campaign/diff_quarantine.py",
+    "orchestrator/campaign/env_attestation.py",
+    "orchestrator/campaign/genome.py",
+    "orchestrator/campaign/layout.py",
+    "orchestrator/campaign/lock.py",
+    "orchestrator/campaign/model.py",
+    "orchestrator/campaign/p2_2.py",
+    "orchestrator/campaign/p3_b4_launcher.py",
+    "orchestrator/campaign/p3_b4_protocol.py",
+    "orchestrator/campaign/reflux_ir.py",
+    "orchestrator/campaign/reservation.py",
+    "orchestrator/campaign/search_baselines.py",
+    "orchestrator/campaign/site_policy.py",
+    "orchestrator/campaign/source_digest.py",
+    "orchestrator/campaign/trigger_gate_binding.py",
+    "orchestrator/critic/__init__.py",
+    "orchestrator/critic/online_digest.py",
+    "orchestrator/holdout_observation.py",
+    "orchestrator/qualification/__init__.py",
+    "orchestrator/qualification/attempt_ledger.py",
+    "orchestrator/qualification/collector.py",
+    "orchestrator/qualification/contract.py",
+    "orchestrator/qualification/identity.py",
+    "orchestrator/qualification/qsub_binding.py",
+    "orchestrator/qualification/retry_index.py",
+    "orchestrator/qualification/series.py",
+)
+
+# Known answers computed once from the Git declaration above and the committed
+# fixture bytes "epoch closure fixture {index}\n" (one-based declaration index).
+# Epoch: SHA256(domain + sum(path UTF-8 + NUL + SHA256(fixture bytes))).
+# Path hash: SHA256(sum(path UTF-8 + NUL)), in declaration order.
+# Keep these literals fixed even if both production and expected tuples change.
+_FIXED_T733_EXACT62_EPOCH = "E1:78920efc47f4eb280b956a8fb92abed16b888495db544b62b1a15bf1f61004e9"
+_FIXED_T733_EXACT62_PATH_SHA256 = "b274387d0be033a98e86d54e5225667221bde79776832e73fb3d07cebfc6067a"
+
 def _canonical_json(value: object) -> str:
     return json.dumps(
         value, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
@@ -3114,6 +3189,172 @@ def test_exact_pre_policy_git_snapshot_artifact_remains_readable() -> None:
     admitted = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
     assert admitted.decision.classification == "historical-pre-admission-schema"
     assert admitted.decision.admission_status == "historical-not-reclassified"
+
+
+def _rewrite_as_t733_exact62_lock(campaign: Path) -> bytes:
+    lock_path = campaign / "campaign.lock"
+    value = json.loads(lock_path.read_text(encoding="utf-8"))
+    blobs = value["authority"]["contract_loader_blob_sha256s"]
+    value["authority"]["contract_loader_blob_sha256s"] = {
+        path: blobs[path] for path in _EXPECTED_T733_EXACT62_CLOSURE_PATHS
+    }
+    raw = _canonical_json(value).encode("utf-8")
+    lock_path.write_bytes(raw)
+    return raw
+
+
+def test_t733_exact62_is_readable_only_as_recorded_historical_epoch(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    lock_raw = _rewrite_as_t733_exact62_lock(campaign)
+    wal_raw = (campaign / "runs/wal.jsonl").read_bytes()
+    assert campaign_lock.T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS == (
+        _EXPECTED_T733_EXACT62_CLOSURE_PATHS
+    )
+    assert hashlib.sha256(b"".join(
+        path.encode("utf-8") + b"\0"
+        for path in campaign_lock.T733_EXACT62_CONTRACT_LOADER_RELATIVE_PATHS
+    )).hexdigest() == _FIXED_T733_EXACT62_PATH_SHA256
+    for dirty in (False, True):
+        if dirty:
+            live = repo / "orchestrator/campaign/artifact_admission.py"
+            live.write_bytes(live.read_bytes() + b"uncommitted live closure drift\n")
+        view = A.require_admitted_campaign(campaign, purpose=HISTORICAL)
+        epoch = A.require_campaign_verifier_epoch(campaign, purpose=HISTORICAL)
+        assert type(view) is A.HistoricalCampaignView
+        assert view.read_purpose is HISTORICAL
+        assert view.campaign_verifier_epoch == epoch
+        assert type(epoch) is A.HistoricalCampaignVerifierEpoch
+        assert epoch.state == "E1"
+        assert epoch.reason_code == "recorded-closure"
+        assert epoch.campaign_verifier_epoch == _FIXED_T733_EXACT62_EPOCH
+        assert epoch.identity_scope == (
+            "enforcement source closure (curated exact 62 path; 2026-09-01 の静的 import "
+            "発見集合 131 module のうち、既存 24、明示 import 先 36、実行時 package 初期化 "
+            "2 を収載; source-import 推移閉包ではない)"
+        )
+        assert epoch.excluded_scope == (
+            "同発見集合の未収載 69 module、orchestrator/verifier/__main__.py、"
+            "orchestrator/verifier/cli.py、package 外の orchestrator/verify.py、および "
+            "data/schema、生成物、subprocess、外部 command/Git、toolchain、binary、動的 "
+            "import を含む非 import 委譲は本 map の外であり、完全性を主張しない"
+        )
+        assert epoch.current_verifier_conformance == "unknown"
+        assert view.current_verifier_conformance == "unknown"
+        assert (campaign / "campaign.lock").read_bytes() == lock_raw
+        assert (campaign / "runs/wal.jsonl").read_bytes() == wal_raw
+
+
+def test_t733_exact62_is_rejected_for_certified_use(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    lock_raw = _rewrite_as_t733_exact62_lock(campaign)
+    for api in (A.require_admitted_campaign, A.require_campaign_verifier_epoch):
+        with pytest.raises(A.ArtifactAdmissionError, match="codec validation failed"):
+            api(campaign, purpose=CERTIFIED)
+    with pytest.raises(A.ArtifactAdmissionError, match="codec validation failed"):
+        A.classify_campaign(campaign)
+    assert (campaign / "campaign.lock").read_bytes() == lock_raw
+
+
+@pytest.mark.parametrize(
+    "mutation", ["subset", "superset", "same-count-replacement", "order"],
+)
+def test_unknown_t733_exact62_grammar_is_rejected_for_both_read_purposes(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    _rewrite_as_t733_exact62_lock(campaign)
+    lock_path = campaign / "campaign.lock"
+    value = json.loads(lock_path.read_text(encoding="utf-8"))
+    blobs = value["authority"]["contract_loader_blob_sha256s"]
+    if mutation in {"subset", "same-count-replacement"}:
+        blobs.pop(_EXPECTED_T733_EXACT62_CLOSURE_PATHS[-1])
+    if mutation in {"superset", "same-count-replacement"}:
+        extra = "orchestrator/campaign/unknown_t2483.py"
+        assert extra not in campaign_lock.CONTRACT_LOADER_RELATIVE_PATHS
+        blobs[extra] = "f" * 64
+    if mutation == "order":
+        paths = tuple(blobs)
+        value["authority"]["contract_loader_blob_sha256s"] = {
+            p: blobs[p] for p in (paths[1], paths[0], *paths[2:])
+        }
+        text = json.dumps(value, separators=(",", ":"), ensure_ascii=False)
+    else:
+        text = _canonical_json(value)
+    lock_path.write_text(text, encoding="utf-8")
+    for purpose in (HISTORICAL, CERTIFIED):
+        for api in (A.require_admitted_campaign, A.require_campaign_verifier_epoch):
+            with pytest.raises(A.ArtifactAdmissionError, match="codec validation failed"):
+                api(campaign, purpose=purpose)
+    assert lock_path.read_bytes() == text.encode("utf-8")
+
+
+@pytest.mark.parametrize("relative", _EXPECTED_T733_EXACT62_CLOSURE_PATHS)
+def test_t733_exact62_rejects_each_recorded_commit_blob_mismatch(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, relative: str,
+) -> None:
+    repo = _committed_closure_repo(tmp_path)
+    monkeypatch.setattr(contract_loader_binding, "_REPO_ROOT", repo)
+    campaign = _new_schema_campaign(tmp_path / "campaign")
+    _rewrite_as_t733_exact62_lock(campaign)
+    lock_path = campaign / "campaign.lock"
+    value = json.loads(lock_path.read_text(encoding="utf-8"))
+    blobs = value["authority"]["contract_loader_blob_sha256s"]
+    recorded = blobs[relative]
+    blobs[relative] = ("0" if recorded[0] != "0" else "1") + recorded[1:]
+    lock_path.write_text(_canonical_json(value), encoding="utf-8")
+    for api in (A.require_admitted_campaign, A.require_campaign_verifier_epoch):
+        with pytest.raises(
+            A.ArtifactAdmissionError, match="contract-loader-blob-mismatch",
+        ) as rejected:
+            api(campaign, purpose=HISTORICAL)
+        assert relative in str(rejected.value)
+
+
+def test_t733_exact62_epoch_requires_matching_scope_and_paths() -> None:
+    from dataclasses import replace
+    from types import MappingProxyType
+
+    epoch = A.HistoricalCampaignVerifierEpoch(
+        campaign_verifier_epoch=_FIXED_T733_EXACT62_EPOCH,
+        state="E1", reason_code="recorded-closure",
+        identity_scope=A.T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_SCOPE,
+        excluded_scope=A.T733_EXACT62_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,
+    )
+    blobs62 = MappingProxyType({
+        p: hashlib.sha256(f"epoch closure fixture {i}\n".encode("ascii")).hexdigest()
+        for i, p in enumerate(_EXPECTED_T733_EXACT62_CLOSURE_PATHS, start=1)
+    })
+    A._RecordedCampaignVerifierEpoch(diagnostic=epoch, blob_sha256s=blobs62)
+    for changes in (
+        {"identity_scope": A.PRE_T733_CAMPAIGN_VERIFIER_EPOCH_SCOPE},
+        {"excluded_scope": A.PRE_T733_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE},
+        {"identity_scope": "unknown scope"},
+        {"excluded_scope": "unknown exclusions"},
+    ):
+        with pytest.raises(TypeError, match="diagnostic"):
+            replace(epoch, **changes)
+    epoch24 = replace(
+        epoch, identity_scope=A.PRE_T733_CAMPAIGN_VERIFIER_EPOCH_SCOPE,
+        excluded_scope=A.PRE_T733_CAMPAIGN_VERIFIER_EPOCH_EXCLUDED_SCOPE,
+    )
+    blobs24 = MappingProxyType({p: blobs62[p] for p in _EXPECTED_PRE_T733_CLOSURE_PATHS})
+    paths = _EXPECTED_T733_EXACT62_CLOSURE_PATHS
+    reordered = MappingProxyType({
+        p: blobs62[p] for p in (paths[1], paths[0], *paths[2:])
+    })
+    for diagnostic, blobs in ((epoch24, blobs62), (epoch, blobs24), (epoch, reordered)):
+        with pytest.raises(TypeError, match="exact path 順序"):
+            A._RecordedCampaignVerifierEpoch(diagnostic=diagnostic, blob_sha256s=blobs)
 
 
 def _run() -> int:

@@ -1,0 +1,451 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time/output/pegasus-dispatch/83d011d84594e1d5d6843a9c8dcc1650/izdw-83d011d845.o1368",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time/output/pegasus-dispatch/83d011d84594e1d5d6843a9c8dcc1650/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [29 items]\n\n.............................                                            [100%]\n============================== 29 passed in 4.72s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "a27cadc03c6bd974cd8689860ce4af5016bf61a6e5ae6596f6294a1ddd165193"
+    },
+    "artifact_error": null,
+    "collection_sha256": "0eb655c6dfe307e2445a5b18fbe612d9b3c73df58368141b09da9c05dea3c514",
+    "duration_s": 31.414,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "db3a62b49e06ad40de32fbdddc6c313b9f0f0fb84bee63cd94cb2e2eb135daea",
+    "repo_head": "fefbec1ab86a7998033a5033babfe5c8f676a8f1",
+    "runner_sha256": "9d79443d7ebe2579c3abfbc02732511d930ecb4f6db516253bdec8f3d77485bc",
+    "spec_sha256": "fbe77129f036e127467a70cedb3200addf298c9a8fa0bbe61f1cfdc058da96a3",
+    "status": "PASSED",
+    "test_output_sha256": "a27cadc03c6bd974cd8689860ce4af5016bf61a6e5ae6596f6294a1ddd165193",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "b5377d721e0629902d9790bfc6f0a38a70cc7ce51b7af733a22328ebfff16376"
+  },
+  "date": "2026-09-16T07:53:45.418246+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time/output/pegasus-dispatch/3225234fabacad192231b5ad52a24176/izdw-3225234fab.o1369",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time/output/pegasus-dispatch/3225234fabacad192231b5ad52a24176/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [29 items]\n\n......................FF.....                                            [100%]\n=================================== FAILURES ===================================\n_________ test_section5_rejects_unrecorded_owner_with_unrecorded_start _________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_section5_rejects_unrecorded_owner_with_unrecorded_start():\n        document = _section5_document(value_overrides={\n            \"実行責任者・開始時刻\": \"実行責任者 = 未記入、開始時刻 = 未記入\",\n        })\n>       _raises(\n            A.B4AdmissionRecordError,\n            lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n                document,\n                expected_claude_model_snapshot=_MODEL,\n                expected_effective_critic_prompt_sha256=_PROMPT,\n            ),\n            exact=_SECTION5_ERROR,\n        )\n\norchestrator/tests/test_p3_b4_admission_record.py:516: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\ncallable_ = <function test_section5_rejects_unrecorded_owner_with_unrecorded_start.<locals>.<lambda> at 0x149697446290>\nexact = '[admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked'\n\n    def _raises(error_type, callable_, *, exact: str | None = None):\n        try:\n            callable_()\n        except error_type as exc:\n            if exact is not None:\n                assert str(exc) == exact\n            return exc\n>       raise AssertionError(f\"expected {error_type.__name__}\")\nE       AssertionError: expected B4AdmissionRecordError\n\norchestrator/tests/test_p3_b4_admission_record.py:68: AssertionError\n__________ test_section5_rejects_reserved_owner_with_unrecorded_start __________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_section5_rejects_reserved_owner_with_unrecorded_start():\n        for value in (\n            \"実行責任者 = TBD、開始時刻 = 未記入\",\n            \"実行責任者 = ＴＢＤ、開始時刻 = 未記入\",\n            \"実行責任者 = N/A、開始時刻 = 未記入\",\n            \"実行責任者 = 要記入、開始時刻 = 未記入\",\n            \"実行責任者 = x、開始時刻 = 未記入\",\n            \"実行責任者 = ---、開始時刻 = 未記入\",\n        ):\n            document = _section5_document(value_overrides={\n                \"実行責任者・開始時刻\": value,\n            })\n>           _raises(\n                A.B4AdmissionRecordError,\n                lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n                    document,\n                    expected_claude_model_snapshot=_MODEL,\n                    expected_effective_critic_prompt_sha256=_PROMPT,\n                ),\n                exact=_SECTION5_ERROR,\n            )\n\norchestrator/tests/test_p3_b4_admission_record.py:554: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\ncallable_ = <function test_section5_rejects_reserved_owner_with_unrecorded_start.<locals>.<lambda> at 0x154fed166290>\nexact = '[admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked'\n\n    def _raises(error_type, callable_, *, exact: str | None = None):\n        try:\n            callable_()\n        except error_type as exc:\n            if exact is not None:\n                assert str(exc) == exact\n            return exc\n>       raise AssertionError(f\"expected {error_type.__name__}\")\nE       AssertionError: expected B4AdmissionRecordError\n\norchestrator/tests/test_p3_b4_admission_record.py:68: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_owner_with_unrecorded_start\nFAILED orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reserved_owner_with_unrecorded_start\n========================= 2 failed, 27 passed in 4.69s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reserved_owner_with_unrecorded_start\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=2030 retained_bytes=2030 omitted_bytes=0 rendered_excerpt_bytes=2397 sha256=c0c76aa95c074a6bb8779797665fda760d12e755a015d963df15397e05429c38\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_section5_rejects_reserved_owner_with_unrecorded_start():\n>         for value in (\n>             \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005 = TBD\\u3001\\u958b\\u59cb\\u6642\\u523b = \\u672a\\u8a18\\u5165\",\n>             \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005 = \\uff34\\uff22\\uff24\\u3001\\u958b\\u59cb\\u6642\\u523b = \\u672a\\u8a18\\u5165\",\n>             \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005 = N/A\\u3001\\u958b\\u59cb\\u6642\\u523b = \\u672a\\u8a18\\u5165\",\n>             \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005 = \\u8981\\u8a18\\u5165\\u3001\\u958b\\u59cb\\u6642\\u523b = \\u672a\\u8a18\\u5165\",\n>             \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005 = x\\u3001\\u958b\\u59cb\\u6642\\u523b = \\u672a\\u8a18\\u5165\",\n>             \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005 = ---\\u3001\\u958b\\u59cb\\u6642\\u523b = \\u672a\\u8a18\\u5165\",\n>         ):\n>             document = _section5_document(value_overrides={\n>                 \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005\\u30fb\\u958b\\u59cb\\u6642\\u523b\": value,\n>             })\n> >           _raises(\n>                 A.B4AdmissionRecordError,\n>                 lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n>                     document,\n>                     expected_claude_model_snapshot=_MODEL,\n>                     expected_effective_critic_prompt_sha256=_PROMPT,\n>                 ),\n>                 exact=_SECTION5_ERROR,\n>             )\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:554: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> error_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\n> callable_ = <function test_section5_rejects_reserved_owner_with_unrecorded_start.<locals>.<lambda> at 0x154fed166290>\n> exact = '[admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked'\n> \n>     def _raises(error_type, callable_, *, exact: str | None = None):\n>         try:\n>             callable_()\n>         except error_type as exc:\n>             if exact is not None:\n>                 assert str(exc) == exact\n>             return exc\n> >       raise AssertionError(f\"expected {error_type.__name__}\")\n> E       AssertionError: expected B4AdmissionRecordError\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:68: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_owner_with_unrecorded_start\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=1609 retained_bytes=1609 omitted_bytes=0 rendered_excerpt_bytes=1756 sha256=76a177952c7098d8c7f8fe089753c8e94d1f0aa6d38b7d5257e01916defd6e87\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_section5_rejects_unrecorded_owner_with_unrecorded_start():\n>         document = _section5_document(value_overrides={\n>             \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005\\u30fb\\u958b\\u59cb\\u6642\\u523b\": \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005 = \\u672a\\u8a18\\u5165\\u3001\\u958b\\u59cb\\u6642\\u523b = \\u672a\\u8a18\\u5165\",\n>         })\n> >       _raises(\n>             A.B4AdmissionRecordError,\n>             lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n>                 document,\n>                 expected_claude_model_snapshot=_MODEL,\n>                 expected_effective_critic_prompt_sha256=_PROMPT,\n>             ),\n>             exact=_SECTION5_ERROR,\n>         )\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:516: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> error_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\n> callable_ = <function test_section5_rejects_unrecorded_owner_with_unrecorded_start.<locals>.<lambda> at 0x149697446290>\n> exact = '[admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked'\n> \n>     def _raises(error_type, callable_, *, exact: str | None = None):\n>         try:\n>             callable_()\n>         except error_type as exc:\n>             if exact is not None:\n>                 assert str(exc) == exact\n>             return exc\n> >       raise AssertionError(f\"expected {error_type.__name__}\")\n> E       AssertionError: expected B4AdmissionRecordError\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:68: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3639 retained_bytes=3639 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5342 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "fa324d89d7821c0491ed988295c9dd1d6ec7804757a405cb224ac27c86dd7a20"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "0eb655c6dfe307e2445a5b18fbe612d9b3c73df58368141b09da9c05dea3c514",
+      "duration_s": 27.654,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_owner_with_unrecorded_start",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reserved_owner_with_unrecorded_start"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_owner_with_unrecorded_start",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reserved_owner_with_unrecorded_start"
+      ],
+      "hang_risk": false,
+      "id": "m5-drop-owner-sentinel-regex-condition",
+      "injection_diff_sha256": "70d860a43e713458b633f61d278dff1b15c21a4b534c220c151572c0a7300100",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3a4d7b37028d90f67fdf856519c98fadf9e899275c7f8ce3a5a39232504df2e8",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "                    owner\n                    and owner.casefold() not in _RESERVED_SENTINEL_WHOLE_VALUES\n",
+          "old": "                    owner\n                    and _RESERVED_SENTINEL_RE.search(owner) is None\n                    and owner.casefold() not in _RESERVED_SENTINEL_WHOLE_VALUES\n"
+        }
+      ],
+      "repo_head": "fefbec1ab86a7998033a5033babfe5c8f676a8f1",
+      "runner_sha256": "9d79443d7ebe2579c3abfbc02732511d930ecb4f6db516253bdec8f3d77485bc",
+      "spec_sha256": "fbe77129f036e127467a70cedb3200addf298c9a8fa0bbe61f1cfdc058da96a3",
+      "status": "KILLED",
+      "test_output_sha256": "fa324d89d7821c0491ed988295c9dd1d6ec7804757a405cb224ac27c86dd7a20",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b5377d721e0629902d9790bfc6f0a38a70cc7ce51b7af733a22328ebfff16376"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time/output/pegasus-dispatch/c536cde963eee6520cb9ce31713bd994/izdw-c536cde963.o1372",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time/output/pegasus-dispatch/c536cde963eee6520cb9ce31713bd994/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [29 items]\n\n........................F....                                            [100%]\n=================================== FAILURES ===================================\n__________ test_section5_rejects_reserved_owner_with_unrecorded_start __________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_section5_rejects_reserved_owner_with_unrecorded_start():\n        for value in (\n            \"実行責任者 = TBD、開始時刻 = 未記入\",\n            \"実行責任者 = ＴＢＤ、開始時刻 = 未記入\",\n            \"実行責任者 = N/A、開始時刻 = 未記入\",\n            \"実行責任者 = 要記入、開始時刻 = 未記入\",\n            \"実行責任者 = x、開始時刻 = 未記入\",\n            \"実行責任者 = ---、開始時刻 = 未記入\",\n        ):\n            document = _section5_document(value_overrides={\n                \"実行責任者・開始時刻\": value,\n            })\n>           _raises(\n                A.B4AdmissionRecordError,\n                lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n                    document,\n                    expected_claude_model_snapshot=_MODEL,\n                    expected_effective_critic_prompt_sha256=_PROMPT,\n                ),\n                exact=_SECTION5_ERROR,\n            )\n\norchestrator/tests/test_p3_b4_admission_record.py:554: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\ncallable_ = <function test_section5_rejects_reserved_owner_with_unrecorded_start.<locals>.<lambda> at 0x14cecb8d2290>\nexact = '[admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked'\n\n    def _raises(error_type, callable_, *, exact: str | None = None):\n        try:\n            callable_()\n        except error_type as exc:\n            if exact is not None:\n                assert str(exc) == exact\n            return exc\n>       raise AssertionError(f\"expected {error_type.__name__}\")\nE       AssertionError: expected B4AdmissionRecordError\n\norchestrator/tests/test_p3_b4_admission_record.py:68: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reserved_owner_with_unrecorded_start\n========================= 1 failed, 28 passed in 4.65s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reserved_owner_with_unrecorded_start\" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=2030 retained_bytes=2030 omitted_bytes=0 rendered_excerpt_bytes=2397 sha256=20d4ab33f9580419ba0aeaa8beaab3ba4884c60ae612f5a68bdff9e39ca45765\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_section5_rejects_reserved_owner_with_unrecorded_start():\n>         for value in (\n>             \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005 = TBD\\u3001\\u958b\\u59cb\\u6642\\u523b = \\u672a\\u8a18\\u5165\",\n>             \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005 = \\uff34\\uff22\\uff24\\u3001\\u958b\\u59cb\\u6642\\u523b = \\u672a\\u8a18\\u5165\",\n>             \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005 = N/A\\u3001\\u958b\\u59cb\\u6642\\u523b = \\u672a\\u8a18\\u5165\",\n>             \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005 = \\u8981\\u8a18\\u5165\\u3001\\u958b\\u59cb\\u6642\\u523b = \\u672a\\u8a18\\u5165\",\n>             \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005 = x\\u3001\\u958b\\u59cb\\u6642\\u523b = \\u672a\\u8a18\\u5165\",\n>             \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005 = ---\\u3001\\u958b\\u59cb\\u6642\\u523b = \\u672a\\u8a18\\u5165\",\n>         ):\n>             document = _section5_document(value_overrides={\n>                 \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005\\u30fb\\u958b\\u59cb\\u6642\\u523b\": value,\n>             })\n> >           _raises(\n>                 A.B4AdmissionRecordError,\n>                 lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n>                     document,\n>                     expected_claude_model_snapshot=_MODEL,\n>                     expected_effective_critic_prompt_sha256=_PROMPT,\n>                 ),\n>                 exact=_SECTION5_ERROR,\n>             )\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:554: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> error_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\n> callable_ = <function test_section5_rejects_reserved_owner_with_unrecorded_start.<locals>.<lambda> at 0x14cecb8d2290>\n> exact = '[admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked'\n> \n>     def _raises(error_type, callable_, *, exact: str | None = None):\n>         try:\n>             callable_()\n>         except error_type as exc:\n>             if exact is not None:\n>                 assert str(exc) == exact\n>             return exc\n> >       raise AssertionError(f\"expected {error_type.__name__}\")\n> E       AssertionError: expected B4AdmissionRecordError\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:68: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2030 retained_bytes=2030 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3134 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3494220fe73bc7745f3b3fe4028f0cfa1e081e70ae0b27720c1daf7e4c2db97c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "0eb655c6dfe307e2445a5b18fbe612d9b3c73df58368141b09da9c05dea3c514",
+      "duration_s": 32.597,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reserved_owner_with_unrecorded_start"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reserved_owner_with_unrecorded_start"
+      ],
+      "hang_risk": false,
+      "id": "m6-drop-owner-whole-value-condition",
+      "injection_diff_sha256": "edd8331d06483688f9167b29adeaef7c8112290521049967bbbd02d01eaf542c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2491d20d8e0886cd78e0b5b0ab12905a64d1952a9ebf104bc8c5e5ca0cbd3677",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "                ):\n",
+          "old": "                    and owner.casefold() not in _RESERVED_SENTINEL_WHOLE_VALUES\n                ):\n"
+        }
+      ],
+      "repo_head": "fefbec1ab86a7998033a5033babfe5c8f676a8f1",
+      "runner_sha256": "9d79443d7ebe2579c3abfbc02732511d930ecb4f6db516253bdec8f3d77485bc",
+      "spec_sha256": "fbe77129f036e127467a70cedb3200addf298c9a8fa0bbe61f1cfdc058da96a3",
+      "status": "KILLED",
+      "test_output_sha256": "3494220fe73bc7745f3b3fe4028f0cfa1e081e70ae0b27720c1daf7e4c2db97c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b5377d721e0629902d9790bfc6f0a38a70cc7ce51b7af733a22328ebfff16376"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time/output/pegasus-dispatch/061aa26a7d7aa9324c510876f4948562/izdw-061aa26a7d.o1379",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time/output/pegasus-dispatch/061aa26a7d7aa9324c510876f4948562/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [29 items]\n\n......................F......                                            [100%]\n=================================== FAILURES ===================================\n_________________ test_section5_rejects_other_start_sentinels __________________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_section5_rejects_other_start_sentinels():\n        for value in (\n            \"実行責任者 = thawk105、開始時刻 = TODO\",\n            \"実行責任者 = thawk105、開始時刻 = 要記入\",\n        ):\n            document = _section5_document(value_overrides={\n                \"実行責任者・開始時刻\": value,\n            })\n>           _raises(\n                A.B4AdmissionRecordError,\n                lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n                    document,\n                    expected_claude_model_snapshot=_MODEL,\n                    expected_effective_critic_prompt_sha256=_PROMPT,\n                ),\n                exact=_SECTION5_ERROR,\n            )\n\norchestrator/tests/test_p3_b4_admission_record.py:573: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\ncallable_ = <function test_section5_rejects_other_start_sentinels.<locals>.<lambda> at 0x14b65b25e320>\nexact = '[admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked'\n\n    def _raises(error_type, callable_, *, exact: str | None = None):\n        try:\n            callable_()\n        except error_type as exc:\n            if exact is not None:\n                assert str(exc) == exact\n            return exc\n>       raise AssertionError(f\"expected {error_type.__name__}\")\nE       AssertionError: expected B4AdmissionRecordError\n\norchestrator/tests/test_p3_b4_admission_record.py:68: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_other_start_sentinels\n========================= 1 failed, 28 passed in 4.66s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_other_start_sentinels\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=1739 retained_bytes=1739 omitted_bytes=0 rendered_excerpt_bytes=1915 sha256=f7c6f9f101a81a41b405afb461537fa9a8bcab60ea264bcb722dcadef562cf89\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_section5_rejects_other_start_sentinels():\n>         for value in (\n>             \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005 = thawk105\\u3001\\u958b\\u59cb\\u6642\\u523b = TODO\",\n>             \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005 = thawk105\\u3001\\u958b\\u59cb\\u6642\\u523b = \\u8981\\u8a18\\u5165\",\n>         ):\n>             document = _section5_document(value_overrides={\n>                 \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005\\u30fb\\u958b\\u59cb\\u6642\\u523b\": value,\n>             })\n> >           _raises(\n>                 A.B4AdmissionRecordError,\n>                 lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n>                     document,\n>                     expected_claude_model_snapshot=_MODEL,\n>                     expected_effective_critic_prompt_sha256=_PROMPT,\n>                 ),\n>                 exact=_SECTION5_ERROR,\n>             )\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:573: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> error_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\n> callable_ = <function test_section5_rejects_other_start_sentinels.<locals>.<lambda> at 0x14b65b25e320>\n> exact = '[admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked'\n> \n>     def _raises(error_type, callable_, *, exact: str | None = None):\n>         try:\n>             callable_()\n>         except error_type as exc:\n>             if exact is not None:\n>                 assert str(exc) == exact\n>             return exc\n> >       raise AssertionError(f\"expected {error_type.__name__}\")\n> E       AssertionError: expected B4AdmissionRecordError\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:68: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1739 retained_bytes=1739 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2636 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c44ca02a3c42682067703bd2732c03a7ef23a1206a2e0e759705d1e1e85ba77f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "0eb655c6dfe307e2445a5b18fbe612d9b3c73df58368141b09da9c05dea3c514",
+      "duration_s": 27.5,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_other_start_sentinels"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_other_start_sentinels"
+      ],
+      "hang_risk": false,
+      "id": "m7-widen-start-time-token",
+      "injection_diff_sha256": "a55268251f363e2a122a9b1e7a70eeb0f708976e964d7a95c727c42f5ceec193",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5f1e76058ce31e7b9521091c8fdc1b97e1ed11f3fe2337a7e6509d3bbbfdecc7",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "                r\"実行責任者 = (?P<owner>[^、=\\r\\n]+)、開始時刻 = (?:未記入|TODO)\",\n",
+          "old": "                r\"実行責任者 = (?P<owner>[^、=\\r\\n]+)、開始時刻 = 未記入\",\n"
+        }
+      ],
+      "repo_head": "fefbec1ab86a7998033a5033babfe5c8f676a8f1",
+      "runner_sha256": "9d79443d7ebe2579c3abfbc02732511d930ecb4f6db516253bdec8f3d77485bc",
+      "spec_sha256": "fbe77129f036e127467a70cedb3200addf298c9a8fa0bbe61f1cfdc058da96a3",
+      "status": "KILLED",
+      "test_output_sha256": "c44ca02a3c42682067703bd2732c03a7ef23a1206a2e0e759705d1e1e85ba77f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b5377d721e0629902d9790bfc6f0a38a70cc7ce51b7af733a22328ebfff16376"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time/output/pegasus-dispatch/f04655a7e6b72cd0764594f4618ab953/izdw-f04655a7e6.o1382",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time/output/pegasus-dispatch/f04655a7e6b72cd0764594f4618ab953/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [29 items]\n\n.......................F.....                                            [100%]\n=================================== FAILURES ===================================\n________________ test_section5_rejects_unrecorded_start_suffix _________________\n[gw22] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_section5_rejects_unrecorded_start_suffix():\n        document = _section5_document(value_overrides={\n            \"実行責任者・開始時刻\": \"実行責任者 = thawk105、開始時刻 = 未記入（後日記入）\",\n        })\n>       _raises(\n            A.B4AdmissionRecordError,\n            lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n                document,\n                expected_claude_model_snapshot=_MODEL,\n                expected_effective_critic_prompt_sha256=_PROMPT,\n            ),\n            exact=_SECTION5_ERROR,\n        )\n\norchestrator/tests/test_p3_b4_admission_record.py:588: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\ncallable_ = <function test_section5_rejects_unrecorded_start_suffix.<locals>.<lambda> at 0x151f46cde320>\nexact = '[admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked'\n\n    def _raises(error_type, callable_, *, exact: str | None = None):\n        try:\n            callable_()\n        except error_type as exc:\n            if exact is not None:\n                assert str(exc) == exact\n            return exc\n>       raise AssertionError(f\"expected {error_type.__name__}\")\nE       AssertionError: expected B4AdmissionRecordError\n\norchestrator/tests/test_p3_b4_admission_record.py:68: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_start_suffix\n========================= 1 failed, 28 passed in 4.73s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_start_suffix\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1596 retained_bytes=1596 omitted_bytes=0 rendered_excerpt_bytes=1752 sha256=bfa5cb7ece04b58ee8840d3f65a7ac63ed9405eba60e71453a7db942ed8eee18\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw22] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_section5_rejects_unrecorded_start_suffix():\n>         document = _section5_document(value_overrides={\n>             \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005\\u30fb\\u958b\\u59cb\\u6642\\u523b\": \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005 = thawk105\\u3001\\u958b\\u59cb\\u6642\\u523b = \\u672a\\u8a18\\u5165\\uff08\\u5f8c\\u65e5\\u8a18\\u5165\\uff09\",\n>         })\n> >       _raises(\n>             A.B4AdmissionRecordError,\n>             lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n>                 document,\n>                 expected_claude_model_snapshot=_MODEL,\n>                 expected_effective_critic_prompt_sha256=_PROMPT,\n>             ),\n>             exact=_SECTION5_ERROR,\n>         )\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:588: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> error_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\n> callable_ = <function test_section5_rejects_unrecorded_start_suffix.<locals>.<lambda> at 0x151f46cde320>\n> exact = '[admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked'\n> \n>     def _raises(error_type, callable_, *, exact: str | None = None):\n>         try:\n>             callable_()\n>         except error_type as exc:\n>             if exact is not None:\n>                 assert str(exc) == exact\n>             return exc\n> >       raise AssertionError(f\"expected {error_type.__name__}\")\n> E       AssertionError: expected B4AdmissionRecordError\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:68: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1596 retained_bytes=1596 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2475 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "198c88e063350b51490b3ffa157d4d02c6eb32b0269408636a44fd0dc3a83f4a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "0eb655c6dfe307e2445a5b18fbe612d9b3c73df58368141b09da9c05dea3c514",
+      "duration_s": 27.231,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_start_suffix"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_start_suffix"
+      ],
+      "hang_risk": false,
+      "id": "m8-fullmatch-to-match",
+      "injection_diff_sha256": "38303db41b2f70a93b123f347119bca5c526870fc5d31dd2f481bf39df049daa",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0fb649ecdf1ee0226d2aa661f140edd7aa5d41e05210cbe1ad3d11debde20ec9",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "            match = re.match(\n",
+          "old": "            match = re.fullmatch(\n"
+        }
+      ],
+      "repo_head": "fefbec1ab86a7998033a5033babfe5c8f676a8f1",
+      "runner_sha256": "9d79443d7ebe2579c3abfbc02732511d930ecb4f6db516253bdec8f3d77485bc",
+      "spec_sha256": "fbe77129f036e127467a70cedb3200addf298c9a8fa0bbe61f1cfdc058da96a3",
+      "status": "KILLED",
+      "test_output_sha256": "198c88e063350b51490b3ffa157d4d02c6eb32b0269408636a44fd0dc3a83f4a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b5377d721e0629902d9790bfc6f0a38a70cc7ce51b7af733a22328ebfff16376"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time/output/pegasus-dispatch/be2bff94a281a634bceed9c8b57fb640/izdw-be2bff94a2.o1389",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time/output/pegasus-dispatch/be2bff94a281a634bceed9c8b57fb640/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [29 items]\n\n......................F......                                            [100%]\n=================================== FAILURES ===================================\n________________ test_section5_rejects_extra_owner_start_field _________________\n[gw24] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_section5_rejects_extra_owner_start_field():\n        document = _section5_document(value_overrides={\n            \"実行責任者・開始時刻\": \"実行責任者 = thawk105、代理 = other、開始時刻 = 未記入\",\n        })\n>       _raises(\n            A.B4AdmissionRecordError,\n            lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n                document,\n                expected_claude_model_snapshot=_MODEL,\n                expected_effective_critic_prompt_sha256=_PROMPT,\n            ),\n            exact=_SECTION5_ERROR,\n        )\n\norchestrator/tests/test_p3_b4_admission_record.py:618: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nerror_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\ncallable_ = <function test_section5_rejects_extra_owner_start_field.<locals>.<lambda> at 0x14ce35c5e320>\nexact = '[admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked'\n\n    def _raises(error_type, callable_, *, exact: str | None = None):\n        try:\n            callable_()\n        except error_type as exc:\n            if exact is not None:\n                assert str(exc) == exact\n            return exc\n>       raise AssertionError(f\"expected {error_type.__name__}\")\nE       AssertionError: expected B4AdmissionRecordError\n\norchestrator/tests/test_p3_b4_admission_record.py:68: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_extra_owner_start_field\n========================= 1 failed, 28 passed in 4.66s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_extra_owner_start_field\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1595 retained_bytes=1595 omitted_bytes=0 rendered_excerpt_bytes=1742 sha256=11fc643b7b17e3e82ededbfaa3049d4279b04836a98b2f314258e38b9aaf8b88\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw24] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_section5_rejects_extra_owner_start_field():\n>         document = _section5_document(value_overrides={\n>             \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005\\u30fb\\u958b\\u59cb\\u6642\\u523b\": \"\\u5b9f\\u884c\\u8cac\\u4efb\\u8005 = thawk105\\u3001\\u4ee3\\u7406 = other\\u3001\\u958b\\u59cb\\u6642\\u523b = \\u672a\\u8a18\\u5165\",\n>         })\n> >       _raises(\n>             A.B4AdmissionRecordError,\n>             lambda: A.assert_section5_fixed_table_has_nonempty_source_cells_and_no_reserved_sentinel(\n>                 document,\n>                 expected_claude_model_snapshot=_MODEL,\n>                 expected_effective_critic_prompt_sha256=_PROMPT,\n>             ),\n>             exact=_SECTION5_ERROR,\n>         )\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:618: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> error_type = <class 'orchestrator.campaign.p3_b4_admission_record.B4AdmissionRecordError'>\n> callable_ = <function test_section5_rejects_extra_owner_start_field.<locals>.<lambda> at 0x14ce35c5e320>\n> exact = '[admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked'\n> \n>     def _raises(error_type, callable_, *, exact: str | None = None):\n>         try:\n>             callable_()\n>         except error_type as exc:\n>             if exact is not None:\n>                 assert str(exc) == exact\n>             return exc\n> >       raise AssertionError(f\"expected {error_type.__name__}\")\n> E       AssertionError: expected B4AdmissionRecordError\n> \n> orchestrator/tests/test_p3_b4_admission_record.py:68: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1595 retained_bytes=1595 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2465 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2e7087979b74184305c8793bfe66216935dd2dd09618d36ac1a2fd78503358ae"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "0eb655c6dfe307e2445a5b18fbe612d9b3c73df58368141b09da9c05dea3c514",
+      "duration_s": 299.181,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_extra_owner_start_field"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_extra_owner_start_field"
+      ],
+      "hang_risk": false,
+      "id": "m9-widen-owner-capture",
+      "injection_diff_sha256": "fd1e74a1b3f57d3035cd240d253ab85478a93d92423b9bf7f73355fe885a271d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a0bd442414bff743c3a08f529ff47261db546638f6d4a0be69b24a6db6c474dc",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_b4_admission_record.py",
+          "new": "                r\"実行責任者 = (?P<owner>.+)、開始時刻 = 未記入\",\n                value,\n",
+          "old": "                r\"実行責任者 = (?P<owner>[^、=\\r\\n]+)、開始時刻 = 未記入\",\n                value,\n"
+        }
+      ],
+      "repo_head": "fefbec1ab86a7998033a5033babfe5c8f676a8f1",
+      "runner_sha256": "9d79443d7ebe2579c3abfbc02732511d930ecb4f6db516253bdec8f3d77485bc",
+      "spec_sha256": "fbe77129f036e127467a70cedb3200addf298c9a8fa0bbe61f1cfdc058da96a3",
+      "status": "KILLED",
+      "test_output_sha256": "2e7087979b74184305c8793bfe66216935dd2dd09618d36ac1a2fd78503358ae",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "b5377d721e0629902d9790bfc6f0a38a70cc7ce51b7af733a22328ebfff16376"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time/output/pegasus-dispatch/886dce26b6e246c4641bc9e026421e5b/izdw-886dce26b6.o1364",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time/output/pegasus-dispatch/886dce26b6e246c4641bc9e026421e5b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_p3_b4_admission_record.py::test_canonical_schema_accepts_exact_bytes_and_rejects_noncanonical_shapes\norchestrator/tests/test_p3_b4_admission_record.py::test_closed_critic_expectation_row_accepts_fixed_driver_tags_and_rejects_alternate_shapes\norchestrator/tests/test_p3_b4_admission_record.py::test_closed_critic_expectation_row_requires_claude_opus_slug_and_lowercase_ascii_hex\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_source_cell_examples_and_expectation_bindings\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_accepts_unrecorded_start_time_with_named_owner\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_whole_unrecorded_owner_start_cell\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_owner_with_unrecorded_start\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_whitespace_owner_with_unrecorded_start\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reserved_owner_with_unrecorded_start\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_other_start_sentinels\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_start_suffix\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reordered_unrecorded_start_fields\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_extra_owner_start_field\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_optional_start_syntax_in_other_label\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_other_rows_with_optional_start\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_expectation_row_rejects_nfkc_only_ascii_grammar_matches\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_ordinary_words_with_na_and_unregistered_source_values_pass\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_commonmark_fence_openers_and_marker_lengths\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_html_commented_region_but_accepts_comment_outside\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_accepts_one_leading_bom_and_rejects_bom_hidden_fence\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_known_over_rejection_for_literal_comment_openers\norchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_fenced_region_nfkc_sentinel_and_format_character\norchestrator/tests/test_p3_b4_admission_record.py::test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist\norchestrator/tests/test_p3_b4_admission_record.py::test_verifier_requires_driver_and_binds_record_projection_to_document_tag\norchestrator/tests/test_p3_b4_admission_record.py::test_verifier_enforces_driver_required_path\norchestrator/tests/test_p3_b4_admission_record.py::test_required_path_mapping_matches_independent_literals\norchestrator/tests/test_p3_b4_admission_record.py::test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head\norchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences\norchestrator/tests/test_p3_b4_admission_record.py::test_record_path_rejects_symlink_components_and_git_control_paths\n\n29 tests collected in 0.88s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "64e9aab20a5c2db1a8155b6eb33e5368bd3a49780ed825ff6adcbe1a7d0363e7"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_canonical_schema_accepts_exact_bytes_and_rejects_noncanonical_shapes",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_closed_critic_expectation_row_accepts_fixed_driver_tags_and_rejects_alternate_shapes",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_closed_critic_expectation_row_requires_claude_opus_slug_and_lowercase_ascii_hex",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_source_cell_examples_and_expectation_bindings",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_accepts_unrecorded_start_time_with_named_owner",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_whole_unrecorded_owner_start_cell",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_owner_with_unrecorded_start",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_whitespace_owner_with_unrecorded_start",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reserved_owner_with_unrecorded_start",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_other_start_sentinels",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_start_suffix",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reordered_unrecorded_start_fields",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_extra_owner_start_field",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_optional_start_syntax_in_other_label",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_other_rows_with_optional_start",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_expectation_row_rejects_nfkc_only_ascii_grammar_matches",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_ordinary_words_with_na_and_unregistered_source_values_pass",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_commonmark_fence_openers_and_marker_lengths",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_html_commented_region_but_accepts_comment_outside",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_accepts_one_leading_bom_and_rejects_bom_hidden_fence",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_known_over_rejection_for_literal_comment_openers",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_fenced_region_nfkc_sentinel_and_format_character",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_committed_record_and_current_document_blob_use_fixed_git_env_allowlist",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_verifier_requires_driver_and_binds_record_projection_to_document_tag",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_verifier_enforces_driver_required_path",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_required_path_mapping_matches_independent_literals",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_missing_untracked_staged_or_worktree_changed_record_is_rejected_at_head",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_document_binding_rejects_nonancestor_hash_and_head_blob_differences",
+        "orchestrator/tests/test_p3_b4_admission_record.py::test_record_path_rejects_symlink_components_and_git_control_paths"
+      ],
+      "duration_s": 32.384,
+      "rc": 0,
+      "repo_head": "fefbec1ab86a7998033a5033babfe5c8f676a8f1",
+      "runner_sha256": "9d79443d7ebe2579c3abfbc02732511d930ecb4f6db516253bdec8f3d77485bc",
+      "spec_sha256": "fbe77129f036e127467a70cedb3200addf298c9a8fa0bbe61f1cfdc058da96a3",
+      "status": "PASSED",
+      "tool_sha256": "b5377d721e0629902d9790bfc6f0a38a70cc7ce51b7af733a22328ebfff16376"
+    },
+    "hang_timeout_seconds": 2700.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m5-drop-owner-sentinel-regex-condition": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_owner_with_unrecorded_start",
+          "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reserved_owner_with_unrecorded_start"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "70d860a43e713458b633f61d278dff1b15c21a4b534c220c151572c0a7300100",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_admission_record.py",
+            "new": "                    owner\n                    and owner.casefold() not in _RESERVED_SENTINEL_WHOLE_VALUES\n",
+            "old": "                    owner\n                    and _RESERVED_SENTINEL_RE.search(owner) is None\n                    and owner.casefold() not in _RESERVED_SENTINEL_WHOLE_VALUES\n"
+          }
+        ]
+      },
+      "m6-drop-owner-whole-value-condition": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_reserved_owner_with_unrecorded_start"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "edd8331d06483688f9167b29adeaef7c8112290521049967bbbd02d01eaf542c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_admission_record.py",
+            "new": "                ):\n",
+            "old": "                    and owner.casefold() not in _RESERVED_SENTINEL_WHOLE_VALUES\n                ):\n"
+          }
+        ]
+      },
+      "m7-widen-start-time-token": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_other_start_sentinels"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a55268251f363e2a122a9b1e7a70eeb0f708976e964d7a95c727c42f5ceec193",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_admission_record.py",
+            "new": "                r\"実行責任者 = (?P<owner>[^、=\\r\\n]+)、開始時刻 = (?:未記入|TODO)\",\n",
+            "old": "                r\"実行責任者 = (?P<owner>[^、=\\r\\n]+)、開始時刻 = 未記入\",\n"
+          }
+        ]
+      },
+      "m8-fullmatch-to-match": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_unrecorded_start_suffix"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "38303db41b2f70a93b123f347119bca5c526870fc5d31dd2f481bf39df049daa",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_admission_record.py",
+            "new": "            match = re.match(\n",
+            "old": "            match = re.fullmatch(\n"
+          }
+        ]
+      },
+      "m9-widen-owner-capture": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_b4_admission_record.py::test_section5_rejects_extra_owner_start_field"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "fd1e74a1b3f57d3035cd240d253ab85478a93d92423b9bf7f73355fe885a271d",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_b4_admission_record.py",
+            "new": "                r\"実行責任者 = (?P<owner>.+)、開始時刻 = 未記入\",\n                value,\n",
+            "old": "                r\"実行責任者 = (?P<owner>[^、=\\r\\n]+)、開始時刻 = 未記入\",\n                value,\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "db3a62b49e06ad40de32fbdddc6c313b9f0f0fb84bee63cd94cb2e2eb135daea",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_p3_b4_admission_record.py",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 2700.0
+  },
+  "repo_head": "fefbec1ab86a7998033a5033babfe5c8f676a8f1",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_p3_b4_admission_record.py",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "dispatch_head_blob_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "363be2cf02d8dda61e9e16d9188d7a92f1b4410f",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "9d79443d7ebe2579c3abfbc02732511d930ecb4f6db516253bdec8f3d77485bc",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "fbe77129f036e127467a70cedb3200addf298c9a8fa0bbe61f1cfdc058da96a3",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2464-b4-start-time/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "b5377d721e0629902d9790bfc6f0a38a70cc7ce51b7af733a22328ebfff16376",
+  "updated_at": "2026-09-16T08:03:07.433678+00:00"
+}
