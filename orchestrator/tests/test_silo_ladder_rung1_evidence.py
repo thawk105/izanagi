@@ -80,6 +80,12 @@ HISTORICAL_LEDGER_SHA256 = (
 EXPECTED_HISTORICAL_VERIFIER_MODULE_SHA256 = (
     "e604cef0b06dc36dd8e236b8ade92eb452231a5f32b7926405b402f038e9d8a2"
 )
+EXPECTED_HISTORICAL_PBS_JOB_SHA256 = (
+    "318c2b12fb3fa71b3587c81f201db640393d2adae2214fd6aca4a9222ab2f57c"
+)
+EXPECTED_CURRENT_PBS_JOB_SHA256 = (
+    "117b3bb4a4789b00b2b2e8335ee78a6f329125e26aa42c6002283fd0ed894f0e"
+)
 # 2026-08-12 [T-816] base commit 前進により patched source hash が移動。凍結 bundle の記録値を歴史 golden として固定する。
 EXPECTED_HISTORICAL_PATCHED_SOURCE_SHA256 = {
     "cc/silo/transaction.cc": (
@@ -1257,6 +1263,7 @@ def test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head():
     }
     historical_sha256_by_key = {
         "driver": HISTORICAL_SILO_EVIDENCE_IDENTITY[3],
+        "pbs_job": EXPECTED_HISTORICAL_PBS_JOB_SHA256,
         "verifier_module": EXPECTED_HISTORICAL_VERIFIER_MODULE_SHA256,
         "policy": EXPECTED_HISTORICAL_PEGASUS_POLICY_SHA256,
     }
@@ -1268,6 +1275,13 @@ def test_silo_ladder_rung1_committed_evidence_rebinds_content_not_head():
                 "intentional policy update requires refreshing the single "
                 "shared EXPECTED_CURRENT_PEGASUS_POLICY_SHA256 golden in "
                 "orchestrator/tests/pegasus_policy_expected_goldens.py: "
+                f"sha256({relative})={current_sha}"
+            )
+        if key == "pbs_job":
+            assert current_sha == EXPECTED_CURRENT_PBS_JOB_SHA256, (
+                "intentional pbs_job update requires refreshing the "
+                "EXPECTED_CURRENT_PBS_JOB_SHA256 golden in "
+                "orchestrator/tests/test_silo_ladder_rung1_evidence.py: "
                 f"sha256({relative})={current_sha}"
             )
         if key in historical_sha256_by_key:

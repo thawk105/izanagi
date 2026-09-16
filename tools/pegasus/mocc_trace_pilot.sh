@@ -868,9 +868,7 @@ print(policy["pilot_walltime_s"])
 print(policy["finalize_reserve_s"])
 print(policy["expected_cpu_model"])
 print(policy["expected_physical_cores"])
-print(policy["gflags_source_path"])
 print(policy["gflags_expected_head"])
-print(policy["glog_source_path"])
 print(policy["glog_expected_head"])
 print(policy["third_party_cache_env"])
 print(json.dumps(expected_compilers, sort_keys=True, separators=(",", ":")))
@@ -881,7 +879,7 @@ print(json.dumps(workload, ensure_ascii=False, sort_keys=True, separators=(",", 
 print(hashlib.sha256(policy_bytes).hexdigest())
 PY
 )
-if [[ ${#policy_values[@]} -ne 18 ]]; then
+if [[ ${#policy_values[@]} -ne 16 ]]; then
   write_failure 2 policy "Mocc trace policy parse failed"
   exit 2
 fi
@@ -892,17 +890,18 @@ REQUESTED_S=${policy_values[3]}
 FINALIZE_RESERVE_S=${policy_values[4]}
 EXPECTED_CPU=${policy_values[5]}
 EXPECTED_CORES=${policy_values[6]}
-GFLAGS_SOURCE_PATH=${policy_values[7]}
-GFLAGS_EXPECTED_HEAD=${policy_values[8]}
-GLOG_SOURCE_PATH=${policy_values[9]}
-GLOG_EXPECTED_HEAD=${policy_values[10]}
-THIRD_PARTY_CACHE_ENV=${policy_values[11]}
-EXPECTED_COMPILER_VERSION_BODY_SHA256_JSON=${policy_values[12]}
-BASE_OID=${policy_values[13]}
-NEW_OID=${policy_values[14]}
-CMAKE_TARGET=${policy_values[15]}
-WORKLOAD_JSON=${policy_values[16]}
-POLICY_PARSE_RAW_SHA256=${policy_values[17]}
+THIRDPARTY_SOURCE_ROOT="${IZANAGI_THIRDPARTY_SOURCE_ROOT:-$REPO_ROOT/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src}"
+GFLAGS_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/gflags"
+GLOG_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/glog"
+GFLAGS_EXPECTED_HEAD=${policy_values[7]}
+GLOG_EXPECTED_HEAD=${policy_values[8]}
+THIRD_PARTY_CACHE_ENV=${policy_values[9]}
+EXPECTED_COMPILER_VERSION_BODY_SHA256_JSON=${policy_values[10]}
+BASE_OID=${policy_values[11]}
+NEW_OID=${policy_values[12]}
+CMAKE_TARGET=${policy_values[13]}
+WORKLOAD_JSON=${policy_values[14]}
+POLICY_PARSE_RAW_SHA256=${policy_values[15]}
 # END T2195 POLICY PARSE
 if [[ "$T1943_G2" -eq 1 ]]; then
   python3 - "$WORKLOAD_JSON" <<'PY_T1943_WORKLOAD'

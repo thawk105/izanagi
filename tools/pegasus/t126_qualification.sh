@@ -551,16 +551,17 @@ PROLOGUE_CAP_S=${RESERVATION_VALUES[2]}
 readarray -t P < <("$PY" -I -S -B - "$POLICY" <<'PY'
 import json,sys
 p=json.load(open(sys.argv[1],encoding="utf-8"))
-keys=("gflags_source_path","gflags_expected_head","glog_source_path",
+keys=("gflags_expected_head",
       "glog_expected_head")
 for k in keys: print(p[k])
 PY
 )
-[[ ${#P[@]} -eq 4 ]] || exit 2
-GFLAGS_SOURCE=${P[0]}
-GFLAGS_HEAD=${P[1]}
-GLOG_SOURCE=${P[2]}
-GLOG_HEAD=${P[3]}
+[[ ${#P[@]} -eq 2 ]] || exit 2
+THIRDPARTY_SOURCE_ROOT="${IZANAGI_THIRDPARTY_SOURCE_ROOT:-$REPO_ROOT/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src}"
+GFLAGS_SOURCE="$THIRDPARTY_SOURCE_ROOT/gflags"
+GLOG_SOURCE="$THIRDPARTY_SOURCE_ROOT/glog"
+GFLAGS_HEAD=${P[0]}
+GLOG_HEAD=${P[1]}
 
 check_job_deadline
 for source_pin in "$GFLAGS_SOURCE:$GFLAGS_HEAD" "$GLOG_SOURCE:$GLOG_HEAD"; do

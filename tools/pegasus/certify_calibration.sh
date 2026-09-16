@@ -138,15 +138,13 @@ print(calibration["certify_walltime_s"])
 print(calibration["finalize_reserve_s"])
 print(p["expected_cpu_model"])
 print(p["expected_physical_cores"])
-print(p["gflags_source_path"])
 print(p["gflags_expected_head"])
-print(p["glog_source_path"])
 print(p["glog_expected_head"])
 for candidate in p["perf_candidates"]:
     print(candidate)
 PY
 )
-[[ ${#policy_values[@]} -ge 12 ]]
+[[ ${#policy_values[@]} -ge 10 ]]
 PROJECT=${policy_values[0]}
 QUEUE=${policy_values[1]}
 NODES=${policy_values[2]}
@@ -154,11 +152,12 @@ REQUESTED_S=${policy_values[3]}
 FINALIZE_RESERVE_S=${policy_values[4]}
 EXPECTED_CPU=${policy_values[5]}
 EXPECTED_CORES=${policy_values[6]}
-GFLAGS_SOURCE_PATH=${policy_values[7]}
-GFLAGS_EXPECTED_HEAD=${policy_values[8]}
-GLOG_SOURCE_PATH=${policy_values[9]}
-GLOG_EXPECTED_HEAD=${policy_values[10]}
-PERF_CANDIDATES=("${policy_values[@]:11}")
+THIRDPARTY_SOURCE_ROOT="${IZANAGI_THIRDPARTY_SOURCE_ROOT:-$REPO_ROOT/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src}"
+GFLAGS_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/gflags"
+GLOG_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/glog"
+GFLAGS_EXPECTED_HEAD=${policy_values[7]}
+GLOG_EXPECTED_HEAD=${policy_values[8]}
+PERF_CANDIDATES=("${policy_values[@]:9}")
 
 if [[ -z "${IZANAGI_SUBMISSION_NONCE:-}" || ! "$IZANAGI_SUBMISSION_NONCE" =~ ^[A-Za-z0-9._-]+$ ]]; then
   write_failure 2 submit_binding "IZANAGI_SUBMISSION_NONCE is missing or unsafe"

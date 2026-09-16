@@ -64,7 +64,7 @@ def _helper_failure(exc):
 
 
 def prepare_dependencies(work, *, repo_root=ROOT, cache_root=None):
-    """Verify source inputs and hydrate the offline FetchContent trees."""
+    """Hydrate all five pinned source inputs before building dependencies."""
     helper = repo_root / "tools/pegasus/fetch_third_party.py"
     work = Path(work).resolve()
     configured_cache = cache_root or os.environ.get("IZANAGI_PEGASUS_THIRDPARTY_CACHE")
@@ -72,23 +72,6 @@ def prepare_dependencies(work, *, repo_root=ROOT, cache_root=None):
         raise ValueError("cache root is required via --cache-root or IZANAGI_PEGASUS_THIRDPARTY_CACHE")
     cache_root = Path(configured_cache).resolve()
     base = [sys.executable, str(helper)]
-    command = base + ["verify-deps", "--repo-root", str(repo_root),
-                      "--cache-root", str(cache_root)]
-    try:
-        verified = json.loads(subprocess.run(
-            command, check=True, capture_output=True, text=True, timeout=120,
-        ).stdout)
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-        raise RuntimeError(_helper_failure(exc)) from exc
-    sources = {item["name"]: item["resolved_path"] for item in verified["sources"]}
-    cc, cxx = buildcache.compilers_for_current_site()
-    prefix = work / "dependency-install"
-    prefixes = [str(prefix)]
-    for name in ("gflags", "glog"):
-        _install_dependency(
-            sources[name], work / f"{name}-build", prefix,
-            cc=cc, cxx=cxx, prefixes=";".join(prefixes), glog=name == "glog",
-        )
     command = base + ["hydrate", "--repo-root", str(repo_root),
                       "--staging-root", str(work / "third-party")]
     command += ["--cache-root", str(cache_root)]
@@ -99,6 +82,14 @@ def prepare_dependencies(work, *, repo_root=ROOT, cache_root=None):
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
         raise RuntimeError(_helper_failure(exc)) from exc
     third_party = {item["name"]: item["resolved_path"] for item in hydrated["sources"]}
+    cc, cxx = buildcache.compilers_for_current_site()
+    prefix = work / "dependency-install"
+    prefixes = [str(prefix)]
+    for name in ("gflags", "glog"):
+        _install_dependency(
+            third_party[name], work / f"{name}-build", prefix,
+            cc=cc, cxx=cxx, prefixes=";".join(prefixes), glog=name == "glog",
+        )
     # buildcache resolves these exact names under FETCHCONTENT_BASE_DIR.
     for name in ("masstree", "mimalloc", "googletest"):
         destination = work / "third-party" / f"{name}-src"

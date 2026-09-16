@@ -16,6 +16,7 @@ import sys
 import time
 from copy import deepcopy
 from pathlib import Path
+from orchestrator.campaign.silo_ladder_rung1 import THIRD_PARTY_STAGING_RELATIVE
 
 import pytest
 from jsonschema import Draft7Validator
@@ -998,9 +999,7 @@ def _attempt(
             policy = json.loads(
                 (_ROOT / relative).read_text(encoding="utf-8"))
             policy.update({
-                "gflags_source_path": str(gflags),
                 "gflags_expected_head": gflags_commit,
-                "glog_source_path": str(glog),
                 "glog_expected_head": glog_commit,
             })
             path.write_text(json.dumps(policy) + "\n", encoding="utf-8")
@@ -1053,6 +1052,10 @@ def _attempt(
     commit = _git(repo, "rev-parse", "HEAD")
     tree = _git(repo, "rev-parse", "HEAD^{tree}")
     gitlink = _git(repo, "rev-parse", "HEAD:external/ccbench")
+    staging = repo / THIRD_PARTY_STAGING_RELATIVE
+    staging.mkdir(parents=True)
+    gflags.rename(staging / "gflags")
+    glog.rename(staging / "glog")
 
     external = (
         repo / "output/env/pegasus/qualification/t126/submissions"
@@ -3194,7 +3197,7 @@ def test_identity_consumer_rejects_protocol_policy_dependency_and_build_argv_tam
             reservation_policy=reservation_policy)
 
     dependency = json.loads(json.dumps(preimage))
-    dep_repo = Path(policy["gflags_source_path"])
+    dep_repo = repo / THIRD_PARTY_STAGING_RELATIVE / "gflags"
     (dep_repo / "second.txt").write_text("second\n", encoding="utf-8")
     _git(dep_repo, "add", ".")
     _git(dep_repo, "commit", "-qm", "second")
@@ -3290,7 +3293,7 @@ def _install_job_dependency_marker(
         fake_bin: Path, repo: Path, marker: Path) -> None:
     policy = json.loads(
         (repo / "tools/pegasus/policy.json").read_text(encoding="utf-8"))
-    gflags_source = policy["gflags_source_path"]
+    gflags_source = str(repo / THIRD_PARTY_STAGING_RELATIVE / "gflags")
     real_git = shutil.which("git")
     assert real_git is not None
     wrapper = fake_bin / "git"
@@ -3359,9 +3362,7 @@ def _submit_fixture(
     policy_path = tools / "policy.json"
     policy = json.loads(policy_path.read_text(encoding="utf-8"))
     policy.update({
-        "gflags_source_path": str(gflags),
         "gflags_expected_head": gflags_commit,
-        "glog_source_path": str(glog),
         "glog_expected_head": glog_commit,
         "perf_candidates": [str(perf)],
     })
@@ -3390,6 +3391,10 @@ def _submit_fixture(
          str(ccbench), "external/ccbench")
     _git(repo, "add", ".")
     _git(repo, "commit", "-qm", "submit fixture")
+    staging = repo / THIRD_PARTY_STAGING_RELATIVE
+    staging.mkdir(parents=True)
+    gflags.rename(staging / "gflags")
+    glog.rename(staging / "glog")
     return repo, fake_bin, calls
 
 
@@ -4585,7 +4590,8 @@ def test_job_reservation_policy_accepts_exact_point_and_rejects_each_frozen_valu
         assert downstream_marker.is_file()
         assert completed.stderr == (
             "dependency source is not pinned-clean: "
-            + str(case_root / "gflags-case") + "\n")
+            + str(case_root / "repo-case" / THIRD_PARTY_STAGING_RELATIVE / "gflags")
+            + "\n")
     else:
         assert completed.stderr == "qualification envelope mismatch\n"
         assert not downstream_marker.exists()

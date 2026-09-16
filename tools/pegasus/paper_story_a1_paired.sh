@@ -1204,9 +1204,7 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as stream:
     policy = json.load(stream)
 for key in (
-    "gflags_source_path",
     "gflags_expected_head",
-    "glog_source_path",
     "glog_expected_head",
 ):
     value = policy[key]
@@ -1215,12 +1213,13 @@ for key in (
     print(value)
 PY
 )
-[[ ${#DEPENDENCY_POLICY_VALUES[@]} -eq 4 ]] || \
+[[ ${#DEPENDENCY_POLICY_VALUES[@]} -eq 2 ]] || \
   refuse "Pegasus dependency pins are incomplete"
-GFLAGS_SOURCE_PATH=${DEPENDENCY_POLICY_VALUES[0]}
-GFLAGS_EXPECTED_HEAD=${DEPENDENCY_POLICY_VALUES[1]}
-GLOG_SOURCE_PATH=${DEPENDENCY_POLICY_VALUES[2]}
-GLOG_EXPECTED_HEAD=${DEPENDENCY_POLICY_VALUES[3]}
+THIRDPARTY_SOURCE_ROOT="${IZANAGI_THIRDPARTY_SOURCE_ROOT:-$REPO_ROOT/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src}"
+GFLAGS_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/gflags"
+GLOG_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/glog"
+GFLAGS_EXPECTED_HEAD=${DEPENDENCY_POLICY_VALUES[0]}
+GLOG_EXPECTED_HEAD=${DEPENDENCY_POLICY_VALUES[1]}
 [[ "$GFLAGS_SOURCE_PATH" = /* && "$GLOG_SOURCE_PATH" = /* ]] || \
   refuse "dependency source paths must be absolute"
 [[ "$GFLAGS_EXPECTED_HEAD" =~ ^[0-9a-f]{40}$ ]] || \

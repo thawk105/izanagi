@@ -489,9 +489,7 @@ with open(sys.argv[2], encoding="utf-8") as handle:
 text_fields = (
     "project",
     "queue",
-    "gflags_source_path",
     "gflags_expected_head",
-    "glog_source_path",
     "glog_expected_head",
 )
 for key in text_fields:
@@ -511,9 +509,7 @@ print(policy["project"])
 print(policy["queue"])
 print(policy["nodes"])
 print(floor_policy["floor_walltime_s"])
-print(policy["gflags_source_path"])
 print(policy["gflags_expected_head"])
-print(policy["glog_source_path"])
 print(policy["glog_expected_head"])
 PY
 ) || policy_rc=$?
@@ -522,7 +518,7 @@ if [[ "$policy_rc" -ne 0 ]]; then
   exit 2
 fi
 readarray -t policy_values <<<"$policy_output"
-if [[ ${#policy_values[@]} -ne 8 ]]; then
+if [[ ${#policy_values[@]} -ne 6 ]]; then
   write_failure 2 policy "floor policy yielded an unexpected field count"
   exit 2
 fi
@@ -530,10 +526,11 @@ PROJECT=${policy_values[0]}
 QUEUE=${policy_values[1]}
 NODES=${policy_values[2]}
 FLOOR_WALLTIME_S=${policy_values[3]}
-GFLAGS_SOURCE_PATH=${policy_values[4]}
-GFLAGS_EXPECTED_HEAD=${policy_values[5]}
-GLOG_SOURCE_PATH=${policy_values[6]}
-GLOG_EXPECTED_HEAD=${policy_values[7]}
+THIRDPARTY_SOURCE_ROOT="${IZANAGI_THIRDPARTY_SOURCE_ROOT:-$REPO_ROOT/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src}"
+GFLAGS_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/gflags"
+GLOG_SOURCE_PATH="$THIRDPARTY_SOURCE_ROOT/glog"
+GFLAGS_EXPECTED_HEAD=${policy_values[4]}
+GLOG_EXPECTED_HEAD=${policy_values[5]}
 REQUESTED_S_POLICY=36000
 if [[ "$PROJECT" != SFC || "$QUEUE" != gen_S || "$NODES" != 1 \
     || "$FLOOR_WALLTIME_S" != "$REQUESTED_S_POLICY" ]]; then

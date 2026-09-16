@@ -230,12 +230,12 @@ def test_mocc_trace_policy_compiler_mapping_is_exact() -> None:
     }
 
 
-def test_mocc_trace_policy_parser_emits_18_values_and_rejects_duplicates(
+def test_mocc_trace_policy_parser_emits_16_values_and_rejects_duplicates(
         tmp_path: Path,
 ) -> None:
     parser = tmp_path / "policy_parser.py"
     parser.write_text(_pilot_policy_parser_source(), encoding="utf-8")
-    assert "if [[ ${#policy_values[@]} -ne 18 ]]; then" in (
+    assert "if [[ ${#policy_values[@]} -ne 16 ]]; then" in (
         PILOT.read_text(encoding="utf-8")
     )
     accepted = subprocess.run(
@@ -244,12 +244,12 @@ def test_mocc_trace_policy_parser_emits_18_values_and_rejects_duplicates(
     )
     assert accepted.returncode == 0, accepted.stderr
     values = accepted.stdout.splitlines()
-    assert len(values) == 18
-    assert json.loads(values[12]) == {
+    assert len(values) == 16
+    assert json.loads(values[10]) == {
         "gcc": EXPECTED_COMPILER_BODY_SHA256,
         "g++": EXPECTED_COMPILER_BODY_SHA256,
     }
-    assert values[17] == hashlib.sha256(POLICY.read_bytes()).hexdigest()
+    assert values[15] == hashlib.sha256(POLICY.read_bytes()).hexdigest()
 
     raw = POLICY.read_text(encoding="utf-8")
     duplicate = tmp_path / "duplicate-policy.json"

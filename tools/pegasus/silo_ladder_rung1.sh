@@ -440,20 +440,13 @@ pgrep -a -f 'ycsb_.*\.exe' >"$JOB_STAGING/pgrep-before.txt" || true
 
 # 登録済み dependency source を fresh /scr build。driver へ install prefix だけ渡す。
 CURRENT_STAGE=dependency_policy_contract
-GFLAGS_SOURCE=$("$PY" -I -B - "$POLICY" <<'PY'
-import json,sys
-print(json.load(open(sys.argv[1], encoding="utf-8"))["gflags_source_path"])
-PY
-)
+THIRDPARTY_SOURCE_ROOT="${IZANAGI_THIRDPARTY_SOURCE_ROOT:-$REPO_ROOT/output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src}"
+GFLAGS_SOURCE="$THIRDPARTY_SOURCE_ROOT/gflags"
+GLOG_SOURCE="$THIRDPARTY_SOURCE_ROOT/glog"
 GFLAGS_EXPECTED_HEAD=$("$PY" -I -B - "$POLICY" <<'PY'
 import json,sys
 print(json.load(open(sys.argv[1], encoding="utf-8"))[
     "silo_ladder_rung1"]["dependency_pins"]["gflags"])
-PY
-)
-GLOG_SOURCE=$("$PY" -I -B - "$POLICY" <<'PY'
-import json,sys
-print(json.load(open(sys.argv[1], encoding="utf-8"))["glog_source_path"])
 PY
 )
 GLOG_EXPECTED_HEAD=$("$PY" -I -B - "$POLICY" <<'PY'

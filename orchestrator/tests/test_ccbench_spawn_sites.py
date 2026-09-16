@@ -87,7 +87,7 @@ _EXPLICIT_NON_CCBENCH_PROCESS_SITES = Counter({
     # CMake installs gflags/glog only; the helper verifies/hydrates sources.
     # Neither site launches a CCBench measurement binary.
     ("campaign/b4_binary_record.py", "<module>._install_dependency"): 1,
-    ("campaign/b4_binary_record.py", "<module>.prepare_dependencies"): 2,
+    ("campaign/b4_binary_record.py", "<module>.prepare_dependencies"): 1,
     # Bounded qstat query reads the current job's start and reservation only.
     ("campaign/b10_backoff_static_tail_formal.py", "<module>.scheduler_coordinates"): 1,
     ("calibrator/cli.py", "<module>._assert_trace_disabled_binary"): 1,
@@ -914,7 +914,7 @@ _DEFERRED_GATE_MEMBERS = (
         "稼働 wave が所有する非 sort floor 依存供給の build_fn seam",
         "buildcache",
         "<module>._build_with_dependencies",
-        127,
+        118,
     ),
     _DeferredGateMember(
         "orchestrator/campaign/b10_backoff_shape_sweep.py",
@@ -2713,7 +2713,7 @@ def test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink():
     } == {
         (
             "orchestrator/campaign/b4_binary_record.py",
-            "wave t2636", "buildcache", "<module>._build_with_dependencies", 127,
+            "wave t2636", "buildcache", "<module>._build_with_dependencies", 118,
         ),
         (
             "orchestrator/campaign/b10_backoff_shape_sweep.py",

@@ -16,6 +16,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[2]
 TOOL_PATH = REPO / "tools" / "pegasus" / "fetch_third_party.py"
 NAMES = ("masstree", "mimalloc", "googletest")
+ALL_NAMES = (*NAMES, "gflags", "glog")
 STAGING_RELATIVE = Path(
     "output/env/pegasus/silo_ladder_rung1/job-staging/thirdparty-src"
 )
@@ -117,12 +118,14 @@ def git_fixture(tmp_path: Path) -> GitFixture:
     dependencies: dict[str, Path] = {}
     dependency_pins: dict[str, str] = {}
     for name in ("gflags", "glog"):
-        dependencies[name] = tmp_path / name
+        dependencies[name] = upstream_root / f"{name}.git"
         dependency_pins[name] = _make_repo(dependencies[name])
+        pins[name] = dependency_pins[name]
+        urls[name] = f"https://github.com/fixture/{name}.git"
     policy = {
-        "gflags_source_path": str(dependencies["gflags"]),
+        "gflags_source_url": urls["gflags"],
         "gflags_expected_head": dependency_pins["gflags"],
-        "glog_source_path": str(dependencies["glog"]),
+        "glog_source_url": urls["glog"],
         "glog_expected_head": dependency_pins["glog"],
         "silo_ladder_rung1": {
             "dependency_pins": dependency_pins,
@@ -168,9 +171,10 @@ def _enable_local_fetch(tool, fixture: GitFixture, monkeypatch: pytest.MonkeyPat
 
 def _prepare_cache(tool, fixture: GitFixture, monkeypatch: pytest.MonkeyPatch):
     _enable_local_fetch(tool, fixture, monkeypatch)
-    sources, _, _ = tool._load_policy(fixture.repo)
+    sources, dependencies, _ = tool._load_policy(fixture.repo)
+    sources += dependencies
     records = tool._fetch(fixture.cache, sources)
-    assert [item["name"] for item in records] == list(NAMES)
+    assert [item["name"] for item in records] == list(ALL_NAMES)
     return sources
 
 
@@ -205,21 +209,7 @@ def _expected_source_records(
             "resolved_path": str((root / name).resolve(strict=True)),
             "head": fixture.pins[name],
         }
-        for name in NAMES
-    ]
-
-
-def _expected_dependency_records(
-    fixture: GitFixture,
-) -> list[dict[str, str]]:
-    return [
-        {
-            "name": name,
-            "pin": fixture.dependency_pins[name],
-            "resolved_path": str(fixture.dependencies[name].resolve(strict=True)),
-            "head": fixture.dependency_pins[name],
-        }
-        for name in ("gflags", "glog")
+        for name in ALL_NAMES
     ]
 
 
@@ -737,39 +727,6 @@ def test_existing_hydrate_rejects_ignored_artifacts(
     assert "ignored artifacts" in stderr
 
 
-@pytest.mark.parametrize(
-    "mutation,expected",
-    [
-        ("dangerous-config", "dangerous Git config"),
-        ("commondir", "commondir"),
-        ("sparse", "sparse checkout"),
-        ("assume-unchanged", "index bit"),
-    ],
-)
-def test_verify_deps_allows_only_shallow_metadata_exception(
-    git_fixture: GitFixture,
-    capsys: pytest.CaptureFixture[str],
-    mutation: str,
-    expected: str,
-) -> None:
-    tool = _load_tool()
-    source = git_fixture.dependencies["gflags"]
-    git_dir = source / ".git"
-    if mutation == "dangerous-config":
-        with (git_dir / "config").open("a", encoding="utf-8") as stream:
-            stream.write('[filter "x"]\nclean = /tmp/cmd\n')
-    elif mutation == "commondir":
-        (git_dir / "commondir").write_text(".\n", encoding="ascii")
-    elif mutation == "sparse":
-        _git(source, "config", "core.sparseCheckout", "true")
-    else:
-        _git(source, "update-index", "--assume-unchanged", "tracked.txt")
-    (git_dir / "shallow").write_text("", encoding="ascii")
-    rc, stdout, stderr = _main(tool, git_fixture, capsys, "verify-deps")
-    assert (rc, stdout) == (1, "")
-    assert expected in stderr
-
-
 def test_benign_git_config_section_comments_are_accepted(tmp_path: Path) -> None:
     tool = _load_tool()
     config = tmp_path / "config"
@@ -809,46 +766,6 @@ def test_fetch_verify_and_hydrate_emit_one_versioned_json_document(
         if operation == "hydrate":
             expected["source_root"] = str(git_fixture.repo / STAGING_RELATIVE)
         assert payload == expected
-
-
-def test_verify_deps_is_separate_and_accepts_existing_shallow_dependency(
-    git_fixture: GitFixture,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    tool = _load_tool()
-    (git_fixture.dependencies["gflags"] / ".git" / "shallow").write_text(
-        "", encoding="ascii"
-    )
-    rc, stdout, stderr = _main(tool, git_fixture, capsys, "verify-deps")
-    assert rc == 0, stderr
-    payload = json.loads(stdout)
-    assert payload == {
-        "schema_version": "pegasus-thirdparty-fetch/v1",
-        "operation": "verify-deps",
-        "cache_root": str(git_fixture.cache),
-        "sources": _expected_dependency_records(git_fixture),
-    }
-    assert not git_fixture.cache.exists()
-
-
-def test_cache_root_must_be_explicit_or_environment(
-    git_fixture: GitFixture,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    tool = _load_tool()
-    monkeypatch.delenv(tool.CACHE_ENV, raising=False)
-    rc = tool.main(["verify-deps", "--repo-root", str(git_fixture.repo)])
-    captured = capsys.readouterr()
-    assert rc == 2
-    assert captured.out == ""
-    assert captured.err.count("\n") == 1
-    assert tool.CACHE_ENV in captured.err
-    monkeypatch.setenv(tool.CACHE_ENV, str(git_fixture.cache))
-    rc = tool.main(["verify-deps", "--repo-root", str(git_fixture.repo)])
-    captured = capsys.readouterr()
-    assert rc == 0, captured.err
-    assert json.loads(captured.out)["cache_root"] == str(git_fixture.cache)
 
 
 def test_argument_failure_is_one_stderr_line_and_rc2(
@@ -917,6 +834,92 @@ def test_fetch_protocol_is_https_and_offline_operations_are_file_only() -> None:
     finally:
         subprocess.run = original_run
     assert calls == ["https", "file"]
+
+
+@pytest.mark.parametrize("name", ["gflags", "glog"])
+@pytest.mark.parametrize("operation", ["fetch", "hydrate", "verify"])
+@pytest.mark.parametrize(
+    "mutation,expected",
+    [("head", "HEAD"), ("dirty", "not clean"), ("shallow", "shallow"),
+     ("origin", "origin URL")],
+)
+def test_build_dependencies_reject_mutated_cache(
+    git_fixture, monkeypatch, capsys, name, operation, mutation, expected,
+) -> None:
+    tool = _load_tool()
+    _prepare_cache(tool, git_fixture, monkeypatch)
+    source = git_fixture.cache / name
+    if mutation == "head":
+        _git(source, "-c", "user.name=Fixture", "-c",
+             "user.email=fixture@example.invalid", "commit", "--allow-empty", "-qm", "changed")
+    elif mutation == "dirty":
+        (source / "tracked.txt").write_text("changed\n", encoding="utf-8")
+    elif mutation == "shallow":
+        (source / ".git" / "shallow").write_text(
+            git_fixture.pins[name] + "\n", encoding="ascii")
+    else:
+        _git(source, "remote", "set-url", "origin", "https://github.com/other/source.git")
+    rc, stdout, stderr = _main(tool, git_fixture, capsys, operation)
+    assert (rc, stdout) == (1, "")
+    assert expected in stderr
+
+
+@pytest.mark.parametrize("name", ["gflags", "glog"])
+@pytest.mark.parametrize(
+    "key,value",
+    [("source_url", "https://github.com/fixture/source"),
+     ("source_url", "http://github.com/fixture/source.git"),
+     ("source_url", "https://example.invalid/source.git"),
+     ("source_url", ""), ("source_url", None),
+     ("expected_head", "a" * 39), ("expected_head", "a" * 41),
+     ("expected_head", "x" + "a" * 40), ("expected_head", "a" * 40 + "\n"),
+     ("expected_head", "A" * 40), ("expected_head", ""),
+     ("expected_head", None)],
+)
+def test_build_dependency_policy_rejects_invalid_url_and_pin(
+    git_fixture, monkeypatch, capsys, name, key, value,
+) -> None:
+    tool = _load_tool()
+    _prepare_cache(tool, git_fixture, monkeypatch)
+    # 実 Git source は正常。policy 変異だけで拒否する層を特定する。
+    tool._verify_source(git_fixture.cache / name, name=name,
+                        pin=git_fixture.pins[name], expected_url=git_fixture.urls[name])
+    path = git_fixture.repo / "tools/pegasus/policy.json"
+    document = json.loads(path.read_text(encoding="utf-8"))
+    document[f"{name}_{key}"] = value
+    path.write_text(json.dumps(document), encoding="utf-8")
+    rc, stdout, stderr = _main(tool, git_fixture, capsys, "verify")
+    assert (rc, stdout) == (2, "")
+    assert "build dependency source policy is invalid" in stderr
+
+
+def test_build_dependency_records_have_exact_shape(git_fixture) -> None:
+    tool = _load_tool()
+    sources, dependencies, staging = tool._load_policy(git_fixture.repo)
+    sources += dependencies
+    assert [item["name"] for item in sources] == list(ALL_NAMES)
+    assert staging == STAGING_RELATIVE
+    assert sources[-2:] == tuple(
+        {"name": name, "source_name": name,
+         "url": git_fixture.urls[name], "pin": git_fixture.pins[name]}
+        for name in ("gflags", "glog")
+    )
+
+
+def test_removed_verify_deps_command_is_rejected(capsys) -> None:
+    assert _load_tool().main(["verify-deps"]) == 2
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "invalid choice" in captured.err
+
+
+def test_default_verify_requires_all_five_sources(git_fixture, monkeypatch, capsys) -> None:
+    tool = _load_tool()
+    _prepare_cache(tool, git_fixture, monkeypatch)
+    (git_fixture.cache / "gflags").rename(git_fixture.cache / "missing-gflags")
+    rc, stdout, stderr = _main(tool, git_fixture, capsys, "verify")
+    assert (rc, stdout) == (1, "")
+    assert "gflags" in stderr
 
 
 def _run() -> int:

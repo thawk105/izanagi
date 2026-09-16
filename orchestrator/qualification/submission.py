@@ -19,6 +19,11 @@ if __package__ in {None, ""}:  # pragma: no cover - direct CLI execution
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
     __package__ = "orchestrator.qualification"
 
+from orchestrator.campaign.silo_ladder_rung1 import (
+    THIRD_PARTY_SOURCE_ROOT_ENV,
+    THIRD_PARTY_STAGING_RELATIVE,
+)
+
 from .contract import (  # noqa: E402
     REGISTERED_DEPENDENCY_BUILD_ARGV,
     canonical_json_bytes,
@@ -155,11 +160,13 @@ def prepare_toolchain(policy: Mapping[str, Any]) -> dict[str, Any]:
         if perf_row is None:  # pragma: no cover - guarded by the branch above
             raise SubmissionPreparationError("required executable unavailable: perf")
         executables["perf"] = perf_row
+    source_root = Path(os.environ.get(THIRD_PARTY_SOURCE_ROOT_ENV)
+                       or Path(__file__).resolve().parents[2] / THIRD_PARTY_STAGING_RELATIVE)
     dependencies = {
         "gflags": _dependency(
-            Path(policy["gflags_source_path"]), policy["gflags_expected_head"]),
+            source_root / "gflags", policy["gflags_expected_head"]),
         "glog": _dependency(
-            Path(policy["glog_source_path"]), policy["glog_expected_head"]),
+            source_root / "glog", policy["glog_expected_head"]),
     }
     build_argv = {
         name: list(argv)
