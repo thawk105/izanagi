@@ -31,7 +31,10 @@ from . import (
     pipeline,
     wal,
 )
-from .build_admission import GeneratorId, build_run_context
+from .build_admission import (
+    BuildAdmissionError, BuildAdmissionPolicy, HistoricalBuildAdmissionPolicy,
+    GeneratorId, build_run_context, decode_historical_build_admission_policy,
+)
 from .layout import CampaignLayout
 from .model import (
     COMMIT_CONTRACT_SHA256_KEY,
@@ -996,6 +999,21 @@ def _decode_campaign_lock_for_purpose(
     return _decode_campaign_lock(lock_raw)
 
 
+def _build_admission_policy_for_purpose(
+        recorded: object, *, purpose: CampaignReadPurpose,
+) -> BuildAdmissionPolicy | HistoricalBuildAdmissionPolicy:
+    _validate_read_purpose(purpose)
+    if purpose is CampaignReadPurpose.HISTORICAL_RAW:
+        try:
+            return decode_historical_build_admission_policy(recorded)
+        except BuildAdmissionError as exc:
+            raise ArtifactAdmissionError(str(exc)) from exc
+    policy = _current_policy()
+    if recorded != policy.as_preimage():
+        raise ArtifactAdmissionError("post-policy campaign lock admission policy differs")
+    return policy
+
+
 def _verify_committed_loader_binding(
         decoded: (
             campaign_lock.DecodedCampaignLock
@@ -1361,11 +1379,23 @@ def _inspect_campaign(
 
     if truncated:
         raise ArtifactAdmissionError("post-policy campaign WAL has a truncated tail")
-    policy = _current_policy()
-    if search["build_admission"] != policy.as_preimage():
-        raise ArtifactAdmissionError("post-policy campaign lock admission policy differs")
+    if decoded.is_v2:
+        policy = _build_admission_policy_for_purpose(
+            search["build_admission"], purpose=purpose,
+        )
+    else:
+        policy = _current_policy()
+        if search["build_admission"] != policy.as_preimage():
+            raise ArtifactAdmissionError("post-policy campaign lock admission policy differs")
+    historical_policy_version = (
+        decoded.is_v2 and purpose is CampaignReadPurpose.HISTORICAL_RAW
+        and policy.as_preimage() != _current_policy().as_preimage()
+    )
+    validate_topology = wal._validate_attempt_topology
+    if decoded.is_v2 and purpose is CampaignReadPurpose.HISTORICAL_RAW:
+        validate_topology = wal._validate_historical_attempt_topology
     try:
-        wal._validate_attempt_topology(
+        validate_topology(
             records,
             admission_policy=policy,
             campaign_lock=(
@@ -1430,8 +1460,12 @@ def _inspect_campaign(
     if _sha256_file(lock_path) != lock_sha or _sha256_file(wal_path) != wal_sha:
         raise ArtifactAdmissionError("campaign bytes changed during admission validation")
     return CampaignAdmissionDecision(
-        classification="admitted-new-schema",
-        admission_status="admitted",
+        classification=(
+            "historical-policy-version" if historical_policy_version else "admitted-new-schema"
+        ),
+        admission_status=(
+            "historical-not-reclassified" if historical_policy_version else "admitted"
+        ),
         verification_status="not-evaluated-by-overlay",
         campaign_id=campaign_id,
         campaign_path=relative or root.as_posix(),
