@@ -5033,13 +5033,112 @@ def assert_campaign_layer3_chain(
             _fail("campaign-chain", "persisted layer3 report differs from fresh rebuild")
 
 
+def _is_exact_failure_only_diagnostic(report: Mapping[str, Any]) -> bool:
+    """Closed exploratory identity-failure shape; diagnosis is not admitted."""
+    cells = report.get("cells")
+    if (
+        report.get("do_build") is not True
+        or report.get("status") != "partial"
+        or "arm_execution" in report
+        or not isinstance(cells, list)
+        or len(cells) != 1
+        or not isinstance(cells[0], Mapping)
+    ):
+        return False
+    cell = cells[0]
+    keys = {
+        "workload", "workload_flags", "perf_config_scale", "descriptor",
+        "descriptor_binding", "campaign_id", "campaign_root", "generations",
+        "stop_reason", "admission_decision", "pending_critic_disposition",
+    }
+    if not (set(cell) == keys or set(cell) == keys | {"error"}):
+        return False
+    # No report-side fact establishes whether an invalid invocation's
+    # opportunistic error artifacts should exist. Exclude those shapes.
+    if any(
+        role.get("status") != "valid" or "error_artifacts" in role
+        for generation in cell.get("generations", [])
+        for role in generation.get("roles", {}).values()
+    ):
+        return False
+    if "error" in cell:
+        error = cell["error"]
+        if not (
+            cell.get("stop_reason") == "supervisor-error"
+            and isinstance(error, Mapping)
+            and set(error) == {"type", "message"}
+            and type(error.get("type")) is str and bool(error["type"])
+            and type(error.get("message")) is str
+        ):
+            return False
+    return (
+        all(type(cell.get(key)) is str and bool(cell[key])
+            for key in ("campaign_id", "campaign_root"))
+        and is_exact_cell_admission_failure_decision(cell.get("admission_decision"))
+        and _is_exact_pending_critic_disposition(cell.get("pending_critic_disposition"))
+    )
+
+
+def _verify_failure_only_diagnostic(
+    report: Mapping[str, Any], events: Sequence[Mapping[str, Any]], *, run_root: Path,
+) -> None:
+    role_events = [event for event in events if event.get("event") == "role-attempt"]
+    # This includes the zero-invocation case. Completeness independently checks
+    # the same total through generation-accounting ordinals.
+    if len(role_events) != report["honest_accounting"]["role_query_count"]:
+        _fail("failure-only-role", "role-attempt count differs from honest accounting")
+    for event in role_events:
+        # Producer P:2761 binds provider artifacts only with an arm digest;
+        # P:4177 supplies None for exploratory runs. Refuse contradictory claims.
+        if any(key in event for key in (
+            "arm_binding_digest_sha256", "provider_artifacts",
+            "provider_payload_sha256", "provider_envelope_sha256",
+        )):
+            _fail("failure-only-provider", "exploratory role declares arm-bound artifacts")
+        # Invalid invocation error artifacts are opportunistic (P:2845-2858):
+        # report facts cannot prove their absence. Keep that shape outside this
+        # diagnostic contract instead of treating absent references as success.
+        if event.get("status") != "valid" or "error_artifacts" in event:
+            _fail("failure-only-role", "only completed valid invocations are supported")
+        # A valid invocation necessarily completed the raw write (P:2808-2867).
+        # Missing pointers therefore fail, even when no raw file was declared.
+        raw_path, _raw = read_and_verify_bytes(
+            event.get("raw_response_path"), root=run_root,
+            expected_sha256=event.get("raw_response_sha256"),
+            gate="failure-only-raw", label="valid role raw response",
+        )
+        expected_raw = run_root / "raw" / f"raw_{event['invocation_id']}.txt"
+        if raw_path != expected_raw.resolve():
+            _fail("failure-only-raw", "raw response differs from invocation path")
+    generations = report["cells"][0]["generations"]
+    for generation in generations:
+        if "proposal" in generation:
+            # P:4409 declares proposals only with arm_execution, which this
+            # exploratory diagnostic shape excludes.
+            _fail("failure-only-proposal", "exploratory generation declares proposal")
+        # The producer reaches proposal persistence only after preview. Prove
+        # each missing binding is an early stop, including mixed generations.
+        if (
+            "preview" in generation or "harness" in generation
+            or not set(generation["roles"]).issubset({"planner", "coder"})
+            or report["cells"][0]["stop_reason"] != "supervisor-error"
+        ):
+            _fail("failure-only-proposal", "proposal absence is not an early producer stop")
+    campaign_root = _path_identity(
+        report["cells"][0]["campaign_root"], gate="campaign-chain",
+        label="cells[0].campaign_root",
+    )
+    assert_campaign_layer3_chain(report=report, output_root=campaign_root.parent.parent)
+
+
 def verify_autonomous_trial_files(
     attempt_journal: Path,
     report_json: Path,
     *,
     campaign_output_root: Path | None = None,
-) -> None:
-    """Independently verify persisted journal/report files and optional campaigns."""
+    failure_only_diagnostic: bool = False,
+) -> dict[str, Any] | None:
+    """Verify files; opt-in failure diagnostics return a noncertifying receipt."""
     report = _read_report(Path(report_json))
     expected_report = Path(attempt_journal).resolve().parent / "report.json"
     if Path(report_json).resolve() != expected_report:
@@ -5066,6 +5165,31 @@ def verify_autonomous_trial_files(
             for cell in report["cells"]
         )
     )
+    if (
+        failure_only_diagnostic is True
+        and campaign_output_root is None
+        and not fatal_without_cells
+        and not failure_without_campaign
+    ):
+        if not _is_exact_failure_only_diagnostic(report):
+            _fail("failure-only-diagnostic", "report is not an exact supported failure-only shape")
+        _verify_failure_only_diagnostic(
+            report, events, run_root=Path(attempt_journal).resolve().parent,
+        )
+        return {
+            "schema_version": "autonomous-trial-failure-only-diagnostic/v1",
+            "verification_mode": "failure-only-diagnostic",
+            "certifying": False,
+            "campaign_output_root_binding": "not-verified",
+            "s8c_cross_binding": "not-established",
+            "attempt_journal_sha256": hashlib.sha256(_journal_bytes).hexdigest(),
+            "report_json_sha256": hashlib.sha256(Path(report_json).read_bytes()).hexdigest(),
+            "checks": [
+                "completeness", "execution-digest-chain", "role-accounting",
+                "exploratory-provider-absence", "valid-role-raw", "proposals",
+                "declared-campaign-layer3-chain",
+            ],
+        }
     if report.get("do_build") is True and campaign_output_root is None:
         # Completeness has already proved that fatal_error has one matching
         # terminal journal event.  A campaignless admission-failure cell also
@@ -5103,11 +5227,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("attempt_journal")
     parser.add_argument("report_json")
     parser.add_argument("--campaign-output-root")
+    parser.add_argument("--failure-only-diagnostic", action="store_true")
     args = parser.parse_args(argv)
     try:
-        verify_autonomous_trial_files(
+        receipt = verify_autonomous_trial_files(
             Path(args.attempt_journal),
             Path(args.report_json),
+            failure_only_diagnostic=args.failure_only_diagnostic,
             campaign_output_root=(
                 Path(args.campaign_output_root)
                 if args.campaign_output_root is not None else None
@@ -5115,6 +5241,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     except AutonomousTrialCompletenessError as exc:
         parser.error(str(exc))
+    if receipt is not None:
+        print(json.dumps(receipt, sort_keys=True))
     return 0
 
 

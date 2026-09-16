@@ -326,3 +326,47 @@ production 経路で直接観測した** — 1 回目は detail なし、2 回�
 - `evidence/<request>-floor-driver.stderr` (3 件) — 各走行の driver 停止本文。
   1 回目は detail なし、2 回目は先頭のみ、3 回目は先頭と末尾
 - `evidence/<campaign_run_id>-launch_certificate.json` (3 件) — 発行された起動証明書
+
+---
+
+## 追記 erratum (2026-09-16、[T-2651] の敵対レビューによる)
+
+**本文は書き換えていない (絶対規律 7: 過去の判定は追記でのみ訂正する)。**
+本 erratum は `output/insights/2026-09-16_t2651-diag-detail-review/` の wave が、
+本 insight が記録した実装差分そのものへ敵対レビューを当てた結果である。
+
+### §7 の「production 経路で直接観測した」は過大である
+
+§7 は「本 wave は 3 回の実機走行 (`998882` / `999039` / `999102`) で **M1〜M3 と M5〜M7 が
+守る性質を production 経路で直接観測した** — 1 回目は detail なし、2 回目は先頭のみ、
+3 回目は先頭と末尾の両方が残り、いずれも全文 sha256 の印つきだった」と書いている。
+
+同 insight の `evidence/` に保存された 3 走行の driver stderr を照合したところ、
+次の点が事実と異なる。
+
+1. **「いずれも全文 sha256 の印つきだった」は不正確。** 1 回目 (`998882`) の保存拒否本文に
+   digest は無い。
+2. **3 回目 (`999102`) の digest は argv の引用整形後全文に対するもの**であり、
+   `_bounded_condition_detail()` が付ける外側の detail digest ではない。両者は別物である。
+3. **M2 / M3 / M5 / M6 は 3 走行のいずれでも発火していない。** 掲載された拒否 record は
+   3 回とも `BACKOFF_FIXED:supply-effectuation:preprocess-failed` の 1 件だけで、
+   複数 non-green の全件掲載 (M2)、整形例外時の拒否保持 (M3)、外側予算を超える長文の
+   両端切り詰め (M5 / M6) はいずれも起きていない。3 回目は外側予算内の全文掲載である。
+
+したがって 3 走行が production 経路で直接観測したのは **M1 が守る性質 (detail が拒否本文へ
+載ること) だけ**である。
+
+**§7 が自ら「これは harness による kill 判定の代替ではない」「未実施はそう書く」と
+記録している点は正しく、訂正しない。** 本 erratum が訂正するのは、observed の範囲を
+6 変異分あると読める書き方だけである。
+
+### 変異 harness 本走は [T-2651] で実施した
+
+§8 の表が「変異 harness 本走 | **未実施**」としていた残件は、
+`output/insights/2026-09-16_t2651-diag-detail-review/` で実施した。
+結果はそちらの §6 を正本とする。
+
+なお同 wave は、6 変異すべてを `DW-M03` / `DW-M08` の diagnostic sensitivity pin に分類し、
+kill は 0 件と裁定した。これは失敗ではなく、本 insight が記録した着地 commit の主張
+「gate の受理集合・reason code 語彙・admission 判定・rc・green 経路の bytes は変えていない」が
+変異の側からも裏付けられたということである。
