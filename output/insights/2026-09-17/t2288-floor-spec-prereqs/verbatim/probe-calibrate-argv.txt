@@ -1,0 +1,102 @@
+== 0:867876.nqsv
+[
+  "env",
+  "PATH=/scr/0_867876.nqsv/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/condabin:/bin:/usr/bin:/usr/ucb:/snap/bin:/system/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin",
+  "python3",
+  "/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/orchestrator/calibrate.py",
+  "--certify",
+  "--env-tag",
+  "pegasus",
+  "--threads",
+  "48",
+  "--workload",
+  "ycsb_zipf_skew=0.9,ycsb_rratio=50,ycsb_rmw=0",
+  "--binary",
+  "/scr/0_867876.nqsv/ccbench-build/cc/silo/ycsb_silo.exe",
+  "--binary-sha256",
+  "9ef84125ca4b3067ebe346dd155b0e6f412d88b3689a2c5921ccbba4eff5925f",
+  "--receipt-json",
+  "/home/SFC/tanab/github/izanagi/.claude/worktrees/s8b-c22-launch-cert/output/env/pegasus/calibration/job-staging/0:867876.nqsv/acquisition-receipt.json",
+  "--effective-clock-tolerance-pct",
+  "2.0"
+]
+3:  [sweep] records=1,000,000 threads=48 reps=3 ...
+5:  [sweep] records=2,000,000 threads=48 reps=3 ...
+7:  [sweep] records=4,000,000 threads=48 reps=3 ...
+11:[calibrate] noise floor: records=1,000,000 を 10 回 ...
+12:[calibrate] noise floor CV = 1.17%
+== 0:892707.nqsv
+[
+  "env",
+  "PATH=/scr/0_892707.nqsv/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/condabin:/bin:/usr/bin:/usr/ucb:/snap/bin:/system/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin",
+  "python3",
+  "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/orchestrator/calibrate.py",
+  "--certify",
+  "--env-tag",
+  "pegasus",
+  "--threads",
+  "48",
+  "--workload",
+  "ycsb_zipf_skew=0.9,ycsb_rratio=50,ycsb_rmw=0",
+  "--binary",
+  "/scr/0_892707.nqsv/ccbench-build/cc/silo/ycsb_silo.exe",
+  "--binary-sha256",
+  "25c82a74bf98d303ebc8588e6d1a9e6344835eb58ae8186ba7dde9f5b5171993",
+  "--receipt-json",
+  "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t564-dependency-source/output/env/pegasus/calibration/job-staging/0:892707.nqsv/acquisition-receipt.json"
+]
+3:  [sweep] records=1,000,000 threads=48 reps=3 ...
+5:  [sweep] records=2,000,000 threads=48 reps=3 ...
+7:  [sweep] records=4,000,000 threads=48 reps=3 ...
+11:[calibrate] noise floor: records=1,000,000 を 10 回 ...
+12:[calibrate] noise floor CV = 1.25%
+== 0:478.nqsv
+[
+  "env",
+  "PATH=/scr/0_478.nqsv/bin:/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/condabin:/bin:/usr/bin:/usr/ucb:/snap/bin:/system/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin",
+  "/bin/python3.10",
+  "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-rr5-accepted-calibration/orchestrator/calibrate.py",
+  "--certify",
+  "--env-tag",
+  "pegasus",
+  "--threads",
+  "48",
+  "--workload",
+  "ycsb_zipf_skew=0.9,ycsb_rratio=5,ycsb_rmw=0",
+  "--binary",
+  "/scr/0_478.nqsv/ccbench-build/cc/silo/ycsb_silo.exe",
+  "--binary-sha256",
+  "2135d54cb96324c2ce7e3760e2dd1776e8e9b3e116ec4f376763bb265fe12972",
+  "--receipt-json",
+  "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-rr5-accepted-calibration/output/env/pegasus/calibration/job-staging/0:478.nqsv/acquisition-receipt.json"
+]
+3:  [sweep] records=1,000,000 threads=48 reps=3 ...
+5:  [sweep] records=2,000,000 threads=48 reps=3 ...
+7:  [sweep] records=4,000,000 threads=48 reps=3 ...
+11:[calibrate] noise floor: records=2,000,000 を 10 回 ...
+12:[calibrate] noise floor CV = 0.97%
+== 0:995805.nqsv
+[
+  "env",
+  "PATH=/scr/0_995805.nqsv/bin:/bin:/home/SFC/tanab/.local/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin:/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/condabin:/bin:/usr/bin:/usr/ucb:/snap/bin:/system/tool/bin:/opt/nec/nqsv/bin:/opt/memverge/bin",
+  "/bin/python3.10",
+  "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/orchestrator/calibrate.py",
+  "--certify",
+  "--env-tag",
+  "pegasus",
+  "--threads",
+  "48",
+  "--workload",
+  "ycsb_zipf_skew=0.9,ycsb_rratio=95,ycsb_rmw=0",
+  "--binary",
+  "/scr/0_995805.nqsv/ccbench-build/cc/silo/ycsb_silo.exe",
+  "--binary-sha256",
+  "ffba3dd6b5a8f188352c59e9a9c6f93d777d275bbb078a2403cbc2bbedaf7dc5",
+  "--receipt-json",
+  "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2515-t2534-backoff-withdraw/output/env/pegasus/calibration/job-staging/0:995805.nqsv/acquisition-receipt.json"
+]
+3:  [sweep] records=1,000,000 threads=48 reps=3 ...
+5:  [sweep] records=2,000,000 threads=48 reps=3 ...
+7:  [sweep] records=4,000,000 threads=48 reps=3 ...
+11:[calibrate] noise floor: records=1,000,000 を 10 回 ...
+12:[calibrate] noise floor CV = 0.42%

@@ -45,7 +45,7 @@ dispatch は `hang_timeout_seconds` < job walltime。超過は orphan hold 中�
 mask時の再照準とerratumは`DW-M02`に従い台帳へ。
 本走は`--runner-mode dispatch`既定、runner argvへ`--force-dispatch`。localはspec不問でlogin拒否。
 runner経路の変異は自壊し収集段`rc=16`。
-`--attempt-out`と`--wrapper-attempt`はdispatch専用の同時指定必須ペア(片方のみ中止)。後者は整数、
+`--attempt-out`と`--wrapper-attempt`はdispatch専用の同時指定必須ペア(片方のみ中止)。後者は1以上の整数、
 実走は`--detached`必須。再投入は両方変え、`--resume`は前回sidecarを新pathへ複写(F453。空fileは中止)。
 KILLED期待でnode空のspecは起動前に中止。probeは全件SURVIVEDで登録し観測nodeを集める。
 `--spec`/`--out`/`--attempt-out`はcheckout外必須(repo内rc=2。spec残置で次走もrc=2)、`--out`は
