@@ -56,6 +56,7 @@ submodule の index lock を作れない sandbox 由来の偽赤と連鎖赤を�
 最初に `git submodule update --init` を行う。
 未初期化による skip や手前の赤を破損なしと報告してはならない。
 `DW-C01` の初期化 tool は一過性に失敗しうる。同じ引数で 1 度だけ再実行し、なお赤なら止める。
+rc=0 と OK 表示でも submodule 木が空でありうるので、rc でなく木の中身で効果を実測する。
 最初の失敗を「この worktree では初期化できない」と一般化して brief へ書かない。
 
 ## DW-O09 — 凍結 bytes の pin 閉包
@@ -164,7 +165,7 @@ gate成功後の再走は`DW-S05-A`だけ。取り込みは
 待ち手・launcher・runnerのbytesを変える前進は先に取り込む（F524）。
 HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submoduleで非0。
 `DW-C01`に従い初期化して再検査（`deinit`禁止）。取り込みはpointerだけ進む。受入前に
-`git submodule update --recursive`で揃える。
+`git submodule update --init --recursive`で揃える。
 子を走らせるworktreeは`git worktree lock`（cwd走査はlauncher型を逃す）。
 
 ## DW-O23 — 並行 session の local main land

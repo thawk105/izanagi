@@ -1713,6 +1713,19 @@
   (「累積競合待機予算」が両方に現に在る) である。carry の語 (T 番号) では commit も実装 wave の
   worklog エントリも 1 件も当たらない。恒久対応は既存の `DW-S01` の前提実測義務と D1980 のままで、
   `/rulings` 側が済を照合する機構は引き続き未実装である。
+
+- **再発: 2026-09-16** — [T-2655] (差分 provenance 監査) を entry (1529) が実装・記録しながら、
+  次の一手差分で自 task ID を `完了` 節へ明示しなかったため、暗黙 carry が `- [T-2655] (N)` を
+  (1528) から (1543) まで送り続けた。2026-08-18 型 (記録 commit 自身が未消化 carry を残す) の
+  再発である。新しい面は**起票側の不在確認が 3 つとも「正しいが不在証明でない」形をしていた**こと。
+  ユーザーは (a) `git log main --grep=T-2655` = 0 件、(b) 関連 2 branch の `main..branch` = 0、
+  (c) 中身の無い worktree 残骸、の 3 点を未着手の根拠として提示したが、(a) は着地 commit の題が
+  英文で task ID を含まないため、(b) は land 後の ff-only の結果であるため、(c) は撤去漏れの
+  land 済み残骸であるため、いずれも不在を示さない。**着地判定の一次は commit 題でも branch の
+  ahead 数でもなく成果物そのものの実在**であり、本 wave は `tools/check_ai_provenance.py` の
+  `_receipt_bindings` / `_receipt_prefix` / `_publish_audit_receipt` の実在を読んで初めて済を
+  確定した。恒久対応 1 (`DW-S01` の brief 前照合) は今回も投入前に機能し、実装子は 1 本も
+  走らなかった。機械防壁は無いままである。
 ### F36. 受入・検査の結果欄をプレースホルダのまま記録 commit し、恒久対応の実行が空証明になった [恒真ゲート] [手順漏れ]
 
 - 事象: `<受入結果を反映>` `<反映>` というリテラルのプレースホルダが埋められないまま記録 commit に
@@ -20720,6 +20733,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 子へ渡す射影資料に `...` や「(省略)」が在るとき。渡す前に、切った側へ
   検査対象の形が無いかを確認する。長い資料は切らずに別 file へ置き絶対 path で読ませる。
 
+
+- **再発: 2026-09-16** — [T-2588] で親が K2 role へ渡す知識源の逐語射影を省略記号で切った。
+  切ったのは cmake の完全 path・`cv_history`・`rep_notes`・`run_cmd` の前置きで、測定値・genome・
+  verdict は残っていた。**出力を読む前に子を停止し、全文で取り直したので成果物は汚れていない。**
+  F723 との差は、今回の資料が `sha256` で束縛された知識源だったこと — 加工した射影を
+  「解決済み manifest を渡した」と記録すると provenance が濁る。恒久対応 (a) の memory は
+  読み込まれていたが、投げる直前ではなく投げた後に効いた。**prompt を組む手が長いほど、
+  読みやすさのために切る誘因が働く。**
 ### F724. 事前登録の pilot が登録枝と同一 query で、その 0 件を本文へ実測として書いた [計測汚染] [手順漏れ]
 
 - 事象: 軸 3 の検索事前登録を書く過程で、DBLP の取得設計を選ぶために連言 16 組の件数を
@@ -26696,3 +26717,45 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 外部ライブラリの識別子 (option destination、hook 名、marker 名等) を手で列挙する
   述語を新設する wave が必ず踏む。**列挙の正しさを、その列挙から作った入力だけで検査していないか**を
   段 6 のレンズに入れる。
+
+### F1006. submodule 初期化 tool が rc=0 と OK を返したのに木が空だった [恒真ゲート] [手順漏れ]
+
+- 事象: [T-2588] の wave 開始時、`tools/dev_wave_submodule_init.py --worktree <abs>` が
+  rc=0 と `OK: submodules initialized in <path>` を返したが、`external/ccbench/` は空のままだった
+  (`ls` が 0 件、`git -C external/ccbench rev-parse HEAD` が superproject の HEAD を返す =
+  そこに `.git` が無い)。`DW-O08` は失敗が赤で出る前提で「なお赤なら止める」と書いており、
+  **緑を効果の着地と読むと未初期化のまま次段へ進む。** 同じ引数の 1 度の再実行で解消した。
+- 根本原因: 親が `git worktree add` の完了を待たずに初期化を投げた疑いが強い。tool 投入時点で
+  worktree は登録済み・上位 file も出ていたが、`git worktree add` の process はまだ返っていなかった
+  (background job の完了通知が初期化の後に届いた)。**未完了の木に対しては初期化が
+  「やることが無い」と判断して正直に OK を返しうる。** 親の永続 memory には既に
+  「add の完了前に別の git を当てない」があったが、登録済みの見た目を完了と読んだ。
+- 恒久対応: `docs/dev-wave/operations.md` の `DW-O08` へ
+  「rc=0 と OK 表示でも submodule 木が空でありうるので、rc でなく木の中身で効果を実測する」を
+  1 文追加した ([T-2588] の段 8)。
+- 再発検知: 初期化の直後に対象 submodule directory の実体を数え、0 件なら緑と扱わない。
+  本 wave では submit-tree 側の初期化でも同じ実測を入れ、13 件を確認してから次へ進んだ。
+
+### F1007. import を壊す変異は collect error になり、node 抽出が 0 件で PARSE_ERROR になる [手順漏れ]
+
+- 事象: 2026-09-16、[T-304] wave の変異 probe。`orchestrator/codex_roles/review_ledger.py` の
+  `SOURCE_FILE_SHA256["planner-v4"]` を旧値へ戻す変異が、2 度続けて `PARSE_ERROR` (観測 node 0 件) で
+  終わった。1 度目は kill 集合 153 / 214 node の中継上限が疑われたが、対象を designated gate 4 本へ
+  絞って kill 集合を 1〜3 node にしても同じだった。**2 走ぶん (約 20 分) を誤った原因仮説に使った。**
+- 根本原因: この変異は `orchestrator/codex_roles/spec.py` の `load_role_specs()` を **module import 時**に
+  `RoleSpecError` で落とす。`orchestrator/tests/test_codex_agents.py` は
+  `tools/check_codex_agents.py` を module 級で exec するため、pytest の collect 段階で 48 件の
+  `when=collect` error になる。`DW-M08` の node 抽出は `FAILED` 行から `<file>::<test>` を取る規約なので、
+  **nodeid が file 級しかない collect error からは 1 件も取れない。**
+- 誤った結果は出ていない: `DW-M08` の「rc≠0 で 0 件は fail-closed 停止」が働き、harness は
+  `PARSE_ERROR` を返して後続を止めた。**防壁は破れておらず、破れたのは原因の読みである。**
+- 恒久対応: `docs/dev-wave/mutation.md` `DW-M07` の fail-closed 規約 (`KILLED`期待で node 空の spec は
+  起動前に中止、probe は全件 `SURVIVED` 登録) が誤った kill の記録を機械的に塞ぐ。本エントリが足すのは
+  **再照準の型**である — 同型に当たったら、同じ pin 閉包を import を壊さない別 file
+  (生成 adapter が埋め込む source sha256 等) で突く形へ変える。本 wave はこの形で 5/5 KILLED に
+  到達した (`output/insights/2026-09-16/t304-throughput-rename/README.md` の erratum 節)。
+  **この型を `DW-M07` の本文へ収容できなかった理由も記録する** — 同節は単節予算 1000 bytes に
+  飽和しており、`--out`/`--attempt-out` に `--spec` を足す 9 bytes の事実訂正を入れるだけで
+  超過したため、意味を変えない縮約で余白を作って事実訂正だけを収容した。
+- 再発検知: 変異 probe が `PARSE_ERROR` を返したら中継上限と即断せず、job stdout の
+  `when=collect` 行数を数える。0 件でなければ本型である。

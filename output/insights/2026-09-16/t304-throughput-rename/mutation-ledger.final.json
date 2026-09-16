@@ -1,0 +1,445 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/output/pegasus-dispatch/b40e09e0fae644be15deb09f0b71b02c/izdw-b40e09e0fa.o932",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/output/pegasus-dispatch/b40e09e0fae644be15deb09f0b71b02c/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [4 items]\n\n....                                                                     [100%]\n============================== 4 passed in 15.61s ==============================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "560fb5286b7013b4d8a1987cb1a2f737f39e33b5c7643a686634eef8183963eb"
+    },
+    "artifact_error": null,
+    "collection_sha256": "63f8914a691fd8e949759eb8ec6f067c508a0f59a52d2586e77d8fd31e7158ce",
+    "duration_s": 221.851,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "42ca96865a8a47ab016de1074b31a779cd670ee63667988cfbace5e275d5072e",
+    "repo_head": "eae281191202e75ba3971f0ed8be0c84a4512778",
+    "runner_sha256": "c6c06bda2054c063f22da7330ab1d747b92b6da6385ddb2065d15ec14af897ed",
+    "spec_sha256": "fe4aa41d52fa83dca98576a3c9a08735ec79249342588a69db44d82b4944a3d6",
+    "status": "PASSED",
+    "test_output_sha256": "560fb5286b7013b4d8a1987cb1a2f737f39e33b5c7643a686634eef8183963eb",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "0d27bbadbeaf58c63c91698fb1c137b85ced8f56c9eef3d13546de97cccd1811"
+  },
+  "date": "2026-09-16T04:33:04.016559+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/output/pegasus-dispatch/d037504f797c2eaa22528139e1ab3b92/izdw-d037504f79.o940",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/output/pegasus-dispatch/d037504f797c2eaa22528139e1ab3b92/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [4 items]\n\nF.FF                                                                     [100%]\n=================================== FAILURES ===================================\n____________ test_planner_generation_one_preserves_existing_key_set ____________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_planner_generation_one_preserves_existing_key_set() -> None:\n        payload = {\n            **_common(generation=1),\n            \"current_perf\": _null_perf(),\n            \"leading_indicators\": {\n                \"contention_level\": \"high\",\n                \"cache_miss_rate_pct\": None,\n                \"IPC_overall\": None,\n            },\n            \"whiteboard\": [],\n        }\n>       P.validate_planner_payload(\n            payload,\n            expected_workload=\"ycsb-a\",\n            expected_generation=1,\n            expected_workload_descriptor=_descriptor(),\n            expected_descriptor_binding=_binding(),\n            expected_whiteboard_origin=[],\n            expected_current_perf=_null_perf(),\n            expected_leading_indicators=_null_leading(),\n            expected_critic_feedback=None,\n            payload_allowlist_sha256=ALLOWLIST_SHA256,\n        )\n\norchestrator/tests/test_s8c_generation_projection.py:523: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/s8c_generation_projection.py:770: in validate_planner_payload\n    _validate_expected_perf(\norchestrator/campaign/s8c_generation_projection.py:663: in _validate_expected_perf\n    metrics = _require_exact_keys(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nvalue = {'throughput_tps': None, 'abort_rate_pct': None, 'latency_ns': None, 'llc_miss_rate': None, ...}\nexpected = frozenset({'abort_rate_pct', 'ipc', 'latency_ns', 'llc_miss_rate', 'throughput_ops_sec'})\npath = 'payload.current_perf'\nerror_type = <class 'orchestrator.campaign.s8c_generation_projection.PayloadValidationError'>\n\n    def _require_exact_keys(\n        value: Any,\n        expected: frozenset[str],\n        *,\n        path: str,\n        error_type: type[Exception],\n    ) -> Mapping:\n        mapping = _require_mapping(value, path=path, error_type=error_type)\n        if set(mapping) != expected:\n>           raise error_type(f\"{path} の key 集合が契約と一致しない\")\nE           orchestrator.campaign.s8c_generation_projection.PayloadValidationError: payload.current_perf の key 集合が契約と一致しない\n\norchestrator/campaign/s8c_generation_projection.py:240: PayloadValidationError\n_________ test_standard_drive_two_generation_no_build_uses_s8c_wrapper _________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_standard_drive_two_genera0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d6886e1cc0>\nratified_enforcement_source = None\n\n    def test_standard_drive_two_generation_no_build_uses_s8c_wrapper(\n        tmp_path, monkeypatch, ratified_enforcement_source,\n    ) -> None:\n        from orchestrator.campaign import patchharness\n    \n        ccbench = tmp_path / \"ccbench\"\n        source = ccbench / A.trigger.SOURCE_REL\n        source.parent.mkdir(parents=True)\n        source.write_text(\n            \"\"\"// EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n    #if BACKOFF_TRIGGER_GATING\n      izanagi_gate_pass = true;\n    #else\n      Backoff::backoff(FLAGS_clocks_per_us);\n    #endif\n    // EVOLVE-BLOCK-END silo-backoff-trigger-gating\n    \"\"\",\n            encoding=\"utf-8\",\n        )\n        monkeypatch.setattr(A, \"assert_pinned_clean\", lambda *_a, **_k: None)\n        monkeypatch.setattr(\n            A, \"applied\", lambda *_a, **_k: contextlib.nullcontext(),\n        )\n        monkeypatch.setattr(\n            patchharness, \"applied\", lambda *_a, **_k: contextlib.nullcontext(),\n        )\n        monkeypatch.setattr(\n            A.trigger, \"_current_site\", lambda: A.trigger.site_policy.OTHER,\n        )\n        providers = {\n            role: _RecordingFixture(role)\n            for role in (\"planner\", \"coder\", \"auditor\", \"critic\")\n        }\n        report = A.run_trial(\n            trial_id=\"standard-drive-two-generation\",\n            workloads=[\"ycsb-a\"],\n            generations=2,\n            provider_kind=\"fixture\",\n            run_root=tmp_path / \"run\",\n            sub=str(ccbench),\n            do_build=False,\n            providers=providers,\n            allow_unregistered_exploratory=True,\n        )\n        cell = report[\"cells\"][0]\n>       assert [\n            generation[\"harness\"][\"iteration\"]\n            for generation in cell[\"generations\"]\n        ] == [1, 2]\n\norchestrator/tests/test_p3_autonomous_workload_trial.py:4929: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n.0 = <list_iterator object at 0x14d68865f850>\n\n    assert [\n>       generation[\"harness\"][\"iteration\"]\n        for generation in cell[\"generations\"]\n    ] == [1, 2]\nE   KeyError: 'harness'\n\norchestrator/tests/test_p3_autonomous_workload_trial.py:4930: KeyError\n_ test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set __\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_originless_default_preser0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15290577dc90>\n\n    def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        _pin_fixture_commit_dates(monkeypatch)\n        bundle_root = _fixed_width_bundle_root(tmp_path, \"originless\")\n>       omitted = _bundle(bundle_root, monkeypatch, explicit_none=False)\n\norchestrator/tests/test_reflux_originless_compatibility.py:1299: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nroot = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_originless_default_preser0/originless/xxxxxxxxxxxxxxxxxxxxxxxx...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15290577dc90>\nexplicit_none = False\n\n    def _bundle(\n        root: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        *,\n        explicit_none: bool,\n    ) -> dict[str, object]:\n        root.mkdir(parents=True)\n        fixture = p3_test.t325_registered_trial.__wrapped__(root, monkeypatch)\n        manifest = A.trial_registry.load_trial_manifest(fixture.manifest_path)\n        report_paths: list[Path] = []\n        for trial in manifest.trials:\n            workload = A.trial_registry.HOLDOUT_BINDINGS[trial.holdout][\"workload\"]\n            run_root = fixture.repo / \"output\" / \"originless\" / trial.trial_id\n            arguments = dict(\n                trial_id=trial.trial_id,\n                workloads=[workload],\n                generations=2,\n                provider_kind=\"fixture\",\n                run_root=run_root,\n                sub=\"/unused\",\n                do_build=False,\n                drive=p3_test._fake_drive,\n                preview=p3_test._fake_preview,\n                trial_manifest=fixture.manifest_path,\n                effective_preregistration=fixture.capability,\n            )\n            if explicit_none:\n                arguments.update({\n                    \"origin_binding_request\": None,\n                    \"origin_producer_inputs\": None,\n                })\n            report = A.run_trial(**arguments)\n>           assert report[\"status\"] == \"complete\"\nE           AssertionError: assert 'partial' == 'complete'\nE             \nE             - complete\nE             + partial\n\norchestrator/tests/test_reflux_originless_compatibility.py:73: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_s8c_generation_projection.py::test_planner_generation_one_preserves_existing_key_set\nFAILED orchestrator/tests/test_p3_autonomous_workload_trial.py::test_standard_drive_two_generation_no_build_uses_s8c_wrapper\nFAILED orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\n========================= 3 failed, 1 passed in 7.27s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\" nodeid_bytes=135 nodeid_omitted_bytes=0 source_bytes=2626 retained_bytes=2626 omitted_bytes=0 rendered_excerpt_bytes=2745 sha256=65e8dd0501eb2754c2e5500d89860ba461cdea2aa68a57b4221448b5468428f2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_originless_default_preser0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15290577dc90>\n> \n>     def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         _pin_fixture_commit_dates(monkeypatch)\n>         bundle_root = _fixed_width_bundle_root(tmp_path, \"originless\")\n> >       omitted = _bundle(bundle_root, monkeypatch, explicit_none=False)\n> \n> orchestrator/tests/test_reflux_originless_compatibility.py:1299: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_originless_default_preser0/originless/xxxxxxxxxxxxxxxxxxxxxxxx...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x15290577dc90>\n> explicit_none = False\n> \n>     def _bundle(\n>         root: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         *,\n>         explicit_none: bool,\n>     ) -> dict[str, object]:\n>         root.mkdir(parents=True)\n>         fixture = p3_test.t325_registered_trial.__wrapped__(root, monkeypatch)\n>         manifest = A.trial_registry.load_trial_manifest(fixture.manifest_path)\n>         report_paths: list[Path] = []\n>         for trial in manifest.trials:\n>             workload = A.trial_registry.HOLDOUT_BINDINGS[trial.holdout][\"workload\"]\n>             run_root = fixture.repo / \"output\" / \"originless\" / trial.trial_id\n>             arguments = dict(\n>                 trial_id=trial.trial_id,\n>                 workloads=[workload],\n>                 generations=2,\n>                 provider_kind=\"fixture\",\n>                 run_root=run_root,\n>                 sub=\"/unused\",\n>                 do_build=False,\n>                 drive=p3_test._fake_drive,\n>                 preview=p3_test._fake_preview,\n>                 trial_manifest=fixture.manifest_path,\n>                 effective_preregistration=fixture.capability,\n>             )\n>             if explicit_none:\n>                 arguments.update({\n>                     \"origin_binding_request\": None,\n>                     \"origin_producer_inputs\": None,\n>                 })\n>             report = A.run_trial(**arguments)\n> >           assert report[\"status\"] == \"complete\"\n> E           AssertionError: assert 'partial' == 'complete'\n> E             \n> E             - complete\n> E             + partial\n> \n> orchestrator/tests/test_reflux_originless_compatibility.py:73: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_autonomous_workload_trial.py::test_standard_drive_two_generation_no_build_uses_s8c_wrapper\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=2416 retained_bytes=2416 omitted_bytes=0 rendered_excerpt_bytes=2553 sha256=4e60bbb03f3f51a5b4f66b42d0861438744f4dec605c83142bd004d055e40a13\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_standard_drive_two_genera0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d6886e1cc0>\n> ratified_enforcement_source = None\n> \n>     def test_standard_drive_two_generation_no_build_uses_s8c_wrapper(\n>         tmp_path, monkeypatch, ratified_enforcement_source,\n>     ) -> None:\n>         from orchestrator.campaign import patchharness\n>     \n>         ccbench = tmp_path / \"ccbench\"\n>         source = ccbench / A.trigger.SOURCE_REL\n>         source.parent.mkdir(parents=True)\n>         source.write_text(\n>             \"\"\"// EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n>     #if BACKOFF_TRIGGER_GATING\n>       izanagi_gate_pass = true;\n>     #else\n>       Backoff::backoff(FLAGS_clocks_per_us);\n>     #endif\n>     // EVOLVE-BLOCK-END silo-backoff-trigger-gating\n>     \"\"\",\n>             encoding=\"utf-8\",\n>         )\n>         monkeypatch.setattr(A, \"assert_pinned_clean\", lambda *_a, **_k: None)\n>         monkeypatch.setattr(\n>             A, \"applied\", lambda *_a, **_k: contextlib.nullcontext(),\n>         )\n>         monkeypatch.setattr(\n>             patchharness, \"applied\", lambda *_a, **_k: contextlib.nullcontext(),\n>         )\n>         monkeypatch.setattr(\n>             A.trigger, \"_current_site\", lambda: A.trigger.site_policy.OTHER,\n>         )\n>         providers = {\n>             role: _RecordingFixture(role)\n>             for role in (\"planner\", \"coder\", \"auditor\", \"critic\")\n>         }\n>         report = A.run_trial(\n>             trial_id=\"standard-drive-two-generation\",\n>             workloads=[\"ycsb-a\"],\n>             generations=2,\n>             provider_kind=\"fixture\",\n>             run_root=tmp_path / \"run\",\n>             sub=str(ccbench),\n>             do_build=False,\n>             providers=providers,\n>             allow_unregistered_exploratory=True,\n>         )\n>         cell = report[\"cells\"][0]\n> >       assert [\n>             generation[\"harness\"][\"iteration\"]\n>             for generation in cell[\"generations\"]\n>         ] == [1, 2]\n> \n> orchestrator/tests/test_p3_autonomous_workload_trial.py:4929: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> .0 = <list_iterator object at 0x14d68865f850>\n> \n>     assert [\n> >       generation[\"harness\"][\"iteration\"]\n>         for generation in cell[\"generations\"]\n>     ] == [1, 2]\n> E   KeyError: 'harness'\n> \n> orchestrator/tests/test_p3_autonomous_workload_trial.py:4930: KeyError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_s8c_generation_projection.py::test_planner_generation_one_preserves_existing_key_set\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=2307 retained_bytes=2307 omitted_bytes=0 rendered_excerpt_bytes=2484 sha256=250d81c3dbdaa4933c11494c91f0bea11e033ea832cbb4dbda6428b43a0a1998\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_planner_generation_one_preserves_existing_key_set() -> None:\n>         payload = {\n>             **_common(generation=1),\n>             \"current_perf\": _null_perf(),\n>             \"leading_indicators\": {\n>                 \"contention_level\": \"high\",\n>                 \"cache_miss_rate_pct\": None,\n>                 \"IPC_overall\": None,\n>             },\n>             \"whiteboard\": [],\n>         }\n> >       P.validate_planner_payload(\n>             payload,\n>             expected_workload=\"ycsb-a\",\n>             expected_generation=1,\n>             expected_workload_descriptor=_descriptor(),\n>             expected_descriptor_binding=_binding(),\n>             expected_whiteboard_origin=[],\n>             expected_current_perf=_null_perf(),\n>             expected_leading_indicators=_null_leading(),\n>             expected_critic_feedback=None,\n>             payload_allowlist_sha256=ALLOWLIST_SHA256,\n>         )\n> \n> orchestrator/tests/test_s8c_generation_projection.py:523: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/s8c_generation_projection.py:770: in validate_planner_payload\n>     _validate_expected_perf(\n> orchestrator/campaign/s8c_generation_projection.py:663: in _validate_expected_perf\n>     metrics = _require_exact_keys(\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> value = {'throughput_tps': None, 'abort_rate_pct': None, 'latency_ns': None, 'llc_miss_rate': None, ...}\n> expected = frozenset({'abort_rate_pct', 'ipc', 'latency_ns', 'llc_miss_rate', 'throughput_ops_sec'})\n> path = 'payload.current_perf'\n> error_type = <class 'orchestrator.campaign.s8c_generation_projection.PayloadValidationError'>\n> \n>     def _require_exact_keys(\n>         value: Any,\n>         expected: frozenset[str],\n>         *,\n>         path: str,\n>         error_type: type[Exception],\n>     ) -> Mapping:\n>         mapping = _require_mapping(value, path=path, error_type=error_type)\n>         if set(mapping) != expected:\n> >           raise error_type(f\"{path} \\u306e key \\u96c6\\u5408\\u304c\\u5951\\u7d04\\u3068\\u4e00\\u81f4\\u3057\\u306a\\u3044\")\n> E           orchestrator.campaign.s8c_generation_projection.PayloadValidationError: payload.current_perf \\u306e key \\u96c6\\u5408\\u304c\\u5951\\u7d04\\u3068\\u4e00\\u81f4\\u3057\\u306a\\u3044\n> \n> orchestrator/campaign/s8c_generation_projection.py:240: PayloadValidationError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=7349 retained_bytes=7349 omitted_bytes=0 budget_bytes=49152 rendered_bytes=9452 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4cd4104abc1c827b4d4abb7751251e4c8ce70d61c9642239fe8aba3d37541412"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "63f8914a691fd8e949759eb8ec6f067c508a0f59a52d2586e77d8fd31e7158ce",
+      "duration_s": 32.158,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_standard_drive_two_generation_no_build_uses_s8c_wrapper",
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set",
+        "orchestrator/tests/test_s8c_generation_projection.py::test_planner_generation_one_preserves_existing_key_set"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_s8c_generation_projection.py::test_planner_generation_one_preserves_existing_key_set",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_standard_drive_two_generation_no_build_uses_s8c_wrapper",
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "hang_risk": false,
+      "id": "M1-projection-perf-keys",
+      "injection_diff_sha256": "458fff21d6ed3d64f527da5a7b186f0436e14f6a3d95dc92aa97436f06bdaf45",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1eb44975caba0395256ff51a713b16168647e0aa7a7bc54141391f9ba1f815d0",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8c_generation_projection.py",
+          "new": "_PERF_KEYS = frozenset({\n    \"throughput_ops_sec\",",
+          "old": "_PERF_KEYS = frozenset({\n    \"throughput_tps\","
+        }
+      ],
+      "repo_head": "eae281191202e75ba3971f0ed8be0c84a4512778",
+      "runner_sha256": "c6c06bda2054c063f22da7330ab1d747b92b6da6385ddb2065d15ec14af897ed",
+      "spec_sha256": "fe4aa41d52fa83dca98576a3c9a08735ec79249342588a69db44d82b4944a3d6",
+      "status": "KILLED",
+      "test_output_sha256": "4cd4104abc1c827b4d4abb7751251e4c8ce70d61c9642239fe8aba3d37541412",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0d27bbadbeaf58c63c91698fb1c137b85ced8f56c9eef3d13546de97cccd1811"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/output/pegasus-dispatch/8f850957f43eb3cc6e200c09edf314e0/izdw-8f850957f4.o942",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/output/pegasus-dispatch/8f850957f43eb3cc6e200c09edf314e0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [4 items]\n\n..FF                                                                     [100%]\n=================================== FAILURES ===================================\n_ test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set __\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_originless_default_preser0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1493b9ed5cf0>\n\n    def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        _pin_fixture_commit_dates(monkeypatch)\n        bundle_root = _fixed_width_bundle_root(tmp_path, \"originless\")\n>       omitted = _bundle(bundle_root, monkeypatch, explicit_none=False)\n\norchestrator/tests/test_reflux_originless_compatibility.py:1299: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_reflux_originless_compatibility.py:72: in _bundle\n    report = A.run_trial(**arguments)\norchestrator/campaign/p3_autonomous_workload_trial.py:5292: in run_trial\n    mark_experiment_indeterminate(\norchestrator/campaign/p3_autonomous_workload_trial.py:4665: in mark_experiment_indeterminate\n    raise cause\norchestrator/campaign/p3_autonomous_workload_trial.py:5256: in run_trial\n    report = _finish_trial(**finish_arguments)\norchestrator/campaign/p3_autonomous_workload_trial.py:3956: in _finish_trial\n    assert_autonomous_trial_completeness(\norchestrator/campaign/autonomous_trial_completeness.py:3225: in assert_autonomous_trial_completeness\n    _check_payload_validation_receipts(\norchestrator/campaign/autonomous_trial_completeness.py:1666: in _check_payload_validation_receipts\n    _check_payload_validation_receipt(\norchestrator/campaign/autonomous_trial_completeness.py:1566: in _check_payload_validation_receipt\n    _fail(\"payload-validation-receipt\", f\"{label} nested keys differ at {path}\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ngate = 'payload-validation-receipt'\nmessage = 'rr80.g1.planner nested keys differ at $.current_perf'\n\n    def _fail(gate: str, message: str) -> None:\n>       raise AutonomousTrialCompletenessError(f\"[{gate}] {message}\")\nE       orchestrator.campaign.autonomous_trial_completeness.AutonomousTrialCompletenessError: [payload-validation-receipt] rr80.g1.planner nested keys differ at $.current_perf\n\norchestrator/campaign/autonomous_trial_completeness.py:448: AutonomousTrialCompletenessError\n_________ test_standard_drive_two_generation_no_build_uses_s8c_wrapper _________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_standard_drive_two_genera0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1462a1ff9cc0>\nratified_enforcement_source = None\n\n    def test_standard_drive_two_generation_no_build_uses_s8c_wrapper(\n        tmp_path, monkeypatch, ratified_enforcement_source,\n    ) -> None:\n        from orchestrator.campaign import patchharness\n    \n        ccbench = tmp_path / \"ccbench\"\n        source = ccbench / A.trigger.SOURCE_REL\n        source.parent.mkdir(parents=True)\n        source.write_text(\n            \"\"\"// EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n    #if BACKOFF_TRIGGER_GATING\n      izanagi_gate_pass = true;\n    #else\n      Backoff::backoff(FLAGS_clocks_per_us);\n    #endif\n    // EVOLVE-BLOCK-END silo-backoff-trigger-gating\n    \"\"\",\n            encoding=\"utf-8\",\n        )\n        monkeypatch.setattr(A, \"assert_pinned_clean\", lambda *_a, **_k: None)\n        monkeypatch.setattr(\n            A, \"applied\", lambda *_a, **_k: contextlib.nullcontext(),\n        )\n        monkeypatch.setattr(\n            patchharness, \"applied\", lambda *_a, **_k: contextlib.nullcontext(),\n        )\n        monkeypatch.setattr(\n            A.trigger, \"_current_site\", lambda: A.trigger.site_policy.OTHER,\n        )\n        providers = {\n            role: _RecordingFixture(role)\n            for role in (\"planner\", \"coder\", \"auditor\", \"critic\")\n        }\n>       report = A.run_trial(\n            trial_id=\"standard-drive-two-generation\",\n            workloads=[\"ycsb-a\"],\n            generations=2,\n            provider_kind=\"fixture\",\n            run_root=tmp_path / \"run\",\n            sub=str(ccbench),\n            do_build=False,\n            providers=providers,\n            allow_unregistered_exploratory=True,\n        )\n\norchestrator/tests/test_p3_autonomous_workload_trial.py:4917: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/campaign/p3_autonomous_workload_trial.py:5256: in run_trial\n    report = _finish_trial(**finish_arguments)\norchestrator/campaign/p3_autonomous_workload_trial.py:3956: in _finish_trial\n    assert_autonomous_trial_completeness(\norchestrator/campaign/autonomous_trial_completeness.py:3225: in assert_autonomous_trial_completeness\n    _check_payload_validation_receipts(\norchestrator/campaign/autonomous_trial_completeness.py:1666: in _check_payload_validation_receipts\n    _check_payload_validation_receipt(\norchestrator/campaign/autonomous_trial_completeness.py:1566: in _check_payload_validation_receipt\n    _fail(\"payload-validation-receipt\", f\"{label} nested keys differ at {path}\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ngate = 'payload-validation-receipt'\nmessage = 'ycsb-a.g1.planner nested keys differ at $.current_perf'\n\n    def _fail(gate: str, message: str) -> None:\n>       raise AutonomousTrialCompletenessError(f\"[{gate}] {message}\")\nE       orchestrator.campaign.autonomous_trial_completeness.AutonomousTrialCompletenessError: [payload-validation-receipt] ycsb-a.g1.planner nested keys differ at $.current_perf\n\norchestrator/campaign/autonomous_trial_completeness.py:448: AutonomousTrialCompletenessError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\nFAILED orchestrator/tests/test_p3_autonomous_workload_trial.py::test_standard_drive_two_generation_no_build_uses_s8c_wrapper\n========================= 2 failed, 2 passed in 8.11s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_p3_autonomous_workload_trial.py::test_standard_drive_two_generation_no_build_uses_s8c_wrapper\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=3259 retained_bytes=3259 omitted_bytes=0 rendered_excerpt_bytes=3406 sha256=ebffded4383668775b1432a093dea638437eecd470188d1cebf4b62656a4434d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_standard_drive_two_genera0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1462a1ff9cc0>\n> ratified_enforcement_source = None\n> \n>     def test_standard_drive_two_generation_no_build_uses_s8c_wrapper(\n>         tmp_path, monkeypatch, ratified_enforcement_source,\n>     ) -> None:\n>         from orchestrator.campaign import patchharness\n>     \n>         ccbench = tmp_path / \"ccbench\"\n>         source = ccbench / A.trigger.SOURCE_REL\n>         source.parent.mkdir(parents=True)\n>         source.write_text(\n>             \"\"\"// EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n>     #if BACKOFF_TRIGGER_GATING\n>       izanagi_gate_pass = true;\n>     #else\n>       Backoff::backoff(FLAGS_clocks_per_us);\n>     #endif\n>     // EVOLVE-BLOCK-END silo-backoff-trigger-gating\n>     \"\"\",\n>             encoding=\"utf-8\",\n>         )\n>         monkeypatch.setattr(A, \"assert_pinned_clean\", lambda *_a, **_k: None)\n>         monkeypatch.setattr(\n>             A, \"applied\", lambda *_a, **_k: contextlib.nullcontext(),\n>         )\n>         monkeypatch.setattr(\n>             patchharness, \"applied\", lambda *_a, **_k: contextlib.nullcontext(),\n>         )\n>         monkeypatch.setattr(\n>             A.trigger, \"_current_site\", lambda: A.trigger.site_policy.OTHER,\n>         )\n>         providers = {\n>             role: _RecordingFixture(role)\n>             for role in (\"planner\", \"coder\", \"auditor\", \"critic\")\n>         }\n> >       report = A.run_trial(\n>             trial_id=\"standard-drive-two-generation\",\n>             workloads=[\"ycsb-a\"],\n>             generations=2,\n>             provider_kind=\"fixture\",\n>             run_root=tmp_path / \"run\",\n>             sub=str(ccbench),\n>             do_build=False,\n>             providers=providers,\n>             allow_unregistered_exploratory=True,\n>         )\n> \n> orchestrator/tests/test_p3_autonomous_workload_trial.py:4917: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/campaign/p3_autonomous_workload_trial.py:5256: in run_trial\n>     report = _finish_trial(**finish_arguments)\n> orchestrator/campaign/p3_autonomous_workload_trial.py:3956: in _finish_trial\n>     assert_autonomous_trial_completeness(\n> orchestrator/campaign/autonomous_trial_completeness.py:3225: in assert_autonomous_trial_completeness\n>     _check_payload_validation_receipts(\n> orchestrator/campaign/autonomous_trial_completeness.py:1666: in _check_payload_validation_receipts\n>     _check_payload_validation_receipt(\n> orchestrator/campaign/autonomous_trial_completeness.py:1566: in _check_payload_validation_receipt\n>     _fail(\"payload-validation-receipt\", f\"{label} nested keys differ at {path}\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> gate = 'payload-validation-receipt'\n> message = 'ycsb-a.g1.planner nested keys differ at $.current_perf'\n> \n>     def _fail(gate: str, message: str) -> None:\n> >       raise AutonomousTrialCompletenessError(f\"[{gate}] {message}\")\n> E       orchestrator.campaign.autonomous_trial_completeness.AutonomousTrialCompletenessError: [payload-validation-receipt] ycsb-a.g1.planner nested keys differ at $.current_perf\n> \n> orchestrator/campaign/autonomous_trial_completeness.py:448: AutonomousTrialCompletenessError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\" nodeid_bytes=135 nodeid_omitted_bytes=0 source_bytes=2318 retained_bytes=2318 omitted_bytes=0 rendered_excerpt_bytes=2401 sha256=519cbc3363171b2058d9b09524b9a04494ef2ca7e443c5b913c199e214063e62\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_originless_default_preser0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1493b9ed5cf0>\n> \n>     def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         _pin_fixture_commit_dates(monkeypatch)\n>         bundle_root = _fixed_width_bundle_root(tmp_path, \"originless\")\n> >       omitted = _bundle(bundle_root, monkeypatch, explicit_none=False)\n> \n> orchestrator/tests/test_reflux_originless_compatibility.py:1299: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_reflux_originless_compatibility.py:72: in _bundle\n>     report = A.run_trial(**arguments)\n> orchestrator/campaign/p3_autonomous_workload_trial.py:5292: in run_trial\n>     mark_experiment_indeterminate(\n> orchestrator/campaign/p3_autonomous_workload_trial.py:4665: in mark_experiment_indeterminate\n>     raise cause\n> orchestrator/campaign/p3_autonomous_workload_trial.py:5256: in run_trial\n>     report = _finish_trial(**finish_arguments)\n> orchestrator/campaign/p3_autonomous_workload_trial.py:3956: in _finish_trial\n>     assert_autonomous_trial_completeness(\n> orchestrator/campaign/autonomous_trial_completeness.py:3225: in assert_autonomous_trial_completeness\n>     _check_payload_validation_receipts(\n> orchestrator/campaign/autonomous_trial_completeness.py:1666: in _check_payload_validation_receipts\n>     _check_payload_validation_receipt(\n> orchestrator/campaign/autonomous_trial_completeness.py:1566: in _check_payload_validation_receipt\n>     _fail(\"payload-validation-receipt\", f\"{label} nested keys differ at {path}\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> gate = 'payload-validation-receipt'\n> message = 'rr80.g1.planner nested keys differ at $.current_perf'\n> \n>     def _fail(gate: str, message: str) -> None:\n> >       raise AutonomousTrialCompletenessError(f\"[{gate}] {message}\")\n> E       orchestrator.campaign.autonomous_trial_completeness.AutonomousTrialCompletenessError: [payload-validation-receipt] rr80.g1.planner nested keys differ at $.current_perf\n> \n> orchestrator/campaign/autonomous_trial_completeness.py:448: AutonomousTrialCompletenessError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=5577 retained_bytes=5577 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7028 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e028bba056f8349c698d98de35f1501a90283c452bdef06ce0cadeec4437819c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "63f8914a691fd8e949759eb8ec6f067c508a0f59a52d2586e77d8fd31e7158ce",
+      "duration_s": 355.282,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_standard_drive_two_generation_no_build_uses_s8c_wrapper",
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_standard_drive_two_generation_no_build_uses_s8c_wrapper"
+      ],
+      "hang_risk": false,
+      "id": "M2-completeness-perf-keys",
+      "injection_diff_sha256": "b5b5901909da07581aef99e224bada6b866c7a5e0e4652947700ef4415465417",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "88b1392fc61f51f57dbc9dfe070bf11bd5c354e1e5572256ff3d511ca47b2a0d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "new": "_PERF_KEYS = {\n    \"throughput_ops_sec\", \"abort_rate_pct\",",
+          "old": "_PERF_KEYS = {\n    \"throughput_tps\", \"abort_rate_pct\","
+        }
+      ],
+      "repo_head": "eae281191202e75ba3971f0ed8be0c84a4512778",
+      "runner_sha256": "c6c06bda2054c063f22da7330ab1d747b92b6da6385ddb2065d15ec14af897ed",
+      "spec_sha256": "fe4aa41d52fa83dca98576a3c9a08735ec79249342588a69db44d82b4944a3d6",
+      "status": "KILLED",
+      "test_output_sha256": "e028bba056f8349c698d98de35f1501a90283c452bdef06ce0cadeec4437819c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0d27bbadbeaf58c63c91698fb1c137b85ced8f56c9eef3d13546de97cccd1811"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/output/pegasus-dispatch/26a4d286830f52d3b54abc9aaae5f76d/izdw-26a4d28683.o949",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/output/pegasus-dispatch/26a4d286830f52d3b54abc9aaae5f76d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [4 items]\n\n..FF                                                                     [100%]\n=================================== FAILURES ===================================\n_________ test_standard_drive_two_generation_no_build_uses_s8c_wrapper _________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_standard_drive_two_genera0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ccd50add80>\nratified_enforcement_source = None\n\n    def test_standard_drive_two_generation_no_build_uses_s8c_wrapper(\n        tmp_path, monkeypatch, ratified_enforcement_source,\n    ) -> None:\n        from orchestrator.campaign import patchharness\n    \n        ccbench = tmp_path / \"ccbench\"\n        source = ccbench / A.trigger.SOURCE_REL\n        source.parent.mkdir(parents=True)\n        source.write_text(\n            \"\"\"// EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n    #if BACKOFF_TRIGGER_GATING\n      izanagi_gate_pass = true;\n    #else\n      Backoff::backoff(FLAGS_clocks_per_us);\n    #endif\n    // EVOLVE-BLOCK-END silo-backoff-trigger-gating\n    \"\"\",\n            encoding=\"utf-8\",\n        )\n        monkeypatch.setattr(A, \"assert_pinned_clean\", lambda *_a, **_k: None)\n        monkeypatch.setattr(\n            A, \"applied\", lambda *_a, **_k: contextlib.nullcontext(),\n        )\n        monkeypatch.setattr(\n            patchharness, \"applied\", lambda *_a, **_k: contextlib.nullcontext(),\n        )\n        monkeypatch.setattr(\n            A.trigger, \"_current_site\", lambda: A.trigger.site_policy.OTHER,\n        )\n        providers = {\n            role: _RecordingFixture(role)\n            for role in (\"planner\", \"coder\", \"auditor\", \"critic\")\n        }\n        report = A.run_trial(\n            trial_id=\"standard-drive-two-generation\",\n            workloads=[\"ycsb-a\"],\n            generations=2,\n            provider_kind=\"fixture\",\n            run_root=tmp_path / \"run\",\n            sub=str(ccbench),\n            do_build=False,\n            providers=providers,\n            allow_unregistered_exploratory=True,\n        )\n        cell = report[\"cells\"][0]\n>       assert [\n            generation[\"harness\"][\"iteration\"]\n            for generation in cell[\"generations\"]\n        ] == [1, 2]\n\norchestrator/tests/test_p3_autonomous_workload_trial.py:4929: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\n.0 = <list_iterator object at 0x14ccd4edf580>\n\n    assert [\n>       generation[\"harness\"][\"iteration\"]\n        for generation in cell[\"generations\"]\n    ] == [1, 2]\nE   KeyError: 'harness'\n\norchestrator/tests/test_p3_autonomous_workload_trial.py:4930: KeyError\n_ test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set __\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_originless_default_preser0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148df1a1a2f0>\n\n    def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        _pin_fixture_commit_dates(monkeypatch)\n        bundle_root = _fixed_width_bundle_root(tmp_path, \"originless\")\n>       omitted = _bundle(bundle_root, monkeypatch, explicit_none=False)\n\norchestrator/tests/test_reflux_originless_compatibility.py:1299: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nroot = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_originless_default_preser0/originless/xxxxxxxxxxxxxxxxxxxxxxxx...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148df1a1a2f0>\nexplicit_none = False\n\n    def _bundle(\n        root: Path,\n        monkeypatch: pytest.MonkeyPatch,\n        *,\n        explicit_none: bool,\n    ) -> dict[str, object]:\n        root.mkdir(parents=True)\n        fixture = p3_test.t325_registered_trial.__wrapped__(root, monkeypatch)\n        manifest = A.trial_registry.load_trial_manifest(fixture.manifest_path)\n        report_paths: list[Path] = []\n        for trial in manifest.trials:\n            workload = A.trial_registry.HOLDOUT_BINDINGS[trial.holdout][\"workload\"]\n            run_root = fixture.repo / \"output\" / \"originless\" / trial.trial_id\n            arguments = dict(\n                trial_id=trial.trial_id,\n                workloads=[workload],\n                generations=2,\n                provider_kind=\"fixture\",\n                run_root=run_root,\n                sub=\"/unused\",\n                do_build=False,\n                drive=p3_test._fake_drive,\n                preview=p3_test._fake_preview,\n                trial_manifest=fixture.manifest_path,\n                effective_preregistration=fixture.capability,\n            )\n            if explicit_none:\n                arguments.update({\n                    \"origin_binding_request\": None,\n                    \"origin_producer_inputs\": None,\n                })\n            report = A.run_trial(**arguments)\n>           assert report[\"status\"] == \"complete\"\nE           AssertionError: assert 'partial' == 'complete'\nE             \nE             - complete\nE             + partial\n\norchestrator/tests/test_reflux_originless_compatibility.py:73: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_p3_autonomous_workload_trial.py::test_standard_drive_two_generation_no_build_uses_s8c_wrapper\nFAILED orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\n========================= 2 failed, 2 passed in 7.28s ==========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\" nodeid_bytes=135 nodeid_omitted_bytes=0 source_bytes=2626 retained_bytes=2626 omitted_bytes=0 rendered_excerpt_bytes=2745 sha256=c8e5f451b92ce7c5d803f15198b9f87bb29d1a3d92b8dc2c2ee9277d26763978\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_originless_default_preser0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148df1a1a2f0>\n> \n>     def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(\n>         tmp_path: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>     ) -> None:\n>         _pin_fixture_commit_dates(monkeypatch)\n>         bundle_root = _fixed_width_bundle_root(tmp_path, \"originless\")\n> >       omitted = _bundle(bundle_root, monkeypatch, explicit_none=False)\n> \n> orchestrator/tests/test_reflux_originless_compatibility.py:1299: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_originless_default_preser0/originless/xxxxxxxxxxxxxxxxxxxxxxxx...xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148df1a1a2f0>\n> explicit_none = False\n> \n>     def _bundle(\n>         root: Path,\n>         monkeypatch: pytest.MonkeyPatch,\n>         *,\n>         explicit_none: bool,\n>     ) -> dict[str, object]:\n>         root.mkdir(parents=True)\n>         fixture = p3_test.t325_registered_trial.__wrapped__(root, monkeypatch)\n>         manifest = A.trial_registry.load_trial_manifest(fixture.manifest_path)\n>         report_paths: list[Path] = []\n>         for trial in manifest.trials:\n>             workload = A.trial_registry.HOLDOUT_BINDINGS[trial.holdout][\"workload\"]\n>             run_root = fixture.repo / \"output\" / \"originless\" / trial.trial_id\n>             arguments = dict(\n>                 trial_id=trial.trial_id,\n>                 workloads=[workload],\n>                 generations=2,\n>                 provider_kind=\"fixture\",\n>                 run_root=run_root,\n>                 sub=\"/unused\",\n>                 do_build=False,\n>                 drive=p3_test._fake_drive,\n>                 preview=p3_test._fake_preview,\n>                 trial_manifest=fixture.manifest_path,\n>                 effective_preregistration=fixture.capability,\n>             )\n>             if explicit_none:\n>                 arguments.update({\n>                     \"origin_binding_request\": None,\n>                     \"origin_producer_inputs\": None,\n>                 })\n>             report = A.run_trial(**arguments)\n> >           assert report[\"status\"] == \"complete\"\n> E           AssertionError: assert 'partial' == 'complete'\n> E             \n> E             - complete\n> E             + partial\n> \n> orchestrator/tests/test_reflux_originless_compatibility.py:73: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_p3_autonomous_workload_trial.py::test_standard_drive_two_generation_no_build_uses_s8c_wrapper\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=2416 retained_bytes=2416 omitted_bytes=0 rendered_excerpt_bytes=2553 sha256=e48b8c1b0a54ddf70ca2bbf2060d00a5dc54c819faa92e84201797638721ced8\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_standard_drive_two_genera0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ccd50add80>\n> ratified_enforcement_source = None\n> \n>     def test_standard_drive_two_generation_no_build_uses_s8c_wrapper(\n>         tmp_path, monkeypatch, ratified_enforcement_source,\n>     ) -> None:\n>         from orchestrator.campaign import patchharness\n>     \n>         ccbench = tmp_path / \"ccbench\"\n>         source = ccbench / A.trigger.SOURCE_REL\n>         source.parent.mkdir(parents=True)\n>         source.write_text(\n>             \"\"\"// EVOLVE-BLOCK-BEGIN silo-backoff-trigger-gating\n>     #if BACKOFF_TRIGGER_GATING\n>       izanagi_gate_pass = true;\n>     #else\n>       Backoff::backoff(FLAGS_clocks_per_us);\n>     #endif\n>     // EVOLVE-BLOCK-END silo-backoff-trigger-gating\n>     \"\"\",\n>             encoding=\"utf-8\",\n>         )\n>         monkeypatch.setattr(A, \"assert_pinned_clean\", lambda *_a, **_k: None)\n>         monkeypatch.setattr(\n>             A, \"applied\", lambda *_a, **_k: contextlib.nullcontext(),\n>         )\n>         monkeypatch.setattr(\n>             patchharness, \"applied\", lambda *_a, **_k: contextlib.nullcontext(),\n>         )\n>         monkeypatch.setattr(\n>             A.trigger, \"_current_site\", lambda: A.trigger.site_policy.OTHER,\n>         )\n>         providers = {\n>             role: _RecordingFixture(role)\n>             for role in (\"planner\", \"coder\", \"auditor\", \"critic\")\n>         }\n>         report = A.run_trial(\n>             trial_id=\"standard-drive-two-generation\",\n>             workloads=[\"ycsb-a\"],\n>             generations=2,\n>             provider_kind=\"fixture\",\n>             run_root=tmp_path / \"run\",\n>             sub=str(ccbench),\n>             do_build=False,\n>             providers=providers,\n>             allow_unregistered_exploratory=True,\n>         )\n>         cell = report[\"cells\"][0]\n> >       assert [\n>             generation[\"harness\"][\"iteration\"]\n>             for generation in cell[\"generations\"]\n>         ] == [1, 2]\n> \n> orchestrator/tests/test_p3_autonomous_workload_trial.py:4929: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> .0 = <list_iterator object at 0x14ccd4edf580>\n> \n>     assert [\n> >       generation[\"harness\"][\"iteration\"]\n>         for generation in cell[\"generations\"]\n>     ] == [1, 2]\n> E   KeyError: 'harness'\n> \n> orchestrator/tests/test_p3_autonomous_workload_trial.py:4930: KeyError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=5042 retained_bytes=5042 omitted_bytes=0 budget_bytes=49152 rendered_bytes=6519 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8b1c623ef652e8dc12a10232cc7e2f5f1cf67a4fb87e7df976e8e3933e8f1dc9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "63f8914a691fd8e949759eb8ec6f067c508a0f59a52d2586e77d8fd31e7158ce",
+      "duration_s": 32.311,
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_standard_drive_two_generation_no_build_uses_s8c_wrapper",
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_standard_drive_two_generation_no_build_uses_s8c_wrapper",
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "hang_risk": false,
+      "id": "M3-producer-schema-version",
+      "injection_diff_sha256": "bb84cf139d5d62d422bc3f973f3888576c345422b2f13c0b7f39135541e4a127",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9f842bea98f968422ffeb9b90b023b93b0721bff2ae13b8963c743d641766c70",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+          "new": "SCHEMA_VERSION = \"p3-autonomous-workload-trial/v3\"",
+          "old": "SCHEMA_VERSION = \"p3-autonomous-workload-trial/v4\""
+        }
+      ],
+      "repo_head": "eae281191202e75ba3971f0ed8be0c84a4512778",
+      "runner_sha256": "c6c06bda2054c063f22da7330ab1d747b92b6da6385ddb2065d15ec14af897ed",
+      "spec_sha256": "fe4aa41d52fa83dca98576a3c9a08735ec79249342588a69db44d82b4944a3d6",
+      "status": "KILLED",
+      "test_output_sha256": "8b1c623ef652e8dc12a10232cc7e2f5f1cf67a4fb87e7df976e8e3933e8f1dc9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0d27bbadbeaf58c63c91698fb1c137b85ced8f56c9eef3d13546de97cccd1811"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/output/pegasus-dispatch/57282620a71856aafbd153434b64013a/izdw-57282620a7.o950",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/output/pegasus-dispatch/57282620a71856aafbd153434b64013a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [4 items]\n\n.F..                                                                     [100%]\n=================================== FAILURES ===================================\n__________ test_current_sources_render_byte_exact_and_native_is_empty __________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_current_sources_render_byte_exact_and_native_is_empty():\n>       assert CCA.check(_REPO) == []\nE       AssertionError: assert ['/work/1/SFC...ourceから再生成する'] == []\nE         \nE         Left contains one more item: '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/.codex/role-adapters/planner-v4.json: rendered adapter byte parity drift。manifest/Claude sourceから再生成する'\nE         Use -v to get more diff\n\norchestrator/tests/test_codex_agents.py:167: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty\n========================= 1 failed, 3 passed in 15.56s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=578 retained_bytes=578 omitted_bytes=0 rendered_excerpt_bytes=644 sha256=aeada24e41b80e27e0636a35f135c91000dffd1d4b9a7e5b741c6ad9591c7c94\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_current_sources_render_byte_exact_and_native_is_empty():\n> >       assert CCA.check(_REPO) == []\n> E       AssertionError: assert ['/work/1/SFC...ource\\u304b\\u3089\\u518d\\u751f\\u6210\\u3059\\u308b'] == []\n> E         \n> E         Left contains one more item: '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/.codex/role-adapters/planner-v4.json: rendered adapter byte parity drift\\u3002manifest/Claude source\\u304b\\u3089\\u518d\\u751f\\u6210\\u3059\\u308b'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_codex_agents.py:167: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=578 retained_bytes=578 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1365 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f0073e3bdfdb4056fcb92053505b3196e3e92d7f9d332c768faaf8cf90b2d65a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "63f8914a691fd8e949759eb8ec6f067c508a0f59a52d2586e77d8fd31e7158ce",
+      "duration_s": 37.361,
+      "expected_nodes": [
+        "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty"
+      ],
+      "hang_risk": false,
+      "id": "M4-adapter-source-pin",
+      "injection_diff_sha256": "a11d4d44fe2e7107166894195ff3b7eb0bcfd0d64cc621fecf63a86095839f32",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0ef66e328806ff178fc002decac8592261e70e35e16eb6398103f87d2d923474",
+      "replacements": [
+        {
+          "file": ".codex/role-adapters/planner-v4.json",
+          "new": "\"path\": \".claude/agents/planner-v4.md\",\n    \"sha256\": \"1d6b1603dbbb7c776202cd20a300e60e01b9119b55068ddfcce3e83714f646da\"",
+          "old": "\"path\": \".claude/agents/planner-v4.md\",\n    \"sha256\": \"c47cf0ff81bb88d1ad65d5b0b92ac35feb40f49e4d2a8eef9007b48c286bf5f9\""
+        }
+      ],
+      "repo_head": "eae281191202e75ba3971f0ed8be0c84a4512778",
+      "runner_sha256": "c6c06bda2054c063f22da7330ab1d747b92b6da6385ddb2065d15ec14af897ed",
+      "spec_sha256": "fe4aa41d52fa83dca98576a3c9a08735ec79249342588a69db44d82b4944a3d6",
+      "status": "KILLED",
+      "test_output_sha256": "f0073e3bdfdb4056fcb92053505b3196e3e92d7f9d332c768faaf8cf90b2d65a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0d27bbadbeaf58c63c91698fb1c137b85ced8f56c9eef3d13546de97cccd1811"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/output/pegasus-dispatch/995787d6afaa07a5beaa769ea3db6ae5/izdw-995787d6af.o951",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/output/pegasus-dispatch/995787d6afaa07a5beaa769ea3db6ae5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "============================= test session starts ==============================\nplatform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0\nrootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename\nconfigfile: pytest.ini\nplugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2\ncreated: 48/48 workers\n48 workers [4 items]\n\n...F                                                                     [100%]\n=================================== FAILURES ===================================\n_ test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set __\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_originless_default_preser0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x154a9a1bcc40>\n\n    def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        _pin_fixture_commit_dates(monkeypatch)\n        bundle_root = _fixed_width_bundle_root(tmp_path, \"originless\")\n        omitted = _bundle(bundle_root, monkeypatch, explicit_none=False)\n        shutil.rmtree(bundle_root)\n        explicit_none = _bundle(bundle_root, monkeypatch, explicit_none=True)\n        origin_enabled = _origin_enabled_bundle(\n            _fixed_width_bundle_root(tmp_path, \"origin-enabled\"), monkeypatch\n        )\n        _assert_generation_two_matches(omitted, explicit_none)\n        _assert_generation_two_matches(omitted, origin_enabled)\n        generation_two_mutant = copy.deepcopy(origin_enabled)\n        generation_two_mutant[\"reports\"][0][\"cells\"][0][\"generations\"][1][\"roles\"][\n            \"planner\"\n        ][\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n        generation_two_planner = next(\n            event\n            for event in generation_two_mutant[\"journals\"][0]\n            if event.get(\"generation\") == 2 and event.get(\"role\") == \"planner\"\n        )\n        generation_two_planner[\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n        with pytest.raises(AssertionError):\n            _assert_generation_two_matches(omitted, generation_two_mutant)\n        receipt_binding_mutant = copy.deepcopy(omitted)\n        receipt_binding_mutant[\"acceptance\"][\"trials\"][0][\"arm_execution\"][\n            \"content_digest_sha256\"\n        ] = \"f\" * 64\n        with pytest.raises(AssertionError):\n            _project_t1749_receipt_v4_to_v1(receipt_binding_mutant)\n        run_start_mutant = copy.deepcopy(omitted)\n        start = next(\n            event for event in run_start_mutant[\"journals\"][0]\n            if event[\"event\"] == \"run-start\"\n        )\n        start[\"arm_execution\"][\"content_digest_sha256\"] = \"e\" * 64\n        with pytest.raises(AssertionError):\n            _project_t1749_receipt_v4_to_v1(run_start_mutant)\n        input_schema_mutant = copy.deepcopy(omitted)\n        receipt_trial = input_schema_mutant[\"acceptance\"][\"trials\"][0]\n        trial_id = receipt_trial[\"trial_id\"]\n        report = next(\n            item for item in input_schema_mutant[\"reports\"]\n            if item[\"trial_id\"] == trial_id\n        )\n        run_start = next(\n            event\n            for journal in input_schema_mutant[\"journals\"]\n            for event in journal\n            if event.get(\"event\") == \"run-start\" and event[\"trial_id\"] == trial_id\n        )\n        for arm_execution in (\n            receipt_trial[\"arm_execution\"],\n            report[\"arm_execution\"],\n            run_start[\"arm_execution\"],\n        ):\n            arm_execution[\"input_schema_version\"] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t244_additions_to_pre_wave(input_schema_mutant)\n        report_schema_mutant = copy.deepcopy(omitted)\n        report_schema_mutant[\"reports\"][0][\"arm_execution\"][\n            \"input_schema_version\"\n        ] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t1311_arm_authority_to_pre_wave(report_schema_mutant)\n        run_start_schema_mutant = copy.deepcopy(omitted)\n        run_start = next(\n            event for event in run_start_schema_mutant[\"journals\"][0]\n            if event[\"event\"] == \"run-start\"\n        )\n        run_start[\"arm_execution\"][\"input_schema_version\"] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t1311_arm_authority_to_pre_wave(run_start_schema_mutant)\n>       assert _baseline_structure(\n            _project_t244_additions_to_pre_wave(omitted)\n        ) == _PRE_WAVE_ORIGINLESS_BASELINE\nE       AssertionError: assert {'$': [[{'dic...lse, 1]], ...} == {'$': [[{'dic...lse, 1]], ...}\nE         \nE         Omitting 382 identical items, use -vv to show\nE         Differing items:\nE         {'journals/*/*/schema_version': [['p3-autonomous-workload-trial/v4', 6]]} != {'journals/*/*/schema_version': [['p3-autonomous-workload-trial/v3', 6]]}\nE         {'journals/*/*/provenance/role_file_sha256': [['c47cf0ff81bb88d1ad65d5b0b92ac35feb40f49e4d2a8eef9007b48c286bf5f9', 1],...5feb40f49e4d2a8eef9007b48c286bf5f9', 1], ['2b46df2e4a5cbafcd3780b4cca54b3d81f3a73d9999cc6c859f1107aa398835a', 1], ...]} != {'journals/*/*/provenance/role_file_sha256': [['1d6b1603dbbb7c776202cd20a300e60e01b9119b55068ddfcce3e83714f646da', 1],......\nE         \nE         ...Full output truncated (4 lines hidden), use '-vv' to show\n\norchestrator/tests/test_reflux_originless_compatibility.py:1367: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\n========================= 1 failed, 3 passed in 15.46s =========================\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\" nodeid_bytes=135 nodeid_omitted_bytes=0 source_bytes=4847 retained_bytes=3945 omitted_bytes=902 rendered_excerpt_bytes=4096 sha256=56157ae4d644ff22f4b575bb46da95083f38f42c41dfa4a60675c87f26e4e56d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> generation_two_matches(omitted, origin_enabled)\n>         generation_two_mutant = copy.deepcopy(origin_enabled)\n>         generation_two_mutant[\"reports\"][0][\"cells\"][0][\"generations\"][1][\"roles\"][\n>             \"planner\"\n>         ][\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n>         generation_two_planner = next(\n>             event\n>             for event in generation_two_mutant[\"journals\"][0]\n>             if event.get(\"generation\") == 2 and event.get(\"role\") == \"planner\"\n>         )\n>         generation_two_planner[\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n>         with pytest.raises(AssertionError):\n>             _assert_generation_two_matches(omitted, generation_two_mutant)\n>         receipt_binding_mutant = copy.deepcopy(omitted)\n>         receipt_binding_mutant[\"acceptance\"][\"trials\"][0][\"arm_execution\"][\n>             \"content_digest_sha256\"\n>         ] = \"f\" * 64\n>         with pytest.raises(AssertionError):\n>             _project_t1749_receipt_v4_to_v1(receipt_binding_mutant)\n>         run_start_mutant = copy.deepcopy(omitted)\n>         start = next(\n>             event for event in run_start_mutant[\"journals\"][0]\n>             if event[\"event\"] == \"run-start\"\n>         )\n>         start[\"arm_execution\"][\"content_digest_sha256\"] = \"e\" * 64\n>         with pytest.raises(AssertionError):\n>             _project_t1749_receipt_v4_to_v1(run_start_mutant)\n>         input_schema_mutant = copy.deepcopy(omitted)\n>         receipt_trial = input_schema_mutant[\"acceptance\"][\"trials\"][0]\n>         trial_id = receipt_trial[\"trial_id\"]\n>         report = next(\n>             item for item in input_schema_mutant[\"reports\"]\n>             if item[\"trial_id\"] == trial_id\n>         )\n>         run_start = next(\n>             event\n>             for journal in input_schema_mutant[\"journals\"]\n>             for event in journal\n>             if event.get(\"event\") == \"run-start\" and event[\"trial_id\"] == trial_id\n>         )\n>         for arm_execution in (\n>             receipt_trial[\"arm_execution\"],\n>             report[\"arm_execution\"],\n>             run_start[\"arm_execution\"],\n>         ):\n>             arm_execution[\"input_schema_version\"] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t244_additions_to_pre_wave(input_schema_mutant)\n>         report_schema_mutant = copy.deepcopy(omitted)\n>         report_schema_mutant[\"reports\"][0][\"arm_execution\"][\n>             \"input_schema_version\"\n>         ] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t1311_arm_authority_to_pre_wave(report_schema_mutant)\n>         run_start_schema_mutant = copy.deepcopy(omitted)\n>         run_start = next(\n>             event for event in run_start_schema_mutant[\"journals\"][0]\n>             if event[\"event\"] == \"run-start\"\n>         )\n>         run_start[\"arm_execution\"][\"input_schema_version\"] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t1311_arm_authority_to_pre_wave(run_start_schema_mutant)\n> >       assert _baseline_structure(\n>             _project_t244_additions_to_pre_wave(omitted)\n>         ) == _PRE_WAVE_ORIGINLESS_BASELINE\n> E       AssertionError: assert {'$': [[{'dic...lse, 1]], ...} == {'$': [[{'dic...lse, 1]], ...}\n> E         \n> E         Omitting 382 identical items, use -vv to show\n> E         Differing items:\n> E         {'journals/*/*/schema_version': [['p3-autonomous-workload-trial/v4', 6]]} != {'journals/*/*/schema_version': [['p3-autonomous-workload-trial/v3', 6]]}\n> E         {'journals/*/*/provenance/role_file_sha256': [['c47cf0ff81bb88d1ad65d5b0b92ac35feb40f49e4d2a8eef9007b48c286bf5f9', 1],...5feb40f49e4d2a8eef9007b48c286bf5f9', 1], ['2b46df2e4a5cbafcd3780b4cca54b3d81f3a73d9999cc6c859f1107aa398835a', 1], ...]} != {'journals/*/*/provenance/role_file_sha256': [['1d6b1603dbbb7c776202cd20a300e60e01b9119b55068ddfcce3e83714f646da', 1],......\n> E         \n> E         ...Full output truncated (4 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_reflux_originless_compatibility.py:1367: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4847 retained_bytes=3945 omitted_bytes=902 budget_bytes=49152 rendered_bytes=4863 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "19d43142a9d6fe308cd3cd0a3d01db72428ca7f0d84954f1ced65ab6a0e64ddc"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "63f8914a691fd8e949759eb8ec6f067c508a0f59a52d2586e77d8fd31e7158ce",
+      "duration_s": 37.388,
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "hang_risk": false,
+      "id": "M5-originless-golden-correction",
+      "injection_diff_sha256": "95375575e6656337f841ff39b48af17cae9a82f3f83dbe3630c47d82e08f965f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9b021dc21aee2cb3b389ebf2f8d312fc22774415afea93c51f958cb69faafb8e",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+          "new": "",
+          "old": "_extend_t304_role_name_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)\n"
+        }
+      ],
+      "repo_head": "eae281191202e75ba3971f0ed8be0c84a4512778",
+      "runner_sha256": "c6c06bda2054c063f22da7330ab1d747b92b6da6385ddb2065d15ec14af897ed",
+      "spec_sha256": "fe4aa41d52fa83dca98576a3c9a08735ec79249342588a69db44d82b4944a3d6",
+      "status": "KILLED",
+      "test_output_sha256": "19d43142a9d6fe308cd3cd0a3d01db72428ca7f0d84954f1ced65ab6a0e64ddc",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0d27bbadbeaf58c63c91698fb1c137b85ced8f56c9eef3d13546de97cccd1811"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/output/pegasus-dispatch/1cb1d9cca6a479412f469bcb651051c8/izdw-1cb1d9cca6.o926",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/output/pegasus-dispatch/1cb1d9cca6a479412f469bcb651051c8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8c_generation_projection.py::test_planner_generation_one_preserves_existing_key_set\norchestrator/tests/test_p3_autonomous_workload_trial.py::test_standard_drive_two_generation_no_build_uses_s8c_wrapper\norchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty\norchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\n\n4/386 tests collected (382 deselected) in 2.60s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "c717c30ec0bf4af2c4ec65a117118a3d374c98009b5715e3611f7e88f2878d82"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8c_generation_projection.py::test_planner_generation_one_preserves_existing_key_set",
+        "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_standard_drive_two_generation_no_build_uses_s8c_wrapper",
+        "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty",
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "duration_s": 262.259,
+      "rc": 0,
+      "repo_head": "eae281191202e75ba3971f0ed8be0c84a4512778",
+      "runner_sha256": "c6c06bda2054c063f22da7330ab1d747b92b6da6385ddb2065d15ec14af897ed",
+      "spec_sha256": "fe4aa41d52fa83dca98576a3c9a08735ec79249342588a69db44d82b4944a3d6",
+      "status": "PASSED",
+      "tool_sha256": "0d27bbadbeaf58c63c91698fb1c137b85ced8f56c9eef3d13546de97cccd1811"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-projection-perf-keys": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_standard_drive_two_generation_no_build_uses_s8c_wrapper",
+          "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set",
+          "orchestrator/tests/test_s8c_generation_projection.py::test_planner_generation_one_preserves_existing_key_set"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "458fff21d6ed3d64f527da5a7b186f0436e14f6a3d95dc92aa97436f06bdaf45",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/s8c_generation_projection.py",
+            "new": "_PERF_KEYS = frozenset({\n    \"throughput_ops_sec\",",
+            "old": "_PERF_KEYS = frozenset({\n    \"throughput_tps\","
+          }
+        ]
+      },
+      "M2-completeness-perf-keys": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_standard_drive_two_generation_no_build_uses_s8c_wrapper",
+          "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "b5b5901909da07581aef99e224bada6b866c7a5e0e4652947700ef4415465417",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+            "new": "_PERF_KEYS = {\n    \"throughput_ops_sec\", \"abort_rate_pct\",",
+            "old": "_PERF_KEYS = {\n    \"throughput_tps\", \"abort_rate_pct\","
+          }
+        ]
+      },
+      "M3-producer-schema-version": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_p3_autonomous_workload_trial.py::test_standard_drive_two_generation_no_build_uses_s8c_wrapper",
+          "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bb84cf139d5d62d422bc3f973f3888576c345422b2f13c0b7f39135541e4a127",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/p3_autonomous_workload_trial.py",
+            "new": "SCHEMA_VERSION = \"p3-autonomous-workload-trial/v3\"",
+            "old": "SCHEMA_VERSION = \"p3-autonomous-workload-trial/v4\""
+          }
+        ]
+      },
+      "M4-adapter-source-pin": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a11d4d44fe2e7107166894195ff3b7eb0bcfd0d64cc621fecf63a86095839f32",
+        "replacements": [
+          {
+            "file": ".codex/role-adapters/planner-v4.json",
+            "new": "\"path\": \".claude/agents/planner-v4.md\",\n    \"sha256\": \"1d6b1603dbbb7c776202cd20a300e60e01b9119b55068ddfcce3e83714f646da\"",
+            "old": "\"path\": \".claude/agents/planner-v4.md\",\n    \"sha256\": \"c47cf0ff81bb88d1ad65d5b0b92ac35feb40f49e4d2a8eef9007b48c286bf5f9\""
+          }
+        ]
+      },
+      "M5-originless-golden-correction": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "95375575e6656337f841ff39b48af17cae9a82f3f83dbe3630c47d82e08f965f",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+            "new": "",
+            "old": "_extend_t304_role_name_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "42ca96865a8a47ab016de1074b31a779cd670ee63667988cfbace5e275d5072e",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "-k",
+      "test_planner_generation_one_preserves_existing_key_set or test_standard_drive_two_generation_no_build_uses_s8c_wrapper or test_current_sources_render_byte_exact_and_native_is_empty or test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set",
+      "orchestrator/tests/test_s8c_generation_projection.py",
+      "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+      "orchestrator/tests/test_codex_agents.py",
+      "orchestrator/tests/test_reflux_originless_compatibility.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 2400.0
+  },
+  "repo_head": "eae281191202e75ba3971f0ed8be0c84a4512778",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "-rf",
+      "-k",
+      "test_planner_generation_one_preserves_existing_key_set or test_standard_drive_two_generation_no_build_uses_s8c_wrapper or test_current_sources_render_byte_exact_and_native_is_empty or test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set",
+      "orchestrator/tests/test_s8c_generation_projection.py",
+      "orchestrator/tests/test_p3_autonomous_workload_trial.py",
+      "orchestrator/tests/test_codex_agents.py",
+      "orchestrator/tests/test_reflux_originless_compatibility.py",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "dispatch_head_blob_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "182c4d3b76294507d9588b2f4d248a1b097c9862",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "c6c06bda2054c063f22da7330ab1d747b92b6da6385ddb2065d15ec14af897ed",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "fe4aa41d52fa83dca98576a3c9a08735ec79249342588a69db44d82b4944a3d6",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t304-throughput-rename/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "0d27bbadbeaf58c63c91698fb1c137b85ced8f56c9eef3d13546de97cccd1811",
+  "updated_at": "2026-09-16T04:45:55.064892+00:00"
+}

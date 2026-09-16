@@ -41,14 +41,14 @@ dispatch は `hang_timeout_seconds` < job walltime。超過は orphan hold 中�
 
 ## DW-M07 — fix 後 anchor
 
-fix 後の最終 commit で変異 spec の anchor（old 逐語）と期待 node を再検証してから本走する。
+fix 後の最終 commit で spec の anchor（old 逐語）と期待 node を再検証してから本走する。
 mask 時の再照準と erratum は `DW-M02` に従い台帳へ残す。
-本走は `--runner-mode dispatch` を既定とし、runner argv へ `--force-dispatch` を入れる。
+本走は `--runner-mode dispatch` を既定に、runner argv へ `--force-dispatch` を入れる。
 local は spec 不問で login が拒否する。runner 経路を変異させると自壊し収集段が `rc=16`。
-`--attempt-out` と `--wrapper-attempt` は dispatch 専用の同時指定必須ペア。片方のみは中止。後者は整数、実走は `--detached` 必須。再投入は両方を変え、`--resume` は前回 sidecar を
+`--attempt-out` と `--wrapper-attempt` は dispatch 専用の同時指定必須ペア。片方のみ中止。後者は整数、実走は `--detached` 必須。再投入は両方変え、`--resume` は前回 sidecar を
 新 path へ複写して渡す（F453。空 file は中止）。
 KILLED期待でnode空のspecは起動前に中止するのでprobeは全件SURVIVEDで登録し観測nodeを集める。
-`--spec`/`--out`/`--attempt-out`はcheckout外必須(repo内rc=2)、`--out`は`--scratch-root`と同一device
+`--out`/`--attempt-out`/`--spec`はcheckout外必須(repo内rc=2)、`--out`は`--scratch-root`と同一device
 (別deviceはrename失敗)。
 
 ## DW-M08 — 失敗 node と検出力
