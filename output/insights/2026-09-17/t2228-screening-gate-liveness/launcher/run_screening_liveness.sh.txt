@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+exec 2>&1
+stage() { printf '== %s ==\n' "$1"; date '+%Y-%m-%dT%H:%M:%S%z'; }
+fail() { printf '%s\n' "$2"; exit "$1"; }
+trap 'fail 2 "launcher command failed at line $LINENO"' ERR
+
+stage prerequisites
+[[ $# -eq 3 ]] || fail 2 'expected: OUTPUT_ROOT HEAD CCBENCH_PIN'
+[[ $2 =~ ^[[:xdigit:]]{40}$ && $3 =~ ^[[:xdigit:]]{40}$ ]] || fail 2 'expected 40 hex pins'
+COMPUTE_HOST=$(hostname)
+SELF_UID=$(id -u)
+printf 'hostname=%s\nuid=%s\nlauncher_pid=%s\ncwd=%s\n' "$COMPUTE_HOST" "$SELF_UID" "$$" "$(pwd -P)"
+printf 'HEAD=%s\nCCBENCH_PIN=%s\nUSER=%s\nHOME=%s\n' "$2" "$3" "${USER:-}" "${HOME:-}"
+[[ $COMPUTE_HOST =~ ^bnode[0-9]+ ]] || fail 2 "compute-only: hostname=$COMPUTE_HOST"
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
+unset GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_CEILING_DIRECTORIES
+while IFS='=' read -r env_name _; do
+  case "$env_name" in GIT_*) unset "$env_name" ;; esac
+done < <(env)
+[[ $(git rev-parse --is-inside-work-tree) == true ]] || fail 2 'cwd is not a git worktree'
+[[ $(git rev-parse HEAD) == "${2,,}" ]] || fail 2 'superproject HEAD mismatch'
+tree_status=$(git --no-optional-locks status --porcelain --untracked-files=no)
+[[ -z $tree_status ]] || fail 2 "superproject is dirty: $tree_status"
+[[ $(git -C external/ccbench rev-parse HEAD) == "${3,,}" ]] || fail 2 'CCBench pin mismatch'
+tree_status=$(git --no-optional-locks -C external/ccbench status --porcelain --untracked-files=no)
+[[ -z $tree_status ]] || fail 2 "CCBench is dirty: $tree_status"
+[[ $1 == /* && ! -e $1 && ! -L $1 ]] || fail 2 'output root must be absolute and absent'
+[[ -d /scr && -w /scr ]] || fail 2 '/scr must be a writable directory'
+
+stage environment_sanitize
+export PATH=/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin
+unset CC CXX CPP CFLAGS CXXFLAGS CPPFLAGS LDFLAGS LD_PRELOAD LD_LIBRARY_PATH
+unset CPATH CPLUS_INCLUDE_PATH LIBRARY_PATH COMPILER_PATH GCC_EXEC_PREFIX
+unset CMAKE_PREFIX_PATH CMAKE_TOOLCHAIN_FILE
+unset CMAKE_PROJECT_INCLUDE CMAKE_PROJECT_INCLUDE_BEFORE
+unset CMAKE_PROJECT_TOP_LEVEL_INCLUDES CMAKE_C_COMPILER_LAUNCHER
+unset CMAKE_CXX_COMPILER_LAUNCHER PYTHONPATH PYTHONHOME PYTHONSTARTUP MAKEFLAGS
+while IFS='=' read -r env_name _; do
+  case "$env_name" in
+    GIT_*|CCACHE_*|SCCACHE_*|DISTCC_*|ICECC_*) unset "$env_name" ;;
+  esac
+done < <(env)
+
+stage python
+PY=''
+for candidate in python3.10 /usr/bin/python3.10 /bin/python3.10; do
+  resolved=$(command -v -- "$candidate" || true)
+  [[ -n $resolved && -x $resolved ]] || continue
+  if "$resolved" -I -B -c 'import sys; raise SystemExit(sys.version_info[:2] != (3, 10))'; then
+    PY=$("$resolved" -I -B -c 'import os,sys; print(os.path.realpath(sys.executable))')
+    break
+  fi
+done
+[[ -n $PY ]] || fail 2 'Python 3.10 is required'
+printf 'PY=%s\n' "$PY"
+
+stage single_tenancy
+hostname
+cat /proc/loadavg
+nproc
+processes=$(ps -eo uid,pid,ppid,pcpu,pmem,etime,comm --sort=-pcpu)
+head -n 25 <<< "$processes"
+printf '%s\n' 'note: unmapped uids (other users and host root) appear as 65534 inside the user namespace'
+pgrep_rc=0
+bench_processes=$(pgrep -af 'ycsb_.*\.exe') || pgrep_rc=$?
+[[ $pgrep_rc -le 1 ]] || fail 2 "pgrep failed: rc=$pgrep_rc"
+bench_processes=$(awk -v self="$$" 'NF && $1 != self' <<< "$bench_processes")
+printf 'pgrep (excluding self):\n%s\n' "$bench_processes"
+other_processes=$(awk -v self="$SELF_UID" 'NR > 1 && $1 + 0 != self + 0' <<< "$processes")
+printf 'other-uid processes:\n%s\n' "$other_processes"
+busy_processes=$(awk 'NF && $2 + 0 != 2 && $3 + 0 != 2 && $4 + 0 >= 50' <<< "$other_processes")
+refuse=0
+if [[ -n $bench_processes ]]; then
+  printf 'refused: competing ycsb process\n%s\n' "$bench_processes"; refuse=1
+fi
+if [[ -n $busy_processes ]]; then
+  printf 'refused: other-uid non-kernel process pcpu >= 50\n%s\n' "$busy_processes"; refuse=1
+fi
+[[ $refuse -eq 0 ]] || exit 3
+
+stage environment
+for command_name in git cmake cc c++ make ar ranlib numactl; do
+  command -v -- "$command_name" || fail 2 "required command is unavailable: $command_name"
+done
+TMPDIR=$(mktemp -d /scr/t2228-screening-XXXXXXXX) || fail 2 'cannot create scratch'
+export TMPDIR
+cleanup() { find "$TMPDIR" -depth -delete || true; }
+trap cleanup EXIT
+export IZANAGI_BENCH_LOCK="$TMPDIR/bench.lock"
+export IZANAGI_OFFICIAL_OUTPUT_ROOT="$1"
+export CMAKE_PREFIX_PATH=/work/SFC/tanab/ss2pl-study-deps/gflags-install:/work/SFC/tanab/ss2pl-study-deps/glog-install
+[[ -d /work/SFC/tanab/ss2pl-study-deps/gflags-install &&
+   -d /work/SFC/tanab/ss2pl-study-deps/glog-install ]] || fail 2 'dependency prefix directory missing'
+export http_proxy=http://10.120.96.1:8080
+export https_proxy=http://10.120.96.1:8080
+for env_name in PATH TMPDIR IZANAGI_BENCH_LOCK IZANAGI_OFFICIAL_OUTPUT_ROOT CMAKE_PREFIX_PATH http_proxy https_proxy; do
+  printf '%s=%s\n' "$env_name" "${!env_name}"
+done
+
+stage screening_cli
+argv=("$PY" -I -B -u orchestrator/campaign/backoff_sweep.py write-heavy --screening --screening-fixed-us 2)
+printf 'argv:'; printf ' %q' "${argv[@]}"; printf '\n'
+trap - ERR
+set +e
+"${argv[@]}" 2>&1
+cli_rc=$?
+
+stage final_tree_state
+printf 'CLI rc=%s\nsuperproject status:\n' "$cli_rc"
+git --no-optional-locks status --porcelain --untracked-files=no
+printf 'superproject_status_rc=%s\n' "$?"
+printf 'CCBench status:\n'
+git --no-optional-locks -C external/ccbench status --porcelain --untracked-files=no
+printf 'ccbench_status_rc=%s\n' "$?"
+git -C external/ccbench worktree list --porcelain
+printf 'ccbench_worktree_list_rc=%s\n' "$?"
+if [[ -e $1 ]]; then ls -la -- "$1"; fi
+date '+%Y-%m-%dT%H:%M:%S%z'
+exit "$cli_rc"
