@@ -326,10 +326,12 @@ worktree 配下に置くと畳んだ時点で実体が消えるためである�
 export IZANAGI_PEGASUS_THIRDPARTY_CACHE=/work/1/SFC/tanab/izanagi-thirdparty-cache
 ```
 
-取得・供給の手順は `tools/pegasus/README.md` §6 を正本とする。3 本の合計は 43 MB 程度で、
-certify が使う gflags / glog の pinned source はこの helper の管理単位ではない (所在の正本は
-policy.json の `gflags_source_path` / `glog_source_path`)。**2026-08-06 に home 配下から移した
-時点で 2 本とも非 shallow** (`rev-parse --is-shallow-repository=false` を実測)。
+取得・供給の手順は `tools/pegasus/README.md` §6 を正本とする。**2026-09-16 以降、この helper は
+FetchContent 3 本に加えて gflags / glog も同じ cache へ取得し、同じ staging root へ hydrate する
+(計 5 本)。** gflags / glog の所在の正本は policy.json の `gflags_source_url` / `glog_source_url` と
+`*_expected_head` (url + 40 hex pin) で、機体固有の絶対 path は repo に無い。job body は
+staging root 配下の `gflags` / `glog` から使い捨て static build する。**job を投げる前に
+`hydrate` を済ませておく** (計算ノードは外部ネットワークを持たない)。
 
 **directory の create-only publish に `renameat2(RENAME_NOREPLACE)` は使えない** — `/home` だけで
 なく **`/work` でも EINVAL** である (2026-08-04 実測)。`os.link` は directory に EPERM なので
@@ -793,10 +795,12 @@ node) / single_process=True / allow_resume=False / attestation_mode=required / c
 - qstat -f の開始時刻 field は `Started Request Time = <日時>` (PBS 系の stime ではない)
 - **/scr 配下のパスに `:` を含めない** (CMake が PATH 型変数の `:` をリスト区切りとして `;` 化
   する)。ジョブ dir は `${PBS_JOBID//:/_}` 形で作る
-- 計算ノードに gflags / glog は無い。永続領域の pinned ソース (gflags v2.2.2、glog v0.5.0。
-  所在の正本は policy.json の `gflags_source_path` / `glog_source_path` で、現在は
-  `/work/SFC/<user>/github/` 配下。home 配下ではない) から /scr で使い捨て static build する
-  (certify が自動実行)
+- 計算ノードに gflags / glog は無い。`tools/pegasus/fetch_third_party.py` が cache から
+  staging root へ hydrate した pinned source (pin の正本は policy.json の `gflags_expected_head` /
+  `glog_expected_head`、取得元は `*_source_url`) から /scr で使い捨て static build する
+  (certify が自動実行)。login node にも system の gflags / glog は無く、`~/.cmake/packages` の
+  残骸 registry で最小 cmake project の probe だけが緑になる。事前検査は本番と同じ finder
+  (実 CCBench configure) で行う
 - perf は dispatcher (/usr/bin/perf) がカーネル不一致で使えない。実体
   (/usr/lib/linux-tools/<版>/perf) を policy.json の候補から機能 smoke つきで選定し PATH 注入
   する (ノードにより導入版が異なる: 実測では bnode 側 5.15.0-100/135、ログイン側 101/136/173)。
