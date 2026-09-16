@@ -1,0 +1,94 @@
+Request ID: 478.nqsv
+    Request Name = certify_calibration.sh
+    User  Name = tanab
+    Group Name = SFC
+    User  ID   = 31609
+    Group ID   = 30410
+    Current State           = Running
+    Previous State          = Pre-running
+    State Transition Time   = Wed Sep 16 10:58:28 2026
+    State Transition Reason = PRERUN_SUCCESS
+    Queue = gen_S@nqsv (Execution Queue)
+    Job Topology = Distribute Job
+    Request Priority  = 0
+    Request Loglevel  = 0
+    Rerunable    = No
+    Holdable     = Yes
+    Hold Type    = (none)
+    Migratable   = Yes
+    Suspend Type = (none)
+    Account Code = SFC
+    Stdout = pegasus02:/work/1/SFC/tanab/izanagi-job-evidence/calibration-certify/49ff53d06efaf533a9ee0daaf588e831.scheduler.stdout
+    Stderr = pegasus02:/work/1/SFC/tanab/izanagi-job-evidence/calibration-certify/49ff53d06efaf533a9ee0daaf588e831.scheduler.stderr
+    Reqlog = (none)
+    Shell = (none)
+    Mail Address = tanab@pegasus02
+    Mail Option  = (none)
+    Job Condition:
+        Job NO: 0 ""
+    Number of Jobs = 1
+    Created Request Time = Wed Sep 16 10:58:21 2026
+    Entered Queue Time   = Wed Sep 16 10:58:21 2026
+    Planned Start Time   = Wed Sep 16 10:58:29 2026
+    Execute Request Time = (none)
+    Started Request Time = Wed Sep 16 10:58:28 2026
+    Ended Request Time   = (none)
+    Requested Start Time = (none)
+    Deadline Time        = (none)
+    UMASK = 022
+    Reservation ID      = (none)
+    qattach command = Enable
+    Attach = No
+    Cluster Type Select = NONE
+    UserPP Script = (none)
+    Exclusive = (none)
+    HCA Number = (none)
+    Accept Sigterm = No
+    Enable Cloud Bursting = No
+  Custom Resources:
+    Share           = 1
+  Execution Hosts(JSVNO):
+    bnode013(13)
+  Resources Information:
+    Memory    = 32.394531MB
+    CPU Time  = 0.450000S
+    Accumulated CPU Time = 0.480000S
+    Elapse    = 4S
+    Remaining Elapse = 7196S
+    Virtual Memory = 315.519531MB
+  Logical Host Resources:
+    VE Node Number        = Max:         0 Warn:       --- 
+    CPU Number            = Max:        48 Warn:       --- 
+    GPU Number            = Max:         0 Warn:       --- 
+    CPU Time              = Max: UNLIMITED Warn: UNLIMITED 
+    Memory Size           = Max: UNLIMITED Warn: UNLIMITED 
+    Virtual Memory Size   = Max: UNLIMITED Warn: UNLIMITED 
+    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED 
+    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED 
+    Stdout Size           = Max: UNLIMITED Warn: UNLIMITED 
+    Stderr Size           = Max: UNLIMITED Warn: UNLIMITED 
+  VE Node Resources:
+    VE CPU Time           = Max: UNLIMITED Warn: UNLIMITED 
+    VE Memory Size        = Max: UNLIMITED Warn: UNLIMITED 
+  Resources Limits:
+    (Per-Req) Elapse Time Limit       = Max:     7200S Warn:     7200S 
+    (Per-Job) CPU Time                = Max: UNLIMITED Warn: UNLIMITED 
+    (Per-Job) CPU Number              = Max:        48 Warn:       --- 
+    (Per-Job) Memory Size             = Max: UNLIMITED Warn: UNLIMITED 
+    (Per-Job) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED 
+    (Per-Job) GPU Number              = Max:         0 Warn:       --- 
+    (Per-Prc) CPU Time                = Max: UNLIMITED Warn: UNLIMITED 
+    (Per-Prc) Open File Number        = Max:    262144 Warn:       --- 
+    (Per-Prc) Virtual Memory Size     = Max: UNLIMITED Warn: UNLIMITED 
+    (Per-Prc) Data Segment Size       = Max: UNLIMITED Warn: UNLIMITED 
+    (Per-Prc) Stack Segment Size      = Max: UNLIMITED Warn: UNLIMITED 
+    (Per-Prc) Core File Size          = Max: UNLIMITED Warn: UNLIMITED 
+    (Per-Prc) Permanent File Size     = Max: UNLIMITED Warn: UNLIMITED 
+    (Per-Prc) VE CPU Time             = Max: UNLIMITED Warn: UNLIMITED 
+    (Per-Prc) VE Memory Size          = Max: UNLIMITED Warn: UNLIMITED 
+  Kernel Parameter:
+    Resource Sharing Group     = 0
+    Nice Value                 = 0
+  User Attributes:
+    (none)
+
