@@ -2928,7 +2928,7 @@ def test_floor_sort_cell_injects_verified_cxx_and_dependency_into_oracle(
     @contextlib.contextmanager
     def production_prepare(
             cell, ccbench_pin, *, cxx, oracle_dependency_root,
-            oracle_compiler, oracle_phase_marker):
+            oracle_compiler, oracle_phase_marker, condition_configure_args=()):
         observed.update({
             "cxx": cxx,
             "oracle_dependency_root": oracle_dependency_root,
@@ -3262,7 +3262,7 @@ def test_dependency_bound_sort_best_rejects_nonexact_builder_before_call(
     @contextlib.contextmanager
     def production_prepare(
             cell, ccbench_pin, *, cxx, oracle_dependency_root,
-            oracle_compiler, oracle_phase_marker):
+            oracle_compiler, oracle_phase_marker, condition_configure_args=()):
         del oracle_compiler
         assert oracle_dependency_root == dependency.oracle_root
         oracle_phase_marker()
@@ -3337,7 +3337,7 @@ def test_dependency_bound_sort_best_default_builder_receives_literal_capability(
     @contextlib.contextmanager
     def production_prepare(
             cell, ccbench_pin, *, cxx, oracle_dependency_root,
-            oracle_compiler, oracle_phase_marker):
+            oracle_compiler, oracle_phase_marker, condition_configure_args=()):
         del oracle_compiler
         assert oracle_dependency_root == dependency.oracle_root
         oracle_phase_marker()
@@ -3411,7 +3411,7 @@ def test_production_floor_requires_staging_before_toolchain_or_oracle_or_build(
     @contextlib.contextmanager
     def production_prepare(
             cell, ccbench_pin, *, cxx, oracle_dependency_root,
-            oracle_compiler, oracle_phase_marker):
+            oracle_compiler, oracle_phase_marker, condition_configure_args=()):
         del cell, ccbench_pin, cxx, oracle_dependency_root
         del oracle_compiler, oracle_phase_marker
         calls.append("oracle")
@@ -3485,7 +3485,7 @@ def test_production_floor_preflight_marker_precedes_toolchain_and_dependency_pro
     @contextlib.contextmanager
     def production_prepare(
             cell, ccbench_pin, *, cxx, oracle_dependency_root,
-            oracle_compiler, oracle_phase_marker):
+            oracle_compiler, oracle_phase_marker, condition_configure_args=()):
         assert oracle_dependency_root == dependency.oracle_root
         oracle_phase_marker()
         events.append("oracle")
@@ -3548,6 +3548,11 @@ def test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
     dependency = dataclasses.replace(
         _fixture_dependency_binding(base),
         transport_mode="source-dir",
+        condition_configure_args=(
+            f"-DFETCHCONTENT_BASE_DIR={base}",
+            *(f"-DFETCHCONTENT_SOURCE_DIR_{name.upper()}={base / (name + '-src')}"
+              for name in ("masstree", "mimalloc", "googletest")),
+        ),
     )
     shared_header = dependency.source_root / "include" / "fixture.hh"
     shared_header.parent.mkdir(parents=True)
@@ -3556,6 +3561,7 @@ def test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
     events = []
     build_kwargs = {}
     receipt_roots = {}
+    prepare_args = {}
 
     def prebuild(observed_base, **_kwargs):
         assert observed_base == base.resolve()
@@ -3565,7 +3571,8 @@ def test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
     @contextlib.contextmanager
     def production_prepare(
             cell, ccbench_pin, *, cxx, oracle_dependency_root,
-            oracle_compiler, oracle_phase_marker):
+            oracle_compiler, oracle_phase_marker, condition_configure_args=()):
+        prepare_args[cell["configuration"]] = tuple(condition_configure_args)
         if cell["configuration"] == "sort_best":
             assert oracle_dependency_root == dependency.oracle_root
             oracle_phase_marker()
@@ -3639,6 +3646,11 @@ def test_production_floor_prebuilds_one_shared_dependency_and_injects_only_sort(
         contract=contract, verified_calibration=verified, build_fn=build,
         fetchcontent_base_dir=base.resolve(), phase_marker_root=marker_root,
     )
+    assert prepare_args == {
+        cell["configuration_id"]: dependency.condition_configure_args
+        for cell in cells
+    }
+    assert len(dependency.condition_configure_args) == 4
     assert events.count("prebuild") == 1
     assert events.index("prebuild") < events.index("oracle")
     sort_id = next(key for key in built if key.endswith("::sort_best"))
@@ -3723,9 +3735,20 @@ def test_floor_dependency_prebuild_uses_pinned_checkout_and_exact_helper_once(
         events.append(("checkout", pin, base_dir))
         yield str(source.resolve())
 
+    real_prebuild = buildcache.prepare_masstree_fetchcontent
+    prebuild_argv = []
+    for staged_source in staged_sources.values():
+        staged_source.mkdir(exist_ok=True)
+
+    def record_prebuild(argv, stage, **_kwargs):
+        if stage == "configure":
+            prebuild_argv.append(tuple(argv))
+
+    monkeypatch.setattr(buildcache, "_run", record_prebuild)
+
     def prebuild(**kwargs):
         events.append(("prebuild", kwargs))
-        return SimpleNamespace()
+        return real_prebuild(**kwargs)
 
     def verify(
             observed_base, *, repo_root, expected_head,
@@ -3802,6 +3825,150 @@ def test_floor_dependency_prebuild_uses_pinned_checkout_and_exact_helper_once(
     assert events[2][1]["masstree_source_dir"] == str(staged_sources["masstree"])
     assert events[2][1]["mimalloc_source_dir"] == str(staged_sources["mimalloc"])
     assert events[2][1]["googletest_source_dir"] == str(staged_sources["googletest"])
+
+    expected_tokens = {
+        "FETCHCONTENT_BASE_DIR": str(base.resolve()),
+        **{f"FETCHCONTENT_SOURCE_DIR_{name.upper()}": str(path.resolve())
+           for name, path in staged_sources.items()},
+    }
+    assert len(observed.condition_configure_args) == 4
+    assert dict(token[2:].split("=", 1)
+                for token in observed.condition_configure_args) == expected_tokens
+    assert "condition_configure_args" not in observed.cache_receipt()
+    assert "condition_configure_args" not in observed.private_dict()
+    assert len(prebuild_argv) == 1
+
+    from orchestrator.campaign import condition_meaning_gate as gate
+    from orchestrator.campaign import s1_direct_comparison as direct
+    from orchestrator.tests.condition_gate_test_support import (
+        install_condition_gate_build_fixture,
+    )
+
+    install_condition_gate_build_fixture(source)
+    gate_argv = []
+
+    class ConfigureObserved(RuntimeError):
+        pass
+
+    def stop_at_configure(argv, **kwargs):
+        assert kwargs["failure_reason"] == "configure-failed"
+        gate_argv.append(tuple(argv))
+        raise ConfigureObserved
+
+    monkeypatch.setattr(gate, "_run_process", stop_at_configure)
+    monkeypatch.setattr(
+        s8b_floor_campaign.patchharness, "applied",
+        lambda *_args, **_kwargs: contextlib.nullcontext(),
+    )
+    cell = {
+        "configuration": "backoff_fixed_best",
+        "variant": {"flags": {"BACK_OFF": 1, "BACKOFF_FIXED": 5},
+                    "backoff_us": 5},
+    }
+    with pytest.raises(ConfigureObserved):
+        with direct.prepare_cell(
+                cell, "0" * 40, cxx="g++",
+                condition_configure_args=observed.condition_configure_args):
+            pytest.fail("must stop at the real condition gate configure boundary")
+    assert len(gate_argv) == 1
+    campaign_argv, _ = buildcache._v2_commands(
+        Genome("silo", cell["variant"]["flags"]), False, str(source),
+        str(tmp_path / "campaign-build"),
+        {role: {"realpath": f"/fixture/{role}"}
+         for role in ("cc", "cxx", "cmake")},
+        jobs=1, fetchcontent_base_dir=str(base.resolve()),
+        **{f"{name}_source_dir": str(path) for name, path in staged_sources.items()},
+    )
+
+    def offline(argv):
+        return tuple(token for token in argv if token.startswith((
+            "-DFETCHCONTENT_", "-DCMAKE_PREFIX_PATH=",
+        )))
+
+    tokens = offline(gate_argv[0])
+    assert tokens == offline(prebuild_argv[0]) == offline(campaign_argv)
+    assert tokens == observed.condition_configure_args
+    assert len(tokens) == len(set(tokens)) == 4
+    assert {token[2:].partition("=")[0] for token in tokens} == set(expected_tokens)
+
+
+@pytest.mark.parametrize("source_mode", ["supplied", "omitted", "empty"])
+@pytest.mark.parametrize("volatile_payload", ["first", "changed"])
+def test_floor_condition_gate_config_header_supply(
+        tmp_path, source_mode, volatile_payload):
+    from orchestrator.campaign import condition_meaning_gate as gate
+    from orchestrator.campaign.p3_s4_loop import _condition_gate_offline_configure_args
+    from orchestrator.tests.condition_gate_test_support import (
+        condition_gate_compilers, install_condition_gate_build_fixture,
+    )
+
+    compilers = condition_gate_compilers()
+    if compilers is None:
+        pytest.skip("real C/C++ compiler and CMake are required")
+    root = install_condition_gate_build_fixture(tmp_path / volatile_payload / "ccbench")
+    base = tmp_path / volatile_payload / "fetchcontent-base"
+    base.mkdir()
+    sources = {}
+    for name in ("masstree", "mimalloc", "googletest"):
+        sources[name] = tmp_path / volatile_payload / "staged-sources" / name
+        sources[name].mkdir(parents=True)
+    config = sources["masstree"] / "config.h"
+    config.write_text(
+        f"// {volatile_payload}\n#define FLOOR_CONFIG_PRESENT 2650\n",
+        encoding="utf-8",
+    )
+    owner = root / "cc/silo/transaction.cc"
+    owner.write_text(
+        '#include <config.h>\n'
+        '#if FLOOR_CONFIG_PRESENT != 2650\n#error wrong config.h\n#endif\n'
+        + owner.read_text(encoding="utf-8"), encoding="utf-8",
+    )
+    with (root / "CMakeLists.txt").open("a", encoding="utf-8") as stream:
+        stream.write(
+            '\nset(_unused_mimalloc "${FETCHCONTENT_SOURCE_DIR_MIMALLOC}")\n'
+            'set(_unused_googletest "${FETCHCONTENT_SOURCE_DIR_GOOGLETEST}")\n'
+            'if(NOT FETCHCONTENT_SOURCE_DIR_MASSTREE)\n'
+            '  set(FETCHCONTENT_SOURCE_DIR_MASSTREE "${FETCHCONTENT_BASE_DIR}/masstree-src")\n'
+            'endif()\n'
+            'target_include_directories(ycsb_silo.exe PRIVATE '
+            '"${FETCHCONTENT_SOURCE_DIR_MASSTREE}")\n'
+        )
+    assert sources["masstree"].parent != base
+    assert not (base / "masstree-src/config.h").exists()
+    args = _condition_gate_offline_configure_args(
+        dependency_prefix="", fetchcontent_base_dir=str(base),
+        **{f"{name}_source_dir": str(path) for name, path in sources.items()},
+    )
+    masstree_token = f"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={sources['masstree']}"
+    if source_mode == "omitted":
+        args = tuple(token for token in args if token != masstree_token)
+    elif source_mode == "empty":
+        empty = tmp_path / volatile_payload / "empty-source"
+        empty.mkdir()
+        args = tuple(
+            f"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={empty}"
+            if token == masstree_token else token for token in args
+        )
+    record = gate.evaluate_define_supply_effectuation(
+        gate.capture_define_inputs(root, configure_args=args),
+        request=gate.make_define_request(
+            driver_id="s8b-floor-config-header-test", macro="BACKOFF_FIXED",
+            requested_value=5, default_value=-1,
+        ),
+        cxx=compilers[1], cmake=shutil.which("cmake"),
+    )
+    if source_mode == "supplied":
+        assert (record.terminal_status, record.reason_code) == (
+            "green", "requested-default-preprocess-different",
+        ), dict(record.evidence)
+        assert record.evidence["requested_digest"] != record.evidence["control_digest"]
+        assert "-E" in record.evidence["requested_replay_argv"]
+        assert str(owner) in record.evidence["requested_replay_argv"]
+    else:
+        assert (record.terminal_status, record.reason_code) == (
+            "red", "preprocess-failed",
+        ), dict(record.evidence)
+        assert "config.h" in record.evidence["detail"]
 
 
 def test_floor_dependency_prebuild_captures_shared_policy_pins_once(
@@ -5278,7 +5445,7 @@ def test_build_cells_production_postflight_rejects_dependency_drift(
     @contextlib.contextmanager
     def production_prepare(
             cell, ccbench_pin, *, cxx, oracle_dependency_root,
-            oracle_compiler, oracle_phase_marker):
+            oracle_compiler, oracle_phase_marker, condition_configure_args=()):
         del oracle_compiler
         assert oracle_dependency_root == before.oracle_root
         oracle_phase_marker()
@@ -5556,7 +5723,7 @@ def test_production_floor_dependency_preflight_failure_persists_private_attempt(
     @contextlib.contextmanager
     def production_prepare(
             cell, ccbench_pin, *, cxx, oracle_dependency_root,
-            oracle_compiler, oracle_phase_marker):
+            oracle_compiler, oracle_phase_marker, condition_configure_args=()):
         del cell, ccbench_pin, cxx, oracle_dependency_root
         del oracle_compiler, oracle_phase_marker
         downstream_calls.append("oracle")
@@ -5962,7 +6129,7 @@ def test_floor_postflight_failure_persists_unavailable_before_binary_admission(
     @contextlib.contextmanager
     def production_prepare(
             cell, ccbench_pin, *, cxx, oracle_dependency_root,
-            oracle_compiler, oracle_phase_marker):
+            oracle_compiler, oracle_phase_marker, condition_configure_args=()):
         del oracle_dependency_root, oracle_compiler
         oracle_phase_marker()
         with _fake_prepare(cell, ccbench_pin, cxx=cxx) as prepared:
@@ -6035,7 +6202,7 @@ def test_sort_best_build_failure_persists_bounded_exception_diagnostic(
     @contextlib.contextmanager
     def production_prepare(
             cell, ccbench_pin, *, cxx, oracle_dependency_root,
-            oracle_compiler, oracle_phase_marker):
+            oracle_compiler, oracle_phase_marker, condition_configure_args=()):
         del oracle_dependency_root, oracle_compiler
         oracle_phase_marker()
         with _fake_prepare(cell, ccbench_pin, cxx=cxx) as prepared:
@@ -6151,7 +6318,7 @@ def test_production_floor_toolchain_preflight_failure_persists_private_attempt(
     @contextlib.contextmanager
     def production_prepare(
             cell, ccbench_pin, *, cxx, oracle_dependency_root,
-            oracle_compiler, oracle_phase_marker):
+            oracle_compiler, oracle_phase_marker, condition_configure_args=()):
         del cell, ccbench_pin, cxx, oracle_dependency_root
         del oracle_compiler, oracle_phase_marker
         calls.append("oracle")
