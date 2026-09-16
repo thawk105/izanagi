@@ -44,6 +44,16 @@ title: [T-2594] D1640 の保持群ラベル逆転を追補で正し、凍結側�
   「事前登録の validator が単位と向きを検査する」という記述を検査主体の取り違えとして倒した。
   親が実装で裏取りして文面を分けた。整合レンズは指摘 0 で、T-1875 置換本文の逐語照合と
   fold 着地形の 5 対象 SHA-256 一致を独立に確認した。
+- **受入の非帰属赤 2 件を判定した根拠 (DW-O18)。** 1 回目は
+  `test_s8c_preregistration_predicates.py::test_repository_candidate_uses_real_s8c_budget_module` が
+  setup で `real-repo lock deadline exceeded` (共有 `/tmp` の parent lock を排他取得しようとして、
+  他 8 プロセスが読み取り保持)。2 回目は `test_t1259_qsub_env_delivery_probe.py` の module scope
+  fixture が `git ls-files --others` の 30 秒 timeout で SIGKILL され 3 件へ波及した (投入時 load 76)。
+  **どちらも assertion ではなく setup の資源競合**で、本 wave の差分は docs 3 file だけなので
+  到達経路が無い。単独再走はいずれも rc=0 で非再現。3 回目の受入全走は 23961 passed / 0 failed。
+- **fold の番号割当が wave 中に動いた。** 段 7 時点の dry-run は新 D へ `D2044` を割り当てたが、
+  その後 local main が `D2044` (39 項裁定) と `D2045` を land したため、取り込み後の dry-run は
+  `D2046` になった。paper-story 入口からは番号でなく決定の見出し題で指しているので影響はない。
 - **エージェント工数 (receipt 実測。計 45 call / 2,574,783 token):** 段 2 plan = 10 call /
   521,804 token / 347 秒、段 3 sol = 6 call / 296,642 token / 186 秒、段 3 luna = 14 call /
   1,023,324 token / 339 秒、段 6 sol = 6 call / 251,885 token / 123 秒、
