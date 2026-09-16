@@ -25,11 +25,15 @@ title: [T-2228] 正規 CLI から最小 screening を計算ノードで 1 走し
   A-5 job body は `--screening` を持たず finalize が 8 genome を要求するので実装差分なしでは使えない (段 3 レンズ A が
   「A-5 改修は不要」と裁定)。CLI が投入元 submodule へ一時 patch を当てる正規挙動を許容し、代わりに親は投入中に worktree へ
   触らず、終了後に両 tree の clean と stock 一時 worktree の撤去を login で再実測した。
-- **親の誤り 2 件。** (1) launcher の author 仕様で `PBS_JOBID` を必須にしたが generic dispatch の clean env には無い —
-  段 6 の敵対レビュー 2 本が独立に検出し fix 1 巡 (DW-O13 型)。(2) official root を job dir 配下に置いたが
+- **親の誤り 2 件 (段 8 で failures へ送った)。** (1) launcher の author 仕様で `PBS_JOBID` を必須にしたが generic dispatch の
+  clean env には無い — 段 6 の敵対レビュー 2 本が独立に検出し fix 1 巡 (DW-O13 型、新規
+  {{F:child-required-input-absent-from-launch-env}})。(2) official root を job dir 配下に置いたが
   `/work/1/SFC/tanab/dev-wave-jobs/.git` (空 dir) が `.git` 祖先で attempt a (`2319.nqsv`) が screening 関門に到達する前に
-  `layout` で赤 — brief の「`.git` 祖先なしを確認済み」は `ls | head -5` で切った不十分な実測だった。本題未到達の入力誤り
-  として 1 回だけ再投入した (段 4 裁定 4)。
+  `layout` で赤 — brief の「`.git` 祖先なしを確認済み」は `ls | head -5` で切った不十分な実測だった (F287 の再発)。本題未到達の
+  入力誤りとして 1 回だけ再投入した (段 4 裁定 4)。
+- 受入全走 1 回目 (tip `9e7bc3345` = 記録 commit + main `fa24e6ea8` の取り込み、02:12-02:23 JST) は child-green、
+  **24386 passed / 67 skipped**。段 8 の failures fragment を受入の前に済ませなかった順序誤りで、fragment commit 後に
+  最終受入を取り直した (結果は land の受領証が持つ)。
 - 段 3 の両レンズが親 brief の誤り 5 件 (prefix の記録 field は `completion.preimage.dependency_prefix`、「関門は無条件」→
   「今回の baseline は request 非空 + force=True」、prepare 3 回・build 4 回、「sweep 再開できる」→「最小 screening の生死確認」、
   「screening が赤のまま」→「最後の観測が赤で供給後は未測定」) を指摘し、段 4 で訂正した。
