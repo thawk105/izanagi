@@ -450,18 +450,26 @@ def _attest(repo_root: Path, contract) -> dict[str, Any]:
     try:
         verified = env_attestation.load_verified_calibration(contract, repo_root)
         observed = env_attestation.probe()
+        parsed = env_attestation.parse_probe_output(json.dumps({
+            "schema_version": env_attestation.PEGASUS_PROBE_OUTPUT_V2,
+            "ok": True,
+            "observed_epoch": int(time.time()),
+            "profile": env_attestation.observed_profile_to_dict(observed),
+        }))
         comparisons = env_attestation.compare_profiles(
-            verified.calibration, observed, now_fn=time.time,
+            verified.calibration.attestation_profile, parsed.profile, now_fn=time.time,
         )
+        observed_sha256 = env_attestation.observed_profile_sha256(parsed)
     except Exception as exc:
         raise QualificationDriverError(f"attestation failed: {type(exc).__name__}: {exc}") from exc
     if not comparisons or any(row.get("verdict") != "pass" for row in comparisons):
         raise QualificationDriverError("attestation comparison contains a mismatch")
     return {
-        "schema_version": "t126-qualification-attestation/v1",
+        "schema_version": "t126-qualification-attestation/v2",
         "status": "accepted",
         "expected_profile_sha256": verified.attestation_profile_sha256,
-        "observed_profile_sha256": env_attestation.profile_sha256(observed),
+        "observed_profile_sha256": observed_sha256,
+        "observed_profile_projection_schema": parsed.schema_version,
         "comparisons": comparisons,
     }
 

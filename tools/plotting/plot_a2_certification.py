@@ -28,6 +28,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GENERATOR = Path(__file__).resolve()
 SCHEMA = "izanagi-a2-certification-figure-provenance/v1"
+FROZEN_LEGACY_CAPTION_PREFIXES = ("fig5_a2_certification_reject",)
 LEGACY_CERT_SCHEMA = "paper-story-a2-certification-result/v3"
 LEGACY_MANIFEST_SCHEMA = "paper-story-a2-raw-manifest/v3"
 LEGACY_RAW_SCHEMA = "paper-story-a2-cell-result/v2"
@@ -650,6 +651,21 @@ def _caption(data: Mapping[str, Any], prefix: Path) -> str:
             "trace-disabled performance. Top-row y axes are scaled independently by workload; do not compare panel "
             "heights. The older series is not a comparator, and the cause of the sign difference has not been identified."
         )
+    if prefix.name in FROZEN_LEGACY_CAPTION_PREFIXES:
+        effect_text = (
+            f"rr5 fixed 10 us {100*data['effects']['rr5']:.4f}% and "
+            f"rr50 fixed 5 us {100*data['effects']['rr50']:.4f}%. "
+        )
+    else:
+        effect_text = (
+            f"rr5 CCBench built-in adaptive backoff enabled (BACK_OFF=1) versus disabled (BACK_OFF=0) "
+            f"{100*data['effects']['rr5']:.4f}% and rr50 CCBench built-in adaptive backoff enabled "
+            f"(BACK_OFF=1) versus disabled (BACK_OFF=0) {100*data['effects']['rr50']:.4f}%. "
+            "The labels fixed 10 us / fixed 5 us and cell IDs rr5-fixed10 / rr50-fixed5 identify "
+            "requested genomes, not effective conditions; BACKOFF_FIXED did not affect the build. "
+            "BACK_OFF=1 enables CCBench built-in adaptive control, not exponential backoff. "
+        )
+
     return (
         f"Figure {figure_number}. A-2 formal certification attempt {c['attempt']} (outer status: {data['outer_status']}). "
         f"The two independent workload campaigns were requests {w['rr5']['request_id']} on {w['rr5']['host']} "
@@ -657,8 +673,7 @@ def _caption(data: Mapping[str, Any], prefix: Path) -> str:
         f"{w['rr50']['created_utc']}, at distinct recorded times; the outer status is their logical conjunction. The top row shows all five "
         "trace-disabled performance samples per cell; short bars are medians, and diamonds with error bars are "
         "sample means with t-distribution 95% confidence intervals. The gray dashed line is the workload's no-backoff "
-        f"median and the effect denominator. Median effects copied from certification are rr5 fixed 10 us "
-        f"{100*data['effects']['rr5']:.4f}% and rr50 fixed 5 us {100*data['effects']['rr50']:.4f}%. M tps means "
+        f"median and the effect denominator. Median effects copied from certification are {effect_text}M tps means "
         "million transactions per second. Mean confidence intervals describe samples; they are not confidence "
         "intervals for effects, decisions, or medians, and this artifact makes no significance decision. Reject is "
         "the protocol status based on the predefined median ratio. The bottom row is a descriptive leading indicator: "
@@ -691,7 +706,7 @@ def _artist_series(data: Mapping[str, Any]) -> list[dict[str, Any]]:
                      "kind": "effect-label", "label": f"{100*data['effects'][workload]:.4f}%", "value": data["effects"][workload]})
     return rows
 
-def make_figure(data: Mapping[str, Any]):
+def make_figure(data: Mapping[str, Any], *, frozen_legacy_caption: bool = False):
     mpl.rcParams.update({"font.family": "DejaVu Sans", "font.size": 8, "axes.grid": True,
                          "grid.alpha": .18, "axes.spines.top": False, "axes.spines.right": False})
     fig, axes = plt.subplots(2, 2, figsize=(11.8, 7.6), squeeze=False)
@@ -722,9 +737,14 @@ def make_figure(data: Mapping[str, Any]):
         bottom.set_ylim(0, 1)
         bottom.text(.5, .88, "descriptive; 1 aggregate/cell\nno CI; no causal claim", transform=bottom.transAxes,
                     ha="center", va="top", fontsize=7, gid="cell-label")
+        corrected_legacy = (
+            data["measurement_conditions"].get("artifact_profile") != "current-full"
+            and not frozen_legacy_caption
+        )
         for axis in (top, bottom):
-            axis.set_xticks((0, 1), ("no backoff", f"fixed {adopted['genome']['BACKOFF_FIXED']} us"))
-        bottom.set_xlabel("performance arm")
+            axis.set_xticks((0, 1), ("BACK_OFF=0", "BACK_OFF=1") if corrected_legacy else
+                           ("no backoff", f"fixed {adopted['genome']['BACKOFF_FIXED']} us"))
+        bottom.set_xlabel("CCBench built-in adaptive backoff" if corrected_legacy else "performance arm")
     fig.suptitle("A-2 four-cell certification — trace-disabled performance", y=.975, fontsize=11, fontweight="bold")
     fig.text(.5, .91, f"outer status: {data['outer_status']} (protocol status, median ratio)", ha="center", fontsize=9)
     fig.text(.5, .865, "correctness: separate trace-enabled runs, all 4 cells certified — not a performance certification",
@@ -779,12 +799,21 @@ def build_provenance(
     if not outputs:
         _fail("caption output path is missing")
     hashes = outputs if hash_paths is None else hash_paths
+    tracked_inputs = list(data["tracked_inputs"])
+    if (data["measurement_conditions"].get("artifact_profile") != "current-full"
+            and _caption_prefix(outputs[0]).name not in FROZEN_LEGACY_CAPTION_PREFIXES):
+        caption_source = "docs/paper-story/results/2026-09-07-a2-certification-reject.md"
+        tracked_inputs.append({
+            "kind": "caption_source", "path": caption_source,
+            "sha256": _sha256(REPO_ROOT / caption_source),
+            "authority_scope": "condition description only; not measurement values or protocol status",
+        })
     return {
         "schema": SCHEMA,
         "generated_utc": generated_utc or datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "generator": {"path": "tools/plotting/plot_a2_certification.py", "sha256": _sha256(GENERATOR)},
         "outputs": [{"path": _display_path(path), "sha256": _sha256(source)} for path, source in zip(outputs, hashes)],
-        "tracked_inputs": list(data["tracked_inputs"]),
+        "tracked_inputs": tracked_inputs,
         "external_source_locator": {"root_at_generation": data["external_root"], "validation_key": "root-relative-path-plus-sha256"},
         "external_inputs": list(data["external_inputs"]),
         "measurement_conditions": dict(data["measurement_conditions"]),
@@ -878,7 +907,8 @@ def main(argv: Sequence[str] | None = None, *, expected_hashes: Mapping[str, str
     try:
         _figure_number(prefix)
         data = load_measurements(root, cert, manifest, expected_hashes)
-        figure, axes = make_figure(data)
+        figure, axes = make_figure(
+            data, frozen_legacy_caption=prefix.name in FROZEN_LEGACY_CAPTION_PREFIXES)
         _publish_outputs(figure, axes, prefix, data, expanded)
     except Exception as exc:  # noqa: BLE001 - the CLI must fail closed.
         print(f"[error] {type(exc).__name__}: {exc}", file=sys.stderr)
