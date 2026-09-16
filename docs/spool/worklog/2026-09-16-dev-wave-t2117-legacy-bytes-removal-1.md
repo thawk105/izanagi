@@ -60,6 +60,8 @@ title: [T-2117] 復元不能な当時の bytes 一致の要求を撤去し、二
   いずれも本 wave の差分 (`test_codex_reasoning_ab.py` 1 file、新 node は共有 fixture も
   real-repo lock も使わない) から到達しない。同じ tip で 3 件を単独再走し 8 passed
   (parametrize 展開後) で再現しなかったため、DW-O18 に従い受入を 1 度だけ再走した。
+- **受入 2 走目も同じ 2 file で 34 error になった** (F945 の再発)。同 tip の 2 file 単独再走は
+  269 passed / rc=0 で非再現。F945 の恒久対応どおり、load が下降局面に入ってから投げ直した。
 - 設計判断は {{D:m2-golden-synthetic-restore}}。
 - **実装子はテストを 1 件も走らせられなかった。** dispatch の `qstat -Q` が socket 作成制限で
   失敗し rc=16。子は `closed` と書かず「実装済み・未実走」と報告し、実測は親が行った。

@@ -32,6 +32,17 @@ seq: 3
 
 ## 再発
 
+### F945
+
+- **再発: 2026-09-16** — [T-2117] wave (test 1 file のみ変更) の受入で 2 走続けて同型が出た。
+  1 走目 (tip `7d19ffbe4`) は 3 error (t1259 の `git ls-files --others` 30 秒 timeout 2 件、
+  `test_s8c_preregistration_predicates.py` の real-repo lock 期限超過 1 件)、単独再走 8 passed。
+  2 走目 (tip `6ae8d06da`) は **34 error** (t1259 が 29 件、s8c predicates が 5 件。原因は
+  `git ls-files` / `git archive` の 30 秒 timeout と real-repo lock 期限超過)、同 tip の 2 file
+  単独再走 (1578.nqsv) は **269 passed / 121.41 秒 / rc=0** で非再現。2 走目の投入時は同時受入が
+  他に 1 本だったが、走行中に増えて終了時は 3 本だった。恒久対応は既報のまま変えず、
+  timeout 拡大・stub 化・除外・gate 新設はしていない。
+
 ### F300
 
 - **再発: 2026-09-16** — `共有木の事後検査に失敗: source/main 共有木の観測 bytes が変化した` を
