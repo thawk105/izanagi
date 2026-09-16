@@ -6,6 +6,32 @@ wave: dev-wave-t2586-itt-trace-seed-contract
 seq: 2
 ---
 
+## 新規
+
+### {{F:repo-walk-races-with-in-repo-tempdir-fixture}}. repo 全体を走ってから除外する走査が、同じ suite の一時 dir と競走して land を止めた [テスト代表性] [手順漏れ]
+
+- 事象: `orchestrator/tests/test_campaign.py` の
+  `test_certified_writer_authorization_caller_inventory_is_closed` が、受入全走 9 回のうち
+  **7 回**落ちた。逐語は毎回
+  `FileNotFoundError: [Errno 2] No such file or directory: '<repo>/.t316-live-<乱数>'`。
+  [T-2586] の成果はこれで 9 回 land できなかった。同 wave 自身の変更に帰属する赤は
+  別に 1 件あり、そちらは先に閉じている。残ったのはこの競走だけだった。
+- 根本原因: 当該 test は `sorted(repo_root.rglob("*.py"))` で repo 全体を走り、
+  **走り終えてから** `.git` / `.claude` / `.codex` / `external` / `__pycache__` / `output` /
+  `.venv` を除外していた。除外対象も一度は辿る。同じ受入走の
+  `orchestrator/tests/test_t316_sandbox_probe.py` の fixture `s6_bindable_root` が
+  `tempfile.TemporaryDirectory(prefix=".t316-live-", dir=_REPO)` で repo 直下に一時 dir を作り、
+  test 終了時に消す。走査がその dir を辿っている最中に消えると `rglob` が落ちる。
+  **除外を「辿った後の filter」で書くと、辿ること自体の副作用は消せない。**
+- 恒久対応: 走査を `os.walk` へ替え、repo 直下の dot-dir を**降下前に**刈る
+  (`orchestrator/tests/test_campaign.py`)。消えた entry はその entry だけ飛ばす。
+  既存の除外条件と末尾の `assert source_paths` はすべて残した。
+  t316 側は直していない — 同 fixture のコメントが repo 内に置く理由 (SandboxProfile が /tmp を
+  隠すため mount 可能な祖先が要る) を明記しており、外へ出すと別の前提が壊れる。
+- 再発検知: 被覆が恒等であることを実測で固定した。top-level dot-dir 配下に走査対象の `.py` は
+  0 件、走査対象は変更前後とも 420 件で追加・削除とも空集合。`.t316-live-*` を列挙後・降下前に
+  消す再現を 20 回行い、20 回とも落ちず 420 件を返す。被覆が動けばこの件数が動く。
+
 ## 再発
 
 ### F386

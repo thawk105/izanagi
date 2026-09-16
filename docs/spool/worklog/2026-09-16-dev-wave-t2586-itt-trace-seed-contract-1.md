@@ -59,6 +59,19 @@ build sink を (path, kind, scope, lineno) で pin する。本 wave が produce
 production で取れた負例そのものである。原因は段 1 の pin 閉包検索を自分で `head -40` で切り、
 見えた範囲を閉包として扱ったこと。F376 へ再発として記録した。
 
+**受入が 9 回とも赤になり、2 つ目の blocker を閉じた。** 本 wave の変更に帰属する赤 (行番号
+anchor) を閉じた後も、shard-0 の
+`test_certified_writer_authorization_caller_inventory_is_closed` が 9 回中 7 回落ち続けた。
+逐語は毎回 `FileNotFoundError: '<repo>/.t316-live-<乱数>'`。同 test は repo 全体を `rglob` で
+**走り終えてから** dot-dir を除外するため、同じ受入走の `test_t316_sandbox_probe.py` の fixture が
+repo 直下に作る一時 dir を辿っている最中にそれが消えると落ちる。**本 wave と無関係の suite 内
+競走で、どの wave にも等しく当たる。** t316 側は fixture のコメントが repo 内に置く理由
+(SandboxProfile が /tmp を隠す) を明記しているので直さず、走査側を `os.walk` へ替えて
+repo 直下の dot-dir を降下前に刈った。**被覆は恒等**で、走査対象は変更前後とも 420 件、
+追加も削除も空集合、`.t316-live-*` を消す再現 20 回すべてで落ちない。自走 `test_campaign.py` も
+変更前後とも 342 passed / 59 failed / 3 skipped で完全一致する。
+**scope 外の一般化ではなく、成果を main へ届ける前提条件として閉じた。**
+
 **段 8 の改善候補 2 件はどちらも採らなかった。** (1)「`--reasoning` の段別制約が docs から
 引けない」は取り下げ — `DW-C01` に「`--reasoning` は plan/consult で必須。他段指定は rc=2」と
 既に書いてあり、docs の欠落ではなく親が読んだうえで適用を誤っただけだった (dry-run が投入前に
