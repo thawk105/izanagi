@@ -193,6 +193,7 @@ def _load_measurements(root, expected_hashes):
     for campaign, w, rratio in zip(report["campaigns"], report["workloads"], sorted(RRATIOS)):
         workload = campaign["workload"]
         admission, identity, completion = campaign["admission"], campaign["identity"], campaign["completion"]
+        _require(identity["measurement_env"] == "pegasus", "measurement env mismatch")
         _require(admission["admission_status"] in ("admitted", "admitted-new-schema"), "campaign not admitted")
         _require(f"/{GROUP_ID}-{workload}/campaigns/" in admission["campaign_path"], "campaign group binding mismatch")
         for key, expected in (("threads", 48), ("records", 1000000), ("extime_s", 3), ("performance_reps_per_cell", 5)):
@@ -277,17 +278,18 @@ def _caption(data, prefix):
         FIXED_WORDING, "9999 us is not a physical limit.",
         f"From 1250 to 9999 us the mean throughput falls to {ratios[0]:.3f}, {ratios[1]:.3f} and {ratios[2]:.3f} of its 1250 us value (write-heavy, balanced, read-heavy) while the abort rate keeps decreasing.",
         "This figure is a descriptive accounting of that cost; it makes no mechanism claim and no adoption decision.",
-        "Conditions: 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s, 5 repetitions, silo, CCBench pin 511c953, no perf, trace-disabled performance.",
-        f"Correctness comes from separate trace-enabled runs under the recorded legacy check configuration, not the performance configuration: all {correctness['certified']} records were certified with {correctness['anomalies']} anomalies, and this is not a performance certification.",
+        "Conditions: Pegasus compute nodes, 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s, 5 repetitions, silo, CCBench pin 511c953, no perf, trace-disabled performance.",
+        f"Correctness comes from separate trace-enabled runs under the recorded legacy check configuration, not the performance configuration: all {correctness['certified']} records were certified with {correctness['anomalies']} anomalies; certified means serializability of the observed YCSB point read/write traces under that check configuration and nothing beyond, and this is not a performance certification.",
         COMPARISON_WARNING,
         "This cohort is a different grid and a different cohort from fig2c and is not a continuation of it.",
+        "No samples from the exploratory run t2418-explore or the t2266-tail series are included; 9999 us was newly measured in this cohort.",
     ])
 
 
 def _direct_label(workload):
     counts = {state: sum(i["state"] == state for i in workload["intervals"]) for state in STATES}
     if counts["declining"] == 6:
-        return f"6/6 intervals declining\nL >= {min(i['L'] for i in workload['intervals']):.3f}"
+        return f"6/6 intervals declining\nmin L = {min(i['L'] for i in workload['intervals']):.3f}"
     return (f"{counts['declining']}/6 declining, {counts['saturated']} saturated,\n"
             f"{counts['indeterminate']} indeterminate")
 

@@ -149,9 +149,10 @@ measurement root は option、`IZANAGI_B10_TAIL_MEASUREMENT_ROOT`、既定の
 root 相対 path と生成器の pin 表 (SHA-256) で束縛する。pin は CLI から渡せない。
 
 - 判定 (`verdict`、workload の `state`、区間の `state` / `qhat` / `qL` / `qU` / `L` / `U`) は集団報告から
-  コピーし、再計算しない。`L = 1 − 2^qU` の一致だけを検査する。
-- 平均・t 分布 95% CI・abort 率 (整数カウンタから全精度)・変動係数・端点比は reps の生値から再計算し、
-  集団報告の `statistics` と fail-closed で相互検算する。
+  コピーし、再計算しない。`L = 1 − 2^qU` と `U = 1 − 2^qL` の一致だけを検査する。
+- 平均・t 分布 95% CI・abort 率 (整数カウンタから全精度)・変動係数・端点比は reps の生値から再計算する。
+  集団報告の `statistics` と fail-closed で照合するのは平均 2 種・変動係数 2 種・abort 率の標本標準偏差で、
+  CI と端点比は再計算だけで照合相手を持たない。
 - `performance_certified` が `false` 以外、正しさ記録 120 件のいずれかが `certified` でない、区間集合に
   境界参照 1000 が入る、`.dat` が 120 行でない、SHA-256 不一致のいずれでも成果物を出さない。
 - 保存前に実寸 6 axis の renderer-backed layout check を実行し、text の重なり・逸脱があれば

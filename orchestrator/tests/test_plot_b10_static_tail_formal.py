@@ -60,6 +60,7 @@ def _fixture(tmp_path, **overrides):
                     "admission": {"admission_status": "admitted",
                                   "campaign_path": f"/fixture/{p.GROUP_ID}-{workload}/campaigns/test"},
                     "identity": {"threads": 48, "records": 1000000, "extime_s": 3,
+                                 "measurement_env": "pegasus",
                                  "workload_coordinates": {"ycsb_rratio": str(sorted(p.RRATIOS)[wi]),
                                      "ycsb_zipf_skew": "0.9", "ycsb_rmw": "0", "ycsb_max_ope": "10"},
                                  "grid": [{"backoff_us": x} for x in reversed(p.GRID_US)],
@@ -226,6 +227,9 @@ def test_caption_contains_fixed_expression_and_certification_literal(tmp_path):
     assert PLOT.GROUP_ID in caption
     assert PLOT.COMPARISON_WARNING in caption
     assert "18/18 intervals" in caption
+    assert "Pegasus compute nodes" in caption
+    assert "t2418-explore" in caption
+    assert "nothing beyond" in caption
     assert "fixture-0.nqsv, fixture-1.nqsv, fixture-2.nqsv" in caption
 
 
@@ -254,7 +258,15 @@ def test_external_input_hash_drift_is_rejected(tmp_path):
 
 def test_pinned_hashes_are_used_when_no_override(tmp_path):
     root, _ = _fixture(tmp_path)
-    _reject(lambda: PLOT.load_measurements(root), "SHA-256")
+    # completion record は production pin を名乗り、byte 比較だけが拒否する単一理由 fixture。
+    complete_path = root / PLOT.COMPLETE_JSON
+    complete = json.loads(complete_path.read_text())
+    complete["artifacts"] = {
+        Path(path).name: PLOT.PINNED_SHA256[path]
+        for path in (PLOT.REPORT_JSON, PLOT.REPORT_DAT)
+    }
+    complete_path.write_text(json.dumps(complete))
+    _reject(lambda: PLOT.load_measurements(root), "SHA-256 mismatch")
 
 
 def test_performance_certified_true_is_rejected(tmp_path):

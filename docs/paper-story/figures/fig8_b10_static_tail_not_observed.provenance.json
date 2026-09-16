@@ -6898,19 +6898,19 @@
     "saturation_wording": "not-observed-within-representable-range"
   },
   "schema": "izanagi-b10-static-tail-formal-figure-provenance/v1",
-  "generated_utc": "2026-09-16T22:27:31.178771+00:00",
+  "generated_utc": "2026-09-16T22:56:31.998873+00:00",
   "generator": {
     "path": "tools/plotting/plot_b10_static_tail_formal.py",
-    "sha256": "23624df3af5648a3dfeb59ee24d6964fdfa75313ddc6f413c6f165618f2dc0f5"
+    "sha256": "c0f841f15128ff60650510d6b5521a306f5ba20dbc9d6a8421f80f191b452dd1"
   },
   "outputs": [
     {
       "path": "docs/paper-story/figures/fig8_b10_static_tail_not_observed.png",
-      "sha256": "638ebfaa5e4f9f5f3011aec81465f6267d866223b91abe14d63f6b5714d80b1d"
+      "sha256": "24eab2e8b96db14a570b8ee0efc158cdceeb4913f4787030eccd9326d98cbb2a"
     },
     {
       "path": "docs/paper-story/figures/fig8_b10_static_tail_not_observed.pdf",
-      "sha256": "819fc413f4cef9a1f4c0c2bac9212b449ab133b989f714938c09539956274eda"
+      "sha256": "11071b72995c43da39b7309c94e6935fac498e36979e3d4f912e7194634948ff"
     }
   ],
   "external_source_locator": {
@@ -7111,7 +7111,7 @@
           "upward_wiggle": false
         }
       ],
-      "direct_label": "6/6 intervals declining\nL >= 0.304"
+      "direct_label": "6/6 intervals declining\nmin L = 0.304"
     },
     {
       "workload": "balanced",
@@ -7306,7 +7306,7 @@
           "upward_wiggle": false
         }
       ],
-      "direct_label": "6/6 intervals declining\nL >= 0.299"
+      "direct_label": "6/6 intervals declining\nmin L = 0.299"
     },
     {
       "workload": "read-heavy",
@@ -7501,10 +7501,10 @@
           "upward_wiggle": false
         }
       ],
-      "direct_label": "6/6 intervals declining\nL >= 0.274"
+      "direct_label": "6/6 intervals declining\nmin L = 0.274"
     }
   ],
-  "caption": "Figure 8. B-10 static-backoff right tail, formal cohort of 2026-09-15 (group b10-backoff-grid-20260915T061814Z-545445; aggregate verdict not-observed-in-any-workload; performance_certified: false). Columns show write-heavy (rr5), balanced (rr50) and read-heavy (rr95), each an independent campaign (job IDs, respectively: 0:998865.nqsv, 0:998866.nqsv, 0:998867.nqsv). The x axis shows seven tail points (1250, 1768, 2500, 3535, 5000, 7070 and 9999 us; filled markers) and the 1000 us boundary reference (open marker), measured in the same job but excluded from the interval set. The top row shows means of five trace-disabled repetitions with t-distribution 95% confidence intervals (error bars). M tps means million transactions per second. The bottom row shows abort rates recomputed for each repetition from integer counters as aborts / (aborts + commits), averaged over five repetitions with the same confidence intervals. Segments between adjacent tail points are colored by the interval state copied from the group report: 18/18 intervals (6 per workload) are declining; simultaneous lower bounds L on the per-doubling decrease range from 0.2738 to 0.3704 (Bonferroni over 36 one-sided limits, familywise 0.05). Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding. 9999 us is not a physical limit. From 1250 to 9999 us the mean throughput falls to 0.444, 0.481 and 0.400 of its 1250 us value (write-heavy, balanced, read-heavy) while the abort rate keeps decreasing. This figure is a descriptive accounting of that cost; it makes no mechanism claim and no adoption decision. Conditions: 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s, 5 repetitions, silo, CCBench pin 511c953, no perf, trace-disabled performance. Correctness comes from separate trace-enabled runs under the recorded legacy check configuration, not the performance configuration: all 120 records were certified with 0 anomalies, and this is not a performance certification. Panel heights and slopes use workload-local y scales and must not be compared across panels. This cohort is a different grid and a different cohort from fig2c and is not a continuation of it.",
+  "caption": "Figure 8. B-10 static-backoff right tail, formal cohort of 2026-09-15 (group b10-backoff-grid-20260915T061814Z-545445; aggregate verdict not-observed-in-any-workload; performance_certified: false). Columns show write-heavy (rr5), balanced (rr50) and read-heavy (rr95), each an independent campaign (job IDs, respectively: 0:998865.nqsv, 0:998866.nqsv, 0:998867.nqsv). The x axis shows seven tail points (1250, 1768, 2500, 3535, 5000, 7070 and 9999 us; filled markers) and the 1000 us boundary reference (open marker), measured in the same job but excluded from the interval set. The top row shows means of five trace-disabled repetitions with t-distribution 95% confidence intervals (error bars). M tps means million transactions per second. The bottom row shows abort rates recomputed for each repetition from integer counters as aborts / (aborts + commits), averaged over five repetitions with the same confidence intervals. Segments between adjacent tail points are colored by the interval state copied from the group report: 18/18 intervals (6 per workload) are declining; simultaneous lower bounds L on the per-doubling decrease range from 0.2738 to 0.3704 (Bonferroni over 36 one-sided limits, familywise 0.05). Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding. 9999 us is not a physical limit. From 1250 to 9999 us the mean throughput falls to 0.444, 0.481 and 0.400 of its 1250 us value (write-heavy, balanced, read-heavy) while the abort rate keeps decreasing. This figure is a descriptive accounting of that cost; it makes no mechanism claim and no adoption decision. Conditions: Pegasus compute nodes, 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s, 5 repetitions, silo, CCBench pin 511c953, no perf, trace-disabled performance. Correctness comes from separate trace-enabled runs under the recorded legacy check configuration, not the performance configuration: all 120 records were certified with 0 anomalies; certified means serializability of the observed YCSB point read/write traces under that check configuration and nothing beyond, and this is not a performance certification. Panel heights and slopes use workload-local y scales and must not be compared across panels. This cohort is a different grid and a different cohort from fig2c and is not a continuation of it. No samples from the exploratory run t2418-explore or the t2266-tail series are included; 9999 us was newly measured in this cohort.",
   "reproduction": {
     "cwd": "repository-root",
     "argv": [
