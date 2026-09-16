@@ -86,7 +86,7 @@ def test_oracle_cross_check_rejects_negative_non_int_and_bool_values():
 def test_condition_preflight_dominates_first_benchmark_build(module):
     source = inspect.getsource(module.main)
     assert source.index("_preflight_condition_gates") < source.index("buildcache.build")
-    if module in {s3, coverage}:
+    if module in {s2, s3, coverage}:
         gate_source = inspect.getsource(module._require_condition_gate)
         assert "declare_define_runtime_meaning(request)" in gate_source
 
@@ -126,6 +126,89 @@ def test_condition_gate_rejection_stops_s5_before_build(monkeypatch):
 
     with pytest.raises(RuntimeError, match="preprocess-bytes-identical"):
         coverage._require_condition_gate("/fixture", coverage.ERASE_DEFINE)
+
+
+@pytest.mark.parametrize("macro", [s2.NORW_DEFINE, s2.HIGHKEY_DEFINE])
+@pytest.mark.parametrize("admitted", [True, False])
+def test_s2_condition_gate_passes_factory_declaration_to_meaning_evaluator(
+    monkeypatch: pytest.MonkeyPatch,
+    macro: str,
+    admitted: bool,
+):
+    gate = s2.condition_meaning_gate
+    captured = object()
+    calls = []
+    supply_requests = []
+    real = gate.declare_define_runtime_meaning
+    supply_stub = SimpleNamespace(
+        terminal_status="green",
+        reason_code="requested-default-preprocess-different",
+        canonical_json=lambda: '{"supply": 1}',
+    )
+    meaning_stub = SimpleNamespace(
+        terminal_status="green",
+        reason_code="declared-compile-time-branch-selection-observed",
+        canonical_json=lambda: '{"meaning": 1}',
+    )
+
+    def capture(source_root, *, configure_args):
+        assert source_root == "/fixture"
+        assert "-DCCBENCH_TRACE=1" in configure_args
+        return captured
+
+    def declare(request):
+        result = real(request)
+        calls.append((request, result))
+        return result
+
+    def evaluate_supply(*args, **kwargs):
+        assert args[0] is captured
+        assert isinstance(kwargs["request"], gate.DefineRequest)
+        assert kwargs["request"].macro == macro
+        supply_requests.append(kwargs["request"])
+        return supply_stub
+
+    def evaluate_meaning(*args, **kwargs):
+        assert args[0] is captured
+        assert len(calls) == 1, "factory was not called before meaning evaluation"
+        assert kwargs["request"] is calls[0][0]
+        assert kwargs["request"] is supply_requests[0]
+        assert kwargs["declaration"] is calls[0][1]
+        return meaning_stub
+
+    def require_family(*args, **kwargs):
+        assert args == ([supply_stub], [meaning_stub])
+        assert kwargs["use_class"] == "raw-measurement"
+        return SimpleNamespace(
+            admitted=admitted, canonical_json=lambda: '{"admission": 1}',
+        )
+
+    monkeypatch.setattr(gate, "capture_define_inputs", capture)
+    monkeypatch.setattr(gate, "declare_define_runtime_meaning", declare)
+    monkeypatch.setattr(gate, "evaluate_define_supply_effectuation", evaluate_supply)
+    monkeypatch.setattr(gate, "evaluate_define_runtime_meaning", evaluate_meaning)
+    monkeypatch.setattr(gate, "require_condition_gate_family", require_family)
+
+    if admitted:
+        assert s2._require_condition_gate("/fixture", macro) == {
+            "supply": {"supply": 1},
+            "meaning": {"meaning": 1},
+            "admission": {"admission": 1},
+        }
+    else:
+        with pytest.raises(RuntimeError, match=macro) as raised:
+            s2._require_condition_gate("/fixture", macro)
+        assert supply_stub.reason_code in str(raised.value)
+        assert meaning_stub.reason_code in str(raised.value)
+
+    assert len(calls) == 1
+    request, declaration = calls[0]
+    assert type(declaration) is gate.ConditionalBranchMeaningDeclaration
+    assert declaration.macro == macro
+    assert declaration.source_rel == "cc/silo/transaction.cc"
+    assert declaration.start_directive == f"#if {macro}"
+    assert request.requested_value == 1
+    assert request.default_value == 0
 
 
 if __name__ == "__main__":
