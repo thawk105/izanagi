@@ -1,0 +1,28 @@
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 2009227, "time_ns": 1789577006584385141}
+IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2009248, "event": "direct-child-wait-start", "pid": 2009234, "time_ns": 1789577006612394724}
+IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2009248, "event": "direct-child-wait-complete", "pid": 2009234, "time_ns": 1789577336000613787}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 2009234, "rc": 0, "time_ns": 1789577336000709010}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 2009227, "rc": 0, "time_ns": 1789577336005212038}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 2009227, "time_ns": 1789577336013708835}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 2009227, "time_ns": 1789577336020815793}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 2009227, "time_ns": 1789577336022070354}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 2009227, "time_ns": 1789577336022081667}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 2009227, "time_ns": 1789577336023325540}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 2009227, "time_ns": 1789577336023332926}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 2009227, "rc": 0, "time_ns": 1789577336023344074}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 2009227, "rc": 0, "time_ns": 1789577336023358302}
+
+============================================================
+Request ID:             2326.nqsv
+Request Name:           izdw-034c245a44
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Thu Sep 17 01:39:33 2026
+Started Request Time:   Thu Sep 17 01:43:26 2026
+Ended Request Time:     Thu Sep 17 01:48:56 2026
+Resources Information:
+  Elapse:               334S
+  Remaining Elapse:     5066S
+============================================================
