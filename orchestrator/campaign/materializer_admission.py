@@ -50,6 +50,11 @@ class MaterializerRegistration:
 
 
 MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
+    "orchestrator.campaign.b4_binary_record._install_dependency":
+        MaterializerRegistration(
+            NON_ADMISSIBLE,
+            "gflags/glog installation only; produces no CCBench binary or performance evidence",
+        ),
     "orchestrator.campaign.b10_backoff_shape_sweep._compile_probe_harnesses":
         MaterializerRegistration(
             NON_ADMISSIBLE,
