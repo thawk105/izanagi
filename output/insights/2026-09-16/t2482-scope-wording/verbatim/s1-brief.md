@@ -1,0 +1,21 @@
+# 段 1 brief — [T-2482] campaign_verifier_epoch の保証文言を現物の被覆へ合わせる (基準 e667c8c13)
+- 研究前進: 材料レポートの `identity_scope`/`excluded_scope` が、束縛していない集合 (62 path / 発見 131 / 未収載 69) を名乗る状態を止める。完了 = 2 定数が現物実測と一致し、test の live copy 2 か所が追随し、受入全走緑。
+- scope (実アンカー): A1 `orchestrator/campaign/artifact_admission.py:73-77` SCOPE、A2 同 `:78-83` EXCLUDED_SCOPE、A3 `orchestrator/tests/test_artifact_admission.py:1160-1170` の literal、A4 `orchestrator/tests/test_s1_9pair_figure_provenance.py:74-89` `CURRENT_E0_EPOCH`。
+- 触らない: `PRE_T733_*`、`FROZEN_E0_EPOCH`、insight 歴史記録、記録済み 6f169f90 `layer3_report.json`、`CONTRACT_LOADER_RELATIVE_PATHS`、受理述語、docstring (D1651)。
+- 確定裁定: ユーザー直接指示 (本 wave 引数) = 文言修正のみ・被覆拡大しない・仮想リスク向け gate/検査/台帳/一般化は scope 外・規律 2 を緩めない・実装面は Codex author。D1651 = path 数・非推移閉包・未収載数・非 import 委譲除外・完全性非主張を書く。D1884 = 名乗りを広げない。
+- D1896 (単独で先に直さない) はユーザー指示が上書き。新事実: 収載 63 のまま発見集合が 09-09→09-16 で 140→162。drift 源は段階実装だけではない。
+- 実測 (実物): T-2344 probe 原本 (sha256 e4843f31…、repo 逐語 md と bit 一致) を新規に書かず実行。e667c8c13 = 収載 63 / 発見 162 / 未収載 99。正例対照 2143a49c0 = 63/140/77 を再現。
+- 実測: verifier `__main__.py`・`cli.py`・`orchestrator/verify.py` は発見集合外 (除外欄の別記は二重計上でない)。63 本目は T-2429 の `verify_fanout_worker.py`。
+- 実測: E1 preimage は domain+path+blob のみ (`:1056-1064`)、文言は lock に記録されず読取時既定値。`__post_init__` (`:186-190`) は定数一致を検査。
+- 実測: 文言を bytes 一致で照合するのは `autonomous_trial_completeness._require_compatible_layer3_epoch` (`:4740-4757`)。照合対象の記録実物は repo 1 本 (6f169f90、非 certifying・読む test なし)、外部実測定 root 0 本。
+- 実測: artifact_admission.py bytes の凍結 pin なし (B-4 projection hash 欄は未記入)。収載 path なので未 commit 編集中は焦点走が contract-loader drift で赤 → commit 後に走らせる。
+- 並行: [T-2483] wave (未 land) が旧文言を `T733_EXACT62_*` へ逐語複製中。hunk は非重複。両 land 後に A1/A2 未修正なら歴史 exact-62 と現行 63 が同一文言。
+- 不変条件: E1 値・lock decode・受理述語・path tuple 不変。`__post_init__` 一致検査を残す。新文言は旧より強い保証を読ませない。記録・歴史定数・凍結 receipt を書き換えない (規律 7)。
+- (P1) 数値は日付+commit 付き snapshot で書く (「2026-09-16 (e667c8c13) に収載 tuple 起点で静的 import を辿った発見集合 162 module のうち 63 を収載」「同発見集合の未収載 99」)。実行時計算などの機構は足さない。親の provisional 裁定・攻撃対象。
+- (P2) 除外欄へ「発見集合は収載 tuple 起点であり、tuple から import で辿れない module (発行器を含む) を含まない」を 1 句足す。T-2344 実測 (発行器起点 160) が根拠、保証は広げない。scope 外かを攻撃対象とする。
+- (P3) 収載の内訳は T-733 の 24/36/2 に T-2429 の 1 を足して残す。**追加実測 (段 2 投入後): 63 本目 `verify_fanout_worker.py` を静的 import する module は発見集合内に 0 本。`pipeline.py:836` が ssh 経由 `python -B -m` で起動する subprocess 委譲先を T-2429 (2a9ba783f) が明示収載した。** よって内訳は「非 import (subprocess) 委譲先 1」と書き、除外欄の「subprocess … を含む非 import 委譲は本 map の外」はこの 1 本を除く形に直す。内訳を落とす案との比較を攻撃対象とする。
+- (P4) D1896 上書きは段 7 で decisions fragment に残す。
+- DW-G05: 放置すると producer 11 箇所 (一覧は evidence.md) の出す材料レポートが未束縛部分を 30 module 過小に名乗り続け、[T-2483] land 後は歴史 62 と現行 63 を文面で区別できない。
+- 分割: 設計択一と正しさ防壁の exact 照合入力に触るので段 2・段 3 (2 レンズ)・段 6 レビュー 2 本を回す。実装子 1 本。
+- 環境: 受入は `tools/dev_wave_wait.py acceptance` 既定経路 (worklog (1551) と同じ)。実装差分があるので変異 matrix は免除しない。
+- 詳細な実測・producer 棚卸し・path:line は同 dir の `evidence.md`。

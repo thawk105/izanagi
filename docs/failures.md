@@ -1102,6 +1102,17 @@
   恒久対応は変更なし (`DW-M08` の完全集合要件と、段 6 レビューのレンズに「事前登録変異の kill 帰属が
   成立するか」を入れる `DW-M01` / `DW-M07` がそのまま効いた)。**「期待赤が時間に依存しないか」を
   レビューのレンズへ明示的に含めたことが、実走前の検出につながった。**
+
+- **再発: 2026-09-16 (near miss)** — 段 4 で登録した変異の anchor (old 逐語) が、段 6 fix 後の source では
+  文字列 literal の行分割によって行境界を跨ぎ、`DW-M07` の再検証 (`--plan-only`) が anchor count=0 で
+  止まった。親は anchor を 1 行に閉じた形へ再照準したが、その際に削除範囲が登録 (先頭空白 + 括弧句) と
+  異なる形 (括弧句 + 読点) になり、probe / final の両走がその変異で走った。赤の理由と node 集合は登録と
+  同じで KILLED したが、登録どおりの単独変異の実測ではなかった。段 6 の焦点再レビューが台帳と裁定の
+  差を検出し、行境界を跨ぐ複数行 anchor で登録どおりの変異を補走 (KILLED、期待 node 完全一致) して、
+  元の走行を erratum として残した。**恒久対応の追補 = anchor count=0 での再照準は削除内容を変えず、
+  行分割は old / new に改行を含めた複数行 anchor で吸収する。再照準した変異は裁定へ追補として書き、
+  段 6 の焦点再レビューに「台帳の replacements と登録の逐語一致」を点検項目として渡す。**
+  一次資料は `output/insights/2026-09-16/t2482-scope-wording/README.md` の変異台帳節。
 ### F29. 段 1 の実測確認が実差分をモデル化せず、正しく測って誤った結論を出した [テスト代表性] [手順漏れ]
 
 - 事象: [T-005]+[T-063]+[T-068] 束ね wave (2026-07-21、D72) の段 1 で、`frozen_at_head` の
@@ -7399,6 +7410,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`result.json` の `child_rc=1` は期待どおりの mutant 赤)、hold は誤検知だった。
   混雑時の最悪値で取り直し (`1800` 秒、job walltime 3600 秒の内側) 完走した。
   この回は「dispatch 実測の倍数」でも足りず、**queue 待ちの分布そのもので決める**必要があった。
+
+- **再発: 2026-09-16** — 変異 spec の `timeout_seconds` を 600 秒に置いたが、その時間帯の
+  scheduler には他 session の job が 14 本あり、m5 の job が走り始める前に harness の per-run
+  timeout が切れて orphan-hold を立て、変異を作業ツリーに残したまま中断した。baseline 1 走の
+  実測は 262 秒で、往復の実測からは 600 秒は 2.3 倍の余裕に見えていた。**dispatch の既定
+  envelope (queue-wait 900 秒 + overall grace 300 秒) を下回る値は、往復実測の何倍であっても
+  混雑で割れる。** 取り直しは 2700 秒 (job walltime 3600 秒の内側) + D612 の queue-wait / grace
+  上書きで完走した。同型 4 件目の再発なので、恒久対応として `DW-M07` へ
+  「`timeout_seconds` は dispatch envelope 超」を発火段の節に明記した (従来は `DW-M06` の
+  上限側だけが書かれ、下限側が操作直前の節に無かった)。
 ### F186. 受入 lease の状態判定を逐語一致で書き、取得済みのまま lease を握り続けた [手順漏れ]
 
 - 事象: 受入 lease の待ち手スクリプトが `state=acquired` という文字列一致で判定していたが、
@@ -13812,6 +13833,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   規則が無いまま試行が 2 本ある状態を作り、prospective 事前登録の看板を下ろしていた。
   局所修復として本 wave の worklog エントリで [T-1998] を `完了` へ落とした。
   **機械防壁は無いままである** — carry 本文が名指す別 ID を検索鍵へ自動展開する検査は無い。
+
+- **再発: 2026-09-16** — [T-2237] の carry が「裁定済み (D1548) → 実装待ち」と言い続けたが、実体は双子の [T-2253] が
+  2026-09-05 に実装・land して 完了 にしていた (`8f54a601c`)。同じ作業を指す別 ID が閉じ、こちらだけ残った点は 2026-09-14 /
+  2026-09-15 の再発と同型である。**新しい面は検索鍵である。** 2026-09-15 の再発は「carry 本文が名指す別 T 番号を検索鍵へ足す」を
+  教訓にしたが、[T-2237] の本文は双子の T 番号を 1 つも名指さない — [T-2253] の方が後から採番され、その本文が
+  「同じ主題の項を登録したら同一作業として統合する」と逆向きに書いていた。**両項を結ぶ鍵は共有の D 番号だけ**で、
+  段 1 で済を露見させたのは `git log --all --grep=D1548` が [T-2253] の commit に当たったことだった。統合の機会は 2 回あり、
+  2026-09-04 の /rulings 第 6 回は [T-2237] の状態語だけを直し、2026-09-05 の実装 wave は自分の ID だけを閉じた。
+  実害は wave 1 本の段 1 までで止まり、実装子は起動していない。局所修復として本 wave の worklog エントリで [T-2237] を
+  `完了` にした。**機械防壁は無いままである** — 同じ D 番号を根拠に持つ active 項の重複を見る検査は無い。
 ### F429. 大量失敗を伴う変異走行で pytest-xdist の集約・終了処理が host 混雑下で無応答になる [infra不調] [測定汚染]
 
 - 事象: `tools/pegasus/dispatch_compute.py` の `_accounting_present` へ「常に False を返す」
@@ -22708,6 +22739,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `attempt-0001.events.jsonl` 末尾の `turn.failed` を段 3・5・6 の採用 gate 前に読む
   (`tools/check_codex_output.py` は出力不在を rc 非 0 で拒否するが、原因までは示さない)。
 
+
+- **再発: 2026-09-16** — 段 3 のレンズ B が 8 model call・220 秒で
+  `Selected model is at capacity. Please try a different model.` を受け、F818 と**同じ署名**
+  (出力 0 byte・`f45_missing_output`・`codex_exit_code=1`) で終了した。**原因は枠切れではなく
+  一過性の容量不足で、復帰は 5 日後ではなく即時である。** `--job-id` を変えて再投入したら
+  同じ prompt で 1 回目に成功した。F818 の恒久対応 (docs-only へ落として実装候補を裁定へ返す) を
+  この型へ適用すると、30 秒で直る事象のために wave を 5 日止める。署名だけで分岐せず、
+  `attempt-0001.events.jsonl` 末尾の `turn.failed` の**本文**を読んで枠切れと容量不足を区別する。
 ### F819. 段 5 実装子の投げ文が親の worktree を指し、子が 1 byte も書かずに「成功」で戻った [恒真ゲート] [手順漏れ]
 
 - 事象: [T-2200] の段 5 で、実装子の prompt に書いた repo root と必読 path が**親の wave worktree**
@@ -25374,6 +25413,24 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `DW-O18` に従って受入を再走した。attempt 3 は post-claim merge の競合 (別 wave が同じ
   DW-M07 是正を先に着地)、attempt 5 は postcheck の競走 (merge 中に main が進んだ) で、
   どちらもテストは走っていない。
+
+- **再発: 2026-09-16** — [T-2464] wave の受入 attempt 4 で 5 件 (t1259 4・s8c predicates 1)、
+  attempt 5 で 44 件 (t1259 39・s8c predicates 5) が setup error になった。t1259 は既報と同じ
+  `git ls-files --others` と `git status` の 30 秒 TimeoutExpired、s8c は real-repo lock の期限切れ。
+  2 file の単独再走は **269 passed / rc=0** で非再現。**既報が測っていなかった低負荷時の走査時間を
+  実測した** — load average 12.65 (1 分) の login node で、wave worktree の
+  `ls-files --others` は **18.81 秒**、base のままの実装子 worktree でも **15.48 秒**だった。
+  自分の `output/` 固有ではなく repo 規模由来で、低負荷でも 30 秒の半分を超えているので、
+  3 shard 並列と他 wave の受入 4 本が重なれば越える。恒久対応は既報のまま変えない。
+
+- **再発: 2026-09-16** — [T-2237] を閉じる docs-only wave の受入 attempt 2 (tip `ba0d7e762`) と attempt 3 (tip `4b135deb7`) で
+  同型が続けて出た。attempt 2 は `test_t1259_qsub_env_delivery_probe.py` 40 件 (`git ls-files --others --exclude-standard -z` 22 件・
+  `git status --porcelain=v1` 18 件、いずれも wave worktree に対する 30 秒 TimeoutExpired) に加え、同じ窓で `git archive` の timeout と
+  real-repo lock 待ち超過 (`test_s8c_preregistration_predicates.py` 5 件)、launcher timeout (`test_codex_worker_launch.py` 7 件) が並んだ
+  (24,067 passed / 52 赤、同時受入 4 本)。同 tip・同 3 file の単独再走は 480 passed / 105 秒で非再現。attempt 3 は同 file 17 件
+  (`git ls-files --others` だけ、24,111 passed、投入時 load 38、同時受入 3 本)。**単独では同 argv が 12.4 秒 (load 30、未追跡 0 件、
+  tracked 25,837 件) で完走し**、30 秒境界の 4 割を静穏時に既に使っている。wave の変更は docs 3 file で、当該 fixture・probe・
+  Git 呼出しは変更していない。恒久対応は既報どおり変えず、窓を選んで受入を再走した。
 ### F946. 修正可能な検査失敗で作業を終了し、ユーザーへ再開を要求した [手順漏れ] [誤前提]
 
 - 事象: insights整理のauthorが実行ログ検査で未受理になり、親は原因の切り分けや安全な再試行をせず正式停止した。

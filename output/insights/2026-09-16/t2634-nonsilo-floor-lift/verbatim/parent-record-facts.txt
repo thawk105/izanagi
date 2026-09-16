@@ -1,0 +1,13 @@
+== calibration-9b49335d02ad4d2e.json
+{"genome":"tictoc|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,PREEMPTIVE_ABORTS=1,TIMESTAMP_HISTORY=1","rratio":"50","threads":48,"records":1000000,"miss_rate_at":0.07968775915232558,"cache_floor_warning":false,"lower_bound_selected":true,"cv":0.022159731999286315,"n":10,"mean":1360228.4,"high_variance":false,"quality":"accepted","node":"bnode093","request_id":"998860.nqsv","ccbench":null}
+== calibration-cb98513996e5ae35.json
+{"genome":"tictoc|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,PREEMPTIVE_ABORTS=1,TIMESTAMP_HISTORY=1","rratio":"95","threads":48,"records":1000000,"miss_rate_at":0.09557337500961818,"cache_floor_warning":false,"lower_bound_selected":true,"cv":0.008335710888905095,"n":10,"mean":4585960.8,"high_variance":false,"quality":"accepted","node":"bnode103","request_id":"998863.nqsv","ccbench":null}
+== calibration-449d0ad22f13e366.json
+{"genome":"mocc|BACK_OFF=1,KEY_SORT=0,TEMPERATURE_RESET_OPT=1","rratio":"50","threads":48,"records":1000000,"miss_rate_at":0.14821268619041902,"cache_floor_warning":false,"lower_bound_selected":true,"cv":0.014348130441228051,"n":10,"mean":818327.2,"high_variance":false,"quality":"accepted","node":"bnode020","request_id":"989271.nqsv","ccbench":null}
+== calibration-b3329d93417c76ad.json
+{"genome":"mocc|BACK_OFF=1,KEY_SORT=0,TEMPERATURE_RESET_OPT=1","rratio":"95","threads":48,"records":1000000,"miss_rate_at":0.17008410686929437,"cache_floor_warning":false,"lower_bound_selected":true,"cv":0.017203731570968585,"n":10,"mean":2382335.7,"high_variance":false,"quality":"accepted","node":"bnode016","request_id":"998864.nqsv","ccbench":null}
+511c9538e4e8efa54b45cda62e72389ed3b706ec pinned_clean=true
+511c9538e4e8efa54b45cda62e72389ed3b706ec pinned_clean=true
+511c9538e4e8efa54b45cda62e72389ed3b706ec pinned_clean=true
+511c9538e4e8efa54b45cda62e72389ed3b706ec pinned_clean=true
+(上 4 行 = 各 record の acquisition_receipt.ccbench.head_sha と pinned_clean、順は 9b49 / cb98 / 449d / b332)

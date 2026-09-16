@@ -1,0 +1,5 @@
+RAISED: [admission-preregistration] section 5 fixed table requires nonempty source cells and no reserved sentinel; types, meanings, and rendered non-emptiness are not checked
+---- 対象行の生値 ----
+'|実行責任者・開始時刻|実行責任者 = thawk105、開始時刻 = 未記入|'
+---- sentinel 正規表現の当たり ----
+match: ('未記入', (24, 27))

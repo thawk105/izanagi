@@ -1,0 +1,120 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 600,
+  "timeout_seconds": 1800,
+  "hang_timeout_seconds": 1800,
+  "mutations": [
+    {
+      "id": "m0-drift-control-comment-only",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "        # committed current closure may differ from the recorded closure.\n",
+          "new": "        # committed current closure may differ from the recorded closure (drift control).\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-scope-path-count-63-to-62",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "curated exact 63 path; source-import 推移閉包ではない; ",
+          "new": "curated exact 62 path; source-import 推移閉包ではない; "
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-scope-drop-non-transitive-clause",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "curated exact 63 path; source-import 推移閉包ではない; ",
+          "new": "curated exact 63 path; "
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-excluded-unenrolled-99-to-69",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "未収載 99 module",
+          "new": "未収載 69 module"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-excluded-drop-source-bytes-limitation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "\"(収載 path の source bytes は委譲先であっても本 map の内)、完全性を主張しない\"",
+          "new": "\"完全性を主張しない\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-excluded-drop-no-completeness-claim",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/artifact_admission.py",
+          "old": "本 map の内)、完全性を主張しない",
+          "new": "本 map の内)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-test-literal-162-to-161",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_artifact_admission.py",
+          "old": "162 module、うち収載 63",
+          "new": "161 module、うち収載 63"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-test-s1-literal-drop-outside-set-clause",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_s1_9pair_figure_provenance.py",
+          "old": "同発見集合に入らない module、",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

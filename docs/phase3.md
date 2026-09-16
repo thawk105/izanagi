@@ -548,6 +548,27 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
        (`output/env/pegasus/calibration/attempts/0_995806.nqsv/`) は却下のまま残している。
        非 silo の rr5 は未取得 (T-2224 の残件)。
        正本 = `output/insights/2026-09-16/t2515-rr5-calibration/README.md`。
+     - [x] [T-2634] D2044 項 12 に従い、非 silo の within-run floor (1 測定内の throughput の変動係数、
+       reps=10) の保留を、実測で示された 4 対 — tictoc / rr50・rr95、mocc / rr50・rr95 — の accepted
+       calibration に限って解除し、silo の rr95 / rr5 と同じ水準の公式記録として登録した。
+       4 件とも pegasus / threads 48 / `ycsb_zipf_skew=0.9` / `ycsb_rmw=0` / records 1,000,000 /
+       n=10 / `quality=accepted` / CCBench は取得時の `pin.CURRENT_PIN` (`pinned_clean=true`)。値は各 record の
+       `saturation.miss_rate_at` と `noise_floor.cv` から取った。
+       tictoc / rr50 = `output/env/pegasus/calibration/registered/calibration-9b49335d02ad4d2e.json`
+       (request `998860.nqsv`、bnode093、採用点 LLC miss 7.969%、within-run CV 2.2160%)、
+       tictoc / rr95 = 同 `calibration-cb98513996e5ae35.json`
+       (request `998863.nqsv`、bnode103、LLC miss 9.557%、CV 0.8336%)、
+       mocc / rr50 = 同 `calibration-449d0ad22f13e366.json`
+       (request `989271.nqsv`、bnode020、LLC miss 14.821%、CV 1.4348%)、
+       mocc / rr95 = 同 `calibration-b3329d93417c76ad.json`
+       (request `998864.nqsv`、bnode016、LLC miss 17.008%、CV 1.7204%)。
+       **較正が取れたことは性能比較でも床値本走の完了でもない。** 非 silo の rr5・cicada へは広げない。
+       この登録は文書上の解除であり、層 3 report の較正走査 (`calibration/` 直下と契約 pin だけ、D1508)・
+       環境契約の世代・活性化は変えていない。依頼が名指した between-run floor の実測
+       (`orchestrator/campaign/between_run_floor.py --protocol {tictoc,mocc}`) は本 wave では走らせていない —
+       tictoc は driver の baseline に無く、mocc は現行 pin の source に trace hook の証拠が無いため
+       D1373 の関門が build 前に拒否する (関門は維持)。再開の必要条件は本 wave の decisions 記録と
+       正本 = `output/insights/2026-09-16/t2634-nonsilo-floor-lift/README.md` §4 に書いた。
      - [x] 認定較正jobの3依存コピー並行化を1対比較し、効果帰属不能として候補を全撤回。
        186→182秒だが未変更工程に3秒差、コピー周辺は約1秒のまま。時間式再凍結は未完。
        記録 = `output/insights/2026-09-11/t2563-calibration-runtime/README.md`。
