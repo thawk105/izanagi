@@ -1,0 +1,52 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-e573817492)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2293-d2104-docs-addenda/output/pegasus-dispatch/orphan-holds/unknown-471010686f529299e665fede.json
+[Pegasus dispatch] request ID 3992.nqsv を受理しました
+[Pegasus dispatch] request 3992.nqsv の状態: QUE
+[Pegasus dispatch] request 3992.nqsv の状態: RUN
+[Pegasus dispatch] request 3992.nqsv の状態: END
+[Pegasus dispatch] request 3992.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2293-d2104-docs-addenda/output/pegasus-dispatch/orphan-holds/unknown-471010686f529299e665fede.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2293-d2104-docs-addenda/output/pegasus-dispatch/e5738174927949c07ad670bbdceb1504/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 3992.nqsv child stdout begin (size=8589 bytes, omitted_bytes=4493)
+| -A scans the repository checkout, so cost grows with tracked files. At parent tip 968fd25a60c49413c8b225d4f23481d9c57212e8, full acceptance deterministically exceeded the parent write-lock deadline and the focused rerun timed out after 180 seconds in git add -A; these exact five failures predate and are outside the causal T-1434 science-slice diff.","release_condition":"explicit-user-command-only","ruling":"2026-08-29 T-1434 user ruling: \u300c\u65e2\u5b58\u306e\u8d64\u306a\u3089known-violation\u4f7f\u3063\u3066\u554f\u984c\u306a\u3044\u3088\u306d\uff1f\u3042\u306a\u305f\u306e\u8d64\u306a\u3089\u3042\u306a\u305f\u304c\u76f4\u305b\u3070\u3044\u3044\u3088\u306d\uff1f\u300d; applies only to the exact five candidate-fixture nodes outside the causal T-1434 science-slice diff"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_s8c_preregistration_invariant.py::test_candidate_is_not_effective_and_has_zero_satisfied_predicates","reason":"Consumes the module-scoped real-repository candidate fixture. Its fresh-index git add -A scans the repository checkout, so cost grows with tracked files. At parent tip 968fd25a60c49413c8b225d4f23481d9c57212e8, full acceptance deterministically exceeded the parent write-lock deadline and the focused rerun timed out after 180 seconds in git add -A; these exact five failures predate and are outside the causal T-1434 science-slice diff.","release_condition":"explicit-user-command-only","ruling":"2026-08-29 T-1434 user ruling: \u300c\u65e2\u5b58\u306e\u8d64\u306a\u3089known-violation\u4f7f\u3063\u3066\u554f\u984c\u306a\u3044\u3088\u306d\uff1f\u3042\u306a\u305f\u306e\u8d64\u306a\u3089\u3042\u306a\u305f\u304c\u76f4\u305b\u3070\u3044\u3044\u3088\u306d\uff1f\u300d; applies only to the exact five candidate-fixture nodes outside the causal T-1434 science-slice diff"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_s8c_preregistration_invariant.py::test_repository_tip_binds_current_decider_version_without_activation","reason":"Consumes the module-scoped real-repository candidate fixture. Its fresh-index git add -A scans the repository checkout, so cost grows with tracked files. At parent tip 968fd25a60c49413c8b225d4f23481d9c57212e8, full acceptance deterministically exceeded the parent write-lock deadline and the focused rerun timed out after 180 seconds in git add -A; these exact five failures predate and are outside the causal T-1434 science-slice diff.","release_condition":"explicit-user-command-only","ruling":"2026-08-29 T-1434 user ruling: \u300c\u65e2\u5b58\u306e\u8d64\u306a\u3089known-violation\u4f7f\u3063\u3066\u554f\u984c\u306a\u3044\u3088\u306d\uff1f\u3042\u306a\u305f\u306e\u8d64\u306a\u3089\u3042\u306a\u305f\u304c\u76f4\u305b\u3070\u3044\u3044\u3088\u306d\uff1f\u300d; applies only to the exact five candidate-fixture nodes outside the causal T-1434 science-slice diff"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"tracked_files","node_id":"test_s8c_preregistration_invariant.py::test_wave_files_do_not_contaminate_production_holdout_scan","reason":"Consumes the module-scoped real-repository candidate fixture. Its fresh-index git add -A scans the repository checkout, so cost grows with tracked files. At parent tip 968fd25a60c49413c8b225d4f23481d9c57212e8, full acceptance deterministically exceeded the parent write-lock deadline and the focused rerun timed out after 180 seconds in git add -A; these exact five failures predate and are outside the causal T-1434 science-slice diff.","release_condition":"explicit-user-command-only","ruling":"2026-08-29 T-1434 user ruling: \u300c\u65e2\u5b58\u306e\u8d64\u306a\u3089known-violation\u4f7f\u3063\u3066\u554f\u984c\u306a\u3044\u3088\u306d\uff1f\u3042\u306a\u305f\u306e\u8d64\u306a\u3089\u3042\u306a\u305f\u304c\u76f4\u305b\u3070\u3044\u3044\u3088\u306d\uff1f\u300d; applies only to the exact five candidate-fixture nodes outside the causal T-1434 science-slice diff"}
+| 
+| 1245 passed, 8 skipped in 42.28s
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+[Pegasus dispatch] request 3992.nqsv child stdout end
+[Pegasus dispatch] request 3992.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 415530, "time_ns": 1789649784980763686}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 415551, "event": "direct-child-wait-start", "pid": 415537, "time_ns": 1789649785009030029}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 415551, "event": "direct-child-wait-complete", "pid": 415537, "time_ns": 1789649827839123576}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 415537, "rc": 0, "time_ns": 1789649827839211042}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 415530, "rc": 0, "time_ns": 1789649827843613632}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 415530, "time_ns": 1789649827846372802}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 415530, "time_ns": 1789649827886115328}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 415530, "time_ns": 1789649827887059238}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 415530, "time_ns": 1789649827887071008}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 415530, "time_ns": 1789649827889405105}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 415530, "time_ns": 1789649827889413040}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 415530, "rc": 0, "time_ns": 1789649827889422787}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 415530, "rc": 0, "time_ns": 1789649827889440229}
+| 
+| ============================================================
+| Request ID:             3992.nqsv
+| Request Name:           izdw-e573817492
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Thu Sep 17 21:56:16 2026
+| Started Request Time:   Thu Sep 17 21:56:24 2026
+| Ended Request Time:     Thu Sep 17 21:57:07 2026
+| Resources Information:
+|   Elapse:               48S
+|   Remaining Elapse:     3552S
+| ============================================================
+[Pegasus dispatch] request 3992.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+focus rc=0
