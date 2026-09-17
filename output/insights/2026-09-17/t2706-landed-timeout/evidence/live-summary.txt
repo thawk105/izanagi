@@ -1,0 +1,15 @@
+## control 5.0: n=30 完走=10 確定=0 timeout=20 wall min/med/max=2.2/18.3/49.9 sum=550s
+   20 indeterminate/assessment-timeout
+   10 indeterminate/one-or-more-states-unproven
+   truncated phase: {'none': 10, 'proof': 20}; observations truncated=0; ref_snapshot truncated=0
+   rc: {2: 30}
+   limits.timeout_seconds: {60.0}
+## new 45.0: n=30 完走=16 確定=3 timeout=14 wall min/med/max=7.9/57.5/60.2 sum=1307s
+   14 indeterminate/assessment-timeout
+   11 indeterminate/one-or-more-states-unproven
+    2 not-landed/closed-world-negative-proof
+    2 indeterminate/refs-moved
+    1 landed/all-introduced-states-proven
+   truncated phase: {'proof': 13, 'none': 16, 'ref_snapshot': 1}; observations truncated=0; ref_snapshot truncated=1
+   rc: {2: 27, 1: 2, 0: 1}
+   limits.timeout_seconds: {60.0}
