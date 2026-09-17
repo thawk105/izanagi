@@ -1,0 +1,191 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 8100,
+ "hang_timeout_seconds": 3000,
+ "mutations": [
+  {
+   "id": "M0-comment-only-cmake",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "patches/silo-backoff-fixed.patch",
+     "old": "+# izanagi: static backoff magnitude (us) to bypass Cicada's adaptive hill-climb.\n",
+     "new": "+# izanagi: static backoff magnitude (us) to bypass Cicada's adaptive hill-climb. T2630 comment-only.\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "M1-synthetic-branch-code-edit",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "patches/silo-backoff-fixed.patch",
+     "old": "@@ -91,9 +100,29 @@ public:\n",
+     "new": "@@ -91,9 +100,30 @@ public:\n"
+    },
+    {
+     "file": "patches/silo-backoff-fixed.patch",
+     "old": "+#else\n     double now_backoff",
+     "new": "+    now_backoff += 1.0;\n+#else\n     double now_backoff"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_variant_identity",
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_variant_owner_tu"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M2-include-line-added",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "patches/silo-backoff-fixed.patch",
+     "old": "@@ -11,6 +11,15 @@\n",
+     "new": "@@ -11,6 +11,16 @@\n"
+    },
+    {
+     "file": "patches/silo-backoff-fixed.patch",
+     "old": "@@ -91,9 +100,29 @@ public:\n",
+     "new": "@@ -91,9 +101,29 @@ public:\n"
+    },
+    {
+     "file": "patches/silo-backoff-fixed.patch",
+     "old": " #include \"util.hh\"\n \n",
+     "new": " #include \"util.hh\"\n \n+#include <cstdint>\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_stock_identity",
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_variant_identity",
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_stock_owner_tu",
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_variant_owner_tu"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3a-hole-leak-sleep-read-phase",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "patches/silo-backoff-fixed.patch",
+     "old": "@@ -91,9 +100,29 @@ public:\n",
+     "new": "@@ -91,9 +100,31 @@ public:\n"
+    },
+    {
+     "file": "patches/silo-backoff-fixed.patch",
+     "old": "+#if BACKOFF_FIXED >= 0\n",
+     "new": "+#if BACKOFF_FIXED >= 0\n+#undef SLEEP_READ_PHASE\n+#define SLEEP_READ_PHASE 1\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_variant_identity",
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_variant_owner_tu"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M3b-toplevel-leak-sleep-read-phase",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "patches/silo-backoff-fixed.patch",
+     "old": "@@ -11,6 +11,15 @@\n",
+     "new": "@@ -11,6 +11,17 @@\n"
+    },
+    {
+     "file": "patches/silo-backoff-fixed.patch",
+     "old": "@@ -91,9 +100,29 @@ public:\n",
+     "new": "@@ -91,9 +102,29 @@ public:\n"
+    },
+    {
+     "file": "patches/silo-backoff-fixed.patch",
+     "old": " #include \"util.hh\"\n \n",
+     "new": " #include \"util.hh\"\n \n+#undef SLEEP_READ_PHASE\n+#define SLEEP_READ_PHASE 1\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_stock_identity",
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_variant_identity",
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_stock_owner_tu",
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_variant_owner_tu"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4-transaction-sandwich-desired-expected",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "patches/silo-backoff-fixed.patch",
+     "old": "     // static_cast<uint64_t>(static_cast<double>(clocks_per_us) * now_backoff));\n",
+     "new": "     // static_cast<uint64_t>(static_cast<double>(clocks_per_us) * now_backoff));\ndiff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc\n--- a/cc/silo/transaction.cc\n+++ b/cc/silo/transaction.cc\n@@ -2,7 +2,9 @@\n #include <algorithm>\n #include <string>\n \n+#define desired expected\n #include \"include/atomic_tool.hh\"\n+#undef desired\n #include \"include/log.hh\"\n #include \"include/transaction.hh\"\n #include \"include/scan_callback.hh\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_stock_identity",
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_variant_identity",
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_stock_owner_tu",
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_variant_owner_tu"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M4b-transaction-sandwich-cas-relaxed",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "patches/silo-backoff-fixed.patch",
+     "old": "     // static_cast<uint64_t>(static_cast<double>(clocks_per_us) * now_backoff));\n",
+     "new": "     // static_cast<uint64_t>(static_cast<double>(clocks_per_us) * now_backoff));\ndiff --git a/cc/silo/transaction.cc b/cc/silo/transaction.cc\n--- a/cc/silo/transaction.cc\n+++ b/cc/silo/transaction.cc\n@@ -2,7 +2,9 @@\n #include <algorithm>\n #include <string>\n \n+#define __atomic_compare_exchange_n(p, e, d, w, s, f) __atomic_compare_exchange_n(p, e, d, w, __ATOMIC_RELAXED, __ATOMIC_RELAXED)\n #include \"include/atomic_tool.hh\"\n+#undef __atomic_compare_exchange_n\n #include \"include/log.hh\"\n #include \"include/transaction.hh\"\n #include \"include/scan_callback.hh\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_stock_identity",
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_variant_identity",
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_stock_owner_tu",
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_variant_owner_tu"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "M6-toplevel-leak-trace",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "patches/silo-backoff-fixed.patch",
+     "old": "@@ -11,6 +11,15 @@\n",
+     "new": "@@ -11,6 +11,17 @@\n"
+    },
+    {
+     "file": "patches/silo-backoff-fixed.patch",
+     "old": "@@ -91,9 +100,29 @@ public:\n",
+     "new": "@@ -91,9 +102,29 @@ public:\n"
+    },
+    {
+     "file": "patches/silo-backoff-fixed.patch",
+     "old": " #include \"util.hh\"\n \n",
+     "new": " #include \"util.hh\"\n \n+#undef TRACE\n+#define TRACE 1\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_stock_identity",
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_variant_identity",
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_stock_owner_tu",
+    "orchestrator/tests/test_t2630_scan_boundary_reach.py::test_variant_owner_tu"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
