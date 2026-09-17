@@ -1,0 +1,656 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/9c363564ace343139bf626df344fcbf7/izdw-9c363564ac.o4024",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/9c363564ace343139bf626df344fcbf7/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................                                       [100%]\n34 passed in 4.51s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "901e0215e4f6ebd3da7e69abf852556cb4df134c904adeeaaefac29478a56f8b"
+    },
+    "artifact_error": null,
+    "collection_sha256": "c5f293ca3da7c455e83f397776d3e3125c2b94d52c66874fac79cd25b14ae5e4",
+    "duration_s": 684.258,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "8aa514caa282236d0f9638088eed86e8c9e2815e79fef621b41ae6f2a1281fcb",
+    "repo_head": "5fa44cfb1a8b0af485d4201e630587e6bb6a0336",
+    "runner_sha256": "bdd3adfe8cb64fe7c4e49cd9526745c0bc86ad42fb0c010d534d94942e81fd0b",
+    "spec_sha256": "71865d78328634ed34322f65a87b8fcdaff76acc1c932ef60b9bd0eff519d24f",
+    "status": "PASSED",
+    "test_output_sha256": "901e0215e4f6ebd3da7e69abf852556cb4df134c904adeeaaefac29478a56f8b",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "57065c2831c5c6559c4d0d45b46a91caa6b8279c399d0b4b933a2a336b06fbb9"
+  },
+  "date": "2026-09-17T13:13:23.796503+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/29aac993c7b1b02255c39fa56caf77c1/izdw-29aac993c7.o4068",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/29aac993c7b1b02255c39fa56caf77c1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..................................                                       [100%]\n34 passed in 4.51s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "901e0215e4f6ebd3da7e69abf852556cb4df134c904adeeaaefac29478a56f8b"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "c5f293ca3da7c455e83f397776d3e3125c2b94d52c66874fac79cd25b14ae5e4",
+      "duration_s": 30.513,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M0-equivalent-trailing-comment",
+      "injection_diff_sha256": "a015732f60a884b83b3ce17acfe1d4fdcc64f77a56219cc8dddd1ee48324e564",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "6df0ba7382246551458f74f53290935f92c735e653fce564a0053a547787bea5",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/between_run_floor.py",
+          "new": "    \"tictoc\": Genome(\"tictoc\", {  # stock = CMake cache defaults\n",
+          "old": "    \"tictoc\": Genome(\"tictoc\", {\n"
+        }
+      ],
+      "repo_head": "5fa44cfb1a8b0af485d4201e630587e6bb6a0336",
+      "runner_sha256": "bdd3adfe8cb64fe7c4e49cd9526745c0bc86ad42fb0c010d534d94942e81fd0b",
+      "spec_sha256": "71865d78328634ed34322f65a87b8fcdaff76acc1c932ef60b9bd0eff519d24f",
+      "status": "SURVIVED",
+      "test_output_sha256": "901e0215e4f6ebd3da7e69abf852556cb4df134c904adeeaaefac29478a56f8b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "57065c2831c5c6559c4d0d45b46a91caa6b8279c399d0b4b933a2a336b06fbb9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/b758b890b58897ec47539458b4460ee8/izdw-b758b890b5.o4070",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/b758b890b58897ec47539458b4460ee8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................FFFFFF                                       [100%]\n=================================== FAILURES ===================================\n_______ test_t2760_baselines_are_points_of_their_registered_genome_space _______\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2760_baselines_are_points_of_their_registered_genome_space():\n>       assert set(between_run_floor.BASELINES) == {\"silo\", \"mocc\", \"tictoc\"}\nE       AssertionError: assert {'mocc', 'silo'} == {'mocc', 'silo', 'tictoc'}\nE         \nE         Extra items in the right set:\nE         'tictoc'\nE         Use -v to get more diff\n\norchestrator/tests/test_between_run_floor.py:882: AssertionError\n_ test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook __\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook():\n        calls = []\n        originals = {\n            \"tenant\": between_run_floor._assert_single_tenant,\n            \"context\": between_run_floor.build_run_context,\n            \"evidence\": between_run_floor.source_digest.resolve_evidence,\n            \"admission\": between_run_floor.derive_build_admission,\n            \"build\": between_run_floor.buildcache.build,\n            \"measure\": between_run_floor.measure_point_floor,\n            \"write\": between_run_floor._write_out,\n        }\n        between_run_floor._assert_single_tenant = lambda: calls.append(\"tenant\")\n        between_run_floor.build_run_context = lambda **_kwargs: object()\n        between_run_floor.source_digest.resolve_evidence = (\n            lambda *_args, **_kwargs: object()\n        )\n        between_run_floor.derive_build_admission = lambda *_args: object()\n        between_run_floor.buildcache.build = lambda *_args, **_kwargs: (\n            calls.append(\"build\") or SimpleNamespace(cached=True, binary=\"/fixture/tictoc\")\n        )\n        between_run_floor.measure_point_floor = lambda *_args, **_kwargs: (\n            calls.append(\"measure\") or {\n                \"abort_rate\": 0.0,\n                \"within_run\": {\"cv\": 0.01},\n                \"between_run\": {\"cv\": 0.02},\n            }\n        )\n        between_run_floor._write_out = lambda *_args, **_kwargs: calls.append(\"write\")\n        try:\n            try:\n                between_run_floor.main([\"prog\", \"read-heavy\", \"--protocol\", \"tictoc\"])\n            except ValueError as caught:\n                assert \"trace hook\" in str(caught)\n                assert \"'tictoc'\" in str(caught)\n            else:\n>               assert False, \"trace hook のない tictoc floor が受理された\"\nE               AssertionError: trace hook のない tictoc floor が受理された\nE               assert False\n\norchestrator/tests/test_between_run_floor.py:976: AssertionError\n----------------------------- Captured stderr call -----------------------------\nunknown protocol: 'tictoc' (選択肢: ['mocc', 'silo'])\nusage: prog [point] [--protocol PROTOCOL]\n______ test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main ______\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main():\n        calls = {\"build\": [], \"measure\": [], \"write\": []}\n        originals = {\n            \"root\": between_run_floor.CCBENCH_ROOT,\n            \"tenant\": between_run_floor._assert_single_tenant,\n            \"context\": between_run_floor.build_run_context,\n            \"evidence\": between_run_floor.source_digest.resolve_evidence,\n            \"admission\": between_run_floor.derive_build_admission,\n            \"build\": between_run_floor.buildcache.build,\n            \"measure\": between_run_floor.measure_point_floor,\n            \"write\": between_run_floor._write_out,\n        }\n        with tempfile.TemporaryDirectory() as raw_tmp:\n            root = Path(raw_tmp)\n            protocol_dir = root / \"cc\" / \"tictoc\"\n            protocol_dir.mkdir(parents=True)\n            (protocol_dir / \"CMakeLists.txt\").write_text(\n                \"ccbench_add_protocol(tictoc SOURCES transaction.cc WORKLOADS ycsb)\\n\",\n                encoding=\"utf-8\",\n            )\n            (protocol_dir / \"transaction.cc\").write_text(\n                '#include \"../../include/trace.hh\"\\n'\n                \"#if TRACE\\n\"\n                \"izanagi_trace::emit_abort(1);\\n\"\n                \"#endif\\n\",\n                encoding=\"utf-8\",\n            )\n            between_run_floor.CCBENCH_ROOT = root\n            between_run_floor._assert_single_tenant = lambda: None\n            between_run_floor.build_run_context = lambda **_kwargs: object()\n            between_run_floor.source_digest.resolve_evidence = (\n                lambda *_args, **_kwargs: object()\n            )\n            between_run_floor.derive_build_admission = lambda *_args: object()\n    \n            def fake_build(candidate, **_kwargs):\n                calls[\"build\"].append(candidate)\n                return SimpleNamespace(cached=True, binary=\"/fixture/tictoc\")\n    \n            def fake_measure(_binary, _workload, *, baseline, **_kwargs):\n                calls[\"measure\"].append(baseline)\n                return {\n                    \"abort_rate\": 0.0,\n                    \"within_run\": {\"cv\": 0.01},\n                    \"between_run\": {\"cv\": 0.02},\n                }\n    \n            between_run_floor.buildcache.build = fake_build\n            between_run_floor.measure_point_floor = fake_measure\n            between_run_floor._write_out = (\n                lambda *_args, **kwargs: calls[\"write\"].append(kwargs[\"protocol\"])\n            )\n            try:\n>               assert between_run_floor.main(\n                    [\"prog\", \"read-heavy\", \"--protocol\", \"tictoc\"]\n                ) == 0\nE               AssertionError: assert 2 == 0\nE                +  where 2 = <function main at 0x15156072f250>(['prog', 'read-heavy', '--protocol', 'tictoc'])\nE                +    where <function main at 0x15156072f250> = between_run_floor.main\n\norchestrator/tests/test_between_run_floor.py:1041: AssertionError\n----------------------------- Captured stderr call -----------------------------\nunknown protocol: 'tictoc' (選択肢: ['mocc', 'silo'])\nusage: prog [point] [--protocol PROTOCOL]\n____ test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin ____\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin():\n        text = (between_run_floor.CCBENCH_ROOT / \"cmake\" / \"Options.cmake\").read_text(\n            encoding=\"utf-8\",\n        )\n>       flags = between_run_floor.BASELINES[\"tictoc\"].flags\nE       KeyError: 'tictoc'\n\norchestrator/tests/test_between_run_floor.py:892: KeyError\n________ test_t2760_protocol_output_stem_names_tictoc_without_colliding ________\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2760_protocol_output_stem_names_tictoc_without_colliding():\n        workload = {\n            \"ycsb_zipf_skew\": \"0.9\", \"ycsb_rratio\": \"95\", \"ycsb_rmw\": \"0\",\n        }\n        originals = {\"scope_dir\": between_run_floor.env_scope_dir}\n        with tempfile.TemporaryDirectory() as raw_tmp:\n            between_run_floor.env_scope_dir = lambda _env_tag: raw_tmp\n            try:\n                paths = {}\n                for protocol in (\"silo\", \"mocc\", \"tictoc\"):\n                    paths[protocol] = Path(between_run_floor._write_out(\n                        \"read-heavy\", workload, {\n                            **_floor_result(),\n>                           \"genome\": between_run_floor.BASELINES[protocol].canonical(),\n                        }, protocol=protocol, log=lambda *_args: None,\n                    ))\nE                   KeyError: 'tictoc'\n\norchestrator/tests/test_between_run_floor.py:929: KeyError\n__ test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol __\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol():\n>       assert between_run_floor._parse_cli_args(\n            [\"prog\", \"--protocol\", \"tictoc\"]\n        ) == (None, \"tictoc\")\n\norchestrator/tests/test_between_run_floor.py:901: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargv = ['prog', '--protocol', 'tictoc']\n\n    def _parse_cli_args(argv) -> tuple[str | None, str]:\n        sel = None\n        protocol = \"silo\"\n        protocol_seen = False\n        args = list(argv[1:])\n        index = 0\n        while index < len(args):\n            arg = args[index]\n            if arg == \"--protocol\":\n                if protocol_seen or index + 1 >= len(args):\n                    raise ValueError(\"--protocol は値付きで 1 回だけ指定する\")\n                protocol = args[index + 1]\n                protocol_seen = True\n                index += 2\n                continue\n            if arg.startswith(\"--protocol=\"):\n                if protocol_seen:\n                    raise ValueError(\"--protocol は 1 回だけ指定する\")\n                protocol = arg.split(\"=\", 1)[1]\n                protocol_seen = True\n                index += 1\n                continue\n            if arg.startswith(\"-\") or sel is not None:\n                raise ValueError(\"引数が不正\")\n            sel = arg\n            index += 1\n        if protocol not in BASELINES:\n>           raise ValueError(\n                f\"unknown protocol: {protocol!r} (選択肢: {sorted(BASELINES)})\"\n            )\nE           ValueError: unknown protocol: 'tictoc' (選択肢: ['mocc', 'silo'])\n\norchestrator/campaign/between_run_floor.py:292: ValueError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_between_run_floor.py::test_t2760_baselines_are_points_of_their_registered_genome_space\nFAILED orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook\nFAILED orchestrator/tests/test_between_run_floor.py::test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main\nFAILED orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin\nFAILED orchestrator/tests/test_between_run_floor.py::test_t2760_protocol_output_stem_names_tictoc_without_colliding\nFAILED orchestrator/tests/test_between_run_floor.py::test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol\n6 failed, 28 passed in 4.58s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_between_run_floor.py::test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=2977 retained_bytes=2977 omitted_bytes=0 rendered_excerpt_bytes=3119 sha256=40e16e1f451b91484d69089d67fca822f0dba1e537646d9807183f2e9313ee68\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main():\n>         calls = {\"build\": [], \"measure\": [], \"write\": []}\n>         originals = {\n>             \"root\": between_run_floor.CCBENCH_ROOT,\n>             \"tenant\": between_run_floor._assert_single_tenant,\n>             \"context\": between_run_floor.build_run_context,\n>             \"evidence\": between_run_floor.source_digest.resolve_evidence,\n>             \"admission\": between_run_floor.derive_build_admission,\n>             \"build\": between_run_floor.buildcache.build,\n>             \"measure\": between_run_floor.measure_point_floor,\n>             \"write\": between_run_floor._write_out,\n>         }\n>         with tempfile.TemporaryDirectory() as raw_tmp:\n>             root = Path(raw_tmp)\n>             protocol_dir = root / \"cc\" / \"tictoc\"\n>             protocol_dir.mkdir(parents=True)\n>             (protocol_dir / \"CMakeLists.txt\").write_text(\n>                 \"ccbench_add_protocol(tictoc SOURCES transaction.cc WORKLOADS ycsb)\\x5cn\",\n>                 encoding=\"utf-8\",\n>             )\n>             (protocol_dir / \"transaction.cc\").write_text(\n>                 '#include \"../../include/trace.hh\"\\x5cn'\n>                 \"#if TRACE\\x5cn\"\n>                 \"izanagi_trace::emit_abort(1);\\x5cn\"\n>                 \"#endif\\x5cn\",\n>                 encoding=\"utf-8\",\n>             )\n>             between_run_floor.CCBENCH_ROOT = root\n>             between_run_floor._assert_single_tenant = lambda: None\n>             between_run_floor.build_run_context = lambda **_kwargs: object()\n>             between_run_floor.source_digest.resolve_evidence = (\n>                 lambda *_args, **_kwargs: object()\n>             )\n>             between_run_floor.derive_build_admission = lambda *_args: object()\n>     \n>             def fake_build(candidate, **_kwargs):\n>                 calls[\"build\"].append(candidate)\n>                 return SimpleNamespace(cached=True, binary=\"/fixture/tictoc\")\n>     \n>             def fake_measure(_binary, _workload, *, baseline, **_kwargs):\n>                 calls[\"measure\"].append(baseline)\n>                 return {\n>                     \"abort_rate\": 0.0,\n>                     \"within_run\": {\"cv\": 0.01},\n>                     \"between_run\": {\"cv\": 0.02},\n>                 }\n>     \n>             between_run_floor.buildcache.build = fake_build\n>             between_run_floor.measure_point_floor = fake_measure\n>             between_run_floor._write_out = (\n>                 lambda *_args, **kwargs: calls[\"write\"].append(kwargs[\"protocol\"])\n>             )\n>             try:\n> >               assert between_run_floor.main(\n>                     [\"prog\", \"read-heavy\", \"--protocol\", \"tictoc\"]\n>                 ) == 0\n> E               AssertionError: assert 2 == 0\n> E                +  where 2 = <function main at 0x15156072f250>(['prog', 'read-heavy', '--protocol', 'tictoc'])\n> E                +    where <function main at 0x15156072f250> = between_run_floor.main\n> \n> orchestrator/tests/test_between_run_floor.py:1041: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=2034 retained_bytes=2034 omitted_bytes=0 rendered_excerpt_bytes=2173 sha256=8001fa21f02cd2fa35cad2312ae4c2450a5f9aabcd11dc899ed9c48da9f42453\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook():\n>         calls = []\n>         originals = {\n>             \"tenant\": between_run_floor._assert_single_tenant,\n>             \"context\": between_run_floor.build_run_context,\n>             \"evidence\": between_run_floor.source_digest.resolve_evidence,\n>             \"admission\": between_run_floor.derive_build_admission,\n>             \"build\": between_run_floor.buildcache.build,\n>             \"measure\": between_run_floor.measure_point_floor,\n>             \"write\": between_run_floor._write_out,\n>         }\n>         between_run_floor._assert_single_tenant = lambda: calls.append(\"tenant\")\n>         between_run_floor.build_run_context = lambda **_kwargs: object()\n>         between_run_floor.source_digest.resolve_evidence = (\n>             lambda *_args, **_kwargs: object()\n>         )\n>         between_run_floor.derive_build_admission = lambda *_args: object()\n>         between_run_floor.buildcache.build = lambda *_args, **_kwargs: (\n>             calls.append(\"build\") or SimpleNamespace(cached=True, binary=\"/fixture/tictoc\")\n>         )\n>         between_run_floor.measure_point_floor = lambda *_args, **_kwargs: (\n>             calls.append(\"measure\") or {\n>                 \"abort_rate\": 0.0,\n>                 \"within_run\": {\"cv\": 0.01},\n>                 \"between_run\": {\"cv\": 0.02},\n>             }\n>         )\n>         between_run_floor._write_out = lambda *_args, **_kwargs: calls.append(\"write\")\n>         try:\n>             try:\n>                 between_run_floor.main([\"prog\", \"read-heavy\", \"--protocol\", \"tictoc\"])\n>             except ValueError as caught:\n>                 assert \"trace hook\" in str(caught)\n>                 assert \"'tictoc'\" in str(caught)\n>             else:\n> >               assert False, \"trace hook \\u306e\\u306a\\u3044 tictoc floor \\u304c\\u53d7\\u7406\\u3055\\u308c\\u305f\"\n> E               AssertionError: trace hook \\u306e\\u306a\\u3044 tictoc floor \\u304c\\u53d7\\u7406\\u3055\\u308c\\u305f\n> E               assert False\n> \n> orchestrator/tests/test_between_run_floor.py:976: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_between_run_floor.py::test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=1749 retained_bytes=1749 omitted_bytes=0 rendered_excerpt_bytes=1933 sha256=48a0172963c0ad1d6c70a007b8daf95a26d83674c9432af9e70ee89f8ee5c4d6\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol():\n> >       assert between_run_floor._parse_cli_args(\n>             [\"prog\", \"--protocol\", \"tictoc\"]\n>         ) == (None, \"tictoc\")\n> \n> orchestrator/tests/test_between_run_floor.py:901: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> argv = ['prog', '--protocol', 'tictoc']\n> \n>     def _parse_cli_args(argv) -> tuple[str | None, str]:\n>         sel = None\n>         protocol = \"silo\"\n>         protocol_seen = False\n>         args = list(argv[1:])\n>         index = 0\n>         while index < len(args):\n>             arg = args[index]\n>             if arg == \"--protocol\":\n>                 if protocol_seen or index + 1 >= len(args):\n>                     raise ValueError(\"--protocol \\u306f\\u5024\\u4ed8\\u304d\\u3067 1 \\u56de\\u3060\\u3051\\u6307\\u5b9a\\u3059\\u308b\")\n>                 protocol = args[index + 1]\n>                 protocol_seen = True\n>                 index += 2\n>                 continue\n>             if arg.startswith(\"--protocol=\"):\n>                 if protocol_seen:\n>                     raise ValueError(\"--protocol \\u306f 1 \\u56de\\u3060\\u3051\\u6307\\u5b9a\\u3059\\u308b\")\n>                 protocol = arg.split(\"=\", 1)[1]\n>                 protocol_seen = True\n>                 index += 1\n>                 continue\n>             if arg.startswith(\"-\") or sel is not None:\n>                 raise ValueError(\"\\u5f15\\u6570\\u304c\\u4e0d\\u6b63\")\n>             sel = arg\n>             index += 1\n>         if protocol not in BASELINES:\n> >           raise ValueError(\n>                 f\"unknown protocol: {protocol!r} (\\u9078\\u629e\\u80a2: {sorted(BASELINES)})\"\n>             )\n> E           ValueError: unknown protocol: 'tictoc' (\\u9078\\u629e\\u80a2: ['mocc', 'silo'])\n> \n> orchestrator/campaign/between_run_floor.py:292: ValueError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_between_run_floor.py::test_t2760_protocol_output_stem_names_tictoc_without_colliding\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=976 retained_bytes=976 omitted_bytes=0 rendered_excerpt_bytes=1019 sha256=ebc2823e580ed5eb71e953a15177cb4d3fe54b52bf7478c19396f40ac79d48a8\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_t2760_protocol_output_stem_names_tictoc_without_colliding():\n>         workload = {\n>             \"ycsb_zipf_skew\": \"0.9\", \"ycsb_rratio\": \"95\", \"ycsb_rmw\": \"0\",\n>         }\n>         originals = {\"scope_dir\": between_run_floor.env_scope_dir}\n>         with tempfile.TemporaryDirectory() as raw_tmp:\n>             between_run_floor.env_scope_dir = lambda _env_tag: raw_tmp\n>             try:\n>                 paths = {}\n>                 for protocol in (\"silo\", \"mocc\", \"tictoc\"):\n>                     paths[protocol] = Path(between_run_floor._write_out(\n>                         \"read-heavy\", workload, {\n>                             **_floor_result(),\n> >                           \"genome\": between_run_floor.BASELINES[protocol].canonical(),\n>                         }, protocol=protocol, log=lambda *_args: None,\n>                     ))\n> E                   KeyError: 'tictoc'\n> \n> orchestrator/tests/test_between_run_floor.py:929: KeyError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_between_run_floor.py::test_t2760_baselines_are_points_of_their_registered_genome_space\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=449 retained_bytes=449 omitted_bytes=0 rendered_excerpt_bytes=472 sha256=bbb17899add09c7dac4f5ed5fe91a8f454fdf0dae08658ea501cd5dad1ae3187\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_t2760_baselines_are_points_of_their_registered_genome_space():\n> >       assert set(between_run_floor.BASELINES) == {\"silo\", \"mocc\", \"tictoc\"}\n> E       AssertionError: assert {'mocc', 'silo'} == {'mocc', 'silo', 'tictoc'}\n> E         \n> E         Extra items in the right set:\n> E         'tictoc'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_between_run_floor.py:882: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=403 retained_bytes=403 omitted_bytes=0 rendered_excerpt_bytes=424 sha256=8fd1bd6ec607a1e03059b8a9dc848a2e4e0ddb13001d69ccb31ba4c778dea798\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin():\n>         text = (between_run_floor.CCBENCH_ROOT / \"cmake\" / \"Options.cmake\").read_text(\n>             encoding=\"utf-8\",\n>         )\n> >       flags = between_run_floor.BASELINES[\"tictoc\"].flags\n> E       KeyError: 'tictoc'\n> \n> orchestrator/tests/test_between_run_floor.py:892: KeyError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=6 failed=6 errors=0 selected=6 omitted_failures=0 source_bytes=8588 retained_bytes=8588 omitted_bytes=0 budget_bytes=49152 rendered_bytes=12153 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b8b9e1aeca21786a797a25c041c8ee3cf10af8e8943bb5cd3ed44150ddaf3bdd"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c5f293ca3da7c455e83f397776d3e3125c2b94d52c66874fac79cd25b14ae5e4",
+      "duration_s": 28.431,
+      "expected_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_baselines_are_points_of_their_registered_genome_space",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_protocol_output_stem_names_tictoc_without_colliding",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_baselines_are_points_of_their_registered_genome_space",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_protocol_output_stem_names_tictoc_without_colliding",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol"
+      ],
+      "hang_risk": false,
+      "id": "M1-drop-tictoc-entry",
+      "injection_diff_sha256": "9dc810d6bae5ae965c8ea9e409a8662c795096efb538bcb6f25947c28d560842",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "869a7c2e365d2e023e0f269bf4d3e71f7806ddc7b8ca3810cecb60abc96e60e9",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/between_run_floor.py",
+          "new": "    # (tictoc entry removed by mutation M1)\n",
+          "old": "    \"tictoc\": Genome(\"tictoc\", {\n        \"BACK_OFF\": 1,\n        \"NO_WAIT_LOCKING_IN_VALIDATION\": 1,\n        \"NO_WAIT_OF_TICTOC\": 0,\n        \"PREEMPTIVE_ABORTS\": 1,\n        \"TIMESTAMP_HISTORY\": 1,\n    }),\n"
+        }
+      ],
+      "repo_head": "5fa44cfb1a8b0af485d4201e630587e6bb6a0336",
+      "runner_sha256": "bdd3adfe8cb64fe7c4e49cd9526745c0bc86ad42fb0c010d534d94942e81fd0b",
+      "spec_sha256": "71865d78328634ed34322f65a87b8fcdaff76acc1c932ef60b9bd0eff519d24f",
+      "status": "KILLED",
+      "test_output_sha256": "b8b9e1aeca21786a797a25c041c8ee3cf10af8e8943bb5cd3ed44150ddaf3bdd",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "57065c2831c5c6559c4d0d45b46a91caa6b8279c399d0b4b933a2a336b06fbb9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/fd7009f5c78071382041d86876defa8e/izdw-fd7009f5c7.o4075",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/fd7009f5c78071382041d86876defa8e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................F                                       [100%]\n=================================== FAILURES ===================================\n____ test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin ____\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin():\n        text = (between_run_floor.CCBENCH_ROOT / \"cmake\" / \"Options.cmake\").read_text(\n            encoding=\"utf-8\",\n        )\n        flags = between_run_floor.BASELINES[\"tictoc\"].flags\n        assert len(flags) == 5\n        for axis in flags:\n            match = re.search(rf\"^\\s*set\\(CCBENCH_{axis}\\s+(\\d+)\\s+CACHE\\b\", text, re.MULTILINE)\n            assert match is not None, axis\n>           assert int(match.group(1)) == flags[axis], axis\nE           AssertionError: BACK_OFF\nE           assert 1 == 0\nE            +  where 1 = int('1')\nE            +    where '1' = <built-in method group of re.Match object at 0x147bd99fb6d0>(1)\nE            +      where <built-in method group of re.Match object at 0x147bd99fb6d0> = <re.Match object; span=(1008, 1041), match='set(CCBENCH_BACK_OFF      1 CACHE'>.group\n\norchestrator/tests/test_between_run_floor.py:897: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin\n1 failed, 33 passed in 4.45s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1007 retained_bytes=1007 omitted_bytes=0 rendered_excerpt_bytes=1064 sha256=506ead38adafade7b45f0751769e6f0cb5cdbf3af9138a8e32543d590772b36e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin():\n>         text = (between_run_floor.CCBENCH_ROOT / \"cmake\" / \"Options.cmake\").read_text(\n>             encoding=\"utf-8\",\n>         )\n>         flags = between_run_floor.BASELINES[\"tictoc\"].flags\n>         assert len(flags) == 5\n>         for axis in flags:\n>             match = re.search(rf\"^\\x5cs*set\\x5c(CCBENCH_{axis}\\x5cs+(\\x5cd+)\\x5cs+CACHE\\x5cb\", text, re.MULTILINE)\n>             assert match is not None, axis\n> >           assert int(match.group(1)) == flags[axis], axis\n> E           AssertionError: BACK_OFF\n> E           assert 1 == 0\n> E            +  where 1 = int('1')\n> E            +    where '1' = <built-in method group of re.Match object at 0x147bd99fb6d0>(1)\n> E            +      where <built-in method group of re.Match object at 0x147bd99fb6d0> = <re.Match object; span=(1008, 1041), match='set(CCBENCH_BACK_OFF      1 CACHE'>.group\n> \n> orchestrator/tests/test_between_run_floor.py:897: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1007 retained_bytes=1007 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1808 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bf83428c04d97258b5d377d9115ebe1047217f5fea6502f9e9e26190098d873a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c5f293ca3da7c455e83f397776d3e3125c2b94d52c66874fac79cd25b14ae5e4",
+      "duration_s": 27.634,
+      "expected_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin"
+      ],
+      "hang_risk": false,
+      "id": "M2-tictoc-backoff-zero",
+      "injection_diff_sha256": "f1613405abf3ee7c135cb5e82dccab5282864776a615b1b6b80ba9e99aa01f99",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "bf2e65437ee914750f62cb3a496ea36ac9d5b99c8f20b75a78f53278e0508e15",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/between_run_floor.py",
+          "new": "        \"BACK_OFF\": 0,\n        \"NO_WAIT_LOCKING_IN_VALIDATION\": 1,\n        \"NO_WAIT_OF_TICTOC\": 0,\n        \"PREEMPTIVE_ABORTS\": 1,\n",
+          "old": "        \"BACK_OFF\": 1,\n        \"NO_WAIT_LOCKING_IN_VALIDATION\": 1,\n        \"NO_WAIT_OF_TICTOC\": 0,\n        \"PREEMPTIVE_ABORTS\": 1,\n"
+        }
+      ],
+      "repo_head": "5fa44cfb1a8b0af485d4201e630587e6bb6a0336",
+      "runner_sha256": "bdd3adfe8cb64fe7c4e49cd9526745c0bc86ad42fb0c010d534d94942e81fd0b",
+      "spec_sha256": "71865d78328634ed34322f65a87b8fcdaff76acc1c932ef60b9bd0eff519d24f",
+      "status": "KILLED",
+      "test_output_sha256": "bf83428c04d97258b5d377d9115ebe1047217f5fea6502f9e9e26190098d873a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "57065c2831c5c6559c4d0d45b46a91caa6b8279c399d0b4b933a2a336b06fbb9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/8bfacf0f11a37e469f4b64a4b84313d6/izdw-8bfacf0f11.o4077",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/8bfacf0f11a37e469f4b64a4b84313d6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................FF                                       [100%]\n=================================== FAILURES ===================================\n_______ test_t2760_baselines_are_points_of_their_registered_genome_space _______\n[gw28] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2760_baselines_are_points_of_their_registered_genome_space():\n        assert set(between_run_floor.BASELINES) == {\"silo\", \"mocc\", \"tictoc\"}\n        for protocol, baseline in between_run_floor.BASELINES.items():\n            assert baseline.protocol == protocol\n>           assert baseline in space_for(protocol).enumerate()\nE           AssertionError: assert Genome(protocol='tictoc', flags={'BACK_OFF': 1, 'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 1, 'PREEMPTIVE_ABORTS': 1, 'TIMESTAMP_HISTORY': 1}) in [Genome(protocol='tictoc', flags={'BACK_OFF': 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 0, 'NO_WAIT_OF_TICTOC': 0, 'PREEMPTI...: 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 0, 'NO_WAIT_OF_TICTOC': 1, 'PREEMPTIVE_ABORTS': 0, 'TIMESTAMP_HISTORY': 1}), ...]\nE            +  where [Genome(protocol='tictoc', flags={'BACK_OFF': 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 0, 'NO_WAIT_OF_TICTOC': 0, 'PREEMPTI...: 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 0, 'NO_WAIT_OF_TICTOC': 1, 'PREEMPTIVE_ABORTS': 0, 'TIMESTAMP_HISTORY': 1}), ...] = enumerate()\nE            +    where enumerate = GenomeSpace(protocol='tictoc', axes={'BACK_OFF': [0, 1], 'NO_WAIT_LOCKING_IN_VALIDATION': [0, 1], 'NO_WAIT_OF_TICTOC':...の完走性・公平性・starvation は tictoc では未実測であり、24 通りは YCSB workload での静的導出であって実測ではない。OPTIONS に bare define はなく、導出不能として残す候補もない。').enumerate\nE            +      where GenomeSpace(protocol='tictoc', axes={'BACK_OFF': [0, 1], 'NO_WAIT_LOCKING_IN_VALIDATION': [0, 1], 'NO_WAIT_OF_TICTOC':...の完走性・公平性・starvation は tictoc では未実測であり、24 通りは YCSB workload での静的導出であって実測ではない。OPTIONS に bare define はなく、導出不能として残す候補もない。') = space_for('tictoc')\n\norchestrator/tests/test_between_run_floor.py:885: AssertionError\n____ test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin ____\n[gw29] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin():\n        text = (between_run_floor.CCBENCH_ROOT / \"cmake\" / \"Options.cmake\").read_text(\n            encoding=\"utf-8\",\n        )\n        flags = between_run_floor.BASELINES[\"tictoc\"].flags\n        assert len(flags) == 5\n        for axis in flags:\n            match = re.search(rf\"^\\s*set\\(CCBENCH_{axis}\\s+(\\d+)\\s+CACHE\\b\", text, re.MULTILINE)\n            assert match is not None, axis\n>           assert int(match.group(1)) == flags[axis], axis\nE           AssertionError: NO_WAIT_OF_TICTOC\nE           assert 0 == 1\nE            +  where 0 = int('0')\nE            +    where '0' = <built-in method group of re.Match object at 0x14a78d2cb6d0>(1)\nE            +      where <built-in method group of re.Match object at 0x14a78d2cb6d0> = <re.Match object; span=(1468, 1518), match='set(CCBENCH_NO_WAIT_OF_TICTOC              0 CACH>.group\n\norchestrator/tests/test_between_run_floor.py:897: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_between_run_floor.py::test_t2760_baselines_are_points_of_their_registered_genome_space\nFAILED orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin\n2 failed, 32 passed in 4.65s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_between_run_floor.py::test_t2760_baselines_are_points_of_their_registered_genome_space\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=1975 retained_bytes=1975 omitted_bytes=0 rendered_excerpt_bytes=2356 sha256=c0eaef336d049ea5cb683a7126115c89da04d84f6126881460c914eddbd4028f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw28] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_t2760_baselines_are_points_of_their_registered_genome_space():\n>         assert set(between_run_floor.BASELINES) == {\"silo\", \"mocc\", \"tictoc\"}\n>         for protocol, baseline in between_run_floor.BASELINES.items():\n>             assert baseline.protocol == protocol\n> >           assert baseline in space_for(protocol).enumerate()\n> E           AssertionError: assert Genome(protocol='tictoc', flags={'BACK_OFF': 1, 'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 1, 'PREEMPTIVE_ABORTS': 1, 'TIMESTAMP_HISTORY': 1}) in [Genome(protocol='tictoc', flags={'BACK_OFF': 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 0, 'NO_WAIT_OF_TICTOC': 0, 'PREEMPTI...: 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 0, 'NO_WAIT_OF_TICTOC': 1, 'PREEMPTIVE_ABORTS': 0, 'TIMESTAMP_HISTORY': 1}), ...]\n> E            +  where [Genome(protocol='tictoc', flags={'BACK_OFF': 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 0, 'NO_WAIT_OF_TICTOC': 0, 'PREEMPTI...: 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 0, 'NO_WAIT_OF_TICTOC': 1, 'PREEMPTIVE_ABORTS': 0, 'TIMESTAMP_HISTORY': 1}), ...] = enumerate()\n> E            +    where enumerate = GenomeSpace(protocol='tictoc', axes={'BACK_OFF': [0, 1], 'NO_WAIT_LOCKING_IN_VALIDATION': [0, 1], 'NO_WAIT_OF_TICTOC':...\\u306e\\u5b8c\\u8d70\\u6027\\u30fb\\u516c\\u5e73\\u6027\\u30fbstarvation \\u306f tictoc \\u3067\\u306f\\u672a\\u5b9f\\u6e2c\\u3067\\u3042\\u308a\\u300124 \\u901a\\u308a\\u306f YCSB workload \\u3067\\u306e\\u9759\\u7684\\u5c0e\\u51fa\\u3067\\u3042\\u3063\\u3066\\u5b9f\\u6e2c\\u3067\\u306f\\u306a\\u3044\\u3002OPTIONS \\u306b bare define \\u306f\\u306a\\u304f\\u3001\\u5c0e\\u51fa\\u4e0d\\u80fd\\u3068\\u3057\\u3066\\u6b8b\\u3059\\u5019\\u88dc\\u3082\\u306a\\u3044\\u3002').enumerate\n> E            +      where GenomeSpace(protocol='tictoc', axes={'BACK_OFF': [0, 1], 'NO_WAIT_LOCKING_IN_VALIDATION': [0, 1], 'NO_WAIT_OF_TICTOC':...\\u306e\\u5b8c\\u8d70\\u6027\\u30fb\\u516c\\u5e73\\u6027\\u30fbstarvation \\u306f tictoc \\u3067\\u306f\\u672a\\u5b9f\\u6e2c\\u3067\\u3042\\u308a\\u300124 \\u901a\\u308a\\u306f YCSB workload \\u3067\\u306e\\u9759\\u7684\\u5c0e\\u51fa\\u3067\\u3042\\u3063\\u3066\\u5b9f\\u6e2c\\u3067\\u306f\\u306a\\u3044\\u3002OPTIONS \\u306b bare define \\u306f\\u306a\\u304f\\u3001\\u5c0e\\u51fa\\u4e0d\\u80fd\\u3068\\u3057\\u3066\\u6b8b\\u3059\\u5019\\u88dc\\u3082\\u306a\\u3044\\u3002') = space_for('tictoc')\n> \n> orchestrator/tests/test_between_run_floor.py:885: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin\" nodeid_bytes=116 nodeid_omitted_bytes=0 source_bytes=1031 retained_bytes=1031 omitted_bytes=0 rendered_excerpt_bytes=1088 sha256=82b33810f3aa81e24e8c1f855fc980d5d1d0dc7b2e615a9ac5b9db9b74448169\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw29] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin():\n>         text = (between_run_floor.CCBENCH_ROOT / \"cmake\" / \"Options.cmake\").read_text(\n>             encoding=\"utf-8\",\n>         )\n>         flags = between_run_floor.BASELINES[\"tictoc\"].flags\n>         assert len(flags) == 5\n>         for axis in flags:\n>             match = re.search(rf\"^\\x5cs*set\\x5c(CCBENCH_{axis}\\x5cs+(\\x5cd+)\\x5cs+CACHE\\x5cb\", text, re.MULTILINE)\n>             assert match is not None, axis\n> >           assert int(match.group(1)) == flags[axis], axis\n> E           AssertionError: NO_WAIT_OF_TICTOC\n> E           assert 0 == 1\n> E            +  where 0 = int('0')\n> E            +    where '0' = <built-in method group of re.Match object at 0x14a78d2cb6d0>(1)\n> E            +      where <built-in method group of re.Match object at 0x14a78d2cb6d0> = <re.Match object; span=(1468, 1518), match='set(CCBENCH_NO_WAIT_OF_TICTOC              0 CACH>.group\n> \n> orchestrator/tests/test_between_run_floor.py:897: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3006 retained_bytes=3006 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4639 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "cc66842af07af18362ea9d9eaa6fe374e476e7b3b1e9568a4cdd908c92728852"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c5f293ca3da7c455e83f397776d3e3125c2b94d52c66874fac79cd25b14ae5e4",
+      "duration_s": 28.454,
+      "expected_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_baselines_are_points_of_their_registered_genome_space",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_baselines_are_points_of_their_registered_genome_space",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin"
+      ],
+      "hang_risk": false,
+      "id": "M3-tictoc-nowait-both-one",
+      "injection_diff_sha256": "0804b280236e65498b26651c0112dd01e8ba59586db2b3e3a5d9cb2ac09703a6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "98ee6cccd2b5ac369d3da7e7b8460cf13df489c400840167f83bb1bd5f9d9bd4",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/between_run_floor.py",
+          "new": "        \"NO_WAIT_OF_TICTOC\": 1,\n        \"PREEMPTIVE_ABORTS\": 1,\n",
+          "old": "        \"NO_WAIT_OF_TICTOC\": 0,\n        \"PREEMPTIVE_ABORTS\": 1,\n"
+        }
+      ],
+      "repo_head": "5fa44cfb1a8b0af485d4201e630587e6bb6a0336",
+      "runner_sha256": "bdd3adfe8cb64fe7c4e49cd9526745c0bc86ad42fb0c010d534d94942e81fd0b",
+      "spec_sha256": "71865d78328634ed34322f65a87b8fcdaff76acc1c932ef60b9bd0eff519d24f",
+      "status": "KILLED",
+      "test_output_sha256": "cc66842af07af18362ea9d9eaa6fe374e476e7b3b1e9568a4cdd908c92728852",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "57065c2831c5c6559c4d0d45b46a91caa6b8279c399d0b4b933a2a336b06fbb9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/8b8f7cc1cc93cf25161ef436e975b110/izdw-8b8f7cc1cc.o4080",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/8b8f7cc1cc93cf25161ef436e975b110/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................FF                                       [100%]\n=================================== FAILURES ===================================\n_ test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook __\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook():\n        calls = []\n        originals = {\n            \"tenant\": between_run_floor._assert_single_tenant,\n            \"context\": between_run_floor.build_run_context,\n            \"evidence\": between_run_floor.source_digest.resolve_evidence,\n            \"admission\": between_run_floor.derive_build_admission,\n            \"build\": between_run_floor.buildcache.build,\n            \"measure\": between_run_floor.measure_point_floor,\n            \"write\": between_run_floor._write_out,\n        }\n        between_run_floor._assert_single_tenant = lambda: calls.append(\"tenant\")\n        between_run_floor.build_run_context = lambda **_kwargs: object()\n        between_run_floor.source_digest.resolve_evidence = (\n            lambda *_args, **_kwargs: object()\n        )\n        between_run_floor.derive_build_admission = lambda *_args: object()\n        between_run_floor.buildcache.build = lambda *_args, **_kwargs: (\n            calls.append(\"build\") or SimpleNamespace(cached=True, binary=\"/fixture/tictoc\")\n        )\n        between_run_floor.measure_point_floor = lambda *_args, **_kwargs: (\n            calls.append(\"measure\") or {\n                \"abort_rate\": 0.0,\n                \"within_run\": {\"cv\": 0.01},\n                \"between_run\": {\"cv\": 0.02},\n            }\n        )\n        between_run_floor._write_out = lambda *_args, **_kwargs: calls.append(\"write\")\n        try:\n            try:\n                between_run_floor.main([\"prog\", \"read-heavy\", \"--protocol\", \"tictoc\"])\n            except ValueError as caught:\n                assert \"trace hook\" in str(caught)\n                assert \"'tictoc'\" in str(caught)\n            else:\n>               assert False, \"trace hook のない tictoc floor が受理された\"\nE               AssertionError: trace hook のない tictoc floor が受理された\nE               assert False\n\norchestrator/tests/test_between_run_floor.py:976: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[build] tictoc baseline (perf=trace-disabled) ...\n[build] cache hit: /fixture/tictoc\n\n=== between-run floor  workload=read-heavy  ({'ycsb_zipf_skew': '0.9', 'ycsb_rratio': '95', 'ycsb_rmw': '0'}) ===\n\n=== between-run noise floor サマリ ===\n  workload      within(10rep)  between(8sess)  abort\n  read-heavy            1.00%           2.00%     0%\n\n→ wired する BETWEEN_RUN_CV は上記 fresh 値と cross-campaign genuine データ (sweep vs repro) の保守側 (最大) を人間が確定する。\n_____ test_mocc_floor_rejected_before_build_or_measure_without_trace_hook ______\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_mocc_floor_rejected_before_build_or_measure_without_trace_hook():\n        calls = []\n        originals = {\n            \"tenant\": between_run_floor._assert_single_tenant,\n            \"context\": between_run_floor.build_run_context,\n            \"evidence\": between_run_floor.source_digest.resolve_evidence,\n            \"admission\": between_run_floor.derive_build_admission,\n            \"build\": between_run_floor.buildcache.build,\n            \"measure\": between_run_floor.measure_point_floor,\n            \"write\": between_run_floor._write_out,\n        }\n        between_run_floor._assert_single_tenant = lambda: calls.append(\"tenant\")\n        between_run_floor.build_run_context = lambda **_kwargs: object()\n        between_run_floor.source_digest.resolve_evidence = (\n            lambda *_args, **_kwargs: object()\n        )\n        between_run_floor.derive_build_admission = lambda *_args: object()\n        between_run_floor.buildcache.build = lambda *_args, **_kwargs: (\n            calls.append(\"build\") or SimpleNamespace(cached=True, binary=\"/fixture/mocc\")\n        )\n        between_run_floor.measure_point_floor = lambda *_args, **_kwargs: (\n            calls.append(\"measure\") or {\n                \"abort_rate\": 0.0,\n                \"within_run\": {\"cv\": 0.01},\n                \"between_run\": {\"cv\": 0.02},\n            }\n        )\n        between_run_floor._write_out = lambda *_args, **_kwargs: calls.append(\"write\")\n        try:\n            try:\n                between_run_floor.main([\"prog\", \"read-heavy\", \"--protocol\", \"mocc\"])\n            except ValueError as caught:\n                assert \"trace hook\" in str(caught)\n            else:\n>               assert False, \"trace hook のない mocc floor が受理された\"\nE               AssertionError: trace hook のない mocc floor が受理された\nE               assert False\n\norchestrator/tests/test_between_run_floor.py:477: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[build] mocc baseline (perf=trace-disabled) ...\n[build] cache hit: /fixture/mocc\n\n=== between-run floor  workload=read-heavy  ({'ycsb_zipf_skew': '0.9', 'ycsb_rratio': '95', 'ycsb_rmw': '0'}) ===\n\n=== between-run noise floor サマリ ===\n  workload      within(10rep)  between(8sess)  abort\n  read-heavy            1.00%           2.00%     0%\n\n→ wired する BETWEEN_RUN_CV は上記 fresh 値と cross-campaign genuine データ (sweep vs repro) の保守側 (最大) を人間が確定する。\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook\nFAILED orchestrator/tests/test_between_run_floor.py::test_mocc_floor_rejected_before_build_or_measure_without_trace_hook\n2 failed, 32 passed in 4.48s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook\" nodeid_bytes=121 nodeid_omitted_bytes=0 source_bytes=2034 retained_bytes=2034 omitted_bytes=0 rendered_excerpt_bytes=2173 sha256=8001fa21f02cd2fa35cad2312ae4c2450a5f9aabcd11dc899ed9c48da9f42453\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook():\n>         calls = []\n>         originals = {\n>             \"tenant\": between_run_floor._assert_single_tenant,\n>             \"context\": between_run_floor.build_run_context,\n>             \"evidence\": between_run_floor.source_digest.resolve_evidence,\n>             \"admission\": between_run_floor.derive_build_admission,\n>             \"build\": between_run_floor.buildcache.build,\n>             \"measure\": between_run_floor.measure_point_floor,\n>             \"write\": between_run_floor._write_out,\n>         }\n>         between_run_floor._assert_single_tenant = lambda: calls.append(\"tenant\")\n>         between_run_floor.build_run_context = lambda **_kwargs: object()\n>         between_run_floor.source_digest.resolve_evidence = (\n>             lambda *_args, **_kwargs: object()\n>         )\n>         between_run_floor.derive_build_admission = lambda *_args: object()\n>         between_run_floor.buildcache.build = lambda *_args, **_kwargs: (\n>             calls.append(\"build\") or SimpleNamespace(cached=True, binary=\"/fixture/tictoc\")\n>         )\n>         between_run_floor.measure_point_floor = lambda *_args, **_kwargs: (\n>             calls.append(\"measure\") or {\n>                 \"abort_rate\": 0.0,\n>                 \"within_run\": {\"cv\": 0.01},\n>                 \"between_run\": {\"cv\": 0.02},\n>             }\n>         )\n>         between_run_floor._write_out = lambda *_args, **_kwargs: calls.append(\"write\")\n>         try:\n>             try:\n>                 between_run_floor.main([\"prog\", \"read-heavy\", \"--protocol\", \"tictoc\"])\n>             except ValueError as caught:\n>                 assert \"trace hook\" in str(caught)\n>                 assert \"'tictoc'\" in str(caught)\n>             else:\n> >               assert False, \"trace hook \\u306e\\u306a\\u3044 tictoc floor \\u304c\\u53d7\\u7406\\u3055\\u308c\\u305f\"\n> E               AssertionError: trace hook \\u306e\\u306a\\u3044 tictoc floor \\u304c\\u53d7\\u7406\\u3055\\u308c\\u305f\n> E               assert False\n> \n> orchestrator/tests/test_between_run_floor.py:976: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_between_run_floor.py::test_mocc_floor_rejected_before_build_or_measure_without_trace_hook\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=1968 retained_bytes=1968 omitted_bytes=0 rendered_excerpt_bytes=2105 sha256=8022eb2795a42e09acecea236a2b5e1eb89c1134485c0377ede64ce92166492f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_mocc_floor_rejected_before_build_or_measure_without_trace_hook():\n>         calls = []\n>         originals = {\n>             \"tenant\": between_run_floor._assert_single_tenant,\n>             \"context\": between_run_floor.build_run_context,\n>             \"evidence\": between_run_floor.source_digest.resolve_evidence,\n>             \"admission\": between_run_floor.derive_build_admission,\n>             \"build\": between_run_floor.buildcache.build,\n>             \"measure\": between_run_floor.measure_point_floor,\n>             \"write\": between_run_floor._write_out,\n>         }\n>         between_run_floor._assert_single_tenant = lambda: calls.append(\"tenant\")\n>         between_run_floor.build_run_context = lambda **_kwargs: object()\n>         between_run_floor.source_digest.resolve_evidence = (\n>             lambda *_args, **_kwargs: object()\n>         )\n>         between_run_floor.derive_build_admission = lambda *_args: object()\n>         between_run_floor.buildcache.build = lambda *_args, **_kwargs: (\n>             calls.append(\"build\") or SimpleNamespace(cached=True, binary=\"/fixture/mocc\")\n>         )\n>         between_run_floor.measure_point_floor = lambda *_args, **_kwargs: (\n>             calls.append(\"measure\") or {\n>                 \"abort_rate\": 0.0,\n>                 \"within_run\": {\"cv\": 0.01},\n>                 \"between_run\": {\"cv\": 0.02},\n>             }\n>         )\n>         between_run_floor._write_out = lambda *_args, **_kwargs: calls.append(\"write\")\n>         try:\n>             try:\n>                 between_run_floor.main([\"prog\", \"read-heavy\", \"--protocol\", \"mocc\"])\n>             except ValueError as caught:\n>                 assert \"trace hook\" in str(caught)\n>             else:\n> >               assert False, \"trace hook \\u306e\\u306a\\u3044 mocc floor \\u304c\\u53d7\\u7406\\u3055\\u308c\\u305f\"\n> E               AssertionError: trace hook \\u306e\\u306a\\u3044 mocc floor \\u304c\\u53d7\\u7406\\u3055\\u308c\\u305f\n> E               assert False\n> \n> orchestrator/tests/test_between_run_floor.py:477: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4002 retained_bytes=4002 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5481 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c656cbea36ff9a139ba9c27642036a561f5d5108bbcd05257fdd656ebe68e43c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c5f293ca3da7c455e83f397776d3e3125c2b94d52c66874fac79cd25b14ae5e4",
+      "duration_s": 32.69,
+      "expected_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_mocc_floor_rejected_before_build_or_measure_without_trace_hook",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook",
+        "orchestrator/tests/test_between_run_floor.py::test_mocc_floor_rejected_before_build_or_measure_without_trace_hook"
+      ],
+      "hang_risk": false,
+      "id": "M4-bypass-trace-hook-gate",
+      "injection_diff_sha256": "41956cfc6274d8e6b3d03aa6566ea44abfa92c0410f344228dba7188fca2df8f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6dcd65bc564f8d4315d2a7457baf10d0465a43cb4c775bb1aff1840184227017",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/between_run_floor.py",
+          "new": "    if not (_protocol_source_has_trace_hook_evidence_only(protocol) or True):\n",
+          "old": "    if not _protocol_source_has_trace_hook_evidence_only(protocol):\n"
+        }
+      ],
+      "repo_head": "5fa44cfb1a8b0af485d4201e630587e6bb6a0336",
+      "runner_sha256": "bdd3adfe8cb64fe7c4e49cd9526745c0bc86ad42fb0c010d534d94942e81fd0b",
+      "spec_sha256": "71865d78328634ed34322f65a87b8fcdaff76acc1c932ef60b9bd0eff519d24f",
+      "status": "KILLED",
+      "test_output_sha256": "c656cbea36ff9a139ba9c27642036a561f5d5108bbcd05257fdd656ebe68e43c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "57065c2831c5c6559c4d0d45b46a91caa6b8279c399d0b4b933a2a336b06fbb9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/8693ae98eb476601cf8ddc28d19c62a4/izdw-8693ae98eb.o4082",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/8693ae98eb476601cf8ddc28d19c62a4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................F                                       [100%]\n=================================== FAILURES ===================================\n________ test_t2760_protocol_output_stem_names_tictoc_without_colliding ________\n[gw31] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2760_protocol_output_stem_names_tictoc_without_colliding():\n        workload = {\n            \"ycsb_zipf_skew\": \"0.9\", \"ycsb_rratio\": \"95\", \"ycsb_rmw\": \"0\",\n        }\n        originals = {\"scope_dir\": between_run_floor.env_scope_dir}\n        with tempfile.TemporaryDirectory() as raw_tmp:\n            between_run_floor.env_scope_dir = lambda _env_tag: raw_tmp\n            try:\n                paths = {}\n                for protocol in (\"silo\", \"mocc\", \"tictoc\"):\n>                   paths[protocol] = Path(between_run_floor._write_out(\n                        \"read-heavy\", workload, {\n                            **_floor_result(),\n                            \"genome\": between_run_floor.BASELINES[protocol].canonical(),\n                        }, protocol=protocol, log=lambda *_args: None,\n                    ))\n\norchestrator/tests/test_between_run_floor.py:926: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ntag = 'read-heavy'\nworkload = {'ycsb_zipf_skew': '0.9', 'ycsb_rratio': '95', 'ycsb_rmw': '0'}\nres = {'genome': 'tictoc|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,PREEMPTIVE_ABORTS=1,TIMESTAMP_HISTORY=1', 'records': 1000000, 'threads': 48, 'clocks_per_us': 1800, ...}\nenv_tag = 'linux-baremetal', protocol = 'tictoc'\nlog = <function test_t2760_protocol_output_stem_names_tictoc_without_colliding.<locals>.<lambda> at 0x150c82384dc0>\n\n    def _write_out(\n        tag: str,\n        workload: dict,\n        res: dict,\n        env_tag: str = DEFAULT_ENV_TAG,\n        protocol: str = \"silo\",\n        log=print,\n    ) -> str:\n        out_dir = os.path.join(env_scope_dir(env_tag), \"calibration\")\n        os.makedirs(out_dir, exist_ok=True)\n        protocol_part = \"\" if protocol in (\"silo\", \"tictoc\") else f\"_{protocol}\"\n        stem = f\"between_run_noise{protocol_part}_t{THREADS}_{_wl_tag(workload)}\"\n        json_path = os.path.join(out_dir, stem + \".json\")\n        md_path = os.path.join(out_dir, stem + \".md\")\n        existing = [path for path in (json_path, md_path) if os.path.exists(path)]\n        if existing:\n>           raise FileExistsError(\"between-run floor 出力は create-only: \" + \", \".join(existing))\nE           FileExistsError: between-run floor 出力は create-only: /tmp/tmpjd9rmvcc/calibration/between_run_noise_t48_skew0p9_rr95_rmw0.json, /tmp/tmpjd9rmvcc/calibration/between_run_noise_t48_skew0p9_rr95_rmw0.md\n\norchestrator/campaign/between_run_floor.py:224: FileExistsError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_between_run_floor.py::test_t2760_protocol_output_stem_names_tictoc_without_colliding\n1 failed, 33 passed in 4.70s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_between_run_floor.py::test_t2760_protocol_output_stem_names_tictoc_without_colliding\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=2526 retained_bytes=2526 omitted_bytes=0 rendered_excerpt_bytes=2641 sha256=7994863826fd345d1c78020cfb3f7bf26082f584f0c056a978ae2b2b0d013283\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw31] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_t2760_protocol_output_stem_names_tictoc_without_colliding():\n>         workload = {\n>             \"ycsb_zipf_skew\": \"0.9\", \"ycsb_rratio\": \"95\", \"ycsb_rmw\": \"0\",\n>         }\n>         originals = {\"scope_dir\": between_run_floor.env_scope_dir}\n>         with tempfile.TemporaryDirectory() as raw_tmp:\n>             between_run_floor.env_scope_dir = lambda _env_tag: raw_tmp\n>             try:\n>                 paths = {}\n>                 for protocol in (\"silo\", \"mocc\", \"tictoc\"):\n> >                   paths[protocol] = Path(between_run_floor._write_out(\n>                         \"read-heavy\", workload, {\n>                             **_floor_result(),\n>                             \"genome\": between_run_floor.BASELINES[protocol].canonical(),\n>                         }, protocol=protocol, log=lambda *_args: None,\n>                     ))\n> \n> orchestrator/tests/test_between_run_floor.py:926: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> tag = 'read-heavy'\n> workload = {'ycsb_zipf_skew': '0.9', 'ycsb_rratio': '95', 'ycsb_rmw': '0'}\n> res = {'genome': 'tictoc|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,PREEMPTIVE_ABORTS=1,TIMESTAMP_HISTORY=1', 'records': 1000000, 'threads': 48, 'clocks_per_us': 1800, ...}\n> env_tag = 'linux-baremetal', protocol = 'tictoc'\n> log = <function test_t2760_protocol_output_stem_names_tictoc_without_colliding.<locals>.<lambda> at 0x150c82384dc0>\n> \n>     def _write_out(\n>         tag: str,\n>         workload: dict,\n>         res: dict,\n>         env_tag: str = DEFAULT_ENV_TAG,\n>         protocol: str = \"silo\",\n>         log=print,\n>     ) -> str:\n>         out_dir = os.path.join(env_scope_dir(env_tag), \"calibration\")\n>         os.makedirs(out_dir, exist_ok=True)\n>         protocol_part = \"\" if protocol in (\"silo\", \"tictoc\") else f\"_{protocol}\"\n>         stem = f\"between_run_noise{protocol_part}_t{THREADS}_{_wl_tag(workload)}\"\n>         json_path = os.path.join(out_dir, stem + \".json\")\n>         md_path = os.path.join(out_dir, stem + \".md\")\n>         existing = [path for path in (json_path, md_path) if os.path.exists(path)]\n>         if existing:\n> >           raise FileExistsError(\"between-run floor \\u51fa\\u529b\\u306f create-only: \" + \", \".join(existing))\n> E           FileExistsError: between-run floor \\u51fa\\u529b\\u306f create-only: /tmp/tmpjd9rmvcc/calibration/between_run_noise_t48_skew0p9_rr95_rmw0.json, /tmp/tmpjd9rmvcc/calibration/between_run_noise_t48_skew0p9_rr95_rmw0.md\n> \n> orchestrator/campaign/between_run_floor.py:224: FileExistsError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2526 retained_bytes=2526 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3377 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "338fc05f34a78dfcf350bc74bf035a0ce89ac4f4fb1400f2799e247831f3fbc5"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c5f293ca3da7c455e83f397776d3e3125c2b94d52c66874fac79cd25b14ae5e4",
+      "duration_s": 34.913,
+      "expected_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_protocol_output_stem_names_tictoc_without_colliding"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_protocol_output_stem_names_tictoc_without_colliding"
+      ],
+      "hang_risk": false,
+      "id": "M5-tictoc-stem-collapses-to-silo",
+      "injection_diff_sha256": "19e70d72f72bc8825da3078fbad3f138c2840e4c80961d520b0ade858af86085",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e22b1c861ca8f43f49388a7ea045b49a82b42bc7617c192d0b2e6fd90630d1d6",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/between_run_floor.py",
+          "new": "    protocol_part = \"\" if protocol in (\"silo\", \"tictoc\") else f\"_{protocol}\"\n",
+          "old": "    protocol_part = \"\" if protocol == \"silo\" else f\"_{protocol}\"\n"
+        }
+      ],
+      "repo_head": "5fa44cfb1a8b0af485d4201e630587e6bb6a0336",
+      "runner_sha256": "bdd3adfe8cb64fe7c4e49cd9526745c0bc86ad42fb0c010d534d94942e81fd0b",
+      "spec_sha256": "71865d78328634ed34322f65a87b8fcdaff76acc1c932ef60b9bd0eff519d24f",
+      "status": "KILLED",
+      "test_output_sha256": "338fc05f34a78dfcf350bc74bf035a0ce89ac4f4fb1400f2799e247831f3fbc5",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "57065c2831c5c6559c4d0d45b46a91caa6b8279c399d0b4b933a2a336b06fbb9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/c8958de8664493d71604266e77aee57d/izdw-c8958de866.o4084",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/c8958de8664493d71604266e77aee57d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.................................F                                       [100%]\n=================================== FAILURES ===================================\n__ test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol __\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol():\n        assert between_run_floor._parse_cli_args(\n            [\"prog\", \"--protocol\", \"tictoc\"]\n        ) == (None, \"tictoc\")\n        assert between_run_floor._parse_cli_args(\n            [\"prog\", \"read-heavy\", \"--protocol=tictoc\"]\n        ) == (\"read-heavy\", \"tictoc\")\n        try:\n            between_run_floor._parse_cli_args([\"prog\", \"--protocol\", \"cicada\"])\n        except ValueError as caught:\n            assert \"unknown protocol\" in str(caught)\n            assert \"'cicada'\" in str(caught)\n        else:\n>           assert False, \"baseline のない cicada が受理された\"\nE           AssertionError: baseline のない cicada が受理された\nE           assert False\n\norchestrator/tests/test_between_run_floor.py:913: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_between_run_floor.py::test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol\n1 failed, 33 passed in 4.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_between_run_floor.py::test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol\" nodeid_bytes=120 nodeid_omitted_bytes=0 source_bytes=881 retained_bytes=881 omitted_bytes=0 rendered_excerpt_bytes=976 sha256=8d9e1086fddf3b96727d6998c918450c7cb1e9189a0102783d721f3235de6427\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol():\n>         assert between_run_floor._parse_cli_args(\n>             [\"prog\", \"--protocol\", \"tictoc\"]\n>         ) == (None, \"tictoc\")\n>         assert between_run_floor._parse_cli_args(\n>             [\"prog\", \"read-heavy\", \"--protocol=tictoc\"]\n>         ) == (\"read-heavy\", \"tictoc\")\n>         try:\n>             between_run_floor._parse_cli_args([\"prog\", \"--protocol\", \"cicada\"])\n>         except ValueError as caught:\n>             assert \"unknown protocol\" in str(caught)\n>             assert \"'cicada'\" in str(caught)\n>         else:\n> >           assert False, \"baseline \\u306e\\u306a\\u3044 cicada \\u304c\\u53d7\\u7406\\u3055\\u308c\\u305f\"\n> E           AssertionError: baseline \\u306e\\u306a\\u3044 cicada \\u304c\\u53d7\\u7406\\u3055\\u308c\\u305f\n> E           assert False\n> \n> orchestrator/tests/test_between_run_floor.py:913: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=881 retained_bytes=881 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1719 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0c06326595eb077dd526d9a910b213aef6d2eea770ff23c8c84f9afca42bd881"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c5f293ca3da7c455e83f397776d3e3125c2b94d52c66874fac79cd25b14ae5e4",
+      "duration_s": 27.648,
+      "expected_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol"
+      ],
+      "hang_risk": false,
+      "id": "M6-parse-accepts-any-protocol",
+      "injection_diff_sha256": "44c7941f587cd3919ca0a8bbc7052b94018c1c8d856a7196ad30ed6b10add75a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f4fe0615df69f0ee59e948a05aa3803a57f7977a236835b706706ebe00ba1f5d",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/between_run_floor.py",
+          "new": "    if protocol not in BASELINES and False:\n",
+          "old": "    if protocol not in BASELINES:\n"
+        }
+      ],
+      "repo_head": "5fa44cfb1a8b0af485d4201e630587e6bb6a0336",
+      "runner_sha256": "bdd3adfe8cb64fe7c4e49cd9526745c0bc86ad42fb0c010d534d94942e81fd0b",
+      "spec_sha256": "71865d78328634ed34322f65a87b8fcdaff76acc1c932ef60b9bd0eff519d24f",
+      "status": "KILLED",
+      "test_output_sha256": "0c06326595eb077dd526d9a910b213aef6d2eea770ff23c8c84f9afca42bd881",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "57065c2831c5c6559c4d0d45b46a91caa6b8279c399d0b4b933a2a336b06fbb9"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/4092f6d6c689f073abc0551150cfedab/izdw-4092f6d6c6.o4086",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/4092f6d6c689f073abc0551150cfedab/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................FF                                       [100%]\n=================================== FAILURES ===================================\n______ test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main ______\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main():\n        calls = {\"build\": [], \"measure\": [], \"write\": []}\n        originals = {\n            \"root\": between_run_floor.CCBENCH_ROOT,\n            \"tenant\": between_run_floor._assert_single_tenant,\n            \"context\": between_run_floor.build_run_context,\n            \"evidence\": between_run_floor.source_digest.resolve_evidence,\n            \"admission\": between_run_floor.derive_build_admission,\n            \"build\": between_run_floor.buildcache.build,\n            \"measure\": between_run_floor.measure_point_floor,\n            \"write\": between_run_floor._write_out,\n        }\n        with tempfile.TemporaryDirectory() as raw_tmp:\n            root = Path(raw_tmp)\n            protocol_dir = root / \"cc\" / \"tictoc\"\n            protocol_dir.mkdir(parents=True)\n            (protocol_dir / \"CMakeLists.txt\").write_text(\n                \"ccbench_add_protocol(tictoc SOURCES transaction.cc WORKLOADS ycsb)\\n\",\n                encoding=\"utf-8\",\n            )\n            (protocol_dir / \"transaction.cc\").write_text(\n                '#include \"../../include/trace.hh\"\\n'\n                \"#if TRACE\\n\"\n                \"izanagi_trace::emit_abort(1);\\n\"\n                \"#endif\\n\",\n                encoding=\"utf-8\",\n            )\n            between_run_floor.CCBENCH_ROOT = root\n            between_run_floor._assert_single_tenant = lambda: None\n            between_run_floor.build_run_context = lambda **_kwargs: object()\n            between_run_floor.source_digest.resolve_evidence = (\n                lambda *_args, **_kwargs: object()\n            )\n            between_run_floor.derive_build_admission = lambda *_args: object()\n    \n            def fake_build(candidate, **_kwargs):\n                calls[\"build\"].append(candidate)\n                return SimpleNamespace(cached=True, binary=\"/fixture/tictoc\")\n    \n            def fake_measure(_binary, _workload, *, baseline, **_kwargs):\n                calls[\"measure\"].append(baseline)\n                return {\n                    \"abort_rate\": 0.0,\n                    \"within_run\": {\"cv\": 0.01},\n                    \"between_run\": {\"cv\": 0.02},\n                }\n    \n            between_run_floor.buildcache.build = fake_build\n            between_run_floor.measure_point_floor = fake_measure\n            between_run_floor._write_out = (\n                lambda *_args, **kwargs: calls[\"write\"].append(kwargs[\"protocol\"])\n            )\n            try:\n                assert between_run_floor.main(\n                    [\"prog\", \"read-heavy\", \"--protocol\", \"tictoc\"]\n                ) == 0\n            finally:\n                between_run_floor.CCBENCH_ROOT = originals[\"root\"]\n                between_run_floor._assert_single_tenant = originals[\"tenant\"]\n                between_run_floor.build_run_context = originals[\"context\"]\n                between_run_floor.source_digest.resolve_evidence = originals[\"evidence\"]\n                between_run_floor.derive_build_admission = originals[\"admission\"]\n                between_run_floor.buildcache.build = originals[\"build\"]\n                between_run_floor.measure_point_floor = originals[\"measure\"]\n                between_run_floor._write_out = originals[\"write\"]\n        expected = between_run_floor.BASELINES[\"tictoc\"]\n>       assert calls == {\"build\": [expected], \"measure\": [expected], \"write\": [\"tictoc\"]}\nE       AssertionError: assert {'build': [Ge...': ['tictoc']} == {'build': [Ge...': ['tictoc']}\nE         \nE         Omitting 1 identical items, use -vv to show\nE         Differing items:\nE         {'build': [Genome(protocol='silo', flags={'BACK_OFF': 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 0, 'WAL': 0})]} != {'build': [Genome(protocol='tictoc', flags={'BACK_OFF': 1, 'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 0, 'PREEMPTIVE_ABORTS': 1, 'TIMESTAMP_HISTORY': 1})]}\nE         {'measure': [Genome(protocol='silo', flags={'BACK_OFF': 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 0, 'WAL': 0})]} != {'measure': [Genome(protocol='tictoc', flags={'BACK_OFF': 1, 'NO_WAIT_LOCKING_IN...\nE         \nE         ...Full output truncated (2 lines hidden), use '-vv' to show\n\norchestrator/tests/test_between_run_floor.py:1054: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[build] tictoc baseline (perf=trace-disabled) ...\n[build] cache hit: /fixture/tictoc\n\n=== between-run floor  workload=read-heavy  ({'ycsb_zipf_skew': '0.9', 'ycsb_rratio': '95', 'ycsb_rmw': '0'}) ===\n\n=== between-run noise floor サマリ ===\n  workload      within(10rep)  between(8sess)  abort\n  read-heavy            1.00%           2.00%     0%\n\n→ wired する BETWEEN_RUN_CV は上記 fresh 値と cross-campaign genuine データ (sweep vs repro) の保守側 (最大) を人間が確定する。\n__________ test_hook_bearing_source_routes_mocc_baseline_through_main __________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_hook_bearing_source_routes_mocc_baseline_through_main():\n        calls = {\"build\": [], \"measure\": [], \"write\": []}\n        originals = {\n            \"root\": between_run_floor.CCBENCH_ROOT,\n            \"tenant\": between_run_floor._assert_single_tenant,\n            \"context\": between_run_floor.build_run_context,\n            \"evidence\": between_run_floor.source_digest.resolve_evidence,\n            \"admission\": between_run_floor.derive_build_admission,\n            \"build\": between_run_floor.buildcache.build,\n            \"measure\": between_run_floor.measure_point_floor,\n            \"write\": between_run_floor._write_out,\n        }\n        with tempfile.TemporaryDirectory() as raw_tmp:\n            root = Path(raw_tmp)\n            protocol_dir = root / \"cc\" / \"mocc\"\n            protocol_dir.mkdir(parents=True)\n            (protocol_dir / \"CMakeLists.txt\").write_text(\n                \"ccbench_add_protocol(mocc SOURCES transaction.cc WORKLOADS ycsb)\\n\",\n                encoding=\"utf-8\",\n            )\n            (protocol_dir / \"transaction.cc\").write_text(\n                '#include \"../../include/trace.hh\"\\n'\n                \"#if TRACE\\n\"\n                \"izanagi_trace::emit_abort(1);\\n\"\n                \"#endif\\n\",\n                encoding=\"utf-8\",\n            )\n            between_run_floor.CCBENCH_ROOT = root\n            between_run_floor._assert_single_tenant = lambda: None\n            between_run_floor.build_run_context = lambda **_kwargs: object()\n            between_run_floor.source_digest.resolve_evidence = (\n                lambda *_args, **_kwargs: object()\n            )\n            between_run_floor.derive_build_admission = lambda *_args: object()\n    \n            def fake_build(candidate, **_kwargs):\n                calls[\"build\"].append(candidate)\n                return SimpleNamespace(cached=True, binary=\"/fixture/mocc\")\n    \n            def fake_measure(_binary, _workload, *, baseline, **_kwargs):\n                calls[\"measure\"].append(baseline)\n                return {\n                    \"abort_rate\": 0.0,\n                    \"within_run\": {\"cv\": 0.01},\n                    \"between_run\": {\"cv\": 0.02},\n                }\n    \n            between_run_floor.buildcache.build = fake_build\n            between_run_floor.measure_point_floor = fake_measure\n            between_run_floor._write_out = (\n                lambda *_args, **kwargs: calls[\"write\"].append(kwargs[\"protocol\"])\n            )\n            try:\n                assert between_run_floor.main(\n                    [\"prog\", \"read-heavy\", \"--protocol\", \"mocc\"]\n                ) == 0\n            finally:\n                between_run_floor.CCBENCH_ROOT = originals[\"root\"]\n                between_run_floor._assert_single_tenant = originals[\"tenant\"]\n                between_run_floor.build_run_context = originals[\"context\"]\n                between_run_floor.source_digest.resolve_evidence = originals[\"evidence\"]\n                between_run_floor.derive_build_admission = originals[\"admission\"]\n                between_run_floor.buildcache.build = originals[\"build\"]\n                between_run_floor.measure_point_floor = originals[\"measure\"]\n                between_run_floor._write_out = originals[\"write\"]\n        expected = between_run_floor.BASELINES[\"mocc\"]\n>       assert calls == {\"build\": [expected], \"measure\": [expected], \"write\": [\"mocc\"]}\nE       AssertionError: assert {'build': [Ge...te': ['mocc']} == {'build': [Ge...te': ['mocc']}\nE         \nE         Omitting 1 identical items, use -vv to show\nE         Differing items:\nE         {'build': [Genome(protocol='silo', flags={'BACK_OFF': 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 0, 'WAL': 0})]} != {'build': [Genome(protocol='mocc', flags={'BACK_OFF': 1, 'KEY_SORT': 0, 'TEMPERATURE_RESET_OPT': 1})]}\nE         {'measure': [Genome(protocol='silo', flags={'BACK_OFF': 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 0, 'WAL': 0})]} != {'measure': [Genome(protocol='mocc', flags={'BACK_OFF': 1, 'KEY_SORT': 0, 'TEMPERATURE_RESET_OPT': 1})]}\nE         Use -v to get more diff\n\norchestrator/tests/test_between_run_floor.py:555: AssertionError\n----------------------------- Captured stdout call -----------------------------\n[build] mocc baseline (perf=trace-disabled) ...\n[build] cache hit: /fixture/mocc\n\n=== between-run floor  workload=read-heavy  ({'ycsb_zipf_skew': '0.9', 'ycsb_rratio': '95', 'ycsb_rmw': '0'}) ===\n\n=== between-run noise floor サマリ ===\n  workload      within(10rep)  between(8sess)  abort\n  read-heavy            1.00%           2.00%     0%\n\n→ wired する BETWEEN_RUN_CV は上記 fresh 値と cross-campaign genuine データ (sweep vs repro) の保守側 (最大) を人間が確定する。\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_between_run_floor.py::test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main\nFAILED orchestrator/tests/test_between_run_floor.py::test_hook_bearing_source_routes_mocc_baseline_through_main\n2 failed, 32 passed in 4.49s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_between_run_floor.py::test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=4318 retained_bytes=3937 omitted_bytes=381 rendered_excerpt_bytes=4095 sha256=ef614badc9a166dea2b330e445dfcb04ccfa00bb7378e6a105352d61d304dd31\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>             \"evidence\": between_run_floor.source_digest.resolve_evidence,\n>             \"admission\": between_run_floor.derive_build_admission,\n>             \"build\": between_run_floor.buildcache.build,\n>             \"measure\": between_run_floor.measure_point_floor,\n>             \"write\": between_run_floor._write_out,\n>         }\n>         with tempfile.TemporaryDirectory() as raw_tmp:\n>             root = Path(raw_tmp)\n>             protocol_dir = root / \"cc\" / \"tictoc\"\n>             protocol_dir.mkdir(parents=True)\n>             (protocol_dir / \"CMakeLists.txt\").write_text(\n>                 \"ccbench_add_protocol(tictoc SOURCES transaction.cc WORKLOADS ycsb)\\x5cn\",\n>                 encoding=\"utf-8\",\n>             )\n>             (protocol_dir / \"transaction.cc\").write_text(\n>                 '#include \"../../include/trace.hh\"\\x5cn'\n>                 \"#if TRACE\\x5cn\"\n>                 \"izanagi_trace::emit_abort(1);\\x5cn\"\n>                 \"#endif\\x5cn\",\n>                 encoding=\"utf-8\",\n>             )\n>             between_run_floor.CCBENCH_ROOT = root\n>             between_run_floor._assert_single_tenant = lambda: None\n>             between_run_floor.build_run_context = lambda **_kwargs: object()\n>             between_run_floor.source_digest.resolve_evidence = (\n>                 lambda *_args, **_kwargs: object()\n>             )\n>             between_run_floor.derive_build_admission = lambda *_args: object()\n>     \n>             def fake_build(candidate, **_kwargs):\n>                 calls[\"build\"].append(candidate)\n>                 return SimpleNamespace(cached=True, binary=\"/fixture/tictoc\")\n>     \n>             def fake_measure(_binary, _workload, *, baseline, **_kwargs):\n>                 calls[\"measure\"].append(baseline)\n>                 return {\n>                     \"abort_rate\": 0.0,\n>                     \"within_run\": {\"cv\": 0.01},\n>                     \"between_run\": {\"cv\": 0.02},\n>                 }\n>     \n>             between_run_floor.buildcache.build = fake_build\n>             between_run_floor.measure_point_floor = fake_measure\n>             between_run_floor._write_out = (\n>                 lambda *_args, **kwargs: calls[\"write\"].append(kwargs[\"protocol\"])\n>             )\n>             try:\n>                 assert between_run_floor.main(\n>                     [\"prog\", \"read-heavy\", \"--protocol\", \"tictoc\"]\n>                 ) == 0\n>             finally:\n>                 between_run_floor.CCBENCH_ROOT = originals[\"root\"]\n>                 between_run_floor._assert_single_tenant = originals[\"tenant\"]\n>                 between_run_floor.build_run_context = originals[\"context\"]\n>                 between_run_floor.source_digest.resolve_evidence = originals[\"evidence\"]\n>                 between_run_floor.derive_build_admission = originals[\"admission\"]\n>                 between_run_floor.buildcache.build = originals[\"build\"]\n>                 between_run_floor.measure_point_floor = originals[\"measure\"]\n>                 between_run_floor._write_out = originals[\"write\"]\n>         expected = between_run_floor.BASELINES[\"tictoc\"]\n> >       assert calls == {\"build\": [expected], \"measure\": [expected], \"write\": [\"tictoc\"]}\n> E       AssertionError: assert {'build': [Ge...': ['tictoc']} == {'build': [Ge...': ['tictoc']}\n> E         \n> E         Omitting 1 identical items, use -vv to show\n> E         Differing items:\n> E         {'build': [Genome(protocol='silo', flags={'BACK_OFF': 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 0, 'WAL': 0})]} != {'build': [Genome(protocol='tictoc', flags={'BACK_OFF': 1, 'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 0, 'PREEMPTIVE_ABORTS': 1, 'TIMESTAMP_HISTORY': 1})]}\n> E         {'measure': [Genome(protocol='silo', flags={'BACK_OFF': 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 0, 'WAL': 0})]} != {'measure': [Genome(protocol='tictoc', flags={'BACK_OFF': 1, 'NO_WAIT_LOCKING_IN...\n> E         \n> E         ...Full output truncated (2 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_between_run_floor.py:1054: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_between_run_floor.py::test_hook_bearing_source_routes_mocc_baseline_through_main\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=4203 retained_bytes=3936 omitted_bytes=267 rendered_excerpt_bytes=4096 sha256=473cdea9310d951e140969fcd8e1440c8ee258e97014547bc98c0ada19b7338e\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> nt\": between_run_floor._assert_single_tenant,\n>             \"context\": between_run_floor.build_run_context,\n>             \"evidence\": between_run_floor.source_digest.resolve_evidence,\n>             \"admission\": between_run_floor.derive_build_admission,\n>             \"build\": between_run_floor.buildcache.build,\n>             \"measure\": between_run_floor.measure_point_floor,\n>             \"write\": between_run_floor._write_out,\n>         }\n>         with tempfile.TemporaryDirectory() as raw_tmp:\n>             root = Path(raw_tmp)\n>             protocol_dir = root / \"cc\" / \"mocc\"\n>             protocol_dir.mkdir(parents=True)\n>             (protocol_dir / \"CMakeLists.txt\").write_text(\n>                 \"ccbench_add_protocol(mocc SOURCES transaction.cc WORKLOADS ycsb)\\x5cn\",\n>                 encoding=\"utf-8\",\n>             )\n>             (protocol_dir / \"transaction.cc\").write_text(\n>                 '#include \"../../include/trace.hh\"\\x5cn'\n>                 \"#if TRACE\\x5cn\"\n>                 \"izanagi_trace::emit_abort(1);\\x5cn\"\n>                 \"#endif\\x5cn\",\n>                 encoding=\"utf-8\",\n>             )\n>             between_run_floor.CCBENCH_ROOT = root\n>             between_run_floor._assert_single_tenant = lambda: None\n>             between_run_floor.build_run_context = lambda **_kwargs: object()\n>             between_run_floor.source_digest.resolve_evidence = (\n>                 lambda *_args, **_kwargs: object()\n>             )\n>             between_run_floor.derive_build_admission = lambda *_args: object()\n>     \n>             def fake_build(candidate, **_kwargs):\n>                 calls[\"build\"].append(candidate)\n>                 return SimpleNamespace(cached=True, binary=\"/fixture/mocc\")\n>     \n>             def fake_measure(_binary, _workload, *, baseline, **_kwargs):\n>                 calls[\"measure\"].append(baseline)\n>                 return {\n>                     \"abort_rate\": 0.0,\n>                     \"within_run\": {\"cv\": 0.01},\n>                     \"between_run\": {\"cv\": 0.02},\n>                 }\n>     \n>             between_run_floor.buildcache.build = fake_build\n>             between_run_floor.measure_point_floor = fake_measure\n>             between_run_floor._write_out = (\n>                 lambda *_args, **kwargs: calls[\"write\"].append(kwargs[\"protocol\"])\n>             )\n>             try:\n>                 assert between_run_floor.main(\n>                     [\"prog\", \"read-heavy\", \"--protocol\", \"mocc\"]\n>                 ) == 0\n>             finally:\n>                 between_run_floor.CCBENCH_ROOT = originals[\"root\"]\n>                 between_run_floor._assert_single_tenant = originals[\"tenant\"]\n>                 between_run_floor.build_run_context = originals[\"context\"]\n>                 between_run_floor.source_digest.resolve_evidence = originals[\"evidence\"]\n>                 between_run_floor.derive_build_admission = originals[\"admission\"]\n>                 between_run_floor.buildcache.build = originals[\"build\"]\n>                 between_run_floor.measure_point_floor = originals[\"measure\"]\n>                 between_run_floor._write_out = originals[\"write\"]\n>         expected = between_run_floor.BASELINES[\"mocc\"]\n> >       assert calls == {\"build\": [expected], \"measure\": [expected], \"write\": [\"mocc\"]}\n> E       AssertionError: assert {'build': [Ge...te': ['mocc']} == {'build': [Ge...te': ['mocc']}\n> E         \n> E         Omitting 1 identical items, use -vv to show\n> E         Differing items:\n> E         {'build': [Genome(protocol='silo', flags={'BACK_OFF': 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 0, 'WAL': 0})]} != {'build': [Genome(protocol='mocc', flags={'BACK_OFF': 1, 'KEY_SORT': 0, 'TEMPERATURE_RESET_OPT': 1})]}\n> E         {'measure': [Genome(protocol='silo', flags={'BACK_OFF': 0, 'NO_WAIT_LOCKING_IN_VALIDATION': 1, 'NO_WAIT_OF_TICTOC': 0, 'WAL': 0})]} != {'measure': [Genome(protocol='mocc', flags={'BACK_OFF': 1, 'KEY_SORT': 0, 'TEMPERATURE_RESET_OPT': 1})]}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_between_run_floor.py:555: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=8521 retained_bytes=7873 omitted_bytes=648 budget_bytes=49152 rendered_bytes=9382 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e238baa0a5dbb8c4a6baa418276a4158db1b536168b53144ac8e942d08573358"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "c5f293ca3da7c455e83f397776d3e3125c2b94d52c66874fac79cd25b14ae5e4",
+      "duration_s": 28.255,
+      "expected_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_hook_bearing_source_routes_mocc_baseline_through_main",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main",
+        "orchestrator/tests/test_between_run_floor.py::test_hook_bearing_source_routes_mocc_baseline_through_main"
+      ],
+      "hang_risk": false,
+      "id": "M7-main-ignores-protocol-baseline",
+      "injection_diff_sha256": "4e94e68d7ee7fa53a0c2d75ce27e8ea20a6d5c6c3b012bb9e6c5f82c8d98bff3",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "96b33ce0f6d011e7c4724baba6fa3054dc709c7aa6ce0817cd5864d6e077f3ce",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/between_run_floor.py",
+          "new": "    baseline = BASELINES[\"silo\"]\n",
+          "old": "    baseline = BASELINES[protocol]\n"
+        }
+      ],
+      "repo_head": "5fa44cfb1a8b0af485d4201e630587e6bb6a0336",
+      "runner_sha256": "bdd3adfe8cb64fe7c4e49cd9526745c0bc86ad42fb0c010d534d94942e81fd0b",
+      "spec_sha256": "71865d78328634ed34322f65a87b8fcdaff76acc1c932ef60b9bd0eff519d24f",
+      "status": "KILLED",
+      "test_output_sha256": "e238baa0a5dbb8c4a6baa418276a4158db1b536168b53144ac8e942d08573358",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "57065c2831c5c6559c4d0d45b46a91caa6b8279c399d0b4b933a2a336b06fbb9"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/fe6fb9102e49beb27129734b5b452474/izdw-fe6fb9102e.o4021",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/output/pegasus-dispatch/fe6fb9102e49beb27129734b5b452474/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_between_run_floor.py::test_between_run_floor_uses_p2_2_assert_single_tenant\norchestrator/tests/test_between_run_floor.py::test_between_run_floor_admission_detects_s8b_build_cache_orphan_via_runner_fix\norchestrator/tests/test_between_run_floor.py::test_between_run_floor_admission_passes_when_no_competitor\norchestrator/tests/test_between_run_floor.py::test_selected_env_tag_rejects_unknown_value\norchestrator/tests/test_between_run_floor.py::test_selected_env_tag_defaults_to_linux_baremetal_profile\norchestrator/tests/test_between_run_floor.py::test_pegasus_measurement_profile_uses_2100_without_numactl\norchestrator/tests/test_between_run_floor.py::test_write_out_uses_selected_pegasus_environment_path\norchestrator/tests/test_between_run_floor.py::test_protocol_output_stem_preserves_silo_and_names_mocc\norchestrator/tests/test_between_run_floor.py::test_write_out_is_create_only_and_preserves_existing_bytes\norchestrator/tests/test_between_run_floor.py::test_write_out_rolls_back_json_when_markdown_creation_fails\norchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_is_bound_to_source_facts\norchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_requires_readable_cmake_sources\norchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_ignores_uncompiled_source\norchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_accepts_listed_source\norchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_preserves_parent_relative_cmake_source\norchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_preserves_absolute_cmake_source\norchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_rejects_commented_out_hook\norchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_rejects_hook_only_in_if_zero\norchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_rejects_hook_after_nested_if_inside_if_zero\norchestrator/tests/test_between_run_floor.py::test_mocc_floor_rejected_before_build_or_measure_without_trace_hook\norchestrator/tests/test_between_run_floor.py::test_hook_bearing_source_routes_mocc_baseline_through_main\norchestrator/tests/test_between_run_floor.py::test_pegasus_build_passes_site_aware_compilers\norchestrator/tests/test_between_run_floor.py::test_pegasus_main_disables_perf_for_floor_measurement\norchestrator/tests/test_between_run_floor.py::test_main_rejects_extra_arguments_before_campaign_work\norchestrator/tests/test_between_run_floor.py::test_main_accepts_one_known_point_without_running_real_campaign\norchestrator/tests/test_between_run_floor.py::test_measure_point_floor_returns_versioned_receipt_with_mock_measurements\norchestrator/tests/test_between_run_floor.py::test_main_build_failure_does_not_write_success_json\norchestrator/tests/test_between_run_floor.py::test_main_measurement_failure_does_not_write_success_json\norchestrator/tests/test_between_run_floor.py::test_t2760_baselines_are_points_of_their_registered_genome_space\norchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin\norchestrator/tests/test_between_run_floor.py::test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol\norchestrator/tests/test_between_run_floor.py::test_t2760_protocol_output_stem_names_tictoc_without_colliding\norchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook\norchestrator/tests/test_between_run_floor.py::test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main\n\n34 tests collected in 0.69s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "83e33576e566d12859922e51daf54552204f606d52156780b75756c5a64ac262"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_between_run_floor_uses_p2_2_assert_single_tenant",
+        "orchestrator/tests/test_between_run_floor.py::test_between_run_floor_admission_detects_s8b_build_cache_orphan_via_runner_fix",
+        "orchestrator/tests/test_between_run_floor.py::test_between_run_floor_admission_passes_when_no_competitor",
+        "orchestrator/tests/test_between_run_floor.py::test_selected_env_tag_rejects_unknown_value",
+        "orchestrator/tests/test_between_run_floor.py::test_selected_env_tag_defaults_to_linux_baremetal_profile",
+        "orchestrator/tests/test_between_run_floor.py::test_pegasus_measurement_profile_uses_2100_without_numactl",
+        "orchestrator/tests/test_between_run_floor.py::test_write_out_uses_selected_pegasus_environment_path",
+        "orchestrator/tests/test_between_run_floor.py::test_protocol_output_stem_preserves_silo_and_names_mocc",
+        "orchestrator/tests/test_between_run_floor.py::test_write_out_is_create_only_and_preserves_existing_bytes",
+        "orchestrator/tests/test_between_run_floor.py::test_write_out_rolls_back_json_when_markdown_creation_fails",
+        "orchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_is_bound_to_source_facts",
+        "orchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_requires_readable_cmake_sources",
+        "orchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_ignores_uncompiled_source",
+        "orchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_accepts_listed_source",
+        "orchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_preserves_parent_relative_cmake_source",
+        "orchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_preserves_absolute_cmake_source",
+        "orchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_rejects_commented_out_hook",
+        "orchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_rejects_hook_only_in_if_zero",
+        "orchestrator/tests/test_between_run_floor.py::test_trace_hook_admission_rejects_hook_after_nested_if_inside_if_zero",
+        "orchestrator/tests/test_between_run_floor.py::test_mocc_floor_rejected_before_build_or_measure_without_trace_hook",
+        "orchestrator/tests/test_between_run_floor.py::test_hook_bearing_source_routes_mocc_baseline_through_main",
+        "orchestrator/tests/test_between_run_floor.py::test_pegasus_build_passes_site_aware_compilers",
+        "orchestrator/tests/test_between_run_floor.py::test_pegasus_main_disables_perf_for_floor_measurement",
+        "orchestrator/tests/test_between_run_floor.py::test_main_rejects_extra_arguments_before_campaign_work",
+        "orchestrator/tests/test_between_run_floor.py::test_main_accepts_one_known_point_without_running_real_campaign",
+        "orchestrator/tests/test_between_run_floor.py::test_measure_point_floor_returns_versioned_receipt_with_mock_measurements",
+        "orchestrator/tests/test_between_run_floor.py::test_main_build_failure_does_not_write_success_json",
+        "orchestrator/tests/test_between_run_floor.py::test_main_measurement_failure_does_not_write_success_json",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_baselines_are_points_of_their_registered_genome_space",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_protocol_output_stem_names_tictoc_without_colliding",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main"
+      ],
+      "duration_s": 21.959,
+      "rc": 0,
+      "repo_head": "5fa44cfb1a8b0af485d4201e630587e6bb6a0336",
+      "runner_sha256": "bdd3adfe8cb64fe7c4e49cd9526745c0bc86ad42fb0c010d534d94942e81fd0b",
+      "spec_sha256": "71865d78328634ed34322f65a87b8fcdaff76acc1c932ef60b9bd0eff519d24f",
+      "status": "PASSED",
+      "tool_sha256": "57065c2831c5c6559c4d0d45b46a91caa6b8279c399d0b4b933a2a336b06fbb9"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M0-equivalent-trailing-comment": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "a015732f60a884b83b3ce17acfe1d4fdcc64f77a56219cc8dddd1ee48324e564",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/between_run_floor.py",
+            "new": "    \"tictoc\": Genome(\"tictoc\", {  # stock = CMake cache defaults\n",
+            "old": "    \"tictoc\": Genome(\"tictoc\", {\n"
+          }
+        ]
+      },
+      "M1-drop-tictoc-entry": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_between_run_floor.py::test_t2760_baselines_are_points_of_their_registered_genome_space",
+          "orchestrator/tests/test_between_run_floor.py::test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main",
+          "orchestrator/tests/test_between_run_floor.py::test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol",
+          "orchestrator/tests/test_between_run_floor.py::test_t2760_protocol_output_stem_names_tictoc_without_colliding",
+          "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin",
+          "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9dc810d6bae5ae965c8ea9e409a8662c795096efb538bcb6f25947c28d560842",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/between_run_floor.py",
+            "new": "    # (tictoc entry removed by mutation M1)\n",
+            "old": "    \"tictoc\": Genome(\"tictoc\", {\n        \"BACK_OFF\": 1,\n        \"NO_WAIT_LOCKING_IN_VALIDATION\": 1,\n        \"NO_WAIT_OF_TICTOC\": 0,\n        \"PREEMPTIVE_ABORTS\": 1,\n        \"TIMESTAMP_HISTORY\": 1,\n    }),\n"
+          }
+        ]
+      },
+      "M2-tictoc-backoff-zero": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f1613405abf3ee7c135cb5e82dccab5282864776a615b1b6b80ba9e99aa01f99",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/between_run_floor.py",
+            "new": "        \"BACK_OFF\": 0,\n        \"NO_WAIT_LOCKING_IN_VALIDATION\": 1,\n        \"NO_WAIT_OF_TICTOC\": 0,\n        \"PREEMPTIVE_ABORTS\": 1,\n",
+            "old": "        \"BACK_OFF\": 1,\n        \"NO_WAIT_LOCKING_IN_VALIDATION\": 1,\n        \"NO_WAIT_OF_TICTOC\": 0,\n        \"PREEMPTIVE_ABORTS\": 1,\n"
+          }
+        ]
+      },
+      "M3-tictoc-nowait-both-one": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_between_run_floor.py::test_t2760_baselines_are_points_of_their_registered_genome_space",
+          "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0804b280236e65498b26651c0112dd01e8ba59586db2b3e3a5d9cb2ac09703a6",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/between_run_floor.py",
+            "new": "        \"NO_WAIT_OF_TICTOC\": 1,\n        \"PREEMPTIVE_ABORTS\": 1,\n",
+            "old": "        \"NO_WAIT_OF_TICTOC\": 0,\n        \"PREEMPTIVE_ABORTS\": 1,\n"
+          }
+        ]
+      },
+      "M4-bypass-trace-hook-gate": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_between_run_floor.py::test_mocc_floor_rejected_before_build_or_measure_without_trace_hook",
+          "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "41956cfc6274d8e6b3d03aa6566ea44abfa92c0410f344228dba7188fca2df8f",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/between_run_floor.py",
+            "new": "    if not (_protocol_source_has_trace_hook_evidence_only(protocol) or True):\n",
+            "old": "    if not _protocol_source_has_trace_hook_evidence_only(protocol):\n"
+          }
+        ]
+      },
+      "M5-tictoc-stem-collapses-to-silo": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_between_run_floor.py::test_t2760_protocol_output_stem_names_tictoc_without_colliding"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "19e70d72f72bc8825da3078fbad3f138c2840e4c80961d520b0ade858af86085",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/between_run_floor.py",
+            "new": "    protocol_part = \"\" if protocol in (\"silo\", \"tictoc\") else f\"_{protocol}\"\n",
+            "old": "    protocol_part = \"\" if protocol == \"silo\" else f\"_{protocol}\"\n"
+          }
+        ]
+      },
+      "M6-parse-accepts-any-protocol": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_between_run_floor.py::test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "44c7941f587cd3919ca0a8bbc7052b94018c1c8d856a7196ad30ed6b10add75a",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/between_run_floor.py",
+            "new": "    if protocol not in BASELINES and False:\n",
+            "old": "    if protocol not in BASELINES:\n"
+          }
+        ]
+      },
+      "M7-main-ignores-protocol-baseline": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_between_run_floor.py::test_hook_bearing_source_routes_mocc_baseline_through_main",
+          "orchestrator/tests/test_between_run_floor.py::test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4e94e68d7ee7fa53a0c2d75ce27e8ea20a6d5c6c3b012bb9e6c5f82c8d98bff3",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/between_run_floor.py",
+            "new": "    baseline = BASELINES[\"silo\"]\n",
+            "old": "    baseline = BASELINES[protocol]\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "8aa514caa282236d0f9638088eed86e8c9e2815e79fef621b41ae6f2a1281fcb",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_between_run_floor.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 3000.0
+  },
+  "repo_head": "5fa44cfb1a8b0af485d4201e630587e6bb6a0336",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_between_run_floor.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "dispatch_head_blob_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "4b09db75eb38486eae3eaa6d0916f77b3f034352",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "bdd3adfe8cb64fe7c4e49cd9526745c0bc86ad42fb0c010d534d94942e81fd0b",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "71865d78328634ed34322f65a87b8fcdaff76acc1c932ef60b9bd0eff519d24f",
+  "summary": {
+    "KILLED": 7,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 8,
+    "matching": 8,
+    "recorded": 8,
+    "registered": 8
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2760-tictoc-floor-baseline/mutation-tree/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "57065c2831c5c6559c4d0d45b46a91caa6b8279c399d0b4b933a2a336b06fbb9",
+  "updated_at": "2026-09-17T13:32:56.732434+00:00"
+}
