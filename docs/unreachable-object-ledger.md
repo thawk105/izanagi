@@ -88,9 +88,10 @@ rc の契約は次のとおりであり、削除可否そのものを表さな�
 rc `1` は使わない。`not-landed` は技術的失敗ではなく JSON 内の判断材料である。全 rc と JSON 結果を
 `/cleanup-branches` §5 の報告へ含める。
 
-候補が多いときは、landed 判定 1 件あたりの既定 8 秒で `checker-timeout` が出て rc `2` になりうるので、
-`--assessment-timeout-seconds` (上限 60) を候補の commit 数に応じて上げ、件数 × 判定秒が全体の
-`--timeout-seconds` (既定 300、上限 900) を超えるならそちらも上げる。rc `2` の `root-snapshot-moved` は
+判定対象の commit が多いときは、landed 判定 1 件あたりの既定 8 秒で `checker-timeout` が出て rc `2` に
+なりうるので、`--assessment-timeout-seconds` (上限 60) を判定対象 commit 数に応じて上げ、commit 数 ×
+判定秒に inventory 等の時間を足した見積りが全体の `--timeout-seconds` (既定 300、上限 900) に迫るなら
+そちらも上げる。rc `2` の `root-snapshot-moved` は、開始と終了の root inventory digest が異なれば出るので、
 走行中に別 wave が worktree・branch を作った場合にも出る (削除可否の判定ではなく可視化の不完全)。
 再走は候補集合を変えずに行う。
 
