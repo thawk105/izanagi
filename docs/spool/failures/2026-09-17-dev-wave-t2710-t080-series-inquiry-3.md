@@ -23,3 +23,14 @@ seq: 3
   保ち、変えるのは成分の鍵だけにする。出力に台帳 hit / fallback 数と重み総和を含め、母集合が同じ仮想変更では総和不変を assert する。
   修正済み probe の出力は `output/insights/2026-09-17/t2710-t080-series-inquiry/probe-outputs/probe_shard_wall.895f300a.v2.txt`。
 - 再発検知: 段 3 レンズが親 probe の source を読む (本件で機能した)。probe 側は重み総和の保存則 assert。
+
+## 再発
+
+### F945
+
+- **再発: 2026-09-17** — [T-2710] 調査 wave (docs と計測成果物のみ、post-claim merge 後の tip `06ad393af`) の受入 attempt 1
+  (session `93bc7244…`、同時受入は投入時 2 本・他 session 合計 3 本) で 4 setup error (24,755 passed / 67 skipped)。全件
+  `test_s8c_preregistration_predicates.py::test_current_repository_*` の module fixture の `archive` 呼び出し (orchestrator/campaign
+  約 80 file) が 10 秒 TimeoutExpired。本 wave の差分は到達不能。同 tip・同 file の単独再走 (`run_tests.py --force-dispatch`、
+  request 4213.nqsv) は 218 passed / 92.29 秒 / rc=0 で非再現。恒久対応は既報のまま変えず、timeout 拡大・stub 化・除外・gate 新設は
+  していない。
