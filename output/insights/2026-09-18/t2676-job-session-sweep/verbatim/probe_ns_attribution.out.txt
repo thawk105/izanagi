@@ -1,4 +1,4 @@
-outer rc 0 stderr 
+outer rc 0 stderr
 orphan pid 3014503
 orphan state/ppid/pgrp/sid/starttime S 1 3014490 3014482 128854488
 my pid/sid 3014490 3014482

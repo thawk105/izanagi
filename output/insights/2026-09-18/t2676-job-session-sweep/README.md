@@ -169,7 +169,9 @@ baseline (container、計算ノード): probe 走 PASSED 47.8 秒 / 本走 PASSE
 ## 9. 一次資料の所在
 
 job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2676-job-session-sweep/` に全成果物 (prompt、log、patch、probe、spec、台帳) を保全。
-`verbatim/` は job dir の原文と byte 同一 (`cp`、正規化なし)。原文の同定:
+`verbatim/` は job dir の原文の複製に**可逆最小正規化**を施してある (`DW-S07`): Markdown の強制改行に使われていた**行末空白だけ**を `sed -i 's/[ \t]*$//'` で除去
+(`consultA-out.md` / `consultB-out.md` / `reviewA-out.md` / `reviewB-out.md` / `probe_ns_attribution.out.txt` / `sigign-5043.txt`)、`s1-brief.md` は末尾の空行 1 行を除去。
+可視文字は不変。原文は job dir にあり、下表の SHA-256 と byte 数で同定できる:
 
 | `verbatim/` の file | 中身 | 原文の SHA-256 | bytes |
 |---|---|---|---|

@@ -22,7 +22,7 @@
 | IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 252315, "time_ns": 1789684987538528041}
 | IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 252315, "rc": 0, "time_ns": 1789684987538536879}
 | IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 252315, "rc": 0, "time_ns": 1789684987538548929}
-| 
+|
 | ============================================================
 | Request ID:             5043.nqsv
 | Request Name:           izdw-36e8f55202

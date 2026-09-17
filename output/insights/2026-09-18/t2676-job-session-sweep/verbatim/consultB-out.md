@@ -11,7 +11,7 @@
 
 以下、`plan-out.md`・`facts.md`・`s1-brief.md` は指定された T-2676 job dir 内、`probe` は指定された T-2675 の Python ファイルを指す。
 
-**B-1 — real／must-fix：heartbeat の判定境界が signal より前にある。**  
+**B-1 — real／must-fix：heartbeat の判定境界が signal より前にある。**
 位置：`plan-out.md:242`、`probe:122`、`probe:249`。
 
 `session-signal-attempt` の記録から実際の `os.kill` までに子が heartbeat を記録できる。したがって「最終 heartbeat ≤ attempt 時刻」は、TERM で正常に終了した走でも偽になり得る。signal の送信成功も、その瞬間の死亡を意味しない。
@@ -22,7 +22,7 @@
 
 ---
 
-**B-2 — real／must-fix：M6 は再列挙の欠落を確実に検出する変異になっていない。**  
+**B-2 — real／must-fix：M6 は再列挙の欠落を確実に検出する変異になっていない。**
 位置：`plan-out.md:77`、`:80`、`:198`。
 
 TERM 後の再列挙だけを初回 snapshot に置き換えても、KILL 後の再列挙で新しい子を発見し、2巡目で TERM・消滅確認できる。現行の「新しい process が処置された」という assert は、この変異でも緑になり得る。
@@ -37,7 +37,7 @@ TERM 後の再列挙だけを初回 snapshot に置き換えても、KILL 後の
 
 ---
 
-**B-3 — real／must-fix：総終了遅延は記録されるが、成功判定の閾値になっていない。**  
+**B-3 — real／must-fix：総終了遅延は記録されるが、成功判定の閾値になっていない。**
 位置：`s1-brief.md:6`、`plan-out.md:149`、`:234`、`:251`。
 
 plan は `E−J` だけでは sweep 内への遅延移動を見逃すと認識している。しかし判定表は sweep が13秒以内なら通り、`supervisor-wait-complete` から E までの時間は併記に留まる。TERM 既定動作の keep が約13秒かかった場合も「終了遅延が消えた」とまとめられる。
@@ -59,7 +59,7 @@ plan は `E−J` だけでは sweep 内への遅延移動を見逃すと認識�
 
 ---
 
-**B-4 — real／must-fix：実 process テストの「各2秒」は、起動・回収を含めた負荷耐性の根拠がない。**  
+**B-4 — real／must-fix：実 process テストの「各2秒」は、起動・回収を含めた負荷耐性の根拠がない。**
 位置：`plan-out.md:172`、`:174`、`:179`、`:181`。
 
 TERM 猶予0.1秒、KILL確認0.3秒、全体2秒は、process が runnable になる遅延や init による zombie 回収待ちに左右される。pipe 同期は準備不足を防ぐが、その同期自体の timeout は別問題である。また、短命親 P は leader L の子なので、P の終了通知だけでなく **L による P の wait 完了**を同期しないと fixture 自身の zombie が混ざる。
@@ -76,7 +76,7 @@ TERM 猶予0.1秒、KILL確認0.3秒、全体2秒は、process が runnable に�
 
 ---
 
-**B-5 — real：F-1 の祖先断定は提示された trace からは導けない。**  
+**B-5 — real：F-1 の祖先断定は提示された trace からは導けない。**
 位置：`facts.md:8`、`s1-brief.md:33`、`plan-out.md:276`。
 
 trace は dispatcher PID、probe の SID・PPID、supervisor PID を示すが、dispatcher から session leader までの祖先鎖は示していない。PID と SID が異なることだけでは、session leader が現存する祖先であることや、NQSV process の役割までは証明できない。
@@ -87,62 +87,62 @@ trace は dispatcher PID、probe の SID・PPID、supervisor PID を示すが、
 
 ---
 
-**B-6 — refuted：5秒猶予があるため `E−J ∈ [−1,5]` に入れない。**  
+**B-6 — refuted：5秒猶予があるため `E−J ∈ [−1,5]` に入れない。**
 位置：`plan-out.md:76`、`:146`、`tools/pegasus/dispatch_compute.py:4499`。
 
 J は sweep 後であり、TERM 成功時は5秒を待ち切らない。SIGKILL に進んでも猶予は J より前なので、`E−J` の窓は同じでよい。
 
-影響：この疑義を理由に会計窓を広げる必要はない。  
+影響：この疑義を理由に会計窓を広げる必要はない。
 是正案：増えるのは `W→J`／`W→E` であると表に明記する。
 
 ---
 
-**B-7 — refuted：`child-exit` 不在の keep は事前契約上すべて不適格になる。**  
+**B-7 — refuted：`child-exit` 不在の keep は事前契約上すべて不適格になる。**
 位置：`plan-out.md:245`、`:247`、`probe:254`。
 
 plan は TERM 終了時に `child-exit` を要求しないと明記し、heartbeat 0件も事前に許容している。自然終了専用の記録を要求しない判断は妥当である。
 
-影響：旧 wave と同じ適格性の事後変更は、この点では生じない。  
+影響：旧 wave と同じ適格性の事後変更は、この点では生じない。
 是正案：この規則を投入前の insight にそのまま固定する。記録途絶だけで成功とせず、同一個体の消滅確認を必須にする。
 
 ---
 
-**B-8 — refuted：sweep 呼出しを入れ忘れても、計画されたテストはすべて緑になる。**  
+**B-8 — refuted：sweep 呼出しを入れ忘れても、計画されたテストはすべて緑になる。**
 位置：`plan-out.md:166`、`:183`、`:193`、`orchestrator/tests/test_pegasus_dispatch_compute.py:4156`。
 
 helper は実際に `_job_run` を呼ぶ。M1 をその呼出し行に当て、sweep 呼出しと result 公開の順序を assert すれば欠落を検出できる。
 
-影響：追加の実 process 統合テストを必須にする理由にはならない。  
+影響：追加の実 process 統合テストを必須にする理由にはならない。
 是正案：wrapper 自体を mock すると opt-in 判定を迂回するため、env 有無を検査するケースでは wrapper を実行し、内側の sweep を mock する。result・guard の実体も照合する。
 
 ---
 
-**B-9 — refuted：計算ノードで SIGTERM 無視の追加1走が必須である。**  
+**B-9 — refuted：計算ノードで SIGTERM 無視の追加1走が必須である。**
 位置：`plan-out.md:160`、`:251`、`D2124.md` の確定範囲。
 
 今回の結論を「generic 単一子・TERM 終了」に限定するなら、追加走は必須ではない。実 process テストは通常終了と SIGKILL の機能を検証できる。ただし計算ノードでの SIGKILL 成功を実証したとは書けない。
 
-影響：限定した完了条件なら2走の予算を維持できる。  
+影響：限定した完了条件なら2走の予算を維持できる。
 是正案：計算ノードの SIGKILL 経路まで完了条件に含める場合だけ、Codex author に TERM 無視条件と準備完了記録を追加させ、別 hash・別 evidence・別判定表で追加1走を事前登録する。既存 probe の同一性を主張したまま改変しない。
 
 ---
 
-**B-10 — nit：行番号と再列挙理由に誤記がある。**  
+**B-10 — nit：行番号と再列挙理由に誤記がある。**
 位置：`facts.md:17`、`:18`、`:23`、`s1-brief.md:40`。
 
 isolation 失敗 return は `dispatch_compute.py:1685–1687`、child 分岐は1647以降、env pop は1625以降である。plan は主要な配置誤りを既に補正している。reparenting で SID は変わらず、再列挙の主要目的は新規 fork の捕捉である。
 
-影響：現在の plan に従えば成果物・受入への具体的差はない。  
+影響：現在の plan に従えば成果物・受入への具体的差はない。
 是正案：親資料を現行アンカーと plan の説明へ合わせる。F-2 の「session 走査が唯一の経路」も「今回採る経路」に弱める。
 
 ---
 
-**B-11 — nit：実測後の後始末と orphan hold 確認が手順として不足する。**  
+**B-11 — nit：実測後の後始末と orphan hold 確認が手順として不足する。**
 位置：`plan-out.md:208`、`:232`、`:257`。
 
 probe 非 commit 方針はあるが、保全・削除・status 確認の順序と、receipt に加えて orphan hold を確認する手順が明文化されていない。
 
-影響：方針違反や hold 発生の証拠は現時点でなく、具体的な結果差は未確認。  
+影響：方針違反や hold 発生の証拠は現時点でなく、具体的な結果差は未確認。
 是正案：probe を job dir に保全・照合して worktree から除き、成果物を意図的に stage した後、`git status --short --untracked-files=all` で `??` が0件であることを確認する。無関係な untracked は削除しない。orphan hold は対象 request の終端時状態として記録し、「一度も発生しなかった」と拡大しない。
 
 ## 判定表の提案

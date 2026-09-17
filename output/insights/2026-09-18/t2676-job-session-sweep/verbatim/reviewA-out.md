@@ -17,7 +17,7 @@
 
 焦点走は実際に `after="term"` の不存在で失敗しています。ただし失敗時の `records` が出ていないため、継承状態が今回の直接原因だったとは断定できません。
 
-**放置時の影響：** 焦点走・受入全走の緑を満たせず、正常版から赤い nodeid を M2/M7 の KILLED 証拠として誤帰属できます。  
+**放置時の影響：** 焦点走・受入全走の緑を満たせず、正常版から赤い nodeid を M2/M7 の KILLED 証拠として誤帰属できます。
 **是正案：** readiness 通知前に各 mode の handler と SIGTERM の unblock を確立し、失敗時に records を表示する。期待値を緩めず正常版を再確認する。
 
 **RA-2 — real / 集計の仕様不適合：session 所属不明の process が `unreadable` を増やす。**
@@ -30,7 +30,7 @@ stat 読取り失敗では `session=None` の record が残り、最終集計は
 
 裁定 §1.5(7) の「最終列挙で残る attributed 候補の集計」とは異なります。一方、所属不明を黙って捨てて clean とするのも不適切です。焦点走の外側 dispatcher は実際に `unreadable=0, status=clean` なので、「計算ノードでは毎回 error」とまでは言えません。
 
-**放置時の影響：** 別 session のアクセス制限だけで判定表 §3 の unreadable=0 を満たせなくなり、回収成功を期待外と報告する可能性があります。  
+**放置時の影響：** 別 session のアクセス制限だけで判定表 §3 の unreadable=0 を満たせなくなり、回収成功を期待外と報告する可能性があります。
 **是正案：** session 所属未確定の走査エラーを、確認済み session の残存集計と区別する。所属未確定なら成功を断定しない方針を保持し、判定表との対応を明文化する。
 
 **RA-3 — real / must-fix（台帳）：M2 は祖先保護の挙動を検出していない。**
@@ -41,7 +41,7 @@ stat 読取り失敗では `session=None` の record が残り、最終集計は
 
 挙動で検出する別構成は可能です。例えば別 session 内で S だけ新しい user namespace に入り、L を外側に残す構成なら、L は namespace 述語上の候補になります。ただし通常 production の「dispatcher は init namespace」という条件から離れるため、独立した祖先 gate の試験として扱う必要があります。
 
-**放置時の影響：** 変異台帳に「祖先の誤殺を検出した」と記録すると、実際以上の安全性を certified 選択・レポートへ持ち込みます。  
+**放置時の影響：** 変異台帳に「祖先の誤殺を検出した」と記録すると、実際以上の安全性を certified 選択・レポートへ持ち込みます。
 **是正案：** 現 M2 は **冗長 gate の diagnostic sensitivity pin として別枠**にする。挙動検出を要求するなら別 fixture を登録する。変更前の裁定 §4 を満たしたとは扱わない。
 
 **RA-4 — refuted：祖先鎖が session 外へ進むこと、ppid=0 により危険な走査になる。**
@@ -50,7 +50,7 @@ stat 読取り失敗では `session=None` の record が残り、最終集計は
 
 pid 1 は追加後に終了し、ppid=0 は次の while 条件で終了します。`/proc/0` は読みません。既訪問も終了条件です。session 外の祖先を除外集合へ含めても、候補を追加する効果はありません。祖先 stat の失敗は sweep 自体を中止します。
 
-**影響判定：** 指摘された経路による誤殺は認められません。  
+**影響判定：** 指摘された経路による誤殺は認められません。
 **是正案：** 現行を維持。祖先の消滅・付け替わりを含む完全な同時 snapshot の保証とは区別する。
 
 **RA-5 — refuted：通常の PID 再利用、fd 管理、poll が終了を捏造する。**
@@ -61,7 +61,7 @@ pid 1 は追加後に終了し、ppid=0 は次の while 条件で終了します
 
 空イベントでは期限まで再 poll します。POLLIN を伴わない HUP/NVAL は終了として数えません。ただし即時返却が続けば期限まで busy loop になり得ます。`after=term/kill` は観測段階であり、死亡原因の証明ではありません。
 
-**影響判定：** 指定された通常経路での対象取り違え・偽の終了加算は認められません。  
+**影響判定：** 指定された通常経路での対象取り違え・偽の終了加算は認められません。
 **是正案：** 現行の同一性確認を維持。starttime の粒度や session 変更まで含む絶対的な原子性保証は主張しない。
 
 **RA-6 — refuted：env 継承や配置によって login pytest を走査し、通常例外で result を変更する。**
@@ -74,7 +74,7 @@ SHA 不一致・None は getsid より前に return します。ambient `1` で�
 
 `KeyboardInterrupt` / `SystemExit` は捕捉しません。`_SignalAbort` は Exception 系なので捕捉対象ですが、通常の `--job-run` 経路は `dispatch()` の SIGTERM handler 登録を通りません。「job 内 SIGTERM は必ず `_SignalAbort`」とは言えません。
 
-**影響判定：** 指定された env 継承と通常例外による受入破壊は認められません。  
+**影響判定：** 指定された env 継承と通常例外による受入破壊は認められません。
 **是正案：** 現行を維持。同期 stderr の閉塞や外部 signal まで rc 不変と一般化しない。
 
 **RA-7 — refuted：新規テストが両層 stub による恒真 gate になっている。**
@@ -87,7 +87,7 @@ SHA 不一致・None は getsid より前に return します。ambient `1` で�
 
 opt-in 負例では触れた操作が AssertionError を投げ、wrapper がそれを捕捉しても trace が呼ばれるため、`trace.assert_not_called()` が検出します。単なる「例外が外へ出なかった」検査ではありません。
 
-**影響判定：** 全体が stub 成功だけで緑になる構造ではありません。ただし RA-1 の実測赤は残ります。  
+**影響判定：** 全体が stub 成功だけで緑になる構造ではありません。ただし RA-1 の実測赤は残ります。
 **是正案：** 各 mock テストが保証する層を限定して報告する。
 
 **RA-8 — nit：trace field 配置に仕様表記との差がある。**
@@ -98,7 +98,7 @@ opt-in 負例では触れた操作が AssertionError を投げ、wrapper がそ�
 
 新規 production に subreaper、PID namespace、setsid、非子 waitpid、数値 PID への os.kill は追加されていません。F973 の reparenting 変更や既存 consumer の受理集合変更もありません。
 
-**放置時の影響：** 指定資料では既存 consumer への直接影響はありませんが、今後の probe 集計で対象 pid の参照位置を誤る余地があります。  
+**放置時の影響：** 指定資料では既存 consumer への直接影響はありませんが、今後の probe 集計で対象 pid の参照位置を誤る余地があります。
 **是正案：** trace 仕様を `process.pid` 等の実際の配置へ合わせる。RA-2 の集計差とは区別する。
 
 ## 変異対応表の検算

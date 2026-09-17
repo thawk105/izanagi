@@ -57,4 +57,3 @@ worklog / decisions fragment。
 ### 分割方針
 DW-C00 の条件: 設計択一が割れる (回収 vs 離脱、発火条件の形、猶予値) → 段 2 plan + 段 3 敵対 2 レンズ + 段 6 レビュー 2 本を回す。
 実装子 1 本 (dispatcher + tests を同一 file 群で所有)。受入・実測環境 = Pegasus (login で focus 走、計算ノードで generic 2 走と受入全走)。
-
