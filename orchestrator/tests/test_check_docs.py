@@ -1308,6 +1308,7 @@ def _build_min_repo() -> str:
            "## D254. placeholder decision\n\n本文。\n\n"
            "## D271. placeholder decision\n\n本文。\n\n"
            "## D690. placeholder decision\n\n本文。\n\n"
+           "## D703. placeholder decision\n\n本文。\n\n"
            + _SYNTHETIC_R33_DECISION_SECTION)
     _write(root, os.path.join("docs", "failures.md"),
            "# placeholder failures\n\n"
