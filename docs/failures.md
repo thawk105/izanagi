@@ -12631,6 +12631,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   hit した test の中身で pin の形 (本数・行番号・sha256) を読む」に加え、
   「**変更する file の変更前 sha256 を repo 全体 (`output/` 含む) で逆引きし、hit を live 比較する test が
   無いか読む**」。後者は (c)(d) を段 5 前に出せた (親が受入 2 回目の後に実測して確認)。
+
+- **再発: 2026-09-18 ([T-2724] chain land wave の段 1)** — 親は chain が足す 3 path で `orchestrator/tests/` を逆引きし
+  12 file の hit を得たが、**hit した test の中身を読まずに** brief へ「実 repo を読んで赤になるのは growth hold 下の 2 node
+  だけ」と書いた。実際は `test_s8b_floor_campaign.py` の実 HEAD clone fixture (:2291 / :15625) を使う非 hold 5 node が
+  production `clean_scan_digest` の正しい拒否で赤になり、land すると main の受入が恒久赤になる状態だった。検出は
+  F370 と同じ経路 — 段 3 の敵対レンズ (A-4) が静的に指摘し、親が焦点走 (計算ノード、5 failed) で確定して land を止めた。
+  前 wave (entry 1591) も chain 木で三軸走査だけを実走し受入を走らせていなかったため、裁定パッケージ (D2120 (d)) に
+  この波及が載らなかった。恒久対応は F370 の 2026-09-16 再発が定めた「hit した test の中身で pin の形を読む」を、
+  **実 ROOT を clone / 走査する fixture の有無**まで読む方向へ適用する (一次資料
+  `output/insights/2026-09-18/t2724-freeze-g1-chain-land/README.md` §3)。
 ### F371. 終了主体を記録しない計装が、「送る前に送ったことにする」形で自分の目的を偽った [恒真ゲート]
 
 - 事象: F285 は `codex_exit_code=-9` が外部 SIGKILL と識別不能であることを
