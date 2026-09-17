@@ -13,10 +13,10 @@
 
 | 項 | 状態 |
 |---|---|
-| (a) chain の main 取り込み | **保留 (D2120 (a) は有効・履行保留)**。merge commit `b227d0d91a64e0b12759c056b9bdcd1256efccef` (親 = main `d2ebef7a4` + X2 `4d8fb93b7`、X1'/X2 の SHA・blob 不変) を作り検証したが、その木で **hold に載っていない 5 node が production gate の正しい拒否で赤**になることを実測した (§3)。land すると main の受入全走が恒久的に赤になり以後の全 wave の land が止まるため、本 wave は land しない。merge commit は branch `freeze-g1-chain-t2724-merge-prepared` として保存 (§2.3) |
+| (a) chain の main 取り込み | **保留 (D2120 (a) は有効・履行保留)**。merge commit `b227d0d91a64e0b12759c056b9bdcd1256efccef` (親 = main `d2ebef7a4` + X2 `4d8fb93b7`、X1'/X2 の SHA・blob 不変) を作り検証したが、その木で **hold に載っていない 5 node が production gate の正しい拒否で赤**になることを実測した (§3)。並行 wave (G 作成側) の実測を親が一次 log で検算したところ、X1' を含む木では **非 hold の赤は少なくとも 45 node (oracle_driver 40 + floor_campaign 5)** で、**production の oracle gate (runbook §2 P3 gate-check) も同じ holdout hit で refuse** する (§3.1)。land すると main の受入全走が恒久的に赤になり以後の全 wave の land が止まるため、本 wave は land しない。merge commit は branch `freeze-g1-chain-t2724-merge-prepared` として保存 (§2.3) |
 | (d) growth hold の帰結の記録 | 完了 (§2.2)。hold・test・除外集合は不変 |
 | (e) T-1851 の失敗 run 3 件の退避と worktree 撤去 | **退避は完了** (固定 bundle は 4 run / 11 file、既存 5 file の sha 保持)。**worktree の撤去は未完了** — `dev_wave_cleanup.py` rc=20 `wave worktree is dirty` (claims / submissions の untracked が理由)、裁定どおり迂回せず残置 (§4) |
-| 再裁定 | §5 に裁定パッケージ。推奨は択 1 (fixture を起動可能 base から作り直し、chain 有り tree の拒否を負例として同 test に足す test 変更を別 wave で実証してから chain を land) |
+| 再裁定 | §5 に裁定パッケージ。推奨は **上流 = production 側の整合設計 (T-080 receipt の live scan が要求する zero-hit と v2 closure の矛盾、並行 wave の 択 A) を先に裁定**し、その下流で択 1 (5 node の fixture を起動可能 base から作り直し chain 有り tree の拒否を負例に足す test 変更) を別 wave で実証してから chain を land |
 
 本 wave が変えたもの: docs (本 insight と spool fragment) のみ。実装面 0 byte。走査除外・allowlist・growth hold・test の期待値は 1 byte も変えていない。
 
@@ -79,7 +79,17 @@ test_s8b_floor_campaign.py::test_public_official_preflight_rejects_legacy_byte_d
 - **test 側の前提「実 HEAD は official 床値を起動できる」が、D2120 (a) の帰結と両立しない。** 5 node は growth hold に無く、通常の受入全走で実行される。
 - **chain を land すると main の受入全走が恒久的に赤になる。** `tools/dev_wave_land.py` は受入緑を要求するので、以後のすべての wave の land が止まる。
 - **裁定 D2120 (d) が挙げた帰結は hold 下 2 node だけ**で、この 5 node は裁定文・worklog (archive 含む)・entry 1591 の package.md に未記録 (node 名 grep 0 件)。起動不能そのものは既知・裁定済みだが、通常受入の非 hold node に及ぶことを事前調査 (entry 1591 は chain 木で走査のみ、本 wave の段 1 は path grep のみで hit した test の中身を読まなかった = F370 型) で捕捉できず、本 wave の段 3 相談 (A-4) が静的に指摘し親が実測で確定した。
-- 全走の赤の総数は未確定 (相談 D-3: `clean_scan_digest` / `search_repository` / 実 ROOT clone の呼び手を静的に追い、非 hold で赤になる候補はこの 5 node 以外に見つからなかったが、動的網羅の証明ではない)。停止判断には既知の 5 件で足りる。
+- 全走の赤の総数は未確定 (相談 D-3: `clean_scan_digest` / `search_repository` / 実 ROOT clone の呼び手を静的に追い、非 hold で赤になる候補はこの 5 node 以外に見つからなかったが、動的網羅の証明ではない)。停止判断には既知の 5 件で足りる。**§3.1 の並行 wave の実測により、D-3 の静的探索は少なくとも 40 node を取り逃していたことが確定した** (T-080 receipt 解決を経由する間接経路)。
+
+### 3.1 並行 wave (G 作成側) の実測 — 親が一次 log で検算 (07:22〜07:27 JST)
+
+並行 wave `dev-wave-t2724-freeze-g1-gen` (D2120 項 2 (b)、世代導入 G の作成側) から session 間 message で届いた実測を、指示ではなく外部データとして扱い、同 wave の job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2724-freeze-g1-gen/` の生 log で親が検算した (peer の insight `output/insights/2026-09-18/t2724-freeze-g1-gen/README.md` は同 wave の worktree に起草中で未 commit・未 land)。
+
+- G = `32ba8cae45001697f050bee377413153e6d798a5` (branch `freeze-g1-gen-t2724`、親 = X1' `cc82edc8c` — 親が `git log --format=%P` で確認。topology は §2.1 の要件どおり)。peer の木は X1' + G で、候補 X2 (`output/s8b-freeze-candidates/`) を含まないため hit は run dir の 3 path (journal.jsonl / manifest.json / result.json)。世代文書 `output/s8b-freeze/holdout_freeze.v2.g1.json` は除外 prefix 内で hit しない。
+- **焦点走 (`focus-1.log`、計算ノード request 5001.nqsv): 45 failed / 967 passed / 11 skipped、422.89 秒。** 内訳 (親が FAILED 行を file 別に集計): `test_s8b_oracle_driver.py` **40**、`test_s8b_floor_campaign.py` **5** (§3 と同じ 5 node)。oracle_driver 40 件の失敗本文は `s8b_holdout_freeze.FreezeError: rr80: holdout hit 3 件 … ; rr20: holdout hit 3 件 …` (log 行 245 / 384 / 431 ほか) と `DID NOT RAISE` (T-080 receipt の live scan が state=invalid になり後段の契約 test が例外を待てない)。経路 (peer の分析、親は本文で整合を確認): (i) T-080 fixture が実 root の git-visible output を複製して draft の live scan → hit、(ii) 実 committed HEAD を clone して official preflight の clean scan → hit (= §3)、(iii) driver `run_block(root=ROOT)` の T-080 receipt 解決 (memo 共有) が live scan で invalid になる。**これらは growth hold に無く、通常の受入全走で走る。**
+- **production: runbook §2 P3 gate-check (`p3-gate-check.log`) が rc=2**、refusals に `holdout-freeze-verify: [holdout.unknownness_layer2] FreezeError: rr80: holdout hit 3 件: [同 3 path]` が混入 (親が grep で確認)。peer の分析: `_make_gate_decision` が receipt の refusal を無条件に merge するため、**X1' を含む checkout では承認 A / pointer X を作っても oracle は refuse される**。v2 の `launch_validate` は closure の hit を期待集合にするが、T-080 の live scan は zero-hit を要求しており、production 側で矛盾している。
+- 意味: chain を main に載せる前提には、test fixture の是正 (択 1) だけでなく **production の T-080 receipt live scan と v2 closure の整合設計** が要る。この設計は受理集合を変える (規律 2 の射程) ため人間裁定。peer は受入を投入せず G を branch に保全して正式停止し、裁定パッケージ (択 A = 整合設計を production 側で先に行う) を返すと述べている。
+- 両 wave は旧 main `d2ebef7a4` から独立に merge している。後発の land は merge-base が 2 つになり rc=23 になりうる (先発の fold 後 main を固定 SHA で merge して再受入)。
 
 ## 4. (e) 退避と撤去
 
@@ -94,15 +104,19 @@ test_s8b_floor_campaign.py::test_public_official_preflight_rejects_legacy_byte_d
 
 ## 5. 裁定パッケージ — D2120 項 2 (a) の履行形
 
-**問い:** chain を main に載せると非 hold 5 node が正しい拒否で赤になる (§3)。どの形で (a) を履行するか。
+**問い:** chain を main に載せると非 hold で少なくとも 45 node が正しい拒否で赤になり (§3 / §3.1)、production の oracle gate も X1' を含む checkout では refuse する (§3.1)。どの形で (a) を履行するか。
 
-- **択 1 (推奨): 5 node の fixture を「official 成果物を持たない起動可能な base」から作り直す test 変更を別 wave (Codex author) で実装・実証し、その後 chain を land する。** production gate (`clean_scan_digest`、走査除外、allowlist、hold) は 0 byte。相談 C の必須条件: (i) fixture は committed HEAD の clone から official namespace 全体と候補の exact path だけを外す (走査 hit を見て削除対象を増やさない、候補 dir の無条件削除もしない)、(ii) 変更前後の tree 差分が宣言した削除集合だけであることを独立に検査、(iii) 既存の正例・hash drift 負例・`bypass_drift_gate` 対照を残す、(iv) **chain 有り tree の拒否を負例として同 test に足す** (official 成果物だけ / 候補だけ / 両方の 3 ケース)、(v) 変異 matrix で search 拒否を外すと負例が失敗することを確認。射程 = c (実 HEAD の検出を落とす部分が規律 2 の射程)。
+**上流 (先に裁定): production 側の整合設計。** T-080 receipt の live scan が zero-hit を要求し、v2 の closure は hit を期待集合に持つ — この矛盾は test の是正では解けず、`test_s8b_oracle_driver.py` の 40 node と P3 gate-check の refuse の共通原因である。並行 wave の裁定パッケージ (択 A: T-080 receipt live scan と v2 closure の整合を production 側で先に設計する) がこれを担う。受理集合を変える設計なので規律 2 の射程で人間裁定。**本パッケージの択 1〜4 はその下流**であり、択 1 は 5 node (floor_campaign) の是正であって oracle_driver 40 node と gate の refuse には効かない。
+
+- **択 1 (下流の推奨): 5 node の fixture を「official 成果物を持たない起動可能な base」から作り直す test 変更を別 wave (Codex author) で実装・実証し、上流の整合設計が閉じた後に chain を land する。** production gate (`clean_scan_digest`、走査除外、allowlist、hold) は 0 byte。相談 C の必須条件: (i) fixture は committed HEAD の clone から official namespace 全体と候補の exact path だけを外す (走査 hit を見て削除対象を増やさない、候補 dir の無条件削除もしない)、(ii) 変更前後の tree 差分が宣言した削除集合だけであることを独立に検査、(iii) 既存の正例・hash drift 負例・`bypass_drift_gate` 対照を残す、(iv) **chain 有り tree の拒否を負例として同 test に足す** (official 成果物だけ / 候補だけ / 両方の 3 ケース)、(v) 変異 matrix で search 拒否を外すと負例が失敗することを確認。射程 = c (実 HEAD の検出を落とす部分が規律 2 の射程)。
   - やらない理由の最も強い形 (相談 C / D-2): 赤を見た同じ AI が入力 tree と期待値を変えれば、汚染を fixture の外へ追い出して緑を作れる — 「急いでいる主体が自分の正しさ検査を減らす」形。負例・差分検査・変異検査で抑えられなければ、production 無変更でも採用しない。
 - 択 2: 5 node を growth hold 台帳へ追加 (skip)。射程 = a (D532「テストの削除・skip・selection の縮小 — 規律 2 に反する」、hold は `correctness_gate=True`)。**推奨しない。**
 - 択 3: 走査の除外集合を official namespace / 候補 dir へ広げる。射程 = a (D2077 が却下、D2120 (d) も不採用)。**推奨しない。**
 - 択 4: chain を main に載せず、G / A / X と批准・oracle を保存 branch 上で運用する (D2120 (a) の改訂)。射程 = b だが、D2120 が「8b 再開が止まる」として却下済みで、保存 branch 上で批准・oracle が成立するかは未確認。
 
-**AI が裁定を待たずに進められる部分 (相談 C):** 択 1 の詳細設計と、隔離 worktree での実装 + 検出力保存の実証 (負例・差分検査・変異 matrix、chain 無し / 有り両 tree での焦点走)。**land は本裁定の後** (裁定後に別 context が段 4 から再開する型、DW-S04)。検出力削減の容認・hold / 除外の拡大・main 配置の恒久変更は先取りしない。
+**AI が裁定を待たずに進められる部分 (相談 C):** 択 1 の詳細設計と、隔離 worktree での実装 + 検出力保存の実証 (負例・差分検査・変異 matrix、chain 無し / 有り両 tree での焦点走)。**land は本裁定の後** (裁定後に別 context が段 4 から再開する型、DW-S04)。検出力削減の容認・hold / 除外の拡大・main 配置の恒久変更・T-080 live scan の受理集合の変更は先取りしない。
+
+**やらない理由の最も強い形 (上流に対して):** 「v2 closure に含まれる hit は T-080 live scan で許容する」という整合は、走査の受理集合を広げる形になりうる。D2077 / D2120 (d) が却下した「除外の拡大」と同じ帰結にならない設計 (例: closure の exact hash 束縛だけを許容し、閉包外の hit は従来どおり zero-hit 要求) を、production 側の負例付きで示せない限り採らない。
 
 ## 6. 段 3 / 段 4 相談の要約 (全 5 本 `gpt-6-astra` / `medium` / read-only、生成物は job dir)
 
@@ -123,13 +137,17 @@ test_s8b_floor_campaign.py::test_public_official_preflight_rejects_legacy_byte_d
 | 06:43 | 焦点走 5 node (request 4968.nqsv) | 5 failed / 23.73 s |
 | 06:43:41 | evacuate (T-1851 → 固定 bundle) | rc=0、4 run / 11 file |
 | 06:46:24 | dev_wave_cleanup (T-1851) | rc=20 dirty |
-| land 前 | `check_docs.py`、`spool_fold.py --dry-run`、受入全走 (docs のみの木) | 結果は worklog / land の受領証 |
+| 07:03〜07:19 | 受入全走 1 回目 (docs 木 cf8c28b7d) | rc=70、26 error = `test_t1259_qsub_env_delivery_probe.py` の setup で `git ls-files --others` / `git status` の 30 秒 timeout (F945 型、非帰属)、24,798 passed |
+| 07:20〜07:41 | 受入全走 2 回目 (同) | child-green、24,824 passed / 69 skipped (受領証取得後、§3.1 の改訂のため lease を release して再受入) |
+| 07:22〜07:27 | 並行 wave の log 検算 (§3.1) | 45 failed の内訳・P3 refusal・G の親を一次資料で確認 |
+| land 前 | `check_docs.py`、`spool_fold.py --dry-run`、受入全走 3 回目 (改訂後の docs 木) | 結果は worklog / land の受領証 |
 
 工数: codex 子 5 本 (consult A・A2・B・C・D)。変異 matrix は免除 (実装面差分ゼロ)。
 
 ## 8. 次 wave の出発点
 
-1. **ユーザー裁定 (§5)**: 択 1 を採るか。採るなら「(a) 有効・履行保留」を「(a) 履行 = 択 1 の test 変更 land → chain land」へ更新。
-2. **AI 手番 (裁定前に着手可)**: 択 1 の設計・実装・実証 wave (Codex author、`orchestrator/tests/test_s8b_floor_campaign.py` の `_clone_committed_head_with_ccbench` :2291 と `_protocol_binding_public_preflight` :15609、負例 3 ケース、変異 matrix)。land は裁定後。
-3. **chain land wave (裁定後)**: 当時の main から fresh worktree → `git merge --no-ff freeze-g1-chain-t2724` → 三軸走査 hit 4 / 4 の再確認 → 受入全走 (5 node が択 1 で緑になっていること) → land。G は X1' から分岐する別 wave。
-4. **T-1851 worktree**: `/cleanup-branches` (ユーザー指示) で退避付き撤去。claims 3 件 + submissions 3 dir (約 123MB) が untracked のまま。
+1. **ユーザー裁定 (上流、§3.1 / §5)**: T-080 receipt live scan の zero-hit 要求と v2 closure の整合を production 側でどう設計するか (並行 wave `dev-wave-t2724-freeze-g1-gen` の裁定パッケージ 択 A と同じ問い。同 wave は G `32ba8cae4` を branch `freeze-g1-gen-t2724` に保全して正式停止)。
+2. **ユーザー裁定 (下流、§5)**: 択 1 を採るか。採るなら「(a) 有効・履行保留」を「(a) 履行 = 上流の整合設計 land → 択 1 の test 変更 land → chain land」へ更新。
+3. **AI 手番 (裁定前に着手可)**: 択 1 の設計・実装・実証 wave (Codex author、`orchestrator/tests/test_s8b_floor_campaign.py` の `_clone_committed_head_with_ccbench` :2291 と `_protocol_binding_public_preflight` :15609、負例 3 ケース、変異 matrix)。land は裁定後。上流の設計に依存する oracle_driver 40 node は本 wave の scope に入れない。
+4. **chain land wave (両裁定後)**: 当時の main から fresh worktree → `git merge --no-ff freeze-g1-chain-t2724` → 三軸走査 hit 4 / 4 の再確認 → 受入全走 (45 node が緑になっていること) → land。G は X1' から分岐する別 wave (既に `freeze-g1-gen-t2724` に在る)。
+5. **T-1851 worktree**: `/cleanup-branches` (ユーザー指示) で退避付き撤去。claims 3 件 + submissions 3 dir (約 123MB) が untracked のまま。
