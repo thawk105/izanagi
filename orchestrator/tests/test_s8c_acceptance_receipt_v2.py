@@ -6,6 +6,7 @@ import ast
 import copy
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from collections.abc import Mapping
@@ -1408,13 +1409,13 @@ def test_t2613_history_accepts(tmp_path: Path, case: str) -> None:
         _commit_all(repo, "unusual path")
         unusual.chmod(0o755)
         _commit_all(repo, "mode only")
-    assert _t2613_gate(repo, current) == current
+    assert _t2613_gate(repo, current) is None
 
 
 @pytest.mark.parametrize("case", [
     "alternate-ref", "delete-recreate", "non-prefix", "copy-same-oid",
     "symlink-bytes", "root-only", "merge-only", "type-change", "invalid-utf8",
-    "working-prefix", "canonical-schema", "canonical-gitlink-mode",
+    "working-prefix", "canonical-schema", "canonical-gitlink-mode", "directory-gitlink-mode",
 ])
 def test_t2613_history_rejects(tmp_path: Path, case: str) -> None:
     initial = "empty" if case == "root-only" else "schema" if case == "canonical-schema" else "genesis"
@@ -1470,6 +1471,13 @@ def test_t2613_history_rejects(tmp_path: Path, case: str) -> None:
         message = "working attempt registry does not extend committed history"
     elif case == "canonical-schema":
         message = r"\[receipt-attempt-registry\]"
+    elif case == "directory-gitlink-mode":
+        directory = receipt.DEFAULT_ATTEMPT_REGISTRY_PATH.parent.as_posix()
+        oid = _run(repo, "rev-parse", "HEAD:" + directory).stdout.strip()
+        assert _run(repo, "rm", "-r", "--cached", directory).returncode == 0
+        assert _run(repo, "update-index", "--add", "--cacheinfo", f"160000,{oid},{directory}").returncode == 0
+        assert _run(repo, "commit", "-q", "-m", "directory gitlink").returncode == 0
+        message = "attempt registry was deleted"
     else:
         _t2613_index_blob(repo, receipt.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(), genesis, "160000")
         message = "attempt registry was deleted"
@@ -1477,9 +1485,24 @@ def test_t2613_history_rejects(tmp_path: Path, case: str) -> None:
         _t2613_gate(repo, current)
 
 
-@pytest.mark.parametrize("first", ["alternate", "canonical", "same-commit", "path"])
+@pytest.mark.parametrize("first", ["alternate", "canonical", "same-commit", "path", "missing-then-path", "path-then-missing"])
 def test_t2613_history_error_order(tmp_path: Path, first: str) -> None:
     repo, canonical, genesis, _, other = _t2613_repo(tmp_path)
+    if first in ("missing-then-path", "path-then-missing"):
+        missing, invalid = (("a-missing", b"z-\xff") if first == "missing-then-path"
+                            else ("z-missing", b"a-\xff"))
+        _write(repo / os.fsdecode(invalid), b"ordinary")
+        assert _run(repo, "add", "--", os.fsdecode(invalid)).returncode == 0
+        assert _run(repo, "update-index", "--add", "--cacheinfo", f"100644,{'e' * 40},{missing}").returncode == 0
+        tree = _run(repo, "write-tree", "--missing-ok")
+        assert tree.returncode == 0
+        commit = _run(repo, "commit-tree", tree.stdout.strip(), "-p", "HEAD", "-m", "missing and invalid")
+        assert commit.returncode == 0
+        assert _run(repo, "update-ref", "HEAD", commit.stdout.strip()).returncode == 0
+        expected = "blob cannot be read" if first == "missing-then-path" else "not valid UTF-8"
+        with pytest.raises(receipt.AcceptanceReceiptError, match=expected):
+            _t2613_gate(repo, genesis)
+        return
     if first == "alternate":
         _write(repo / "alternate", other)
         _commit_all(repo, "alternate first")
@@ -1496,6 +1519,23 @@ def test_t2613_history_error_order(tmp_path: Path, first: str) -> None:
                 "not valid UTF-8" if first == "path" else "is not a strict prefix")
     with pytest.raises(receipt.AcceptanceReceiptError, match=expected):
         _t2613_gate(repo, other)
+
+
+def test_t2613_batch_error_after_earlier_violation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, _, genesis, _, other = _t2613_repo(tmp_path)
+    _t2613_index_blob(repo, "alternate", other, "100644")
+    late = _t2613_index_blob(repo, "late", b"late ordinary blob", "100644")
+    real, injected = receipt._git, []
+    def truncate(root, args, **kwargs):
+        result = real(root, args, **kwargs)
+        if tuple(args) == ("cat-file", "--batch") and kwargs["input_bytes"] == late.encode() + b"\n":
+            injected.append(True)
+            return subprocess.CompletedProcess(result.args, result.returncode, result.stdout[:-1], result.stderr)
+        return result
+    monkeypatch.setattr(receipt, "_git", truncate)
+    with pytest.raises(receipt.AcceptanceReceiptError, match="alternate attempt registry genesis"):
+        _t2613_gate(repo, genesis, batch_max_bytes=1)
+    assert injected
 
 
 def test_t2613_batch_rejects_last_chunk_genesis(tmp_path: Path) -> None:
@@ -1522,7 +1562,7 @@ def test_t2613_batch_chunks(tmp_path: Path, case: str) -> None:
     chunks = list(receipt._attempt_batch_chunks(entries, cap))
     assert [len(chunk) for chunk in chunks] == ([2, 1] if case == "last-single" else [1, 1, 1])
     assert [data for chunk in chunks for _, data in receipt._attempt_read_batch(repo, chunk)] == [b"a\0\n", b"", b"ccc"]
-    assert _t2613_gate(repo, genesis, batch_max_bytes=cap) == genesis
+    assert _t2613_gate(repo, genesis, batch_max_bytes=cap) is None
 
 
 def test_t2613_batch_rejects_truncated_body(tmp_path: Path) -> None:
@@ -1555,15 +1595,17 @@ def test_t2613_batch_default_cap_is_256_mib() -> None:
 
 
 @pytest.mark.parametrize("valid", [True, False], ids=["success", "nonzero"])
-def test_t2613_git_stdin(tmp_path: Path, valid: bool) -> None:
-    repo, _, _, _, _ = _t2613_repo(tmp_path)
-    data = b"binary\0payload\n"
-    result = receipt._git(repo, ("hash-object", "--stdin", "-t", "blob" if valid else "tree"), input_bytes=data)
-    if valid:
-        assert result.returncode == 0
-        assert result.stdout.strip().decode() == hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
-    else:
-        assert result.returncode != 0
+def test_t2613_git_stdin(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, valid: bool) -> None:
+    rc = 0 if valid else 7
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    git = bin_dir / "git"
+    git.write_text(f"#!/bin/sh\ncat\nprintf 'stderr sentinel' >&2\nexit {rc}\n")
+    git.chmod(0o755)
+    monkeypatch.setenv("PATH", str(bin_dir) + os.pathsep + os.environ.get("PATH", ""))
+    payload = b"line\n\0bytes\xff"
+    result = receipt._git(tmp_path, ("stdin-sentinel",), input_bytes=payload)
+    assert (result.returncode, result.stdout, result.stderr) == (rc, payload, b"stderr sentinel")
 
 
 def test_m3_v5_rejects_predeclared_unit_without_final_terminal(

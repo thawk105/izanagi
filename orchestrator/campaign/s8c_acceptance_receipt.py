@@ -1844,15 +1844,21 @@ def _attempt_parse_batch_check(data: bytes, requests: Sequence[bytes]) -> list[l
     return entries
 
 
-def _attempt_parse_batch(data: bytes, entries: Sequence[list[bytes]]):
+def _attempt_parse_batch(data: bytes, entries: Sequence[list[bytes]], on_error=None):
     """Yield size-framed bodies; never treat body LF or NUL as separators."""
     offset = 0
     for entry in entries:
         header = b" ".join(entry) + b"\n"
         end = offset + len(header) + int(entry[2])
         if data[offset:offset + len(header)] != header or data[end:end + 1] != b"\n":
-            _fail("receipt-history", "attempt tree blob cannot be read")
-        yield entry[0], data[offset + len(header):end]
+            if not data[offset:] or (end >= len(data) and entry is not entries[-1]) or on_error is None:
+                _fail("receipt-history", "attempt tree blob cannot be read")
+            on_error(entry[0])
+            if end >= len(data):
+                offset = len(data)
+                break
+        else:
+            yield entry[0], data[offset + len(header):end]
         offset = end + 1
     if offset != len(data):
         _fail("receipt-history", "attempt tree blob cannot be read")
@@ -1871,15 +1877,15 @@ def _attempt_batch_chunks(entries: Sequence[list[bytes]], cap: int):
         yield chunk
 
 
-def _attempt_read_batch(root: Path, entries: Sequence[list[bytes]]):
+def _attempt_read_batch(root: Path, entries: Sequence[list[bytes]], on_error=None):
     result = _git(root, ("cat-file", "--batch"),
                   input_bytes=b"\n".join(entry[0] for entry in entries) + b"\n")
     if result.returncode:
         _fail("receipt-history", "attempt tree blob cannot be read")
-    yield from _attempt_parse_batch(result.stdout, entries)
+    yield from _attempt_parse_batch(result.stdout, entries, on_error)
 
 
-def _attempt_canonical_tree(data: bytes) -> bytes | None:
+def _attempt_canonical_tree(data: bytes, component: bytes, *, leaf: bool) -> bytes | None:
     offset = 0
     while offset < len(data):
         end = data.find(b"\0", offset)
@@ -1888,7 +1894,11 @@ def _attempt_canonical_tree(data: bytes) -> bytes | None:
         mode, separator, name = data[offset:end].partition(b" ")
         if not separator:
             _fail("receipt-history", "attempt registry tree walk failed")
-        if name == b"attempt-registry.jsonl" and mode in {b"100644", b"100755", b"120000"}:
+        if name == component:
+            if not leaf and mode != b"40000":
+                return None
+            if leaf and mode not in {b"100644", b"100755", b"120000"}:
+                return None
             return data[end + 1:end + 21].hex().encode("ascii")
         offset = end + 21
     return None
@@ -1941,10 +1951,13 @@ def _assert_attempt_registry_history_append_only(
     root: Path,
     relative_path: str,
     *,
-    current_bytes: bytes | None,
+    current_bytes: bytes,
     batch_max_bytes: int | None = None,
-) -> bytes | None:
-    """Apply the all-ref gate; operational process failures have no ordering guarantee."""
+) -> None:
+    """Apply the all-ref gate.
+
+    Unattributable process/response anomalies have no ordering guarantee.
+    """
     cap = _ATTEMPT_BATCH_MAX_BYTES if batch_max_bytes is None else batch_max_bytes
     if relative_path != DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix():
         _fail("receipt-history", "attempt registry path is not canonical")
@@ -1965,30 +1978,41 @@ def _assert_attempt_registry_history_append_only(
             _fail("receipt-history", "attempt history returned an invalid commit ID")
         commit_ids.append(raw_commit)
     ranks = {oid: rank for rank, oid in enumerate(commit_ids)}
-    directories = _attempt_batch_check(root, [
-        oid + b":output/s8c-preregistration" for oid in commit_ids
-    ])
+    directories = _attempt_batch_check(root, [oid + b"^{tree}" for oid in commit_ids])
+    canonical_ids = [entry[0] if entry and entry[1] == b"tree" else None for entry in directories]
     trees = {entry[0]: entry for entry in directories if entry and entry[1] == b"tree"}
-    canonical_trees = {}
-    for chunk in _attempt_batch_chunks(list(trees.values()), cap):
-        for oid, data in _attempt_read_batch(root, chunk):
-            canonical_trees[oid] = _attempt_canonical_tree(data)
-    canonical_ids = [canonical_trees.get(entry[0]) if entry else None for entry in directories]
+    components = DEFAULT_ATTEMPT_REGISTRY_PATH.parts
+    for depth, component in enumerate(components):
+        leaf = depth == len(components) - 1
+        canonical_trees = {}
+        for chunk in _attempt_batch_chunks(list(trees.values()), cap):
+            for oid, data in _attempt_read_batch(root, chunk):
+                canonical_trees[oid] = _attempt_canonical_tree(data, component.encode(), leaf=leaf)
+        canonical_ids = [canonical_trees.get(oid) for oid in canonical_ids]
+        if not leaf:
+            oids = list(dict.fromkeys(oid for oid in canonical_ids if oid is not None))
+            trees = {entry[0]: entry for entry in _attempt_batch_check(root, oids)
+                     if entry and entry[1] == b"tree"}
     first, alternate, errors = {}, {}, []
     for rank, oid in enumerate(canonical_ids):
         if oid is not None:
             first.setdefault(oid, rank)
+    paths = {oid: (rank, relative_path.encode()) for oid, rank in first.items()}
     if commit_ids:
         raw = _git(root, _ATTEMPT_HISTORY_RAW_ARGS, input_bytes=commits.stdout)
         if raw.returncode:
             _fail("receipt-history", "attempt registry tree walk failed")
         for rank, path_bytes, oid in _attempt_raw_entries(raw.stdout, ranks):
             first[oid] = min(rank, first.get(oid, rank))
+            paths[oid] = min(paths.get(oid, (rank, path_bytes)), (rank, path_bytes))
             try:
                 path = path_bytes.decode("utf-8")
-            except UnicodeDecodeError:
-                errors.append((rank, 0, AcceptanceReceiptError(
-                    "[receipt-history] attempt tree entry is not valid UTF-8")))
+            except UnicodeDecodeError as exc:
+                try:
+                    raise AcceptanceReceiptError(
+                        "[receipt-history] attempt tree entry is not valid UTF-8") from exc
+                except AcceptanceReceiptError as error:
+                    errors.append((rank, 0, path_bytes, error))
                 continue
             if path != relative_path:
                 alternate[oid] = min(rank, alternate.get(oid, rank))
@@ -1998,13 +2022,17 @@ def _assert_attempt_registry_history_append_only(
     entries = []
     for oid, entry in zip(ordered, _attempt_batch_check(root, ordered)):
         if not entry or entry[0] != oid or entry[1] != b"blob":
-            errors.append((first[oid], 0, AcceptanceReceiptError(
+            errors.append((first[oid], 0, paths[oid][1], AcceptanceReceiptError(
                 "[receipt-history] attempt tree blob cannot be read")))
         else:
             entries.append(entry)
+    def body_error(oid):
+        errors.append((first[oid], 0, paths[oid][1], AcceptanceReceiptError(
+            "[receipt-history] attempt tree blob cannot be read")))
+
     bodies, genesis = {}, set()
     for chunk in _attempt_batch_chunks(entries, cap):
-        for oid, data in _attempt_read_batch(root, chunk):
+        for oid, data in _attempt_read_batch(root, chunk, body_error):
             if oid in canonical_set:
                 bodies[oid] = data
             if oid in alternate and _looks_like_attempt_genesis(data):
@@ -2034,25 +2062,23 @@ def _assert_attempt_registry_history_append_only(
                 _fail("receipt-history", "attempt registry history is not a strict prefix extension")
             previous = canonical
         except AcceptanceReceiptError as exc:
-            errors.append((rank, 1, exc))
+            errors.append((rank, 1, b"", exc))
             break
     for oid in genesis:
-        errors.append((alternate[oid], 2, AcceptanceReceiptError(
+        errors.append((alternate[oid], 2, b"", AcceptanceReceiptError(
             "[receipt-history] alternate attempt registry genesis exists on a ref")))
     if errors:
-        raise min(errors, key=lambda error: error[:2])[2]
-    if current_bytes is not None:
-        try:
-            _attempt_core.load_attempt_registry(
-                current_bytes, profile=_RECEIPT_ATTEMPT_PROFILE,
-            )
-        except _attempt_core.AttemptRegistryCoreError as exc:
-            raise AcceptanceReceiptError(
-                f"[receipt-attempt-registry] {exc}"
-            ) from exc
-        if previous is not None and not current_bytes.startswith(previous):
-            _fail("receipt-history", "working attempt registry does not extend committed history")
-    return previous
+        raise min(errors, key=lambda error: error[:3])[3]
+    try:
+        _attempt_core.load_attempt_registry(
+            current_bytes, profile=_RECEIPT_ATTEMPT_PROFILE,
+        )
+    except _attempt_core.AttemptRegistryCoreError as exc:
+        raise AcceptanceReceiptError(
+            f"[receipt-attempt-registry] {exc}"
+        ) from exc
+    if previous is not None and not current_bytes.startswith(previous):
+        _fail("receipt-history", "working attempt registry does not extend committed history")
 
 
 def _blob_at_commit(root: Path, commit_id: str, relative_path: str) -> bytes | None:

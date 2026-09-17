@@ -2600,7 +2600,7 @@ def _attempt_batch_check(root: Path, requests: Sequence[str]):
     return records
 
 
-def _attempt_batch_objects(root: Path, records, cap: int):
+def _attempt_batch_objects(root: Path, records, cap: int, on_error=None):
     """Yield verified objects in request order; release each response chunk."""
     chunks, chunk, total = [], [], 0
     for oid, kind, size in records:
@@ -2623,15 +2623,21 @@ def _attempt_batch_objects(root: Path, records, cap: int):
             end = offset + len(header) + size
             if (result.stdout[offset:offset + len(header)] != header
                     or result.stdout[end:end + 1] != b"\n"):
-                _fail("git-operational", "attempt tree blob cannot be read")
-            yield oid, result.stdout[offset + len(header):end], chunk_index == len(chunks) - 1
+                if not result.stdout[offset:] or (end >= len(result.stdout) and oid != chunk[-1][0]) or on_error is None:
+                    _fail("git-operational", "attempt tree blob cannot be read")
+                on_error(oid)
+                if end >= len(result.stdout):
+                    offset = len(result.stdout)
+                    break
+            else:
+                yield oid, result.stdout[offset + len(header):end], chunk_index == len(chunks) - 1
             offset = end + 1
         if offset != len(result.stdout):
             _fail("git-operational", "attempt tree blob cannot be read")
         del result
 
 
-def _attempt_canonical_tree(data: bytes) -> str | None:
+def _attempt_canonical_tree(data: bytes, component: bytes, *, leaf: bool) -> str | None:
     offset, canonical = 0, None
     while offset < len(data):
         end = data.find(b"\0", offset)
@@ -2640,17 +2646,18 @@ def _attempt_canonical_tree(data: bytes) -> str | None:
         mode, sep, name = data[offset:end].partition(b" ")
         if not sep:
             _fail("git-operational", "attempt registry tree walk failed")
-        if (canonical is None and name == b"attempt-registry.jsonl"
-                and mode in (b"100644", b"100755", b"120000")):
-            canonical = data[end + 1:end + 21].hex()
+        if name == component:
+            if not leaf and mode != b"40000":
+                return None
+            if leaf and mode not in (b"100644", b"100755", b"120000"):
+                return None
+            return data[end + 1:end + 21].hex()
         offset = end + 21
     return canonical
 
 
 def _attempt_raw_entries(data: bytes):
     """Parse headers separately from opaque NUL-terminated pathnames."""
-    if data and not data.endswith(b"\0"):
-        _fail("git-operational", "attempt registry tree walk failed")
     fields = iter(data.split(b"\0"))
     commit = None
     for field in fields:
@@ -2706,6 +2713,7 @@ def _assert_attempt_registry_history_append_only(
     Batch directory lookup, full-tree raw log and chunked blob reads reduce
     process counts without limiting the scope. Operational failures (timeout or
     process failure) do not preserve the old observation order.
+    Unattributable process/response anomalies have no ordering guarantee.
     """
     if relative_path != DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix():
         _fail("attempt-registry-history", "history path is not canonical")
@@ -2725,19 +2733,25 @@ def _assert_attempt_registry_history_append_only(
         commit_ids.append(commit_id)
     ranks = {commit: rank for rank, commit in enumerate(commit_ids)}
     cap = _ATTEMPT_BATCH_MAX_BYTES if batch_max_bytes is None else batch_max_bytes
-    directories = _attempt_batch_check(root, [
-        commit + ":" + DEFAULT_ATTEMPT_REGISTRY_PATH.parent.as_posix()
-        for commit in commit_ids
-    ])
-    tree_records = list(dict.fromkeys(row for row in directories if row and row[1] == b"tree"))
-    trees = {oid: _attempt_canonical_tree(data)
-             for oid, data, _chunk in _attempt_batch_objects(root, tree_records, cap)}
-    canonical_ids = [trees.get(row[0]) if row else None for row in directories]
+    directories = _attempt_batch_check(root, [commit + "^{tree}" for commit in commit_ids])
+    canonical_ids = [row[0] if row and row[1] == b"tree" else None for row in directories]
+    records = {row[0]: row for row in directories if row and row[1] == b"tree"}
+    components = DEFAULT_ATTEMPT_REGISTRY_PATH.parts
+    for depth, component in enumerate(components):
+        leaf = depth == len(components) - 1
+        trees = {oid: _attempt_canonical_tree(data, component.encode(), leaf=leaf)
+                 for oid, data, _chunk in _attempt_batch_objects(root, list(records.values()), cap)}
+        canonical_ids = [trees.get(oid) for oid in canonical_ids]
+        if not leaf:
+            oids = list(dict.fromkeys(oid for oid in canonical_ids if oid is not None))
+            records = {row[0]: row for row in _attempt_batch_check(root, oids)
+                       if row and row[1] == b"tree"}
     first = {}
     for rank, oid in enumerate(canonical_ids):
         if oid is not None:
             first.setdefault(oid, rank)
     canonical_unique = dict(first)
+    paths = {oid: (rank, relative_path.encode()) for oid, rank in first.items()}
     alternate, errors = {}, []
     if commit_ids:
         raw = _git(root, list(_ATTEMPT_HISTORY_RAW_ARGS), input_bytes=commits.stdout)
@@ -2748,12 +2762,13 @@ def _assert_attempt_registry_history_append_only(
                 continue
             rank = ranks[commit]
             first[oid] = min(first.get(oid, rank), rank)
+            paths[oid] = min(paths.get(oid, (rank, path_bytes)), (rank, path_bytes))
             try:
                 path = path_bytes.decode("utf-8")
             except UnicodeDecodeError as exc:
                 error = TrialRegistryError("[git-operational] attempt tree path is not valid UTF-8")
                 error.__cause__ = exc
-                errors.append((rank, 0, error))
+                errors.append((rank, 0, path_bytes, error))
                 continue
             if path != relative_path:
                 alternate[oid] = min(alternate.get(oid, rank), rank)
@@ -2762,7 +2777,7 @@ def _assert_attempt_registry_history_append_only(
     records = []
     for oid, row in zip(oids, _attempt_batch_check(root, oids)):
         if row is None or row[0] != oid or row[1] != b"blob":
-            errors.append((first[oid], 0, TrialRegistryError(
+            errors.append((first[oid], 0, paths[oid][1], TrialRegistryError(
                 "[git-operational] attempt tree blob cannot be read")))
         else:
             records.append(row)
@@ -2792,19 +2807,23 @@ def _assert_attempt_registry_history_append_only(
                     previous, previous_oid = canonical, oid
                     visited.add(oid)
             except TrialRegistryError as exc:
-                errors.append((cursor, 1, exc))
+                errors.append((cursor, 1, b"", exc))
                 r1_failed = True
             cursor += 1
 
     replay()
-    for oid, data, last_chunk in _attempt_batch_objects(root, records, cap):
+    def body_error(oid):
+        errors.append((first[oid], 0, paths[oid][1], TrialRegistryError(
+            "[git-operational] attempt tree blob cannot be read")))
+
+    for oid, data, last_chunk in _attempt_batch_objects(root, records, cap, body_error):
         if oid in canonical_unique:
             replay(oid, data)
         if oid in alternate and _looks_like_attempt_genesis(data):
-            errors.append((alternate[oid], 2, TrialRegistryError(
+            errors.append((alternate[oid], 2, b"", TrialRegistryError(
                 "[attempt-registry-history] alternate attempt registry genesis exists on a ref (second root)")))
     if errors:
-        raise min(errors, key=lambda item: item[:2])[2]
+        raise min(errors, key=lambda item: item[:3])[3]
     if current_bytes is not None:
         _load_attempt_registry_bytes(current_bytes, label="working attempt registry")
         if previous is not None and not current_bytes.startswith(previous):
