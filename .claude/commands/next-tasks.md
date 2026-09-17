@@ -26,9 +26,12 @@ izanagi プロジェクト専用。提案件数 = `$1` (未指定なら 2 件)�
 
 ## 手順 (毎回この順で、回答直前に実測する)
 
-1. **スナップショット**: `bash /work/1/SFC/tanab/scripts/next_tasks_snapshot.sh` と
+道具置き場 (以下 `<tools>`、所在は `docs/pegasus-runbook.md` §7.2) を解決し、
+呼出し時は `<tools>` をその path に置き換える。
+
+1. **スナップショット**: `bash <tools>/next_tasks_snapshot.sh` と
    `ListAgents` ツールを両方実行する (handoff は wave 起動から遅れるので ListAgents が権威)。
-   **毎回使う道具は `/work/1/SFC/tanab/scripts/` に置いてある。その場で書き起こさず、
+   **毎回使う道具は `<tools>` に置いてある。その場で書き起こさず、
    足りなければ同 directory へ足して次回から使う** (2026-08-17 ユーザー指示)。
 2. **裁定の確定状況**: snapshot が出す**未 land の控えを全件**読む (mtime の窓で切らない —
    land されないまま古くなった裁定が黙って落ちる。2026-08-13 に 8c 多世代開放の裁定が
@@ -42,7 +45,7 @@ izanagi プロジェクト専用。提案件数 = `$1` (未指定なら 2 件)�
    稼働セッションへ助言を送るときも、送る直前に main の現物で裏を取る。
    - snapshot の「open な P1」— **持ち越し (carry) 項の本文を archive まで遡って解決した一覧**。
      stub 連鎖をそのまま辿る解決器は
-     `python3 /work/1/SFC/tanab/scripts/worklog_carry_resolve.py --label P1`
+     `python3 <tools>/worklog_carry_resolve.py --label P1`
      (`--grep` は語での総ざらい、`--pending` は裁定待ちの定型で絞る)。
      carry stub は `- [T-971] (540)` の形で本文を持たないため、末尾エントリを見るだけでは
      研究側の P1 が丸ごと落ちる (2026-08-13 に [T-971] 床値 SWO oracle を落とし、提案 4 件が
@@ -57,7 +60,7 @@ izanagi プロジェクト専用。提案件数 = `$1` (未指定なら 2 件)�
      渡した相談相手も 3 件とも落とした)。「A-5 (台帳 ID 未起票)」と同じ形で出所を明記して母集合へ入れる
    - 終端した wave の handoff が返した後続
    - **論文ストーリー最新版 §8 の A 群 / B 群** —
-     `python3 /work/1/SFC/tanab/scripts/next_tasks_paper_gaps.py`。
+     `python3 <tools>/next_tasks_paper_gaps.py`。
      **A 群は「論文の但し書きを外すために要る証拠」そのもので、研究側の最上位になりうるが、
      台帳の carry に task ID を持たないことがあり P ラベル検索では 1 件も出ない**
      (2026-09-02 実測: `A-5` 別 boot 再取得 (D1100 ユーザー裁定済み) と `A-6` read-heavy
@@ -66,7 +69,7 @@ izanagi プロジェクト専用。提案件数 = `$1` (未指定なら 2 件)�
      「A-5 (台帳 ID 未起票)」のように出所を明記して母集合へ入れる
 4. **codex への相談 (毎回行う)**: 母集合が揃った時点で、**別実装の同役 (codex) へ独立見解を
    求める**。自分の候補一覧を作る前に投げ、待つ間に下の編集面重複検査を進める。
-   - 投げ方 = `bash /work/1/SFC/tanab/scripts/next_tasks_consult.sh codex <brief>.md <out>.md`
+   - 投げ方 = `bash <tools>/next_tasks_consult.sh codex <brief>.md <out>.md`
      (brief と out は job の tmp へ置く)。呼出しは read-only で、相手に書き込み・commit・
      wave 投入はさせない。**環境に API キーを置かない** — 同スクリプトは
      `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` があれば相談を中止する (鉄則の自己検査)。
@@ -201,7 +204,7 @@ izanagi プロジェクト専用。提案件数 = `$1` (未指定なら 2 件)�
     (同ラベルなら研究が先)。ただし**研究の実行または記録を実際に止めている土台項は
     ラベルに関係なく先頭**へ置き、**何を止めているかを見出しに 1 行で書く**。
     止めている根拠を書けないなら先頭には置かない。
-  - P1 が尽きたら `python3 /work/1/SFC/tanab/scripts/next_tasks_carry_p1.py P2`
+  - P1 が尽きたら `python3 <tools>/next_tasks_carry_p1.py P2`
     で P2 を引く。**P3 は既定で出さない** — 低優先度で枠を埋めない。
   - snapshot が出す一覧は**本文 entry の新しさ順であって優先度順ではない**。同ラベル内は
     本文を読み、律速性 (他項の前提になっている・実測が止まっている) で並べ替える。
@@ -256,7 +259,6 @@ izanagi プロジェクト専用。提案件数 = `$1` (未指定なら 2 件)�
 ## スキル自己改善 (発火条件つき)
 
 **今回の実行で**母集合の取りこぼし・正本との食い違い・誤った選定規則を実測した場合だけ発火する。
-実測のない懸念では編集しない。発火したら `docs/skill-self-improvement.md` の routing に従い、
-本ファイル (repo 外) の短い手順是正はその場で直し、毎回使う道具は
-`/work/1/SFC/tanab/scripts/` へ足す。`docs/` や repo 内 command へ及ぶ変更は既成事実にせず、
-裁定パッケージとしてユーザーへ返す。
+実測のない懸念では編集しない。発火したら `docs/skill-self-improvement.md` の routing と next-tasks
+終端に従う (短い手順是正は入口の編集条件の範囲で本ファイルの該当節を直し、毎回使う道具は
+`<tools>` へ足す。`docs/` へ及ぶ変更は既成事実にせず裁定パッケージとしてユーザーへ返す)。
