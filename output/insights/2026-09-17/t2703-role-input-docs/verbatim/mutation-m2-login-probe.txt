@@ -1,0 +1,22 @@
+== M2 probe (container /work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer, HEAD dd6d0466eea6f2804c0bf5b546261a6ff71a7b00)
+-- before: sha256 of orchestrator/codex_roles/review_ledger.py
+dd22ae59362d67e5271b8e781d2fb985569db7bcb1a3c037b347114d4ef4b944  orchestrator/codex_roles/review_ledger.py
+-- anchor count (must be 1): 1
+-- mutated: 1 old-sha line(s)
+-- check_codex_agents:
+    raise RoleSpecError(
+orchestrator.codex_roles.spec.RoleSpecError: /work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/.claude/agents/critic.md: reviewed SOURCE_FILE_SHA256 drift; ledger明示更新が必要
+rc=1
+-- pytest --collect-only test_codex_agents.py (login, 収集だけ):
+> E   orchestrator.codex_roles.spec.RoleSpecError: /work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/.claude/agents/critic.md: reviewed SOURCE_FILE_SHA256 drift; ledger\u660e\u793a\u66f4\u65b0\u304c\u5fc5\u8981
+--- IZANAGI FAILURE EXCERPT rank=1 END ---
+IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=0 errors=1 selected=1 omitted_failures=0 source_bytes=619 retained_bytes=619 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1326 omitted_manifest_sha256=-
+=== IZANAGI FAILURE DIGEST v1 END ===
+rc=2
+-- control (無変異) check_codex_agents 後述
+-- restored: sha256 of orchestrator/codex_roles/review_ledger.py
+dd22ae59362d67e5271b8e781d2fb985569db7bcb1a3c037b347114d4ef4b944  orchestrator/codex_roles/review_ledger.py
+-- git status after restore:
+-- control (無変異): check_codex_agents
+OK: Codex agent roles (0 native active / 14 static dormant; runtime activation blocked: uncontrollable_additional_tools)
+rc=0
