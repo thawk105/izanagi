@@ -1,0 +1,8 @@
+[campaign] paper-story-a1-write-heavy-paired-ec74e1c8  (/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001/jobs/write-heavy/raw/campaign-output/exploration/campaigns/paper-story-a1-write-heavy-paired-ec74e1c8)
+[campaign] evaluate silo|BACKOFF_FIXED=10,BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0
+  [eval a7f8486e1116] built trace=992235d57f0b2b28 perf=2abb126826fecb46
+  [eval a7f8486e1116] verify[legacy]: serializable (459238 commits, 107049 aborts, 0 anomalies)
+[campaign] evaluate silo|BACKOFF_FIXED=-1,BACK_OFF=0,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,WAL=0
+  [eval 84319b1127a6] built trace=24d490f29ea31ba8 perf=be54eefadc7d2373
+  [eval 84319b1127a6] verify[legacy]: serializable (544423 commits, 209963 aborts, 0 anomalies)
+[campaign] done: 2 committed / 0 aborted / 0 skipped (of 2)

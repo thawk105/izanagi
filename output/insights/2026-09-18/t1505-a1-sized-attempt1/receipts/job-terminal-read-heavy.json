@@ -1,0 +1,96 @@
+{
+  "accounting": {
+    "cpu_total_s": 9118.327000000001,
+    "elapsed_s": 323.79999999998836,
+    "ended_epoch_s": 1789680997.506574,
+    "ended_monotonic_s": 286304.17,
+    "method": "bash-times-delta-reaped-descendants/v1",
+    "reaped_descendants_system_s": 199.911,
+    "reaped_descendants_user_s": 8918.404,
+    "shell_system_s": 0.01,
+    "shell_user_s": 0.002,
+    "started_epoch_s": 1789680673.707668,
+    "started_monotonic_s": 285980.37,
+    "times_baseline_raw": "0m0.002s 0m0.000s\n0m0.001s 0m0.001s",
+    "times_final_raw": "0m0.004s 0m0.010s\n148m38.405s 3m19.912s",
+    "unreaped_descendants": []
+  },
+  "attempt_identity": {
+    "st_dev": 743766374,
+    "st_ino": 144118410089955780
+  },
+  "completion_receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001/receipts/completion.json",
+  "driver_rc": 0,
+  "expected_head": "d2ebef7a407dc6be61622ed596cf08b8b518f606",
+  "observed_head": "d2ebef7a407dc6be61622ed596cf08b8b518f606",
+  "ordinal": 2,
+  "pbs_jobid": "0:4941.nqsv",
+  "pbs_observation": {
+    "pbs_jobid": "0:4941.nqsv",
+    "pbs_o_host": "pegasus02",
+    "pbs_o_workdir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1505-a1-sized-submit/submit-tree"
+  },
+  "porcelain": "",
+  "receipt_sha256": "aa2f254c9630b1bff6958ac7c946dce19ec54b3ba456ad117c4bafc011348518",
+  "recorded_epoch": 1789681001,
+  "reservation_binding": {
+    "boot_id": "72522529-0e30-492e-bcce-87be6f01b86f",
+    "deadline_epoch": 1789702273.0,
+    "host": "bnode109",
+    "job_id": "0:4941.nqsv",
+    "nonce": "attempt-0001.read-heavy",
+    "requested_s": 21600,
+    "scheduler_started_epoch": 1789680673.0,
+    "script_sha256": "3c2b734d9c71caca583baa4fd950bb55957dc64e90b2c27ec8e60eb8705fed80"
+  },
+  "result_sha256": "bd32ea9ff5ec1fdc9ef2b6ae2c9cbbfc268817492c387bbc807f5a53a605600f",
+  "schema_version": "paper-story-a1-paired-workload-job-terminal/v1",
+  "shell_rc": 0,
+  "status": "finished",
+  "study_id": "paper-story-a1-20260901-balanced5-sized-v1",
+  "submission_receipt_sha256": "0a86dec922ff0a77bc2798cda466c646e2d29fdb4cf84c013a933ae271f3ddb4",
+  "terminal_source_binding": {
+    "artifact_standalone_proof": false,
+    "evidence_level": "source-routed-trace0",
+    "files": {
+      "orchestrator/calibrator/runner.py": {
+        "git_blob_oid": "6ebeb4f7b7ce103dfa8f88937799414ea8865b05",
+        "working_sha256": "afa697ee4527a790c93ea9e77e98a0605a5543645ac064d5eba23f587913d7ed"
+      },
+      "orchestrator/campaign/paper_story_a1_paired.py": {
+        "git_blob_oid": "8af3ff86ad8c8b734971e54f8da2e655388d9bbf",
+        "working_sha256": "62c10187226aa73641bc651c1fda38005b5888e4d2a01ccb7c93a0193bd71051"
+      },
+      "orchestrator/campaign/paper_story_a1_paired.v3-sized.json": {
+        "git_blob_oid": "2e440c502cefc529bb65a7285d230ddc98a9f362",
+        "working_sha256": "a6228bcd5d2db3eca45fed6e148ab7ba92dd4d179f60e9c9c4ed0ffcf4942f1a"
+      },
+      "orchestrator/campaign/paper_story_a1_source.py": {
+        "git_blob_oid": "d6d0a2e6f4ab91139111e5d1c71984957fc1be17",
+        "working_sha256": "f7adc8e99afe3d772bfede1b60320f9ef39b15d82335515181b7880b9833db4f"
+      },
+      "orchestrator/campaign/paper_story_a1_source.v2.json": {
+        "git_blob_oid": "8450d7352b5ee6d0bef779f1dac39b4f83b07c91",
+        "working_sha256": "b50a4edf86250033aa0e2b18efa2d7842d7c90025fdb901011fdad7adf052fe1"
+      },
+      "orchestrator/campaign/pipeline.py": {
+        "git_blob_oid": "ff4f3c8ab056571595279e81e9d35724d77647be",
+        "working_sha256": "472cc7a23d1f8d442db8c3a85fb2af03242e55540258ff284c678051a82c11df"
+      },
+      "output/insights/2026-09-17/t2590-a1-sized-source-amendment/README.md": {
+        "git_blob_oid": "a614b89319fd189bf0247d9074c5d2c9ac3c77ff",
+        "working_sha256": "6093de244e6fc90607094608617032f427db4951ebffc847c7bcaa795309789b"
+      },
+      "patches/silo-backoff-fixed.patch": {
+        "git_blob_oid": "eb319d8fd856de0799b0134d24122ba8f031a438",
+        "working_sha256": "a5e0710c3f76744755b58ec66024c277daba00e49ce3cbf3d6d263cd7228580a"
+      },
+      "tools/pegasus/paper_story_a1_paired.sh": {
+        "git_blob_oid": "746d474f8909c36b191bbd3daa90851eec3fea4a",
+        "working_sha256": "3c2b734d9c71caca583baa4fd950bb55957dc64e90b2c27ec8e60eb8705fed80"
+      }
+    },
+    "measurement_source_commit": "d2ebef7a407dc6be61622ed596cf08b8b518f606"
+  },
+  "workload": "read-heavy"
+}
