@@ -367,6 +367,302 @@ def test_t541_attest_rejects_empty_comparisons(monkeypatch, tmp_path):
         t126_driver._attest(tmp_path, object())
 
 
+def _t2683_setup(monkeypatch, tmp_path, stage="pre-round", round_index=1):
+    verified, raw = _attest_fixture(monkeypatch)
+    protocol, capability, layout, fsm = _fsm(tmp_path)
+    name = f"{stage}-{round_index if round_index is not None else 'final'}"
+    accepted = layout.attempt_dir / "attestation" / f"{name}.json"
+    kwargs = dict(repo_root=tmp_path, contract=object(), capability=capability,
+                  relative=accepted.relative_to(capability.root).as_posix(),
+                  stage=stage, round_index=round_index)
+    return verified, raw, protocol, layout, fsm, accepted, kwargs
+
+
+def _t2683_message(layout, kwargs):
+    return t126_driver._attestation_rejection_message(
+        capability=kwargs["capability"], relative=kwargs["relative"],
+        attempt_dir=layout.attempt_dir)
+
+
+def test_t2683_mismatch_preserves_all_comparison_rows(monkeypatch, tmp_path):
+    verified, raw, _, _, _, accepted, kwargs = _t2683_setup(monkeypatch, tmp_path)
+    raw["effective_clock"]["governor"] = "powersave"
+    with pytest.raises(t126_driver.AttestationMismatchError) as caught:
+        t126_driver._attest(tmp_path, object())
+    exc = caught.value
+    assert isinstance(exc, QualificationDriverError)
+    assert str(exc) == "attestation comparison contains a mismatch"
+    assert exc.expected_profile_sha256 == verified.attestation_profile_sha256
+    assert exc.observed_profile_sha256 == hashlib.sha256(json.dumps(
+        raw, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()).hexdigest()
+    assert exc.observed_profile_projection_schema == "pegasus-probe-output/v2"
+    assert t126_driver._run_attestation_child(**kwargs) == 31
+    sidecar = accepted.with_suffix(".mismatch.json")
+    assert sidecar.is_file()
+    diagnostic = t126_driver.load_json_strict(sidecar)
+    assert diagnostic == {
+        "schema_version": "t126-qualification-attestation-mismatch/v1",
+        "status": "rejected", "stage": "pre-round", "round_index": 1,
+        "expected_profile_sha256": exc.expected_profile_sha256,
+        "observed_profile_sha256": exc.observed_profile_sha256,
+        "observed_profile_projection_schema": exc.observed_profile_projection_schema,
+        "comparisons": exc.comparisons,
+        "failed_fields": ["effective_clock.governor"],
+    }
+    rows = diagnostic["comparisons"]
+    assert len(rows) == 21
+    assert sum(row["verdict"] == "pass" for row in rows) == 20
+    failed = [row for row in rows if row["verdict"] != "pass"]
+    assert len(failed) == 1
+    assert failed[0]["field"] == "effective_clock.governor"
+    assert failed[0]["expected"] == "performance"
+    assert failed[0]["observed"] == "powersave"
+    assert not accepted.exists()
+    assert list(sidecar.parent.iterdir()) == [sidecar]
+
+
+@pytest.mark.parametrize("stage,round_index", [("pre-round", 1), ("post-series", None)])
+def test_t2683_match_preserves_accepted_bytes_without_sidecar(monkeypatch, tmp_path, stage, round_index):
+    verified, raw, _, _, _, accepted, kwargs = _t2683_setup(monkeypatch, tmp_path, stage, round_index)
+    # Construct the old payload contract independently of both driver helpers.
+    expected = {
+        "schema_version": "t126-qualification-attestation/v2", "status": "accepted",
+        "expected_profile_sha256": verified.attestation_profile_sha256,
+        "observed_profile_sha256": hashlib.sha256(json.dumps(
+            raw, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()).hexdigest(),
+        "observed_profile_projection_schema": "pegasus-probe-output/v2",
+        "comparisons": env_attestation.compare_profiles(
+            verified.calibration.attestation_profile,
+            env_attestation.normalize_observed_profile(raw), now_fn=time.time),
+        "stage": stage, "round_index": round_index,
+    }
+    assert t126_driver._run_attestation_child(**kwargs) == 0
+    assert accepted.read_bytes() == json.dumps(
+        expected, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode() + b"\n"
+    assert not accepted.with_suffix(".mismatch.json").exists()
+    assert list(accepted.parent.iterdir()) == [accepted]
+
+
+def test_t2683_empty_comparisons_writes_rejected_sidecar(monkeypatch, tmp_path):
+    _, _, _, _, _, accepted, kwargs = _t2683_setup(monkeypatch, tmp_path)
+    monkeypatch.setattr(env_attestation, "compare_profiles", lambda *a, **kw: [])
+    with pytest.raises(t126_driver.AttestationMismatchError) as caught:
+        t126_driver._attest(tmp_path, object())
+    assert caught.value.comparisons == []
+    assert t126_driver._run_attestation_child(**kwargs) == 31
+    sidecar = accepted.with_suffix(".mismatch.json")
+    assert sidecar.is_file()
+    value = t126_driver.load_json_strict(sidecar)
+    assert value["comparisons"] == value["failed_fields"] == []
+    assert value["status"] == "rejected"
+    assert value["schema_version"] == "t126-qualification-attestation-mismatch/v1"
+    assert not accepted.exists()
+
+
+@pytest.mark.parametrize("error", [OSError, QualificationArtifactError])
+def test_t2683_sidecar_write_failure_preserves_rc(monkeypatch, tmp_path, error):
+    _, raw, _, _, _, accepted, kwargs = _t2683_setup(monkeypatch, tmp_path)
+    raw["effective_clock"]["governor"] = "powersave"
+    writer = t126_driver.create_json
+    attempts = []
+
+    def fail_sidecar(cap, rel, value):
+        attempts.append(rel)
+        if rel.endswith(".mismatch.json"):
+            raise error("diagnostic unavailable")
+        return writer(cap, rel, value)
+
+    monkeypatch.setattr(t126_driver, "create_json", fail_sidecar)
+    assert t126_driver._run_attestation_child(**kwargs) == 31
+    assert attempts == [Path(kwargs["relative"]).with_suffix(".mismatch.json").as_posix()]
+    assert not accepted.exists() and not accepted.with_suffix(".mismatch.json").exists()
+
+
+def test_t2683_probe_failure_has_no_sidecar(monkeypatch, tmp_path):
+    _, _, _, _, _, accepted, kwargs = _t2683_setup(monkeypatch, tmp_path)
+
+    def fail_probe():
+        raise OSError("probe unavailable")
+
+    monkeypatch.setattr(env_attestation, "probe", fail_probe)
+    with pytest.raises(QualificationDriverError, match="attestation failed: OSError: probe unavailable") as caught:
+        t126_driver._attest(tmp_path, object())
+    assert not isinstance(caught.value, t126_driver.AttestationMismatchError)
+    assert t126_driver._run_attestation_child(**kwargs) == 31
+    assert not accepted.exists() and not accepted.with_suffix(".mismatch.json").exists()
+
+
+def test_t2683_existing_sidecar_is_not_overwritten(monkeypatch, tmp_path):
+    _, raw, _, _, _, accepted, kwargs = _t2683_setup(monkeypatch, tmp_path)
+    raw["effective_clock"]["governor"] = "powersave"
+    sidecar = accepted.with_suffix(".mismatch.json")
+    t126_driver.create_json(kwargs["capability"],
+                           sidecar.relative_to(kwargs["capability"].root).as_posix(), {"prior": True})
+    before = sidecar.read_bytes()
+    assert t126_driver._run_attestation_child(**kwargs) == 31
+    assert sidecar.read_bytes() == before
+    assert not accepted.exists()
+    assert list(sidecar.parent.iterdir()) == [sidecar]
+
+
+@pytest.mark.parametrize("stage,round_index", [("pre-round", 1), ("post-series", None)])
+def test_t2683_parent_message_names_sidecar_and_failed_fields(monkeypatch, tmp_path, stage, round_index):
+    _, raw, _, layout, _, accepted, kwargs = _t2683_setup(monkeypatch, tmp_path, stage, round_index)
+    raw["effective_clock"]["governor"] = "powersave"
+    assert t126_driver._run_attestation_child(**kwargs) == 31
+    relative = accepted.with_suffix(".mismatch.json").relative_to(layout.attempt_dir).as_posix()
+    assert _t2683_message(layout, kwargs) == (
+        f"attestation child rejected; diagnostic={relative}; "
+        'failed_fields=["effective_clock.governor"]')
+
+
+def test_t2683_parent_message_without_sidecar_is_legacy(monkeypatch, tmp_path):
+    _, _, _, layout, _, _, kwargs = _t2683_setup(monkeypatch, tmp_path)
+    assert _t2683_message(layout, kwargs) == "attestation child rejected"
+
+
+@pytest.mark.parametrize("damage", ["json", "shape", "read", "exists"])
+def test_t2683_parent_message_unreadable_sidecar_is_best_effort(monkeypatch, tmp_path, damage):
+    _, _, _, layout, _, accepted, kwargs = _t2683_setup(monkeypatch, tmp_path)
+    sidecar = accepted.with_suffix(".mismatch.json")
+    t126_driver.create_json(kwargs["capability"],
+                           sidecar.relative_to(kwargs["capability"].root).as_posix(), {"failed_fields": [1]})
+    if damage == "json":
+        sidecar.write_bytes(b"{\n")
+    elif damage in {"read", "exists"}:
+        def fail(*args):
+            raise OSError("unreadable")
+        if damage == "read":
+            monkeypatch.setattr(t126_driver, "load_json_strict", fail)
+    expected = "attestation child rejected"
+    if damage != "exists":
+        expected += "; diagnostic=attestation/pre-round-1.mismatch.json; failed_fields=unavailable"
+    with monkeypatch.context() as patch:
+        if damage == "exists":
+            original_exists = Path.exists
+
+            def fail_sidecar_exists(path):
+                if str(path).endswith(".mismatch.json"):
+                    raise OSError("unreadable")
+                return original_exists(path)
+
+            patch.setattr(Path, "exists", fail_sidecar_exists)
+        assert _t2683_message(layout, kwargs) == expected
+
+
+@pytest.mark.parametrize("failure_stage", ["pre-round", "post-series"])
+@pytest.mark.parametrize("diagnostic", ["present", "missing", "unreadable"])
+def test_t2683_diagnostic_rejection_preserves_ledger_contract(monkeypatch, tmp_path, failure_stage, diagnostic):
+    _, raw, protocol, layout, fsm, _, kwargs = _t2683_setup(monkeypatch, tmp_path)
+    messages = []
+
+    def attest(stage, round_index):
+        if stage == failure_stage:
+            raw["effective_clock"]["governor"] = "powersave"
+        name = f"{stage}-{round_index if round_index is not None else 'final'}"
+        accepted = layout.attempt_dir / "attestation" / f"{name}.json"
+        kwargs.update(stage=stage, round_index=round_index,
+                      relative=accepted.relative_to(kwargs["capability"].root).as_posix())
+        rc = t126_driver._run_attestation_child(**kwargs)
+        if rc:
+            assert rc == 31
+            sidecar = accepted.with_suffix(".mismatch.json")
+            if diagnostic == "missing":
+                sidecar.unlink()
+            elif diagnostic == "unreadable":
+                sidecar.write_bytes(b"{\n")
+            message = _t2683_message(layout, kwargs)
+            messages.append(message)
+            raise AttestationError(message)
+        return t126_driver.load_json_strict(accepted)
+
+    with pytest.raises(AttestationError) as caught:
+        run_series(
+            fsm=fsm, protocol=protocol,
+            member_runner=lambda _, role: {
+                "median_tps": 90.0 if role == "subject" else 100.0,
+                "evidence_ref": _evidence(role), "terminal_monotonic": 0.0},
+            attestation_fn=attest, reservation_recheck=lambda _: None,
+            sleep_fn=lambda _: None, monotonic_fn=lambda: 1800.0)
+    assert caught.value.rc == 31
+    events = load_jsonl_strict(kwargs["capability"].root / layout.ledger_relpath)
+    assert replay_ledger(events, protocol).state == fsm.replay.state == "rejected"
+    evidence = {"stage": failure_stage, "type": "AttestationError", "message": messages[0]}
+    canonical = json.dumps(evidence, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    assert events[-1]["payload"] == {
+        "reason": "attestation", "evidence_canonical_json": canonical,
+        "evidence_sha256": hashlib.sha256(canonical.encode()).hexdigest()}
+
+
+def test_t2683_run_attest_closure_wires_child_helper_and_rejection_message():
+    tree = ast.parse(Path(t126_driver.__file__).read_text(encoding="utf-8"))
+    run = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "run")
+    attest = next(node for node in run.body if isinstance(node, ast.FunctionDef) and node.name == "attest")
+    exits = [node for node in ast.walk(attest) if isinstance(node, ast.Call)
+             and ast.unparse(node.func) == "os._exit" and len(node.args) == 1
+             and isinstance(node.args[0], ast.Call)
+             and ast.unparse(node.args[0].func) == "_run_attestation_child"]
+    raises = [node for node in ast.walk(attest) if isinstance(node, ast.Raise)
+              and isinstance(node.exc, ast.Call) and ast.unparse(node.exc.func) == "AttestationError"
+              and len(node.exc.args) == 1 and isinstance(node.exc.args[0], ast.Call)
+              and ast.unparse(node.exc.args[0].func) == "_attestation_rejection_message"]
+    assert len(exits) == 1
+    assert len(raises) == 1
+    assert any(
+        isinstance(node, ast.If)
+        and isinstance(node.test, ast.Name) and node.test.id == "is_child"
+        and any(isinstance(stmt, ast.Expr) and stmt.value is exits[0]
+                for stmt in node.body)
+        for node in ast.walk(attest)
+    )
+    child_call = exits[0].args[0]
+    assert {kw.arg: ast.unparse(kw.value) for kw in child_call.keywords} == {
+        "repo_root": "source_root", "contract": "contract",
+        "capability": "capability", "relative": "relative",
+        "stage": "stage", "round_index": "round_index",
+    }
+    assert any(
+        isinstance(node, ast.If)
+        and ast.unparse(node.test) == "os.waitstatus_to_exitcode(status) != 0"
+        and raises[0] in node.body
+        for node in ast.walk(attest)
+    )
+    message_call = raises[0].exc.args[0]
+    assert {kw.arg: ast.unparse(kw.value) for kw in message_call.keywords} == {
+        "capability": "capability", "relative": "relative",
+        "attempt_dir": "layout.attempt_dir",
+    }
+
+
+def test_t2683_forked_child_writes_sidecar_visible_to_parent(monkeypatch, tmp_path):
+    _, raw, _, layout, _, accepted, kwargs = _t2683_setup(monkeypatch, tmp_path)
+    raw["effective_clock"]["governor"] = "powersave"
+    pid = os.fork()
+    if pid == 0:
+        try:
+            os._exit(t126_driver._run_attestation_child(**kwargs))
+        except BaseException:
+            os._exit(99)
+    waited, status = os.waitpid(pid, 0)
+    assert waited == pid
+    assert os.waitstatus_to_exitcode(status) == 31
+    assert accepted.with_suffix(".mismatch.json").is_file() and not accepted.exists()
+    assert _t2683_message(layout, kwargs) == (
+        'attestation child rejected; diagnostic=attestation/pre-round-1.mismatch.json; '
+        'failed_fields=["effective_clock.governor"]')
+
+
+def test_t2683_mismatch_sidecar_is_listed_in_collector_closure(monkeypatch, tmp_path):
+    from orchestrator.qualification.collector import _manifest
+
+    _, raw, _, layout, _, accepted, kwargs = _t2683_setup(monkeypatch, tmp_path)
+    raw["effective_clock"]["governor"] = "powersave"
+    assert t126_driver._run_attestation_child(**kwargs) == 31
+    record = t126_driver.file_record(accepted.with_suffix(".mismatch.json"), relative_to=layout.attempt_dir)
+    assert record["path"] == "attestation/pre-round-1.mismatch.json"
+    assert record in _manifest(layout.attempt_dir, exclude=set())
+
+
 def test_qualification_entry_constructs_run_context_for_live_member_build():
     source = (_ROOT / "orchestrator/qualification/t126_driver.py").read_text(
         encoding="utf-8"

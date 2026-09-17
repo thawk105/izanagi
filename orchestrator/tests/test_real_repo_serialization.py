@@ -1976,6 +1976,380 @@ def test_handwritten_xdist_group_decorator_control_is_rejected():
         raise AssertionError("手書き xdist_group decorator の合成負例が監査を通過した")
 
 
+@contextlib.contextmanager
+def _gate_actor(tmp_path, *, legacy="legacy", common="common"):
+    """Production actor: normal response readiness has a 35-second watchdog.
+
+    Cleanup kills a live actor and waits up to 5 seconds for it to exit.
+    """
+    import select
+
+    script = r"""
+import errno
+import sys
+from pathlib import Path
+from orchestrator.tests import conftest as c
+
+root, legacy, common = map(Path, sys.argv[1:])
+c._REAL_REPO_LOCK_DIRECTORY = root
+c._real_repo_legacy_lock_path = lambda resource: root / legacy
+c._real_repo_lock_path = lambda resource: root / common
+c._REAL_REPO_LOCK_TIMEOUT_S = 30.0
+real_flock = c.fcntl.flock
+reported = set()
+def observed(fd, operation):
+    try:
+        return real_flock(fd, operation)
+    except OSError as exc:
+        if exc.errno in (errno.EAGAIN, errno.EACCES) and fd not in reported:
+            reported.add(fd)
+            print("blocked", flush=True)
+        raise
+c.fcntl.flock = observed
+def command():
+    value = sys.stdin.readline().strip()
+    if not value:
+        raise RuntimeError("controller disappeared")
+    return value
+def hold(mode):
+    print("requested", flush=True)
+    with c._real_repo_locks(c.RealRepoAccess(mode, None)):
+        print("acquired", flush=True)
+        action = command()
+        if action == "upgrade":
+            reported.clear()
+            with c._real_repo_locks(c.RealRepoAccess("write", None)):
+                print("upgraded", flush=True)
+                assert command() == "release"
+            print("downgraded", flush=True)
+            assert command() == "release"
+        else:
+            assert action == "release"
+    print("released", flush=True)
+print("ready", flush=True)
+hold(command())
+"""
+    process = subprocess.Popen(
+        [sys.executable, "-c", script, str(tmp_path), legacy, common],
+        cwd=ROOT, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, bufsize=0,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1",
+             "PYTHONPATH": os.pathsep.join(
+                 (str(ROOT), os.environ.get("PYTHONPATH", "")))},
+    )
+
+    def send(command):
+        process.stdin.write((command + "\n").encode())
+
+    def receive():
+        assert select.select([process.stdout], [], [], 35)[0], "actor timed out"
+        line = process.stdout.readline().decode().strip()
+        assert line, f"actor exited: {process.poll()}"
+        return line
+
+    try:
+        assert receive() == "ready"
+        yield SimpleNamespace(send=send, receive=receive, process=process)
+    finally:
+        try:
+            if process.poll() is None:
+                process.kill()
+            process.wait(timeout=5)
+        finally:
+            for stream in (process.stdin, process.stdout, process.stderr):
+                stream.close()
+
+
+def _gate_test_paths(monkeypatch, suite, tmp_path):
+    monkeypatch.setattr(suite, "_REAL_REPO_LOCK_DIRECTORY", tmp_path)
+    monkeypatch.setattr(suite, "_real_repo_legacy_lock_path",
+                        lambda resource: tmp_path / "legacy")
+    monkeypatch.setattr(suite, "_real_repo_lock_path",
+                        lambda resource: tmp_path / "common")
+
+
+@pytest.mark.parametrize("contention", ["legacy", "common"])
+def test_real_repo_writer_drains_overlapping_reader_stream(tmp_path, contention):
+    """変更前 code / M1 / M2 では B が先に入り writer が deadline まで待つので赤。
+
+    The first blocked/entered handshake detects that relay reversal immediately;
+    keeping B alive would maintain SH occupancy until the writer deadline.
+    """
+    _check_writer_reader_relay(tmp_path, contention, upgrade=False)
+
+
+@pytest.mark.parametrize("contention", ["legacy", "common"])
+def test_real_repo_upgrade_writer_drains_overlapping_reader_stream(
+        tmp_path, contention):
+    """M3's old conversion admits B before the upgrading writer."""
+    _check_writer_reader_relay(tmp_path, contention, upgrade=True)
+
+
+def _check_writer_reader_relay(tmp_path, contention, *, upgrade):
+    with contextlib.ExitStack() as stack:
+        a = stack.enter_context(_gate_actor(tmp_path))
+        w = stack.enter_context(_gate_actor(
+            tmp_path, legacy="writer-legacy" if contention == "common" else "legacy"))
+        b = stack.enter_context(_gate_actor(tmp_path))
+        a.send("read")
+        assert a.receive() == "requested"
+        assert a.receive() == "acquired"
+        w.send("read" if upgrade else "write")
+        assert w.receive() == "requested"
+        if upgrade:
+            assert w.receive() == "acquired"
+            w.send("upgrade")
+        assert w.receive() == "blocked"
+        b.send("read")
+        assert b.receive() == "requested"
+        assert b.receive() == "blocked", "reader overtook waiting writer"
+        # A stays SH until B has actually attempted its production acquisition.
+        a.send("release")
+        assert a.receive() == "released"
+        assert w.receive() == ("upgraded" if upgrade else "acquired")
+        w.send("release")
+        if upgrade:
+            assert w.receive() == "downgraded"
+            w.send("release")
+        assert w.receive() == "released"
+        # B may retry at main after the gate opens while W still holds EX.
+        event = b.receive()
+        if event == "blocked":
+            event = b.receive()
+        assert event == "acquired"
+        b.send("release")
+        assert b.receive() == "released"
+
+
+def test_real_repo_readers_overlap_without_writer(tmp_path):
+    """B acquires SH before A is told to release, using separate processes."""
+    with _gate_actor(tmp_path) as a, _gate_actor(tmp_path) as b:
+        for actor in (a, b):
+            actor.send("read")
+            assert actor.receive() == "requested"
+            assert actor.receive() == "acquired"
+        for actor in (a, b):
+            actor.send("release")
+            assert actor.receive() == "released"
+
+
+@pytest.mark.parametrize("failure", ["gate-timeout", "main-timeout", "open-rejected"])
+def test_real_repo_gate_timeout_closes_fds(tmp_path, monkeypatch, failure):
+    """Real flock failure must close every production-opened fd and empty state."""
+    import errno
+
+    c = _load_suite_conftest()
+    _gate_test_paths(monkeypatch, c, tmp_path)
+    gate = tmp_path / "legacy.gate"
+    opened = []
+    real_open = c.os.open
+
+    def recording_open(*args, **kwargs):
+        fd = real_open(*args, **kwargs)
+        opened.append(fd)
+        return fd
+
+    holder_key = "legacy.gate" if failure == "gate-timeout" else "legacy"
+    with _gate_actor(tmp_path, legacy=holder_key, common="holder-common") as holder:
+        holder.send("write")
+        assert holder.receive() == "requested"
+        assert holder.receive() == "acquired"
+        if failure == "open-rejected":
+            gate.touch(mode=0o600)
+            gate.chmod(0o644)
+        with monkeypatch.context() as patch:
+            patch.setattr(c.os, "open", recording_open)
+            with pytest.raises(RuntimeError) as error:
+                with c._real_repo_file_lock("parent", "write", timeout_s=0.02):
+                    pytest.fail("contended/rejected acquisition entered")
+        if failure == "open-rejected":
+            assert "permissions are too broad" in str(error.value)
+        else:
+            message = str(error.value)
+            assert message.startswith("real-repo lock deadline exceeded; fails-closed:")
+            assert f"path={gate if failure == 'gate-timeout' else tmp_path / 'legacy'} " in message
+            assert "holders=" in message
+        assert not c._REAL_REPO_PROCESS_LOCKS
+        assert len(opened) == 2
+        for fd in opened:
+            with pytest.raises(OSError) as closed:
+                os.fstat(fd)
+            assert closed.value.errno == errno.EBADF
+        holder.send("release")
+        assert holder.receive() == "released"
+
+
+@pytest.mark.parametrize("rejected_key", ["legacy", "common"])
+def test_real_repo_gate_open_rejection_preserves_outer_reader(
+        tmp_path, monkeypatch, rejected_key):
+    """Rejected gate open leaves that key's outer SH and state untouched.
+
+    Common rejection occurs after legacy upgrades to write; unwinding restores
+    legacy to read with the original fd and holders, while common never drops SH.
+    """
+    c = _load_suite_conftest()
+    _gate_test_paths(monkeypatch, c, tmp_path)
+    paths = tuple(tmp_path / name for name in ("legacy", "common"))
+    rejected_gate = tmp_path / f"{rejected_key}.gate"
+    real_open = c._open_real_repo_lock
+    observed = []
+
+    with c._real_repo_locks(c.RealRepoAccess("read", None)):
+        before = {
+            path: (c._REAL_REPO_PROCESS_LOCKS[("parent", path)],
+                   c._REAL_REPO_PROCESS_LOCKS[("parent", path)].fd,
+                   c._REAL_REPO_PROCESS_LOCKS[("parent", path)].holders.copy())
+            for path in paths
+        }
+        rejected_gate.chmod(0o644)
+
+        def observe_open(path):
+            if path == rejected_gate:
+                legacy = c._REAL_REPO_PROCESS_LOCKS[("parent", paths[0])]
+                assert legacy.mode == ("write" if rejected_key == "common" else "read")
+                assert sum(legacy.holders.values()) == (2 if rejected_key == "common" else 1)
+                assert legacy.gate_fd is None
+                observed.append(path)
+            return real_open(path)
+
+        with monkeypatch.context() as patch:
+            patch.setattr(c, "_open_real_repo_lock", observe_open)
+            with pytest.raises(RuntimeError, match="permissions are too broad"):
+                with c._real_repo_locks(c.RealRepoAccess("write", None)):
+                    pytest.fail("rejected gate acquisition entered")
+        assert observed == [rejected_gate]
+        assert set(c._REAL_REPO_PROCESS_LOCKS) == {("parent", path) for path in paths}
+        for path in paths:
+            state = c._REAL_REPO_PROCESS_LOCKS[("parent", path)]
+            original, fd, holders = before[path]
+            assert state is original
+            assert state.mode == "read"
+            assert state.fd == fd
+            assert state.holders == holders
+            assert sum(state.holders.values()) == 1
+            assert state.gate_fd is None
+            probe = real_open(path)
+            try:
+                with pytest.raises(BlockingIOError):
+                    c.fcntl.flock(probe, c.fcntl.LOCK_EX | c.fcntl.LOCK_NB)
+                # Legacy must have downgraded from EX after common rejection.
+                c.fcntl.flock(probe, c.fcntl.LOCK_SH | c.fcntl.LOCK_NB)
+            finally:
+                os.close(probe)
+    assert not c._REAL_REPO_PROCESS_LOCKS
+
+
+@pytest.mark.parametrize("entry", ["writer", "reader"])
+def test_real_repo_gate_and_main_share_deadline(tmp_path, monkeypatch, entry):
+    """Real gate wait consumes the file-lock or fresh-reader entry budget."""
+    c = _load_suite_conftest()
+    _gate_test_paths(monkeypatch, c, tmp_path)
+    with (
+        _gate_actor(tmp_path, legacy="legacy.gate", common="gate-holder") as gate,
+        _gate_actor(tmp_path, common="main-holder") as main,
+    ):
+        for actor, mode in (
+                (main, "read" if entry == "writer" else "write"), (gate, "write")):
+            actor.send(mode)
+            assert actor.receive() == "requested"
+            assert actor.receive() == "acquired"
+        now = [0.0]
+        waits = []
+        real_wait = c._real_repo_flock_until
+
+        def observe(resource, mode, path, fd, *, deadline, retry_interval_s):
+            waits.append((path.name, deadline, now[0]))
+            return real_wait(resource, mode, path, fd, deadline=deadline,
+                             retry_interval_s=retry_interval_s)
+
+        def sleep(delay):
+            now[0] += delay
+            if now[0] == 2.0:
+                gate.send("release")
+                assert gate.receive() == "released"
+
+        monkeypatch.setattr(c.time, "monotonic", lambda: now[0])
+        monkeypatch.setattr(c.time, "sleep", sleep)
+        monkeypatch.setattr(c, "_real_repo_flock_until", observe)
+        monkeypatch.setattr(c, "_REAL_REPO_LOCK_TIMEOUT_S", 3.0)
+        monkeypatch.setattr(c, "_REAL_REPO_LOCK_RETRY_INTERVAL_S", 1.0)
+        context = (
+            c._real_repo_file_lock("parent", "write")
+            if entry == "writer"
+            else c._real_repo_locks(c.RealRepoAccess("read", None))
+        )
+        with pytest.raises(RuntimeError, match="deadline exceeded"):
+            with context:
+                pytest.fail("main remained held")
+        expected = [("legacy.gate", 3.0, 0.0)]
+        if entry == "reader":
+            expected.append(("common.gate", 3.0, 2.0))
+        expected.append(("legacy", 3.0, 2.0))
+        assert waits == expected
+        assert now == [3.0]
+        main.send("release")
+        assert main.receive() == "released"
+
+
+def test_real_repo_fork_reset_closes_inflight_gate_fd(tmp_path, monkeypatch):
+    """Fork during production acquisition: child closes, never unlocks, both fds."""
+    import errno
+    import select
+    import signal
+
+    c = _load_suite_conftest()
+    _gate_test_paths(monkeypatch, c, tmp_path)
+    original = c._real_repo_flock_until
+    checked = []
+
+    def probe(resource, mode, path, fd, **kwargs):
+        if path.name == "legacy":
+            state = c._REAL_REPO_PROCESS_LOCKS[(resource, path)]
+            assert state.gate_fd is not None
+            read_end, write_end = os.pipe()
+            child = os.fork()
+            if child == 0:
+                try:
+                    os.close(read_end)
+                    fds = (state.fd, state.gate_fd)
+                    c._reset_real_repo_process_locks_after_fork()
+                    for inherited in fds:
+                        try:
+                            os.fstat(inherited)
+                        except OSError as exc:
+                            assert exc.errno == errno.EBADF
+                        else:
+                            raise AssertionError("inherited fd leaked")
+                    assert not c._REAL_REPO_PROCESS_LOCKS
+                    os.write(write_end, b"closed")
+                    os._exit(0)
+                except BaseException:
+                    os._exit(1)
+            os.close(write_end)
+            try:
+                assert select.select([read_end], [], [], 5)[0]
+                assert os.read(read_end, 20) == b"closed"
+                # A new open description must still conflict with parent's gate.
+                other = c._open_real_repo_lock(Path(f"{path}.gate"))
+                try:
+                    with pytest.raises(BlockingIOError):
+                        c.fcntl.flock(other, c.fcntl.LOCK_EX | c.fcntl.LOCK_NB)
+                finally:
+                    os.close(other)
+                checked.append(True)
+            finally:
+                os.kill(child, signal.SIGKILL)
+                os.waitpid(child, 0)
+                os.close(read_end)
+        return original(resource, mode, path, fd, **kwargs)
+
+    monkeypatch.setattr(c, "_real_repo_flock_until", probe)
+    with c._real_repo_file_lock("parent", "write"):
+        pass
+    assert checked == [True]
+    assert not c._REAL_REPO_PROCESS_LOCKS
+
+
 def test_real_repo_priority_order_is_literal_and_writers_follow_barrier(
         tmp_path, monkeypatch):
     """Historical name: RW overlap, exclusion, deadlines, and P→S are pinned."""
@@ -2063,9 +2437,11 @@ def test_real_repo_priority_order_is_literal_and_writers_follow_barrier(
     assert not failures
     assert writer_entered.is_set()
 
-    # Forty-eight staggered SH cohorts keep S continuously occupied for 147
-    # simulated seconds.  The production deadline must allow the writer to
-    # acquire after the last cohort instead of retaining the old 120 s cutoff.
+    # Legacy gate closes at t=0, draining its first cohort at t=6. Common gate
+    # closes at t=6, draining its t=3 cohort at t=9. Later cohorts cannot enter.
+    # This pins acquisition/release order, not kernel fairness.
+    assert suite_conftest._REAL_REPO_LOCK_TIMEOUT_S == 245.0
+    assert suite_conftest._REAL_REPO_LOCK_RETRY_INTERVAL_S == 0.05
     cohort_windows = tuple(
         (float(index * 3), float(index * 3 + 6))
         for index in range(48)
@@ -2076,6 +2452,14 @@ def test_real_repo_priority_order_is_literal_and_writers_follow_barrier(
     )
     simulated_clock = {"now": 0.0}
     writer_acquired_at = []
+    gate_closed_at = {}
+    lock_events = []
+    fd_by_path = {
+        tmp_path / "simulated-ccbench-legacy.lock": 91,
+        tmp_path / "simulated-ccbench-common.lock": 92,
+        tmp_path / "simulated-ccbench-legacy.lock.gate": 93,
+        tmp_path / "simulated-ccbench-common.lock.gate": 94,
+    }
 
     def simulated_monotonic():
         return simulated_clock["now"]
@@ -2083,15 +2467,21 @@ def test_real_repo_priority_order_is_literal_and_writers_follow_barrier(
     def simulated_sleep(delay):
         simulated_clock["now"] += delay
 
-    def simulated_flock(_fd, operation):
+    def simulated_flock(fd, operation):
         if operation == suite_conftest.fcntl.LOCK_UN:
+            lock_events.append(("unlock", fd))
             return
         assert operation == (
             suite_conftest.fcntl.LOCK_EX | suite_conftest.fcntl.LOCK_NB
         )
+        if fd in (93, 94):
+            gate_closed_at[fd - 2] = simulated_clock["now"]
+            lock_events.append(("acquire", fd))
+            return
         active_cohorts = [
             index for index, (start, end) in enumerate(cohort_windows)
             if start <= simulated_clock["now"] < end
+            and (start == 0 or start < gate_closed_at.get(fd, float("inf")))
         ]
         if active_cohorts:
             raise BlockingIOError(
@@ -2099,6 +2489,7 @@ def test_real_repo_priority_order_is_literal_and_writers_follow_barrier(
                 f"reader cohorts active: {active_cohorts!r}",
             )
         writer_acquired_at.append(simulated_clock["now"])
+        lock_events.append(("acquire", fd))
 
     with mock.patch.object(
             suite_conftest, "_real_repo_legacy_lock_path",
@@ -2107,25 +2498,32 @@ def test_real_repo_priority_order_is_literal_and_writers_follow_barrier(
                 suite_conftest, "_real_repo_lock_path",
                 return_value=tmp_path / "simulated-ccbench-common.lock",
             ), mock.patch.object(
-                suite_conftest, "_open_real_repo_lock", side_effect=(91, 92),
+                suite_conftest, "_open_real_repo_lock",
+                side_effect=lambda path: fd_by_path[path],
             ), mock.patch.object(
                 suite_conftest.fcntl, "flock", side_effect=simulated_flock,
             ), mock.patch.object(
                 suite_conftest.time, "monotonic", side_effect=simulated_monotonic,
             ), mock.patch.object(
                 suite_conftest.time, "sleep", side_effect=simulated_sleep,
-            ), mock.patch.object(suite_conftest.os, "close"):
+            ), mock.patch.object(
+                suite_conftest.os, "close",
+                side_effect=lambda fd: lock_events.append(("close", fd))):
         with suite_conftest._real_repo_file_lock(
                 "ccbench", "write", retry_interval_s=1.0):
-            assert writer_acquired_at == [147.0, 147.0]
-    assert 120.0 < writer_acquired_at[0] < (
-        suite_conftest._REAL_REPO_LOCK_TIMEOUT_S
-    )
+            assert writer_acquired_at == [6.0, 9.0]
+            lock_events.append(("body", None))
+    assert lock_events == [
+        ("acquire", 93), ("acquire", 91), ("unlock", 93), ("close", 93),
+        ("acquire", 94), ("acquire", 92), ("unlock", 94), ("close", 94),
+        ("body", None),
+        ("unlock", 92), ("close", 92), ("unlock", 91), ("close", 91),
+    ]
 
     trace = []
 
     @contextlib.contextmanager
-    def traced_lock(resource, mode):
+    def traced_lock(resource, mode, **kwargs):
         trace.append(("enter", resource, mode))
         try:
             yield
@@ -4008,9 +4406,10 @@ def test_current_commit_snapshot_actual_fixture_owns_parent_reader_context():
 
 
 def test_current_snapshot_reader_upgrades_for_same_process_candidate_fixture(
-        tmp_path):
-    """実 fixture の SH 寿命中に同じ fd を EX へ昇格し SH へ戻す。"""
+        tmp_path, monkeypatch):
+    """昇格は SH 解放後 gate を待ち、降格・入れ子 reader は gate を待たない。"""
     suite_conftest = _load_suite_conftest()
+    _gate_test_paths(monkeypatch, suite_conftest, tmp_path)
     from orchestrator.tests import test_s8c_preregistration_predicates as sut
 
     tmp_factory = SimpleNamespace(mktemp=lambda _name: tmp_path)
@@ -4035,6 +4434,13 @@ def test_current_snapshot_reader_upgrades_for_same_process_candidate_fixture(
         events.append(("candidate-build", tuple(row[2] for row in current)))
         assert outer_fds is not None
         assert {row[1] for row in current} == outer_fds
+        downgrade_holder.send("write")
+        assert downgrade_holder.receive() == "requested"
+        assert downgrade_holder.receive() == "acquired"
+        # Already-held process readers must bypass the externally held gates.
+        with suite_conftest._real_repo_locks(
+                suite_conftest.RealRepoAccess("read", None)):
+            assert all(row[2] == "write" for row in parent_states())
         return "c" * 40
 
     registry = SimpleNamespace(
@@ -4043,7 +4449,7 @@ def test_current_snapshot_reader_upgrades_for_same_process_candidate_fixture(
     with mock.patch.object(
             suite_conftest, "_REAL_REPO_LOCK_DIRECTORY", tmp_path,
             ), mock.patch.object(
-                suite_conftest, "_REAL_REPO_LOCK_TIMEOUT_S", 2.0,
+                suite_conftest, "_REAL_REPO_LOCK_TIMEOUT_S", 30.0,
             ), mock.patch.object(
                 suite_conftest, "_REAL_REPO_LOCK_RETRY_INTERVAL_S", 0.002,
             ), mock.patch.object(
@@ -4065,16 +4471,47 @@ def test_current_snapshot_reader_upgrades_for_same_process_candidate_fixture(
         assert tuple(row[2] for row in outer_state) == ("read", "read")
         outer_fds = {row[1] for row in outer_state}
 
-        started = time.monotonic()
-        candidate_fixture = _fixture_body(sut.repository_candidate_commit)(
-            tmp_factory, lock_factory,
-        )
-        assert next(candidate_fixture) == "c" * 40
-        assert time.monotonic() - started < 2.0
-        assert tuple(row[2] for row in parent_states()) == ("read", "read")
-        with pytest.raises(StopIteration):
-            next(candidate_fixture)
-        assert tuple(row[2] for row in parent_states()) == ("read", "read")
+        with contextlib.ExitStack() as gate_stack:
+            holder = gate_stack.enter_context(_gate_actor(
+                tmp_path, legacy="legacy.gate", common="common.gate"))
+            holder.send("write")
+            assert holder.receive() == "requested"
+            assert holder.receive() == "acquired"
+            real_flock = suite_conftest.fcntl.flock
+            blocked = []
+
+            def observe(fd, operation):
+                try:
+                    return real_flock(fd, operation)
+                except BlockingIOError:
+                    assert not blocked
+                    # A separate open description can take EX only after SH drops.
+                    probe = suite_conftest._open_real_repo_lock(tmp_path / "legacy")
+                    try:
+                        real_flock(probe, suite_conftest.fcntl.LOCK_EX
+                                   | suite_conftest.fcntl.LOCK_NB)
+                    finally:
+                        os.close(probe)
+                    blocked.append(True)
+                    holder.send("release")
+                    assert holder.receive() == "released"
+                    raise
+
+            downgrade_holder = gate_stack.enter_context(_gate_actor(
+                tmp_path, legacy="legacy.gate", common="common.gate"))
+            with mock.patch.object(suite_conftest.fcntl, "flock", observe):
+                candidate_fixture = _fixture_body(sut.repository_candidate_commit)(
+                    tmp_factory, lock_factory,
+                )
+                assert next(candidate_fixture) == "c" * 40
+            assert blocked == [True]
+            assert tuple(row[2] for row in parent_states()) == ("read", "read")
+            assert {row[1] for row in parent_states()} == outer_fds
+            assert all(row[3] == 2 for row in parent_states())
+            with pytest.raises(StopIteration):
+                next(candidate_fixture)
+            assert tuple(row[2] for row in parent_states()) == ("read", "read")
+            assert all(row[3] == 1 for row in parent_states())
         with pytest.raises(StopIteration):
             next(snapshot_fixture)
 

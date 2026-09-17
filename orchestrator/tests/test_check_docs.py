@@ -52,7 +52,7 @@ _SYNTHETIC_STAGE6_WAITER_ITEM = (
 _SYNTHETIC_STAGE9_WAITER_ITEM = (
     "9. **終端・local main (親):** 共通 land operation で監査済み成果だけを取り込み、結果を確定して終了する。\n"
     "   受入・land の終端で必ず `tools/dev_wave_wait.py acceptance` で `release` し、\n"
-    "   land 成功時だけ `message` を照合済み peer へ 1 度送る。\n"
+    "   land 成功時と巻戻し時に `message` を照合済み peer へ 1 度送る。\n"
 )
 _SYNTHETIC_DEV_WAVE_STATE_MACHINE = (
     "## 9 段状態機械\n\n"
@@ -578,7 +578,7 @@ _EXPECTED_CLEANUP_SKILL_SHA256 = (
     "268a32aeb2fb4a361e2a99cc7c90ff09e905c74465c64e8b4e2227d8b2d85dea"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
-    "75939b07e112fd2977ecaa0efbb77f4119a7050d052f9fdf668c35acdddb8730"
+    "a6380f90dcaf8e5e5ac21cc9af0619e000697816257f3e3e8a8844595dad1f26"
 )
 _SYNTHETIC_CLEANUP_SKILL = """---
 name: cleanup-branches
@@ -679,12 +679,13 @@ final で裁定候補として返し、実装・記録・commit は後から明�
 削除の直前に対象ごと `python3 tools/check_worktree_occupancy.py <worktree>`。rc0 のみ進み、
 rc1=占有/rc2=判定不能は停止。submodule は `git worktree remove` 禁止、F26 の手順にする:
 
-1. `git -C <worktree> checkout --detach` (branch を解放)
+1. `git -C <worktree> checkout --detach`
 2. `git branch -d <branch>` (取り込み済み確認の上)
-3. dir 撤去は 1 件 1 process・各長い timeout。一括ループ禁止、path 相互非包含時のみ並列可。
-   detach・branch 削除・prune は直列。全撤去 process 終了・成功確認後
-   (不明・中断なら停止)、`git worktree prune --dry-run --verbose` の
-   全候補＝今回所有確認済み対象なら `git worktree prune`。余分・不明候補時は real prune せず引渡し
+3. 全対象の 1・2・占有検査の後、dir 撤去は
+   `python3 tools/cleanup_remove_dirs.py -- <絶対path>...` を前景 1 回 (setsid・nohup・& 禁止)。
+   rc0 (全件 removed) 以外は停止。detach・branch 削除・prune は直列。rc0 後
+   `git worktree prune --dry-run --verbose` の全候補＝今回所有確認済み対象なら
+   `git worktree prune`。余分・不明候補時は real prune せず引渡し
 
 **`git submodule deinit` は使わない**。誤実行時は追加修復せず停止し、必要な
 `git submodule update --init external/ccbench` を final で引き渡す。正本は `docs/failures.md` F26。
@@ -969,6 +970,20 @@ description: synthetic Codex rulings skill
         ".agents/skills/rulings/agents/openai.yaml",
         check_docs.CODEX_RULINGS_OPENAI_YAML,
     )
+    codex_next_tasks_skill = """---
+name: next-tasks
+description: synthetic Codex next-tasks skill
+---
+
+# Next Tasks
+
+""" + "\n".join(check_docs.CODEX_NEXT_TASKS_SKILL_LITERALS) + "\n"
+    _write(root, ".agents/skills/next-tasks/SKILL.md", codex_next_tasks_skill)
+    _write(
+        root,
+        ".agents/skills/next-tasks/agents/openai.yaml",
+        check_docs.CODEX_NEXT_TASKS_OPENAI_YAML,
+    )
     _write(
         root,
         ".agents/skills/cleanup-branches/SKILL.md",
@@ -1076,6 +1091,10 @@ body
 body
 
 ### rulings
+
+body
+
+### next-tasks
 
 body
 
@@ -2521,7 +2540,7 @@ def test_dev_wave_command_budget_literal_is_exact():
 
     rel = ".claude/commands/dev-wave.md"
     assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(9_520, 140)
-    assert len(_read(_REPO, rel).encode("utf-8")) == 9_507
+    assert len(_read(_REPO, rel).encode("utf-8")) == 9_519
 
     root = _build_min_repo()
     try:
@@ -2538,7 +2557,7 @@ def test_next_tasks_command_budget_literal_is_exact():
 
     rel = ".claude/commands/next-tasks.md"
     assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(27_100, 100)
-    assert len(_read(_REPO, rel).encode("utf-8")) == 26_903
+    assert len(_read(_REPO, rel).encode("utf-8")) == 26_950
 
     root = _build_min_repo()
     try:
@@ -6955,6 +6974,11 @@ def _mutate_command_guard(root: str, case: str) -> None:
         _write(root, rel, _read(root, rel).replace(
             "### cleanup-branches\n", "", 1
         ))
+    elif case == "self_next_tasks_h3_deleted":
+        rel = "docs/skill-self-improvement.md"
+        _write(root, rel, _read(root, rel).replace(
+            "### next-tasks\n", "", 1
+        ))
     elif case == "self_long_line":
         rel = "docs/skill-self-improvement.md"
         _write(root, rel, _read(root, rel) + ("x" * 101) + "\n")
@@ -7399,6 +7423,18 @@ def _mutate_command_guard(root: str, case: str) -> None:
             "display_name: \"Changed\"",
             1,
         ))
+    elif case == "codex_next_tasks_skill_byte_over":
+        _pad_to_bytes(root, ".agents/skills/next-tasks/SKILL.md", 5_733)
+    elif case == "codex_next_tasks_skill_openai_changed":
+        rel = ".agents/skills/next-tasks/agents/openai.yaml"
+        _write(root, rel, _read(root, rel).replace(
+            'display_name: "Next Tasks"', 'display_name: "Changed"', 1,
+        ))
+    elif case == "codex_next_tasks_skill_adapter_deleted":
+        rel = ".agents/skills/next-tasks/SKILL.md"
+        _write(root, rel, _read(root, rel).replace("AGENTS.md\n", "", 1))
+    elif case == "codex_next_tasks_skill_extra_file":
+        _write(root, ".agents/skills/next-tasks/README.md", "# extra\n")
     elif case == "fifth_reference":
         _write(root, "docs/dev-wave/extra.md", "# extra\n")
     elif case == "nested_reference":
@@ -7432,6 +7468,11 @@ def _mutate_command_guard(root: str, case: str) -> None:
 
 
 _COMMAND_GUARD_CASES = [
+    "self_next_tasks_h3_deleted",
+    "codex_next_tasks_skill_byte_over",
+    "codex_next_tasks_skill_openai_changed",
+    "codex_next_tasks_skill_adapter_deleted",
+    "codex_next_tasks_skill_extra_file",
     "command_byte_over",
     "self_byte_over",
     "long_line",
@@ -7560,6 +7601,11 @@ _COMMAND_GUARD_CASES = [
 ]
 
 _COMMAND_GUARD_NEEDLES = {
+    "self_next_tasks_h3_deleted": "H3 見出し 'next-tasks' が 0 件",
+    "codex_next_tasks_skill_byte_over": "5733 bytes > 予算 5732 bytes",
+    "codex_next_tasks_skill_openai_changed": "生成済み Skill interface 契約と不一致",
+    "codex_next_tasks_skill_adapter_deleted": "Codex adapter 契約がない",
+    "codex_next_tasks_skill_extra_file": "Codex next-tasks Skill の予算未登録実体",
     "command_byte_over": "bytes > 予算",
     "self_byte_over": "bytes > 予算",
     "long_line": "最長行予算",
@@ -7829,6 +7875,13 @@ def test_command_guard_case_registration_is_complete():
     """条件 24〜27、L2 再追加、新節 pin と guard 登録表を固定する。"""
 
     case_keys = set(_COMMAND_GUARD_CASES)
+    assert {
+        "self_next_tasks_h3_deleted",
+        "codex_next_tasks_skill_byte_over",
+        "codex_next_tasks_skill_openai_changed",
+        "codex_next_tasks_skill_adapter_deleted",
+        "codex_next_tasks_skill_extra_file",
+    } <= case_keys
     assert "condition_waiter_deleted" in case_keys
     assert {
         "condition_25_deleted",
@@ -9809,6 +9862,53 @@ def test_codex_rulings_skill_contract_pins_exact_surface():
     )
 
 
+def test_codex_next_tasks_skill_contract_pins_exact_surface():
+    """checker と合成 fixture の同時変更に対し独立 literal で契約を固定する。"""
+
+    assert check_docs.CODEX_NEXT_TASKS_SKILL_FILES == {
+        ".agents/skills/next-tasks/SKILL.md",
+        ".agents/skills/next-tasks/agents/openai.yaml",
+    }
+    assert check_docs.CODEX_NEXT_TASKS_SKILL_LIMITS == {
+        ".agents/skills/next-tasks/SKILL.md": check_docs.TextLimit(5_732, 400),
+        ".agents/skills/next-tasks/agents/openai.yaml": check_docs.TextLimit(300, 160),
+    }
+    assert check_docs.CODEX_NEXT_TASKS_SKILL_LITERALS == (
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".claude/commands/next-tasks.md",
+        "$1",
+        "$next-tasks",
+        "$dev-wave",
+        "docs/pegasus-runbook.md",
+        "docs/skill-self-improvement.md",
+        "hooks/README.md",
+        "クラス 1",
+        "クラス 2",
+        "D2051",
+        "next_tasks_consult.sh claude",
+        "実測せずに外さない",
+        "CONSULT-MODE",
+        "3 巡目へ進めず",
+        "件数合わせで除外候補を復活させない",
+        "自己改善の終端条件を含める",
+        "丸付き数字は使わない",
+        "それ以外ではファイルを編集しない",
+        "push と remote branch 操作は人間に残す",
+        "環境に API キーを置かない",
+        "API key や代替 provider を新設して呼び出す経路は作らない",
+    )
+    assert check_docs.CODEX_NEXT_TASKS_OPENAI_YAML == (
+        'interface:\n'
+        '  display_name: "Next Tasks"\n'
+        '  short_description: "今すぐ投げられる dev-wave タスク候補を提案"\n'
+        '  default_prompt: "Use $next-tasks to propose two dev-wave tasks that can start now."\n'
+    )
+    assert check_docs.REQUIRED_SELF_HEADINGS[3] == {
+        "dev-wave", "cleanup-branches", "rulings", "next-tasks",
+    }
+
+
 def test_codex_cleanup_branches_skill_contract_pins_exact_surface():
     """checker と test fixture の whole-file pin を独立 literal で固定する。"""
 
@@ -9845,13 +9945,13 @@ def test_codex_cleanup_branches_skill_contract_pins_exact_surface():
 def test_cleanup_command_budget_is_pinned_and_enforced():
     rel = ".claude/commands/cleanup-branches.md"
     assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(6_204, 110)
-    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 6_203
+    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 6_201
 
     root = _build_min_repo()
     try:
         original = _read(root, rel)
-        assert len(original.encode("utf-8")) == 6_203
-        oversized = original + "\n" + "x"
+        assert len(original.encode("utf-8")) == 6_201
+        oversized = original + "\n" + "x" * 3
         assert len(oversized.encode("utf-8")) == 6_205
         _write(root, rel, oversized)
 

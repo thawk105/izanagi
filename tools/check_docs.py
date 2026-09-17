@@ -464,7 +464,7 @@ DEV_WAVE_STAGE6_WAITER_CONSUMER_LINES = (
 DEV_WAVE_STAGE9_WAITER_CONSUMER_LINES = (
     "9. **終端・local main (親):** 共通 land operation で監査済み成果だけを取り込み、結果を確定して終了する。",
     "   受入・land の終端で必ず `tools/dev_wave_wait.py acceptance` で `release` し、",
-    "   land 成功時だけ `message` を照合済み peer へ 1 度送る。",
+    "   land 成功時と巻戻し時に `message` を照合済み peer へ 1 度送る。",
 )
 DEV_WAVE_DW_C00_WAITER_CONSUMER_LITERAL = (
     "待ち手は 1 条件 1 本とし、通知ごとに作り直さず `tools/dev_wave_wait.py` を使う。"
@@ -729,6 +729,42 @@ CODEX_RULINGS_OPENAI_YAML = """interface:
   short_description: "Izanagi の裁定待ちを索引・詳説して判断を補佐"
   default_prompt: "Use $rulings to list and explain the Izanagi decisions awaiting my ruling."
 """
+# next-tasks の repo-scoped Skill 契約を登録する。
+CODEX_NEXT_TASKS_SKILL_LIMITS = {
+    ".agents/skills/next-tasks/SKILL.md": TextLimit(5_732, 400),
+    ".agents/skills/next-tasks/agents/openai.yaml": TextLimit(300, 160),
+}
+CODEX_NEXT_TASKS_SKILL_FILES = frozenset(CODEX_NEXT_TASKS_SKILL_LIMITS)
+CODEX_NEXT_TASKS_SKILL_LITERALS = (
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".claude/commands/next-tasks.md",
+    "$1",
+    "$next-tasks",
+    "$dev-wave",
+    "docs/pegasus-runbook.md",
+    "docs/skill-self-improvement.md",
+    "hooks/README.md",
+    "クラス 1",
+    "クラス 2",
+    "D2051",
+    "next_tasks_consult.sh claude",
+    "実測せずに外さない",
+    "CONSULT-MODE",
+    "3 巡目へ進めず",
+    "件数合わせで除外候補を復活させない",
+    "自己改善の終端条件を含める",
+    "丸付き数字は使わない",
+    "それ以外ではファイルを編集しない",
+    "push と remote branch 操作は人間に残す",
+    "環境に API キーを置かない",
+    "API key や代替 provider を新設して呼び出す経路は作らない",
+)
+CODEX_NEXT_TASKS_OPENAI_YAML = """interface:
+  display_name: "Next Tasks"
+  short_description: "今すぐ投げられる dev-wave タスク候補を提案"
+  default_prompt: "Use $next-tasks to propose two dev-wave tasks that can start now."
+"""
 CODEX_CLEANUP_BRANCHES_SKILL_LIMITS = {
     ".agents/skills/cleanup-branches/SKILL.md": TextLimit(3_100, 210),
     ".agents/skills/cleanup-branches/agents/openai.yaml": TextLimit(300, 110),
@@ -750,7 +786,7 @@ CODEX_CLEANUP_BRANCHES_OPENAI_YAML = """interface:
   default_prompt: "Use $cleanup-branches to safely clean up merged local branches and worktrees."
 """
 CLEANUP_COMMAND_SHA256 = (
-    "75939b07e112fd2977ecaa0efbb77f4119a7050d052f9fdf668c35acdddb8730"
+    "a6380f90dcaf8e5e5ac21cc9af0619e000697816257f3e3e8a8844595dad1f26"
 )
 CLEANUP_OCCUPANCY_SECTION = "3. worktree の削除手順 (F26)"
 CLEANUP_OCCUPANCY_CONTRACT = (
@@ -835,7 +871,7 @@ REQUIRED_SELF_HEADINGS = {
         "発火 gate", "routing", "command 入口の編集条件",
         "command 別の終端", "検査と commit 境界",
     },
-    3: {"dev-wave", "cleanup-branches", "rulings"},
+    3: {"dev-wave", "cleanup-branches", "rulings", "next-tasks"},
 }
 _SELF_PATH = "docs/skill-self-improvement.md"
 _SELF_SECTIONS = frozenset(
@@ -6556,6 +6592,14 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         expected_files=CODEX_RULINGS_SKILL_FILES,
         literals=CODEX_RULINGS_SKILL_LITERALS,
         openai_yaml=CODEX_RULINGS_OPENAI_YAML,
+    )
+    _check_codex_skill_guard(
+        findings,
+        skill_name="next-tasks",
+        limits=CODEX_NEXT_TASKS_SKILL_LIMITS,
+        expected_files=CODEX_NEXT_TASKS_SKILL_FILES,
+        literals=CODEX_NEXT_TASKS_SKILL_LITERALS,
+        openai_yaml=CODEX_NEXT_TASKS_OPENAI_YAML,
     )
     _check_codex_skill_guard(
         findings,

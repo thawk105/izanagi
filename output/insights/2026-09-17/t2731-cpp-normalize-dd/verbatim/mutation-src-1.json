@@ -1,0 +1,378 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2731-mutcontainer/output/pegasus-dispatch/0c9ee14f1e927b7380bfe6861d876cbd/izdw-0c9ee14f1e.o2793",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2731-mutcontainer/output/pegasus-dispatch/0c9ee14f1e927b7380bfe6861d876cbd/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........                                                                 [100%]\n8 passed in 6.25s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "81406ceab68ff8cd41143aeee211b43e4ca20b958951e3fce38a3157e9fc32a4"
+    },
+    "artifact_error": null,
+    "collection_sha256": "a280a037641976882f5b3e20e57f7fe89e6020dff3b5253a5afa1afe09872d24",
+    "duration_s": 238.252,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "771e146f5fd4a188861ffbb5e95cefa4d7fa909219e32b5db466d9efd77070b0",
+    "repo_head": "2cc6612355a39f5e8d0945134c1089b302b3fb30",
+    "runner_sha256": "00c782d8a498d93e3bf734cd51644c4eb59dc25cca13e5f43a75e82485e11f19",
+    "spec_sha256": "b1fe1c12f7c5c18038b9f9f908d4bd22c2498691b9b9b13c0eeb3ac39f2c1f06",
+    "status": "PASSED",
+    "test_output_sha256": "81406ceab68ff8cd41143aeee211b43e4ca20b958951e3fce38a3157e9fc32a4",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "1a54a046a66eaa6dfdea4921e85e59b7df34fa8ea5a339bc378768acdf16615d"
+  },
+  "date": "2026-09-16T22:36:21.915637+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2731-mutcontainer/output/pegasus-dispatch/da4e2f275301b87211c978ebed80b72e/izdw-da4e2f2753.o2804",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2731-mutcontainer/output/pegasus-dispatch/da4e2f275301b87211c978ebed80b72e/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........                                                                 [100%]\n8 passed in 6.36s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "09fa48cd013e2c582558ce1ab1a161544931dd347b30ee7d223b29d63c0fd9fe"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "a280a037641976882f5b3e20e57f7fe89e6020dff3b5253a5afa1afe09872d24",
+      "duration_s": 242.871,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "S0-comment-only-docstring",
+      "injection_diff_sha256": "a6ba877c444f6f6361d95dd6999b6d31a82da4686ba700c6edc48b0047053a2c",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "0c43cff48670c5a6b8eb0c1571f6f0e0e25a7fee0be5866956624a059658dec7",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "new": "    -dD で有効枝の source の #define / #undef を pre-image に残す (T2731 対照 S0) (F1016: file 間へ\n",
+          "old": "    -dD で有効枝の source の #define / #undef を pre-image に残す (F1016: file 間へ\n"
+        }
+      ],
+      "repo_head": "2cc6612355a39f5e8d0945134c1089b302b3fb30",
+      "runner_sha256": "00c782d8a498d93e3bf734cd51644c4eb59dc25cca13e5f43a75e82485e11f19",
+      "spec_sha256": "b1fe1c12f7c5c18038b9f9f908d4bd22c2498691b9b9b13c0eeb3ac39f2c1f06",
+      "status": "SURVIVED",
+      "test_output_sha256": "09fa48cd013e2c582558ce1ab1a161544931dd347b30ee7d223b29d63c0fd9fe",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1a54a046a66eaa6dfdea4921e85e59b7df34fa8ea5a339bc378768acdf16615d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2731-mutcontainer/output/pegasus-dispatch/0243ed391214de4b46beace9dfde3586/izdw-0243ed3912.o2819",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2731-mutcontainer/output/pegasus-dispatch/0243ed391214de4b46beace9dfde3586/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....FFFF                                                                 [100%]\n=================================== FAILURES ===================================\n_________ test_source_digest_toplevel_macro_directives_change_identity _________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_source_digest_toplevel_macro_directives_change_identity():\n        \"\"\"本文が参照しない top-level の define/undef も別 identity にする。\"\"\"\n        cxx = _any_cxx()\n        g = Genome(\"silo\", {\"BACK_OFF\": 1})\n        sub, head, _git = _fake_ccbench_repo()\n        hh = Path(sub, \"include/backoff.hh\")\n        original = hh.read_text(encoding=\"utf-8\")\n        assert \"T2731_LEAK\" not in original\n        hh.write_text(original.replace(\n            '#include \"tsc.hh\"\\n', '#include \"tsc.hh\"\\n' + '#undef T2731_LEAK\\n#define T2731_LEAK 1\\n', 1,\n        ), encoding=\"utf-8\")\n        token = source_digest.resolve(g, head, sub, cxx=cxx)\n        current = source_digest.compute(g, sub, cxx=cxx)\n        baseline = source_digest.baseline(g, head, sub, cxx=cxx)\n>       assert token != source_digest.STOCK, \"top-level 指令が STOCK に化けた\"\nE       AssertionError: top-level 指令が STOCK に化けた\nE       assert 'stock' != 'stock'\nE        +  where 'stock' = source_digest.STOCK\n\norchestrator/tests/test_campaign.py:11847: AssertionError\n_________ test_source_digest_toplevel_trace_directives_change_identity _________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_source_digest_toplevel_trace_directives_change_identity():\n        \"\"\"TRACE 漏れを別 identity にし、file 単独の trace 差分検査の境界も固定する。\n    \n        実 M6 の最終層は buildcache._assert_no_trace_symbols。この fake test は binary 検査を実行しない。\n        \"\"\"\n        cxx = _any_cxx()\n        g = Genome(\"silo\", {\"BACK_OFF\": 1})\n        sub, head, _git = _fake_ccbench_repo()\n        hh = Path(sub, \"include/backoff.hh\")\n        original = hh.read_text(encoding=\"utf-8\")\n        assert \"TRACE\" not in original\n        hh.write_text(original.replace(\n            '#include \"tsc.hh\"\\n', '#include \"tsc.hh\"\\n' + '#undef TRACE\\n#define TRACE 1\\n', 1,\n        ), encoding=\"utf-8\")\n        token = source_digest.resolve(g, head, sub, cxx=cxx)\n        current = source_digest.compute(g, sub, cxx=cxx)\n        baseline = source_digest.baseline(g, head, sub, cxx=cxx)\n>       assert token != source_digest.STOCK, \"TRACE 指令が STOCK に化けた\"\nE       AssertionError: TRACE 指令が STOCK に化けた\nE       assert 'stock' != 'stock'\nE        +  where 'stock' = source_digest.STOCK\n\norchestrator/tests/test_campaign.py:11868: AssertionError\n________ test_source_digest_same_value_source_redefine_changes_identity ________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_source_digest_same_value_source_redefine_changes_identity():\n        \"\"\"command-line と同名同値の source 再定義も環境 prefix と一緒に消さない。\"\"\"\n        cxx = _any_cxx()\n        g = Genome(\"silo\", {\"BACK_OFF\": 1})\n        sub, head, _git = _fake_ccbench_repo()\n        hh = Path(sub, \"include/backoff.hh\")\n        hh.write_text(hh.read_text(encoding=\"utf-8\").replace(\n            '#include \"tsc.hh\"\\n', '#include \"tsc.hh\"\\n#define BACK_OFF 1\\n', 1,\n        ), encoding=\"utf-8\")\n        token = source_digest.resolve(g, head, sub, cxx=cxx)\n        current = source_digest.compute(g, sub, cxx=cxx)\n        baseline = source_digest.baseline(g, head, sub, cxx=cxx)\n>       assert token != source_digest.STOCK, \"同名同値の source 再定義を消してしまった\"\nE       AssertionError: 同名同値の source 再定義を消してしまった\nE       assert 'stock' != 'stock'\nE        +  where 'stock' = source_digest.STOCK\n\norchestrator/tests/test_campaign.py:12002: AssertionError\n_____ test_source_digest_skipped_macro_directives_affect_only_live_variant _____\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_source_digest_skipped_macro_directives_affect_only_live_variant():\n        \"\"\"dead 枝の指令は stock を保ち、live な兄弟 variant の identity だけを変える。\"\"\"\n        cxx = _any_cxx()\n        stock = Genome(\"silo\", {\"BACK_OFF\": 0})\n        variant = Genome(\"silo\", {\"BACK_OFF\": 1})\n        sub, head, _git = _fake_ccbench_repo()\n        hh = Path(sub, \"include/backoff.hh\")\n        sibling = hh.read_text(encoding=\"utf-8\").replace(\"    return 1;\", \"    return 2;\")\n        assert \"T2731_LEAK\" not in sibling\n        hh.write_text(sibling, encoding=\"utf-8\")\n        stock_before = source_digest.resolve(stock, head, sub, cxx=cxx)\n        stock_digest_before = source_digest.compute(stock, sub, cxx=cxx)\n        variant_before = source_digest.resolve(variant, head, sub, cxx=cxx)\n        variant_digest_before = source_digest.compute(variant, sub, cxx=cxx)\n        assert variant_before != source_digest.STOCK\n        hh.write_text(sibling.replace(\n            \"#if BACK_OFF\\n\", \"#if BACK_OFF\\n#undef T2731_LEAK\\n#define T2731_LEAK 1\\n\",\n        ), encoding=\"utf-8\")\n        stock_after = source_digest.resolve(stock, head, sub, cxx=cxx)\n        stock_digest_after = source_digest.compute(stock, sub, cxx=cxx)\n        variant_after = source_digest.resolve(variant, head, sub, cxx=cxx)\n        variant_digest_after = source_digest.compute(variant, sub, cxx=cxx)\n        assert stock_after == stock_before == source_digest.STOCK, \\\n            \"skipped 枝の指令が stock identity を変えた\"\n        assert stock_digest_after == stock_digest_before, \\\n            \"skipped 枝の指令が stock pre-image を変えた\"\n>       assert variant_after != variant_before, \\\n            \"live 枝の指令が兄弟 variant と alias した\"\nE       AssertionError: live 枝の指令が兄弟 variant と alias した\nE       assert '6e7d96b00173350ab9518dbe02fbdd4bf0f01632b106ff18f96fb2ef4ecc162e' != '6e7d96b00173350ab9518dbe02fbdd4bf0f01632b106ff18f96fb2ef4ecc162e'\n\norchestrator/tests/test_campaign.py:11961: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_source_digest_toplevel_macro_directives_change_identity\nFAILED orchestrator/tests/test_campaign.py::test_source_digest_toplevel_trace_directives_change_identity\nFAILED orchestrator/tests/test_campaign.py::test_source_digest_same_value_source_redefine_changes_identity\nFAILED orchestrator/tests/test_campaign.py::test_source_digest_skipped_macro_directives_affect_only_live_variant\n4 failed, 4 passed in 6.58s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_source_digest_skipped_macro_directives_affect_only_live_variant\" nodeid_bytes=105 nodeid_omitted_bytes=0 source_bytes=2102 retained_bytes=2102 omitted_bytes=0 rendered_excerpt_bytes=2366 sha256=054ab1d19e7dea0c7ca95390b7409a5e6804215e648253ff0f52247331c6709a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_source_digest_skipped_macro_directives_affect_only_live_variant():\n>         \"\"\"dead \\u679d\\u306e\\u6307\\u4ee4\\u306f stock \\u3092\\u4fdd\\u3061\\u3001live \\u306a\\u5144\\u5f1f variant \\u306e identity \\u3060\\u3051\\u3092\\u5909\\u3048\\u308b\\u3002\"\"\"\n>         cxx = _any_cxx()\n>         stock = Genome(\"silo\", {\"BACK_OFF\": 0})\n>         variant = Genome(\"silo\", {\"BACK_OFF\": 1})\n>         sub, head, _git = _fake_ccbench_repo()\n>         hh = Path(sub, \"include/backoff.hh\")\n>         sibling = hh.read_text(encoding=\"utf-8\").replace(\"    return 1;\", \"    return 2;\")\n>         assert \"T2731_LEAK\" not in sibling\n>         hh.write_text(sibling, encoding=\"utf-8\")\n>         stock_before = source_digest.resolve(stock, head, sub, cxx=cxx)\n>         stock_digest_before = source_digest.compute(stock, sub, cxx=cxx)\n>         variant_before = source_digest.resolve(variant, head, sub, cxx=cxx)\n>         variant_digest_before = source_digest.compute(variant, sub, cxx=cxx)\n>         assert variant_before != source_digest.STOCK\n>         hh.write_text(sibling.replace(\n>             \"#if BACK_OFF\\x5cn\", \"#if BACK_OFF\\x5cn#undef T2731_LEAK\\x5cn#define T2731_LEAK 1\\x5cn\",\n>         ), encoding=\"utf-8\")\n>         stock_after = source_digest.resolve(stock, head, sub, cxx=cxx)\n>         stock_digest_after = source_digest.compute(stock, sub, cxx=cxx)\n>         variant_after = source_digest.resolve(variant, head, sub, cxx=cxx)\n>         variant_digest_after = source_digest.compute(variant, sub, cxx=cxx)\n>         assert stock_after == stock_before == source_digest.STOCK, \\x5c\n>             \"skipped \\u679d\\u306e\\u6307\\u4ee4\\u304c stock identity \\u3092\\u5909\\u3048\\u305f\"\n>         assert stock_digest_after == stock_digest_before, \\x5c\n>             \"skipped \\u679d\\u306e\\u6307\\u4ee4\\u304c stock pre-image \\u3092\\u5909\\u3048\\u305f\"\n> >       assert variant_after != variant_before, \\x5c\n>             \"live \\u679d\\u306e\\u6307\\u4ee4\\u304c\\u5144\\u5f1f variant \\u3068 alias \\u3057\\u305f\"\n> E       AssertionError: live \\u679d\\u306e\\u6307\\u4ee4\\u304c\\u5144\\u5f1f variant \\u3068 alias \\u3057\\u305f\n> E       assert '6e7d96b00173350ab9518dbe02fbdd4bf0f01632b106ff18f96fb2ef4ecc162e' != '6e7d96b00173350ab9518dbe02fbdd4bf0f01632b106ff18f96fb2ef4ecc162e'\n> \n> orchestrator/tests/test_campaign.py:11961: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_source_digest_toplevel_trace_directives_change_identity\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=1250 retained_bytes=1250 omitted_bytes=0 rendered_excerpt_bytes=1481 sha256=c0734a9c7ea43b1c83fefc0e1049fe67f2ca3c2eb6b438626d811a8f95e1bb89\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_source_digest_toplevel_trace_directives_change_identity():\n>         \"\"\"TRACE \\u6f0f\\u308c\\u3092\\u5225 identity \\u306b\\u3057\\u3001file \\u5358\\u72ec\\u306e trace \\u5dee\\u5206\\u691c\\u67fb\\u306e\\u5883\\u754c\\u3082\\u56fa\\u5b9a\\u3059\\u308b\\u3002\n>     \n>         \\u5b9f M6 \\u306e\\u6700\\u7d42\\u5c64\\u306f buildcache._assert_no_trace_symbols\\u3002\\u3053\\u306e fake test \\u306f binary \\u691c\\u67fb\\u3092\\u5b9f\\u884c\\u3057\\u306a\\u3044\\u3002\n>         \"\"\"\n>         cxx = _any_cxx()\n>         g = Genome(\"silo\", {\"BACK_OFF\": 1})\n>         sub, head, _git = _fake_ccbench_repo()\n>         hh = Path(sub, \"include/backoff.hh\")\n>         original = hh.read_text(encoding=\"utf-8\")\n>         assert \"TRACE\" not in original\n>         hh.write_text(original.replace(\n>             '#include \"tsc.hh\"\\x5cn', '#include \"tsc.hh\"\\x5cn' + '#undef TRACE\\x5cn#define TRACE 1\\x5cn', 1,\n>         ), encoding=\"utf-8\")\n>         token = source_digest.resolve(g, head, sub, cxx=cxx)\n>         current = source_digest.compute(g, sub, cxx=cxx)\n>         baseline = source_digest.baseline(g, head, sub, cxx=cxx)\n> >       assert token != source_digest.STOCK, \"TRACE \\u6307\\u4ee4\\u304c STOCK \\u306b\\u5316\\u3051\\u305f\"\n> E       AssertionError: TRACE \\u6307\\u4ee4\\u304c STOCK \\u306b\\u5316\\u3051\\u305f\n> E       assert 'stock' != 'stock'\n> E        +  where 'stock' = source_digest.STOCK\n> \n> orchestrator/tests/test_campaign.py:11868: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_source_digest_toplevel_macro_directives_change_identity\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=1117 retained_bytes=1117 omitted_bytes=0 rendered_excerpt_bytes=1261 sha256=793676a64c7a97b75579fbbda281360e8aeb1bf978c1a214ba756f99824653a7\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_source_digest_toplevel_macro_directives_change_identity():\n>         \"\"\"\\u672c\\u6587\\u304c\\u53c2\\u7167\\u3057\\u306a\\u3044 top-level \\u306e define/undef \\u3082\\u5225 identity \\u306b\\u3059\\u308b\\u3002\"\"\"\n>         cxx = _any_cxx()\n>         g = Genome(\"silo\", {\"BACK_OFF\": 1})\n>         sub, head, _git = _fake_ccbench_repo()\n>         hh = Path(sub, \"include/backoff.hh\")\n>         original = hh.read_text(encoding=\"utf-8\")\n>         assert \"T2731_LEAK\" not in original\n>         hh.write_text(original.replace(\n>             '#include \"tsc.hh\"\\x5cn', '#include \"tsc.hh\"\\x5cn' + '#undef T2731_LEAK\\x5cn#define T2731_LEAK 1\\x5cn', 1,\n>         ), encoding=\"utf-8\")\n>         token = source_digest.resolve(g, head, sub, cxx=cxx)\n>         current = source_digest.compute(g, sub, cxx=cxx)\n>         baseline = source_digest.baseline(g, head, sub, cxx=cxx)\n> >       assert token != source_digest.STOCK, \"top-level \\u6307\\u4ee4\\u304c STOCK \\u306b\\u5316\\u3051\\u305f\"\n> E       AssertionError: top-level \\u6307\\u4ee4\\u304c STOCK \\u306b\\u5316\\u3051\\u305f\n> E       assert 'stock' != 'stock'\n> E        +  where 'stock' = source_digest.STOCK\n> \n> orchestrator/tests/test_campaign.py:11847: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_source_digest_same_value_source_redefine_changes_identity\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=1069 retained_bytes=1069 omitted_bytes=0 rendered_excerpt_bytes=1278 sha256=8f2f72df64ec8034345a74e4073b832e3db49d22a624a6e491001aeb417c12ac\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_source_digest_same_value_source_redefine_changes_identity():\n>         \"\"\"command-line \\u3068\\u540c\\u540d\\u540c\\u5024\\u306e source \\u518d\\u5b9a\\u7fa9\\u3082\\u74b0\\u5883 prefix \\u3068\\u4e00\\u7dd2\\u306b\\u6d88\\u3055\\u306a\\u3044\\u3002\"\"\"\n>         cxx = _any_cxx()\n>         g = Genome(\"silo\", {\"BACK_OFF\": 1})\n>         sub, head, _git = _fake_ccbench_repo()\n>         hh = Path(sub, \"include/backoff.hh\")\n>         hh.write_text(hh.read_text(encoding=\"utf-8\").replace(\n>             '#include \"tsc.hh\"\\x5cn', '#include \"tsc.hh\"\\x5cn#define BACK_OFF 1\\x5cn', 1,\n>         ), encoding=\"utf-8\")\n>         token = source_digest.resolve(g, head, sub, cxx=cxx)\n>         current = source_digest.compute(g, sub, cxx=cxx)\n>         baseline = source_digest.baseline(g, head, sub, cxx=cxx)\n> >       assert token != source_digest.STOCK, \"\\u540c\\u540d\\u540c\\u5024\\u306e source \\u518d\\u5b9a\\u7fa9\\u3092\\u6d88\\u3057\\u3066\\u3057\\u307e\\u3063\\u305f\"\n> E       AssertionError: \\u540c\\u540d\\u540c\\u5024\\u306e source \\u518d\\u5b9a\\u7fa9\\u3092\\u6d88\\u3057\\u3066\\u3057\\u307e\\u3063\\u305f\n> E       assert 'stock' != 'stock'\n> E        +  where 'stock' = source_digest.STOCK\n> \n> orchestrator/tests/test_campaign.py:12002: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=5538 retained_bytes=5538 omitted_bytes=0 budget_bytes=49152 rendered_bytes=8432 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "fa22e3fb23afe22b8b372fce175abc527bf9ee363e3c2fc2a93bccb3dda63120"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a280a037641976882f5b3e20e57f7fe89e6020dff3b5253a5afa1afe09872d24",
+      "duration_s": 833.477,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_toplevel_macro_directives_change_identity",
+        "orchestrator/tests/test_campaign.py::test_source_digest_toplevel_trace_directives_change_identity",
+        "orchestrator/tests/test_campaign.py::test_source_digest_skipped_macro_directives_affect_only_live_variant",
+        "orchestrator/tests/test_campaign.py::test_source_digest_same_value_source_redefine_changes_identity"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_toplevel_macro_directives_change_identity",
+        "orchestrator/tests/test_campaign.py::test_source_digest_toplevel_trace_directives_change_identity",
+        "orchestrator/tests/test_campaign.py::test_source_digest_same_value_source_redefine_changes_identity",
+        "orchestrator/tests/test_campaign.py::test_source_digest_skipped_macro_directives_affect_only_live_variant"
+      ],
+      "hang_risk": false,
+      "id": "S1-drop-dD",
+      "injection_diff_sha256": "08dba5f50e35fc01c6f052f9308f3d12ac38ae3f7c1f4fe1502e65992ea42083",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "703e0a5fc4c0f921da3862c29659f29b57407cf4b5c7125b69f2db0c6bd9a757",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "new": "    args = [cxx, \"-E\", \"-P\", \"-nostdinc\", \"-Werror=undef\", *BUILD_FLAGS]\n",
+          "old": "    args = [cxx, \"-E\", \"-P\", \"-dD\", \"-nostdinc\", \"-Werror=undef\", *BUILD_FLAGS]\n"
+        }
+      ],
+      "repo_head": "2cc6612355a39f5e8d0945134c1089b302b3fb30",
+      "runner_sha256": "00c782d8a498d93e3bf734cd51644c4eb59dc25cca13e5f43a75e82485e11f19",
+      "spec_sha256": "b1fe1c12f7c5c18038b9f9f908d4bd22c2498691b9b9b13c0eeb3ac39f2c1f06",
+      "status": "KILLED",
+      "test_output_sha256": "fa22e3fb23afe22b8b372fce175abc527bf9ee363e3c2fc2a93bccb3dda63120",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1a54a046a66eaa6dfdea4921e85e59b7df34fa8ea5a339bc378768acdf16615d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2731-mutcontainer/output/pegasus-dispatch/31eb1f6c4170dfd1cda0077903fd07fa/izdw-31eb1f6c41.o2865",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2731-mutcontainer/output/pegasus-dispatch/31eb1f6c4170dfd1cda0077903fd07fa/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....F.F.                                                                 [100%]\n=================================== FAILURES ===================================\n__________ test_source_digest_unused_protocol_supply_preserves_digest __________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_source_digest_unused_protocol_supply_preserves_digest():\n        \"\"\"本文が参照しない protocol 供給は compute と baseline の一致を保つ。\"\"\"\n        cxx = _any_cxx()\n        g = Genome(\"silo\", {\"BACK_OFF\": 1})\n        sub, head, _git = _fake_ccbench_repo()\n        options = Path(sub, \"cmake/Options.cmake\")\n        options.write_text(\n            'set(CCBENCH_T2731_UNUSED 1 CACHE STRING \"unused fixture\")\\n'\n            + options.read_text(encoding=\"utf-8\"), encoding=\"utf-8\",\n        )\n        protocol = Path(sub, \"cc/silo/CMakeLists.txt\")\n        protocol.write_text(protocol.read_text(encoding=\"utf-8\").replace(\n            \"  OPTIONS\\n\", \"  OPTIONS\\n    T2731_UNUSED=${CCBENCH_T2731_UNUSED}\\n\",\n        ), encoding=\"utf-8\")\n        rel = \"cc/silo/transaction.cc\"\n        assert source_digest._worktree_defines(sub, g, rel)[\"T2731_UNUSED\"] == \"1\"\n        assert \"T2731_UNUSED\" not in source_digest._head_defines(sub, g, head, rel)\n        current = source_digest.compute(g, sub, cxx=cxx)\n        baseline = source_digest.baseline(g, head, sub, cxx=cxx)\n>       assert current == baseline, \"未参照の protocol 供給が digest を変えた\"\nE       AssertionError: 未参照の protocol 供給が digest を変えた\nE       assert 'dd42cdf1b8c7...14a53f22cbed2' == '098ac6724e34...e47c38f55d971'\nE         \nE         - 098ac6724e34262ac7b9de213c7aa92061ace7106ae797edec0e47c38f55d971\nE         + dd42cdf1b8c736926b30518dfc32fecb6d60262a3dc5504d91614a53f22cbed2\n\norchestrator/tests/test_campaign.py:11932: AssertionError\n__________ test_source_digest_unused_universal_supply_preserves_stock __________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_source_digest_unused_universal_supply_preserves_stock():\n        \"\"\"本文が参照しない universal 供給の追加は STOCK を変えない。\"\"\"\n        cxx = _any_cxx()\n        g = Genome(\"silo\", {\"BACK_OFF\": 1})\n        sub, head, _git = _fake_ccbench_repo()\n        options = Path(sub, \"cmake/Options.cmake\")\n        options.write_text(\n            'set(CCBENCH_T2731_UNUSED 1 CACHE STRING \"unused fixture\")\\n'\n            + options.read_text(encoding=\"utf-8\").replace(\n                \"    PARENT_SCOPE)\",\n                \"    T2731_UNUSED=${CCBENCH_T2731_UNUSED}\\n    PARENT_SCOPE)\",\n            ), encoding=\"utf-8\",\n        )\n        rel = \"include/backoff.hh\"\n        assert source_digest._worktree_defines(sub, g, rel)[\"T2731_UNUSED\"] == \"1\"\n        assert \"T2731_UNUSED\" not in source_digest._head_defines(sub, g, head, rel)\n        token = source_digest.resolve(g, head, sub, cxx=cxx)\n        current = source_digest.compute(g, sub, cxx=cxx)\n        baseline = source_digest.baseline(g, head, sub, cxx=cxx)\n>       assert token == source_digest.STOCK, \"未参照の universal 供給で STOCK が変わった\"\nE       AssertionError: 未参照の universal 供給で STOCK が変わった\nE       assert '70ffb4d46509...e4dc1b2e455a0' == 'stock'\nE         \nE         - stock\nE         + 70ffb4d46509551961b36cad31e6d2646a554e5994856739c52e4dc1b2e455a0\n\norchestrator/tests/test_campaign.py:11909: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_source_digest_unused_protocol_supply_preserves_digest\nFAILED orchestrator/tests/test_campaign.py::test_source_digest_unused_universal_supply_preserves_stock\n2 failed, 6 passed in 6.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_source_digest_unused_protocol_supply_preserves_digest\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=1605 retained_bytes=1605 omitted_bytes=0 rendered_excerpt_bytes=1799 sha256=e938cc5fb79f75913f0866e6c18102bea853282ab6ff3119831880af4a0d2934\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_source_digest_unused_protocol_supply_preserves_digest():\n>         \"\"\"\\u672c\\u6587\\u304c\\u53c2\\u7167\\u3057\\u306a\\u3044 protocol \\u4f9b\\u7d66\\u306f compute \\u3068 baseline \\u306e\\u4e00\\u81f4\\u3092\\u4fdd\\u3064\\u3002\"\"\"\n>         cxx = _any_cxx()\n>         g = Genome(\"silo\", {\"BACK_OFF\": 1})\n>         sub, head, _git = _fake_ccbench_repo()\n>         options = Path(sub, \"cmake/Options.cmake\")\n>         options.write_text(\n>             'set(CCBENCH_T2731_UNUSED 1 CACHE STRING \"unused fixture\")\\x5cn'\n>             + options.read_text(encoding=\"utf-8\"), encoding=\"utf-8\",\n>         )\n>         protocol = Path(sub, \"cc/silo/CMakeLists.txt\")\n>         protocol.write_text(protocol.read_text(encoding=\"utf-8\").replace(\n>             \"  OPTIONS\\x5cn\", \"  OPTIONS\\x5cn    T2731_UNUSED=${CCBENCH_T2731_UNUSED}\\x5cn\",\n>         ), encoding=\"utf-8\")\n>         rel = \"cc/silo/transaction.cc\"\n>         assert source_digest._worktree_defines(sub, g, rel)[\"T2731_UNUSED\"] == \"1\"\n>         assert \"T2731_UNUSED\" not in source_digest._head_defines(sub, g, head, rel)\n>         current = source_digest.compute(g, sub, cxx=cxx)\n>         baseline = source_digest.baseline(g, head, sub, cxx=cxx)\n> >       assert current == baseline, \"\\u672a\\u53c2\\u7167\\u306e protocol \\u4f9b\\u7d66\\u304c digest \\u3092\\u5909\\u3048\\u305f\"\n> E       AssertionError: \\u672a\\u53c2\\u7167\\u306e protocol \\u4f9b\\u7d66\\u304c digest \\u3092\\u5909\\u3048\\u305f\n> E       assert 'dd42cdf1b8c7...14a53f22cbed2' == '098ac6724e34...e47c38f55d971'\n> E         \n> E         - 098ac6724e34262ac7b9de213c7aa92061ace7106ae797edec0e47c38f55d971\n> E         + dd42cdf1b8c736926b30518dfc32fecb6d60262a3dc5504d91614a53f22cbed2\n> \n> orchestrator/tests/test_campaign.py:11932: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_source_digest_unused_universal_supply_preserves_stock\" nodeid_bytes=95 nodeid_omitted_bytes=0 source_bytes=1484 retained_bytes=1484 omitted_bytes=0 rendered_excerpt_bytes=1681 sha256=09144e9e33b6477a7dd8af80dedadc54111256228ccadc05a43db1857684a65b\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_source_digest_unused_universal_supply_preserves_stock():\n>         \"\"\"\\u672c\\u6587\\u304c\\u53c2\\u7167\\u3057\\u306a\\u3044 universal \\u4f9b\\u7d66\\u306e\\u8ffd\\u52a0\\u306f STOCK \\u3092\\u5909\\u3048\\u306a\\u3044\\u3002\"\"\"\n>         cxx = _any_cxx()\n>         g = Genome(\"silo\", {\"BACK_OFF\": 1})\n>         sub, head, _git = _fake_ccbench_repo()\n>         options = Path(sub, \"cmake/Options.cmake\")\n>         options.write_text(\n>             'set(CCBENCH_T2731_UNUSED 1 CACHE STRING \"unused fixture\")\\x5cn'\n>             + options.read_text(encoding=\"utf-8\").replace(\n>                 \"    PARENT_SCOPE)\",\n>                 \"    T2731_UNUSED=${CCBENCH_T2731_UNUSED}\\x5cn    PARENT_SCOPE)\",\n>             ), encoding=\"utf-8\",\n>         )\n>         rel = \"include/backoff.hh\"\n>         assert source_digest._worktree_defines(sub, g, rel)[\"T2731_UNUSED\"] == \"1\"\n>         assert \"T2731_UNUSED\" not in source_digest._head_defines(sub, g, head, rel)\n>         token = source_digest.resolve(g, head, sub, cxx=cxx)\n>         current = source_digest.compute(g, sub, cxx=cxx)\n>         baseline = source_digest.baseline(g, head, sub, cxx=cxx)\n> >       assert token == source_digest.STOCK, \"\\u672a\\u53c2\\u7167\\u306e universal \\u4f9b\\u7d66\\u3067 STOCK \\u304c\\u5909\\u308f\\u3063\\u305f\"\n> E       AssertionError: \\u672a\\u53c2\\u7167\\u306e universal \\u4f9b\\u7d66\\u3067 STOCK \\u304c\\u5909\\u308f\\u3063\\u305f\n> E       assert '70ffb4d46509...e4dc1b2e455a0' == 'stock'\n> E         \n> E         - stock\n> E         + 70ffb4d46509551961b36cad31e6d2646a554e5994856739c52e4dc1b2e455a0\n> \n> orchestrator/tests/test_campaign.py:11909: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=3089 retained_bytes=3089 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4637 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "dd67c8b2e72304bbbb2d423df55bf218d071fbdc133114c3cb043ca443b80f8e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a280a037641976882f5b3e20e57f7fe89e6020dff3b5253a5afa1afe09872d24",
+      "duration_s": 27.884,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_unused_universal_supply_preserves_stock",
+        "orchestrator/tests/test_campaign.py::test_source_digest_unused_protocol_supply_preserves_digest"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_unused_protocol_supply_preserves_digest",
+        "orchestrator/tests/test_campaign.py::test_source_digest_unused_universal_supply_preserves_stock"
+      ],
+      "hang_risk": false,
+      "id": "S2-drop-removeprefix",
+      "injection_diff_sha256": "f2af864a8002693c8a8b3083c1bed3597b5356a34560107fc7ad75cb5af1cf87",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "beb2104151b88e0c14957ebdc43e8cf30cf52cea9b123d94b5cae3f5a18ca781",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "new": "    return r.stdout\n",
+          "old": "    return r.stdout.removeprefix(prefix)\n"
+        }
+      ],
+      "repo_head": "2cc6612355a39f5e8d0945134c1089b302b3fb30",
+      "runner_sha256": "00c782d8a498d93e3bf734cd51644c4eb59dc25cca13e5f43a75e82485e11f19",
+      "spec_sha256": "b1fe1c12f7c5c18038b9f9f908d4bd22c2498691b9b9b13c0eeb3ac39f2c1f06",
+      "status": "KILLED",
+      "test_output_sha256": "dd67c8b2e72304bbbb2d423df55bf218d071fbdc133114c3cb043ca443b80f8e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1a54a046a66eaa6dfdea4921e85e59b7df34fa8ea5a339bc378768acdf16615d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2731-mutcontainer/output/pegasus-dispatch/84bf2c6595d319c0055ae98d8057807a/izdw-84bf2c6595.o2869",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2731-mutcontainer/output/pegasus-dispatch/84bf2c6595d319c0055ae98d8057807a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F......                                                                 [100%]\n=================================== FAILURES ===================================\n_______ test_source_digest_cpp_environment_prefix_mismatch_fails_closed ________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_source_digest_cpp_environment_prefix_mismatch_fails_closed():\n        \"\"\"空入力と本体の prefix 不一致は、正規化結果を返さず停止する。\"\"\"\n        with tempfile.TemporaryDirectory(prefix=\"t2731-fake-cxx-\") as directory:\n            compiler = Path(directory, f\"t2731-fake-cxx-{os.getpid()}\")\n            compiler.write_text(\n                '#!/bin/sh\\n'\n                'input=$(cat)\\n'\n                'if [ -z \"$input\" ]; then\\n'\n                \"    printf '#define ENV 1\\\\n'\\n\"\n                'else\\n'\n                \"    printf '#define DIFFERENT 1\\\\nint x;\\\\n'\\n\"\n                'fi\\n',\n                encoding=\"utf-8\",\n            )\n            compiler.chmod(0o700)\n            cxx = str(compiler)\n            try:\n>               with pytest.raises(RuntimeError, match=\"環境 prefix と不一致\"):\nE               Failed: DID NOT RAISE RuntimeError\n\norchestrator/tests/test_campaign.py:11984: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_campaign.py::test_source_digest_cpp_environment_prefix_mismatch_fails_closed\n1 failed, 7 passed in 6.28s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_campaign.py::test_source_digest_cpp_environment_prefix_mismatch_fails_closed\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=999 retained_bytes=999 omitted_bytes=0 rendered_excerpt_bytes=1181 sha256=f3b80fe3885b99620542d1b10b7f73ef19b85abe7a950f6bc4b8046aa248f3a7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_source_digest_cpp_environment_prefix_mismatch_fails_closed():\n>         \"\"\"\\u7a7a\\u5165\\u529b\\u3068\\u672c\\u4f53\\u306e prefix \\u4e0d\\u4e00\\u81f4\\u306f\\u3001\\u6b63\\u898f\\u5316\\u7d50\\u679c\\u3092\\u8fd4\\u3055\\u305a\\u505c\\u6b62\\u3059\\u308b\\u3002\"\"\"\n>         with tempfile.TemporaryDirectory(prefix=\"t2731-fake-cxx-\") as directory:\n>             compiler = Path(directory, f\"t2731-fake-cxx-{os.getpid()}\")\n>             compiler.write_text(\n>                 '#!/bin/sh\\x5cn'\n>                 'input=$(cat)\\x5cn'\n>                 'if [ -z \"$input\" ]; then\\x5cn'\n>                 \"    printf '#define ENV 1\\x5c\\x5cn'\\x5cn\"\n>                 'else\\x5cn'\n>                 \"    printf '#define DIFFERENT 1\\x5c\\x5cnint x;\\x5c\\x5cn'\\x5cn\"\n>                 'fi\\x5cn',\n>                 encoding=\"utf-8\",\n>             )\n>             compiler.chmod(0o700)\n>             cxx = str(compiler)\n>             try:\n> >               with pytest.raises(RuntimeError, match=\"\\u74b0\\u5883 prefix \\u3068\\u4e0d\\u4e00\\u81f4\"):\n> E               Failed: DID NOT RAISE RuntimeError\n> \n> orchestrator/tests/test_campaign.py:11984: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=999 retained_bytes=999 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1905 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "fc2a0033f7f40eebcb292acf2956e5f108cc7e5a47f067dd73500cafed690602"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a280a037641976882f5b3e20e57f7fe89e6020dff3b5253a5afa1afe09872d24",
+      "duration_s": 27.752,
+      "expected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_cpp_environment_prefix_mismatch_fails_closed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_cpp_environment_prefix_mismatch_fails_closed"
+      ],
+      "hang_risk": false,
+      "id": "S3-tautologize-startswith",
+      "injection_diff_sha256": "4c5991c2a88dd937d1f1d6a81944263dda008d7b01977667e964d4f51b25a6d1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "87bd83b1d09b2b8ab35b346c438c0637db19971eb118bcd116d567e70b60fc1c",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/source_digest.py",
+          "new": "    if not True:\n",
+          "old": "    if not r.stdout.startswith(prefix):\n"
+        }
+      ],
+      "repo_head": "2cc6612355a39f5e8d0945134c1089b302b3fb30",
+      "runner_sha256": "00c782d8a498d93e3bf734cd51644c4eb59dc25cca13e5f43a75e82485e11f19",
+      "spec_sha256": "b1fe1c12f7c5c18038b9f9f908d4bd22c2498691b9b9b13c0eeb3ac39f2c1f06",
+      "status": "KILLED",
+      "test_output_sha256": "fc2a0033f7f40eebcb292acf2956e5f108cc7e5a47f067dd73500cafed690602",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "1a54a046a66eaa6dfdea4921e85e59b7df34fa8ea5a339bc378768acdf16615d"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2731-mutcontainer/output/pegasus-dispatch/7ed9ae967dfb4d6f1a3cf0112663169b/izdw-7ed9ae967d.o2791",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2731-mutcontainer/output/pegasus-dispatch/7ed9ae967dfb4d6f1a3cf0112663169b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_campaign.py::test_source_digest_toplevel_macro_directives_change_identity\norchestrator/tests/test_campaign.py::test_source_digest_toplevel_trace_directives_change_identity\norchestrator/tests/test_campaign.py::test_source_digest_comment_only_preserves_stock\norchestrator/tests/test_campaign.py::test_source_digest_unused_universal_supply_preserves_stock\norchestrator/tests/test_campaign.py::test_source_digest_unused_protocol_supply_preserves_digest\norchestrator/tests/test_campaign.py::test_source_digest_skipped_macro_directives_affect_only_live_variant\norchestrator/tests/test_campaign.py::test_source_digest_cpp_environment_prefix_mismatch_fails_closed\norchestrator/tests/test_campaign.py::test_source_digest_same_value_source_redefine_changes_identity\n\n8/426 tests collected (418 deselected) in 1.73s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "08c7640add1e601264c3d8a5a1c0ad73b660ef4f5272e459e1c7fa2683e98a31"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_campaign.py::test_source_digest_toplevel_macro_directives_change_identity",
+        "orchestrator/tests/test_campaign.py::test_source_digest_toplevel_trace_directives_change_identity",
+        "orchestrator/tests/test_campaign.py::test_source_digest_comment_only_preserves_stock",
+        "orchestrator/tests/test_campaign.py::test_source_digest_unused_universal_supply_preserves_stock",
+        "orchestrator/tests/test_campaign.py::test_source_digest_unused_protocol_supply_preserves_digest",
+        "orchestrator/tests/test_campaign.py::test_source_digest_skipped_macro_directives_affect_only_live_variant",
+        "orchestrator/tests/test_campaign.py::test_source_digest_cpp_environment_prefix_mismatch_fails_closed",
+        "orchestrator/tests/test_campaign.py::test_source_digest_same_value_source_redefine_changes_identity"
+      ],
+      "duration_s": 27.417,
+      "rc": 0,
+      "repo_head": "2cc6612355a39f5e8d0945134c1089b302b3fb30",
+      "runner_sha256": "00c782d8a498d93e3bf734cd51644c4eb59dc25cca13e5f43a75e82485e11f19",
+      "spec_sha256": "b1fe1c12f7c5c18038b9f9f908d4bd22c2498691b9b9b13c0eeb3ac39f2c1f06",
+      "status": "PASSED",
+      "tool_sha256": "1a54a046a66eaa6dfdea4921e85e59b7df34fa8ea5a339bc378768acdf16615d"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "S0-comment-only-docstring": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "a6ba877c444f6f6361d95dd6999b6d31a82da4686ba700c6edc48b0047053a2c",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/source_digest.py",
+            "new": "    -dD で有効枝の source の #define / #undef を pre-image に残す (T2731 対照 S0) (F1016: file 間へ\n",
+            "old": "    -dD で有効枝の source の #define / #undef を pre-image に残す (F1016: file 間へ\n"
+          }
+        ]
+      },
+      "S1-drop-dD": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_source_digest_toplevel_macro_directives_change_identity",
+          "orchestrator/tests/test_campaign.py::test_source_digest_toplevel_trace_directives_change_identity",
+          "orchestrator/tests/test_campaign.py::test_source_digest_skipped_macro_directives_affect_only_live_variant",
+          "orchestrator/tests/test_campaign.py::test_source_digest_same_value_source_redefine_changes_identity"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "08dba5f50e35fc01c6f052f9308f3d12ac38ae3f7c1f4fe1502e65992ea42083",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/source_digest.py",
+            "new": "    args = [cxx, \"-E\", \"-P\", \"-nostdinc\", \"-Werror=undef\", *BUILD_FLAGS]\n",
+            "old": "    args = [cxx, \"-E\", \"-P\", \"-dD\", \"-nostdinc\", \"-Werror=undef\", *BUILD_FLAGS]\n"
+          }
+        ]
+      },
+      "S2-drop-removeprefix": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_source_digest_unused_universal_supply_preserves_stock",
+          "orchestrator/tests/test_campaign.py::test_source_digest_unused_protocol_supply_preserves_digest"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f2af864a8002693c8a8b3083c1bed3597b5356a34560107fc7ad75cb5af1cf87",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/source_digest.py",
+            "new": "    return r.stdout\n",
+            "old": "    return r.stdout.removeprefix(prefix)\n"
+          }
+        ]
+      },
+      "S3-tautologize-startswith": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_campaign.py::test_source_digest_cpp_environment_prefix_mismatch_fails_closed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4c5991c2a88dd937d1f1d6a81944263dda008d7b01977667e964d4f51b25a6d1",
+        "replacements": [
+          {
+            "file": "orchestrator/campaign/source_digest.py",
+            "new": "    if not True:\n",
+            "old": "    if not r.stdout.startswith(prefix):\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "771e146f5fd4a188861ffbb5e95cefa4d7fa909219e32b5db466d9efd77070b0",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_campaign.py",
+      "-k",
+      "toplevel_macro_directives or toplevel_trace_directives or comment_only_preserves_stock or unused_universal_supply or unused_protocol_supply or skipped_macro_directives or cpp_environment_prefix_mismatch or same_value_source_redefine",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 8100.0
+  },
+  "repo_head": "2cc6612355a39f5e8d0945134c1089b302b3fb30",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_campaign.py",
+      "-k",
+      "toplevel_macro_directives or toplevel_trace_directives or comment_only_preserves_stock or unused_universal_supply or unused_protocol_supply or skipped_macro_directives or cpp_environment_prefix_mismatch or same_value_source_redefine",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2731-mutcontainer/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "dispatch_head_blob_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2731-mutcontainer/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "6dc8334ebb238a9ce5a5fb83ee80cc7be68a7878",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "00c782d8a498d93e3bf734cd51644c4eb59dc25cca13e5f43a75e82485e11f19",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "b1fe1c12f7c5c18038b9f9f908d4bd22c2498691b9b9b13c0eeb3ac39f2c1f06",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 4,
+    "matching": 4,
+    "recorded": 4,
+    "registered": 4
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2731-mutcontainer/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "1a54a046a66eaa6dfdea4921e85e59b7df34fa8ea5a339bc378768acdf16615d",
+  "updated_at": "2026-09-16T23:00:40.542431+00:00"
+}

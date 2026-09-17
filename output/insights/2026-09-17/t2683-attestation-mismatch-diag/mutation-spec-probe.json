@@ -1,0 +1,176 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 3000,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M1-drop-sidecar-write",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/t126_driver.py",
+          "old": "            create_json(\n                capability, Path(relative).with_suffix(\".mismatch.json\").as_posix(),\n                diagnostic,\n            )\n            return RC_ATTESTATION\n",
+          "new": "            del diagnostic\n            return RC_ATTESTATION\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-sidecar-on-success",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/t126_driver.py",
+          "old": "        payload.update({\"stage\": stage, \"round_index\": round_index})\n        create_json(capability, relative, payload)\n        return RC_SUCCESS\n",
+          "new": "        payload.update({\"stage\": stage, \"round_index\": round_index})\n        create_json(capability, relative, payload)\n        create_json(\n            capability, Path(relative).with_suffix(\".mismatch.json\").as_posix(),\n            {\"status\": \"rejected\", \"failed_fields\": []},\n        )\n        return RC_SUCCESS\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-failed-fields-empty",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/t126_driver.py",
+          "old": "                \"failed_fields\": [row[\"field\"] for row in exc.comparisons\n                                  if row.get(\"verdict\") != \"pass\"],\n",
+          "new": "                \"failed_fields\": [],\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-comparisons-nonpass-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/t126_driver.py",
+          "old": "                \"comparisons\": exc.comparisons,\n",
+          "new": "                \"comparisons\": [row for row in exc.comparisons\n                                if row.get(\"verdict\") != \"pass\"],\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-empty-comparisons-no-sidecar",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/t126_driver.py",
+          "old": "        except AttestationMismatchError as exc:\n            diagnostic = {\n",
+          "new": "        except AttestationMismatchError as exc:\n            if not exc.comparisons:\n                return RC_ATTESTATION\n            diagnostic = {\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-write-failure-rc-34",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/t126_driver.py",
+          "old": "    except BaseException:\n        return RC_ATTESTATION\n",
+          "new": "    except BaseException:\n        return RC_INFRASTRUCTURE\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-sidecar-on-generic-failure",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/t126_driver.py",
+          "old": "    except BaseException:\n        return RC_ATTESTATION\n",
+          "new": "    except BaseException:\n        try:\n            create_json(\n                capability, Path(relative).with_suffix(\".mismatch.json\").as_posix(),\n                {\"status\": \"rejected\", \"comparisons\": [], \"failed_fields\": []},\n            )\n        except BaseException:\n            pass\n        return RC_ATTESTATION\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-message-always-legacy",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/t126_driver.py",
+          "old": "    message = \"attestation child rejected\"\n    try:\n        path = capability.root / Path(relative).with_suffix(\".mismatch.json\")\n",
+          "new": "    message = \"attestation child rejected\"\n    return message\n    try:\n        path = capability.root / Path(relative).with_suffix(\".mismatch.json\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-reader-reraises",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/t126_driver.py",
+          "old": "    except Exception:\n        pass\n    return f\"{message}; diagnostic={diagnostic}; failed_fields={failed_fields}\"\n",
+          "new": "    except Exception:\n        raise\n    return f\"{message}; diagnostic={diagnostic}; failed_fields={failed_fields}\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-production-raise-fixed-message",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/t126_driver.py",
+          "old": "                raise AttestationError(_attestation_rejection_message(\n                    capability=capability, relative=relative,\n                    attempt_dir=layout.attempt_dir,\n                ))\n",
+          "new": "                raise AttestationError(\"attestation child rejected\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-closure-child-inline",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/t126_driver.py",
+          "old": "        if is_child:\n            os._exit(_run_attestation_child(\n                repo_root=source_root, contract=contract, capability=capability,\n                relative=relative, stage=stage, round_index=round_index,\n            ))\n",
+          "new": "        if is_child:\n            try:\n                payload = _attest(source_root, contract)\n                payload.update({\"stage\": stage, \"round_index\": round_index})\n                create_json(capability, relative, payload)\n                os._exit(0)\n            except BaseException:\n                os._exit(RC_ATTESTATION)\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "E1-docstring-only",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/qualification/t126_driver.py",
+          "old": "    \"\"\"Publish attestation evidence; diagnostic failures preserve rejection.\"\"\"\n",
+          "new": "    \"\"\"Publish attestation evidence; diagnostic failures keep the rejection.\"\"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

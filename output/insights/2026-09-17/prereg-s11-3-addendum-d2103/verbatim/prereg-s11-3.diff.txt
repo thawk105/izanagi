@@ -1,0 +1,28 @@
+diff --git a/docs/phase3-b4-reflux-ablation-preregistration.md b/docs/phase3-b4-reflux-ablation-preregistration.md
+index fdc918b1c..f9752004e 100644
+--- a/docs/phase3-b4-reflux-ablation-preregistration.md
++++ b/docs/phase3-b4-reflux-ablation-preregistration.md
+@@ -1326,6 +1326,23 @@ floor driver が計算するのは絶対スループット基準の別量であ
+   欄が `未記入` のままなら、生成器は従来どおり floor 不在を渡す。したがって
+   **この訂正は §5.1 の解除条件も §6 の前提条件も 1 つも緩めず、`未記入` を有効な floor と
+   見なさない。** 上の項目のうち「接続が未実装」という部分だけが解消済みである。
++
++  **追記 (2026-09-17、D2103 の反映。worklog entry 1595 で現在地が変わった。)** 上の追記が
++  書いた「本書 §5 を読み」の読み方が変わった。材料レポート → floor artifact issuer の floor セル読取
++  (`resolve_preregistered_authoritative_floor`) は、文書全体を floor 行の prefix で走査する形をやめ、
++  `orchestrator/campaign/p3_b4_admission_record.py` の既存 §5 検査から切り出した固定表の解析
++  (`## 5.`〜`### 5.1` の一意な見出し境界、fence / HTML comment の除外、12 非空行と exact header、
++  10 label の集合一致、不可視文字の拒否) と、責任者行「実行責任者・開始時刻」の 1 セル受理述語 (D2079) を
++  通してから、§5 固定表の floor セル 1 つだけを読む。不在と判定するのは strip 後の raw が `未記入` と
++  一致する場合だけで、NFKC 異体は拒否される。他欄の sentinel と expectation 行は floor 経路で検査しない
++  (現行文書は floor を含む 6 欄が `未記入` のままで、floor は不在)。D1377 が定めた向き (生成器は floor を
++  caller から受け取らない) は変わらず、floor は §5 固定表の pin からしか入らない。**したがって上の追記の
++  「有効な pin でない記入では変わらない」はなお真であり、加えて、§5 固定表の外に置かれた同名の行や、
++  責任者行が `未記入` の文書は、pin の有無にかかわらず floor 経路で拒否される。** 本追記は §5.1 の
++  解除条件も §6 の前提条件も 1 つも緩めず、`未記入` を有効な floor と見なさず、測定の開始も §5 の記入も
++  本書の発効も許可しない。下の末尾の項が挙げる「材料レポート側の floor 接続が裁定され実装されていること」は
++  [T-2424] と D2103 で満たされているが、他の条件 (§5 の全欄、§6 の全条件、発効版の commit、§5.1.1 の
++  adapter と consumer) は満たされておらず、§7.1 の 4 分類は実効化していない。
+ - **floor 欄が埋まっても本書は発効しない。** §5 の残り 9 欄と §6 の 9 条件は 1 つも免除されない。
+ - **§7.1 の 4 分類が実効化するのは、次がすべて揃ったときである** — floor が発効し、§5 の全欄が
+   埋まり、§6 の全条件が満たされ、その版が実走前に commit され、§5.1.1 が要求する adapter と

@@ -699,6 +699,45 @@ def _extend_t304_role_name_baseline(
 _extend_t304_role_name_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)
 
 
+def _extend_t2703_role_source_baseline(
+    baseline: dict[str, list[list[object]]],
+) -> None:
+    """Follow the reviewed T-2703/T-2717/T-2705 role source pins."""
+    journal_rows = baseline["journals/*/*/provenance/role_file_sha256"]
+    for role, old, new in (
+        (
+            "planner",
+            "c47cf0ff81bb88d1ad65d5b0b92ac35feb40f49e4d2a8eef9007b48c286bf5f9",
+            "2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a",
+        ),
+        (
+            "critic",
+            "cd1c365204fd1a68260d0454b4599bfd8cea12c5d845fb24f4e21f154733df15",
+            "fea81c65909aa9026b8fda1bf9b4768b38185dfd9327cff86a8bcef844504c1b",
+        ),
+        (
+            "coder",
+            "2b46df2e4a5cbafcd3780b4cca54b3d81f3a73d9999cc6c859f1107aa398835a",
+            "2cc08b30573aef3337740d3e44848d94651d48528d4e1f095b420ceea4807388",
+        ),
+    ):
+        replaced = 0
+        for row in journal_rows:
+            if row[0] == old:
+                row[0] = new
+                replaced += 1
+        assert replaced == 6
+        report_rows = baseline[
+            f"reports/*/cells/*/generations/*/roles/{role}/"
+            "provenance/role_file_sha256"
+        ]
+        assert report_rows == [[old, 6]]
+        report_rows[0][0] = new
+
+
+_extend_t2703_role_source_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)
+
+
 def _assert_same_structure(left: object, right: object, path=()) -> None:
     if type(left) is dict or type(right) is dict:
         assert type(left) is type(right) is dict, path

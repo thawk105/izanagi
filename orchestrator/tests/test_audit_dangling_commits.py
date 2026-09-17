@@ -10,6 +10,7 @@ import io
 import os
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -23,6 +24,11 @@ assert _SPEC and _SPEC.loader
 ADC = importlib.util.module_from_spec(_SPEC)
 sys.modules[_SPEC.name] = ADC
 _SPEC.loader.exec_module(ADC)
+
+
+@pytest.fixture(autouse=True)
+def _clear_offrepo_scan_workers(monkeypatch):
+    monkeypatch.delenv("IZANAGI_AUDIT_SCAN_WORKERS", raising=False)
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -1180,10 +1186,510 @@ def test_candidate_session_materialization_is_inside_comparison_stage(
     assert comparison_start < session_materialized < comparison_complete
 
 
-def test_initial_patch_contains_no_parallel_execution() -> None:
-    source = _TOOL.read_text(encoding="utf-8")
-    assert "concurrent.futures" not in source
-    assert "ThreadPoolExecutor" not in source
+def test_parallel_offrepo_scan_preserves_enumeration(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "offrepo"
+    direct = _external_file(root, "direct.py", "same")
+    shared = _external_file(root, "a/same.py", "same")
+    nested = _external_file(root, "a/nested/nested.py", "same")
+    for name in ("b", "c", "d", "e", "z"):
+        (root / name).mkdir()
+    os.link(shared, root / "b/same.py")
+    os.link(shared, root / "b/other.py")
+    last = _external_file(root, "z/last.py", "same")
+    _external_file(root, "c/same.py", "longer")
+    _external_file(root, "d/same.py", "same", executable=True)
+    (root / "e/same.py").symlink_to(shared)
+    target = tmp_path / "target"
+    _external_file(target, "hidden.py", "same")
+    (root / "link").symlink_to(target, target_is_directory=True)
+    (root / "a/link").symlink_to(target, target_is_directory=True)
+    names = ("direct.py", "same.py", "other.py", "nested.py", "last.py", "hidden.py")
+    metadata = {
+        name: ADC._BlobMetadata("commit", "src/" + name, name, False,
+                                "shared" if name in ("same.py", "other.py") else name, 4)
+        for name in names
+    }
+
+    def expected_group(path, item, owners, aliases):
+        st = path.lstat()
+        return {(st.st_dev, st.st_ino): (
+            path, root, item, sorted(owners), sorted(aliases),
+            (st.st_dev, st.st_ino, st.st_mode, st.st_size),
+        )}
+
+    expected = {
+        "direct.py": expected_group(direct, metadata["direct.py"],
+            [("commit", "src/direct.py")], [(direct, root)]),
+        "shared": expected_group(shared, metadata["same.py"],
+            [("commit", "src/same.py"), ("commit", "src/other.py")],
+            [(shared, root), (shared, root / "a"),
+             (root / "b/same.py", root), (root / "b/other.py", root)]),
+        "nested.py": expected_group(nested, metadata["nested.py"],
+            [("commit", "src/nested.py")], [(nested, root), (nested, root / "a")]),
+        "last.py": expected_group(last, metadata["last.py"],
+            [("commit", "src/last.py")], [(last, root)]),
+    }
+    observed = []
+    for workers in (1, 4):
+        monkeypatch.setenv("IZANAGI_AUDIT_SCAN_WORKERS", str(workers))
+        possible, failures, scanned = ADC._enumerate_offrepo_candidates(
+            (root, root / "a"), tuple(metadata.values())
+        )
+        canonical = {
+            oid: {identity: (
+                group.external.path, group.external.root, group.metadata,
+                sorted(group.owners), sorted((a.path, a.root) for a in group.aliases),
+                (group.external.initial_stat.st_dev, group.external.initial_stat.st_ino,
+                 group.external.initial_stat.st_mode, group.external.initial_stat.st_size),
+            ) for identity, group in groups.items()}
+            for oid, groups in possible.items()
+        }
+        assert (canonical, failures, scanned) == (expected, 0, True)
+        observed.append(canonical)
+    assert observed[0] == observed[1]
+
+
+def _parallel_scan_fixture(tmp_path: Path):
+    root = tmp_path / "offrepo"
+    paths = [_external_file(root, f"{name}/same.py", "same") for name in ("a", "b")]
+    candidate = ADC._BlobMetadata("commit", "src/same.py", "same.py", False, "oid", 4)
+    return root, paths, candidate
+
+
+def test_parallel_offrepo_scan_preserves_report(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "offrepo"
+    saved = _external_file(root, "a/saved.py", "same")
+    copy = _external_file(root, "b/copy.py", "same")
+    denied = root / "denied"
+    denied.mkdir()
+    findings = [("commit", "subject", ["src/saved.py", "src/copy.py", "src/missing.py"])]
+    candidates = [ADC._BlobMetadata("commit", "src/" + name, name, False, name, 4)
+                  for name in ("saved.py", "copy.py", "missing.py")]
+    roots = (root, denied)
+    monkeypatch.setattr(ADC, "_checked_git", lambda *_a, **_kw: "main-oid")
+    monkeypatch.setattr(ADC, "_audit_snapshot", lambda *_a, **_kw: ADC._CoreAudit(findings, 0, ()))
+    monkeypatch.setattr(ADC, "_load_blob_metadata", lambda *_a: (candidates, 0, ()))
+    monkeypatch.setattr(ADC, "_landed_reference_matches",
+                        lambda *_a, **_kw: ({("commit", "src/saved.py"): [saved]}, None))
+
+    class FakeCat:
+        def __init__(self, *_a, **_kw):
+            pass
+
+        def read_blob(self, oid, size):
+            assert oid in ("saved.py", "copy.py") and size == 4
+            return b"same"
+
+        def close(self):
+            return None
+
+    monkeypatch.setattr(ADC, "_CatFileBatch", FakeCat)
+    real_scandir = os.scandir
+
+    def scandir(path):
+        if Path(path) == denied:
+            raise PermissionError("denied fixture")
+        return real_scandir(path)
+
+    monkeypatch.setattr(ADC.os, "scandir", scandir)
+    expected = ADC.AuditReport(
+        findings=[("commit", "subject", ["src/copy.py", "src/missing.py"])],
+        suppressions=[("commit", "src/saved.py", saved)],
+        unreferenced_copies=[("commit", "src/copy.py", copy)],
+        requested_roots=roots, accepted_roots=roots, rejected_roots=(),
+        scan_performed=True, blob_failures=0, scan_failures=2,
+        oversize_blobs=(), reference_failure=None,
+        regenerable_excluded_pairs=0, regenerable_only_commits=(),
+    )
+    reports = []
+    denied.chmod(0)
+    try:
+        for workers in (1, 4):
+            monkeypatch.setenv("IZANAGI_AUDIT_SCAN_WORKERS", str(workers))
+            reports.append(ADC.audit_with_offrepo(tmp_path / "repo", offrepo_roots=roots))
+            assert reports[-1] == expected
+    finally:
+        denied.chmod(0o755)
+    assert reports[0] == reports[1]
+
+
+def test_parallel_offrepo_scan_uses_multiple_threads(tmp_path: Path, monkeypatch) -> None:
+    root, _, candidate = _parallel_scan_fixture(tmp_path)
+    real_worker = ADC._scan_offrepo_directory
+    barrier = threading.Barrier(2, timeout=10)
+    identities = set()
+    lock = threading.Lock()
+
+    def worker(*args):
+        if args[0] == root:
+            return real_worker(*args)
+        with lock:
+            identities.add(threading.get_ident())
+        barrier.wait()
+        return real_worker(*args)
+
+    monkeypatch.setenv("IZANAGI_AUDIT_SCAN_WORKERS", "4")
+    monkeypatch.setattr(ADC, "_scan_offrepo_directory", worker)
+    possible, failures, scanned = ADC._enumerate_offrepo_candidates((root,), (candidate,))
+    assert len(identities) >= 2
+    assert len(possible["oid"]) == 2 and failures == 0 and scanned
+
+
+def test_parallel_offrepo_scan_preserves_failure_counts(tmp_path: Path, monkeypatch) -> None:
+    root, paths, candidate = _parallel_scan_fixture(tmp_path)
+    denied = [root / "a" / f"deny{i}" for i in range(5)]
+    for path in denied:
+        path.mkdir()
+        path.chmod(0)
+    real_scandir = os.scandir
+    real_lstat = Path.lstat
+    errors_by_worker = {}
+    error_lock = threading.Lock()
+
+    def scandir(path):
+        try:
+            return real_scandir(path)
+        except PermissionError:
+            with error_lock:
+                ident = threading.get_ident()
+                errors_by_worker[ident] = errors_by_worker.get(ident, 0) + 1
+            raise
+
+    def lstat(path, *args, **kwargs):
+        if path == paths[0]:
+            raise OSError("injected candidate failure")
+        return real_lstat(path, *args, **kwargs)
+
+    monkeypatch.setattr(ADC.os, "scandir", scandir)
+    monkeypatch.setattr(Path, "lstat", lstat)
+    try:
+        for workers in (1, 4):
+            errors_by_worker.clear()
+            monkeypatch.setenv("IZANAGI_AUDIT_SCAN_WORKERS", str(workers))
+            possible, failures, scanned = ADC._enumerate_offrepo_candidates(
+                (root, root / "a"), (candidate,)
+            )
+            if os.geteuid() != 0:
+                assert failures == 12  # Five walk errors + one lstat error, twice.
+                assert max(errors_by_worker.values()) >= 2
+            assert scanned is True and len(possible["oid"]) == 1
+            assert next(iter(possible["oid"].values())).external.path == paths[1]
+    finally:
+        for path in denied:
+            path.chmod(0o700)
+
+    class PartialScandir:
+        def __init__(self, path):
+            self.entries = real_scandir(path)
+            self.yielded = False
+
+        def __enter__(self):
+            self.entries.__enter__()
+            return self
+
+        def __exit__(self, *args):
+            return self.entries.__exit__(*args)
+
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            if self.yielded:
+                raise OSError("after one entry")
+            self.yielded = True
+            return next(self.entries)
+
+    monkeypatch.setattr(ADC.os, "scandir", PartialScandir)
+    for workers in (1, 4):
+        monkeypatch.setenv("IZANAGI_AUDIT_SCAN_WORKERS", str(workers))
+        assert ADC._enumerate_offrepo_candidates((root,), (candidate,)) == ({}, 1, True)
+
+
+def test_parallel_offrepo_scan_preserves_first_seen(tmp_path: Path, monkeypatch) -> None:
+    root, paths, candidate = _parallel_scan_fixture(tmp_path)
+    direct = _external_file(root, "same.py", "same")
+    os.link(direct, root / "b/alias.py")
+    os.link(paths[0], root / "b/other.py")
+    aliases = [ADC._BlobMetadata("alias", "src/" + name, name, False, "oid", 4)
+               for name in ("alias.py", "other.py")]
+    earlier_oid = ADC._BlobMetadata("commit", "src/early.py", "early.py", False, "early", 4)
+    later_oid = ADC._BlobMetadata("commit", "src/late.py", "late.py", False, "late", 4)
+    _external_file(root, "a/early.py", "same")
+    _external_file(root, "b/late.py", "same")
+    candidates = (candidate, *aliases, earlier_oid, later_oid)
+    monkeypatch.setenv("IZANAGI_AUDIT_SCAN_WORKERS", "1")
+    sequential, _, _ = ADC._enumerate_offrepo_candidates((root,), candidates)
+    real_worker = ADC._scan_offrepo_directory
+    later_finished = threading.Event()
+    completion = []
+
+    def worker(subtree, *args):
+        if subtree == root:
+            return real_worker(subtree, *args)
+        if subtree.name == "a":
+            assert later_finished.wait(10)
+        result = real_worker(subtree, *args)
+        completion.append(subtree.name)
+        if subtree.name == "b":
+            later_finished.set()
+        return result
+
+    monkeypatch.setenv("IZANAGI_AUDIT_SCAN_WORKERS", "4")
+    monkeypatch.setattr(ADC, "_scan_offrepo_directory", worker)
+    possible, failures, scanned = ADC._enumerate_offrepo_candidates(
+        (root,), candidates
+    )
+    assert completion == ["b", "a"]
+    assert failures == 0 and scanned is True
+    groups = list(possible["oid"].values())
+    assert [g.external.path for g in groups] == [direct, paths[0], paths[1]]
+    assert [g.metadata for g in groups] == [candidate, candidate, candidate]
+    assert list(possible["oid"]) == [(p.stat().st_dev, p.stat().st_ino)
+                                     for p in (direct, *paths)]
+    assert list(possible) == list(sequential) == ["oid", "early", "late"]
+    assert list(possible["oid"]) == list(sequential["oid"])
+    assert possible == sequential
+
+    # One worker sees B first at b, then A and B at the earlier DFS path.
+    tied_root = tmp_path / "tied"
+    earlier = _external_file(tied_root, "a/deep/same.py", "same")
+    later = tied_root / "b/other.py"
+    later.parent.mkdir()
+    os.link(earlier, later)
+    blockers = [tied_root / f"z{i}" for i in range(3)]
+    for path in blockers:
+        path.mkdir()
+    tied_candidates = (
+        ADC._BlobMetadata("commit", "src/same.py", "same.py", False, "A", 4),
+        ADC._BlobMetadata("commit", "src/same.py", "same.py", False, "B", 4),
+        ADC._BlobMetadata("commit", "src/other.py", "other.py", False, "B", 4),
+    )
+    parked = threading.Barrier(4, timeout=10)
+    earlier_finished = threading.Event()
+    local_order = []
+
+    def ordered_worker(directory, *args):
+        if directory in blockers:
+            parked.wait()
+            assert earlier_finished.wait(10)
+        if directory == later.parent:
+            parked.wait()  # All other workers stay parked until deep completes.
+        result = real_worker(directory, *args)
+        if directory in (later.parent, earlier.parent):
+            local_order.append((directory, threading.get_ident()))
+        if directory == earlier.parent:
+            earlier_finished.set()
+        return result
+
+    monkeypatch.setattr(ADC, "_scan_offrepo_directory", ordered_worker)
+    possible, failures, scanned = ADC._enumerate_offrepo_candidates(
+        (tied_root,), tied_candidates
+    )
+    assert failures == 0 and scanned is True
+    assert [directory for directory, _ in local_order] == [later.parent, earlier.parent]
+    assert len({ident for _, ident in local_order}) == 1
+    assert next(iter(possible["B"].values())).external.path == earlier
+    assert list(possible) == ["A", "B"]
+
+
+def _canonical_offrepo_candidates(possible):
+    return [
+        (oid, [(identity, group.external, group.metadata,
+                group.owners, group.aliases) for identity, group in groups.items()])
+        for oid, groups in possible.items()
+    ]
+
+
+def test_parallel_offrepo_scan_handles_deep_and_wide_trees(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "offrepo"
+    directories = {root}
+    for relative in ["big/" + str(i) for i in range(300)] + [
+        "small" + str(i) for i in range(20)
+    ] + ["/".join(["deep"] * 10)]:
+        file = _external_file(root, relative + "/same.py", "same")
+        directories.update(p for p in file.parents if p == root or root in p.parents)
+    candidate = ADC._BlobMetadata("commit", "src/same.py", "same.py", False, "oid", 4)
+    real_task = ADC._scan_offrepo_directory
+    visited = []
+    lock = threading.Lock()
+
+    def task(directory, *args):
+        with lock:
+            visited.append(directory)
+        return real_task(directory, *args)
+
+    monkeypatch.setattr(ADC, "_scan_offrepo_directory", task)
+    monkeypatch.setattr(ADC, "HEARTBEAT_INTERVAL_SECONDS", 0.0)
+    observed = []
+    for workers in (1, 4):
+        monkeypatch.setenv("IZANAGI_AUDIT_SCAN_WORKERS", str(workers))
+        progress = []
+        possible, failures, scanned = ADC._enumerate_offrepo_candidates(
+            (root,), (candidate,), progress=progress.append
+        )
+        assert failures == 0 and scanned
+        assert progress[-1] == f"repo 外走査 heartbeat directories={len(directories)} files=321"
+        observed.append((_canonical_offrepo_candidates(possible), failures, scanned))
+    assert observed[0] == observed[1]
+    assert set(visited) == directories
+    assert len(visited) == len(directories)
+
+
+def test_parallel_offrepo_scan_symlink_directory_is_listed_not_entered(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    root, _, candidate = _parallel_scan_fixture(tmp_path)
+    target = tmp_path / "target"
+    _external_file(target, "hidden.py", "same")
+    links = [root / "link", root / "a/link"]
+    for link in links:
+        link.symlink_to(target, target_is_directory=True)
+    hidden = ADC._BlobMetadata("commit", "src/hidden.py", "hidden.py", False, "hidden", 4)
+    real_iteration = ADC._process_offrepo_iteration
+    listed = []
+
+    def iteration(*args, **kwargs):
+        directory, dirnames, _ = args[1]
+        listed.extend(Path(directory) / name for name in dirnames if name == "link")
+        return real_iteration(*args, **kwargs)
+
+    monkeypatch.setattr(ADC, "_process_offrepo_iteration", iteration)
+    monkeypatch.setattr(ADC, "HEARTBEAT_INTERVAL_SECONDS", 0.0)
+    observed = []
+    for workers in (1, 4):
+        listed.clear()
+        progress = []
+        monkeypatch.setenv("IZANAGI_AUDIT_SCAN_WORKERS", str(workers))
+        possible, failures, scanned = ADC._enumerate_offrepo_candidates(
+            (root,), (candidate, hidden), progress=progress.append
+        )
+        assert sorted(listed) == sorted(links)
+        assert "hidden" not in possible
+        assert failures == 0 and scanned
+        assert progress[-1] == "repo 外走査 heartbeat directories=3 files=2"
+        observed.append(_canonical_offrepo_candidates(possible))
+    assert observed[0] == observed[1]
+
+
+def test_parallel_offrepo_scan_propagates_worker_exception(tmp_path: Path, monkeypatch) -> None:
+    root, _, candidate = _parallel_scan_fixture(tmp_path)
+    class WorkerError(Exception):
+        pass
+
+    injected = WorkerError("t2637 injected")
+    real_worker = ADC._scan_offrepo_directory
+    before = threading.active_count()
+    processing = threading.Barrier(2, timeout=10)
+    delayed_finished = threading.Event()
+
+    def worker(*args):
+        if args[0] == root:
+            return real_worker(*args)
+        processing.wait()
+        if args[0] == root / "a":
+            raise injected
+        # Keep this worker processing after its peer raises.
+        threading.Event().wait(0.3)
+        result = real_worker(*args)
+        delayed_finished.set()
+        return result
+
+    monkeypatch.setenv("IZANAGI_AUDIT_SCAN_WORKERS", "4")
+    monkeypatch.setattr(ADC, "_scan_offrepo_directory", worker)
+    with pytest.raises(WorkerError, match="t2637 injected") as caught:
+        ADC._enumerate_offrepo_candidates((root,), (candidate,))
+    assert caught.value is injected
+    assert delayed_finished.is_set()
+    assert threading.active_count() == before
+
+
+def test_parallel_offrepo_scan_heartbeat_runs_on_caller(tmp_path: Path, monkeypatch) -> None:
+    root, _, candidate = _parallel_scan_fixture(tmp_path)
+    monkeypatch.setenv("IZANAGI_AUDIT_SCAN_WORKERS", "4")
+    monkeypatch.setattr(ADC, "HEARTBEAT_INTERVAL_SECONDS", 0.0)
+    caller = threading.get_ident()
+    progress = []
+    timeouts = []
+    real_wait = ADC.threading.Event.wait
+
+    def wait(event, timeout=None):
+        if threading.get_ident() == caller and timeout is not None:
+            assert timeout > 0
+            timeouts.append(timeout)
+        return real_wait(event, timeout)
+
+    def callback(message):
+        assert threading.get_ident() == caller
+        progress.append(message)
+
+    monkeypatch.setattr(ADC.threading.Event, "wait", wait)
+    _, failures, scanned = ADC._enumerate_offrepo_candidates(
+        (root,), (candidate,), progress=callback
+    )
+    assert failures == 0 and scanned is True
+    assert timeouts
+    assert progress[-1] == "repo 外走査 heartbeat directories=3 files=2"
+    counts = [tuple(int(field.split("=")[1]) for field in line.split()[-2:])
+              for line in progress]
+    assert all(a[0] <= b[0] and a[1] <= b[1] for a, b in zip(counts, counts[1:]))
+
+
+def test_offrepo_scan_worker_configuration(tmp_path: Path, monkeypatch) -> None:
+    root, _, candidate = _parallel_scan_fixture(tmp_path)
+    assert ADC.OFFREPO_SCAN_WORKERS == 16
+    assert ADC._offrepo_scan_workers() == 16
+    real_thread = ADC.threading.Thread
+    created = []
+
+    def thread(*args, **kwargs):
+        assert kwargs["daemon"] is False
+        created.append(1)
+        return real_thread(*args, **kwargs)
+
+    monkeypatch.setattr(ADC.threading, "Thread", thread)
+    for raw, expected in ((None, 16), ("1", 1), ("4", 4)):
+        if raw is None:
+            monkeypatch.delenv("IZANAGI_AUDIT_SCAN_WORKERS", raising=False)
+        else:
+            monkeypatch.setenv("IZANAGI_AUDIT_SCAN_WORKERS", raw)
+        assert ADC._offrepo_scan_workers() == expected
+        created.clear()
+        assert ADC._enumerate_offrepo_candidates((root,), (candidate,))[1:] == (0, True)
+        assert len(created) == (0 if expected == 1 else expected)
+    for invalid in ("", "abc", "0", "-3"):
+        monkeypatch.setenv("IZANAGI_AUDIT_SCAN_WORKERS", invalid)
+        with pytest.raises(RuntimeError, match="positive integer"):
+            ADC._enumerate_offrepo_candidates((root,), (candidate,))
+
+
+def test_empty_offrepo_candidates_touch_neither_filesystem_nor_pool(monkeypatch) -> None:
+    def trap(*_args, **_kwargs):
+        raise AssertionError("empty candidates touched filesystem, pool or environment")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(ADC.os, "walk", trap)
+        patch.setattr(ADC.os, "scandir", trap)
+        patch.setattr(Path, "lstat", trap)
+        patch.setattr(ADC.threading, "Thread", trap)
+        patch.setattr(ADC.queue, "Queue", trap)
+        patch.setattr(ADC.os.environ, "get", trap)
+        assert ADC._enumerate_offrepo_candidates((Path("/unused"),), ()) == ({}, 0, False)
+
+
+def test_parallel_offrepo_scan_unreadable_subdirectory(tmp_path: Path, monkeypatch) -> None:
+    if os.geteuid() == 0:
+        pytest.skip("root bypasses child directory permissions")
+    root, _, candidate = _parallel_scan_fixture(tmp_path)
+    denied = root / "a"
+    denied.chmod(0)
+    try:
+        for workers in (1, 4):
+            monkeypatch.setenv("IZANAGI_AUDIT_SCAN_WORKERS", str(workers))
+            possible, failures, scanned = ADC._enumerate_offrepo_candidates((root,), (candidate,))
+            assert failures == 1 and scanned is True
+            assert len(possible["oid"]) == 1
+    finally:
+        denied.chmod(0o755)
 
 
 def test_removed_changed_files_api_cannot_reintroduce_per_commit_fork() -> None:

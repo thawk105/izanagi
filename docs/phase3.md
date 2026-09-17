@@ -59,7 +59,8 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   8c セッション非依存駆動は「反復運営が再び律速なら着手」の条件付きだったが、
   **ユーザーの優先度変更により条件を待たず bounded MVP を先に実装した** (D106)。
   正式実験 (H1/H2 × on/off/swapped) と crash resume は未完で、ここは条件が外れていない。
-  段 7 cross-protocol / b2 移植は 8b と層3の後に判断する。
+  段 7 のうち cross-protocol 基盤の準備は 2026-09-17 改訂で着手可能 (pin 前進は別途再承認)。b2 移植への
+  本格投資は従来どおり 8b と層3の後に判断する。
 - 既知の rr5/rr50/rr95 結果は配線確認・**結果既知の事前登録付き追試** (confirmatory とは呼ばない) にだけ使う。新しい workload 特化主張は、
   結果を見ていない holdout workload/競合条件と全件報告規則を実走前に凍結してから評価する。
 - bench-first screening v2 は**実装済み** (2026-07-15、D58。監査 must-fix 対応込み)。positive
@@ -191,6 +192,39 @@ worklog 2026-07-31 (74)。本改訂は roadmap 本体と絶対規律を変更し
 (一次資料 = `output/insights/2026-07-28_t140-setsize-distribution.md`)。経緯は worklog 2026-08-01 (92)。
 以後、2026-07-22 / 2026-07-26 / 2026-07-31 改訂の freeze 条項は履歴として残すが効力を持たない。
 
+**2026-09-17 改訂 (ユーザーの直接発話による方向の決定 + dev-wave 親の具体化):** ユーザーは Silo 固定の解除を
+問い、論文のパンチへの懸念から cross-protocol 対応を可能にしておく方向を示した (発話の逐語は下記一次資料)。
+これを受けて次のとおり改める。**方向 (合成対象を Silo に限定しない) はユーザー決定、射程・順序・準備の鎖は親の裁定
+(AI 起草、取消し可能)** であり、両者を混同しない。一次資料 = `output/insights/2026-09-17/cross-protocol-scope-release/README.md`
+(発話逐語・段 2 plan・段 3 レンズ 2 本・段 4 裁定の逐語つき)。
+(1) **2026-07-27 改訂 (1) のうち「合成対象を Silo に限定する」部分を変更する** — mocc を第 2 例とする
+certified な合成対象の拡張 (variant 1 件の生成履歴・正しさ検査・名指し stock との対比較) に向けた**準備に
+着手する**。「複数プロトコルから選ばせる問題設定は当面採らない」と同改訂 (2) (8b selector の優先度引下げ)
+は据え置く。成立方法は 2026-08-11 裁定 (T-755 Q1〜Q3 (a)、D1360) のまま — trace-hook 移植だけが certified
+比較を成立させ、stock 専用経路は偵察でも解禁しない。D1373 の関門 (D2083 項 4) は迂回も緩和もしない。
+D579 の限定 (mocc を変異探索面へ入れる wave は独立の auditor-live 相当の機械実証を別途用意する) は不変。
+(2) **狙う増分主張は「指定した二つの CC 実装 (Silo / MOCC) で合成・評価手順を実証した」に限る。** その主張に
+要る第 2 例の証拠を、paper-story の B 群相当 (拡張主張の条件付き必要証拠) として整理する。C-1
+(protocol 横断の stock 最良比較) は別項のまま将来スコープに残し、現在の論文の無条件の必要条件にはしない。
+LLM 固有性・descriptor の因果・無人自律・一般的な性能優越・「10 protocol から選ぶ」は本拡張で実証した
+とは書かない。
+(3) **pin 前進は本改訂で承認しない。** D2104 項 13 (非 silo の between-run 実測の保留と pin 再承認の手続き)
+は維持し、D1603 の材料 3 点 (候補 commit・D297 同一性検査の結果・承認済み定数への波及範囲) が揃った
+時点で [T-167] の再承認として別途提示する。pin の full SHA を束縛する物 (承認済み定数・A-1 事前登録・
+性能事前登録・campaign identity・凍結 floor) は実在し、pin 前進は過去の certified 判定を無効化しないが
+(旧 pin・旧 identity で保持)、新 pin で継続する系列には登録・identity・凍結の更新が要る (D297 の合格は
+SHA 束縛の置換を認めない)。
+(4) **順序: mocc 第 2 例の最小経路 (A) を、近年 CC 手法の CCBench 実装追加 (B) より先行させる。** B の
+候補調査は独立に着手してよく、その要求を共通契約へ反映する。B 実装の判断条件は共通契約と固有実装費用の
+明確化とし、完全な protocol 汎用化は要求しない。TicToc の準備は mocc 達成の必須鎖に含めない。
+(5) **後続段 7 のうち cross-protocol 基盤の準備は本改訂で着手可能とする。** b2 (最適化移植・カタログ化) への
+本格投資の条件 (8b + 層 3 の後、カード試作の結果で判断) は従来どおり。準備 T (pin 材料 3 点、mocc 変異
+実証の設計、近年手法の候補調査、TicToc hook、TicToc floor baseline) の ID と進捗は worklog 末尾の
+「次の一手」が正本。層 3 の protocol 照合キーは [T-2115] で実装済みのため起票しない。
+**roadmap 本体 (§9 E の順序文、§2 の b1 主経路 / b2 拡張予約) は改訂しない** — 本改訂は phase 内の準備
+着手順の変更であり、E の本格投資判断や C-1 の必須化まで行う場合は `docs/roadmap-history/README.md` の
+改訂規則に従う別件とする。
+
 ## 読み方 (D35 — セッション開始時に全文を読まない)
 
 - セッション開始時に読むのは 3 箇所だけ: **現行チェックポイント**、**must 表** (`grep -n "^## 現行 Phase 3 must" docs/phase3.md` で位置特定) と、
@@ -299,7 +333,7 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
 |---|---|---|
 | **完了群**: H3 hooks / cache_key+variant_id 拡張 / 観測者効果二重検査 / S4 / C1 | **完了・解消済み** | **現役の一次防壁 (方針 A):** 偽 cache hit は cache_key+variant_id digest で、TRACE 混入は観測者効果二重検査 (payload 検査に依存しない diff-of-diffs、buildcache.build 出口 hit/fresh 両経路、fails-closed) で塞ぐ。H3 hooks は最小第二防壁 (D30/D33)。規律3 配線 = S4 (verify-red 構造化 anomaly → abort payload + load_rejections、還流は段 4 で消化)。C1 は worktree 隔離 (`patchharness.checkout()`) で解消、driver 宣言値リテラルは IDENT-1/IDENT-3 により意図的据え置き。詳細・経緯は archive (`phase3-s6-s8a-completed-details.md`) と D30/D33/D34/D37/D40 |
 | S2 (certify=perf) | non-blocking (abort>0 確認は完了条件 2 に反映済み) | 純 timing は lock/validation 論理に触れないが、**abort 経路は踏む** — verify で abort≈0 だと合成枝が空振り認証になる (残存リスク節)。abort>0 確認は完了条件 2 に明記済み (前提 = abort 数の WAL 記録タスク)。**sort 段で gate 条件に昇格** (calibrator 実測で contention 再現・trace 規模・broken-silo 赤の 3 点) **→ 構成確定済 (2026-07-06、後続段 1 完了・gate 3 点 all_pass、D36)。pipeline 配線も完了 (段 5、D36 決定 4、opt-in = legacy+s2)** |
-| S1 (別 protocol trace-hook) | **現状 non-blocking** / 旧 headline 2 復活または段 7 cross-protocol 着手時に発火 | silo 内に閉じる現行 S-1/8b/層3には不要。**trace-hook は silo と si の 2 protocol に既存** — si の口は 2026-06-19 に追加済みで、`external/ccbench/cc/si/transaction.cc` の `#if TRACE` 枝が `(epoch=1, tid=cstamp)` で C/R/W を出す (2026-09-14 追記。S1 は 0 からの移植ではない)。trace-hook の無い protocol は verify 不能で COMMIT に到達しない (pipeline.evaluate は verify 必須 → trace-empty abort、fitness が WAL に載らない) 。**成立方法は 2026-08-11 のユーザー裁定で確定済み (T-755 Q1〜Q3 全問 (a)、worklog entry 389)** — trace-hook 移植だけが certified な cross-protocol 比較を成立させる。stock 専用計測経路は非認証の別成果物にしかならず、公式 report・selector・比較表・順位・headline へ入れない (偵察としての解禁も「なし」と裁定)。初手は mocc、trace v2 化を単独 wave で先行。**残るのは裁定ではなく実装** — protocol 別 genome 空間・較正・between-run floor と公式成果物への接続 (後続段 6 の休眠タスク (a) / 段 7) |
+| S1 (別 protocol trace-hook) | **既存の silo 主経路 (S-1/8b/層3) では non-blocking。拡張先 protocol の certified 比較には必須** (2026-09-17 改訂で cross-protocol 基盤の準備が着手可能になった。成立方法の再裁定はしない) | silo 内に閉じる現行 S-1/8b/層3には不要。**trace-hook は silo と si の 2 protocol に既存** — si の口は 2026-06-19 に追加済みで、`external/ccbench/cc/si/transaction.cc` の `#if TRACE` 枝が `(epoch=1, tid=cstamp)` で C/R/W を出す (2026-09-14 追記。S1 は 0 からの移植ではない)。trace-hook の無い protocol は verify 不能で COMMIT に到達しない (pipeline.evaluate は verify 必須 → trace-empty abort、fitness が WAL に載らない) 。**成立方法は 2026-08-11 のユーザー裁定で確定済み (T-755 Q1〜Q3 全問 (a)、worklog entry 389)** — trace-hook 移植だけが certified な cross-protocol 比較を成立させる。stock 専用計測経路は非認証の別成果物にしかならず、公式 report・selector・比較表・順位・headline へ入れない (偵察としての解禁も「なし」と裁定)。初手は mocc、trace v2 化を単独 wave で先行。**残るのは裁定ではなく実装** — protocol 別 genome 空間・較正・between-run floor と公式成果物への接続 (後続段 6 の休眠タスク (a) / 段 7) |
 
 ---
 
@@ -467,7 +501,7 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    再判断の発火条件 = 「学習型 CC を定量的に上回る」の headline 昇格時のみ** (ユーザー協議、worklog
    2026-07-10 (9)、材料は worklog 2026-07-10 (8))。生データ =
    `docs/related-work/literature-map/gap-research-2026-07-10.md`。
-7. **(8b + 層3の後に再判断) cross-protocol 最適化移植 + カタログ化** — roadmap §2 層2(b) の当初案
+7. **(cross-protocol 基盤の準備は 2026-09-17 改訂で着手可能。b2 移植・カタログ化への本格投資は 8b + 層3の後に再判断) cross-protocol 最適化移植 + カタログ化** — roadmap §2 層2(b) の当初案
    「他 CC の最適化を CCBench コーパスから移植する」+「最適化カタログ化 (前提/効果/競合の三つ組、I5 対策)」は、
    **workload descriptor と evidence-bound report の最小 E2E を先に成立させた後の拡張**として
    ここに予約する (a' 方針、D32)。根拠 = 非対称性: 空間外合成には P2-4 の成立例がある一方、**移植の価値は未検証仮説** (I5 =
@@ -477,7 +511,9 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    判定) で、本格投資はその結果で決める。cicada/oze への空間拡大 (S1 移植を伴う) と束ねるのが自然。カタログ化の
    成果物は移植を見送っても層3 の説明生成に流用できるため無駄にならない。
 
-   **(2026-08-20 TicToc/Cicada タスク分解、段7 発火まで全項目未着手・T 番号なし)** D32 の「一歩目」を
+   **(2026-08-20 TicToc/Cicada タスク分解。当時は段7 発火まで全項目未着手・T 番号なし。2026-09-17 追記: Group A (b) の
+   空間登録は [T-2135] (2026-09-02、tictoc / cicada) で、層3 の protocol 照合と floor driver の protocol 別 baseline
+   (silo / mocc) は [T-2115] (2026-09-01) で進展済み。2026-09-17 改訂により基盤準備の T 5 本を worklog へ起票)** D32 の「一歩目」を
    TicToc/Cicada 2 protocol へ具体化した。[T-109] (2026-07-26、MOCC 対象、3 レンズ全 NO-GO) の
    blocker を今回再実測し、D16 は「一回限りの試作例外」が既に追記済みだが buildcache/source_digest の
    ALLOWLIST は今も silo 専用のままと確認した。技術根拠・precedent 再確認・(P1) 順序推奨の正本は
@@ -501,7 +537,8 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    commit-streak gated selective precheck (`precheckInValidation()`)。判定 = 現行 Silo の
    EVOLVE-BLOCK 実編集面 (write_set_ ロック順序 comparator + `backoff.hh`) に前提 (per-tuple
    counter・MVCC version chain) が乗らず No-Go (1 事例、全称化しない)。段7 全体の発火条件
-   (8b+層3後) はこの結果と無関係に未成立のまま。詳細・見送った候補・今後の芽は
+   (8b+層3後) は 2026-08-21 時点でこの結果と無関係に未成立だった (現在の条件は上記 2026-09-17 改訂 —
+   基盤準備は着手可能、b2 本格投資の条件は従来どおり)。詳細・見送った候補・今後の芽は
    `output/insights/2026-08-21_cicada-selective-precheck-catalog-card.md`。
 8. **探索側を防壁の水準へ引き上げる 3 機構 (8a 完了、8b 進行中、8c は bounded MVP 済み・正式実験と resume は未完)** — 外部評価
    (worklog 2026-07-10 (3)) が特定した「CC 自動合成の主張と機構のギャップ」への対策。各々着手時に
@@ -1303,7 +1340,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   今は見送り。再訪 = 次に S1 report を再生成する wave (そこで同梱する)。
 
 - [T-316] **R2-b-1 の (a) 追認 (native comparator 干渉残余の受容)** — 理由: 2026-08-15 棚卸し (陳腐化 = 裁定が終端し残件ゼロ)。干渉残余は台帳・runbook への明示記録で受容すると追認済みで、本項に残作業がない。再訪条件 = 同一 process 内 comparator 干渉の実害 1 件。
-- [T-308] **百分率の固定桁 round の role 契約化** — 理由: 2026-08-15 棚卸し (価値小 = 診断・体裁のみで受理集合も成果物の値も変えない)。再訪条件 = 同一ファイルを触る wave への相乗り、または実害 1 件。
+- [T-308] **百分率の固定桁 round の role 契約化** — 理由: 2026-08-15 棚卸し (価値小 = 診断・体裁のみで受理集合も成果物の値も変えない)。再訪条件 = 同一ファイルを触る wave への相乗り、または実害 1 件。 2026-09-17 に相乗り再訪条件が発火 (所有 file `orchestrator/campaign/p3_autonomous_workload_trial.py` を `4c6f03048` が変更)。D2104 項 35 で見送り維持・次に同 file を触る作業単位へ相乗り。
 - [T-322] **campaign-id / lock preimage への namespace 束縛** — 理由: 2026-08-15 棚卸し (価値小 = bytes 級 provenance)。2026-08-12 ユーザー方針 (論文主張に要るのは粗い provenance のみ、bytes 級の pin・署名・束縛機構の新設は既定で見送り) に従う。再訪条件 = 対外公開で当該 proof chain の提示が必要になったとき。
 - [T-310] **DW-O09 のファイル集合 pin digest (F39)** — 理由: 2026-08-15 棚卸し (価値小 = bytes 級 provenance)。2026-08-12 ユーザー方針 (論文主張に要るのは粗い provenance のみ、bytes 級の pin・署名・束縛機構の新設は既定で見送り) に従う。再訪条件 = 対外公開で当該 proof chain の提示が必要になったとき。
 - [T-249] **凍結 file に残る共有・サイト値の移設** — 理由: 2026-08-15 棚卸し (価値小 = 発火条件が成立していない、DW-G04)。[T-293] の D96 手続を要し、共有・サイト値の更新実需が出ていない。再訪条件 = 発火条件を満たす artifact path または計測 ID を書けるようになったとき。
@@ -2592,7 +2629,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
 
 - [T-1400] **`dispatch_compute.py` の node 側 SIGKILL 診断被覆の実測** — 理由: 裁定 2026-08-23 (/rulings 全件、択 (b) 見送り): 実害の観測がなく防御的堅牢化に当たる (2026-08-12 ユーザー方針)。親が観測する pre-start 失敗はコード構造上被覆済みである。再訪条件 = 計算ノード側の強制終了で原因が追えなかった事例 1 件。
 
-- [T-167] ccbench pin を `c9c1a9c` へ更新する — 理由: 裁定 2026-08-29 (/rulings 全件、分類不能 8 件の
+- [T-167] ccbench pin を `c9c1a9c` へ更新する — 理由: 裁定 2026-08-29 (/rulings 全件、分類不能 8 件の 2026-09-17 の非 silo between-run 実測の再開要求 (D2083 項 5) が pin 前進を必要条件に挙げた。D2104 項 13 で保留維持、再開を求めるときは本項の再承認として諮る。 【2026-09-17 追記: D2114 により材料整備 ([T-2756]) へ着手。pin 更新は未承認のまま。材料 3 点が揃った時点で本項の再承認として提示する。旧候補 `c9c1a9c` (2026-07 承認) を今回の採用候補とはみなさない】
   帰属を確定): 2026-07 に新 pin が承認済みのまま 1 か月動いていない。pin の前進は測定同一性を動かすため
   再測定を伴い、現在の論文の主経路 (A-1 / A-2 / H1H2) はいずれも現行 pin で設計されている。
   **承認済みの新 pin `c9c1a9c` の記録は残す** — 再訪時は承認をやり直す。

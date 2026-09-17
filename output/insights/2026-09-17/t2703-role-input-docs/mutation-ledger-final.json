@@ -1,0 +1,465 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/output/pegasus-dispatch/29f9face696a22a61f234eb23e1f53f0/izdw-29f9face69.o2917",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/output/pegasus-dispatch/29f9face696a22a61f234eb23e1f53f0/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................................                         [100%]\n48 passed in 15.31s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "ca319e26b9c8c37a33d12099811f6a2fd5d79090cdc0c1d172b4905bdcaf946c"
+    },
+    "artifact_error": null,
+    "collection_sha256": "a38a68c182fccc1a835774a583eb9a39f3e17a284bd57bc61fc814c88cbaa209",
+    "duration_s": 39.069,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "b8d0d13a2da61f22c17fc535111000918590a6928ec30df00c18ae420a6feddf",
+    "repo_head": "dd6d0466eea6f2804c0bf5b546261a6ff71a7b00",
+    "runner_sha256": "c86d59370b6e742c4eaf30c4e5d12cae912ed66e0ced54134056c46c7394ba86",
+    "spec_sha256": "f5e63268df0a04074c25af6b9ae3bf51a53b58e742c49b0221f9fdc8fd8c820b",
+    "status": "PASSED",
+    "test_output_sha256": "ca319e26b9c8c37a33d12099811f6a2fd5d79090cdc0c1d172b4905bdcaf946c",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "3be13b40a7caadc85238922e82114a2a71b7a8ea5651c2a64e7d58be88c10218"
+  },
+  "date": "2026-09-16T23:10:44.737915+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/output/pegasus-dispatch/7c3401f1bd97529e077124c7ee865147/izdw-7c3401f1bd.o2927",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/output/pegasus-dispatch/7c3401f1bd97529e077124c7ee865147/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................................                         [100%]\n48 passed in 15.27s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "b0540d601b789cc9f85a8ff5910d880a6a9e0ec42d59f761b11447d73c88830d"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "a38a68c182fccc1a835774a583eb9a39f3e17a284bd57bc61fc814c88cbaa209",
+      "duration_s": 41.917,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "m0-equivalent-reviewed-comment",
+      "injection_diff_sha256": "4b9ac79d79526d3de1f0bfd5bb8ea13ba53ef65ce2d0d9c11a08ccd1b3da11bd",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "16dde6f0527477a91e00f8f1d0c0c461b422e931fa879b685d96d19de8073bfe",
+      "replacements": [
+        {
+          "file": "orchestrator/codex_roles/review_ledger.py",
+          "new": "    # Reviewed 2026-09-17: T-2703/T-2717/T-2705; digest の独立指標と適用版を訂正 (equivalent mutation marker)。\n",
+          "old": "    # Reviewed 2026-09-17: T-2703/T-2717/T-2705; digest の独立指標と適用版を訂正。\n"
+        }
+      ],
+      "repo_head": "dd6d0466eea6f2804c0bf5b546261a6ff71a7b00",
+      "runner_sha256": "c86d59370b6e742c4eaf30c4e5d12cae912ed66e0ced54134056c46c7394ba86",
+      "spec_sha256": "f5e63268df0a04074c25af6b9ae3bf51a53b58e742c49b0221f9fdc8fd8c820b",
+      "status": "SURVIVED",
+      "test_output_sha256": "b0540d601b789cc9f85a8ff5910d880a6a9e0ec42d59f761b11447d73c88830d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "3be13b40a7caadc85238922e82114a2a71b7a8ea5651c2a64e7d58be88c10218"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/output/pegasus-dispatch/9cfecc5277244ebf4ea503d9e05e668d/izdw-9cfecc5277.o2933",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/output/pegasus-dispatch/9cfecc5277244ebf4ea503d9e05e668d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................................F                         [100%]\n=================================== FAILURES ===================================\n_ test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set __\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_originless_default_preser0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x151b68a3c1c0>\n\n    def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        _pin_fixture_commit_dates(monkeypatch)\n        bundle_root = _fixed_width_bundle_root(tmp_path, \"originless\")\n        omitted = _bundle(bundle_root, monkeypatch, explicit_none=False)\n        shutil.rmtree(bundle_root)\n        explicit_none = _bundle(bundle_root, monkeypatch, explicit_none=True)\n        origin_enabled = _origin_enabled_bundle(\n            _fixed_width_bundle_root(tmp_path, \"origin-enabled\"), monkeypatch\n        )\n        _assert_generation_two_matches(omitted, explicit_none)\n        _assert_generation_two_matches(omitted, origin_enabled)\n        generation_two_mutant = copy.deepcopy(origin_enabled)\n        generation_two_mutant[\"reports\"][0][\"cells\"][0][\"generations\"][1][\"roles\"][\n            \"planner\"\n        ][\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n        generation_two_planner = next(\n            event\n            for event in generation_two_mutant[\"journals\"][0]\n            if event.get(\"generation\") == 2 and event.get(\"role\") == \"planner\"\n        )\n        generation_two_planner[\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n        with pytest.raises(AssertionError):\n            _assert_generation_two_matches(omitted, generation_two_mutant)\n        receipt_binding_mutant = copy.deepcopy(omitted)\n        receipt_binding_mutant[\"acceptance\"][\"trials\"][0][\"arm_execution\"][\n            \"content_digest_sha256\"\n        ] = \"f\" * 64\n        with pytest.raises(AssertionError):\n            _project_t1749_receipt_v4_to_v1(receipt_binding_mutant)\n        run_start_mutant = copy.deepcopy(omitted)\n        start = next(\n            event for event in run_start_mutant[\"journals\"][0]\n            if event[\"event\"] == \"run-start\"\n        )\n        start[\"arm_execution\"][\"content_digest_sha256\"] = \"e\" * 64\n        with pytest.raises(AssertionError):\n            _project_t1749_receipt_v4_to_v1(run_start_mutant)\n        input_schema_mutant = copy.deepcopy(omitted)\n        receipt_trial = input_schema_mutant[\"acceptance\"][\"trials\"][0]\n        trial_id = receipt_trial[\"trial_id\"]\n        report = next(\n            item for item in input_schema_mutant[\"reports\"]\n            if item[\"trial_id\"] == trial_id\n        )\n        run_start = next(\n            event\n            for journal in input_schema_mutant[\"journals\"]\n            for event in journal\n            if event.get(\"event\") == \"run-start\" and event[\"trial_id\"] == trial_id\n        )\n        for arm_execution in (\n            receipt_trial[\"arm_execution\"],\n            report[\"arm_execution\"],\n            run_start[\"arm_execution\"],\n        ):\n            arm_execution[\"input_schema_version\"] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t244_additions_to_pre_wave(input_schema_mutant)\n        report_schema_mutant = copy.deepcopy(omitted)\n        report_schema_mutant[\"reports\"][0][\"arm_execution\"][\n            \"input_schema_version\"\n        ] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t1311_arm_authority_to_pre_wave(report_schema_mutant)\n        run_start_schema_mutant = copy.deepcopy(omitted)\n        run_start = next(\n            event for event in run_start_schema_mutant[\"journals\"][0]\n            if event[\"event\"] == \"run-start\"\n        )\n        run_start[\"arm_execution\"][\"input_schema_version\"] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t1311_arm_authority_to_pre_wave(run_start_schema_mutant)\n>       assert _baseline_structure(\n            _project_t244_additions_to_pre_wave(omitted)\n        ) == _PRE_WAVE_ORIGINLESS_BASELINE\nE       AssertionError: assert {'$': [[{'dic...lse, 1]], ...} == {'$': [[{'dic...lse, 1]], ...}\nE         \nE         Omitting 382 identical items, use -vv to show\nE         Differing items:\nE         {'journals/*/*/provenance/role_file_sha256': [['2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a', 1],...58327f0b33862bc51a025df8c2e645b64a', 1], ['2cc08b30573aef3337740d3e44848d94651d48528d4e1f095b420ceea4807388', 1], ...]} != {'journals/*/*/provenance/role_file_sha256': [['c47cf0ff81bb88d1ad65d5b0b92ac35feb40f49e4d2a8eef9007b48c286bf5f9', 1],...5feb40f49e4d2a8eef9007b48c286bf5f9', 1], ['2b46df2e4a5cbafcd3780b4cca54b3d81f3a73d9999cc6c859f1107aa398835a', 1], ...]}\nE         {'reports/*/cells/*/generations...\nE         \nE         ...Full output truncated (4 lines hidden), use '-vv' to show\n\norchestrator/tests/test_reflux_originless_compatibility.py:1406: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\n1 failed, 47 passed in 15.85s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\" nodeid_bytes=135 nodeid_omitted_bytes=0 source_bytes=4847 retained_bytes=3945 omitted_bytes=902 rendered_excerpt_bytes=4096 sha256=bb86d1f2c964f6df72992814263b2eee724640f9206ef3a9f7decb052e54ca53\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> generation_two_matches(omitted, origin_enabled)\n>         generation_two_mutant = copy.deepcopy(origin_enabled)\n>         generation_two_mutant[\"reports\"][0][\"cells\"][0][\"generations\"][1][\"roles\"][\n>             \"planner\"\n>         ][\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n>         generation_two_planner = next(\n>             event\n>             for event in generation_two_mutant[\"journals\"][0]\n>             if event.get(\"generation\") == 2 and event.get(\"role\") == \"planner\"\n>         )\n>         generation_two_planner[\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n>         with pytest.raises(AssertionError):\n>             _assert_generation_two_matches(omitted, generation_two_mutant)\n>         receipt_binding_mutant = copy.deepcopy(omitted)\n>         receipt_binding_mutant[\"acceptance\"][\"trials\"][0][\"arm_execution\"][\n>             \"content_digest_sha256\"\n>         ] = \"f\" * 64\n>         with pytest.raises(AssertionError):\n>             _project_t1749_receipt_v4_to_v1(receipt_binding_mutant)\n>         run_start_mutant = copy.deepcopy(omitted)\n>         start = next(\n>             event for event in run_start_mutant[\"journals\"][0]\n>             if event[\"event\"] == \"run-start\"\n>         )\n>         start[\"arm_execution\"][\"content_digest_sha256\"] = \"e\" * 64\n>         with pytest.raises(AssertionError):\n>             _project_t1749_receipt_v4_to_v1(run_start_mutant)\n>         input_schema_mutant = copy.deepcopy(omitted)\n>         receipt_trial = input_schema_mutant[\"acceptance\"][\"trials\"][0]\n>         trial_id = receipt_trial[\"trial_id\"]\n>         report = next(\n>             item for item in input_schema_mutant[\"reports\"]\n>             if item[\"trial_id\"] == trial_id\n>         )\n>         run_start = next(\n>             event\n>             for journal in input_schema_mutant[\"journals\"]\n>             for event in journal\n>             if event.get(\"event\") == \"run-start\" and event[\"trial_id\"] == trial_id\n>         )\n>         for arm_execution in (\n>             receipt_trial[\"arm_execution\"],\n>             report[\"arm_execution\"],\n>             run_start[\"arm_execution\"],\n>         ):\n>             arm_execution[\"input_schema_version\"] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t244_additions_to_pre_wave(input_schema_mutant)\n>         report_schema_mutant = copy.deepcopy(omitted)\n>         report_schema_mutant[\"reports\"][0][\"arm_execution\"][\n>             \"input_schema_version\"\n>         ] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t1311_arm_authority_to_pre_wave(report_schema_mutant)\n>         run_start_schema_mutant = copy.deepcopy(omitted)\n>         run_start = next(\n>             event for event in run_start_schema_mutant[\"journals\"][0]\n>             if event[\"event\"] == \"run-start\"\n>         )\n>         run_start[\"arm_execution\"][\"input_schema_version\"] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t1311_arm_authority_to_pre_wave(run_start_schema_mutant)\n> >       assert _baseline_structure(\n>             _project_t244_additions_to_pre_wave(omitted)\n>         ) == _PRE_WAVE_ORIGINLESS_BASELINE\n> E       AssertionError: assert {'$': [[{'dic...lse, 1]], ...} == {'$': [[{'dic...lse, 1]], ...}\n> E         \n> E         Omitting 382 identical items, use -vv to show\n> E         Differing items:\n> E         {'journals/*/*/provenance/role_file_sha256': [['2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a', 1],...58327f0b33862bc51a025df8c2e645b64a', 1], ['2cc08b30573aef3337740d3e44848d94651d48528d4e1f095b420ceea4807388', 1], ...]} != {'journals/*/*/provenance/role_file_sha256': [['c47cf0ff81bb88d1ad65d5b0b92ac35feb40f49e4d2a8eef9007b48c286bf5f9', 1],...5feb40f49e4d2a8eef9007b48c286bf5f9', 1], ['2b46df2e4a5cbafcd3780b4cca54b3d81f3a73d9999cc6c859f1107aa398835a', 1], ...]}\n> E         {'reports/*/cells/*/generations...\n> E         \n> E         ...Full output truncated (4 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_reflux_originless_compatibility.py:1406: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4847 retained_bytes=3945 omitted_bytes=902 budget_bytes=49152 rendered_bytes=4863 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "74a95ff310a55222a55f6f64da318b8a3eb11b3423a070f9b6de1e6ecd0d51de"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a38a68c182fccc1a835774a583eb9a39f3e17a284bd57bc61fc814c88cbaa209",
+      "duration_s": 39.357,
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "hang_risk": false,
+      "id": "m1-drop-t2703-baseline-follow-call",
+      "injection_diff_sha256": "d82c0bd65dcb40e4868476fcd0465a1174c48a5385dd96a97cc038ddbe930200",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "82f4f1e788da32104c5b158b1d9d98a43fad26914f4d8c55afa1e5e055c53d58",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+          "new": "\n",
+          "old": "\n_extend_t2703_role_source_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)\n"
+        }
+      ],
+      "repo_head": "dd6d0466eea6f2804c0bf5b546261a6ff71a7b00",
+      "runner_sha256": "c86d59370b6e742c4eaf30c4e5d12cae912ed66e0ced54134056c46c7394ba86",
+      "spec_sha256": "f5e63268df0a04074c25af6b9ae3bf51a53b58e742c49b0221f9fdc8fd8c820b",
+      "status": "KILLED",
+      "test_output_sha256": "74a95ff310a55222a55f6f64da318b8a3eb11b3423a070f9b6de1e6ecd0d51de",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "3be13b40a7caadc85238922e82114a2a71b7a8ea5651c2a64e7d58be88c10218"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/output/pegasus-dispatch/b8b0dac0b242b3b87ac3391cc95a51e8/izdw-b8b0dac0b2.o2939",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/output/pegasus-dispatch/b8b0dac0b242b3b87ac3391cc95a51e8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................................F                         [100%]\n=================================== FAILURES ===================================\n_ test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set __\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_originless_default_preser0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x148149208f10>\n\n    def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        _pin_fixture_commit_dates(monkeypatch)\n        bundle_root = _fixed_width_bundle_root(tmp_path, \"originless\")\n        omitted = _bundle(bundle_root, monkeypatch, explicit_none=False)\n        shutil.rmtree(bundle_root)\n        explicit_none = _bundle(bundle_root, monkeypatch, explicit_none=True)\n        origin_enabled = _origin_enabled_bundle(\n            _fixed_width_bundle_root(tmp_path, \"origin-enabled\"), monkeypatch\n        )\n        _assert_generation_two_matches(omitted, explicit_none)\n        _assert_generation_two_matches(omitted, origin_enabled)\n        generation_two_mutant = copy.deepcopy(origin_enabled)\n        generation_two_mutant[\"reports\"][0][\"cells\"][0][\"generations\"][1][\"roles\"][\n            \"planner\"\n        ][\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n        generation_two_planner = next(\n            event\n            for event in generation_two_mutant[\"journals\"][0]\n            if event.get(\"generation\") == 2 and event.get(\"role\") == \"planner\"\n        )\n        generation_two_planner[\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n        with pytest.raises(AssertionError):\n            _assert_generation_two_matches(omitted, generation_two_mutant)\n        receipt_binding_mutant = copy.deepcopy(omitted)\n        receipt_binding_mutant[\"acceptance\"][\"trials\"][0][\"arm_execution\"][\n            \"content_digest_sha256\"\n        ] = \"f\" * 64\n        with pytest.raises(AssertionError):\n            _project_t1749_receipt_v4_to_v1(receipt_binding_mutant)\n        run_start_mutant = copy.deepcopy(omitted)\n        start = next(\n            event for event in run_start_mutant[\"journals\"][0]\n            if event[\"event\"] == \"run-start\"\n        )\n        start[\"arm_execution\"][\"content_digest_sha256\"] = \"e\" * 64\n        with pytest.raises(AssertionError):\n            _project_t1749_receipt_v4_to_v1(run_start_mutant)\n        input_schema_mutant = copy.deepcopy(omitted)\n        receipt_trial = input_schema_mutant[\"acceptance\"][\"trials\"][0]\n        trial_id = receipt_trial[\"trial_id\"]\n        report = next(\n            item for item in input_schema_mutant[\"reports\"]\n            if item[\"trial_id\"] == trial_id\n        )\n        run_start = next(\n            event\n            for journal in input_schema_mutant[\"journals\"]\n            for event in journal\n            if event.get(\"event\") == \"run-start\" and event[\"trial_id\"] == trial_id\n        )\n        for arm_execution in (\n            receipt_trial[\"arm_execution\"],\n            report[\"arm_execution\"],\n            run_start[\"arm_execution\"],\n        ):\n            arm_execution[\"input_schema_version\"] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t244_additions_to_pre_wave(input_schema_mutant)\n        report_schema_mutant = copy.deepcopy(omitted)\n        report_schema_mutant[\"reports\"][0][\"arm_execution\"][\n            \"input_schema_version\"\n        ] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t1311_arm_authority_to_pre_wave(report_schema_mutant)\n        run_start_schema_mutant = copy.deepcopy(omitted)\n        run_start = next(\n            event for event in run_start_schema_mutant[\"journals\"][0]\n            if event[\"event\"] == \"run-start\"\n        )\n        run_start[\"arm_execution\"][\"input_schema_version\"] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t1311_arm_authority_to_pre_wave(run_start_schema_mutant)\n>       assert _baseline_structure(\n            _project_t244_additions_to_pre_wave(omitted)\n        ) == _PRE_WAVE_ORIGINLESS_BASELINE\nE       AssertionError: assert {'$': [[{'dic...lse, 1]], ...} == {'$': [[{'dic...lse, 1]], ...}\nE         \nE         Omitting 384 identical items, use -vv to show\nE         Differing items:\nE         {'reports/*/cells/*/generations/*/roles/planner/provenance/role_file_sha256': [['2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a', 6]]} != {'reports/*/cells/*/generations/*/roles/planner/provenance/role_file_sha256': [['c47cf0ff81bb88d1ad65d5b0b92ac35feb40f49e4d2a8eef9007b48c286bf5f9', 6]]}\nE         {'journals/*/*/provenance/role_file_sha256': [['2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a', 1],...58327f0b33862bc51a025df8c2e645b64a', 1], ['2cc08b30573aef3337740d3e44848d94651d48528d4...\nE         \nE         ...Full output truncated (2 lines hidden), use '-vv' to show\n\norchestrator/tests/test_reflux_originless_compatibility.py:1402: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\n1 failed, 47 passed in 15.16s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\" nodeid_bytes=135 nodeid_omitted_bytes=0 source_bytes=4847 retained_bytes=3945 omitted_bytes=902 rendered_excerpt_bytes=4096 sha256=b7bf83f1e3b1c079238034c69347d17f8d842cab8d1730f2cd137dbf9ef44bfa\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> generation_two_matches(omitted, origin_enabled)\n>         generation_two_mutant = copy.deepcopy(origin_enabled)\n>         generation_two_mutant[\"reports\"][0][\"cells\"][0][\"generations\"][1][\"roles\"][\n>             \"planner\"\n>         ][\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n>         generation_two_planner = next(\n>             event\n>             for event in generation_two_mutant[\"journals\"][0]\n>             if event.get(\"generation\") == 2 and event.get(\"role\") == \"planner\"\n>         )\n>         generation_two_planner[\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n>         with pytest.raises(AssertionError):\n>             _assert_generation_two_matches(omitted, generation_two_mutant)\n>         receipt_binding_mutant = copy.deepcopy(omitted)\n>         receipt_binding_mutant[\"acceptance\"][\"trials\"][0][\"arm_execution\"][\n>             \"content_digest_sha256\"\n>         ] = \"f\" * 64\n>         with pytest.raises(AssertionError):\n>             _project_t1749_receipt_v4_to_v1(receipt_binding_mutant)\n>         run_start_mutant = copy.deepcopy(omitted)\n>         start = next(\n>             event for event in run_start_mutant[\"journals\"][0]\n>             if event[\"event\"] == \"run-start\"\n>         )\n>         start[\"arm_execution\"][\"content_digest_sha256\"] = \"e\" * 64\n>         with pytest.raises(AssertionError):\n>             _project_t1749_receipt_v4_to_v1(run_start_mutant)\n>         input_schema_mutant = copy.deepcopy(omitted)\n>         receipt_trial = input_schema_mutant[\"acceptance\"][\"trials\"][0]\n>         trial_id = receipt_trial[\"trial_id\"]\n>         report = next(\n>             item for item in input_schema_mutant[\"reports\"]\n>             if item[\"trial_id\"] == trial_id\n>         )\n>         run_start = next(\n>             event\n>             for journal in input_schema_mutant[\"journals\"]\n>             for event in journal\n>             if event.get(\"event\") == \"run-start\" and event[\"trial_id\"] == trial_id\n>         )\n>         for arm_execution in (\n>             receipt_trial[\"arm_execution\"],\n>             report[\"arm_execution\"],\n>             run_start[\"arm_execution\"],\n>         ):\n>             arm_execution[\"input_schema_version\"] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t244_additions_to_pre_wave(input_schema_mutant)\n>         report_schema_mutant = copy.deepcopy(omitted)\n>         report_schema_mutant[\"reports\"][0][\"arm_execution\"][\n>             \"input_schema_version\"\n>         ] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t1311_arm_authority_to_pre_wave(report_schema_mutant)\n>         run_start_schema_mutant = copy.deepcopy(omitted)\n>         run_start = next(\n>             event for event in run_start_schema_mutant[\"journals\"][0]\n>             if event[\"event\"] == \"run-start\"\n>         )\n>         run_start[\"arm_execution\"][\"input_schema_version\"] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t1311_arm_authority_to_pre_wave(run_start_schema_mutant)\n> >       assert _baseline_structure(\n>             _project_t244_additions_to_pre_wave(omitted)\n>         ) == _PRE_WAVE_ORIGINLESS_BASELINE\n> E       AssertionError: assert {'$': [[{'dic...lse, 1]], ...} == {'$': [[{'dic...lse, 1]], ...}\n> E         \n> E         Omitting 384 identical items, use -vv to show\n> E         Differing items:\n> E         {'reports/*/cells/*/generations/*/roles/planner/provenance/role_file_sha256': [['2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a', 6]]} != {'reports/*/cells/*/generations/*/roles/planner/provenance/role_file_sha256': [['c47cf0ff81bb88d1ad65d5b0b92ac35feb40f49e4d2a8eef9007b48c286bf5f9', 6]]}\n> E         {'journals/*/*/provenance/role_file_sha256': [['2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a', 1],...58327f0b33862bc51a025df8c2e645b64a', 1], ['2cc08b30573aef3337740d3e44848d94651d48528d4...\n> E         \n> E         ...Full output truncated (2 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_reflux_originless_compatibility.py:1402: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4847 retained_bytes=3945 omitted_bytes=902 budget_bytes=49152 rendered_bytes=4863 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b7bde3b6f47e8e7d562fe31e8d2b25c28dcaf2babb7ff502b8cbe724d5cb1415"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a38a68c182fccc1a835774a583eb9a39f3e17a284bd57bc61fc814c88cbaa209",
+      "duration_s": 41.109,
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "hang_risk": false,
+      "id": "m1a-drop-planner-tuple",
+      "injection_diff_sha256": "eb620c764745f39951b33a1e55e68b5891b5700f578df26d8602a3c9e4bc00be",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "376b7f504e9577f47666065e30fcb4599572ec5db2c8dc57038d5c45b7b6a403",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+          "new": "",
+          "old": "        (\n            \"planner\",\n            \"c47cf0ff81bb88d1ad65d5b0b92ac35feb40f49e4d2a8eef9007b48c286bf5f9\",\n            \"2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a\",\n        ),\n"
+        }
+      ],
+      "repo_head": "dd6d0466eea6f2804c0bf5b546261a6ff71a7b00",
+      "runner_sha256": "c86d59370b6e742c4eaf30c4e5d12cae912ed66e0ced54134056c46c7394ba86",
+      "spec_sha256": "f5e63268df0a04074c25af6b9ae3bf51a53b58e742c49b0221f9fdc8fd8c820b",
+      "status": "KILLED",
+      "test_output_sha256": "b7bde3b6f47e8e7d562fe31e8d2b25c28dcaf2babb7ff502b8cbe724d5cb1415",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "3be13b40a7caadc85238922e82114a2a71b7a8ea5651c2a64e7d58be88c10218"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/output/pegasus-dispatch/8c04df9d88f8369fdf079319cedd25c3/izdw-8c04df9d88.o2944",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/output/pegasus-dispatch/8c04df9d88f8369fdf079319cedd25c3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................................F                         [100%]\n=================================== FAILURES ===================================\n_ test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set __\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_originless_default_preser0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x153a8f9d5e70>\n\n    def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        _pin_fixture_commit_dates(monkeypatch)\n        bundle_root = _fixed_width_bundle_root(tmp_path, \"originless\")\n        omitted = _bundle(bundle_root, monkeypatch, explicit_none=False)\n        shutil.rmtree(bundle_root)\n        explicit_none = _bundle(bundle_root, monkeypatch, explicit_none=True)\n        origin_enabled = _origin_enabled_bundle(\n            _fixed_width_bundle_root(tmp_path, \"origin-enabled\"), monkeypatch\n        )\n        _assert_generation_two_matches(omitted, explicit_none)\n        _assert_generation_two_matches(omitted, origin_enabled)\n        generation_two_mutant = copy.deepcopy(origin_enabled)\n        generation_two_mutant[\"reports\"][0][\"cells\"][0][\"generations\"][1][\"roles\"][\n            \"planner\"\n        ][\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n        generation_two_planner = next(\n            event\n            for event in generation_two_mutant[\"journals\"][0]\n            if event.get(\"generation\") == 2 and event.get(\"role\") == \"planner\"\n        )\n        generation_two_planner[\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n        with pytest.raises(AssertionError):\n            _assert_generation_two_matches(omitted, generation_two_mutant)\n        receipt_binding_mutant = copy.deepcopy(omitted)\n        receipt_binding_mutant[\"acceptance\"][\"trials\"][0][\"arm_execution\"][\n            \"content_digest_sha256\"\n        ] = \"f\" * 64\n        with pytest.raises(AssertionError):\n            _project_t1749_receipt_v4_to_v1(receipt_binding_mutant)\n        run_start_mutant = copy.deepcopy(omitted)\n        start = next(\n            event for event in run_start_mutant[\"journals\"][0]\n            if event[\"event\"] == \"run-start\"\n        )\n        start[\"arm_execution\"][\"content_digest_sha256\"] = \"e\" * 64\n        with pytest.raises(AssertionError):\n            _project_t1749_receipt_v4_to_v1(run_start_mutant)\n        input_schema_mutant = copy.deepcopy(omitted)\n        receipt_trial = input_schema_mutant[\"acceptance\"][\"trials\"][0]\n        trial_id = receipt_trial[\"trial_id\"]\n        report = next(\n            item for item in input_schema_mutant[\"reports\"]\n            if item[\"trial_id\"] == trial_id\n        )\n        run_start = next(\n            event\n            for journal in input_schema_mutant[\"journals\"]\n            for event in journal\n            if event.get(\"event\") == \"run-start\" and event[\"trial_id\"] == trial_id\n        )\n        for arm_execution in (\n            receipt_trial[\"arm_execution\"],\n            report[\"arm_execution\"],\n            run_start[\"arm_execution\"],\n        ):\n            arm_execution[\"input_schema_version\"] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t244_additions_to_pre_wave(input_schema_mutant)\n        report_schema_mutant = copy.deepcopy(omitted)\n        report_schema_mutant[\"reports\"][0][\"arm_execution\"][\n            \"input_schema_version\"\n        ] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t1311_arm_authority_to_pre_wave(report_schema_mutant)\n        run_start_schema_mutant = copy.deepcopy(omitted)\n        run_start = next(\n            event for event in run_start_schema_mutant[\"journals\"][0]\n            if event[\"event\"] == \"run-start\"\n        )\n        run_start[\"arm_execution\"][\"input_schema_version\"] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t1311_arm_authority_to_pre_wave(run_start_schema_mutant)\n>       assert _baseline_structure(\n            _project_t244_additions_to_pre_wave(omitted)\n        ) == _PRE_WAVE_ORIGINLESS_BASELINE\nE       AssertionError: assert {'$': [[{'dic...lse, 1]], ...} == {'$': [[{'dic...lse, 1]], ...}\nE         \nE         Omitting 384 identical items, use -vv to show\nE         Differing items:\nE         {'journals/*/*/provenance/role_file_sha256': [['2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a', 1],...58327f0b33862bc51a025df8c2e645b64a', 1], ['2cc08b30573aef3337740d3e44848d94651d48528d4e1f095b420ceea4807388', 1], ...]} != {'journals/*/*/provenance/role_file_sha256': [['2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a', 1],...58327f0b33862bc51a025df8c2e645b64a', 1], ['2cc08b30573aef3337740d3e44848d94651d48528d4e1f095b420ceea4807388', 1], ...]}\nE         {'reports/*/cells/*/generations...\nE         \nE         ...Full output truncated (2 lines hidden), use '-vv' to show\n\norchestrator/tests/test_reflux_originless_compatibility.py:1402: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\n1 failed, 47 passed in 15.05s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\" nodeid_bytes=135 nodeid_omitted_bytes=0 source_bytes=4847 retained_bytes=3945 omitted_bytes=902 rendered_excerpt_bytes=4096 sha256=f29a728da8d58e7567d03b7a8d167fda19243e2964c63fff423152a72028bc88\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> generation_two_matches(omitted, origin_enabled)\n>         generation_two_mutant = copy.deepcopy(origin_enabled)\n>         generation_two_mutant[\"reports\"][0][\"cells\"][0][\"generations\"][1][\"roles\"][\n>             \"planner\"\n>         ][\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n>         generation_two_planner = next(\n>             event\n>             for event in generation_two_mutant[\"journals\"][0]\n>             if event.get(\"generation\") == 2 and event.get(\"role\") == \"planner\"\n>         )\n>         generation_two_planner[\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n>         with pytest.raises(AssertionError):\n>             _assert_generation_two_matches(omitted, generation_two_mutant)\n>         receipt_binding_mutant = copy.deepcopy(omitted)\n>         receipt_binding_mutant[\"acceptance\"][\"trials\"][0][\"arm_execution\"][\n>             \"content_digest_sha256\"\n>         ] = \"f\" * 64\n>         with pytest.raises(AssertionError):\n>             _project_t1749_receipt_v4_to_v1(receipt_binding_mutant)\n>         run_start_mutant = copy.deepcopy(omitted)\n>         start = next(\n>             event for event in run_start_mutant[\"journals\"][0]\n>             if event[\"event\"] == \"run-start\"\n>         )\n>         start[\"arm_execution\"][\"content_digest_sha256\"] = \"e\" * 64\n>         with pytest.raises(AssertionError):\n>             _project_t1749_receipt_v4_to_v1(run_start_mutant)\n>         input_schema_mutant = copy.deepcopy(omitted)\n>         receipt_trial = input_schema_mutant[\"acceptance\"][\"trials\"][0]\n>         trial_id = receipt_trial[\"trial_id\"]\n>         report = next(\n>             item for item in input_schema_mutant[\"reports\"]\n>             if item[\"trial_id\"] == trial_id\n>         )\n>         run_start = next(\n>             event\n>             for journal in input_schema_mutant[\"journals\"]\n>             for event in journal\n>             if event.get(\"event\") == \"run-start\" and event[\"trial_id\"] == trial_id\n>         )\n>         for arm_execution in (\n>             receipt_trial[\"arm_execution\"],\n>             report[\"arm_execution\"],\n>             run_start[\"arm_execution\"],\n>         ):\n>             arm_execution[\"input_schema_version\"] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t244_additions_to_pre_wave(input_schema_mutant)\n>         report_schema_mutant = copy.deepcopy(omitted)\n>         report_schema_mutant[\"reports\"][0][\"arm_execution\"][\n>             \"input_schema_version\"\n>         ] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t1311_arm_authority_to_pre_wave(report_schema_mutant)\n>         run_start_schema_mutant = copy.deepcopy(omitted)\n>         run_start = next(\n>             event for event in run_start_schema_mutant[\"journals\"][0]\n>             if event[\"event\"] == \"run-start\"\n>         )\n>         run_start[\"arm_execution\"][\"input_schema_version\"] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t1311_arm_authority_to_pre_wave(run_start_schema_mutant)\n> >       assert _baseline_structure(\n>             _project_t244_additions_to_pre_wave(omitted)\n>         ) == _PRE_WAVE_ORIGINLESS_BASELINE\n> E       AssertionError: assert {'$': [[{'dic...lse, 1]], ...} == {'$': [[{'dic...lse, 1]], ...}\n> E         \n> E         Omitting 384 identical items, use -vv to show\n> E         Differing items:\n> E         {'journals/*/*/provenance/role_file_sha256': [['2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a', 1],...58327f0b33862bc51a025df8c2e645b64a', 1], ['2cc08b30573aef3337740d3e44848d94651d48528d4e1f095b420ceea4807388', 1], ...]} != {'journals/*/*/provenance/role_file_sha256': [['2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a', 1],...58327f0b33862bc51a025df8c2e645b64a', 1], ['2cc08b30573aef3337740d3e44848d94651d48528d4e1f095b420ceea4807388', 1], ...]}\n> E         {'reports/*/cells/*/generations...\n> E         \n> E         ...Full output truncated (2 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_reflux_originless_compatibility.py:1402: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4847 retained_bytes=3945 omitted_bytes=902 budget_bytes=49152 rendered_bytes=4863 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ba9d0e3d8105d24f9b148346c61b809562672f1dde10b6bf8dd3fa9d336ace3f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a38a68c182fccc1a835774a583eb9a39f3e17a284bd57bc61fc814c88cbaa209",
+      "duration_s": 42.53,
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "hang_risk": false,
+      "id": "m1b-drop-critic-tuple",
+      "injection_diff_sha256": "2a786d6019a71a0c55934c2780da0bdf04668dad69d83ab9a15339c8c0d6fec8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "cbf0f91759e6f434a60d446db3ba45e12e1253fc7f02379f843207ea36c785aa",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+          "new": "",
+          "old": "        (\n            \"critic\",\n            \"cd1c365204fd1a68260d0454b4599bfd8cea12c5d845fb24f4e21f154733df15\",\n            \"fea81c65909aa9026b8fda1bf9b4768b38185dfd9327cff86a8bcef844504c1b\",\n        ),\n"
+        }
+      ],
+      "repo_head": "dd6d0466eea6f2804c0bf5b546261a6ff71a7b00",
+      "runner_sha256": "c86d59370b6e742c4eaf30c4e5d12cae912ed66e0ced54134056c46c7394ba86",
+      "spec_sha256": "f5e63268df0a04074c25af6b9ae3bf51a53b58e742c49b0221f9fdc8fd8c820b",
+      "status": "KILLED",
+      "test_output_sha256": "ba9d0e3d8105d24f9b148346c61b809562672f1dde10b6bf8dd3fa9d336ace3f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "3be13b40a7caadc85238922e82114a2a71b7a8ea5651c2a64e7d58be88c10218"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/output/pegasus-dispatch/50fc11303742fbac0c5b1d467832d316/izdw-50fc113037.o2950",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/output/pegasus-dispatch/50fc11303742fbac0c5b1d467832d316/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................................F                         [100%]\n=================================== FAILURES ===================================\n_ test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set __\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_originless_default_preser0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14c510b6a590>\n\n    def test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set(\n        tmp_path: Path,\n        monkeypatch: pytest.MonkeyPatch,\n    ) -> None:\n        _pin_fixture_commit_dates(monkeypatch)\n        bundle_root = _fixed_width_bundle_root(tmp_path, \"originless\")\n        omitted = _bundle(bundle_root, monkeypatch, explicit_none=False)\n        shutil.rmtree(bundle_root)\n        explicit_none = _bundle(bundle_root, monkeypatch, explicit_none=True)\n        origin_enabled = _origin_enabled_bundle(\n            _fixed_width_bundle_root(tmp_path, \"origin-enabled\"), monkeypatch\n        )\n        _assert_generation_two_matches(omitted, explicit_none)\n        _assert_generation_two_matches(omitted, origin_enabled)\n        generation_two_mutant = copy.deepcopy(origin_enabled)\n        generation_two_mutant[\"reports\"][0][\"cells\"][0][\"generations\"][1][\"roles\"][\n            \"planner\"\n        ][\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n        generation_two_planner = next(\n            event\n            for event in generation_two_mutant[\"journals\"][0]\n            if event.get(\"generation\") == 2 and event.get(\"role\") == \"planner\"\n        )\n        generation_two_planner[\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n        with pytest.raises(AssertionError):\n            _assert_generation_two_matches(omitted, generation_two_mutant)\n        receipt_binding_mutant = copy.deepcopy(omitted)\n        receipt_binding_mutant[\"acceptance\"][\"trials\"][0][\"arm_execution\"][\n            \"content_digest_sha256\"\n        ] = \"f\" * 64\n        with pytest.raises(AssertionError):\n            _project_t1749_receipt_v4_to_v1(receipt_binding_mutant)\n        run_start_mutant = copy.deepcopy(omitted)\n        start = next(\n            event for event in run_start_mutant[\"journals\"][0]\n            if event[\"event\"] == \"run-start\"\n        )\n        start[\"arm_execution\"][\"content_digest_sha256\"] = \"e\" * 64\n        with pytest.raises(AssertionError):\n            _project_t1749_receipt_v4_to_v1(run_start_mutant)\n        input_schema_mutant = copy.deepcopy(omitted)\n        receipt_trial = input_schema_mutant[\"acceptance\"][\"trials\"][0]\n        trial_id = receipt_trial[\"trial_id\"]\n        report = next(\n            item for item in input_schema_mutant[\"reports\"]\n            if item[\"trial_id\"] == trial_id\n        )\n        run_start = next(\n            event\n            for journal in input_schema_mutant[\"journals\"]\n            for event in journal\n            if event.get(\"event\") == \"run-start\" and event[\"trial_id\"] == trial_id\n        )\n        for arm_execution in (\n            receipt_trial[\"arm_execution\"],\n            report[\"arm_execution\"],\n            run_start[\"arm_execution\"],\n        ):\n            arm_execution[\"input_schema_version\"] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t244_additions_to_pre_wave(input_schema_mutant)\n        report_schema_mutant = copy.deepcopy(omitted)\n        report_schema_mutant[\"reports\"][0][\"arm_execution\"][\n            \"input_schema_version\"\n        ] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t1311_arm_authority_to_pre_wave(report_schema_mutant)\n        run_start_schema_mutant = copy.deepcopy(omitted)\n        run_start = next(\n            event for event in run_start_schema_mutant[\"journals\"][0]\n            if event[\"event\"] == \"run-start\"\n        )\n        run_start[\"arm_execution\"][\"input_schema_version\"] = \"8b-mutant\"\n        with pytest.raises(AssertionError):\n            _project_t1311_arm_authority_to_pre_wave(run_start_schema_mutant)\n>       assert _baseline_structure(\n            _project_t244_additions_to_pre_wave(omitted)\n        ) == _PRE_WAVE_ORIGINLESS_BASELINE\nE       AssertionError: assert {'$': [[{'dic...lse, 1]], ...} == {'$': [[{'dic...lse, 1]], ...}\nE         \nE         Omitting 384 identical items, use -vv to show\nE         Differing items:\nE         {'journals/*/*/provenance/role_file_sha256': [['2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a', 1],...58327f0b33862bc51a025df8c2e645b64a', 1], ['2cc08b30573aef3337740d3e44848d94651d48528d4e1f095b420ceea4807388', 1], ...]} != {'journals/*/*/provenance/role_file_sha256': [['2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a', 1],...58327f0b33862bc51a025df8c2e645b64a', 1], ['2b46df2e4a5cbafcd3780b4cca54b3d81f3a73d9999cc6c859f1107aa398835a', 1], ...]}\nE         {'reports/*/cells/*/generations...\nE         \nE         ...Full output truncated (2 lines hidden), use '-vv' to show\n\norchestrator/tests/test_reflux_originless_compatibility.py:1402: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\n1 failed, 47 passed in 15.11s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\" nodeid_bytes=135 nodeid_omitted_bytes=0 source_bytes=4847 retained_bytes=3945 omitted_bytes=902 rendered_excerpt_bytes=4096 sha256=497428df5c33656459e29315691724dd32e67618e549480fe36378e5567bb68a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> generation_two_matches(omitted, origin_enabled)\n>         generation_two_mutant = copy.deepcopy(origin_enabled)\n>         generation_two_mutant[\"reports\"][0][\"cells\"][0][\"generations\"][1][\"roles\"][\n>             \"planner\"\n>         ][\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n>         generation_two_planner = next(\n>             event\n>             for event in generation_two_mutant[\"journals\"][0]\n>             if event.get(\"generation\") == 2 and event.get(\"role\") == \"planner\"\n>         )\n>         generation_two_planner[\"parsed\"][\"magnitude\"] = \"generation-two-mutant\"\n>         with pytest.raises(AssertionError):\n>             _assert_generation_two_matches(omitted, generation_two_mutant)\n>         receipt_binding_mutant = copy.deepcopy(omitted)\n>         receipt_binding_mutant[\"acceptance\"][\"trials\"][0][\"arm_execution\"][\n>             \"content_digest_sha256\"\n>         ] = \"f\" * 64\n>         with pytest.raises(AssertionError):\n>             _project_t1749_receipt_v4_to_v1(receipt_binding_mutant)\n>         run_start_mutant = copy.deepcopy(omitted)\n>         start = next(\n>             event for event in run_start_mutant[\"journals\"][0]\n>             if event[\"event\"] == \"run-start\"\n>         )\n>         start[\"arm_execution\"][\"content_digest_sha256\"] = \"e\" * 64\n>         with pytest.raises(AssertionError):\n>             _project_t1749_receipt_v4_to_v1(run_start_mutant)\n>         input_schema_mutant = copy.deepcopy(omitted)\n>         receipt_trial = input_schema_mutant[\"acceptance\"][\"trials\"][0]\n>         trial_id = receipt_trial[\"trial_id\"]\n>         report = next(\n>             item for item in input_schema_mutant[\"reports\"]\n>             if item[\"trial_id\"] == trial_id\n>         )\n>         run_start = next(\n>             event\n>             for journal in input_schema_mutant[\"journals\"]\n>             for event in journal\n>             if event.get(\"event\") == \"run-start\" and event[\"trial_id\"] == trial_id\n>         )\n>         for arm_execution in (\n>             receipt_trial[\"arm_execution\"],\n>             report[\"arm_execution\"],\n>             run_start[\"arm_execution\"],\n>         ):\n>             arm_execution[\"input_schema_version\"] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t244_additions_to_pre_wave(input_schema_mutant)\n>         report_schema_mutant = copy.deepcopy(omitted)\n>         report_schema_mutant[\"reports\"][0][\"arm_execution\"][\n>             \"input_schema_version\"\n>         ] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t1311_arm_authority_to_pre_wave(report_schema_mutant)\n>         run_start_schema_mutant = copy.deepcopy(omitted)\n>         run_start = next(\n>             event for event in run_start_schema_mutant[\"journals\"][0]\n>             if event[\"event\"] == \"run-start\"\n>         )\n>         run_start[\"arm_execution\"][\"input_schema_version\"] = \"8b-mutant\"\n>         with pytest.raises(AssertionError):\n>             _project_t1311_arm_authority_to_pre_wave(run_start_schema_mutant)\n> >       assert _baseline_structure(\n>             _project_t244_additions_to_pre_wave(omitted)\n>         ) == _PRE_WAVE_ORIGINLESS_BASELINE\n> E       AssertionError: assert {'$': [[{'dic...lse, 1]], ...} == {'$': [[{'dic...lse, 1]], ...}\n> E         \n> E         Omitting 384 identical items, use -vv to show\n> E         Differing items:\n> E         {'journals/*/*/provenance/role_file_sha256': [['2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a', 1],...58327f0b33862bc51a025df8c2e645b64a', 1], ['2cc08b30573aef3337740d3e44848d94651d48528d4e1f095b420ceea4807388', 1], ...]} != {'journals/*/*/provenance/role_file_sha256': [['2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a', 1],...58327f0b33862bc51a025df8c2e645b64a', 1], ['2b46df2e4a5cbafcd3780b4cca54b3d81f3a73d9999cc6c859f1107aa398835a', 1], ...]}\n> E         {'reports/*/cells/*/generations...\n> E         \n> E         ...Full output truncated (2 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_reflux_originless_compatibility.py:1402: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4847 retained_bytes=3945 omitted_bytes=902 budget_bytes=49152 rendered_bytes=4863 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a4ef6cd1112ef4d699bb55142f3da53a104ea17e0332f6690dad12c0168756ae"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "a38a68c182fccc1a835774a583eb9a39f3e17a284bd57bc61fc814c88cbaa209",
+      "duration_s": 43.217,
+      "expected_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+      ],
+      "hang_risk": false,
+      "id": "m1c-drop-coder-tuple",
+      "injection_diff_sha256": "f3b88a6de2ec74254c5f8721dffd95960be88d8172a231b1bfdd6cf336a3bf80",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "76171c3709d06b1a84028092d95579377832a41a5b279f5bfa3d033af40e8182",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+          "new": "",
+          "old": "        (\n            \"coder\",\n            \"2b46df2e4a5cbafcd3780b4cca54b3d81f3a73d9999cc6c859f1107aa398835a\",\n            \"2cc08b30573aef3337740d3e44848d94651d48528d4e1f095b420ceea4807388\",\n        ),\n"
+        }
+      ],
+      "repo_head": "dd6d0466eea6f2804c0bf5b546261a6ff71a7b00",
+      "runner_sha256": "c86d59370b6e742c4eaf30c4e5d12cae912ed66e0ced54134056c46c7394ba86",
+      "spec_sha256": "f5e63268df0a04074c25af6b9ae3bf51a53b58e742c49b0221f9fdc8fd8c820b",
+      "status": "KILLED",
+      "test_output_sha256": "a4ef6cd1112ef4d699bb55142f3da53a104ea17e0332f6690dad12c0168756ae",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "3be13b40a7caadc85238922e82114a2a71b7a8ea5651c2a64e7d58be88c10218"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/output/pegasus-dispatch/4d0c24c0849618daacc6aba1d1869b81/izdw-4d0c24c084.o2913",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/output/pegasus-dispatch/4d0c24c0849618daacc6aba1d1869b81/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_harness_rebuild_is_deterministic_control\norchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set\norchestrator/tests/test_codex_agents.py::test_policy_has_zero_native_and_fourteen_static_dormant_adapters\norchestrator/tests/test_codex_agents.py::test_review_ledger_independently_pins_all_fourteen_sources_and_io_contracts\norchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty\norchestrator/tests/test_codex_agents.py::test_all_adapters_pin_model_policy_and_blocked_runtime_activation\norchestrator/tests/test_codex_agents.py::test_source_body_is_embedded_exactly_once_before_product_override\norchestrator/tests/test_codex_agents.py::test_claude_tool_capabilities_are_lowered_without_runtime_tool_claim\norchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected\norchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed\norchestrator/tests/test_codex_agents.py::test_write_mode_does_not_create_native_or_adapter_files\norchestrator/tests/test_codex_agents.py::test_adapter_inventory_missing_extra_and_symlink_are_rejected\norchestrator/tests/test_codex_agents.py::test_adapter_byte_drift_and_runtime_claim_injection_are_rejected\norchestrator/tests/test_codex_agents.py::test_claude_body_or_description_drift_requires_independent_ledger_review\norchestrator/tests/test_codex_agents.py::test_claude_tools_model_and_effort_must_match_manifest\norchestrator/tests/test_codex_agents.py::test_unquoted_and_leading_hash_description_are_rejected\norchestrator/tests/test_codex_agents.py::test_manifest_and_claude_role_inventory_must_be_bijective\norchestrator/tests/test_codex_agents.py::test_capability_mapping_omission_and_wrong_lowering_are_rejected\norchestrator/tests/test_codex_agents.py::test_codex_model_and_effort_cannot_be_omitted_or_inherited\norchestrator/tests/test_codex_agents.py::test_verifier_codex_mapping_is_explicitly_pinned\norchestrator/tests/test_codex_agents.py::test_full_role_manifest_pin_rejects_semantic_contract_weakening\norchestrator/tests/test_codex_agents.py::test_shared_developer_instruction_template_has_independent_pin\norchestrator/tests/test_codex_agents.py::test_runtime_activation_is_blocked_on_uncontrollable_additional_tools\norchestrator/tests/test_codex_agents.py::test_recursive_forbidden_key_aliases_are_role_specific_and_fail_closed\norchestrator/tests/test_codex_agents.py::test_opaque_string_is_not_misrepresented_as_recursively_inspected\norchestrator/tests/test_codex_agents.py::test_selector_8b_policy_pins_catalog_order_and_nonempty_single_choice\norchestrator/tests/test_codex_agents.py::test_auditor_input_digest_is_sha256_of_utf8_working_diff\norchestrator/tests/test_codex_agents.py::test_auditor_output_verdict_and_structured_feedback_are_consistent\norchestrator/tests/test_codex_agents.py::test_calibrator_records_are_positive_unique_and_selected_from_measurements\norchestrator/tests/test_codex_agents.py::test_axis_planner_and_coder_semantic_policy_negative_cases\norchestrator/tests/test_codex_agents.py::test_coder_v4_output_semantics_requires_literal_only_single_statement_value_match\norchestrator/tests/test_codex_agents.py::test_coder_v4_k2_knowledge_use_source_indices_are_valid_and_unique[invalid_knowledge_use0]\norchestrator/tests/test_codex_agents.py::test_coder_v4_k2_knowledge_use_source_indices_are_valid_and_unique[invalid_knowledge_use1]\norchestrator/tests/test_codex_agents.py::test_coder_v4_k2_input_schema_accepts_empty_sources\norchestrator/tests/test_codex_agents.py::test_backoff_literal_only_contract_has_role_manifest_adapter_parity\norchestrator/tests/test_codex_agents.py::test_trigger_gating_semantic_literal_has_four_surface_parity\norchestrator/tests/test_codex_agents.py::test_trigger_gating_output_semantics_require_exact_wire_and_reject_implementation\norchestrator/tests/test_codex_agents.py::test_critic_profiler_and_verifier_semantic_policy_negative_cases\norchestrator/tests/test_codex_agents.py::test_auditor_output_schema_requires_diff_digest_for_consumer\norchestrator/tests/test_codex_agents.py::test_all_role_manifest_schema_and_adapter_weakening_hits_independent_ledgers\norchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast\norchestrator/tests/test_codex_agents.py::test_planner_and_coder_source_output_wrapper_shape_parity_is_enforced\norchestrator/tests/test_codex_agents.py::test_axis_proposer_source_output_shape_parity_covers_nested_arrays\norchestrator/tests/test_codex_agents.py::test_direct_role_source_input_shape_parity_covers_top_and_nested_fields\norchestrator/tests/test_codex_agents.py::test_duplicate_manifest_key_is_rejected\norchestrator/tests/test_codex_agents.py::test_nonfinite_manifest_json_constants_are_rejected\norchestrator/tests/test_codex_agents.py::test_direct_role_coverage_drift_raises_clean_profile_error\norchestrator/tests/test_codex_agents.py::test_lockstep_role_deletion_is_rejected_by_absolute_count_floor\n\n48 tests collected in 2.01s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "696d2437032549dd7559d1bdc7f2a5daab19b94a6a2890b66f60e9dec656dc30"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_harness_rebuild_is_deterministic_control",
+        "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set",
+        "orchestrator/tests/test_codex_agents.py::test_policy_has_zero_native_and_fourteen_static_dormant_adapters",
+        "orchestrator/tests/test_codex_agents.py::test_review_ledger_independently_pins_all_fourteen_sources_and_io_contracts",
+        "orchestrator/tests/test_codex_agents.py::test_current_sources_render_byte_exact_and_native_is_empty",
+        "orchestrator/tests/test_codex_agents.py::test_all_adapters_pin_model_policy_and_blocked_runtime_activation",
+        "orchestrator/tests/test_codex_agents.py::test_source_body_is_embedded_exactly_once_before_product_override",
+        "orchestrator/tests/test_codex_agents.py::test_claude_tool_capabilities_are_lowered_without_runtime_tool_claim",
+        "orchestrator/tests/test_codex_agents.py::test_any_native_discovery_toml_is_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_project_config_native_role_is_rejected_and_globals_are_allowed",
+        "orchestrator/tests/test_codex_agents.py::test_write_mode_does_not_create_native_or_adapter_files",
+        "orchestrator/tests/test_codex_agents.py::test_adapter_inventory_missing_extra_and_symlink_are_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_adapter_byte_drift_and_runtime_claim_injection_are_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_claude_body_or_description_drift_requires_independent_ledger_review",
+        "orchestrator/tests/test_codex_agents.py::test_claude_tools_model_and_effort_must_match_manifest",
+        "orchestrator/tests/test_codex_agents.py::test_unquoted_and_leading_hash_description_are_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_manifest_and_claude_role_inventory_must_be_bijective",
+        "orchestrator/tests/test_codex_agents.py::test_capability_mapping_omission_and_wrong_lowering_are_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_codex_model_and_effort_cannot_be_omitted_or_inherited",
+        "orchestrator/tests/test_codex_agents.py::test_verifier_codex_mapping_is_explicitly_pinned",
+        "orchestrator/tests/test_codex_agents.py::test_full_role_manifest_pin_rejects_semantic_contract_weakening",
+        "orchestrator/tests/test_codex_agents.py::test_shared_developer_instruction_template_has_independent_pin",
+        "orchestrator/tests/test_codex_agents.py::test_runtime_activation_is_blocked_on_uncontrollable_additional_tools",
+        "orchestrator/tests/test_codex_agents.py::test_recursive_forbidden_key_aliases_are_role_specific_and_fail_closed",
+        "orchestrator/tests/test_codex_agents.py::test_opaque_string_is_not_misrepresented_as_recursively_inspected",
+        "orchestrator/tests/test_codex_agents.py::test_selector_8b_policy_pins_catalog_order_and_nonempty_single_choice",
+        "orchestrator/tests/test_codex_agents.py::test_auditor_input_digest_is_sha256_of_utf8_working_diff",
+        "orchestrator/tests/test_codex_agents.py::test_auditor_output_verdict_and_structured_feedback_are_consistent",
+        "orchestrator/tests/test_codex_agents.py::test_calibrator_records_are_positive_unique_and_selected_from_measurements",
+        "orchestrator/tests/test_codex_agents.py::test_axis_planner_and_coder_semantic_policy_negative_cases",
+        "orchestrator/tests/test_codex_agents.py::test_coder_v4_output_semantics_requires_literal_only_single_statement_value_match",
+        "orchestrator/tests/test_codex_agents.py::test_coder_v4_k2_knowledge_use_source_indices_are_valid_and_unique[invalid_knowledge_use0]",
+        "orchestrator/tests/test_codex_agents.py::test_coder_v4_k2_knowledge_use_source_indices_are_valid_and_unique[invalid_knowledge_use1]",
+        "orchestrator/tests/test_codex_agents.py::test_coder_v4_k2_input_schema_accepts_empty_sources",
+        "orchestrator/tests/test_codex_agents.py::test_backoff_literal_only_contract_has_role_manifest_adapter_parity",
+        "orchestrator/tests/test_codex_agents.py::test_trigger_gating_semantic_literal_has_four_surface_parity",
+        "orchestrator/tests/test_codex_agents.py::test_trigger_gating_output_semantics_require_exact_wire_and_reject_implementation",
+        "orchestrator/tests/test_codex_agents.py::test_critic_profiler_and_verifier_semantic_policy_negative_cases",
+        "orchestrator/tests/test_codex_agents.py::test_auditor_output_schema_requires_diff_digest_for_consumer",
+        "orchestrator/tests/test_codex_agents.py::test_all_role_manifest_schema_and_adapter_weakening_hits_independent_ledgers",
+        "orchestrator/tests/test_codex_agents.py::test_consumer_required_field_drift_is_detected_from_source_ast",
+        "orchestrator/tests/test_codex_agents.py::test_planner_and_coder_source_output_wrapper_shape_parity_is_enforced",
+        "orchestrator/tests/test_codex_agents.py::test_axis_proposer_source_output_shape_parity_covers_nested_arrays",
+        "orchestrator/tests/test_codex_agents.py::test_direct_role_source_input_shape_parity_covers_top_and_nested_fields",
+        "orchestrator/tests/test_codex_agents.py::test_duplicate_manifest_key_is_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_nonfinite_manifest_json_constants_are_rejected",
+        "orchestrator/tests/test_codex_agents.py::test_direct_role_coverage_drift_raises_clean_profile_error",
+        "orchestrator/tests/test_codex_agents.py::test_lockstep_role_deletion_is_rejected_by_absolute_count_floor"
+      ],
+      "duration_s": 27.151,
+      "rc": 0,
+      "repo_head": "dd6d0466eea6f2804c0bf5b546261a6ff71a7b00",
+      "runner_sha256": "c86d59370b6e742c4eaf30c4e5d12cae912ed66e0ced54134056c46c7394ba86",
+      "spec_sha256": "f5e63268df0a04074c25af6b9ae3bf51a53b58e742c49b0221f9fdc8fd8c820b",
+      "status": "PASSED",
+      "tool_sha256": "3be13b40a7caadc85238922e82114a2a71b7a8ea5651c2a64e7d58be88c10218"
+    },
+    "hang_timeout_seconds": 2700.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m0-equivalent-reviewed-comment": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "4b9ac79d79526d3de1f0bfd5bb8ea13ba53ef65ce2d0d9c11a08ccd1b3da11bd",
+        "replacements": [
+          {
+            "file": "orchestrator/codex_roles/review_ledger.py",
+            "new": "    # Reviewed 2026-09-17: T-2703/T-2717/T-2705; digest の独立指標と適用版を訂正 (equivalent mutation marker)。\n",
+            "old": "    # Reviewed 2026-09-17: T-2703/T-2717/T-2705; digest の独立指標と適用版を訂正。\n"
+          }
+        ]
+      },
+      "m1-drop-t2703-baseline-follow-call": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d82c0bd65dcb40e4868476fcd0465a1174c48a5385dd96a97cc038ddbe930200",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+            "new": "\n",
+            "old": "\n_extend_t2703_role_source_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)\n"
+          }
+        ]
+      },
+      "m1a-drop-planner-tuple": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "eb620c764745f39951b33a1e55e68b5891b5700f578df26d8602a3c9e4bc00be",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+            "new": "",
+            "old": "        (\n            \"planner\",\n            \"c47cf0ff81bb88d1ad65d5b0b92ac35feb40f49e4d2a8eef9007b48c286bf5f9\",\n            \"2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a\",\n        ),\n"
+          }
+        ]
+      },
+      "m1b-drop-critic-tuple": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2a786d6019a71a0c55934c2780da0bdf04668dad69d83ab9a15339c8c0d6fec8",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+            "new": "",
+            "old": "        (\n            \"critic\",\n            \"cd1c365204fd1a68260d0454b4599bfd8cea12c5d845fb24f4e21f154733df15\",\n            \"fea81c65909aa9026b8fda1bf9b4768b38185dfd9327cff86a8bcef844504c1b\",\n        ),\n"
+          }
+        ]
+      },
+      "m1c-drop-coder-tuple": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f3b88a6de2ec74254c5f8721dffd95960be88d8172a231b1bfdd6cf336a3bf80",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+            "new": "",
+            "old": "        (\n            \"coder\",\n            \"2b46df2e4a5cbafcd3780b4cca54b3d81f3a73d9999cc6c859f1107aa398835a\",\n            \"2cc08b30573aef3337740d3e44848d94651d48528d4e1f095b420ceea4807388\",\n        ),\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "b8d0d13a2da61f22c17fc535111000918590a6928ec30df00c18ae420a6feddf",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_reflux_originless_compatibility.py",
+      "orchestrator/tests/test_codex_agents.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 2700.0
+  },
+  "repo_head": "dd6d0466eea6f2804c0bf5b546261a6ff71a7b00",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_reflux_originless_compatibility.py",
+      "orchestrator/tests/test_codex_agents.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "dispatch_head_blob_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "1442f09e5acf6fae49af77e7f074c4ea4096d6a1",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "c86d59370b6e742c4eaf30c4e5d12cae912ed66e0ced54134056c46c7394ba86",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "f5e63268df0a04074c25af6b9ae3bf51a53b58e742c49b0221f9fdc8fd8c820b",
+  "summary": {
+    "KILLED": 4,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2703-mutcontainer/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "3be13b40a7caadc85238922e82114a2a71b7a8ea5651c2a64e7d58be88c10218",
+  "updated_at": "2026-09-16T23:16:35.554761+00:00"
+}
