@@ -4177,6 +4177,156 @@ def test_negative_offrepo_root_equal_worktree_is_rejected(
     assert "対象 worktree と同一" in output
 
 
+def _mode_fixture(tmp_path):
+    """到達不能 commit と landed 参照付きの外部 copy を用意する。"""
+    repo = _repo(tmp_path)
+    lost = _commit_files(repo, "doomed", {"tools/copy.py": "copy\n"})
+    _delete_branch(repo, "doomed")
+    root = tmp_path / "offrepo"
+    external = _external_file(root, "wave/copy.py", "copy\n")
+    _landed_reference(repo, external)
+    return repo, root, lost, external
+
+
+def _forbid_offrepo_io(*args, **kwargs):
+    raise AssertionError("off must not touch offrepo I/O")
+
+
+def test_explicit_off_ignores_env_and_preserves_core(tmp_path, monkeypatch, capsys):
+    repo, root, lost, _ = _mode_fixture(tmp_path)
+    monkeypatch.setenv(ADC.OFFREPO_ROOT_ENV, str(root))
+    core = ADC.audit_with_offrepo(repo)
+    report = ADC.audit_with_offrepo(repo, offrepo_scan="off")
+    from dataclasses import replace
+    assert core.findings and core.findings[0][0] == lost
+    assert report == replace(core, offrepo_scan="off")
+    real_get = os.environ.get
+
+    def guarded_get(key, default=None):
+        if key == ADC.OFFREPO_ROOT_ENV:
+            raise AssertionError("off read the root environment key")
+        return real_get(key, default)
+
+    # Trap only this key; unrelated environment access remains real.
+    monkeypatch.setattr(os.environ, "get", guarded_get)
+    assert ADC.main(["--repo", str(repo), "--offrepo-scan", "off"]) == 1
+    assert lost in capsys.readouterr().out
+
+
+def test_explicit_off_touches_no_offrepo_io(tmp_path, monkeypatch):
+    repo, root, _, _ = _mode_fixture(tmp_path)
+    core = ADC.audit_with_offrepo(repo)
+    assert core.findings
+    for name in ("_validate_offrepo_roots", "_load_blob_metadata",
+                 "_enumerate_offrepo_candidates", "_start_cat_file_batch"):
+        monkeypatch.setattr(ADC, name, _forbid_offrepo_io)
+    with monkeypatch.context() as patches:
+        patches.setattr(ADC.os, "walk", _forbid_offrepo_io)
+        patches.setattr(ADC.os, "scandir", _forbid_offrepo_io)
+        report = ADC.audit_with_offrepo(repo, offrepo_roots=(root,), offrepo_scan="off")
+    from dataclasses import replace
+    assert report == replace(core, offrepo_scan="off")
+
+
+def test_explicit_off_disclosure_is_distinct_from_missing_root(tmp_path, monkeypatch, capsys):
+    repo, root, _, _ = _mode_fixture(tmp_path)
+    monkeypatch.setenv(ADC.OFFREPO_ROOT_ENV, str(root))
+    assert ADC.main(["--repo", str(repo), "--offrepo-scan", "off"]) == 1
+    output = capsys.readouterr().out
+    assert output.count("repo 外走査は明示 off") == 1
+    assert "IZANAGI_DEV_WAVE_JOBS_DIR の指定も無視" in output
+    assert "repo 外の同一実体は未確認" in output
+    assert "findings は full なら抑止されうる (commit, path) 対を含みうる" in output
+    assert "救出 triage は --offrepo-scan full --offrepo-root <root> を指定して単独実行する" in output
+    assert "探索を未実施" not in output and "が未指定" not in output
+    assert "repo 外の同一実体で抑止 0" in output
+    monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV)
+    assert ADC.main(["--repo", str(repo)]) == 1
+    output = capsys.readouterr().out
+    assert "探索を未実施" in output and "が未指定" in output
+    assert "repo 外走査は明示 off" not in output
+
+
+def test_explicit_full_suppresses_copy_that_off_reports(tmp_path):
+    repo, root, lost, external = _mode_fixture(tmp_path)
+    full = ADC.audit_with_offrepo(repo, offrepo_roots=(root,), offrepo_scan="full")
+    off = ADC.audit_with_offrepo(repo, offrepo_roots=(root,), offrepo_scan="off")
+    assert full.findings == []
+    assert full.suppressions == [(lost, "tools/copy.py", external)]
+    assert len(off.findings) == 1 and off.suppressions == []
+    # Add an unsuppressed path and repeat against the same new snapshot.
+    other = _commit_files(repo, "unrecovered", {"tools/remains.py": "unique\n"})
+    _delete_branch(repo, "unrecovered")
+    core = ADC.audit_with_offrepo(repo)
+    full = ADC.audit_with_offrepo(repo, offrepo_roots=(root,), offrepo_scan="full")
+    off = ADC.audit_with_offrepo(repo, offrepo_roots=(root,), offrepo_scan="off")
+    def pairs(report):
+        return {(commit, path) for commit, _, paths in report.findings for path in paths}
+    assert pairs(full) == {(other, "tools/remains.py")}
+    assert pairs(full) < pairs(off) == pairs(core)
+    assert full.suppressions == [(lost, "tools/copy.py", external)]
+    assert off.suppressions == [] and off.unreferenced_copies == []
+
+
+@pytest.mark.parametrize("source", ["cli", "env"])
+def test_explicit_full_matches_legacy_root_report(tmp_path, monkeypatch, capsys, source):
+    repo, root, _, _ = _mode_fixture(tmp_path)
+    assert ADC.audit_with_offrepo(repo, offrepo_roots=(root,)) == ADC.audit_with_offrepo(
+        repo, offrepo_roots=(root,), offrepo_scan="full")
+    monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)
+    argv = ["--repo", str(repo)]
+    if source == "cli":
+        argv += ["--offrepo-root", str(root)]
+    else:
+        monkeypatch.setenv(ADC.OFFREPO_ROOT_ENV, str(root))
+    assert ADC.main(argv) == 0
+    legacy = capsys.readouterr().out
+    assert ADC.main(argv + ["--offrepo-scan", "full"]) == 0
+    explicit = capsys.readouterr().out
+    def stable(output):
+        return [line for line in output.splitlines()
+                if "進捗" not in line and "elapsed_seconds=" not in line]
+    assert stable(explicit) == stable(legacy)
+
+
+@pytest.mark.parametrize("has_env", [False, True], ids=["no-env", "env"])
+def test_explicit_off_with_cli_root_is_usage_error(tmp_path, monkeypatch, capsys, has_env):
+    monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)
+    if has_env:
+        monkeypatch.setenv(ADC.OFFREPO_ROOT_ENV, str(tmp_path))
+    monkeypatch.setattr(ADC, "audit_with_offrepo", _forbid_offrepo_io)
+    with pytest.raises(SystemExit) as exc:
+        ADC.main(["--offrepo-scan", "off", "--offrepo-root", str(tmp_path)])
+    captured = capsys.readouterr()
+    assert exc.value.code == 2 and "usage:" in captured.err
+    assert "elapsed_seconds=" not in captured.out
+
+
+@pytest.mark.parametrize("env_value", [None, ""], ids=["absent", "empty"])
+def test_explicit_full_without_root_is_execution_failure(tmp_path, monkeypatch, capsys, env_value):
+    monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)
+    if env_value is not None:
+        monkeypatch.setenv(ADC.OFFREPO_ROOT_ENV, env_value)
+    monkeypatch.setattr(ADC, "_audit_snapshot", _forbid_offrepo_io)
+    assert ADC.main(["--repo", str(tmp_path), "--offrepo-scan", "full"]) == 2
+    captured = capsys.readouterr()
+    assert "実行できません" in captured.err
+    assert "--offrepo-scan full には --offrepo-root または IZANAGI_DEV_WAVE_JOBS_DIR が必要です" in captured.err
+    assert sum(line.startswith("audit_dangling_commits: elapsed_seconds=")
+               for line in captured.out.splitlines()) == 1
+    assert "要確認" not in captured.out
+
+
+def test_explicit_full_missing_root_preserves_elapsed_overrun(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv(ADC.OFFREPO_ROOT_ENV, raising=False)
+    ticks = iter([0.0, ADC.AUDIT_ELAPSED_LIMIT_SECONDS + 1])
+    monkeypatch.setattr(ADC.time, "monotonic", lambda: next(ticks))
+    assert ADC.main(["--repo", str(tmp_path), "--offrepo-scan", "full"]) == 2
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[-2].startswith("audit_dangling_commits: 所要上限超過 ")
+    assert lines[-1].startswith("audit_dangling_commits: elapsed_seconds=")
+
+
 def _run() -> int:
     """pytest fixtures を含む全 node を素の runner からも実行する。"""
     return int(pytest.main(["-q", str(Path(__file__).resolve())]))

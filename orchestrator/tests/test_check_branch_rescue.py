@@ -346,6 +346,8 @@ def test_p04_missing_ledger_and_real_audit_zero_is_rc0(tmp_path: Path):
     assert payload["ledger"]["file_present"] is False
     assert payload["ledger"]["entry_count"] == 0
     assert payload["ledger"]["audit"]["reported_commit_count"] == 0
+    assert payload["ledger"]["audit"]["offrepo_scan"] == "off"
+    assert payload["ledger"]["audit"]["complete"] is True
     assert payload["ledger"]["unledgered_commits"] == []
 
 
@@ -1632,6 +1634,106 @@ def test_m30_gc_prune_expire_never_is_determinate(tmp_path: Path):
     assert retention["deadline_status"] == "determinate"
     assert retention["lower_bound_basis"] == "gc-prune-expire-never"
     assert retention["loss_possible_not_before"] == "9999-12-31T23:59:59Z"
+
+
+def test_audit_child_argv_is_explicit_off(tmp_path, monkeypatch):
+    repo = _init_repo(tmp_path)
+    real_run = TOOL.subprocess.run
+    spawned = []
+    def record(argv, *args, **kwargs):
+        spawned.append(list(argv))
+        return real_run(argv, *args, **kwargs)
+    monkeypatch.setattr(TOOL.subprocess, "run", record)
+    commits, summary, issues = TOOL._audit(repo, AUDIT_PATH, 30)
+    assert spawned == [[sys.executable, str(AUDIT_PATH), "--repo", str(repo),
+                        "--offrepo-scan", "off"]]
+    assert commits == [] and issues == [] and summary["complete"] is True
+
+
+def test_child_env_omits_offrepo_root(tmp_path, monkeypatch):
+    repo = _init_repo(tmp_path)
+    _topic_with_file(repo)
+    checker = _make_fake_landed(tmp_path / "landed.py")
+    monkeypatch.setenv("IZANAGI_DEV_WAVE_JOBS_DIR", str(tmp_path / "external"))
+    real_run = TOOL.subprocess.run
+    spawned = []
+    def record(argv, *args, **kwargs):
+        spawned.append((list(argv), dict(kwargs.get("env", {}))))
+        return real_run(argv, *args, **kwargs)
+    monkeypatch.setattr(TOOL.subprocess, "run", record)
+    rc, payload, _ = _run_tool(repo, "--branch", "topic", "--ledger-check",
+                               "--landed-checker", str(checker))
+    assert rc == 0, payload["issues"]
+    for predicate in (
+        lambda argv: argv[0] == "git",
+        lambda argv: argv[:2] == [sys.executable, str(checker)],
+        lambda argv: argv[:2] == [sys.executable, str(AUDIT_PATH)],
+    ):
+        envs = [env for argv, env in spawned if predicate(argv)]
+        assert envs
+        assert all("IZANAGI_DEV_WAVE_JOBS_DIR" not in env for env in envs)
+
+
+@pytest.mark.parametrize("outcome", ["zero", "finding", "invalid", "timeout", "decode"])
+def test_audit_summary_discloses_off_for_all_outcomes(tmp_path, outcome):
+    repo = _init_repo(tmp_path)
+    oid = "a" * 40
+    if outcome in ("zero", "finding"):
+        script = _make_fake_audit(tmp_path / "audit.py", [oid] if outcome == "finding" else [])
+    else:
+        script = tmp_path / "audit.py"
+        script.write_text({
+            "invalid": 'print("invalid contract")\n',
+            "timeout": 'import time\ntime.sleep(60)\n',
+            "decode": 'import sys\nsys.stdout.buffer.write(bytes([255]))\n',
+        }[outcome], encoding="utf-8")
+    commits, summary, issues = TOOL._audit(repo, script, 0.01 if outcome == "timeout" else 30)
+    assert summary["offrepo_scan"] == "off"
+    assert summary["complete"] is (outcome in ("zero", "finding"))
+    assert commits == ([oid] if outcome == "finding" else [])
+    expected = {"invalid": "audit-contract-invalid", "timeout": "audit-timeout",
+                "decode": "audit-output-invalid"}
+    assert [issue["code"] for issue in issues] == ([expected[outcome]] if outcome in expected else [])
+
+
+def test_real_audit_off_reports_landed_external_copy_with_or_without_env(tmp_path, monkeypatch):
+    repo = _init_repo(tmp_path)
+    _git(repo, "switch", "-c", "doomed")
+    _write(repo, "tools/recovered.py", "copy\n")
+    lost = _commit(repo, "lost")
+    _git(repo, "switch", "main")
+    _git(repo, "branch", "-D", "doomed")
+    root = tmp_path / "external"
+    external = _write(root, "wave/recovered.py", "copy\n")
+    _write(repo, "docs/reference.md", str(external) + "\n")
+    _commit(repo, "landed reference")
+    monkeypatch.delenv("IZANAGI_DEV_WAVE_JOBS_DIR", raising=False)
+    full = subprocess.run(
+        [sys.executable, str(AUDIT_PATH), "--repo", str(repo),
+         "--offrepo-scan", "full", "--offrepo-root", str(root)],
+        capture_output=True, text=True, check=False,
+    )
+    assert full.returncode == 0, full.stdout + full.stderr
+    assert "repo 外の同一実体で抑止 1" in full.stdout
+    real_run = TOOL.subprocess.run
+    child_outputs = []
+    def record(argv, *args, **kwargs):
+        result = real_run(argv, *args, **kwargs)
+        if list(argv[:2]) == [sys.executable, str(AUDIT_PATH)]:
+            child_outputs.append(result.stdout.decode("utf-8"))
+        return result
+    monkeypatch.setattr(TOOL.subprocess, "run", record)
+    for has_env in (False, True):
+        if has_env:
+            monkeypatch.setenv("IZANAGI_DEV_WAVE_JOBS_DIR", str(root))
+        rc, payload, _ = _run_tool(repo, "--ledger-check")
+        assert rc == 3, payload["issues"]
+        assert payload["ledger"]["unledgered_commits"] == [lost]
+        assert payload["ledger"]["audit"]["offrepo_scan"] == "off"
+        assert payload["ledger"]["audit"]["complete"] is True
+        assert payload["ledger"]["audit"]["commits"] == [lost]
+    assert len(child_outputs) == 2
+    assert all("repo 外走査は明示 off" in output for output in child_outputs)
 
 
 if __name__ == "__main__":
