@@ -262,8 +262,9 @@ SH→EX の昇格 (gate を開いてから自分の SH を解放する) で gate
 検査のためだけに common-dir を main 取得前にも解決する。本体の key は従来どおり legacy 取得後に
 解決する)。既に lock を持つ process (入れ子・2 つ目の資源) の reader と EX→SH の降格は gate を
 見ない (main を握ったまま gate で待つ hold-and-wait を作らないため)。gate は NB polling で待機順を
-持たないので、保証するのは「writer が gate を保持する間、fresh reader を入れない」ことであり、
-待機開始からの厳密な優先ではない。deadline 245 秒は gate と main で共有する。
+持たないので、保証するのは「writer が gate を保持する間、その gate の事前検査を行う fresh reader を
+待たせる」ことであり、検査済み reader の main 取得は妨げず、待機開始からの厳密な優先でもない。
+deadline 245 秒は gate と main で共有する。
 
 長寿命 fixture は node protocol へ登録しない。`s8c-preregistration-candidate`、
 `s8c-predicate-snapshot`、`campaign-repository-scan` を別 loadgroup のまま保持し、fixture 自身が
