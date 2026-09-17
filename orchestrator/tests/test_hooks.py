@@ -2609,6 +2609,82 @@ def test_bash_login_executor_output_cannot_overwrite_admission_paths():
         assert ok, f"program argv の出力 option 字面が誤拒否された: {cmd!r} ({why})"
 
 
+def test_bash_login_executor_recursion_module_denied():
+    for cmd in (
+        "python3 -m cProfile -m pytest -q",
+        "python3 -mcProfile -mpytest -q",
+        "python3 -m cProfile -o /tmp/p.out -m pytest -q "
+        "orchestrator/tests/test_hooks.py",
+        "python3 -m profile -m pytest -q",
+        "python3 -m pdb -m pytest -q",
+        "python3 -m trace --trace --module pytest -q",
+        "python3 -m runpy pytest -q",
+        "python3 -m cProfile -m cProfile -m pytest -q",
+        "python3 -m cProfile -m cmake --build build",
+        "python3.10 -Bm profile -s cumulative -m pytest",
+        "python3 -m pdb -m _pytest.main",
+        "env FOO=1 nice -n 0 python3 -m cProfile -m pytest",
+        "bash -lc 'python3 -m cProfile -m pytest -q'",
+        "python3 -m cProfile -m pytest tools/check_ai_provenance.py",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"executor 越しの重量実行が login で通った: {cmd!r}"
+
+
+def test_bash_login_executor_recursion_coverage_denied():
+    for cmd in (
+        "python3 -m coverage run -m pytest -q",
+        "python3 -m coverage run --branch -m pytest",
+        "python3 -m coverage run -m pytest.__main__",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"executor 越しの重量実行が login で通った: {cmd!r}"
+
+
+def test_bash_login_executor_recursion_script_denied():
+    for cmd in (
+        "python3 -m cProfile pytest -q",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"executor 越しの重量実行が login で通った: {cmd!r}"
+
+
+def test_bash_login_executor_recursion_nonexecuting_and_light_allowed():
+    for cmd in (
+        "python3 -m cProfile -m pytest --collect-only",
+        "python3 -m cProfile -m pytest --help",
+        "python3 -m coverage run -m pytest --collect-only",
+        "python3 -m cProfile /tmp/safe.py",
+        "python3 -m cProfile -- /tmp/safe.py --version",
+        "python3 -m runpy tools/pegasus/exec_calibrate.py",
+        "python3 -m cProfile -m timeit x",
+        "python3 -m cProfile -m json.tool /tmp/a.json",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert ok, f"executor の非実行形・非重量が誤拒否された: {cmd!r} ({why})"
+
+
+def test_bash_login_executor_recursion_nonrefusing_sites_unchanged():
+    for site in ("OTHER", "PEGASUS_COMPUTE"):
+        for cmd in (
+            "python3 -m cProfile -m pytest -q",
+            "python3 -m coverage run -m pytest -q",
+            "python3 -m cProfile pytest -q",
+        ):
+            ok, why = GB.decide(cmd, site=site)
+            assert ok, f"非 refusing site で誤拒否された: {site} {cmd!r} ({why})"
+
+
+def test_bash_login_executor_recursion_existing_denials_preserved():
+    for cmd in (
+        "python3 -m pytest -q",
+        "python3 -m cProfile tools/pegasus/exec_calibrate.py",
+        "python3 -qmcProfile -m pytest",
+    ):
+        ok, _ = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"既存の重量実行・admission 拒否が壊れた: {cmd!r}"
+
+
 def test_bash_login_pydoc_server_and_write_modes_do_not_execute_positionals():
     commands = (
         "python3 -Bmpydoc -n localhost tools/pegasus/exec_calibrate.py",
