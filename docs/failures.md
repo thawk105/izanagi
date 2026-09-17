@@ -11320,6 +11320,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本 wave の fixture は現行 producer から導出した。
 - 再発検知: 上記 producer 統合テスト。**「report が書かれない」を
   「検査が赤い」と区別する**ため、検査の緑ではなく `report.json` の実在を固定する。
+- **supersede: 2026-09-18** — 副次的所見 (run-start の schema_version を上げずに field を足していた件) は D2135 で閉じた: 版は 4c6f03048 の v4 を既存の境界として利用し、完全性 consumer が読める run-start 世代を独立定数で所有して producer の現行版と照合しない。版 gate に到達した非対応版は、v3 を `legacy`、それ以外 (欠落を含む) を `unknown` として拒否し、対応版 v4 は従来の field 検査へ進む。検出は `orchestrator/tests/test_autonomous_trial_completeness.py` の v4・binding 無し正例、v3 旧形・未知版の負例、producer 定数を別値にしても判定が変わらない独立性正例。
 
 ### F333. dispatch 親が SIGTERM された後も job がノードを 1 時間占有し、進捗ゼロの再試行ループが孤児を積み増した [手順漏れ]
 
