@@ -1748,11 +1748,21 @@ class _PythonGateFlow:
         if any(has_escape(node.finalbody) for node, _ in self.injected_try_stack):
             return False
 
-        local_names = (
-            _potentially_bound_names(tuple(self.bodies[scope].body))
-            | self.global_nonlocal_names
-            if scope != "<module>" else frozenset()
-        )
+        local_names = set(self.global_nonlocal_names)
+        for lexical_scope in self._lexical_scopes(scope):
+            if lexical_scope == "<module>":
+                continue
+            body = self.bodies[lexical_scope]
+            local_names.update(_potentially_bound_names(tuple(body.body)))
+            arguments = body.args
+            local_names.update(
+                argument.arg for argument in (
+                    *arguments.posonlyargs, *arguments.args, *arguments.kwonlyargs,
+                )
+            )
+            for argument in (arguments.vararg, arguments.kwarg):
+                if argument is not None:
+                    local_names.add(argument.arg)
 
         def classify(exception_type):
             if exception_type is None:
@@ -1794,12 +1804,17 @@ class _PythonGateFlow:
                 raised = handler.body[-1].exc
                 bare = raised is None or (
                     isinstance(raised, ast.Name) and raised.id == handler.name
+                    and handler.name not in _potentially_bound_names(tuple(handler.body))
                 )
                 if isinstance(raised, ast.Call) and isinstance(raised.func, ast.Name):
                     name = raised.func.id
                     if name in self.injected_error_names and classify(raised.func) == "definite":
                         bare = True
-                    elif name in self.module_class_counts:
+                    elif (
+                        self.module_class_counts[name] == 1
+                        and name not in self.module_assignments
+                        and name not in local_names
+                    ):
                         if kind == "definite":
                             return True
                         return False
@@ -2311,10 +2326,13 @@ class _PythonGateFlow:
         if matching_checks:
             # Explicit helper rejection E is reraised by its first catcher;
             # bare reraises satisfy the same rule in outer try bodies.
-            # Conversion stops tracking: outer treatment of the converted
-            # exception and MAYBE paths left unconverted are not proved.
-            # with.__exit__, conditional guards and result-name rebinding
-            # are also outside this D1882 guarantee.
+            # Type/as-name rebinding checks only inspect this file's module,
+            # local and argument bindings. Rejections from checks in finalbody
+            # itself are not tracked. Conversion stops tracking: outer treatment
+            # of converted exceptions and MAYBE catchers that catch E and bare
+            # reraise are not proved. with.__exit__, conditional guards and
+            # result-name rebinding are also outside this D1882 guarantee.
+            # TryStar rules are not runtime-tested on Python 3.10.
             return coverage | self.patch_macros
         return coverage
 
@@ -3103,6 +3121,16 @@ def test_define_sink_cross_product_requires_gate_to_dominate_each_sink():
         '        raise exc\n',
         id="p7-raise-as-name",
     ),
+    pytest.param(
+        "p8-known-child-handler",
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except ChildError:\n'
+        '        pass\n'
+        '    except X:\n'
+        '        raise\n',
+        id="p8-known-child-handler",
+    ),
 ])
 def test_define_sink_cross_product_t2491_accepts_injected_reraise(case, region):
     relative = f"orchestrator/campaign/synthetic_t2491_{case}.py"
@@ -3234,6 +3262,17 @@ def test_define_sink_cross_product_t2491_accepts_injected_reraise(case, region):
         '        pass\n',
         id="n12-local-rebinding",
     ),
+    pytest.param(
+        "n14-try-star-reraise",
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except* X:\n'
+        '        raise\n',
+        marks=pytest.mark.skipif(
+            not hasattr(ast, "TryStar"), reason="except* requires Python 3.11",
+        ),
+        id="n14-try-star-reraise",
+    ),
 ])
 def test_define_sink_cross_product_t2491_rejects_injected_swallow(case, region):
     relative = f"orchestrator/campaign/synthetic_t2491_{case}.py"
@@ -3248,6 +3287,82 @@ def test_define_sink_cross_product_t2491_rejects_injected_swallow(case, region):
         + "    return built\n"
     )}
     sink = _BuildSink(relative, "<module>.build", 6, "injected-build_fn")
+    assert _benchmark_build_sinks(sources) == {sink}
+    classifications, failures = _define_sink_cross_product_classification(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    )
+    assert classifications == {sink: Counter({"failure-reachable": 1})}
+    assert failures == [("BACKOFF_FIXED", sink, "reachable")]
+
+
+@pytest.mark.parametrize("case, module_lines, parameters, sink_line, region", [
+    pytest.param(
+        "n13-local-rebound-conversion",
+        "class PilotErr(RuntimeError): pass\n",
+        "build_fn, genome", 7,
+        '    X = ValueError\n'
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except X as exc:\n'
+        "        raise PilotErr('r') from exc\n",
+        id="n13-local-rebound-conversion",
+    ),
+    pytest.param(
+        "n15-module-rebound-conversion",
+        "class PilotErr(RuntimeError): pass\nPilotErr = X\n",
+        "build_fn, genome", 8,
+        '    try:\n'
+        '        try:\n'
+        '            require_returned_condition_evidence(built)\n'
+        '        except X:\n'
+        "            raise PilotErr('r')\n"
+        '    except X:\n'
+        '        pass\n',
+        id="n15-module-rebound-conversion",
+    ),
+    pytest.param(
+        "n16-argument-rebound-handler",
+        "class ChildError(X): pass\n",
+        "build_fn, genome, ChildError=X", 7,
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except ChildError:\n'
+        '        pass\n'
+        '    except X:\n'
+        '        raise\n',
+        id="n16-argument-rebound-handler",
+    ),
+    pytest.param(
+        "n17-rebound-as-name",
+        "class ChildError(X): pass\n",
+        "build_fn, genome", 7,
+        '    try:\n'
+        '        try:\n'
+        '            require_returned_condition_evidence(built)\n'
+        '        except X as exc:\n'
+        "            exc = ChildError('r')\n"
+        '            raise exc\n'
+        '    except ChildError:\n'
+        '        pass\n',
+        id="n17-rebound-as-name",
+    ),
+])
+def test_define_sink_cross_product_t2491_rejects_injected_rebinding(
+    case, module_lines, parameters, sink_line, region,
+):
+    relative = f"orchestrator/campaign/synthetic_t2491_{case}.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import (\n"
+        "    DriverError as X, require_returned_condition_evidence,\n"
+        ")\n"
+        + module_lines
+        + f"def build({parameters}):\n"
+        + "    marker = 'BACKOFF_FIXED'\n"
+        + "    built = build_fn(genome)\n"
+        + region
+        + "    return built\n"
+    )}
+    sink = _BuildSink(relative, "<module>.build", sink_line, "injected-build_fn")
     assert _benchmark_build_sinks(sources) == {sink}
     classifications, failures = _define_sink_cross_product_classification(
         sources, frozenset({"BACKOFF_FIXED"}),
