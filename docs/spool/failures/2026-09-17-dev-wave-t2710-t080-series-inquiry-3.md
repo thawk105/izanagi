@@ -32,5 +32,7 @@ seq: 3
   (session `93bc7244…`、同時受入は投入時 2 本・他 session 合計 3 本) で 4 setup error (24,755 passed / 67 skipped)。全件
   `test_s8c_preregistration_predicates.py::test_current_repository_*` の module fixture の `archive` 呼び出し (orchestrator/campaign
   約 80 file) が 10 秒 TimeoutExpired。本 wave の差分は到達不能。同 tip・同 file の単独再走 (`run_tests.py --force-dispatch`、
-  request 4213.nqsv) は 218 passed / 92.29 秒 / rc=0 で非再現。恒久対応は既報のまま変えず、timeout 拡大・stub 化・除外・gate 新設は
-  していない。
+  request 4213.nqsv) は 218 passed / 92.29 秒 / rc=0 で非再現。attempt 2 (tip `b82d12ac7`、session `c8faa7f0…`、投入時 leader 2 本) は
+  33 error (t1259 の worktree に対する 30 秒 TimeoutExpired 29 件 + s8c の 10 秒 timeout 4 件、24,726 passed)、同 tip の 2 file 単独再走
+  (request 4300.nqsv) は 269 passed / 99.10 秒 / rc=0 で非再現。恒久対応は既報のまま変えず、timeout 拡大・stub 化・除外・gate 新設は
+  していない。attempt 3 は投入条件を leader ≤ 1・load1 < 15 に絞って投げた。
