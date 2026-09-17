@@ -19,8 +19,10 @@ title: [T-2647] 本体論文の入口 README の stale 注記へ fig8 の成立�
   生成器、正本 = `figures/README.md` の fig8 節、記録 = `output/insights/2026-09-17/t2647-b10-tail-fig8/README.md`)、
   (b) 言い方 (事前登録 §4.5 の固定表現の逐語と禁止句)、(c) 図の成立で変わらないこと (`performance_certified: false`
   は不動・variant 採用の根拠にしない・B-10 も [T-2647] も閉じない・D2104 項 7 は解除されない — 同項は理由の一つに
-  「結果を使う下流 (論文図) が未成立」を挙げるが決定は優先順位の判断で、走らせるなら D2050 の地位明記を満たす別 wave
-  と同項自身が定める・当時の実行全体の独立監査は未実施)、(d) 古くなった記述の所在 (版 §4 の表の「(未作成)」、
+  「結果を使う下流 (論文図) が未成立」を挙げるが決定は優先順位の判断で、D2120 項 16 (第 21 回裁定、本 wave の受入中に
+  main へ着地) が「図の成立で理由の一部は変わったが主経路優先の理由が残るので保留を維持、図の成立は追加測定の必要性を
+  示さない」と裁定した。走らせるなら D2050 の地位明記を満たす別 wave を新規に起票する・当時の実行全体の独立監査は
+  未実施)、(d) 古くなった記述の所在 (版 §4 の表の「(未作成)」、
   同趣旨の「図は無い (§4)」は §0 前進 2 と §8 B-10、「未作成の予定仕様」は §10 段 3、results 稿 §0.3 と §3 限定 11。
   いずれも凍結物で書き換えない。同節の移管先 3 の「§4 (図は無い)」も版の内容説明として正しく変えない)。
 - **F756 (注記自身が腐る) への対処として、項に base を紐づけた** — 着地 commit 2 本と PNG / PDF / provenance JSON の
@@ -39,9 +41,12 @@ title: [T-2647] 本体論文の入口 README の stale 注記へ fig8 の成立�
 - 起動: `EnterWorktree(name)` が「Could not read the repository git config」で失敗 → 手動 `git worktree add`
   (timeout 600 秒、殺さず完走) → `EnterWorktree(path)` → `dev_wave_submodule_init.py` rc=0 で 3 段とも初期化
   (`git submodule status --recursive` に `-` 接頭辞なし)。開始 gate fresh rc=0。
-- 検査: `python3 tools/check_docs.py` 違反なし、`git diff --check` rc=0。受入全走は本記録 commit を含む tip に対し
-  land 前に 1 回投入し、child-green でなければ land しない (結果は land の受領証)。
-- 工数: codex 子 0 本。親の実測は blob 照合 1 走・check_docs 1 走。
+- 検査: `python3 tools/check_docs.py` 違反なし、`git diff --check` rc=0。受入全走は記録 commit を含む tip に対し
+  land 前に投入し、child-green でなければ land しない (結果は land の受領証)。**final-1 は非帰属の赤 (rc=70)** — 14 件
+  すべて setup の `subprocess.TimeoutExpired` (`git ls-files --others` 30 秒 × 10 = F945 型、`git archive` × 4 = 同根の
+  共有 FS 飽和) で、赤の 2 file の焦点走は 269 passed (非再現)。fold と D2120 の 2 commit だけ進んだ main を固定 SHA で
+  取り込み、D2120 項 16 の引用を同じ tip で注記に足してから投げ直した。
+- 工数: codex 子 0 本。親の実測は blob 照合 1 走・check_docs 3 走・焦点走 1 走 (非再現確認)。
 
 ## 次の一手差分
 
@@ -50,6 +55,6 @@ title: [T-2647] 本体論文の入口 README の stale 注記へ fig8 の成立�
 - [T-2647] 静的 backoff 右 tail 本走の判定を下流へ渡す — results 稿 (1563)・版 2026-09-17・論文図 fig8 (1609)・
   両論文系列の入口注記 (1549 と本 wave の README fig8 案内) が揃い、1609-1610 版が名指した最後の残件を消化した。
   言い方は事前登録 §4.5 の固定表現に限り、`performance_certified: false` は不動。B-10 の完了・性能認証・
-  D2104 項 7 の解除・第 2 cohort (T-2678) の地位は本閉鎖と無関係である。
+  D2104 項 7 の解除 (D2120 項 16 が保留維持を裁定)・第 2 cohort (T-2678) の地位は本閉鎖と無関係である。
   remaining: none
   base: b30263c65549c2fb672f988c5215fcb84aaaf493191b34fec0359fa47aed1e95
