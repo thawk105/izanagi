@@ -209,6 +209,8 @@
   (段 4 を「22:10」、段 6 を「23:10」と書いたが、子の pid file の mtime と実装 commit の時刻から 21:52 頃 / 22:17 頃だった)。
   insight の verbatim へ写した後に `date` で気づき、実測値へ訂正して commit 前に閉じた。時刻も日付と同じく一次資料
   (file の mtime・commit 時刻) から取る。
+
+- **再発: 2026-09-18** ([T-1505] A-1 sized 本走投入 wave、near miss)。親が handoff へ書いた JST 時刻 3 件 (06:33 / 06:35 / 06:37) が実測でなく推定で、直後の `date` は 06:29:42 だった (実時刻より先へ進んでいた)。原因は wave 冒頭の `date` 1 回に体感の経過を足したこと。記録 commit・insight へ入る前に `stat` の mtime で 06:24:21 / 06:28:23 / 06:29:14 へ置き換えた。恒久対応は変更なし — 時刻を書く 1 回ごとに `date` か mtime を採る。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
