@@ -90,26 +90,19 @@ _EVIDENCE = {
 
 @contextmanager
 def _source_root(*patches):
-    scratch = _ROOT / ".scratch-t2772"
-    created = not scratch.exists()
-    scratch.mkdir(exist_ok=True)
-    try:
-        with tempfile.TemporaryDirectory(prefix="test-", dir=scratch) as temporary:
-            root = Path(temporary)
-            archive = subprocess.run(
-                ["git", "-C", str(_ROOT / "external/ccbench"), "archive", _PIN, _SOURCE],
-                check=True, capture_output=True,
-            ).stdout
-            subprocess.run(["tar", "-x", "-C", str(root)], input=archive, check=True)
-            subprocess.run(["git", "init", "-q", str(root)], check=True)
-            for relative in patches:
-                for operation in (("--check",), ()):
-                    subprocess.run(["git", "-C", str(root), "apply", *operation,
-                                    str(_ROOT / relative)], check=True, capture_output=True)
-            yield root
-    finally:
-        if created:
-            scratch.rmdir()
+    with tempfile.TemporaryDirectory(prefix="mocc-mutation-proof-") as temporary:
+        root = Path(temporary)
+        archive = subprocess.run(
+            ["git", "-C", str(_ROOT / "external/ccbench"), "archive", _PIN, _SOURCE],
+            check=True, capture_output=True,
+        ).stdout
+        subprocess.run(["tar", "-x", "-C", str(root)], input=archive, check=True)
+        subprocess.run(["git", "init", "-q", str(root)], check=True)
+        for relative in patches:
+            for operation in (("--check",), ()):
+                subprocess.run(["git", "-C", str(root), "apply", *operation,
+                                str(_ROOT / relative)], check=True, capture_output=True)
+        yield root
 
 
 def _lines(text):
@@ -277,6 +270,13 @@ def test_mocc_mutation_checks_are_input_derived():
     baseline = _baseline()
     assert tuple(M.compute_checks(**baseline)) == _CHECK_KEYS
     assert all(M.compute_checks(**baseline).values())
+    assert M._empty_process([])["wall_seconds"] is None
+    for elapsed in (None, 0.25):
+        timed = copy.deepcopy(baseline)
+        for run in timed["runs"].values():
+            run["wall_seconds"] = elapsed
+            run["verifier"]["wall_seconds"] = elapsed
+        assert M.compute_checks(**timed) == M.compute_checks(**baseline)
     required = [name for name in _NAMES if name not in _OBSERVE]
     assert len(required) == 25
     mutations = []
@@ -394,6 +394,7 @@ def test_mocc_mutation_run_records_failure_and_timeout():
         with mock.patch.object(M.subprocess, "run", **kwargs) as run:
             directory, record = M._run_trace(Path("/synthetic/ycsb_mocc.exe"), flags)
         try:
+            assert isinstance(record["wall_seconds"], float) and record["wall_seconds"] >= 0
             assert record["returncode"] == rc and record["timed_out"] is timeout
             assert record["terminated"] is terminated and record["error"]
             assert record["argv"] == run.call_args.args[0]
@@ -411,24 +412,40 @@ def test_mocc_mutation_verify_binds_protocol_root_and_timeout():
     raw["integrity"]["details"] = ["preserved"]
     for rc in (0, 1, 3):
         completed = subprocess.CompletedProcess([], rc, stdout=json.dumps({"results": [raw]}), stderr="")
-        with mock.patch.object(M.legacy.subprocess, "run", return_value=completed) as run:
+        with mock.patch.object(M, "_run_checked", return_value=completed) as run:
             result = M._verify(Path("/trace"), Path("/bound-source"))
         argv = run.call_args.args[0]
         assert argv == result["argv"]
         assert argv[argv.index("--protocol") + 1] == "mocc"
         assert argv[argv.index("--ccbench-root") + 1] == "/bound-source"
         assert run.call_args.kwargs["timeout"] == 900.0
+        assert run.call_args.kwargs["cwd"] == _ROOT / "orchestrator"
+        assert {-15, 0, 1, 2, 3} <= run.call_args.kwargs["allowed_returncodes"]
+        assert isinstance(result["wall_seconds"], float) and result["wall_seconds"] >= 0
         assert result["record"] == raw
         assert result["returncode"] == rc and result["terminated"] is True
         assert result["timed_out"] is False and result["error"] is None
     for error, timeout in ((subprocess.TimeoutExpired(["verifier"], 900), True),
                            (FileNotFoundError("verifier"), False)):
-        with mock.patch.object(M.legacy.subprocess, "run", side_effect=error):
+        wrapped = RuntimeError("command could not be executed")
+        wrapped.__cause__ = error
+        with mock.patch.object(M, "_run_checked", side_effect=wrapped):
             result = M._verify(Path("/trace"), Path("/bound-source"))
         assert result["timed_out"] is timeout and result["terminated"] is False
         assert result["record"] is None and result["error"]
-    with mock.patch.object(M.legacy.subprocess, "run", return_value=subprocess.CompletedProcess([], 2, stdout="{}", stderr="bad")):
-        assert M._verify(Path("/trace"), Path("/bound-source"))["record"] is None
+        assert result["returncode"] is None
+        assert isinstance(result["wall_seconds"], float) and result["wall_seconds"] >= 0
+    for rc in (2, -15):
+        completed = subprocess.CompletedProcess([], rc, stdout=json.dumps({"results": [raw]}), stderr="bad")
+        with mock.patch.object(M, "_run_checked", return_value=completed):
+            result = M._verify(Path("/trace"), Path("/bound-source"))
+        assert result["terminated"] is True and result["returncode"] == rc
+        assert result["record"] is None and result["error"]
+        assert result["timed_out"] is False
+        assert isinstance(result["wall_seconds"], float) and result["wall_seconds"] >= 0
+        baseline = _baseline()
+        baseline["runs"]["stock_hot_t1"]["verifier"] = result
+        assert not M.compute_checks(**baseline)["matrix_runs_complete_and_terminated"]
 
 
 def test_mocc_mutation_condition_gate_uses_new_driver_id():

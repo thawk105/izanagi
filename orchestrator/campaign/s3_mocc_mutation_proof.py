@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from typing import Any, Mapping, Sequence
 
 if __package__ in {None, ""}:
@@ -193,7 +194,7 @@ def _build_variant(
 
 def _empty_process(argv: Sequence[str]) -> dict[str, Any]:
     return {"argv": list(argv), "terminated": False, "returncode": None,
-            "timed_out": False, "error": None}
+            "timed_out": False, "error": None, "wall_seconds": None}
 
 
 def _run_trace(binary: Path, flags: Mapping[str, str]) -> tuple[Path, dict[str, Any]]:
@@ -201,6 +202,7 @@ def _run_trace(binary: Path, flags: Mapping[str, str]) -> tuple[Path, dict[str, 
     argv = [os.fspath(binary), *(f"-{k}={v}" for k, v in flags.items()),
             f"-clocks_per_us={CLK}"]
     record = _empty_process(argv)
+    started = time.monotonic()
     try:
         completed = subprocess.run(
             argv, cwd=os.fspath(trace_dir),
@@ -214,6 +216,8 @@ def _run_trace(binary: Path, flags: Mapping[str, str]) -> tuple[Path, dict[str, 
         record.update(timed_out=True, error=str(exc))
     except (OSError, subprocess.SubprocessError) as exc:
         record["error"] = f"{type(exc).__name__}: {exc}"
+    finally:
+        record["wall_seconds"] = time.monotonic() - started
     return trace_dir, record
 
 
@@ -221,12 +225,15 @@ def _verify(trace_dir: Path, ccbench_root: Path) -> dict[str, Any]:
     argv = [sys.executable, "-m", "verifier", os.fspath(trace_dir), "--json", "--quiet",
             "--protocol", "mocc", "--ccbench-root", os.fspath(ccbench_root)]
     result = {**_empty_process(argv), "record": None}
+    started = time.monotonic()
     try:
         completed = _run_checked(
             argv, cwd=_repo_root() / "orchestrator", timeout=VERIFIER_TIMEOUT_S,
-            allowed_returncodes=frozenset({0, 1, 3}),
+            allowed_returncodes=frozenset(range(-128, 256)),
         )
         result.update(terminated=True, returncode=completed.returncode)
+        if completed.returncode not in {0, 1, 3}:
+            raise RuntimeError(f"verifier rc={completed.returncode}: {completed.stderr[-500:]!r}")
         record = json.loads(completed.stdout)["results"][0]
         if not isinstance(record, dict):
             raise ValueError("verifier result is not a record")
@@ -236,6 +243,8 @@ def _verify(trace_dir: Path, ccbench_root: Path) -> dict[str, Any]:
                       error=str(exc))
     except (ValueError, KeyError, IndexError, TypeError) as exc:
         result["error"] = f"invalid verifier result: {exc}"
+    finally:
+        result["wall_seconds"] = time.monotonic() - started
     return result
 
 
