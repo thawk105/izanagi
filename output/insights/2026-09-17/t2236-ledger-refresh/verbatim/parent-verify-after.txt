@@ -1,0 +1,19 @@
+OK  frozen 426 lines present byte-exact 426/426
+OK  frozen entry count == 426 426
+OK  T-1574 8 suite identities
+OK  T-1574 removed 5 absent
+OK  T-1574 writer @real-repo == 0.19
+OK  T-1574 12 values e.g. 5.89
+OK  nodeid_count == len(map) == 24379 24379
+OK  JUnit duplicates == 0 0
+OK  JUnit failed/error == 0 0
+OK  non-frozen map == JUnit non-frozen map (23953) 23953 vs 23953
+OK  before snapshot has 426 unique keys
+OK  frozen values == before snapshot values (426)
+OK  all values from JUnit or frozen-before (no synthesis)
+OK  coverage 24361/24568 24361/24568
+OK  non-frozen stale == 0 0
+OK  frozen stale == 18, frozen unregistered == 207
+OK  frozen ∩ collection == 408 408
+OK  canonical re-render == file bytes
+ALL OK
