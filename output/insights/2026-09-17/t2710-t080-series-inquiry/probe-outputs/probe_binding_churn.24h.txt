@@ -1,0 +1,3 @@
+main first-parent commits since '24 hours ago': 16
+transitions=15  invalidations: head=15 closureA(orch+tools+external)=6 closureB(A+output)=11
+first=ec74cd296 last=38353207f

@@ -1,0 +1,26 @@
+
+#### session 895f300ad85be224d08c276069903643 universe=24597
+  measured shard-0: selected=3908 span=272.3s lock_union=231.9s (173 intervals) busiest_worker=272.3s workers=48
+  measured shard-1: selected=11415 span=171.5s lock_union=0.0s (0 intervals) busiest_worker=171.5s workers=48
+  measured shard-2: selected=9274 span=125.4s lock_union=0.0s (0 intervals) busiest_worker=125.4s workers=48
+  M nodes=11 weight=2302.0; M' nodes=12 weight=2452.0
+== current (C): records=24597 loads=[7501.5, 5328.3, 5328.3] max=7501.5 even=6052.7
+  shard-0: nodes=3908 comps=1 grouped_comps=1 biggest_comp_weight=7501.5 (files=25, groups=['campaign-repository-scan', 'real-repo', 's8c-predicate-snapshot', 's8c-preregistration-candidate']) oracle_driver_nodes=147 longest_node=240.0s test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+  shard-1: nodes=11415 comps=166 grouped_comps=1 biggest_comp_weight=832.2 (files=1, groups=[]) oracle_driver_nodes=0 longest_node=140.0s test_positive_201_block_all_terminal_records_absent
+  shard-2: nodes=9274 comps=166 grouped_comps=1 biggest_comp_weight=944.8 (files=1, groups=[]) oracle_driver_nodes=0 longest_node=100.0s test_define_sink_cross_product_t2520_certify_entry_removal
+== U = C - M: records=24586 loads=[5285.4, 5285.4, 5285.4] max=5285.4 even=5285.4
+  shard-0: nodes=6700 comps=76 grouped_comps=1 biggest_comp_weight=5199.5 (files=25, groups=['campaign-repository-scan', 'real-repo', 's8c-predicate-snapshot', 's8c-preregistration-candidate']) oracle_driver_nodes=136 longest_node=170.0s test_repository_candidate_uses_real_s8c_budget_module
+  shard-1: nodes=10028 comps=129 grouped_comps=1 biggest_comp_weight=832.2 (files=1, groups=[]) oracle_driver_nodes=0 longest_node=140.0s test_positive_201_block_all_terminal_records_absent
+  shard-2: nodes=7858 comps=128 grouped_comps=1 biggest_comp_weight=944.8 (files=1, groups=[]) oracle_driver_nodes=0 longest_node=100.0s test_define_sink_cross_product_t2520_certify_entry_removal
+== U' = C - M': records=24585 loads=[5235.4, 5235.4, 5235.4] max=5235.4 even=5235.4
+  shard-0: nodes=7240 comps=86 grouped_comps=1 biggest_comp_weight=5049.5 (files=25, groups=['campaign-repository-scan', 'real-repo', 's8c-predicate-snapshot', 's8c-preregistration-candidate']) oracle_driver_nodes=135 longest_node=170.0s test_repository_candidate_uses_real_s8c_budget_module
+  shard-1: nodes=9683 comps=124 grouped_comps=1 biggest_comp_weight=832.2 (files=1, groups=[]) oracle_driver_nodes=0 longest_node=140.0s test_positive_201_block_all_terminal_records_absent
+  shard-2: nodes=7662 comps=123 grouped_comps=1 biggest_comp_weight=944.8 (files=1, groups=[]) oracle_driver_nodes=0 longest_node=100.0s test_define_sink_cross_product_t2520_certify_entry_removal
+== hypothetical: oracle_driver ungrouped nodes detached from real-repo component (with M): records=24597 loads=[5165.0, 5165.0, 5165.0] max=5165.0 even=5165.0
+  shard-0: nodes=7967 comps=97 grouped_comps=1 biggest_comp_weight=4697.5 (files=25, groups=['campaign-repository-scan', 'real-repo', 's8c-predicate-snapshot', 's8c-preregistration-candidate']) oracle_driver_nodes=6 longest_node=170.0s test_repository_candidate_uses_real_s8c_budget_module
+  shard-1: nodes=8789 comps=118 grouped_comps=1 biggest_comp_weight=832.2 (files=1, groups=[]) oracle_driver_nodes=0 longest_node=140.0s test_positive_201_block_all_terminal_records_absent
+  shard-2: nodes=7841 comps=119 grouped_comps=1 biggest_comp_weight=944.8 (files=1, groups=[]) oracle_driver_nodes=0 longest_node=100.0s test_define_sink_cross_product_t2520_certify_entry_removal
+== hypothetical: same, U = C - M: records=24586 loads=[5161.3, 5161.4, 5161.4] max=5161.4 even=5161.4
+  shard-0: nodes=7930 comps=96 grouped_comps=1 biggest_comp_weight=4697.5 (files=25, groups=['campaign-repository-scan', 'real-repo', 's8c-predicate-snapshot', 's8c-preregistration-candidate']) oracle_driver_nodes=6 longest_node=170.0s test_repository_candidate_uses_real_s8c_budget_module
+  shard-1: nodes=8717 comps=119 grouped_comps=1 biggest_comp_weight=832.2 (files=1, groups=[]) oracle_driver_nodes=0 longest_node=140.0s test_positive_201_block_all_terminal_records_absent
+  shard-2: nodes=7939 comps=119 grouped_comps=1 biggest_comp_weight=944.8 (files=1, groups=[]) oracle_driver_nodes=0 longest_node=100.0s test_define_sink_cross_product_t2520_certify_entry_removal
