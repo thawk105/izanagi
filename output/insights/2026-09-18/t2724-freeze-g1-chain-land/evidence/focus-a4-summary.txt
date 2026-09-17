@@ -1,0 +1,16 @@
+| >           raise FloorCampaignError(f"launch certificate: clean scan 拒否: {exc}") from exc
+| E           orchestrator.campaign.s8b_floor_campaign.FloorCampaignError: launch certificate: clean scan 拒否: rr80: holdout hit 4 件: ['output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl', 'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json', 'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json', 'output/s8b-freeze-candidates/holdout_freeze.v2.g1.json']; rr20: holdout hit 4 件: ['output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl', 'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json', 'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json', 'output/s8b-freeze-candidates/holdout_freeze.v2.g1.json']
+|
+| orchestrator/campaign/s8b_floor_campaign.py:5540: FloorCampaignError
+| ----------------------------- Captured stderr call -----------------------------
+| IZANAGI_FREEZE_HOLD {"check_id": "s8b-floor.protocol-bytes-expected-pin", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+| =========================== short test summary info ============================
+| FAILED orchestrator/tests/test_s8b_floor_campaign.py::test_public_official_preflight_rejects_legacy_byte_drift_after_capture
+| FAILED orchestrator/tests/test_s8b_floor_campaign.py::test_public_official_preflight_rejects_resolved_protocol_byte_drift
+| FAILED orchestrator/tests/test_s8b_floor_campaign.py::test_public_official_preflight_accepts_versioned_protocol
+| FAILED orchestrator/tests/test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e
+| FAILED orchestrator/tests/test_s8b_floor_campaign.py::test_public_official_preflight_accepts_legacy_protocol
+| ============================== 5 failed in 23.73s ==============================
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+| === IZANAGI FAILURE DIGEST v1 BEGIN ===
+| IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=29343 retained_bytes=3423 omitted_bytes=25920 rendered_excerpt_bytes=4096 sha256=f40f98d2030557f15d33892b042244b48377444c3d44b1757d78cd0be29dd361
