@@ -1,0 +1,167 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 90,
+ "timeout_seconds": 2700,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "id": "m0-equivalent-docstring",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/cleanup_remove_dirs.py",
+     "old": "\"\"\"Fixed directory removal launcher for D2104 item 32.\n",
+     "new": "\"\"\"Fixed directory removal launcher (D2104 item 32).\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-start-new-session",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cleanup_remove_dirs.py",
+     "old": "                    stdout=current.stdout, stderr=current.stderr)\n",
+     "new": "                    stdout=current.stdout, stderr=current.stderr, start_new_session=True)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-no-signal-forwarding-kill-only",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cleanup_remove_dirs.py",
+     "old": "    for sig, grace in ((signum, TERM_GRACE_SECONDS),\n                       (signal.SIGKILL, KILL_GRACE_SECONDS)):\n",
+     "new": "    for sig, grace in ((signal.SIGKILL, KILL_GRACE_SECONDS),):\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-interrupted-becomes-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cleanup_remove_dirs.py",
+     "old": "        status, reason = \"interrupted\", \"cancelled or signal exit\"\n",
+     "new": "        status, reason = \"removed\", \"cancelled or signal exit\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-no-final-lstat-recheck",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cleanup_remove_dirs.py",
+     "old": "    absent = False\n    error = child.error\n",
+     "new": "    absent = True\n    error = child.error\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-nonzero-exit-is-success",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cleanup_remove_dirs.py",
+     "old": "    elif rc > 0 or not absent:\n",
+     "new": "    elif not absent:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-no-nested-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cleanup_remove_dirs.py",
+     "old": "            if os.path.commonpath([path, other]) in {path, other}:\n",
+     "new": "            if path == other:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-no-cwd-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cleanup_remove_dirs.py",
+     "old": "        if os.path.commonpath([path, cwd]) == path:\n",
+     "new": "        if False and os.path.commonpath([path, cwd]) == path:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m8-no-timeout-term",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cleanup_remove_dirs.py",
+     "old": "                if expired and not cancelled:\n                    for child in expired:\n                        child.cancelled = True\n                    cancel(expired, signal.SIGTERM, interrupted=lambda: cancelled)\n",
+     "new": "                if expired and not cancelled:\n                    time.sleep(POLL_SECONDS)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m9-start-new-session-and-tautological-pgid",
+   "category": "both-layers",
+   "replacements": [
+    {
+     "file": "tools/cleanup_remove_dirs.py",
+     "old": "                    stdout=current.stdout, stderr=current.stderr)\n",
+     "new": "                    stdout=current.stdout, stderr=current.stderr, start_new_session=True)\n"
+    },
+    {
+     "file": "tools/cleanup_remove_dirs.py",
+     "old": "                if current.pgid != os.getpgrp():\n",
+     "new": "                if False:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m10-hup-not-registered",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/cleanup_remove_dirs.py",
+     "old": "    for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):\n",
+     "new": "    for sig in (signal.SIGTERM, signal.SIGINT):\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
