@@ -53,6 +53,11 @@ title: Silo 固定スコープを解除して mocc 第 2 例の準備に着手�
 - **受入全走 2 走目 (worktree `…-scope-lift`) = 緑**: `child-green`、24544 passed / 67 skipped / 0 failed
   (tested main 594f5ac89 / tested tip 43761ab59、門番は leader 3 本・load1 21 < load5 32 で GO)。
   submodule 初期化は旧 worktree で 1 走目 error → 2 走目 OK (F810 再発)、新 worktree では 1 走目 OK
+- 段 8 (自己改善): 候補 2 件 = F810 の再発と {{F:substring-absence-check-hits-embedded-repo-path}} (新規)。
+  いずれも routing 1 (failures 台帳) で本 wave の failures fragment に記録済み。dev-wave reference への
+  「slug に `release` を含めない」の追記は byte 予算満杯につき行わず、memory
+  (`wave-slug-must-not-contain-release.md`) と test 是正の T で代替。command 入口・段構成・権限の変更なし
+- 全史 provenance 監査 (`tools/check_ai_provenance.py`、記録 commit 後): 10971 件、新規違反なし
 - エージェント工数: codex 4 本 (plan 1、consult 2、review 1)。計測ゼロ、build ゼロ。受入 2 走 (1 赤 1 緑)
 
 ## 次の一手差分
