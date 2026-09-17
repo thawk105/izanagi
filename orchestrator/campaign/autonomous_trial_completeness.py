@@ -425,6 +425,8 @@ _ROLE_PAYLOAD_ALLOWLIST_SHA256 = hashlib.sha256(
 ).hexdigest()
 _VALIDATION_RECEIPT_SCHEMA_VERSION = "s8c-role-payload-validation-receipt/v1"
 _ROLE_SCHEMA_VERSION = "p3-autonomous-workload-trial/v4"
+# Consumer-readable run-start generation, independent of the current producer version.
+_RUN_START_SCHEMA_VERSION = "p3-autonomous-workload-trial/v4"
 _PILOT_SCOPE = "exploratory-ycsb-abc"
 _LEAKPROOF_CONTEXT = (
     "Use only this campaign's projected descriptor, metrics, planner direction, "
@@ -2237,8 +2239,19 @@ def _check_run_envelope(
     producer = _producer_module()
     if report.get("schema_version") != producer.REPORT_SCHEMA_VERSION:
         _fail("run-envelope", "report.schema_version does not match producer version")
-    if start.get("schema_version") != producer.SCHEMA_VERSION:
-        _fail("run-envelope", "run-start.schema_version does not match producer version")
+    recorded_version = start.get("schema_version")
+    if recorded_version != _RUN_START_SCHEMA_VERSION:
+        generation = (
+            "legacy"
+            if recorded_version == "p3-autonomous-workload-trial/v3"
+            else "unknown"
+        )
+        _fail(
+            "run-envelope",
+            "run-start.schema_version unsupported: "
+            f"recorded={recorded_version!r}; generation={generation}; "
+            f"consumer_supported={_RUN_START_SCHEMA_VERSION!r}",
+        )
 
     trial_id = report.get("trial_id")
     if not isinstance(trial_id, str) or not trial_id:
