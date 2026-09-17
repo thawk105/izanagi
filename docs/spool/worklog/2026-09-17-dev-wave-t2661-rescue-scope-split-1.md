@@ -49,9 +49,13 @@ title: [T-2661][T-2663] 到達不能監査の用途分離 — 掃除は repo 外
 - 残存 (scope 外、記録のみ): flag 省略 + 環境変数の探索根は full 相当のまま (第 3 の入口、掃除の規範入口 2 箇所だけを固定)。
   off で通知された object は従来どおり `pending` の追記対象で、掃除 1 回あたりの追記候補は増えうる。T-2662 / T-2664 / T-2749
   は触っていない。D2120 項 25 (T-2707) が台帳 doc の別段落 (運用契約) を触る予定で、本 wave は「dangling audit の分岐」だけを変えた。
-- 工数: codex 子 8 本 (plan 1、consult 2、author 1、review 2、fix 1、誤投入 2 は即死で不使用、全段 `gpt-6-astra` / `medium`)。
-  親の実測: 生死確認 1、計測 (a) 7 走 + (b) 4 走 + (c) 1 走 + (d) 1 走、焦点走 2 (計算ノード 1・login 1)、変異 2 走 (probe + 本走)、
-  check_docs 2 回、provenance preflight 3 回。
+- **受入の非帰属赤 1 回。** 受入 final-1 は post-claim merge 直後の postcheck で別 wave の着地に負け rc 70 (子未走行)。final-2 は
+  24,799 passed / 69 skipped / **9 error** — すべて `test_t1259_qsub_env_delivery_probe.py` の setup fixture が wave worktree で
+  `git status --porcelain --untracked-files=no` を 30 秒で timeout (Lustre、同時受入 leader 2 本、shard-0)。本 wave の編集面と無関係で
+  F945 型の非帰属赤と判定し、同一内容で 1 回だけ投げ直した (final-3)。
+- 工数: codex 子 9 本 (plan 1、consult 2、author 1、review 2、fix 1、merge 検証 author 1、誤投入 2 (review の `--reasoning`、midflight
+  NG 後の detach) は即死・kill で不使用、全段 `gpt-6-astra` / `medium`)。親の実測: 生死確認 1、計測 (a) 7 走 + (b) 4 走 + (c) 1 走 +
+  (d) 1 走、焦点走 2 (計算ノード 1・login 1)、変異 2 走 (probe + 本走)、check_docs 4 回、provenance preflight 5 回、受入 3 回。
 
 ## 次の一手差分
 
