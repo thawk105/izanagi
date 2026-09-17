@@ -1,0 +1,97 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 2700,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "id": "m0-comment",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "    \"${{PBS_JOBID:-unknown}}\" \"$host\" >\"$marker_tmp\"\nmv \"$marker_tmp\" \"$MARKER\"\n\nselected=\"\"\n",
+     "new": "    \"${{PBS_JOBID:-unknown}}\" \"$host\" >\"$marker_tmp\"\n# Publish compute visibility evidence.\nmv \"$marker_tmp\" \"$MARKER\"\n\nselected=\"\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "a-old-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_pegasus_dispatch_compute.py",
+     "old": "    normalizations = (\n        (\n            \"\\nRESULT=\" + shlex.quote(str(tmp_path / \"result.json\")),\n            \"\\nRESULT=<SUBMISSION>/result.json\",\n        ),\n        (\n            \"\\nPROBE=\" + shlex.quote(str(tmp_path / \"interpreter_probe.py\")),\n            \"\\nPROBE=<SUBMISSION>/interpreter_probe.py\",\n        ),\n        (\n            \"\\nREQUEST=\" + shlex.quote(str(tmp_path / \"request.json\")),\n            \"\\nREQUEST=<SUBMISSION>/request.json\",\n        ),\n        (\n            \"\\nREPO=\" + shlex.quote(str(repo_root)),\n            \"\\nREPO=<REPO>\",\n        ),\n        (\n            \"\\nDISPATCHER=\" + shlex.quote(str(repo_root / \"tools\" / \"pegasus\" / \"dispatch_compute.py\")),\n            \"\\nDISPATCHER=<REPO>/tools/pegasus/dispatch_compute.py\",\n        ),\n        (\n            \"\\nMARKER=\" + shlex.quote(str(tmp_path / DC._COMPUTE_MARKER_NAME)),\n            \"\\nMARKER=<SUBMISSION>/\" + DC._COMPUTE_MARKER_NAME,\n        ),\n    )\n    normalized = script\n    for needle, replacement in normalizations:\n        # 正規化の前提 (値がちょうど 1 回、shell word として完結) が崩れた入力は\n        # 保守的に拒否する。厳しくする方向だけで受理を増やさない。\n        assert script.count(needle) == 1, f\"normalization needle must occur once: {needle!r}\"\n        end = script.index(needle) + len(needle)\n        assert end == len(script) or script[end] in \"\\n \\t;&|\", f\"normalization needle is not word-terminated: {needle!r}\"\n        normalized = normalized.replace(needle, replacement, 1)\n    # 環境値を除いた本文の release 候補行を保守的に拒否する。\n    # FA-4 の release handshake 不在の代理検査。構文解析ではない。\n    release_lines = [line for line in normalized.splitlines() if \"release\" in line.lower()]\n    assert not release_lines, release_lines\n    assert \"while\" not in script\n",
+     "new": "    assert \"release\" not in script.lower()\n    assert \"while\" not in script\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "b-handshake",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "    \"${{PBS_JOBID:-unknown}}\" \"$host\" >\"$marker_tmp\"\nmv \"$marker_tmp\" \"$MARKER\"\n\nselected=\"\"\n",
+     "new": "    \"${{PBS_JOBID:-unknown}}\" \"$host\" >\"$marker_tmp\"\nuntil [[ -f \"${{MARKER}}.release\" || -n \"$MARKER\" ]]; do sleep 1; done\nmv \"$marker_tmp\" \"$MARKER\"\n\nselected=\"\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": true
+  },
+  {
+   "id": "ab-old-check-handshake",
+   "category": "both-layers",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_pegasus_dispatch_compute.py",
+     "old": "    normalizations = (\n        (\n            \"\\nRESULT=\" + shlex.quote(str(tmp_path / \"result.json\")),\n            \"\\nRESULT=<SUBMISSION>/result.json\",\n        ),\n        (\n            \"\\nPROBE=\" + shlex.quote(str(tmp_path / \"interpreter_probe.py\")),\n            \"\\nPROBE=<SUBMISSION>/interpreter_probe.py\",\n        ),\n        (\n            \"\\nREQUEST=\" + shlex.quote(str(tmp_path / \"request.json\")),\n            \"\\nREQUEST=<SUBMISSION>/request.json\",\n        ),\n        (\n            \"\\nREPO=\" + shlex.quote(str(repo_root)),\n            \"\\nREPO=<REPO>\",\n        ),\n        (\n            \"\\nDISPATCHER=\" + shlex.quote(str(repo_root / \"tools\" / \"pegasus\" / \"dispatch_compute.py\")),\n            \"\\nDISPATCHER=<REPO>/tools/pegasus/dispatch_compute.py\",\n        ),\n        (\n            \"\\nMARKER=\" + shlex.quote(str(tmp_path / DC._COMPUTE_MARKER_NAME)),\n            \"\\nMARKER=<SUBMISSION>/\" + DC._COMPUTE_MARKER_NAME,\n        ),\n    )\n    normalized = script\n    for needle, replacement in normalizations:\n        # 正規化の前提 (値がちょうど 1 回、shell word として完結) が崩れた入力は\n        # 保守的に拒否する。厳しくする方向だけで受理を増やさない。\n        assert script.count(needle) == 1, f\"normalization needle must occur once: {needle!r}\"\n        end = script.index(needle) + len(needle)\n        assert end == len(script) or script[end] in \"\\n \\t;&|\", f\"normalization needle is not word-terminated: {needle!r}\"\n        normalized = normalized.replace(needle, replacement, 1)\n    # 環境値を除いた本文の release 候補行を保守的に拒否する。\n    # FA-4 の release handshake 不在の代理検査。構文解析ではない。\n    release_lines = [line for line in normalized.splitlines() if \"release\" in line.lower()]\n    assert not release_lines, release_lines\n    assert \"while\" not in script\n",
+     "new": "    assert \"release\" not in script.lower()\n    assert \"while\" not in script\n"
+    },
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "    \"${{PBS_JOBID:-unknown}}\" \"$host\" >\"$marker_tmp\"\nmv \"$marker_tmp\" \"$MARKER\"\n\nselected=\"\"\n",
+     "new": "    \"${{PBS_JOBID:-unknown}}\" \"$host\" >\"$marker_tmp\"\nuntil [[ -f \"${{MARKER}}.release\" || -n \"$MARKER\" ]]; do sleep 1; done\nmv \"$marker_tmp\" \"$MARKER\"\n\nselected=\"\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": true
+  },
+  {
+   "id": "b2-alias",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "    \"${{PBS_JOBID:-unknown}}\" \"$host\" >\"$marker_tmp\"\nmv \"$marker_tmp\" \"$MARKER\"\n\nselected=\"\"\n",
+     "new": "    \"${{PBS_JOBID:-unknown}}\" \"$host\" >\"$marker_tmp\"\ngate=\"$MARKER\"\nRELEASE_FILE=\"$gate.release\"\nuntil [[ -f \"$RELEASE_FILE\" || -n \"$gate\" ]]; do sleep 1; done\nmv \"$marker_tmp\" \"$MARKER\"\n\nselected=\"\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": true
+  },
+  {
+   "id": "b3-same-line",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "DISPATCHER={shlex.quote(str(dispatcher))}\nMARKER={shlex.quote(str(marker_path))}\n\nwrite_failure() {{\n",
+     "new": "DISPATCHER={shlex.quote(str(dispatcher))}\nMARKER={shlex.quote(str(marker_path))}; until [[ -f \"${{MARKER}}.release\" || -n \"$MARKER\" ]]; do sleep 1; done\n\nwrite_failure() {{\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": true
+  }
+ ]
+}
