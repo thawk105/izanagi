@@ -1,0 +1,2 @@
+hydrate(default staging) rc=0
+hydrate(job dir) rc=0
