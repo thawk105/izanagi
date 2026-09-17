@@ -2685,6 +2685,53 @@ def test_bash_login_executor_recursion_existing_denials_preserved():
         assert not ok, f"既存の重量実行・admission 拒否が壊れた: {cmd!r}"
 
 
+def test_bash_login_executor_recursion_deep_nesting_has_no_stack_limit():
+    prefix = "python3 " + "-m cProfile " * 1100
+    for tail in (
+        "-m json.tool ; pytest -q",
+        "-m pytest -q",
+    ):
+        cmd = prefix + tail
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"深い executor 越しの重量実行が login で通った: {tail!r} ({why})"
+        assert "pytest" in why, f"pytest 以外の理由で拒否された: {tail!r} ({why})"
+
+    cmd = prefix + "-m json.tool /tmp/a.json"
+    ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+    assert ok, f"深い executor の軽量形が誤拒否された: {why}"
+
+
+def test_bash_login_executor_recursion_precedes_sanctioned_allow():
+    for cmd in (
+        "python3 -m cProfile tools/run_tests.py -m pytest -q",
+        "python3 -m profile -o /tmp/p tools/run_tests.py -m pytest -q",
+    ):
+        ok, why = GB.decide(cmd, site="PEGASUS_LOGIN")
+        assert not ok, f"sanctioned 早期許可で内側の重量実行が通った: {cmd!r} ({why})"
+
+
+def test_bash_login_executor_recursion_matches_direct_form():
+    for wrapped, direct in (
+        ("python3 -m cProfile -- -m pytest", "python3 -- -m pytest"),
+        ("python3 -m cProfile /tmp/safe.py -mpytest",
+         "python3 /tmp/safe.py -mpytest"),
+        ("python3 -m cProfile -- -W pytest", "python3 -- -W pytest"),
+        ("python3 -m cProfile /tmp/safe.py", "python3 /tmp/safe.py"),
+        ("python3 -m cProfile -m pytest --collect-only",
+         "python3 -m pytest --collect-only"),
+        ("python3 -m cProfile -m json.tool /tmp/a.json",
+         "python3 -m json.tool /tmp/a.json"),
+        ("python3 -m cProfile -m pytest -q", "python3 -m pytest -q"),
+    ):
+        wrapped_ok, wrapped_why = GB.decide(wrapped, site="PEGASUS_LOGIN")
+        direct_ok, direct_why = GB.decide(direct, site="PEGASUS_LOGIN")
+        assert wrapped_ok == direct_ok, (
+            f"包み形と直接形の判定が不一致: "
+            f"wrapped={wrapped!r}, ok={wrapped_ok}, reason={wrapped_why!r}; "
+            f"direct={direct!r}, ok={direct_ok}, reason={direct_why!r}"
+        )
+
+
 def test_bash_login_pydoc_server_and_write_modes_do_not_execute_positionals():
     commands = (
         "python3 -Bmpydoc -n localhost tools/pegasus/exec_calibrate.py",
