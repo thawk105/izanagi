@@ -1,0 +1,627 @@
+{
+ "main": "b4631a92ee57227e9d1d13227896f723895bce35",
+ "load_avg": [
+  27.4599609375,
+  35.29833984375,
+  39.884765625
+ ],
+ "records": [
+  {
+   "op": "log -- <path>",
+   "path": "docs/spool/decisions/2026-08-18-dev-wave-t1086-report-receipt-2.md",
+   "rep": 0,
+   "elapsed": 16.777,
+   "rc": 0,
+   "rows": 3
+  },
+  {
+   "op": "log -- <path>",
+   "path": "docs/spool/decisions/2026-08-18-dev-wave-t1086-report-receipt-2.md",
+   "rep": 1,
+   "elapsed": 14.444,
+   "rc": 0,
+   "rows": 3
+  },
+  {
+   "op": "log -- <path>",
+   "path": "docs/spool/decisions/2026-08-18-dev-wave-t1086-report-receipt-2.md",
+   "rep": 2,
+   "elapsed": 12.75,
+   "rc": 0,
+   "rows": 3
+  },
+  {
+   "op": "log -- <path>",
+   "path": "docs/spool/failures/2026-08-18-dev-wave-t1086-report-receipt-3.md",
+   "rep": 0,
+   "elapsed": 9.608,
+   "rc": 0,
+   "rows": 3
+  },
+  {
+   "op": "log -- <path>",
+   "path": "docs/spool/failures/2026-08-18-dev-wave-t1086-report-receipt-3.md",
+   "rep": 1,
+   "elapsed": 11.922,
+   "rc": 0,
+   "rows": 3
+  },
+  {
+   "op": "log -- <path>",
+   "path": "docs/spool/failures/2026-08-18-dev-wave-t1086-report-receipt-3.md",
+   "rep": 2,
+   "elapsed": 18.782,
+   "rc": 0,
+   "rows": 3
+  },
+  {
+   "op": "log -- <path>",
+   "path": "docs/spool/worklog/2026-08-18-dev-wave-t1086-report-receipt-1.md",
+   "rep": 0,
+   "elapsed": 35.939,
+   "rc": 0,
+   "rows": 3
+  },
+  {
+   "op": "log -- <path>",
+   "path": "docs/spool/worklog/2026-08-18-dev-wave-t1086-report-receipt-1.md",
+   "rep": 1,
+   "elapsed": 21.381,
+   "rc": 0,
+   "rows": 3
+  },
+  {
+   "op": "log -- <path>",
+   "path": "docs/spool/worklog/2026-08-18-dev-wave-t1086-report-receipt-1.md",
+   "rep": 2,
+   "elapsed": 13.728,
+   "rc": 0,
+   "rows": 3
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/README.md",
+   "rep": 0,
+   "elapsed": 21.215,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/README.md",
+   "rep": 1,
+   "elapsed": 30.51,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/README.md",
+   "rep": 2,
+   "elapsed": 25.371,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-probe1.json",
+   "rep": 0,
+   "elapsed": 20.874,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-probe1.json",
+   "rep": 1,
+   "elapsed": 24.286,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-probe1.json",
+   "rep": 2,
+   "elapsed": 14.039,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v2.json",
+   "rep": 0,
+   "elapsed": 17.655,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v2.json",
+   "rep": 1,
+   "elapsed": 21.419,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v2.json",
+   "rep": 2,
+   "elapsed": 12.922,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v3-baseline-flake.json",
+   "rep": 0,
+   "elapsed": 22.631,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v3-baseline-flake.json",
+   "rep": 1,
+   "elapsed": 11.774,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v3-baseline-flake.json",
+   "rep": 2,
+   "elapsed": 10.392,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v4.json",
+   "rep": 0,
+   "elapsed": 12.452,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v4.json",
+   "rep": 1,
+   "elapsed": 15.259,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-out-v4.json",
+   "rep": 2,
+   "elapsed": 9.768,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-probe1.json",
+   "rep": 0,
+   "elapsed": 5.362,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-probe1.json",
+   "rep": 1,
+   "elapsed": 4.738,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-probe1.json",
+   "rep": 2,
+   "elapsed": 12.032,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v2.json",
+   "rep": 0,
+   "elapsed": 10.797,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v2.json",
+   "rep": 1,
+   "elapsed": 4.362,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v2.json",
+   "rep": 2,
+   "elapsed": 8.585,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v3.json",
+   "rep": 0,
+   "elapsed": 8.117,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v3.json",
+   "rep": 1,
+   "elapsed": 4.142,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/mutation-spec-v3.json",
+   "rep": 2,
+   "elapsed": 9.453,
+   "rc": 0,
+   "rows": 14
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/prereg.md",
+   "rep": 0,
+   "elapsed": 5.88,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/prereg.md",
+   "rep": 1,
+   "elapsed": 7.87,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/mutation/prereg.md",
+   "rep": 2,
+   "elapsed": 3.596,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s1-brief.md",
+   "rep": 0,
+   "elapsed": 3.318,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s1-brief.md",
+   "rep": 1,
+   "elapsed": 3.17,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s1-brief.md",
+   "rep": 2,
+   "elapsed": 9.845,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s2-plan.md",
+   "rep": 0,
+   "elapsed": 6.763,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s2-plan.md",
+   "rep": 1,
+   "elapsed": 5.185,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s2-plan.md",
+   "rep": 2,
+   "elapsed": 3.109,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s3-lensA.md",
+   "rep": 0,
+   "elapsed": 3.803,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s3-lensA.md",
+   "rep": 1,
+   "elapsed": 10.953,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s3-lensA.md",
+   "rep": 2,
+   "elapsed": 3.066,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s3-lensB.md",
+   "rep": 0,
+   "elapsed": 4.721,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s3-lensB.md",
+   "rep": 1,
+   "elapsed": 3.984,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s3-lensB.md",
+   "rep": 2,
+   "elapsed": 5.847,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s4-ruling.md",
+   "rep": 0,
+   "elapsed": 8.04,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s4-ruling.md",
+   "rep": 1,
+   "elapsed": 5.03,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s4-ruling.md",
+   "rep": 2,
+   "elapsed": 5.938,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s5-author.md",
+   "rep": 0,
+   "elapsed": 3.079,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s5-author.md",
+   "rep": 1,
+   "elapsed": 8.046,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s5-author.md",
+   "rep": 2,
+   "elapsed": 9.235,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s6-fix.md",
+   "rep": 0,
+   "elapsed": 3.057,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s6-fix.md",
+   "rep": 1,
+   "elapsed": 4.567,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s6-fix.md",
+   "rep": 2,
+   "elapsed": 4.149,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s6-fix2.md",
+   "rep": 0,
+   "elapsed": 3.187,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s6-fix2.md",
+   "rep": 1,
+   "elapsed": 6.43,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s6-fix2.md",
+   "rep": 2,
+   "elapsed": 5.595,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s6-reviewA.md",
+   "rep": 0,
+   "elapsed": 3.637,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s6-reviewA.md",
+   "rep": 1,
+   "elapsed": 1.954,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s6-reviewA.md",
+   "rep": 2,
+   "elapsed": 3.277,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s6-reviewB.md",
+   "rep": 0,
+   "elapsed": 2.746,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s6-reviewB.md",
+   "rep": 1,
+   "elapsed": 2.07,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s6-reviewB.md",
+   "rep": 2,
+   "elapsed": 2.468,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s7-preadopt.md",
+   "rep": 0,
+   "elapsed": 2.929,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s7-preadopt.md",
+   "rep": 1,
+   "elapsed": 7.663,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log -- <path>",
+   "path": "output/insights/2026-08-18_t1086-report-receipt/verbatim/s7-preadopt.md",
+   "rep": 2,
+   "elapsed": 6.595,
+   "rc": 0,
+   "rows": 12
+  },
+  {
+   "op": "log --find-object",
+   "blob": "1144e7e85bbd7d6f5e8dd4e8008f0669048bd782",
+   "rep": 0,
+   "elapsed": 17.499,
+   "rc": 0,
+   "rows": 0
+  },
+  {
+   "op": "log --find-object",
+   "blob": "1144e7e85bbd7d6f5e8dd4e8008f0669048bd782",
+   "rep": 1,
+   "elapsed": 20.756,
+   "rc": 0,
+   "rows": 0
+  },
+  {
+   "op": "log --find-object",
+   "blob": "1144e7e85bbd7d6f5e8dd4e8008f0669048bd782",
+   "rep": 2,
+   "elapsed": 11.342,
+   "rc": 0,
+   "rows": 0
+  },
+  {
+   "op": "cherry",
+   "oid": "cd066a0487af0376fac76bcfb58b2c4462f9085d",
+   "rep": 0,
+   "elapsed": 6.865,
+   "rc": 0
+  },
+  {
+   "op": "cherry",
+   "oid": "cd066a0487af0376fac76bcfb58b2c4462f9085d",
+   "rep": 1,
+   "elapsed": 2.851,
+   "rc": 0
+  },
+  {
+   "op": "cherry",
+   "oid": "cd066a0487af0376fac76bcfb58b2c4462f9085d",
+   "rep": 2,
+   "elapsed": 2.432,
+   "rc": 0
+  }
+ ],
+ "summary": {
+  "log -- <path>": {
+   "n": 69,
+   "min": 1.954,
+   "median": 7.87,
+   "max": 35.939
+  },
+  "log --find-object": {
+   "n": 3,
+   "min": 11.342,
+   "median": 17.499,
+   "max": 20.756
+  },
+  "cherry": {
+   "n": 3,
+   "min": 2.432,
+   "median": 2.851,
+   "max": 6.865
+  }
+ }
+}
