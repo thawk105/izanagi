@@ -5318,6 +5318,19 @@ def test_git_timeout_preserves_nonzero_result(
     assert result.stderr == b"git stderr sentinel\n"
 
 
+@pytest.mark.parametrize("rc", [0, 23], ids=["success", "nonzero"])
+def test_t2613_git_stdin_reaches_process(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, rc: int) -> None:
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    git = bin_dir / "git"
+    git.write_text(f"#!/bin/sh\ncat\nprintf 'stderr sentinel' >&2\nexit {rc}\n")
+    git.chmod(0o755)
+    monkeypatch.setenv("PATH", str(bin_dir) + os.pathsep + os.environ.get("PATH", ""))
+    payload = b"line\n\0bytes\xff"
+    result = R._git(tmp_path, ("stdin-sentinel",), input_bytes=payload)
+    assert (result.returncode, result.stdout, result.stderr) == (rc, payload, b"stderr sentinel")
+
+
 def test_git_timeout_default_reaches_subprocess_run(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -7323,6 +7336,248 @@ def test_attempt_registry_rejects_second_root_in_full_history(tmp_path: Path) ->
     assert _run(repo, "checkout", "-q", "-").returncode == 0
     with pytest.raises(R.TrialRegistryError, match=r"alternate attempt registry genesis"):
         R.load_attempt_registry(repo)
+
+
+def _t2613_git(repo: Path, *args: str, data: bytes | None = None) -> bytes:
+    result = R._git(repo, args, input_bytes=data)
+    assert result.returncode == 0, result.stderr
+    return result.stdout
+
+
+def _t2613_index(repo: Path, mode: str, data: bytes, path: str) -> str:
+    oid = _t2613_git(repo, "hash-object", "-w", "--stdin", data=data).decode().strip()
+    _t2613_git(repo, "update-index", "--add", "--cacheinfo", f"{mode},{oid},{path}")
+    _t2613_git(repo, "commit", "-q", "-m", "index entry")
+    return oid
+
+
+def _t2613_alternative(data: bytes) -> bytes:
+    rows = [json.loads(line) for line in data.splitlines()]
+    rows[0]["freeze_id"] += "-a-longer-independent-freeze"
+    _rechain_attempt_rows(rows)
+    result = b"".join(_canonical(row) + b"\n" for row in rows)
+    R._load_attempt_registry_bytes(result)
+    assert len(result) > len(data) and not result.startswith(data)
+    return result
+
+
+def _t2613_merge(repo: Path, alternate: bytes | None = None) -> None:
+    branch = _t2613_git(repo, "branch", "--show-current").decode().strip()
+    _t2613_git(repo, "checkout", "-q", "-b", "side")
+    side = repo / "side.txt"
+    side.write_bytes(b"side")
+    _commit(repo, "side", side)
+    _t2613_git(repo, "checkout", "-q", branch)
+    main = repo / "main.txt"
+    main.write_bytes(b"main")
+    _commit(repo, "main", main)
+    _t2613_git(repo, "merge", "--no-ff", "--no-commit", "side")
+    if alternate is not None:
+        path = repo / "merge-only.jsonl"
+        path.write_bytes(alternate)
+        _t2613_git(repo, "add", "--", path.name)
+    _t2613_git(repo, "commit", "-q", "-m", "merge")
+
+
+@pytest.mark.parametrize("case", ["append-merge", "gitlink", "symlink-target", "unusual-path"])
+def test_t2613_history_accepts(tmp_path: Path, case: str) -> None:
+    repo, _, _, registry, p, c, freeze, slots = _attempt_fixture(tmp_path)
+    if case == "append-merge":
+        for slot in slots[:2]:
+            _reserve_attempt(repo, registry, p, c, freeze, slot)
+            _commit(repo, "append", registry)
+        _t2613_merge(repo)
+    elif case == "gitlink":
+        _t2613_git(repo, "update-index", "--add", "--cacheinfo", "160000," + "e" * 40 + ",submodule")
+        _t2613_git(repo, "commit", "-q", "-m", "gitlink with missing target")
+    elif case == "symlink-target":
+        (repo / "link").symlink_to(R.DEFAULT_ATTEMPT_REGISTRY_PATH)
+        _commit(repo, "symlink path string", repo / "link")
+    else:
+        path = repo / ":odd\tline\n日本語"
+        path.write_bytes(b"harmless\0payload\n")
+        _commit(repo, "unusual path", path)
+        path.chmod(0o755)
+        _commit(repo, "mode only", path)
+    assert R._assert_attempt_registry_history_append_only(
+        repository_root=repo, current_bytes=registry.read_bytes(),
+    ) == registry.read_bytes()
+
+
+@pytest.mark.parametrize("case", [
+    "alternate-ref", "delete-recreate", "non-prefix", "copy-same-oid",
+    "symlink-bytes", "root-only", "merge-only", "type-change", "invalid-utf8",
+    "working-prefix", "canonical-schema", "canonical-gitlink-mode",
+])
+def test_t2613_history_rejects(tmp_path: Path, case: str) -> None:
+    repo, _, _, registry, _, _, _, _ = _attempt_fixture(tmp_path)
+    original = registry.read_bytes()
+    working = original
+    expected = "alternate attempt registry genesis"
+    if case in ("root-only", "canonical-schema"):
+        repo = tmp_path / "isolated"
+        repo.mkdir()
+        _t2613_git(repo, "init", "-q")
+        _t2613_git(repo, "config", "user.name", "Fixture")
+        _t2613_git(repo, "config", "user.email", "fixture@example.invalid")
+        if case == "root-only":
+            _t2613_git(repo, "config", "log.showRoot", "false")
+            alternate = repo / "root-only.jsonl"
+            alternate.write_bytes(original)
+            _commit(repo, "root alternate", alternate)
+            _t2613_git(repo, "rm", "root-only.jsonl")
+            _t2613_git(repo, "commit", "-q", "-m", "remove alternate")
+        else:
+            registry = repo / R.DEFAULT_ATTEMPT_REGISTRY_PATH
+            registry.parent.mkdir(parents=True)
+            registry.write_bytes(original[:-1])
+            _commit(repo, "first canonical missing LF", registry)
+            expected = "newline|LF|line"
+    elif case == "alternate-ref":
+        _t2613_git(repo, "checkout", "-q", "-b", "alternate")
+        _t2613_index(repo, "100644", _t2613_alternative(original), "alternate.jsonl")
+        _t2613_git(repo, "checkout", "-q", "-")
+    elif case == "delete-recreate":
+        _t2613_git(repo, "rm", "--", R.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix())
+        _t2613_git(repo, "commit", "-q", "-m", "delete")
+        registry.parent.mkdir(parents=True, exist_ok=True)
+        registry.write_bytes(original)
+        _commit(repo, "recreate", registry)
+        expected = "canonical attempt registry was deleted"
+    elif case in ("non-prefix", "working-prefix"):
+        working = _t2613_alternative(original)
+        if case == "non-prefix":
+            registry.write_bytes(working)
+            _commit(repo, "non-prefix", registry)
+            expected = "not a strict prefix extension"
+        else:
+            expected = "working attempt registry does not extend"
+    elif case == "copy-same-oid":
+        oid = _t2613_index(repo, "100644", original, "copy.jsonl")
+        assert oid == _t2613_git(repo, "rev-parse", "HEAD:" + R.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix()).decode().strip()
+    elif case == "symlink-bytes":
+        _t2613_index(repo, "120000", original, "symlink-json")
+    elif case == "merge-only":
+        _t2613_merge(repo, original)
+    elif case == "type-change":
+        _t2613_index(repo, "120000", b"ordinary-target", "changed")
+        _t2613_index(repo, "100644", original, "changed")
+    elif case == "invalid-utf8":
+        with open(os.fsencode(repo) + b"/invalid-\xff", "wb") as stream:
+            stream.write(b"harmless")
+        _t2613_git(repo, "add", "--", os.fsdecode(b"invalid-\xff"))
+        _t2613_git(repo, "commit", "-q", "-m", "invalid path")
+        expected = "attempt tree path is not valid UTF-8"
+    else:
+        _t2613_index(repo, "160000", original, R.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix())
+        expected = "canonical attempt registry was deleted"
+    with pytest.raises(R.TrialRegistryError, match=expected):
+        R._assert_attempt_registry_history_append_only(repository_root=repo, current_bytes=working)
+
+
+@pytest.mark.parametrize("first", ["alternate", "canonical", "same-commit", "path"])
+def test_t2613_history_error_order(tmp_path: Path, first: str) -> None:
+    repo, _, _, registry, _, _, _, _ = _attempt_fixture(tmp_path)
+    original = registry.read_bytes()
+    bad = _t2613_alternative(original)
+    alternate = repo / "alternate.jsonl"
+    if first == "alternate":
+        alternate.write_bytes(original)
+        _commit(repo, "alternate first", alternate)
+    registry.write_bytes(bad)
+    paths = [registry]
+    if first == "same-commit":
+        alternate.write_bytes(original)
+        paths.append(alternate)
+    if first == "path":
+        with open(os.fsencode(repo) + b"/bad-\xff", "wb") as stream:
+            stream.write(b"ordinary")
+        _t2613_git(repo, "add", "--", os.fsdecode(b"bad-\xff"))
+    _commit(repo, "canonical change", *paths)
+    if first == "canonical":
+        alternate.write_bytes(original)
+        _commit(repo, "alternate later", alternate)
+    expected = {"alternate": "alternate attempt", "path": "not valid UTF-8"}.get(first, "not a strict prefix")
+    with pytest.raises(R.TrialRegistryError, match=expected):
+        R._assert_attempt_registry_history_append_only(repository_root=repo, current_bytes=bad)
+
+
+def test_t2613_raw_argv_disables_signature_output() -> None:
+    assert "--no-show-signature" in R._ATTEMPT_HISTORY_RAW_ARGS
+
+
+def test_t2613_batch_default_cap_is_256_mib() -> None:
+    assert R._ATTEMPT_BATCH_MAX_BYTES == 256 * 1024 * 1024
+
+
+def test_t2613_batch_rejects_last_chunk_genesis(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _t2613_git(repo, "init", "-q")
+    _t2613_git(repo, "config", "user.name", "Fixture")
+    _t2613_git(repo, "config", "user.email", "fixture@example.invalid")
+    genesis = b'{"event":"freeze","schema_version":"p3-8c-attempt-registry/v3"}\n'
+    # One root fixes raw entry order independently of commit timestamp ties.
+    harmless, alternate = repo / "a-harmless", repo / "z-alternate.jsonl"
+    harmless.write_bytes(b"ordinary")
+    alternate.write_bytes(genesis)
+    _commit(repo, "root entries", harmless, alternate)
+    calls = []
+    real = R._git
+    def observe(root, args, **kwargs):
+        result = real(root, args, **kwargs)
+        if tuple(args) == ("cat-file", "--batch"):
+            calls.append(result.stdout)
+        return result
+    monkeypatch.setattr(R, "_git", observe)
+    with pytest.raises(R.TrialRegistryError, match="alternate attempt registry genesis"):
+        R._assert_attempt_registry_history_append_only(repository_root=repo, batch_max_bytes=1)
+    assert len(calls) >= 2 and genesis in calls[-1]
+    assert all(genesis not in chunk for chunk in calls[:-1])
+
+
+@pytest.mark.parametrize("case", ["boundary", "last-single", "oversized", "empty"])
+def test_t2613_batch_chunks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str) -> None:
+    repo, _ = _init_repo(tmp_path)
+    payloads = [b"a\0\n", b"b\n\0", b"cde"] if case != "empty" else [b"", b"other"]
+    oids = [_t2613_git(repo, "hash-object", "-w", "--stdin", data=data).decode().strip() for data in payloads]
+    records = R._attempt_batch_check(repo, oids)
+    cost = 52  # Header, three body bytes, terminal LF.
+    cap = {"boundary": cost * 3, "last-single": cost * 2, "oversized": 1, "empty": 100}[case]
+    calls = []
+    real = R._git
+    def observe(root, args, **kwargs):
+        result = real(root, args, **kwargs)
+        if tuple(args) == ("cat-file", "--batch"):
+            calls.append((kwargs["input_bytes"], len(result.stdout)))
+        return result
+    monkeypatch.setattr(R, "_git", observe)
+    actual = list(R._attempt_batch_objects(repo, records, cap))
+    assert [(oid, data) for oid, data, _ in actual] == list(zip(oids, payloads))
+    assert len(calls) == {"boundary": 1, "last-single": 2, "oversized": 3, "empty": 2}[case]
+    if case == "boundary":
+        assert calls[0][1] == cap
+    if case in ("last-single", "oversized"):
+        assert len(calls[-1][0].splitlines()) == 1
+
+
+@pytest.mark.parametrize("case", ["check-missing-line", "body-truncated"])
+def test_t2613_batch_rejects_incomplete_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str) -> None:
+    repo, _, _, registry, _, _, _, _ = _attempt_fixture(tmp_path)
+    real = R._git
+    injected = []
+    def truncate(root, args, **kwargs):
+        result = real(root, args, **kwargs)
+        target = "--batch-check" if case == "check-missing-line" else "--batch"
+        if tuple(args) == ("cat-file", target):
+            injected.append(True)
+            data = result.stdout.rsplit(b"\n", 2)[0] + b"\n" if target == "--batch-check" else result.stdout[:-1]
+            return subprocess.CompletedProcess(result.args, result.returncode, data, result.stderr)
+        return result
+    monkeypatch.setattr(R, "_git", truncate)
+    with pytest.raises(R.TrialRegistryError, match="attempt tree blob cannot be read"):
+        R._assert_attempt_registry_history_append_only(repository_root=repo, current_bytes=registry.read_bytes())
+    assert injected
 
 
 def test_attempt_registry_replays_legacy_v1_registry_after_v2_upgrade(
