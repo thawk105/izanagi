@@ -138,4 +138,5 @@ family admission は `revs / O / phase1 / warm` だけが `admitted=true` (2 job
 - wave 所要: 06:20 JST 起動 → 段 5 author 06:52–07:16、fix1 07:19–07:23、fix2 07:27–07:30、計算ノード job 1 07:24–07:26、job 2 07:30–07:39、段 6 レビュー 07:41–。
 - Codex 子: plan 1、consult 2、author 1、fix 2、review 2。計算ノード job 2 (各 150 秒)。
 - 段 6 レビューの所見と裁定は `verbatim/s6-revA.md`、`verbatim/s6-revB.md`、`verbatim/s6-review-ruling.md`。
+- 逐語の bytes は正規化していない: `verbatim/patch-*.md` と `receipts/*.diff.txt` は unified diff の書式上、空行を表す行が半角空白 1 個で終わる (`git diff --check` が 259 行の末尾空白を報告する。`receipts/compute-*-dispatch.log` の PBS 罫線 2 行も同じ)。可視文字は不変で、sha256 は `verbatim/MANIFEST.json` / `receipts/MANIFEST.json` に記録した。原本は job dir。
 - sha256: probe `6ffae7beaa263fca7b769a6ef90e5d0273241793451c57b917bd837bcd96a61f` (38,745 bytes)、revS `8ccb4c59e467253c73f90f27b0891f5f67ba66311e9a65ca261582282580db50` (86,721)、abort 無条件版 `f0b48d2cd66712c87974634c0ce337c03536152632a766f3772bed3ac26d0130` (86,612)、job 2 受領証 `receipts/probe-result-2.json` (4,321,412 bytes)。
