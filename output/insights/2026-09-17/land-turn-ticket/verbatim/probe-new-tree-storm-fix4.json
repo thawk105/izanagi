@@ -1,0 +1,726 @@
+{
+ "repo": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-land-turn-ticket",
+ "head": "abc7085ae6e1a69dc294c4f827ed7949e6df5305",
+ "has_turn": true,
+ "policies": {
+  "storm-e": {
+   "policy": {
+    "arrivals": [
+     0.0,
+     20.0,
+     40.0,
+     60.0,
+     80.0,
+     100.0,
+     120.0,
+     140.0,
+     160.0,
+     180.0,
+     200.0,
+     220.0,
+     240.0
+    ],
+    "locked_seconds": 240.0,
+    "audit_seconds": 430.0,
+    "gate_seconds": 130.0,
+    "retry_delay": 120.0,
+    "horizon": 4560.0
+   },
+   "n": 13,
+   "landed": [
+    0
+   ],
+   "main_unchanged": false,
+   "main_before": "cb692ef5136f9086ebca5600b599784f817c0146",
+   "main_after": "be82fa94f3539877bdeef1fc24261718d669e521",
+   "final": [
+    {
+     "index": 0,
+     "rc": 0,
+     "status": "landed",
+     "waited_s": 0.0,
+     "reason": "main fast-forwarded to the tested wave tip"
+    },
+    {
+     "index": 1,
+     "rc": 10,
+     "status": "stale-main",
+     "waited_s": 0.0,
+     "reason": "main moved outside the tested audited closure while locking"
+    },
+    {
+     "index": 2,
+     "rc": 10,
+     "status": "stale-main",
+     "waited_s": 0.0,
+     "reason": "main moved outside the tested audited closure while locking"
+    },
+    {
+     "index": 3,
+     "rc": 11,
+     "status": "lock-busy",
+     "waited_s": null,
+     "reason": "waiting for land turn (seq=4, ahead=1); turn_waited_s=3599.999, turn_elapsed_s=3600.000, turn_limit_s=3600.000"
+    },
+    {
+     "index": 4,
+     "rc": 11,
+     "status": "lock-busy",
+     "waited_s": null,
+     "reason": "waiting for land turn (seq=5, ahead=2); turn_waited_s=3599.999, turn_elapsed_s=3600.000, turn_limit_s=3600.000"
+    },
+    {
+     "index": 5,
+     "rc": 11,
+     "status": "lock-busy",
+     "waited_s": null,
+     "reason": "waiting for land turn (seq=6, ahead=2); turn_waited_s=3599.999, turn_elapsed_s=3600.000, turn_limit_s=3600.000"
+    },
+    {
+     "index": 6,
+     "rc": 11,
+     "status": "lock-busy",
+     "waited_s": null,
+     "reason": "waiting for land turn (seq=7, ahead=2); turn_waited_s=3599.999, turn_elapsed_s=3600.000, turn_limit_s=3600.000"
+    },
+    {
+     "index": 7,
+     "rc": 11,
+     "status": "lock-busy",
+     "waited_s": null,
+     "reason": "waiting for land turn (seq=8, ahead=2); turn_waited_s=3599.999, turn_elapsed_s=3600.000, turn_limit_s=3600.000"
+    },
+    {
+     "index": 8,
+     "rc": 11,
+     "status": "lock-busy",
+     "waited_s": null,
+     "reason": "waiting for land turn (seq=9, ahead=2); turn_waited_s=3599.999, turn_elapsed_s=3600.000, turn_limit_s=3600.000"
+    },
+    {
+     "index": 9,
+     "rc": 11,
+     "status": "lock-busy",
+     "waited_s": null,
+     "reason": "waiting for land turn (seq=10, ahead=2); turn_waited_s=3599.999, turn_elapsed_s=3600.000, turn_limit_s=3600.000"
+    },
+    {
+     "index": 10,
+     "rc": 11,
+     "status": "lock-busy",
+     "waited_s": null,
+     "reason": "waiting for land turn (seq=11, ahead=2); turn_waited_s=3599.999, turn_elapsed_s=3600.000, turn_limit_s=3600.000"
+    },
+    {
+     "index": 11,
+     "rc": 11,
+     "status": "lock-busy",
+     "waited_s": null,
+     "reason": "waiting for land turn (seq=12, ahead=3); turn_waited_s=3599.999, turn_elapsed_s=3600.000, turn_limit_s=3600.000"
+    },
+    {
+     "index": 12,
+     "rc": 11,
+     "status": "lock-busy",
+     "waited_s": null,
+     "reason": "waiting for land turn (seq=13, ahead=4); turn_waited_s=3599.999, turn_elapsed_s=3600.000, turn_limit_s=3600.000"
+    }
+   ],
+   "trace_counts": {
+    "grant": 54,
+    "registered": 37,
+    "registered-start": 37,
+    "registered-return": 37,
+    "acquire": 18,
+    "preflight-enter-start": 18,
+    "preflight-enter-return": 18,
+    "sleep-start": 46580,
+    "sleep-return": 46580,
+    "preflight-exit-start": 17,
+    "preflight-exit-return": 17,
+    "release": 18,
+    "audit-start": 1,
+    "audit-return": 1,
+    "before-mutation-start": 1,
+    "before-mutation-return": 1,
+    "mutation": 1,
+    "result": 26,
+    "retry-start": 24,
+    "retry-return": 24
+   },
+   "results_timeline": [
+    [
+     910.001,
+     0,
+     0,
+     0.0
+    ],
+    [
+     1150.001,
+     1,
+     10,
+     0.0
+    ],
+    [
+     1390.001,
+     2,
+     10,
+     0.0
+    ],
+    [
+     1630.002,
+     1,
+     10,
+     0.0
+    ],
+    [
+     1870.002,
+     2,
+     10,
+     0.0
+    ],
+    [
+     2110.0029999999997,
+     1,
+     10,
+     0.0
+    ],
+    [
+     2350.0029999999997,
+     2,
+     10,
+     0.0
+    ],
+    [
+     2590.004,
+     1,
+     10,
+     0.0
+    ],
+    [
+     2830.004,
+     2,
+     10,
+     0.0
+    ],
+    [
+     3070.005,
+     1,
+     10,
+     0.0
+    ],
+    [
+     3310.005,
+     2,
+     10,
+     0.0
+    ],
+    [
+     3550.0060000000003,
+     1,
+     10,
+     0.0
+    ],
+    [
+     3660.0,
+     3,
+     11,
+     null
+    ],
+    [
+     3680.0,
+     4,
+     11,
+     null
+    ],
+    [
+     3700.0,
+     5,
+     11,
+     null
+    ],
+    [
+     3720.0,
+     6,
+     11,
+     null
+    ],
+    [
+     3740.0,
+     7,
+     11,
+     null
+    ],
+    [
+     3760.0,
+     8,
+     11,
+     null
+    ],
+    [
+     3780.0,
+     9,
+     11,
+     null
+    ],
+    [
+     3790.0060000000003,
+     2,
+     10,
+     0.0
+    ],
+    [
+     3800.0,
+     10,
+     11,
+     null
+    ],
+    [
+     3820.0,
+     11,
+     11,
+     null
+    ],
+    [
+     3840.0,
+     12,
+     11,
+     null
+    ],
+    [
+     4030.0070000000005,
+     1,
+     10,
+     0.0
+    ],
+    [
+     4270.0070000000005,
+     2,
+     10,
+     0.0
+    ],
+    [
+     4510.008000000001,
+     1,
+     10,
+     0.0
+    ]
+   ],
+   "audit_calls": 1,
+   "gate_calls": 0,
+   "wall_s": 178.6
+  },
+  "storm-d": {
+   "policy": {
+    "arrivals": [
+     0.0,
+     25.0,
+     50.0,
+     75.0,
+     100.0,
+     125.0,
+     150.0,
+     175.0
+    ],
+    "locked_seconds": 200.0,
+    "audit_seconds": 430.0,
+    "gate_seconds": 130.0,
+    "retry_delay": 180.0,
+    "horizon": 4560.0
+   },
+   "n": 8,
+   "landed": [
+    0
+   ],
+   "main_unchanged": false,
+   "main_before": "b67384700bdee88be98f7941e6dbe541ca63184f",
+   "main_after": "348eb37c319d4d77158be8afbaacb62e9c31ad43",
+   "final": [
+    {
+     "index": 0,
+     "rc": 0,
+     "status": "landed",
+     "waited_s": 0.0,
+     "reason": "main fast-forwarded to the tested wave tip"
+    },
+    {
+     "index": 1,
+     "rc": 10,
+     "status": "stale-main",
+     "waited_s": 0.0,
+     "reason": "main moved outside the tested audited closure while locking"
+    },
+    {
+     "index": 2,
+     "rc": 10,
+     "status": "stale-main",
+     "waited_s": 0.0,
+     "reason": "main moved outside the tested audited closure while locking"
+    },
+    {
+     "index": 3,
+     "rc": 11,
+     "status": "lock-busy",
+     "waited_s": null,
+     "reason": "waiting for land turn (seq=4, ahead=1); turn_waited_s=3599.999, turn_elapsed_s=3600.000, turn_limit_s=3600.000"
+    },
+    {
+     "index": 4,
+     "rc": 11,
+     "status": "lock-busy",
+     "waited_s": null,
+     "reason": "waiting for land turn (seq=5, ahead=1); turn_waited_s=3599.999, turn_elapsed_s=3600.000, turn_limit_s=3600.000"
+    },
+    {
+     "index": 5,
+     "rc": 11,
+     "status": "lock-busy",
+     "waited_s": null,
+     "reason": "waiting for land turn (seq=6, ahead=1); turn_waited_s=3599.999, turn_elapsed_s=3600.000, turn_limit_s=3600.000"
+    },
+    {
+     "index": 6,
+     "rc": 11,
+     "status": "lock-busy",
+     "waited_s": null,
+     "reason": "waiting for land turn (seq=7, ahead=1); turn_waited_s=3599.999, turn_elapsed_s=3600.000, turn_limit_s=3600.000"
+    },
+    {
+     "index": 7,
+     "rc": 11,
+     "status": "lock-busy",
+     "waited_s": null,
+     "reason": "waiting for land turn (seq=8, ahead=1); turn_waited_s=3599.999, turn_elapsed_s=3600.000, turn_limit_s=3600.000"
+    }
+   ],
+   "trace_counts": {
+    "grant": 50,
+    "registered": 30,
+    "registered-start": 30,
+    "registered-return": 30,
+    "acquire": 21,
+    "preflight-enter-start": 21,
+    "preflight-enter-return": 21,
+    "sleep-start": 23400,
+    "sleep-return": 23400,
+    "preflight-exit-start": 21,
+    "preflight-exit-return": 21,
+    "release": 21,
+    "audit-start": 1,
+    "audit-return": 1,
+    "before-mutation-start": 1,
+    "before-mutation-return": 1,
+    "mutation": 1,
+    "result": 24,
+    "retry-start": 22,
+    "retry-return": 22
+   },
+   "results_timeline": [
+    [
+     830.001,
+     0,
+     0,
+     0.0
+    ],
+    [
+     1030.001,
+     1,
+     10,
+     0.0
+    ],
+    [
+     1230.001,
+     2,
+     10,
+     0.0
+    ],
+    [
+     1430.002,
+     1,
+     10,
+     0.0
+    ],
+    [
+     1630.002,
+     2,
+     10,
+     0.0
+    ],
+    [
+     1830.003,
+     1,
+     10,
+     0.0
+    ],
+    [
+     2030.003,
+     2,
+     10,
+     0.0
+    ],
+    [
+     2230.004,
+     1,
+     10,
+     0.0
+    ],
+    [
+     2430.004,
+     2,
+     10,
+     0.0
+    ],
+    [
+     2630.005,
+     1,
+     10,
+     0.0
+    ],
+    [
+     2830.005,
+     2,
+     10,
+     0.0
+    ],
+    [
+     3030.0060000000003,
+     1,
+     10,
+     0.0
+    ],
+    [
+     3230.0060000000003,
+     2,
+     10,
+     0.0
+    ],
+    [
+     3430.0070000000005,
+     1,
+     10,
+     0.0
+    ],
+    [
+     3630.0070000000005,
+     2,
+     10,
+     0.0
+    ],
+    [
+     3675.0,
+     3,
+     11,
+     null
+    ],
+    [
+     3700.0,
+     4,
+     11,
+     null
+    ],
+    [
+     3725.0,
+     5,
+     11,
+     null
+    ],
+    [
+     3750.0,
+     6,
+     11,
+     null
+    ],
+    [
+     3775.0,
+     7,
+     11,
+     null
+    ],
+    [
+     3830.0080000000007,
+     1,
+     10,
+     0.0
+    ],
+    [
+     4030.0080000000007,
+     2,
+     10,
+     0.0
+    ],
+    [
+     4230.009000000001,
+     1,
+     10,
+     0.0
+    ],
+    [
+     4430.009000000001,
+     2,
+     10,
+     0.0
+    ]
+   ],
+   "audit_calls": 1,
+   "gate_calls": 0,
+   "wall_s": 63.7
+  },
+  "plain": {
+   "policy": {
+    "arrivals": [
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0,
+     0.0
+    ],
+    "locked_seconds": 2.0,
+    "audit_seconds": 120.0,
+    "gate_seconds": 20.0,
+    "retry_delay": null,
+    "horizon": 4560.0
+   },
+   "n": 8,
+   "landed": [
+    0
+   ],
+   "main_unchanged": false,
+   "main_before": "48bcbe8469c125cde90cb29ba7bdd25ca88563f0",
+   "main_after": "9ef1bd13fe72505b245f9bccf9fe2099b4b283cc",
+   "final": [
+    {
+     "index": 0,
+     "rc": 0,
+     "status": "landed",
+     "waited_s": 0.0,
+     "reason": "main fast-forwarded to the tested wave tip"
+    },
+    {
+     "index": 1,
+     "rc": 10,
+     "status": "stale-main",
+     "waited_s": 0.0,
+     "reason": "main moved outside the tested audited closure while locking"
+    },
+    {
+     "index": 2,
+     "rc": 10,
+     "status": "stale-main",
+     "waited_s": 0.0,
+     "reason": "main moved outside the tested audited closure while locking"
+    },
+    {
+     "index": 3,
+     "rc": 10,
+     "status": "stale-main",
+     "waited_s": 0.0,
+     "reason": "main moved outside the tested audited closure while locking"
+    },
+    {
+     "index": 4,
+     "rc": 10,
+     "status": "stale-main",
+     "waited_s": 0.0,
+     "reason": "main moved outside the tested audited closure while locking"
+    },
+    {
+     "index": 5,
+     "rc": 10,
+     "status": "stale-main",
+     "waited_s": 0.0,
+     "reason": "main moved outside the tested audited closure while locking"
+    },
+    {
+     "index": 6,
+     "rc": 10,
+     "status": "stale-main",
+     "waited_s": 0.0,
+     "reason": "main moved outside the tested audited closure while locking"
+    },
+    {
+     "index": 7,
+     "rc": 10,
+     "status": "stale-main",
+     "waited_s": 0.0,
+     "reason": "main moved outside the tested audited closure while locking"
+    }
+   ],
+   "trace_counts": {
+    "grant": 17,
+    "registered": 8,
+    "registered-start": 8,
+    "registered-return": 8,
+    "acquire": 9,
+    "preflight-enter-start": 9,
+    "preflight-enter-return": 9,
+    "sleep-start": 910,
+    "sleep-return": 910,
+    "preflight-exit-start": 9,
+    "preflight-exit-return": 9,
+    "release": 9,
+    "audit-start": 1,
+    "audit-return": 1,
+    "before-mutation-start": 1,
+    "before-mutation-return": 1,
+    "mutation": 1,
+    "result": 8
+   },
+   "results_timeline": [
+    [
+     124.001,
+     0,
+     0,
+     0.0
+    ],
+    [
+     126.001,
+     1,
+     10,
+     0.0
+    ],
+    [
+     128.001,
+     2,
+     10,
+     0.0
+    ],
+    [
+     130.001,
+     3,
+     10,
+     0.0
+    ],
+    [
+     132.001,
+     4,
+     10,
+     0.0
+    ],
+    [
+     134.001,
+     5,
+     10,
+     0.0
+    ],
+    [
+     136.001,
+     6,
+     10,
+     0.0
+    ],
+    [
+     138.001,
+     7,
+     10,
+     0.0
+    ]
+   ],
+   "audit_calls": 1,
+   "gate_calls": 0,
+   "wall_s": 17.1
+  }
+ }
+}

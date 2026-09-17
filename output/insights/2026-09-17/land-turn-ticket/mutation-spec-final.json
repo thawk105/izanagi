@@ -1,0 +1,441 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 2700,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "id": "m0-equivalent",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "def _land_lock_now() -> float:\n    return time.monotonic()",
+     "new": "def _land_lock_now() -> float:\n    # Equivalent comment-only control.\n    return time.monotonic()"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "        granted, waited, ahead = _wait_land_turn(repository, lock)",
+     "new": "        granted, waited, ahead = True, 0.0, 0"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_completed_same_key_reentry_is_done[finalized]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_eight_requests_complete_in_sequence",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_independent_waves_one_lands_rest_stale",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_stale_head_rotates_behind_waiters"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "                turn.seq = entry[\"seq\"]",
+     "new": "                turn.seq = registry[\"next_seq\"]\n                registry[\"next_seq\"] += 1"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_deleted_gitlink_recovery_requires_worktree_and_nested_metadata_absent",
+    "orchestrator/tests/test_dev_wave_land.py::test_gitlink_change_lands_but_cannot_report_success_before_d16_sync",
+    "orchestrator/tests/test_dev_wave_land.py::test_gitlink_to_normal_blob_recovery_preserves_target_entry",
+    "orchestrator/tests/test_dev_wave_land.py::test_gitlink_to_normal_tree_recovery_preserves_target_entry",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_completed_same_key_reentry_is_done[ff-done]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_completed_same_key_reentry_is_done[finalized]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_recovery_precedes_successor",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_red_head_hands_over_atomically[timeout]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_retry_preserves_sequence",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_stale_head_rotates_behind_waiters",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_subprocess_death_releases_successor",
+    "orchestrator/tests/test_dev_wave_land.py::test_merge_child_inherits_lock_fd_if_helper_is_killed"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "        except BlockingIOError:\n            return True\n        return False",
+     "new": "        except BlockingIOError:\n            return time.time() - os.fstat(fd).st_mtime < _LAND_TURN_WAIT_SECONDS\n        return False"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_live_owner_is_not_expired"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m4a",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "            _land_turn_mutating(\n                repository, plan=plan, main_before=locked_main, landing_tip=landing_tip,",
+     "new": "            None if True else _land_turn_mutating(\n                repository, plan=plan, main_before=locked_main, landing_tip=landing_tip,"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_dead_mutating_resolved_by_observation[ff-done]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_dead_mutating_resolved_by_observation[rolled-back]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_eight_requests_complete_in_sequence",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_independent_waves_one_lands_rest_stale",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_mutation_rechecks_owner[ff-wave]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_mutation_rechecks_owner[ff]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_mutation_rechecks_owner[fold]"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m4b",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "        _land_turn_mutating(\n            repository, plan=plan, main_before=rollback_ref, landing_tip=tested_tip,",
+     "new": "        None if True else _land_turn_mutating(\n            repository, plan=plan, main_before=rollback_ref, landing_tip=landing_tip,"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_mutation_rechecks_owner[fold]"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m4c1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "        if phase == \"applied\":\n            before_mutation()\n            plan = fold.mark_fold_committed(",
+     "new": "        if phase == \"applied\":\n            plan = fold.mark_fold_committed("
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_mutation_rechecks_owner[shape-b-mark-fd]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_mutation_rechecks_owner[shape-b-mark-ticket]"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m4c2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "    try:\n        before_mutation()\n        fold.finalize_fold(repository.main, plan, fold_commit=fold_commit)",
+     "new": "    try:\n        fold.finalize_fold(repository.main, plan, fold_commit=fold_commit)"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_mutation_rechecks_owner[shape-b]"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m5a",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "        if record[\"phase\"] == \"mutating\":\n            recovery.append(key)",
+     "new": "        if record[\"phase\"] == \"mutating\":\n            del registry[\"requests\"][key]\n            continue"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_completed_same_key_reentry_is_done[ff-done]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_completed_same_key_reentry_is_done[finalized]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_dead_mutating_resolved_by_observation[rolled-back]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_dead_mutating_two_observers_do_not_duplicate_records",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_recovery_precedes_successor"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m5b",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "    state = repository.common / _FOLD_STATE_NAME\n    if os.path.lexists(state):",
+     "new": "    with _turn_registry(repository, turn) as registry:\n        registry[\"requests\"].pop(key, None)\n        if registry[\"grant\"] == key:\n            registry[\"grant\"] = None\n        _turn_select(turn, registry)\n    return\n    state = repository.common / _FOLD_STATE_NAME\n    if os.path.lexists(state):"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_deleted_gitlink_recovery_requires_worktree_and_nested_metadata_absent",
+    "orchestrator/tests/test_dev_wave_land.py::test_gitlink_change_lands_but_cannot_report_success_before_d16_sync",
+    "orchestrator/tests/test_dev_wave_land.py::test_gitlink_to_normal_blob_recovery_preserves_target_entry",
+    "orchestrator/tests/test_dev_wave_land.py::test_gitlink_to_normal_tree_recovery_preserves_target_entry",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_completed_same_key_reentry_is_done[ff-done]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_completed_same_key_reentry_is_done[finalized]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_dead_mutating_resolved_by_observation[rolled-back]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_dead_mutating_two_observers_do_not_duplicate_records",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_mutation_rechecks_owner[shape-b-mark-fd]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_mutation_rechecks_owner[shape-b-mark-ticket]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_mutation_rechecks_owner[shape-b]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_recovery_precedes_successor"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m6a",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "    acquired, waited = _acquire_land_lock_until_turn(repository, lock, remaining_wait_s)",
+     "new": "    acquired, waited = (\n        _acquire_land_lock(repository, lock, _land_lock_now() + max(0.0, remaining_wait_s))\n        if isinstance(payload, _ProvenanceReceipt)\n        else _acquire_land_lock_until_turn(repository, lock, remaining_wait_s)\n    )"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_cumulative_wait_budget_arithmetic_uses_production_timeouts",
+    "orchestrator/tests/test_dev_wave_land.py::test_cumulative_wait_budget_exhausted_before_attempt_reason",
+    "orchestrator/tests/test_dev_wave_land.py::test_cumulative_wait_budget_provenance_does_not_refill",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_lock_polling_stops_at_shared_deadline",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_invalidates_changed_inputs[collision]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_invalidates_changed_inputs[fold-state]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_invalidates_changed_inputs[main]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_invalidates_changed_inputs[tip]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_preserves_evidence_after_lock_budget[provenance]"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m6b",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "    acquired, waited = _acquire_land_lock_until_turn(repository, lock, remaining_wait_s)",
+     "new": "    acquired, waited = (\n        _acquire_land_lock(repository, lock, _land_lock_now() + max(0.0, remaining_wait_s))\n        if not isinstance(payload, _ProvenanceReceipt)\n        else _acquire_land_lock_until_turn(repository, lock, remaining_wait_s)\n    )"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_cumulative_wait_budget_fold_does_not_refill",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_preserves_evidence_after_lock_budget[fold]"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m7a-survive-control",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "                if refreshed_fingerprint != initial_fingerprint:",
+     "new": "                if False and refreshed_fingerprint != initial_fingerprint:"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_post_provenance_head_change_preserves_provenance_rejection_order",
+    "orchestrator/tests/test_dev_wave_land.py::test_provenance_audit_detects_removed_ignored_collision",
+    "orchestrator/tests/test_dev_wave_land.py::test_provenance_audit_still_rejects_moved_land_heads[main]",
+    "orchestrator/tests/test_dev_wave_land.py::test_provenance_audit_still_rejects_moved_land_heads[wave]",
+    "orchestrator/tests/test_dev_wave_land.py::test_provenance_receipt_rejects_tip_that_moves_during_audit"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m7b-survive-control",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "                    if refreshed_fingerprint != initial_gate_fingerprint:",
+     "new": "                    if False and refreshed_fingerprint != initial_gate_fingerprint:"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "                if not protected:\n                    continue",
+     "new": "                if not protected:\n                    pass"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_basic_land_accepts_registered_claude_and_codex_children",
+    "orchestrator/tests/test_dev_wave_land.py::test_colliding_untracked_rejected_without_main_or_foreign_artifact_change",
+    "orchestrator/tests/test_dev_wave_land.py::test_foreign_handoff_appearing_mid_flight_is_still_rejected",
+    "orchestrator/tests/test_dev_wave_land.py::test_foreign_handoff_disappearing_mid_flight_is_still_rejected",
+    "orchestrator/tests/test_dev_wave_land.py::test_foreign_handoff_edited_in_place_around_status_does_not_block_land",
+    "orchestrator/tests/test_dev_wave_land.py::test_foreign_handoff_of_any_shape_does_not_block_land",
+    "orchestrator/tests/test_dev_wave_land.py::test_handoff_directory_replacement_around_status_is_still_rejected",
+    "orchestrator/tests/test_dev_wave_land.py::test_handoff_readme_remains_a_landable_target",
+    "orchestrator/tests/test_dev_wave_land.py::test_ignored_registered_container_and_unrelated_cache_are_accepted",
+    "orchestrator/tests/test_dev_wave_land.py::test_ignored_unrelated_unregistered_container_child_is_accepted",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_ignores_unrelated_child_cleanup_race",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_dead_mutating_resolved_by_observation[ff-done]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_dead_mutating_resolved_by_observation[finalized]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_dead_mutating_resolved_by_observation[rolled-back]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_eight_requests_complete_in_sequence",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_independent_waves_one_lands_rest_stale",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_recovery_precedes_successor",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_stale_head_rotates_behind_waiters",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_subprocess_death_releases_successor",
+    "orchestrator/tests/test_dev_wave_land.py::test_main_fold_resync_reaches_no_fold_and_declared_fold_consumers",
+    "orchestrator/tests/test_dev_wave_land.py::test_nested_untracked_under_foreign_handoff_directory",
+    "orchestrator/tests/test_dev_wave_land.py::test_noncolliding_foreign_session_untracked_does_not_block_land",
+    "orchestrator/tests/test_dev_wave_land.py::test_post_land_is_not_failed_by_foreign_handoff_activity",
+    "orchestrator/tests/test_dev_wave_land.py::test_provenance_audit_accepts_unrelated_worktree_appearing",
+    "orchestrator/tests/test_dev_wave_land.py::test_provenance_audit_accepts_unrelated_worktree_disappearing",
+    "orchestrator/tests/test_dev_wave_land.py::test_same_base_two_wave_winner_stale_resync_loser_land_e2e",
+    "orchestrator/tests/test_dev_wave_land.py::test_unregistered_unrelated_alias_child_is_accepted",
+    "orchestrator/tests/test_dev_wave_land.py::test_unrelated_container_child_bytes_are_ignored",
+    "orchestrator/tests/test_dev_wave_land.py::test_unrelated_control_plane_replacement_after_collision_inspection_is_accepted",
+    "orchestrator/tests/test_dev_wave_land.py::test_unrelated_control_plane_replacement_around_status_is_accepted"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m9",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "        if not _same_inode(os.fstat(repository.wave_fd), os.fstat(wave_fd)):",
+     "new": "        if False and not _same_inode(os.fstat(repository.wave_fd), os.fstat(wave_fd)):"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_mutation_rechecks_owner[ff-wave]"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m11",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "        except _Reject as exc:\n            raise _Reject(\n                exc.rc, exc.reason,\n                release_safe=not exc.retryable_same_request,\n                retryable_same_request=exc.retryable_same_request,\n            ) from exc",
+     "new": "        except _Reject:\n            registered_verification = _AcceptanceVerification(\n                hashlib.sha256(_read_acceptance_receipt(request.acceptance_receipt)).hexdigest(),\n                \"child-green\", (), (),\n            )"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_land_child_green_runner_lookup_process_failure_is_retryable",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_runner_gate_uses_tested_main_after_main_reaches_tip",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_rejects_invalid_acceptance_before_registration[child_rc]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_rejects_invalid_acceptance_before_registration[runner_executed_sha256]",
+    "orchestrator/tests/test_dev_wave_land.py::test_main_tip_runner_divergence_reaches_retryable_checker_lookup_failure",
+    "orchestrator/tests/test_dev_wave_land.py::test_provenance_checker_missing_and_symlink_components_are_rejected_clean"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m12",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "        _turn_select(turn, registry)  # Release and handoff are one registry update.",
+     "new": "        _turn_save_registry(turn, registry)\n        _turn_select(turn, registry)"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_red_head_hands_over_atomically[red]",
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_red_head_hands_over_atomically[timeout]"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m13",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "    if isinstance(payload, _ProvenanceReceipt) and payload.returncode != 0:",
+     "new": "    if False and isinstance(payload, _ProvenanceReceipt) and payload.returncode != 0:"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_red_provenance_fails_fast"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m14",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "            entry[\"order\"] = registry[\"next_seq\"] - 1",
+     "new": "            pass  # M14: retain pre-grant scheduling order."
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_land.py::test_land_turn_stale_head_rotates_behind_waiters"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m10-global-prune",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "        _remove_admin(args, common, admin, snapshot)\n",
+     "new": "        subprocess.run(\n            [\"git\", \"worktree\", \"prune\", \"--expire=now\"],\n            cwd=args.main_worktree, check=True,\n        )\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_journal_publication_never_overwrites_final",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[None-HEAD]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[None-admin-directory]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[None-gitdir]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[bytes-HEAD]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[bytes-admin-directory]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[bytes-gitdir]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[inode-HEAD]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[inode-admin-directory]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[inode-gitdir]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[lock-HEAD]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[lock-admin-directory]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[lock-gitdir]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_preserves_foreign_stale_admin[stale]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[admin-remove-c]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_unpublished_admin_journal_reenters[linked]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_unpublished_admin_journal_reenters[publish]",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_unpublished_admin_journal_reenters[write]"
+   ],
+   "expected_status": "KILLED"
+  }
+ ]
+}

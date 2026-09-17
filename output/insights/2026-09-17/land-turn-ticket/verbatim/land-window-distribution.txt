@@ -1,0 +1,135 @@
+total=468
+status=landed n=234 with_window=34 median=272.5 p90=543.4 max=1180.5
+status=lock-busy n=94 with_window=62 median=180.0 p90=461.1 max=825.4
+status=success n=60 with_window=0
+status=rejected n=36 with_window=3 median=107.0 p90=107.0 max=476.6
+status=stale-main n=28 with_window=9 median=65.2 p90=188.8 max=229.3
+status=fold-gate-failed n=10 with_window=4 median=322.2 p90=332.5 max=378.4
+status=fold-failed n=4 with_window=1 median=412.1 p90=412.1 max=412.1
+status=fold-rollback-failed n=1 with_window=0
+status=planned n=1 with_window=0
+--- landed windows (date, window_elapsed_s, waited_s) newest 40 ---
+09-14 17:19    371.3      0.0 dev-wave-t1851-c3c-protocol-binding
+09-16 12:24   1180.5    154.0 dev-wave-t2670-b7-three-run-materials
+09-16 12:47    256.2      0.0 dev-wave-t2621-land-budget-closure
+09-16 17:46    415.7      0.0 dev-wave-t2640-unreachable-ledger
+09-16 20:23    543.4    171.8 dev-wave-t1907-backoff-v1-patch-freeze
+09-16 20:23    543.4    171.8 dev-wave-t1907-backoff-v1-patch-freeze
+09-16 22:25    386.3     74.7 dev-wave-t2647-b10-tail-results
+09-16 22:25    386.3     74.7 dev-wave-t2647-b10-tail-results
+09-16 23:19    211.2      0.0 dev-wave-t785-legacy-cache-key
+09-16 23:32    206.7      0.0 dev-wave-t2635-high-band-control-feasibility
+09-16 23:32    206.7      0.0 dev-wave-t2635-high-band-control-feasibility
+09-16 23:38    209.9      0.0 dev-wave-t2482-scope-wording
+09-16 23:44    189.5      0.0 land
+09-16 23:51    266.1      0.0 dev-wave-t2237-sort-cache-twin-close
+09-16 23:51    266.1      0.0 dev-wave-t2237-sort-cache-twin-close
+09-17 00:11    403.8      0.0 dev-wave-t2698-official-floor-resubmit
+09-17 00:22    191.9      0.0 dev-wave-t080-accept-speed
+09-17 00:34    609.3      0.0 dev-wave-t2630-scan-boundary-reach
+09-17 02:03    762.0      0.0 dev-wave-t2288-floor-spec-prereqs
+09-17 02:32    369.8      0.0 dev-wave-t2502-k2-coder-role-conditional
+09-17 02:32    369.8      0.0 dev-wave-t2502-k2-coder-role-conditional
+09-17 02:39    337.7      5.7 dev-wave-t1209-verifier-identity
+09-17 02:58    414.9      0.0 dev-wave-t2153-witness-else-nested
+09-17 03:07    285.4      0.0 dev-wave-t2228-screening-liveness
+09-17 03:15    279.0      0.0 dev-wave-paper-story-20260917
+09-17 03:20    219.0      0.0 dev-wave-t2644-ss2pl-wfg-connect
+09-17 03:31    208.5      0.0 dev-wave-t2035-axis1-openalex-window5
+09-17 03:36    198.4      0.0 dev-wave-t2590-a1-sized-source-contract
+09-17 03:44    197.6      0.0 dev-wave-t2724-freeze-v2-g1-candidate
+09-17 03:53    194.5      0.0 dev-wave-t2632-b4-prerun-issue-caller
+09-17 03:59    198.3      0.0 dev-wave-t1449-certified-correctness-gate
+09-17 04:06    208.4      0.0 dev-wave-t2067-exact-launch-validated
+09-17 04:25    186.1      0.0 dev-wave-t2723-floor-cell-admission
+09-17 06:50    753.8      0.0 rulings-all-20260917
+landed n=34 min=186.1 median=272.5 p90=543.4 max=1180.5
+--- 2026-09-16 20:30-23:00 ---
+09-16 20:00 lock-busy              we=551.6525814919733 ws=180.0005775638856 dev-wave-t785-legacy-cache-key
+09-16 20:04 lock-busy              we=351.8778069829568 ws=180.00606126105413 land
+09-16 20:06 lock-busy              we=342.4129706081003 ws=180.01386396586895 dev-wave-t785-legacy-cache-key
+09-16 20:09 lock-busy              we=180.00277626491152 ws=180.00272094318643 land
+09-16 20:11 lock-busy              we=255.9120307120029 ws=180.00161341880448 dev-wave-t785-legacy-cache-key
+09-16 20:13 lock-busy              we=180.00134644191712 ws=180.00130676687695 dev-wave-t1907-backoff-v1-patch-freeze
+09-16 20:13 stale-main             we=39.86799703189172 ws=23.735199593007565 dev-wave-t785-legacy-cache-key
+09-16 20:13 stale-main             we=188.84020176297054 ws=170.96352769294754 land
+09-16 20:17 lock-busy              we=180.0039645859506 ws=180.00391940702684 dev-wave-t785-legacy-cache-key
+09-16 20:21 lock-busy              we=180.00041628605686 ws=180.00035944604315 dev-wave-t785-legacy-cache-key
+09-16 20:23 lock-busy              we=550.215361132985 ws=180.00031371298246 land
+09-16 20:23 lock-busy              we=180.00360076804645 ws=180.00354255991988 dev-wave-t2237-sort-cache-twin-close
+09-16 20:23 landed                 we=543.3586552699562 ws=171.76535173482262 dev-wave-t1907-backoff-v1-patch-freeze
+09-16 20:23 landed                 we=543.3586552699562 ws=171.76535173482262 dev-wave-t1907-backoff-v1-patch-freeze
+09-16 20:23 success                we=None ws=None dev-wave-t1907-backoff-v1-patch-freeze
+09-16 20:24 stale-main             we=90.61299254884943 ws=76.09381153993309 dev-wave-t785-legacy-cache-key
+09-16 20:26 stale-main             we=65.2483345088549 ws=13.761761229019612 land
+09-16 20:28 lock-busy              we=180.0117055498995 ws=180.01166045386344 dev-wave-t2237-sort-cache-twin-close
+09-16 20:29 lock-busy              we=180.00290639791638 ws=180.00285102287307 dev-wave-t785-legacy-cache-key
+09-16 20:29 rejected               we=18.679371528094634 ws=17.697804877068847 dev-wave-t2237-sort-cache-twin-close
+09-16 20:33 lock-busy              we=180.00257348106243 ws=180.00251899915747 dev-wave-t785-legacy-cache-key
+09-16 20:34 lock-busy              we=452.3638562869746 ws=180.00285106804222 land
+09-16 20:37 lock-busy              we=180.0038256701082 ws=180.00377919105813 dev-wave-t785-legacy-cache-key
+09-16 20:38 lock-busy              we=460.7503956591245 ws=180.018409057986 dev-wave-t2237-sort-cache-twin-close
+09-16 20:39 lock-busy              we=180.00498533295467 ws=180.0049438669812 land
+09-16 20:47 fold-gate-failed       we=378.3990817500744 ws=38.14021745696664 dev-wave-t2237-sort-cache-twin-close
+09-16 20:47 fold-gate-failed       we=332.48657883307897 ws=65.58044880907983 land
+09-16 20:49 success                we=None ws=None land
+09-16 20:54 lock-busy              we=180.00255496194586 ws=180.00249673286453 land
+09-16 20:56 lock-busy              we=648.3526093859691 ws=180.0009558890015 dev-wave-t2647-b10-tail-results
+09-16 20:59 lock-busy              we=180.01655245106667 ws=180.01650996902026 land
+09-16 21:03 lock-busy              we=420.19485365995206 ws=180.00225537572987 dev-wave-t2647-b10-tail-results
+09-16 21:05 lock-busy              we=180.00278460793197 ws=180.00273758498952 land
+09-16 21:07 lock-busy              we=180.00192724308 ws=180.00187271181494 dev-wave-t2647-b10-tail-results
+09-16 21:09 lock-busy              we=180.00277639110573 ws=180.00272319302894 land
+09-16 21:10 lock-busy              we=180.00177033198997 ws=180.00170710100792 dev-wave-t2647-b10-tail-results
+09-16 21:14 lock-busy              we=180.00112398015335 ws=180.0010855779983 dev-wave-t2647-b10-tail-results
+09-16 21:15 lock-busy              we=180.0033106689807 ws=180.0032552308403 land
+09-16 21:17 lock-busy              we=180.0047043680679 ws=180.004652406089 dev-wave-t2647-b10-tail-results
+09-16 21:21 lock-busy              we=180.0024793688208 ws=180.00242742383853 dev-wave-t2647-b10-tail-results
+09-16 21:21 lock-busy              we=407.0157906729728 ws=180.00562100484967 dev-wave-t2482-scope-wording
+09-16 21:21 stale-main             we=229.25766375800595 ws=115.18298934795894 land
+09-16 21:22 stale-main             we=37.85123324696906 ws=20.319621219066903 dev-wave-t2647-b10-tail-results
+09-16 21:25 lock-busy              we=180.00130637083203 ws=180.0012474618852 dev-wave-t2635-high-band-control-feasibi
+09-16 21:28 lock-busy              we=180.00355016696267 ws=180.00349375093356 dev-wave-t2635-high-band-control-feasibi
+09-16 21:29 lock-busy              we=372.5477121779695 ws=180.0066988938488 dev-wave-t2482-scope-wording
+09-16 21:31 lock-busy              we=518.4977755188011 ws=180.0019974450115 land
+09-16 21:31 lock-busy              we=461.08569857897237 ws=180.00288345781155 dev-wave-t2647-b10-tail-results
+09-16 21:32 lock-busy              we=180.0025658600498 ws=180.00251076184213 dev-wave-t2635-high-band-control-feasibi
+09-16 21:35 lock-busy              we=338.98991206497885 ws=180.0082628428936 dev-wave-t2482-scope-wording
+09-16 21:35 lock-busy              we=180.00293156690896 ws=180.0028771548532 dev-wave-t2635-high-band-control-feasibi
+09-16 21:36 lock-busy              we=180.00303631508723 ws=180.0029956169892 land
+09-16 21:37 lock-busy              we=307.8417858739849 ws=180.00442834710702 dev-wave-t2647-b10-tail-results
+09-16 21:39 lock-busy              we=180.00526163494214 ws=180.00520777096972 dev-wave-t2482-scope-wording
+09-16 21:39 lock-busy              we=180.01367777003907 ws=180.013623038074 dev-wave-t2635-high-band-control-feasibi
+09-16 21:41 lock-busy              we=180.01364695001394 ws=180.0135913870763 dev-wave-t2647-b10-tail-results
+09-16 21:43 lock-busy              we=180.04479092010297 ws=180.04473139694892 dev-wave-t2635-high-band-control-feasibi
+09-16 21:44 lock-busy              we=180.00638197897933 ws=180.0063294430729 dev-wave-t2482-scope-wording
+09-16 21:46 lock-busy              we=180.00718892901205 ws=180.00712937302887 dev-wave-t2647-b10-tail-results
+09-16 21:46 success                we=None ws=None dev-wave-t2647-b10-tail-results
+09-16 21:49 lock-busy              we=379.9418050320819 ws=180.00781508814543 dev-wave-t2635-high-band-control-feasibi
+09-16 21:49 lock-busy              we=180.01633424707688 ws=180.01628304296173 dev-wave-t2482-scope-wording
+09-16 21:52 lock-busy              we=825.3906980641186 ws=180.00302404887043 land
+09-16 21:53 lock-busy              we=180.00374235608615 ws=180.00369077385403 dev-wave-t2647-b10-tail-results
+09-16 21:53 lock-busy              we=180.00297719892114 ws=180.00293602212332 dev-wave-t2635-high-band-control-feasibi
+09-16 21:54 lock-busy              we=180.00465781311505 ws=180.00460279802792 dev-wave-t2482-scope-wording
+09-16 21:56 lock-busy              we=180.00083061889745 ws=180.00079283397645 dev-wave-t2635-high-band-control-feasibi
+09-16 21:57 lock-busy              we=180.00391122302972 ws=180.00384922791272 dev-wave-t2647-b10-tail-results
+09-16 21:57 lock-busy              we=180.00614655413665 ws=180.0061049410142 land
+09-16 21:59 success                we=None ws=None land
+09-16 22:05 lock-busy              we=567.4918500150088 ws=180.0014884909615 dev-wave-t2482-scope-wording
+09-16 22:07 lock-busy              we=515.6586466010194 ws=180.00655448785983 dev-wave-t2647-b10-tail-results
+09-16 22:10 lock-busy              we=333.7461134279147 ws=180.0102284902241 dev-wave-t2635-high-band-control-feasibi
+09-16 22:14 lock-busy              we=404.6745074589271 ws=180.01413963595405 dev-wave-t2647-b10-tail-results
+09-16 22:18 lock-busy              we=180.00202874699607 ws=180.00199049385265 dev-wave-t2647-b10-tail-results
+09-16 22:21 lock-busy              we=309.41435055900365 ws=180.0002948078327 dev-wave-t2635-high-band-control-feasibi
+09-16 22:25 landed                 we=386.2655243019108 ws=74.69799020397477 dev-wave-t2647-b10-tail-results
+09-16 22:25 landed                 we=386.2655243019108 ws=74.69799020397477 dev-wave-t2647-b10-tail-results
+09-16 22:26 success                we=None ws=None dev-wave-t2647-b10-tail-results
+09-16 22:27 stale-main             we=56.016906874021515 ws=34.32606029207818 dev-wave-t2635-high-band-control-feasibi
+09-16 23:19 landed                 we=211.2179421989713 ws=0.0 dev-wave-t785-legacy-cache-key
+09-16 23:32 landed                 we=206.66789474408142 ws=0.0 dev-wave-t2635-high-band-control-feasibi
+09-16 23:32 landed                 we=206.66789474408142 ws=0.0 dev-wave-t2635-high-band-control-feasibi
+09-16 23:38 landed                 we=209.9310484479647 ws=0.0 dev-wave-t2482-scope-wording
+09-16 23:44 landed                 we=189.51201455807313 ws=0.0 land
+09-16 23:44 success                we=None ws=None land
+09-16 23:51 landed                 we=266.12748381192796 ws=0.0 dev-wave-t2237-sort-cache-twin-close
+09-16 23:51 landed                 we=266.12748381192796 ws=0.0 dev-wave-t2237-sort-cache-twin-close

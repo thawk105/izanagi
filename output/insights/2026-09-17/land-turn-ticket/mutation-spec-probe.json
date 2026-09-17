@@ -1,0 +1,302 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 2700,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "id": "m0-equivalent",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "def _land_lock_now() -> float:\n    return time.monotonic()",
+     "new": "def _land_lock_now() -> float:\n    # Equivalent comment-only control.\n    return time.monotonic()"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "        granted, waited, ahead = _wait_land_turn(repository, lock)",
+     "new": "        granted, waited, ahead = True, 0.0, 0"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "                turn.seq = entry[\"seq\"]",
+     "new": "                turn.seq = registry[\"next_seq\"]\n                registry[\"next_seq\"] += 1"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "        except BlockingIOError:\n            return True\n        return False",
+     "new": "        except BlockingIOError:\n            return time.time() - os.fstat(fd).st_mtime < _LAND_TURN_WAIT_SECONDS\n        return False"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m4a",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "            _land_turn_mutating(\n                repository, plan=plan, main_before=locked_main, landing_tip=landing_tip,",
+     "new": "            None if True else _land_turn_mutating(\n                repository, plan=plan, main_before=locked_main, landing_tip=landing_tip,"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m4b",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "        _land_turn_mutating(\n            repository, plan=plan, main_before=rollback_ref, landing_tip=tested_tip,",
+     "new": "        None if True else _land_turn_mutating(\n            repository, plan=plan, main_before=rollback_ref, landing_tip=landing_tip,"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m4c1",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "        if phase == \"applied\":\n            before_mutation()\n            plan = fold.mark_fold_committed(",
+     "new": "        if phase == \"applied\":\n            plan = fold.mark_fold_committed("
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m4c2",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "    try:\n        before_mutation()\n        fold.finalize_fold(repository.main, plan, fold_commit=fold_commit)",
+     "new": "    try:\n        fold.finalize_fold(repository.main, plan, fold_commit=fold_commit)"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m5a",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "        if record[\"phase\"] == \"mutating\":\n            recovery.append(key)",
+     "new": "        if record[\"phase\"] == \"mutating\":\n            del registry[\"requests\"][key]\n            continue"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m5b",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "    state = repository.common / _FOLD_STATE_NAME\n    if os.path.lexists(state):",
+     "new": "    with _turn_registry(repository, turn) as registry:\n        registry[\"requests\"].pop(key, None)\n        if registry[\"grant\"] == key:\n            registry[\"grant\"] = None\n        _turn_select(turn, registry)\n    return\n    state = repository.common / _FOLD_STATE_NAME\n    if os.path.lexists(state):"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m6a",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "    acquired, waited = _acquire_land_lock_until_turn(repository, lock, remaining_wait_s)",
+     "new": "    acquired, waited = (\n        _acquire_land_lock(repository, lock, _land_lock_now() + max(0.0, remaining_wait_s))\n        if isinstance(payload, _ProvenanceReceipt)\n        else _acquire_land_lock_until_turn(repository, lock, remaining_wait_s)\n    )"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m6b",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "    acquired, waited = _acquire_land_lock_until_turn(repository, lock, remaining_wait_s)",
+     "new": "    acquired, waited = (\n        _acquire_land_lock(repository, lock, _land_lock_now() + max(0.0, remaining_wait_s))\n        if not isinstance(payload, _ProvenanceReceipt)\n        else _acquire_land_lock_until_turn(repository, lock, remaining_wait_s)\n    )"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m7a-survive-control",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "                if refreshed_fingerprint != initial_fingerprint:",
+     "new": "                if False and refreshed_fingerprint != initial_fingerprint:"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m7b-survive-control",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "                    if refreshed_fingerprint != initial_gate_fingerprint:",
+     "new": "                    if False and refreshed_fingerprint != initial_gate_fingerprint:"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m8",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "                if not protected:\n                    continue",
+     "new": "                if not protected:\n                    pass"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m9",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "        if not _same_inode(os.fstat(repository.wave_fd), os.fstat(wave_fd)):",
+     "new": "        if False and not _same_inode(os.fstat(repository.wave_fd), os.fstat(wave_fd)):"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m11",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "        except _Reject as exc:\n            raise _Reject(\n                exc.rc, exc.reason,\n                release_safe=not exc.retryable_same_request,\n                retryable_same_request=exc.retryable_same_request,\n            ) from exc",
+     "new": "        except _Reject:\n            registered_verification = _AcceptanceVerification(\n                hashlib.sha256(_read_acceptance_receipt(request.acceptance_receipt)).hexdigest(),\n                \"child-green\", (), (),\n            )"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m12",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "        _turn_select(turn, registry)  # Release and handoff are one registry update.",
+     "new": "        _turn_save_registry(turn, registry)\n        _turn_select(turn, registry)"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m13",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "    if isinstance(payload, _ProvenanceReceipt) and payload.returncode != 0:",
+     "new": "    if False and isinstance(payload, _ProvenanceReceipt) and payload.returncode != 0:"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m14",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_land.py",
+     "old": "            entry[\"order\"] = registry[\"next_seq\"] - 1",
+     "new": "            pass  # M14: retain pre-grant scheduling order."
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m10-global-prune",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "        _remove_admin(args, common, admin, snapshot)\n",
+     "new": "        subprocess.run(\n            [\"git\", \"worktree\", \"prune\", \"--expire=now\"],\n            cwd=args.main_worktree, check=True,\n        )\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  }
+ ]
+}
