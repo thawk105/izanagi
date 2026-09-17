@@ -16,7 +16,8 @@ closed で拒否)。** これで新種の writer は列挙せずとも自動的�
 
 判定 (shlex でクォートを解決してからトークン単位で見る):
 1. 防護対象 (末端 = WAL/campaign.lock/runs/build-variants/exploration namespace
-   marker、ツリー = official / exploration campaigns、external/ccbench、hooks) がコマンドに
+   marker、ツリー = official / exploration campaigns、external/ccbench、hooks、固定の
+   発行主体 root) がコマンドに
    現れない → 即許可 (fast path、通常作業を妨げない)。
 2. 末端/防護ツリーの**パス字面**と不透明構文 ($()/バッククォート/プロセス置換/<<<
    /eval/xargs) が同居 → 分類不能 = fails-closed で拒否 (パス字面が無ければ通す —
@@ -104,6 +105,10 @@ _CAMPAIGN_TREE = (                      # 閉じた二要素集合 (子孫は末
 )
 _EXPLORATION_TREE = "output/exploration"
 _HOOKS_TREE = "hooks"
+_AUTHORITY_ROOT = "/work/1/SFC/tanab/dev-wave-authority"
+_AUTHORITY_LITERAL_RE = re.compile(
+    rf"(?<![-\w./]){re.escape(_AUTHORITY_ROOT)}"
+    r"(?=$|[/\s\"'`=,:;(){}<>|&])")
 
 # 不透明構文: 中で何が起きるかテキストから追えない。防護対象パス字面と同居したら拒否。
 # `<<` は here-doc (本文コードが追えない) と here-string `<<<` を両方捕える
@@ -129,18 +134,20 @@ _WRAPPER_VAL_RE = re.compile(r"\d+[smhd]?|\d+(?:-\d+)?(?:,\d+(?:-\d+)?)*"
 
 # ---- 読み取り専用 allowlist (末端に触れてよい head) ----
 _PURE_READERS = frozenset({
-    "cat", "tac", "grep", "egrep", "fgrep", "rg", "ag", "zgrep", "jq", "yq",
-    "head", "tail", "less", "more", "most", "wc", "nl", "cut", "tr", "od", "xxd",
-    "hexdump", "strings", "stat", "file", "ls", "dir", "vdir", "diff", "cmp",
+    "cat", "tac", "grep", "egrep", "fgrep", "zgrep", "jq",
+    "head", "tail", "more", "wc", "nl", "cut", "tr", "od",
+    "hexdump", "strings", "stat", "ls", "dir", "vdir", "diff", "cmp",
     "comm", "column", "fold", "fmt", "rev", "paste", "join", "expand", "unexpand",
     "md5sum", "sha1sum", "sha256sum", "sha512sum", "cksum", "b2sum",
     "basename", "dirname", "realpath", "readlink", "echo", "printf", "true",
     "false", "test", "pwd", "date", "seq", "cd", "pushd", "popd", "which", "type",
     # バイナリ/シンボル検査 (規律1 の nm 観測者効果検証を手でも回せるように。書き込み
     # 不能ツールなので規律2 を弱めない, 2026-07-04 敵対検証 false-positive):
-    "nm", "objdump", "readelf", "ldd", "size", "addr2line", "c++filt",
+    "objdump", "readelf", "ldd", "size", "addr2line", "c++filt",
     # ディスク使用量・圧縮読み (純読み取り, 同上):
-    "du", "zcat", "zless", "zmore", "zdiff"})
+    "du", "zcat", "zmore", "zdiff"})
+# 実体を確認できず同名実装の能力を確定できない ag/yq/most は fail-closed。
+# rg/less/zless/xxd/file/nm は安全な形を下の専用分岐で判定する。
 # git の読み取り/proof-chain 非破壊サブコマンド (checkout/restore/clean/rm/reset/
 # stash/mv は含めない → それらは head=git でも read-only 判定 False = 拒否)。
 # config も含めない: `git config -f <protected>` は書き込み invocation (GB2-4)。
@@ -768,11 +775,11 @@ def _script_executor_output_targets(module: str, args, repo_root: str) -> tuple:
     return tuple(targets)
 
 
-def _script_executor_targets(module: str, args, repo_root: str) -> tuple:
-    """後続 script/module を実行する module の全実行対象を返す。"""
+def _script_executor_arguments(module: str, args):
+    """既存 executor の副命令と option 表を両抽出器で共有する。"""
     if module in {"coverage", "coverage.__main__"}:
         if not args or args[0] != "run":
-            return ()
+            return None
         args = args[1:]
         value_options = frozenset({
             "--concurrency", "--context", "--data-file", "--include",
@@ -781,7 +788,73 @@ def _script_executor_targets(module: str, args, repo_root: str) -> tuple:
     else:
         value_options = _SCRIPT_EXECUTOR_MODULE_OPTIONS.get(module)
         if value_options is None:
-            return ()
+            return None
+    return args, value_options
+
+
+def _script_executor_program(module: str, args):
+    """内側 program を ``(kind, value, rest)`` として返す。
+
+    再帰は executor 一層を必ず消費する。密着 option を分離した正規形では
+    module は 3+len(rest) < 5+len(rest)、script は
+    2+len(rest) < 4+len(rest)、runpy の positional module は
+    3+len(rest) < 4+len(rest)。先頭 '-' の script に '--' を補っても
+    3+len(rest) < 5+len(rest) なので深さ上限は不要。
+    密着形では生 token 数が増す場合もあるが、正規形の尺度は厳密に減る。
+    """
+    if module in _MULTI_TARGET_EXECUTOR_MODULES:
+        return None
+    parsed = _script_executor_arguments(module, args)
+    if parsed is None:
+        return None
+    args, value_options = parsed
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _MODULE_HELP_OPTIONS:
+            return None
+        if module == "trace" and token == "--report":
+            return None
+        if token == "--":
+            if i + 1 >= len(args):
+                return None
+            kind = "module" if module == "runpy" else "script"
+            value, rest = args[i + 1], args[i + 2:]
+            break
+        if token in value_options:
+            if i + 1 >= len(args):
+                return None
+            if token in {"-m", "--module"}:
+                kind, value, rest = "module", args[i + 1], args[i + 2:]
+                break
+            i += 2
+            continue
+        attached = _module_option_value(token, value_options)
+        if attached is not None:
+            if any(token.startswith(opt) for opt in {"-m", "--module"}):
+                kind, value, rest = "module", attached, args[i + 1:]
+                break
+            i += 1
+            continue
+        if token.startswith("-"):
+            i += 1
+            continue
+        kind = "module" if module == "runpy" else "script"
+        value, rest = token, args[i + 1:]
+        break
+    else:
+        return None
+    if kind == "module" and not _PYTHON_MODULE_RE.fullmatch(value):
+        return None
+    return kind, value, rest
+
+
+def _script_executor_targets(module: str, args, repo_root: str) -> tuple:
+    """後続 script/module を実行する module の全実行対象を返す。"""
+    parsed = _script_executor_arguments(module, args)
+    if parsed is None:
+        return ()
+    args, value_options = parsed
 
     targets = []
     nonexecuting_mode = False
@@ -1221,6 +1294,20 @@ def _heavy_segment_violation(seg, repo_root: str, depth: int):
             if nested:
                 return nested
 
+    invocation = _python_module_invocation(head, args)
+    if invocation is not None:
+        program = _script_executor_program(*invocation)
+        if program is not None:
+            kind, value, rest = program
+            if kind == "module":
+                inner_seg = [raw_head, "-m", value, *rest]
+            else:
+                prefix = [raw_head, "--"] if value.startswith("-") else [raw_head]
+                inner_seg = [*prefix, value, *rest]
+            nested = _heavy_segment_violation(inner_seg, repo_root, depth + 1)
+            if nested:
+                return nested
+
     # `-m <他 module> … <checker>` は checker を実行しないので通すが、sanctioned だけは
     # 借りさせず以降の既存判定 (pytest 等) へ落とす。
     if (not _provenance_script_borrow(head, args)
@@ -1351,39 +1438,897 @@ def _stdin_script(head: str, args) -> bool:
     return not any(not a.startswith("-") for a in args)   # 非フラグ引数ゼロ = bare
 
 
-def _is_read_only(head: str, args, repo_root: str = "", cwd: str = "") -> bool:
-    """head が末端防護対象に触れてよい (中身を変えない) 読み取り専用操作か。"""
+_DENY_OUTPUT = "output"
+_DENY_PROGRAM = "program"
+_DENY_EXEC = "exec"
+_DENY_GENERIC = "generic"
+
+
+def _long_option(token: str, name: str, _minimum: int = 1) -> bool:
+    """GNU 長 option の `--name[=VALUE]` と非空 prefix を照合する。"""
+    spelling = token.split("=", 1)[0]
+    if not spelling.startswith("--"):
+        return False
+    prefix = spelling[2:]
+    return bool(prefix) and name[2:].startswith(prefix)
+
+
+def _before_double_dash(args):
+    """`--` より前の option 領域だけを返す。"""
+    try:
+        return args[:args.index("--")]
+    except ValueError:
+        return args
+
+
+def _option_value(args, index: int, token: str):
+    """option の `=VALUE` または次 token を返す。値なしは None。"""
+    if "=" in token:
+        return token.split("=", 1)[1], index + 1
+    if index + 1 >= len(args):
+        return None, index + 1
+    return args[index + 1], index + 2
+
+
+def _sed_delimited(script: str, start: int, delimiter: str, fields: int):
+    """sed の delimiter 区間を fields 個読み、直後の位置を返す。"""
+    i = start
+    for _ in range(fields):
+        escaped = False
+        while i < len(script):
+            char = script[i]
+            i += 1
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == delimiter:
+                break
+        else:
+            return None
+    return i
+
+
+def _sed_address(script: str, start: int):
+    """単純な sed address を読み、address でなければ同じ位置を返す。"""
+    i = start
+    if i >= len(script):
+        return i
+    if script[i].isdigit():
+        while i < len(script) and script[i].isdigit():
+            i += 1
+        return i
+    if script[i] in "+~" and i + 1 < len(script) and script[i + 1].isdigit():
+        i += 2
+        while i < len(script) and script[i].isdigit():
+            i += 1
+        return i
+    if script[i] == "$":
+        return i + 1
+    if script[i] == "/":
+        return _sed_delimited(script, i + 1, "/", 1)
+    if script[i] == "\\" and i + 1 < len(script):
+        delimiter = script[i + 1]
+        return _sed_delimited(script, i + 2, delimiter, 1)
+    return i
+
+
+def _sed_script_check(
+        script: str, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
+    """sed script を字句走査し、書き込み・実行構文と解析不能を分ける。"""
+    i = 0
+    while i < len(script):
+        while i < len(script) and (script[i].isspace() or script[i] == ";"):
+            i += 1
+        if i >= len(script):
+            return True, ""
+        if script[i] == "#":
+            newline = script.find("\n", i)
+            if newline < 0:
+                return True, ""
+            i = newline + 1
+            continue
+
+        end = _sed_address(script, i)
+        if end is None:
+            return False, _DENY_PROGRAM
+        if end != i:
+            i = end
+            if i < len(script) and script[i] in ",~":
+                end = _sed_address(script, i + 1)
+                if end is None or end == i + 1:
+                    return False, _DENY_PROGRAM
+                i = end
+        while i < len(script) and script[i].isspace():
+            i += 1
+        if i < len(script) and script[i] == "!":
+            i += 1
+            while i < len(script) and script[i].isspace():
+                i += 1
+        if i >= len(script):
+            return False, _DENY_PROGRAM
+
+        command = script[i]
+        i += 1
+        if command in "wW":
+            end = len(script)
+            for separator in (";", "\n"):
+                found = script.find(separator, i)
+                if found >= 0:
+                    end = min(end, found)
+            target = script[i:end].strip()
+            if not target:
+                return False, _DENY_PROGRAM
+            if _argument_hits_protected(
+                    target, repo_root, cwd, hooks_index,
+                    authority_cwd, authority_index):
+                return False, _DENY_OUTPUT
+            i = end
+            continue
+        if command == "e":
+            return False, _DENY_PROGRAM
+        if command in "sy":
+            if i >= len(script) or script[i].isspace() or script[i] == "\\":
+                return False, _DENY_PROGRAM
+            delimiter = script[i]
+            fields = 2
+            end = _sed_delimited(script, i + 1, delimiter, fields)
+            if end is None:
+                return False, _DENY_PROGRAM
+            i = end
+            if command == "s":
+                flag_end = i
+                while flag_end < len(script) and script[flag_end] not in ";\n":
+                    flag_end += 1
+                flags = script[i:flag_end].strip()
+                j = 0
+                while j < len(flags):
+                    if flags[j].isspace() or flags[j] in "gpIimM":
+                        j += 1
+                        continue
+                    if flags[j].isdigit():
+                        while j < len(flags) and flags[j].isdigit():
+                            j += 1
+                        continue
+                    if flags[j] == "e":
+                        return False, _DENY_PROGRAM
+                    if flags[j] == "w":
+                        target = flags[j + 1:].strip()
+                        if not target:
+                            return False, _DENY_PROGRAM
+                        if _argument_hits_protected(
+                                target, repo_root, cwd, hooks_index,
+                                authority_cwd, authority_index):
+                            return False, _DENY_OUTPUT
+                        j = len(flags)
+                        continue
+                    return False, _DENY_PROGRAM
+                i = flag_end
+            continue
+        if command in "aicrRbTt:":
+            end = len(script)
+            for separator in (";", "\n"):
+                found = script.find(separator, i)
+                if found >= 0:
+                    end = min(end, found)
+            i = end
+            continue
+        if command in "{}pPdDqQ=nNhHgGxlFvz":
+            continue
+        return False, _DENY_PROGRAM
+    return True, ""
+
+
+def _sed_read_only(
+        args, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
+    scripts = []
+    explicit = False
+    positional_script = False
+    i = 0
+    options = True
+    while i < len(args):
+        arg = args[i]
+        if options and arg == "--":
+            options = False
+            i += 1
+            continue
+        if not options:
+            # `--` 後でも wave 前から拒否していた writer 綴りは緩めない。
+            if arg == "-i" or arg.startswith("-i") \
+                    or arg.startswith("--in-place"):
+                return False, _DENY_OUTPUT
+            if not explicit and not positional_script:
+                scripts.append(arg)
+                positional_script = True
+            i += 1
+            continue
+        if (arg == "-i" or arg.startswith("-i")
+                or arg.startswith("--in-place")
+                or _long_option(arg, "--in-place", 3)):
+            return False, _DENY_OUTPUT
+        if arg == "-f" or arg.startswith("-f") or _long_option(arg, "--file", 2):
+            return False, _DENY_PROGRAM
+        if arg == "-e" or _long_option(arg, "--expression", 3):
+            if "=" in arg:
+                scripts.append(arg.split("=", 1)[1])
+                explicit = True
+                i += 1
+                continue
+            if i + 1 >= len(args):
+                return False, _DENY_PROGRAM
+            scripts.append(args[i + 1])
+            explicit = True
+            i += 2
+            continue
+        if arg.startswith("-") and arg != "-":
+            if arg.startswith("--"):
+                if arg in ("--quiet", "--silent", "--regexp-extended",
+                           "--unbuffered", "--null-data", "--separate",
+                           "--sandbox", "--posix"):
+                    i += 1
+                    continue
+                return False, _DENY_PROGRAM
+            cluster = arg[1:]
+            j = 0
+            while j < len(cluster):
+                flag = cluster[j]
+                if flag in "nErusz":
+                    j += 1
+                    continue
+                if flag == "i":
+                    return False, _DENY_OUTPUT
+                if flag == "f":
+                    return False, _DENY_PROGRAM
+                if flag == "e":
+                    value = cluster[j + 1:]
+                    if not value:
+                        if i + 1 >= len(args):
+                            return False, _DENY_PROGRAM
+                        value = args[i + 1]
+                        i += 1
+                    scripts.append(value)
+                    explicit = True
+                    j = len(cluster)
+                    continue
+                return False, _DENY_PROGRAM
+            if cluster:
+                i += 1
+                continue
+        if not explicit and not positional_script:
+            scripts.append(arg)
+            positional_script = True
+        i += 1
+    if not scripts:
+        return False, _DENY_PROGRAM
+    for script in scripts:
+        allowed, kind = _sed_script_check(
+            script, repo_root, cwd, hooks_index,
+            authority_cwd, authority_index)
+        if not allowed:
+            return False, kind
+    return True, ""
+
+
+def _awk_string(program: str, start: int):
+    """二重引用符 literal を読み、終了位置と値を返す。"""
+    value = []
+    i = start + 1
+    escapes = {"\\": "\\", '"': '"', "/": "/", "n": "\n", "r": "\r",
+               "t": "\t", "b": "\b", "f": "\f", "v": "\v"}
+    while i < len(program):
+        char = program[i]
+        if char == '"':
+            return i + 1, "".join(value)
+        if char == "\\":
+            i += 1
+            if i >= len(program):
+                return None, None
+            if program[i] in escapes:
+                value.append(escapes[program[i]])
+            elif program[i] == "x":
+                end = i + 1
+                while end < len(program) and end < i + 3 \
+                        and program[end] in "0123456789abcdefABCDEF":
+                    end += 1
+                if end == i + 1:
+                    value.append("x")
+                else:
+                    value.append(chr(int(program[i + 1:end], 16)))
+                    i = end - 1
+            elif program[i] in "01234567":
+                end = i + 1
+                while end < len(program) and end < i + 3 \
+                        and program[end] in "01234567":
+                    end += 1
+                value.append(chr(int(program[i:end], 8)))
+                i = end - 1
+            else:
+                value.append(program[i])
+        else:
+            value.append(char)
+        i += 1
+    return None, None
+
+
+def _awk_regex_end(program: str, start: int):
+    """regex literal を読み、閉じ `/` の直後を返す。"""
+    i = start + 1
+    escaped = False
+    bracket = False
+    while i < len(program):
+        char = program[i]
+        if escaped:
+            escaped = False
+        elif char == "\\":
+            escaped = True
+        elif char == "[":
+            bracket = True
+        elif char == "]" and bracket:
+            bracket = False
+        elif char == "/" and not bracket:
+            return i + 1
+        elif char == "\n":
+            return None
+        i += 1
+    return None
+
+
+def _awk_program_check(
+        program: str, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
+    """awk program の code 文脈だけで外部実行と redirection を判定する。"""
+    i = 0
+    statement = []
+    expect_operand = True
+    while i < len(program):
+        char = program[i]
+        if char in " \t\r":
+            statement.append(char)
+            i += 1
+            continue
+        if char == "\n":
+            statement = []
+            expect_operand = True
+            i += 1
+            continue
+        if char == "#":
+            newline = program.find("\n", i)
+            if newline < 0:
+                return True, ""
+            statement = []
+            expect_operand = True
+            i = newline + 1
+            continue
+        if char == '"':
+            end, _ = _awk_string(program, i)
+            if end is None:
+                return False, _DENY_PROGRAM
+            statement.append(" ")
+            expect_operand = False
+            i = end
+            continue
+        if char == "/":
+            if expect_operand:
+                end = _awk_regex_end(program, i)
+                if end is None:
+                    return False, _DENY_PROGRAM
+                statement.append(" ")
+                expect_operand = False
+                i = end
+                continue
+            statement.append(char)
+            expect_operand = True
+            i += 1
+            continue
+        if char.isalpha() or char == "_":
+            end = i + 1
+            while end < len(program) and (program[end].isalnum()
+                                           or program[end] == "_"):
+                end += 1
+            word = program[i:end]
+            following = end
+            while following < len(program) and program[following].isspace():
+                following += 1
+            if word in ("system", "close") and following < len(program) \
+                    and program[following] == "(":
+                return False, _DENY_PROGRAM
+            statement.append(word)
+            expect_operand = word in {
+                "delete", "do", "else", "for", "if", "in", "print", "printf",
+                "return", "while",
+            }
+            i = end
+            continue
+        if char.isdigit() or char == "$":
+            end = i + 1
+            while end < len(program) and (program[end].isalnum()
+                                           or program[end] in "._"):
+                end += 1
+            statement.append(program[i:end])
+            expect_operand = False
+            i = end
+            continue
+        if char == "|":
+            if i + 1 < len(program) and program[i + 1] == "|":
+                statement.append("||")
+                expect_operand = True
+                i += 2
+                continue
+            return False, _DENY_PROGRAM
+        if char == ">":
+            if i + 1 < len(program) and program[i + 1] == "=":
+                statement.append(">=")
+                expect_operand = True
+                i += 2
+                continue
+            if not re.search(r"\bprint(?:f)?\b", "".join(statement)):
+                statement.append(">")
+                expect_operand = True
+                i += 1
+                continue
+            i += 2 if i + 1 < len(program) and program[i + 1] == ">" else 1
+            while i < len(program) and program[i].isspace():
+                i += 1
+            if i >= len(program) or program[i] != '"':
+                return False, _DENY_PROGRAM
+            end, target = _awk_string(program, i)
+            if end is None:
+                return False, _DENY_PROGRAM
+            if _argument_hits_protected(
+                    target, repo_root, cwd, hooks_index,
+                    authority_cwd, authority_index):
+                return False, _DENY_OUTPUT
+            statement.append(" ")
+            expect_operand = False
+            i = end
+            continue
+        if char in ";{}":
+            statement = []
+            expect_operand = True
+            i += 1
+            continue
+        statement.append(char)
+        if char in "(,[=~!?:+-*%&":
+            expect_operand = True
+        elif char in ")]":
+            expect_operand = False
+        i += 1
+    return True, ""
+
+
+def _awk_read_only(
+        args, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
+    """inline program と option 値を一意に取り出し、危険な効果を拒否する。"""
+    program = None
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg == "--":
+            i += 1
+            if i < len(args):
+                program = args[i]
+            break
+        if (arg == "-f" or arg.startswith("-f")
+                or _long_option(arg, "--file", 2)
+                or arg == "-i" or arg.startswith("-i")
+                or arg.startswith("--include")
+                or _long_option(arg, "--include", 3)):
+            return False, _DENY_PROGRAM
+        if (arg == "-l" or arg.startswith("-l")
+                or _long_option(arg, "--load", 2)):
+            return False, _DENY_EXEC
+        output_long = next((name for name in (
+            "--pretty-print", "--profile", "--debug", "--dump-variables",
+            "--gen-pot") if _long_option(arg, name)), None)
+        if output_long is not None:
+            value = arg.split("=", 1)[1] if "=" in arg else None
+            if value is not None and _argument_hits_protected(
+                    value, repo_root, cwd, hooks_index,
+                    authority_cwd, authority_index):
+                return False, _DENY_OUTPUT
+            i += 1
+            continue
+        if (arg.startswith("-") and not arg.startswith("--")
+                and len(arg) >= 2 and arg[1] in "opD"):
+            value = arg[2:]
+            if value and _argument_hits_protected(
+                    value, repo_root, cwd, hooks_index,
+                    authority_cwd, authority_index):
+                return False, _DENY_OUTPUT
+            i += 1
+            continue
+        if arg in ("-F", "-v", "--field-separator", "--assign"):
+            if i + 1 >= len(args):
+                return False, _DENY_PROGRAM
+            i += 2
+            continue
+        if ((arg.startswith("-F") and arg != "-F")
+                or (arg.startswith("-v") and arg != "-v")
+                or arg.startswith("--field-separator=")
+                or arg.startswith("--assign=")):
+            i += 1
+            continue
+        if arg.startswith("-") and arg != "-":
+            if arg in ("-b", "-c", "-C", "-L", "-n", "-N", "-P", "-S",
+                       "-t", "--characters-as-bytes", "--traditional",
+                       "--copyright", "--lint", "--non-decimal-data",
+                       "--posix", "--use-lc-numeric", "--sandbox"):
+                i += 1
+                continue
+            return False, _DENY_PROGRAM
+        program = arg
+        break
+    if program is None:
+        return False, _DENY_PROGRAM
+    return _awk_program_check(
+        program, repo_root, cwd, hooks_index, authority_cwd, authority_index)
+
+
+def _xxd_read_only(
+        args, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
+    positionals = []
+    value_options = frozenset({"-c", "-g", "-l", "-n", "-o", "-R", "-s"})
+    long_value_options = frozenset({
+        "-cols", "-groupsize", "-len", "-name", "-offset", "-seek",
+    })
+    flag_options = frozenset({
+        "-a", "-autoskip", "-b", "-bits", "-C", "-capitalize", "-d", "-decimal",
+        "-e", "-E", "-ebcdic", "-h", "-help", "-i", "-include", "-ps", "-plain",
+        "-r", "-revert", "-u", "-upper", "-v", "-version",
+    })
+    i = 0
+    options = True
+    while i < len(args):
+        arg = args[i]
+        if options and arg == "--":
+            options = False
+            i += 1
+            continue
+        if options and arg.startswith("-") and arg != "-":
+            if arg in flag_options:
+                i += 1
+                continue
+            long_name = next((name for name in long_value_options
+                              if arg == name or arg.startswith(name)), None)
+            if long_name is not None:
+                if arg == long_name:
+                    if i + 1 >= len(args):
+                        return False, _DENY_PROGRAM
+                    i += 2
+                else:
+                    i += 1
+                continue
+            if arg in value_options:
+                if i + 1 >= len(args):
+                    return False, _DENY_PROGRAM
+                i += 2
+                continue
+            if arg[:2] in value_options and len(arg) > 2:
+                i += 1
+                continue
+            return False, _DENY_PROGRAM
+        positionals.append(arg)
+        i += 1
+    if len(positionals) < 2:
+        return True, ""
+    if len(positionals) > 2:
+        return False, _DENY_PROGRAM
+    if _argument_hits_protected(
+            positionals[1], repo_root, cwd, hooks_index,
+            authority_cwd, authority_index):
+        return False, _DENY_OUTPUT
+    return True, ""
+
+
+def _git_read_only(
+        args, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
+    # legacy の sub 決定を維持し、既存 deny を allow へ反転させない。
+    sub_index = next((i for i, arg in enumerate(args)
+                      if not arg.startswith("-")), None)
+    sub = args[sub_index] if sub_index is not None else ""
+    prefix = args[:sub_index] if sub_index is not None else args
+    if (any(arg == "-c" or arg.startswith("-c") for arg in prefix)
+            or any(_long_option(arg, "--config-env", 4) for arg in prefix)
+            or any(arg in ("-p", "--paginate") for arg in prefix)):
+        return False, _DENY_EXEC
+    if sub not in _GIT_READ_SUBS:
+        return False, _DENY_GENERIC
+    rest = _before_double_dash(args[sub_index + 1:])
+    if sub in ("log", "diff", "show", "whatchanged"):
+        i = 0
+        while i < len(rest):
+            arg = rest[i]
+            if _long_option(arg, "--output", 3):
+                value, next_i = _option_value(rest, i, arg)
+                if value is None:
+                    return False, _DENY_PROGRAM
+                if _argument_hits_protected(
+                        value, repo_root, cwd, hooks_index,
+                        authority_cwd, authority_index):
+                    return False, _DENY_OUTPUT
+                i = next_i
+                continue
+            i += 1
+        if any(_long_option(arg, "--ext-diff", 3)
+               or _long_option(arg, "--textconv", 4) for arg in rest):
+            return False, _DENY_EXEC
+    if sub == "grep":
+        if any(arg == "-O" or arg.startswith("-O")
+               or _long_option(arg, "--open-files-in-pager", 4)
+               or _long_option(arg, "--textconv", 4) for arg in rest):
+            return False, _DENY_EXEC
+    if sub == "cat-file" and any(
+            _long_option(arg, "--filters", 3)
+            or _long_option(arg, "--textconv", 4) for arg in rest):
+        return False, _DENY_EXEC
+    return True, ""
+
+
+def _find_read_only(
+        args, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
+    option_args = args
+    if any(arg in ("-exec", "-execdir", "-ok", "-okdir")
+           for arg in option_args):
+        return False, _DENY_EXEC
+    if "-delete" in option_args:
+        return False, _DENY_OUTPUT
+    i = 0
+    while i < len(option_args):
+        arg = option_args[i]
+        if arg.startswith("-fprint"):
+            return False, _DENY_OUTPUT
+        if arg == "-fls":
+            if i + 1 >= len(option_args):
+                return False, _DENY_PROGRAM
+            if _argument_hits_protected(
+                    option_args[i + 1], repo_root, cwd, hooks_index,
+                    authority_cwd, authority_index):
+                return False, _DENY_OUTPUT
+            i += 2
+            continue
+        i += 1
+    return True, ""
+
+
+def _sort_read_only(
+        args, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
+    option_args = _before_double_dash(args)
+    safe_flags = frozenset("bdfghiMmnRrsuVz")
+    value_flags = frozenset("kSt")
+    i = 0
+    while i < len(option_args):
+        arg = option_args[i]
+        if arg.startswith("--"):
+            if _long_option(arg, "--compress-program"):
+                return False, _DENY_EXEC
+            output_name = next((name for name in (
+                "--output", "--temporary-directory")
+                if _long_option(arg, name)), None)
+            if output_name is not None:
+                value, next_i = _option_value(option_args, i, arg)
+                if value is None:
+                    return False, _DENY_PROGRAM
+                if _argument_hits_protected(
+                        value, repo_root, cwd, hooks_index,
+                        authority_cwd, authority_index):
+                    return False, _DENY_OUTPUT
+                i = next_i
+                continue
+            i += 1
+            continue
+        if not arg.startswith("-") or arg == "-":
+            i += 1
+            continue
+        cluster = arg[1:]
+        j = 0
+        while j < len(cluster):
+            flag = cluster[j]
+            if flag in safe_flags:
+                j += 1
+                continue
+            if flag in value_flags or flag in "oT":
+                value = cluster[j + 1:]
+                if not value:
+                    if i + 1 >= len(option_args):
+                        return False, _DENY_PROGRAM
+                    value = option_args[i + 1]
+                    i += 1
+                if flag in "oT" and _argument_hits_protected(
+                        value, repo_root, cwd, hooks_index,
+                        authority_cwd, authority_index):
+                    return False, _DENY_OUTPUT
+                j = len(cluster)
+                continue
+            return False, _DENY_PROGRAM
+        i += 1
+    return True, ""
+
+
+def _file_read_only(
+        args, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
+    option_args = _before_double_dash(args)
+    compile_magic = False
+    magic_files = []
+    safe_flags = frozenset("bcdEhilkLNnprSsZ0vz")
+    value_flags = frozenset("eFfP")
+    i = 0
+    while i < len(option_args):
+        arg = option_args[i]
+        if arg.startswith("--"):
+            if _long_option(arg, "--compile"):
+                compile_magic = True
+            elif _long_option(arg, "--magic-file"):
+                value, next_i = _option_value(option_args, i, arg)
+                if value is None:
+                    return False, _DENY_PROGRAM
+                magic_files.append(value)
+                i = next_i
+                continue
+            i += 1
+            continue
+        if not arg.startswith("-") or arg == "-":
+            i += 1
+            continue
+        cluster = arg[1:]
+        j = 0
+        while j < len(cluster):
+            flag = cluster[j]
+            if flag == "C":
+                compile_magic = True
+                j += 1
+                continue
+            if flag == "m" or flag in value_flags:
+                value = cluster[j + 1:]
+                if not value:
+                    if i + 1 >= len(option_args):
+                        return False, _DENY_PROGRAM
+                    value = option_args[i + 1]
+                    i += 1
+                if flag == "m":
+                    magic_files.append(value)
+                j = len(cluster)
+                continue
+            if flag in safe_flags:
+                j += 1
+                continue
+            return False, _DENY_PROGRAM
+        i += 1
+    if compile_magic and any(_argument_hits_protected(
+            value, repo_root, cwd, hooks_index,
+            authority_cwd, authority_index) for value in magic_files):
+        return False, _DENY_OUTPUT
+    return True, ""
+
+
+def _less_read_only(
+        args, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None):
+    option_args = _before_double_dash(args)
+    safe_flags = frozenset("aABcCdDeEfFgGhHiIJKLMmnNqQrRsSuUVwWX~")
+    value_flags = frozenset("jkPtxyz#")
+    i = 0
+    while i < len(option_args):
+        arg = option_args[i]
+        if arg.startswith("--"):
+            log_name = next((name for name in ("--log-file", "--LOG-FILE")
+                             if _long_option(arg, name)), None)
+            if log_name is not None:
+                value, next_i = _option_value(option_args, i, arg)
+                if value is None:
+                    return False, _DENY_PROGRAM
+                if _argument_hits_protected(
+                        value, repo_root, cwd, hooks_index,
+                        authority_cwd, authority_index):
+                    return False, _DENY_OUTPUT
+                i = next_i
+                continue
+            i += 1
+            continue
+        if not arg.startswith("-") or arg == "-":
+            i += 1
+            continue
+        cluster = arg[1:]
+        j = 0
+        while j < len(cluster):
+            flag = cluster[j]
+            if flag in "oO" or flag in value_flags:
+                value = cluster[j + 1:]
+                if not value:
+                    if i + 1 >= len(option_args):
+                        return False, _DENY_PROGRAM
+                    value = option_args[i + 1]
+                    i += 1
+                if flag in "oO" and _argument_hits_protected(
+                        value, repo_root, cwd, hooks_index,
+                        authority_cwd, authority_index):
+                    return False, _DENY_OUTPUT
+                j = len(cluster)
+                continue
+            if flag in safe_flags:
+                j += 1
+                continue
+            return False, _DENY_PROGRAM
+        i += 1
+    return True, ""
+
+
+def _read_only_check(
+        head: str, args, repo_root: str = "", cwd: str = "",
+        hooks_index=None, authority_cwd: str = "", authority_index=None):
+    """末端防護対象に触れる操作の可否と拒否原因分類を返す。"""
     if head in _PURE_READERS:
-        return True
+        return True, ""
     if head == "dd":
-        # dd if=WAL of=/tmp (読み) は許可、of= が末端 (書き) なら拒否
-        return not any(a.startswith("of=") and (
-            _LEAF_RE.search(a) or _namespace_marker_violation(a, repo_root, cwd)
-        ) for a in args)
+        for arg in args:
+            if arg.startswith("of=") and _argument_hits_protected(
+                    arg.split("=", 1)[1], repo_root, cwd, hooks_index,
+                    authority_cwd, authority_index):
+                return False, _DENY_OUTPUT
+        return True, ""
     if head == "find":
-        return not any(a in ("-delete", "-exec", "-execdir", "-ok", "-okdir")
-                       or a.startswith("-fprint") for a in args)
+        return _find_read_only(
+            args, repo_root, cwd, hooks_index, authority_cwd, authority_index)
     if head == "sed":
-        return not any(a == "-i" or a.startswith("-i") or a.startswith("--in-place")
-                       for a in args)
+        return _sed_read_only(
+            args, repo_root, cwd, hooks_index, authority_cwd, authority_index)
     if head in ("awk", "gawk", "mawk"):
-        return "-i" not in args and not any(a.startswith("--include") for a in args)
+        return _awk_read_only(
+            args, repo_root, cwd, hooks_index, authority_cwd, authority_index)
     if head == "sort":
-        return not any(a in ("-o", "--output") or a.startswith("-o")
-                       or a.startswith("--output=") for a in args)
+        return _sort_read_only(
+            args, repo_root, cwd, hooks_index, authority_cwd, authority_index)
     if head == "git":
-        sub = next((a for a in args if not a.startswith("-")), "")
-        return sub in _GIT_READ_SUBS
+        return _git_read_only(
+            args, repo_root, cwd, hooks_index, authority_cwd, authority_index)
+    if head == "xxd":
+        return _xxd_read_only(
+            args, repo_root, cwd, hooks_index, authority_cwd, authority_index)
+    if head == "file":
+        return _file_read_only(
+            args, repo_root, cwd, hooks_index, authority_cwd, authority_index)
+    if head == "nm":
+        if any(_long_option(arg, "--plugin", 4)
+               for arg in _before_double_dash(args)):
+            return False, _DENY_EXEC
+        return True, ""
+    if head == "rg":
+        if any(_long_option(arg, "--pre")
+               or _long_option(arg, "--hostname-bin")
+               for arg in _before_double_dash(args)):
+            return False, _DENY_EXEC
+        return True, ""
+    if head in ("less", "zless"):
+        return _less_read_only(
+            args, repo_root, cwd, hooks_index, authority_cwd, authority_index)
     if head in _INTERP:
         # inline コード (-c/-e)・in-place (-i/-pe/-ne 等)・bare/stdin 実行は拒否。
         # 素の `python3 script.py wal.jsonl` (レポート生成) だけ許可。
-        for a in args:
-            if a in ("-c", "-e"):
-                return False
-            if a.startswith("-") and a != "-" and ("e" in a[1:] or "i" in a[1:]):
-                return False   # perl -pe / -i / -ne / ruby -i 等
-        return not _stdin_script(head, args)
-    return False                                  # 未知 head = fails-closed
+        for arg in _before_double_dash(args):
+            if arg in ("-c", "-e"):
+                return False, _DENY_PROGRAM
+            if (arg.startswith("-") and arg != "-"
+                    and ("e" in arg[1:] or "i" in arg[1:])):
+                return False, _DENY_PROGRAM
+        allowed = not _stdin_script(head, args)
+        return allowed, "" if allowed else _DENY_PROGRAM
+    return False, _DENY_GENERIC               # 未知 head = fails-closed
+
+
+def _is_read_only(
+        head: str, args, repo_root: str = "", cwd: str = "",
+        hooks_index=None, authority_cwd: str = "", authority_index=None) -> bool:
+    """既存 caller 向けの bool interface。"""
+    return _read_only_check(
+        head, args, repo_root, cwd, hooks_index,
+        authority_cwd, authority_index)[0]
 
 
 def _glob_prefix(token: str) -> str:
@@ -1417,6 +2362,8 @@ def _repo_relative(token: str, repo_root: str, cwd: str = "") -> str:
 
 
 def _inside(path: str, tree: str) -> bool:
+    if tree == os.sep:
+        return os.path.isabs(path)
     return path == tree or path.startswith(tree + os.sep)
 
 
@@ -1438,6 +2385,16 @@ class _HooksInodeIndex:
         if self._loaded:
             return
         self._loaded = True
+
+        try:
+            os.stat(self.hooks_root)
+        except FileNotFoundError:
+            # hooks/ 自体が無い repo には共有 inode も無い。走査失敗ではない。
+            return
+        except OSError:
+            # root が存在するか確認不能なら、列挙不能と同じく局所 deny。
+            self._scan_failed = True
+            return
 
         def record_error(_error) -> None:
             self._scan_failed = True
@@ -1467,6 +2424,79 @@ class _HooksInodeIndex:
         self._load()
         return (self._scan_failed
                 or (target.st_dev, target.st_ino) in self._identities)
+
+
+def _absolute_path(token: str, cwd: str) -> str:
+    """repo 外を含む path 字面を shell cwd 基準の絶対 lexical path にする。"""
+    raw = os.path.expanduser(token)
+    if not os.path.isabs(raw):
+        raw = os.path.join(cwd, raw)
+    return os.path.abspath(raw)
+
+
+def _canonical_path(path: str, *, resolve_final: bool) -> str:
+    """削除・移動元では final symlink entry 自体を保つ形で canonicalize する。"""
+    if resolve_final:
+        return os.path.realpath(path)
+    parent, name = os.path.split(path)
+    return os.path.join(os.path.realpath(parent), name)
+
+
+def _authority_path_violation(
+        token: str, cwd: str, authority_index=None, *,
+        include_ancestors: bool = False, resolve_final: bool = True) -> bool:
+    """固定発行主体 root と lexical/canonical/inode のいずれかで重なるか。"""
+    literal_prefix = _glob_prefix(token)
+    has_glob = literal_prefix != token
+    lexical_path = _absolute_path(literal_prefix, cwd)
+    canonical_path = _canonical_path(
+        lexical_path, resolve_final=resolve_final)
+    lexical_root = os.path.abspath(_AUTHORITY_ROOT)
+    canonical_root = os.path.realpath(_AUTHORITY_ROOT)
+
+    def overlaps(path: str, root: str) -> bool:
+        if _inside(path, root):
+            return True
+        if include_ancestors and _inside(root, path):
+            return True
+        # glob の literal prefix が path component の途中で終わる形も、root を
+        # 展開結果に含み得るなら重なりとする (`dev-wave-authorit?` 等)。
+        return has_glob and root.startswith(path)
+
+    if (overlaps(lexical_path, lexical_root)
+            or overlaps(canonical_path, canonical_root)):
+        return True
+    if not resolve_final:
+        return False
+    index = authority_index or _HooksInodeIndex(canonical_root)
+    return index.protects(lexical_path)
+
+
+def _argument_hits_authority(
+        token: str, cwd: str, authority_index=None, *,
+        resolve_final: bool = True) -> bool:
+    """option 値や inline fragment を固定発行主体 root と照合する。"""
+    candidates = [token]
+    if "=" in token:
+        candidates.append(token.split("=", 1)[1])
+    if len(token) > 2 and token.startswith("-") and not token.startswith("--"):
+        candidates.append(token[2:])
+    candidates.extend(fragment for fragment in re.split(
+        r"[\s\"'=,:;(){}<>|]+", token) if fragment)
+    return any(
+        _authority_path_violation(
+            candidate, cwd, authority_index, resolve_final=resolve_final)
+        for candidate in dict.fromkeys(candidates)
+    )
+
+
+def _authority_tree_violation(
+        token: str, cwd: str, authority_index=None, *,
+        resolve_final: bool = True) -> bool:
+    """破壊・移動・展開対象が発行主体 root/子孫/祖先と重なるか。"""
+    return _authority_path_violation(
+        token, cwd, authority_index, include_ancestors=True,
+        resolve_final=resolve_final)
 
 
 def _hooks_tree_violation(
@@ -1545,21 +2575,10 @@ def _campaign_tree_violation(token: str, repo_root: str = "") -> bool:
     return False
 
 
-def _tree_violation(
+def _existing_tree_violation(
         token: str, repo_root: str = "", cwd: str = "",
         hooks_index=None) -> bool:
-    """token の削除/移動/展開が proof chain を壊すか。
-
-    - 末端 (_LEAF_RE) はどの深さでも壊す。
-    - external/ccbench は全域 (祖先/自身/子孫) — submodule working-tree は identity の
-      実体で、部分破壊も評価を汚す。
-    - official / exploration campaign tree は祖先・自身・campaign dir 単位
-      (`<campaign-tree>/<id>`) まで。それより深い proof-chain でない子孫
-      (reports/ 等) は末端に触れない限り通す (F-FP-2: 散文・プロットの
-      mv/rm を巻き込まない)。
-    絶対パス・`~` は repo_root で相対化してから照合する (2026-07-04 敵対検証)。glob は
-    メタ文字前のリテラル prefix で判定 (`output/*` → `output/` は祖先 = 拒否。`out*` の
-    ような部分 glob は判定不能 = 素通り、限界として docstring に記録)。"""
+    """token が既存の proof-chain 防護 tree と重なるか。"""
     if (_hooks_tree_violation(token, repo_root, cwd, hooks_index)
             or _LEAF_RE.search(token)
             or _namespace_marker_violation(token, repo_root, cwd)):
@@ -1573,9 +2592,98 @@ def _tree_violation(
     return _campaign_tree_violation(token, repo_root)
 
 
+def _tree_violation(
+        token: str, repo_root: str = "", cwd: str = "",
+        hooks_index=None, authority_cwd: str = "", authority_index=None, *,
+        authority_resolve_final: bool = True) -> bool:
+    """token の削除/移動/展開が proof chain を壊すか。
+
+    - 末端 (_LEAF_RE) はどの深さでも壊す。
+    - external/ccbench は全域 (祖先/自身/子孫) — submodule working-tree は identity の
+      実体で、部分破壊も評価を汚す。
+    - official / exploration campaign tree は祖先・自身・campaign dir 単位
+      (`<campaign-tree>/<id>`) まで。それより深い proof-chain でない子孫
+      (reports/ 等) は末端に触れない限り通す (F-FP-2: 散文・プロットの
+      mv/rm を巻き込まない)。
+    絶対パス・`~` は repo_root で相対化してから照合する (2026-07-04 敵対検証)。glob は
+    メタ文字前のリテラル prefix で判定 (`output/*` → `output/` は祖先 = 拒否。`out*` の
+    ような部分 glob は判定不能 = 素通り、限界として docstring に記録)。"""
+    authority_base = authority_cwd or os.path.realpath(repo_root or _repo_root())
+    if (_existing_tree_violation(token, repo_root, cwd, hooks_index)
+            or _authority_tree_violation(
+                token, authority_base, authority_index,
+                resolve_final=authority_resolve_final)):
+        return True
+    return False
+
+
+def _argument_hits_existing(
+        token: str, repo_root: str = "", cwd: str = "",
+        hooks_index=None) -> bool:
+    """現行の repo 内防護 path fragment だけを照合する。"""
+    candidates = [token]
+    if "=" in token:
+        candidates.append(token.split("=", 1)[1])
+    if len(token) > 2 and token.startswith("-") and not token.startswith("--"):
+        candidates.append(token[2:])
+    candidates.extend(fragment for fragment in re.split(
+        r"[\s\"'=,:;(){}<>|]+", token) if fragment)
+    candidates = list(dict.fromkeys(candidates))
+    return any(
+        _LEAF_RE.search(candidate)
+        or _hooks_tree_violation(candidate, repo_root, cwd, hooks_index)
+        or _namespace_marker_violation(candidate, repo_root, cwd)
+        for candidate in candidates
+    )
+
+
+def _argument_hits_protected(
+        token: str, repo_root: str = "", cwd: str = "",
+        hooks_index=None, authority_cwd: str = "", authority_index=None) -> bool:
+    """現行防護対象と固定発行主体 root の deny union。"""
+    return (_argument_hits_existing(token, repo_root, cwd, hooks_index)
+            or bool(authority_cwd) and _argument_hits_authority(
+                token, authority_cwd, authority_index))
+
+
 def _path_args(args):
     """フラグ・`--` を除いたパス様引数 (削除/移動対象の候補)。"""
     return [a for a in args if not a.startswith("-") and a != "--"]
+
+
+def _authority_argument_resolves_final(head: str, args, index: int) -> bool:
+    """unlink/move source の final symlink entry は解決しない。"""
+    path_indexes = [i for i, arg in enumerate(args)
+                    if not arg.startswith("-") and arg != "--"]
+    if index not in path_indexes:
+        return True
+    if head in {"rm", "rmdir", "unlink"}:
+        return False
+    if head == "mv":
+        return index == path_indexes[-1]
+    if head == "find" and any(
+            arg in {"-delete", "-exec", "-execdir", "-ok", "-okdir"}
+            for arg in args):
+        return False
+    if head == "git":
+        sub = next((arg for arg in args if arg in _GIT_DESTROY_SUBS), "")
+        if sub == "rm":
+            return False
+        if sub == "mv":
+            return index == path_indexes[-1]
+    return True
+
+
+def _uses_tree_guard(head: str, args) -> bool:
+    """authority の削除・移動・展開を tree 層だけへ帰属させる。"""
+    if head in _TREE_MUTATORS or head == "rsync":
+        return True
+    if head == "tar":
+        return not _tar_creates(args)
+    if head == "find":
+        return any(arg in {"-delete", "-exec", "-execdir", "-ok", "-okdir"}
+                   for arg in args)
+    return head == "git" and any(arg in _GIT_DESTROY_SUBS for arg in args)
 
 
 def _tar_creates(args) -> bool:
@@ -1604,39 +2712,59 @@ def _tar_creates(args) -> bool:
 
 def _destroys_protected_tree(
         head: str, args, repo_root: str = "", cwd: str = "",
-        hooks_index=None) -> bool:
+        hooks_index=None, authority_cwd: str = "", authority_index=None) -> bool:
     """head が防護ツリーを丸ごと削除/移動/展開する操作か。"""
     if head == "git":
         if "clean" in args:                       # cwd 再帰で untracked WAL を消す
             return True
         if any(a in _GIT_DESTROY_SUBS for a in args):
-            return any(_tree_violation(t, repo_root, cwd, hooks_index)
-                       for t in _path_args(args))
+            sub = next((a for a in args if a in _GIT_DESTROY_SUBS), "")
+            paths = _path_args(args)
+            return any(_tree_violation(
+                token, repo_root, cwd, hooks_index,
+                authority_cwd, authority_index,
+                authority_resolve_final=not (
+                    sub == "rm" or sub == "mv" and index < len(paths) - 1))
+                for index, token in enumerate(paths))
         return False
     if head == "find":
-        if any(a in ("-delete", "-exec", "-execdir", "-ok", "-okdir") for a in args):
-            return any(_tree_violation(t, repo_root, cwd, hooks_index)
-                       for t in _path_args(args))
+        if any(a in ("-delete", "-exec", "-execdir", "-ok", "-okdir")
+               for a in args):
+            return any(_tree_violation(
+                token, repo_root, cwd, hooks_index,
+                authority_cwd, authority_index,
+                authority_resolve_final=False)
+                for token in _path_args(args))
         return False
     if head == "tar":
         if _tar_creates(args):                    # backup (読み) は通す
             return False
-        return any(_tree_violation(t, repo_root, cwd, hooks_index)
+        return any(_tree_violation(
+                   t, repo_root, cwd, hooks_index,
+                   authority_cwd, authority_index)
                    for t in _path_args(args))
     if head == "rsync":
         # DEST (最後の path 引数) が防護ツリーなら mirror INTO (書き) = 拒否。
         # SRC だけが防護対象 (backup 元) の読みは通す。
         paths = _path_args(args)
         return bool(paths) and _tree_violation(
-            paths[-1], repo_root, cwd, hooks_index)
+            paths[-1], repo_root, cwd, hooks_index,
+            authority_cwd, authority_index)
     if head in _TREE_MUTATORS:
-        return any(_tree_violation(t, repo_root, cwd, hooks_index)
-                   for t in _path_args(args))
+        paths = _path_args(args)
+        return any(_tree_violation(
+            token, repo_root, cwd, hooks_index,
+            authority_cwd, authority_index,
+            authority_resolve_final=not (
+                head in {"rm", "rmdir", "unlink"}
+                or head == "mv" and index < len(paths) - 1))
+            for index, token in enumerate(paths))
     return False
 
 
 def _redirect_hits_protected(
-        seg, repo_root: str = "", cwd: str = "", hooks_index=None) -> bool:
+        seg, repo_root: str = "", cwd: str = "", hooks_index=None,
+        authority_cwd: str = "", authority_index=None) -> bool:
     """セグメント内でリダイレクト先が末端または防護 tree 自体なら True。"""
     for i, t in enumerate(seg):
         if t in _REDIR_OPS and i + 1 < len(seg):
@@ -1645,11 +2773,31 @@ def _redirect_hits_protected(
                 continue
             if (_LEAF_RE.search(tgt)
                     or _hooks_tree_violation(tgt, repo_root, cwd, hooks_index)
+                    or bool(authority_cwd) and _argument_hits_authority(
+                        tgt, authority_cwd, authority_index)
                     or _namespace_marker_violation(tgt, repo_root, cwd)
                     or _campaign_tree_violation(tgt, repo_root)
                     and _repo_relative(tgt, repo_root).startswith(
                         _EXPLORATION_TREE + "/")):
                 return True
+    return False
+
+
+def _authority_command_hot(tokens, cwd: str, authority_index) -> bool:
+    """token/canonical/inode/ancestor と cd 後の相対 path を fast path 前に拾う。"""
+    active_cwd = cwd
+    for seg in _segments(tokens):
+        if any(_argument_hits_authority(token, active_cwd, authority_index)
+               or _authority_tree_violation(
+                   token, active_cwd, authority_index,
+                   resolve_final=False)
+               for token in seg):
+            return True
+        head, args = _head_and_args(seg)
+        if head == "cd":
+            paths = _path_args(args)
+            if len(paths) == 1:
+                active_cwd = _absolute_path(paths[0], active_cwd)
     return False
 
 
@@ -1666,69 +2814,99 @@ def decide(command: str, repo_root: str = "", *, site=None) -> tuple:
     tokens = _tokenize(command)
     hooks_index = _HooksInodeIndex(
         os.path.realpath(os.path.join(root, _HOOKS_TREE)))
+    authority_index = _HooksInodeIndex(os.path.realpath(_AUTHORITY_ROOT))
     hooks_hot = bool(_TREE_LITERAL_RE.search(command))
+    authority_hot = bool(_AUTHORITY_LITERAL_RE.search(command))
     if tokens is not None:
         hooks_hot = hooks_hot or any(
-            _hooks_tree_violation(token, root, hooks_index=hooks_index)
+            _argument_hits_existing(token, root, hooks_index=hooks_index)
             for token in tokens)
-    if not _MENTION_RE.search(command) and not hooks_hot:
+        authority_hot = authority_hot or _authority_command_hot(
+            tokens, root, authority_index)
+    if (not _MENTION_RE.search(command)
+            and not hooks_hot and not authority_hot):
         return True, ""                            # fast path
 
     # 「防護対象パスの字面が実在するか」— opaque 同居と bare interpreter の発火条件。
     # 裸単語 mention (散文の 'output' 等) では発火させない (F-FP-4 の虚偽拒否防止)。
     hot = bool(_LEAF_RE.search(command) or _TREE_LITERAL_RE.search(command)
-               or hooks_hot)
+               or hooks_hot or authority_hot)
 
     if hot and _OPAQUE_RE.search(command):
         return False, ("末端/防護ツリーのパス (WAL/campaign.lock/build-variants/"
-                       "namespace marker/official・exploration campaigns/external/ccbench) "
+                       "namespace marker/official・exploration campaigns/external/ccbench/"
+                       "固定の発行主体 root) "
                        "と不透明構文 ($()/` `/"
                        "プロセス置換/<<</eval/xargs) の同居は分類不能 = fails-closed。"
                        "読むだけなら cat/grep/jq で、正規の書き込みは pipeline.evaluate() "
                        "で、コミットは単一行 -m か -F <file> で")
 
     if tokens is None:
-        if _LEAF_RE.search(command) or hooks_hot or any(
-                _tree_violation(w, root, hooks_index=hooks_index)
-                for w in command.split()):
+        if (_LEAF_RE.search(command) or hooks_hot or authority_hot or any(
+                _tree_violation(
+                    w, root, hooks_index=hooks_index,
+                    authority_cwd=root, authority_index=authority_index)
+                for w in command.split())):
             return False, ("防護対象を含むコマンドを解析できない (クォート不整合等) — "
                            "fails-closed で拒否")
         return True, ""                            # 防護対象に触れない解析不能は素通し
 
     marker_cwd = ""
+    authority_cwd = root
     for seg in _segments(tokens):
-        if _redirect_hits_protected(seg, root, marker_cwd, hooks_index):
-            return False, ("リダイレクト先が末端防護対象または campaign tree。WAL/"
-                           "campaign.lock/build-cache を書く唯一の経路は "
+        if _redirect_hits_protected(
+                seg, root, marker_cwd, hooks_index,
+                authority_cwd, authority_index):
+            return False, ("リダイレクト先が末端防護対象、campaign tree、または固定の"
+                           "発行主体 root。WAL/campaign.lock/build-cache を書く唯一の経路は "
                            "pipeline.evaluate() (規律2)")
         head, args = _head_and_args(seg)
         if head == "cd":
             paths = _path_args(args)
             if len(paths) == 1:
                 marker_cwd = _repo_relative_path(paths[0], root, marker_cwd)
+                authority_cwd = _absolute_path(paths[0], authority_cwd)
             continue
         if head == "perf":
             # perf の自前出力先 (-o/--output) が防護対象なら拒否
+            perf_output_indexes = set()
             for i, a in enumerate(args):
-                if ((a in ("-o", "--output") and i + 1 < len(args)
-                     and _LEAF_RE.search(args[i + 1]))
-                        or (a.startswith("--output=") and _LEAF_RE.search(a))):
-                    return False, "perf の出力先 (-o/--output) が末端防護対象 (規律2)"
+                output_value = None
+                if a in ("-o", "--output") and i + 1 < len(args):
+                    perf_output_indexes.update({i, i + 1})
+                    output_value = args[i + 1]
+                elif a.startswith("--output="):
+                    perf_output_indexes.add(i)
+                    output_value = a.split("=", 1)[1]
+                if (output_value is not None
+                        and (_existing_tree_violation(
+                            output_value, root, marker_cwd, hooks_index)
+                             or _argument_hits_authority(
+                                 output_value, authority_cwd,
+                                 authority_index))):
+                    return False, ("perf の出力先 (-o/--output) が既存防護 tree または"
+                                   "固定の発行主体 root (規律2)")
             if "--" in args:
                 # 明示形 `perf <sub> [opts] -- <cmd>`: 子コマンドを実 head として続検査
                 # (build-variants バイナリの計測 = 正道を通しつつ、子が writer なら落とす)
                 head, args = _head_and_args(args[args.index("--") + 1:])
             elif any(_LEAF_RE.search(t)
-                     or _tree_violation(t, root, hooks_index=hooks_index)
-                     for t in args):
+                     or _tree_violation(
+                         t, root, hooks_index=hooks_index,
+                         authority_cwd=authority_cwd,
+                         authority_index=authority_index)
+                     for index, t in enumerate(args)
+                     if index not in perf_output_indexes):
                 return False, ("perf と防護対象の同居は `perf <サブコマンド> [opts] -- "
                                "<コマンド>` の明示形のみ許可 (子コマンドを検査するため)。"
                                "防護対象に触れない計測は自由 (F-FP-1)")
             else:
                 continue
         if _destroys_protected_tree(
-                head, args, root, marker_cwd, hooks_index):
-            return False, (f"campaign dir / ccbench root を破壊する操作 ({head})。"
+                head, args, root, marker_cwd, hooks_index,
+                authority_cwd, authority_index):
+            return False, (f"campaign dir / ccbench / hooks / 発行主体 root を破壊する操作 "
+                           f"({head})。"
                            "proof chain を配下ごと削除/移動/展開するのは不可 (規律2)")
         if (head in _TREE_DIRECT_WRITERS
                 and any(_campaign_tree_violation(t, root)
@@ -1740,20 +2918,47 @@ def decide(command: str, repo_root: str = "", *, site=None) -> tuple:
             return False, ("防護対象パスを含むコマンドでの bare/stdin インタプリタ実行 "
                            "(pipe や here-string でコードを流し込む形) は中身を追えない "
                            "= fails-closed (GB2-3)。スクリプトはファイルに置いて実行する")
-        leaf_hits = [t for t in args if (
-            _LEAF_RE.search(t)
-            or _hooks_tree_violation(t, root, marker_cwd, hooks_index)
-            or _namespace_marker_violation(t, root, marker_cwd)
-        )]
-        if leaf_hits and not _is_read_only(head, args, root, marker_cwd):
+        legacy_leaf_hits = [t for t in args if _argument_hits_existing(
+            t, root, marker_cwd, hooks_index)]
+        authority_hits = [t for index, t in enumerate(args)
+                          if _argument_hits_authority(
+                              t, authority_cwd, authority_index,
+                              resolve_final=_authority_argument_resolves_final(
+                                  head, args, index))]
+        protected_hits = legacy_leaf_hits
+        if not _uses_tree_guard(head, args):
+            protected_hits = [t for index, t in enumerate(args)
+                              if _argument_hits_protected(
+                                  t, root, marker_cwd, hooks_index,
+                                  authority_cwd, authority_index)
+                              and (t in legacy_leaf_hits
+                                   or _authority_argument_resolves_final(
+                                       head, args, index))]
+        read_only, refusal_kind = _read_only_check(
+            head, args, root, marker_cwd, hooks_index,
+            authority_cwd, authority_index)
+        if protected_hits and not read_only:
             # ビルドシステムによる build-variants の生成/更新は正当経路
             # (cmake -E の任意ファイル操作は除く)。head 自身が build-variants 配下の
-            # バイナリである「実行」は leaf_hits (args のみ) に乗らず素通り (F-FP-1)。
-            if (head in _BUILDERS and not (head == "cmake" and "-E" in args)
-                    and all("build-variants" in t for t in leaf_hits)):
+            # バイナリである「実行」は legacy_leaf_hits (args のみ) に乗らず素通り
+            # (F-FP-1)。
+            if (not authority_hits and head in _BUILDERS
+                    and not (head == "cmake" and "-E" in args)
+                    and all("build-variants" in t for t in legacy_leaf_hits)):
                 continue
-            return False, (f"末端防護対象に触れる非読み取りコマンド ({head or '?'})。"
-                           "WAL/campaign.lock/build-cache/namespace marker の書き換え・"
+            if refusal_kind == _DENY_OUTPUT:
+                return False, (f"保護対象を書き換える option / 出力先指定 ({head or '?'})。"
+                               "読むだけなら cat/grep/jq または sed -n Np を使う")
+            if refusal_kind == _DENY_PROGRAM:
+                return False, (f"program / script の中身を追えない、または書き込み・"
+                               f"外部実行の構文を含む ({head or '?'})。読むだけなら "
+                               "cat/grep/jq または単純な sed -n Np を使う")
+            if refusal_kind == _DENY_EXEC:
+                return False, (f"任意 command を実行し得る option ({head or '?'})。"
+                               "pager/plugin/pre-command を外し、cat/grep/jq で読む")
+            return False, (f"末端防護対象または固定の発行主体 root に触れる非読み取り"
+                           f"コマンド ({head or '?'}）。WAL/campaign.lock/build-cache/"
+                           "namespace marker/発行主体 root の書き換え・"
                            "削除・移動は不可 (規律2)。読み取りは cat/grep/jq/head/tail 等で")
     return True, ""
 
@@ -1772,11 +2977,13 @@ def main() -> int:
         decoded_values = tuple(_string_values(payload)) if payload is not None else ()
         decoded_protected = any(
             _MENTION_RE.search(value)
+            or _AUTHORITY_LITERAL_RE.search(value)
             or _PEGASUS_RAW_MENTION_RE.search(value)
             or _NON_PEGASUS_ADMISSION_RAW_MENTION_RE.search(value)
             or value == "hooks"
             for value in decoded_values)
         if (_MENTION_RE.search(raw)
+                or _AUTHORITY_LITERAL_RE.search(raw)
                 or _PEGASUS_RAW_MENTION_RE.search(raw)
                 or _NON_PEGASUS_ADMISSION_RAW_MENTION_RE.search(raw)
                 or decoded_protected):
