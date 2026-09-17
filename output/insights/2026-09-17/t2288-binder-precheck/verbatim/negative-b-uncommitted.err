@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/usr/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2288-binder-precheck/orchestrator/campaign/floor_pair_driver.py", line 3148, in <module>
+    raise SystemExit(main())
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2288-binder-precheck/orchestrator/campaign/floor_pair_driver.py", line 3123, in main
+    spec = load_frozen_spec(
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2288-binder-precheck/orchestrator/campaign/floor_pair_driver.py", line 1239, in load_frozen_spec
+    raise FloorPairBindingError(
+__main__.FloorPairBindingError: frozen spec が loaded HEAD tracked blob と byte 一致しない

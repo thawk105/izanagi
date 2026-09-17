@@ -1,0 +1,106 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 2700,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "id": "m0-equivalent-comment",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/check_branch_landed.py",
+     "old": "# max per git command 26.9s (find-object; path log 21.3s, repeat check 35.9s); max x1.5 -> 45, <= DEFAULT_TIMEOUT_SECONDS.",
+     "new": "# maximum per git command 26.9s (find-object; path log 21.3s, repeat check 35.9s); max x1.5 -> 45, <= DEFAULT_TIMEOUT_SECONDS."
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-swallow-timeout-as-empty-success",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_landed.py",
+     "old": "        except subprocess.TimeoutExpired as exc:\n            raise AssessmentError(\n",
+     "new": "        except subprocess.TimeoutExpired as exc:\n            return subprocess.CompletedProcess([\"git\", *GIT_CONFIG, *args], 0, stdout=b\"\", stderr=b\"\")\n            raise AssessmentError(\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-timeout-outcome-error-not-truncated",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_landed.py",
+     "old": "\"assessment-timeout\", f\"git command timed out: {args[0]}\", outcome=\"truncated\"",
+     "new": "\"assessment-timeout\", f\"git command timed out: {args[0]}\", outcome=\"error\""
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-run-default-decoupled-from-constant",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_landed.py",
+     "old": "command_timeout: float = COMMAND_TIMEOUT_SECONDS,",
+     "new": "command_timeout: float = 5.0,"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-constant-exceeds-overall-budget",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_landed.py",
+     "old": "COMMAND_TIMEOUT_SECONDS = 45.0",
+     "new": "COMMAND_TIMEOUT_SECONDS = 61.0"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-toplevel-timeout-becomes-landed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_landed.py",
+     "old": "payload[\"decision\"] = _decision(\"indeterminate\", code)",
+     "new": "payload[\"decision\"] = _decision(\"landed\", code)"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-incomplete-history-scan-keeps-negative",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_landed.py",
+     "old": "            if not payload[\"history_scan\"][\"complete\"]:\n",
+     "new": "            if False and not payload[\"history_scan\"][\"complete\"]:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
