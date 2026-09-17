@@ -866,6 +866,11 @@ export IZANAGI_DEV_WAVE_JOBS_DIR=/work/1/SFC/tanab/dev-wave-jobs   # 上と同�
   **main に land 済みの文書がその絶対 path (または探索根より下位の祖先 dir) を参照している**
   場合だけである。bytes だけ一致する候補は抑止せず、報告行に注記が付く。
 
+`/next-tasks` (Claude) と `$next-tasks` (Codex) が毎回使う道具の置き場 (command 本文の `<tools>`) は
+**repo 外の `/work/1/SFC/tanab/scripts/`** である。`next_tasks_snapshot.sh` / `next_tasks_consult.sh` /
+`worklog_carry_resolve.py` / `next_tasks_paper_gaps.py` / `next_tasks_carry_p1.py` を置く。手順と権限は
+command が正本で、ここには機体固有の所在だけを書く (D1890 (2)、2026-09-17)。
+
 ### 7.3 待ち手の正本 (`tools/dev_wave_wait.py`) と受入 lease (`tools/wave_land_window.py`)
 
 役割は 2 層に分かれる。**`tools/wave_land_window.py` が lease の primitive、
