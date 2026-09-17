@@ -1770,6 +1770,19 @@
   `_receipt_bindings` / `_receipt_prefix` / `_publish_audit_receipt` の実在を読んで初めて済を
   確定した。恒久対応 1 (`DW-S01` の brief 前照合) は今回も投入前に機能し、実装子は 1 本も
   走らなかった。機械防壁は無いままである。
+
+- **再発: 2026-09-17** — /rulings 第 20 回 (entry 1596、D2104) が主題照合で「既裁定・移管済み・実測解消」と
+  判定して索引から外した 18 行 (job dir `rulings-all-20260917/materials-index.md` B-1 節) のうち、相談が索引へ
+  戻した 2 件を除く 16 ID の worklog 実体本文が「裁定待ち」「新規 (裁定が要る)」のまま残った。同回の worklog
+  fragment は索引 37 件だけを `完了` / `更新` に書き、B-1 は 0 件だった。2026-09-16 の再発 (裁定台帳の側が
+  照合の省略を規則の形で正当化した) と同じく、記録側が「その手番は既に済んでいないか」を照合しなかった型だが、
+  **新しい面は、照合はしていた (だから索引から外せた) のに、外した結果を台帳へ書き戻す規則が command に無かった**
+  ことである。command の「1 裁定が複数 ID を覆うとき覆われた ID の項も更新する」は索引に載せた ID だけを対象に
+  読まれた。実害は次回の収集で同じ 16 ID を読み直す負担と、裁定済み未実装の件数が実態より多く見える点で、
+  実装子は関与していない。恒久対応は D2111 (索引外の
+  既裁定・移管済み・実測解消も残作業の有無で `完了` / `更新` に分けて書き、出力冒頭で裁定待ちと裁定済み未実装の
+  件数を分ける) で、データ側の状態語訂正は並行 wave が fragment で行う。機械防壁は無いままである —
+  `/rulings` 側が済を照合し状態語へ書き戻す機構は引き続き未実装で、command の規則にとどまる。
 ### F36. 受入・検査の結果欄をプレースホルダのまま記録 commit し、恒久対応の実行が空証明になった [恒真ゲート] [手順漏れ]
 
 - 事象: `<受入結果を反映>` `<反映>` というリテラルのプレースホルダが埋められないまま記録 commit に
@@ -5285,6 +5298,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **恒久対応は memory `dirty-tree-during-pending-job` から変更なし。**
   段 8 は段 7 の後・受入の後に置く方が構造的に安全だが、入口の段順序の変更は
   自己改善の範囲外なので実施せず、この観測だけを残す。
+
+- **再発: 2026-09-17** — 役割入力文書の wave。今回は受入全走でも変異本走でもなく、**計算ノードへ dispatch した
+  焦点走 (skip 理由を取るための `-rs` 再走) の走行中**に、親が段 6 の must-fix を役割 .md へ適用した。dispatch job は
+  worktree を共有 FS 越しに live で読むため、ledger 未更新の状態を計測して `test_codex_agents` / `test_codex_role_runtime`
+  が adapter parity drift で 8 failed になった。単独再走 (fix + render 後) は 2084 passed / rc=0 で消えた。根本原因は
+  F106 と同一で、「dispatch 済みの走行は起動時点の木を見る」と誤認して待ち時間に worktree を触ったこと。恒久対応は
+  F106 のまま。**焦点走であっても、投入から結果取得までは tracked file を編集しない。** 汚染した走行は合否に使わず
+  skip 理由の参考にだけ使い、権威の走行を取り直した。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -26298,6 +26319,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   当座の運用 (下降局面かつ 1 分値 50 以下で 1 回投げる) を満たしていたにもかかわらず出ており、
   **load の閾値だけでは避けられない**ことの 1 点になる。恒久対応は既報どおり未実施のまま、
   機構側の対処は決めていない。
+- **supersede: 2026-09-17** — 恒久対応「未実施」は D2112 で writer 優先 gate (fresh 取得と昇格、reader は保持ゼロ時だけ検査) として実装した。deadline 245 秒と同時実行数は不変。gate 取得前からの厳密な優先と昇格失敗後の state 回復は保証しない。
 ### F977. land の fold 失敗が main を merge 前まで巻き戻し、着地済みに見えた wave の記録が丸ごと列から消えた [手順漏れ] [観測]
 
 - 事象: 2026-09-14、別 session から「main が巻き戻っている」と通報を受け、自分の ref で裏取りした。
@@ -26367,6 +26389,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `git reflog show main --date=iso` で message が空の行を探す。
   その行の**直前**の SHA を `X` として `git log --oneline refs/heads/main..X` が
   捨てられた commit の一覧になる。
+- **supersede: 2026-09-17** — 機構側予防のうち「巻き戻しを列へ通知する」は D2112 で `wave_land_window.py message --kind rolled-back` として実装し、送信義務を runbook の land 手順と command 入口 項 9 に置いた。「fold の失敗で land の merge まで戻さない」は D2104 項 34 で採らないと裁定した。
 
 ### F978. user namespace の中では mode bits による保護が効かない [恒真ゲート]
 
@@ -26477,6 +26500,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   選択形固有の偽赤と確定した。**変更面は conftest の prewarm 起動点と memo の cache 読み書きで、
   当該 wrapper・site 中立化 fixture・WAL・ident は触っていない。**
   本 wave は commit 前後の両方で再現することも確かめ、未 commit 由来の drift ではないと切り分けた。
+
+- **再発: 2026-09-17** — 実 repo ロック gate の wave で、変異 harness の probe 走 (runner 選択 =
+  `test_real_repo_serialization.py` + `test_wave_land_window.py` の 2 file) の baseline が
+  `test_real_repo_writers_do_not_materialize_oracle_environment_candidates` の決定的な赤で止まった
+  (WAL lock の JSON 不一致、内側の `test_p3_s4_loop.py` の `wal.read_lock(lay) == build_v2_lock(...)`)。
+  同じ commit の wave worktree で `test_p3_s4_loop.py` を含まない 10 file / 7 file の焦点走は緑だったが、
+  それは別 module (`test_s8c_*` 等) の収集が `site_policy` を setup 前に import していたためで、
+  2 file だけの選択では既報どおり再現した。既報の運用に従い `test_p3_s4_loop.py` を runner 選択へ足して
+  probe を投げ直し、初回の sidecar は erratum として job dir に保全した。変更面は conftest のロック層と
+  `wave_land_window.py` で、wrapper・site 中立化 fixture・WAL・ident は触っていない。
 ### F983. 成果物を作る前に「作った」と着地対象の本文へ書いた [捏造/幻覚] [手順漏れ]
 
 - 事象: 事前登録へ足す追補の本文に「読んだ file と出力の逐語は
@@ -27194,6 +27227,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `HOLE_ESCAPE` (hole 内の生指令を拒否)。**identity 層 (loop の skip key) には無い。**
 - 再発検知: 同 insight §9 の recipe で変異 harness を再走する (M3b / M6 が正例、M0 が負例)。修正後は M3b / M6 の
   identity node が赤 (別 identity) になることで確認する。
+- **supersede: 2026-09-17** — 恒久対応の「[T-2731] として起票 (裁定待ち)」は D2104 項 2 で (a) と裁定され、[T-2731] が `_cpp_normalize` に `-dD` + 環境 prefix 剥がし (D2108) を実装した (commit bd21bc501 / 2cc661235)。再発検知の recipe 再走で M3b / M6 の identity node が赤 (別 identity) になり、M0 は同 identity のまま (`output/insights/2026-09-17/t2731-cpp-normalize-dd/README.md` §6)。残る限界 (指令と include の相対位置、push_macro / pop_macro) は同 D の裁定パッケージ。
 
 ### F1017. pytest 内の計算ノード probe が既定 compiler (g++-13) を掴んだ — autouse fixture が site 判定を中和していた [テスト代表性] [手順漏れ]
 
@@ -27260,3 +27294,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   接尾辞・断片 (`_source_path`) でも検索し、shell の heredoc 内 python も対象に含める」を追記した。
   修正は [T-2741]。
 - 再発検知: 「読み手 0」と書く前に、識別子の断片検索が 0 件であることも併記する。
+
+### F1021. 裁定文が GCC 文書の古い記述 (`-dD` は predefined を含まない) を前提にし、素の実装なら inert template ≠ stock を受入 suite が検出できなかった [テスト代表性] [手順漏れ]
+
+- 事象: 2026-09-17 [T-2731] の段 1。D2104 項 2 と T-2630 insight §8 は「`-dD` は前処理結果に加えて `#define` / `#undef` を出力し、
+  predefined は含まない」を前提に「`_cpp_normalize` に `-dD` を足す (1 箇所)」と裁定していた。親の前提実測 (login pegasus02、
+  g++ 11.4.0 と g++-12 12.3.0、checker と同じ argv) で **predefined 419〜437 行と command-line `-D` も出力される**ことが分かった。
+  template patch は CMake 供給に `BACKOFF_FIXED` / `BACKOFF_NOINLINE` を足すため、素の `-dD` では `compute()` の出力にだけ
+  `#define BACKOFF_FIXED -1` 等が現れ `baseline()` (HEAD 供給) には現れず、未変異の template を当てた木が非 stock になる
+  (完了条件 1 「inert = stock」の破壊)。
+- 根本原因: (1) 裁定の技術前提を文書の記述から取り、対象 compiler で実測していなかった。(2) 受入 suite は共有 submodule に
+  template patch を当てないため (`test_source_digest_stock_roundtrip` は stock checkout、template 依存 node は
+  `skip_conditional_unrun`)、この破壊は受入では緑のまま通り、T-2630 §9 の recipe 再走の baseline 赤で初めて見える構造だった。
+- 恒久対応: 実装は空入力の環境 prefix を剥がす形にした (D2108)。受入で検出できる回帰 test として
+  `orchestrator/tests/test_campaign.py::test_source_digest_unused_universal_supply_preserves_stock` と
+  `::test_source_digest_unused_protocol_supply_preserves_digest` (fake repo で template と同型の「working-tree だけの追加供給」を
+  作り `"stock"` / `compute == baseline` を要求する fails-closed の負例) を追加した。変異 S2 (prefix 剥がしを外す) がこの 2 node を
+  赤にすることを台帳で確認した。発見した防壁は DW-S01 の「brief 前に前提を実測する」規律 (docs/dev-wave/core.md)。
+- 再発検知: 上記 2 node の赤。裁定文が compiler / tool の挙動を前提にするときは、段 1 で対象実体の実測を brief に書く。

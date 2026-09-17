@@ -1,0 +1,972 @@
+diff --git a/orchestrator/tests/test_plot_b10_static_tail_formal.py b/orchestrator/tests/test_plot_b10_static_tail_formal.py
+new file mode 100644
+index 000000000..b0f684372
+--- /dev/null
++++ b/orchestrator/tests/test_plot_b10_static_tail_formal.py
+@@ -0,0 +1,441 @@
++"""Formal B-10 tail evidence, rendered artists, and publication contracts."""
++from __future__ import annotations
++
++import copy
++import hashlib
++import importlib.util
++import inspect
++import json
++import math
++from pathlib import Path
++import re
++import statistics
++import sys
++import tempfile
++import traceback
++
++HERE = Path(__file__).resolve().parent
++REPO = HERE.parents[1]
++sys.path.insert(0, str(HERE))
++from skiputil import Skip, skip
++
++
++def _load_module():
++    spec = importlib.util.spec_from_file_location(
++        "b10_tail_under_test", REPO / "tools/plotting/plot_b10_static_tail_formal.py")
++    module = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(module)
++    return module
++
++
++PLOT = _load_module()
++RESULTS = REPO / "docs/paper-story/results/2026-09-16-b10-static-tail-not-observed.md"
++
++
++def _hash(path):
++    return hashlib.sha256(path.read_bytes()).hexdigest()
++
++
++def _seal(root):
++    """Rehash synthetic bytes, including completion; never inject production hashes."""
++    p = PLOT
++    complete_path = root / p.COMPLETE_JSON
++    complete = json.loads(complete_path.read_text())
++    complete["artifacts"] = {Path(key).name: _hash(root / key) for key in (p.REPORT_JSON, p.REPORT_DAT)}
++    complete_path.write_text(json.dumps(complete))
++    return {key: _hash(root / key) for key in p.PINNED_SHA256}
++
++
++def _fixture(tmp_path, **overrides):
++    p = PLOT
++    root = tmp_path / "measurements"
++    (root / p.REPORT_JSON).parent.mkdir(parents=True)
++    report = {"schema_version": p.REPORT_SCHEMA, "run_kind": p.RUN_KIND,
++              "verdict": p.EXPECTED_VERDICT, "performance_certified": False,
++              "spec_sha256": "a" * 64, "failures": [], "campaigns": [], "workloads": []}
++    dat = [p.DAT_HEADER]
++    for wi, workload in enumerate(p.WORKLOADS):
++        lock = str(wi + 1) * 64
++        campaign = {"workload": workload, "campaign_id": f"fixture-{workload}", "campaign_lock_digest": lock,
++                    "admission": {"admission_status": "admitted",
++                                  "campaign_path": f"/fixture/{p.GROUP_ID}-{workload}/campaigns/test"},
++                    "identity": {"threads": 48, "records": 1000000, "extime_s": 3,
++                                 "workload_coordinates": {"ycsb_rratio": str(sorted(p.RRATIOS)[wi]),
++                                     "ycsb_zipf_skew": "0.9", "ycsb_rmw": "0", "ycsb_max_ope": "10"},
++                                 "grid": [{"backoff_us": x} for x in reversed(p.GRID_US)],
++                                 "performance_reps_per_cell": p.REPS_PER_CELL,
++                                 "build_admission": {"repo_stock_pin": "511c953"}},
++                    "completion": {"status": "complete", "campaign_lock_sha256": lock,
++                                   "wal_sha256": "b" * 64, "scheduler": {"job_id": f"fixture-{wi}.nqsv"}},
++                    "points": []}
++        stats = {}
++        for xi, x in enumerate(p.GRID_US):
++            reps = []
++            for ri in range(p.REPS_PER_CELL):
++                aborts = 20000 - xi * 2000 + ri * 3
++                commits = 800000 + wi * 100000 + ri * 100
++                tps = (wi + 1) * 1000000 - xi * 75000 + (ri - 2) * 1000
++                rate = aborts / (aborts + commits)
++                reps.append({"rep_index": ri, "abort_counts_": aborts, "commit_counts_": commits,
++                             "throughput_tps": tps, "abort_rate_recomputed": rate})
++                dat.append(f"{workload} {x} {ri} {aborts} {commits} {rate:.17g} {tps}")
++            ts = [r["throughput_tps"] for r in reps]
++            rates = [r["abort_counts_"] / (r["abort_counts_"] + r["commit_counts_"]) for r in reps]
++            campaign["points"].append({"backoff_us": x, "use_perf": False, "reps": reps, "tps": ts,
++                                       "correctness": [{"payload": {"certified": True, "anomalies": 0}}
++                                                       for _ in range(p.REPS_PER_CELL)]})
++            stats[str(x)] = {"throughput_tps_mean": statistics.mean(ts), "mean": statistics.mean(rates),
++                             "throughput_tps_cv": statistics.stdev(ts) / statistics.mean(ts),
++                             "abort_rate_cv": statistics.stdev(rates) / statistics.mean(rates),
++                             "sample_sd": statistics.stdev(rates), "gate_passed": True}
++        report["campaigns"].append(campaign)
++        report["workloads"].append({"workload": workload, "state": "not-observed", "saturation_location": None,
++            "local_flat_intervals": [], "statistics": stats,
++            "intervals": [{"left_us": left, "right_us": right, "state": "declining", "qhat": -.5,
++                           "qL": -.6, "qU": -.4, "L": 1 - 2**(-.4), "U": 1 - 2**(-.6), "U_flat": .03}
++                          for left, right in zip(p.TAIL_GRID_US, p.TAIL_GRID_US[1:])]})
++    report.update(overrides)
++    (root / p.REPORT_JSON).write_text(json.dumps(report))
++    (root / p.REPORT_DAT).write_text("\n".join(dat) + "\n")
++    prereg = {"preregistration_commit": "c" * 40, "preregistration_document_blob_sha256": "d" * 64,
++              "spec_sha256": report["spec_sha256"]}
++    (root / p.COMPLETE_JSON).write_text(json.dumps({"spec_sha256": report["spec_sha256"],
++                                                  "preregistrations": [prereg.copy() for _ in p.WORKLOADS]}))
++    return root, _seal(root)
++
++
++def _data(tmp_path):
++    root, hashes = _fixture(tmp_path)
++    return PLOT.load_measurements(root, expected_hashes=hashes)
++
++
++def _change_report(root, change):
++    path = root / PLOT.REPORT_JSON
++    report = json.loads(path.read_text())
++    change(report)
++    path.write_text(json.dumps(report))
++    return _seal(root)
++
++
++def _reject(call, phrase=None):
++    try:
++        call()
++    except PLOT.FigureDataError as exc:
++        if phrase is not None:
++            assert phrase in str(exc), str(exc)
++    else:
++        raise AssertionError("invalid evidence was accepted")
++
++
++def test_fixture_has_production_shape_and_recomputes_statistics(tmp_path):
++    root, hashes = _fixture(tmp_path)
++    data = PLOT.load_measurements(root, expected_hashes=hashes)
++    assert len((root / PLOT.REPORT_DAT).read_text().splitlines()) == 121
++    assert len(data["workloads"]) == 3
++    assert sum(len(w["cells"]) for w in data["workloads"]) == 24
++    assert data["correctness"] == {"records": 120, "certified": 120, "anomalies": 0}
++    for w in data["workloads"]:
++        assert len(w["intervals"]) == 6
++        for c in w["cells"]:
++            assert len(c["reps"]) == 5
++            rates = [r["abort_counts_"] / (r["abort_counts_"] + r["commit_counts_"]) for r in c["reps"]]
++            ts = [r["throughput_tps"] for r in c["reps"]]
++            assert c["abort_rates"] == rates
++            for key, vals in (("tps", ts), ("abort", rates)):
++                assert math.isclose(c[key + "_mean"], statistics.mean(vals), rel_tol=1e-12)
++                assert math.isclose(c[key + "_ci95_half"], 2.7764451051977987 * statistics.stdev(vals) / math.sqrt(5), rel_tol=1e-12)
++                assert math.isclose(c[key + "_cv"], statistics.stdev(vals) / statistics.mean(vals), rel_tol=1e-12)
++        assert w["tail_throughput_ratio"] == w["cells"][-1]["tps_mean"] / w["cells"][1]["tps_mean"]
++
++
++def test_artist_series_have_exact_x_and_boundary_reference_is_separate(tmp_path):
++    data = _data(tmp_path)
++    fig, axes = PLOT.make_figure(data)
++    try:
++        for s in fig._b10_tail_artist_series:
++            if s["kind"] == "tail":
++                assert s["x"] == [1250, 1768, 2500, 3535, 5000, 7070, 9999]
++            elif s["kind"] == "boundary-reference":
++                assert s["x"] == [1000]
++        for ax in axes.flat:
++            assert ax.get_xscale() == "log"
++            assert list(ax.get_xticks()) == list(PLOT.GRID_US)
++            tail, = [line for line in ax.lines if line.get_gid() == "tail"]
++            boundary, = [line for line in ax.lines if line.get_gid() == "boundary-reference"]
++            assert list(tail.get_xdata()) == [1250, 1768, 2500, 3535, 5000, 7070, 9999]
++            assert list(boundary.get_xdata()) == [1000]
++            assert boundary.get_markerfacecolor() == "none"
++            assert boundary.get_linestyle() == "None"
++            for line in ax.lines:
++                assert not (1000 in line.get_xdata() and 1250 in line.get_xdata())
++    finally:
++        PLOT.plt.close(fig)
++
++
++def test_interval_states_are_copied_not_recomputed(tmp_path):
++    root, _ = _fixture(tmp_path)
++    hashes = _change_report(root, lambda r: r["workloads"][0]["intervals"][0].update(state="indeterminate"))
++    data = PLOT.load_measurements(root, expected_hashes=hashes)
++    original = json.loads((root / PLOT.REPORT_JSON).read_text())["workloads"][0]["intervals"]
++    assert data["workloads"][0]["intervals"] == original
++    assert original[0]["L"] > .05
++    fig, axes = PLOT.make_figure(data)
++    try:
++        assert any("1 indeterminate" in t.get_text() for t in axes[1, 0].texts)
++        assert any(l.get_gid() == "interval-indeterminate" and l.get_linestyle() == ":" for l in axes[1, 0].lines)
++        PLOT.check_figure_layout(fig, axes)
++        outputs = [tmp_path / "fig9_test.png", tmp_path / "fig9_test.pdf"]
++        for path in outputs:
++            path.write_bytes(b"synthetic bytes for projection test")
++        prov = PLOT.build_provenance(data, outputs, ["python3"])
++        assert prov["workloads"][0]["intervals"] == original
++        assert prov["artist_series"][4]["intervals"] == original
++    finally:
++        PLOT.plt.close(fig)
++
++
++def test_real_figure_passes_layout_check(tmp_path):
++    fig, axes = PLOT.make_figure(_data(tmp_path))
++    try:
++        assert len(fig.axes) == 6
++        PLOT.check_figure_layout(fig, axes)
++    finally:
++        PLOT.plt.close(fig)
++
++
++def test_bbox_overlap_is_a_failure(tmp_path):
++    fig, axes = PLOT.make_figure(_data(tmp_path))
++    try:
++        PLOT.check_figure_layout(fig, axes)
++        fig.text(.5, .5, "overlap alpha")
++        fig.text(.5, .5, "overlap beta")
++        try:
++            PLOT.check_figure_layout(fig, axes)
++        except PLOT.FigureLayoutError as exc:
++            assert "overlap" in str(exc)
++        else:
++            raise AssertionError("layout overlap accepted")
++    finally:
++        PLOT.plt.close(fig)
++
++
++def test_caption_contains_fixed_expression_and_certification_literal(tmp_path):
++    caption = PLOT._caption(_data(tmp_path), "fig8_test")
++    assert "Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding." in caption
++    assert "performance_certified: false" in caption
++    assert PLOT.GROUP_ID in caption
++    assert PLOT.COMPARISON_WARNING in caption
++    assert "18/18 intervals" in caption
++    assert "fixture-0.nqsv, fixture-1.nqsv, fixture-2.nqsv" in caption
++
++
++def test_caption_avoids_forbidden_saturation_claims(tmp_path):
++    caption = PLOT._caption(_data(tmp_path), "fig8_test")
++    source = PLOT.GENERATOR.read_text()
++    for phrase in ("does not saturate", "no saturation point", "never saturates", "saturation-free", "saturates"):
++        assert phrase not in caption.lower()
++        assert phrase not in source.lower()
++
++
++def test_caption_figure_number_comes_from_prefix(tmp_path):
++    data = _data(tmp_path)
++    assert PLOT._caption(data, "fig8_test").startswith("Figure 8.")
++    assert PLOT._caption(data, "fig9_test").startswith("Figure 9.")
++    _reject(lambda: PLOT._caption(data, "figX_test"))
++
++
++def test_external_input_hash_drift_is_rejected(tmp_path):
++    root, hashes = _fixture(tmp_path)
++    # Whitespace keeps semantics intact, so only the byte pin detects this drift.
++    path = root / PLOT.COMPLETE_JSON
++    path.write_text(path.read_text() + "\n")
++    _reject(lambda: PLOT.load_measurements(root, expected_hashes=hashes), "SHA-256")
++
++
++def test_pinned_hashes_are_used_when_no_override(tmp_path):
++    root, _ = _fixture(tmp_path)
++    _reject(lambda: PLOT.load_measurements(root), "SHA-256")
++
++
++def test_performance_certified_true_is_rejected(tmp_path):
++    root, hashes = _fixture(tmp_path, performance_certified=True)
++    _reject(lambda: PLOT.load_measurements(root, expected_hashes=hashes), "performance_certified")
++
++
++def test_verdict_mismatch_is_rejected(tmp_path):
++    root, hashes = _fixture(tmp_path, verdict="fixture-invalid")
++    _reject(lambda: PLOT.load_measurements(root, expected_hashes=hashes), "verdict")
++
++
++def test_dat_with_missing_row_is_rejected(tmp_path):
++    root, _ = _fixture(tmp_path)
++    path = root / PLOT.REPORT_DAT
++    path.write_text("\n".join(path.read_text().splitlines()[:-1]) + "\n")
++    hashes = _seal(root)
++    _reject(lambda: PLOT.load_measurements(root, expected_hashes=hashes), "120 rows")
++
++
++def test_dat_abort_rate_disagreeing_with_counters_is_rejected(tmp_path):
++    root, _ = _fixture(tmp_path)
++    path = root / PLOT.REPORT_DAT
++    lines = path.read_text().splitlines()
++    fields = lines[1].split()
++    fields[5] = "0.4"
++    lines[1] = " ".join(fields)
++    path.write_text("\n".join(lines) + "\n")
++    hashes = _seal(root)
++    _reject(lambda: PLOT.load_measurements(root, expected_hashes=hashes), "numeric crosscheck")
++
++
++def test_boundary_reference_inside_interval_set_is_rejected(tmp_path):
++    root, _ = _fixture(tmp_path)
++    hashes = _change_report(root, lambda r: r["workloads"][0]["intervals"][0].update(left_us=1000))
++    _reject(lambda: PLOT.load_measurements(root, expected_hashes=hashes), "interval grid")
++
++
++def test_uncertified_correctness_record_is_rejected(tmp_path):
++    root, _ = _fixture(tmp_path)
++    hashes = _change_report(root, lambda r: r["campaigns"][0]["points"][0]["correctness"][0]["payload"].update(certified=False))
++    _reject(lambda: PLOT.load_measurements(root, expected_hashes=hashes), "uncertified")
++
++
++def test_group_id_absent_from_campaign_path_is_rejected(tmp_path):
++    root, _ = _fixture(tmp_path)
++    hashes = _change_report(root, lambda r: r["campaigns"][0]["admission"].update(campaign_path="/other/campaigns/test"))
++    _reject(lambda: PLOT.load_measurements(root, expected_hashes=hashes), "group binding")
++
++
++def test_statistics_mismatch_is_rejected(tmp_path):
++    root, _ = _fixture(tmp_path)
++    hashes = _change_report(root, lambda r: r["workloads"][0]["statistics"]["1250"].update(throughput_tps_mean=1))
++    _reject(lambda: PLOT.load_measurements(root, expected_hashes=hashes), "numeric crosscheck")
++
++
++def test_pinned_input_hashes_match_results_document():
++    text = RESULTS.read_text()
++    table = text.split("### 4.1", 1)[1].split("### 4.2", 1)[0]
++    for path, digest in PLOT.PINNED_SHA256.items():
++        rows = [line for line in table.splitlines() if f"`{path}`" in line]
++        assert len(rows) == 1
++        assert re.findall(r"`([0-9a-f]{64})`", rows[0]) == [digest]
++
++
++def test_cli_writes_three_outputs_and_provenance_closure(tmp_path):
++    root, hashes = _fixture(tmp_path)
++    prefix = tmp_path / "fig9_fixture"
++    assert PLOT.main(["--measurement-root", str(root), str(prefix)], expected_hashes=hashes) == 0
++    paths = [Path(f"{prefix}{s}") for s in (".png", ".pdf", ".provenance.json")]
++    assert all(path.is_file() for path in paths)
++    prov = json.loads(paths[2].read_text())
++    PLOT.validate_external_sources(prov, root)
++    _reject(lambda: PLOT.validate_repo_closure(prov, REPO), "external pins")
++    PLOT.validate_repo_closure(prov, REPO, expected_hashes=hashes)
++    argv = prov["reproduction"]["argv"]
++    assert argv[:3] == ["python3", PLOT.GENERATOR_PATH, "--measurement-root"]
++    assert Path(argv[3]) == root.resolve()
++    assert not Path(argv[4]).is_absolute()
++    assert (REPO / argv[4]).resolve() == prefix
++    assert prov["caption"].startswith("Figure 9.")
++    changed = copy.deepcopy(prov)
++    changed["artist_series"][0]["y"][0] += 1
++    _reject(lambda: PLOT.validate_repo_closure(changed, REPO, expected_hashes=hashes), "artist")
++    changed = copy.deepcopy(prov)
++    changed["caption"] += " drift"
++    _reject(lambda: PLOT.validate_repo_closure(changed, REPO, expected_hashes=hashes), "caption")
++    paths[0].write_bytes(paths[0].read_bytes() + b"drift")
++    _reject(lambda: PLOT.validate_repo_closure(prov, REPO, expected_hashes=hashes), "output closure")
++
++
++def test_cli_rejects_prefix_without_fig_number(tmp_path):
++    root, hashes = _fixture(tmp_path)
++    prefix = tmp_path / "figX_invalid"
++    assert PLOT.main(["--measurement-root", str(root), str(prefix)], expected_hashes=hashes) == 2
++    assert not list(tmp_path.glob("figX_invalid*"))
++
++
++def test_layout_failure_publishes_nothing(tmp_path):
++    data = _data(tmp_path)
++    fig, axes = PLOT.make_figure(data)
++    prefix = tmp_path / "fig8_overlap"
++    try:
++        fig.text(.5, .5, "overlap one")
++        fig.text(.5, .5, "overlap two")
++        _reject(lambda: PLOT._publish_outputs(fig, axes, prefix, data, []), "overlap")
++        assert not list(tmp_path.glob("*fig8_overlap*"))
++    finally:
++        PLOT.plt.close(fig)
++
++
++def test_malformed_fields_and_counterpart_mismatches_are_rejected(tmp_path):
++    mutations = [
++        lambda r: r.pop("performance_certified"),
++        lambda r: r.update(performance_certified=0),
++        lambda r: r.update(failures=["failed"]),
++        lambda r: r["campaigns"][0]["points"][0]["reps"][0].update(abort_counts_=True),
++        lambda r: r["campaigns"][0]["points"][0]["reps"][0].update(throughput_tps=float("nan")),
++        lambda r: r["campaigns"][0]["points"][0]["correctness"][0]["payload"].update(anomalies=1),
++        lambda r: r["campaigns"][0]["points"][0]["reps"][0].update(rep_index=1),
++        lambda r: r["campaigns"][0]["points"][0].update(backoff_us=1250),
++        lambda r: r["workloads"][0]["intervals"][0].update(L=.9),
++        lambda r: r["workloads"][0]["statistics"]["1250"].update(abort_rate_cv=10),
++        lambda r: r["workloads"][0]["statistics"]["1250"].update(gate_passed=False),
++    ]
++    for index, mutation in enumerate(mutations):
++        root, _ = _fixture(tmp_path / str(index))
++        hashes = _change_report(root, mutation)
++        _reject(lambda: PLOT.load_measurements(root, expected_hashes=hashes))
++
++
++def test_real_root_loads_and_matches_results_document_when_present():
++    if not PLOT.DEFAULT_ROOT.exists():
++        skip("formal measurement root is unavailable")
++    data = PLOT.load_measurements(PLOT.DEFAULT_ROOT)
++    assert data["report"]["verdict"] == "not-observed-in-any-workload"
++    assert sum(len(w["cells"]) for w in data["workloads"]) == 24
++    assert data["workloads"][0]["cells"][0]["tps_mean"] == 993106.4
++    ratios = [f"{w['tail_throughput_ratio']:.3f}" for w in data["workloads"]]
++    assert ratios == ["0.444", "0.481", "0.400"]
++    text = RESULTS.read_text()
++    assert "993,106.4" in text and all(ratio in text for ratio in ratios)
++
++
++def test_landed_fig8_repo_closure_and_caption_when_present():
++    prefix = REPO / "docs/paper-story/figures/fig8_b10_static_tail_not_observed"
++    paths = [Path(f"{prefix}{s}") for s in (".png", ".pdf", ".provenance.json")]
++    readme = (prefix.parent / "README.md").read_text()
++    if not any(path.exists() for path in paths) and prefix.name not in readme:
++        skip("fig8 integration artifacts are parent-owned and not landed yet")
++    assert all(path.is_file() for path in paths), "fig8 integration bundle is incomplete"
++    prov = json.loads(paths[2].read_text())
++    PLOT.validate_repo_closure(prov, REPO)
++    assert prov["caption"] in readme
++
++
++def _run():
++    passed = failed = skipped = errors = 0
++    tests = [value for name, value in sorted(globals().items()) if name.startswith("test_") and callable(value)]
++    for test in tests:
++        node = f"{Path(__file__).name}::{test.__name__}"
++        try:
++            with tempfile.TemporaryDirectory(prefix="b10-tail-test-") as directory:
++                kwargs = {"tmp_path": Path(directory)} if "tmp_path" in inspect.signature(test).parameters else {}
++                test(**kwargs)
++            print(f"PASS {node}")
++            passed += 1
++        except Skip as exc:
++            print(f"SKIP {node}: {exc}")
++            skipped += 1
++        except AssertionError as exc:
++            print(f"FAIL {node}: {exc}")
++            traceback.print_exc()
++            failed += 1
++        except Exception as exc:
++            print(f"ERROR {node}: {type(exc).__name__}: {exc}")
++            traceback.print_exc()
++            errors += 1
++    print(f"{passed} passed, {failed} failed, {skipped} skipped, {errors} errors")
++    return 1 if failed or errors else 0
++
++
++if __name__ == "__main__":
++    sys.exit(_run())
+diff --git a/tools/plotting/plot_b10_static_tail_formal.py b/tools/plotting/plot_b10_static_tail_formal.py
+new file mode 100644
+index 000000000..982c92b82
+--- /dev/null
++++ b/tools/plotting/plot_b10_static_tail_formal.py
+@@ -0,0 +1,519 @@
++#!/usr/bin/env python3
++"""Descriptive B-10 formal static-backoff tail figure and its evidence closure."""
++from __future__ import annotations
++
++import argparse
++import copy
++import datetime
++import hashlib
++import json
++import math
++import os
++from pathlib import Path
++import re
++import shlex
++import sys
++import tempfile
++
++import numpy as np
++import matplotlib
++matplotlib.use("Agg")
++import matplotlib.pyplot as plt
++from matplotlib.lines import Line2D
++from matplotlib.ticker import NullLocator
++
++SCHEMA = "izanagi-b10-static-tail-formal-figure-provenance/v1"
++GROUP_ID = "b10-backoff-grid-20260915T061814Z-545445"
++REPORT_SCHEMA = "t2500-backoff-static-tail-formal-report/v1"
++RUN_KIND = "t2500-tail-formal"
++EXPECTED_VERDICT = "not-observed-in-any-workload"
++DEFAULT_ROOT = Path("/work/1/SFC/tanab/b10-backoff-grid-t2500-formal")
++REPORT_JSON = "group-report-20260915/t2500-backoff-static-tail-formal.json"
++REPORT_DAT = "group-report-20260915/t2500-backoff-static-tail-formal.dat"
++COMPLETE_JSON = "group-report-20260915/t2500-backoff-static-tail-formal-complete.json"
++PINNED_SHA256 = {
++    REPORT_JSON: "5f426ecbc16132048cf0c73eaf6960a395ec821a9f48cc04a83a787dceec8b28",
++    REPORT_DAT: "758b3121cebf7562315a8a70d1f305ced678f90b393fc3cd2a4af87ca0c71c44",
++    COMPLETE_JSON: "7192d1da0b4a032251a0e270ec60910a118a5f75844dc9276a6fba00a682d08c",
++}
++INPUT_KINDS = ("group-report-json", "group-report-dat", "completion-record")
++WORKLOADS = ("write-heavy", "balanced", "read-heavy")
++RRATIOS = {5, 50, 95}
++TAIL_GRID_US = (1250, 1768, 2500, 3535, 5000, 7070, 9999)
++BOUNDARY_REFERENCE_US = 1000
++GRID_US = (BOUNDARY_REFERENCE_US,) + TAIL_GRID_US
++REPS_PER_CELL = 5
++T95_DF4 = 2.7764451051977987
++CLAIM_BOUNDARY = {
++    "claim_scope": "descriptive_backoff_tail_cost_only", "performance_certified": False,
++    "source_measurement": "trace_disabled", "mechanism_claim": False,
++    "adoption_decision": False, "saturation_wording": "not-observed-within-representable-range",
++}
++COMPARISON_WARNING = "Panel heights and slopes use workload-local y scales and must not be compared across panels."
++FIXED_WORDING = "Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding."
++GENERATOR = Path(__file__).resolve()
++REPO_ROOT = GENERATOR.parents[2]
++GENERATOR_PATH = "tools/plotting/plot_b10_static_tail_formal.py"
++DAT_HEADER = "# workload backoff_us rep aborts commits abort_rate throughput_tps"
++STATES = ("declining", "saturated", "indeterminate")
++
++
++class FigureDataError(ValueError):
++    """Invalid or incomplete evidence."""
++
++
++class FigureLayoutError(FigureDataError):
++    """Rendered text violates the layout contract."""
++
++
++def _require(condition, message):
++    if not condition:
++        raise FigureDataError(message)
++
++
++def _sha256(path):
++    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
++
++
++def _number(value):
++    _require(type(value) in (int, float) and math.isfinite(value), "finite number required")
++    return value
++
++
++def _integer(value, *, positive=False):
++    _require(type(value) is int and (not positive or value > 0), "integer required")
++    return value
++
++
++def _string(value):
++    _require(type(value) is str and bool(value), "nonempty string required")
++    return value
++
++
++def _close(actual, expected, *, rel=1e-9, absolute=0):
++    _require(math.isclose(_number(actual), _number(expected), rel_tol=rel, abs_tol=absolute),
++             f"numeric crosscheck mismatch: {actual} != {expected}")
++
++
++def _grid(rows):
++    values = [_integer(row["backoff_us"]) for row in rows]
++    _require(len(values) == len(GRID_US) and set(values) == set(GRID_US), "grid mismatch")
++
++
++def _cell(point):
++    _require(point["use_perf"] is False, "use_perf must be false")
++    reps = point["reps"]
++    _require(type(reps) is list and len(reps) == REPS_PER_CELL, "five reps required")
++    indices = [_integer(r["rep_index"]) for r in reps]
++    _require(set(indices) == set(range(REPS_PER_CELL)), "rep indices mismatch")
++    rates, tps = [], []
++    for rep in reps:
++        a = _integer(rep["abort_counts_"], positive=True)
++        c = _integer(rep["commit_counts_"], positive=True)
++        t = _number(rep["throughput_tps"])
++        _require(t > 0, "positive throughput required")
++        rates.append(a / (a + c))
++        tps.append(t)
++        _close(rep["abort_rate_recomputed"], rates[-1], rel=1e-12)
++    _require(type(point["tps"]) is list and len(point["tps"]) == REPS_PER_CELL, "tps length")
++    _require(all(_number(a) == b for a, b in zip(point["tps"], tps)), "tps order/value mismatch")
++    correctness = point["correctness"]
++    _require(type(correctness) is list and len(correctness) == REPS_PER_CELL, "five correctness records required")
++    for record in correctness:
++        payload = record["payload"]
++        _require(payload["certified"] is True, "uncertified correctness record")
++        _require(_integer(payload["anomalies"]) == 0, "correctness anomalies")
++    result = {"backoff_us": point["backoff_us"], "reps": copy.deepcopy(reps),
++              "correctness": copy.deepcopy(correctness), "tps": tps, "abort_rates": rates}
++    for name, values in (("tps", tps), ("abort", rates)):
++        mean, sd = float(np.mean(values)), float(np.std(values, ddof=1))
++        result.update({f"{name}_mean": mean, f"{name}_sd": sd,
++                       f"{name}_ci95_half": T95_DF4 * sd / math.sqrt(REPS_PER_CELL),
++                       f"{name}_cv": sd / mean})
++    return result
++
++
++def _validate_dat(path, records):
++    lines = path.read_text(encoding="utf-8").splitlines()
++    _require(lines and lines[0] == DAT_HEADER, "dat header mismatch")
++    _require(len(lines) - 1 == 120, "dat must contain 120 rows")
++    seen = set()
++    for line in lines[1:]:
++        fields = line.split()
++        _require(len(fields) == 7, "dat column count")
++        workload, backoff, index, aborts, commits, rate, tps = fields
++        key = (workload, int(backoff), int(index))
++        _require(key in records and key not in seen, "dat key absent or duplicated")
++        seen.add(key)
++        rep = records[key]
++        a, c = int(aborts), int(commits)
++        _require((a, c) == (rep["abort_counts_"], rep["commit_counts_"]), "dat counters mismatch")
++        _require(_number(float(tps)) == rep["throughput_tps"], "dat throughput mismatch")
++        _close(float(rate), a / (a + c), rel=1e-12)
++    # Count + unique membership above establishes the bijection without a second row-count gate.
++
++
++def load_measurements(root, *, expected_hashes=None):
++    """Load pinned evidence; copy decisions, recompute descriptive statistics."""
++    try:
++        return _load_measurements(Path(root).resolve(), expected_hashes)
++    except FigureDataError:
++        raise
++    except (OSError, ValueError, TypeError, KeyError, IndexError, OverflowError) as exc:
++        raise FigureDataError(f"malformed measurement evidence: {exc}") from exc
++
++
++def _load_measurements(root, expected_hashes):
++    hashes = PINNED_SHA256 if expected_hashes is None else expected_hashes
++    _require(set(hashes) == set(PINNED_SHA256), "input hash keys mismatch")
++    external = []
++    for path, kind in zip(PINNED_SHA256, INPUT_KINDS):
++        _require((root / path).is_file(), f"missing input: {path}")
++        digest = _sha256(root / path)
++        _require(digest == hashes[path], f"SHA-256 mismatch: {path}")
++        external.append({"kind": kind, "path": path, "sha256": digest})
++    report = json.loads((root / REPORT_JSON).read_text())
++    complete = json.loads((root / COMPLETE_JSON).read_text())
++    for path in (REPORT_JSON, REPORT_DAT):
++        _require(complete["artifacts"][Path(path).name] == hashes[path], "completion artifact hash mismatch")
++    _require(report["schema_version"] == REPORT_SCHEMA, "report schema mismatch")
++    _require(report["run_kind"] == RUN_KIND, "run kind mismatch")
++    _require(report["verdict"] == EXPECTED_VERDICT, "verdict mismatch")
++    _require(report["performance_certified"] is False, "performance_certified must be false")
++    _require(report["failures"] == [], "report failures")
++    _require(_string(report["spec_sha256"]) == complete["spec_sha256"], "spec hash mismatch")
++    preregs = complete["preregistrations"]
++    _require(type(preregs) is list and len(preregs) == 3 and all(p == preregs[0] for p in preregs),
++             "preregistrations must be three identical records")
++    prereg = {"commit": _string(preregs[0]["preregistration_commit"]),
++              "document_blob_sha256": _string(preregs[0]["preregistration_document_blob_sha256"])}
++    _require(tuple(c["workload"] for c in report["campaigns"]) == WORKLOADS, "campaign order/count mismatch")
++    _require(tuple(w["workload"] for w in report["workloads"]) == WORKLOADS, "workload order/count mismatch")
++    campaigns, workloads, records, conditions = [], [], {}, []
++    for campaign, w, rratio in zip(report["campaigns"], report["workloads"], sorted(RRATIOS)):
++        workload = campaign["workload"]
++        admission, identity, completion = campaign["admission"], campaign["identity"], campaign["completion"]
++        _require(admission["admission_status"] in ("admitted", "admitted-new-schema"), "campaign not admitted")
++        _require(f"/{GROUP_ID}-{workload}/campaigns/" in admission["campaign_path"], "campaign group binding mismatch")
++        for key, expected in (("threads", 48), ("records", 1000000), ("extime_s", 3), ("performance_reps_per_cell", 5)):
++            _require(_integer(identity[key]) == expected, f"identity {key} mismatch")
++        coords = identity["workload_coordinates"]
++        _require(type(coords["ycsb_rratio"]) is str and coords["ycsb_rratio"] == str(rratio), "rratio mismatch")
++        for key, value in (("ycsb_zipf_skew", "0.9"), ("ycsb_rmw", "0"), ("ycsb_max_ope", "10")):
++            _require(coords[key] == value, f"coordinate {key} mismatch")
++        _grid(identity["grid"])
++        _require(identity["build_admission"]["repo_stock_pin"] == "511c953", "stock pin mismatch")
++        _require(completion["status"] == "complete", "incomplete campaign")
++        _require(_string(campaign["campaign_lock_digest"]) == completion["campaign_lock_sha256"], "lock mismatch")
++        campaign_row = {"workload": workload, "campaign_id": _string(campaign["campaign_id"]),
++                        "campaign_lock_digest": campaign["campaign_lock_digest"],
++                        "wal_sha256": _string(completion["wal_sha256"]),
++                        "job_id": _string(completion["scheduler"]["job_id"]),
++                        "admission_status": admission["admission_status"]}
++        if "host" in completion:
++            campaign_row["host"] = _string(completion["host"])
++        campaigns.append(campaign_row)
++        conditions.append(copy.deepcopy(identity))
++        _grid(campaign["points"])
++        cells = [_cell(point) for point in sorted(campaign["points"], key=lambda p: p["backoff_us"])]
++        for cell in cells:
++            for rep in cell["reps"]:
++                records[(workload, cell["backoff_us"], rep["rep_index"])] = rep
++            stat = w["statistics"][str(cell["backoff_us"])]
++            _require(stat["gate_passed"] is True, "statistics gate failed")
++            for key, field in (("throughput_tps_mean", "tps_mean"), ("mean", "abort_mean"),
++                               ("throughput_tps_cv", "tps_cv"), ("abort_rate_cv", "abort_cv"),
++                               ("sample_sd", "abort_sd")):
++                _close(stat[key], cell[field])
++        intervals = copy.deepcopy(w["intervals"])
++        _require([(i["left_us"], i["right_us"]) for i in intervals] == list(zip(TAIL_GRID_US, TAIL_GRID_US[1:])),
++                 "interval grid mismatch; boundary reference is excluded")
++        for interval in intervals:
++            _integer(interval["left_us"])
++            _integer(interval["right_us"])
++            _require(interval["state"] in STATES, "invalid interval state")
++            for key in ("qhat", "qL", "qU", "L", "U", "U_flat"):
++                _number(interval[key])
++            _close(interval["L"], 1 - 2**interval["qU"], rel=0, absolute=1e-9)
++            _close(interval["U"], 1 - 2**interval["qL"], rel=0, absolute=1e-9)
++        _string(w["state"])
++        _require(w["saturation_location"] is None or type(w["saturation_location"]) in (int, float, dict, list),
++                 "invalid saturation location")
++        _require(type(w["local_flat_intervals"]) is list, "invalid local flat intervals")
++        workloads.append({"workload": workload, "state": w["state"],
++                          "saturation_location": copy.deepcopy(w["saturation_location"]),
++                          "local_flat_intervals": copy.deepcopy(w["local_flat_intervals"]),
++                          "intervals": intervals, "cells": cells,
++                          "tail_throughput_ratio": cells[-1]["tps_mean"] / cells[1]["tps_mean"]})
++    _validate_dat(root / REPORT_DAT, records)
++    return {"external_root": str(root), "external_inputs": external, "group_id": GROUP_ID,
++            "report": {key: copy.deepcopy(report[key]) for key in
++                       ("schema_version", "run_kind", "verdict", "performance_certified", "spec_sha256", "failures")},
++            "preregistration": prereg, "campaigns": campaigns, "measurement_conditions": conditions,
++            "workloads": workloads, "correctness": {"records": len(records), "certified": len(records), "anomalies": 0},
++            "claim_boundary": dict(CLAIM_BOUNDARY)}
++
++
++def _figure_number(prefix):
++    match = re.match(r"fig([0-9]+)_", Path(prefix).name)
++    _require(match is not None, "output prefix basename must start with fig<N>_")
++    return match.group(1)
++
++
++def _caption(data, prefix):
++    intervals = [i for w in data["workloads"] for i in w["intervals"]]
++    declining = sum(i["state"] == "declining" for i in intervals)
++    bounds = [i["L"] for i in intervals]
++    ratios = [w["tail_throughput_ratio"] for w in data["workloads"]]
++    jobs = ", ".join(c["job_id"] for c in data["campaigns"])
++    correctness = data["correctness"]
++    return " ".join([
++        f"Figure {_figure_number(prefix)}. B-10 static-backoff right tail, formal cohort of 2026-09-15 (group {data['group_id']}; aggregate verdict {data['report']['verdict']}; performance_certified: false).",
++        f"Columns show write-heavy (rr5), balanced (rr50) and read-heavy (rr95), each an independent campaign (job IDs, respectively: {jobs}).",
++        "The x axis shows seven tail points (1250, 1768, 2500, 3535, 5000, 7070 and 9999 us; filled markers) and the 1000 us boundary reference (open marker), measured in the same job but excluded from the interval set.",
++        "The top row shows means of five trace-disabled repetitions with t-distribution 95% confidence intervals (error bars). M tps means million transactions per second.",
++        "The bottom row shows abort rates recomputed for each repetition from integer counters as aborts / (aborts + commits), averaged over five repetitions with the same confidence intervals.",
++        f"Segments between adjacent tail points are colored by the interval state copied from the group report: {declining}/{len(intervals)} intervals (6 per workload) are declining; simultaneous lower bounds L on the per-doubling decrease range from {min(bounds):.4f} to {max(bounds):.4f} (Bonferroni over 36 one-sided limits, familywise 0.05).",
++        FIXED_WORDING, "9999 us is not a physical limit.",
++        f"From 1250 to 9999 us the mean throughput falls to {ratios[0]:.3f}, {ratios[1]:.3f} and {ratios[2]:.3f} of its 1250 us value (write-heavy, balanced, read-heavy) while the abort rate keeps decreasing.",
++        "This figure is a descriptive accounting of that cost; it makes no mechanism claim and no adoption decision.",
++        "Conditions: 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s, 5 repetitions, silo, CCBench pin 511c953, no perf, trace-disabled performance.",
++        f"Correctness comes from separate trace-enabled runs under the recorded legacy check configuration, not the performance configuration: all {correctness['certified']} records were certified with {correctness['anomalies']} anomalies, and this is not a performance certification.",
++        COMPARISON_WARNING,
++        "This cohort is a different grid and a different cohort from fig2c and is not a continuation of it.",
++    ])
++
++
++def _direct_label(workload):
++    counts = {state: sum(i["state"] == state for i in workload["intervals"]) for state in STATES}
++    if counts["declining"] == 6:
++        return f"6/6 intervals declining\nL >= {min(i['L'] for i in workload['intervals']):.3f}"
++    return (f"{counts['declining']}/6 declining, {counts['saturated']} saturated,\n"
++            f"{counts['indeterminate']} indeterminate")
++
++
++def _artist_series(data):
++    rows = []
++    for w in data["workloads"]:
++        for metric, scale in (("tps", 1e6), ("abort", 1)):
++            for kind, xs in (("tail", TAIL_GRID_US), ("boundary-reference", (BOUNDARY_REFERENCE_US,))):
++                cells = [c for c in w["cells"] if c["backoff_us"] in xs]
++                rows.append({"workload": w["workload"], "metric": metric, "kind": kind,
++                             "x": [c["backoff_us"] for c in cells],
++                             "y": [c[f"{metric}_mean"] / scale for c in cells],
++                             "ci95_half": [c[f"{metric}_ci95_half"] / scale for c in cells]})
++        rows.append({"workload": w["workload"], "kind": "intervals", "intervals": copy.deepcopy(w["intervals"]),
++                     "direct_label": _direct_label(w)})
++    return rows
++
++
++def make_figure(data):
++    plt.rcParams.update({"font.family": "DejaVu Sans", "font.size": 7,
++                         "axes.spines.top": False, "axes.spines.right": False})
++    fig, axes = plt.subplots(2, 3, figsize=(7.2, 5.7), squeeze=False)
++    fig.subplots_adjust(left=.095, right=.985, bottom=.20, top=.88, wspace=.38, hspace=.48)
++    series = _artist_series(data)
++    color = "#2166ac"
++    styles = {"declining": (color, "-", 1.2), "saturated": ("#d95f02", "-", 2.5),
++              "indeterminate": ("#777777", ":", 1.2)}
++    for col, w in enumerate(data["workloads"]):
++        for row, metric in enumerate(("tps", "abort")):
++            ax = axes[row, col]
++            for kind in ("tail", "boundary-reference"):
++                s = next(s for s in series if s["workload"] == w["workload"] and s.get("metric") == metric and s["kind"] == kind)
++                artist = ax.errorbar(s["x"], s["y"], yerr=s["ci95_half"], fmt="o",
++                                    linestyle="-" if metric == "tps" and kind == "tail" else "none",
++                                    color=color, markerfacecolor=color if kind == "tail" else "none",
++                                    markersize=3, linewidth=1, capsize=2)
++                artist.lines[0].set_gid(kind)
++            if row == 1:
++                cells = {c["backoff_us"]: c for c in w["cells"]}
++                for interval in w["intervals"]:
++                    xs = [interval["left_us"], interval["right_us"]]
++                    c, style, width = styles[interval["state"]]
++                    line, = ax.plot(xs, [cells[x]["abort_mean"] for x in xs], color=c, linestyle=style, linewidth=width)
++                    line.set_gid("interval-" + interval["state"])
++                ax.text(.97, .95, _direct_label(w), transform=ax.transAxes, ha="right", va="top", fontsize=6,
++                        gid="direct-label")
++                ax.set_xlabel("fixed static backoff (us)")
++                ax.margins(y=.30)
++            else:
++                ax.set_title(f"{w['workload']} (rr{sorted(RRATIOS)[col]})", fontsize=8)
++                ax.margins(y=.12)
++            ax.set_xscale("log")
++            ax.set_xticks(GRID_US, [str(x) for x in GRID_US], rotation=45, ha="right", fontsize=6)
++            # The boundary and first tail point are closer on the log axis;
++            # stagger the boundary tick while retaining all eight integer labels.
++            ax.xaxis.get_major_ticks()[0].set_pad(20)
++            ax.xaxis.set_minor_locator(NullLocator())
++            ax.tick_params(axis="y", labelsize=6)
++            low, high = ax.get_ylim()
++            ax.set_yticks([y for y in ax.get_yticks() if low <= y <= high])
++            ax.grid(alpha=.18)
++        axes[0, 0].set_ylabel("throughput (M tps)")
++        axes[1, 0].set_ylabel("abort rate")
++    present = {i["state"] for w in data["workloads"] for i in w["intervals"]}
++    handles = [Line2D([], [], color=styles[s][0], linestyle=styles[s][1], linewidth=styles[s][2], label=s)
++               for s in STATES if s in present]
++    handles.append(Line2D([], [], color=color, marker="o", markerfacecolor="none", linestyle="none",
++                          label="boundary reference (not in the interval set)"))
++    fig.legend(handles=handles, loc="upper center", bbox_to_anchor=(.5, 1), ncol=2, frameon=False, fontsize=6)
++    fig.text(.5, .035, COMPARISON_WARNING.replace(" and must", "\nand must"), ha="center", fontsize=7)
++    fig.tight_layout(rect=(0, .09, 1, .93), h_pad=2, w_pad=1.8)
++    fig._b10_tail_caption = _caption(data, "fig8_b10_static_tail_not_observed")
++    fig._b10_tail_artist_series = series
++    return fig, axes
++
++
++def _intersection(left, right):
++    return max(0, min(left.x1, right.x1) - max(left.x0, right.x0)) * max(0, min(left.y1, right.y1) - max(left.y0, right.y0))
++
++
++def _contains(outer, inner):
++    return inner.x0 >= outer.x0 - 1 and inner.y0 >= outer.y0 - 1 and inner.x1 <= outer.x1 + 1 and inner.y1 <= outer.y1 + 1
++
++
++def check_figure_layout(fig, axes):
++    from matplotlib.text import Text
++    fig.canvas.draw()
++    renderer = fig.canvas.get_renderer()
++    plot_axes = list(np.asarray(axes).flat)
++    if len(plot_axes) != 6 or set(plot_axes) != set(fig.axes):
++        raise FigureLayoutError("production layout must contain exactly six axes")
++    boxes = []
++    for text in fig.findobj(Text):
++        if not text.get_visible() or not text.get_text().strip():
++            continue
++        box = text.get_window_extent(renderer)
++        if box.width <= 0 or box.height <= 0:
++            continue
++        if not _contains(fig.bbox, box):
++            raise FigureLayoutError(f"text leaves figure: {text.get_text()!r}")
++        if text.get_gid() == "direct-label" and (text.axes is None or not _contains(text.axes.bbox, box)):
++            raise FigureLayoutError("annotation leaves owner axis")
++        if text.axes is not None:
++            for other in fig.axes:
++                if other is not text.axes and _intersection(box, other.bbox) > 1:
++                    raise FigureLayoutError("text enters neighboring panel")
++        boxes.append((text, box))
++    for index, (left, box) in enumerate(boxes):
++        for right, other in boxes[index + 1:]:
++            if _intersection(box, other) > 1:
++                raise FigureLayoutError(f"text bbox overlap: {left.get_text()!r} / {right.get_text()!r}")
++    for axis in fig.axes:
++        if not _contains(fig.bbox, axis.get_tightbbox(renderer)):
++            raise FigureLayoutError("axis decoration leaves figure")
++
++
++def _display_path(path):
++    return os.path.relpath(Path(path).resolve(), REPO_ROOT)
++
++
++def build_provenance(data, outputs, argv, *, hash_paths=None, generated_utc=None):
++    hashes = outputs if hash_paths is None else hash_paths
++    _require(len(outputs) == len(hashes) == 2, "two figure outputs required")
++    return {
++        **{key: copy.deepcopy(data[key]) for key in ("external_inputs", "group_id", "report", "preregistration",
++            "campaigns", "measurement_conditions", "workloads", "correctness", "claim_boundary")},
++        "schema": SCHEMA, "generated_utc": generated_utc or datetime.datetime.now(datetime.timezone.utc).isoformat(),
++        "generator": {"path": GENERATOR_PATH, "sha256": _sha256(GENERATOR)},
++        "outputs": [{"path": _display_path(p), "sha256": _sha256(h)} for p, h in zip(outputs, hashes)],
++        "external_source_locator": {"root_at_generation": data["external_root"], "validation_key": "root-relative-path-plus-sha256"},
++        "artist_series": _artist_series(data), "caption": _caption(data, Path(outputs[0]).with_suffix("")),
++        "reproduction": {"cwd": "repository-root", "argv": list(argv), "command": shlex.join(argv)},
++    }
++
++
++def validate_external_sources(provenance, root):
++    rows = provenance["external_inputs"]
++    _require([r["path"] for r in rows] == list(PINNED_SHA256), "external input paths mismatch")
++    try:
++        for row in rows:
++            _require(_sha256(Path(root) / row["path"]) == row["sha256"], "external closure mismatch")
++    except OSError as exc:
++        raise FigureDataError(str(exc)) from exc
++
++
++def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):
++    """Check landed bytes and projections; optional hashes serve synthetic fixtures only."""
++    try:
++        hashes = PINNED_SHA256 if expected_hashes is None else expected_hashes
++        _require(provenance["schema"] == SCHEMA and provenance["generator"]["path"] == GENERATOR_PATH,
++                 "schema/generator mismatch")
++        rows = provenance["external_inputs"]
++        _require(len(rows) == 3 and [r["path"] for r in rows] == list(PINNED_SHA256), "external inputs mismatch")
++        _require([r["kind"] for r in rows] == list(INPUT_KINDS), "external kinds mismatch")
++        _require({r["path"]: r["sha256"] for r in rows} == hashes, "external pins mismatch")
++        outputs = provenance["outputs"]
++        _require(len(outputs) == 2 and [Path(r["path"]).suffix for r in outputs] == [".png", ".pdf"], "outputs mismatch")
++        prefix = Path(outputs[0]["path"]).with_suffix("")
++        _require(Path(outputs[1]["path"]).with_suffix("") == prefix, "output prefixes mismatch")
++        for row in outputs:
++            _require(_sha256(Path(repo_root) / row["path"]) == row["sha256"], "output closure mismatch")
++        _require(provenance["artist_series"] == _artist_series(provenance), "artist projection mismatch")
++        _require(provenance["caption"] == _caption(provenance, prefix), "caption projection mismatch")
++        _require(provenance["claim_boundary"] == CLAIM_BOUNDARY, "claim boundary mismatch")
++    except (OSError, KeyError, TypeError, IndexError) as exc:
++        raise FigureDataError(f"invalid repo closure: {exc}") from exc
++
++
++def _publish_outputs(fig, axes, prefix, data, argv):
++    fig._b10_tail_caption = _caption(data, prefix)
++    check_figure_layout(fig, axes)
++    prefix.parent.mkdir(parents=True, exist_ok=True)
++    destinations = [Path(f"{prefix}{suffix}") for suffix in (".png", ".pdf", ".provenance.json")]
++    temporary, published = [], []
++    try:
++        for suffix in (".png", ".pdf", ".provenance.json"):
++            fd, name = tempfile.mkstemp(prefix=f".{prefix.name}.", suffix=suffix, dir=prefix.parent)
++            os.close(fd)
++            temporary.append(Path(name))
++        for path, fmt in zip(temporary[:2], ("png", "pdf")):
++            fig.savefig(path, format=fmt, dpi=200)
++        provenance = build_provenance(data, destinations[:2], argv, hash_paths=temporary[:2])
++        temporary[2].write_text(json.dumps(provenance, indent=2, allow_nan=False) + "\n", encoding="utf-8")
++        # Save all bytes before publication; restore existing outputs if a rename fails.
++        previous = {p: p.read_bytes() if p.exists() else None for p in destinations}
++        try:
++            for source, destination in zip(temporary, destinations):
++                os.replace(source, destination)
++                published.append(destination)
++        except OSError:
++            for path in published:
++                if previous[path] is None:
++                    path.unlink()
++                else:
++                    path.write_bytes(previous[path])
++            raise
++        return destinations
++    finally:
++        for path in temporary:
++            path.unlink(missing_ok=True)
++
++
++def main(argv=None, *, expected_hashes=None):
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--measurement-root", type=Path)
++    parser.add_argument("out_prefix", type=Path)
++    args = parser.parse_args(argv)
++    root = Path(args.measurement_root or os.environ.get("IZANAGI_B10_TAIL_MEASUREMENT_ROOT", DEFAULT_ROOT)).resolve()
++    prefix = args.out_prefix.resolve()
++    figure = None
++    try:
++        _figure_number(prefix)
++        data = load_measurements(root, expected_hashes=expected_hashes)
++        figure, axes = make_figure(data)
++        expanded = ["python3", GENERATOR_PATH, "--measurement-root", str(root), _display_path(prefix)]
++        _publish_outputs(figure, axes, prefix, data, expanded)
++    except Exception as exc:  # CLI failures must not publish a figure.
++        print(f"[error] {type(exc).__name__}: {exc}", file=sys.stderr)
++        return 2
++    finally:
++        if figure is not None:
++            plt.close(figure)
++    print(f"wrote {prefix}.png / .pdf / .provenance.json")
++    return 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())

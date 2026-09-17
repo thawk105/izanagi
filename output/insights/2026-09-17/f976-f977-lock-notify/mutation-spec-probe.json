@@ -1,0 +1,176 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 2700,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "id": "m0-equivalent-comment",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "old": "                # Writers hold the gate only while acquiring main; fresh readers\n",
+     "new": "                # Writers hold the gate only while acquiring main (equivalent mutation marker); fresh readers\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-reader-gate-probe-skipped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "old": "        if not _REAL_REPO_PROCESS_LOCKS:\n",
+     "new": "        if False:  # mutation: fresh readers never probe the gates\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-fresh-writer-gate-skipped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "old": "                if target_mode == \"write\":\n",
+     "new": "                if target_mode == \"write\" and not created:  # mutation: fresh EX skips the gate\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-upgrade-writer-gate-skipped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "old": "                if target_mode == \"write\":\n",
+     "new": "                if target_mode == \"write\" and created:  # mutation: upgrades keep the old conversion\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-main-deadline-recomputed-after-gate",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "old": "                        state.fd,\n                        deadline=deadline,\n",
+     "new": "                        state.fd,\n                        deadline=time.monotonic() + _REAL_REPO_LOCK_TIMEOUT_S,  # mutation\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-gate-close-skipped-on-failure",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "old": "                finally:\n                    if state.gate_fd is not None:\n                        try:\n                            fcntl.flock(state.gate_fd, fcntl.LOCK_UN)\n",
+     "new": "                except BaseException:\n                    raise  # mutation: gate fd stays open and locked on failure\n                else:\n                    if state.gate_fd is not None:\n                        try:\n                            fcntl.flock(state.gate_fd, fcntl.LOCK_UN)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-reader-gate-probe-while-holding",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/conftest.py",
+     "old": "        if not _REAL_REPO_PROCESS_LOCKS:\n",
+     "new": "        if True:  # mutation: probe gates even while holding main locks\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-rolled-back-tip-equals-main-accepted",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/wave_land_window.py",
+     "old": "        if main_after == wave_tip:\n",
+     "new": "        if False:  # mutation: tip == main is accepted\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m8-rolled-back-accepts-rollback-failed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/wave_land_window.py",
+     "old": "        if not isinstance(status_value, str) or status_value != \"fold-failed\":\n",
+     "new": "        if not isinstance(status_value, str) or status_value not in (\"fold-failed\", \"fold-rollback-failed\"):  # mutation\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m9-rolled-back-tip-sha-check-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/wave_land_window.py",
+     "old": "        if not _is_sha(wave_tip):\n",
+     "new": "        if wave_tip is None:  # mutation: tip shape is not validated\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m10-rolled-back-fixed-text-changed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/wave_land_window.py",
+     "old": "    \"この land 結果では main は記載の SHA にあり、wave tip とは異なります。\"\n",
+     "new": "    \"この land 結果では Main は記載の SHA にあり、wave tip とは異なります。\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m11-landed-accepts-rollback-failed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/wave_land_window.py",
+     "old": "_SUCCESS_STATUSES = frozenset({\"landed\", \"already-landed\"})\n",
+     "new": "_SUCCESS_STATUSES = frozenset({\"landed\", \"already-landed\", \"fold-rollback-failed\"})  # mutation\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

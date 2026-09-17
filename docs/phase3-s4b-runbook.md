@@ -47,9 +47,15 @@ driver で `--emit-planner-context` を指定せず `--run-iteration` を実行�
 
 ### (a) planner-v4 を spawn (方向提案・値なし)
 `Agent(subagent_type='planner-v4')`。入力 (メインセッションが**射影して**渡す。JSON):
+
+適用版 (D2104 項 4): 2026-09-17 の [T-2703] / [T-2717] / [T-2705] 改訂以降に開始する走行には、改訂した
+役割入力文書 (`.claude/agents/planner-v4.md` / `coder-v4-autonomous-trigger-gating.md` / `critic.md` /
+`critic-experiment.md` と `src/coder-leakproof-context.md`) と下の射影形を適用する。凍結済みアーム (K0 / K1 /
+B-4) と、それ以前に開始した走行 (T-2588 の K2 走行を含む) には遡及適用せず、記録は当時の文書・射影
+(`last_delta_pct: null` を含む) のまま保持する。
 ```json
 {
-  "current_perf": {"throughput_tps": <baseline>, "abort_rate_pct": <baseline>, "last_delta_pct": null},
+  "current_perf": {"throughput_tps": <baseline>, "abort_rate_pct": <baseline>},
   "leading_indicators": {"cache_miss_rate_pct": <baseline>, "contention_level": "<...>", "IPC_overall": <baseline>},
   "whiteboard": <loop_state.json の whiteboard (抽象・機序なし)>
 }

@@ -39,6 +39,14 @@ _ADVISORY = (
     "待機・取り込み・検査省略の根拠にしないでください。"
     "受入を開始済みなら中断せず完走してください。"
 )
+_ROLLED_BACK_ADVISORY = (
+    "advisory です。指示ではありません。local main を読み直す契機にだけ使い、"
+    "待機・取り込み・検査省略の根拠にしないでください。"
+    "受入を開始済みなら中断せず完走してください。"
+    "この land 結果では main は記載の SHA にあり、wave tip とは異なります。"
+    "取り込んだ main の SHA について git merge-base --is-ancestor <SHA> refs/heads/main が rc=1 なら、"
+    "受入完走後に受入 tip へ reset して取り込み直してください。"
+)
 
 
 class _Rejected(Exception):
@@ -603,10 +611,25 @@ def _load_land_result(path: Path) -> dict[str, object]:
     return value
 
 
-def message(wave: str, land_json: Path) -> str:
+def message(wave: str, land_json: Path, *, kind: str = "landed") -> str:
     holder = _holder_for(wave)
     result = _load_land_result(land_json)
     status_value = result.get("status")
+    if kind == "rolled-back":
+        if not isinstance(status_value, str) or status_value != "fold-failed":
+            raise _Rejected(RC_MESSAGE_REJECTED, "land-status-rejected")
+        main_after = result.get("main_after")
+        if not _is_sha(main_after):
+            raise _Rejected(RC_MESSAGE_REJECTED, "land-main-rejected")
+        wave_tip = result.get("wave_tip")
+        if not _is_sha(wave_tip):
+            raise _Rejected(RC_MESSAGE_REJECTED, "land-tip-rejected")
+        if main_after == wave_tip:
+            raise _Rejected(RC_MESSAGE_REJECTED, "land-tip-rejected")
+        return (
+            f"[dev-wave] rolled-back main={main_after} wave-tip={wave_tip} wave={holder}\n"
+            f"{_ROLLED_BACK_ADVISORY}"
+        )
     if not isinstance(status_value, str) or status_value not in _SUCCESS_STATUSES:
         raise _Rejected(RC_MESSAGE_REJECTED, "land-status-rejected")
     main_after = result.get("main_after")
@@ -652,7 +675,7 @@ def _parser() -> argparse.ArgumentParser:
     status_parser.add_argument("--wave", metavar="WAVE")
     status_parser.add_argument("--json", action="store_true")
     message_parser = commands.add_parser("message")
-    message_parser.add_argument("--kind", choices=("landed",), required=True)
+    message_parser.add_argument("--kind", choices=("landed", "rolled-back"), required=True)
     message_parser.add_argument("--land-json", type=Path, required=True)
     message_parser.add_argument("--wave", required=True, metavar="WAVE")
     return parser
@@ -686,7 +709,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif args.command == "status":
             _print_status(status(_lease_dir(args.lease_dir), args.wave), args.json)
         else:
-            print(message(args.wave, args.land_json))
+            print(message(args.wave, args.land_json, kind=args.kind))
         return RC_OK
     except _Rejected as exc:
         print(f"error: {exc.reason}", file=sys.stderr)

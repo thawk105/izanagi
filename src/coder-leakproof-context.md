@@ -52,27 +52,40 @@ Segment 4 は「Cicada の適応では到達しない値」や「別の backoff 
 
 ## Measurement Setup (coder が参考にする workload 定義)
 
-### Standard Contention Workload (テスト用)
+適用版: 2026-09-17 改訂以降に開始する走行。`orchestrator/campaign/p3_s4_loop.py` の `default_perf()` (bench) と、
+段 4 の 3 driver の verify 構成に一致させてある。それ以前に開始した走行の入力は当時の版であり、
+本改訂で読み替えない。
+
+### Standard Contention Workload (bench、配線規模)
 ```
-1m_records / t48_threads / skew0.9_zipfian_access / rr50_readratio / 
-rmw0_readmindwrite / max_ope10_ops_per_tx / extime3_execution_time_seconds
+100k_records / t4_threads / skew0.9_zipfian_access / rr50_readratio /
+rmw0_readmodifywrite / max_ope10_ops_per_tx / extime1_execution_time_seconds / reps2
 ```
 
 解説:
-- `1m`: 100万レコード の key-value store
-- `t48`: 48 スレッド で実行 (hardware: 96 core × 2 NUMA)
-- `skew0.9`: 80% の access が top-20% の key に集中 (高 contention)
-- `rr50`: トランザクションの 50% が read、50% が write
-- `rmw0`: read-modify-write の composability チェックなし
-- `max_ope10`: 各 TX が平均 10 操作 (YCSB の operation count)
-- `extime3`: 計測時間 3 秒/run
+- `100k`: 100,000 レコード の key-value store
+- `t4`: 4 スレッド で実行
+- `skew0.9`: Zipf 分布の skew 0.9 (少数の hot key へ access が集中する高 contention)
+- `rr50`: 操作の 50% が read、50% が write
+- `rmw0`: read-modify-write を無効にし、write は blind write
+- `max_ope10`: 1 transaction あたり 10 操作 (CCBench の既定値)
+- `extime1`: 1 rep の計測時間 1 秒
+- `reps2`: 1 測定あたり 2 rep
+
+これは kickoff と同じ配線規模であり、性能比較用に calibrator が決めた規模ではない。性能比較に
+入る段では、calibrator が決めた records / threads / reps に差し替えられる。
 
 ### Measurement Methodology (coder の提案値は以下で検証される)
 
-1. **Build:** BACKOFF_FIXED を提案値で設定・build
-2. **Verify:** verifier が correctness trace (abort 率・cycle 異常検査) を取得 (1 run)
-3. **Bench:** 3 runs of standard workload (先述)、各 run の 1m throughput をリポート
-4. **Result:** 3 run 中央値が baseline と比較される
+1. **Build:** 提案値を hole へ挿入して build する (trace 版と perf 版の 2 本)
+2. **Verify:** verifier が trace 版の correctness trace を読み、serializability を検査する。
+   段 4b (backoff 軸) は小規模高 contention の correctness workload (200 records / 4 threads /
+   rmw / max_ope 5 / extime 1、1 rep)。sort 軸と trigger-gating 軸は、それに加えて S2 構成
+   (1m records / 48 threads / extime 3) の pass も通す。**anomaly が出た候補は即 reject であり、
+   性能は測られない**
+3. **Bench:** perf 版を上の workload で 2 rep 計測する。安定性判定により再計測されることがある
+4. **Result:** 有効な rep の throughput の中央値 (2 rep なら算術平均) を代表値とし、baseline と
+   比較する
 
 ---
 

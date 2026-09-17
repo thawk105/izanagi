@@ -65347,3 +65347,202 @@ land で main 側の台帳が進んでいたら、main の現物を base に同�
 - T-1903 (所要値の述語化) を同時に行う — D205 で active から外れており、本 wave の scope 外。
 - failed / error の非凍結 entry を旧値のまま残す — 「今回の JUnit か凍結旧値」という出所契約に反し、旧値を実測更新済みと誤読させる。
 - 新しい生成器 script の新設 — 既存生成器の mode 追加で足り、依頼が新設を禁じる。
+
+## D2108. `-dD` の predefined / command-line 出力は同じ argv の空入力 prefix として剥がす — 指令を持つ variant だけが別 identity になり、既存 identity は動かさない (2026-09-17)
+
+**背景:** D2104 項 2 は F1016 (file 間へ漏れる `#define` / `#undef` を identity が見ない) の修正に (a) `_cpp_normalize` への
+`-dD` を裁定した。裁定文と T-2630 insight §8 は「`-dD` は predefined を含まない」を前提にし「golden digest が動く」と
+書いていたが、段 1 の前提実測 (login pegasus02、g++ 11.4.0 / g++-12 12.3.0) で **predefined (419〜437 行) と command-line
+`-D` も `#define` 行として出力される**ことが分かった。template patch は CMake 供給に `BACKOFF_FIXED` / `BACKOFF_NOINLINE` を
+足すので、素の `-dD` では `compute()` (working-tree 供給) の出力にだけそれらの `#define` が現れ `baseline()` (HEAD 供給) には
+現れず、**inert template ≠ stock** になる (完了条件 1 の破壊。受入 suite は template を当てないので検出されない)。
+
+**決定 (段 4、[T-2731]):**
+1. `_cpp_normalize` は `-dD` を足したうえで、**同じ argv の空入力出力を環境 prefix として `removeprefix`** する。prefix は
+   `(cxx, sorted defines)` ごとに module cache に取り、取得は同関数の再帰呼出し (`_environment_only=True`) で行って
+   `subprocess.run` の call site を 1 箇所に保つ。実入力の出力が prefix で始まらなければ RuntimeError (fails-closed)。
+2. EVOLVE_BLOCK_SOURCES 3 file (pin 511c953) と template に指令が無いため、**既存の stock / template variant の pre-image は
+   byte 一致**する (実 submodule の silo 8 genome で旧版 / 新版 8/8 一致を実測)。identity が変わるのは指令を持つ variant だけで、
+   記録済み測定の無効化・再認証は行わない (規律 7)。裁定文の「golden が動く」はこの実装形では起きない。
+3. 再検証の発火条件は結果を見る前に登録した (M3b / M6 が 4 node 赤で別 identity、M0 は SURVIVED、baseline の variant token は
+   T-2630 と同値)。実測は `output/insights/2026-09-17/t2731-cpp-normalize-dd/README.md` §6–§7。
+
+**却下した実装形:** `-P` を外して linemarker で `<built-in>` / `<command-line>` を切る (正規化の意味が変わり、comment /
+空行不感を別処理で再現する必要がある)。環境マクロ名で行 filter (source 自身の `#undef linux` や command-line と同名同値の
+再 `#define` まで落とす)。
+
+**受理集合の変化 (狭まる向き):** `_trace_pair_diff` (diff-of-diffs) の比較式 `D_variant == D_stock` は不変だが、`#if TRACE` 内の
+未使用 `#define` / `#undef` も差分素材になるため、HEAD に無いそれを template が足すと拒否される。除外処理は足さない (規律 2)。
+
+**残る限界 (scope 外、裁定パッケージ、実装しない):** (i) include 行を除去するため「指令と include の相対位置」は識別せず、
+`#define X … / #include … / #undef X` と `#include … / #define X … / #undef X` は同 identity (前者だけが header を書き換える)。
+(ii) `#pragma push_macro` / `pop_macro` の復元値は `-dD` に現れず、保存時点が違う 2 形が同 identity。いずれも修正前から同じで
+pin / template にこの形は無い。解消は identity の設計変更 (相対位置の保存、macro stack の可視化、TU 単位 digest) を要するため
+本裁定の scope 外とし、[T-2752] として起票する。選択肢は (α) 現状維持 + 限界明記、(β) include 行を
+除去せず `-nostdinc` + `-MG` 等で include を dead 化して相対位置を保つ、(γ) TU 単位 digest (D2104 項 2 (c) の環境依存が再燃)。
+親の推奨は (α) — pin / template に該当形は無く、coder 面は `HOLE_ESCAPE` が生指令を拒否するため実害の観測が無い。
+
+## D2109. 役割入力文書の訂正は適用版を文書自身に書き、凍結の記述は 8c 自動 trial に限り、runbook の `last_delta_pct` は D2104 に基づく後続訂正として除く (2026-09-17)
+
+**決定 (1): 6 本の入力文書を実配線へ合わせ、各文書に「適用版: 2026-09-17 改訂以降の走行。それ以前に開始した走行の入力は当時の版であり読み替えない」を書く。** 対象は `src/coder-leakproof-context.md` (Measurement Setup を `p3_s4_loop.default_perf()` = 100k records / 4 threads / skew 0.9 / rr 50 / rmw false / extime 1 / reps 2 と、段 4b = legacy 小規模 verify 1 rep・sort / trigger-gating = さらに S2 pass、throughput = 有効 rep の中央値 (2 rep は算術平均) に一致)、`.claude/agents/critic.md` と `critic-experiment.md` (latency を独立指標から外し、`latency[ns] = 1e9 × thread_num / throughput` の恒等変換を注記、列は `orchestrator/critic/digest.py` の `INDICATORS` に一致)、`.claude/agents/planner-v4.md` と `coder-v4-autonomous-trigger-gating.md` (下の決定 2)、`docs/phase3-s4b-runbook.md` と `phase3-s5-sort-runbook.md` (下の決定 3)。D2104 項 4 の実施であり、role payload の schema_version・`_PERF_KEYS`・`latency_ns` key (D118 閉列挙)・代表 rep (偶数有効 reps で上側中央)・`REPORT_SCHEMA_VERSION`・`DECIDER_VERSION` は変えない。
+
+**決定 (2): planner / coder の「凍結」の記述は 8c 自動 trial に限定し、手動 runbook 経路へ一般化しない。** 8c 自動 trial では `current_perf` / `leading_indicators` / `baseline` を workload ごとに初期 metrics 定数 (現行は数値指標がすべて `null`) から 1 回だけ射影して凍結し世代を跨いで更新しない (D410 決定 1)。手動 runbook (段 4b / 段 5 sort / 段 8a) ではメインセッションが runbook に従って射影する、とだけ書く。段 3 の敵対相談が、K2 の手動 loop 1 巡 (2026-09-16、insight `output/insights/2026-09-16/t2588-k2-loop-roundtrip/`) で 2 周目の `current_perf` に 1 周目の実測が入っていることを現物で示し、手動経路の「毎 iteration 同じ値」は規定でも実績でもないと反証したため、runbook へ凍結規則を新設しない (新しい運用規定の密輸になる)。
+
+**決定 (3): runbook 2 本の射影 JSON から `last_delta_pct: null` を除く。これは D1860 (削除せず `null` へ揃える) の後続の限定訂正であり、D1860 当時の判断は保持する。** D1860 の根拠「`last_delta_pct` は planner 入力例に存在する field で、削除すると role と runbook が乖離する」は、D2064 の wave (2026-09-16、commit 4c6f03048) が planner 入力例から同 field を除去した時点で成立しなくなり、現在は runbook 側に残す方が role と乖離する。除去は D2104 項 4 が明示的に授権した範囲内で行い、凍結済みアームとそれ以前に開始した走行の記録 (`last_delta_pct: null` を含む射影) はそのまま保持する。
+
+**決定 (4): 「実装差分ゼロ」は「schema・検査規則・受理述語・runtime 挙動の差分ゼロ」と読み、役割文書の bytes を pin する台帳の追随は実装面として Codex author に書かせる。** `.claude/agents/*.md` は `orchestrator/codex_roles/review_ledger.py` の `SOURCE_FILE_SHA256`、`.codex/role-adapters/<role>.json` (`source_file_sha256` / `source.sha256` / `semantic_digest` / `developer_instructions`)、`orchestrator/tests/test_reflux_originless_compatibility.py` の originless baseline (planner・critic・coder = trigger-gating) に pin されており、D118 残余 (b) が「是正は review_ledger の source hash 更新と adapter 再生成を伴う」と明記する。D1936 項 23 / 25 の先例 (2026-09-11) と同じく、ledger と baseline は Codex author、adapter は親が既存 renderer で再生成し、docs 本文と合わせて 1 つの整合 commit にする (`tools/check_ai_provenance.py` は `.codex/` を実装面に数える)。役割本文・prompt bytes・source sha・semantic digest は意図的に変わり、LLM の応答まで同一とは主張しない。
+
+**pin 閉包の第 4 機構 (開示):** `orchestrator/campaign/p3_b4_closed_critic.py` は B-4 receipt の再読で `critic.md` の live bytes と projection 閉包を照合し、`p3_b4_raw_record_producer.py` も同じ snapshot 照合を持つ。本決定時点で repo 内 `output/` に role sha を束縛する B-4 receipt は 0 件、B-4 事前登録 §5 の projection / prompt hash 欄は未記入であり、陳腐化する記入済み値は無い。将来の B-4 receipt は記入時点の `critic.md` bytes に束縛される。
+
+**却下した選択肢:**
+- **role schema を上げる** — D2104 項 4 が D2064 の誤引用として却下済み。key 契約は変わらない。
+- **runbook の `last_delta_pct` を D1860 どおり `null` で残す** — role 例に無い field を手動射影だけが渡し続け、乖離が逆向きに残る。
+- **手動 runbook へ「baseline は毎 iteration 同じ値」を書く** — 実績 (K2 1 巡) に反し、裁定されていない運用規定の新設になる。
+- **`coder-v4-autonomous.md` / `-sort.md` / `-k2.md` も編集する** — 手動経路専用で機械凍結が無く、誤りの記述も無い。pin 追随の面を広げるだけになる。
+- **役割文書の意味を pin する semantic test を新設する** — D1936 項 24 が却下済み。gate・検査の追加は本依頼の scope 外。
+
+## D2110. next-tasks Codex adapter は薄い委譲 + Codex overlay とし、Codex 起動時は事実も選定判断も起動主体が持ち、Claude の見解は独立検査として使う (2026-09-17)
+
+**決定 (1): 移設の形は薄い adapter。** `.agents/skills/next-tasks/SKILL.md` は既存 3 skill (dev-wave /
+rulings / cleanup-branches) と同型に、`.claude/commands/next-tasks.md` を共通 dispatcher として全文読んで
+実行する委譲を基本とし、Codex 固有の対応 (決定 2) と義務 (決定 3) だけを重ねる。repo 外
+`~/.agents/skills/next-tasks/SKILL.md` (13,255 bytes、2026-09-10 版) の手順・逸話は逐語複製しない。
+byte 予算は既存 3 skill と同じ扱いで `tools/check_docs.py` の個別 guard に登録する (現物 5,730 bytes に
+rulings と同じ比率の余白を掛けた 5,732、`agents/openai.yaml` は 300)。
+
+**決定 (2): D2051 の Codex 起動時の対応付け。** D2051 は Claude が `/next-tasks` を起動し codex へ相談する
+形を前提に、事実 = claude の実測、選定判断 = codex の権威と配分した。Codex が `$next-tasks` を起動して
+Claude へ相談する形では、裁定状態・機構実在・着地・稼働重複・系統 blocker・ユーザー手番の**事実**は
+repo を実測できる起動主体 (Codex) が実測して権威を持ち、**選定判断**も Codex が権威を持つ (D2051 と
+同じ側)。Claude の見解は、母集合から落ちた候補・着手不能リスク・前提事実の反証の独立検査として使う。
+Claude が挙げた候補と「未確認」と書いた候補は実測せずに外さず、実測結果をまとめて 2 巡目 (全候補
+まとめて 1 回、新事実の提示と再評価の依頼に限る) へ返し、返答を採否へ反映してから出力する。3 巡目へ
+進めず、2 巡目の失敗で初回の判断を無効にせず、件数合わせで除外候補を復活させない。出所の明記・投げ文・
+最終出力の文責は起動主体が負う。これは本 adapter の設計判断であり D2051 の再掲ではない。
+
+**決定 (3): 旧 Codex 版だけにあった出力の義務は Codex overlay として保つ。** 投げ文への自己改善終端条件
+(候補なしも明記)、CC 自動合成の候補を入れない理由の明記、既存 patch・OID・handoff をユーザーに転送・
+再実行させず束ねること、補助 artifact を必須作業へ昇格させず検証済み単独行だけ示し wave 側で回収できる
+情報は handoff に記録すること、半角番号 (丸付き数字禁止) の 5 件を adapter の 1 節に置く。Claude 側の command は拡張しない。
+
+**決定 (4): 契約側の終端。** `docs/skill-self-improvement.md` の `### next-tasks` は、昇格と起動手順は
+rulings と同じ、既存手順の誤りは入口の編集条件に従って command の該当節を是正、道具は runbook の道具
+置き場へ足す、`docs/` へ及ぶ変更は既成事実にせず裁定パッケージ、とする。command の絶対 path は
+`<tools>` (所在は `docs/pegasus-runbook.md` §7.2) へ間接化する。
+
+**理由:**
+
+- 既存 3 skill は共通 dispatcher への委譲であり、既存置き場への合流 (D2104 項 37) は同型が最も安い。
+  権威の指示文を 2 つ持つと D2051 のような改訂が片側に届かない (実測: 旧 Codex 版は D2051 決定 5 が
+  上書きした「相談は 1 往復で終える」をまだ含んでいた)。
+- D2051 の理由は「repo を実測できる側が事実を持ち、賢い側が判断を持つ」であり、Codex 起動時は両方が
+  起動主体に重なる。相談先の Claude は read-only・15 分・裏取り 3 件の制約下で動くため事実の権威に
+  なれない (plan 段の「事実は Claude」案を段 3 レンズ B が反証)。
+- 旧版だけの義務 5 件は D2051 が廃止しておらず、移設で黙って落とす根拠がない (段 3 レンズ B)。旧版の
+  「独立に評価する」は Codex → Claude の向きで、D2051 が問題にした Claude → Codex の押し切りとは別物。
+- 道具の追加まで裁定待ちにすると 2026-08-17 のユーザー指示 (足りなければ同 directory へ足して次回から
+  使う) を実行できなくなる (段 3 レンズ B)。
+
+**却下した選択肢:**
+
+- 旧 Codex 版 13,255 bytes の逐語複製 — 二重権威、予算不整合、D2051 前の規定の混入。
+- plan の「事実は Claude、選定判断は Codex」 — 相談先を事実の権威にすると 2 巡目の主体が二通りに読め、
+  Claude の実測を経ずに出力できる。
+- Claude 側 command へ旧版の義務 5 件を足す — 候補生成ロジックの拡張は本 wave の scope 外。
+- 契約文書の上限 6,000 の引き上げ — 重複・接続句の縮約で 5,997 bytes に収まり、D782 の上限引き上げは
+  発火しない。
+
+## D2111. /rulings は裁定が覆う全 ID (索引から外した既裁定・移管済み・実測解消を含む) の状態語を残作業の有無で `完了` / `更新` に分けて記録し、出力冒頭で収集時点と「ユーザー裁定待ち / 裁定済み未実装」の件数を分ける (2026-09-17)
+
+**決定 (ユーザー指示、2026-09-17):** `.claude/commands/rulings.md` の規則を 2 点変え、Codex 側
+`.agents/skills/rulings/SKILL.md` へ同期する。機構・台帳・検査は足さない。
+
+1. **記録は裁定が覆う全 ID に及ぶ。** 従来の「1 裁定が複数 ID を覆うとき覆われた ID の項も更新する」は、
+   索引に載せた ID だけを対象に読まれ、主題照合で「既裁定」「移管済み」「実測で解消」と判定して索引から
+   外した ID は放置された。以後は索引外のそれらも書く。残作業が無い ID は `完了`、残る ID は
+   `更新 (裁定済み (D…) → 手番)` とし、一律に「実装手番」へ落とさない (裁定済み未実装の件数を水増しし、
+   AI 手番の把握を狂わせるため)。所有 wave が稼働中の ID は本 wave では書かず、ID と根拠 D を rulings-inbox
+   に控え、次回の rulings が冒頭で書く。`base` digest は land 先 main の現物 (carry 解決後の実体) から取る。
+   fold の base 不一致は上書き退行ではなく land 停止を起こすので、古い版から取ると land が止まる。
+2. **出力冒頭で「収集時点 = entry N」と「ユーザー裁定待ち N / 裁定済み未実装 M」を分けて出す。** 総 open の
+   件数から未実装を消さない。索引本体は従来どおりユーザー裁定待ちだけを載せる。
+
+byte 予算は `tools/check_docs.py` の TextLimit (rulings.md 5,623 / SKILL.md 3,000) のままで、D782 が委任する
+D730 の手順 (既存記述の意味等価な縮約) で収めた。上限は上げていない。安全義務は削っていない。
+
+**発火の根拠:** 2026-09-17 の /rulings 第 20 回 (entry 1596、D2104) が既裁定と判定して索引から外した B-1 の
+18 行のうち 16 ID の worklog 実体本文が「裁定待ち」「新規 (裁定が要る)」のまま残り、同回の fragment は索引 37 件
+だけを書き換えていた。`docs/skill-self-improvement.md` rulings 節の「正本との食い違い」に当たる。
+
+**理由:**
+- 状態語が古いままだと次回の収集で同じ ID を再び読み直すか、既裁定と誤って再索引する。command の規則が
+  索引外の ID を明示しない限り、記録側は索引だけを書いて終わる (第 20 回で実測)。
+- `完了` と `更新` を残作業で分けるのは fold の保存則 (出力 active 集合 = 入力 − 完了 − 見送り + 新規) と
+  整合させるためで、残作業のある ID を `完了` にすると嘘になり、無い ID を `更新 (実装手番)` にすると未実装が
+  増える。
+- 稼働 wave 所有の ID を書くと、後に land する側の fold が base 不一致 (rc=26) で止まる。控えて次回に回す方が
+  安い。
+- 件数分離は、ユーザーが「自分の手番」と「AI の未実装」を 1 行で区別できるようにするためで、索引の収載規則
+  (ユーザー裁定待ちのみ、D1868) は変えない。
+
+**却下した選択肢:**
+- fold へ「裁定済み ID の状態語を自動更新する」機構や、既裁定 ID の台帳・検査を足す — ユーザーが codex 相談で
+  不採用とした。要求外の機構であり、command の規則で足りる。
+- byte 予算の上限を上げる — D782 / D730 に反する。縮約で収まった。
+- 索引外の既裁定 ID を一律 `更新 (実装手番)` にする — 実測で解消済み・移管済みの ID まで未実装に数える。
+
+## D2112. 実 repo ロックの writer 優先は gate flock を fresh 取得と昇格に限って足し、fold 失敗の巻き戻し通知は message の 1 kind として足す (2026-09-17)
+
+**決定 (D2104 項 33 / 34 の実装):**
+
+1. 実 repo ロック (`orchestrator/tests/conftest.py`) の各 key (legacy / common) に同名の `.gate` flock を置く。
+   **writer** は fresh の EX 取得と SH→EX の昇格の両方で、gate を EX 保持したまま main EX を polling し、
+   main 取得直後に gate を閉じる。昇格は gate を開いてから自分の SH を `LOCK_UN` で明示解放する
+   (kernel の非 atomic 変換が最初の NB 失敗で SH を落とす現行挙動と露出は同じ。open 拒否では SH を失わない)。
+   **fresh reader** は process が実 repo lock を 1 つも持たないときだけ、main を取る前に要求する全 key の
+   gate を SH で試して即解放し (何も持たずに待つ)、writer が gate を保持する間はそこで待つ。
+   既に lock を持つ process の reader (入れ子・2 つ目の資源) と EX→SH の降格は gate を見ない。
+   deadline 245 秒は gate と main で共有し、reader の検査段は最初の資源の予算を消費する。
+   定数 (245.0 / 0.05)、SH-EX の意味論、legacy→common、parent→ccbench の順は不変。
+2. `tools/wave_land_window.py message` に `--kind rolled-back` を足す。受理述語は
+   `status == "fold-failed"` ∧ `main_after` が SHA ∧ `wave_tip` が SHA ∧ `main_after != wave_tip`。
+   `main_before` と `reason` は見ない。固定文は 2 行 (ヘッダ `[dev-wave] rolled-back main=… wave-tip=… wave=…`
+   と巻き戻し専用 advisory、末尾 LF 込み 661 bytes)。`landed` の受理集合・固定文・rc、`_rollback_fold` の
+   契約 (fold 失敗で land の merge 前まで戻す) は不変。送信義務は runbook の land 手順と command 入口 項 9
+   (「land 成功時と巻戻し時に」) に置く。
+3. 正例・負例は同じ変更単位に置く。別 process の production 経路 reader を relay して main を常時 SH 占有する
+   中で fresh writer と昇格 writer が入る負例、reader 同士の overlap、第三者 gate 保持下の昇格・降格・入れ子 reader、
+   gate/main の deadline 共有、fd の後始末 (timeout / open 拒否 / fork)、昇格時の gate open 拒否で外側 reader の
+   SH が残る負例、rolled-back の正例 2 (通常 / recovery 経路) と負例 15、landed 負例への `fold-rollback-failed`。
+
+**理由:**
+- F976 の飢餓は process 間の reader 流れ (48 worker + 並走する別 worktree の受入) が main の SH を途切れさせない
+  ことで起きる。gate は「writer が待ち始めた後の新規 fresh reader」を止めるので、writer は既存 holder が
+  抜けるだけで入れる。deadline を伸ばす案は並行度が上がれば再発し (F976)、同時実行数制限は受理集合と
+  D1594 / D1618 の並行設計に触れるので採らない (D2104 項 33)。
+- 昇格も gate を通す理由: F976 の当該 node (`test_repository_candidate_uses_real_s8c_budget_module`) の writer は
+  `repository_candidate_commit` fixture の parent EX で、同 module の module 寿命 SH fixture が生きた worker では
+  既存 fd 上の昇格になる。昇格を gate の外に置くと F976 の一方の経路が直らない (段 3 レンズ A と親の検算)。
+- reader が「何も持たないときだけ」gate を見る理由: main を握ったまま gate で待つ hold-and-wait は、
+  入れ子昇格と別 worktree の writer との三者循環を新しく作る (段 3 レンズ A の反例)。gate で待つ主体が
+  その key の main を持たなければ、gate 辺を通る循環は現行の main 間 hold-and-wait と同じ族に閉じる。
+- `main_before == main_after` を述語に入れない理由: recovery 経路 (shape A) の本物の巻き戻しは
+  `main_before = 開始時 main = wave tip`、`main_after = rollback_ref` なので、その条件があると通知されない
+  (段 3 レンズ A の経路表)。merge 前の失敗 (main 不動) も同形で通るが、文面は「この land 結果では main は
+  記載の SHA にあり wave tip とは異なる」で両方の場合に真である。
+
+**却下した選択肢:**
+- 待機登録や FIFO による「待機開始からの厳密な優先」 — gate は NB polling で待機順を持たない。reader の gate 保持は
+  瞬間 (検査即解放) なので実効的には retry 間隔の数倍で成立するが、証明ではない。追加機構は別裁定。
+- process 内層 (`_real_repo_same_process_request_is_compatible`) への writer 優先 — xdist worker の test 本体は
+  単 thread で、kernel flock 待ち中は RLock が新規進入を止める。`condition.wait` で RLock を手放す同 process の
+  互換性待ちには効かないが、その経路の実害は観測されていない。
+- `reason` 文字列 prefix (`fold failed: `) への結合で本物の巻き戻しだけを通知する — 別 tool の自由文への結合。
+- DW-O23 への送信義務の追記 — 通知手順は runbook に集約する (dispatch 節は手順の正本でない)。
+
+**保証しないこと (裁定パッケージ、ユーザーへ返す):**
+1. gate 取得前からの厳密な writer 優先 (上記)。
+2. 昇格の変換失敗 (deadline) 後に外側 reader が SH を失ったまま `mode=read` を信じる既存の穴
+   (段 3 / 段 6 レンズ A が real と分類、gate 導入前から存在)。state の毒化などの fail-closed 化は本 wave の scope 外。
+3. 入れ子で既に lock を持つ process の fresh reader は gate を見ない。その流れだけで writer が飢餓する実例が
+   観測されたら別 wave。

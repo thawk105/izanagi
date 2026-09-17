@@ -1,0 +1,605 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/f976-f977-mutcontainer/output/pegasus-dispatch/b347cf39d860344f55591bf9a1f12694/izdw-b347cf39d8.o2958",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/f976-f977-mutcontainer/output/pegasus-dispatch/b347cf39d860344f55591bf9a1f12694/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 32%]\n..................................................................s..... [ 64%]\n..............................................................F......... [ 96%]\n........                                                                 [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":1,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n=================================== FAILURES ===================================\n___ test_real_repo_writers_do_not_materialize_oracle_environment_candidates ____\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_real_repo_writers_do_not_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x149be938d480>\nratified_enforcement_source = None\n\n    def test_real_repo_writers_do_not_materialize_oracle_environment_candidates(\n            tmp_path, monkeypatch, ratified_enforcement_source,\n    ):\n        \"\"\"Current real-repo writers stay away from every resolver candidate path.\n    \n        The slow floor canaries remain the authoritative compute-node execution of the\n        complete build, but this audit also runs the production writer seams that can\n        be exercised in a disposable checkout.  In particular, the FetchContent\n        preparation path is run with a real subprocess (a tiny fixture cmake) rather\n        than inferred only from test-source spelling.\n        \"\"\"\n        suite_conftest = _load_suite_conftest()\n        writer_nodes = {\n            \"test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_canary_one_configuration\",\n            \"test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration\",\n            \"test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2\",\n            _ORACLE_ENVIRONMENT_EXPLICIT_BINDING_NODE,\n        }\n        reader_control_nodes = {\n            \"test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged\",\n            \"test_p3_s4_loop.py::test_drive_iteration_checkpoint_survives_across_calls\",\n            \"test_p3_s4_loop_sort.py::test_drive_iteration_checkpoint_survives_across_calls\",\n            \"test_p3_s4_loop_trigger_gating.py::test_drive_iteration_writes_entry_and_checkpoint\",\n            \"test_p3_s4_loop_trigger_gating.py::test_drive_iteration_entry_failure_blocks_checkpoint\",\n            \"test_hooks.py::test_real_submodule_payload_edit\",\n        }\n        assert writer_nodes == set(suite_conftest.REAL_REPO_CCBENCH_WRITER_NODES), (\n            \"実 ccbench writer の独立 golden と access map が不一致: \"\n            f\"configured={sorted(suite_conftest.REAL_REPO_CCBENCH_WRITER_NODES)}\"\n        )\n        assert all(\n            suite_conftest.REAL_REPO_ACCESS_BY_NODE[node].ccbench != \"write\"\n            for node in reader_control_nodes\n        ), (\n            \"reader control を ccbench writer へ過剰分類している\"\n        )\n    \n        # Source-level guard: retain a cheap tripwire for new writer spellings, but\n        # compare evaluated string constants.  Comparing ast.unparse() output is\n        # brittle because its quote style is not part of the AST contract.\n        writer_files = {\n            node.split(\"::\", 1)[0]\n            for node in writer_nodes | reader_control_nodes\n        }\n        write_methods = {\n            \"mkdir\", \"mkdirs\", \"touch\", \"write_text\", \"write_bytes\", \"open\",\n            \"replace\", \"rename\", \"copy\", \"copy2\", \"copytree\", \"move\",\n        }\n        forbidden_environment_values = frozenset({\n            \"IZANAGI_SORT_SWO_CXX\", \"IZANAGI_SORT_SWO_MASSTREE_ROOT\", \"CXX\", \"g++\",\n        })\n        for filename in sorted(writer_files):\n            tree = ast.parse(\n                (HERE / filename).read_text(encoding=\"utf-8\"),\n                filename=filename,\n            )\n            constants = _string_constants(tree)\n            for call in (node for node in ast.walk(tree) if isinstance(node, ast.Call)):\n                target = call.func\n                method = target.attr if isinstance(target, ast.Attribute) else None\n                if method not in write_methods:\n                    continue\n                values = {\n                    node.value\n                    for node in ast.walk(call)\n                    if isinstance(node, ast.Constant) and type(node.value) is str\n                }\n                values.update(\n                    constants[node.id]\n                    for node in ast.walk(call)\n                    if isinstance(node, ast.Name) and node.id in constants\n                )\n                direct_build_dependency = {\"build\", \"_deps\", \"masstree-src\"} <= values\n                direct_ancestor_cache = {\"-thirdparty-cache\", \"masstree\"} <= values\n                environment_binding = bool(values & forbidden_environment_values)\n                assert not (\n                    direct_build_dependency or direct_ancestor_cache or environment_binding\n                ), (\n                    f\"{filename}: writer が resolver candidate を直接 materialize している: \"\n                    f\"constants={sorted(values & (forbidden_environment_values | {'build', '_deps', 'masstree-src', '-thirdparty-cache', 'masstree'}))}\"\n                )\n    \n        # Use a disposable checkout-shaped tree for every executable probe.  Keep\n        # the retired build/ancestor locations in the writer audit even though the\n        # fail-closed resolver no longer inspects them.\n        from orchestrator.campaign import sort_swo_oracle as oracle\n        from orchestrator.campaign import site_policy\n    \n        probe_root = tmp_path / \"writer-probe\"\n        ccbench = probe_root / \"external\" / \"ccbench\"\n        ccbench.mkdir(parents=True)\n        compiler = probe_root / \"compiler-candidate\"\n        cxx = probe_root / \"cxx-candidate\"\n        gxx = probe_root / \"g++-candidate\"\n        dependency = probe_root / \"environment-masstree\"\n        monkeypatch.setenv(\"IZANAGI_SORT_SWO_CXX\", str(compiler))\n        monkeypatch.setenv(\"CXX\", str(cxx))\n        monkeypatch.setenv(\"IZANAGI_SORT_SWO_MASSTREE_ROOT\", str(dependency))\n        real_which = shutil.which\n        monkeypatch.setattr(\n            oracle.shutil, \"which\",\n            lambda name: str(gxx) if name == \"g++\" else real_which(name),\n        )\n    \n        candidate_paths = [\n            compiler,\n            cxx,\n            gxx,\n            dependency,\n            ccbench / \"build\" / \"_deps\" / \"masstree-src\",\n        ]\n        ancestor_candidates = [\n            ancestor.parent / f\"{ancestor.name}-thirdparty-cache\" / \"masstree\"\n            for ancestor in tuple(ccbench.parents)[:8]\n        ]\n        candidate_paths.extend(ancestor_candidates)\n        candidate_paths = list(dict.fromkeys(candidate_paths))\n    \n        def candidate_state(path: Path):\n            \"\"\"Return a bounded, non-content-leaking identity of a candidate path.\"\"\"\n            try:\n                info = path.lstat()\n            except FileNotFoundError:\n                return (\"absent\",)\n            except OSError as exc:\n                return (\"unreadable\", type(exc).__name__, getattr(exc, \"errno\", None))\n            if stat.S_ISLNK(info.st_mode):\n                try:\n                    target = os.readlink(path)\n                except OSError as exc:\n                    return (\"symlink-unreadable\", type(exc).__name__, getattr(exc, \"errno\", None))\n                return (\"symlink\", target, info.st_mtime_ns)\n            if stat.S_ISDIR(info.st_mode):\n                children = []\n                try:\n                    with os.scandir(path) as entries:\n                        for entry in entries:\n                            child = entry.stat(follow_symlinks=False)\n                            children.append((\n                                entry.name, child.st_mode, child.st_size,\n                                child.st_mtime_ns, child.st_ctime_ns,\n                            ))\n                            if len(children) > 512:\n                                children = [(\"<over-512>\",)]\n                                break\n                except OSError as exc:\n                    return (\"directory-unreadable\", type(exc).__name__, getattr(exc, \"errno\", None))\n                return (\n                    \"directory\", info.st_mode, info.st_mtime_ns, info.st_ctime_ns,\n                    tuple(sorted(children)),\n                )\n            return (\n                \"file\", info.st_mode, info.st_size, info.st_mtime_ns,\n                info.st_ctime_ns,\n            )\n    \n        before = {path: candidate_state(path) for path in candidate_paths}\n    \n        # Execute the production writer seams behind the canonical real-repo nodes.\n        # These calls deliberately write only under tmp_path; the slow compute-node\n        # canaries are represented by the same buildcache FetchContent seam below.\n        probed_nodes = set()\n    \n        from orchestrator.campaign import s8b_floor_campaign as floor_campaign\n        raw_protocol = b\"{}\"\n        built_protocol = floor_campaign.BuiltProtocol(\n            {}, raw_protocol, hashlib.sha256(raw_protocol).hexdigest(),\n        )\n        floor_campaign.write_protocol_document(\n            probe_root / \"protocol-output\" / \"protocol.json\",\n            built_protocol, root=probe_root,\n        )\n        probed_nodes.add(\n            \"test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged\"\n        )\n    \n        # The three loop nodes exercise their real drive/checkpoint/WAL writers;\n        # their fixture proposals reject before any build or oracle subprocess.\n        from orchestrator.tests import test_p3_s4_loop as backoff_loop_tests\n        from orchestrator.tests import test_p3_s4_loop_sort as sort_loop_tests\n        from orchestrator.tests import test_p3_s4_loop_trigger_gating as trigger_loop_tests\n>       backoff_loop_tests.test_drive_iteration_checkpoint_survives_across_calls(\n            ratified_enforcement_source,\n        )\n\norchestrator/tests/test_real_repo_serialization.py:3313: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nratified_enforcement_source = None\n\n    def test_drive_iteration_checkpoint_survives_across_calls(\n        ratified_enforcement_source,\n    ):\n        \"\"\"fresh reject が identity を確立し、次候補の public drive が resume できる。\"\"\"\n        import contextlib\n        from orchestrator.campaign import patchharness\n    \n        sub = tempfile.mkdtemp(prefix=\"izanagi_s4loop_public_\")\n        os.makedirs(os.path.join(sub, \"include\"))\n        with open(os.path.join(sub, L.SOURCE_REL), \"w\", encoding=\"utf-8\") as stream:\n            stream.write(_TEMPLATE)\n        lay = _tmp_layout(\"drivereject\")\n        cfg, perf = L.default_cfg(), L.default_perf()\n        pl = L.PlannerProposal(axis=L.MARKER_ID, direction=\"increase\", magnitude=\"small\")\n        # hole-escape (行頭 #define) → diff 検疫 reject。value と literal は整合させる。\n        cd = L.CoderProposal(axis=L.MARKER_ID, value=20.0,\n                             implementation=\"#define EVIL 1\\ndouble now_backoff = 20.0;\")\n        with unittest.mock.patch.object(\n                patchharness, \"applied\",\n                side_effect=lambda *_a, **_k: contextlib.nullcontext()):\n            out1 = L.drive_iteration(\n                cfg, perf, pl, cd, None, sub, do_build=False, layout=lay,\n            )\n        assert out1[\"ran\"] is True and out1[\"outcome\"] == \"rejected\" and out1[\"iteration\"] == 1\n>       assert wal.read_lock(lay) == build_v2_lock(ident.canonical_preimage(cfg))\nE       assert '{\"authority\"...ign-lock/v2\"}' == '{\"authority\"...ign-lock/v2\"}'\nE         \nE         Skipping 7009 identical leading characters in diff, use -v to show\nE         - _sha256\":\"1b2ee85346a4c867754bda497b23d649e66027011167cfb0f9c7f9a1a5fa1dc7\"},\"identity_preimage\":\"{\\\"ccbench_commit\\\":\\\"511c9538e4e8efa54b45cda62e72389ed3b706ec\\\",\\\"search_config\\\":{\\\"axis\\\":\\\"silo-backoff-magnitude\\\",\\\"backoff_grammar_version\\\":1,\\\"build_admission\\\":{\\\"coder_authority\\\":\\\"cli-opt-in\\\",\\\"generator_registry\\\":[\\\"backoff-overthrottle\\\",\\\"backoff-profile\\\",\\\"backoff-repro\\\",\\\"backoff-sweep\\\",\\\"s1-extime-calibration\\\",\\\"s6-sort-sweep\\\",\\\"s8a-trigger-sweep\\\"],\\\"repo_stock_pin\\\":\\\"511c953\\\",\\...\nE         \nE         ...Full output truncated (4 lines hidden), use '-vv' to show\n\norchestrator/tests/test_p3_s4_loop.py:7080: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_real_repo_writers_do_not_materialize_oracle_environment_candidates\n1 failed, 222 passed, 1 skipped in 59.31s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_real_repo_writers_do_not_materialize_oracle_environment_candidates\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=11946 retained_bytes=3758 omitted_bytes=8188 rendered_excerpt_bytes=4096 sha256=e5f5dd32ec7bbfc52cbb63255beee9af6675a4668794df1b016c732242837e6a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> d the canonical real-repo nodes.\n>         # These calls deliberately write only under tmp_path; the slow compute-node\n>         # canaries are represented by the same buildcache FetchContent seam below.\n>         probed_nodes = set()\n>     \n>         from orchestrator.campaign import s8b_floor_campaign as floor_campaign\n>         raw_protocol = b\"{}\"\n>         built_protocol = floor_campaign.BuiltProtocol(\n>             {}, raw_protocol, hashlib.sha256(raw_protocol).hexdigest(),\n>         )\n>         floor_campaign.write_protocol_document(\n>             probe_root / \"protocol-output\" / \"protocol.json\",\n>             built_protocol, root=probe_root,\n>         )\n>         probed_nodes.add(\n>             \"test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged\"\n>         )\n>     \n>         # The three loop nodes exercise their real drive/checkpoint/WAL writers;\n>         # their fixture proposals reject before any build or oracle subprocess.\n>         from orchestrator.tests import test_p3_s4_loop as backoff_loop_tests\n>         from orchestrator.tests import test_p3_s4_loop_sort as sort_loop_tests\n>         from orchestrator.tests import test_p3_s4_loop_trigger_gating as trigger_loop_tests\n> >       backoff_loop_tests.test_drive_iteration_checkpoint_survives_across_calls(\n>             ratified_enforcement_source,\n>         )\n> \n> orchestrator/tests/test_real_repo_serialization.py:3313: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> ratified_enforcement_source = None\n> \n>     def test_drive_iteration_checkpoint_survives_across_calls(\n>         ratified_enforcement_source,\n>     ):\n>         \"\"\"fresh reject \\u304c identity \\u3092\\u78ba\\u7acb\\u3057\\u3001\\u6b21\\u5019\\u88dc\\u306e public drive \\u304c resume \\u3067\\u304d\\u308b\\u3002\"\"\"\n>         import contextlib\n>         from orchestrator.campaign import patchharness\n>     \n>         sub = tempfile.mkdtemp(prefix=\"izanagi_s4loop_public_\")\n>         os.makedirs(os.path.join(sub, \"include\"))\n>         with open(os.path.join(sub, L.SOURCE_REL), \"w\", encoding=\"utf-8\") as stream:\n>             stream.write(_TEMPLATE)\n>         lay = _tmp_layout(\"drivereject\")\n>         cfg, perf = L.default_cfg(), L.default_perf()\n>         pl = L.PlannerProposal(axis=L.MARKER_ID, direction=\"increase\", magnitude=\"small\")\n>         # hole-escape (\\u884c\\u982d #define) \\u2192 diff \\u691c\\u75ab reject\\u3002value \\u3068 literal \\u306f\\u6574\\u5408\\u3055\\u305b\\u308b\\u3002\n>         cd = L.CoderProposal(axis=L.MARKER_ID, value=20.0,\n>                              implementation=\"#define EVIL 1\\x5cndouble now_backoff = 20.0;\")\n>         with unittest.mock.patch.object(\n>                 patchharness, \"applied\",\n>                 side_effect=lambda *_a, **_k: contextlib.nullcontext()):\n>             out1 = L.drive_iteration(\n>                 cfg, perf, pl, cd, None, sub, do_build=False, layout=lay,\n>             )\n>         assert out1[\"ran\"] is True and out1[\"outcome\"] == \"rejected\" and out1[\"iteration\"] == 1\n> >       assert wal.read_lock(lay) == build_v2_lock(ident.canonical_preimage(cfg))\n> E       assert '{\"authority\"...ign-lock/v2\"}' == '{\"authority\"...ign-lock/v2\"}'\n> E         \n> E         Skipping 7009 identical leading characters in diff, use -v to show\n> E         - _sha256\":\"1b2ee85346a4c867754bda497b23d649e66027011167cfb0f9c7f9a1a5fa1dc7\"},\"identity_preimage\":\"{\\x5c\"ccbench_commit\\x5c\":\\x5c\"511c9538e4e8efa54b45cda62e72389ed3b706ec\\x5c\",\\x5c\"search_config\\x5c\":{\\x5c\"axis\\x5c\":\\x5c\"silo-backoff-magnitude\\x5c\",\\x5c\"backoff_grammar_version\\x5c\":1,\\x5c\"build_admission\\x5c\":{\\x5c\"coder_authority\\x5c\":\\x5c\"cli-opt-in\\x5c\",\\x5c\"generator_registry\\x5c\":[\\x5c\"backoff-overthrottle\\x5c\",\\x5c\"backoff-profile\\x5c\",\\x5c\"backoff-repro\\x5c\",\\x5c\"backoff-sweep\\x5c\",\\x5c\"s1-extime-calibration\\x5c\",\\x5c\"s6-sort-sweep\\x5c\",\\x5c\"s8a-trigger-sweep\\x5c\"],\\x5c\"repo_stock_pin\\x5c\":\\x5c\"511c953\\x5c\",\\x5c...\n> E         \n> E         ...Full output truncated (4 lines hidden), use '-vv' to show\n> \n> orchestrator/tests/test_p3_s4_loop.py:7080: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=11946 retained_bytes=3758 omitted_bytes=8188 budget_bytes=49152 rendered_bytes=4855 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+      "stdout_sha256": "f357121487eeae8cb65dda3c34f70c52dd4d82f4c2ad769e83c15b4b5290684c"
+    },
+    "artifact_error": null,
+    "collection_sha256": "f852862446a64b6c98383204bea3676a3a768119367c70fa2bd9fdbe1352af92",
+    "duration_s": 86.013,
+    "failed_nodes": [
+      "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_writers_do_not_materialize_oracle_environment_candidates"
+    ],
+    "rc": 1,
+    "registration_sha256": "f1cf38b4761bf41aade40914afa9279c22b4d9a8a1baf7f5c5d81f5918d6f823",
+    "repo_head": "df2da88ee8a413882590575731ae6ab91edb9003",
+    "runner_sha256": "86ac9af08edc3b3d1cf8b46c8535c78bdf128cf397c9d479a524b483447c8a34",
+    "spec_sha256": "63a87ffb92d2d91d7ce8ec09aad47c83771df9a2d0dc5c163f1092d6d6ff53c2",
+    "status": "FAILED",
+    "test_output_sha256": "f357121487eeae8cb65dda3c34f70c52dd4d82f4c2ad769e83c15b4b5290684c",
+    "test_output_tail": [
+      "E         - _sha256\":\"1b2ee85346a4c867754bda497b23d649e66027011167cfb0f9c7f9a1a5fa1dc7\"},\"identity_preimage\":\"{\\\"ccbench_commit\\\":\\\"511c9538e4e8efa54b45cda62e72389ed3b706ec\\\",\\\"search_config\\\":{\\\"axis\\\":\\\"silo-backoff-magnitude\\\",\\\"backoff_grammar_version\\\":1,\\\"build_admission\\\":{\\\"coder_authority\\\":\\\"cli-opt-in\\\",\\\"generator_registry\\\":[\\\"backoff-overthrottle\\\",\\\"backoff-profile\\\",\\\"backoff-repro\\\",\\\"backoff-sweep\\\",\\\"s1-extime-calibration\\\",\\\"s6-sort-sweep\\\",\\\"s8a-trigger-sweep\\\"],\\\"repo_stock_pin\\\":\\\"511c953\\\",\\...",
+      "E         ",
+      "E         ...Full output truncated (4 lines hidden), use '-vv' to show",
+      "",
+      "orchestrator/tests/test_p3_s4_loop.py:7080: AssertionError",
+      "=========================== short test summary info ============================",
+      "FAILED orchestrator/tests/test_real_repo_serialization.py::test_real_repo_writers_do_not_materialize_oracle_environment_candidates",
+      "1 failed, 222 passed, 1 skipped in 59.31s",
+      "IZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}",
+      "=== IZANAGI FAILURE DIGEST v1 BEGIN ===",
+      "IZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_real_repo_writers_do_not_materialize_oracle_environment_candidates\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=11946 retained_bytes=3758 omitted_bytes=8188 rendered_excerpt_bytes=4096 sha256=e5f5dd32ec7bbfc52cbb63255beee9af6675a4668794df1b016c732242837e6a",
+      "--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---",
+      "> d the canonical real-repo nodes.",
+      ">         # These calls deliberately write only under tmp_path; the slow compute-node",
+      ">         # canaries are represented by the same buildcache FetchContent seam below.",
+      ">         probed_nodes = set()",
+      ">     ",
+      ">         from orchestrator.campaign import s8b_floor_campaign as floor_campaign",
+      ">         raw_protocol = b\"{}\"",
+      ">         built_protocol = floor_campaign.BuiltProtocol(",
+      ">             {}, raw_protocol, hashlib.sha256(raw_protocol).hexdigest(),",
+      ">         )",
+      ">         floor_campaign.write_protocol_document(",
+      ">             probe_root / \"protocol-output\" / \"protocol.json\",",
+      ">             built_protocol, root=probe_root,",
+      ">         )",
+      ">         probed_nodes.add(",
+      ">             \"test_s8b_protocol_builder.py::test_build_and_write_leave_repo_tree_unchanged\"",
+      ">         )",
+      ">     ",
+      ">         # The three loop nodes exercise their real drive/checkpoint/WAL writers;",
+      ">         # their fixture proposals reject before any build or oracle subprocess.",
+      ">         from orchestrator.tests import test_p3_s4_loop as backoff_loop_tests",
+      ">         from orchestrator.tests import test_p3_s4_loop_sort as sort_loop_tests",
+      ">         from orchestrator.tests import test_p3_s4_loop_trigger_gating as trigger_loop_tests",
+      "> >       backoff_loop_tests.test_drive_iteration_checkpoint_survives_across_calls(",
+      ">             ratified_enforcement_source,",
+      ">         )",
+      "> ",
+      "> orchestrator/tests/test_real_repo_serialization.py:3313: ",
+      "> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+      "> ",
+      "> ratified_enforcement_source = None",
+      "> ",
+      ">     def test_drive_iteration_checkpoint_survives_across_calls(",
+      ">         ratified_enforcement_source,",
+      ">     ):",
+      ">         \"\"\"fresh reject \\u304c identity \\u3092\\u78ba\\u7acb\\u3057\\u3001\\u6b21\\u5019\\u88dc\\u306e public drive \\u304c resume \\u3067\\u304d\\u308b\\u3002\"\"\"",
+      ">         import contextlib",
+      ">         from orchestrator.campaign import patchharness",
+      ">     ",
+      ">         sub = tempfile.mkdtemp(prefix=\"izanagi_s4loop_public_\")",
+      ">         os.makedirs(os.path.join(sub, \"include\"))",
+      ">         with open(os.path.join(sub, L.SOURCE_REL), \"w\", encoding=\"utf-8\") as stream:",
+      ">             stream.write(_TEMPLATE)",
+      ">         lay = _tmp_layout(\"drivereject\")",
+      ">         cfg, perf = L.default_cfg(), L.default_perf()",
+      ">         pl = L.PlannerProposal(axis=L.MARKER_ID, direction=\"increase\", magnitude=\"small\")",
+      ">         # hole-escape (\\u884c\\u982d #define) \\u2192 diff \\u691c\\u75ab reject\\u3002value \\u3068 literal \\u306f\\u6574\\u5408\\u3055\\u305b\\u308b\\u3002",
+      ">         cd = L.CoderProposal(axis=L.MARKER_ID, value=20.0,",
+      ">                              implementation=\"#define EVIL 1\\x5cndouble now_backoff = 20.0;\")",
+      ">         with unittest.mock.patch.object(",
+      ">                 patchharness, \"applied\",",
+      ">                 side_effect=lambda *_a, **_k: contextlib.nullcontext()):",
+      ">             out1 = L.drive_iteration(",
+      ">                 cfg, perf, pl, cd, None, sub, do_build=False, layout=lay,",
+      ">             )",
+      ">         assert out1[\"ran\"] is True and out1[\"outcome\"] == \"rejected\" and out1[\"iteration\"] == 1",
+      "> >       assert wal.read_lock(lay) == build_v2_lock(ident.canonical_preimage(cfg))",
+      "> E       assert '{\"authority\"...ign-lock/v2\"}' == '{\"authority\"...ign-lock/v2\"}'",
+      "> E         ",
+      "> E         Skipping 7009 identical leading characters in diff, use -v to show",
+      "> E         - _sha256\":\"1b2ee85346a4c867754bda497b23d649e66027011167cfb0f9c7f9a1a5fa1dc7\"},\"identity_preimage\":\"{\\x5c\"ccbench_commit\\x5c\":\\x5c\"511c9538e4e8efa54b45cda62e72389ed3b706ec\\x5c\",\\x5c\"search_config\\x5c\":{\\x5c\"axis\\x5c\":\\x5c\"silo-backoff-magnitude\\x5c\",\\x5c\"backoff_grammar_version\\x5c\":1,\\x5c\"build_admission\\x5c\":{\\x5c\"coder_authority\\x5c\":\\x5c\"cli-opt-in\\x5c\",\\x5c\"generator_registry\\x5c\":[\\x5c\"backoff-overthrottle\\x5c\",\\x5c\"backoff-profile\\x5c\",\\x5c\"backoff-repro\\x5c\",\\x5c\"backoff-sweep\\x5c\",\\x5c\"s1-extime-calibration\\x5c\",\\x5c\"s6-sort-sweep\\x5c\",\\x5c\"s8a-trigger-sweep\\x5c\"],\\x5c\"repo_stock_pin\\x5c\":\\x5c\"511c953\\x5c\",\\x5c...",
+      "> E         ",
+      "> E         ...Full output truncated (4 lines hidden), use '-vv' to show",
+      "> ",
+      "> orchestrator/tests/test_p3_s4_loop.py:7080: AssertionError",
+      "--- IZANAGI FAILURE EXCERPT rank=1 END ---",
+      "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=11946 retained_bytes=3758 omitted_bytes=8188 budget_bytes=49152 rendered_bytes=4855 omitted_manifest_sha256=-",
+      "=== IZANAGI FAILURE DIGEST v1 END ==="
+    ],
+    "timed_out": false,
+    "tool_sha256": "542de0dfec1eeff2a2eca4b09f3f80a5b9fb96e45c70c064204f95c3f87499c6"
+  },
+  "date": "2026-09-16T23:16:19.668496+00:00",
+  "mutations": [],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/f976-f977-mutcontainer/output/pegasus-dispatch/937f1c74dbab61a3da35abf5fb589113/izdw-937f1c74db.o2951",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/f976-f977-mutcontainer/output/pegasus-dispatch/937f1c74dbab61a3da35abf5fb589113/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_real_repo_serialization.py::test_t080_output_snapshot_detects_git_visible_real_output_changes\norchestrator/tests/test_real_repo_serialization.py::test_t080_output_snapshot_excludes_git_ignored_real_output_changes\norchestrator/tests/test_real_repo_serialization.py::test_t080_output_snapshot_observes_git_visible_create_and_delete\norchestrator/tests/test_real_repo_serialization.py::test_stub_free_receipt_nodes_are_selected_and_reach_setup_by_default\norchestrator/tests/test_real_repo_serialization.py::test_t080_import_temp_environment_fails_closed_for_foreign_module\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\norchestrator/tests/test_real_repo_serialization.py::test_shard_assignment_preserves_live_xdist_group_components_and_split_control\norchestrator/tests/test_real_repo_serialization.py::test_xdist_group_audit_rejects_synthetic_negative_controls\norchestrator/tests/test_real_repo_serialization.py::test_xdist_group_name_set_audit_rejects_isolated_negative_controls\norchestrator/tests/test_real_repo_serialization.py::test_canonical_real_repo_nodes_have_no_handwritten_xdist_group_decorator\norchestrator/tests/test_real_repo_serialization.py::test_handwritten_xdist_group_decorator_control_is_rejected\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_writer_drains_overlapping_reader_stream[legacy]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_writer_drains_overlapping_reader_stream[common]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_upgrade_writer_drains_overlapping_reader_stream[legacy]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_upgrade_writer_drains_overlapping_reader_stream[common]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_readers_overlap_without_writer\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_timeout_closes_fds[gate-timeout]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_timeout_closes_fds[main-timeout]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_timeout_closes_fds[open-rejected]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_open_rejection_preserves_outer_reader[legacy]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_open_rejection_preserves_outer_reader[common]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_and_main_share_deadline[writer]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_and_main_share_deadline[reader]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_fork_reset_closes_inflight_gate_fd\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_priority_order_is_literal_and_writers_follow_barrier\norchestrator/tests/test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\norchestrator/tests/test_real_repo_serialization.py::test_ratified_memo_has_a_real_resolution_payer\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_consumer_inventory_and_optouts_are_complete\norchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_consumer_inventory_and_registry_are_complete\norchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_explicit_binding_node_is_not_a_consumer\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_writers_do_not_materialize_oracle_environment_candidates\norchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_memo_roundtrip_and_getter_are_fail_closed\norchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_prewarm_hook_exception_is_not_fail_open\norchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_memo_prewarm_wiring_is_controller_only_and_lazy\norchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_memo_nonce_is_propagated_to_workers_and_restored\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_reader_rejects_cache_from_other_invocation\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_json_cache_rejects_pickle_and_invalid_json_without_resolve\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_public_endpoints_reject_all_xdist_reader_faults\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_process_state_is_scoped_to_pytest_session\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prune_keeps_locks_and_current_session_key\norchestrator/tests/test_real_repo_serialization.py::test_current_commit_snapshot_actual_fixture_owns_parent_reader_context\norchestrator/tests/test_real_repo_serialization.py::test_current_snapshot_reader_upgrades_for_same_process_candidate_fixture\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[t810-live-reader-unregistered]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[invariant-candidate-write-downgraded]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[predicate-candidate-lock-removed]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[campaign-scan-lock-removed]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[parent-key-uses-worktree-root]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[legacy-key-not-acquired]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[conflict-edge-removed]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[prewarm-lock-removed]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[nested-collection-node-unregistered]\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_configure_node_wires_nonce_and_restores_nested_env\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_nonce_cleanup_preserves_unconfigure_exception\norchestrator/tests/test_real_repo_serialization.py::test_memo_cleanup_runs_oracle_after_receipt_cleanup_error\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_optout_only_selection_does_not_prewarm\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_calls_both_named_endpoints_once[collection_finish]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_calls_both_named_endpoints_once[xdist_node_collection_finished]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[collection_finish-RuntimeError-receipt]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[collection_finish-RuntimeError-oracle]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[collection_finish-SystemExit-receipt]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[collection_finish-SystemExit-oracle]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[xdist_node_collection_finished-RuntimeError-receipt]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[xdist_node_collection_finished-RuntimeError-oracle]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[xdist_node_collection_finished-SystemExit-receipt]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[xdist_node_collection_finished-SystemExit-oracle]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_waits_for_peer_after_exception[collection_finish-receipt]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_waits_for_peer_after_exception[collection_finish-oracle]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_waits_for_peer_after_exception[xdist_node_collection_finished-receipt]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_waits_for_peer_after_exception[xdist_node_collection_finished-oracle]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_worker_runs_neither_endpoint[collection_finish]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_worker_runs_neither_endpoint[xdist_node_collection_finished]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_returns_only_after_both_complete[collection_finish-receipt]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_returns_only_after_both_complete[collection_finish-oracle]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_returns_only_after_both_complete[xdist_node_collection_finished-receipt]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_returns_only_after_both_complete[xdist_node_collection_finished-oracle]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_prewarm_jobs_overlap[collection_finish]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_prewarm_jobs_overlap[xdist_node_collection_finished]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_both_failures_keep_receipt_primary[collection_finish]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_both_failures_keep_receipt_primary[xdist_node_collection_finished]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_emits_one_json_timing_line[collection_finish]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_emits_one_json_timing_line[xdist_node_collection_finished]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_no_consumers_emits_no_timing[collection_finish]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_no_consumers_emits_no_timing[xdist_node_collection_finished]\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_both_worker_guards_are_required_as_redundant_defense\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_worker_hook_order_mechanism_rejects_both_mutants\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_real_xdist_order_has_no_worker_payer\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_uid_configuration_respects_xdist_and_no_xdist\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_consumers_do_not_resolve_during_collection\norchestrator/tests/test_real_repo_serialization.py::test_sort_swo_oracle_does_not_resolve_during_collection\norchestrator/tests/test_real_repo_serialization.py::test_loadgroup_scheduler_keeps_same_group_on_one_worker_and_control_detects_absence\norchestrator/tests/test_real_repo_serialization.py::test_effective_tempdir_is_not_tmpfs\norchestrator/tests/test_real_repo_serialization.py::test_suite_conftest_does_not_wire_tmpdir_to_tmpfs\norchestrator/tests/test_real_repo_serialization.py::test_tmpdir_fstype_lookup_positive_and_negative_control\norchestrator/tests/test_real_repo_serialization.py::test_tmpfs_tmpdir_wiring_scanner_positive_and_negative_control\norchestrator/tests/test_real_repo_serialization.py::test_tmpdir_guards_are_present_and_load_bearing\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_starts_before_worker_collection_notification\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_all_workers_wait_before_test_body_without_resolving\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_order_rejects_collection_barrier_mutant\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_parsed_narrowing_keeps_nonce_and_never_resolves\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_narrowing_destinations_match_real_parser\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_success_checks_shared_deadline_after_io\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_publication_wait_is_explicit_bounded_and_fail_closed\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_unlock_failure_never_publishes_ready\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_stale_markers_are_pruned_except_current_job\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_close_failure_and_lock_contention_are_fail_closed\norchestrator/tests/test_wave_land_window.py::test_claim_empty_directory_acquires_and_creates_lease\norchestrator/tests/test_wave_land_window.py::test_second_wave_is_held_by_first_holder\norchestrator/tests/test_wave_land_window.py::test_self_claim_renews_mtime_and_returns_held_self\norchestrator/tests/test_wave_land_window.py::test_self_claim_age_comes_from_refreshed_real_mtime\norchestrator/tests/test_wave_land_window.py::test_self_claim_refuses_stale_refreshed_mtime\norchestrator/tests/test_wave_land_window.py::test_foreign_held_claim_does_not_renew_lease\norchestrator/tests/test_wave_land_window.py::test_renew_held_self_updates_only_mtime\norchestrator/tests/test_wave_land_window.py::test_renew_foreign_holder_is_noop\norchestrator/tests/test_wave_land_window.py::test_renew_missing_lease_is_free\norchestrator/tests/test_wave_land_window.py::test_renew_directory_unavailable\norchestrator/tests/test_wave_land_window.py::test_renew_invalid_fresh_lease_is_unavailable\norchestrator/tests/test_wave_land_window.py::test_renew_lease_race_after_bounded_retries\norchestrator/tests/test_wave_land_window.py::test_renew_stale_self_is_noop_without_reacquire\norchestrator/tests/test_wave_land_window.py::test_renew_never_creates_or_drops_ticket\norchestrator/tests/test_wave_land_window.py::test_renew_detects_path_replacement_after_utime\norchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[utime]\norchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[post-fstat]\norchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[owner-check]\norchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[same-entry]\norchestrator/tests/test_wave_land_window.py::test_self_claim_detects_path_replacement_after_utime\norchestrator/tests/test_wave_land_window.py::test_self_claim_renew_holds_exclusive_flock\norchestrator/tests/test_wave_land_window.py::test_stale_self_claim_reacquires_instead_of_renewing\norchestrator/tests/test_wave_land_window.py::test_open_lease_uses_post_flock_metadata_for_stale_decision\norchestrator/tests/test_wave_land_window.py::test_open_lease_uses_locked_fd_metadata_after_path_replacement\norchestrator/tests/test_wave_land_window.py::test_release_then_other_wave_can_acquire\norchestrator/tests/test_wave_land_window.py::test_free_claim_ignores_orphaned_legacy_ticket[fresh]\norchestrator/tests/test_wave_land_window.py::test_free_claim_ignores_orphaned_legacy_ticket[stale]\norchestrator/tests/test_wave_land_window.py::test_free_claim_ignores_orphaned_legacy_ticket[malformed]\norchestrator/tests/test_wave_land_window.py::test_claim_does_not_remove_existing_legacy_ticket\norchestrator/tests/test_wave_land_window.py::test_held_claim_does_not_create_legacy_ticket\norchestrator/tests/test_wave_land_window.py::test_claim_create_failure_is_bounded_and_fail_closed[create-exception]\norchestrator/tests/test_wave_land_window.py::test_claim_create_failure_is_bounded_and_fail_closed[create-race]\norchestrator/tests/test_wave_land_window.py::test_claim_retries_actual_file_exists_from_create_lease\norchestrator/tests/test_wave_land_window.py::test_release_without_lease_drops_own_ticket\norchestrator/tests/test_wave_land_window.py::test_release_does_not_remove_foreign_legacy_ticket\norchestrator/tests/test_wave_land_window.py::test_status_distinguishes_free_and_held\norchestrator/tests/test_wave_land_window.py::test_self_status_does_not_renew_or_rewrite_lease\norchestrator/tests/test_wave_land_window.py::test_status_free_means_only_that_the_lease_is_absent\norchestrator/tests/test_wave_land_window.py::test_status_reports_free_with_orphaned_legacy_ticket\norchestrator/tests/test_wave_land_window.py::test_non_owner_release_cancels_own_wait_ticket_only\norchestrator/tests/test_wave_land_window.py::test_claim_ttl_boundary_uses_literal_2400[2399-held]\norchestrator/tests/test_wave_land_window.py::test_claim_ttl_boundary_uses_literal_2400[2400-held]\norchestrator/tests/test_wave_land_window.py::test_claim_ttl_boundary_uses_literal_2400[2401-acquired]\norchestrator/tests/test_wave_land_window.py::test_status_reports_stale_at_2401_seconds\norchestrator/tests/test_wave_land_window.py::test_payload_ttl_does_not_override_literal_policy_ttl\norchestrator/tests/test_wave_land_window.py::test_stale_invalid_lease_is_reclaimed_by_mtime[malformed]\norchestrator/tests/test_wave_land_window.py::test_stale_invalid_lease_is_reclaimed_by_mtime[oversized]\norchestrator/tests/test_wave_land_window.py::test_stale_invalid_lease_is_reclaimed_by_mtime[type-spoofed-ttl]\norchestrator/tests/test_wave_land_window.py::test_stale_invalid_lease_is_reclaimed_by_mtime[ttl-over-policy]\norchestrator/tests/test_wave_land_window.py::test_claim_retries_after_stale_lease_disappears_during_unlink\norchestrator/tests/test_wave_land_window.py::test_fresh_invalid_lease_remains_fail_closed\norchestrator/tests/test_wave_land_window.py::test_future_mtime_over_literal_policy_is_stale_clock_skew[2399-held]\norchestrator/tests/test_wave_land_window.py::test_future_mtime_over_literal_policy_is_stale_clock_skew[2400-held]\norchestrator/tests/test_wave_land_window.py::test_future_mtime_over_literal_policy_is_stale_clock_skew[2401-acquired]\norchestrator/tests/test_wave_land_window.py::test_non_owner_release_never_removes_lease\norchestrator/tests/test_wave_land_window.py::test_release_expected_main_sha_does_not_delete_reclaimed_same_slug\norchestrator/tests/test_wave_land_window.py::test_open_directory_failure_is_unavailable_not_free\norchestrator/tests/test_wave_land_window.py::test_listdir_failure_is_unavailable_not_free\norchestrator/tests/test_wave_land_window.py::test_fifo_open_is_nonblocking_and_rejected_before_flock\norchestrator/tests/test_wave_land_window.py::test_other_uid_lease_is_rejected_before_flock\norchestrator/tests/test_wave_land_window.py::test_busy_flock_retries_are_nonblocking_and_bounded\norchestrator/tests/test_wave_land_window.py::test_new_lease_flock_retries_are_nonblocking_and_bounded\norchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_preserves_same_name_replacement\norchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_does_not_require_flock_and_returns_success\norchestrator/tests/test_wave_land_window.py::test_instruction_like_wave_is_digest_only_in_all_outputs\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[stale-main]\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[lock-busy]\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[rejected]\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[fold-failed]\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[fold-rollback-failed]\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[status_value5]\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[status_value6]\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[7]\norchestrator/tests/test_wave_land_window.py::test_landed_message_success_is_exact_fixed_text[landed]\norchestrator/tests/test_wave_land_window.py::test_landed_message_success_is_exact_fixed_text[already-landed]\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_invalid_main_after\norchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[39]\norchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[40]\norchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[41]\norchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[uppercase]\norchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[non-hex]\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_duplicate_json_key\norchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_more_than_65536_bytes\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_success_is_exact_fixed_text[normal]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_success_is_exact_fixed_text[recovery]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[landed]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[already-landed]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[rollback-incomplete]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[status-list]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[status-object]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[status-number]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[main-invalid]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[tip-missing]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[tip-invalid-none]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[tip-invalid-number]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[tip-invalid-39]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[tip-invalid-41]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[tip-invalid-uppercase]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[tip-invalid]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[tip-equals-main]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_duplicate_json_key\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_size_limit_is_exact[65536-0]\norchestrator/tests/test_wave_land_window.py::test_rolled_back_message_size_limit_is_exact[65537-3]\norchestrator/tests/test_wave_land_window.py::test_lease_dir_uses_environment_fallback\norchestrator/tests/test_wave_land_window.py::test_missing_lease_dir_argument_and_environment_is_cli_rejection\norchestrator/tests/test_wave_land_window.py::test_removed_commands_and_land_intent_are_rejected\norchestrator/tests/test_wave_land_window.py::test_claim_rejects_invalid_sha_and_ttl[argv0]\norchestrator/tests/test_wave_land_window.py::test_claim_rejects_invalid_sha_and_ttl[argv1]\norchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[39]\norchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[40]\norchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[41]\norchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[uppercase]\norchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[non-hex]\norchestrator/tests/test_wave_land_window.py::test_claim_ttl_policy_upper_bound[1-0]\norchestrator/tests/test_wave_land_window.py::test_claim_ttl_policy_upper_bound[2400-0]\norchestrator/tests/test_wave_land_window.py::test_claim_ttl_policy_upper_bound[2401-2]\nIZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":1,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n224 tests collected in 0.76s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "c33c93f840f945de1ab13a3bbee8c8e27e94055256f4f3513a77a36ee6367edc"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_t080_output_snapshot_detects_git_visible_real_output_changes",
+        "orchestrator/tests/test_real_repo_serialization.py::test_t080_output_snapshot_excludes_git_ignored_real_output_changes",
+        "orchestrator/tests/test_real_repo_serialization.py::test_t080_output_snapshot_observes_git_visible_create_and_delete",
+        "orchestrator/tests/test_real_repo_serialization.py::test_stub_free_receipt_nodes_are_selected_and_reach_setup_by_default",
+        "orchestrator/tests/test_real_repo_serialization.py::test_t080_import_temp_environment_fails_closed_for_foreign_module",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes",
+        "orchestrator/tests/test_real_repo_serialization.py::test_shard_assignment_preserves_live_xdist_group_components_and_split_control",
+        "orchestrator/tests/test_real_repo_serialization.py::test_xdist_group_audit_rejects_synthetic_negative_controls",
+        "orchestrator/tests/test_real_repo_serialization.py::test_xdist_group_name_set_audit_rejects_isolated_negative_controls",
+        "orchestrator/tests/test_real_repo_serialization.py::test_canonical_real_repo_nodes_have_no_handwritten_xdist_group_decorator",
+        "orchestrator/tests/test_real_repo_serialization.py::test_handwritten_xdist_group_decorator_control_is_rejected",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_writer_drains_overlapping_reader_stream[legacy]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_writer_drains_overlapping_reader_stream[common]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_upgrade_writer_drains_overlapping_reader_stream[legacy]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_upgrade_writer_drains_overlapping_reader_stream[common]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_readers_overlap_without_writer",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_timeout_closes_fds[gate-timeout]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_timeout_closes_fds[main-timeout]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_timeout_closes_fds[open-rejected]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_open_rejection_preserves_outer_reader[legacy]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_open_rejection_preserves_outer_reader[common]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_and_main_share_deadline[writer]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_and_main_share_deadline[reader]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_fork_reset_closes_inflight_gate_fd",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_priority_order_is_literal_and_writers_follow_barrier",
+        "orchestrator/tests/test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root",
+        "orchestrator/tests/test_real_repo_serialization.py::test_ratified_memo_has_a_real_resolution_payer",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_consumer_inventory_and_optouts_are_complete",
+        "orchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_consumer_inventory_and_registry_are_complete",
+        "orchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_explicit_binding_node_is_not_a_consumer",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_writers_do_not_materialize_oracle_environment_candidates",
+        "orchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_memo_roundtrip_and_getter_are_fail_closed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_prewarm_hook_exception_is_not_fail_open",
+        "orchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_memo_prewarm_wiring_is_controller_only_and_lazy",
+        "orchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_memo_nonce_is_propagated_to_workers_and_restored",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_reader_rejects_cache_from_other_invocation",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_json_cache_rejects_pickle_and_invalid_json_without_resolve",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_public_endpoints_reject_all_xdist_reader_faults",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_process_state_is_scoped_to_pytest_session",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prune_keeps_locks_and_current_session_key",
+        "orchestrator/tests/test_real_repo_serialization.py::test_current_commit_snapshot_actual_fixture_owns_parent_reader_context",
+        "orchestrator/tests/test_real_repo_serialization.py::test_current_snapshot_reader_upgrades_for_same_process_candidate_fixture",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[t810-live-reader-unregistered]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[invariant-candidate-write-downgraded]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[predicate-candidate-lock-removed]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[campaign-scan-lock-removed]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[parent-key-uses-worktree-root]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[legacy-key-not-acquired]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[conflict-edge-removed]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[prewarm-lock-removed]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[nested-collection-node-unregistered]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_configure_node_wires_nonce_and_restores_nested_env",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_nonce_cleanup_preserves_unconfigure_exception",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_cleanup_runs_oracle_after_receipt_cleanup_error",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_optout_only_selection_does_not_prewarm",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_calls_both_named_endpoints_once[collection_finish]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_calls_both_named_endpoints_once[xdist_node_collection_finished]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[collection_finish-RuntimeError-receipt]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[collection_finish-RuntimeError-oracle]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[collection_finish-SystemExit-receipt]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[collection_finish-SystemExit-oracle]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[xdist_node_collection_finished-RuntimeError-receipt]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[xdist_node_collection_finished-RuntimeError-oracle]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[xdist_node_collection_finished-SystemExit-receipt]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[xdist_node_collection_finished-SystemExit-oracle]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_waits_for_peer_after_exception[collection_finish-receipt]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_waits_for_peer_after_exception[collection_finish-oracle]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_waits_for_peer_after_exception[xdist_node_collection_finished-receipt]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_waits_for_peer_after_exception[xdist_node_collection_finished-oracle]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_worker_runs_neither_endpoint[collection_finish]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_worker_runs_neither_endpoint[xdist_node_collection_finished]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_returns_only_after_both_complete[collection_finish-receipt]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_returns_only_after_both_complete[collection_finish-oracle]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_returns_only_after_both_complete[xdist_node_collection_finished-receipt]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_returns_only_after_both_complete[xdist_node_collection_finished-oracle]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_prewarm_jobs_overlap[collection_finish]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_prewarm_jobs_overlap[xdist_node_collection_finished]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_both_failures_keep_receipt_primary[collection_finish]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_both_failures_keep_receipt_primary[xdist_node_collection_finished]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_emits_one_json_timing_line[collection_finish]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_emits_one_json_timing_line[xdist_node_collection_finished]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_no_consumers_emits_no_timing[collection_finish]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_no_consumers_emits_no_timing[xdist_node_collection_finished]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_both_worker_guards_are_required_as_redundant_defense",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_worker_hook_order_mechanism_rejects_both_mutants",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_real_xdist_order_has_no_worker_payer",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_uid_configuration_respects_xdist_and_no_xdist",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_consumers_do_not_resolve_during_collection",
+        "orchestrator/tests/test_real_repo_serialization.py::test_sort_swo_oracle_does_not_resolve_during_collection",
+        "orchestrator/tests/test_real_repo_serialization.py::test_loadgroup_scheduler_keeps_same_group_on_one_worker_and_control_detects_absence",
+        "orchestrator/tests/test_real_repo_serialization.py::test_effective_tempdir_is_not_tmpfs",
+        "orchestrator/tests/test_real_repo_serialization.py::test_suite_conftest_does_not_wire_tmpdir_to_tmpfs",
+        "orchestrator/tests/test_real_repo_serialization.py::test_tmpdir_fstype_lookup_positive_and_negative_control",
+        "orchestrator/tests/test_real_repo_serialization.py::test_tmpfs_tmpdir_wiring_scanner_positive_and_negative_control",
+        "orchestrator/tests/test_real_repo_serialization.py::test_tmpdir_guards_are_present_and_load_bearing",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_starts_before_worker_collection_notification",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_all_workers_wait_before_test_body_without_resolving",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_order_rejects_collection_barrier_mutant",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_parsed_narrowing_keeps_nonce_and_never_resolves",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_narrowing_destinations_match_real_parser",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_success_checks_shared_deadline_after_io",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_publication_wait_is_explicit_bounded_and_fail_closed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_unlock_failure_never_publishes_ready",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_stale_markers_are_pruned_except_current_job",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_close_failure_and_lock_contention_are_fail_closed",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_empty_directory_acquires_and_creates_lease",
+        "orchestrator/tests/test_wave_land_window.py::test_second_wave_is_held_by_first_holder",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renews_mtime_and_returns_held_self",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_age_comes_from_refreshed_real_mtime",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_refuses_stale_refreshed_mtime",
+        "orchestrator/tests/test_wave_land_window.py::test_foreign_held_claim_does_not_renew_lease",
+        "orchestrator/tests/test_wave_land_window.py::test_renew_held_self_updates_only_mtime",
+        "orchestrator/tests/test_wave_land_window.py::test_renew_foreign_holder_is_noop",
+        "orchestrator/tests/test_wave_land_window.py::test_renew_missing_lease_is_free",
+        "orchestrator/tests/test_wave_land_window.py::test_renew_directory_unavailable",
+        "orchestrator/tests/test_wave_land_window.py::test_renew_invalid_fresh_lease_is_unavailable",
+        "orchestrator/tests/test_wave_land_window.py::test_renew_lease_race_after_bounded_retries",
+        "orchestrator/tests/test_wave_land_window.py::test_renew_stale_self_is_noop_without_reacquire",
+        "orchestrator/tests/test_wave_land_window.py::test_renew_never_creates_or_drops_ticket",
+        "orchestrator/tests/test_wave_land_window.py::test_renew_detects_path_replacement_after_utime",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[utime]",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[post-fstat]",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[owner-check]",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_failure_is_structured_unavailable[same-entry]",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_detects_path_replacement_after_utime",
+        "orchestrator/tests/test_wave_land_window.py::test_self_claim_renew_holds_exclusive_flock",
+        "orchestrator/tests/test_wave_land_window.py::test_stale_self_claim_reacquires_instead_of_renewing",
+        "orchestrator/tests/test_wave_land_window.py::test_open_lease_uses_post_flock_metadata_for_stale_decision",
+        "orchestrator/tests/test_wave_land_window.py::test_open_lease_uses_locked_fd_metadata_after_path_replacement",
+        "orchestrator/tests/test_wave_land_window.py::test_release_then_other_wave_can_acquire",
+        "orchestrator/tests/test_wave_land_window.py::test_free_claim_ignores_orphaned_legacy_ticket[fresh]",
+        "orchestrator/tests/test_wave_land_window.py::test_free_claim_ignores_orphaned_legacy_ticket[stale]",
+        "orchestrator/tests/test_wave_land_window.py::test_free_claim_ignores_orphaned_legacy_ticket[malformed]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_does_not_remove_existing_legacy_ticket",
+        "orchestrator/tests/test_wave_land_window.py::test_held_claim_does_not_create_legacy_ticket",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_create_failure_is_bounded_and_fail_closed[create-exception]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_create_failure_is_bounded_and_fail_closed[create-race]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_retries_actual_file_exists_from_create_lease",
+        "orchestrator/tests/test_wave_land_window.py::test_release_without_lease_drops_own_ticket",
+        "orchestrator/tests/test_wave_land_window.py::test_release_does_not_remove_foreign_legacy_ticket",
+        "orchestrator/tests/test_wave_land_window.py::test_status_distinguishes_free_and_held",
+        "orchestrator/tests/test_wave_land_window.py::test_self_status_does_not_renew_or_rewrite_lease",
+        "orchestrator/tests/test_wave_land_window.py::test_status_free_means_only_that_the_lease_is_absent",
+        "orchestrator/tests/test_wave_land_window.py::test_status_reports_free_with_orphaned_legacy_ticket",
+        "orchestrator/tests/test_wave_land_window.py::test_non_owner_release_cancels_own_wait_ticket_only",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_ttl_boundary_uses_literal_2400[2399-held]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_ttl_boundary_uses_literal_2400[2400-held]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_ttl_boundary_uses_literal_2400[2401-acquired]",
+        "orchestrator/tests/test_wave_land_window.py::test_status_reports_stale_at_2401_seconds",
+        "orchestrator/tests/test_wave_land_window.py::test_payload_ttl_does_not_override_literal_policy_ttl",
+        "orchestrator/tests/test_wave_land_window.py::test_stale_invalid_lease_is_reclaimed_by_mtime[malformed]",
+        "orchestrator/tests/test_wave_land_window.py::test_stale_invalid_lease_is_reclaimed_by_mtime[oversized]",
+        "orchestrator/tests/test_wave_land_window.py::test_stale_invalid_lease_is_reclaimed_by_mtime[type-spoofed-ttl]",
+        "orchestrator/tests/test_wave_land_window.py::test_stale_invalid_lease_is_reclaimed_by_mtime[ttl-over-policy]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_retries_after_stale_lease_disappears_during_unlink",
+        "orchestrator/tests/test_wave_land_window.py::test_fresh_invalid_lease_remains_fail_closed",
+        "orchestrator/tests/test_wave_land_window.py::test_future_mtime_over_literal_policy_is_stale_clock_skew[2399-held]",
+        "orchestrator/tests/test_wave_land_window.py::test_future_mtime_over_literal_policy_is_stale_clock_skew[2400-held]",
+        "orchestrator/tests/test_wave_land_window.py::test_future_mtime_over_literal_policy_is_stale_clock_skew[2401-acquired]",
+        "orchestrator/tests/test_wave_land_window.py::test_non_owner_release_never_removes_lease",
+        "orchestrator/tests/test_wave_land_window.py::test_release_expected_main_sha_does_not_delete_reclaimed_same_slug",
+        "orchestrator/tests/test_wave_land_window.py::test_open_directory_failure_is_unavailable_not_free",
+        "orchestrator/tests/test_wave_land_window.py::test_listdir_failure_is_unavailable_not_free",
+        "orchestrator/tests/test_wave_land_window.py::test_fifo_open_is_nonblocking_and_rejected_before_flock",
+        "orchestrator/tests/test_wave_land_window.py::test_other_uid_lease_is_rejected_before_flock",
+        "orchestrator/tests/test_wave_land_window.py::test_busy_flock_retries_are_nonblocking_and_bounded",
+        "orchestrator/tests/test_wave_land_window.py::test_new_lease_flock_retries_are_nonblocking_and_bounded",
+        "orchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_preserves_same_name_replacement",
+        "orchestrator/tests/test_wave_land_window.py::test_ticket_cleanup_does_not_require_flock_and_returns_success",
+        "orchestrator/tests/test_wave_land_window.py::test_instruction_like_wave_is_digest_only_in_all_outputs",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[stale-main]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[lock-busy]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[rejected]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[fold-failed]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[fold-rollback-failed]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[status_value5]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[status_value6]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_non_success_or_non_string_status_with_rc3[7]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_success_is_exact_fixed_text[landed]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_success_is_exact_fixed_text[already-landed]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_invalid_main_after",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[39]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[40]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[41]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[uppercase]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_main_after_sha_exact_boundary[non-hex]",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_duplicate_json_key",
+        "orchestrator/tests/test_wave_land_window.py::test_landed_message_rejects_more_than_65536_bytes",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_success_is_exact_fixed_text[normal]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_success_is_exact_fixed_text[recovery]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[landed]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[already-landed]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[rollback-incomplete]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[status-list]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[status-object]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[status-number]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[main-invalid]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[tip-missing]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[tip-invalid-none]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[tip-invalid-number]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[tip-invalid-39]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[tip-invalid-41]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[tip-invalid-uppercase]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[tip-invalid]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_invalid_result[tip-equals-main]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_rejects_duplicate_json_key",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_size_limit_is_exact[65536-0]",
+        "orchestrator/tests/test_wave_land_window.py::test_rolled_back_message_size_limit_is_exact[65537-3]",
+        "orchestrator/tests/test_wave_land_window.py::test_lease_dir_uses_environment_fallback",
+        "orchestrator/tests/test_wave_land_window.py::test_missing_lease_dir_argument_and_environment_is_cli_rejection",
+        "orchestrator/tests/test_wave_land_window.py::test_removed_commands_and_land_intent_are_rejected",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_rejects_invalid_sha_and_ttl[argv0]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_rejects_invalid_sha_and_ttl[argv1]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[39]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[40]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[41]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[uppercase]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_main_sha_exact_boundary[non-hex]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_ttl_policy_upper_bound[1-0]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_ttl_policy_upper_bound[2400-0]",
+        "orchestrator/tests/test_wave_land_window.py::test_claim_ttl_policy_upper_bound[2401-2]",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}"
+      ],
+      "duration_s": 21.875,
+      "rc": 0,
+      "repo_head": "df2da88ee8a413882590575731ae6ab91edb9003",
+      "runner_sha256": "86ac9af08edc3b3d1cf8b46c8535c78bdf128cf397c9d479a524b483447c8a34",
+      "spec_sha256": "63a87ffb92d2d91d7ce8ec09aad47c83771df9a2d0dc5c163f1092d6d6ff53c2",
+      "status": "PASSED",
+      "tool_sha256": "542de0dfec1eeff2a2eca4b09f3f80a5b9fb96e45c70c064204f95c3f87499c6"
+    },
+    "hang_timeout_seconds": 2700.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m0-equivalent-comment": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "299cb5477adbbed3bf65c4e3b8ef6923c255db9522ee4af3de73fb7309f454dd",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "                # Writers hold the gate only while acquiring main (equivalent mutation marker); fresh readers\n",
+            "old": "                # Writers hold the gate only while acquiring main; fresh readers\n"
+          }
+        ]
+      },
+      "m1-reader-gate-probe-skipped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "d2afc1919607f22d044fb0e5189bc34b2ded2f7b811094ad1434287cc4186670",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "        if False:  # mutation: fresh readers never probe the gates\n",
+            "old": "        if not _REAL_REPO_PROCESS_LOCKS:\n"
+          }
+        ]
+      },
+      "m10-rolled-back-fixed-text-changed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "e4c11e705feefe133264f215516155c576896dc1344f1f3b8f180a3dd9f223b0",
+        "replacements": [
+          {
+            "file": "tools/wave_land_window.py",
+            "new": "    \"この land 結果では Main は記載の SHA にあり、wave tip とは異なります。\"\n",
+            "old": "    \"この land 結果では main は記載の SHA にあり、wave tip とは異なります。\"\n"
+          }
+        ]
+      },
+      "m11-landed-accepts-rollback-failed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "e8fab2a16ccae9e917fd950c018ec1605e8ddc65c74d46ccf74c05d694d15812",
+        "replacements": [
+          {
+            "file": "tools/wave_land_window.py",
+            "new": "_SUCCESS_STATUSES = frozenset({\"landed\", \"already-landed\", \"fold-rollback-failed\"})  # mutation\n",
+            "old": "_SUCCESS_STATUSES = frozenset({\"landed\", \"already-landed\"})\n"
+          }
+        ]
+      },
+      "m2-fresh-writer-gate-skipped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "b2d3acd4c5a068acf5736cd2f15d01808f4bdde8930e75b0717b3dc71fb88c90",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "                if target_mode == \"write\" and not created:  # mutation: fresh EX skips the gate\n",
+            "old": "                if target_mode == \"write\":\n"
+          }
+        ]
+      },
+      "m3-upgrade-writer-gate-skipped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "c4efa7357c5d0aaadccc6a196a83886ee48a70ae8b62372ea3a1e11464424797",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "                if target_mode == \"write\" and created:  # mutation: upgrades keep the old conversion\n",
+            "old": "                if target_mode == \"write\":\n"
+          }
+        ]
+      },
+      "m4-main-deadline-recomputed-after-gate": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "97cb835a491910b5cf4a34e64d8b4fe105a512357fc413535676461a135b3ca8",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "                        state.fd,\n                        deadline=time.monotonic() + _REAL_REPO_LOCK_TIMEOUT_S,  # mutation\n",
+            "old": "                        state.fd,\n                        deadline=deadline,\n"
+          }
+        ]
+      },
+      "m5-gate-close-skipped-on-failure": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "4fe5f5b988833fa6bf78b6876de8ad4d73741513c5e35f45b44e5703d38c9923",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "                except BaseException:\n                    raise  # mutation: gate fd stays open and locked on failure\n                else:\n                    if state.gate_fd is not None:\n                        try:\n                            fcntl.flock(state.gate_fd, fcntl.LOCK_UN)\n",
+            "old": "                finally:\n                    if state.gate_fd is not None:\n                        try:\n                            fcntl.flock(state.gate_fd, fcntl.LOCK_UN)\n"
+          }
+        ]
+      },
+      "m6-reader-gate-probe-while-holding": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "c77e5111fae935a92a6450036540ee95166aff2b600dd82b49932ea4c89b77be",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "        if True:  # mutation: probe gates even while holding main locks\n",
+            "old": "        if not _REAL_REPO_PROCESS_LOCKS:\n"
+          }
+        ]
+      },
+      "m7-rolled-back-tip-equals-main-accepted": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "4aa738d64d2af168828fc7cfa3c9a0036ed63a0cc90df76f2b88de50814d17e5",
+        "replacements": [
+          {
+            "file": "tools/wave_land_window.py",
+            "new": "        if False:  # mutation: tip == main is accepted\n",
+            "old": "        if main_after == wave_tip:\n"
+          }
+        ]
+      },
+      "m8-rolled-back-accepts-rollback-failed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "138d7052e63fbc983249e416666787767b1420b149b8aa69f094964bc84a9a07",
+        "replacements": [
+          {
+            "file": "tools/wave_land_window.py",
+            "new": "        if not isinstance(status_value, str) or status_value not in (\"fold-failed\", \"fold-rollback-failed\"):  # mutation\n",
+            "old": "        if not isinstance(status_value, str) or status_value != \"fold-failed\":\n"
+          }
+        ]
+      },
+      "m9-rolled-back-tip-sha-check-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "b74c82b79035841aa0c7cfd332aa6ee13e9bc8a0f02d8889f8ca784da741037e",
+        "replacements": [
+          {
+            "file": "tools/wave_land_window.py",
+            "new": "        if wave_tip is None:  # mutation: tip shape is not validated\n",
+            "old": "        if not _is_sha(wave_tip):\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "f1cf38b4761bf41aade40914afa9279c22b4d9a8a1baf7f5c5d81f5918d6f823",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_real_repo_serialization.py",
+      "orchestrator/tests/test_wave_land_window.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 2700.0
+  },
+  "repo_head": "df2da88ee8a413882590575731ae6ab91edb9003",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_real_repo_serialization.py",
+      "orchestrator/tests/test_wave_land_window.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/f976-f977-mutcontainer/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "dispatch_head_blob_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/f976-f977-mutcontainer/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "51c605676877cd0215828d62bb7a5c76e1f0451e",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "86ac9af08edc3b3d1cf8b46c8535c78bdf128cf397c9d479a524b483447c8a34",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "63a87ffb92d2d91d7ce8ec09aad47c83771df9a2d0dc5c163f1092d6d6ff53c2",
+  "summary": {
+    "KILLED": 0,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 0,
+    "matching": 0,
+    "recorded": 0,
+    "registered": 12
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/f976-f977-mutcontainer/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "542de0dfec1eeff2a2eca4b09f3f80a5b9fb96e45c70c064204f95c3f87499c6",
+  "updated_at": "2026-09-16T23:17:50.926065+00:00"
+}
