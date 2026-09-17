@@ -39,6 +39,9 @@ title: [T-2710] t080 e2e 群の別系列化を諮り直す 3 材料を取り、�
   5,165×3 という偽の均等化を段 3 prompt に載せていた。修正後 6,052.7×3 (M は 0/6/5)。{{F:probe-identifier-rewrite-breaks-ledger-lookup}}。
 - 段 3 の棄却所見: 「実 git 履歴を作ること自体が e2e 専有」(brief の表現、A3)、「plan が M 全体を単体で代替可能と断言」(A4)、
   「plan が実装済みを装う」(D2)、「shard-1 の逆転を plan が無視」(B3-4)。採用した real 所見と裁定は insight `stage4-ruling.md`。
+- 段 8 (自己改善): 候補 3 件を契約で裁定し、いずれも記録のみ。(i) 仮想割付 probe の識別子書換え (上の F と memory で収容、
+  DW-S01 への追記は独立 1 例・予算満杯で D782 に従い見送り)、(ii) 待ち手の 3 本目を作って自分で止めた (DW-C00 の「1 条件 1 本」の
+  再確認、docs 変更不要)、(iii) plan 子の lock union 誤読は解析誤りで docs 候補でない。
 - 実走: production verify CLI 1 回 (login、135.5 秒)、三軸走査 `s8b_holdout_freeze search` (docs commit 前後)、`check_docs.py`、
   `spool_fold.py --dry-run`。受入全走は段 9 の land 前に 1 回 (結果は land の受領証)。
 - 工数: codex 子 3 本 (plan 1、consult 2、`gpt-6-astra` / `medium`、rc=0・受理 OK)。親 probe 6 種 (allocate 再計算 v1/v2、worker 占有、
