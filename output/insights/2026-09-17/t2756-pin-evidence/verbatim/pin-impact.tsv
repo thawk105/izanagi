@@ -1,0 +1,135 @@
+no	path:line	class	consequence_and_role
+1	docs/backoff-counterfactual-preregistration.md:140	B	旧登録維持、新条件を追補／pin＋順序付き patch stack
+2	docs/backoff-policy-performance-preregistration.md:129	B	旧登録維持、新条件を追補／性能条件の pin
+3	docs/dynamic-backoff-preregistration.md:82	B	旧登録維持、新条件を追補／動的 backoff の基底
+4	docs/paper-story-backoff/2026-09-05.md:87	E	保持／実験の主張範囲と版の相違
+5	docs/paper-story-backoff/2026-09-10.md:42	E	保持／主要実験の版
+6	docs/paper-story/2026-09-02.md:63	E	保持／当時の A-2 条件・結果
+7	docs/paper-story/2026-09-05.md:640	E	保持／source・pin の実行同一性
+8	docs/paper-story/2026-09-14.md:36	E	保持／機構訂正と旧条件
+9	docs/paper-story/2026-09-17.md:356	E	保持／hook と現 pin の関係、結果条件
+10	docs/paper-story/claim-evidence/2026-08-26.md:132	E	保持／限定付き観測の導出索引
+11	docs/paper-story/figures/README.md:51	E	保持／図の条件・caption・版差
+12	docs/paper-story/figures/fig2c_b10_extended_backoff.provenance.json:182	E	保持／図入力の source identity
+13	docs/paper-story/figures/fig5_a2_certification_reject.provenance.json:86	E	保持／旧 attempt の pin
+14	docs/paper-story/figures/fig6_a2_certification_observed_positive.provenance.json:122	E	保持／旧 positive の pin
+15	docs/paper-story/figures/fig7_a2_builtin_backoff_onoff_reject.provenance.json:92	E	保持／旧 reject の pin
+16	docs/paper-story/figures/fig8_b10_static_tail_not_observed.provenance.json:71	E	保持／図の build admission と caption
+17	docs/paper-story/results/2026-09-04-a2-certification-reject.md:37	E	保持／正式走行の条件
+18	docs/paper-story/results/2026-09-07-a2-certification-observed-positive.md:88	E	保持／positive の適用範囲
+19	docs/paper-story/results/2026-09-07-a2-certification-reject.md:51	E	保持／admission・機構訂正の根拠
+20	docs/paper-story/results/2026-09-09-a2-certification-observed-positive-en.md:96	E	保持／結果の英語記述
+21	docs/paper-story/results/2026-09-14-b7-all-workload-regression.md:86	E	保持／B7 の実行条件
+22	docs/paper-story/results/2026-09-16-b10-static-tail-not-observed.md:115	E	保持／短縮 pin と gitlink の束縛
+23	docs/paper-story/results/2026-09-16-b7-three-run-materials.md:103	E	保持／短縮 pin から full OID を推定しない根拠
+24	docs/phase3-8b-restart-runbook.md:154	G	新系列の期待値は別確認／人間が行う gitlink preflight
+25	docs/related-work/claim-survey/2026-09-07-backoff-axis-b5-search-preregistration.md:13	B	旧検索範囲維持／調査対象版の固定。pin 前進だけで再検索しない
+26	docs/t1998-balanced-stock-inline-preregistration.md:83	B	旧登録維持、新条件を登録／gitlink・patch適用・evidence 基底
+27	orchestrator/campaign/axis_trigger_gating.py:59	A	正本定数に追随／実値は `pin.CURRENT_PIN`、literal はコメント
+28	orchestrator/campaign/backoff_counterfactual_analysis.py:26	G	旧解析維持、新系列は対応追加／`:121` で build binding を照合
+29	orchestrator/campaign/backoff_counterfactual_cohort2_analysis.py:26	G	旧解析維持／`:124` の pin＋stack 照合
+30	orchestrator/campaign/backoff_policy_performance_analysis.py:30	G	旧解析維持／`:292` が短縮・full pin を照合
+31	orchestrator/campaign/backoff_sweep.py:55	A	正本定数に追随／CURRENT_PIN alias
+32	orchestrator/campaign/buildcache.py:1059	E	**新 pin で生成物形を再実測**／CMakeCache・DependInfo の観測条件。`:1062` が再実測を要求
+33	orchestrator/campaign/p3_s4_loop.py:112	A	新系列移行時に明示更新／D1936 による独立 full OID。CURRENT_PIN 変更だけでは動かない
+34	orchestrator/campaign/p3_s4_loop_sort.py:103	A	正本定数に追随／CURRENT_PIN alias。`:28` は説明
+35	orchestrator/campaign/p3_s4_loop_trigger_gating.py:35	A	axis 定数に追随／literal は説明、実値は `:72` の import
+36	orchestrator/campaign/paper_story_a1_paired.py:205	G	旧 v3 契約維持／`:2400` 等の canonical OID 照合
+37	orchestrator/campaign/paper_story_a1_paired.v3-pilot.json:17	B	新系列は新登録／pilot の canonical_pin
+38	orchestrator/campaign/paper_story_a1_paired.v3-sized.json:17	B	新系列は新登録／sized の canonical_pin
+39	orchestrator/campaign/paper_story_a1_source.v1.json:5	B	旧版保持／source 契約 canonical_head
+40	orchestrator/campaign/paper_story_a1_source.v2.json:4	B	新系列は新契約／source canonical_head
+41	orchestrator/campaign/pin.py:28	A	再承認後の定数更新対象／現行短縮 pin の正本
+42	orchestrator/campaign/s5_permutation_coverage.py:50	A	正本定数に追随／CURRENT_PIN alias
+43	orchestrator/campaign/s6_sort_sweep.py:87	A	正本定数に追随／CURRENT_PIN alias
+44	orchestrator/campaign/s8b_approved.py:67	A	再承認なしに変更不可／承認済み full SHA
+45	orchestrator/campaign/silo_ladder_rung1.py:61	A	専用旧系列は維持／通常 campaign 外の ability-probe 固定 pin
+46	orchestrator/campaign/silo_ladder_rung1_contract.py:543	G	旧契約維持、新系列は ledger と同時対応／expected_scalars の base_commit exact 照合
+47	orchestrator/tests/acceptance_duration_ledger.json:10208	E	保持／pin を含む test nodeid の時間記録
+48	orchestrator/tests/fixtures/README.md:108	F	**旧値保持**／実 trace fixture の producer clone HEAD。`:200` も同様
+49	orchestrator/tests/fixtures/b10_backoff_shape_locks/balanced.campaign.lock:1	F	旧 fixture 保持／取得済み campaign identity・admission
+50	orchestrator/tests/fixtures/b10_backoff_shape_locks/read-heavy.campaign.lock:1	F	旧 fixture 保持／取得済み campaign lock
+51	orchestrator/tests/fixtures/b10_backoff_shape_locks/write-heavy.campaign.lock:1	F	旧 fixture 保持／取得済み campaign lock
+52	orchestrator/tests/test_b10_extended_figure_provenance.py:200	F	旧図 fixture 保持、新図には追加／短縮・full OID の対応
+53	orchestrator/tests/test_backoff_counterfactual_analysis.py:27	F	旧解析 fixture 保持／登録済み解析 pin
+54	orchestrator/tests/test_backoff_policy_performance_analysis.py:36	F	旧解析 fixture 保持／prefix 異常系も含む
+55	orchestrator/tests/test_backoff_profile_pegasus.py:47	F	旧 profile fixture 保持／入力 source identity
+56	orchestrator/tests/test_backoff_requested_us.py:589	F	使用契約に応じ追加／requested-us の evidence 入力
+57	orchestrator/tests/test_dynamic_backoff_transitions.py:17	F	旧基底保持／動的 backoff の固定 source
+58	orchestrator/tests/test_mocc_proof_surface.py:29	F	**旧 pin の拒否 control を保持**／`:397` は候補適用・旧 pin 拒否の対
+59	orchestrator/tests/test_mocc_trace_job_contract.py:32	F	旧端点保持／mocc policy の BASE_OID
+60	orchestrator/tests/test_mocc_trace_pair.py:20	F	旧端点保持／pair 証拠の BASE_OID
+61	orchestrator/tests/test_p3_build_authority_cli.py:192	F	新現行契約へ移す際に追随／独立 EXPECTED_REPO_STOCK_PIN
+62	orchestrator/tests/test_p3_s4_loop_job_contract.py:1184	F	driver 更新と整合／fake git HEAD と job 入力
+63	orchestrator/tests/test_p3_s4_loop_sort.py:781	F	現行系列移行時に追随／cfg・S.PIN・literal の一致
+64	orchestrator/tests/test_p3_s4_loop_trigger_gating.py:2170	F	現行系列移行時に追随／cfg・T.PIN・literal の一致
+65	orchestrator/tests/test_paper_story_a1_job_contract.py:463	F	旧 v3 control 保持、新版に追加／canonical checkout
+66	orchestrator/tests/test_paper_story_a1_paired.py:1632	F	旧 policy fixture 保持／canonical_pin
+67	orchestrator/tests/test_paper_story_a2_certification.py:1023	F	旧 cohort control 保持、新系列を追加／current_pin と正規化 control
+68	orchestrator/tests/test_plot_a2_certification.py:123	F	旧図 fixture 保持／manifest・caption の旧 pin
+69	orchestrator/tests/test_plot_b10_static_tail_formal.py:68	F	旧図 fixture 保持／repo_stock_pin
+70	orchestrator/tests/test_plot_dynamic_backoff.py:38	F	旧図 fixture 保持／short/full pin
+71	orchestrator/tests/test_plot_t2187_adaptive_consts.py:120	F	旧 probe fixture 保持／source identity
+72	orchestrator/tests/test_s6_sort_sweep.py:390	F	現行系列移行時に追随／policy から逆算しない独立期待値
+73	orchestrator/tests/test_s8a_trigger_sweep.py:108	F	characterization と現行期待値を分離／`:485` は独立 pin
+74	orchestrator/tests/test_s8b_floor_campaign.py:2276	F	新系列例を追加、旧凍結例保持／`:12148` は旧 floor path
+75	orchestrator/tests/test_s8b_protocol_builder.py:55	F	旧 byte control 保持、新世代を追加／凍結 protocol の exact bytes
+76	orchestrator/tests/test_t126_qualification_driver.py:785	F	fixture 契約に応じ追加／clean stock source evidence
+77	orchestrator/tests/test_t1998_stock_inline_pair.py:54	F	旧登録例保持、新登録に追加／short/full gitlink
+78	orchestrator/tests/test_t2187_adaptive_const_probe.py:47	F	旧 probe control 保持／PIN_FULL
+79	output/env/pegasus/b10-backoff-shape/24d80d9a35122de1/reports/final/b10_backoff_shape_provenance.json:5	E	保持／完了済み B10 report の pin
+80	output/env/pegasus/calibration/a2_perf_verify_cost_t48_skew0p9_rr50_rmw0.json:6	C	旧証拠保持／較正の short/full source identity
+81	output/env/pegasus/calibration/a2_perf_verify_cost_t48_skew0p9_rr5_rmw0.json:4	C	旧証拠保持／較正の short/full source identity
+82	output/env/pegasus/calibration/attempts/0_478.nqsv/calibration.json:44	C	旧証拠保持／acquisition の head_sha
+83	output/env/pegasus/calibration/attempts/0_989271.nqsv/calibration.json:43	C	旧証拠保持／acquisition の head_sha
+84	output/env/pegasus/calibration/attempts/0_995805.nqsv/calibration.json:44	C	旧証拠保持／acquisition の head_sha
+85	output/env/pegasus/calibration/attempts/0_995806.nqsv/calibration.json:44	C	旧証拠保持／acquisition の head_sha
+86	output/env/pegasus/calibration/attempts/0_998860.nqsv/calibration.json:45	C	旧証拠保持／acquisition の head_sha
+87	output/env/pegasus/calibration/attempts/0_998863.nqsv/calibration.json:45	C	旧証拠保持／acquisition の head_sha
+88	output/env/pegasus/calibration/attempts/0_998864.nqsv/calibration.json:43	C	旧証拠保持／acquisition の head_sha
+89	output/env/pegasus/calibration/job-staging/0:478.nqsv/acquisition-candidate.json:43	C	保持／取得候補の source binding
+90	output/env/pegasus/calibration/job-staging/0:478.nqsv/acquisition-receipt.json:43	C	保持／取得 receipt の source binding
+91	output/env/pegasus/calibration/job-staging/0:478.nqsv/worktree-add.stdout:1	E	保持／旧 checkout 作成ログ
+92	output/env/pegasus/calibration/job-staging/0:989271.nqsv/acquisition-candidate.json:42	C	保持／取得候補の source binding
+93	output/env/pegasus/calibration/job-staging/0:989271.nqsv/acquisition-receipt.json:42	C	保持／取得 receipt の source binding
+94	output/env/pegasus/calibration/job-staging/0:989271.nqsv/worktree-add.stdout:1	E	保持／旧 checkout 作成ログ
+95	output/env/pegasus/calibration/job-staging/0:995805.nqsv/acquisition-candidate.json:43	C	保持／取得候補の source binding
+96	output/env/pegasus/calibration/job-staging/0:995805.nqsv/acquisition-receipt.json:43	C	保持／取得 receipt の source binding
+97	output/env/pegasus/calibration/job-staging/0:995805.nqsv/worktree-add.stdout:1	E	保持／旧 checkout 作成ログ
+98	output/env/pegasus/calibration/job-staging/0:995806.nqsv/acquisition-candidate.json:43	C	保持／取得候補の source binding
+99	output/env/pegasus/calibration/job-staging/0:995806.nqsv/acquisition-receipt.json:43	C	保持／取得 receipt の source binding
+100	output/env/pegasus/calibration/job-staging/0:995806.nqsv/worktree-add.stdout:1	E	保持／旧 checkout 作成ログ
+101	output/env/pegasus/calibration/job-staging/0:998860.nqsv/acquisition-candidate.json:44	C	保持／取得候補の source binding
+102	output/env/pegasus/calibration/job-staging/0:998860.nqsv/acquisition-receipt.json:44	C	保持／取得 receipt の source binding
+103	output/env/pegasus/calibration/job-staging/0:998860.nqsv/worktree-add.stdout:1	E	保持／旧 checkout 作成ログ
+104	output/env/pegasus/calibration/job-staging/0:998863.nqsv/acquisition-candidate.json:44	C	保持／取得候補の source binding
+105	output/env/pegasus/calibration/job-staging/0:998863.nqsv/acquisition-receipt.json:44	C	保持／取得 receipt の source binding
+106	output/env/pegasus/calibration/job-staging/0:998863.nqsv/worktree-add.stdout:1	E	保持／旧 checkout 作成ログ
+107	output/env/pegasus/calibration/job-staging/0:998864.nqsv/acquisition-candidate.json:42	C	保持／取得候補の source binding
+108	output/env/pegasus/calibration/job-staging/0:998864.nqsv/acquisition-receipt.json:42	C	保持／取得 receipt の source binding
+109	output/env/pegasus/calibration/job-staging/0:998864.nqsv/worktree-add.stdout:1	E	保持／旧 checkout 作成ログ
+110	output/env/pegasus/calibration/registered/calibration-2b7ba072b88023ae.json:44	C	hash 束縛を保持／登録済み較正内の acquisition head
+111	output/env/pegasus/calibration/registered/calibration-449d0ad22f13e366.json:43	C	hash 束縛を保持／同上
+112	output/env/pegasus/calibration/registered/calibration-5c836a22eff9ab40.json:44	C	hash 束縛を保持／同上
+113	output/env/pegasus/calibration/registered/calibration-9b49335d02ad4d2e.json:45	C	hash 束縛を保持／同上
+114	output/env/pegasus/calibration/registered/calibration-b3329d93417c76ad.json:43	C	hash 束縛を保持／同上
+115	output/env/pegasus/calibration/registered/calibration-cb98513996e5ae35.json:45	C	hash 束縛を保持／同上
+116	output/env/pegasus/profile/backoff_profile_t48_skew0p9_rr50.json:16	C	旧証拠保持／profile の取得 source
+117	output/env/pegasus/profile/backoff_profile_t48_skew0p9_rr50.md:13	E	保持／profile の説明記録
+118	output/env/pegasus/t316-sandbox-backend/0:999027.nqsv/receipt.json:5568	C	保持／expected/observed HEAD の実行 receipt
+119	output/s8b-freeze/floor-protocols/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01--511c9538e4e8efa54b45cda62e72389ed3b706ec.json:1	D	旧凍結保持、新系列の要否を裁定／内容と filename の pin
+120	patches/README.md:289	B	旧 preimage 契約保持、新基底の適用性確認／`:318` の stack、`:539` の旧 pin 拒否も含む
+121	patches/ledger.json:10	B	専用登録保持／rung1 patch の base_commit。`:12`〜`:18` は ability-probe 専用・pipeline 不適格
+122	tools/known_violations/09ce607b779272fda5629a350676471a16bea9bb--missing-ai-agent--12f11b35eeeb53694d73497912e4738bd6fba2f9be51bd88a32d807dca863150.json:6	E	保持／過去の人間作成 gitlink commit の説明
+123	tools/known_violations/13101ab3ec09a54e1f30462d1c2b4621b121ba65--missing-ai-agent--9dd642477798a8a78ce2ea913a27d56832ca1911ecb08b7276f593e04af26dea.json:6	E	保持／過去 revert の説明
+124	tools/known_violations/8ceebcdbe40fac27cb2a1fbd7a1b1e016894bd0e--missing-codex-author--fed5101b3814fd999b21cd5f47adf339f4e6684eb36352279f30e0c7612f6ee5.json:6	E	保持／過去 pointer 是正の説明
+125	tools/known_violations/d87fd42c0335c1396c1f79557e45357e9bfc163f--missing-ai-agent--82baac7ef1376e9f13c240a9381c8eb3726ecd683ce0c1e8a37c566bcf2fdbfe.json:6	E	保持／過去 merge の説明
+126	tools/pegasus/mocc_trace_v1_policy.json:20	B	**base_oid を機械追随させない**／旧→候補の比較契約。`:21` は既に e9e477ca
+127	tools/pegasus/paper_story_a1_paired.sh:366	G	新 policy と consumer を同時対応／canonical_pin literal と HEAD を二段照合
+128	tools/pegasus/probes/t2187_adaptive_const_probe.py:72	A	旧 probe 維持、新版のみ対応／PIN_FULL
+129	tools/pegasus/probes/t2228_driver_gate_liveness_probe.pbs:224	G	旧 liveness 対照維持／現行・repro の OID 解決と prefix 検査
+130	tools/pegasus/probes/t2228_driver_gate_liveness_probe.py:47	A	旧 characterization 維持／CURRENT_CCBENCH_PIN
+131	tools/plotting/plot_b10_extended_backoff.py:43	G	旧図の再現経路維持、新系列は追加／`:432` の source binding 照合
+132	tools/plotting/plot_b10_static_tail_formal.py:206	G	旧図の再現経路維持／repo_stock_pin 拒否と`:281` caption
+133	tools/plotting/plot_dynamic_backoff.py:67	G	旧図の再現経路維持／`:297`・`:299` の short/full 照合
+134	tools/t2216_backoff_walk_model.py:36	G	旧モデル入力契約維持／`:401` の source pin 照合

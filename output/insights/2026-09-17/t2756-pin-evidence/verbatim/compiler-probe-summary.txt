@@ -1,0 +1,18 @@
+# compiler probe (親、login node、2026-09-17)。flag: -E -P -dD -nostdinc -Werror=undef -x c++ -
+# 入力: 空 / `int x;` の 1 行。生出力は末尾空白が内容 (空定義 `#define X `) なので repo に置かず、sha256 と行数と diff (cat -A 表示) だけを残す。
+
+[clang] empty-input: sha256=5bed31ce6aa5305f0b410455b778cf81ec2c6d54a24e08473af563924b062474 lines=405 bytes=13281
+[clang] one-line-input: sha256=aa53d8428402fcb5af70c2a8df8f1c3d61867da8add97c35b05294d3d75fe0d0 lines=405 bytes=13287
+[clang] diff empty one (cat -A 表示、$ = 行末):
+    405c405$
+    < $
+    ---$
+    > int x;$
+[clang] one-line-input startswith(empty-input) = False
+
+[gcc] empty-input: sha256=9f33c45e88b4d4df4e80e968e2ea1fcdfa5979a620ef9ef2ba777377a279349a lines=423 bytes=15629
+[gcc] one-line-input: sha256=5c417276aed67920dc0a438769f08cfc5f8a221cd02595e9bce3a6564629d263 lines=424 bytes=15636
+[gcc] diff empty one (cat -A 表示、$ = 行末):
+    423a424$
+    > int x;$
+[gcc] one-line-input startswith(empty-input) = True

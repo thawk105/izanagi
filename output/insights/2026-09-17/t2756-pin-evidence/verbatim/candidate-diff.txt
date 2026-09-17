@@ -1,0 +1,34 @@
+$ git merge-base --is-ancestor 511c9538e4e8efa54b45cda62e72389ed3b706ec e9e477ca1b55348ab4530de0b1cf663ce4555290
+rc=0
+
+$ git merge-base 511c9538e4e8efa54b45cda62e72389ed3b706ec e9e477ca1b55348ab4530de0b1cf663ce4555290
+511c9538e4e8efa54b45cda62e72389ed3b706ec
+
+$ git diff-tree --raw -r --no-renames 511c9538e4e8efa54b45cda62e72389ed3b706ec e9e477ca1b55348ab4530de0b1cf663ce4555290
+:100644 100644 559834e2ce445ca36d857e3bef78728935fa3ffc 1f4e9453c39a42451e652b3a28d791b90844f184 M	cc/mocc/transaction.cc
+
+$ git diff --stat 511c9538e4e8efa54b45cda62e72389ed3b706ec e9e477ca1b55348ab4530de0b1cf663ce4555290
+ cc/mocc/transaction.cc | 141 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 141 insertions(+)
+
+$ git log --stat --format='== %H %s' 511c9538e4e8efa54b45cda62e72389ed3b706ec..e9e477ca1b55348ab4530de0b1cf663ce4555290
+== e9e477ca1b55348ab4530de0b1cf663ce4555290 fix(mocc): preserve TRACE=0 include identity
+
+ cc/mocc/transaction.cc | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)
+== ae6880f747834805ebea1ed4f0e1b15f3e960b23 feat(mocc): add T-1943 payload lineage witness
+
+ cc/mocc/transaction.cc | 111 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 111 insertions(+)
+== 058d0c4e5f237d88ec1c2ebe0739113d82906e47 fix(mocc/trace): move the trace include comment to its own line (izanagi [T-1506])
+
+ cc/mocc/transaction.cc | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+== ef9328a35d49b1b9b610f244bee22ad7f10b8b66 feat(mocc): add correctness trace v2 hook
+
+ cc/mocc/transaction.cc | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
+
+$ git rev-parse 511c9538e4e8efa54b45cda62e72389ed3b706ec:include/trace.hh e9e477ca1b55348ab4530de0b1cf663ce4555290:include/trace.hh
+570e35e308e1104d53d43ea5556f54b3fb86922a
+570e35e308e1104d53d43ea5556f54b3fb86922a

@@ -1,0 +1,59 @@
+commit e9e477ca1b55348ab4530de0b1cf663ce4555290
+Author:     thawk105 <thawk105@gmail.com>
+AuthorDate: Fri Aug 28 17:45:02 2026 +0900
+Commit:     thawk105 <thawk105@gmail.com>
+CommitDate: Fri Aug 28 17:45:02 2026 +0900
+
+    fix(mocc): preserve TRACE=0 include identity
+
+    Remove witness-only standard-library include lines and use the declarations
+    already provided by the established trace include surface. This preserves the
+    exact TRACE=0 include correspondence required by the identity checker.
+
+    AI-Agent: product=codex; model=gpt-5.6-sol; reasoning=xhigh; role=author
+    AI-Agent: product=codex; model=unknown; reasoning=unknown; role=manager
+
+commit ae6880f747834805ebea1ed4f0e1b15f3e960b23
+Author:     thawk105 <thawk105@gmail.com>
+AuthorDate: Fri Aug 28 17:26:35 2026 +0900
+Commit:     thawk105 <thawk105@gmail.com>
+CommitDate: Fri Aug 28 17:26:35 2026 +0900
+
+    feat(mocc): add T-1943 payload lineage witness
+
+    Add a TRACE-only payload watermark and separate per-thread witness stream for
+    the bounded MoCC G2 discriminator. TRACE=0 preprocessing removes the witness
+    code, state, marker, environment handling, and I/O.
+
+    AI-Agent: product=codex; model=gpt-5.6-sol; reasoning=xhigh; role=author
+    AI-Agent: product=codex; model=gpt-5.6-sol; reasoning=xhigh; role=reviewer
+    AI-Agent: product=codex; model=unknown; reasoning=unknown; role=manager
+
+commit 058d0c4e5f237d88ec1c2ebe0739113d82906e47
+Author:     thawk105 <thawk105@gmail.com>
+AuthorDate: Sun Aug 23 22:14:00 2026 +0900
+Commit:     thawk105 <thawk105@gmail.com>
+CommitDate: Sun Aug 23 22:14:00 2026 +0900
+
+    fix(mocc/trace): move the trace include comment to its own line (izanagi [T-1506])
+
+    The trace header include carried a trailing comment. izanagi's TRACE=0
+    preprocess-identity checker compares the include line verbatim against
+    `#include "../../include/trace.hh"`, and its include regex matches the whole
+    line, so the trailing comment made the check reject the change and the
+    TRACE=0 performance measurement never ran.
+
+    The comment is kept; it moves to its own line directly above the include.
+    The C/R/W/E trace emission logic is untouched. The diff is one file,
+    two insertions and one deletion.
+
+    AI-Agent: product=codex; model=gpt-5.6-sol; reasoning=xhigh; role=author; scope=mocc-trace-include
+    AI-Agent: product=claude; model=claude-opus-5-1m; reasoning=xhigh; role=manager; scope=mocc-trace-include
+
+commit ef9328a35d49b1b9b610f244bee22ad7f10b8b66
+Author:     thawk105 <thawk105@gmail.com>
+AuthorDate: Fri Aug 21 19:33:46 2026 +0900
+Commit:     thawk105 <thawk105@gmail.com>
+CommitDate: Fri Aug 21 19:33:46 2026 +0900
+
+    feat(mocc): add correctness trace v2 hook

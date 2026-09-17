@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+"""pin 511c9538 の 4 形 (full40 / 8 桁 / 7 桁 / describe) を持つ tracked file を列挙し、形ごとの出現行数を TSV で出す (wave 一時 script、repo 外)。"""
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+repo = Path(sys.argv[1])
+full = "511c9538e4e8efa54b45cda62e72389ed3b706ec"
+forms = {
+    "full40": re.compile(re.escape(full)),
+    "describe": re.compile(r"g511c9538"),
+    "hex8": re.compile(r"(?<![0-9a-f])511c9538(?![0-9a-f]{32})"),
+    "hex7": re.compile(r"(?<![0-9a-f])511c953(?![0-9a-f])"),
+}
+excl = ("docs/worklog.md", "docs/decisions.md", "docs/failures.md", "docs/archive/", "docs/spool/", "output/insights/")
+files = subprocess.run(["git", "-C", str(repo), "grep", "-l", "511c953", "--", "."],
+                       capture_output=True, text=True, check=True).stdout.split("\n")
+rows = []
+for f in sorted(x for x in files if x and not x.startswith(excl)):
+    text = (repo / f).read_text(encoding="utf-8", errors="replace")
+    counts = {k: sum(1 for _ in rx.finditer(text)) for k, rx in forms.items()}
+    rows.append((f, counts))
+print("path\tfull40\tdescribe\thex8\thex7\tlines")
+for f, c in rows:
+    text = (repo / f).read_text(encoding="utf-8", errors="replace").split("\n")
+    lines = [str(i + 1) for i, ln in enumerate(text) if "511c953" in ln]
+    print(f"{f}\t{c['full40']}\t{c['describe']}\t{c['hex8']}\t{c['hex7']}\t{','.join(lines[:12])}{'…' if len(lines) > 12 else ''}")
+print(f"# total files: {len(rows)}", file=sys.stderr)

@@ -1,0 +1,99 @@
+{
+ "schema": "t2756-checker-runs/v1",
+ "note": "親が login node で実走した checker 3 本の索引。checker の生 report とは別物。wall は単回の実行記録で結論には使わない。",
+ "host": "pegasus02 (login node)",
+ "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2756-pin-evidence",
+ "superproject_head": "38353207f719acb0871cfe3d9bbe3a02490282bb",
+ "worktree_clean_at_run": true,
+ "submodule_repo": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2756-pin-evidence/external/ccbench",
+ "submodule_checkout_head": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+ "submodule_initialized": true,
+ "checker_blob_sha1": "79dc9bbd229d23bf6a78f78b18d744eb417160d7",
+ "source_digest_blob_sha1": "0f062df910201f74c99ec526027b2db77e6f0c92",
+ "argv_template": [
+  "python3",
+  "tools/check_trace0_preprocess_identity.py",
+  "--repo",
+  "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2756-pin-evidence/external/ccbench",
+  "--old",
+  "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+  "--new",
+  "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+  "--cxx",
+  "<CXX>",
+  "--expect-paths",
+  "cc/mocc/transaction.cc"
+ ],
+ "runs": [
+  {
+   "name": "gcc11",
+   "requested_cxx": "/usr/bin/g++",
+   "resolved_compiler_version_first_line": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+   "rc": 0,
+   "wall_seconds_single_run": 32.74,
+   "finished_at_jst": "2026-09-17T21:39:59+09:00",
+   "report_emitted": true,
+   "stderr_file": "trace0-gcc11.stderr.txt",
+   "stderr_sha256": "35d02b375f68e4e602d078b1c7f51027417449a2eea49ef29abb61192107c61f",
+   "stderr_bytes": 13,
+   "stderr_note": "末尾の `wall=…` 行と `Command exited …` 行は /usr/bin/time の出力で checker のものではない",
+   "report_file": "trace0-gcc11.report.json",
+   "report_sha256": "a15ca6e467860151a343a4f78d976e0a9d4e9f0a16736ed39beecbabfcf44900",
+   "report_bytes": 33036,
+   "report_result": "pass",
+   "report_schema": "izanagi-trace0-preprocess-identity/v2",
+   "report_compiler": {
+    "path": "/usr/bin/x86_64-linux-gnu-g++-11",
+    "version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"
+   },
+   "context_matrix": {
+    "expected_context_count_per_file": 16,
+    "genome_count": 8,
+    "overlay_count": 2
+   }
+  },
+  {
+   "name": "clang14",
+   "requested_cxx": "/usr/bin/clang++",
+   "resolved_compiler_version_first_line": "Ubuntu clang version 14.0.0-1ubuntu1.1",
+   "rc": 1,
+   "wall_seconds_single_run": 49.45,
+   "finished_at_jst": "2026-09-17T21:40:56+09:00",
+   "report_emitted": false,
+   "stderr_file": "trace0-clang14.stderr.txt",
+   "stderr_sha256": "5cd8c25ac1c3e60019047b629103cd4714dbd5e5d6d0b9f94d37237ba9de9eef",
+   "stderr_bytes": 335,
+   "stderr_note": "末尾の `wall=…` 行と `Command exited …` 行は /usr/bin/time の出力で checker のものではない",
+   "stdout_file": "trace0-clang14.stdout.txt",
+   "stdout_bytes": 0,
+   "diagnosis": "比較未完了 (検査不能)。source_digest._cpp_normalize の環境 prefix 不一致で fail-closed。old/new の比較不一致による拒否ではない"
+  },
+  {
+   "name": "gcc12",
+   "requested_cxx": "/usr/bin/g++-12",
+   "resolved_compiler_version_first_line": "x86_64-linux-gnu-g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0",
+   "rc": 0,
+   "wall_seconds_single_run": 45.46,
+   "finished_at_jst": "2026-09-17T21:42:03+09:00",
+   "report_emitted": true,
+   "stderr_file": "trace0-gcc12.stderr.txt",
+   "stderr_sha256": "4e8e44f5f7acf0bcbd90eb281718feee2b8e7a9ca755c6e9769ff6a253c157c8",
+   "stderr_bytes": 13,
+   "stderr_note": "末尾の `wall=…` 行と `Command exited …` 行は /usr/bin/time の出力で checker のものではない",
+   "report_file": "trace0-gcc12.report.json",
+   "report_sha256": "aa675a461dfbfcb8c3d22d03e96d94908d0cc28288d4d7c70f0b0b9a044e28b3",
+   "report_bytes": 33036,
+   "report_result": "pass",
+   "report_schema": "izanagi-trace0-preprocess-identity/v2",
+   "report_compiler": {
+    "path": "/usr/bin/x86_64-linux-gnu-g++-12",
+    "version": "x86_64-linux-gnu-g++-12 (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0"
+   },
+   "context_matrix": {
+    "expected_context_count_per_file": 16,
+    "genome_count": 8,
+    "overlay_count": 2
+   }
+  }
+ ]
+}

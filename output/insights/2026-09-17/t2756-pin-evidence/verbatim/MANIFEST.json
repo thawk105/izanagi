@@ -1,0 +1,236 @@
+[
+  {
+    "file": "candidate-commits.txt",
+    "source_sha256": "a5b956b225ac8edb814d1a718a4cfca779232ee5f8596ffa7182d675553c4fff",
+    "source_bytes": 2742,
+    "trailing_ws_lines_stripped": 7,
+    "stored_sha256": "73dd95d930fa67b067da2332f5fe62e8625fe8c263cd0547b66795ffd51d30d7",
+    "stored_bytes": 2714,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "candidate-diff.txt",
+    "source_sha256": "8cf3341bf6c6190a38fde2ac867ec1c787fdbb61d76f2cf564402f775729dd56",
+    "source_bytes": 1836,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "8cf3341bf6c6190a38fde2ac867ec1c787fdbb61d76f2cf564402f775729dd56",
+    "stored_bytes": 1836,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "compiler-probe-summary.txt",
+    "source_sha256": "81ab57929918e21d22edd0f0e20d68c7a59b69fd87f78ee85de8d92600d707f2",
+    "source_bytes": 1033,
+    "trailing_ws_lines_stripped": 1,
+    "stored_sha256": "70242476c6a1608ed06a9f348a514830297b04f6184614b52fb9f2a1195a5093",
+    "stored_bytes": 1032,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "consult-A.md",
+    "source_sha256": "c3d2aaa1f5eee3f8a3c397a6c6d1823838b5b4f3a2648b4e4b2b3185a668158b",
+    "source_bytes": 18391,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "e4167daed578f4916c55712c7f1884670e1942e1da312858b8f4989e278c3649",
+    "stored_bytes": 18392,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "consult-B.md",
+    "source_sha256": "17b7d697c9535d0d442e80d05b2d2951b3414e3710e54898838e96b2f58072ef",
+    "source_bytes": 15529,
+    "trailing_ws_lines_stripped": 27,
+    "stored_sha256": "8ea2136dcbccac5768c26aa1735ee149784bb7990124d1d52f074adb2a2ce609",
+    "stored_bytes": 15476,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "github-ls-remote.txt",
+    "source_sha256": "6b841519cda5c512652b4ca846e78d6b089f7ef55cae862e2b6eed44e23e2a5e",
+    "source_bytes": 9066,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "6b841519cda5c512652b4ca846e78d6b089f7ef55cae862e2b6eed44e23e2a5e",
+    "stored_bytes": 9066,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "parent-brief.md",
+    "source_sha256": "f79ee54a808e608f216e96f9b8341a8d8de515b86f625958a35d6468b715f618",
+    "source_bytes": 8309,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "f79ee54a808e608f216e96f9b8341a8d8de515b86f625958a35d6468b715f618",
+    "stored_bytes": 8309,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "pin-closure.tsv",
+    "source_sha256": "38536de4a9d3f4549983b0872b4e272de9038c60c058ae0ef0ab1e3e21b5abb7",
+    "source_bytes": 10299,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "38536de4a9d3f4549983b0872b4e272de9038c60c058ae0ef0ab1e3e21b5abb7",
+    "stored_bytes": 10299,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "pin-impact.tsv",
+    "source_sha256": "31ff2ca07df39fb65504da3fd85537a4e7af8eb808e5390dbf31c266e109cc5d",
+    "source_bytes": 16612,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "31ff2ca07df39fb65504da3fd85537a4e7af8eb808e5390dbf31c266e109cc5d",
+    "stored_bytes": 16612,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "pin_closure_scan.py.txt",
+    "source_sha256": "a57b6a7f7b08c6220488858a1cab73a73743301d0a885085167b1a78c31ebc02",
+    "source_bytes": 1521,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "a57b6a7f7b08c6220488858a1cab73a73743301d0a885085167b1a78c31ebc02",
+    "stored_bytes": 1521,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "plan.md",
+    "source_sha256": "316f539e00a6b79a2e1d0e40b65c369734220f78d48bbc858d528f168f18e167",
+    "source_bytes": 51137,
+    "trailing_ws_lines_stripped": 7,
+    "stored_sha256": "eaa5cceee014d2fea7e9accfbb02ccf8a8d26847dad887732282b8a527b66bdf",
+    "stored_bytes": 51124,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "prompt-consult-A.md",
+    "source_sha256": "e0fec22f3093b47c6ba2ef4f251332e03c0542e3bf54d7001649aa396662f850",
+    "source_bytes": 7433,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "e0fec22f3093b47c6ba2ef4f251332e03c0542e3bf54d7001649aa396662f850",
+    "stored_bytes": 7433,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "prompt-consult-B.md",
+    "source_sha256": "c0fb8e37d726af6a439f8997343c3519db801d1ae94dee7cd2a95e053319dfb9",
+    "source_bytes": 7388,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "c0fb8e37d726af6a439f8997343c3519db801d1ae94dee7cd2a95e053319dfb9",
+    "stored_bytes": 7388,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "prompt-plan.md",
+    "source_sha256": "f90653185f79fd776e766afd959722892deeb98c6963bec6669f6d72d0a6c2bd",
+    "source_bytes": 8792,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "f90653185f79fd776e766afd959722892deeb98c6963bec6669f6d72d0a6c2bd",
+    "stored_bytes": 8792,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "prompt-review-A.md",
+    "source_sha256": "ad75c3080915245f8068ccd6dbb352e860dca1a45e75bfbbea374339592ab993",
+    "source_bytes": 6413,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "ad75c3080915245f8068ccd6dbb352e860dca1a45e75bfbbea374339592ab993",
+    "stored_bytes": 6413,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "prompt-review-B.md",
+    "source_sha256": "98b2effc53357712016c070eaa0667d61dc652432606ce8ac2237805e4517e50",
+    "source_bytes": 6371,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "98b2effc53357712016c070eaa0667d61dc652432606ce8ac2237805e4517e50",
+    "stored_bytes": 6371,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "review-A.md",
+    "source_sha256": "8cc039afb8a2538e86ad62abc5226d879a51eece9d30027bb011c4d232e04ee6",
+    "source_bytes": 10555,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "045de906151ee91734e384d29d952a1f48ec1cc95fca9b25b08a30ffbf2176be",
+    "stored_bytes": 10556,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "review-B.md",
+    "source_sha256": "15d21abc20a2c1dc7ff28b9df7e4667f31f1a698311ef5e169dba4404109d754",
+    "source_bytes": 9058,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "640da4c2d9f2910aa765fb4c59ec27447a7c58aa3e52ff6b691e62b830807146",
+    "stored_bytes": 9059,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "runs.json",
+    "source_sha256": "647629646b23e29249cdcc3215655f68b18eb470568fd40726c3d95a62ae4743",
+    "source_bytes": 4224,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "647629646b23e29249cdcc3215655f68b18eb470568fd40726c3d95a62ae4743",
+    "stored_bytes": 4224,
+    "normalization": "none"
+  },
+  {
+    "file": "s4-adjudication.md",
+    "source_sha256": "f239baae9d4911a9078a76c2e2f5c499c902551e89ca5266305b34f7a1f9247c",
+    "source_bytes": 8499,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "f239baae9d4911a9078a76c2e2f5c499c902551e89ca5266305b34f7a1f9247c",
+    "stored_bytes": 8499,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "trace0-clang14.stderr.txt",
+    "source_sha256": "5cd8c25ac1c3e60019047b629103cd4714dbd5e5d6d0b9f94d37237ba9de9eef",
+    "source_bytes": 335,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "5cd8c25ac1c3e60019047b629103cd4714dbd5e5d6d0b9f94d37237ba9de9eef",
+    "stored_bytes": 335,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "trace0-clang14.stdout.txt",
+    "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source_bytes": 0,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "stored_bytes": 1,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "trace0-gcc11.report.json",
+    "source_sha256": "a15ca6e467860151a343a4f78d976e0a9d4e9f0a16736ed39beecbabfcf44900",
+    "source_bytes": 33036,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "a15ca6e467860151a343a4f78d976e0a9d4e9f0a16736ed39beecbabfcf44900",
+    "stored_bytes": 33036,
+    "normalization": "none"
+  },
+  {
+    "file": "trace0-gcc11.stderr.txt",
+    "source_sha256": "35d02b375f68e4e602d078b1c7f51027417449a2eea49ef29abb61192107c61f",
+    "source_bytes": 13,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "35d02b375f68e4e602d078b1c7f51027417449a2eea49ef29abb61192107c61f",
+    "stored_bytes": 13,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  },
+  {
+    "file": "trace0-gcc12.report.json",
+    "source_sha256": "aa675a461dfbfcb8c3d22d03e96d94908d0cc28288d4d7c70f0b0b9a044e28b3",
+    "source_bytes": 33036,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "aa675a461dfbfcb8c3d22d03e96d94908d0cc28288d4d7c70f0b0b9a044e28b3",
+    "stored_bytes": 33036,
+    "normalization": "none"
+  },
+  {
+    "file": "trace0-gcc12.stderr.txt",
+    "source_sha256": "4e8e44f5f7acf0bcbd90eb281718feee2b8e7a9ca755c6e9769ff6a253c157c8",
+    "source_bytes": 13,
+    "trailing_ws_lines_stripped": 0,
+    "stored_sha256": "4e8e44f5f7acf0bcbd90eb281718feee2b8e7a9ca755c6e9769ff6a253c157c8",
+    "stored_bytes": 13,
+    "normalization": "行末の空白/タブ除去 + EOF の連続空行を 1 つに畳む (可視文字不変)。source_sha256 は正規化前の bytes"
+  }
+]
