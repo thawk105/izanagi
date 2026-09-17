@@ -21,8 +21,8 @@ scope 外の層を実装したふりにせず裁定パッケージ候補とし�
 （`git add -A`→`git diff --cached <base> --output=<f> -- <所有パス>`→`git apply`、`<base>`=子作成 SHA。隔離 session は `git -C` 不可）だけ展開し並列投入。
 worktree は`-b`必須(detachedは midflight rc=1)。
 投入先へ cd せず直前に `tools/check_wave_startup.py --repo <abs> --mode midflight`。rc≠0 で停止。
-乖離量は非関門。gate 実測 NOTE≠0 なら anchor 再読 (INFO 除外)。
-実装子の残差は起動器/待ち手 (`--commit-worktree`) が終端 commit (D2044 項 16)。
+乖離量は非関門。gate 実測 NOTE≠0 なら anchor 再読。
+起動器は author/fix の投入先全残差を終端 commit、待ち手は呼出側指定 `--commit-worktree <abs>`。記録のみ (D2044 項 16)。
 codex は `reasoning=medium`、`sandbox=workspace-write` とする。
 
 ## DW-S05-B — 段 5 権限と赤
@@ -34,16 +34,16 @@ xfail 化せず、既存テストの期待値も変えない。赤の内訳を�
 
 実装子の prompt に次を全部入れる。
 
-- 緑には実走 nodeid・範囲を併記する。子の実走は親の全走を代替せず、実走不能なら
+- 緑には実走 nodeid・範囲を併記。子の実走は親の全走を代替せず、実走不能なら
   `closed` でなく「実装済み・未実走」と書く。
 - テスト新設・改名は親の名指しを網羅と見なさず、制約 meta-test を自ら洗い出し走らせる（F42）。
-- fixture への現行 hash 差し込みなど、テストを甘くして緑にしない（F27）。
+- fixture への現行 hash 差し込み等、テストを甘くして緑にしない（F27）。
   機構の正例・負例は実体を名指しし依存先を stub しない（F649）。
-- 期待値へ揮発 payload (working tree hash 等) を焼き込まず、理由と件数を固定して揮発部分を
+- 期待値へ揮発 payload (tree hash 等) を焼き込まず、理由と件数を固定して揮発部分を
   外し、揮発源を編集しても緑か確認する。
-- 完了報告に所有外 caller・共有 fixture・consumer test への波及を静的列挙する。
-- 指示外の受理集合変更をせず、scope 前に現行の受理・拒否挙動を明記する。
-- 親 docs が未 land なら期待赤の finding 集合を事前指定し、他は回帰と報告する。
+- 報告に所有外 caller・共有 fixture・consumer test への波及を静的列挙。
+- 指示外の受理集合変更をせず、scope 前に現行の受理・拒否挙動を明記。
+- 親 docs 未 land なら期待赤の finding 集合を事前指定し、他は回帰と報告する。
 
 ## DW-S06-A — 段 6 敵対レビュー
 
