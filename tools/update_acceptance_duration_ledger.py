@@ -79,12 +79,21 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="生成 bytes と既存台帳の一致だけを検査し、書き込まない",
     )
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument(
         "--add-only",
         action="store_true",
         help=(
             "既存 duration entry を byte exact に保ち、未登録かつ凍結対象外の "
             "nodeid だけを追加する"
+        ),
+    )
+    mode.add_argument(
+        "--refresh",
+        action="store_true",
+        help=(
+            "既存の凍結 entry を値ごと保持し、非凍結部分を JUnit から再生成する "
+            "(failed/error を除外した後に凍結 suite を除外する)"
         ),
     )
     parser.add_argument(
@@ -441,6 +450,50 @@ def _add_only_result(
     return rendered, set(existing_durations) | set(additions), counts
 
 
+def _refresh_result(
+    generated: bytes,
+    existing_durations: Mapping[str, float],
+) -> tuple[bytes, set[str], dict[str, int]]:
+    """Preserve frozen values and replace all other entries from validated JUnit.
+
+    Failed/error cases have already been excluded by _ledger_bytes, so they
+    are not counted again as frozen-suite exclusions. Frozen values are not
+    requantized; their JSON spelling is canonicalized with the whole payload.
+    """
+    generated_durations = json.loads(generated.decode("ascii"))[
+        "duration_seconds_by_nodeid"
+    ]
+    frozen = {
+        nodeid: duration
+        for nodeid, duration in existing_durations.items()
+        if nodeid.startswith(_ADD_ONLY_FROZEN_SUITE_PREFIXES)
+    }
+    old_nonfrozen = set(existing_durations) - frozen.keys()
+    new_nonfrozen = {
+        nodeid: duration
+        for nodeid, duration in generated_durations.items()
+        if not nodeid.startswith(_ADD_ONLY_FROZEN_SUITE_PREFIXES)
+    }
+    durations = {**frozen, **new_nonfrozen}
+    counts = {
+        "preserved_frozen": len(frozen),
+        "replaced": len(old_nonfrozen & new_nonfrozen.keys()),
+        "added": len(new_nonfrozen.keys() - old_nonfrozen),
+        "removed": len(old_nonfrozen - new_nonfrozen.keys()),
+        "excluded_frozen_suite": len(generated_durations) - len(new_nonfrozen),
+    }
+    payload = {
+        "schema_version": _SCHEMA_VERSION,
+        "unit": "seconds",
+        "nodeid_count": len(durations),
+        "duration_seconds_by_nodeid": durations,
+    }
+    rendered = json.dumps(
+        payload, ensure_ascii=True, indent=2, sort_keys=True, allow_nan=False,
+    )
+    return (rendered + "\n").encode("ascii"), set(durations), counts
+
+
 def _atomic_write(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
@@ -484,12 +537,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         rendered, ledger_nodeids, excluded = _ledger_bytes(args.JUNIT, repo)
         add_only_counts = None
+        refresh_counts = None
         if args.add_only:
             existing, existing_durations = _existing_ledger(output)
             rendered, ledger_nodeids, add_only_counts = _add_only_result(
                 rendered,
                 existing,
                 existing_durations,
+            )
+        elif args.refresh:
+            _, existing_durations = _existing_ledger(output)
+            rendered, ledger_nodeids, refresh_counts = _refresh_result(
+                rendered, existing_durations,
             )
         coverage = None
         if args.coverage_against is not None:
@@ -532,6 +591,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"{add_only_counts['excluded_frozen_suite']}"
             )
             print(f"excluded_total={excluded_total}")
+        if refresh_counts is not None:
+            print("mode=refresh")
+            for key, count in refresh_counts.items():
+                print(f"{key}={count}")
         if coverage is not None:
             print(coverage)
         return result
