@@ -1,0 +1,216 @@
+{
+ "baseline": {
+  "duration_s": 28.144,
+  "failed_nodes": [],
+  "rc": 0,
+  "status": "PASSED"
+ },
+ "date": "2026-09-17T21:39:52.273351+00:00",
+ "mutations": [
+  {
+   "category": "positive",
+   "duration_s": 28.813,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "failed_nodes": [],
+   "id": "m0-equivalent-docstring",
+   "rc": 0,
+   "status": "SURVIVED"
+  },
+  {
+   "category": "negative",
+   "duration_s": 29.129,
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_coverage_denied",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_deep_nesting_has_no_stack_limit",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_matches_direct_form",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_module_denied",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_precedes_sanctioned_allow",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_script_denied"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_coverage_denied",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_module_denied",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_precedes_sanctioned_allow",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_script_denied",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_matches_direct_form",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_deep_nesting_has_no_stack_limit"
+   ],
+   "id": "m1-peel-entry-false",
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "category": "negative",
+   "duration_s": 28.501,
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_coverage_denied",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_deep_nesting_has_no_stack_limit",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_matches_direct_form",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_module_denied"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_module_denied",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_matches_direct_form",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_coverage_denied",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_deep_nesting_has_no_stack_limit"
+   ],
+   "id": "m2-module-kind-dropped",
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "category": "negative",
+   "duration_s": 29.194,
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_coverage_denied"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_coverage_denied"
+   ],
+   "id": "m3-coverage-run-dropped",
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "category": "positive",
+   "duration_s": 27.685,
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_deep_nesting_has_no_stack_limit",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_matches_direct_form",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_module_denied",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_nonexecuting_and_light_allowed"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_nonexecuting_and_light_allowed",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_module_denied",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_matches_direct_form",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_deep_nesting_has_no_stack_limit"
+   ],
+   "id": "m4-inner-rest-dropped",
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "category": "negative",
+   "duration_s": 38.742,
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_matches_direct_form",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_precedes_sanctioned_allow",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_script_denied"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_script_denied",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_matches_direct_form",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_precedes_sanctioned_allow"
+   ],
+   "id": "m5-script-kind-dropped",
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "category": "positive",
+   "duration_s": 32.914,
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_nonexecuting_modes_restore_baseline_allow",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_nonexecuting_and_light_allowed"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_nonexecuting_modes_restore_baseline_allow",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_nonexecuting_and_light_allowed"
+   ],
+   "id": "m6-module-name-check-dropped",
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "category": "positive",
+   "duration_s": 44.005,
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_pydoc_server_and_write_modes_do_not_execute_positionals"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_pydoc_server_and_write_modes_do_not_execute_positionals"
+   ],
+   "id": "m7-multi-target-exclusion-dropped",
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "category": "negative",
+   "duration_s": 53.312,
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_precedes_sanctioned_allow"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_precedes_sanctioned_allow"
+   ],
+   "id": "m8-peel-after-sanctioned-allow",
+   "rc": 1,
+   "status": "KILLED"
+  },
+  {
+   "category": "negative",
+   "duration_s": 401.968,
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_deep_nesting_has_no_stack_limit",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_module_denied"
+   ],
+   "expected_status": "KILLED",
+   "failed_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_module_denied",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_deep_nesting_has_no_stack_limit"
+   ],
+   "id": "m9-peel-single-layer",
+   "rc": 1,
+   "status": "KILLED"
+  }
+ ],
+ "repo_head": "301dab2280c81f0687b63786b854013aca680a0b",
+ "runner_identity": {
+  "command": [
+   "python3",
+   "tools/run_tests.py",
+   "--force-dispatch",
+   "orchestrator/tests/test_hooks.py",
+   "-q",
+   "-rf",
+   "-p",
+   "no:cacheprovider"
+  ],
+  "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2498-mutation-scratch/tools/pegasus/dispatch_compute.py",
+  "dispatch_entrypoint_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+  "dispatch_head_blob_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+  "entrypoint_kind": "izanagi-run-tests",
+  "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2498-mutation-scratch/tools/run_tests.py",
+  "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "executable_path": "/usr/bin/python3.10",
+  "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+  "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+  "repo_path": "tools/run_tests.py",
+  "repo_tree": "a02c3c1386211b9ed779c028bc099a3e170fc3ba",
+  "runner_mode": "dispatch"
+ },
+ "schema": "izanagi-dev-wave-mutation/v4",
+ "spec_sha256": "0d21f629d89780a958e25b9ec45b9cfeef711f300bf75e8f209885d572a6b39c",
+ "summary": {
+  "KILLED": 9,
+  "MISMATCH": 0,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 1,
+  "TIMEOUT": 0,
+  "completed": 10,
+  "matching": 10,
+  "recorded": 10,
+  "registered": 10
+ }
+}
