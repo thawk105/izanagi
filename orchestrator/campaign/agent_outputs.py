@@ -2,6 +2,12 @@
 
 Design section 2-2 keeps input projections (planner_context_payload,
 whiteboard_for_planner, etc.) separate: they must not import this module.
+mode records the recording method, not observed generation: live is appended by
+harness before evaluation; ingested imports output produced elsewhere. ts is the
+recording time. input_sha256 is the canonical SHA-256 of saved JSON declared by
+the caller as actual input, not proof of delivery. prompt_sha256 is the SHA-256
+of the specified file bytes. mechanism_hypotheses records LLM (critic)
+attribution, not empirical proof of a mechanism.
 This module depends on neither the harness, renderer, nor WAL recording layer.
 """
 from __future__ import annotations
@@ -25,6 +31,39 @@ STAGES: tuple[str, ...] = (
 AGENT_OUTPUTS_FILENAME = "agent_outputs.jsonl"
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _WAL_REF = re.compile(r"wal:[0-9a-f]{64}")
+
+
+def extract_critic_sections(raw: str) -> dict:
+    """Select exact, unique level-two sections outside Markdown fences.
+
+    Bodies end at the next unfenced ``## `` line and are stripped at both ends.
+    Preserve interior bytes, including CRLF and fenced examples.
+    """
+    headings = []
+    offset = 0
+    fence = None
+    for line in re.findall(r"[^\n]*\n|[^\n]+$", raw):
+        text = line.rstrip("\r\n")
+        marker = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", text)
+        if fence is not None:
+            if (marker and marker[1][0] == fence[0]
+                    and len(marker[1]) >= len(fence) and not marker[2].strip()):
+                fence = None
+        elif marker and (marker[1][0] != "`" or "`" not in marker[2]):
+            fence = marker[1]
+        elif text.startswith("## "):
+            headings.append((offset, offset + len(line), text))
+        offset += len(line)
+    sections = {}
+    for name in ("attribution", "recommend", "avoid", "uncertainty"):
+        matches = [i for i, (_, _, text) in enumerate(headings)
+                   if re.fullmatch(r"## " + name + r"\s*", text)]
+        if len(matches) != 1:
+            raise AgentOutputError(f"critic heading ## {name} must occur exactly once")
+        index = matches[0]
+        end = headings[index + 1][0] if index + 1 < len(headings) else len(raw)
+        sections[name] = raw[headings[index][1]:end].strip()
+    return sections
 
 
 def canonical_bytes(obj) -> bytes:

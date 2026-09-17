@@ -5260,6 +5260,66 @@ def _ao_resync_refs(report):
     report["source_refs"] = sorted(layer3_report._report_primary_refs(report).elements())
 
 
+@pytest.mark.parametrize("fence", ["```", "~~~"])
+def test_ao_cli_critic_sections_render(tmp_path, fence):
+    from orchestrator.campaign import agent_outputs, p3_s4_loop as loop
+    campaign, output_root = _certifying_campaign(tmp_path)
+    record = layer3_report._read_wal(campaign / "runs/wal.jsonl")[0]
+    digest = campaign / "s4_loop_digest.txt"
+    digest.write_bytes(b"fixture digest\n")
+    declared = tmp_path / "critic-input.json"
+    declared.write_text(json.dumps({"digest_sha256": hashlib.sha256(digest.read_bytes()).hexdigest()}))
+    body = "exact text\r\n" + fence + "python\r\n## attribution\r\n" + fence + "\r\nline two"
+    raw = ("## attribution  \r\n\r\n  " + body + "  \r\n## \r\nother\r\n"
+           "## recommend\r\nnext\r\n## avoid\r\nnone\r\n## uncertainty\r\nunknown\r\n")
+    source = tmp_path / "critic.md"
+    source.write_bytes(raw.encode())
+    # CLI invokes the real _critic_agent_output and durable AO writer.
+    assert loop.main(["--record-agent-output", "critic_attributed", str(source),
+                      "--agent-campaign-dir", str(campaign), "--agent-input", str(declared),
+                      "--agent-variant", record["variant"], "--agent-digest", str(digest)]) == 0
+    saved = agent_outputs.read_agent_outputs(campaign / "runs/agent_outputs.jsonl")[0]
+    assert saved["payload"]["output"] == {"raw_markdown": raw, "attribution": body,
+                                         "recommend": "next", "avoid": "none", "uncertainty": "unknown"}
+    report = layer3_report.build_report(campaign, "fixed", output_root=output_root)
+    assert report["mechanism_hypotheses"][0]["attribution"] == body
+
+
+@pytest.mark.parametrize("fence", ["```", "~~~"])
+def test_ao_fenced_only_critic_rejected(tmp_path, fence):
+    from orchestrator.campaign import agent_outputs
+    campaign, output_root = _certifying_campaign(tmp_path)
+    record = layer3_report._read_wal(campaign / "runs/wal.jsonl")[0]
+    env = _ao_envelope("critic_attributed", variant=record["variant"])
+    output = env["payload"]["output"]
+    output["raw_markdown"] = fence + "\n" + output["raw_markdown"] + fence + "\n"
+    agent_outputs.append_agent_output(campaign / "runs/agent_outputs.jsonl", env)
+    with pytest.raises(layer3_report.Layer3ReportError, match="heading"):
+        layer3_report.build_report(campaign, "fixed", output_root=output_root)
+
+
+@pytest.mark.parametrize("stage", ["planner_proposed", "coder_proposed", "critic_attributed"])
+def test_ao_all_stages_accept_abort_variant(stage):
+    envelope = _ao_envelope(stage, variant="aborted")
+    view = layer3_report._mechanism_view([_record("abort", "aborted")], [envelope])
+    assert len(view) == (1 if stage == "critic_attributed" else 0)
+
+
+def test_ao_ingested_abort_variant_render(tmp_path):
+    from orchestrator.campaign import p3_s4_loop as loop
+    campaign, output_root = _campaign(tmp_path, [_record("abort", reason="fixture abort")])
+    source = tmp_path / "planner.json"
+    source.write_text(json.dumps({"proposal": {"axis": "a", "direction": "increase",
+        "magnitude": "small", "justification": "j", "uncertainty": "u"}}))
+    declared = tmp_path / "planner-input.json"
+    declared.write_text(json.dumps({"current_perf": {}, "leading_indicators": {}, "whiteboard": []}))
+    assert loop.main(["--record-agent-output", "planner_proposed", str(source),
+                      "--agent-campaign-dir", str(campaign), "--agent-input", str(declared),
+                      "--agent-variant", "v1"]) == 0
+    report = layer3_report.build_report(campaign, "fixed", output_root=output_root)
+    assert report["agent_outputs"][0]["variant"] == "v1"
+
+
 def test_ao_canonical_bytes_and_three_stage_report(tmp_path):
     from orchestrator.campaign import agent_outputs
     campaign, _, records, envelopes, report = _ao_campaign(tmp_path)
@@ -5444,26 +5504,105 @@ def _verification_producer_payload():
     return outcome.verify_payload
 
 
+def _literal_dict_keys(node):
+    assert isinstance(node, ast.Dict), "unknown non-literal dictionary"
+    assert all(isinstance(key, ast.Constant) and isinstance(key.value, str)
+               for key in node.keys), "unknown dynamic key or unpack"
+    return {key.value for key in node.keys}
+
+
+def _verification_mutation_keys(function):
+    """Fail closed on every use of verify_payload except known writes/export."""
+    parents = {child: node for node in ast.walk(function)
+               for child in ast.iter_child_nodes(node)}
+    declarations = []
+    keys = set()
+    for node in ast.walk(function):
+        if not isinstance(node, ast.Name) or node.id != "verify_payload":
+            continue
+        parent = parents[node]
+        if isinstance(parent, ast.AnnAssign) and parent.target is node:
+            declarations.append(parent)
+            keys.update(_literal_dict_keys(parent.value))
+        elif isinstance(parent, ast.Attribute) and parent.value is node:
+            call = parents[parent]
+            assert (parent.attr == "update" and isinstance(call, ast.Call)
+                    and call.func is parent and len(call.args) == 1
+                    and not call.keywords
+                    and isinstance(parents[call], ast.Expr)), "unknown mutator"
+            keys.update(_literal_dict_keys(call.args[0]))
+        elif isinstance(parent, ast.Subscript) and parent.value is node:
+            assignment = parents[parent]
+            assert (isinstance(assignment, ast.Assign)
+                    and assignment.targets == [parent]), "unknown subscript use"
+            key = parent.slice
+            assert isinstance(key, ast.Constant) and isinstance(key.value, str)
+            keys.add(key.value)
+        elif isinstance(parent, ast.keyword) and parent.arg == "verify_payload":
+            call = parents[parent]
+            assert (isinstance(call, ast.Call) and isinstance(call.func, ast.Name)
+                    and call.func.id == "_RepetitionExecutionOutcome"
+                    and isinstance(parents[call], ast.Return)), "unknown export"
+        else:
+            raise AssertionError("unknown alias, rebinding or mutation of verify_payload")
+    assert len(declarations) == 1
+    return keys
+
+
 def test_verification_producer_keys_and_schema_closure(tmp_path):
+    from orchestrator.verifier.model import ProofSurfaceAssessment
     function = ast.parse(textwrap.dedent(inspect.getsource(
         pipeline._execute_verification_repetition)))
-    declarations = [node for node in ast.walk(function) if isinstance(node, ast.AnnAssign)
-                    and isinstance(node.target, ast.Name) and node.target.id == "verify_payload"]
-    assert len(declarations) == 1
-    literal = declarations[0].value
-    assert isinstance(literal, ast.Dict)
-    keys = {ast.literal_eval(key) for key in literal.keys}
-    assert len(keys) == 9
+    # _reject_qualification_ancestry / _contains_qualification_lineage exclude
+    # qualification lineage from renderer input. Do not widen its acceptance.
+    qualification_only = {"argv", "binary_sha256"}
+    keys = _verification_mutation_keys(function) - qualification_only
     payload = _verification_producer_payload()
     assert set(payload) == keys
     row = layer3_report._view_row(_record("verify_done", **payload))
     schema = json.loads(layer3_report._SCHEMA_PATH.read_text())
-    assert set(row) <= set(schema["properties"]["verifications"]["items"]["properties"])
+    properties = schema["properties"]["verifications"]["items"]["properties"]
+    assert keys <= set(properties)
+    assert set(row) <= set(properties)
+    witness = [node.value for node in ast.walk(function)
+               if isinstance(node, ast.Assign) and any(
+                   isinstance(target, ast.Name) and target.id == "commit_witness"
+                   for target in node.targets)]
+    assert len(witness) == 1
+    assert _literal_dict_keys(witness[0]) == set(properties["commit_witness"]["properties"])
+    proof = ast.parse(textwrap.dedent(inspect.getsource(ProofSurfaceAssessment.as_record)))
+    returns = [node.value for node in ast.walk(proof) if isinstance(node, ast.Return)]
+    assert len(returns) == 1
+    assert _literal_dict_keys(returns[0]) == set(properties["proof_surfaces"]["properties"])
     assert row["commit_witness"] == payload["commit_witness"]
     assert row["proof_surfaces"] == payload["proof_surfaces"]
-    campaign, output_root = _campaign(tmp_path, [_record("verify_done", **payload), _bench()])
+    records = [_record("build_start"), _record("build_done"),
+               _record("verify_done", **payload),
+               _bench(build_attempt_id=payload["build_attempt_id"])]
+    for ts, record in enumerate(records, 1):
+        record["ts"] = float(ts)
+    campaign, output_root = _campaign(tmp_path, records)
     report = layer3_report.build_report(campaign, "fixed", output_root=output_root)
     layer3_report._validate_schema(report)
+
+
+@pytest.mark.parametrize("mutation", [
+    "alias = verify_payload", "verify_payload = {}",
+    "verify_payload.clear()", "verify_payload.update(other)",
+    "verify_payload[key] = 1", "verify_payload |= {'new': 1}",
+    "consume(verify_payload)",
+])
+def test_verification_closure_unknown_mutation_rejected(mutation):
+    tree = ast.parse("verify_payload: dict = {'initial': 1}\n" + mutation)
+    with pytest.raises(AssertionError):
+        _verification_mutation_keys(tree)
+
+
+def test_verification_closure_collects_conditional_writes():
+    tree = ast.parse("verify_payload: dict = {'initial': 1}\n"
+                     "if condition:\n    verify_payload.update({'later': 2})\n"
+                     "    verify_payload['last'] = 3\n")
+    assert _verification_mutation_keys(tree) == {"initial", "later", "last"}
 
 
 @pytest.mark.parametrize("mutation", ["null_count", "proof_enum"])

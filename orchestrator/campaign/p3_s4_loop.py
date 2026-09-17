@@ -2553,6 +2553,14 @@ def _agent_json(raw: bytes) -> dict:
 
 def _agent_provenance(mode, source_path, source_bytes, input_path, input_bytes,
                       prompt_path=None):
+    """Describe recording, not observed generation or proof of input delivery.
+
+    mode is live (harness append before evaluation) or ingested (import output
+    produced elsewhere). Envelope ts is recording time; input_sha256 is the
+    canonical SHA-256 of saved JSON declared by the caller as actual input.
+    prompt_sha256 hashes the specified file bytes. mechanism_hypotheses is LLM
+    (critic) attribution, not empirical proof of a mechanism.
+    """
     result = {
         "mode": mode, "source_path": str(Path(source_path).resolve()),
         "source_sha256": hashlib.sha256(source_bytes).hexdigest(),
@@ -2571,6 +2579,11 @@ def _append_live_agent_outputs(layout, cfg, record):
     coder_input, planner_output, coder_output, and optional <role>_prompt_path.
     Both envelopes are checked before the first append; appends are individually
     durable, not a two-record transaction.
+    mode describes recording, not observed generation: live appends before
+    evaluation; ingested imports output produced elsewhere. ts is recording time.
+    input_sha256 hashes canonical saved JSON declared by the caller as actual
+    input, not proof of delivery; prompt_sha256 hashes specified file bytes.
+    mechanism_hypotheses records LLM (critic) attribution, not mechanism proof.
     """
     # Hash caller-declared saved inputs. This does not prove actual consumption.
     envelopes = []
@@ -2595,16 +2608,7 @@ def _append_live_agent_outputs(layout, cfg, record):
 
 
 def _critic_agent_output(raw: str) -> dict:
-    headings = list(re.finditer(r"^## ([^\r\n]*)(?:\r?\n|$)", raw, re.MULTILINE))
-    output = {"raw_markdown": raw}
-    for name in ("attribution", "recommend", "avoid", "uncertainty"):
-        matches = [i for i, heading in enumerate(headings) if heading.group(1) == name]
-        if len(matches) != 1:
-            raise ValueError(f"critic heading ## {name} must occur exactly once")
-        i = matches[0]
-        end = headings[i + 1].start() if i + 1 < len(headings) else len(raw)
-        output[name] = raw[headings[i].end():end].rstrip()
-    return output
+    return {"raw_markdown": raw, **agent_outputs.extract_critic_sections(raw)}
 
 
 def _validate_agent_role_output(stage, output):
@@ -2681,7 +2685,7 @@ def _ingest_agent_output(a):
     if role == "critic" and not variant:
         raise ValueError("critic requires --agent-variant")
     if variant is not None and not any(
-            r.variant == variant and (role != "critic" or r.stage == STAGE_COMMIT)
+            r.variant == variant
             for r in records):
         raise ValueError("agent variant absent from required campaign WAL records")
     refs = a.agent_wal_ref or []

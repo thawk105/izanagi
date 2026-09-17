@@ -9045,6 +9045,26 @@ def agent_ingest_fixture(tmp_path):
                            critic=critic, digest=digest, receipt=receipt, prompt=prompt, argv=argv)
 
 
+@pytest.mark.parametrize("fence", ["```", "~~~"])
+def test_agent_critic_fenced_only_rejected(agent_ingest_fixture, fence):
+    f = agent_ingest_fixture
+    f.critic.write_bytes((fence + "\n").encode() + f.critic.read_bytes()
+                         + (fence + "\n").encode())
+    assert L.main(f.argv("critic")) == 1
+    assert not Path(f.layout.agent_outputs_file).exists()
+
+
+@pytest.mark.parametrize("role", ["planner", "coder", "critic"])
+def test_agent_ingest_uncommitted_variant(agent_ingest_fixture, role):
+    f = agent_ingest_fixture
+    Path(f.layout.wal_file).write_text(json.dumps({**f.record, "stage": "abort"}) + "\n")
+    args = f.argv(role)
+    if role != "critic":
+        args += ["--agent-variant", "fixture-v"]
+    assert L.main(args) == 0
+    assert L.agent_outputs.read_agent_outputs(f.layout.agent_outputs_file)[0]["variant"] == "fixture-v"
+
+
 def test_agent_ingest_three_stages_preserve_campaign(agent_ingest_fixture, monkeypatch, capsys):
     f = agent_ingest_fixture
     forbidden = unittest.mock.Mock(side_effect=AssertionError("evaluation entry reached"))
@@ -9078,7 +9098,7 @@ def test_agent_ingest_three_stages_preserve_campaign(agent_ingest_fixture, monke
             assert payload["output"] == f.document[role]
     assert rows[2]["payload"]["output"] == {
         "raw_markdown": f.critic.read_bytes().decode(),
-        "attribution": "  exact text\r\nline two", "recommend": "next",
+        "attribution": "exact text\r\nline two", "recommend": "next",
         "avoid": "none", "uncertainty": "unknown",
     }
     assert rows[2]["payload"]["digest_sha256"] == f.inputs["critic"]["digest_sha256"]
@@ -9140,7 +9160,6 @@ def test_agent_options_require_mode(option, value):
     ("receipt-missing", "coder", "receipt"), ("digest", "critic", "digest_sha256"),
     ("campaign-digest", "critic", "digest_sha256"), ("digest-missing", "critic", "--agent-digest"),
     ("variant", "critic", "variant absent"), ("variant-missing", "critic", "--agent-variant"),
-    ("variant-uncommitted", "critic", "variant absent"),
     ("planner-variant", "planner", "variant absent"), ("ref", "planner", "WAL ref"),
     ("input-missing", "planner", "input missing"), ("input-array", "planner", "object"),
 ])
@@ -9191,8 +9210,6 @@ def test_agent_ingest_invalid_bindings(agent_ingest_fixture, capsys, case, role,
     elif case == "variant-missing":
         index = args.index("--agent-variant")
         del args[index:index + 2]
-    elif case == "variant-uncommitted":
-        Path(f.layout.wal_file).write_text(json.dumps({**f.record, "stage": "build_start"}) + "\n")
     elif case == "planner-variant":
         args += ["--agent-variant", "absent"]
     elif case == "ref":

@@ -441,6 +441,7 @@
     "agent_outputs": {"type": "array", "items": {"$ref": "#/definitions/agent_output"}},
     "mechanism_hypotheses_provenance": {"enum": ["absent", "agent_outputs"]},
     "mechanism_hypotheses": {
+      "description": "LLM (critic) attribution records, not empirical proof of a mechanism.",
       "type": "array",
       "items": {
         "type": "object",
@@ -490,6 +491,7 @@
       ],
       "properties": {
         "ts": {
+          "description": "Recording time, not generation time.",
           "type": "number"
         },
         "stage": {
@@ -522,6 +524,7 @@
               "type": "object"
             },
             "input_sha256": {
+              "description": "Canonical SHA-256 of saved JSON declared by the caller as actual input; not proof of delivery.",
               "type": "string",
               "pattern": "^[0-9a-f]{64}$"
             },
@@ -537,6 +540,7 @@
               ],
               "properties": {
                 "mode": {
+                  "description": "Recording method, not observed generation: live is appended by harness before evaluation; ingested imports output produced elsewhere.",
                   "enum": [
                     "live",
                     "ingested"
@@ -560,6 +564,7 @@
                   "type": "string"
                 },
                 "prompt_sha256": {
+                  "description": "SHA-256 of the specified prompt file bytes.",
                   "type": "string",
                   "pattern": "^[0-9a-f]{64}$"
                 }

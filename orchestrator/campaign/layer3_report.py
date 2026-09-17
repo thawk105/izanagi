@@ -169,7 +169,7 @@ def _read_agent_outputs(path: Path) -> Tuple[Optional[List[Dict[str, Any]]], Opt
 def _mechanism_view(records: Sequence[Mapping[str, Any]],
                     envelopes: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
     wal_refs = {canonical_record_ref("wal", record) for record in records}
-    variants = {record["variant"] for record in records if record["stage"] == "commit"}
+    variants = {record["variant"] for record in records}
     result = []
     for env in envelopes:
         try:
@@ -177,7 +177,7 @@ def _mechanism_view(records: Sequence[Mapping[str, Any]],
         except _agent_outputs.AgentOutputError as exc:
             raise Layer3ReportError("agent output envelope が不正") from exc
         if env["variant"] is not None and env["variant"] not in variants:
-            raise Layer3ReportError("agent output variant に WAL commit がない")
+            raise Layer3ReportError("agent output variant が WAL に実在しない")
         payload = env["payload"]
         if any(ref not in wal_refs for ref in payload["refs"]):
             raise Layer3ReportError("agent output refs が一次 WAL を参照しない")
@@ -185,14 +185,12 @@ def _mechanism_view(records: Sequence[Mapping[str, Any]],
             continue
         output = payload["output"]
         raw = output["raw_markdown"]
-        headings = list(re.finditer(r"^## ([^\r\n]+)\r?$", raw, re.MULTILINE))
-        for name in ("attribution", "recommend", "avoid", "uncertainty"):
-            matches = [i for i, heading in enumerate(headings) if heading[1] == name]
-            if len(matches) != 1:
-                raise Layer3ReportError("critic heading が欠落または重複: " + name)
-            index = matches[0]
-            end = headings[index + 1].start() if index + 1 < len(headings) else len(raw)
-            if raw[headings[index].end():end].strip() != output[name]:
+        try:
+            sections = _agent_outputs.extract_critic_sections(raw)
+        except _agent_outputs.AgentOutputError as exc:
+            raise Layer3ReportError("critic heading が欠落または重複") from exc
+        for name, value in sections.items():
+            if value != output[name]:
                 raise Layer3ReportError("critic raw_markdown と節が一致しない: " + name)
         result.append({
             "variant": env["variant"], "attribution": output["attribution"],
@@ -335,7 +333,7 @@ def _assert_bijection(records: Sequence[Mapping[str, Any]], whiteboard: Sequence
     expected.update(canonical_record_ref("ao", env) for env in (agent_outputs or ()))
     actual = _report_primary_refs(report)
     if actual != expected:
-        raise Layer3ReportError("source-ref multiset が入力 WAL/whiteboard/AO と report 本体で一致しない")
+        raise Layer3ReportError("source-ref multiset が入力 WAL/whiteboard と report 本体で一致しない (AO を含む)")
     source_refs = Counter(report.get("source_refs", ()))
     if source_refs != actual:
         raise Layer3ReportError("source_refs 区画が report 本体走査結果と一致しない")
