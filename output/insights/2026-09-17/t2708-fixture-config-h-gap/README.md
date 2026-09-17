@@ -162,5 +162,10 @@ plain_runner="none")` が enforcing な pytest session 内でしか import を�
 - codex 子 5 本 (plan 1、consult 2、author 1、fix 1、全段 `gpt-6-astra`)。親の実走: selftest 1 (login)、
   hold-only は fix 子が login で 1 回、本走 2 回 (計算ノード generic dispatch、bnode028、4025.nqsv 6 秒 / 4055.nqsv 1,105 秒)。
 - 実装差分ゼロ (probe は repo に残さず `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2708-fixture-config-h-gap/` へ保全)。
-  変異 matrix は免除、受入全走は land 前に 1 回。
+  変異 matrix は免除。受入全走は記録 commit 後の最終 tip に対して緑の受領証 1 本を得るまで再投入した
+  (attempt 1 は wrapper の post-claim merge 後に main がさらに進んだ postcheck 競走でテスト未走行、attempt 2 は
+  24,749 passed / 10 failed で赤は全部負荷由来 — `git archive` / `git log` の 30 秒 timeout 5 件 (F945 型)、codex launcher の
+  timing 系 4 件、`run_tests_preflight` の dispatch 判定 1 件、load average 59 — 自分の差分 (docs + insight) から到達不能。
+  attempt ごとの waiter log と shard junit の抜粋は `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2708-fixture-config-h-gap/acceptance/`
+  に保全)。
 - fixture の実体 (`run2/build`、978 MB) は同 dir に残っている。保全対象は `result.json` と `index-A` / `index-B` だけ。

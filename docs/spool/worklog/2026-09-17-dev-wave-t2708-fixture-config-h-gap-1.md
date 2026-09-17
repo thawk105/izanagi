@@ -47,7 +47,9 @@ title: [T-2708] t080 fixture の config.h 取り込み漏れの影響を計算�
   条件は満たすが本 wave は実装差分ゼロの調査 wave なので裁定パッケージ候補に留める)。
 - 工数: codex 子 5 本 (plan 1、consult 2、author 1、fix 1、全段 `gpt-6-astra`)。親の実走: selftest 1 (login)、本走 2 回
   (計算ノード generic dispatch)。probe は repo に残さず `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2708-fixture-config-h-gap/`
-  へ保全 (sha256 `8c8731cd2b9a4974…`、415 行)。
+  へ保全 (sha256 `8c8731cd2b9a4974…`、415 行)。受入全走は最終 tip に対し緑の受領証 1 本を得るまで再投入した — attempt 1 は
+  postcheck 競走 (テスト未走行)、attempt 2 は負荷由来の非帰属赤 10 件 (`git` の 30 秒 timeout 5 件 = F945 型ほか、
+  24,749 passed、load average 59)。以後は門番で負荷の下降局面を待って投げた。内訳は同 dir `acceptance/`。
 
 ## 次の一手差分
 
