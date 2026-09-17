@@ -1,0 +1,153 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 2700,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "id": "m0-equivalent",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "            # HEAD は merge commit なので、取り込んだ main と merge 自身も監査する。\n            # 赤なら commit を保持する。MERGE_HEAD は無く、abort の対象ではない。\n            # 所有する lease は後始末で解放し、受入 command は投入しない。\n            # claim 前の履歴監査は従来どおり維持する。\n",
+     "new": "            # HEAD は merge commit なので、取り込んだ main と merge 自身も監査する。\n            # 赤なら commit を保持する。MERGE_HEAD は無く、abort の対象ではない。\n            # 所有する lease は後始末で解放し、受入 command は投入しない。\n            # claim 前の履歴監査は従来どおり維持する。\n            # equivalent comment-only control (M0)\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [],
+   "expected_status": "SURVIVED"
+  },
+  {
+   "id": "m1-audit-before-commit",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "            # HEAD は merge commit なので、取り込んだ main と merge 自身も監査する。\n            # 赤なら commit を保持する。MERGE_HEAD は無く、abort の対象ではない。\n            # 所有する lease は後始末で解放し、受入 command は投入しない。\n            # claim 前の履歴監査は従来どおり維持する。\n            _run_capture(\n                effects,\n                (\n                    sys.executable,\n                    str(repo / \"tools\" / \"check_ai_provenance.py\"),\n                ),\n                repo,\n                \"merge-history-provenance\",\n                diagnostic_reason=\"full-history-provenance\",\n                capture_failure_output=True,\n            )\n",
+     "new": ""
+    },
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "            _run_capture(\n                effects,\n                (\n                    sys.executable,\n                    str(repo / \"tools\" / \"check_ai_provenance.py\"),\n                    \"--message-file\",\n                    str(validated_message),\n                ),\n                repo,\n                \"merge-message-provenance\",\n            )\n",
+     "new": "            _run_capture(\n                effects,\n                (\n                    sys.executable,\n                    str(repo / \"tools\" / \"check_ai_provenance.py\"),\n                ),\n                repo,\n                \"merge-history-provenance\",\n                diagnostic_reason=\"full-history-provenance\",\n                capture_failure_output=True,\n            )\n            _run_capture(\n                effects,\n                (\n                    sys.executable,\n                    str(repo / \"tools\" / \"check_ai_provenance.py\"),\n                    \"--message-file\",\n                    str(validated_message),\n                ),\n                repo,\n                \"merge-message-provenance\",\n            )\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_committed_message_without_ai_agent_never_runs_acceptance",
+    "orchestrator/tests/test_dev_wave_wait.py::test_malformed_ai_agent_message_fails_provenance_before_commit",
+    "orchestrator/tests/test_dev_wave_wait.py::test_merge_history_provenance_failure_blocks_submission_releases_and_returns_reason",
+    "orchestrator/tests/test_dev_wave_wait.py::test_merge_history_provenance_unexpected_rc_fails_closed",
+    "orchestrator/tests/test_dev_wave_wait.py::test_merge_sequence_and_postcheck_are_exact",
+    "orchestrator/tests/test_dev_wave_wait.py::test_missing_owned_path_skips_diff_warns_and_reaches_submission",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit-dry-run]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit-head-postcheck]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit-message-postcheck]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit-rev-parse]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[merge-history-provenance]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[merge-message-provenance]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[postcheck]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[prerun-clean]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_owned_path_prefix_is_not_overlap_and_reaches_submission",
+    "orchestrator/tests/test_dev_wave_wait.py::test_postclaim_merge_without_implementation_conflict_accepts_self_report",
+    "orchestrator/tests/test_dev_wave_wait.py::test_postmerge_tracked_dirty_blocks_submission_and_releases",
+    "orchestrator/tests/test_dev_wave_wait.py::test_real_git_main_only_history_violation_blocks_acceptance_after_commit"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m2-audit-deleted",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "            # HEAD は merge commit なので、取り込んだ main と merge 自身も監査する。\n            # 赤なら commit を保持する。MERGE_HEAD は無く、abort の対象ではない。\n            # 所有する lease は後始末で解放し、受入 command は投入しない。\n            # claim 前の履歴監査は従来どおり維持する。\n            _run_capture(\n                effects,\n                (\n                    sys.executable,\n                    str(repo / \"tools\" / \"check_ai_provenance.py\"),\n                ),\n                repo,\n                \"merge-history-provenance\",\n                diagnostic_reason=\"full-history-provenance\",\n                capture_failure_output=True,\n            )\n",
+     "new": ""
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_committed_message_without_ai_agent_never_runs_acceptance",
+    "orchestrator/tests/test_dev_wave_wait.py::test_merge_history_provenance_failure_blocks_submission_releases_and_returns_reason",
+    "orchestrator/tests/test_dev_wave_wait.py::test_merge_history_provenance_unexpected_rc_fails_closed",
+    "orchestrator/tests/test_dev_wave_wait.py::test_merge_sequence_and_postcheck_are_exact",
+    "orchestrator/tests/test_dev_wave_wait.py::test_missing_owned_path_skips_diff_warns_and_reaches_submission",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit-head-postcheck]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit-message-postcheck]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[merge-history-provenance]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[postcheck]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[prerun-clean]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_owned_path_prefix_is_not_overlap_and_reaches_submission",
+    "orchestrator/tests/test_dev_wave_wait.py::test_postclaim_merge_without_implementation_conflict_accepts_self_report",
+    "orchestrator/tests/test_dev_wave_wait.py::test_postmerge_tracked_dirty_blocks_submission_and_releases",
+    "orchestrator/tests/test_dev_wave_wait.py::test_real_git_main_only_history_violation_blocks_acceptance_after_commit"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m3-audit-red-ignored",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "            # HEAD は merge commit なので、取り込んだ main と merge 自身も監査する。\n            # 赤なら commit を保持する。MERGE_HEAD は無く、abort の対象ではない。\n            # 所有する lease は後始末で解放し、受入 command は投入しない。\n            # claim 前の履歴監査は従来どおり維持する。\n            _run_capture(\n                effects,\n                (\n                    sys.executable,\n                    str(repo / \"tools\" / \"check_ai_provenance.py\"),\n                ),\n                repo,\n                \"merge-history-provenance\",\n                diagnostic_reason=\"full-history-provenance\",\n                capture_failure_output=True,\n            )\n",
+     "new": "            # HEAD は merge commit なので、取り込んだ main と merge 自身も監査する。\n            # 赤なら commit を保持する。MERGE_HEAD は無く、abort の対象ではない。\n            # 所有する lease は後始末で解放し、受入 command は投入しない。\n            # claim 前の履歴監査は従来どおり維持する。\n            effects.run(\n                (\n                    sys.executable,\n                    str(repo / \"tools\" / \"check_ai_provenance.py\"),\n                ),\n                repo,\n                True,\n            )\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_merge_history_provenance_failure_blocks_submission_releases_and_returns_reason",
+    "orchestrator/tests/test_dev_wave_wait.py::test_merge_history_provenance_unexpected_rc_fails_closed",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[merge-history-provenance]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_real_git_main_only_history_violation_blocks_acceptance_after_commit"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m4-pending-cleared-after-audit",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "            active_lifecycle.merge_pending = False\n            committed_sha = _head_sha(effects, repo, \"commit-rev-parse\")\n",
+     "new": "            committed_sha = _head_sha(effects, repo, \"commit-rev-parse\")\n"
+    },
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "            _run_capture(\n                effects,\n                (\n                    sys.executable,\n                    str(repo / \"tools\" / \"check_ai_provenance.py\"),\n                ),\n                repo,\n                \"merge-history-provenance\",\n                diagnostic_reason=\"full-history-provenance\",\n                capture_failure_output=True,\n            )\n            committed_message = _run_capture(\n",
+     "new": "            _run_capture(\n                effects,\n                (\n                    sys.executable,\n                    str(repo / \"tools\" / \"check_ai_provenance.py\"),\n                ),\n                repo,\n                \"merge-history-provenance\",\n                diagnostic_reason=\"full-history-provenance\",\n                capture_failure_output=True,\n            )\n            active_lifecycle.merge_pending = False\n            committed_message = _run_capture(\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_merge_history_provenance_failure_blocks_submission_releases_and_returns_reason",
+    "orchestrator/tests/test_dev_wave_wait.py::test_merge_history_provenance_unexpected_rc_fails_closed",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[commit-rev-parse]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[merge-history-provenance]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_real_git_main_only_history_violation_blocks_acceptance_after_commit"
+   ],
+   "expected_status": "KILLED"
+  },
+  {
+   "id": "m5-stage-name-diagnostic-pin",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_wait.py",
+     "old": "                \"merge-history-provenance\",\n                diagnostic_reason=\"full-history-provenance\",\n",
+     "new": "                \"merge-history-provenance-x\",\n                diagnostic_reason=\"full-history-provenance\",\n"
+    }
+   ],
+   "hang_risk": false,
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_wait.py::test_merge_history_provenance_failure_blocks_submission_releases_and_returns_reason",
+    "orchestrator/tests/test_dev_wave_wait.py::test_merge_history_provenance_unexpected_rc_fails_closed",
+    "orchestrator/tests/test_dev_wave_wait.py::test_nonzero_stage_blocks_submission_and_releases[merge-history-provenance]",
+    "orchestrator/tests/test_dev_wave_wait.py::test_real_git_main_only_history_violation_blocks_acceptance_after_commit"
+   ],
+   "expected_status": "KILLED"
+  }
+ ]
+}
