@@ -1,0 +1,13 @@
+2026-09-18 06:31:37 JST alive=3 4939.nqsv=RUN/52 4940.nqsv=RUN/52 4941.nqsv=RUN/24 | write-heavy=- balanced=- read-heavy=-
+2026-09-18 06:32:37 JST alive=3 4939.nqsv=RUN/112 4940.nqsv=RUN/112 4941.nqsv=RUN/84 | write-heavy=- balanced=- read-heavy=-
+2026-09-18 06:33:37 JST alive=3 4939.nqsv=RUN/172 4940.nqsv=RUN/172 4941.nqsv=RUN/144 | write-heavy=- balanced=- read-heavy=-
+2026-09-18 06:34:37 JST alive=3 4939.nqsv=RUN/233 4940.nqsv=RUN/233 4941.nqsv=RUN/205 | write-heavy=- balanced=- read-heavy=-
+2026-09-18 06:35:38 JST alive=3 4939.nqsv=RUN/293 4940.nqsv=RUN/293 4941.nqsv=RUN/265 | write-heavy=- balanced=- read-heavy=-
+2026-09-18 06:36:38 JST alive=3 4939.nqsv=RUN/353 4940.nqsv=RUN/353 4941.nqsv=RUN/325 | write-heavy=- balanced=- read-heavy=-
+2026-09-18 06:37:38 JST alive=2 4939.nqsv=RUN/413 4940.nqsv=RUN/413 4941.nqsv=gone | write-heavy=- balanced=- read-heavy=terminal
+2026-09-18 06:38:38 JST alive=2 4939.nqsv=RUN/473 4940.nqsv=RUN/473 4941.nqsv=gone | write-heavy=- balanced=- read-heavy=terminal
+2026-09-18 06:39:38 JST alive=2 4939.nqsv=RUN/534 4940.nqsv=RUN/534 4941.nqsv=gone | write-heavy=- balanced=- read-heavy=terminal
+2026-09-18 06:40:39 JST alive=1 4939.nqsv=gone 4940.nqsv=RUN/594 4941.nqsv=gone | write-heavy=terminal balanced=- read-heavy=terminal
+2026-09-18 06:41:39 JST alive=1 4939.nqsv=gone 4940.nqsv=RUN/654 4941.nqsv=gone | write-heavy=terminal balanced=- read-heavy=terminal
+2026-09-18 06:42:39 JST alive=1 4939.nqsv=gone 4940.nqsv=RUN/714 4941.nqsv=gone | write-heavy=terminal balanced=- read-heavy=terminal
+2026-09-18 06:43:39 JST alive=0 4939.nqsv=gone 4940.nqsv=gone 4941.nqsv=gone | write-heavy=terminal balanced=terminal read-heavy=terminal
