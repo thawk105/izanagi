@@ -1,22 +1,21 @@
 # command / skill 自己改善契約
 
-この文書は `.claude/commands/dev-wave.md`、`.claude/commands/cleanup-branches.md`、
-`.claude/commands/rulings.md` の自己改善に共通する発火 gate、routing、入口編集条件、commit 境界の正本である。
-command 固有の実行手順や事故の物語はここへ置かない。
+`.claude/commands/dev-wave.md`、`.claude/commands/cleanup-branches.md`、
+`.claude/commands/rulings.md`、`.claude/commands/next-tasks.md` に共通する発火 gate、routing、
+入口編集条件、commit 境界の正本。実行手順や事故の物語は置かない。
 
 ## 発火 gate
 
-候補の記録と、本文・正本の編集を分ける。
+候補の記録と本文・正本の編集を分ける。
 
-- dev-wave は、作法の欠落・無駄・曖昧・失敗に気づいた時点で候補を記録する。
-  事故や実害を伴わない手順の明確化・無駄取りも候補にできる。
-- cleanup-branches は、記載と実挙動の食い違い、新しい罠、手順不足を今回の実行で実測した場合だけ、
-  final で候補を報告する gate が成立する。cleanup 本走中に本文編集の gate は成立しない。
-- rulings は、収集漏れ、正本との食い違い、誤解を招く出力規則を今回の実行で実測した場合だけ、
-  本文編集の gate が成立する。
+- dev-wave は作法の欠落・無駄・曖昧・失敗に気づいた時点で候補を記録する。
+  事故・実害のない手順の明確化・無駄取りも候補にできる。
+- cleanup-branches は記載と実挙動の食い違い・新しい罠・手順不足を今回実測した場合だけ、
+  final で候補を報告する。本走中は本文を編集しない。
+- rulings は収集漏れ・正本との食い違い・誤解を招く出力規則を今回実測した場合だけ本文編集できる。
+- next-tasks は母集合の取りこぼし・正本との食い違い・誤った選定規則を今回実測した場合だけ発火する。
 
-dev-wave の候補は段 8 で一度だけ裁定する。実測のない仮想的懸念だけで failures や decisions を
-変更しない。
+dev-wave の候補は段 8 で一度だけ裁定する。仮想的懸念だけで failures・decisions を変えない。
 
 ## routing
 
@@ -38,46 +37,50 @@ dev-wave の候補は段 8 で一度だけ裁定する。実測のない仮想�
 
 ## command 入口の編集条件
 
-command 本文の変更を許すのは次の場合だけである。
+command 本文の変更は次の場合だけ。
 
 - 実測で誤りと判明した既存命令を是正する。
-- 既存命令の意味を変えず、入口内へ統合して縮約・明確化する。
-- 常に読まれなければ dispatch 自体が成立しない新規命令で、既存命令にも reference にも統合できず、
+- 既存命令の意味を変えず入口内へ統合して縮約・明確化する。
+- 常に読まれなければ dispatch が成立しない新規命令で、既存命令にも reference にも統合できず、
   追加後も `tools/check_docs.py` の byte・最長行予算を満たす。
 
-事故を伴わない明確化・無駄取りを入口への追記理由にしてはならず、該当 reference 節を是正する。
-入口へ事故の経緯、長い例、日付付き逸話を追記しない。予算のために安全義務を削除・弱化してはならない。
-予算に収まらなければ reference へ統合し、意味等価にできなければ D782 の手順で閉じる。裁定へ返さず、
-上限引き上げに至った場合だけ報告する。一括増枠は不可で、層ごとの最小増分と収容表は親裁定が持つ。
+事故のない明確化・無駄取りは入口へ追記せず、該当 reference 節を是正する。
+入口へ事故の経緯・長い例・日付付き逸話を追記せず、予算のために安全義務を削除・弱化しない。
+予算超過は reference へ統合し、意味等価にできなければ D782 に従う。裁定へ返さず、
+上限引き上げ時だけ報告する。一括増枠は不可。層ごとの最小増分と収容表は親裁定が持つ。
 
 ## command 別の終端
 
 ### dev-wave
 
-wave 開始時に専用 handoff へ「dev-wave 改善候補」節を作る。段 7 後の段 8 で本契約を一度適用する。
-自動是正できる小変更は、command 入口でなく該当 reference 節へ統合することを既定とし、
-関連正本と同時に専用 commit にする。関連検査と予算検査を通した後だけ段 9 の監査済み集合へ含める。
+wave 開始時に専用 handoff へ「dev-wave 改善候補」節を作り、段 7 後の段 8 で本契約を一度適用する。
+自動是正できる小変更は既定で command 入口でなく該当 reference 節へ統合し、
+関連正本と同時に専用 commit にする。関連・予算検査の通過後だけ段 9 の監査済み集合へ含める。
 段構成、実装子権限、正しさ防壁、裁定境界、予算の変更は実装せず裁定パッケージへ送る。
 候補ゼロなら無言で段 9 へ進む。
 
 ### cleanup-branches
 
-cleanup 本走は共有 command §0/§6 に従い final の候補報告だけで終え、同一実行・継続・自己 spawn では
+本走は共有 command §0/§6 に従い final の候補報告だけで終え、同一実行・継続・自己 spawn では
 repo 内外の未列挙 state を変更しない。ユーザーが別 dev-wave と明示起動した後だけ再照合・routing・実装する。
 
 ### rulings
 
-自己改善は現行欠落を意図的に補う能力追加である。収集漏れ、正本との食い違い、
-誤解を招く出力規則を実測した場合だけ適用する。発火時点でクラス 2 に昇格し、
-`CLAUDE.md` のクラス 2 起動手順を完了してから編集する。裁定待ちの実体は worklog、insights、
-handoff、phase doc に残し、command や本契約を裁定台帳にしない。失敗は failures、
-採用済み長期方針は decisions、既存手順の誤りは rulings の該当節へ送る。
+自己改善は現行欠落を意図的に補う能力追加で、上記 gate 成立時だけ適用する。
+発火時にクラス 2 へ昇格し、`CLAUDE.md` のクラス 2 起動手順を完了してから編集する。
+裁定待ちは worklog・insights・handoff・phase doc に残し、command・本契約を裁定台帳にしない。
+失敗は failures、採用済み長期方針は decisions、既存手順の誤りは rulings の該当節へ送る。
+
+### next-tasks
+
+昇格と起動手順は rulings と同じ。既存手順の誤りは入口の編集条件に従い command の該当節を是正し、
+道具は runbook の道具置き場へ足す。`docs/` へ及ぶ変更は既成事実にせず裁定パッケージでユーザーへ返す。
 
 ## 検査と commit 境界
 
-変更時は `CLAUDE.md`、`AGENTS.md`、各正本の更新契約に従い、関連テストと
-`python3 tools/check_docs.py` を実行する。command と、変更理由になった failures / decisions /
-reference の整合を同じ commit で保つ。AI provenance、local main、push の境界に例外を作らない。
+変更時は `CLAUDE.md`・`AGENTS.md`・各正本の更新契約に従い、関連テストと
+`python3 tools/check_docs.py` を実行する。command と変更理由の failures / decisions /
+reference は同じ commit で整合させる。AI provenance・local main・push の境界は例外なし。
 
-`check_docs.py` の担保は予算と dispatch・節・孤児・逃がし・住所 (address edge) の構造 lint に限る。
-whole-file SHA-256 pin も bytes 差だけを検知し、意味は敵対監査と人間レビューが担う。
+`check_docs.py` は予算と dispatch・節・孤児・逃がし・住所の構造 lint だけ担保する。
+whole-file SHA-256 pin も bytes 差だけ検知し、意味は敵対監査と人間レビューが担う。

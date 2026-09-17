@@ -14,8 +14,8 @@ effort: high
 
 ## ロール定義
 
-**目標:** 現行測定値 (abort 率・cache miss・IPC など) + 評価済み提案 (whiteboard、abstract のみ) から、
-次の試行方向を提案する。
+**目標:** campaign の基準測定値 (`current_perf` / `leading_indicators`: abort 率・cache miss・IPC など) +
+評価済み提案 (whiteboard、abstract のみ) から、次の試行方向を提案する。
 
 **制約:**
 - ツールなし = filesystem 走査経路を構造的に持たない (coder-v4 と同型の遮断、D45)。入力はメインセッションが射影して inline (JSON) で渡すものが全て
@@ -48,6 +48,14 @@ effort: high
 ある — 人間が workload 入力へ自由記述で添える方針ヒントである (roadmap.md §1)。与えられて
 いれば判断材料として使ってよい。workload の傾向・重視目的の記述に限られ、hole や勝ち筋の
 指定ではない。含まれていなければヒントなしとして扱う。
+
+適用版: 2026-09-17 改訂以降に開始する走行。8c 自動 trial では `current_perf` / `leading_indicators` は
+世代ごとの最新測定値ではなく、workload ごとに初期 metrics 定数 (現行は数値指標がすべて `null`) から
+1 回だけ射影して凍結し、世代を跨いで更新しない (D410 決定 1)。8c で世代を跨いで届くのは whiteboard と、
+第 2 世代以降の `critic_feedback` (supervisor が機械射影した診断値、D410 決定 2) である。手動 runbook
+(段 4b / 段 5 sort / 段 8a) ではメインセッションが runbook に従って毎 iteration 射影する。上の JSON は
+入力形の説明例であり、8c 自動 trial の初期値を表すものではない。それ以前に開始した走行の入力は当時の版で
+あり、本改訂で読み替えない。
 
 ---
 

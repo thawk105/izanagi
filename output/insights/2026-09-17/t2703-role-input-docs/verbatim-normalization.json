@@ -1,0 +1,54 @@
+{
+ "schema": "izanagi-verbatim-trailing-ws-normalization/v1",
+ "rule": "各行末の空白 (半角 space / tab) だけを除去した。可視文字は不変。復元法: 原文は wave の job directory に保持し、原文 sha256 と一致するまで行末空白を戻す。markdown の強制改行 (行末 2 空白) は視覚上の段落分けであり本文の意味を変えない。",
+ "records": [
+  {
+   "path": "insights/2026-09-17/t2703-role-input-docs/verbatim/s2-plan.md",
+   "original_sha256": "02a44dc7e8469ff2d890933faefa01e9e1841f476eab18d93c2399c95cb0af3d",
+   "original_bytes": 25255,
+   "normalized_sha256": "26ee20997788fc3fb694b9ea4729293f6ce7ecd332f5116a80c9e665d4db8111",
+   "normalized_bytes": 25254,
+   "removed_trailing_ws_bytes": 1
+  },
+  {
+   "path": "insights/2026-09-17/t2703-role-input-docs/verbatim/s3-lensA.md",
+   "original_sha256": "a5bc95a45c458c09ce83dcb4aba70f758fd22f32ec46bf8f921c2935f1b668d2",
+   "original_bytes": 9037,
+   "normalized_sha256": "7529eb052b2e1d7c3d0b992de85366ef10825a139d04740700109db82d802f33",
+   "normalized_bytes": 9011,
+   "removed_trailing_ws_bytes": 26
+  },
+  {
+   "path": "insights/2026-09-17/t2703-role-input-docs/verbatim/s3-lensB.md",
+   "original_sha256": "d5b6b4f6c9bad265103ef164e31711f6e88fb5e29ee14b528579a4915e679516",
+   "original_bytes": 9347,
+   "normalized_sha256": "659fa0a68c08eca0c30e7045587e5ed405f2f33e8d4c246faa1acfbee73c752f",
+   "normalized_bytes": 9315,
+   "removed_trailing_ws_bytes": 32
+  },
+  {
+   "path": "insights/2026-09-17/t2703-role-input-docs/verbatim/s6-focus3-run.log",
+   "original_sha256": "a0a4216fd37f3e11a50cd6856709152cfce40d775dd323a1c352c4f084362923",
+   "original_bytes": 7165,
+   "normalized_sha256": "e7402caa30ecec67df45f204151ced7052229be8b3c588e487e5699c81b3a9ce",
+   "normalized_bytes": 7163,
+   "removed_trailing_ws_bytes": 2
+  },
+  {
+   "path": "insights/2026-09-17/t2703-role-input-docs/verbatim/s6-reviewA.md",
+   "original_sha256": "9f11cdadf20a38a22752ed9a123b8d82b4a409bec7ad7f2f530d855f7e2550af",
+   "original_bytes": 6037,
+   "normalized_sha256": "580271e4f3d41df8207de07cf82c4908478a93aea9f6557cdf4db09db2008e00",
+   "normalized_bytes": 6029,
+   "removed_trailing_ws_bytes": 8
+  },
+  {
+   "path": "insights/2026-09-17/t2703-role-input-docs/verbatim/s6-reviewB.md",
+   "original_sha256": "d3076436dd810afdb9cc4b6b04c5bcd6988fad8345a9fdad1f0e239a66350e76",
+   "original_bytes": 6800,
+   "normalized_sha256": "4782d416b7cb221043a13a31afedb7e36839ed84a535c40c7aea1b6c3a05c98b",
+   "normalized_bytes": 6788,
+   "removed_trailing_ws_bytes": 12
+  }
+ ]
+}
