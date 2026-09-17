@@ -8,6 +8,18 @@ seq: 3
 
 ## 再発
 
+### F266
+
+- **再発: 2026-09-18** — D427 の第 2 worktree (有効化前 commit d92800f49 を base にした実装 branch) を wave branch の
+  途中で 2 度 merge した形で land を投入し、rc=26 `fold-failed: landed-fold-owned-path` で停止した (main は不動)。
+  merge の両親 (wave 側の直前 commit と実装 branch tip) はどちらも tested main の祖先でなく trusted 親 0 になり、
+  verifier が両親と差分を取って 5 週間分の fold 署名を読んだ。T-2146 (2026-09-07) の 1 回目も同じ rc=26 だったが
+  記録が worklog に無く、本 wave は同じ形で再投入した。対処は本 F の恒久対応どおり: main から新 worktree を作り、
+  実装 branch を main 第 1 親の 1 merge で取り込み (docs 入口は main 版へ戻す)、wave 側の commit を cherry-pick で
+  積み、受入を取り直した。再発検知は本 F の手順 (land 前に `git rev-list --parents` で各 merge の親のどれかが
+  tested main の祖先であることを確認する) を `hooks/README.md` の「guard 自身の保守境界」(5) へ写した —
+  hooks/ を触る wave は第 2 worktree 経路を必ず通るので、この族に必ず入る。
+
 ### F709
 
 - **再発: 2026-09-18** — near miss (着地前に段 6 レビューが捕まえた)。`hooks/guard_bash.py` の script-executor

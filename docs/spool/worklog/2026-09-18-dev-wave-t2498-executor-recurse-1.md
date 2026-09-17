@@ -16,7 +16,8 @@ title: [T-2498] guard_bash の重量判定を script-executor の内側実行対
   変異が KILLED、直接起動の既存拒否は正例維持。規律 2 を緩めない。本題の再帰適用だけ。防護対象の拡大・追加 gate は scope 外」。
 - **閉じた。** 一次資料は `output/insights/2026-09-18/t2498-executor-heavy-recurse/README.md`。設計判断は
   {{D:executor-inner-same-judgment}} と {{D:hooks-second-worktree-launcher}}、失敗の型は F709 の再発 (near miss)。
-  実装 commit `1f0594712` / `ddb6b760f` (Codex author、第 2 worktree)、test `f94fde871` / `abee732be`、README `301dab228`。
+  実装 commit `1f0594712` / `ddb6b760f` (Codex author、第 2 worktree)。着地形は main を第 1 親とする merge `954dd6680`
+  + wave 側 commit の cherry-pick (test `3000a9031` / `bbe8964d2`、README `4c036a5d9`、記録 `bbc9e08ee` / `444f5e36c`)。
 - **着手前の実測:** 現行 main で `python3 -m pytest` は DENY、`-m cProfile / profile / pdb / trace --module / runpy /
   coverage run` 越しの pytest は全部 ALLOW (2026-09-09 の 172 秒走行の機序)。`_script_executor_targets` が repo 外 module を
   空に落とし、`_python_pytest_args` が最初の `-m` しか見ないため。
@@ -49,14 +50,20 @@ title: [T-2498] guard_bash の重量判定を script-executor の内側実行対
   期待 node と観測 node が完全一致 (matching 10/10)**、等価 M0 (docstring) SURVIVED、MISMATCH 0、TIMEOUT 0。M8 (層剥きの
   位置) は `precedes_sanctioned_allow` だけの単一理由。M4 (`*rest` 落とし) は過剰拒否 + 2 重 wrapper 素通しの 2 理由で単独
   証拠に数えない。M6 / M7 は既存 test が守る (新規検出力に数えない)。M9 は queue 待ちで 402 秒。
+- **land 1 回目は rc=26 `landed-fold-owned-path` で止まった (F266 の再発、main は不動)。** 実装 branch (5 週間前の
+  有効化前 commit が base) を wave branch の途中で merge した 2 commit は両親とも main の祖先でなく、land の verifier が
+  両親と差分を取って main 側の fold 署名を wave の変更として読んだ。T-2146 も 1 回目に同じ rc=26 を踏んでいた。F265/F266 の
+  恒久対応どおり main から新 worktree を作り、実装 branch を main 第 1 親の 1 merge (`954dd6680`、差分は guard_bash.py だけ)
+  で取り込んで wave 側 5 commit を cherry-pick した (tree は作業時の tested tip と同一)。受入は取り直した。この形は
+  `hooks/README.md` の「guard 自身の保守境界」へ (5) として書いた。
 - scope 外で残る: 内側の `-h` / `--co` の非実行判定 (既存境界)、`main()` の例外経路が防護対象を含まない入力の例外を
   許可へ倒す方針 (本 wave は例外を起こさない実装で閉じた)、`trace -m` 短形 (既存 option 表に無く script 扱いで保守的に拒否)。
-- 段 8 (自己改善): 候補 2 件 — (a) D427 第 2 worktree の launcher 手順差は decisions に記録 (hooks/README.md の保守境界節への
-  追記は次に guard を触る wave で)、(b) D428 反転検査 runner に例外を別枠で数える経路 (F709 再発の再発検知として記録)。
+- 段 8 (自己改善): 候補 2 件 — (a) D427 第 2 worktree の launcher 手順差と着地形は decisions と `hooks/README.md` の
+  保守境界 (5)(6) に記録、(b) D428 反転検査 runner に例外を別枠で数える経路 (F709 再発の再発検知として記録)。
   docs/dev-wave への追記は予算満杯で行わない。
 - 工数: codex 子 8 本 (author 2、review 2、fix 2、focus 1、全段 `gpt-6-astra` / `medium`) + 段 2・3 を省略。親の実測: 焦点走 4
-  (login 1・計算ノード 3)、probe 3 本、D428 反転検査 3 走、変異 3 走 (計算ノード 32 run)、provenance 監査は land 前に full 1 本、
-  受入は land 前に 1 回。
+  (login 1・計算ノード 3)、probe 3 本、D428 反転検査 3 走、変異 3 走 (計算ノード 32 run)、provenance full 監査 2 本
+  (11,217 件、新規違反なし)、受入 2 回 (作業時 tip で 24,833 passed / 69 skipped、着地形で取り直し)、land 2 回 (1 回目 rc=26)。
 
 ## 次の一手差分
 

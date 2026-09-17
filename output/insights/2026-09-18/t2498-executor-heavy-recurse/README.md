@@ -7,8 +7,12 @@
 - wave branch: `worktree-dev-wave-t2498-executor-recurse`
 - 実装 branch (D427 の第 2 worktree、base = 有効化前 commit d92800f49): `impl-dev-wave-t2498-guard`
 - base: `38353207f` (着手時の local main)。段 7 前に local main `d2ebef7a4` を merge (`339ef718d`)
-- 実装 commit: `1f0594712` (単位 A、guard_bash.py)、`f94fde871` (単位 B、test)、`ddb6b760f` (fix A2、反復化)、
-  `abee732be` (fix B2、test 3 関数)、`301dab228` (README)。merge: `4b9f1c631`、`d5c4b45f7`
+- 実装 commit (実装 branch、そのまま着地): `f0abd7f60` (docs 同期)、`1f0594712` (単位 A、guard_bash.py)、
+  `ddb6b760f` (fix A2、反復化)。wave 側 (作業時の SHA): `f94fde871` (単位 B、test)、`abee732be` (fix B2、test 3 関数)、
+  `301dab228` (README)、`524adc529` / `488223a08` (記録)。作業時の merge: `4b9f1c631`、`d5c4b45f7`
+- **着地形 (F266 対応、下記「手順」参照):** main `d2ebef7a4` を第 1 親とする 1 つの merge `954dd6680` (差分は
+  hooks/guard_bash.py だけ) の上に、wave 側 5 commit を cherry-pick (`3000a9031`、`bbe8964d2`、`4c036a5d9`、
+  `bbc9e08ee`、`444f5e36c`) + 本追補。tree は作業時の tested tip `488223a08` と同一 (git diff 空)。
 - `hooks/guard_bash.py` の最終 blob: `7076a4ad7`、`orchestrator/tests/test_hooks.py`: +123 行 (9 関数)
 
 ## 着手前の実測 — 何が開いていたか
@@ -84,6 +88,14 @@ blob 一致検算 (D427 / D1719)。本 wave で加えた 2 点 (decisions 参照
 --dry-run` の argv で launcher だけ現行版へ差し替える (旧 launcher は現行 argv を受けず、旧 docs 権威は superseded 済み
 `gpt-5.6-sol` を導出する。同期後の第 2 worktree で `gpt-6-astra` / `medium` を導出し `validate_installation` findings 0 を
 起動前に実測)。
+
+**着地形は F266 が決める。** 作業時は実装 branch を wave branch の途中で 2 度 merge した (`4b9f1c631`、`d5c4b45f7`)。
+その形で受入は child-green (24,833 passed) だったが、land は rc=26 `fold-failed: landed-fold-owned-path` で止まった
+(main は 1 bit も動いていない)。原因は F266 そのもの — これらの merge は両親とも main の祖先でない (trusted 親 0)
+ので land の verifier が両親と差分を取り、旧 base (5 週間前) 以降に main で起きた fold の署名 (FOLDED.md の変更・
+fragment の削除) を wave の変更として読む。T-2146 も 1 回目に同じ rc=26 を踏んでいる。対処は F265/F266 の恒久対応
+どおり: main から新 worktree を作り、実装 branch を **main を第 1 親とする 1 つの merge** で取り込み (docs 入口は
+main 版へ戻す)、その上に wave 側の commit を cherry-pick で積む。受入はこの tip で取り直した。
 
 ## 主張の上限 — 何が閉じていないか
 

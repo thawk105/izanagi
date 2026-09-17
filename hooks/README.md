@@ -446,6 +446,16 @@ probe したところ、**guard_agent が PreToolUse で拒否し spawn は起�
   (4) 第 2 worktree は tools も古い。段 5 の midflight gate は現行 checkout の
   `check_wave_startup.py` を `--repo <第 2 worktree>` で起動する (古い版に `midflight` mode は
   無い)。submodule も別途初期化しないと同 gate が赤になる。
+  (5) **着地形は F266 が決める** ([T-2498] で実測、T-2146 も 1 回目に同じ rc=26)。実装 branch を wave branch の
+  途中で merge すると、その merge は両親とも main の祖先でない (trusted 親 0) ので land の fold verifier が両親と
+  差分を取り、旧 base 以降の fold 署名を読んで `landed-fold-owned-path` (rc=26) で止まる。main から新 worktree を
+  作り、実装 branch を **main を第 1 親とする 1 つの merge** で取り込み (docs 入口は main 版へ戻す)、その上に
+  wave 側の commit を cherry-pick で積んでから受入・land する。投入前に `git rev-list --parents <tested main>..<tip>`
+  で各 merge の親のどれかが tested main の祖先であることを確かめる。
+  (6) 第 2 worktree の旧 launcher は現行 argv を受けず、旧 docs 権威は superseded 済み model を導出する。親が
+  `AGENTS.md` / `CLAUDE.md` / `docs/dev-wave/` を現行 main へ同期する docs-only commit を作り、現行
+  `dev_wave_codex.py --dry-run` の argv で launcher だけ現行版へ差し替えて起動する (正本は D の
+  「有効化前 commit の第 2 worktree では docs 入口を現行 main へ同期し、現行 launcher で Codex 子を起動する」)。
   `.claude/settings.json` と一次防壁のコードは従来どおり防護対象外で、緩和は規律6 の監査 +
   人間のコミットレビュー。
 
