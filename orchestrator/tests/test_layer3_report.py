@@ -5555,14 +5555,38 @@ def test_verification_producer_keys_and_schema_closure(tmp_path):
         pipeline._execute_verification_repetition)))
     # _reject_qualification_ancestry / _contains_qualification_lineage exclude
     # qualification lineage from renderer input. Do not widen its acceptance.
-    qualification_only = {"argv", "binary_sha256"}
-    keys = _verification_mutation_keys(function) - qualification_only
+    qualification_branches = [node for node in ast.walk(function)
+                              if isinstance(node, ast.If)
+                              and isinstance(node.test, ast.Name)
+                              and node.test.id == "include_qualification_evidence"]
+    assert len(qualification_branches) == 1
+    assert not qualification_branches[0].orelse
+    # Reuse the fail-closed write collector with an empty initial payload.
+    qualification_only = _verification_mutation_keys(ast.Module(
+        body=[ast.parse("verify_payload: dict = {}").body[0],
+              *qualification_branches[0].body], type_ignores=[]))
+    assert qualification_only == {"argv", "binary_sha256"}
+    view = ast.parse(textwrap.dedent(inspect.getsource(layer3_report._view_row)))
+    exclusions = [node for node in ast.walk(view)
+                  if isinstance(node, ast.Compare)
+                  and isinstance(node.left, ast.Name) and node.left.id == "key"
+                  and len(node.ops) == 1 and isinstance(node.ops[0], ast.NotIn)]
+    assert len(exclusions) == 1
+    literal = exclusions[0].comparators[0]
+    assert isinstance(literal, ast.Set)
+    assert all(isinstance(key, ast.Constant) and isinstance(key.value, str)
+               for key in literal.elts)
+    view_only = {key.value for key in literal.elts}
+    assert view_only == {"build_attempt_id", "build_admission_receipt_sha256"}
+    producer_keys = _verification_mutation_keys(function)
+    keys = producer_keys - view_only - qualification_only
     payload = _verification_producer_payload()
-    assert set(payload) == keys
+    assert set(payload) == producer_keys - qualification_only
     row = layer3_report._view_row(_record("verify_done", **payload))
     schema = json.loads(layer3_report._SCHEMA_PATH.read_text())
     properties = schema["properties"]["verifications"]["items"]["properties"]
     assert keys <= set(properties)
+    assert set(payload) - view_only - qualification_only <= set(properties)
     assert set(row) <= set(properties)
     witness = [node.value for node in ast.walk(function)
                if isinstance(node, ast.Assign) and any(

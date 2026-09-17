@@ -9410,7 +9410,7 @@ def test_agent_input_ast_isolation_and_mutant(target):
 def test_agent_input_execution_isolation(tmp_path, monkeypatch):
     forbidden = unittest.mock.Mock(side_effect=AssertionError("AO input read"))
     monkeypatch.setattr(L.agent_outputs, "read_agent_outputs", forbidden)
-    layout = CampaignLayout(root=str(tmp_path / "projection")).ensure()
+    layout = _tmp_layout("agent-input-execution-isolation")
     monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
     monkeypatch.setattr(L, "_current_site", lambda: site_policy.OTHER)
     cfg = L.default_cfg()
@@ -9423,28 +9423,35 @@ def test_agent_input_execution_isolation(tmp_path, monkeypatch):
     assert knowledge == KM.planner_projection(resolved)
     monkeypatch.setattr(L, "_resolve_knowledge_manifest_argument", lambda _p: resolved)
     output = tmp_path / "context.json"
-    assert L.main(["--emit-planner-context", str(output)]) == 0
+    assert L.main(["--emit-planner-context", str(output),
+                   "--knowledge-classification", "de_novo",
+                   "--knowledge-de-novo-claim", "false"]) == 0
     assert "knowledge_input" in json.loads(output.read_bytes())
     forbidden.assert_not_called()
 
 
 def test_agent_input_bytes_independent_of_ao(agent_ingest_fixture, monkeypatch, tmp_path):
     f = agent_ingest_fixture
-    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: f.layout)
+    layout = _tmp_layout("agent-input-bytes-independent-of-ao")
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
     monkeypatch.setattr(L, "_current_site", lambda: site_policy.OTHER)
     resolved = _resolved_empty_knowledge_fixture(tmp_path)
     monkeypatch.setattr(L, "_resolve_knowledge_manifest_argument", lambda _p: resolved)
     state, cfg = L.LoopState(iteration=1), L.default_cfg()
     L.project_whiteboard(state, _site_test_proposals()[0], "success")
-    L.save_loop_state(f.layout, state)
+    L.save_loop_state(layout, state)
     observed = []
     for status in ("absent", "valid", "corrupt"):
         if status == "valid":
             assert L.main(f.argv("planner")) == 0
+            Path(layout.agent_outputs_file).write_bytes(
+                Path(f.layout.agent_outputs_file).read_bytes())
         elif status == "corrupt":
-            Path(f.layout.agent_outputs_file).write_bytes(b"broken\n")
+            Path(layout.agent_outputs_file).write_bytes(b"broken\n")
         output = tmp_path / (status + ".json")
-        assert L.main(["--emit-planner-context", str(output)]) == 0
+        assert L.main(["--emit-planner-context", str(output),
+                       "--knowledge-classification", "de_novo",
+                       "--knowledge-de-novo-claim", "false"]) == 0
         _cfg, _layout, knowledge = L._prepare_knowledge_campaign(
             cfg, resolved, classification="de_novo", de_novo_claim=False)
         observed.append((output.read_bytes(), L.agent_outputs.canonical_bytes(
