@@ -1222,6 +1222,13 @@ _RETURNED_EVIDENCE_MODULES = frozenset({
 })
 
 
+# T-2491 assumes explicit helper rejections raise base DriverError, whose
+# definition is class DriverError(RuntimeError). Non-explicit exceptions are
+# outside this guarantee; these premises are documented, not a new gate.
+_RETURNED_EVIDENCE_ERROR = "DriverError"
+_RETURNED_EVIDENCE_CATCHERS = frozenset({"BaseException", "Exception", "RuntimeError"})
+
+
 def _definition_time_expressions(
     node: ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef | ast.Lambda,
 ) -> tuple[ast.expr, ...]:
@@ -1570,6 +1577,26 @@ class _PythonGateFlow:
                 and statement.value is not None
             ):
                 self.module_assignments[statement.target.id] = statement.value
+        self.injected_error_names = {
+            alias.asname or alias.name
+            for statement in self.tree.body
+            if isinstance(statement, ast.ImportFrom)
+            and statement.module in _RETURNED_EVIDENCE_MODULES
+            for alias in statement.names
+            if alias.name == _RETURNED_EVIDENCE_ERROR
+        }
+        self.module_class_counts = Counter(
+            statement.name for statement in self.tree.body
+            if isinstance(statement, ast.ClassDef)
+        )
+        self.defines_returned_evidence_helper = (
+            f"<module>.{_RETURNED_EVIDENCE_HELPER}" in self.bodies
+        )
+        if (
+            self.defines_returned_evidence_helper
+            and _RETURNED_EVIDENCE_ERROR in self.module_class_counts
+        ):
+            self.injected_error_names.add(_RETURNED_EVIDENCE_ERROR)
         self.complete_names = complete_names
         self.patch_macros = patch_macros
         self.source_macros = source_macros
@@ -1581,10 +1608,11 @@ class _PythonGateFlow:
             str, tuple[str, frozenset[str]]
         ] = {}
         self.returned_evidence_checks: dict[
-            str, list[tuple[int, str | None]]
+            str, list[tuple[int, str | None, bool]]
         ] = {}
         for scope, body in self.bodies.items():
             statements = body.body
+            self.injected_try_stack: list[tuple[ast.AST, str]] = []
             self._flow_block(statements, _GateFlowState(), scope)
         self.entry_coverage = self._derive_entry_coverage()
 
@@ -1697,6 +1725,105 @@ class _PythonGateFlow:
                 explicit.update(self.source_macros)
         return frozenset(explicit)
 
+    def _injected_check_unswallowed(self, scope: str) -> bool:
+        """Apply the limited T-2491 explicit-rejection propagation rule."""
+        def region_nodes(statements):
+            for node in statements:
+                yield node
+                if isinstance(node, (
+                    ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda,
+                )):
+                    continue
+                yield from region_nodes(ast.iter_child_nodes(node))
+
+        def has_escape(statements):
+            return any(
+                isinstance(node, (ast.Return, ast.Break, ast.Continue))
+                for node in region_nodes(statements)
+            )
+
+        # R2 runs over the entire stack before any conversion can stop R3.
+        if any(type(node).__name__ == "TryStar" for node, _ in self.injected_try_stack):
+            return False
+        if any(has_escape(node.finalbody) for node, _ in self.injected_try_stack):
+            return False
+
+        local_names = set(self.global_nonlocal_names)
+        for lexical_scope in self._lexical_scopes(scope):
+            if lexical_scope == "<module>":
+                continue
+            body = self.bodies[lexical_scope]
+            local_names.update(_potentially_bound_names(tuple(body.body)))
+            arguments = body.args
+            local_names.update(
+                argument.arg for argument in (
+                    *arguments.posonlyargs, *arguments.args, *arguments.kwonlyargs,
+                )
+            )
+            for argument in (arguments.vararg, arguments.kwarg):
+                if argument is not None:
+                    local_names.add(argument.arg)
+
+        def classify(exception_type):
+            if exception_type is None:
+                return "definite"
+            if isinstance(exception_type, ast.Tuple):
+                kinds = {classify(item) for item in exception_type.elts}
+                if "definite" in kinds:
+                    return "definite"
+                return "maybe" if "maybe" in kinds else "none"
+            if not isinstance(exception_type, ast.Name):
+                return "maybe"
+            name = exception_type.id
+            if name in local_names or name in self.module_assignments:
+                return "maybe"
+            if name in _RETURNED_EVIDENCE_CATCHERS or name in self.injected_error_names:
+                return "definite"
+            if (
+                name != _RETURNED_EVIDENCE_ERROR
+                and self.module_class_counts[name] == 1
+                and not (
+                    self.defines_returned_evidence_helper
+                    and _RETURNED_EVIDENCE_ERROR in self.module_assignments
+                )
+            ):
+                return "none"
+            return "maybe"
+
+        for node, position in reversed(self.injected_try_stack):
+            if position != "body":
+                continue
+            for handler in node.handlers:
+                kind = classify(handler.type)
+                if kind == "none":
+                    continue
+                if has_escape(handler.body):
+                    return False
+                if not handler.body or not isinstance(handler.body[-1], ast.Raise):
+                    return False
+                raised = handler.body[-1].exc
+                bare = raised is None or (
+                    isinstance(raised, ast.Name) and raised.id == handler.name
+                    and handler.name not in _potentially_bound_names(tuple(handler.body))
+                )
+                if isinstance(raised, ast.Call) and isinstance(raised.func, ast.Name):
+                    name = raised.func.id
+                    if name in self.injected_error_names and classify(raised.func) == "definite":
+                        bare = True
+                    elif (
+                        self.module_class_counts[name] == 1
+                        and name not in self.module_assignments
+                        and name not in local_names
+                    ):
+                        if kind == "definite":
+                            return True
+                        return False
+                if not bare:
+                    return False
+                if kind == "definite":
+                    break
+        return True
+
     def _record_expression(
         self, expression: ast.AST | None, state: _GateFlowState, scope: str,
         *,
@@ -1720,12 +1847,15 @@ class _PythonGateFlow:
                     self.local_incoming[target].append(
                         (scope, current.covered_macros)
                     )
-            if name.endswith("require_returned_condition_evidence"):
+            if (
+                call is returned_evidence_call
+                and name.endswith("require_returned_condition_evidence")
+            ):
                 result_name = None
                 if call.args and isinstance(call.args[0], ast.Name):
                     result_name = call.args[0].id
                 self.returned_evidence_checks.setdefault(scope, []).append(
-                    (call.lineno, result_name)
+                    (call.lineno, result_name, self._injected_check_unswallowed(scope))
                 )
             returned_evidence_names = set(current.returned_evidence_names)
             if (
@@ -1864,15 +1994,23 @@ class _PythonGateFlow:
                 )
             return self._flow_block(statement.body, entered, scope)
         if isinstance(statement, ast.Try) or type(statement).__name__ == "TryStar":
-            body_state, body_continues = self._flow_block(
-                statement.body, state, scope,
-            )
+            self.injected_try_stack.append((statement, "body"))
+            try:
+                body_state, body_continues = self._flow_block(
+                    statement.body, state, scope,
+                )
+            finally:
+                self.injected_try_stack.pop()
             exits: list[_GateFlowState] = []
             if body_continues:
                 if statement.orelse:
-                    else_state, else_continues = self._flow_block(
-                        statement.orelse, body_state, scope,
-                    )
+                    self.injected_try_stack.append((statement, "orelse"))
+                    try:
+                        else_state, else_continues = self._flow_block(
+                            statement.orelse, body_state, scope,
+                        )
+                    finally:
+                        self.injected_try_stack.pop()
                     if else_continues:
                         exits.append(else_state)
                 else:
@@ -1883,9 +2021,13 @@ class _PythonGateFlow:
                     handler_entry = _kill_returned_evidence_names(
                         handler_entry, frozenset({handler.name}),
                     )
-                handler_state, handler_continues = self._flow_block(
-                    handler.body, handler_entry, scope,
-                )
+                self.injected_try_stack.append((statement, "handler"))
+                try:
+                    handler_state, handler_continues = self._flow_block(
+                        handler.body, handler_entry, scope,
+                    )
+                finally:
+                    self.injected_try_stack.pop()
                 if handler_continues:
                     exits.append(handler_state)
             if not statement.handlers:
@@ -2173,17 +2315,24 @@ class _PythonGateFlow:
         ]
         boundary = min(next_lines, default=10 ** 9)
         matching_checks = [
-            line for line, checked_name in self.returned_evidence_checks.get(
+            line for line, checked_name, unswallowed in self.returned_evidence_checks.get(
                 sink.scope, []
             )
             if sink.lineno < line < boundary
             and result_name is not None
             and checked_name == result_name
+            and unswallowed
         ]
         if matching_checks:
-            # The validator compares the returned record macro set with the
-            # concrete injected request.  Its dynamic coverage is therefore
-            # exact even when the macro token is not lexical in this file.
+            # Explicit helper rejection E is reraised by its first catcher;
+            # bare reraises satisfy the same rule in outer try bodies.
+            # Type/as-name rebinding checks only inspect this file's module,
+            # local and argument bindings. Rejections from checks in finalbody
+            # itself are not tracked. Conversion stops tracking: outer treatment
+            # of converted exceptions and MAYBE catchers that catch E and bare
+            # reraise are not proved. with.__exit__, conditional guards and
+            # result-name rebinding are also outside this D1882 guarantee.
+            # TryStar rules are not runtime-tested on Python 3.10.
             return coverage | self.patch_macros
         return coverage
 
@@ -2907,6 +3056,336 @@ def test_define_sink_cross_product_requires_gate_to_dominate_each_sink():
         ),
         "reachable",
     )]
+
+
+@pytest.mark.parametrize("case, region", [
+    pytest.param(
+        "p1-no-try",
+        '    require_returned_condition_evidence(built)\n',
+        id="p1-no-try",
+    ),
+    pytest.param(
+        "p2-bare-reraise",
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except X:\n'
+        '        raise\n',
+        id="p2-bare-reraise",
+    ),
+    pytest.param(
+        "p3-conversion",
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except X as exc:\n'
+        "        raise PilotErr('rejected') from exc\n",
+        id="p3-conversion",
+    ),
+    pytest.param(
+        "p4-s1-handlers",
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except (wal.A, wal.B):\n'
+        '        raise\n'
+        '    except ChildError:\n'
+        '        pass\n'
+        '    except X:\n'
+        '        raise\n'
+        '    except Exception:\n'
+        '        return None\n',
+        id="p4-s1-handlers",
+    ),
+    pytest.param(
+        "p5-outer-reraise",
+        '    try:\n'
+        '        try:\n'
+        '            require_returned_condition_evidence(built)\n'
+        '        except X:\n'
+        '            raise\n'
+        '    except X:\n'
+        '        raise\n',
+        id="p5-outer-reraise",
+    ),
+    pytest.param(
+        "p6-handler-position",
+        '    try:\n'
+        '        work()\n'
+        '    except X:\n'
+        '        require_returned_condition_evidence(built)\n',
+        id="p6-handler-position",
+    ),
+    pytest.param(
+        "p7-raise-as-name",
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except X as exc:\n'
+        '        raise exc\n',
+        id="p7-raise-as-name",
+    ),
+    pytest.param(
+        "p8-known-child-handler",
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except ChildError:\n'
+        '        pass\n'
+        '    except X:\n'
+        '        raise\n',
+        id="p8-known-child-handler",
+    ),
+])
+def test_define_sink_cross_product_t2491_accepts_injected_reraise(case, region):
+    relative = f"orchestrator/campaign/synthetic_t2491_{case}.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import (\n"
+        "    DriverError as X, require_returned_condition_evidence,\n"
+        ")\n"
+        "class PilotErr(RuntimeError): pass\n"
+        "class ChildError(X): pass\n"
+        "def build(build_fn, genome):\n"
+        "    marker = 'BACKOFF_FIXED'\n"
+        "    built = build_fn(genome)\n"
+        + region
+        + "    return built\n"
+    )}
+    sink = _BuildSink(relative, "<module>.build", 8, "injected-build_fn")
+    assert _benchmark_build_sinks(sources) == {sink}
+    classifications, failures = _define_sink_cross_product_classification(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    )
+    assert classifications == {sink: Counter({"covered": 1})}
+    assert failures == []
+
+
+@pytest.mark.parametrize("case, region", [
+    pytest.param(
+        "n1-error-pass",
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except X:\n'
+        '        pass\n',
+        id="n1-error-pass",
+    ),
+    pytest.param(
+        "n2-bare-pass",
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except:\n'
+        '        pass\n',
+        id="n2-bare-pass",
+    ),
+    pytest.param(
+        "n3-exception-return",
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except Exception:\n'
+        '        return None\n',
+        id="n3-exception-return",
+    ),
+    pytest.param(
+        "n4-conditional-raise",
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except X:\n'
+        '        if c:\n'
+        '            raise\n',
+        id="n4-conditional-raise",
+    ),
+    pytest.param(
+        "n5-unreachable-raise",
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except X:\n'
+        '        return None\n'
+        '        raise\n',
+        id="n5-unreachable-raise",
+    ),
+    pytest.param(
+        "n6-finally-return",
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except X:\n'
+        '        raise\n'
+        '    finally:\n'
+        '        return None\n',
+        id="n6-finally-return",
+    ),
+    pytest.param(
+        "n7-unknown-handler",
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except ChildError:\n'
+        '        pass\n'
+        '    except X:\n'
+        '        raise\n',
+        id="n7-unknown-handler",
+    ),
+    pytest.param(
+        "n8-lambda",
+        '    check = lambda: require_returned_condition_evidence(built)\n',
+        id="n8-lambda",
+    ),
+    pytest.param(
+        "n9-system-exit",
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except X:\n'
+        '        raise SystemExit(0)\n',
+        id="n9-system-exit",
+    ),
+    pytest.param(
+        "n10-try-star",
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except* X:\n'
+        '        pass\n',
+        marks=pytest.mark.skipif(
+            not hasattr(ast, "TryStar"), reason="except* requires Python 3.11",
+        ),
+        id="n10-try-star",
+    ),
+    pytest.param(
+        "n11-outer-swallow",
+        '    try:\n'
+        '        try:\n'
+        '            require_returned_condition_evidence(built)\n'
+        '        except X:\n'
+        '            raise\n'
+        '    except Exception:\n'
+        '        pass\n',
+        id="n11-outer-swallow",
+    ),
+    pytest.param(
+        "n12-local-rebinding",
+        '    X = ValueError\n'
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except X:\n'
+        '        pass\n',
+        id="n12-local-rebinding",
+    ),
+    pytest.param(
+        "n14-try-star-reraise",
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except* X:\n'
+        '        raise\n',
+        marks=pytest.mark.skipif(
+            not hasattr(ast, "TryStar"), reason="except* requires Python 3.11",
+        ),
+        id="n14-try-star-reraise",
+    ),
+])
+def test_define_sink_cross_product_t2491_rejects_injected_swallow(case, region):
+    relative = f"orchestrator/campaign/synthetic_t2491_{case}.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import (\n"
+        "    DriverError as X, require_returned_condition_evidence,\n"
+        ")\n"
+        "def build(build_fn, genome):\n"
+        "    marker = 'BACKOFF_FIXED'\n"
+        "    built = build_fn(genome)\n"
+        + region
+        + "    return built\n"
+    )}
+    sink = _BuildSink(relative, "<module>.build", 6, "injected-build_fn")
+    assert _benchmark_build_sinks(sources) == {sink}
+    classifications, failures = _define_sink_cross_product_classification(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    )
+    assert classifications == {sink: Counter({"failure-reachable": 1})}
+    assert failures == [("BACKOFF_FIXED", sink, "reachable")]
+
+
+@pytest.mark.parametrize("case, module_lines, parameters, sink_line, region", [
+    pytest.param(
+        "n13-local-rebound-conversion",
+        "class PilotErr(RuntimeError): pass\n",
+        "build_fn, genome", 7,
+        '    X = ValueError\n'
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except X as exc:\n'
+        "        raise PilotErr('r') from exc\n",
+        id="n13-local-rebound-conversion",
+    ),
+    pytest.param(
+        "n15-module-rebound-conversion",
+        "class PilotErr(RuntimeError): pass\nPilotErr = X\n",
+        "build_fn, genome", 8,
+        '    try:\n'
+        '        try:\n'
+        '            require_returned_condition_evidence(built)\n'
+        '        except X:\n'
+        "            raise PilotErr('r')\n"
+        '    except X:\n'
+        '        pass\n',
+        id="n15-module-rebound-conversion",
+    ),
+    pytest.param(
+        "n16-argument-rebound-handler",
+        "class ChildError(X): pass\n",
+        "build_fn, genome, ChildError=X", 7,
+        '    try:\n'
+        '        require_returned_condition_evidence(built)\n'
+        '    except ChildError:\n'
+        '        pass\n'
+        '    except X:\n'
+        '        raise\n',
+        id="n16-argument-rebound-handler",
+    ),
+    pytest.param(
+        "n17-rebound-as-name",
+        "class ChildError(X): pass\n",
+        "build_fn, genome", 7,
+        '    try:\n'
+        '        try:\n'
+        '            require_returned_condition_evidence(built)\n'
+        '        except X as exc:\n'
+        "            exc = ChildError('r')\n"
+        '            raise exc\n'
+        '    except ChildError:\n'
+        '        pass\n',
+        id="n17-rebound-as-name",
+    ),
+])
+def test_define_sink_cross_product_t2491_rejects_injected_rebinding(
+    case, module_lines, parameters, sink_line, region,
+):
+    relative = f"orchestrator/campaign/synthetic_t2491_{case}.py"
+    sources = {relative: (
+        "from orchestrator.campaign.s1_direct_comparison import (\n"
+        "    DriverError as X, require_returned_condition_evidence,\n"
+        ")\n"
+        + module_lines
+        + f"def build({parameters}):\n"
+        + "    marker = 'BACKOFF_FIXED'\n"
+        + "    built = build_fn(genome)\n"
+        + region
+        + "    return built\n"
+    )}
+    sink = _BuildSink(relative, "<module>.build", sink_line, "injected-build_fn")
+    assert _benchmark_build_sinks(sources) == {sink}
+    classifications, failures = _define_sink_cross_product_classification(
+        sources, frozenset({"BACKOFF_FIXED"}),
+    )
+    assert classifications == {sink: Counter({"failure-reachable": 1})}
+    assert failures == [("BACKOFF_FIXED", sink, "reachable")]
+
+
+def test_define_sink_cross_product_t2491_injected_production_sinks_stay_covered():
+    patch_sources, _non_tu_interfaces = _patch_added_define_interfaces()
+    classifications, _failures = _define_sink_cross_product_classification(
+        _production_build_sources(), frozenset(patch_sources),
+    )
+    for filename, scope, lineno, kind in (
+        ("s1_direct_comparison.py", "run_role", 1208, "injected-prepare_cell_fn"),
+        ("s1_direct_comparison.py", "run_role", 1288, "injected-evaluate_fn"),
+        ("s8b_oracle_driver.py", "run_block", 1788, "injected-evaluate_fn"),
+        ("s8b_oracle_n_pilot.py", "build_binaries", 997, "injected-build_fn"),
+    ):
+        sink = _BuildSink(
+            f"orchestrator/campaign/{filename}", f"<module>.{scope}", lineno, kind,
+        )
+        assert classifications[sink] == Counter({"covered": len(patch_sources)})
 
 
 def _assert_single_synthetic_campaign_sink(
