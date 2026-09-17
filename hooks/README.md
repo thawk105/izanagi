@@ -325,6 +325,9 @@ probe したところ、**guard_agent が PreToolUse で拒否し spawn は起�
   dir) の backup は通す。
 - `git commit -m "$(...)"` の heredoc: メッセージに防護トークンが入ると不透明構文判定で拒否。単一行 `-m` か
   `git commit -F <file>` で回避。
+- `git submodule status external/ccbench` も同じ: 防護ツリーの字面を含むので、pin 照合の `$(...)` と
+  1 command に同居させると拒否される (2026-09-17 の `/cleanup-branches` §4 で実測)。
+  status は単独 command で撃ち、pin との比較は出力を見て別 command で行う。
 - **拒否メッセージは一致したトークンを名指ししない**: 不透明構文 + 防護パスの同居拒否は候補群を列挙する
   だけで、実際に一致した文字列を出さない。呼び手は「どれに当たったか」を推測することになる。
   heredoc で prompt や台帳追記を作ると再現しやすい (dev-wave の 1 巡で 2 回発火した実測がある)。
