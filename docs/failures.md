@@ -17171,6 +17171,11 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`tools/mutation_harness.py`、`DW-M08`)。登録と実体がずれた変異は `MISMATCH` として
   ledger に残るため、両走行の `MISMATCH: 0` が照合済みの証拠になる。
 
+
+- **再発: 2026-09-17** — 計算ノード実験 wave で、親が段 4 に凍結した進行規則「終端記録不足で追加投入を停止」を、
+  同じ走の `E − J` の分類が成立していると読んで無視し、`child-exit` 欠落を確認した後に 3 条件を投入した。
+  段 6 レビュー 2 本が「事前登録の適格性を結果後に緩めた事後変更」と指摘し、主解析から当該 2 走を外して
+  寿命短縮版の実験 2 を投入前に事前登録し直した (D2124)。凍結は自分が直前に書いたものでも拘束する。
 ### F554. partition から作った positive control が、その partition の定義から導かれる恒真だった [恒真ゲート] [テスト代表性]
 
 - 事象: known-violation 台帳を 2 群へ分ける wave で、親が段 4 の裁定に
@@ -26951,6 +26956,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `flaky_test_holds.py` を編集する wave は、同じ commit で
   `test_flaky_test_holds_contract.py` が赤になる。登録簿の行数・digest を固定する assert が
   そのまま signature である。
+- **supersede: 2026-09-17** — 恒久対応は D2104 項 30 で確定した: 契約テストの登録簿 pin (ちょうど 1 件) を正とし、`DW-O18` から hold 登録の一般手順を取り下げる。非帰属赤は hold でなく既存の再投入 (同一 tip で各 1 回) で扱い、真に決定的な不安定 test はその 1 件の pin 更新を個別に諮る。`DW-O18` の改訂と `tools/check_docs.py` の pin 追随は T-2692 の wave (本 fold のエントリ) が行った。
 
 ### F1001. `git worktree add` の完了前に当てた submodule 初期化が、何もせずに rc=0 と「OK」を返した [恒真ゲート] [手順漏れ]
 
