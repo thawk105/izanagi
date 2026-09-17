@@ -5285,6 +5285,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **恒久対応は memory `dirty-tree-during-pending-job` から変更なし。**
   段 8 は段 7 の後・受入の後に置く方が構造的に安全だが、入口の段順序の変更は
   自己改善の範囲外なので実施せず、この観測だけを残す。
+
+- **再発: 2026-09-17** — 役割入力文書の wave。今回は受入全走でも変異本走でもなく、**計算ノードへ dispatch した
+  焦点走 (skip 理由を取るための `-rs` 再走) の走行中**に、親が段 6 の must-fix を役割 .md へ適用した。dispatch job は
+  worktree を共有 FS 越しに live で読むため、ledger 未更新の状態を計測して `test_codex_agents` / `test_codex_role_runtime`
+  が adapter parity drift で 8 failed になった。単独再走 (fix + render 後) は 2084 passed / rc=0 で消えた。根本原因は
+  F106 と同一で、「dispatch 済みの走行は起動時点の木を見る」と誤認して待ち時間に worktree を触ったこと。恒久対応は
+  F106 のまま。**焦点走であっても、投入から結果取得までは tracked file を編集しない。** 汚染した走行は合否に使わず
+  skip 理由の参考にだけ使い、権威の走行を取り直した。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -25514,6 +25522,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`git ls-files --others` だけ、24,111 passed、投入時 load 38、同時受入 3 本)。**単独では同 argv が 12.4 秒 (load 30、未追跡 0 件、
   tracked 25,837 件) で完走し**、30 秒境界の 4 割を静穏時に既に使っている。wave の変更は docs 3 file で、当該 fixture・probe・
   Git 呼出しは変更していない。恒久対応は既報どおり変えず、窓を選んで受入を再走した。
+
+- **再発: 2026-09-17** — 事前登録 §11.3 追補 wave (docs のみ、post-claim merge 後の tip `f994871c7`) の受入 attempt 1 で、
+  `test_t1259_qsub_env_delivery_probe.py` の 2 件が setup error になった (shard-0 errors=2、全体 24,499 passed /
+  67 skipped / 2 error、子 rc=1、受領証未発行で待ち手は rc=70)。junit.xml の setup traceback は既報と同一で、
+  `git -C <wave worktree> ls-files --others --exclude-standard -z` の 30.0 秒 TimeoutExpired。門番は leaders=1 /
+  load1 42.5 < load5 56.9 で投入しており、受入開始時点の login load average は 40〜70 台。同 tip・同 file の
+  単独再走 (`run_tests.py --force-dispatch`、2828.nqsv) は 51 passed / 16.94 秒、job Elapse 23 秒、rc=0 で非再現。
+  wave の変更は docs のみで当該 fixture・probe・Git 呼出しは触っていない。既存の恒久対応どおり timeout 拡大・
+  fixture の stub 化・除外・gate 新設はせず、`DW-O18` に従い受入を 1 回再走した。記録は
+  `output/insights/2026-09-17/prereg-s11-3-addendum-d2103/README.md`。
 ### F946. 修正可能な検査失敗で作業を終了し、ユーザーへ再開を要求した [手順漏れ] [誤前提]
 
 - 事象: insights整理のauthorが実行ログ検査で未受理になり、親は原因の切り分けや安全な再試行をせず正式停止した。
@@ -27184,6 +27202,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `HOLE_ESCAPE` (hole 内の生指令を拒否)。**identity 層 (loop の skip key) には無い。**
 - 再発検知: 同 insight §9 の recipe で変異 harness を再走する (M3b / M6 が正例、M0 が負例)。修正後は M3b / M6 の
   identity node が赤 (別 identity) になることで確認する。
+- **supersede: 2026-09-17** — 恒久対応の「[T-2731] として起票 (裁定待ち)」は D2104 項 2 で (a) と裁定され、[T-2731] が `_cpp_normalize` に `-dD` + 環境 prefix 剥がし (D2108) を実装した (commit bd21bc501 / 2cc661235)。再発検知の recipe 再走で M3b / M6 の identity node が赤 (別 identity) になり、M0 は同 identity のまま (`output/insights/2026-09-17/t2731-cpp-normalize-dd/README.md` §6)。残る限界 (指令と include の相対位置、push_macro / pop_macro) は同 D の裁定パッケージ。
 
 ### F1017. pytest 内の計算ノード probe が既定 compiler (g++-13) を掴んだ — autouse fixture が site 判定を中和していた [テスト代表性] [手順漏れ]
 
@@ -27250,3 +27269,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   接尾辞・断片 (`_source_path`) でも検索し、shell の heredoc 内 python も対象に含める」を追記した。
   修正は [T-2741]。
 - 再発検知: 「読み手 0」と書く前に、識別子の断片検索が 0 件であることも併記する。
+
+### F1021. 裁定文が GCC 文書の古い記述 (`-dD` は predefined を含まない) を前提にし、素の実装なら inert template ≠ stock を受入 suite が検出できなかった [テスト代表性] [手順漏れ]
+
+- 事象: 2026-09-17 [T-2731] の段 1。D2104 項 2 と T-2630 insight §8 は「`-dD` は前処理結果に加えて `#define` / `#undef` を出力し、
+  predefined は含まない」を前提に「`_cpp_normalize` に `-dD` を足す (1 箇所)」と裁定していた。親の前提実測 (login pegasus02、
+  g++ 11.4.0 と g++-12 12.3.0、checker と同じ argv) で **predefined 419〜437 行と command-line `-D` も出力される**ことが分かった。
+  template patch は CMake 供給に `BACKOFF_FIXED` / `BACKOFF_NOINLINE` を足すため、素の `-dD` では `compute()` の出力にだけ
+  `#define BACKOFF_FIXED -1` 等が現れ `baseline()` (HEAD 供給) には現れず、未変異の template を当てた木が非 stock になる
+  (完了条件 1 「inert = stock」の破壊)。
+- 根本原因: (1) 裁定の技術前提を文書の記述から取り、対象 compiler で実測していなかった。(2) 受入 suite は共有 submodule に
+  template patch を当てないため (`test_source_digest_stock_roundtrip` は stock checkout、template 依存 node は
+  `skip_conditional_unrun`)、この破壊は受入では緑のまま通り、T-2630 §9 の recipe 再走の baseline 赤で初めて見える構造だった。
+- 恒久対応: 実装は空入力の環境 prefix を剥がす形にした (D2108)。受入で検出できる回帰 test として
+  `orchestrator/tests/test_campaign.py::test_source_digest_unused_universal_supply_preserves_stock` と
+  `::test_source_digest_unused_protocol_supply_preserves_digest` (fake repo で template と同型の「working-tree だけの追加供給」を
+  作り `"stock"` / `compute == baseline` を要求する fails-closed の負例) を追加した。変異 S2 (prefix 剥がしを外す) がこの 2 node を
+  赤にすることを台帳で確認した。発見した防壁は DW-S01 の「brief 前に前提を実測する」規律 (docs/dev-wave/core.md)。
+- 再発検知: 上記 2 node の赤。裁定文が compiler / tool の挙動を前提にするときは、段 1 で対象実体の実測を brief に書く。

@@ -65225,3 +65225,229 @@ runbook に明記する。新しい検査は足さない。
 
 **決定:** 手元にしかない変更の外部保管先への送信を承認する。**承認の対象は提示時点の先頭 `bf4f91f51` までとし、
 それ以降に増えた分へ自動的に広げない。** 送信操作はユーザーが行う。AI は送信しない。
+
+## D2105. path 参照の抑止判定は真偽表の結果を記録して本番の単一走査側を維持し、D248 の唯一の解釈とは扱わない (2026-09-17)
+
+**決定:** 到達不能 commit 監査の D247 条件 5 を判定する 2 実装 — テスト専用 helper
+`_has_bounded_path_reference()` (pattern 出現の左右 1 byte を見る) と本番 `_bounded_path_reference_matches()`
+(探索根の出現に対し根末尾以降の最初の境界 byte または content 末尾までを照合候補にする) — について、
+D2104 項 25 の実測手番として同じ候補集合 (862 行、単根) で真偽表を取った結果を記録し、**本番の判定と
+抑止集合を変えない**。helper 側へ揃えない。本番の方式を D248 の追加規則として明文化するかは別の
+ユーザー裁定に送り、本決定はそれを D248 の唯一の解釈の証明とは扱わない。
+一次資料は `output/insights/2026-09-17/t2662-bounded-reference-truth-table/`。
+
+**理由:**
+- 真偽表で「本番だけ True」は 0 行、「helper だけ True」は 144 行 (本番の入力領域外 4 行を除き 140 行)。
+  差が出る条件は「探索根より下に境界 byte を含む path が landed 内容に境界付きで書かれた」ときだけで、
+  境界 byte を含まない path は 1 MiB chunk 境界を跨ぐ 42 行を含め全行一致した。本番 ⇒ helper は
+  コード上の論証 (本番が加える token は左境界付きの位置から境界 byte または content 末尾までの実部分列で
+  pattern と一致し、helper は全出現を走査する) で全入力に成り立つ。
+- 本番探索根に実在する境界 byte 入り path (空白入り dir 4 件と `[?]*`・`:(glob)` を含む file 2 件、
+  いずれも pytest tmp 残骸) を引用した合成 content 18 行でも差が発火した。差は合成例だけの現象ではない。
+- D248 の逐語 (pattern の出現が path として完結しているか、content 端も境界、未知 byte は延長) は、
+  候補 path 内部の境界 byte の探索方式を一意に定めない。helper の読みも本番の読みも逐語と整合する。
+  D2104 項 25 が「D248 は候補 path 内部の境界 byte の探索方式まで明記しない」と書いたとおりであり、
+  真偽表はどちらが D248 の意味かを決める材料にならない。決めるのは「抑止 (finding を消す側) を増やす
+  向きは fail-open なので暫定は狭い側」という同項の条件で、これは D2039・D2040 の「抑止を広げない」と同じ。
+- helper は 2026-08-26 の単一走査化より前の本番の境界述語 (legacy) で、現在の本番の呼び手は無く、
+  同値テストだけが対照に使う。同テストの候補 6 行はすべて境界 byte を含まない同一 pattern なので、
+  同値主張の射程はその範囲に限られ、その射程内では同値である。
+- 境界 byte 入りの file 自身への完全 path 参照は当該探索根の現行本番では認められないが、D247 条件 5 の
+  祖先条項により境界 byte を含まない祖先 dir の参照で抑止されうる (表に測定済み)。「必ず報告される」
+  とは言えないので、そう書かない。
+
+**却下した選択肢:**
+- **helper 側へ揃える (本番も出現の左右だけを見る)** — 抑止が増える方向で、D2104 項 25 の暫定と
+  D2039・D2040 の不変条件に反する。
+- **helper を本番の意味へ揃える** — legacy との比較能力を失う。同値テストが chunk 跨ぎの回帰を
+  legacy 対照で検出する価値を残す。
+- **helper と同値テストを削除する** — 比較資料を失う。
+- **本番の方式を D248 の意味として本決定で確定する** — 追加規則であり真偽表だけでは根拠不足
+  (段 6 レビュー B)。ユーザー裁定へ送る。
+- **実在 path の候補化 (到達不能 blob との bytes 一致) まで本 wave で測る** — 実害の観測は D2040 と同じく
+  別途行い、本決定の根拠に含めない。
+
+## D2106. 着地判定器の per-command 上限は実測分布の最大への倍率で有界に決め、受理述語には触れない (2026-09-17)
+
+**決定:** `tools/check_branch_landed.py` の `COMMAND_TIMEOUT_SECONDS` (各 git 子プロセスの
+`subprocess.run(timeout=min(上限, 残り全体予算))`) を 5.0 から **45.0** にする。値は次の事前登録した規則で決めた。
+
+1. 母集合 = `docs/unreachable-object-ledger.md` の到達不能 commit 30 件。判定器の `Git.run` を包んで上限だけを 300 秒へ
+   持ち上げ、Git 操作別の完了時間を記録する (2,935 本、打切り 0)。
+2. 全 command の最大 (26.87 秒、`log --full-history --max-count=1 --find-object=<oid> <main>`) × 1.5 = 40.3 を格子
+   {10, 15, 20, 30, 45, 60} へ切り上げる → 45。倍率 1.5 は同じ操作が負荷で 2 倍動く観測から置いた判断値。
+3. 重い 3 操作の反復点検 (path log 69 本 = 最大 35.94 秒、find-object 3 本 = 最大 20.76、cherry 3 本 = 最大 6.87) の
+   最大が候補を超えなければ据え置く (超えれば次の格子)。35.94 ≤ 45。
+4. 有界 = `0 < 上限 ≤ DEFAULT_TIMEOUT_SECONDS (60)`。60 は `min(上限, 残り)` で上限が無意味になるので採らない。
+
+**決定 2:** 受理述語 (D922 項 2・4) は不変で、本決定はそれに触れない。timeout は証拠ではない: 決定的探索の打切りは
+`AssessmentError(outcome="truncated")` → `indeterminate` にしか落ちず、`landed` は exact tree state か fold receipt
+の一致から、`not-landed` は closed-world の負証拠 (pure-add + 同 path 候補ゼロ + any-path 探索の不一致 + 完全な
+history scan + 終端 ref 一致) からだけ出る。上限が変えるのは「時間内に証拠を集め切れる入力の集合」であり、証拠を
+受理する条件ではない。観測層 (`cherry`、ledger、verbatim) の timeout は捕捉されて続行するので、観測層の待ちが延びて
+終端 ref 確認が予算切れになる逆向きも理論上ある。実測は insight に置く。
+
+**決定 3:** 正例・負例を test で対にする。正例 = 定数が有界で `Git.run` の既定引数と同値、および同じ偽 git 経路で
+遅延させなければ証拠どおり `landed` / `not-landed` を返す。負例 = PATH 先頭の偽 git が実 `subprocess.TimeoutExpired`
+を起こしたとき `assessment-timeout` / `truncated` になり、proof の path log と any-path の find-object のどちらを
+遅延させても `indeterminate` で `negative_paths` は空。
+
+**理由:**
+
+- 旧 5 秒は本 repo (main 11,246 commit、packed 176,575 object) の `log -- <path>` の p95 (9.1 秒) にも
+  `--find-object` の最小値 (13.2 秒) にも届かず、30 件すべてが `assessment-timeout` で、負判定は構造的に出せなかった
+  (entry 1552 の起票)。
+- 上限の役割は「1 本の git が固まったとき全体予算を待たずに返す」だけで verdict の質に寄与しないので、実測分布の
+  裾を余裕で覆う値にしてよい。上限 30 以上で観測 2,935 本の超過は 0 だが、反復点検で path log が 35.9 秒に達したため
+  30 は採らない。
+- 判定器既定の全体予算 60 秒では 30 件のうち 16 件しか完走せず (確定 4)、残りは unit 数 × path log の合計が予算を
+  超える律速で、上限を上げても変わらない。全体予算・rescue の内部予算 8 秒の見直しは名指しの変更の外 (D2104) で、
+  次の一手に置く。
+
+**却下した選択肢:**
+
+- CLI に `--command-timeout` を足す — 予算の配分責任が呼び手へ移るだけで、既定値の根拠は依然要る。
+- 上限 = 全体予算 (60) — `min` で per-command 上限が消え、固まった git を全体予算まで待つ。
+- `log --full-history` を `--first-parent` 等で速くする — 探索方式の変更は受理集合に触れる。
+- 無制限 retry・timeout 管理基盤 — 依頼で明示的に除外。
+
+## D2107. 受入所要時間台帳の再生成は「凍結 8 suite 据え置き・それ以外を 1 走の JUnit から全再生成する」refresh mode で行い、効果は観測値としてだけ記録する (2026-09-17)
+
+**決定:** `tools/update_acceptance_duration_ledger.py` に `--refresh` を足す (`--add-only` と排他)。
+凍結 8 prefix (`_ADD_ONLY_FROZEN_SUITE_PREFIXES`) に一致する既存 entry は値ごと保持し (再量子化しない、JUnit に無くても残す)、
+それ以外の entry は入力 JUnit から全再生成する (値の置換・旧名の削除・新名の追加)。凍結 prefix に一致する JUnit testcase は
+採用しない。failed / error の testcase は既存どおり除外し、その非凍結 entry は残さない (consumer の未登録 1.0 秒 fallback に任せる)。
+描画は全再生成と同じ canonical 形。閾値 0.90・凍結 prefix・除外集合・consumer・既存 mode の挙動と stdout は変えない。
+
+入力は受入 1 走 (3 shard) の JUnit だけとし、複数走を結合しない (生成器が入力間の重複 nodeid を拒否する)。選ぶ走は「最新で、
+collection が再生成先の main と一致する緑走」とし、性能代表性ではなく入力の整合性で選ぶ。
+
+land で main 側の台帳が進んでいたら、main の現物を base に同じ JUnit で `--refresh` を再走する (決定的)。main が add-only で
+足した非凍結 node のうち入力 JUnit に無いものは落ちる (次の add-only wave が再登録する) ので、落ちた node は名前と件数を insight に
+記録する。refresh を F902 の add-only 和集合 merge へ流用しない (add-only = 既存値保持、refresh = 非凍結の置換で、別契約)。
+
+再生成の効果 (shard 別 wall) は受入 1 走の観測値としてだけ記録し、改善・退行・300 秒達成を主張しない (D357)。
+
+**理由:**
+
+- 台帳の予測負荷は 3 shard で均等 (5701 / 5700 / 5700 秒) なのに実測の直列和は 8852 / 4433 / 4519 秒で、乖離の主因は凍結 8 suite
+  の外にある既存 node の値の陳腐化 (`test_s8b_oracle_driver.py` +2126 秒、`test_s8b_floor_campaign.py` +1289 秒、どちらも
+  shard-0)。既知 node の差 2932 秒に対し未登録 node の差は 219 秒で、`--add-only` (既存値を byte 保持) では主因を直せない。
+- 全再生成は D1152 が却下している (凍結 pin を壊す)。凍結 8 suite を据え置けば T-1574 の 8 suite identity・12 値・removed 5 件の
+  不在が 1 byte も動かず、規律 2 の pin を緩めない。凍結 426 entry は json 往復で text 差 0 (親の実測)。
+- 4 走の結合は生成器が拒否する。同じ node の time は走ごとに 2 倍程度動く (`test_t316_sandbox_probe` の 8〜9 秒 対 18〜19 秒) ので、
+  1 走入力は割付の頑健性を保証しない。これは限界として記録する。
+- D357 は受入 wall の主張に同一 tip 3 走の中央値を要求する。before の 4 走は投入元が異なり反復比較にならない。
+
+**却下した選択肢:**
+
+- 全再生成 — D1152 が却下済み。T-1574 の node 集合 hash (121 / 42 / 69 に対し実体は 138 / 46 / 81) と 12 値が全部食い違う。
+- `--add-only` だけ — 既存 node の陳腐化した値を直せず、主因に届かない。
+- 台帳の手編集・凍結 prefix / 閾値 / 除外集合の変更 — F902 が禁じ、規律 2 に触れる。
+- T-1903 (所要値の述語化) を同時に行う — D205 で active から外れており、本 wave の scope 外。
+- failed / error の非凍結 entry を旧値のまま残す — 「今回の JUnit か凍結旧値」という出所契約に反し、旧値を実測更新済みと誤読させる。
+- 新しい生成器 script の新設 — 既存生成器の mode 追加で足り、依頼が新設を禁じる。
+
+## D2108. `-dD` の predefined / command-line 出力は同じ argv の空入力 prefix として剥がす — 指令を持つ variant だけが別 identity になり、既存 identity は動かさない (2026-09-17)
+
+**背景:** D2104 項 2 は F1016 (file 間へ漏れる `#define` / `#undef` を identity が見ない) の修正に (a) `_cpp_normalize` への
+`-dD` を裁定した。裁定文と T-2630 insight §8 は「`-dD` は predefined を含まない」を前提にし「golden digest が動く」と
+書いていたが、段 1 の前提実測 (login pegasus02、g++ 11.4.0 / g++-12 12.3.0) で **predefined (419〜437 行) と command-line
+`-D` も `#define` 行として出力される**ことが分かった。template patch は CMake 供給に `BACKOFF_FIXED` / `BACKOFF_NOINLINE` を
+足すので、素の `-dD` では `compute()` (working-tree 供給) の出力にだけそれらの `#define` が現れ `baseline()` (HEAD 供給) には
+現れず、**inert template ≠ stock** になる (完了条件 1 の破壊。受入 suite は template を当てないので検出されない)。
+
+**決定 (段 4、[T-2731]):**
+1. `_cpp_normalize` は `-dD` を足したうえで、**同じ argv の空入力出力を環境 prefix として `removeprefix`** する。prefix は
+   `(cxx, sorted defines)` ごとに module cache に取り、取得は同関数の再帰呼出し (`_environment_only=True`) で行って
+   `subprocess.run` の call site を 1 箇所に保つ。実入力の出力が prefix で始まらなければ RuntimeError (fails-closed)。
+2. EVOLVE_BLOCK_SOURCES 3 file (pin 511c953) と template に指令が無いため、**既存の stock / template variant の pre-image は
+   byte 一致**する (実 submodule の silo 8 genome で旧版 / 新版 8/8 一致を実測)。identity が変わるのは指令を持つ variant だけで、
+   記録済み測定の無効化・再認証は行わない (規律 7)。裁定文の「golden が動く」はこの実装形では起きない。
+3. 再検証の発火条件は結果を見る前に登録した (M3b / M6 が 4 node 赤で別 identity、M0 は SURVIVED、baseline の variant token は
+   T-2630 と同値)。実測は `output/insights/2026-09-17/t2731-cpp-normalize-dd/README.md` §6–§7。
+
+**却下した実装形:** `-P` を外して linemarker で `<built-in>` / `<command-line>` を切る (正規化の意味が変わり、comment /
+空行不感を別処理で再現する必要がある)。環境マクロ名で行 filter (source 自身の `#undef linux` や command-line と同名同値の
+再 `#define` まで落とす)。
+
+**受理集合の変化 (狭まる向き):** `_trace_pair_diff` (diff-of-diffs) の比較式 `D_variant == D_stock` は不変だが、`#if TRACE` 内の
+未使用 `#define` / `#undef` も差分素材になるため、HEAD に無いそれを template が足すと拒否される。除外処理は足さない (規律 2)。
+
+**残る限界 (scope 外、裁定パッケージ、実装しない):** (i) include 行を除去するため「指令と include の相対位置」は識別せず、
+`#define X … / #include … / #undef X` と `#include … / #define X … / #undef X` は同 identity (前者だけが header を書き換える)。
+(ii) `#pragma push_macro` / `pop_macro` の復元値は `-dD` に現れず、保存時点が違う 2 形が同 identity。いずれも修正前から同じで
+pin / template にこの形は無い。解消は identity の設計変更 (相対位置の保存、macro stack の可視化、TU 単位 digest) を要するため
+本裁定の scope 外とし、[T-2752] として起票する。選択肢は (α) 現状維持 + 限界明記、(β) include 行を
+除去せず `-nostdinc` + `-MG` 等で include を dead 化して相対位置を保つ、(γ) TU 単位 digest (D2104 項 2 (c) の環境依存が再燃)。
+親の推奨は (α) — pin / template に該当形は無く、coder 面は `HOLE_ESCAPE` が生指令を拒否するため実害の観測が無い。
+
+## D2109. 役割入力文書の訂正は適用版を文書自身に書き、凍結の記述は 8c 自動 trial に限り、runbook の `last_delta_pct` は D2104 に基づく後続訂正として除く (2026-09-17)
+
+**決定 (1): 6 本の入力文書を実配線へ合わせ、各文書に「適用版: 2026-09-17 改訂以降の走行。それ以前に開始した走行の入力は当時の版であり読み替えない」を書く。** 対象は `src/coder-leakproof-context.md` (Measurement Setup を `p3_s4_loop.default_perf()` = 100k records / 4 threads / skew 0.9 / rr 50 / rmw false / extime 1 / reps 2 と、段 4b = legacy 小規模 verify 1 rep・sort / trigger-gating = さらに S2 pass、throughput = 有効 rep の中央値 (2 rep は算術平均) に一致)、`.claude/agents/critic.md` と `critic-experiment.md` (latency を独立指標から外し、`latency[ns] = 1e9 × thread_num / throughput` の恒等変換を注記、列は `orchestrator/critic/digest.py` の `INDICATORS` に一致)、`.claude/agents/planner-v4.md` と `coder-v4-autonomous-trigger-gating.md` (下の決定 2)、`docs/phase3-s4b-runbook.md` と `phase3-s5-sort-runbook.md` (下の決定 3)。D2104 項 4 の実施であり、role payload の schema_version・`_PERF_KEYS`・`latency_ns` key (D118 閉列挙)・代表 rep (偶数有効 reps で上側中央)・`REPORT_SCHEMA_VERSION`・`DECIDER_VERSION` は変えない。
+
+**決定 (2): planner / coder の「凍結」の記述は 8c 自動 trial に限定し、手動 runbook 経路へ一般化しない。** 8c 自動 trial では `current_perf` / `leading_indicators` / `baseline` を workload ごとに初期 metrics 定数 (現行は数値指標がすべて `null`) から 1 回だけ射影して凍結し世代を跨いで更新しない (D410 決定 1)。手動 runbook (段 4b / 段 5 sort / 段 8a) ではメインセッションが runbook に従って射影する、とだけ書く。段 3 の敵対相談が、K2 の手動 loop 1 巡 (2026-09-16、insight `output/insights/2026-09-16/t2588-k2-loop-roundtrip/`) で 2 周目の `current_perf` に 1 周目の実測が入っていることを現物で示し、手動経路の「毎 iteration 同じ値」は規定でも実績でもないと反証したため、runbook へ凍結規則を新設しない (新しい運用規定の密輸になる)。
+
+**決定 (3): runbook 2 本の射影 JSON から `last_delta_pct: null` を除く。これは D1860 (削除せず `null` へ揃える) の後続の限定訂正であり、D1860 当時の判断は保持する。** D1860 の根拠「`last_delta_pct` は planner 入力例に存在する field で、削除すると role と runbook が乖離する」は、D2064 の wave (2026-09-16、commit 4c6f03048) が planner 入力例から同 field を除去した時点で成立しなくなり、現在は runbook 側に残す方が role と乖離する。除去は D2104 項 4 が明示的に授権した範囲内で行い、凍結済みアームとそれ以前に開始した走行の記録 (`last_delta_pct: null` を含む射影) はそのまま保持する。
+
+**決定 (4): 「実装差分ゼロ」は「schema・検査規則・受理述語・runtime 挙動の差分ゼロ」と読み、役割文書の bytes を pin する台帳の追随は実装面として Codex author に書かせる。** `.claude/agents/*.md` は `orchestrator/codex_roles/review_ledger.py` の `SOURCE_FILE_SHA256`、`.codex/role-adapters/<role>.json` (`source_file_sha256` / `source.sha256` / `semantic_digest` / `developer_instructions`)、`orchestrator/tests/test_reflux_originless_compatibility.py` の originless baseline (planner・critic・coder = trigger-gating) に pin されており、D118 残余 (b) が「是正は review_ledger の source hash 更新と adapter 再生成を伴う」と明記する。D1936 項 23 / 25 の先例 (2026-09-11) と同じく、ledger と baseline は Codex author、adapter は親が既存 renderer で再生成し、docs 本文と合わせて 1 つの整合 commit にする (`tools/check_ai_provenance.py` は `.codex/` を実装面に数える)。役割本文・prompt bytes・source sha・semantic digest は意図的に変わり、LLM の応答まで同一とは主張しない。
+
+**pin 閉包の第 4 機構 (開示):** `orchestrator/campaign/p3_b4_closed_critic.py` は B-4 receipt の再読で `critic.md` の live bytes と projection 閉包を照合し、`p3_b4_raw_record_producer.py` も同じ snapshot 照合を持つ。本決定時点で repo 内 `output/` に role sha を束縛する B-4 receipt は 0 件、B-4 事前登録 §5 の projection / prompt hash 欄は未記入であり、陳腐化する記入済み値は無い。将来の B-4 receipt は記入時点の `critic.md` bytes に束縛される。
+
+**却下した選択肢:**
+- **role schema を上げる** — D2104 項 4 が D2064 の誤引用として却下済み。key 契約は変わらない。
+- **runbook の `last_delta_pct` を D1860 どおり `null` で残す** — role 例に無い field を手動射影だけが渡し続け、乖離が逆向きに残る。
+- **手動 runbook へ「baseline は毎 iteration 同じ値」を書く** — 実績 (K2 1 巡) に反し、裁定されていない運用規定の新設になる。
+- **`coder-v4-autonomous.md` / `-sort.md` / `-k2.md` も編集する** — 手動経路専用で機械凍結が無く、誤りの記述も無い。pin 追随の面を広げるだけになる。
+- **役割文書の意味を pin する semantic test を新設する** — D1936 項 24 が却下済み。gate・検査の追加は本依頼の scope 外。
+
+## D2110. next-tasks Codex adapter は薄い委譲 + Codex overlay とし、Codex 起動時は事実も選定判断も起動主体が持ち、Claude の見解は独立検査として使う (2026-09-17)
+
+**決定 (1): 移設の形は薄い adapter。** `.agents/skills/next-tasks/SKILL.md` は既存 3 skill (dev-wave /
+rulings / cleanup-branches) と同型に、`.claude/commands/next-tasks.md` を共通 dispatcher として全文読んで
+実行する委譲を基本とし、Codex 固有の対応 (決定 2) と義務 (決定 3) だけを重ねる。repo 外
+`~/.agents/skills/next-tasks/SKILL.md` (13,255 bytes、2026-09-10 版) の手順・逸話は逐語複製しない。
+byte 予算は既存 3 skill と同じ扱いで `tools/check_docs.py` の個別 guard に登録する (現物 5,730 bytes に
+rulings と同じ比率の余白を掛けた 5,732、`agents/openai.yaml` は 300)。
+
+**決定 (2): D2051 の Codex 起動時の対応付け。** D2051 は Claude が `/next-tasks` を起動し codex へ相談する
+形を前提に、事実 = claude の実測、選定判断 = codex の権威と配分した。Codex が `$next-tasks` を起動して
+Claude へ相談する形では、裁定状態・機構実在・着地・稼働重複・系統 blocker・ユーザー手番の**事実**は
+repo を実測できる起動主体 (Codex) が実測して権威を持ち、**選定判断**も Codex が権威を持つ (D2051 と
+同じ側)。Claude の見解は、母集合から落ちた候補・着手不能リスク・前提事実の反証の独立検査として使う。
+Claude が挙げた候補と「未確認」と書いた候補は実測せずに外さず、実測結果をまとめて 2 巡目 (全候補
+まとめて 1 回、新事実の提示と再評価の依頼に限る) へ返し、返答を採否へ反映してから出力する。3 巡目へ
+進めず、2 巡目の失敗で初回の判断を無効にせず、件数合わせで除外候補を復活させない。出所の明記・投げ文・
+最終出力の文責は起動主体が負う。これは本 adapter の設計判断であり D2051 の再掲ではない。
+
+**決定 (3): 旧 Codex 版だけにあった出力の義務は Codex overlay として保つ。** 投げ文への自己改善終端条件
+(候補なしも明記)、CC 自動合成の候補を入れない理由の明記、既存 patch・OID・handoff をユーザーに転送・
+再実行させず束ねること、補助 artifact を必須作業へ昇格させず検証済み単独行だけ示し wave 側で回収できる
+情報は handoff に記録すること、半角番号 (丸付き数字禁止) の 5 件を adapter の 1 節に置く。Claude 側の command は拡張しない。
+
+**決定 (4): 契約側の終端。** `docs/skill-self-improvement.md` の `### next-tasks` は、昇格と起動手順は
+rulings と同じ、既存手順の誤りは入口の編集条件に従って command の該当節を是正、道具は runbook の道具
+置き場へ足す、`docs/` へ及ぶ変更は既成事実にせず裁定パッケージ、とする。command の絶対 path は
+`<tools>` (所在は `docs/pegasus-runbook.md` §7.2) へ間接化する。
+
+**理由:**
+
+- 既存 3 skill は共通 dispatcher への委譲であり、既存置き場への合流 (D2104 項 37) は同型が最も安い。
+  権威の指示文を 2 つ持つと D2051 のような改訂が片側に届かない (実測: 旧 Codex 版は D2051 決定 5 が
+  上書きした「相談は 1 往復で終える」をまだ含んでいた)。
+- D2051 の理由は「repo を実測できる側が事実を持ち、賢い側が判断を持つ」であり、Codex 起動時は両方が
+  起動主体に重なる。相談先の Claude は read-only・15 分・裏取り 3 件の制約下で動くため事実の権威に
+  なれない (plan 段の「事実は Claude」案を段 3 レンズ B が反証)。
+- 旧版だけの義務 5 件は D2051 が廃止しておらず、移設で黙って落とす根拠がない (段 3 レンズ B)。旧版の
+  「独立に評価する」は Codex → Claude の向きで、D2051 が問題にした Claude → Codex の押し切りとは別物。
+- 道具の追加まで裁定待ちにすると 2026-08-17 のユーザー指示 (足りなければ同 directory へ足して次回から
+  使う) を実行できなくなる (段 3 レンズ B)。
+
+**却下した選択肢:**
+
+- 旧 Codex 版 13,255 bytes の逐語複製 — 二重権威、予算不整合、D2051 前の規定の混入。
+- plan の「事実は Claude、選定判断は Codex」 — 相談先を事実の権威にすると 2 巡目の主体が二通りに読め、
+  Claude の実測を経ずに出力できる。
+- Claude 側 command へ旧版の義務 5 件を足す — 候補生成ロジックの拡張は本 wave の scope 外。
+- 契約文書の上限 6,000 の引き上げ — 重複・接続句の縮約で 5,997 bytes に収まり、D782 の上限引き上げは
+  発火しない。

@@ -1,0 +1,2 @@
+check_docs: 1 件の違反
+  - docs/skill-self-improvement.md: dispatch 契約にない孤児 H3 — ['next-tasks']

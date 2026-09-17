@@ -708,5 +708,295 @@ def test_g7h_all_failed_and_empty_junit_have_distinct_rejections(
     assert output.read_bytes() == before
 
 
+
+def _refresh_fixture_bytes(durations: dict[str, float]) -> bytes:
+    return (json.dumps({
+        "duration_seconds_by_nodeid": durations,
+        "nodeid_count": len(durations),
+        "schema_version": 1,
+        "unit": "seconds",
+    }, ensure_ascii=True, indent=2, allow_nan=False) + "\n").encode("ascii")
+
+
+def _refresh_frozen_modules(repo: Path) -> None:
+    for prefix in ledger._ADD_ONLY_FROZEN_SUITE_PREFIXES:
+        module = repo / prefix.removesuffix("::")
+        module.parent.mkdir(parents=True, exist_ok=True)
+        module.write_text("# refresh fixture\n", encoding="utf-8")
+
+
+def _refresh_case(nodeid: str, time: str, **outcome: bool) -> dict[str, object]:
+    module, name = nodeid.split("::", 1)
+    return _case(module.removesuffix(".py").replace("/", "."), name, time, **outcome)
+
+
+@pytest.mark.parametrize("duration", ["9.9", "0.5"])
+def test_refresh_replaces_nonfrozen_entries_and_removes_old_names(
+    join_repo: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str], duration: str,
+) -> None:
+    output, junit = tmp_path / "ledger.json", tmp_path / "refresh.xml"
+    output.write_bytes(_refresh_fixture_bytes({
+        "pkg/tests/test_mod.py::test_existing": 0.5,
+        "pkg/tests/test_mod.py::test_old": 0.7,
+    }))
+    _write_junit(junit, [
+        _case("pkg.tests.test_mod", "test_existing", duration),
+        _case("pkg.tests.test_mod", "test_new", "0.25"),
+    ])
+    assert _run(join_repo, output, junit, extra=["--refresh"]) == 0
+    payload = json.loads(output.read_bytes())
+    assert payload["duration_seconds_by_nodeid"] == {
+        "pkg/tests/test_mod.py::test_existing": float(duration),
+        "pkg/tests/test_mod.py::test_new": 0.25,
+    }
+    assert "pkg/tests/test_mod.py::test_old" not in payload["duration_seconds_by_nodeid"]
+    assert payload["nodeid_count"] == 2
+    assert capsys.readouterr().out == (
+        "excluded_failure_or_error=0\nmode=refresh\npreserved_frozen=0\n"
+        "replaced=1\nadded=1\nremoved=1\nexcluded_frozen_suite=0\n"
+    )
+
+
+@pytest.mark.parametrize("sibling_prefix", ledger._ADD_ONLY_FROZEN_SUITE_PREFIXES)
+def test_refresh_preserves_frozen_entry_bytes_and_values(
+    join_repo: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+    sibling_prefix: str,
+) -> None:
+    _refresh_frozen_modules(join_repo)
+    frozen = {prefix + "test_kept": 5.89 for prefix in ledger._ADD_ONLY_FROZEN_SUITE_PREFIXES}
+    frozen[ledger._ADD_ONLY_FROZEN_WRITER_BASE_KEY + "@real-repo"] = 0.19
+    sibling = sibling_prefix.replace(".py::", "_extra.py::") + "test_existing"
+    module = join_repo / sibling.split("::")[0]
+    module.write_text("# sibling outside exact module boundary\n", encoding="utf-8")
+    before = _refresh_fixture_bytes({
+        "pkg/tests/test_mod.py::test_before": 0.5,
+        **frozen,
+        sibling: 0.7,
+        "pkg/tests/test_mod.py::test_after": 0.2,
+    })
+    output, junit = tmp_path / "ledger.json", tmp_path / "refresh.xml"
+    output.write_bytes(before)
+    _write_junit(junit, [
+        *(_refresh_case(nodeid, "9.9") for nodeid in list(frozen)[::2]),
+        _refresh_case(sibling, "0.25"),
+        _case("pkg.tests.test_mod", "test_after", "0.3"),
+    ])
+    assert _run(join_repo, output, junit, extra=["--refresh"]) == 0
+    after = output.read_bytes()
+    durations = json.loads(after)["duration_seconds_by_nodeid"]
+    assert {k: v for k, v in durations.items()
+            if k.startswith(ledger._ADD_ONLY_FROZEN_SUITE_PREFIXES)} == frozen
+    for nodeid, value in frozen.items():
+        line = ("    " + json.dumps(nodeid) + ": " + json.dumps(value) + ",\n").encode("ascii")
+        assert line in before and line in after
+    assert durations[sibling] == 0.25
+    assert "preserved_frozen=9\n" in capsys.readouterr().out
+
+
+def test_refresh_excludes_all_frozen_junit_nodes(
+    join_repo: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    _refresh_frozen_modules(join_repo)
+    excluded = {prefix + "test_new" for prefix in ledger._ADD_ONLY_FROZEN_SUITE_PREFIXES}
+    excluded.update(ledger._ADD_ONLY_FROZEN_REMOVED_NODEIDS)
+    cases = [_refresh_case(
+        nodeid + ("@real-repo" if nodeid == ledger._ADD_ONLY_FROZEN_WRITER_BASE_KEY else ""),
+        "0.1",
+    ) for nodeid in sorted(excluded)]
+    output, junit = tmp_path / "ledger.json", tmp_path / "refresh.xml"
+    output.write_bytes(_refresh_fixture_bytes({}))
+    _write_junit(junit, [*cases, _case("pkg.tests.test_mod", "test_control", "0.2")])
+    assert _run(join_repo, output, junit, extra=["--refresh"]) == 0
+    durations = json.loads(output.read_bytes())["duration_seconds_by_nodeid"]
+    assert durations == {"pkg/tests/test_mod.py::test_control": 0.2}
+    assert excluded.isdisjoint(durations)
+    assert ledger._ADD_ONLY_FROZEN_WRITER_BASE_KEY not in durations
+    assert "excluded_frozen_suite=13\n" in capsys.readouterr().out
+
+
+def test_refresh_frozen_prefixes_cover_removed_nodes_and_writer_base_key() -> None:
+    assert all(nodeid.startswith(ledger._ADD_ONLY_FROZEN_SUITE_PREFIXES)
+               for nodeid in ledger._ADD_ONLY_FROZEN_REMOVED_NODEIDS)
+    assert ledger._ADD_ONLY_FROZEN_WRITER_BASE_KEY.startswith(ledger._ADD_ONLY_FROZEN_SUITE_PREFIXES)
+    assert ledger._ADD_ONLY_FROZEN_WRITER_BASE_KEY in ledger._ADD_ONLY_FROZEN_REMOVED_NODEIDS
+
+
+def test_refresh_renders_canonical_bytes(join_repo: Path, tmp_path: Path) -> None:
+    output, junit = tmp_path / "ledger.json", tmp_path / "refresh.xml"
+    output.write_bytes(_refresh_fixture_bytes({
+        "orchestrator/tests/test_sort_swo_oracle.py::test_z": 5.89,
+        "orchestrator/tests/test_critic.py::test_a": 2,
+    }))
+    _write_junit(junit, [
+        _case("pkg.tests.test_mod", "test_z[日本語]", "0.25"),
+        _case("pkg.tests.test_mod", "test_a", "0.1"),
+    ])
+    expected_payload = {
+        "schema_version": 1, "unit": "seconds", "nodeid_count": 4,
+        "duration_seconds_by_nodeid": {
+            "orchestrator/tests/test_critic.py::test_a": 2,
+            "orchestrator/tests/test_sort_swo_oracle.py::test_z": 5.89,
+            "pkg/tests/test_mod.py::test_a": 0.1,
+            "pkg/tests/test_mod.py::test_z[日本語]": 0.25,
+        },
+    }
+    expected = (json.dumps(expected_payload, ensure_ascii=True, indent=2,
+                           sort_keys=True, allow_nan=False) + "\n").encode("ascii")
+    assert _run(join_repo, output, junit, extra=["--refresh"]) == 0
+    assert output.read_bytes() == expected
+    assert output.read_bytes().endswith(b"\n")
+    assert _run(join_repo, output, junit, extra=["--refresh"]) == 0
+    assert output.read_bytes() == expected
+
+
+def test_refresh_canonicalizes_noncanonical_frozen_number_spelling(
+    join_repo: Path, tmp_path: Path,
+) -> None:
+    output, junit = tmp_path / "ledger.json", tmp_path / "refresh.xml"
+    nodeid = "orchestrator/tests/test_critic.py::test_kept"
+    output.write_bytes(_refresh_fixture_bytes({nodeid: 5.89}).replace(b"5.89", b"5.890"))
+    _write_junit(junit, [_case("pkg.tests.test_mod", "test_new", "0.1")])
+    assert _run(join_repo, output, junit, extra=["--refresh"]) == 0
+    after = output.read_bytes()
+    assert json.loads(after)["duration_seconds_by_nodeid"][nodeid] == 5.89
+    assert b": 5.89,\n" in after
+    assert b"5.890" not in after
+
+
+def test_refresh_and_add_only_are_mutually_exclusive(
+    join_repo: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    output, junit = tmp_path / "ledger.json", tmp_path / "refresh.xml"
+    before = _refresh_fixture_bytes({"pkg/tests/test_mod.py::test_existing": 0.5})
+    output.write_bytes(before)
+    _write_junit(junit, [_case("pkg.tests.test_mod", "test_new", "0.1")])
+    with pytest.raises(SystemExit) as error:
+        _run(join_repo, output, junit, extra=["--refresh", "--add-only"])
+    assert error.value.code == 2
+    stderr = capsys.readouterr().err
+    assert "--refresh" in stderr and "--add-only" in stderr
+    assert output.read_bytes() == before
+
+
+def test_refresh_requires_existing_ledger(
+    join_repo: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    output, junit = tmp_path / "ledger.json", tmp_path / "refresh.xml"
+    _write_junit(junit, [_case("pkg.tests.test_mod", "test_new", "0.1")])
+    assert _run(join_repo, output, junit, extra=["--refresh"]) == 2
+    stderr = capsys.readouterr().err
+    assert stderr.startswith(_REJECTION_PREFIX)
+    assert "cannot read existing ledger" in stderr
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("kind", [
+    "broken-json", "schema", "unit", "count", "bool", "negative", "nan", "infinite",
+])
+def test_refresh_rejects_invalid_existing_ledger_without_writing(
+    join_repo: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str], kind: str,
+) -> None:
+    output, junit = tmp_path / "ledger.json", tmp_path / "refresh.xml"
+    payload = json.loads(_refresh_fixture_bytes({"pkg/tests/test_mod.py::test_existing": 0.5}))
+    if kind in {"schema", "unit", "count"}:
+        field, value = {"schema": ("schema_version", 99), "unit": ("unit", "minutes"),
+                        "count": ("nodeid_count", 2)}[kind]
+        payload[field] = value
+    elif kind != "broken-json":
+        payload["duration_seconds_by_nodeid"]["pkg/tests/test_mod.py::test_existing"] = {
+            "bool": True, "negative": -0.1, "nan": float("nan"), "infinite": float("inf"),
+        }[kind]
+    before = b"{" if kind == "broken-json" else json.dumps(payload).encode("ascii")
+    output.write_bytes(before)
+    _write_junit(junit, [_case("pkg.tests.test_mod", "test_new", "0.1")])
+    assert _run(join_repo, output, junit, extra=["--refresh"]) == 2
+    assert capsys.readouterr().err.startswith(_REJECTION_PREFIX)
+    assert output.read_bytes() == before
+
+
+def test_refresh_check_and_coverage_use_refreshed_nodeids(
+    join_repo: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    _refresh_frozen_modules(join_repo)
+    output, junit = tmp_path / "ledger.json", tmp_path / "refresh.xml"
+    collection = tmp_path / "collection.txt"
+    frozen_new = "orchestrator/tests/test_critic.py::test_new"
+    before = _refresh_fixture_bytes({"pkg/tests/test_mod.py::test_old": 0.5})
+    output.write_bytes(before)
+    _write_junit(junit, [
+        _case("pkg.tests.test_mod", "test_new", "0.1"),
+        _refresh_case(frozen_new, "0.2"),
+    ])
+    collection.write_text("pkg/tests/test_mod.py::test_new\npkg/tests/test_mod.py::test_missing\n"
+                          + frozen_new + "\n", encoding="utf-8")
+    args = ["--refresh", "--coverage-against", str(collection)]
+    assert _run(join_repo, output, junit, extra=[*args, "--check"]) == 1
+    assert output.read_bytes() == before
+    assert capsys.readouterr().out.endswith("covered=1 total=3 ratio=0.333\n")
+    assert _run(join_repo, output, junit, extra=args) == 0
+    after = output.read_bytes()
+    assert _run(join_repo, output, junit, extra=[*args, "--check"]) == 0
+    assert output.read_bytes() == after
+    assert capsys.readouterr().out.count("covered=1 total=3 ratio=0.333\n") == 2
+
+
+def test_refresh_drops_failed_and_error_nonfrozen_entries(
+    join_repo: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    _refresh_frozen_modules(join_repo)
+    output, junit = tmp_path / "ledger.json", tmp_path / "refresh.xml"
+    frozen = "orchestrator/tests/test_critic.py::test_failure"
+    output.write_bytes(_refresh_fixture_bytes({
+        "pkg/tests/test_mod.py::test_failure": 0.5,
+        "pkg/tests/test_mod.py::test_error": 0.7,
+        frozen: 5.89,
+    }))
+    _write_junit(junit, [
+        _case("pkg.tests.test_mod", "test_failure", "9.9", failure=True),
+        _case("pkg.tests.test_mod", "test_error", "9.9", error=True),
+        _case("pkg.tests.test_mod", "test_pass", "0.25"),
+        _case("pkg.tests.test_mod", "test_skip", "0.00456", skipped=True),
+        _refresh_case(frozen, "9.9", failure=True),
+        _refresh_case("orchestrator/tests/test_critic.py::test_pass", "0.2"),
+    ], failures=2, errors=1)
+    assert _run(join_repo, output, junit, extra=["--refresh"]) == 0
+    assert json.loads(output.read_bytes())["duration_seconds_by_nodeid"] == {
+        frozen: 5.89,
+        "pkg/tests/test_mod.py::test_pass": 0.25,
+        "pkg/tests/test_mod.py::test_skip": 0.0046,
+    }
+    assert capsys.readouterr().out == (
+        "excluded_failure_or_error=3\nmode=refresh\npreserved_frozen=1\n"
+        "replaced=0\nadded=2\nremoved=2\nexcluded_frozen_suite=1\n"
+    )
+
+
+@pytest.mark.parametrize("kind", ["empty", "all-failed", "duplicate-shards"])
+def test_refresh_rejects_unusable_junit_without_writing(
+    join_repo: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str], kind: str,
+) -> None:
+    output, junit = tmp_path / "ledger.json", tmp_path / "refresh.xml"
+    before = _refresh_fixture_bytes({
+        "orchestrator/tests/test_critic.py::test_kept": 5.89,
+        "pkg/tests/test_mod.py::test_existing": 0.5,
+    })
+    output.write_bytes(before)
+    cases = [] if kind == "empty" else [
+        _case("pkg.tests.test_mod", "test_existing", "0.1", failure=kind == "all-failed"),
+    ]
+    _write_junit(junit, cases, failures=int(kind == "all-failed"))
+    inputs = [junit]
+    if kind == "duplicate-shards":
+        second = tmp_path / "second.xml"
+        _write_junit(second, cases)
+        inputs.append(second)
+    assert _run(join_repo, output, *inputs, extra=["--refresh"]) == 2
+    stderr = capsys.readouterr().err
+    assert stderr.startswith(_REJECTION_PREFIX)
+    assert {"empty": "contains no testcases", "all-failed": "no usable testcases",
+            "duplicate-shards": "duplicate nodeid"}[kind] in stderr
+    assert output.read_bytes() == before
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__]))

@@ -1,0 +1,190 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 2700,
+  "hang_timeout_seconds": 2700,
+  "mutations": [
+    {
+      "id": "m0-equivalent-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "\"\"\"Descriptive B-10 formal static-backoff tail figure and its evidence closure.\"\"\"\n",
+          "new": "\"\"\"Descriptive B-10 formal static-backoff tail figure and its evidence closure.\n\n(equivalent mutation marker: docstring only)\n\"\"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-pin-dat-sha-drift",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "    REPORT_DAT: \"758b3121cebf7562315a8a70d1f305ced678f90b393fc3cd2a4af87ca0c71c44\",\n",
+          "new": "    REPORT_DAT: \"758b3121cebf7562315a8a70d1f305ced678f90b393fc3cd2a4af87ca0c71c45\",\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-drop-performance-certified-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "    _require(report[\"performance_certified\"] is False, \"performance_certified must be false\")\n",
+          "new": "    _require(report[\"performance_certified\"] in (False, True), \"performance_certified must be false\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-drop-dat-abort-rate-crosscheck",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "        _close(float(rate), a / (a + c), rel=1e-12)\n    # Count + unique membership",
+          "new": "        float(rate)\n    # Count + unique membership"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-boundary-reference-into-tail-series",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "            for kind, xs in ((\"tail\", TAIL_GRID_US), (\"boundary-reference\", (BOUNDARY_REFERENCE_US,))):\n",
+          "new": "            for kind, xs in ((\"tail\", GRID_US), (\"boundary-reference\", (BOUNDARY_REFERENCE_US,))):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-caption-drops-certified-literal",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "aggregate verdict {data['report']['verdict']}; performance_certified: false).\",\n",
+          "new": "aggregate verdict {data['report']['verdict']}).\",\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-fixed-wording-overclaims",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "FIXED_WORDING = \"Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding.\"\n",
+          "new": "FIXED_WORDING = \"Under the predicates of this preregistration, the abort rate does not saturate up to 9999 us, the representable limit of the current encoding.\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-recompute-interval-state",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "        intervals = copy.deepcopy(w[\"intervals\"])\n",
+          "new": "        intervals = copy.deepcopy(w[\"intervals\"])\n        for _interval in intervals:\n            _interval[\"state\"] = \"declining\" if _interval[\"L\"] > 0.05 else \"indeterminate\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-normal-z-instead-of-t",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "T95_DF4 = 2.7764451051977987\n",
+          "new": "T95_DF4 = 1.96\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-layout-check-returns-early",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "def check_figure_layout(fig, axes):\n    from matplotlib.text import Text\n",
+          "new": "def check_figure_layout(fig, axes):\n    return None\n    from matplotlib.text import Text\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-drop-dat-row-count",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "    _require(len(lines) - 1 == 120, \"dat must contain 120 rows\")\n",
+          "new": "    _require(len(lines) - 1 <= 120, \"dat must contain 120 rows\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-drop-sha-comparison",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "        _require(digest == hashes[path], f\"SHA-256 mismatch: {path}\")\n",
+          "new": "        _require(len(digest) == 64, f\"SHA-256 mismatch: {path}\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12-drop-certified-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_b10_static_tail_formal.py",
+          "old": "        _require(payload[\"certified\"] is True, \"uncertified correctness record\")\n",
+          "new": "        _require(payload[\"certified\"] in (True, False), \"uncertified correctness record\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

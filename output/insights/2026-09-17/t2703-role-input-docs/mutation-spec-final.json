@@ -1,0 +1,86 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 150,
+ "timeout_seconds": 2700,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "id": "m0-equivalent-reviewed-comment",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/codex_roles/review_ledger.py",
+     "old": "    # Reviewed 2026-09-17: T-2703/T-2717/T-2705; digest の独立指標と適用版を訂正。\n",
+     "new": "    # Reviewed 2026-09-17: T-2703/T-2717/T-2705; digest の独立指標と適用版を訂正 (equivalent mutation marker)。\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-drop-t2703-baseline-follow-call",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+     "old": "\n_extend_t2703_role_source_baseline(_PRE_WAVE_ORIGINLESS_BASELINE)\n",
+     "new": "\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1a-drop-planner-tuple",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+     "old": "        (\n            \"planner\",\n            \"c47cf0ff81bb88d1ad65d5b0b92ac35feb40f49e4d2a8eef9007b48c286bf5f9\",\n            \"2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a\",\n        ),\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1b-drop-critic-tuple",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+     "old": "        (\n            \"critic\",\n            \"cd1c365204fd1a68260d0454b4599bfd8cea12c5d845fb24f4e21f154733df15\",\n            \"fea81c65909aa9026b8fda1bf9b4768b38185dfd9327cff86a8bcef844504c1b\",\n        ),\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1c-drop-coder-tuple",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_reflux_originless_compatibility.py",
+     "old": "        (\n            \"coder\",\n            \"2b46df2e4a5cbafcd3780b4cca54b3d81f3a73d9999cc6c859f1107aa398835a\",\n            \"2cc08b30573aef3337740d3e44848d94651d48528d4e1f095b420ceea4807388\",\n        ),\n",
+     "new": ""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_reflux_originless_compatibility.py::test_originless_default_preserves_every_nonvolatile_leaf_and_closed_key_set"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
