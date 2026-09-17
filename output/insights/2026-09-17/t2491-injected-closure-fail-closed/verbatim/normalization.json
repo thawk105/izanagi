@@ -1,0 +1,233 @@
+{
+ "schema": "izanagi-verbatim-trailing-whitespace-normalization/v1",
+ "restore": "各 file の removed_trailing_whitespace の (行番号, 文字列) を、その行の末尾へ戻すと original_sha256 の bytes に一致する (可視文字は不変)",
+ "files": [
+  {
+   "file": "focus1-125ab5fd1.log",
+   "original_sha256": "bc0cc87f88db66695e8cff545b36bd191e400fd748fb74e765638c4364832fde",
+   "original_bytes": 3903,
+   "normalized_sha256": "0fd9a67808b10a0e66c913031fc27b1c03d9bf3e975e17f941bbe7d4078022ea",
+   "normalized_bytes": 3901,
+   "removed_trailing_whitespace": [
+    [
+     14,
+     " "
+    ],
+    [
+     34,
+     " "
+    ]
+   ]
+  },
+  {
+   "file": "s2-plan.md",
+   "original_sha256": "d5cecb144c96ae965efafa58ed93c75b91cb3a7546445f31c25668801a78c39c",
+   "original_bytes": 18891,
+   "normalized_sha256": "f968eaaa547c0d0d045d4f2c53f4efd19835a95eeeb0add4292d01d94432eff4",
+   "normalized_bytes": 18883,
+   "removed_trailing_whitespace": [
+    [
+     317,
+     "  "
+    ],
+    [
+     320,
+     "  "
+    ],
+    [
+     323,
+     "  "
+    ],
+    [
+     326,
+     "  "
+    ]
+   ]
+  },
+  {
+   "file": "s3-lensA.md",
+   "original_sha256": "12e4e15bbb624e07bf23f410765fda22214fa626c909969242b9b6b50c5a4d3a",
+   "original_bytes": 17707,
+   "normalized_sha256": "7a3ea065da4f1b3b498cd82ef4acdde1315fb604af9e738b57b44f324407b9af",
+   "normalized_bytes": 17703,
+   "removed_trailing_whitespace": [
+    [
+     79,
+     "  "
+    ],
+    [
+     88,
+     "  "
+    ]
+   ]
+  },
+  {
+   "file": "s3-lensB.md",
+   "original_sha256": "06e02d26b5cab8a9ca9af045e17f0cf1e55adb0fcd5596ad18663e67ea525e73",
+   "original_bytes": 16331,
+   "normalized_sha256": "208ea25dfb6b4818153a5bebf7048fa40bd9bd09362c78c5e101adb8712e3fec",
+   "normalized_bytes": 16325,
+   "removed_trailing_whitespace": [
+    [
+     146,
+     "  "
+    ],
+    [
+     149,
+     "  "
+    ],
+    [
+     154,
+     "  "
+    ]
+   ]
+  },
+  {
+   "file": "s6-focus.md",
+   "original_sha256": "16b76bf8c4a8a48c601efe60b43c4b7036858f531b5f8e52fe64c7ce6e00e6ba",
+   "original_bytes": 14152,
+   "normalized_sha256": "17a870557b6226739d4586102f70aedc841a20e7578249dcade766b694b859c5",
+   "normalized_bytes": 14140,
+   "removed_trailing_whitespace": [
+    [
+     178,
+     "  "
+    ],
+    [
+     179,
+     "  "
+    ],
+    [
+     182,
+     "  "
+    ],
+    [
+     183,
+     "  "
+    ],
+    [
+     186,
+     "  "
+    ],
+    [
+     187,
+     "  "
+    ]
+   ]
+  },
+  {
+   "file": "s6-reviewA.md",
+   "original_sha256": "944e7793a5c1d827059782c81741ce274fe0dd2ff1df792353fb7f35d6a4a983",
+   "original_bytes": 15135,
+   "normalized_sha256": "eca1563ff7b83b8342d1decfd6331c4c3cefb2524869d8a0cb8d67bb9753abd7",
+   "normalized_bytes": 15105,
+   "removed_trailing_whitespace": [
+    [
+     47,
+     "  "
+    ],
+    [
+     49,
+     "  "
+    ],
+    [
+     51,
+     "  "
+    ],
+    [
+     53,
+     "  "
+    ],
+    [
+     113,
+     "  "
+    ],
+    [
+     114,
+     "  "
+    ],
+    [
+     115,
+     "  "
+    ],
+    [
+     118,
+     "  "
+    ],
+    [
+     119,
+     "  "
+    ],
+    [
+     122,
+     "  "
+    ],
+    [
+     123,
+     "  "
+    ],
+    [
+     126,
+     "  "
+    ],
+    [
+     127,
+     "  "
+    ],
+    [
+     130,
+     "  "
+    ],
+    [
+     131,
+     "  "
+    ]
+   ]
+  },
+  {
+   "file": "s6-reviewB.md",
+   "original_sha256": "2575d5bfa3e297240d6f4ba17920c7a3cfd676a031c616dcbe2e7875f4e4df43",
+   "original_bytes": 11623,
+   "normalized_sha256": "32d171b9c55097e729d4b2643d7b878014687f9511a3b74f99a011ae29fdf06a",
+   "normalized_bytes": 11605,
+   "removed_trailing_whitespace": [
+    [
+     40,
+     "  "
+    ],
+    [
+     103,
+     "  "
+    ],
+    [
+     107,
+     "  "
+    ],
+    [
+     110,
+     "  "
+    ],
+    [
+     111,
+     "  "
+    ],
+    [
+     114,
+     "  "
+    ],
+    [
+     115,
+     "  "
+    ],
+    [
+     118,
+     "  "
+    ],
+    [
+     119,
+     "  "
+    ]
+   ]
+  }
+ ]
+}

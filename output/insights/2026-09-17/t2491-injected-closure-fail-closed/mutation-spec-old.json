@@ -1,0 +1,26 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 2700,
+  "hang_timeout_seconds": 2700,
+  "mutations": [
+    {
+      "id": "m1-old-swallow-condition-rejection-f918",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s8b_oracle_n_pilot.py",
+          "old": "            except S1DriverError as exc:\n                raise PilotError(f\"build condition evidence rejected: {exc}\") from exc",
+          "new": "            except S1DriverError:\n                pass"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_build_binaries_uses_binding_flags_and_prepared_records_independently",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_injected_build_fn_without_condition_records_is_rejected",
+        "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_r33_successor_protocol_document_loads_from_repository"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
