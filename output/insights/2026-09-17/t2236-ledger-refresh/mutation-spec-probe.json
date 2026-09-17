@@ -1,0 +1,148 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 3900,
+  "hang_timeout_seconds": 3900,
+  "mutations": [
+    {
+      "id": "M0-docstring-equivalent",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/update_acceptance_duration_ledger.py",
+          "old": "    \"\"\"Preserve frozen values and replace all other entries from validated JUnit.\n",
+          "new": "    \"\"\"Keep frozen values and rebuild every other entry from validated JUnit.\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1-adopt-frozen-junit",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/update_acceptance_duration_ledger.py",
+          "old": "        for nodeid, duration in generated_durations.items()\n        if not nodeid.startswith(_ADD_ONLY_FROZEN_SUITE_PREFIXES)\n    }\n",
+          "new": "        for nodeid, duration in generated_durations.items()\n    }\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-overwrite-frozen-common",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/update_acceptance_duration_ledger.py",
+          "old": "    durations = {**frozen, **new_nonfrozen}\n",
+          "new": "    durations = {**frozen, **new_nonfrozen, **{k: v for k, v in generated_durations.items() if k in frozen}}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-keep-old-nonfrozen",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/update_acceptance_duration_ledger.py",
+          "old": "    durations = {**frozen, **new_nonfrozen}\n",
+          "new": "    durations = {**existing_durations, **new_nonfrozen}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-old-value-for-common",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/update_acceptance_duration_ledger.py",
+          "old": "    durations = {**frozen, **new_nonfrozen}\n",
+          "new": "    durations = {**frozen, **new_nonfrozen, **{k: existing_durations[k] for k in old_nonfrozen & new_nonfrozen.keys()}}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-requantize-frozen",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/update_acceptance_duration_ledger.py",
+          "old": "    frozen = {\n        nodeid: duration\n        for nodeid, duration in existing_durations.items()\n        if nodeid.startswith(_ADD_ONLY_FROZEN_SUITE_PREFIXES)\n    }\n",
+          "new": "    frozen = {\n        nodeid: _quantize_seconds(Decimal(str(duration)))\n        for nodeid, duration in existing_durations.items()\n        if nodeid.startswith(_ADD_ONLY_FROZEN_SUITE_PREFIXES)\n    }\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-unsorted-render",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/update_acceptance_duration_ledger.py",
+          "old": "        payload, ensure_ascii=True, indent=2, sort_keys=True, allow_nan=False,\n",
+          "new": "        payload, ensure_ascii=True, indent=2, sort_keys=False, allow_nan=False,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-no-mutual-exclusion",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/update_acceptance_duration_ledger.py",
+          "old": "    mode = parser.add_mutually_exclusive_group()\n",
+          "new": "    mode = parser\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-missing-ledger-as-empty",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/update_acceptance_duration_ledger.py",
+          "old": "            _, existing_durations = _existing_ledger(output)\n",
+          "new": "            try:\n                _, existing_durations = _existing_ledger(output)\n            except LedgerInputError:\n                existing_durations = {}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-coverage-uses-junit-set",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/update_acceptance_duration_ledger.py",
+          "old": "            rendered, ledger_nodeids, refresh_counts = _refresh_result(\n",
+          "new": "            rendered, _, refresh_counts = _refresh_result(\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

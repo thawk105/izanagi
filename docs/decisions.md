@@ -65310,3 +65310,74 @@ history scan + 終端 ref 一致) からだけ出る。上限が変えるのは�
 - 上限 = 全体予算 (60) — `min` で per-command 上限が消え、固まった git を全体予算まで待つ。
 - `log --full-history` を `--first-parent` 等で速くする — 探索方式の変更は受理集合に触れる。
 - 無制限 retry・timeout 管理基盤 — 依頼で明示的に除外。
+
+## D2107. 受入所要時間台帳の再生成は「凍結 8 suite 据え置き・それ以外を 1 走の JUnit から全再生成する」refresh mode で行い、効果は観測値としてだけ記録する (2026-09-17)
+
+**決定:** `tools/update_acceptance_duration_ledger.py` に `--refresh` を足す (`--add-only` と排他)。
+凍結 8 prefix (`_ADD_ONLY_FROZEN_SUITE_PREFIXES`) に一致する既存 entry は値ごと保持し (再量子化しない、JUnit に無くても残す)、
+それ以外の entry は入力 JUnit から全再生成する (値の置換・旧名の削除・新名の追加)。凍結 prefix に一致する JUnit testcase は
+採用しない。failed / error の testcase は既存どおり除外し、その非凍結 entry は残さない (consumer の未登録 1.0 秒 fallback に任せる)。
+描画は全再生成と同じ canonical 形。閾値 0.90・凍結 prefix・除外集合・consumer・既存 mode の挙動と stdout は変えない。
+
+入力は受入 1 走 (3 shard) の JUnit だけとし、複数走を結合しない (生成器が入力間の重複 nodeid を拒否する)。選ぶ走は「最新で、
+collection が再生成先の main と一致する緑走」とし、性能代表性ではなく入力の整合性で選ぶ。
+
+land で main 側の台帳が進んでいたら、main の現物を base に同じ JUnit で `--refresh` を再走する (決定的)。main が add-only で
+足した非凍結 node のうち入力 JUnit に無いものは落ちる (次の add-only wave が再登録する) ので、落ちた node は名前と件数を insight に
+記録する。refresh を F902 の add-only 和集合 merge へ流用しない (add-only = 既存値保持、refresh = 非凍結の置換で、別契約)。
+
+再生成の効果 (shard 別 wall) は受入 1 走の観測値としてだけ記録し、改善・退行・300 秒達成を主張しない (D357)。
+
+**理由:**
+
+- 台帳の予測負荷は 3 shard で均等 (5701 / 5700 / 5700 秒) なのに実測の直列和は 8852 / 4433 / 4519 秒で、乖離の主因は凍結 8 suite
+  の外にある既存 node の値の陳腐化 (`test_s8b_oracle_driver.py` +2126 秒、`test_s8b_floor_campaign.py` +1289 秒、どちらも
+  shard-0)。既知 node の差 2932 秒に対し未登録 node の差は 219 秒で、`--add-only` (既存値を byte 保持) では主因を直せない。
+- 全再生成は D1152 が却下している (凍結 pin を壊す)。凍結 8 suite を据え置けば T-1574 の 8 suite identity・12 値・removed 5 件の
+  不在が 1 byte も動かず、規律 2 の pin を緩めない。凍結 426 entry は json 往復で text 差 0 (親の実測)。
+- 4 走の結合は生成器が拒否する。同じ node の time は走ごとに 2 倍程度動く (`test_t316_sandbox_probe` の 8〜9 秒 対 18〜19 秒) ので、
+  1 走入力は割付の頑健性を保証しない。これは限界として記録する。
+- D357 は受入 wall の主張に同一 tip 3 走の中央値を要求する。before の 4 走は投入元が異なり反復比較にならない。
+
+**却下した選択肢:**
+
+- 全再生成 — D1152 が却下済み。T-1574 の node 集合 hash (121 / 42 / 69 に対し実体は 138 / 46 / 81) と 12 値が全部食い違う。
+- `--add-only` だけ — 既存 node の陳腐化した値を直せず、主因に届かない。
+- 台帳の手編集・凍結 prefix / 閾値 / 除外集合の変更 — F902 が禁じ、規律 2 に触れる。
+- T-1903 (所要値の述語化) を同時に行う — D205 で active から外れており、本 wave の scope 外。
+- failed / error の非凍結 entry を旧値のまま残す — 「今回の JUnit か凍結旧値」という出所契約に反し、旧値を実測更新済みと誤読させる。
+- 新しい生成器 script の新設 — 既存生成器の mode 追加で足り、依頼が新設を禁じる。
+
+## D2108. `-dD` の predefined / command-line 出力は同じ argv の空入力 prefix として剥がす — 指令を持つ variant だけが別 identity になり、既存 identity は動かさない (2026-09-17)
+
+**背景:** D2104 項 2 は F1016 (file 間へ漏れる `#define` / `#undef` を identity が見ない) の修正に (a) `_cpp_normalize` への
+`-dD` を裁定した。裁定文と T-2630 insight §8 は「`-dD` は predefined を含まない」を前提にし「golden digest が動く」と
+書いていたが、段 1 の前提実測 (login pegasus02、g++ 11.4.0 / g++-12 12.3.0) で **predefined (419〜437 行) と command-line
+`-D` も `#define` 行として出力される**ことが分かった。template patch は CMake 供給に `BACKOFF_FIXED` / `BACKOFF_NOINLINE` を
+足すので、素の `-dD` では `compute()` (working-tree 供給) の出力にだけそれらの `#define` が現れ `baseline()` (HEAD 供給) には
+現れず、**inert template ≠ stock** になる (完了条件 1 の破壊。受入 suite は template を当てないので検出されない)。
+
+**決定 (段 4、[T-2731]):**
+1. `_cpp_normalize` は `-dD` を足したうえで、**同じ argv の空入力出力を環境 prefix として `removeprefix`** する。prefix は
+   `(cxx, sorted defines)` ごとに module cache に取り、取得は同関数の再帰呼出し (`_environment_only=True`) で行って
+   `subprocess.run` の call site を 1 箇所に保つ。実入力の出力が prefix で始まらなければ RuntimeError (fails-closed)。
+2. EVOLVE_BLOCK_SOURCES 3 file (pin 511c953) と template に指令が無いため、**既存の stock / template variant の pre-image は
+   byte 一致**する (実 submodule の silo 8 genome で旧版 / 新版 8/8 一致を実測)。identity が変わるのは指令を持つ variant だけで、
+   記録済み測定の無効化・再認証は行わない (規律 7)。裁定文の「golden が動く」はこの実装形では起きない。
+3. 再検証の発火条件は結果を見る前に登録した (M3b / M6 が 4 node 赤で別 identity、M0 は SURVIVED、baseline の variant token は
+   T-2630 と同値)。実測は `output/insights/2026-09-17/t2731-cpp-normalize-dd/README.md` §6–§7。
+
+**却下した実装形:** `-P` を外して linemarker で `<built-in>` / `<command-line>` を切る (正規化の意味が変わり、comment /
+空行不感を別処理で再現する必要がある)。環境マクロ名で行 filter (source 自身の `#undef linux` や command-line と同名同値の
+再 `#define` まで落とす)。
+
+**受理集合の変化 (狭まる向き):** `_trace_pair_diff` (diff-of-diffs) の比較式 `D_variant == D_stock` は不変だが、`#if TRACE` 内の
+未使用 `#define` / `#undef` も差分素材になるため、HEAD に無いそれを template が足すと拒否される。除外処理は足さない (規律 2)。
+
+**残る限界 (scope 外、裁定パッケージ、実装しない):** (i) include 行を除去するため「指令と include の相対位置」は識別せず、
+`#define X … / #include … / #undef X` と `#include … / #define X … / #undef X` は同 identity (前者だけが header を書き換える)。
+(ii) `#pragma push_macro` / `pop_macro` の復元値は `-dD` に現れず、保存時点が違う 2 形が同 identity。いずれも修正前から同じで
+pin / template にこの形は無い。解消は identity の設計変更 (相対位置の保存、macro stack の可視化、TU 単位 digest) を要するため
+本裁定の scope 外とし、[T-2752] として起票する。選択肢は (α) 現状維持 + 限界明記、(β) include 行を
+除去せず `-nostdinc` + `-MG` 等で include を dead 化して相対位置を保つ、(γ) TU 単位 digest (D2104 項 2 (c) の環境依存が再燃)。
+親の推奨は (α) — pin / template に該当形は無く、coder 面は `HOLE_ESCAPE` が生指令を拒否するため実害の観測が無い。

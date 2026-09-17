@@ -1,0 +1,46 @@
+"""[T-2731] B6-1: 旧 (bd21bc501~1) と新 (現 worktree) の source_digest で、実 submodule (stock checkout) の
+canonical pre-image bytes が silo 8 genome で byte 一致するかを login (g++-12) で測る。旧版は git show で取り出し、
+package 内に一時 module として置かず、importlib で `orchestrator.campaign.source_digest_old` として読み込む。"""
+import hashlib
+import importlib.util
+import os
+import subprocess
+import sys
+
+WT = "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2731-cpp-normalize-dd"
+OLD_REF = sys.argv[1] if len(sys.argv) > 1 else "bd21bc501~1"
+CXX = sys.argv[2] if len(sys.argv) > 2 else "g++-12"
+sys.path.insert(0, WT)
+os.chdir(WT)
+
+from orchestrator.campaign import source_digest as new_sd  # noqa: E402
+from orchestrator.campaign import genome as genome_mod  # noqa: E402
+
+old_src = subprocess.run(
+    ["git", "-C", WT, "show", f"{OLD_REF}:orchestrator/campaign/source_digest.py"],
+    capture_output=True, text=True, check=True,
+).stdout
+tmp = "/home/SFC/tanab/.claude/jobs/9520e70b/tmp/source_digest_old.py"
+with open(tmp, "w", encoding="utf-8") as f:
+    f.write(old_src)
+spec = importlib.util.spec_from_file_location(
+    "orchestrator.campaign.source_digest_old", tmp,
+    submodule_search_locations=None,
+)
+old_sd = importlib.util.module_from_spec(spec)
+old_sd.__package__ = "orchestrator.campaign"
+sys.modules["orchestrator.campaign.source_digest_old"] = old_sd
+spec.loader.exec_module(old_sd)
+
+sub = os.path.join(WT, "external", "ccbench")
+print("old has -dD:", '"-dD"' in old_src, " new has -dD:", '"-dD"' in open(os.path.join(WT, "orchestrator/campaign/source_digest.py")).read())
+print("cxx:", CXX, subprocess.run([CXX, "--version"], capture_output=True, text=True).stdout.splitlines()[0])
+all_same = True
+for g in genome_mod.SILO_SPACE.enumerate():
+    o = old_sd.canonical_source_preimage_bytes(g, sub, CXX)
+    n = new_sd.canonical_source_preimage_bytes(g, sub, CXX)
+    ho, hn = hashlib.sha256(o).hexdigest(), hashlib.sha256(n).hexdigest()
+    same = (o == n)
+    all_same &= same
+    print(f"{g.canonical():70s} old={ho[:16]} new={hn[:16]} len={len(o)}/{len(n)} same={same}")
+print("ALL_SAME:", all_same)
