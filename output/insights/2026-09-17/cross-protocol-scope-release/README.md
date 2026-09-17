@@ -104,6 +104,15 @@
 | N1 「性能比較 0 件」の母集合 | paper-story README・worklog fragment・本 insight §2 | closed — 「非 Silo (mocc / tictoc / cicada) の性能比較は 0 件」へ |
 | N2 3 証拠の所在の指示語 | 本 insight §4 | closed — `cc/mocc/transaction.cc` を名指し |
 
+## 7b. 受入全走 (2026-09-17)
+
+| 走 | worktree | 結果 | 判定 |
+|---|---|---|---|
+| 1 | `…/dev-wave-cross-protocol-scope-release` (branch 同名) | rc=70: 16 error + 1 failed / 24490 passed / 67 skipped (claimed main ec25bd2d0) | 16 error = `git archive` / `git ls-files` の `TimeoutExpired` 15 + real-repo lock deadline 1 (受入 4 本並走下の負荷、非帰属)。1 failed = `test_pegasus_dispatch_compute::test_compute_marker_is_cross_namespace_evidence_without_release_handshake` — script に埋め込まれた worktree path の `scope-release` に `"release" not in script.lower()` が当たる決定的な自分起因赤 (failures 台帳の新規 F、fold で採番)。junit 本文 = `verbatim/` には置かず job dir (`wave/junit_reds.py` 出力) で判定 |
+| 2 | `…/dev-wave-cross-protocol-scope-lift` (branch `worktree-dev-wave-cross-protocol-scope-lift`、同一 commit から新設 + main 取り込み bebb65eba) | `child-green`: 24544 passed / 67 skipped / 0 failed (tested main 594f5ac89 / tested tip 43761ab59) | 緑。門番 = leader 3 本・load1 21.31 < load5 31.56 で GO |
+
+worktree を切り直した理由: branch 改名だけでは path が script に残る。submodule を含む worktree は `git worktree move` / `remove` が `fatal: working trees containing submodules cannot be moved or removed` で拒否される。旧 worktree / branch は捨て (cleanup 対象)。
+
 ## 8. verbatim 一覧
 
 `verbatim/parent-brief.md`、`verbatim/s2-plan.md`、`verbatim/s3-lensA.md`、`verbatim/s3-lensB.md`、`verbatim/s4-adjudication.md`、`verbatim/s6-review.md`、`verbatim/prompt-plan.md`、`verbatim/prompt-consult-A.md`、`verbatim/prompt-consult-B.md`、`verbatim/prompt-review.md`、`verbatim/user-utterances.md`。sha256 は `verbatim/MANIFEST.json`。

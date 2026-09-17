@@ -37,9 +37,23 @@ title: Silo 固定スコープを解除して mocc 第 2 例の準備に着手�
 - docs 変更: phase3.md (2026-09-17 改訂節、現行チェックポイント・must 表 S1 行・後続段 7 の発火条件の二分)、
   paper-story README (stale 注記 1 件)、decisions fragment 1 件、insight (SHA 束縛表・観測した候補 OID
   `e9e477ca1b55348ab4530de0b1cf663ce4555290`・T 5 本の完了条件・逐語 9 file)。roadmap 本体は非改訂
-- 段 6 = docs 差分への敵対レビュー 1 本。受入全走 = (受入後に記入)。`check_docs` rc=0。変異 matrix は
-  実装面差分ゼロにつき免除 (DW-S04)
-- エージェント工数: codex 4 本 (plan 1、consult 2、review 1)。計測ゼロ、build ゼロ
+- 段 6 = docs 差分への敵対レビュー 1 本 (must-fix 3 / nit 2、全件文言、親が是正案を逐語適用、対応表は
+  insight §7)。`check_docs` rc=0、`spool_fold --dry-run` rc=0。変異 matrix は実装面差分ゼロにつき免除 (DW-S04)
+- **受入全走 1 走目 (worktree `…-scope-release`) は rc=70**: 16 error + 1 failed / 24490 passed / 67 skipped。
+  16 error は `git archive` / `git ls-files` の `TimeoutExpired` 15 件と real-repo lock の deadline 超過 1 件 =
+  受入 4 本並走下の負荷起因で非帰属 (junit 本文で判定)。**1 failed は自分起因**:
+  `test_pegasus_dispatch_compute::test_compute_marker_is_cross_namespace_evidence_without_release_handshake` が
+  script 本文に `"release" not in` を assert し、埋め込まれた worktree path の `scope-release` に当たった
+  (決定的。{{F:substring-absence-check-hits-embedded-repo-path}})。branch 改名では足りず (path が埋め込まれる)、
+  submodule 入り worktree は `git worktree move` / `remove` 不可のため、同一 commit から
+  `…/dev-wave-cross-protocol-scope-lift` (branch `worktree-dev-wave-cross-protocol-scope-lift`) を新設して
+  main を `--no-ff` で取り込み (staged 29 path 全部 main blob 一致、Codex author 不要)、開始 gate resume rc=0。
+  旧 worktree / branch は捨て (cleanup 対象)。fragment・job dir の wave slug は `…-scope-release` のまま
+  (supervised namespace 以外は branch 名に束縛されない、`tools/dev_wave_land.py` 実測)
+- **受入全走 2 走目 (worktree `…-scope-lift`) = 緑**: `child-green`、24544 passed / 67 skipped / 0 failed
+  (tested main 594f5ac89 / tested tip 43761ab59、門番は leader 3 本・load1 21 < load5 32 で GO)。
+  submodule 初期化は旧 worktree で 1 走目 error → 2 走目 OK (F810 再発)、新 worktree では 1 走目 OK
+- エージェント工数: codex 4 本 (plan 1、consult 2、review 1)。計測ゼロ、build ゼロ。受入 2 走 (1 赤 1 緑)
 
 ## 次の一手差分
 
@@ -66,6 +80,13 @@ title: Silo 固定スコープを解除して mocc 第 2 例の準備に着手�
 - {{T:tictoc-floor-baseline}} **P2・新規** (同 項 4): `orchestrator/campaign/between_run_floor.py` の `BASELINES`
   に根拠つき TicToc baseline を追加し、引数解析・protocol 別出力・hook 不在時拒否を確認する。完了条件に実測を
   含めない (単独では測定は開通しない — hook と pin 再承認が別途要る)
+- {{T:pegasus-compute-marker-test-path-independent}} **P2・新規** ({{F:substring-absence-check-hits-embedded-repo-path}}):
+  `orchestrator/tests/test_pegasus_dispatch_compute.py` の
+  `test_compute_marker_is_cross_namespace_evidence_without_release_handshake` が script 本文に掛ける
+  `"release" not in script.lower()` を、repo path を除いた本文に対する handshake 構文 (marker を操作する
+  `release` 行) の不在検査へ変える。Codex `role=author`。変異事前登録 = (a) repo path に `release` を含む
+  fixture で緑、(b) handshake 行を注入した script で赤。それまでの暫定防壁は memory
+  (wave の slug / branch / worktree 名に `release` を含めない)
 
 ### 見送り追記
 
