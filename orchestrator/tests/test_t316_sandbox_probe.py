@@ -1539,6 +1539,8 @@ def _prepare_execution_binding_repo(
         "patches/silo-backoff-fixed.patch": b"fixture patch input\n",
         "orchestrator/campaign/patchharness.py": b"# fixture patch harness\n",
         "orchestrator/campaign/condition_meaning_gate.py": b"# fixture condition gate\n",
+        "orchestrator/campaign/buildcache.py": b"# fixture buildcache\n",
+        "tools/pegasus/fetch_third_party.py": b"# fixture hydrate CLI\n",
         "tools/pegasus/probes/t316_sandbox_backend_probe.py": b"print('fixture probe')\n",
         "tools/pegasus/probes/t316_sandbox_backend_probe.pbs": b"#!/bin/bash\nexit 0\n",
         "tools/pegasus/policies/t316_sandbox_backend_v1.json": b'{"fixture":"sandbox-policy"}\n',
@@ -1639,6 +1641,8 @@ def _prepare_execution_binding_repo(
         pytest.param("tools/pegasus/policies/t316_sandbox_backend_v1.json", id="sandbox-policy"),
         pytest.param("tools/pegasus/policy.json", id="shared-policy"),
         pytest.param("unrelated.txt", id="unrelated"),
+        pytest.param("tools/pegasus/fetch_third_party.py", id="hydrate"),
+        pytest.param("orchestrator/campaign/buildcache.py", id="buildcache"),
         pytest.param(None, id="clean"),
     ],
 )
@@ -1703,6 +1707,8 @@ def test_execution_binding_binds_runtime_spool_to_pbs(
         _prepare_execution_binding_repo(tmp_path, monkeypatch)
     )
     binding = probe._execution_binding(repo_root)
+    for relative in ("tools/pegasus/fetch_third_party.py", "orchestrator/campaign/buildcache.py"):
+        assert binding["runtime_sha256"][relative] == probe._sha256_file(repo_root / relative)
     assert isinstance(binding, dict)
     pbs_sha256 = probe._sha256_file(repo_pbs)
     assert binding["runtime_sha256"]["runtime_pbs_spool"] == pbs_sha256
@@ -1727,6 +1733,40 @@ def test_execution_binding_rejects_runtime_spool_matching_python_instead_of_pbs(
         match="^runtime PBS bytes differ from worktree PBS bytes$",
     ):
         probe._execution_binding(repo_root)
+
+
+def test_execution_binding_bound_paths_match_shell_and_literal():
+    expected = {
+        "patches/silo-backoff-fixed.patch",
+        "orchestrator/campaign/patchharness.py",
+        "orchestrator/campaign/condition_meaning_gate.py",
+        "orchestrator/campaign/buildcache.py",
+        "tools/pegasus/fetch_third_party.py",
+        "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+        "tools/pegasus/probes/t316_sandbox_backend_probe.pbs",
+        "tools/pegasus/policies/t316_sandbox_backend_v1.json",
+        "tools/pegasus/policy.json",
+    }
+    shell = (_REPO / "tools/pegasus/probes/t316_sandbox_backend_probe.pbs").read_text()
+    bound = shell.split("BOUND_PATHS=(\n", 1)[1].split("\n)", 1)[0].split()
+    assert set(bound) == expected
+    assert len(bound) == len(expected)
+    assert set(probe._BOUND_RELATIVE_PATHS) == expected
+    assert len(probe._BOUND_RELATIVE_PATHS) == len(expected)
+
+
+@pytest.mark.parametrize("state", ["unstaged", "staged"])
+@pytest.mark.parametrize("relative", [
+    "tools/pegasus/fetch_third_party.py", "orchestrator/campaign/buildcache.py",
+])
+def test_execution_binding_python_rejects_dirty_offline_inputs(tmp_path, monkeypatch, relative, state):
+    repo, *_ = _prepare_execution_binding_repo(tmp_path, monkeypatch)
+    with (repo / relative).open("ab") as handle:
+        handle.write(b"# dirty offline input\n")
+    if state == "staged":
+        _s6_fixture_git(repo, "add", "--", relative)
+    with pytest.raises(ValueError, match="^bound probe paths are dirty$"):
+        probe._execution_binding(repo)
 
 
 @pytest.fixture
@@ -1788,26 +1828,122 @@ def _s6_live_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: s
         "function(ccbench_universal_definitions out_var)\n"
         '  set(${out_var} "" PARENT_SCOPE)\nendfunction()\n', encoding="utf-8",
     )
+    dependencies = tmp_path / "dependencies"
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    pins = {}
+    urls = {name: f"https://github.com/t316-fixture/{name}.git"
+            for name in ("masstree", "mimalloc", "googletest", "gflags", "glog")}
+    for name in ("gflags", "glog"):
+        dependency = dependencies / name
+        dependency.mkdir(parents=True)
+        (dependency / f"{name}Config.cmake").write_text(
+            f"set(T316_{name.upper()}_FIXTURE TRUE)\n", encoding="utf-8",
+        )
+        (dependency / "CMakeLists.txt").write_text(
+            'cmake_minimum_required(VERSION 3.16)\n'
+            'project(t316_dependency_fixture LANGUAGES NONE)\n'
+            f'install(FILES {name}Config.cmake DESTINATION lib/cmake/{name})\n',
+            encoding="utf-8",
+        )
+        _s6_fixture_git(dependency, "init")
+        _s6_fixture_git(dependency, "add", ".")
+        _s6_fixture_git(dependency, "commit", "-m", "dependency")
+        pins[name] = _s6_fixture_git(dependency, "rev-parse", "HEAD")
+        _s6_fixture_git(cache, "clone", "--no-hardlinks", str(dependency), str(cache / name))
+        _s6_fixture_git(cache / name, "remote", "set-url", "origin", urls[name])
+    third_items = []
+    for name in ("masstree", "mimalloc", "googletest"):
+        third = cache / name
+        third.mkdir()
+        if name == "masstree":
+            (third / "config-template.h").write_text("#pragma once\n", encoding="utf-8")
+            (third / ".gitignore").write_text("/config.h\n/libfixture.a\n", encoding="utf-8")
+        else:
+            (third / "CMakeLists.txt").write_text(
+                f"cmake_minimum_required(VERSION 3.16)\nproject({name} LANGUAGES NONE)\n",
+                encoding="utf-8",
+            )
+        _s6_fixture_git(third, "init")
+        _s6_fixture_git(third, "add", ".")
+        _s6_fixture_git(third, "commit", "-m", name)
+        third_pin = _s6_fixture_git(third, "rev-parse", "HEAD")
+        _s6_fixture_git(third, "remote", "add", "origin", urls[name])
+        third_items.append({"name": name, "source_name": name, "url": urls[name],
+                            "pin": third_pin, "fetchcontent_ref": third_pin})
+    # Old cache artifacts must not leak through the real hydrate CLI.
+    (cache / "masstree/config.h").write_text("#error stale cache header\n")
+    (cache / "masstree/libfixture.a").write_text("stale archive\n")
+    if failure == "hydrate":
+        _s6_fixture_git(cache / "glog", "remote", "set-url", "origin",
+                        "https://github.com/t316-fixture/wrong-origin.git")
+    shared = repo / "tools/pegasus/policy.json"
+    shared.parent.mkdir(parents=True)
+    shared.write_text(json.dumps({
+        **{f"{name}_source_url": urls[name] for name in pins},
+        **{f"{name}_expected_head": head for name, head in pins.items()},
+        "silo_ladder_rung1": {"dependency_pins": pins, "third_party_sources": third_items},
+    }), encoding="utf-8")
+    (shared.parent / "fetch_third_party.py").symlink_to(
+        _REPO / "tools/pegasus/fetch_third_party.py",
+    )
+    third_cmake = "include(FetchContent)\n"
+    for item in third_items:
+        name = item["name"]
+        third_cmake += (
+            f'set(CCBENCH_{name.upper()}_REPO "{item["url"]}")\n'
+            f'set(CCBENCH_{name.upper()}_TAG "{item["pin"]}")\n'
+            f'FetchContent_Declare({name} GIT_REPOSITORY "${{CCBENCH_{name.upper()}_REPO}}" '
+            f'GIT_TAG "${{CCBENCH_{name.upper()}_TAG}}")\n'
+        )
+    third_cmake += '''FetchContent_Populate(masstree)
+FetchContent_MakeAvailable(mimalloc googletest)
+add_custom_command(
+  OUTPUT "${masstree_SOURCE_DIR}/config.h" "${masstree_SOURCE_DIR}/libfixture.a"
+  COMMAND "${CMAKE_COMMAND}" -E copy
+    "${masstree_SOURCE_DIR}/config-template.h" "${masstree_SOURCE_DIR}/config.h"
+  COMMAND "${CMAKE_COMMAND}" -E touch "${masstree_SOURCE_DIR}/libfixture.a"
+  VERBATIM)
+add_custom_target(masstree_build DEPENDS
+  "${masstree_SOURCE_DIR}/config.h" "${masstree_SOURCE_DIR}/libfixture.a")
+'''
+    if failure == "prepare-target":
+        third_cmake += '''add_custom_command(TARGET masstree_build POST_BUILD
+  COMMAND "${CMAKE_COMMAND}" -E false)
+'''
+    (source / "cmake/ThirdParty.cmake").write_text(third_cmake, encoding="utf-8")
+    transaction = source / "cc/silo/transaction.cc"
+    transaction.write_text("#include <config.h>\n" + transaction.read_text(), encoding="utf-8")
     # Frozen names independent of the probe list. Reintroduced unused variables
     # produce real CMake stderr in the actual condition gate.
     cmake_text = '''cmake_minimum_required(VERSION 3.16)
 project(t316_wiring_fixture LANGUAGES C CXX)
 include(cmake/Options.cmake)
+include(cmake/ThirdParty.cmake)
+find_package(gflags REQUIRED)
+find_package(glog REQUIRED)
+if(NOT T316_GFLAGS_FIXTURE OR NOT T316_GLOG_FIXTURE)
+  message(FATAL_ERROR "T2654 fixture packages were not supplied")
+endif()
 ccbench_universal_definitions(defines)
 foreach(variable ENABLE_SANITIZER CCBENCH_TRACE CCBENCH_BACK_OFF
         CCBENCH_NO_WAIT_LOCKING_IN_VALIDATION CCBENCH_NO_WAIT_OF_TICTOC
-        CCBENCH_WAL CCBENCH_CCACHE CCBENCH_ADD_ANALYSIS CMAKE_PREFIX_PATH
-        FETCHCONTENT_SOURCE_DIR_MASSTREE FETCHCONTENT_SOURCE_DIR_MIMALLOC
-        FETCHCONTENT_SOURCE_DIR_GOOGLETEST)
+        CCBENCH_WAL CCBENCH_CCACHE CCBENCH_ADD_ANALYSIS CMAKE_PREFIX_PATH)
   message(STATUS "${variable}=${${variable}}")
 endforeach()
 add_executable(ycsb_silo.exe cc/silo/transaction.cc)
 target_compile_definitions(ycsb_silo.exe PRIVATE ${defines})
+target_include_directories(ycsb_silo.exe PRIVATE "${masstree_SOURCE_DIR}")
+add_dependencies(ycsb_silo.exe masstree_build)
 set_target_properties(ycsb_silo.exe PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/cc/silo")
 '''
     if failure == "gate":
-        cmake_text += 'message(FATAL_ERROR "T2607_GATE_FAILURE")\n'
+        cmake_text += 'if(NOT CMAKE_BINARY_DIR MATCHES "/izanagi-masstree-prebuild$")\n'
+        cmake_text += '  message(FATAL_ERROR "T2607_GATE_FAILURE")\nendif()\n'
+    elif failure == "prepare-configure":
+        cmake_text += 'if(CMAKE_BINARY_DIR MATCHES "/izanagi-masstree-prebuild$")\n'
+        cmake_text += '  message(FATAL_ERROR "T2654_PREPARE_FAILURE")\nendif()\n'
     elif failure == "outside":
         cmake_text += '''if(CMAKE_BINARY_DIR MATCHES "s6-outside/ccbench-build")
   add_custom_command(TARGET ycsb_silo.exe PRE_LINK
@@ -1828,27 +1964,6 @@ endif()
     _s6_fixture_git(source, "commit", "--allow-empty", "-m", "wrong base")
     wrong_pin = _s6_fixture_git(source, "rev-parse", "HEAD")
     _s6_fixture_git(source, "checkout", "--detach", pin)
-    dependencies = tmp_path / "dependencies"
-    pins = {}
-    for name in ("gflags", "glog"):
-        dependency = dependencies / name
-        dependency.mkdir(parents=True)
-        (dependency / "CMakeLists.txt").write_text(
-            'cmake_minimum_required(VERSION 3.16)\n'
-            'project(t316_dependency_fixture LANGUAGES NONE)\n'
-            'install(FILES CMakeLists.txt DESTINATION share)\n', encoding="utf-8",
-        )
-        _s6_fixture_git(dependency, "init")
-        _s6_fixture_git(dependency, "add", ".")
-        _s6_fixture_git(dependency, "commit", "-m", "dependency")
-        pins[name] = _s6_fixture_git(dependency, "rev-parse", "HEAD")
-    cache = tmp_path / "cache"
-    cache.mkdir()
-    shared = repo / "tools/pegasus/policy.json"
-    shared.parent.mkdir(parents=True)
-    shared.write_text(json.dumps({"silo_ladder_rung1": {
-        "dependency_pins": pins, "third_party_sources": [],
-    }}), encoding="utf-8")
     _s6_fixture_git(repo, "init")
     _s6_fixture_git(repo, "add", ".")
     _s6_fixture_git(repo, "commit", "-m", "observer fixture with gitlink")
@@ -1873,6 +1988,7 @@ endif()
 
 def _observe_s6_wiring(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure="", *, tmpdir_mode=None,
+    check_staging_readonly=False,
 ):
     repo, stock, scratch, profile, policy, pin, wrong_pin = _s6_live_fixture(
         tmp_path, monkeypatch, failure,
@@ -1883,19 +1999,44 @@ def _observe_s6_wiring(
         monkeypatch.setenv("TMPDIR", "/tmp")
     events = []
     requested_roots = []
+    staging_roots = []
     gate = probe.condition_meaning_gate
     harness = probe.patchharness
     watched = {
         harness.apply_patch.__code__: "apply",
         harness.revert_worktree.__code__: "revert",
         probe._git_source_identity.__code__: "identity",
+        probe._git_head.__code__: "head",
         probe._execute_ccbench_build.__code__: "build",
         gate.capture_define_inputs.__code__: "capture",
         probe._require_condition_gate.__code__: "gate",
         probe._run_command.__code__: "command",
+        probe.buildcache.prepare_masstree_fetchcontent.__code__: "prepare",
     }
 
+    def assert_source_args(argv):
+        staging = staging_roots[0]
+        overrides = [arg for arg in argv if arg.startswith("-DFETCHCONTENT_SOURCE_DIR_")]
+        assert set(overrides) == {
+            f"-DFETCHCONTENT_SOURCE_DIR_{name.upper()}={staging / name}"
+            for name in ("masstree", "mimalloc", "googletest")
+        }, "configure source overrides must name hydrated staging"
+        assert len(overrides) == 3
+        assert not any(arg.startswith("-DFETCHCONTENT_BASE_DIR") for arg in argv), (
+            "gate and builds must not share a FetchContent binary base"
+        )
+
     def observe(frame, event, arg):
+        if event == "return" and frame.f_code == probe.buildcache.prepare_masstree_fetchcontent.__code__:
+            staging = Path(frame.f_locals["masstree_source_dir"]).parent
+            events.append(("prepare-return", arg, tuple(
+                (staging / "masstree" / name).is_file()
+                for name in ("config.h", "libfixture.a")
+            )))
+            return
+        if event == "return" and frame.f_code == probe._run_command.__code__:
+            events.append(("command-return", tuple(frame.f_locals["argv"]), arg))
+            return
         if (event == "return" and frame.f_code == probe._git_source_identity.__code__
                 and failure == "wrong-head-restored"
                 and Path(frame.f_locals["path"]) in requested_roots):
@@ -1913,7 +2054,9 @@ def _observe_s6_wiring(
             return
         kind = watched[frame.f_code]
         values = frame.f_locals
-        if kind == "identity":
+        if kind == "head":
+            events.append((kind, Path(values["path"])))
+        elif kind == "identity":
             path = Path(values["path"])
             if path != stock and path.name == "wt":
                 requested_roots.append(path)
@@ -1935,9 +2078,44 @@ def _observe_s6_wiring(
                 assert Path(values["patch_path"]) == repo / "patches/silo-backoff-fixed.patch"
             events.append((kind, Path(values["sub"])))
         elif kind == "build":
+            staging = Path(values["staging_root"])
+            assert not staging.is_relative_to(scratch), "staging must be outside writable scratch"
+            assert staging in values["profile"].readonly_roots, "staging must be read-only"
             events.append((kind, Path(values["source"]), values["inside"],
-                           Path(values["stock_root"]), values["profile"]))
+                           Path(values["stock_root"]), values["profile"], staging))
+            if check_staging_readonly and not values["inside"]:
+                script = (
+                    "import errno,json,pathlib,sys\n"
+                    "p=pathlib.Path(sys.argv[1])\n"
+                    "assert (p/'masstree/config-template.h').read_text() == '#pragma once\\n'\n"
+                    "try:\n"
+                    " (p/'masstree/write-witness').write_text('forbidden')\n"
+                    "except OSError as e:\n"
+                    " assert e.errno == errno.EROFS, e\n"
+                    " print(json.dumps({'readable':True,'readonly':True}))\n"
+                    "else:\n"
+                    " raise AssertionError('staging write succeeded')\n"
+                )
+                record = values["profile"].run(
+                    [str(Path(sys.executable).resolve()), "-I", "-B", "-c", script, str(staging)],
+                    timeout_s=15, build=True,
+                )
+                events.append(("staging-readonly", record))
+        elif kind == "prepare":
+            staging = Path(values["masstree_source_dir"]).parent
+            events.append((kind, dict(values), tuple(
+                (staging / "masstree" / name).exists()
+                for name in ("config.h", "libfixture.a")
+            )))
         elif kind in {"capture", "gate"}:
+            if kind == "gate":
+                assert not failure.startswith("prepare-"), "gate reached after failed prepare"
+                if not any(item[0] == "gate" for item in events):
+                    assert len([item for item in events
+                                if item[0] == "prepare-return" and item[1] is not None]) == 1, (
+                        "gate must follow one successful prepare return"
+                    )
+            assert_source_args(values["configure_args"])
             key = "source_root" if kind == "capture" else "source"
             assert "BACKOFF_FIXED" in (Path(values[key]) / "include/backoff.hh").read_text()
             assert "BACKOFF_FIXED" not in (
@@ -1946,7 +2124,12 @@ def _observe_s6_wiring(
             events.append((kind, Path(values[key]), Path(values["stock_root"]),
                            tuple(values["configure_args"])))
         elif kind == "command":
-            events.append((kind, tuple(values["argv"])))
+            argv = tuple(values["argv"])
+            if "hydrate" in argv and "--staging-root" in argv:
+                staging_roots.append(Path(argv[argv.index("--staging-root") + 1]))
+            if "-S" in argv and "-B" in argv and "-DCCBENCH_TRACE=0" in argv:
+                assert_source_args(argv)
+            events.append((kind, argv))
 
     previous = sys.getprofile()
     sys.setprofile(observe)
@@ -1961,12 +2144,162 @@ def _observe_s6_wiring(
                                       time.monotonic_ns() + 600_000_000_000)
     finally:
         sys.setprofile(previous)
+    assert len(staging_roots) == 1
+    assert not staging_roots[0].exists(), "hydrated staging must be removed"
+    if failure == "hydrate":
+        assert not requested_roots
+        return result, events, None, stock, scratch
     assert len(requested_roots) == 1
     requested = requested_roots[0]
     assert not requested.exists()
     assert _s6_fixture_git(stock, "status", "--porcelain", "--untracked-files=all") == ""
     assert str(requested) not in _s6_fixture_git(stock, "worktree", "list", "--porcelain")
     return result, events, requested, stock, scratch
+
+
+def test_s6_live_offline_source_paths_and_prepare_order(s6_bindable_root, monkeypatch):
+    result, events, requested, stock, scratch = _observe_s6_wiring(s6_bindable_root, monkeypatch)
+    staging_record = result["third_party_staging"]
+    staging = Path(staging_record["source_root"])
+    assert staging_record["command"]["rc"] == 0
+    assert staging_record["command"]["timed_out"] is False
+    assert staging_record["payload"]["source_root"] == str(staging)
+    assert len(staging_record["payload"]["sources"]) == 5
+    hydrate = [item for item in events if item[0] == "command" and "hydrate" in item[1]]
+    assert len(hydrate) == 1
+    assert hydrate[0][1][:3] == (str(Path(sys.executable).resolve()), "-I", "-B")
+    preparations = [item for item in events if item[0] == "prepare"]
+    returns = [item for item in events if item[0] == "prepare-return"]
+    assert len(preparations) == 1, "prepare must run exactly once, outside only"
+    assert len(returns) == 1
+    assert preparations[0][2] == (False, False), "hydrate must discard cache artifacts"
+    assert returns[0][1] is not None
+    assert returns[0][2] == (True, True), "prepare must produce both masstree outputs"
+    prepare_args = preparations[0][1]
+    assert Path(prepare_args["ccbench_dir"]) == requested
+    assert Path(prepare_args["fetchcontent_base_dir"]) == scratch / "fetchcontent"
+    assert Path(prepare_args["dependency_prefix"]) == scratch / "s6-outside/install"
+    for name in ("masstree", "mimalloc", "googletest"):
+        assert Path(prepare_args[f"{name}_source_dir"]) == staging / name
+    prepare_index = events.index(preparations[0])
+    return_index = events.index(returns[0])
+    installs = [index for index, item in enumerate(events)
+                if item[0] == "command-return" and "--install" in item[1]
+                and "s6-outside" in " ".join(item[1]) and item[2]["rc"] == 0]
+    assert len(installs) == 2
+    assert max(installs) < prepare_index < return_index
+    identities = [(index, item[1]) for index, item in enumerate(events)
+                  if item[0] == "identity" and item[1].name in {"masstree", "mimalloc", "googletest"}]
+    assert {path for _, path in identities} == {
+        staging / name for name in ("masstree", "mimalloc", "googletest")
+    }, "third-party identity must describe staged sources, never cache"
+    assert len(identities) == 3
+    assert all(events.index(hydrate[0]) < index < prepare_index for index, _ in identities)
+    heads = [item[1] for item in events if item[0] == "head"
+             and item[1].name in {"masstree", "mimalloc", "googletest"}]
+    assert set(heads) == {path for _, path in identities}
+    gates = [item for item in events if item[0] == "gate"]
+    assert len(gates) == 2
+    assert all(events.index(item) > return_index for item in gates)
+    configures = [item for item in events if item[0] == "command"
+                  and "-S" in item[1] and "-DCCBENCH_TRACE=0" in item[1]]
+    assert len(configures) == 2
+    for argv in [item[3] for item in gates] + [item[1] for item in configures]:
+        assert {arg for arg in argv if arg.startswith("-DFETCHCONTENT_SOURCE_DIR_")} == {
+            f"-DFETCHCONTENT_SOURCE_DIR_{name.upper()}={staging / name}"
+            for name in ("masstree", "mimalloc", "googletest")
+        }
+        assert not any(arg.startswith("-DFETCHCONTENT_BASE_DIR") for arg in argv)
+    record = result["masstree_prepare"]
+    assert record["attempted"] is record["success"] is True
+    assert record["ccbench_dir"] == str(requested) == prepare_args["ccbench_dir"]
+    assert record["dependency_prefix"] == str(scratch / "s6-outside/install") == prepare_args["dependency_prefix"]
+    assert record["source_dirs"] == {
+        name: str(staging / name) for name in ("masstree", "mimalloc", "googletest")
+    } == {
+        name: prepare_args[f"{name}_source_dir"]
+        for name in ("masstree", "mimalloc", "googletest")
+    }
+    assert record["configure_argv"] == list(returns[0][1].configure_argv)
+    assert record["build_argv"] == list(returns[0][1].build_argv)
+    assert record["configure_timeout_s"] > 0 and record["target_timeout_s"] > 0
+    assert record["elapsed_ns"] > 0
+    assert result["outside_success"] is True, result
+    assert result["inside_success"] is True, result["inside_build"]
+    assert not staging.exists()
+    assert (s6_bindable_root / "cache/masstree/config.h").read_text() == "#error stale cache header\n"
+    assert (s6_bindable_root / "cache/masstree/libfixture.a").read_text() == "stale archive\n"
+
+
+def test_s6_live_staging_is_readonly_outside_scratch(s6_bindable_root, monkeypatch):
+    result, events, requested, stock, scratch = _observe_s6_wiring(
+        s6_bindable_root, monkeypatch, check_staging_readonly=True,
+    )
+    staging = Path(result["third_party_staging"]["source_root"])
+    builds = [item for item in events if item[0] == "build"]
+    assert len(builds) == 2
+    for build in builds:
+        assert build[5] == staging
+        assert not staging.is_relative_to(scratch)
+        assert staging in build[4].readonly_roots
+        argv = build[4].argv(["true"], build=True)
+        mount = ["--ro-bind", str(staging), str(staging)]
+        assert any(argv[index:index + 3] == mount for index in range(len(argv) - 2))
+    records = [item[1] for item in events if item[0] == "staging-readonly"]
+    assert len(records) == 1
+    assert records[0]["rc"] == 0, records[0]
+    assert json.loads(records[0]["stdout"]["tail"]) == {"readable": True, "readonly": True}
+    assert result["outside_success"] is result["inside_success"] is True
+    assert not staging.exists()
+
+
+def test_s6_hydrate_failure_stops_before_identity_and_gate(s6_bindable_root, monkeypatch):
+    result, events, requested, stock, scratch = _observe_s6_wiring(
+        s6_bindable_root, monkeypatch, "hydrate",
+    )
+    assert result["failure_stage"] == "third-party-hydrate"
+    assert result["success"] is result["outside_success"] is result["inside_success"] is False
+    assert result["source_identity_valid"] is False
+    assert "source_identities" not in result
+    assert probe.verdict_s6(result).reason_codes == ("S6_SOURCE_IDENTITY_INVALID",)
+    record = result["third_party_staging"]
+    assert record["command"]["rc"] == 1
+    assert "origin URL does not match policy: glog" in record["command"]["stderr"]["tail"]
+    assert record["payload"] is None
+    assert not Path(record["source_root"]).exists()
+    assert not any(item[0] in {"head", "identity", "prepare", "gate", "capture", "build"}
+                   for item in events)
+    assert result["masstree_prepare"]["attempted"] is False
+
+
+@pytest.mark.parametrize("failure", ["configure", "target"])
+def test_s6_prepare_failure_stops_before_gate(s6_bindable_root, monkeypatch, failure):
+    result, events, requested, stock, scratch = _observe_s6_wiring(
+        s6_bindable_root, monkeypatch, f"prepare-{failure}",
+    )
+    expected = "masstree-prepare-configure" if failure == "configure" else "masstree-prepare-build"
+    assert result["outside_build"]["failure_stage"] == expected
+    assert result["inside_build"]["failure_stage"] == "outside-control"
+    assert result["source_identity_valid"] is True
+    assert probe.verdict_s6(result).reason_codes == ("S6_CONDITION_GATE_UNPROVEN",)
+    assert result["success"] is result["outside_success"] is result["inside_success"] is False
+    record = result["masstree_prepare"]
+    assert record["attempted"] is True and record["success"] is False
+    assert record["failure_stage"] == expected
+    assert record["error"]
+    assert record["configure_argv"] is record["build_argv"] is None
+    assert record["ccbench_dir"] == str(requested)
+    assert record["dependency_prefix"] == str(scratch / "s6-outside/install")
+    assert record["source_dirs"] == {
+        name: str(Path(result["third_party_staging"]["source_root"]) / name)
+        for name in ("masstree", "mimalloc", "googletest")
+    }
+    assert record["elapsed_ns"] > 0
+    assert len([item for item in events if item[0] == "prepare"]) == 1
+    assert not any(item[0] in {"gate", "capture"} for item in events)
+    assert [item[2] for item in events if item[0] == "build"] == [False]
+    assert result["condition_gates"] == []
+    assert not Path(result["third_party_staging"]["source_root"]).exists()
 
 
 def test_s6_live_requested_gate_and_both_build_roots_match(s6_bindable_root, monkeypatch):
