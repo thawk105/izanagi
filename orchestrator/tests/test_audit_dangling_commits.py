@@ -4308,6 +4308,7 @@ def test_explicit_full_without_root_is_execution_failure(tmp_path, monkeypatch, 
     if env_value is not None:
         monkeypatch.setenv(ADC.OFFREPO_ROOT_ENV, env_value)
     monkeypatch.setattr(ADC, "_audit_snapshot", _forbid_offrepo_io)
+    monkeypatch.setattr(ADC, "_checked_git", _forbid_offrepo_io)
     assert ADC.main(["--repo", str(tmp_path), "--offrepo-scan", "full"]) == 2
     captured = capsys.readouterr()
     assert "実行できません" in captured.err

@@ -1923,7 +1923,7 @@ def _print_offrepo_report(report: AuditReport) -> None:
     if report.offrepo_scan == "off":
         print(
             "audit_dangling_commits: repo 外走査は明示 off"
-            f"（{OFFREPO_ROOT_ENV} の指定も無視）；repo 外の同一実体は未確認のため、"
+            f"({OFFREPO_ROOT_ENV} の指定も無視);repo 外の同一実体は未確認のため、"
             "findings は full なら抑止されうる (commit, path) 対を含みうる。"
             "救出 triage は --offrepo-scan full --offrepo-root <root> を指定して単独実行する"
         )
