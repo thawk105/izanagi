@@ -1,0 +1,6 @@
+children before TERM: ['3408187'] pgids: [3401207] launcher pgid: 3401207
+launcher rc: 2
+{"type": "path", "path": "/home/SFC/tanab/.claude/jobs/8d758a10/tmp/wave-t2665/dogfood/big", "status": "interrupted", "returncode": -15, "reason": "cancelled or signal exit", "pid": 3408187, "pgid": 3401207, "parent_pgid": 3401207}
+{"type": "summary", "total": 1, "removed": 0, "failed": 0, "interrupted": 1, "unknown": 0, "cancel_signal": 15, "rc": 2}
+
+children alive after: [] target exists: True remaining entries: 39953
