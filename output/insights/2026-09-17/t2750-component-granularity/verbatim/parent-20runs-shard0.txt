@@ -1,0 +1,24 @@
+09-17 09:34 78899ab0 wall=382.6 maxocc=316.9 items_on_maxw=2 longest=297.1 tail=19.8 n>150s=25 sumocc=10631 nsel=3908 avg=221 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 09:45 1e781e78 wall=319.4 maxocc=253.7 items_on_maxw=2 longest=246.2 tail=7.6 n>150s=14 sumocc=9310 nsel=9004 avg=194 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 09:47 aff0a0d7 wall=577.5 maxocc=505.2 items_on_maxw=2 longest=496.5 tail=8.7 n>150s=31 sumocc=19995 nsel=9004 avg=417 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 09:52 d7ecff65 wall=338.8 maxocc=273.0 items_on_maxw=2 longest=265.5 tail=7.5 n>150s=24 sumocc=10197 nsel=9004 avg=212 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 10:01 3b898b02 wall=342.3 maxocc=276.5 items_on_maxw=2 longest=256.6 tail=19.9 n>150s=17 sumocc=8717 nsel=3908 avg=182 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 10:12 91c6b258 wall=358.8 maxocc=293.6 items_on_maxw=2 longest=273.6 tail=19.9 n>150s=18 sumocc=9499 nsel=3908 avg=198 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 10:15 bda4db87 wall=344.6 maxocc=279.0 items_on_maxw=2 longest=259.1 tail=19.8 n>150s=14 sumocc=8832 nsel=3916 avg=184 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 10:17 00a9023b wall=585.8 maxocc=519.6 items_on_maxw=2 longest=499.7 tail=19.9 n>150s=30 sumocc=18346 nsel=3916 avg=382 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 10:18 7e0e9e4e wall=580.4 maxocc=492.2 items_on_maxw=2 longest=472.3 tail=19.9 n>150s=36 sumocc=18003 nsel=3908 avg=375 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 10:32 d11eeba9 wall=329.4 maxocc=263.0 items_on_maxw=2 longest=243.1 tail=19.9 n>150s=13 sumocc=7999 nsel=3929 avg=167 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 10:35 f696eb1c wall=310.8 maxocc=245.0 items_on_maxw=2 longest=225.1 tail=19.8 n>150s=12 sumocc=7718 nsel=3916 avg=161 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 10:40 c9427905 wall=386.4 maxocc=320.3 items_on_maxw=2 longest=300.5 tail=19.8 n>150s=21 sumocc=10534 nsel=3916 avg=219 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 10:46 be5b3207 wall=323.6 maxocc=258.6 items_on_maxw=2 longest=238.7 tail=19.9 n>150s=14 sumocc=8026 nsel=3916 avg=167 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 10:49 93d1a7d4 wall=350.9 maxocc=283.9 items_on_maxw=2 longest=264.1 tail=19.9 n>150s=15 sumocc=9025 nsel=3916 avg=188 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 10:57 6f9a186e wall=403.3 maxocc=317.6 items_on_maxw=2 longest=297.7 tail=19.9 n>150s=24 sumocc=10526 nsel=3916 avg=219 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 11:16 1e2b7edb wall=343.2 maxocc=276.9 items_on_maxw=2 longest=257.0 tail=19.9 n>150s=14 sumocc=8584 nsel=3929 avg=179 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 11:23 9b09a409 wall=509.0 maxocc=428.9 items_on_maxw=2 longest=408.8 tail=20.1 n>150s=26 sumocc=14517 nsel=3929 avg=302 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 11:36 1a135025 wall=337.5 maxocc=271.5 items_on_maxw=2 longest=251.8 tail=19.8 n>150s=14 sumocc=8337 nsel=3929 avg=174 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 12:09 ae8ef778 wall=386.4 maxocc=311.2 items_on_maxw=2 longest=291.3 tail=19.9 n>150s=22 sumocc=9956 nsel=3929 avg=207 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+09-17 12:26 5141225c wall=336.5 maxocc=270.0 items_on_maxw=2 longest=250.1 tail=19.8 n>150s=14 sumocc=8262 nsel=3929 avg=172 _exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+n=20 tail median=19.9 min=7.5 max=20.1
+shard-0 wall median=347.7 min=310.8 max=585.8
+longest node median=264.8 min=225.1 max=499.7
+wall-maxocc (pre) median=66.1 min=65.0 max=88.2

@@ -1,0 +1,18 @@
+== current allocate (file+group components)
+  shard-0: nodes=3929 files=25 load=7523s load/48=156.7s longest=240.0s (test_s8b_oracle_driver.py) makespan_pred=306.1s
+  shard-1: nodes=11556 files=167 load=5372s load/48=111.9s longest=140.0s (test_p3_b4_raw_record_producer.py) makespan_pred=206.1s
+  shard-2: nodes=9175 files=166 load=5372s load/48=111.9s longest=100.0s (test_ccbench_spawn_sites.py) makespan_pred=178.0s
+  max shard makespan_pred=306.1s
+  top components (weight, files, groups): [(7522.531000000027, 25, ['campaign-repository-scan', 'real-repo', 's8c-predicate-snapshot', 's8c-preregistration-candidate']), (944.8429999999998, 1, []), (832.179, 1, [])]
+== option (a) mode=hybrid
+  shard-0: nodes=8784 files=135 load=6089s load/48=126.8s longest=160.0s (test_s1_known_axes_freeze.py) makespan_pred=226.1s
+  shard-1: nodes=7635 files=119 load=6089s load/48=126.8s longest=150.0s (test_s8b_floor_campaign.py) makespan_pred=216.1s
+  shard-2: nodes=8241 files=119 load=6089s load/48=126.8s longest=240.0s (test_s8b_oracle_driver.py) makespan_pred=306.1s
+  max shard makespan_pred=306.1s
+  conflict component: nodes=188 files=25 weight=1612s groups=('campaign-repository-scan', 'real-repo', 's8c-predicate-snapshot', 's8c-preregistration-candidate')
+== option (a) mode=node
+  shard-0: nodes=8314 files=349 load=6089s load/48=126.8s longest=160.0s (test_s1_known_axes_freeze.py) makespan_pred=226.1s
+  shard-1: nodes=8190 files=351 load=6089s load/48=126.8s longest=240.0s (test_s8b_oracle_driver.py) makespan_pred=306.1s
+  shard-2: nodes=8156 files=351 load=6089s load/48=126.8s longest=240.0s (test_s8b_oracle_driver.py) makespan_pred=306.1s
+  max shard makespan_pred=306.1s
+  conflict component: nodes=188 files=25 weight=1612s groups=('campaign-repository-scan', 'real-repo', 's8c-predicate-snapshot', 's8c-preregistration-candidate')

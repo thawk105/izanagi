@@ -66234,3 +66234,80 @@ max 335.8 秒) で成立した。ただし「有効化」は具体契約 (掃除
 
 **理由・採らない案:** 起草は「承認は済み、実行だけ」と書いたが、**相談 2 本がともに既裁定誤引用と判定した**
 (D2104 項 39 の限定)。増分の承認を毎回の /rulings で改めて取る形を維持する。
+
+## D2121. 受入 shard 割付の連結成分を file 粒度から node 粒度へ変えない — 固定 duration model では最遅 shard の下限が不変で、素直な変更は real-repo の跨ホスト排他を外す (2026-09-17)
+
+**決定:** `tools/acceptance_shards.py` の `_components` / `allocate` / `assignment_closure_gate` が file と xdist group を頂点にして連結成分を作る現行の粒度 (D711 gate 4 の file 閉包を含む) を維持する。「成分単位を file から node へ」も「大 file の real-repo node を別 file へ分離」も実装しない。受入短縮の次の対象は shard の負荷の総和ではなく、最遅 shard の最長 node (t080 e2e の b5 群) の単体所要と、xdist の初期配布が最長 node の worker へ対にする 2 個目の unit (約 20 秒) とする。
+
+**理由:**
+- 48 worker では shard の wall は「最長 node + 相方 + 固定費」で決まり、負荷の総和では決まらない。台帳 refresh 後の受入 20 走 (他 wave の受入 = 同時刻対照) で、shard-0 の最忙 worker は 20 走すべてで item 2 個 (最長 node 225〜500 秒 + 相方、相方は 17 走で約 20 秒)、平均 worker 負荷 (直列和 ÷ 48) は 161〜417 秒で 20 走すべてで最長 node より小さい。wall − 最大占有の固定費は中央値 66 秒。
+- 案 (a) の offline 割付では負荷が 7523 / 5372 / 5372 秒 → 6089 秒 × 3 に均等化されるが、D1019 の makespan 式 max(最長 node, 負荷/48) + 固定費 による最遅 shard の予測は 3 通りとも 306.1 秒で同値である。予測 wall の合計はむしろ 690 → 748〜838 秒へ増える (最長 node 群が別 shard へ散り床を作る)。この model は下限であり実 wall の期待利得 0 の証明ではないが、実 wall 改善の経路は「同 host 競合の低減で最長 node 自身が速くなる」だけで、既存 99 session からは分離できず (最長 node の所要は同 shard の他 worker 占有と r=0.993、別ノードの shard とは r=0.07、ただし同一割付内では仕事量が一定なのでノード状態で説明できる)、期待値を数値化できない。上限の目安は相方の約 20 秒 (最遅 shard wall 中央値の 5.8%) で D357 の「変化なし」域に入る。
+- 素直な案 (a) (file union の削除) は規律 2 の防壁を外す。`orchestrator/tests/test_s8c_preregistration_predicates.py` の候補 commit 生成 fixture の consumer は xdist group 無し・real-repo inventory 外だが、function fixture が実 repo の object store へ `git add` / `write-tree` / `commit-tree` で書き、同 file の group 付き node との file 閉包だけで衝突成分と同じ host に留まっている (fixture-owned golden がその依存を明記)。file 閉包を外すと別 host の shard へ配置可能になり、`/tmp` の flock (同一 host 限定) では閉じられない。inventory golden は実 repo アクセスの網羅的検出器ではない (宣言済み inventory 内の分類一致と、resource node と交差する module/session fixture を seed にした閉包であり、seed の無い fixture・function fixture・import 副作用は探索外) ので、安全に実装するには明示 affinity の補完、D711 gate 4 の裁定改訂、衝突閉包 (resource node + fixture-owned consumer + 明示 affinity) の独立検査の新設が要る。後 2 者は依頼が scope 外とした「追加 gate・検査」に当たる。
+- 受入短縮の既存裁定「効果を先に測り、未確認のまま実装しない」と D104 決定 3「効果を示せない機構は land しない」に従う。
+
+**却下した選択肢:**
+- 案 (a) を明示 affinity 補完つきで実装し、同一 tip の paired 測定 (旧/新割付を交互 n≥3) で採否を決める — 実装すべき側の最強の形として real と認める。ただし現証拠が支持するのは条件付きの試作・測定までで、land すべきという結論は成立しない。安全化を含む費用が本 wave の scope を超えるため、次の一手として起票し本 wave では払わない。
+- 案 (b) (大 file の real-repo node を別 file へ分離) — real-repo marker 付き関数だけを移すと fixture 経由の未登録 consumer を取り残し同型の保護喪失を生む。nodeid の変更で台帳 key と golden の file 名 pin にも触れる。
+- 「期待利得 0 を実測で証明した」「一次資料の『成分が shard-0 の床』は偽」と記録する — 段 3 の 2 レンズがともに飛躍と判定した。一次資料の主張は負荷の命題としては真で、wall への波及が未実証である。
+
+## D2122. D1875 の保留条件にある「承認済み generation 予算 1」を D410 の 2 と訂正し、T-2293 の Q2〜Q4 の保留は維持する (2026-09-17)
+
+**決定 (D2104 項 3 の追補、AI 実施):** D1875 の決定文にある
+**「D114 が定めた承認済み generation 予算 1」は、裁定日 (2026-09-09) の時点で既に古かった。**
+D410 (2026-08-15) が「D114 の承認上限 1 を 2 へ上げる」と定め、実装も
+`orchestrator/campaign/p3_autonomous_workload_trial.py` の `MAX_APPROVED_GENERATIONS = 2` である
+(本追補の起草時に現物で確認)。D1875 の当該句は「D114 が定め D410 が 2 へ上げた承認済み
+generation 予算 2」と読む。
+
+**訂正の射程 — 前提の数値だけを正す。** D1875 の決定 (起点試行の公開呼び手を置かず、completeness の
+origin 分岐だけ先に直す) と、残る 3 件 (fixture provider の real build 拒否の解除、`--no-build` 経路の
+変更、世代制約との整合) の保留は変えない。D2104 項 3 が対象とする T-2293 の Q2〜Q4 (台帳の
+production FSM、起点専用 entry point、completion / report の起点分岐。D1875 の 3 件とは別の後段で、
+同じ整合を待つ) についても、整合の相手のもう一方である還流設計 (D106 残余 1) は未解決のままなので、
+**保留は維持し、一括承認はしない。** 本追補は実装着手・保留解除のいずれも新たに認可しない。
+
+**理由:**
+
+- 過去の裁定は追記でのみ訂正する (絶対規律 7)。決定を書き換えて遡らせない。先例は D1694
+  (D1641 の理由文を追記で訂正し、決定の効力は維持した) と D2049。
+- 古い前提 (「予算 1 との整合待ち」) を理由に後段全体を除外し続けると、保留条件を見直す機会を失う。
+  一方、前提が変わったことだけで保留を解く案は、未解決の還流設計を飛ばすため採らない (D2104 項 3)。
+
+**却下した選択肢:**
+
+- 何もしない — 次に D1875 だけを読む者が、実装と食い違う予算 1 を前提に Q2〜Q4 の整合を判断する。
+- 前提の訂正と同時に Q2〜Q4 の保留を解く — 還流設計 (D106 残余 1) が未解決のままである。
+
+## D2123. D922 点 4 の候補上限超過の扱いを限定し、照合済みの正証拠で確定した `landed` は維持する (2026-09-17)
+
+**決定 (D2104 項 21 の追補、AI 実施):** D922 点 4「探索の打ち切り・timeout・上限超過・parse 不能・
+shallow・履歴書き換え・ref 移動はすべて `indeterminate` に倒す」のうち、**候補探索の上限超過**について
+次のとおり限定する。候補上限超過を報告する前に点 2 の決定的な正証拠との照合が成立した場合、その探索は
+`matched` とし、当該証明単位は `landed` とする。**候補上限超過だけを理由に、その正判定を
+`indeterminate` へ変更しない。** `indeterminate` へ倒す対象は負判定である — `not-landed` は
+closed-world の負証拠があるときだけ返し、負証拠を閉じられない探索の打ち切りは `not-landed` ではなく
+`indeterminate` とする。
+
+**本追補は timeout、parse 不能、shallow、履歴書き換え、ref 移動の扱いを変更しない。** これらは
+現行どおり assessment 全体を `indeterminate` にする。assessment 全体の `landed` は既存の集約条件
+(全証明単位の `landed` と終端の ref snapshot 再照合) による。現行実装 `tools/check_branch_landed.py`
+(候補上限超過を報告する前に候補集合全体の正証拠照合を終える) を正とし、実装は変えない。
+
+**理由:**
+
+- 点 4 の逐語を機械的に当てると、候補上限に達した走行で照合済みの正証拠を捨てる方向になる。
+  それは fail-closed を強めず、検出力だけを失う (D2104 項 21)。
+- D922 の非対称性 (偽の `landed` を優先して塞ぎ、偽の `not-landed` は `indeterminate` で人へ返す) は
+  そのまま保つ。正証拠は点 2 の 2 種 (main から到達可能な exact tree state、fold receipt の
+  `content_sha256`) に限られ、本追補はその集合を広げない。
+- 期限 (deadline) は候補探索の局所的な順序とは別の経路で raise され、走行全体を `indeterminate` に
+  する。候補上限の優先順を期限の免除へ一般化しないため、射程を候補上限超過に限る (段 3 相談の指摘)。
+- 過去の裁定は追記でのみ訂正する (絶対規律 7)。
+
+**却下した選択肢:**
+
+- 候補上限超過が起きた走行は verdict を問わず `indeterminate` にする — 照合済みの正証拠を捨てる。
+  検出力を失う一方で安全側には何も足さない。
+- 期限や ref 移動でも照合済みの正証拠を優先する — 実装と食い違い、走行全体の一貫性 (終端の
+  ref 再照合) を壊す。
+- 実装を点 4 の逐語に合わせて変える — 上と同じ帰結を実装に持ち込む。

@@ -1,0 +1,9 @@
+n=99
+corr(longest0, avg0 incl.)          = 0.993
+corr(longest0, other-worker avg0)   = 0.993
+corr(longest0, maxocc1 + maxocc2)   = 0.069  (別ノードの shard = 外乱の代理)
+corr(longest0, maxocc1)             = -0.088
+corr(longest0, maxocc2)             = 0.112
+corr(longest0, nsel0)               = -0.031
+nsel>6000 (旧台帳割付): n=81 longest0 median=255.1 min=200.0 max=577.5 avg0 median=197.1 wall0 median=355.1
+nsel<=6000 (refresh 後割付): n=18 longest0 median=261.6 min=225.1 max=499.7 avg0 median=186.0 wall0 median=347.7
