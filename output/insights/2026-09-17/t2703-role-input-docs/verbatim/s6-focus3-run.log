@@ -1,0 +1,85 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-2805338f3d)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2703-role-input-docs/output/pegasus-dispatch/orphan-holds/unknown-1c167020e1909a6fecc1e738.json
+[Pegasus dispatch] request ID 2837.nqsv を受理しました
+[Pegasus dispatch] request 2837.nqsv の状態: QUE
+[Pegasus dispatch] request 2837.nqsv の状態: RUN
+[Pegasus dispatch] request 2837.nqsv の状態: END
+[Pegasus dispatch] request 2837.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2703-role-input-docs/output/pegasus-dispatch/orphan-holds/unknown-1c167020e1909a6fecc1e738.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2703-role-input-docs/output/pegasus-dispatch/2805338f3d3e2bfd496444d306b3b01f/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 2837.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+|
+| ........................................................................ [  3%]
+| ........................................................................ [  6%]
+| ........................................................................ [ 10%]
+| ........................................................................ [ 13%]
+| ........................................................................ [ 17%]
+| ........................................................................ [ 20%]
+| ........................................................................ [ 24%]
+| ........................................................................ [ 27%]
+| ........................................................................ [ 31%]
+| ........................................................................ [ 34%]
+| ........................................................................ [ 37%]
+| ........................................................................ [ 41%]
+| ........................................................................ [ 44%]
+| ........................................................................ [ 48%]
+| ........................................................................ [ 51%]
+| ........................................................................ [ 55%]
+| ........................................s............................... [ 58%]
+| ........................................................................ [ 62%]
+| ........................................................................ [ 65%]
+| ........................................s...................s........... [ 68%]
+| s....................................................................... [ 72%]
+| ........................................................................ [ 75%]
+| ........................................................................ [ 79%]
+| ........................................................................ [ 82%]
+| ........................................................................ [ 86%]
+| ........................................................................ [ 89%]
+| ........................................................................ [ 93%]
+| ........................................................................ [ 96%]
+| .....................s.................................................. [ 99%]
+| .                                                                        [100%]
+| =========================== short test summary info ============================
+| SKIPPED [1] orchestrator/tests/skiputil.py:31: 条件付き未実走: template patch 未適用: backoff.hh に EVOLVE-BLOCK marker 無し — repo 内の前提で満たせるが受入 suite では窓を開けない — 分類と理由は `orchestrator/tests/README.md`
+| SKIPPED [1] orchestrator/tests/test_codex_role_runtime.py:725: pinned Codex runtime 不在 (codex auto-update での drift 等)。codex_roles を変更する作業と D56 再開儀式では IZANAGI_REQUIRE_CODEX_RUNTIME=1 でhard-fail に戻すこと (D60)
+| SKIPPED [1] orchestrator/tests/test_codex_role_runtime.py:732: bundled Codex/bwrap/busybox required
+| SKIPPED [1] orchestrator/tests/test_codex_role_runtime.py:780: bundled Codex/bwrap/busybox required
+| SKIPPED [1] orchestrator/tests/test_codex_role_runtime.py:786: bundled Codex/bwrap/busybox required
+| 2084 passed, 5 skipped in 135.21s (0:02:15)
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+[Pegasus dispatch] request 2837.nqsv child stdout end
+[Pegasus dispatch] request 2837.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 1603085, "time_ns": 1789598964704708185}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1603106, "event": "direct-child-wait-start", "pid": 1603092, "time_ns": 1789598964732840034}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1603106, "event": "direct-child-wait-complete", "pid": 1603092, "time_ns": 1789599100514702099}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 1603092, "rc": 0, "time_ns": 1789599100514811508}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 1603085, "rc": 0, "time_ns": 1789599100519264769}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 1603085, "time_ns": 1789599100522592169}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 1603085, "time_ns": 1789599100527821206}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 1603085, "time_ns": 1789599100528575247}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 1603085, "time_ns": 1789599100528585789}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 1603085, "time_ns": 1789599100536366032}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 1603085, "time_ns": 1789599100536375076}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 1603085, "rc": 0, "time_ns": 1789599100536385755}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 1603085, "rc": 0, "time_ns": 1789599100536404793}
+|
+| ============================================================
+| Request ID:             2837.nqsv
+| Request Name:           izdw-2805338f3d
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Thu Sep 17 07:49:16 2026
+| Started Request Time:   Thu Sep 17 07:49:24 2026
+| Ended Request Time:     Thu Sep 17 07:51:40 2026
+| Resources Information:
+|   Elapse:               140S
+|   Remaining Elapse:     3460S
+| ============================================================
+[Pegasus dispatch] request 2837.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid

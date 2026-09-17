@@ -729,6 +729,42 @@ CODEX_RULINGS_OPENAI_YAML = """interface:
   short_description: "Izanagi の裁定待ちを索引・詳説して判断を補佐"
   default_prompt: "Use $rulings to list and explain the Izanagi decisions awaiting my ruling."
 """
+# next-tasks の repo-scoped Skill 契約を登録する。
+CODEX_NEXT_TASKS_SKILL_LIMITS = {
+    ".agents/skills/next-tasks/SKILL.md": TextLimit(5_732, 400),
+    ".agents/skills/next-tasks/agents/openai.yaml": TextLimit(300, 160),
+}
+CODEX_NEXT_TASKS_SKILL_FILES = frozenset(CODEX_NEXT_TASKS_SKILL_LIMITS)
+CODEX_NEXT_TASKS_SKILL_LITERALS = (
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".claude/commands/next-tasks.md",
+    "$1",
+    "$next-tasks",
+    "$dev-wave",
+    "docs/pegasus-runbook.md",
+    "docs/skill-self-improvement.md",
+    "hooks/README.md",
+    "クラス 1",
+    "クラス 2",
+    "D2051",
+    "next_tasks_consult.sh claude",
+    "実測せずに外さない",
+    "CONSULT-MODE",
+    "3 巡目へ進めず",
+    "件数合わせで除外候補を復活させない",
+    "自己改善の終端条件を含める",
+    "丸付き数字は使わない",
+    "それ以外ではファイルを編集しない",
+    "push と remote branch 操作は人間に残す",
+    "環境に API キーを置かない",
+    "API key や代替 provider を新設して呼び出す経路は作らない",
+)
+CODEX_NEXT_TASKS_OPENAI_YAML = """interface:
+  display_name: "Next Tasks"
+  short_description: "今すぐ投げられる dev-wave タスク候補を提案"
+  default_prompt: "Use $next-tasks to propose two dev-wave tasks that can start now."
+"""
 CODEX_CLEANUP_BRANCHES_SKILL_LIMITS = {
     ".agents/skills/cleanup-branches/SKILL.md": TextLimit(3_100, 210),
     ".agents/skills/cleanup-branches/agents/openai.yaml": TextLimit(300, 110),
@@ -835,7 +871,7 @@ REQUIRED_SELF_HEADINGS = {
         "発火 gate", "routing", "command 入口の編集条件",
         "command 別の終端", "検査と commit 境界",
     },
-    3: {"dev-wave", "cleanup-branches", "rulings"},
+    3: {"dev-wave", "cleanup-branches", "rulings", "next-tasks"},
 }
 _SELF_PATH = "docs/skill-self-improvement.md"
 _SELF_SECTIONS = frozenset(
@@ -6556,6 +6592,14 @@ def _check_command_docs_guard(findings: list[str]) -> set[Path]:
         expected_files=CODEX_RULINGS_SKILL_FILES,
         literals=CODEX_RULINGS_SKILL_LITERALS,
         openai_yaml=CODEX_RULINGS_OPENAI_YAML,
+    )
+    _check_codex_skill_guard(
+        findings,
+        skill_name="next-tasks",
+        limits=CODEX_NEXT_TASKS_SKILL_LIMITS,
+        expected_files=CODEX_NEXT_TASKS_SKILL_FILES,
+        literals=CODEX_NEXT_TASKS_SKILL_LITERALS,
+        openai_yaml=CODEX_NEXT_TASKS_OPENAI_YAML,
     )
     _check_codex_skill_guard(
         findings,

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Next Tasks"
+  short_description: "今すぐ投げられる dev-wave タスク候補を提案"
+  default_prompt: "Use $next-tasks to propose two dev-wave tasks that can start now."

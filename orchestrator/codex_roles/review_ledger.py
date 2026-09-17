@@ -34,9 +34,12 @@ SOURCE_FILE_SHA256 = {
     "coder-v4-autonomous-sort": "b34f16a14d4402ef114f37f97090a590de60c2d0d8710a9114cea663e088e84d",
     # Reviewed 2026-08-04: stage5-agent-review.md approved the T-428 wire contract.
     # Reviewed 2026-09-11: T-2528; whiteboard 入力例を実射影の 5 field へ訂正。
-    "coder-v4-autonomous-trigger-gating": "2b46df2e4a5cbafcd3780b4cca54b3d81f3a73d9999cc6c859f1107aa398835a",
-    "critic": "cd1c365204fd1a68260d0454b4599bfd8cea12c5d845fb24f4e21f154733df15",
-    "critic-experiment": "fc20aa7ef1bf9af45eaa2e56313b8b5221a3ff2a2413110fa333ba470ff9456e",
+    # Reviewed 2026-09-17: T-2703/T-2717/T-2705; baseline の世代間凍結と適用版を明記。
+    "coder-v4-autonomous-trigger-gating": "2cc08b30573aef3337740d3e44848d94651d48528d4e1f095b420ceea4807388",
+    # Reviewed 2026-09-17: T-2703/T-2717/T-2705; digest の独立指標と適用版を訂正。
+    "critic": "fea81c65909aa9026b8fda1bf9b4768b38185dfd9327cff86a8bcef844504c1b",
+    # Reviewed 2026-09-17: T-2703/T-2717/T-2705; online digest の独立指標と適用版を訂正。
+    "critic-experiment": "95718801d7f2066ec9cbbf68bf1a61c5cfe7775b295330d98a71e08aa488d40c",
     # Reviewed 2026-08-19: workload-policy-hint-impl; 「## 入力」節へ optional policy_hint
     # フィールドの説明文を追記 (JSON 例本体には含めない — source 入力 shape parity 検査が
     # 例中の全 key を ROLE_IO_CONTRACTS 宣言と exact 照合するため)。ROLE_IO_CONTRACTS の
@@ -44,7 +47,8 @@ SOURCE_FILE_SHA256 = {
     # dormant Codex adapter parity は対象外)。
     # Reviewed 2026-09-09: T-2249; 段 4 の delta_pct≡None 不変と食い違う固定例 (-1.2) を入力例から除去。
     # Reviewed 2026-09-11: T-2528; whiteboard 入力例を実射影の 5 field へ訂正。 current_perf・whiteboard・任意 policy_hint の入力説明も訂正。
-    "planner-v4": "c47cf0ff81bb88d1ad65d5b0b92ac35feb40f49e4d2a8eef9007b48c286bf5f9",
+    # Reviewed 2026-09-17: T-2703/T-2717/T-2705; current_perf / leading_indicators の凍結と適用版を明記。
+    "planner-v4": "2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a",
     "profiler": "8a3f5bc1cba31d366c7ea3f0149e04917c07fe7677aa609ce6f05f5c8decbd6d",
     "selector-8b": "23483aeb871ad7363060a183d85df6dd10b9e74b40337037a6cf6bbcc34c799c",
     "verifier": "80ce00b78832cb18a95d0ee8047124fbb8435cf2ec4d312b9d4ed2e6c7f0300f",
