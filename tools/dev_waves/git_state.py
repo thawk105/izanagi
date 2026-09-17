@@ -7,7 +7,6 @@ import os
 import re
 import subprocess
 import sys
-import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -309,9 +308,8 @@ def commit_worker_worktree(
         )
         operation = "message-file"
         try:
-            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", delete=False, dir=None) as stream:
-                message_path = Path(stream.name)
-                stream.write(message)
+            message_path = git_dir / "izanagi-worker-commit.msg"
+            message_path.write_text(message, encoding="utf-8")
             operation = "commit-file"
             _text(_run(root, operation, extra=(str(message_path),), timeout_s=120))
         finally:

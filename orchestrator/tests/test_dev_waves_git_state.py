@@ -1345,10 +1345,10 @@ def test_commit_worker_worktree_records_residue_then_noop():
         (worker / "tracked").write_text("edited\n", encoding="utf-8")
         (worker / "deleted").unlink()
         (worker / "new").write_bytes(b"new\x00bytes\n")
-        _git(worker, "add", "tracked")
+        _git(worker, "add", "-A")
         def patch_bytes():
             return subprocess.run(
-                ["git", "diff", "--cached", base, "--", "tracked"],
+                ["git", "diff", "--cached", base],
                 cwd=worker, check=True, stdout=subprocess.PIPE,
             ).stdout
         before = patch_bytes()
@@ -1365,6 +1365,9 @@ def test_commit_worker_worktree_records_residue_then_noop():
         assert patch_bytes() == before and before
         assert _git(worker, "ls-tree", "--name-only", "HEAD").splitlines() == ["new", "tracked"]
         assert _git(worker, "status", "--porcelain") == ""
+        assert _git(worker, "status", "--porcelain", "--untracked-files=all") == ""
+        git_dir = Path(_git(worker, "rev-parse", "--path-format=absolute", "--git-dir"))
+        assert not (git_dir / "izanagi-worker-commit.msg").exists()
         assert _git(worker, "log", "-1", "--format=%an <%ae>|%cn <%ce>") == (
             "Worker Test <worker@example.invalid>|Worker Test <worker@example.invalid>"
         )
@@ -1458,6 +1461,9 @@ def test_commit_worker_worktree_failed_keeps_residue():
         assert _git(worker, "rev-parse", "HEAD") == base
         assert _git(worker, "show", ":new") == "residue"
         assert (worker / "new").read_text() == "residue\n"
+
+        git_dir = Path(_git(worker, "rev-parse", "--path-format=absolute", "--git-dir"))
+        assert not (git_dir / "izanagi-worker-commit.msg").exists()
 
 
 def _run():

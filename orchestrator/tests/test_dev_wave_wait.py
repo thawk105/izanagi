@@ -5152,7 +5152,12 @@ def test_producer_commit_worktree_after_death(tmp_path: Path, capsys) -> None:
     assert sleeps == [5]
     assert rc == DW.RC_OK, captured.err
     assert captured.out == f"worktree-commit: committed {head}\n"
-    assert captured.err == ""
+    assert "NG:" not in captured.err
+    assert "producer-commit" not in captured.err
+    assert captured.err in (
+        "",
+        f"producer: /proc/{producer.pid}/stat を読めないため pid-only へ縮退します\n",
+    )
     assert _producer_commit_git(worker, "rev-list", "--count", f"{base}..HEAD") == "1"
     assert _producer_commit_git(worker, "show", "HEAD:residue") == "final residue"
     message = _producer_commit_git(worker, "log", "-1", "--format=%B")
