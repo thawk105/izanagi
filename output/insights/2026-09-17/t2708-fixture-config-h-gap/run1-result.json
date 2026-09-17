@@ -1,0 +1,60 @@
+{
+  "started_at": "2026-09-17T13:14:20.552631+00:00",
+  "hostname": "bnode028",
+  "python_version": "3.10.12 (main, Mar  3 2026, 11:56:32) [GCC 11.4.0]",
+  "probe_file": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2708-fixture-config-h-gap/probe/tools/t2708_fixture_gap_probe.py",
+  "argv": [
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2708-fixture-config-h-gap/probe/tools/t2708_fixture_gap_probe.py",
+    "--source-root",
+    "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2708-fixture-config-h-gap",
+    "--work-root",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2708-fixture-config-h-gap/run1",
+    "--out",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2708-fixture-config-h-gap/run1/result.json",
+    "--pairs",
+    "20",
+    "--warmup",
+    "2",
+    "--add-repeats",
+    "10"
+  ],
+  "limitations": [
+    "\u767a\u884c A/B \u3067\u306f\u306a\u3044 (B index \u306f staged addition \u3067 M:1833 \u306e clean \u6761\u4ef6\u3092\u6e80\u305f\u3055\u306a\u3044)\u3002",
+    "\u53d6\u308a\u8fbc\u307f\u8cbb\u7528\u306e A index \u306f commit \u5f8c\u3067\u63a1\u7528\u4f4d\u7f6e\u3068 cache \u72b6\u614b\u304c\u9055\u3046\u3002",
+    "\u6240\u8981\u30e2\u30c7\u30eb\u300c\u53d6\u308a\u8fbc\u307f + 13 \u00d7 scan \u5dee\u300d\u306f\u90e8\u5206\u30e2\u30c7\u30eb\u3002"
+  ],
+  "failures": [
+    {
+      "check": "probe exception",
+      "type": "GrowthTestHoldBypassRefused",
+      "message": "IZANAGI_GROWTH_HOLD_BYPASS_REFUSED_V1 {\"node_id\":\"test_s8b_oracle_driver.py::*\",\"release_env\":\"IZANAGI_RUN_GROWTH_HELD_TESTS\",\"release_token\":\"explicit-user-command\"}"
+    }
+  ],
+  "parameters": {
+    "source_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2708-fixture-config-h-gap",
+    "work_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2708-fixture-config-h-gap/run1",
+    "out": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2708-fixture-config-h-gap/run1/result.json",
+    "pairs": 20,
+    "warmup": 2,
+    "add_repeats": 10,
+    "selftest": false
+  },
+  "source_head": "38353207f719acb0871cfe3d9bbe3a02490282bb",
+  "git_version": "git version 2.34.1",
+  "source_files": {
+    "orchestrator/tests/fixtures/sort_swo_masstree/config.h": {
+      "sha256": "e9a4ecd3dfb9aef9c159e99cb2b7000651a2036ec909095f750b2c891404694a",
+      "size": 10448
+    },
+    "orchestrator/tests/fixtures/sort_swo_masstree/.gitignore": {
+      "sha256": "5c41ab87b05ee722e9e4d06599a119532d9c79fe51272617c9eddad71d0ed5e6",
+      "size": 810
+    },
+    "orchestrator/tests/fixtures/sort_swo_masstree/doc/.gitignore": {
+      "sha256": "fe21f9052cf7cbb38e80496c2864f2a22a10286b7ffd57cfb3de89d2b019ffb0",
+      "size": 95
+    }
+  },
+  "finished_at": "2026-09-17T13:14:21.950429+00:00",
+  "ok": false
+}
