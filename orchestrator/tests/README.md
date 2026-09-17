@@ -255,6 +255,16 @@ node ごとの work unit にする。親 repo と CCBench は別の reader/write
 取得する。process 内は key ごとに 1 fd と参照 count を共有し、SH 中の同一 thread の EX は同じ
 fd を昇格、終了時に SH へ降格する。これにより sibling worktree と旧 session のどちらとも
 同一 host/filesystem 上で排他しつつ、長寿命 fixture の入れ子による自己競合を避ける。
+writer の飢餓 (F976) は各 key と同名の `.gate` flock で抑える。writer は fresh の EX 取得と
+SH→EX の昇格 (gate を開いてから自分の SH を解放する) で gate を EX 保持したまま main を待ち、main
+取得直後に gate を閉じる。process が実 repo lock を 1 つも持たない fresh reader は、main を取る前に
+必要な全 key の gate を SH で試して即解放し、writer が gate を保持する間は何も持たずに待つ (この
+検査のためだけに common-dir を main 取得前にも解決する。本体の key は従来どおり legacy 取得後に
+解決する)。既に lock を持つ process (入れ子・2 つ目の資源) の reader と EX→SH の降格は gate を
+見ない (main を握ったまま gate で待つ hold-and-wait を作らないため)。gate は NB polling で待機順を
+持たないので、保証するのは「writer が gate を保持する間、その gate の事前検査を行う fresh reader を
+待たせる」ことであり、検査済み reader の main 取得は妨げず、待機開始からの厳密な優先でもない。
+deadline 245 秒は gate と main で共有する。
 
 長寿命 fixture は node protocol へ登録しない。`s8c-preregistration-candidate`、
 `s8c-predicate-snapshot`、`campaign-repository-scan` を別 loadgroup のまま保持し、fixture 自身が

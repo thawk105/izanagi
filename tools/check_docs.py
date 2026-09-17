@@ -464,7 +464,7 @@ DEV_WAVE_STAGE6_WAITER_CONSUMER_LINES = (
 DEV_WAVE_STAGE9_WAITER_CONSUMER_LINES = (
     "9. **終端・local main (親):** 共通 land operation で監査済み成果だけを取り込み、結果を確定して終了する。",
     "   受入・land の終端で必ず `tools/dev_wave_wait.py acceptance` で `release` し、",
-    "   land 成功時だけ `message` を照合済み peer へ 1 度送る。",
+    "   land 成功時と巻戻し時に `message` を照合済み peer へ 1 度送る。",
 )
 DEV_WAVE_DW_C00_WAITER_CONSUMER_LITERAL = (
     "待ち手は 1 条件 1 本とし、通知ごとに作り直さず `tools/dev_wave_wait.py` を使う。"

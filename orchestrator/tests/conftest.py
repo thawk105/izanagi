@@ -1050,6 +1050,7 @@ class _RealRepoProcessLockState:
     fd: int
     holders: Counter[tuple[int, str]]
     mode: str | None
+    gate_fd: int | None = None
 
 
 _REAL_REPO_PROCESS_LOCK_CONDITION = threading.Condition(threading.RLock())
@@ -1288,6 +1289,8 @@ def _reset_real_repo_process_locks_after_fork() -> None:
         return
     for state in _REAL_REPO_PROCESS_LOCKS.values():
         os.close(state.fd)
+        if state.gate_fd is not None:
+            os.close(state.gate_fd)
     _REAL_REPO_PROCESS_LOCKS.clear()
     _REAL_REPO_PROCESS_LOCK_PID = pid
 
@@ -1354,14 +1357,35 @@ def _real_repo_lock_path_context(
         assert target_mode is not None
         try:
             if target_mode != state.mode:
-                _real_repo_flock_until(
-                    resource,
-                    target_mode,
-                    path,
-                    state.fd,
-                    deadline=deadline,
-                    retry_interval_s=retry_interval_s,
-                )
+                # Writers hold the gate only while acquiring main; fresh readers
+                # probe all gates before holding any main lock to avoid cycles.
+                if target_mode == "write":
+                    gate_path = Path(f"{path}.gate")
+                    state.gate_fd = _open_real_repo_lock(gate_path)
+                try:
+                    if state.gate_fd is not None:
+                        if state.mode == "read":
+                            fcntl.flock(state.fd, fcntl.LOCK_UN)
+                        _real_repo_flock_until(
+                            resource, "write", gate_path, state.gate_fd,
+                            deadline=deadline,
+                            retry_interval_s=retry_interval_s,
+                        )
+                    _real_repo_flock_until(
+                        resource,
+                        target_mode,
+                        path,
+                        state.fd,
+                        deadline=deadline,
+                        retry_interval_s=retry_interval_s,
+                    )
+                finally:
+                    if state.gate_fd is not None:
+                        try:
+                            fcntl.flock(state.gate_fd, fcntl.LOCK_UN)
+                        finally:
+                            os.close(state.gate_fd)
+                            state.gate_fd = None
         except BaseException:
             if created:
                 del _REAL_REPO_PROCESS_LOCKS[key]
@@ -1454,12 +1478,45 @@ def _real_repo_locks(access: RealRepoAccess | None):
     if access is None:
         yield
         return
-    with contextlib.ExitStack() as stack:
+    requests = tuple(
+        (resource, mode)
         for resource, mode in (
-            ("parent", access.parent),
-            ("ccbench", access.ccbench),
-        ):
-            if mode is not None:
+            ("parent", access.parent), ("ccbench", access.ccbench),
+        )
+        if mode is not None
+    )
+    deadline = time.monotonic() + _REAL_REPO_LOCK_TIMEOUT_S
+    with _REAL_REPO_PROCESS_LOCK_CONDITION:
+        _reset_real_repo_process_locks_after_fork()
+        if not _REAL_REPO_PROCESS_LOCKS:
+            for resource, mode in requests:
+                if mode != "read":
+                    continue
+                for path in (
+                    _real_repo_legacy_lock_path(resource),
+                    _real_repo_lock_path(resource),
+                ):
+                    gate_path = Path(f"{path}.gate")
+                    gate_fd = _open_real_repo_lock(gate_path)
+                    try:
+                        _real_repo_flock_until(
+                            resource, "read", gate_path, gate_fd,
+                            deadline=deadline,
+                            retry_interval_s=_REAL_REPO_LOCK_RETRY_INTERVAL_S,
+                        )
+                    finally:
+                        try:
+                            fcntl.flock(gate_fd, fcntl.LOCK_UN)
+                        finally:
+                            os.close(gate_fd)
+    with contextlib.ExitStack() as stack:
+        for index, (resource, mode) in enumerate(requests):
+            if index == 0:
+                stack.enter_context(_real_repo_file_lock(
+                    resource, mode,
+                    timeout_s=max(0.0, deadline - time.monotonic()),
+                ))
+            else:
                 stack.enter_context(_real_repo_file_lock(resource, mode))
         yield
 
