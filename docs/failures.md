@@ -198,6 +198,12 @@
   導出でなければならない」) ので、規約の新設ではなく**履行の失敗**として記録する。
   再発検知は、当該主張が指す機構を**現行 producer で 1 回実走させること**
   (記録済み成果物の引用では検出できない)。
+
+- **再発: 2026-09-17** — [T-2491] wave の親が handoff・brief v1.1・段 4 裁定の時刻 (JST) を `date` や
+  file の mtime で確かめず推定で書き、実時刻より 30〜60 分遅い値 (例: 裁定 22:55 → 実 22:09) を 5 箇所に残した。
+  段 6 レビュー B が「事前登録の時刻表記が焦点走・統合 commit の時刻と照合できない」と指摘し、親が全部 mtime と
+  `git log --format=%ci` で実測して訂正した (事前登録 → author 投入 → 実装の順序は保たれており成果物への影響は無い)。
+  転写でなく推定でも同じ型になる。時刻・日付は書く直前に `date` / mtime / commit 日時から取る。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -12037,6 +12043,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   静的に前倒しするには、保留登録時に「同 file 内に `spec_from_file_location(..., __file__)` /
   `runpy` / `exec(open(...))` 相当の自己読み込みがあるか」を検査する必要がある (未実装)。
 
+
+- **再発: 2026-09-17** — 発火面が変わった。受入の正規 consumer ではなく、**計算ノードで走らせる使い捨て probe** (Codex author が書き、repo 外へ退避) が held module `test_s8b_oracle_driver.py` の fixture builder を pytest 外から `import` し、`GrowthTestHoldBypassRefused` (`node_id: test_s8b_oracle_driver.py::*`) で 6 秒 rc=1 になり generic dispatch 1 本を空費した。段 2 plan (「静的には pytest 外から直接呼べる」) と段 3 の 2 レンズ (import 副作用を temp 検査・xdist・conftest まで検算した) の 3 者がいずれも末尾の `enforce_held_functions(..., plain_runner="none")` を見落とし、親も memory の「pytest session を要する probe」を held module と結びつけずに読んだ。解除 env はユーザー明示専用なので使わず、probe の内側で `pytest.main([held module, "--collect-only", "-q", "-p", "no:cacheprovider", "-k", <不一致名>])` を呼び `pytest_sessionstart` hook で完全修飾名を import して `sys.modules` に残す形へ fix 子が直した (`-k` で items を空にし `pytest_collection_finish` の receipt memo prewarm を避ける。hold session 2.2 秒、rc=5)。held module の helper を外から使う probe / harness は、設計段で module 末尾の guard binding の有無を必ず見る。一次資料は `output/insights/2026-09-17/t2708-fixture-config-h-gap/README.md` §7 と同 dir `run1-result.json`。
 ### F352. 背景 task の「完了」通知が producer 稼働中に発火し続けた [誤前提] [手順漏れ]
 
 - 事象: 2026-08-16 の 1 セッション中に、背景 job の完了通知が **6 回以上**、
@@ -24871,6 +24879,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (D1845 と同 wave の次の一手を参照)。
 - 再発検知: 同経路で被覆を主張する新しい member は、拒否を握り潰す変異を必ず登録する。
   負例だけが赤で閉包検査が緑なら、閉包検査は当該 member について何も保証していない。
+- **supersede: 2026-09-17** — 恒久対応の「検査本体の強化はユーザー裁定へ返した」は D1882 の裁定と D2126 の実装 (commit 125ab5fd1 + 79dd07742、`orchestrator/tests/test_ccbench_spawn_sites.py`) で実施済み。同一置換の変異で閉包検査が旧版 PASSED / 新版 FAILED を実測 (`output/insights/2026-09-17/t2491-injected-closure-fail-closed/`)。再発検知の「負例だけが赤で閉包検査が緑なら何も保証していない」は引き続き有効。
 
 ### F919. 事前登録が記録した commit が repository に存在しないまま発行され、誰も踏まなかった [手順漏れ]
 
@@ -25575,6 +25584,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   wave の変更は docs のみで当該 fixture・probe・Git 呼出しは触っていない。既存の恒久対応どおり timeout 拡大・
   fixture の stub 化・除外・gate 新設はせず、`DW-O18` に従い受入を 1 回再走した。記録は
   `output/insights/2026-09-17/prereg-s11-3-addendum-d2103/README.md`。
+
+- **再発: 2026-09-17** — [T-2710] 調査 wave (docs と計測成果物のみ、post-claim merge 後の tip `06ad393af`) の受入 attempt 1
+  (session `93bc7244…`、同時受入は投入時 2 本・他 session 合計 3 本) で 4 setup error (24,755 passed / 67 skipped)。全件
+  `test_s8c_preregistration_predicates.py::test_current_repository_*` の module fixture の `archive` 呼び出し (orchestrator/campaign
+  約 80 file) が 10 秒 TimeoutExpired。本 wave の差分は到達不能。同 tip・同 file の単独再走 (`run_tests.py --force-dispatch`、
+  request 4213.nqsv) は 218 passed / 92.29 秒 / rc=0 で非再現。attempt 2 (tip `b82d12ac7`、session `c8faa7f0…`、投入時 leader 2 本) は
+  33 error (t1259 の worktree に対する 30 秒 TimeoutExpired 29 件 + s8c の 10 秒 timeout 4 件、24,726 passed)、同 tip の 2 file 単独再走
+  (request 4300.nqsv) は 269 passed / 99.10 秒 / rc=0 で非再現。恒久対応は既報のまま変えず、timeout 拡大・stub 化・除外・gate 新設は
+  していない。attempt 3 は投入条件を leader ≤ 1・load1 < 15 に絞って投げた。
 ### F946. 修正可能な検査失敗で作業を終了し、ユーザーへ再開を要求した [手順漏れ] [誤前提]
 
 - 事象: insights整理のauthorが実行ログ検査で未受理になり、親は原因の切り分けや安全な再試行をせず正式停止した。
@@ -27384,3 +27402,19 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `waiting for land turn` が無い (= 順番票を知らない旧 driver か、旧 driver との混在) なら本件の型。
   順番票あり同士で起きたら D の前提 (先頭が有限時間で進む) の破れを疑い、先頭 ticket の phase と
   registry の grant を読む。
+
+### F1024. 仮想割付 probe で nodeid を書き換え、台帳 lookup が既定値に落ちた偽の均等化を敵対相談の材料に載せた [計測汚染] [手順漏れ]
+
+- 事象: T-2710 の親 probe が「成分粒度を node にした場合」を `tools/acceptance_shards.py::allocate()` で仮想計算する際、
+  `test_s8b_oracle_driver.py` の group 無し node の **nodeid 自体**を仮想 file 名へ書き換えた。allocate は nodeid で
+  `acceptance_duration_ledger.json` を引き、未登録 node を 1 秒に置くため、147 node 中 141 node が 1 秒になり
+  「M を含んでも 3 shard が 5,165 秒で均等化」という偽の結果が出た。親はそれを段 3 レンズ B の prompt に「T-2750 が land すれば
+  別系列化なしでも床が同程度まで下がるか」の材料として載せた。レンズ B が `allocate` の lookup (`AS:397,404`) を読んで検出し、
+  nodeid を保った再計算で 6,052.7×3 (M は 0/6/5、240 秒 node が残る) に訂正した。near miss (裁定前に訂正)。
+- 根本原因: (1) 仮想計算で「成分の鍵」(file) と「重みの鍵」(nodeid) を同じ文字列で扱い、片方だけ変えるべきところを両方変えた。
+  (2) probe の出力に台帳 hit 数・fallback 数を含めず、全 node 1 秒という異常が数値 (負荷総和が 18,158 → 15,495 秒へ減る) からしか
+  見えなかった。(3) 現行割付の再現 (保存済み loads と一致) は確かめたが、仮想変更後の「重みの総和が不変」という保存則を確かめなかった。
+- 恒久対応: memory `virtual-allocation-probe-keeps-identifiers-and-checks-weight-conservation` — 仮想割付 probe は識別子 (nodeid) を
+  保ち、変えるのは成分の鍵だけにする。出力に台帳 hit / fallback 数と重み総和を含め、母集合が同じ仮想変更では総和不変を assert する。
+  修正済み probe の出力は `output/insights/2026-09-17/t2710-t080-series-inquiry/probe-outputs/probe_shard_wall.895f300a.v2.txt`。
+- 再発検知: 段 3 レンズが親 probe の source を読む (本件で機能した)。probe 側は重み総和の保存則 assert。

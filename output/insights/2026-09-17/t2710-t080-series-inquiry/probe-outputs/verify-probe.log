@@ -1,0 +1,9 @@
+start 2026-09-17T21:56:34+0900 head=38353207f719acb0871cfe3d9bbe3a02490282bb
+IZANAGI_FREEZE_HOLD {"check_id": "t080.live-known-axes-artifact-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+IZANAGI_FREEZE_HOLD {"check_id": "t080.live-holdout-artifact-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+IZANAGI_FREEZE_HOLD {"check_id": "t080.live-known-axes-ccbench-current-pin", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+{"refusals":[],"state":"active-valid","t080_freeze_migration_observation":{"items":[{"artifact":"known_axes","kind":"source-repin","observed":"8c3abd486b0b280c4e7ea6938147360fdacd1454d3eadb84ae1d663c9f395311","recorded":"3e94735a974fa494b12691e418f0b593ee2ac22dba4e67fb0f8874523d2175a1","status":"repinned-to-basis-blob","subject":"/entries/balanced/ident_all/sources/3/sha256"},{"artifact":"known_axes","kind":"source-repin","observed":"28270e905785c787f1eb74cebcf34f8feb98e1e7cec738dee14611c9ab3dad1a","r
+... (t080_freeze_migration_observation の全文は省略、state=active-valid / rc=0 / elapsed_s=135.46)
+elapsed_s=135.46 maxrss_kb=956940
+rc=0
+end 2026-09-17T21:58:49+0900
