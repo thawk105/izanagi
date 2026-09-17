@@ -1,0 +1,72 @@
+[
+  {
+    "file": "parent-brief.md",
+    "source": "parent-brief.md",
+    "source_sha256": "ef2a8250f570d11ace313731cb87f01930188896437eb0583774b52a22e50697",
+    "stored_sha256": "ef2a8250f570d11ace313731cb87f01930188896437eb0583774b52a22e50697",
+    "trailing_ws_lines_stripped": 0
+  },
+  {
+    "file": "s2-plan.md",
+    "source": "s2-plan.md",
+    "source_sha256": "ca72a83a88c8d5a1810db11b21a26942f456b8542925f92349d310a1b74f7008",
+    "stored_sha256": "b30e658e292b1c060027c0d0be2d3723c22fe77263d2e796ec03254b0c2cc850",
+    "trailing_ws_lines_stripped": 0
+  },
+  {
+    "file": "s3-lensA.md",
+    "source": "s3-lensA.md",
+    "source_sha256": "53eaca7c41b535594d988e904f35b5fe418e7260c9e6d3ee49448b5d6238834a",
+    "stored_sha256": "54b8d4004f96876382ee936ca802813b53729df00ed5c7ae6c0bec09a4ec39d6",
+    "trailing_ws_lines_stripped": 1
+  },
+  {
+    "file": "s3-lensB.md",
+    "source": "s3-lensB.md",
+    "source_sha256": "d0d801c87c5d374fdaf5da7d08232a41aa59f5a93afce5f4eab0cf646d875ddf",
+    "stored_sha256": "a7af991ad06d1f5dc18992bb12bc330e3ebfa318220697c827d8e78638e2b652",
+    "trailing_ws_lines_stripped": 2
+  },
+  {
+    "file": "s4-ruling.md",
+    "source": "s4-ruling.md",
+    "source_sha256": "94cb9119c7c8693e6bde6205edba4298ab575c01ce50d54933f8c4eb31306141",
+    "stored_sha256": "94cb9119c7c8693e6bde6205edba4298ab575c01ce50d54933f8c4eb31306141",
+    "trailing_ws_lines_stripped": 0
+  },
+  {
+    "file": "prompt-plan.md",
+    "source": "prompt-plan.md",
+    "source_sha256": "c4ab60a0daa716671738376667f66384ae6dcd6edd754c924763f4f7241d1d70",
+    "stored_sha256": "c4ab60a0daa716671738376667f66384ae6dcd6edd754c924763f4f7241d1d70",
+    "trailing_ws_lines_stripped": 0
+  },
+  {
+    "file": "prompt-consult-A.md",
+    "source": "prompt-consult-A.md",
+    "source_sha256": "40d26e78314932ec01d744507180bbfc5445ddd2faacdc2cdb0433027b1f8ff3",
+    "stored_sha256": "40d26e78314932ec01d744507180bbfc5445ddd2faacdc2cdb0433027b1f8ff3",
+    "trailing_ws_lines_stripped": 0
+  },
+  {
+    "file": "prompt-consult-B.md",
+    "source": "prompt-consult-B.md",
+    "source_sha256": "9c9d9863605d64ee9648cf195da3c76baea353764428119cfaf8bfcd8f4582e2",
+    "stored_sha256": "9c9d9863605d64ee9648cf195da3c76baea353764428119cfaf8bfcd8f4582e2",
+    "trailing_ws_lines_stripped": 0
+  },
+  {
+    "file": "prompt-review.md",
+    "source": "prompt-review.md",
+    "source_sha256": "391ee414d7502b4ee4fe4e5d68ae6a6ce7d92ccd7d8fde0a241d3d565db2b933",
+    "stored_sha256": "391ee414d7502b4ee4fe4e5d68ae6a6ce7d92ccd7d8fde0a241d3d565db2b933",
+    "trailing_ws_lines_stripped": 0
+  },
+  {
+    "file": "s6-review.md",
+    "source": "s6-review.md",
+    "source_sha256": "c708122bea2102ca438e1f6d146ffc26ae772d64425b193d9c64786636233c66",
+    "stored_sha256": "e3a0c4dd62ba410f4a2111071bbd847b41c68d9fdf82dafd19046e9da6bcfef4",
+    "trailing_ws_lines_stripped": 0
+  }
+]

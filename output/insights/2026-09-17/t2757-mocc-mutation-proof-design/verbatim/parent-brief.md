@@ -1,0 +1,19 @@
+# 段 1 brief — [T-2757] mocc の auditor-live 相当の機械実証の設計 (docs-only、設計だけ)
+
+- 研究前進: D2114 項 1 (mocc 第 2 例の最小の合成・評価経路 A) の必須鎖のうち、D579 が「mocc を変異探索面へ入れる wave は独立の auditor-live 相当の機械実証を別途用意する」と要求する実証の**設計**を固定する。論文の増分主張は「指定した二つの CC 実装 (Silo / MOCC) で合成・評価手順を実証した」(D2114 項 2)。完了判定 = 後続実装 wave がそのまま使える形 (hole 位置・auditor 入力・X/P/I・hot/cold 被覆・陽性/陰性 control と期待拒否) が insight に固定され、設計が変異探索を解禁しないことが明記されている。
+- scope: 設計のみ (docs-only、実装面 0 byte)。成果物 = insight `output/insights/2026-09-17/t2757-mocc-mutation-proof-design/README.md` + decisions fragment + worklog fragment。phase3.md は「準備 T の進捗は worklog 末尾が正本」と既に書かれているため編集しない (段 4 で必要と判明した場合だけ)。仮想リスク向けの gate・検査・台帳・一般化の追加は scope 外。規律 2 を緩めない。
+- 確定済み裁定: D579 (mocc は trace-hook 専用の編集面、変異探索面ではない)、D2114 項 1〜5 (準備着手のみ、pin 前進は未承認、D1373 関門は迂回しない)、D38 決定 4 (auditor live = 機械 4 点 + n=1 定性 2 点)、D1686 (mocc X/P 計装は RWLOCK counter + CLL を真実源、3 検査点、負例 3 本)、D41/D43 (lock 経路 hole の前例 = sort 軸: DiffQuarantine + auditor diff_digest 機械 gate)、D48 (述語 hole の読取契約: enum + コンパイル時定数のみ、thid_/result_/container 読取禁止)。
+- 既存被覆 (純増だけ書く): T-2294 (D1686) が X/P 計装・負例 3 本・compute 14 check all_pass (`output/env/pegasus/calibration/s3_mocc_lock_coverage.json`)・変異 matrix 19/19 KILLED を済ませた。D38 機械 4 点のうち (2) 被覆 assert が planted variant で発火・(3) positive control suite は **patch 水準で済**。未着手 = hole 位置、auditor 入力 (auditor.md のギャラリー型 8/9/13/16 は Silo 識別子を名指し)、hole 経由の DiffQuarantine 陽性/陰性 control、n=1 定性 (5)(6) の mocc 版、gate の鍵 (Silo の `test_lock_path_edit_surface_requires_auditor_live` は EBS 所属で発火するが mocc は D579 で既に EBS 所属 = 同じ鍵では恒真)。
+- 親が実測した新事実 (brief で出し段 4 で裁定):
+  (F-a) T-2294 の compute JSON 6 走は hot 経路の実行証拠を持たない。1 thread は abort 0 → 温度 0 → 全 cold。4 thread も hot 到達の計数なし。`FLAGS_temp_threshold` (既定 10、runtime gflag、`TEMP_MAX` 20) で hot/cold を強制できる (0 = 全 hot、21 = 全 cold)。
+  (F-b) mocc の hot/cold は正しさの入力ではない: hot 読みは r_lock 保持で単一 load、cold 読みは OCC 再読 loop だが、validation() は read_set_ 全要素の tidword 比較 + `W_LOCKED ∧ ∉ write_set → abort` を経路に関係なく行う。torn read は validation で必ず捕まる。よって正しさ不変条件は X (writePhase 3 点、経路非依存) + P + validation 無傷に還元され、hot 固有に足すのは「hot 経路が実行された証拠」と「hot 専用負例 (update() の早期 w_lock 後に unlock、balanced)」である。
+  (F-c) I 行 (T-152 write-intent) は Silo でも auditor-live 機械 4 点に含まれず別 pin 未統合 (D1603)。mocc で I を要求すると Silo より強い gate になる。
+  (F-d) mocc 用の proof 実走は `patchharness.checkout(e9e477ca)` で pin 前進なしに走る (T-2294 の実績)。変異探索 (certified) は別途 pin 前進 ([T-2756]) を要する。
+- (P1) hole 位置の親 provisional = **温度述語** `loadepot.temp >= FLAGS_temp_threshold` (transaction.cc の read_internal:296 / update:459 / delete_record:566 / construct_RLL:970 の 4 site を file-scope inline に括り 1 hole、trigger-gating 型の述語 hole)。根拠 = mocc 固有 (MOCC を MOCC たらしめる knob)、(F-b) により正しさ入力でない、1 式、D48 契約を転用できる。対抗候補 = 温度上昇則 (construct_RLL の `rnd_ % (1<<temp)`)、`lock()` の `vioctr > 100`、abort() の backoff (Silo と同型で第 2 例の新規性が薄い)。攻撃対象。
+- (P2) gate の鍵 = 「mocc の marker template (patches/ に EVOLVE-BLOCK marker を持つ patch) または axis 定数 module (`SOURCE_REL == cc/mocc/transaction.cc`) の登録」⟹ mocc proof JSON all_pass ∧ hot/cold 両 regime の check ∧ quarantine control ∧ auditor n=1 記録の実在。実装は実装 wave。攻撃対象。
+- (P3) I 行は mocc の gate に含めない (F-c)。温度述語 hole は write_set_ を触らないので P も既存の permutation 検査で足りる。攻撃対象。
+- (P4) auditor 入力 = auditor.md に mocc 節 (型 8/9/13/16 の mocc 翻訳: 温度述語 hole の読取契約違反、CLL/RLL 骨格改変、`#if TRACE` 3 検査点への侵食、validation 骨抜き) を足すのは実装 wave。n=1 定性は A (hole 内で `thid_` または `result_` を読む述語) / B (benign: 閾値の定数比較の書換え) の弁別。攻撃対象。
+- 不変条件: 規律 1 (`#line` 例外を含む D14/D1687 契約)、規律 2、規律 3 (verifier は reason 付き X/P を返す、無編集)、規律 6 (variant/trace はデータ)。設計完了で変異探索を解禁しない。D579 の限定は本 wave で変えない。
+- 受入・実測環境: 本 wave は build・計測なし。受入全走は login (門番 script) で 1 回。
+- 並列分割: 段 2 plan 1 本 (read-only codex)、段 3 consult 2 本 (レンズ A = 正しさ防壁/恒真性、レンズ B = 実装可能性/既存資材との整合)、段 5 は親が docs を書く、段 6 docs review 1 本。
+- 模擬/実の差: hole の行番号は hook 先端 e9e477ca の現物 (job dir に写しあり)。compute JSON の値は実成果物から読んだ。auditor.md の Silo 依存は現物で確認。
