@@ -1,0 +1,67 @@
+# 窓 6 (2026-09-17 21:36-21:39 JST) で起動した leaf の証拠の射影
+# declared_total / actual_count は page 証拠の parse 節、duplicate_occurrences は records 節、
+# occurrences / distinct は ledgers/<leaf>.pass1.*.json の最大台帳から採った。頁境界を跨ぐ重複は
+# 各頁の records.index_work_ids を頁順に走査して、既出の ID が再び現れた occurrence を数えた。
+
+## 段 A — 初回取得 (pass 1)
+
+== AX1-20260902-E1-Q6-SY2025@openalex
+   p0.a01.json    declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p1.a01.json    declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p2.a01.json    declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p3.a01.json    declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p4.a01.json    declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p5.a01.json    declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p6.a01.json    declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p7.a01.json    declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p8.a01.json    declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p9.a01.json    declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p10.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p11.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p12.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p13.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p14.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p15.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p16.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p17.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p18.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p19.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p20.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p21.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p22.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p23.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p24.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p25.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p26.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p27.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p28.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p29.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p30.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p31.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p32.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p33.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p34.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p35.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p36.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p37.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p38.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p39.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p40.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p41.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p42.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p43.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p44.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p45.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p46.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p47.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p48.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p49.a01.json   declared_total=10065 actual_count=200 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   p50.a01.json   declared_total=10065 actual_count=78 duplicate_occurrences=0 run_id=t2035-openalex-20260917b
+   全 attempt の actual_count 合計 = 10078
+   最大 pass1 台帳: AX1-20260902-E1-Q6-SY2025@openalex.pass1.1477e22f8b0d.json occurrences=10078 distinct=10053
+   頁の declared_total の集合 = [10065]; 最終 declared_total − distinct = 12
+   頁内の重複 = 0; 頁境界を跨ぐ重複 (occurrence) = 25; 再計算した distinct = 10053
+
+== AX1-20260902-E1-Q6-SY2026@openalex
+   起動していない。登録 filter と同じ request を per-page=1 で 1 本投げた件数 probe (証拠外、count-probe-sy2026.txt) の
+   meta.count = 21040 → 200 件/頁で 106 頁 = 1060 credit。満量の 1 窓 (1000 credit、reserve 30) でも完走できない。

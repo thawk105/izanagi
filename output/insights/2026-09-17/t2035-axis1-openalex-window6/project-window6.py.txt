@@ -1,0 +1,65 @@
+"""窓 6 の insight 射影 (evidence-detail.txt / leaf-states.txt) を bundle の現物から書く。repo 外の使い捨て。"""
+import collections
+import glob
+import json
+import os
+import sys
+
+I = sys.argv[1]
+B = '/work/1/SFC/tanab/axis1-bundles/2026-09-03-t2090-openalex/bundle'
+leaf = 'AX1-20260902-E1-Q6-SY2025@openalex'
+out = []
+out.append('# 窓 6 (2026-09-17 21:36-21:39 JST) で起動した leaf の証拠の射影')
+out.append('# declared_total / actual_count は page 証拠の parse 節、duplicate_occurrences は records 節、')
+out.append('# occurrences / distinct は ledgers/<leaf>.pass1.*.json の最大台帳から採った。頁境界を跨ぐ重複は')
+out.append('# 各頁の records.index_work_ids を頁順に走査して、既出の ID が再び現れた occurrence を数えた。')
+out.append('')
+out.append('## 段 A — 初回取得 (pass 1)')
+out.append('')
+out.append('== ' + leaf)
+pages = sorted(glob.glob(f'{B}/pages/{leaf}_p*.json'), key=lambda p: int(os.path.basename(p).split('_p')[1].split('.')[0]))
+tot = 0
+declared = set()
+seen = set()
+cross = 0
+inpage = 0
+for p in pages:
+    d = json.load(open(p))
+    pr = d['parse']
+    rec = d['records']
+    tot += pr['actual_count']
+    declared.add(pr['declared_total'])
+    ids = rec['index_work_ids']
+    c = collections.Counter(ids)
+    inpage += sum(v - 1 for v in c.values() if v > 1)
+    for i in set(ids):
+        if i in seen:
+            cross += 1
+    seen.update(ids)
+    name = os.path.basename(p).split('@openalex_')[1]
+    out.append(f"   {name:<14} declared_total={pr['declared_total']} actual_count={pr['actual_count']} duplicate_occurrences={rec['duplicate_occurrences']} run_id={d['identity']['run_id']}")
+out.append(f'   全 attempt の actual_count 合計 = {tot}')
+led = sorted(glob.glob(f'{B}/ledgers/{leaf}.pass1.*.json'), key=os.path.getsize)[-1]
+L = json.load(open(led))
+out.append(f"   最大 pass1 台帳: {os.path.basename(led)} occurrences={L['occurrence_count']} distinct={L['distinct_index_work_id_count']}")
+out.append(f"   頁の declared_total の集合 = {sorted(declared)}; 最終 declared_total − distinct = {sorted(declared)[-1] - L['distinct_index_work_id_count']}")
+out.append(f'   頁内の重複 = {inpage}; 頁境界を跨ぐ重複 (occurrence) = {cross}; 再計算した distinct = {len(seen)}')
+out.append('')
+out.append('== AX1-20260902-E1-Q6-SY2026@openalex')
+out.append('   起動していない。登録 filter と同じ request を per-page=1 で 1 本投げた件数 probe (証拠外、count-probe-sy2026.txt) の')
+out.append('   meta.count = 21040 → 200 件/頁で 106 頁 = 1060 credit。満量の 1 窓 (1000 credit、reserve 30) でも完走できない。')
+open(f'{I}/evidence-detail.txt', 'w').write('\n'.join(out) + '\n')
+
+d = json.load(open(f'{I}/bundle-check.json'))
+ld = d['status']['leaf_diagnostics']
+oa = {k: v for k, v in ld.items() if k.endswith('@openalex')}
+c = collections.Counter((v['state'], v['reason_code'], v['resume_action']) for v in oa.values())
+ls = [f'openalex leaves in diagnostics: {len(oa)}']
+for k, v in sorted(c.items(), key=lambda x: -x[1]):
+    ls.append(f'{v:3d}  state={k[0]} reason_code={k[1]} resume_action={k[2]}')
+ls.append('')
+for k, v in oa.items():
+    if v['state'] != 'complete':
+        ls.append(f"{k:<40} state={v['state']} reason={v['reason_code']} resume={v['resume_action']} ckpt_state={v['checkpoint_state']} completed={v['completed_passes']} evidence={v['evidence_passes']} expected={v['expected_passes']}")
+open(f'{I}/leaf-states.txt', 'w').write('\n'.join(ls) + '\n')
+print('ok', len(pages))

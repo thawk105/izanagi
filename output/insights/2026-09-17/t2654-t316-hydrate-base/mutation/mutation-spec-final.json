@@ -1,0 +1,304 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "timeout_seconds": 2700,
+  "estimated_run_seconds": 360,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M0",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "            # A later writable scratch bind must never cover the requested source.\n",
+          "new": "            # T2654 equivalent mutation: comment-only change (control).\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "        f\"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={staging_root / 'masstree'}\",\n",
+          "new": "        f\"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={Path(os.environ['IZANAGI_PEGASUS_THIRDPARTY_CACHE']) / 'masstree'}\",  # T2654 mutation: cache direct\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_offline_source_paths_and_prepare_order",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception[gate]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception[outside]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[/tmp]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[unset]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_gate_and_both_build_roots_match",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_staging_is_readonly_outside_scratch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "    if not inside and failure_stage is None:\n",
+          "new": "    if False and not inside and failure_stage is None:  # T2654 mutation: skip prepare\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_condition_gate_dominates_ccbench_configure",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_offline_source_paths_and_prepare_order",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception[gate]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception[outside]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[/tmp]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[unset]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_gate_and_both_build_roots_match",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_staging_is_readonly_outside_scratch",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_prepare_failure_stops_before_gate[configure]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_prepare_failure_stops_before_gate[target]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "            (\"ccbench-configure\", configure, 300),\n",
+          "new": "            (\"ccbench-configure\", [argument.replace(str(staging_root), os.environ['IZANAGI_PEGASUS_THIRDPARTY_CACHE']) if argument.startswith('-DFETCHCONTENT_SOURCE_DIR_') else argument for argument in configure], 300),  # T2654 mutation: build from cache\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_offline_source_paths_and_prepare_order",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception[outside]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[/tmp]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[unset]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_gate_and_both_build_roots_match",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_staging_is_readonly_outside_scratch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "        prefix=\"t316-s6-thirdparty-\", dir=scratch.resolve(strict=True).parent,\n",
+          "new": "        prefix=\"t316-s6-thirdparty-\", dir=scratch.resolve(strict=True),  # T2654 mutation: staging inside scratch\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_offline_source_paths_and_prepare_order",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception[gate]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception[outside]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[/tmp]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[unset]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_gate_and_both_build_roots_match",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_staging_is_readonly_outside_scratch",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_prepare_failure_stops_before_gate[configure]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_prepare_failure_stops_before_gate[target]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "                (*profile.readonly_roots, requested_root, staging_root), runner=profile.runner,\n",
+          "new": "                (*profile.readonly_roots, requested_root), runner=profile.runner,  # T2654 mutation: staging not ro-bound\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_offline_source_paths_and_prepare_order",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception[gate]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception[outside]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[/tmp]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[unset]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_gate_and_both_build_roots_match",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_staging_is_readonly_outside_scratch",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_prepare_failure_stops_before_gate[configure]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_prepare_failure_stops_before_gate[target]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "    \"tools/pegasus/fetch_third_party.py\",\n",
+          "new": "    # T2654 mutation: hydrate CLI dropped from runtime binding\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_binds_runtime_spool_to_pbs",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_bound_paths_match_shell_and_literal",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_python_rejects_dirty_offline_inputs[tools/pegasus/fetch_third_party.py-staged]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_python_rejects_dirty_offline_inputs[tools/pegasus/fetch_third_party.py-unstaged]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6b",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.pbs",
+          "old": "  orchestrator/campaign/buildcache.py\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_bound_paths_match_shell_and_literal",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_shell_dirty_gate[buildcache-staged]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_execution_binding_shell_dirty_gate[buildcache-unstaged]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "                if command.get(\"rc\") != 0 or command.get(\"timed_out\"):\n",
+          "new": "                if False:  # T2654 mutation: hydrate rc ignored\n"
+        },
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "                failure_stage = \"third-party-hydrate\"\n",
+          "new": "                pass  # T2654 mutation: hydrate payload failure ignored\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_hydrate_failure_stops_before_identity_and_gate"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7b",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "                if command.get(\"rc\") != 0 or command.get(\"timed_out\"):\n",
+          "new": "                if False:  # T2654 control: rc check alone dropped, JSON layer still rejects\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "    if not inside and failure_stage is None:\n",
+          "new": "    if failure_stage is None:  # T2654 mutation: prepare also inside\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_offline_source_paths_and_prepare_order"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "        f\"-DCMAKE_PREFIX_PATH={prefix}\",\n",
+          "new": "        f\"-DCMAKE_PREFIX_PATH={prefix}\", f\"-DFETCHCONTENT_BASE_DIR={staging_root}\",  # T2654 mutation: base dir on ro staging\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_offline_source_paths_and_prepare_order",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception[gate]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception[outside]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[/tmp]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[unset]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_gate_and_both_build_roots_match",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_staging_is_readonly_outside_scratch"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "    if failure_stage is None:\n        condition_gate_family = _require_condition_gate(\n",
+          "new": "    if True:  # T2654 mutation: gate after failed prepare\n        condition_gate_family = _require_condition_gate(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_prepare_failure_stops_before_gate[configure]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_prepare_failure_stops_before_gate[target]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "                    dependency_prefix=str(prefix),\n",
+          "new": "                    dependency_prefix=\"\",  # T2654 mutation: prepare without dependency prefix\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_offline_source_paths_and_prepare_order",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception[gate]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_patch_cleanup_on_short_circuit_and_gate_exception[outside]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[/tmp]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_checkout_reaches_terminal_without_host_tmpdir[unset]",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_requested_gate_and_both_build_roots_match",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_staging_is_readonly_outside_scratch",
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_prepare_failure_stops_before_gate[target]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/probes/t316_sandbox_backend_probe.py",
+          "old": "                else (source if name == \"ccbench\" else staging_root / name),\n",
+          "new": "                else (source if name == \"ccbench\" else Path(os.environ[\"IZANAGI_PEGASUS_THIRDPARTY_CACHE\"]) / name),  # T2654 mutation: identity from cache\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_t316_sandbox_probe.py::test_s6_live_offline_source_paths_and_prepare_order"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
