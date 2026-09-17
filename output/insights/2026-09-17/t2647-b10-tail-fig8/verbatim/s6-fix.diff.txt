@@ -1,0 +1,72 @@
+diff --git a/orchestrator/tests/test_plot_b10_static_tail_formal.py b/orchestrator/tests/test_plot_b10_static_tail_formal.py
+index b0f684372..f116f1b10 100644
+--- a/orchestrator/tests/test_plot_b10_static_tail_formal.py
++++ b/orchestrator/tests/test_plot_b10_static_tail_formal.py
+@@ -60,6 +60,7 @@ def _fixture(tmp_path, **overrides):
+                     "admission": {"admission_status": "admitted",
+                                   "campaign_path": f"/fixture/{p.GROUP_ID}-{workload}/campaigns/test"},
+                     "identity": {"threads": 48, "records": 1000000, "extime_s": 3,
++                                 "measurement_env": "pegasus",
+                                  "workload_coordinates": {"ycsb_rratio": str(sorted(p.RRATIOS)[wi]),
+                                      "ycsb_zipf_skew": "0.9", "ycsb_rmw": "0", "ycsb_max_ope": "10"},
+                                  "grid": [{"backoff_us": x} for x in reversed(p.GRID_US)],
+@@ -226,6 +227,9 @@ def test_caption_contains_fixed_expression_and_certification_literal(tmp_path):
+     assert PLOT.GROUP_ID in caption
+     assert PLOT.COMPARISON_WARNING in caption
+     assert "18/18 intervals" in caption
++    assert "Pegasus compute nodes" in caption
++    assert "t2418-explore" in caption
++    assert "nothing beyond" in caption
+     assert "fixture-0.nqsv, fixture-1.nqsv, fixture-2.nqsv" in caption
+
+
+@@ -254,7 +258,15 @@ def test_external_input_hash_drift_is_rejected(tmp_path):
+
+ def test_pinned_hashes_are_used_when_no_override(tmp_path):
+     root, _ = _fixture(tmp_path)
+-    _reject(lambda: PLOT.load_measurements(root), "SHA-256")
++    # completion record は production pin を名乗り、byte 比較だけが拒否する単一理由 fixture。
++    complete_path = root / PLOT.COMPLETE_JSON
++    complete = json.loads(complete_path.read_text())
++    complete["artifacts"] = {
++        Path(path).name: PLOT.PINNED_SHA256[path]
++        for path in (PLOT.REPORT_JSON, PLOT.REPORT_DAT)
++    }
++    complete_path.write_text(json.dumps(complete))
++    _reject(lambda: PLOT.load_measurements(root), "SHA-256 mismatch")
+
+
+ def test_performance_certified_true_is_rejected(tmp_path):
+diff --git a/tools/plotting/plot_b10_static_tail_formal.py b/tools/plotting/plot_b10_static_tail_formal.py
+index 982c92b82..c33150669 100644
+--- a/tools/plotting/plot_b10_static_tail_formal.py
++++ b/tools/plotting/plot_b10_static_tail_formal.py
+@@ -193,6 +193,7 @@ def _load_measurements(root, expected_hashes):
+     for campaign, w, rratio in zip(report["campaigns"], report["workloads"], sorted(RRATIOS)):
+         workload = campaign["workload"]
+         admission, identity, completion = campaign["admission"], campaign["identity"], campaign["completion"]
++        _require(identity["measurement_env"] == "pegasus", "measurement env mismatch")
+         _require(admission["admission_status"] in ("admitted", "admitted-new-schema"), "campaign not admitted")
+         _require(f"/{GROUP_ID}-{workload}/campaigns/" in admission["campaign_path"], "campaign group binding mismatch")
+         for key, expected in (("threads", 48), ("records", 1000000), ("extime_s", 3), ("performance_reps_per_cell", 5)):
+@@ -277,17 +278,18 @@ def _caption(data, prefix):
+         FIXED_WORDING, "9999 us is not a physical limit.",
+         f"From 1250 to 9999 us the mean throughput falls to {ratios[0]:.3f}, {ratios[1]:.3f} and {ratios[2]:.3f} of its 1250 us value (write-heavy, balanced, read-heavy) while the abort rate keeps decreasing.",
+         "This figure is a descriptive accounting of that cost; it makes no mechanism claim and no adoption decision.",
+-        "Conditions: 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s, 5 repetitions, silo, CCBench pin 511c953, no perf, trace-disabled performance.",
+-        f"Correctness comes from separate trace-enabled runs under the recorded legacy check configuration, not the performance configuration: all {correctness['certified']} records were certified with {correctness['anomalies']} anomalies, and this is not a performance certification.",
++        "Conditions: Pegasus compute nodes, 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s, 5 repetitions, silo, CCBench pin 511c953, no perf, trace-disabled performance.",
++        f"Correctness comes from separate trace-enabled runs under the recorded legacy check configuration, not the performance configuration: all {correctness['certified']} records were certified with {correctness['anomalies']} anomalies; certified means serializability of the observed YCSB point read/write traces under that check configuration and nothing beyond, and this is not a performance certification.",
+         COMPARISON_WARNING,
+         "This cohort is a different grid and a different cohort from fig2c and is not a continuation of it.",
++        "No samples from the exploratory run t2418-explore or the t2266-tail series are included; 9999 us was newly measured in this cohort.",
+     ])
+
+
+ def _direct_label(workload):
+     counts = {state: sum(i["state"] == state for i in workload["intervals"]) for state in STATES}
+     if counts["declining"] == 6:
+-        return f"6/6 intervals declining\nL >= {min(i['L'] for i in workload['intervals']):.3f}"
++        return f"6/6 intervals declining\nmin L = {min(i['L'] for i in workload['intervals']):.3f}"
+     return (f"{counts['declining']}/6 declining, {counts['saturated']} saturated,\n"
+             f"{counts['indeterminate']} indeterminate")
