@@ -1,0 +1,40 @@
+#### 895f300ad85be224d08c276069903643 shard-0 workers=48
+  worker occupancy top 16 (duration_s, items): [(272.3, 2), (265.7, 2), (253.9, 2), (252.6, 2), (245.3, 2), (241.4, 2), (239.5, 2), (236.3, 2), (236.3, 2), (235.2, 2), (188.7, 2), (187.4, 2), (185.8, 2), (177.8, 2), (170.0, 5), (163.7, 66)]
+  12th busiest: 187.4  13th: 185.8  median: 160.2
+  testsuite time: 337.860 tests: 3908 skipped: 53
+  M measured: n=11 sum=2539.2 max=252.5
+  non-M heavy nodes (>60s):
+      184.8  test_s8c_preregistration_predicates::test_repository_candidate_uses_real_s8c_budget_module
+      173.8  test_s8b_oracle_driver::test_t080_shared_base_builds_real_builder_once_across_processes
+      173.0  test_s1_known_axes_freeze::test_historical_oracle_nonadapter_reaches_current_semantics
+      156.5  test_s8b_floor_campaign::test_official_fresh_issues_certificate_and_binds_wall_ledger
+      132.3  test_s8b_floor_campaign::test_official_resume_validates_certificate_and_completes
+      125.9  test_s8b_floor_campaign::test_pilot_path_has_no_launch_certificate_changes
+      125.9  test_s8b_floor_campaign::test_official_build_failure_leaves_durable_launch_start
+      124.2  test_s8b_floor_campaign::test_pilot_resume_rejects_launch_certificate_contamination[campaign-key]
+      124.2  test_s8b_floor_campaign::test_pilot_resume_rejects_launch_certificate_contamination[launch-start]
+      122.1  test_s8b_floor_campaign::test_official_resume_rejects_tampered_certificate
+      122.1  test_s8b_floor_campaign::test_official_resume_rejects_certificate_time_not_bound_to_run_id
+      122.1  test_s8b_floor_campaign::test_official_resume_rejects_renamed_run_dir
+      115.1  test_s8b_floor_campaign::test_pilot_resume_rejects_launch_certificate_contamination[certificate-file]
+      115.1  test_s8b_floor_campaign::test_official_scan_rejection_has_zero_filesystem_side_effects
+       88.3  test_s8b_floor_campaign::test_real_output_snapshot_excludes_git_ignored_real_output_changes
+       88.1  test_real_repo_serialization::test_t080_import_temp_environment_fails_closed_for_foreign_module
+       82.2  test_s8c_preregistration_predicates::test_current_repository_snapshot_has_zero_satisfied_predicates@s8c-predicate-snapshot
+       76.6  test_s8b_oracle_driver::test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary
+       68.4  test_s8b_floor_campaign::test_public_official_preflight_accepts_versioned_protocol
+       64.8  test_sort_swo_oracle::test_trusted_evaluator_matches_real_tu_for_all_79_ir_values
+       63.1  test_s8b_floor_campaign::test_public_official_preflight_rejects_legacy_byte_drift_after_capture
+       63.0  test_s8b_floor_campaign::test_public_official_preflight_rejects_resolved_protocol_byte_drift
+  M nodes:
+      252.5  test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_a
+      246.5  test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+      237.5  test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_ax
+      235.1  test_t080_full_valid_history_defects_have_one_baseline_reason_f28[modify-revert-receipt.hi
+      233.3  test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[holdout-artifact-holdou
+      233.1  test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[unknownness-layer2-hold
+      233.0  test_t080_full_valid_history_defects_have_one_baseline_reason_f28[extra-r-path-receipt.int
+      232.9  test_t080_full_valid_history_defects_have_one_baseline_reason_f28[bad-trailer-receipt.user
+      231.0  test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28
+      228.5  test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5
+      175.9  test_never_issued_generator_tamper_reaches_public_driver_gate_g7

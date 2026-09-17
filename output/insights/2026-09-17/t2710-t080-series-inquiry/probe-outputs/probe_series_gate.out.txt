@@ -1,0 +1,13 @@
+P1   OK  want=accept got=accept reason=None  -- positive: fresh, matching, all passed
+N1   OK  want=reject got=reject reason=R1:record-missing  -- record missing
+N2   OK  want=reject got=reject reason=R6:expired  -- expired (finished 25h ago)
+N3   OK  want=reject got=reject reason=R3:target-commit  -- target_commit mismatch (stale tree)
+N4   OK  want=reject got=reject reason=R4:selected-mismatch  -- node set mismatch (10 of 11 selected)
+N5   OK  want=reject got=reject reason=R4:finished-selected-mismatch  -- rc=0 but finished != selected (one node never finished)
+N6   OK  want=reject got=reject reason=R5:not-all-passed  -- one failure
+N7   OK  want=reject got=reject reason=R5:not-all-passed  -- rc=0 but one node skipped (F485 型の沈黙)
+N8   OK  want=reject got=reject reason=R2:series-version  -- series_version mismatch (old series definition)
+N9   OK  want=reject got=reject reason=R6:finished-in-future  -- finished in the future (clock skew / forged)
+N10  OK  want=reject got=reject reason=R4:expected-mismatch  -- record internally consistent but M definition drifted (expected list shorter)
+N11  OK  want=reject got=reject reason=R1:record-keys  -- missing key (job ID / submission only, no completion evidence)
+negatives rejected 11/11, positives accepted 1/1, head=38353207f

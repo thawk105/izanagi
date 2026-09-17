@@ -66463,3 +66463,117 @@ between-run floor の実測には hook 移植と pin 再承認 (D2083 項 5、D1
   record の改版・再配置で赤になる。source (Options.cmake) への束縛で足りる。
 - `BASELINES` を genome 空間の既定値から導出する一般化 — 本題外。認定 launcher も軸表を独立に持つ (D1863)。
 - cicada も同時に登録する — 認定較正が無く、D2114 項 4 の起票外。
+
+## D2128. t080 e2e 群の別系列化は、受理集合の同値条件が成立するまで採らない (2026-09-18)
+
+**決定:** D2104 項 28 が求めた 3 材料 (被覆対応表・利用時拒否の実効性・移動後の最遅 shard wall) を取った上で、
+t080 e2e 群 (D700 / D701 の 6 function / 11 node) の別系列化を**本 wave では採らない**。受理集合は変えず (D2068)、
+`growth_test_holds.py` 保留の実 repo 直接検査は復帰させない。採否は、次の条件が別 wave で成立した時点でユーザーへ諮り直す。
+
+1. 完走記録は runner 由来で真正に発行され、対象 commit・系列版・期待 node 集合・selected / finished・node 別 terminal・
+   開始 / 完了時刻を持つ (D2002 条件 1)。
+2. 期限検知 (24 時間) は起動側の記録に依存せず、利用の無い期間の未起動・queue 停止・途中死も検知する (D2002 条件 2)。
+3. 利用時拒否は、verifier / adapter / driver の `gate_check` と `run_block` / holdout CLI の legacy 分岐 / floor の verifier 注入と
+   独立な境界 / report の検証済み利用 / 受入受領証 / land の再判定の**全境界**で効き、診断 (系列自身・修理) から検証済み利用への
+   昇格境界を持つ (D2002 条件 3)。
+4. 関連入力の閉包は、git 可視の `output/` (fixture が複製する)、builder の docs 入力、非 ignored untracked、`external/ccbench` の
+   実 checkout、freeze hold の版を含めて定義し、その変更で系列を焦点走へ加える (D2002 条件 4)。
+5. 毎走受入の gate 4 は `U = C − M` の exact partition とし、gate 2 / 3 は C 全体で維持する (D2003)。
+6. D701 の probe は維持し、M 本体の完走は別の terminal 証跡で担保する。
+7. freeze hold の解除版を有効化する前に、その期待値を伴う M を完走させる (F485 の同日追随漏れの再演防止)。
+8. 起動契約 (誰が・いつ・どの計算ノード経路で走らせ、失敗をどう回収するか) が repo 内の文書で決まっている。
+
+**理由:**
+
+- **受理集合の同値性が示せていない。** 現行は M の緑が同じ tip・同じ走で観測される。別系列にすると「≤24 時間前に関連内容が同じ
+  記録で緑」へ変わり、関連内容の閉包を tree OID で完全に表す設計が無い。closure A (`orchestrator` + `tools` + `external`) は
+  `output/` を含まず、現行 e2e が base 構築時の複製で拾う「前回完走後に land された conjunction file」を旧証跡では検査しない —
+  これは D2068 が whitelist 案を却下した拒否経路そのものである。
+- **利用時拒否は判定器単体では負例 11/11 を拒否するが、production 配線前で実効性は部分的。** 迂回路が 6 経路残り、昇格境界が
+  未設計である。「模擬 11/11 = 実効性成立」とは言えない。
+- **D700 の却下理由 (i) は現在も真。** CI / cron / timer は不在で、D2002 が認める外部 scheduler も起動主体・失敗回収が決まって
+  いない。決まらないまま移せば F485 の「未実行が露見しない」に戻る。
+- **費用対効果は 1 session のモデル値でしか示せない。** 移動後の最遅 shard wall は α 247.2 / β 251〜254 秒、感度 228〜265 秒で、
+  300 秒を切るとは断定できない (D357 / D2068)。closure A でも main の前進の約半分 (7 日で 59/126) で系列の再走が要り、同期なら
+  利得が消える。
+- **述語単位の重複は代替にならない。** 毎走に残る単体検査は helper を直接呼ぶか gate を stub しており、stub-free の発行・verifier
+  全体・public gate・実列挙・実 ccbench 比較の結合は M 固有 (D700 の「受理集合が異なる」の具体化)。
+
+**却下した選択肢:**
+
+- **条件を満たす前に移し、機構を後から足す** — D2002 が F485 の再演として却下済み。
+- **closure A で束縛して費用を下げる** — output の穴を持ち規律 2 に反する。closure B (A + `output`) も docs 入力・untracked・
+  ccbench checkout・hold 版を表さず完全閉包ではない。
+- **述語が重複している行を毎走から外す** — 表で示せた重複は述語単位で、結合検出は残る。部分削除でも受理集合を縮める (D700)。
+- **T-2750 の成分粒度変更で代替する** — 負荷は均等化 (6,052.7×3) するが最長 node 240〜252 秒が残り 305〜318 秒級 (モデル値)。
+  別系列化の代替ではなく、先に実測すべき独立の手である。
+- **本 wave で判定器を production に配線する** — 追加 gate・検査・台帳は依頼の scope 外。
+
+## D2129. 受入前 merge 段の全史 provenance 監査は merge commit の作成後に走らせ、赤でも merge commit を保持する (2026-09-18)
+
+**決定:** `tools/dev_wave_wait.py acceptance` の受入前 merge 段で、全史 provenance 監査
+(`check_ai_provenance.py` の既定 authoritative 監査、stage `merge-history-provenance`) を
+`git merge --no-ff --no-commit main` の直後から **`git commit` の後 (HEAD の pin 取得直後・
+commit message の事後検査の前)** へ移す。監査の argv・stage 名・診断理由は変えない。
+HEAD が merge commit になるので、選択集合 `{policy} ∪ rev-list(policy..HEAD)` に取り込んだ
+main の commit と merge commit 自身が入る。D2044 項 5 の実装であり、D908 が前提にした
+「取り込み後の監査が取り込みの作った違反を捕まえる」をこの位置で初めて成立させる。
+
+中止・後始末の契約は同じ変更単位で次のとおり定める。
+
+- `merge_pending` (未完了 merge の abort 権限) の窓は従来どおり `git merge` 開始から `git commit`
+  成功までとし、監査成功後まで延ばさない。commit 後の監査赤では `git merge --abort` を呼ばない
+  (MERGE_HEAD は無く abort 対象が無い)。
+- 監査赤では **merge commit を保持**し、所有する lease (ACQUIRED / UNKNOWN) を解放し、受入 command を
+  投入せず、receipt を書かず、理由本文を呼び手へ返す (rc=70、source_rc、stage)。HELD_SELF の
+  lease は従来どおり解放しない。
+- claim 前の全史監査 (`preclaim-history-provenance`) と、MERGE_HEAD を前提にする
+  `--message-file` 検査 (`merge-message-provenance`、commit 前) は不変。
+- 監査赤後の manager の次手: (1) 理由本文・違反 SHA・保持した merge commit SHA を記録し、lease の
+  解放結果を確認して同じ投入を止める。(2) main 由来 / merge 自身 / 実行不能 (infra) を切り分け、
+  既存契約に従って是正を wave の履歴へ反映する (main の前進訂正 commit は親が `git merge` で
+  取り込む。既知違反登録が要るならユーザー裁定へ返す)。(3) wave HEAD の authoritative 監査が緑に
+  なってから受入を再投入し、新しい受領証で land する。
+- 一時 merge message の削除は従来どおり試行であり (OSError は握り潰す)、削除完了を保証しない。
+
+**受理集合の変化 (段 6 レビューが指摘、親が実 checker の probe で実測):**
+
+1. 縮小: main にだけ存在する provenance 違反 commit を持つ取り込みは、受入投入前に赤になる
+   (旧位置は rc=0 で wave tip の commit しか見ず、新位置は rc=1 で当該 commit を名指す)。
+2. 解消: main 側が `tools/known_violations/` の entry を追加していた取り込みは、旧位置では registry
+   loader の index-vs-HEAD 照合が `index-only member does not match HEAD` の data error (rc=2、
+   F206 の再発 2026-09-01 の型) で必ず止まり、親が `--ff-only` で main を揃えてから再投入するしか
+   なかった。新位置では merge commit に entry が入るので HEAD / index / worktree が一致し、台帳の
+   内容規則と append-only 履歴検査がそのまま適用される (probe では main の full 監査と同じ
+   「新規違反なし」rc=0)。checker と台帳の規則は変えていない。旧位置の偶発的拒否を保存するために
+   監査を 2 重に置く案は、被覆の増分が無く費用だけ増えるので採らない。
+
+**理由:**
+- `--no-commit` 中の HEAD は wave tip のままで、旧位置の監査の選択集合は claim 前の監査と同一
+  だった。F365 の説明文「その merge 自身が新しく作る違反を捕まえる」は実装では成立せず、
+  main にだけ存在する違反 commit は受入全走の後、land の監査で初めて赤になっていた。
+- checker には HEAD 以外を pin する CLI が無く、`--range` は authoritative でない
+  (scope 規則の epoch 適用差、既知違反台帳の append-only 検査なし、commit 前は merge commit
+  自身を含まない)。同じ監査を保ったまま被覆を広げる位置は commit 後しかない。
+- 赤でも merge commit を保持するのは、巻き戻し (`git reset --merge <premerge>`) が捨てた
+  merge commit を branch と worktree HEAD の reflog に残し、`tools/dev_wave_cleanup.py` の
+  reflog 到達性検査 (D1233 の喪失閉包) が自己撤去を拒むためである。reflog を消して回避するのは
+  掃除側の防壁の迂回になる。保持される終端状態 (merge commit が残り land できない) は変更前でも
+  受入全走の後に land で止まったときと同じであり、本決定は検出を受入投入前へ早めるだけで新しい
+  状態を作らない。
+- preclaim の受領証は bindings (checker bytes・環境・registry・属性等の 13 項目、D2045) が
+  一致するときだけ prefix として再利用され、`tip..HEAD` (main の新 commit と merge commit) が
+  差分として監査される。不一致なら全走になるが、どちらでも取り込み分の被覆は変わらない。
+- 残る merge commit が land 適格かは、D689 / D731 / D732 の前進 merge 契約 (first-parent 列・
+  tested-main の祖先性・main の単調前進・隔離 merge の再演) が別途判定する。2 親であること自体を
+  適格の根拠にしない。
+
+**却下した選択肢:**
+- 説明文を実装へ合わせる (旧位置を正当化する) — D2044 項 5 が明示的に却下。
+- `git reset --merge <premerge sha>` で巻き戻す — reflog 経由で cleanup の喪失閉包に当たる (上記)。
+  reflog の entry を消す派生案は掃除側の防壁の迂回。
+- checker に `--head <sha>` を足して commit 前に dangling merge commit を監査する — 別設計
+  (受領証・registry の HEAD 束縛の見直し) が要り、本件の位置移動とは変更単位が違う。
+- `--range HEAD..MERGE_HEAD` で commit 前に監査する — authoritative でなく受理集合が広がりうる。
+- `merge_pending` を監査成功後まで延ばす — commit 後は MERGE_HEAD が無く `git merge --abort` が
+  失敗して cleanup failure になる (変異 M4 として登録し、負例が殺すことを確認)。

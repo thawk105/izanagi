@@ -1,0 +1,12 @@
+REAL_REPO_ACCESS_BY_NODE: 145
+  mode parent=read  ccbench=read : nodes=70 ledger_known=67 sum=721.5s max=160.0s
+  mode parent=read  ccbench=write: nodes=3 ledger_known=3 sum=0.0s max=0.0s
+  mode parent=read  ccbench=None : nodes=64 ledger_known=53 sum=338.4s max=22.0s
+  mode parent=None  ccbench=read : nodes=7 ledger_known=7 sum=3.8s max=3.7s
+  mode parent=None  ccbench=write: nodes=1 ledger_known=1 sum=0.2s max=0.2s
+writer nodes: 4
+       0.19  test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding
+      0.002  test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_v2_canary_one_configuration
+        0.0  test_s8b_oracle_driver.py::test_slow_oracle_prepared_cell_pipeline_uses_real_build_v2
+        0.0  test_s8b_floor_campaign.py::test_slow_real_prepare_cell_to_buildcache_canary_one_configuration
+session 895f300ad85be224d08c276069903643 shard-0: intervals=173 sum=1916.8s max_concurrent_holders=22 time_with_exactly_one_holder=28.4s

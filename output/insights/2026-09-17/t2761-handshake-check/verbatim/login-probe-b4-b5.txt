@@ -1,0 +1,3 @@
+control: green (current + release-path)
+B4: RED as expected: ['MARKER=<SUBMISSION>/compute-visible.release']
+B5: RED as expected (P5 word 終端): normalization needle is not word-terminated: '\nREPO=/__t2761__/rele'

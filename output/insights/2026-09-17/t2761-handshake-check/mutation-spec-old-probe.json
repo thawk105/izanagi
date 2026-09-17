@@ -1,0 +1,22 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 2700,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "id": "b-handshake",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "    \"${{PBS_JOBID:-unknown}}\" \"$host\" >\"$marker_tmp\"\nmv \"$marker_tmp\" \"$MARKER\"\n\nselected=\"\"\n",
+     "new": "    \"${{PBS_JOBID:-unknown}}\" \"$host\" >\"$marker_tmp\"\nuntil [[ -f \"${{MARKER}}.release\" || -n \"$MARKER\" ]]; do sleep 1; done\nmv \"$marker_tmp\" \"$MARKER\"\n\nselected=\"\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": true
+  }
+ ]
+}
