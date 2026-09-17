@@ -12037,6 +12037,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   静的に前倒しするには、保留登録時に「同 file 内に `spec_from_file_location(..., __file__)` /
   `runpy` / `exec(open(...))` 相当の自己読み込みがあるか」を検査する必要がある (未実装)。
 
+
+- **再発: 2026-09-17** — 発火面が変わった。受入の正規 consumer ではなく、**計算ノードで走らせる使い捨て probe** (Codex author が書き、repo 外へ退避) が held module `test_s8b_oracle_driver.py` の fixture builder を pytest 外から `import` し、`GrowthTestHoldBypassRefused` (`node_id: test_s8b_oracle_driver.py::*`) で 6 秒 rc=1 になり generic dispatch 1 本を空費した。段 2 plan (「静的には pytest 外から直接呼べる」) と段 3 の 2 レンズ (import 副作用を temp 検査・xdist・conftest まで検算した) の 3 者がいずれも末尾の `enforce_held_functions(..., plain_runner="none")` を見落とし、親も memory の「pytest session を要する probe」を held module と結びつけずに読んだ。解除 env はユーザー明示専用なので使わず、probe の内側で `pytest.main([held module, "--collect-only", "-q", "-p", "no:cacheprovider", "-k", <不一致名>])` を呼び `pytest_sessionstart` hook で完全修飾名を import して `sys.modules` に残す形へ fix 子が直した (`-k` で items を空にし `pytest_collection_finish` の receipt memo prewarm を避ける。hold session 2.2 秒、rc=5)。held module の helper を外から使う probe / harness は、設計段で module 末尾の guard binding の有無を必ず見る。一次資料は `output/insights/2026-09-17/t2708-fixture-config-h-gap/README.md` §7 と同 dir `run1-result.json`。
 ### F352. 背景 task の「完了」通知が producer 稼働中に発火し続けた [誤前提] [手順漏れ]
 
 - 事象: 2026-08-16 の 1 セッション中に、背景 job の完了通知が **6 回以上**、
@@ -17171,6 +17173,11 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`tools/mutation_harness.py`、`DW-M08`)。登録と実体がずれた変異は `MISMATCH` として
   ledger に残るため、両走行の `MISMATCH: 0` が照合済みの証拠になる。
 
+
+- **再発: 2026-09-17** — 計算ノード実験 wave で、親が段 4 に凍結した進行規則「終端記録不足で追加投入を停止」を、
+  同じ走の `E − J` の分類が成立していると読んで無視し、`child-exit` 欠落を確認した後に 3 条件を投入した。
+  段 6 レビュー 2 本が「事前登録の適格性を結果後に緩めた事後変更」と指摘し、主解析から当該 2 走を外して
+  寿命短縮版の実験 2 を投入前に事前登録し直した (D2124)。凍結は自分が直前に書いたものでも拘束する。
 ### F554. partition から作った positive control が、その partition の定義から導かれる恒真だった [恒真ゲート] [テスト代表性]
 
 - 事象: known-violation 台帳を 2 群へ分ける wave で、親が段 4 の裁定に
@@ -26951,6 +26958,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `flaky_test_holds.py` を編集する wave は、同じ commit で
   `test_flaky_test_holds_contract.py` が赤になる。登録簿の行数・digest を固定する assert が
   そのまま signature である。
+- **supersede: 2026-09-17** — 恒久対応は D2104 項 30 で確定した: 契約テストの登録簿 pin (ちょうど 1 件) を正とし、`DW-O18` から hold 登録の一般手順を取り下げる。非帰属赤は hold でなく既存の再投入 (同一 tip で各 1 回) で扱い、真に決定的な不安定 test はその 1 件の pin 更新を個別に諮る。`DW-O18` の改訂と `tools/check_docs.py` の pin 追随は T-2692 の wave (本 fold のエントリ) が行った。
 
 ### F1001. `git worktree add` の完了前に当てた submodule 初期化が、何もせずに rc=0 と「OK」を返した [恒真ゲート] [手順漏れ]
 

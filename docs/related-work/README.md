@@ -138,6 +138,15 @@ worklog 2026-07-10 (8) の材料が正本)。
 > アクション空間自体をコードで拡張する* — はこの延長線上で最も外側にあり、既存研究が正面から
 > 扱う例は本調査では未発見 (新規性主張の外堀は埋まっている)。
 
+> **CCBench への近年 CC 手法の追加候補 (2026-09-17、D2114 項 4 の B 候補調査):** 上の入口 2 本 (NeurCC / ATCC)
+> の比較相手群から stock protocol の候補を取り、一次資料・実装可用性・ライセンス・YCSB 適合・trace 移植費用・
+> 証明面・既存 4 CC (Silo / MOCC / TicToc / Cicada) との差を「充足確認 / 不適合確認 / 未確認」で記録した候補表は
+> `cc-candidates-2026-09-17.md` (日付付き凍結物)。優先調査候補は Rebirth-Retire (PVLDB 2025)、Bamboo (対照候補)、
+> Polaris (SIGMOD 2023)。trace 対応・固有実装費用・判定条件の未確認事項を併記し、追加対象の確定 (0 件) とは
+> 区別する。その他の候補は、確認できた対象外理由 (事前知識・決定論・license 非両立・学習型・分散) と、
+> 公開実装・利用許諾等の未確認事項を表に記録した。**同表は実装追加・pin 前進・変異探索面化のどれも認可しない**
+> (それぞれ D2114 項 3 / D1603 / D579)。
+
 #### DB 自動チューニング (knob tuning) 系譜 — OtterTune / CDBTune / QTune / UDO / DB-BERT / GPTuner / SysInsight
 `判定: 引用元`+`外部補強` · `接地: 「選択 vs 合成」の境界線、P2-5 の射程の限定、LLM 由来方策を実観測で事前検証する設計 (性能の信頼性であって直列化可能性ではない)` · `id検証: 2026-07-10 (ML/RL 4 本の一次資料 PDF 精読、worklog 2026-07-10 (8)) / 2026-09-03 (SysInsight を一次資料で精読、claim-survey/2026-09-03-sysinsight-adjudication.md)`
 **一言:** DBMS の設定 knob を自動チューニングする系譜。**ML/RL 枝** = OtterTune (Van Aken et al.,
