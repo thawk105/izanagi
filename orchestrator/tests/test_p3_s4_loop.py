@@ -7920,6 +7920,9 @@ def test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted():
         "patches/broken-mocc-early-unlock.patch": frozenset({
             "IZANAGI_BREAK_MOCC_EARLY_UNLOCK",
         }),
+        "patches/broken-mocc-hot-update-unlock.patch": frozenset({
+            "IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK",
+        }),
         "patches/instr-silo-backoff-trigger-gating-tally.patch": frozenset(),
     }
     literal_only_tokens = {
