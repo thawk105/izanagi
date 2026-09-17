@@ -1,0 +1,73 @@
+[
+ {
+  "scenario": "main-only-violation",
+  "violation_sha": "55d18976d72ec0c77938a0e2b2ae0140b800257b",
+  "main_full_audit": {
+   "rc": 1,
+   "tail": [
+    "55d18976d72e main advance without trailer: AI-Agent trailer がない",
+    "check_ai_provenance: 2 件中 1 違反"
+   ]
+  },
+  "wave_preclaim_audit": {
+   "rc": 0,
+   "tail": [
+    "check_ai_provenance: known-violations-irreversible-history=53 population=whole-ledger excluded=key-not-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb",
+    "check_ai_provenance: known-violations-post-baseline=3 population=whole-ledger excluded=key-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb",
+    "check_ai_provenance: 1 件、違反なし"
+   ]
+  },
+  "old_position_audit": {
+   "rc": 0,
+   "tail": [
+    "check_ai_provenance: known-violations-irreversible-history=53 population=whole-ledger excluded=key-not-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb",
+    "check_ai_provenance: known-violations-post-baseline=3 population=whole-ledger excluded=key-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb",
+    "check_ai_provenance: 1 件、違反なし"
+   ]
+  },
+  "merge_commit": "2d4e78083e1e22103f4139650f5942a73af6c36e",
+  "new_position_audit": {
+   "rc": 1,
+   "tail": [
+    "55d18976d72e main advance without trailer: AI-Agent trailer がない",
+    "check_ai_provenance: 3 件中 1 違反"
+   ]
+  }
+ },
+ {
+  "scenario": "main-only-violation-registered",
+  "violation_sha": "8d8d8c8ba0dbbda473af8cf4db5c755a4222fe9b",
+  "registry_entry": "8d8d8c8ba0dbbda473af8cf4db5c755a4222fe9b--missing-ai-agent--5be474d32b951b6c199a68ec91afc0504b30036221f2f8926d2eeaf4866aa3cc.json",
+  "main_full_audit": {
+   "rc": 0,
+   "tail": [
+    "check_ai_provenance: known-violations-irreversible-history=53 population=whole-ledger excluded=key-not-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb",
+    "check_ai_provenance: known-violations-post-baseline=4 population=whole-ledger excluded=key-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb",
+    "check_ai_provenance: 3 件、新規違反なし"
+   ]
+  },
+  "wave_preclaim_audit": {
+   "rc": 0,
+   "tail": [
+    "check_ai_provenance: known-violations-irreversible-history=53 population=whole-ledger excluded=key-not-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb",
+    "check_ai_provenance: known-violations-post-baseline=3 population=whole-ledger excluded=key-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb",
+    "check_ai_provenance: 1 件、違反なし"
+   ]
+  },
+  "old_position_audit": {
+   "rc": 2,
+   "tail": [
+    "check_ai_provenance: 実行不能: known provenance violation data index-only member does not match HEAD: tools/known_violations/8d8d8c8ba0dbbda473af8cf4db5c755a4222fe9b--missing-ai-agent--5be474d32b951b6c199a68ec91afc0504b30036221f2f8926d2eeaf4866aa3cc.json"
+   ]
+  },
+  "merge_commit": "422fe299002601be84069d52b0133cd86d9fb8e6",
+  "new_position_audit": {
+   "rc": 0,
+   "tail": [
+    "check_ai_provenance: known-violations-irreversible-history=53 population=whole-ledger excluded=key-not-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb",
+    "check_ai_provenance: known-violations-post-baseline=4 population=whole-ledger excluded=key-in-d742-baseline baseline=5265fc6782fa5807aa742a198fa16d58006d17fb",
+    "check_ai_provenance: 4 件、新規違反なし"
+   ]
+  }
+ }
+]
