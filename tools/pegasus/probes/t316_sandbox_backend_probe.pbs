@@ -55,6 +55,8 @@ BOUND_PATHS=(
   patches/silo-backoff-fixed.patch
   orchestrator/campaign/patchharness.py
   orchestrator/campaign/condition_meaning_gate.py
+  orchestrator/campaign/buildcache.py
+  tools/pegasus/fetch_third_party.py
   tools/pegasus/probes/t316_sandbox_backend_probe.py
   tools/pegasus/probes/t316_sandbox_backend_probe.pbs
   tools/pegasus/policies/t316_sandbox_backend_v1.json

@@ -578,7 +578,7 @@ _EXPECTED_CLEANUP_SKILL_SHA256 = (
     "268a32aeb2fb4a361e2a99cc7c90ff09e905c74465c64e8b4e2227d8b2d85dea"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
-    "a6380f90dcaf8e5e5ac21cc9af0619e000697816257f3e3e8a8844595dad1f26"
+    "7cc008fabc10b3b495eedfeb0bfbee2de14a3c908e1eb5aa6dd7ff4d7ebaf8ae"
 )
 _SYNTHETIC_CLEANUP_SKILL = """---
 name: cleanup-branches
@@ -660,7 +660,7 @@ final で裁定候補として返し、実装・記録・commit は後から明�
 - 除外対象含む全 worktree の `GIT_OPTIONAL_LOCKS=0 git status --short` を §4 用に保存。
   独立な読み取り並列可。読み取り・占有検査の起動親/wrapper (検査時も生存する親含む) の argv に対象 path 禁止。
   対象入り argv の全読み取り終了後、§2 の安い条件通過対象のみ §3 の占有検査へ。
-- `python3 tools/audit_dangling_commits.py --offrepo-root <runbook §7.2 の dir>` を単独実行
+- `python3 tools/audit_dangling_commits.py --offrepo-scan off` を単独実行
   (パイプ禁止、rc直後保存、F152)。分岐: `docs/unreachable-object-ledger.md`
 - 全削除・撤去候補を 1 回で `python3 tools/check_branch_rescue.py --ledger-check --branch <b>...
   --retire-worktree <absolute-path>...` に渡す。rc0完全/2不完全/3通知/64usage・JSON は §5 へ
@@ -9945,13 +9945,13 @@ def test_codex_cleanup_branches_skill_contract_pins_exact_surface():
 def test_cleanup_command_budget_is_pinned_and_enforced():
     rel = ".claude/commands/cleanup-branches.md"
     assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(6_204, 110)
-    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 6_201
+    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 6_181
 
     root = _build_min_repo()
     try:
         original = _read(root, rel)
-        assert len(original.encode("utf-8")) == 6_201
-        oversized = original + "\n" + "x" * 3
+        assert len(original.encode("utf-8")) == 6_181
+        oversized = original + "\n" + "x" * 23
         assert len(oversized.encode("utf-8")) == 6_205
         _write(root, rel, oversized)
 

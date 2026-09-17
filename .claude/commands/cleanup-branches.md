@@ -34,7 +34,7 @@ final で裁定候補として返し、実装・記録・commit は後から明�
 - 除外対象含む全 worktree の `GIT_OPTIONAL_LOCKS=0 git status --short` を §4 用に保存。
   独立な読み取り並列可。読み取り・占有検査の起動親/wrapper (検査時も生存する親含む) の argv に対象 path 禁止。
   対象入り argv の全読み取り終了後、§2 の安い条件通過対象のみ §3 の占有検査へ。
-- `python3 tools/audit_dangling_commits.py --offrepo-root <runbook §7.2 の dir>` を単独実行
+- `python3 tools/audit_dangling_commits.py --offrepo-scan off` を単独実行
   (パイプ禁止、rc直後保存、F152)。分岐: `docs/unreachable-object-ledger.md`
 - 全削除・撤去候補を 1 回で `python3 tools/check_branch_rescue.py --ledger-check --branch <b>...
   --retire-worktree <absolute-path>...` に渡す。rc0完全/2不完全/3通知/64usage・JSON は §5 へ
