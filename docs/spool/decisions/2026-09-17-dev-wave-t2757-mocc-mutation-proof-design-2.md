@@ -19,7 +19,7 @@ seq: 2
    版と counter の別読みによる観測間隙と、hot 読みの `absent` 非検査という静的反例候補が残る (実走未確認、還元判断はユーザー確認待ち)。
 3. **証拠を経路共通部分と template 依存部分に分ける。** 経路共通 = 固定 producer (`e9e477ca` + 計装 patch) 上の X/P、hot / cold / 既定の
    3 regime × 1 / 4 thread、既存負例 3 本、hot 専用負例 (update の早期 w_lock 直後に unlock、publish 前に `rwlock_.w_lock()` で直接再取得する
-   balanced 形、blind UPDATE 1 操作の workload)。template 依存 = 4 callsite、読取契約、DiffQuarantine 対照、同一性 4 比較、auditor の mocc 節、
+   balanced 形、blind UPDATE 1 操作の workload)。template 依存 = 4 callsite、読取契約、DiffQuarantine 対照、template に関する同一性 3 比較 (旧 pin↔候補の D297 比較は別 T)、auditor の mocc 節、
    n=1 定性、template sha。軸が変わったら依存部分だけ再検証する。
 4. **hot 経路の実行証拠は負例の発火で示し、計数行は足さない。** 保証名は「stock 等価述語における hot-update 負例の到達と既存 X 3 検査点の検出」に
    固定し、4 site 全被覆・read 側 hot 経路・RLL 再試行・候補ごとの空振り検査を含意しない。
@@ -39,7 +39,8 @@ seq: 2
 **理由:**
 - D38 決定 4 の auditor live (機械 4 点 + n=1 定性 2 点) のうち、mocc は X/P の被覆 assert と positive control が T-2294 (D1686) で patch 水準で済んで
   いる。純増は hole 位置、hot / cold の実行証拠、auditor 入力、gate の鍵、n=1 であり、これらは D579 / D38 / D1686 の再掲では固定できない。
-- T-2294 の compute 6 走は温度述語が false の記録しか含まない (1 thread では競合が無く温度が上がらず、4 thread も hot 到達の計数が無い)。
+- T-2294 の compute 6 走には hot/cold を弁別する field がない。1 thread で温度述語が false と見なせるのは code からの推論であり実測値ではない。
+  4 thread の hot 到達は未確認である。
   `FLAGS_temp_threshold` は runtime gflag なので、0 / 21 で hot / cold を強制でき、負例の発火で実行証拠を機械化できる。
 - 段 3 レンズ A が親 brief の「torn read は validation で必ず捕まる」を現物で反証した: cold 読みは counter 検査 → body 読み → 版の再読の順で、
   validation は版比較の後に counter を読む。writer の publish + unlock がその間に入ると両検査を通る。Silo は lock bit を tidword に同居させるので

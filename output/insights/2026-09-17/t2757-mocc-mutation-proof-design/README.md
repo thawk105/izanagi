@@ -65,7 +65,7 @@ workload 2 種) に束縛された実測であり、hot/cold や新 template の
 ### 3.1 親 brief の新事実 (段 3 が訂正した部分を反映)
 
 - **F-a: T-2294 の compute 実走 6 走は hot 経路の実行証拠を持たない。** 温度は `construct_RLL` (abort 経由) の `failed_verification_` でしか上がらない。
-  1 thread の 3 走は「単一 thread では競合が無く温度が上がらない」という code からの推論で全記録が温度述語 false と見なせる (abort 数は JSON に
+  1 thread の 4 走は「単一 thread では競合が無く温度が上がらない」という code からの推論で全記録が温度述語 false と見なせる (abort 数は JSON に
   無く、実測値ではない)。4 thread の 2 走も hot 到達の計数・hot 専用負例が無く、「X 検査は hot 経路でも歯を持つ」は未実証。
   JSON の `runs.*` に hot/cold を弁別する field は無い。
 - **F-b (撤回・限定):** 親 brief は「hot/cold は正しさの入力ではない (torn read は validation で必ず捕まる)」と書いたが、**この証明は成立しない**
@@ -218,6 +218,12 @@ S = serializable かつ certified、I = indeterminate、N = non-serializable。
 | `toolchain_matches_policy` / `all_broken_patch_touch_sets_are_transaction_only` | T-2294 と同型 |
 | (wave 2 のみ) `template_off_stock_identity` / `template_on_benign_identity_distinct` / `quarantine_accepts_benign_hole` / `quarantine_rejects_frozen_frame_and_outside_edits` / `auditor_digest_and_deny_only_controls` / `consumer_binding_controls` | §8 / §9 / §10 |
 
+**DQ 拒否対照の対応 (wave 2、段 4 A6 / 段 2 plan):** `quarantine_rejects_frozen_frame_and_outside_edits` は、mocc の実 template と実 working diff に対する
+parameterized control とする。stock 枝改変は `frame-altered`、970 の fallback 削除・CLL/RLL・validation・X/P 計装・write_set_ 登録 477・RLL 構築
+905〜913 の侵食は `outside-region`、hole 内の禁止 directive は `hole-escape`、HEAD と不整合な anchor は `malformed` を期待する (4 subtype は
+`orchestrator/campaign/diff_quarantine.py` に実在)。benign B は受理する (`quarantine_accepts_benign_hole`)。共有 parser の網羅テストを複製するのではなく、
+当該 template への接続を検査する。
+
 **JSON の生成元 (DW-O13、レンズ B 所見 3):** 既存 driver (`s3_mocc_lock_coverage.py` 343〜435) は argv・終了状態を run record に保存せず異常時は
 例外にする。新 producer は run ごとの実 `argv`・`verdict`・`certified`・`total_cycles`・X/P 総数と reason・txn / write 数・終了状態を記録する。
 旧 JSON に無い field を旧証拠へ要求しない (旧 14 check は歴史的結果として保持)。`condition_gates` は実 producer が出す `supply` / `meaning` /
@@ -343,10 +349,11 @@ stock-U 対照 6 走の certified。**正式な template 導入は含めない�
 | `output/insights/.../auditor-n1.md` + 候補・応答 | §9.2 (機械 JSON とは別の定性素材) |
 | gate test (候補 `test_mocc_mutation_surface_requires_auditor_live`) | §10 |
 
-完了判定: 当該 template に束縛された機械証拠 (identity 4 比較、DQ 対照、consumer 束縛対照、hot/cold 全 check) と、別記の n=1 素材 3 候補が揃うこと。
+完了判定: 当該 template に束縛された機械証拠 (§8 の先頭 3 比較、DQ 対照、consumer 束縛対照、hot/cold 全 check) と、別記の n=1 素材 3 候補が揃うこと。
+§8 の旧 pin↔pin 候補の比較は D297 に従う別 T の成果物であり、本 wave の完了条件には含めない。
 **pin 前進・certified 探索の開始は、この 2 wave の完了から自動的には導かない。**
 
-**費用 (概算、レンズ B 所見 6):** codex 子は wave ごとに 7〜9 本 (plan 1、consult 2、author 1〜2、review 2、fix 1〜3)。compute は wave 1 で
+**費用 (概算、レンズ B 所見 6):** codex 子は wave ごとに 7〜10 本 (plan 1、consult 2、author 1〜2、review 2、fix 1〜3)。compute は wave 1 で
 build 5〜6 binary (計装 stock、負例 4 本、TRACE=0) + 36 trace/verifier 走 + condition gate、wave 2 で template ON/OFF の identity と再走を追加。
 T-2294 の 6 走 Elapse 130 秒の単純 6 倍 (約 780 秒) は粗い参考値で、build 共有・trace 量 (4 thread の trace は大きい) で変わる。変異 matrix
 (T-2294 は 1,711 秒) は別費用。fresh auditor n=1 は実行面を確認した別枠 1 呼び。
@@ -377,6 +384,16 @@ auditor 型番号の連番拡張、verifier の編集、TPC-C / BOMB での E �
   should 4。修正して採用、2 wave 分割を推奨。
 - 段 4 裁定 (`verbatim/s4-ruling.md`): 全所見 real・採用 (refuted 0)。親 brief の誤り 5 件 (F-b の一般化、「同じ鍵では恒真」の言い方、「pin 非依存」、
   「全 cold」、P4 の負例) を訂正。
+- 段 6 レビュー (docs 差分への敵対レビュー 1 本、`verbatim/s6-review.md`): NO-GO → must-fix 3 / nit 2 を親が逐語で適用し、追加 commit で閉じた。36 走と check の対応 (必須 25 / 観測のみ 11) と行番号・識別子の実在は一致、fragment 文法は適合、旧指示の採用なし、と確認。
+
+| 所見 | 対象 | 対応 |
+|---|---|---|
+| M1 hot 未観測を「温度述語 false の記録のみ」に強めている | worklog / decisions fragment | closed — 「hot/cold を弁別する記録がなく hot 到達は未実証」「1 thread は code からの推論、4 thread は未確認」へ |
+| M2 README 単独で DQ 拒否対照を復元できない | §7 | closed — 4 subtype (`frame-altered` / `outside-region` / `hole-escape` / `malformed`) と対象変更の対応を §7 に復元 |
+| M3 wave 2 の完了条件が別 T の D297 pin 間比較を取り込む | §12、decisions 項 3 | closed — 「§8 の先頭 3 比較」「template に関する同一性 3 比較 (旧 pin↔候補は別 T)」へ |
+| N1 1 thread の走数 | §3.1 | closed — 3 走 → 4 走 |
+| N2 codex 子の本数の算術 | §12 | closed — 7〜9 → 7〜10 |
+
 - 親が現物で検算した plan / consult の主張: cold 読み 322 / 347 / 350 の順序と validation 1010 / 1024 の別読み、hot 読みの absent 非検査 (341〜344 対
   356〜364)、Options.cmake universal の mocc TU 供給 (ProtocolHelpers.cmake:19〜29)、U workload の操作生成 (ycsb.hh:65〜73, 128〜133)、
   `patches/ledger.json` の entry 数 1、`p3_s4_loop.py` の PIN literal、EBS の 3 要素目 (いずれも一致)。
@@ -391,5 +408,5 @@ gate と consumer 束縛、同一性 4 比較と `#line` 再生成、pin と X/P
 ## 16. verbatim 一覧
 
 `verbatim/parent-brief.md`、`verbatim/s2-plan.md`、`verbatim/s3-lensA.md`、`verbatim/s3-lensB.md`、`verbatim/s4-ruling.md`、
-`verbatim/prompt-plan.md`、`verbatim/prompt-consult-A.md`、`verbatim/prompt-consult-B.md`。行末空白のみ可逆に正規化 (内容は無変更)、
+`verbatim/prompt-plan.md`、`verbatim/prompt-consult-A.md`、`verbatim/prompt-consult-B.md`、`verbatim/prompt-review.md`、`verbatim/s6-review.md`。行末空白のみ可逆に正規化 (内容は無変更)、
 原文 sha256 と保存後 sha256 は `verbatim/MANIFEST.json`。

@@ -18,8 +18,8 @@ title: [T-2757] mocc を変異探索面へ入れる前の auditor-live 相当の
   `output/insights/2026-09-17/t2757-mocc-mutation-proof-design/README.md`。設計判断は {{D:mocc-mutation-proof-design}}。
   コード・patch・テスト・driver は書いていない。`docs/phase3.md` は編集していない (準備 T の進捗は本台帳末尾が正本)。
 - **再掲に留まらない (純増あり)。** 既存被覆 = T-2294 (D1686) の X/P 計装・負例 3 本・compute 14 check。純増 = hole 位置の候補比較と採用
-  (温度述語 4 site → file-scope helper の 1 hole、proof の接続先候補であり正式軸ではない)、hot 経路の実行証拠の欠落 (T-2294 の 6 走は
-  温度述語 false の記録のみ) と負例による機械化 (hot 専用負例 = update の早期 w_lock 直後に unlock、publish 前に `rwlock_.w_lock()` で
+  (温度述語 4 site → file-scope helper の 1 hole、proof の接続先候補であり正式軸ではない)、hot 経路の実行証拠の欠落 (T-2294 の 6 走には
+  hot/cold を弁別する記録がなく、hot 到達は未実証) と負例による機械化 (hot 専用負例 = update の早期 w_lock 直後に unlock、publish 前に `rwlock_.w_lock()` で
   直接再取得、blind UPDATE 1 操作の workload `ycsb_rratio=0, ycsb_rmw=false, ycsb_max_ope=1`)、36 走の matrix (受入必須 / 観測のみ)、
   同一性 4 比較と計装 patch の `#line` 再生成、auditor.md の mocc 節 (既存型番号の mocc 説明) と n=1 の 3 候補、gate の鍵 (template /
   軸 module の登録 + consumer 束縛の対照。EBS 所属は mocc で常時 true なので使わない)、I 行の除外根拠、pin との境界。
