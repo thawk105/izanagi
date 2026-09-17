@@ -1,0 +1,250 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 300,
+ "timeout_seconds": 2700,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "id": "m0-equivalent-comment",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+     "old": "        if matching_checks:\n            # Explicit helper rejection E is reraised by its first catcher;\n",
+     "new": "        if matching_checks:\n            # Explicit helper rejection E is reraised by the first catcher;\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-new-swallow-condition-rejection-f918",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_n_pilot.py",
+     "old": "            except S1DriverError as exc:\n                raise PilotError(f\"build condition evidence rejected: {exc}\") from exc\n",
+     "new": "            except S1DriverError:\n                pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_injected_build_fn_without_condition_records_is_rejected",
+    "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_build_binaries_uses_binding_flags_and_prepared_records_independently",
+    "orchestrator/tests/test_s8b_oracle_n_pilot.py::test_r33_successor_protocol_document_loads_from_repository",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_injected_production_sinks_stay_covered"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-unswallowed-always-true",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+     "old": "                self.returned_evidence_checks.setdefault(scope, []).append(\n                    (call.lineno, result_name, self._injected_check_unswallowed(scope))\n                )\n",
+     "new": "                self.returned_evidence_checks.setdefault(scope, []).append(\n                    (call.lineno, result_name, True)\n                )\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n1-error-pass]",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n2-bare-pass]",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n3-exception-return]",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n4-conditional-raise]",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n5-unreachable-raise]",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n6-finally-return]",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n7-unknown-handler]",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n9-system-exit]",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n11-outer-swallow]",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n12-local-rebinding]",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n13-local-rebound-conversion]",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n15-module-rebound-conversion]",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n16-argument-rebound-handler]",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n17-rebound-as-name]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-bare-handler-not-definite",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+     "old": "            if exception_type is None:\n                return \"definite\"\n",
+     "new": "            if exception_type is None:\n                return \"none\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n2-bare-pass]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-any-raise-inside-handler",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+     "old": "                if not handler.body or not isinstance(handler.body[-1], ast.Raise):\n                    return False\n                raised = handler.body[-1].exc\n",
+     "new": "                raises = [item for item in region_nodes(handler.body) if isinstance(item, ast.Raise)]\n                if not raises:\n                    return False\n                raised = raises[-1].exc\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n4-conditional-raise]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-drop-finally-escape-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+     "old": "        if any(has_escape(node.finalbody) for node, _ in self.injected_try_stack):\n            return False\n",
+     "new": "        if False:\n            return False\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n6-finally-return]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-record-any-call-not-statement-value",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+     "old": "            if (\n                call is returned_evidence_call\n                and name.endswith(\"require_returned_condition_evidence\")\n            ):\n",
+     "new": "            if (\n                name.endswith(\"require_returned_condition_evidence\")\n            ):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n8-lambda]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-conversion-target-any-name",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+     "old": "                    elif (\n                        self.module_class_counts[name] == 1\n                        and name not in self.module_assignments\n                        and name not in local_names\n                    ):\n",
+     "new": "                    elif (\n                        True\n                        and name not in self.module_assignments\n                        and name not in local_names\n                    ):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n9-system-exit]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m8-unknown-name-as-none",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+     "old": "                return \"none\"\n            return \"maybe\"\n\n        for node, position in reversed(self.injected_try_stack):\n",
+     "new": "                return \"none\"\n            return \"none\"\n\n        for node, position in reversed(self.injected_try_stack):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n7-unknown-handler]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m9-stop-at-innermost-try",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+     "old": "        for node, position in reversed(self.injected_try_stack):\n            if position != \"body\":\n",
+     "new": "        for node, position in reversed(self.injected_try_stack[-1:]):\n            if position != \"body\":\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n11-outer-swallow]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m10-drop-handler-escape-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+     "old": "                if has_escape(handler.body):\n                    return False\n",
+     "new": "                if False:\n                    return False\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n5-unreachable-raise]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m11-drop-local-rebinding-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+     "old": "            if name in local_names or name in self.module_assignments:\n                return \"maybe\"\n",
+     "new": "            if name in self.module_assignments:\n                return \"maybe\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n13-local-rebound-conversion]",
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n16-argument-rebound-handler]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m12-drop-conversion-module-reassign-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+     "old": "                    elif (\n                        self.module_class_counts[name] == 1\n                        and name not in self.module_assignments\n                        and name not in local_names\n                    ):\n",
+     "new": "                    elif (\n                        self.module_class_counts[name] == 1\n                        and name not in local_names\n                    ):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n15-module-rebound-conversion]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m13-drop-as-name-rebinding-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+     "old": "                bare = raised is None or (\n                    isinstance(raised, ast.Name) and raised.id == handler.name\n                    and handler.name not in _potentially_bound_names(tuple(handler.body))\n                )\n",
+     "new": "                bare = raised is None or (\n                    isinstance(raised, ast.Name) and raised.id == handler.name\n                )\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n17-rebound-as-name]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

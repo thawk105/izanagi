@@ -66311,3 +66311,120 @@ closed-world の負証拠があるときだけ返し、負証拠を閉じられ�
 - 期限や ref 移動でも照合済みの正証拠を優先する — 実装と食い違い、走行全体の一貫性 (終端の
   ref 再照合) を壊す。
 - 実装を点 4 の逐語に合わせて変える — 上と同じ帰結を実装に持ち込む。
+
+## D2124. 計算ノード job を RUN に留めるのは現在の session 所属である — D2048 の「判定方式は未確定」を狭める追補 (2026-09-17)
+
+**決定 (D2048 の追補、置換しない):** 計算ノード job の会計終了 (`Ended Request Time`) が遅れる機序について、次を現行の帰属とする。
+
+- **確定 (今回の観測器具を伴う generic 単一子 probe の条件下):** job の session に生きた process がある間、NQSV は request を RUN に留める。
+  process group を変えても session が同じなら留まる。session を離脱した process は待たず、離脱は fork 直後でも t0+30 秒でも会計終了に対応する
+  (所属変更から 2 秒以内)。事前登録した同値類のうち **現在の session 所属に応答するモデル (A 類)** だけが整合し、現 pgid 基準、
+  fork 時に記録され所属変更後も保持される集合、即時離脱だけが効く走査集合は不適合。
+- **未確定として明示する:** A 類内部の方式 (照会 / イベント更新 / 周期再評価)、表外の複合機序、実 workload (pytest / xdist) への適用性。
+- **未確定として明示する:** session を離脱した process が job 終了の約 35〜40 秒後に記録を残さなくなる現象 (寿命 75 秒の 2 走) の原因と主体。
+  死亡・停止・記録障害を区別しておらず、「NQSV が回収した」とは扱わない。
+- F853 当時の機序と D1684 の各要素の寄与は引き続き未確定。既存の supersede 追記と D1684 の是正を維持する。
+- 前 wave の因果の鎖 (T-2622 insight §7) 第 5 段は「限定した命題は支持、元の一般命題は未支持」に改める。
+- T-2676 の設計入力: session 離脱・session を基準とする回収を検証候補とし、会計終了と残存子の終了を別々に評価する。
+  離脱後の記録途絶は回収成功の証拠にしない。元 session の列挙だけでは別 session へ移った子を拾えない。
+
+**理由:**
+- 実験 1 (6 条件、寿命 75 秒) の適格走 G0 / G30 (`setpgid` 即時 / 30 秒) は `E − J` = 69.8 / 69.9 秒で子の寿命まで待ち、現 pgid 基準を退けた。
+  session 離脱の S0 / S30 は `E − J` = −0.5 / 24.7 秒だが `child-exit` が無く事前登録の適格性を満たさなかった (段 6 レビューが事後変更と指摘)。
+- そこで段 6 レビュー後・投入前に実験 2 (寿命 35 / 60 秒) を事前登録し、S0′ = −0.456 秒 / S30′ = 25.833 秒、いずれも `child-exit` あり (適格) を得た。
+  (S0′, G0, S30′, G30) = (0, 70, 25, 70) は A 類の予測と一致し、C 類 (30, 70, 55, 70) と D 類 (0, 70, 55, 70) は不適合。
+- 統制 D (子なし) = −0.001 秒、陽性対照 K (所属不変) = 69.546 秒で前 wave を再現し、比較の基準が成立した。
+- 8 走すべて `scheduler-end-state`・`qdel.attempted = false`・orphan hold 0。probe は Codex author 作で repo へ残さず、実装面の差分は 0。
+
+**却下した選択肢:**
+- 実験 1 の S0 / S30 を「E より後の heartbeat があるので E − J の分類は成立」と読んで A 類を確定する — 事前登録の適格性 (`child-exit` の時刻) を
+  結果を見た後に緩める事後変更であり、規律 3 に反する。事後解析として併記するに留め、確定は実験 2 で取った。
+- 判定方式を「NQSV の内部実装は session 追跡である」と書く — 同じ予測ベクトルを持つモデル (イベント更新・周期再評価) と表外モデルを識別していない。
+- 記録途絶を「NQSV の後処理が回収した」と書く — 主体・signal・実終了を観測していない。T-2676 が離脱型を採るときの前提にできない。
+- 本 wave で回収処理・防壁を実装する — 依頼が scope 外と明示し、F973 の教訓 (受入全走で赤) がある。原因同定と対策は別 wave に分ける。
+
+## D2125. t080 fixture の config.h 取り込み漏れは、実 repo の ignore 一致集合を写す一般解では直さず、直すなら path 名指しの force-add と membership 検査 1 本に限る (採否はユーザー裁定) (2026-09-17)
+
+**決定:** t080 e2e fixture (`_build_t080_stub_free_e2e_repo`) が `sort_swo_masstree/.gitignore` の `/config.h` により
+tracked の `config.h` を取り込めていない件について、
+
+1. 実 repo で `git ls-files -ci --exclude-standard` した集合を fixture で `git add -f` する**一般解は採らない**。
+2. 直す場合は、`git add -A` の直後に対象 path を名指しした `git add -f` 1 行と、実 builder の未発行 fixture でその path が
+   index と `enumerate_repository_files` の双方に含まれ source と bytes 一致することを検査する新規 test 1 本に**限る**
+   (取り込み行を削除する変異でその test が赤になることを事前登録する)。
+3. 直すか現状維持かは**ユーザー裁定**とする。放置しても certified 選択・レポート・台帳は変わらない。
+4. 費用許容値は既存裁定に無いので、「fixture 構築の critical path への追加は 1 秒以内」を提案値として置く。
+   D2086 の「−10% なら採らない」は高速化の採用基準であり、忠実性向上の費用許容値には転用しない。
+
+**理由:**
+
+- 計算ノード (bnode028) の実測で、一般解は実 repo 側の列挙 (`ls-files -ci`、419 path、tracked 27,022 件への ignore 照合)
+  だけで反復中央値 4.8 秒、一連 5.0 秒かかる。fixture 構築は key ごとに走るので shard あたり約 25 秒の追加になり、
+  提案許容値 1 秒を桁で超える。path 名指しの `add -f` は 28.7 ms。
+- 一般解は「fixture に実際に複製された集合」ではなく実 repo の集合を入力にするため、複製から除外される path
+  (receipt / draft、`*.pyc`) が将来 tracked かつ ignore 一致になると存在しない path を force-add しうる。存在しない path を
+  黙って捨てる形にすると意図的除外と複製失敗を区別できず、既存の output 複製が持つ fail-closed の姿勢に逆行する。
+- 同型の穴は現時点で config.h の 1 件だけである (実 repo の tracked かつ ignore 一致 419 件のうち 418 件は root
+  `.gitignore` 由来で fixture に複製されない。期待集合 25,182 件との差はちょうど 1 件で、取り込むと差 0)。件数非依存の
+  一般化に独立 2 例目が無い。
+- 取り込んでも判定は変わらない (config.h に三軸 key 0 件、`_live_scan_sha256` は `search` を含まない、22 対の scan で
+  semantic report と hash が一致)。fixture の検出力が実 repo の scan より 1 file 狭いだけで、成果物影響はゼロなので、
+  親の一存で実装せずユーザー裁定に返す。
+- 既存の可視性検査 (`test_s8b_oracle_driver.py` 1633〜1705 行付近) は output の複製までを見て、再 index 化後の欠落を
+  検査しないので、採用時は新規 test が要る (既存 test は取り込み行の削除を殺さない)。
+- path 名指し案は D2086 の proto 化 (branch 保存) と独立で、構築時 snapshot の集合を追加で持つ必要が無い。
+
+**却下した選択肢:**
+
+- 一般解を採る — 上記の列挙費用と成立条件の欠落。
+- fixture 側の `.gitignore` を書き換える / 複製から外す — fixture 内の `.gitignore` は実 repo の tracked file の複製であり、
+  改変すると別のずれを作る。
+- scan 増分を根拠に採否を決める — 計算ノードでも 1 scan 18.4 秒に対し A/B 対差は中央値 −70 ms、IQR 558 ms で、
+  1 file (10 KB) の増分は順序効果 (±数百 ms) に埋もれて分離できなかった。統計上限 (+157 ms/scan) と per-file 換算の
+  期待値 (0.72 ms/scan) は桁が違い、どちらか一方を根拠にしない。
+- 解除 env (`IZANAGI_RUN_GROWTH_HELD_TESTS`) で held module を probe から import する — ユーザー明示専用であり使わない。
+  probe は enforcing な pytest session (`--collect-only` + `-k` 不一致名) の内側で import した。
+
+## D2126. 閉包検査の injected-* 経路は、helper の明示的な拒否を捕まえる最初の handler の再送出だけを検査し、変換再送出以後は追跡しない (2026-09-18)
+
+**決定:** D1882 の実装として、閉包検査の injected-* 特殊経路は、sink の代入名を第 1 引数にもつ返却物検査 call を、
+次の条件を満たすときだけ被覆に数える。満たすかどうか判定できない形は被覆に数えない (fail-closed)。
+
+- check は文の値そのものの call である (lambda・内包表記・短絡式の中の call は記録しない)。
+- check を囲む try に `except*` が無く、finally 節に return / break / continue が無い。
+- 内側から外側へ、position が body の try の handler を順に見る。helper の error class E (s1 の `DriverError`) を
+  確実に捕まえる handler (bare / `BaseException` / `Exception` / `RuntimeError` / E の import 束縛名 / E を定義する module の
+  `class DriverError`) は、body に脱出文が無く末尾が `raise` であること。E を捕まえうる不確かな型 (Attribute 等の式、
+  他 module からの import 名、束縛不明の名前、module / 局所 / 字句的親関数 / 引数で再束縛された名前) の handler は末尾が bare `raise` であること。
+  本 file の module scope class (E 以外) の handler は E を捕まえないので読み飛ばす。
+- bare 再送出 (`raise` / 再束縛されていない as 名 / E の再構築) は E のまま外側の try へ追跡を続ける。本 file の module scope class
+  (module / 局所 / 引数で再束縛されていない名前) への変換再送出は追跡を止めて被覆に数える。それ以外の raise (`raise SystemExit(0)`、
+  Attribute、非 Call) は被覆に数えない。
+
+保証するのは「helper の明示的な拒否を捕まえる最初の handler が握り潰さない」ことだけであり、変換再送出の後の外側の扱い、
+不確かな型の handler が実際に E を捕まえて bare 再送出する未変換経路、`with` の `__exit__` による抑止、条件 guard、代入名の再束縛、
+finalbody 内の check、helper の非明示例外は検査しない。この限界は code comment に書き、名乗らない。
+
+**理由:**
+
+- F918 が実測した穴は「call の位置と第 1 引数名だけが被覆の根拠」であり、拒否の握り潰しを見ないことにある。握り潰しを見るには
+  handler の再送出を検査するしかなく、その最小形は「最初に捕まえる handler が再送出するか」である。
+- 変換再送出の後まで追跡すると、既存の production (s8b_oracle_driver の外側 `except Exception` は `if evaluate_started: raise` の
+  条件付き再送出で、`break` 終端) を誤拒否する。条件付き再送出を静的に証明するのは D1882 が却下した支配関係解析であり、
+  その sink を繰延べ台帳へ移すのは台帳変更で本件の scope 外である。追跡を止める位置は、F918 が配線側へ課した義務
+  (「握り潰さず変換して再送出する」) の形と一致する。
+- 不確かな型の handler を「捕まえない」と決めるのは、E の親 class が組込みだけで外来名が E の親になれないという前提に依存する。
+  fail-closed に倒し、bare 再送出でなければ被覆に数えない。
+- 名前の再束縛を module 直下の単純代入・現関数と字句的親関数・引数・handler body まで見るのは、段 6 レビューが実在の反例 3 つ
+  (変換先の module 再代入、親関数と引数での束縛、as 名の再代入) を示したためで、いずれも production の 4 sink には無い形である。
+- 前提 (helper の明示的な拒否 raise は base `DriverError`、`class DriverError(RuntimeError)`) を assert で固定する案は D1869 の
+  最小形に従い落とし、定数と comment に留めた。
+
+**却下した選択肢:**
+
+- 全 enclosing try に同じ規則を当てる — s8b_oracle_driver の injected sink を誤拒否する (段 2 plan の指摘)。
+- 変換後の例外 class を追跡して外側の handler も検査する — 上と同じ誤拒否になり、避けるには条件付き再送出の flow 証明が要る。
+- campaign 経路の import 真正性・shadow 検査 (`_has_unshadowed_returned_evidence_helper`) を injected 経路へ流用する — D1882 の却下範囲であり、
+  helper を定義する s1 module では False を返すので s1 の injected sink 2 つを誤拒否する。
+- module scope の alias chain (`X = S1DriverError`) を解決して DEFINITE に含める — production にも変異にも不要で、最小形を超える (段 3 の推奨)。
+- 不確かな型の handler を「捕まえない」と扱う — 前提への依存を保証に含めることになり fail-closed でない。
