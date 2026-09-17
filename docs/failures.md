@@ -2652,6 +2652,15 @@
   立ち上げ3点検査 memory) は 2026-08-19 時点で既に適用済みだったにもかかわらず、4回目の
   再発が起きたことは、**恒久対応が「読むべき節を知っていること」に依存しており「読むべき
   タイミングで実際に読む」ことを機械的に強制していない**構造的限界を示す。
+
+- **再発: 2026-09-17** — [T-2761] wave (背景 job + worktree 隔離) で、段 1 の条件 dispatch 判定を「既存 assert の置換だから
+  `DW-O13` (gate・検証の新設) は非成立」と参照節の本文を読まずに行った。`DW-O13` の 2 文目「既存 exact 述語の改訂で受理形を
+  増やす場合も新設に当たる」に該当していた (path に `release` を含む script を新たに受理する) ことに、段 3 の敵対相談 2 本を
+  終えてから気づいた。最遅読了段 (段 2 プラン前) を過ぎていたので読み込み契約どおり段 2 の成果物を invalidate し、brief を
+  DW-O13 の要求 (入力 field の所在・実環境の値域・到達可能性) で改訂して plan / consult を再実行した (codex 3 本分の再投入、
+  実害なし。v1 の所見は v2 brief の provisional 裁定へ取り込んだ)。2026-08-21 の再発と同じ `DW-O13` の判定漏れで、
+  前回は巻き戻さなかったが今回は契約どおり巻き戻した。根本原因は同じ — 条件表の「可能性が生じた時点」を、参照節の
+  冒頭 2 文を読んで判定していない。
 ### F51. cleanup-branches が背景セッション自身の worktree を削除しかけた near-miss [手順漏れ]
 - 事象: /cleanup-branches 実行セッションの cwd が削除対象 worktree に固定されており (背景 job)、
   スキル §2 の「先に main checkout 側へ抜ける」が実行不能だった — ExitWorktree は EnterWorktree
@@ -27395,6 +27404,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   (`~/.claude/projects/-work-1-SFC-tanab-izanagi/memory/wave-slug-must-not-contain-release.md`):
   wave の slug / branch / worktree 名に `release` を含めない。
 - 再発検知: 受入全走で同 test が赤になり、assert 本文の `'release' is contained here:` が path 断片を指す。
+- **supersede: 2026-09-17** — 恒久対応の test 側是正は [T-2761] (commit 6dcbf6113、D2130) で着地した。6 つの環境依存の埋込み値を位置限定で token 化し、正規化後の本文の release 候補行を全件拒否する形にしたので、暫定防壁 (wave の slug / branch / worktree 名に `release` を含めない) は不要になった。`"while" not in script` の同型偽赤は scope 外で残る (release 専用の防壁だけが不要)。
 
 ### F1023. 8〜13 本の land が共通 flock の再取得競走で全員 lock-busy になり 76 分着地ゼロになった [資源競合] [観測]
 
