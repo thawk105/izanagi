@@ -216,6 +216,18 @@ hook が新規に閉じるのは非 sanctioned な綴りだけで、Codex 子・
 cwd 相対・変数展開・未解析 launcher・ユーザー端末・cron・subprocess の内側は原理的に見えない —
 は `docs/pegasus-runbook.md` §7 と D103 / D105 を正本とする。
 
+**script-executor 越しの重量実行 ([T-2498]、D1891)。** `python3 -m cProfile` / `profile` / `pdb` / `trace` /
+`runpy` / `coverage run` が実行する内側の program (module または script) は、既存 parser の抽出結果
+(`_script_executor_program`) から同じ head の segment を合成し、同じ重量判定を**層ごと**に受ける
+(`_heavy_segment_violation` の `peel_executors`)。層剥きは再帰ではなく反復で、各層の引数は前層の真の
+suffix なので深さ上限なしで止まり、Python の stack は層数によらず一定 (1,100 層でも例外を起こさない —
+`main()` は防護 path を含まない入力の例外を許可へ倒すため、例外は deny→allow の穴になる)。wrapper module・
+option の列挙は足していない。multi-target の executor (pydoc / doctest / unittest) は内側 program を実行
+しないので対象外、module 名が Python 識別子でない値 (path 等) は何も実行しないので剥かない。内側 segment
+は直接形と**同じ判定** (baseline の保守性を含む) を受ける — `-m cProfile /tmp/safe.py -mpytest` は直接形
+`python3 /tmp/safe.py -mpytest` と同じく拒否され、テストは包み形と直接形の受理 bit の一致を pin する
+(値は pin しない)。内側の `-h` / `--co` は既存 `_pytest_nonexecuting` の境界で直接形と同じく拒否される (未改修)。
+
 **raw `systemd-run` の拒否 ([T-300])。** LOGIN / SUSPECT では head が `systemd-run` の呼び出しを
 拒否する。上限付き scope は `tools/run_tests.py` などが**内部で**作るものであり、hook は
 subprocess の内側を見ないので raw 実行を許可する必要がない。**`_WRAPPERS` へは追加していない** —
