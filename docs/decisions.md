@@ -66384,3 +66384,82 @@ tracked の `config.h` を取り込めていない件について、
   期待値 (0.72 ms/scan) は桁が違い、どちらか一方を根拠にしない。
 - 解除 env (`IZANAGI_RUN_GROWTH_HELD_TESTS`) で held module を probe から import する — ユーザー明示専用であり使わない。
   probe は enforcing な pytest session (`--collect-only` + `-k` 不一致名) の内側で import した。
+
+## D2126. 閉包検査の injected-* 経路は、helper の明示的な拒否を捕まえる最初の handler の再送出だけを検査し、変換再送出以後は追跡しない (2026-09-18)
+
+**決定:** D1882 の実装として、閉包検査の injected-* 特殊経路は、sink の代入名を第 1 引数にもつ返却物検査 call を、
+次の条件を満たすときだけ被覆に数える。満たすかどうか判定できない形は被覆に数えない (fail-closed)。
+
+- check は文の値そのものの call である (lambda・内包表記・短絡式の中の call は記録しない)。
+- check を囲む try に `except*` が無く、finally 節に return / break / continue が無い。
+- 内側から外側へ、position が body の try の handler を順に見る。helper の error class E (s1 の `DriverError`) を
+  確実に捕まえる handler (bare / `BaseException` / `Exception` / `RuntimeError` / E の import 束縛名 / E を定義する module の
+  `class DriverError`) は、body に脱出文が無く末尾が `raise` であること。E を捕まえうる不確かな型 (Attribute 等の式、
+  他 module からの import 名、束縛不明の名前、module / 局所 / 字句的親関数 / 引数で再束縛された名前) の handler は末尾が bare `raise` であること。
+  本 file の module scope class (E 以外) の handler は E を捕まえないので読み飛ばす。
+- bare 再送出 (`raise` / 再束縛されていない as 名 / E の再構築) は E のまま外側の try へ追跡を続ける。本 file の module scope class
+  (module / 局所 / 引数で再束縛されていない名前) への変換再送出は追跡を止めて被覆に数える。それ以外の raise (`raise SystemExit(0)`、
+  Attribute、非 Call) は被覆に数えない。
+
+保証するのは「helper の明示的な拒否を捕まえる最初の handler が握り潰さない」ことだけであり、変換再送出の後の外側の扱い、
+不確かな型の handler が実際に E を捕まえて bare 再送出する未変換経路、`with` の `__exit__` による抑止、条件 guard、代入名の再束縛、
+finalbody 内の check、helper の非明示例外は検査しない。この限界は code comment に書き、名乗らない。
+
+**理由:**
+
+- F918 が実測した穴は「call の位置と第 1 引数名だけが被覆の根拠」であり、拒否の握り潰しを見ないことにある。握り潰しを見るには
+  handler の再送出を検査するしかなく、その最小形は「最初に捕まえる handler が再送出するか」である。
+- 変換再送出の後まで追跡すると、既存の production (s8b_oracle_driver の外側 `except Exception` は `if evaluate_started: raise` の
+  条件付き再送出で、`break` 終端) を誤拒否する。条件付き再送出を静的に証明するのは D1882 が却下した支配関係解析であり、
+  その sink を繰延べ台帳へ移すのは台帳変更で本件の scope 外である。追跡を止める位置は、F918 が配線側へ課した義務
+  (「握り潰さず変換して再送出する」) の形と一致する。
+- 不確かな型の handler を「捕まえない」と決めるのは、E の親 class が組込みだけで外来名が E の親になれないという前提に依存する。
+  fail-closed に倒し、bare 再送出でなければ被覆に数えない。
+- 名前の再束縛を module 直下の単純代入・現関数と字句的親関数・引数・handler body まで見るのは、段 6 レビューが実在の反例 3 つ
+  (変換先の module 再代入、親関数と引数での束縛、as 名の再代入) を示したためで、いずれも production の 4 sink には無い形である。
+- 前提 (helper の明示的な拒否 raise は base `DriverError`、`class DriverError(RuntimeError)`) を assert で固定する案は D1869 の
+  最小形に従い落とし、定数と comment に留めた。
+
+**却下した選択肢:**
+
+- 全 enclosing try に同じ規則を当てる — s8b_oracle_driver の injected sink を誤拒否する (段 2 plan の指摘)。
+- 変換後の例外 class を追跡して外側の handler も検査する — 上と同じ誤拒否になり、避けるには条件付き再送出の flow 証明が要る。
+- campaign 経路の import 真正性・shadow 検査 (`_has_unshadowed_returned_evidence_helper`) を injected 経路へ流用する — D1882 の却下範囲であり、
+  helper を定義する s1 module では False を返すので s1 の injected sink 2 つを誤拒否する。
+- module scope の alias chain (`X = S1DriverError`) を解決して DEFINITE に含める — production にも変異にも不要で、最小形を超える (段 3 の推奨)。
+- 不確かな型の handler を「捕まえない」と扱う — 前提への依存を保証に含めることになり fail-closed でない。
+
+## D2127. between-run floor の tictoc stock baseline は現行 pin の CMake cache 既定とし、認定較正と同じ genome に揃え、既定との一致を source へ束縛する (2026-09-18)
+
+**決定:** `orchestrator/campaign/between_run_floor.py` の `BASELINES["tictoc"]` は
+`tictoc|BACK_OFF=1,NO_WAIT_LOCKING_IN_VALIDATION=1,NO_WAIT_OF_TICTOC=0,PREEMPTIVE_ABORTS=1,TIMESTAMP_HISTORY=1`
+とする。これは現行 CCBench pin `511c9538` の `external/ccbench/cmake/Options.cmake` の cache 既定であり、
+mocc 登録 (2026-09-01) と同じく「CMake 既定 = stock」の形をとる。`TICTOC_SPACE` の点 (no-wait は (1,0)、D1418) で、
+D2083 が文書登録した accepted な tictoc 認定較正 record 2 件 (rr50 / rr95) の `genome` と同一である。
+根拠のうち「CMake 既定との一致」は test が `Options.cmake` の `set(CCBENCH_<AXIS> <v> CACHE …)` を読んで
+束縛し、pin が進んで既定が変われば赤になる。silo の baseline (BACK_OFF=0、p2_2 の歴史的比較構成) は据え置き、
+既定との一致 test の対象にしない。
+
+この登録は D2114 項 4 の準備であり、測定の開通ではない。D1373 の関門 (`_protocol_source_has_trace_hook_evidence_only`)
+は 1 byte も変えず、現行 pin では `--protocol tictoc` は引数解析を通った後に build 前で拒否される (受理集合不変)。
+between-run floor の実測には hook 移植と pin 再承認 (D2083 項 5、D1603) が別途要る。
+
+**理由:**
+- 層 3 report は floor の `genome` から protocol だけを取り、(protocol, records, threads, workload) で within-run と
+  between-run を照合する (`orchestrator/campaign/layer3_report.py` の `_floor_protocol_and_basis` / `_calibration_floors`)。
+  つまり 2 種の floor が別の stock で測られていても機械的には対になり、整合は登録側で保つしかない。tictoc の
+  認定較正 (within-run) は既に CMake 既定 genome で accepted であり、between-run 側を同じ genome にするのが
+  最小の整合である。
+- D1373 が関門を許可リストでなく source の事実へ束縛したのと同じ理由で、baseline の根拠も comment の主張に
+  留めず現行 checkout の `Options.cmake` へ束縛する。pin 前進時に「既定が変わったのに登録が古い」状態を
+  赤で検出でき、規律 7 の「同一性だけを理由に無効化」ではなく値の意味を検査する。
+- 「根拠つき」の形は既存登録と揃える: code 内は短い出典 comment、詳細は wave の insight。mocc の根拠も
+  T-2115 の段 2 plan にしか無く、code 側の形はこれで同形になる。
+
+**却下した選択肢:**
+- silo と同じく `BACK_OFF=0` で high-abort を狙う — silo の値は p2_2 の比較構成に由来する歴史的選択で、
+  tictoc の認定較正は既定 (BACK_OFF=1) で取得済み。別 genome にすると floor 対が割れる。
+- 認定較正 record の `genome` 文字列を test の期待値にする — `output/` の data file へ test を結合し、
+  record の改版・再配置で赤になる。source (Options.cmake) への束縛で足りる。
+- `BASELINES` を genome 空間の既定値から導出する一般化 — 本題外。認定 launcher も軸表を独立に持つ (D1863)。
+- cicada も同時に登録する — 認定較正が無く、D2114 項 4 の起票外。
