@@ -1,0 +1,78 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 2700,
+  "hang_timeout_seconds": 2700,
+  "mutations": [
+    {
+      "id": "m0-equivalent-literal-split",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "同一tipで各1回だけ。再赤/決定的赤でもhold登録簿へ登録しない(",
+          "new": "同一tipで各1回だけ。\"\"\" \"\"\"再赤/決定的赤でもhold登録簿へ登録しない("
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-invert-hold-registration-ban",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "再赤/決定的赤でもhold登録簿へ登録しない(契約testが1件に固定、F1000)。",
+          "new": "再赤/決定的赤でもhold登録簿へ登録する(契約testが1件に固定、F1000)。"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-drop-individual-pin-consult-clause",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "真に決定的な不安定testはその1件のpin更新を個別に諮り、判定不能",
+          "new": "判定不能"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-drop-bounded-resubmit-clause",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "停止条件外は治すか上記の制限内で投げ直しwaveを止めない。受理は",
+          "new": "受理は"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-resubmit-limit-one-to-two",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "同一tipで各1回だけ。",
+          "new": "同一tipで各2回だけ。"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
