@@ -66,4 +66,3 @@ M3 coverage run 経路を落とす → KILLED。M4 内側で `_pytest_nonexecuti
 **既存被覆の検索 (純増だけ):** F121 は executor 越しの admission 迂回 (Pegasus path) を閉じたが、内側
 program の重量分類は含まない。T-518 (cwd/symlink/env -S/nesting/launcher) は別 vector。D1891 以降に
 本件を止める・上書きする裁定なし (decisions を D1891 以降で走査)。
-
