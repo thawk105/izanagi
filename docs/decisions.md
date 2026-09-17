@@ -65451,3 +65451,98 @@ rulings と同じ、既存手順の誤りは入口の編集条件に従って co
 - Claude 側 command へ旧版の義務 5 件を足す — 候補生成ロジックの拡張は本 wave の scope 外。
 - 契約文書の上限 6,000 の引き上げ — 重複・接続句の縮約で 5,997 bytes に収まり、D782 の上限引き上げは
   発火しない。
+
+## D2111. /rulings は裁定が覆う全 ID (索引から外した既裁定・移管済み・実測解消を含む) の状態語を残作業の有無で `完了` / `更新` に分けて記録し、出力冒頭で収集時点と「ユーザー裁定待ち / 裁定済み未実装」の件数を分ける (2026-09-17)
+
+**決定 (ユーザー指示、2026-09-17):** `.claude/commands/rulings.md` の規則を 2 点変え、Codex 側
+`.agents/skills/rulings/SKILL.md` へ同期する。機構・台帳・検査は足さない。
+
+1. **記録は裁定が覆う全 ID に及ぶ。** 従来の「1 裁定が複数 ID を覆うとき覆われた ID の項も更新する」は、
+   索引に載せた ID だけを対象に読まれ、主題照合で「既裁定」「移管済み」「実測で解消」と判定して索引から
+   外した ID は放置された。以後は索引外のそれらも書く。残作業が無い ID は `完了`、残る ID は
+   `更新 (裁定済み (D…) → 手番)` とし、一律に「実装手番」へ落とさない (裁定済み未実装の件数を水増しし、
+   AI 手番の把握を狂わせるため)。所有 wave が稼働中の ID は本 wave では書かず、ID と根拠 D を rulings-inbox
+   に控え、次回の rulings が冒頭で書く。`base` digest は land 先 main の現物 (carry 解決後の実体) から取る。
+   fold の base 不一致は上書き退行ではなく land 停止を起こすので、古い版から取ると land が止まる。
+2. **出力冒頭で「収集時点 = entry N」と「ユーザー裁定待ち N / 裁定済み未実装 M」を分けて出す。** 総 open の
+   件数から未実装を消さない。索引本体は従来どおりユーザー裁定待ちだけを載せる。
+
+byte 予算は `tools/check_docs.py` の TextLimit (rulings.md 5,623 / SKILL.md 3,000) のままで、D782 が委任する
+D730 の手順 (既存記述の意味等価な縮約) で収めた。上限は上げていない。安全義務は削っていない。
+
+**発火の根拠:** 2026-09-17 の /rulings 第 20 回 (entry 1596、D2104) が既裁定と判定して索引から外した B-1 の
+18 行のうち 16 ID の worklog 実体本文が「裁定待ち」「新規 (裁定が要る)」のまま残り、同回の fragment は索引 37 件
+だけを書き換えていた。`docs/skill-self-improvement.md` rulings 節の「正本との食い違い」に当たる。
+
+**理由:**
+- 状態語が古いままだと次回の収集で同じ ID を再び読み直すか、既裁定と誤って再索引する。command の規則が
+  索引外の ID を明示しない限り、記録側は索引だけを書いて終わる (第 20 回で実測)。
+- `完了` と `更新` を残作業で分けるのは fold の保存則 (出力 active 集合 = 入力 − 完了 − 見送り + 新規) と
+  整合させるためで、残作業のある ID を `完了` にすると嘘になり、無い ID を `更新 (実装手番)` にすると未実装が
+  増える。
+- 稼働 wave 所有の ID を書くと、後に land する側の fold が base 不一致 (rc=26) で止まる。控えて次回に回す方が
+  安い。
+- 件数分離は、ユーザーが「自分の手番」と「AI の未実装」を 1 行で区別できるようにするためで、索引の収載規則
+  (ユーザー裁定待ちのみ、D1868) は変えない。
+
+**却下した選択肢:**
+- fold へ「裁定済み ID の状態語を自動更新する」機構や、既裁定 ID の台帳・検査を足す — ユーザーが codex 相談で
+  不採用とした。要求外の機構であり、command の規則で足りる。
+- byte 予算の上限を上げる — D782 / D730 に反する。縮約で収まった。
+- 索引外の既裁定 ID を一律 `更新 (実装手番)` にする — 実測で解消済み・移管済みの ID まで未実装に数える。
+
+## D2112. 実 repo ロックの writer 優先は gate flock を fresh 取得と昇格に限って足し、fold 失敗の巻き戻し通知は message の 1 kind として足す (2026-09-17)
+
+**決定 (D2104 項 33 / 34 の実装):**
+
+1. 実 repo ロック (`orchestrator/tests/conftest.py`) の各 key (legacy / common) に同名の `.gate` flock を置く。
+   **writer** は fresh の EX 取得と SH→EX の昇格の両方で、gate を EX 保持したまま main EX を polling し、
+   main 取得直後に gate を閉じる。昇格は gate を開いてから自分の SH を `LOCK_UN` で明示解放する
+   (kernel の非 atomic 変換が最初の NB 失敗で SH を落とす現行挙動と露出は同じ。open 拒否では SH を失わない)。
+   **fresh reader** は process が実 repo lock を 1 つも持たないときだけ、main を取る前に要求する全 key の
+   gate を SH で試して即解放し (何も持たずに待つ)、writer が gate を保持する間はそこで待つ。
+   既に lock を持つ process の reader (入れ子・2 つ目の資源) と EX→SH の降格は gate を見ない。
+   deadline 245 秒は gate と main で共有し、reader の検査段は最初の資源の予算を消費する。
+   定数 (245.0 / 0.05)、SH-EX の意味論、legacy→common、parent→ccbench の順は不変。
+2. `tools/wave_land_window.py message` に `--kind rolled-back` を足す。受理述語は
+   `status == "fold-failed"` ∧ `main_after` が SHA ∧ `wave_tip` が SHA ∧ `main_after != wave_tip`。
+   `main_before` と `reason` は見ない。固定文は 2 行 (ヘッダ `[dev-wave] rolled-back main=… wave-tip=… wave=…`
+   と巻き戻し専用 advisory、末尾 LF 込み 661 bytes)。`landed` の受理集合・固定文・rc、`_rollback_fold` の
+   契約 (fold 失敗で land の merge 前まで戻す) は不変。送信義務は runbook の land 手順と command 入口 項 9
+   (「land 成功時と巻戻し時に」) に置く。
+3. 正例・負例は同じ変更単位に置く。別 process の production 経路 reader を relay して main を常時 SH 占有する
+   中で fresh writer と昇格 writer が入る負例、reader 同士の overlap、第三者 gate 保持下の昇格・降格・入れ子 reader、
+   gate/main の deadline 共有、fd の後始末 (timeout / open 拒否 / fork)、昇格時の gate open 拒否で外側 reader の
+   SH が残る負例、rolled-back の正例 2 (通常 / recovery 経路) と負例 15、landed 負例への `fold-rollback-failed`。
+
+**理由:**
+- F976 の飢餓は process 間の reader 流れ (48 worker + 並走する別 worktree の受入) が main の SH を途切れさせない
+  ことで起きる。gate は「writer が待ち始めた後の新規 fresh reader」を止めるので、writer は既存 holder が
+  抜けるだけで入れる。deadline を伸ばす案は並行度が上がれば再発し (F976)、同時実行数制限は受理集合と
+  D1594 / D1618 の並行設計に触れるので採らない (D2104 項 33)。
+- 昇格も gate を通す理由: F976 の当該 node (`test_repository_candidate_uses_real_s8c_budget_module`) の writer は
+  `repository_candidate_commit` fixture の parent EX で、同 module の module 寿命 SH fixture が生きた worker では
+  既存 fd 上の昇格になる。昇格を gate の外に置くと F976 の一方の経路が直らない (段 3 レンズ A と親の検算)。
+- reader が「何も持たないときだけ」gate を見る理由: main を握ったまま gate で待つ hold-and-wait は、
+  入れ子昇格と別 worktree の writer との三者循環を新しく作る (段 3 レンズ A の反例)。gate で待つ主体が
+  その key の main を持たなければ、gate 辺を通る循環は現行の main 間 hold-and-wait と同じ族に閉じる。
+- `main_before == main_after` を述語に入れない理由: recovery 経路 (shape A) の本物の巻き戻しは
+  `main_before = 開始時 main = wave tip`、`main_after = rollback_ref` なので、その条件があると通知されない
+  (段 3 レンズ A の経路表)。merge 前の失敗 (main 不動) も同形で通るが、文面は「この land 結果では main は
+  記載の SHA にあり wave tip とは異なる」で両方の場合に真である。
+
+**却下した選択肢:**
+- 待機登録や FIFO による「待機開始からの厳密な優先」 — gate は NB polling で待機順を持たない。reader の gate 保持は
+  瞬間 (検査即解放) なので実効的には retry 間隔の数倍で成立するが、証明ではない。追加機構は別裁定。
+- process 内層 (`_real_repo_same_process_request_is_compatible`) への writer 優先 — xdist worker の test 本体は
+  単 thread で、kernel flock 待ち中は RLock が新規進入を止める。`condition.wait` で RLock を手放す同 process の
+  互換性待ちには効かないが、その経路の実害は観測されていない。
+- `reason` 文字列 prefix (`fold failed: `) への結合で本物の巻き戻しだけを通知する — 別 tool の自由文への結合。
+- DW-O23 への送信義務の追記 — 通知手順は runbook に集約する (dispatch 節は手順の正本でない)。
+
+**保証しないこと (裁定パッケージ、ユーザーへ返す):**
+1. gate 取得前からの厳密な writer 優先 (上記)。
+2. 昇格の変換失敗 (deadline) 後に外側 reader が SH を失ったまま `mode=read` を信じる既存の穴
+   (段 3 / 段 6 レンズ A が real と分類、gate 導入前から存在)。state の毒化などの fail-closed 化は本 wave の scope 外。
+3. 入れ子で既に lock を持つ process の fresh reader は gate を見ない。その流れだけで writer が飢餓する実例が
+   観測されたら別 wave。

@@ -54,7 +54,7 @@ CC 合成 campaign の実行ループではない。
 8. **スキル自己改善 (親):** 共有契約で候補を routing し、ゼロなら無言で通過する。
 9. **終端・local main (親):** 共通 land operation で監査済み成果だけを取り込み、結果を確定して終了する。
    受入・land の終端で必ず `tools/dev_wave_wait.py acceptance` で `release` し、
-   land 成功時だけ `message` を照合済み peer へ 1 度送る。
+   land 成功時と巻戻し時に `message` を照合済み peer へ 1 度送る。
 
 ## 段 dispatch
 

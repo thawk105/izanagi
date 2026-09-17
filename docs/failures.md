@@ -1770,6 +1770,19 @@
   `_receipt_bindings` / `_receipt_prefix` / `_publish_audit_receipt` の実在を読んで初めて済を
   確定した。恒久対応 1 (`DW-S01` の brief 前照合) は今回も投入前に機能し、実装子は 1 本も
   走らなかった。機械防壁は無いままである。
+
+- **再発: 2026-09-17** — /rulings 第 20 回 (entry 1596、D2104) が主題照合で「既裁定・移管済み・実測解消」と
+  判定して索引から外した 18 行 (job dir `rulings-all-20260917/materials-index.md` B-1 節) のうち、相談が索引へ
+  戻した 2 件を除く 16 ID の worklog 実体本文が「裁定待ち」「新規 (裁定が要る)」のまま残った。同回の worklog
+  fragment は索引 37 件だけを `完了` / `更新` に書き、B-1 は 0 件だった。2026-09-16 の再発 (裁定台帳の側が
+  照合の省略を規則の形で正当化した) と同じく、記録側が「その手番は既に済んでいないか」を照合しなかった型だが、
+  **新しい面は、照合はしていた (だから索引から外せた) のに、外した結果を台帳へ書き戻す規則が command に無かった**
+  ことである。command の「1 裁定が複数 ID を覆うとき覆われた ID の項も更新する」は索引に載せた ID だけを対象に
+  読まれた。実害は次回の収集で同じ 16 ID を読み直す負担と、裁定済み未実装の件数が実態より多く見える点で、
+  実装子は関与していない。恒久対応は D2111 (索引外の
+  既裁定・移管済み・実測解消も残作業の有無で `完了` / `更新` に分けて書き、出力冒頭で裁定待ちと裁定済み未実装の
+  件数を分ける) で、データ側の状態語訂正は並行 wave が fragment で行う。機械防壁は無いままである —
+  `/rulings` 側が済を照合し状態語へ書き戻す機構は引き続き未実装で、command の規則にとどまる。
 ### F36. 受入・検査の結果欄をプレースホルダのまま記録 commit し、恒久対応の実行が空証明になった [恒真ゲート] [手順漏れ]
 
 - 事象: `<受入結果を反映>` `<反映>` というリテラルのプレースホルダが埋められないまま記録 commit に
@@ -26306,6 +26319,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   当座の運用 (下降局面かつ 1 分値 50 以下で 1 回投げる) を満たしていたにもかかわらず出ており、
   **load の閾値だけでは避けられない**ことの 1 点になる。恒久対応は既報どおり未実施のまま、
   機構側の対処は決めていない。
+- **supersede: 2026-09-17** — 恒久対応「未実施」は D2112 で writer 優先 gate (fresh 取得と昇格、reader は保持ゼロ時だけ検査) として実装した。deadline 245 秒と同時実行数は不変。gate 取得前からの厳密な優先と昇格失敗後の state 回復は保証しない。
 ### F977. land の fold 失敗が main を merge 前まで巻き戻し、着地済みに見えた wave の記録が丸ごと列から消えた [手順漏れ] [観測]
 
 - 事象: 2026-09-14、別 session から「main が巻き戻っている」と通報を受け、自分の ref で裏取りした。
@@ -26375,6 +26389,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `git reflog show main --date=iso` で message が空の行を探す。
   その行の**直前**の SHA を `X` として `git log --oneline refs/heads/main..X` が
   捨てられた commit の一覧になる。
+- **supersede: 2026-09-17** — 機構側予防のうち「巻き戻しを列へ通知する」は D2112 で `wave_land_window.py message --kind rolled-back` として実装し、送信義務を runbook の land 手順と command 入口 項 9 に置いた。「fold の失敗で land の merge まで戻さない」は D2104 項 34 で採らないと裁定した。
 
 ### F978. user namespace の中では mode bits による保護が効かない [恒真ゲート]
 
@@ -26485,6 +26500,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   選択形固有の偽赤と確定した。**変更面は conftest の prewarm 起動点と memo の cache 読み書きで、
   当該 wrapper・site 中立化 fixture・WAL・ident は触っていない。**
   本 wave は commit 前後の両方で再現することも確かめ、未 commit 由来の drift ではないと切り分けた。
+
+- **再発: 2026-09-17** — 実 repo ロック gate の wave で、変異 harness の probe 走 (runner 選択 =
+  `test_real_repo_serialization.py` + `test_wave_land_window.py` の 2 file) の baseline が
+  `test_real_repo_writers_do_not_materialize_oracle_environment_candidates` の決定的な赤で止まった
+  (WAL lock の JSON 不一致、内側の `test_p3_s4_loop.py` の `wal.read_lock(lay) == build_v2_lock(...)`)。
+  同じ commit の wave worktree で `test_p3_s4_loop.py` を含まない 10 file / 7 file の焦点走は緑だったが、
+  それは別 module (`test_s8c_*` 等) の収集が `site_policy` を setup 前に import していたためで、
+  2 file だけの選択では既報どおり再現した。既報の運用に従い `test_p3_s4_loop.py` を runner 選択へ足して
+  probe を投げ直し、初回の sidecar は erratum として job dir に保全した。変更面は conftest のロック層と
+  `wave_land_window.py` で、wrapper・site 中立化 fixture・WAL・ident は触っていない。
 ### F983. 成果物を作る前に「作った」と着地対象の本文へ書いた [捏造/幻覚] [手順漏れ]
 
 - 事象: 事前登録へ足す追補の本文に「読んだ file と出力の逐語は

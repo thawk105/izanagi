@@ -52,7 +52,7 @@ _SYNTHETIC_STAGE6_WAITER_ITEM = (
 _SYNTHETIC_STAGE9_WAITER_ITEM = (
     "9. **終端・local main (親):** 共通 land operation で監査済み成果だけを取り込み、結果を確定して終了する。\n"
     "   受入・land の終端で必ず `tools/dev_wave_wait.py acceptance` で `release` し、\n"
-    "   land 成功時だけ `message` を照合済み peer へ 1 度送る。\n"
+    "   land 成功時と巻戻し時に `message` を照合済み peer へ 1 度送る。\n"
 )
 _SYNTHETIC_DEV_WAVE_STATE_MACHINE = (
     "## 9 段状態機械\n\n"
@@ -2539,7 +2539,7 @@ def test_dev_wave_command_budget_literal_is_exact():
 
     rel = ".claude/commands/dev-wave.md"
     assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(9_520, 140)
-    assert len(_read(_REPO, rel).encode("utf-8")) == 9_507
+    assert len(_read(_REPO, rel).encode("utf-8")) == 9_519
 
     root = _build_min_repo()
     try:
