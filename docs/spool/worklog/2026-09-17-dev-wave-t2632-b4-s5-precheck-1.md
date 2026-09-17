@@ -47,14 +47,14 @@ title: [T-2632] 順序 (2) の precheck — B-4 事前登録 §5 の 2 欄 (校�
 
 ### 更新
 
-- [T-2632] **P2・更新**: B-4 の適格な赤 precursor の在庫を 0 件から増やす。供給源 (合成ループ campaign の whiteboard) と
-  §5.1.1 の適格条件は変えない。成功例への置換と母集合を作るための追加基盤は D1936 項 8 が不採用にしている。
-  発行器の production 呼び手は 2026-09-17 に入り、現物 3 campaign への実発行は候補 0 で `design_not_feasible` (封印 receipt
-  未取得、12 field の出所なし、D2100)。**順序 (2) の precheck (2026-09-17、`output/insights/2026-09-17/t2632-b4-s5-precheck/`)
-  の答え: §5 の 2 欄 (校正済み PerfConfig / env_tag) は今日記入できない。** 第一の理由は D1483 の順序 (§5 全欄は床値の測定・
-  採用裁定の後) で、順序が解けた後も reps の出所 (D2088 の 5 は床値 spec 用)、承認済み PerfConfig を base CLI が消費する経路の
-  不在 (`default_perf()` 無条件)、B-4 本走の site・契約世代 (g1 active / g2 未発効)・確認者の担当範囲の裁定が要る。tag `pegasus`
-  の機械導出はできる。裁定パッケージ 4 項は同 README。残る順序は (3) 専用 checkout からの通常 base campaign 起動と自然発生赤の
-  回収、(4) proposal・走行・参照点の対応証拠の出所と bootstrap 集合の定義・固定時点の裁定、その後に (1) の呼び手で封印発行。
-  (2) は床値の鎖 (A-5 → 測定 → 採用裁定) に従属する。得られた少数は D1986 項 4 により記述報告までに留める。
-  base: 0c797ca3e0848dc3ee2dae19c00ebac226feb458333dd5f9b4f007a7a8eb28fb
+- [T-2632] **P2・裁定済み (D2120 項 5) → 条件待ち + 出所調査 (AI)**: 本 wave の成果は「不足報告 + 空 batch
+  での発行器到達」までと認定。bootstrap 集合の定義と固定時点は適格な赤 precursor ≥ 1 を実際に扱う時点で裁定する
+  (今は定義しない、carrier も台帳も作らない)。proposal・走行・参照点の対応証拠の出所は AI が現存資料で閉じられるかを
+  先に確かめ、耐久 carrier や D39 決定 3 の変更が要ると分かった時点で別裁定。残る順序のうち **§5 の 2 欄 (校正済み
+  PerfConfig / env_tag) は precheck 済み (2026-09-17、`output/insights/2026-09-17/t2632-b4-s5-precheck/`): 今日は記入
+  できない。** 第一の理由は D1483 の順序 (§5 全欄は床値の 12 行裁定・測定・採用裁定の後。A-5 は D2120 項 4 で AI の
+  手番になったが測定・採用裁定は未了)。順序が解けた後も、reps の出所 (D2088 の 5 は床値 spec 用の AI 選択)、承認済み
+  PerfConfig を base CLI が消費する経路の不在 (`default_perf()` 無条件)、B-4 本走の site・契約世代 (g1 active / g2
+  未発効)・確認者の担当範囲の裁定が要る。tag `pegasus` の機械導出はできる。裁定パッケージ 4 項は同 README。
+  通常 base campaign からの自然発生赤の回収は変わらない。
+  base: e304379daccccddcede4d7fb284611382f2ce8fe8f61d0855af2be4102d52948
