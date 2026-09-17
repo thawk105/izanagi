@@ -8638,6 +8638,7 @@ def test_real_git_main_only_history_violation_blocks_acceptance_after_commit(
 ) -> None:
     wave = "main-only-history"
     repo, lease, env = _real_waiter_repo(tmp_path, wave=wave)
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     sha_file = tmp_path / "violation.sha"
     trace_file = tmp_path / "checker.jsonl"
     count_file = tmp_path / "runner.count"
