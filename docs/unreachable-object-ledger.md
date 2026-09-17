@@ -99,11 +99,37 @@ loose-and-packed、alternate ODB、prunable worktree root、または相対期�
 
 ### dangling audit の分岐
 
-`python3 tools/audit_dangling_commits.py --offrepo-root <runbook §7.2 の dir>` は単独実行し、
-パイプへ渡さず rc を直後に保存する (F152)。rc `0` は削除手順を続行できる。rc `1` は §5 へ報告し、
-救出を判断する。rc `2` は実行不能なので削除を停止する。抑止行が出た場合は rc `0` でも §5 へ報告する。
+用途で入口を分ける (D2120 項 24)。**掃除は repo 外走査を明示 off、救出 triage は明示 full** とし、
+どちらも flag 省略の互換経路を規範入口にしない。
+
+掃除を実行する AI は、棚卸しで `python3 tools/audit_dangling_commits.py --offrepo-scan off` を単独実行し、
+パイプへ渡さず rc を直後に保存する (F152)。`tools/check_branch_rescue.py --ledger-check` が起動する
+監査の子 process も常に off で、環境変数 `IZANAGI_DEV_WAVE_JOBS_DIR` を子へ継承しない。JSON の
+`ledger.audit.offrepo_scan` は `"off"` を示す。これは起動方針であって子の完走の証明ではなく、完走は
+`ledger.audit.complete` で見る。
+
+off は repo 外の同一実体を確認しない。従来 full で抑止されていた (commit, path) 対も要確認に含まれうる
+ため、**未記帳 commit の `unledgered-audit-finding` が増え、rescue gate の rc が `0` から `3` に変わりうる**。
+これは「repo 外に同一実体が無い」という判定ではない。off で通知された object の追記と状態遷移は
+「追記と状態遷移」の契約にそのまま従う (追記対象、新規 entry は `pending`)。追記候補集合は off で増える。
+
+救出 triage は掃除とは別の作業として引き渡す。triage を担当する AI は
+`python3 tools/audit_dangling_commits.py --offrepo-scan full --offrepo-root <runbook §7.2 の dir>` を単独実行する。
+full は探索根が CLI にも環境変数にも無ければ実行不能 (rc `2`) であり、黙って未実施にはならない。
+full で D247 の 5 条件をすべて満たして抑止された (commit, path) 対は、その full 監査の要確認から外れる。
+抑止行 (commit・path・repo 外の同一実体の path) は §5 の報告と当該 entry の `resolution_note` の判断材料に残す。
+一部でも要確認 path が残る commit は従来どおり追記候補である。破棄の可否は対象 commit ごとの裁定に従う。
+D970 と D1031 は当時の 28 件と追加 19 件についての裁定であり、repo 外に控えがあれば新規 commit を
+破棄してよいという一般許可ではない。
+
+掃除の単独監査の rc の読み: rc `0` は削除手順を続行できる。rc `1` は §5 へ報告し、救出 triage へ引き渡す。
+rc `2` は実行不能なので削除を停止する。抑止行が出た場合は rc `0` でも §5 へ報告する。
 最終 `elapsed_seconds=` が欠けた場合と未知の rc は削除を停止する。上限超過行は §5 へ報告するが、
 rc と削除可否を変えない。上限の正本は tool の `--help` とする。
+
+flag 省略は互換経路として残る (CLI の探索根が環境変数を上書きし、どちらも無ければ未実施を開示する)。
+root 拒否・巨大 blob・読出し失敗・landed 参照確認不能は否定結果ではなく「確認不能」であり、
+`scan_performed=True` だけでは全対象の確認成功を意味しない。
 
 ## 覆わない範囲
 
