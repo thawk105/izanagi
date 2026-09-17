@@ -69,6 +69,18 @@ BASELINES = {
         "KEY_SORT": 0,
         "TEMPERATURE_RESET_OPT": 1,
     }),
+    # tictoc: 準備登録 (D2114 項 4、T-2760)。値は現行 pin の external/ccbench/cmake/Options.cmake
+    # の cache 既定 (BACK_OFF, NO_WAIT_LOCKING_IN_VALIDATION, NO_WAIT_OF_TICTOC, PREEMPTIVE_ABORTS,
+    # TIMESTAMP_HISTORY) で、mocc と同じく CMake 既定を stock とする。TICTOC_SPACE の点 (no-wait は
+    # (1,0)、D1418) で、accepted な tictoc 認定較正 record (rr50 / rr95、D2083) の genome と同一。
+    # 現行 pin には trace hook が無く、下の D1373 関門が build 前に拒否する (実測の開通は別件)。
+    "tictoc": Genome("tictoc", {
+        "BACK_OFF": 1,
+        "NO_WAIT_LOCKING_IN_VALIDATION": 1,
+        "NO_WAIT_OF_TICTOC": 0,
+        "PREEMPTIVE_ABORTS": 1,
+        "TIMESTAMP_HISTORY": 1,
+    }),
 }
 # Compatibility name for code that consumes the historical silo baseline.
 BASELINE = BASELINES["silo"]

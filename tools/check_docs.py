@@ -606,7 +606,7 @@ DEV_WAVE_DW_O18_SECTION_LITERAL = """## DW-O18 — テスト cwd と非帰属赤
 
 cwd=repo root。nested subprocess import path偽赤は回帰外。file選択走は`from tests import`確立後に限り未確立赤も偽赤。
 
-受入赤返却時が判定主体の境界。待ち手は赤返却だけ。人・AIが判定し根拠をworklogへ残す。assertion本文・差分実体で判定、署名一致禁止。非帰属赤の着地5分超禁止、悩まない(D690)。自分起因は直す。N走完全一致はflakeでも非帰属の証拠でもない。差分到達不能は単独再走、非再現なら受入再走。同一tipで各1回だけ。再赤/決定的赤はmain既存Fを証拠にCodex`role=author`が`orchestrator/tests/flaky_test_holds.py`へ登録(field正本=同file)。F不在は登録せず裁定送り、判定不能・原因未理解は除外せず共に停止。停止条件外は治すかhold登録後だけ投げ直しwaveを止めない。受理は`child-green`だけ、赤の受領証禁止。
+受入赤返却時が判定主体の境界。待ち手は赤返却だけ。人・AIが判定し根拠をworklogへ残す。assertion本文・差分実体で判定、署名一致禁止。非帰属赤の着地5分超禁止、悩まない(D690)。自分起因は直す。N走完全一致はflakeでも非帰属の証拠でもない。差分到達不能は単独再走、非再現なら受入再走。同一tipで各1回だけ。再赤/決定的赤でもhold登録簿へ登録しない(契約testが1件に固定、F1000)。真に決定的な不安定testはその1件のpin更新を個別に諮り、判定不能・原因未理解は除外せず共に停止。停止条件外は治すか上記の制限内で投げ直しwaveを止めない。受理は`child-green`だけ、赤の受領証禁止。
 
 """
 DEV_WAVE_DW_O25_SECTION_LITERAL = """## DW-O25 — ff-only land の全史 provenance 関門
