@@ -11,17 +11,20 @@ import dataclasses
 import errno
 import fcntl
 import hashlib
+import heapq
 import importlib.util
 import io
 import json
 import os
 import re
+import select
 import shutil
 import signal
 import stat
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 
@@ -372,7 +375,10 @@ class _Repo:
             "red_nodeids": [],
             "flake_nodeids": [],
         }
-        path = self.root / "acceptance-receipt.json"
+        identity = hashlib.sha256(
+            (str(wave) + "\0" + acceptance_wave + "\0" + tested_main + "\0" + tested_tip).encode()
+        ).hexdigest()
+        path = self.root / f"acceptance-receipt-{identity}.json"
         path.write_text(
             json.dumps(receipt, sort_keys=True, separators=(",", ":")) + "\n",
             encoding="ascii",
@@ -520,6 +526,8 @@ class _FakeLandLockRuntime:
             stack.enter_context(_patched_land_attr("_land_lock_now", self.now))
             stack.enter_context(_patched_land_attr("_land_lock_sleep", self.sleep))
             stack.enter_context(_patched_land_attr("_land_lock_jitter", self.jitter))
+            if getattr(LAND, "_land_turn_sleep", None) is not None:
+                stack.enter_context(_patched_land_attr("_land_turn_sleep", self.sleep))
             yield self
 
 
@@ -1548,6 +1556,7 @@ def test_land_accepts_mixed_red_and_flake_nodeids_without_merging_sets() -> None
 
 
 def test_land_accepts_child_green_tip_runner_change_with_main_digest() -> None:
+    """h′: pre-registration static checks read fixed objects before locked checks."""
     with _repo() as repo:
         wave = repo.waves["one"]
         tip = repo.commit(
@@ -1584,13 +1593,14 @@ def test_land_accepts_child_green_tip_runner_change_with_main_digest() -> None:
         with _patched_land_attr("_runner_tree_entry", spy_runner_tree_entry):
             result = _land(request)
 
-        assert lookups == [tip, repo.base]
+        assert lookups == [tip, repo.base, tip, repo.base]
         assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
         assert result.acceptance_verdict == "child-green"
         assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
 def test_d987_rejects_final_runner_change_before_provenance_rc16() -> None:
+    """h′: static checks read fixed objects before registration and locked D987 checks."""
     with _repo() as repo:
         wave = repo.waves["one"]
         tested_main = repo.base
@@ -1647,7 +1657,7 @@ def test_d987_rejects_final_runner_change_before_provenance_rc16() -> None:
         ):
             result = _land(request)
 
-        assert lookups == [locked_main, tested_main]
+        assert lookups == [tip, tested_main, locked_main, tested_main]
         assert provenance_calls == []
         assert (result.rc, result.status) == (LAND.RC_AUDIT, "rejected")
         assert result.reason == "acceptance-receipt-rejected"
@@ -2739,8 +2749,8 @@ def test_untracked_nested_repository_record_collides_with_target() -> None:
         assert _artifact_snapshot(payload) == watched
 
 
-def test_unregistered_alias_child_is_rejected() -> None:
-    """M6: 正規 child の .git bytes を複製しても admin backpointer 不一致で拒否する。"""
+def test_unregistered_unrelated_alias_child_is_accepted() -> None:
+    """incoming と無関係な alias の admin binding は観測しない。"""
     with _repo() as repo:
         wave = repo.waves["one"]
         tip = repo.commit(wave, "wave.txt", "wave\n")
@@ -2748,8 +2758,8 @@ def test_unregistered_alias_child_is_rejected() -> None:
         alias.mkdir()
         (alias / ".git").write_bytes((wave / ".git").read_bytes())
         result = _land(repo.request(wave, tip=tip))
-        assert result.rc == LAND.RC_CONTROL_PLANE, result
-        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
 def test_ignored_registered_container_and_unrelated_cache_are_accepted() -> None:
@@ -2777,7 +2787,7 @@ def test_ignored_registered_container_and_unrelated_cache_are_accepted() -> None
         assert (repo.main / "cache" / "new.txt").read_text() == "tracked sibling\n"
 
 
-def test_ignored_unregistered_container_child_is_rejected() -> None:
+def test_ignored_unrelated_unregistered_container_child_is_accepted() -> None:
     with _repo() as repo:
         wave = repo.waves["one"]
         tip = repo.commit(wave, "wave.txt", "wave\n")
@@ -2789,8 +2799,8 @@ def test_ignored_unregistered_container_child_is_rejected() -> None:
         alias.mkdir()
         (alias / ".git").write_bytes((wave / ".git").read_bytes())
         result = _land(repo.request(wave, tip=tip))
-        assert result.rc == LAND.RC_CONTROL_PLANE, result
-        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
 def test_target_collision_with_existing_ignored_path_is_rejected() -> None:
@@ -2862,15 +2872,15 @@ def test_target_collision_with_foreign_control_artifact_is_rejected() -> None:
             assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
 
-def test_unsafe_container_child_bytes_are_rejected() -> None:
+def test_unrelated_container_child_bytes_are_ignored() -> None:
     with _repo() as repo:
         wave = repo.waves["one"]
         tip = repo.commit(wave, "wave.txt", "wave\n")
         container = os.fsencode(repo.main / ".codex" / "worktrees")
         os.mkdir(container + b"/bad\nrecord")
         result = _land(repo.request(wave, tip=tip))
-        assert result.rc == LAND.RC_CONTROL_PLANE, result
-        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+        assert (result.rc, result.status) == (LAND.RC_OK, "landed"), result
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
 def test_shallow_graft_replace_filter_and_promisor_are_rejected() -> None:
@@ -3285,10 +3295,11 @@ def test_common_lock_timeout_does_not_start_provenance_checker() -> None:
         assert result.reason == (
             "another cooperative land operation holds the common lock "
             # A: 初回は従来どおり待機し尽くした拒否として区別する。
-            "(wait budget exhausted after waiting; phase=initial, waited_s=180.000, "
-            "window_elapsed_s=180.000, limit_s=180.000)"
+            "(wait budget exhausted after waiting; phase=initial, waited_s=3600.000, "
+            "window_elapsed_s=3600.000, limit_s=180.000)"
+            "; turn_waited_s=0.000, turn_elapsed_s=3600.000, turn_limit_s=3600.000"
         )
-        assert sum(runtime.sleeps) == pytest.approx(LAND._LAND_LOCK_WAIT_SECONDS)
+        assert sum(runtime.sleeps) == pytest.approx(LAND._LAND_TURN_WAIT_SECONDS)
         assert not marker.exists()
         assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
@@ -3352,18 +3363,20 @@ def test_land_lock_polling_stops_at_shared_deadline() -> None:
         assert result.reason == (
             "another cooperative land operation holds the common lock "
             # A: 監査 170 秒を差し引かず、残る 180 秒を競合待機に使う。
-            "(wait budget exhausted after waiting; phase=post-provenance, waited_s=180.000, "
+            "(wait budget exhausted after waiting; phase=post-provenance, waited_s=3430.000, "
             # A: 監査 170 秒と競合待機 180 秒で壁時計は 350 秒。
-            "window_elapsed_s=350.000, limit_s=180.000)"
+            "window_elapsed_s=3600.000, limit_s=180.000)"
+            "; turn_waited_s=0.000, turn_elapsed_s=3600.000, turn_limit_s=3600.000"
         )
         # A: 監査完了時刻 170 秒から未消費の 180 秒を使う。
-        assert deadlines == [180.0, 350.0]
+        assert deadlines[:2] == [180.0, 350.0]
+        assert all(value < 3600.0 for value in deadlines[2:])
         assert runtime.sleeps
         assert all(0.0 < delay <= LAND._LAND_LOCK_MAX_POLL_SECONDS for delay in runtime.sleeps)
         # A: 監査時間による減額がなくなり、180 秒待機する。
-        assert sum(runtime.sleeps) == pytest.approx(180.0)
+        assert sum(runtime.sleeps) == pytest.approx(3430.0)
         # A: 監査 170 秒に待機 180 秒が加わる。
-        assert runtime.now_s == pytest.approx(350.0)
+        assert runtime.now_s == pytest.approx(3600.0)
         assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
 
@@ -3469,6 +3482,9 @@ def _exercise_cumulative_waits(*, fold: bool, initial: float, audit: float,
             with (
                 runtime.patch(),
                 _patched_land_attr("_land_lock_sleep", sleep),
+                (_patched_land_attr("_land_turn_sleep", sleep)
+                 if getattr(LAND, "_land_turn_sleep", None) is not None
+                 else contextlib.nullcontext()),
                 _patched_land_attr("_audit_provenance_history", observed_audit),
                 _patched_land_attr("_run_fold_gate", observed_gate),
                 _patched_land_attr("_acquire_land_lock", observed_acquire),
@@ -3485,27 +3501,1141 @@ def _exercise_cumulative_waits(*, fold: bool, initial: float, audit: float,
         return result, acquisitions, stages
 
 
+class _TurnSchedulerStopped(BaseException):
+    pass
+
+
+@contextlib.contextmanager
+def _queued_land_turn(repo, request):
+    """Real registration, static receipt validation, and independent flock FDs."""
+    with _cwd(request.wave_worktree):
+        repository = LAND._verify_repository(request)
+    now = LAND._land_lock_now()
+    turn = LAND._LandTurnHandle(now, now + LAND._LAND_TURN_WAIT_SECONDS)
+    try:
+        verified = LAND._verify_acceptance_static(
+            repository, raw=request.acceptance_receipt.read_bytes(),
+            acceptance_wave=request.acceptance_wave,
+            tested_main=request.tested_main_sha, tested_tip=request.tested_wave_tip_sha,
+        )
+        LAND._register_land_turn(repository, request, verified, turn)
+        repository.turn = turn
+        yield repository, turn
+    finally:
+        turn.close()
+        repository.close()
+
+
+@contextlib.contextmanager
+def _granted_land_turn(repo, request):
+    """Direct fold callers own both a real granted ticket and the common lock."""
+    with _queued_land_turn(repo, request) as (repository, _turn):
+        lock = LAND._LandLockHandle()
+        try:
+            granted, _waited, _ahead = LAND._wait_land_turn(repository, lock)
+            assert granted
+            acquired, _waited = LAND._acquire_land_lock(
+                repository, lock, LAND._land_lock_now(),
+            )
+            assert acquired
+            repository.land_lock = lock
+            LAND._land_turn_owner(repository)
+            yield repository
+        finally:
+            lock.close()
+
+
+def _turn_registry_snapshot(repo):
+    return json.loads((repo.main / ".git/dev-wave-land-turn/registry.json").read_text())
+
+
+def _assert_turn_ticket_fds_released(repo):
+    directory = repo.main / ".git/dev-wave-land-turn"
+    for path in (*directory.glob("*.jsonl"), directory / "registry.lock"):
+        fd = os.open(path, os.O_RDWR | os.O_NOFOLLOW)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        finally:
+            os.close(fd)
+
+
+def test_land_turn_registry_read_preserves_published_inode() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request = repo.request(wave, tip=repo.commit(wave, "wave.txt", "wave\n"))
+        with _queued_land_turn(repo, request) as (repository, turn):
+            path = repo.main / ".git/dev-wave-land-turn/registry.json"
+            before = path.read_bytes()
+            # Keep the original inode alive so replacement cannot reuse it.
+            with path.open("rb") as original:
+                for _ in range(2):
+                    with LAND._turn_registry(repository, turn) as registry:
+                        assert registry["requests"][turn.key]["seq"] == turn.seq
+                assert path.stat().st_ino == os.fstat(original.fileno()).st_ino
+                assert path.read_bytes() == before
+                with LAND._turn_registry(repository, turn) as registry:
+                    registry["next_seq"] += 1
+                assert path.stat().st_ino != os.fstat(original.fileno()).st_ino
+                assert _turn_registry_snapshot(repo)["next_seq"] == json.loads(before)["next_seq"] + 1
+
+
+def test_land_turn_registry_rejects_invalid_order() -> None:
+    with _repo(waves=(("codex", "a"), ("codex", "b"))) as repo:
+        requests = _turn_wave_requests(repo)
+        with _queued_land_turn(repo, requests[0]), _queued_land_turn(repo, requests[1]) as (repository, turn):
+            path = repo.main / ".git/dev-wave-land-turn/registry.json"
+            original = path.read_bytes()
+            try:
+                for order in (None, True, "2", 0, -1, 1):
+                    registry = json.loads(original)
+                    entry = registry["requests"][turn.key]
+                    if order is None:
+                        del entry["order"]
+                    else:
+                        entry["order"] = order
+                    path.write_text(json.dumps(registry))
+                    with pytest.raises(LAND._Reject, match="invalid request entry"):
+                        with LAND._turn_registry(repository, turn):
+                            raise AssertionError("invalid order accepted")
+            finally:
+                path.write_bytes(original)
+
+
+def test_land_turn_same_key_double_entry_is_single_ticket() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request = repo.request(wave, tip=repo.commit(wave, "wave.txt", "wave\n"))
+        with _queued_land_turn(repo, request) as (_, turn):
+            before = _turn_registry_snapshot(repo)
+            result = _land_real_gate(request)
+            assert result.rc == LAND.RC_LOCK_BUSY and result.retryable_same_request, result
+            assert "same request already queued" in result.reason and not result.release_safe
+            assert _turn_registry_snapshot(repo) == before
+            assert len(list((repo.main / ".git/dev-wave-land-turn").glob("*.jsonl"))) == 1
+            assert turn.seq == 1
+
+
+def test_land_turn_retry_preserves_sequence() -> None:
+    with _repo(waves=(("codex", "a"), ("codex", "b"))) as repo:
+        requests = _turn_wave_requests(repo)
+        with _queued_land_turn(repo, requests[0]) as (first, first_turn):
+            with contextlib.ExitStack() as retries:
+                second, second_turn = retries.enter_context(_queued_land_turn(repo, requests[1]))
+                before = _turn_registry_snapshot(repo)["requests"][second_turn.key]
+                assert before["order"] == before["seq"] == 2
+                LAND._finish_land_turn(second, LAND.LandResult(
+                    LAND.RC_LOCK_BUSY, "lock-busy", "waiting deadline", None, None, None,
+                    retryable_same_request=True,
+                ))
+                assert _turn_registry_snapshot(repo)["requests"][second_turn.key] == before
+                second, second_turn = retries.enter_context(_queued_land_turn(repo, requests[1]))
+                assert second_turn.seq == before["seq"]
+                assert _turn_registry_snapshot(repo)["requests"][second_turn.key]["order"] == before["order"]
+                assert _turn_registry_snapshot(repo)["grant"] == first_turn.key
+                LAND._finish_land_turn(first, LAND.LandResult(
+                    LAND.RC_LOCK_BUSY, "lock-busy", "deadline", None, None, None,
+                    retryable_same_request=True,
+                ))
+                assert _turn_registry_snapshot(repo)["grant"] == second_turn.key
+                with _queued_land_turn(repo, requests[0]) as (resumed, resumed_turn):
+                    assert resumed_turn.seq == first_turn.seq == 1
+                    assert _turn_registry_snapshot(repo)["grant"] == second_turn.key
+                    LAND._finish_land_turn(second, LAND.LandResult(
+                        LAND.RC_STALE_MAIN, "stale-main", "main advanced", None, None, None,
+                    ))
+                    assert _turn_registry_snapshot(repo)["grant"] == resumed_turn.key
+                    LAND._land_turn_owner(resumed)
+
+
+@pytest.mark.parametrize("retryable", [False, True], ids=["red", "timeout"])
+def test_land_turn_red_head_hands_over_atomically(retryable) -> None:
+    with _repo(waves=(("codex", "a"), ("codex", "b"))) as repo:
+        requests = _turn_wave_requests(repo)
+        with _queued_land_turn(repo, requests[0]) as (first, first_turn):
+            with _queued_land_turn(repo, requests[1]) as (_, second_turn):
+                updates = []
+                real_save = LAND._turn_save_registry
+
+                def saved(turn, registry):
+                    updates.append(json.loads(json.dumps(registry)))
+                    return real_save(turn, registry)
+
+                with _patched_land_attr("_turn_save_registry", saved):
+                    LAND._finish_land_turn(first, LAND.LandResult(
+                        LAND.RC_PROVENANCE, "rejected", "audit outcome", None, None, None,
+                        retryable_same_request=retryable,
+                    ))
+                assert len(updates) == 1 and updates[0]["grant"] == second_turn.key, updates
+                assert (first_turn.key in updates[0]["requests"]) is retryable, updates
+                if retryable:
+                    with _queued_land_turn(repo, requests[0]) as (_, resumed):
+                        assert resumed.seq == first_turn.seq
+                        assert _turn_registry_snapshot(repo)["grant"] == second_turn.key
+                assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+test_land_turn_red_head_hands_over_atomically._plain_cases = [(False,), (True,)]
+
+
+def test_land_turn_dead_waiter_releases_successor() -> None:
+    with _repo(waves=(("codex", "a"), ("codex", "b"))) as repo:
+        requests = _turn_wave_requests(repo)
+        with _queued_land_turn(repo, requests[0]) as (_, first_turn):
+            with _queued_land_turn(repo, requests[1]) as (second, second_turn):
+                os.close(first_turn.fd)
+                first_turn.fd = -1
+                lock = LAND._LandLockHandle()
+                try:
+                    granted, _, _ = LAND._wait_land_turn(second, lock)
+                    assert granted
+                    assert _turn_registry_snapshot(repo)["grant"] == second_turn.key
+                finally:
+                    lock.close()
+
+
+def test_land_turn_live_owner_is_not_expired() -> None:
+    with _repo(waves=(("codex", "a"), ("codex", "b"))) as repo:
+        requests = _turn_wave_requests(repo)
+        runtime = _FakeLandLockRuntime()
+        with runtime.patch(), _queued_land_turn(repo, requests[0]) as (_, first_turn):
+            ticket = repo.main / ".git/dev-wave-land-turn" / first_turn.ticket
+            os.utime(ticket, (1, 1))
+            runtime.now_s += LAND._LAND_TURN_WAIT_SECONDS * 2
+            with _queued_land_turn(repo, requests[1]) as (second, second_turn):
+                with LAND._turn_registry(second, second_turn) as registry:
+                    LAND._turn_select(second_turn, registry)
+                    assert registry["grant"] == first_turn.key
+                    assert LAND._turn_live(second_turn, first_turn.ticket)
+
+
+@contextlib.contextmanager
+def _land_turn_subprocess(request, *, stop_before_registry_rename=False):
+    """A separate open-file description owns the ticket until SIGKILL."""
+    driver = r'''
+import importlib.util, json, os, sys
+from pathlib import Path
+spec = importlib.util.spec_from_file_location("turn_driver", sys.argv[1])
+land = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = land
+spec.loader.exec_module(land)
+fields = json.loads(sys.argv[2])
+for name in ("main_worktree", "wave_worktree", "acceptance_receipt"):
+    fields[name] = Path(fields[name])
+request = land.LandRequest(**fields)
+os.chdir(request.wave_worktree)
+repository = land._verify_repository(request)
+now = land._land_lock_now()
+turn = land._LandTurnHandle(now, now + land._LAND_TURN_WAIT_SECONDS)
+verified = land._verify_acceptance_static(
+    repository, raw=land._read_acceptance_receipt(request.acceptance_receipt),
+    acceptance_wave=request.acceptance_wave, tested_main=request.tested_main_sha,
+    tested_tip=request.tested_wave_tip_sha,
+)
+if sys.argv[3] == "before-rename":
+    original = os.rename
+    def rename(source, destination, **kwargs):
+        if destination == "registry.json":
+            print(json.dumps({"boundary": "before-rename"}), flush=True)
+            sys.stdin.read()
+        return original(source, destination, **kwargs)
+    os.rename = rename
+land._register_land_turn(repository, request, verified, turn)
+repository.turn = turn
+land._land_turn_owner(repository)
+print(json.dumps({"key": turn.key, "seq": turn.seq, "ticket": turn.ticket}), flush=True)
+sys.stdin.read()
+'''
+    fields = dataclasses.asdict(request)
+    child = subprocess.Popen(
+        [sys.executable, "-c", driver, str(HELPER_PATH), json.dumps(fields, default=str),
+         "before-rename" if stop_before_registry_rename else "granted"],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        ready, _, _ = select.select([child.stdout], [], [], 30)
+        assert ready, "ticket subprocess did not reach the requested boundary"
+        line = child.stdout.readline()
+        assert line, child.stderr.read()
+        yield child, json.loads(line)
+    finally:
+        if child.poll() is None:
+            child.kill()
+        child.communicate(timeout=30)
+
+
+def test_land_turn_subprocess_death_releases_successor() -> None:
+    with _repo(waves=(("codex", "a"), ("codex", "b"))) as repo:
+        requests = _turn_wave_requests(repo)
+        with _land_turn_subprocess(requests[0]) as (child, first):
+            with _queued_land_turn(repo, requests[1]) as (second, turn):
+                assert _turn_registry_snapshot(repo)["grant"] == first["key"]
+                assert LAND._turn_live(turn, first["ticket"])
+                child.kill()
+                assert child.wait(timeout=30) == -signal.SIGKILL
+                assert not LAND._turn_live(turn, first["ticket"])
+                lock = LAND._LandLockHandle()
+                try:
+                    assert LAND._wait_land_turn(second, lock)[0]
+                    assert _turn_registry_snapshot(repo)["grant"] == turn.key
+                    LAND._land_turn_owner(second)
+                finally:
+                    lock.close()
+        result = _land_real_gate(requests[1])
+        assert result.rc == LAND.RC_OK, result
+        assert _git(repo.main, "rev-parse", "HEAD") == requests[1].tested_wave_tip_sha
+        _assert_turn_ticket_fds_released(repo)
+
+
+def test_land_turn_initial_registry_crash_before_rename() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request = repo.request(wave, tip=repo.commit(wave, "wave.txt", "wave\n"))
+        with _land_turn_subprocess(request, stop_before_registry_rename=True) as (child, ready):
+            assert ready["boundary"] == "before-rename"
+            directory = repo.main / ".git/dev-wave-land-turn"
+            assert not (directory / "registry.json").exists()
+            assert not list(directory.glob("*.jsonl"))
+            child.kill()
+            assert child.wait(timeout=30) == -signal.SIGKILL
+        result = _land_real_gate(request)
+        assert result.rc == LAND.RC_OK, result
+        _assert_turn_ticket_fds_released(repo)
+
+
+@pytest.mark.parametrize("invalid_field", ["child_rc", "runner_executed_sha256"])
+def test_land_turn_rejects_invalid_acceptance_before_registration(invalid_field: str) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request = repo.request(wave, tip=repo.commit(wave, "wave.txt", "wave\n"))
+        receipt = json.loads(request.acceptance_receipt.read_text())
+        if invalid_field == "child_rc":
+            receipt[invalid_field] = 1
+        else:
+            original_digest = receipt[invalid_field]
+            receipt[invalid_field] = (
+                ("0" if original_digest[0] != "0" else "1") + original_digest[1:]
+            )
+            assert len(receipt[invalid_field]) == 64
+            assert receipt[invalid_field] != original_digest
+        request.acceptance_receipt.write_text(json.dumps(receipt))
+        observed = []
+        real_acquire = LAND._acquire_land_lock
+        real_audit = LAND._audit_provenance_history
+
+        def acquire(*args):
+            observed.append("lock")
+            return real_acquire(*args)
+
+        def audit(*args):
+            observed.append("audit")
+            return real_audit(*args)
+
+        with (_patched_land_attr("_acquire_land_lock", acquire),
+              _patched_land_attr("_audit_provenance_history", audit)):
+            result = _land_real_gate(request)
+        assert result.rc != LAND.RC_OK, result
+        assert (result.rc, result.status, result.reason) == (
+            LAND.RC_AUDIT, "rejected", "acceptance-receipt-rejected",
+        ), result
+        assert result.release_safe is True
+        assert result.retryable_same_request is False
+        # No registry directory means neither a ticket nor next_seq was created.
+        assert not (repo.main / ".git/dev-wave-land-turn").exists()
+        assert not observed
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+test_land_turn_rejects_invalid_acceptance_before_registration._plain_cases = [
+    ("child_rc",), ("runner_executed_sha256",),
+]
+
+
+@pytest.mark.parametrize("phase", ["provenance", "fold"])
+def test_land_turn_preserves_evidence_after_lock_budget(phase) -> None:
+    result, acquisitions, stages = _exercise_cumulative_waits(
+        fold=phase == "fold", initial=20.0, audit=430.0,
+        audit_wait=220.0 if phase == "provenance" else 0.0,
+        fold_wait=220.0 if phase == "fold" else 0.0,
+    )
+    assert result.rc == LAND.RC_OK, (result, acquisitions, stages)
+    assert stages == (["provenance", "fold-gate"] if phase == "fold" else ["provenance"])
+    assert result.waited_s == pytest.approx(240.0), acquisitions
+    assert any(not acquired for _, acquired, _ in acquisitions), acquisitions
+
+
+test_land_turn_preserves_evidence_after_lock_budget._plain_cases = [("provenance",), ("fold",)]
+
+
+def test_land_turn_red_provenance_fails_fast() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "tools/check_ai_provenance.py", "raise SystemExit(1)\n")
+        request = repo.request(wave, tip=tip)
+        runtime = _FakeLandLockRuntime()
+        real_audit = LAND._audit_provenance_history
+        with _held_land_lock(repo) as holder:
+            fcntl.flock(holder, fcntl.LOCK_UN)
+
+            def audited(repository):
+                payload = real_audit(repository)
+                fcntl.flock(holder, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return payload
+
+            with runtime.patch(), _patched_land_attr("_audit_provenance_history", audited):
+                result = _land_real_gate(request)
+            assert result.rc == LAND.RC_PROVENANCE and not result.retryable_same_request, result
+            assert runtime.sleeps == []
+            assert not _turn_registry_snapshot(repo)["requests"]
+            assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_land_turn_cli_wait_crosses_lease_ttl_without_releasing_other_holder() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request = repo.request(wave, tip=repo.commit(wave, "wave.txt", "wave\n"))
+        lease_dir, lease_path = _claim_acceptance_lease(repo, request)
+        runtime = _FakeLandLockRuntime()
+        foreign = []
+        with _held_land_lock(repo) as holder:
+            def release_after_ttl(clock):
+                if clock.now_s < LAND._wave_land_window._POLICY_TTL_SECONDS + 1:
+                    return
+                runtime.on_sleep = None
+                expired = time.time() - LAND._wave_land_window._POLICY_TTL_SECONDS - 1
+                os.utime(lease_path, (expired, expired))
+                claimed = LAND._wave_land_window.claim(
+                    lease_dir, "different-holder", request.tested_main_sha,
+                    LAND._wave_land_window._POLICY_TTL_SECONDS,
+                )
+                assert claimed["state"] == "acquired", claimed
+                foreign.append((lease_path.read_bytes(), lease_path.stat().st_ino))
+                fcntl.flock(holder, fcntl.LOCK_UN)
+
+            runtime.on_sleep = release_after_ttl
+            with runtime.patch():
+                rc, payload, _, errors = _invoke_land_main(request, lease_dir)
+        assert rc == LAND.RC_OK and payload["status"] == "landed", payload
+        assert payload["waited_s"] > LAND._wave_land_window._POLICY_TTL_SECONDS
+        assert "lease_release state=not-owner" in errors, errors
+        assert (lease_path.read_bytes(), lease_path.stat().st_ino) == foreign[0]
+
+
+def test_land_ignores_unrelated_child_cleanup_race() -> None:
+    with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
+        wave, foreign = repo.waves["author"], repo.waves["foreign"]
+        request = repo.request(wave, tip=repo.commit(wave, "wave.txt", "wave\n"))
+        real_open = LAND._open_container
+        real_child = LAND._openat_dir
+        opened = []
+
+        def container(repository, relative):
+            result = real_open(repository, relative)
+            if relative == b".claude/worktrees":
+                (foreign / ".git").unlink(missing_ok=True)
+            return result
+
+        def child(parent, name, *args, **kwargs):
+            if name == b"foreign":
+                opened.append(name)
+            return real_child(parent, name, *args, **kwargs)
+
+        with (_patched_land_attr("_open_container", container),
+              _patched_land_attr("_openat_dir", child)):
+            result = _land_real_gate(request)
+        assert result.rc == LAND.RC_OK, result
+        assert not opened
+        assert _git(repo.main, "rev-parse", "HEAD") == request.tested_wave_tip_sha
+
+
+def test_land_still_rejects_protected_unregistered_or_unsafe_child() -> None:
+    for name in ("alias", "x" * 129):
+        with _repo() as repo:
+            wave = repo.waves["one"]
+            relative = f".claude/worktrees/{name}/incoming.txt"
+            target = wave / relative
+            target.parent.mkdir(parents=True)
+            target.write_text("incoming\n")
+            _git(wave, "add", "-f", relative)
+            _git(wave, "commit", "-qm", "protected child collision")
+            child = repo.main / ".claude/worktrees" / name
+            child.mkdir(parents=True)
+            (child / ".git").write_bytes((wave / ".git").read_bytes())
+            request = repo.request(wave)
+            result = _land_real_gate(request)
+            assert result.rc == LAND.RC_CONTROL_PLANE, (name, result)
+            assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+@pytest.mark.parametrize("phase", ["rolled-back", "ff-done", "finalized"])
+def test_land_turn_dead_mutating_resolved_by_observation(phase) -> None:
+    with _repo(waves=(("codex", "a"), ("codex", "b"))) as repo:
+        wave = repo.waves["a"]
+        tip = (_wait_budget_fold_tip(repo, wave) if phase == "finalized"
+               else repo.commit(wave, "wave.txt", "wave\n"))
+        request = repo.request(wave, tip=tip)
+        real_mark = LAND._land_turn_mutating
+        real_finish = LAND._finish_land_turn
+
+        def marked(*args, **kwargs):
+            real_mark(*args, **kwargs)
+            if phase == "rolled-back":
+                raise _TurnSchedulerStopped()
+
+        def finished(repository, result):
+            if result.rc == LAND.RC_OK:
+                raise _TurnSchedulerStopped()
+            return real_finish(repository, result)
+
+        with (_patched_land_attr("_land_turn_mutating", marked),
+              _patched_land_attr("_finish_land_turn", finished)):
+            with pytest.raises(_TurnSchedulerStopped):
+                _land_real_gate(request)
+        before = _git(repo.main, "rev-parse", "HEAD")
+        assert before == (repo.base if phase == "rolled-back" else
+                          tip if phase == "ff-done" else before)
+        if phase == "finalized":
+            assert before != tip and _git(repo.main, "rev-parse", "HEAD^1") == tip
+        assert not (repo.main / ".git" / LAND._FOLD_STATE_NAME).exists()
+        next_request = repo.request(repo.waves["b"], acceptance_wave="successor")
+        with _queued_land_turn(repo, next_request) as (repository, turn):
+            lock = LAND._LandLockHandle()
+            try:
+                granted, _, _ = LAND._wait_land_turn(repository, lock)
+                assert granted and _turn_registry_snapshot(repo)["grant"] == turn.key
+            finally:
+                lock.close()
+            entries = _turn_registry_snapshot(repo)["requests"]
+            assert len(entries) == (2 if phase == "rolled-back" else 1)
+        assert _git(repo.main, "rev-parse", "HEAD") == before
+
+
+test_land_turn_dead_mutating_resolved_by_observation._plain_cases = [
+    ("rolled-back",), ("ff-done",), ("finalized",),
+]
+
+
+def test_land_turn_dead_mutating_two_observers_do_not_duplicate_records() -> None:
+    """B and C capture A's same record before either gets common flock."""
+    with _repo(waves=(("codex", "a"), ("codex", "b"), ("codex", "c"))) as repo:
+        requests = _turn_wave_requests(repo)
+        with _granted_land_turn(repo, requests[0]) as first:
+            LAND._land_turn_mutating(
+                first, plan=type("NoopPlan", (), {"status": "noop"})(),
+                main_before=repo.base, landing_tip=requests[0].tested_wave_tip_sha,
+                wave_ref=_git(first.wave, "symbolic-ref", "HEAD"),
+                trusted_main_cutoff=repo.base, landed_commits=requests[0].audited_commits,
+            )
+            first.land_lock.close()
+            key = first.turn.key
+            os.close(first.turn.fd)
+            first.turn.fd = -1
+            with (_queued_land_turn(repo, requests[1]) as (second, second_turn),
+                  _queued_land_turn(repo, requests[2]) as (third, third_turn)):
+                observations = []
+                for repository, turn in ((second, second_turn), (third, third_turn)):
+                    with LAND._turn_registry(repository, turn) as registry:
+                        entry = dict(registry["requests"][key])
+                        observations.append((entry, LAND._turn_last_record(turn, entry)))
+                assert observations[0] == observations[1]
+                for repository, turn, (entry, record) in zip(
+                    (second, third), (second_turn, third_turn), observations,
+                ):
+                    lock = LAND._LandLockHandle()
+                    try:
+                        assert LAND._acquire_land_lock(repository, lock, LAND._land_lock_now())[0]
+                        LAND._observe_dead_land_turn(repository, lock, key, entry, record)
+                    finally:
+                        lock.close()
+                entry, record = observations[0]
+                latest = LAND._turn_last_record(third_turn, entry)
+                assert latest["phase"] == "rolled-back"
+                assert latest["number"] == record["number"] + 1
+                journal = repo.main / ".git/dev-wave-land-turn" / entry["ticket"]
+                numbers = [json.loads(line)["record"]["number"] for line in journal.read_text().splitlines()]
+                assert numbers == list(range(1, len(numbers) + 1))
+                assert _turn_registry_snapshot(repo)["grant"] == second_turn.key
+                assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+@pytest.mark.parametrize("phase", ["ff-done", "finalized"])
+def test_land_turn_completed_same_key_reentry_is_done(phase) -> None:
+    """Observation completes the ticket; existing preflight decides the result."""
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = (_wait_budget_fold_tip(repo, wave) if phase == "finalized"
+               else repo.commit(wave, "wave.txt", "wave\n"))
+        request = repo.request(wave, tip=tip)
+        real_finish = LAND._finish_land_turn
+
+        def die_before_terminal(repository, result):
+            if result.rc == LAND.RC_OK:
+                raise _TurnSchedulerStopped()
+            return real_finish(repository, result)
+
+        with _patched_land_attr("_finish_land_turn", die_before_terminal):
+            with pytest.raises(_TurnSchedulerStopped):
+                _land_real_gate(request)
+        before = _git(repo.main, "rev-parse", "HEAD")
+        old = _turn_registry_snapshot(repo)
+        key, entry = next(iter(old["requests"].items()))
+        assert entry["seq"] == 1
+        result = _land_real_gate(request)
+        expected = ((LAND.RC_STALE_MAIN, "stale-main") if phase == "finalized"
+                    else (LAND.RC_OK, "already-landed"))
+        assert (result.rc, result.status) == expected, result
+        assert result.main_before == result.main_after == before
+        assert _git(repo.main, "rev-parse", "HEAD") == before
+        registry = _turn_registry_snapshot(repo)
+        assert key not in registry["requests"] and registry["grant"] is None
+        assert registry["next_seq"] == old["next_seq"]
+        records = [json.loads(path.read_text().splitlines()[-1])["record"]
+                   for path in (repo.main / ".git/dev-wave-land-turn").glob("*.jsonl")]
+        assert any(record["phase"] == "done" and record["seq"] == entry["seq"] for record in records)
+        _assert_turn_ticket_fds_released(repo)
+
+
+test_land_turn_completed_same_key_reentry_is_done._plain_cases = [("ff-done",), ("finalized",)]
+
+
+def test_land_turn_post_gate_receipt_io_retains_sequence() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        request = repo.request(wave, tip=_wait_budget_fold_tip(repo, wave))
+        real_gate = LAND._run_fold_gate
+        registered = []
+
+        def gate(*args):
+            receipt = real_gate(*args)
+            registered.append(_turn_registry_snapshot(repo))
+            request.acceptance_receipt.rename(request.acceptance_receipt.with_suffix(".hidden"))
+            return receipt
+
+        with _patched_land_attr("_run_fold_gate", gate):
+            result = _land_real_gate(request)
+        assert len(registered) == 1
+        assert (result.rc, result.reason) == (LAND.RC_AUDIT, "acceptance-receipt-rejected"), result
+        assert result.retryable_same_request and not result.release_safe, result
+        key, entry = next(iter(registered[0]["requests"].items()))
+        registry = _turn_registry_snapshot(repo)
+        assert registry["requests"][key]["seq"] == entry["seq"]
+        assert registry["grant"] is None
+        assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+        _assert_turn_ticket_fds_released(repo)
+
+
+def test_land_turn_recovery_precedes_successor() -> None:
+    with _repo(waves=(("codex", "a"), ("codex", "b"))) as repo:
+        wave = repo.waves["a"]
+        tip = _wait_budget_fold_tip(repo, wave)
+        request = repo.request(wave, tip=tip)
+        real_load = LAND._load_spool_fold
+
+        def loaded():
+            module = real_load()
+            real_apply = module.apply_fold
+
+            def apply(*args, **kwargs):
+                real_apply(*args, **kwargs)
+                raise _TurnSchedulerStopped()
+
+            module.apply_fold = apply
+            return module
+
+        with _patched_land_attr("_load_spool_fold", loaded):
+            with pytest.raises(_TurnSchedulerStopped):
+                _land_real_gate(request)
+        state_path = repo.main / ".git" / LAND._FOLD_STATE_NAME
+        state = json.loads(state_path.read_text())
+        transaction = state["transaction_id"]
+        folded = (repo.main / "docs/spool/FOLDED.md").read_bytes()
+        original_registry = _turn_registry_snapshot(repo)
+        original_key, original_entry = next(iter(original_registry["requests"].items()))
+        grants = []
+        real_save = LAND._turn_save_registry
+
+        def saved(turn, registry):
+            grants.append(registry["grant"])
+            return real_save(turn, registry)
+
+        assert _git(repo.main, "rev-parse", "HEAD") == tip
+        with _patched_land_attr("_turn_save_registry", saved):
+            blocked = _land_real_gate(repo.request(repo.waves["b"], acceptance_wave="successor"))
+        assert blocked.rc == LAND.RC_FOLD_RECOVERY_FAILED, blocked
+        assert grants and all(grant is None for grant in grants), grants
+        assert _turn_registry_snapshot(repo)["requests"][original_key] == original_entry
+        assert json.loads(state_path.read_text())["transaction_id"] == transaction
+        recoveries = []
+
+        def recovery_load():
+            module = real_load()
+            real_apply = module.apply_fold
+
+            def apply(root, plan, **kwargs):
+                registry = _turn_registry_snapshot(repo)
+                assert registry["grant"] == original_key
+                assert registry["requests"][original_key]["seq"] == original_entry["seq"]
+                assert plan.transaction_id == transaction
+                assert plan.origin.tested_tip == tip
+                assert plan.origin.wave_ref == _git(wave, "symbolic-ref", "HEAD")
+                folded_target = next(target for target in plan.targets if target.path == "docs/spool/FOLDED.md")
+                assert folded_target.after_bytes == folded
+                assert {fragment.path for fragment in plan.fragments} == {
+                    "docs/spool/decisions/2026-08-03-test-wave-1.md",
+                }
+                assert [list(pair) for pair in plan.fragments[0].allocations] == state["fragments"][0]["allocations"]
+                recoveries.append(plan.transaction_id)
+                return real_apply(root, plan, **kwargs)
+
+            module.apply_fold = apply
+            return module
+
+        with _patched_land_attr("_load_spool_fold", recovery_load):
+            resumed = _land_real_gate(request)
+        assert resumed.rc == LAND.RC_OK, resumed
+        assert recoveries == [transaction]
+        assert not state_path.exists()
+        assert (repo.main / "docs/spool/FOLDED.md").read_bytes() == folded
+        assert _git(repo.main, "rev-parse", "HEAD^1") == tip
+        assert _git(repo.main, "rev-list", "--count", f"{tip}..HEAD") == "1"
+
+
+@pytest.mark.parametrize("phase", ["ff", "ff-wave", "fold", "shape-b", "shape-b-mark-ticket", "shape-b-mark-fd"])
+def test_land_turn_mutation_rechecks_owner(phase) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = (repo.commit(wave, "wave.txt", "wave\n") if phase in {"ff", "ff-wave"}
+               else _wait_budget_fold_tip(repo, wave))
+        request = repo.request(wave, tip=tip)
+        real_load = LAND._load_spool_fold
+        real_mark = LAND._land_turn_mutating
+        operations = []
+
+        def load_with_failed_finalize():
+            module = real_load()
+
+            def failed_finalize(*args, **kwargs):
+                raise OSError("injected death before finalize")
+
+            module.finalize_fold = failed_finalize
+            return module
+
+        if phase.startswith("shape-b-mark"):
+            def load_with_dead_mark():
+                module = real_load()
+
+                def dead_mark(*args, **kwargs):
+                    raise _TurnSchedulerStopped()
+
+                module.mark_fold_committed = dead_mark
+                return module
+
+            with _patched_land_attr("_load_spool_fold", load_with_dead_mark):
+                with pytest.raises(_TurnSchedulerStopped):
+                    _land_real_gate(request)
+            state = json.loads((repo.main / ".git" / LAND._FOLD_STATE_NAME).read_text())
+            assert state["phase"] == "applied"
+            assert _git(repo.main, "rev-parse", "HEAD^1") == tip
+        elif phase == "shape-b":
+            with _patched_land_attr("_load_spool_fold", load_with_failed_finalize):
+                first = _land_real_gate(request)
+            assert first.rc == LAND.RC_FOLD_FINALIZE_FAILED, first
+        before = _git(repo.main, "rev-parse", "HEAD")
+
+        def observed_load():
+            module = real_load()
+            for name in ("apply_fold", "mark_fold_committed", "finalize_fold"):
+                original = getattr(module, name)
+
+                def observed(*args, _name=name, _original=original, **kwargs):
+                    operations.append(_name)
+                    return _original(*args, **kwargs)
+
+                setattr(module, name, observed)
+            return module
+
+        calls = 0
+
+        def damaged(repository, **kwargs):
+            nonlocal calls
+            calls += 1
+            if phase != "fold" or calls == 2:
+                turn = repository.turn
+                if phase == "ff-wave":
+                    moved = repo.root / "replaced-wave"
+                    wave.rename(moved)
+                    shutil.copytree(moved, wave)
+                elif phase in {"ff", "shape-b-mark-ticket"}:
+                    path = repository.common / "dev-wave-land-turn" / turn.ticket
+                    raw = path.read_bytes()
+                    path.rename(path.with_suffix(".replaced"))
+                    path.write_bytes(raw)
+                elif phase in {"fold", "shape-b-mark-fd"}:
+                    os.close(turn.fd)
+                    turn.fd = -1
+                else:
+                    with LAND._turn_registry(repository, turn) as registry:
+                        registry["grant"] = None
+            return real_mark(repository, **kwargs)
+
+        with (_patched_land_attr("_load_spool_fold", observed_load),
+              _patched_land_attr("_land_turn_mutating", damaged)):
+            result = _land_real_gate(request)
+        assert result.rc != LAND.RC_OK, result
+        assert not operations, (phase, operations, result)
+        assert _git(repo.main, "rev-parse", "HEAD") == (tip if phase == "fold" else before)
+
+
+test_land_turn_mutation_rechecks_owner._plain_cases = [
+    ("ff",), ("ff-wave",), ("fold",), ("shape-b",), ("shape-b-mark-ticket",), ("shape-b-mark-fd",),
+]
+
+
+@pytest.mark.parametrize("changed", ["main", "tip", "collision", "fold-state"])
+def test_land_turn_invalidates_changed_inputs(changed) -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        tip = repo.commit(wave, "incoming.txt", "wave\n")
+        request = repo.request(wave, tip=tip)
+        real_audit = LAND._audit_provenance_history
+        runtime = _FakeLandLockRuntime()
+        before = repo.base
+
+        def change_inputs():
+            nonlocal before
+            if changed == "main":
+                (repo.main / ".git/info/exclude").write_text(".codex/worktrees/\n")
+                before = repo.commit(repo.main, "other.txt", "other\n")
+            elif changed == "tip":
+                repo.commit(wave, "other.txt", "other\n")
+            elif changed == "collision":
+                (repo.main / "incoming.txt").write_text("foreign\n")
+            else:
+                (repo.main / ".git" / LAND._FOLD_STATE_NAME).write_text("{}\n")
+
+        with _held_land_lock(repo) as holder:
+            fcntl.flock(holder, fcntl.LOCK_UN)
+
+            def audited(repository):
+                receipt = real_audit(repository)
+                fcntl.flock(holder, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return receipt
+
+            def while_waiting(clock):
+                if clock.now_s >= 220.0:
+                    runtime.on_sleep = None
+                    change_inputs()
+                    fcntl.flock(holder, fcntl.LOCK_UN)
+
+            runtime.on_sleep = while_waiting
+            with runtime.patch(), _patched_land_attr("_audit_provenance_history", audited):
+                result = _land_real_gate(request)
+        assert runtime.now_s >= 220.0
+        assert result.rc != LAND.RC_OK, (changed, result)
+        assert _git(repo.main, "rev-parse", "HEAD") == before, result
+
+
+test_land_turn_invalidates_changed_inputs._plain_cases = [
+    ("main",), ("tip",), ("collision",), ("fold-state",),
+]
+
+
+class _LandTurnScheduler:
+    """One worker token; only pytest's main thread advances the virtual clock.
+
+    No barrier depends on all requests reaching audit. The same policy can run
+    the old driver, which has no registry or turn sleep. Real gate/audit calls
+    are marshalled to the main thread (the gate installs a signal handler).
+    """
+
+    def __init__(self, requests, *, arrivals=None, audit_seconds=120.0,
+                 gate_seconds=20.0, locked_seconds=0.0, retry_delay=None,
+                 horizon=4560.0):
+        self.requests = requests
+        self.arrivals = arrivals or [0.0] * len(requests)
+        self.audit_seconds = audit_seconds
+        self.gate_seconds = gate_seconds
+        self.locked_seconds = locked_seconds
+        self.retry_delay = retry_delay
+        self.horizon = horizon
+        self.now = 0.0
+        self.trace = []
+        self.results = [None] * len(requests)
+        self.condition = threading.Condition()
+        self.local = threading.local()
+        self.pending = {}
+        self.replies = {}
+        self.stopped = False
+        self.sequence = list(range(1, len(requests) + 1))
+
+    def checkpoint(self, delay=0.0, action=None, label="yield"):
+        index = self.local.index
+        with self.condition:
+            self.pending[index] = (delay, action, label)
+            self.condition.notify_all()
+            self.condition.wait_for(lambda: index in self.replies or self.stopped)
+            if self.stopped:
+                raise _TurnSchedulerStopped()
+            value, error = self.replies.pop(index)
+        if error is not None:
+            raise error
+        return value
+
+    def sleep(self, delay):
+        return self.checkpoint(delay, label="sleep")
+
+    def log(self, event, *details):
+        self.trace.append((self.now, self.local.index, event, *details))
+
+    def run(self):
+        original_cwd = Path.cwd()
+        events = [(at, self.sequence[i], i, None, None)
+                  for i, at in enumerate(self.arrivals)]
+        heapq.heapify(events)
+        errors = []
+
+        def worker(index):
+            self.local.index = index
+            try:
+                with self.condition:
+                    self.condition.wait_for(lambda: index in self.replies or self.stopped)
+                    if self.stopped:
+                        return
+                    self.replies.pop(index)
+                while True:
+                    result = LAND.land(self.requests[index])
+                    self.results[index] = result
+                    self.log("result", result.rc, result.waited_s,
+                             _git(self.requests[index].main_worktree, "rev-parse", "HEAD"))
+                    if not (self.retry_delay is not None
+                            and (result.retryable_same_request or result.rc == LAND.RC_STALE_MAIN)
+                            and self.now + self.retry_delay < self.horizon):
+                        break
+                    self.checkpoint(self.retry_delay, label="retry")
+            except _TurnSchedulerStopped:
+                pass
+            except BaseException as exc:
+                errors.append((index, exc))
+            finally:
+                with self.condition:
+                    self.pending[index] = None
+                    self.condition.notify_all()
+
+        real_acquire = LAND._acquire_land_lock
+        real_close = LAND._LandLockHandle.close
+        real_preflight = LAND._locked_preflight
+        real_audit = LAND._audit_provenance_history
+        real_gate = LAND._run_fold_gate
+
+        def acquire(repository, lock, deadline):
+            result = real_acquire(repository, lock, deadline)
+            self.log("acquire", *result)
+            return result
+
+        def close(lock):
+            if lock.fd >= 0:
+                self.log("release", lock.fd)
+            return real_close(lock)
+
+        def preflight(*args, **kwargs):
+            self.checkpoint(self.locked_seconds / 2, label="preflight-enter")
+            result = real_preflight(*args, **kwargs)
+            self.checkpoint(self.locked_seconds / 2, label="preflight-exit")
+            return result
+
+        def audit(repository):
+            return self.checkpoint(self.audit_seconds,
+                                   lambda: real_audit(repository), "audit")
+
+        def gate(repository, plan, tip):
+            return self.checkpoint(self.gate_seconds,
+                                   lambda: real_gate(repository, plan, tip), "gate")
+
+        threads = [threading.Thread(target=worker, args=(i,), daemon=True)
+                   for i in range(len(self.requests))]
+        try:
+            with contextlib.ExitStack() as patches:
+                for name, function in (
+                    ("_land_lock_now", lambda: self.now),
+                    ("_land_lock_sleep", self.sleep),
+                    ("_land_lock_jitter", lambda cap: cap),
+                    ("_acquire_land_lock", acquire),
+                    ("_locked_preflight", preflight),
+                    ("_audit_provenance_history", audit),
+                    ("_run_fold_gate", gate),
+                ):
+                    patches.enter_context(_patched_land_attr(name, function))
+                if getattr(LAND, "_land_turn_sleep", None) is not None:
+                    patches.enter_context(_patched_land_attr("_land_turn_sleep", self.sleep))
+                save_registry = getattr(LAND, "_turn_save_registry", None)
+                if save_registry is not None:
+                    def registry_saved(turn, registry):
+                        save_registry(turn, registry)
+                        grant = registry["grant"]
+                        self.log("orders", tuple((entry["seq"], entry["order"])
+                                                 for entry in registry["requests"].values()))
+                        self.log("grant", None if grant is None else
+                                 registry["requests"][grant]["seq"])
+                    patches.enter_context(_patched_land_attr("_turn_save_registry", registry_saved))
+                register = getattr(LAND, "_register_land_turn", None)
+                if register is not None:
+                    def registered(repository, request, verified, turn):
+                        register(repository, request, verified, turn)
+                        self.sequence[self.local.index] = turn.seq
+                        self.log("registered", turn.seq)
+                        self.checkpoint(0.001, label="registered")
+                    patches.enter_context(_patched_land_attr("_register_land_turn", registered))
+                marking = getattr(LAND, "_land_turn_mutating", None)
+                if marking is not None:
+                    def mutating(*args, **kwargs):
+                        self.checkpoint(label="before-mutation")
+                        marking(*args, **kwargs)
+                        self.log("mutation", self.sequence[self.local.index])
+                    patches.enter_context(_patched_land_attr("_land_turn_mutating", mutating))
+                LAND._LandLockHandle.close = close
+                try:
+                    for thread in threads:
+                        thread.start()
+                    steps = 0
+                    while events:
+                        steps += 1
+                        assert steps < 200000, self.trace[-100:]
+                        at, _, index, value, error = heapq.heappop(events)
+                        if at > self.horizon:
+                            break
+                        self.now = at
+                        self.local.index = index
+                        os.chdir(self.requests[index].wave_worktree)
+                        with self.condition:
+                            self.replies[index] = (value, error)
+                            self.condition.notify_all()
+                            ready = self.condition.wait_for(lambda: index in self.pending, timeout=60)
+                            assert ready, self.trace[-100:]
+                            event = self.pending.pop(index)
+                        if event is None:
+                            continue
+                        delay, action, label = event
+                        self.log(label + "-start")
+                        value, error = None, None
+                        if action is not None:
+                            try:
+                                value = action()
+                            except BaseException as exc:
+                                error = exc
+                        self.log(label + "-return")
+                        heapq.heappush(events, (self.now + delay, self.sequence[index],
+                                               index, value, error))
+                finally:
+                    with self.condition:
+                        self.stopped = True
+                        self.condition.notify_all()
+                    for thread in threads:
+                        thread.join(timeout=10)
+                    LAND._LandLockHandle.close = real_close
+        finally:
+            os.chdir(original_cwd)
+        assert not any(thread.is_alive() for thread in threads), self.trace[-100:]
+        assert not errors, (errors, self.trace)
+        return self.results
+
+
+def _turn_wave_requests(repo, *, cumulative=False):
+    requests = []
+    previous = repo.base
+    for index, wave in enumerate(repo.waves.values()):
+        if cumulative:
+            _git(wave, "merge", "--ff-only", previous)
+        tip = repo.commit(wave, f"wave-{index}.txt", f"wave {index}\n")
+        requests.append(repo.request(wave, base=previous if cumulative else repo.base,
+                                     tip=tip, acceptance_wave=f"turn-wave-{index}"))
+        previous = tip
+    return requests
+
+
+def test_land_turn_independent_waves_one_lands_rest_stale() -> None:
+    with _repo(waves=tuple(("codex", f"turn-{i}") for i in range(8))) as repo:
+        requests = _turn_wave_requests(repo)
+        scheduler = _LandTurnScheduler(requests, locked_seconds=2.0)
+        results = scheduler.run()
+        grants = [event[3] for event in scheduler.trace if event[2] == "grant" and event[3] is not None]
+        assert [seq for i, seq in enumerate(grants) if i == 0 or seq != grants[i - 1]] == list(range(1, 9)), scheduler.trace
+        assert [scheduler.sequence[event[1]] for event in scheduler.trace if event[2] == "result"] == list(range(1, 9)), scheduler.trace
+        assert [result.rc for result in results] == [LAND.RC_OK] + [LAND.RC_STALE_MAIN] * 7, scheduler.trace
+        assert _git(repo.main, "rev-parse", "HEAD") == requests[0].tested_wave_tip_sha, scheduler.trace
+        assert [event[1] for event in scheduler.trace if event[2] == "mutation"] == [0], scheduler.trace
+        registry = json.loads((repo.main / ".git/dev-wave-land-turn/registry.json").read_text())
+        assert sorted(entry["seq"] for entry in registry["requests"].values()) == list(range(2, 9)), scheduler.trace
+        _assert_turn_ticket_fds_released(repo)
+        with _held_land_lock(repo):
+            pass
+
+
+def test_land_turn_stale_head_rotates_behind_waiters() -> None:
+    """A lands; stale B yields to C and resumes before the later arrival D."""
+    with _repo(waves=tuple(("codex", name) for name in ("a", "b", "c", "d"))) as repo:
+        requests = _turn_wave_requests(repo)
+        scheduler = _LandTurnScheduler(
+            requests, arrivals=[0.0, 0.0, 0.0, 80.0], audit_seconds=10.0,
+            locked_seconds=20.0, retry_delay=5.0, horizon=140.0,
+        )
+        results = scheduler.run()
+        grants = [event[3] for event in scheduler.trace
+                  if event[2] == "grant" and event[3] is not None]
+        transitions = [seq for i, seq in enumerate(grants)
+                       if i == 0 or seq != grants[i - 1]]
+        assert transitions[:5] == [1, 2, 3, 2, 4], scheduler.trace
+        registrations = [event for event in scheduler.trace if event[2] == "registered"]
+        b_entries = [event for event in registrations if event[1] == 1]
+        d_entry = next(event for event in registrations if event[1] == 3)
+        assert len(b_entries) >= 2 and all(event[3] == 2 for event in b_entries), scheduler.trace
+        assert b_entries[1][0] < d_entry[0], scheduler.trace
+        # B rotates to the largest issued seq (3), then retains that order on reentry.
+        b_orders = [dict(event[3])[2] for event in scheduler.trace
+                    if event[2] == "orders" and event[1] == 1 and 2 in dict(event[3])]
+        assert b_orders[:3] == [2, 3, 3], scheduler.trace
+        assert [result.rc for result in results] == [LAND.RC_OK] + [LAND.RC_STALE_MAIN] * 3, scheduler.trace
+        assert _git(repo.main, "rev-parse", "HEAD") == requests[0].tested_wave_tip_sha
+        _assert_turn_ticket_fds_released(repo)
+
+
+def test_land_turn_eight_requests_complete_in_sequence() -> None:
+    with _repo(waves=tuple(("codex", f"turn-{i}") for i in range(8))) as repo:
+        requests = _turn_wave_requests(repo, cumulative=True)
+        scheduler = _LandTurnScheduler(requests, locked_seconds=2.0)
+        results = scheduler.run()
+        grants = [event[3] for event in scheduler.trace if event[2] == "grant" and event[3] is not None]
+        assert [seq for i, seq in enumerate(grants) if i == 0 or seq != grants[i - 1]] == list(range(1, 9)), scheduler.trace
+        assert [result.rc for result in results] == [LAND.RC_OK] * 8, scheduler.trace
+        assert [event[1] for event in scheduler.trace if event[2] == "mutation"] == list(range(8)), scheduler.trace
+        assert _git(repo.main, "rev-parse", "HEAD") == requests[-1].tested_wave_tip_sha, scheduler.trace
+        registry = json.loads((repo.main / ".git/dev-wave-land-turn/registry.json").read_text())
+        assert registry["grant"] is None and not registry["requests"], scheduler.trace
+        _assert_turn_ticket_fds_released(repo)
+        with _held_land_lock(repo):
+            pass
+
+
 def test_cumulative_wait_budget_provenance_does_not_refill() -> None:
-    """20 + 170: 残160なら拒否、180へ補充する変異なら取得できてしまう。"""
+    """20 + 170: 残160を使い切ってから turn 待ちへ移る。"""
     result, acquisitions, stages = _exercise_cumulative_waits(
         fold=False, initial=20.0, audit=430.0, audit_wait=170.0,
     )
-    assert (result.rc, result.status) == (LAND.RC_LOCK_BUSY, "lock-busy"), result
-    assert "phase=post-provenance" in result.reason
-    assert acquisitions == [(180.0, True, 20.0), (160.0, False, 160.0)]
+    assert result.rc == LAND.RC_OK, (result, acquisitions)
+    assert acquisitions[:2] == [(180.0, True, 20.0), (160.0, False, 160.0)]
+    assert all(window == 0.0 for window, _, _ in acquisitions[2:]), acquisitions
+    assert acquisitions[-1][1] and result.waited_s == 190.0
     assert stages == ["provenance"]
 
 
 def test_cumulative_wait_budget_fold_does_not_refill() -> None:
-    """fold後にも独立に20 + 170の補充変異境界を踏む。"""
+    """fold 後も残160の後に証拠を保持して非 blocking 再取得する。"""
     result, acquisitions, stages = _exercise_cumulative_waits(
         fold=True, initial=20.0, audit=430.0, audit_wait=0.0, fold_wait=170.0,
     )
-    assert stages == ["provenance", "fold-gate"], result
-    assert len(acquisitions) == 3, (result, acquisitions)
-    assert (result.rc, result.status) == (LAND.RC_LOCK_BUSY, "lock-busy"), result
-    assert "phase=post-fold-gate" in result.reason
-    assert acquisitions == [(180.0, True, 20.0), (160.0, True, 0.0), (160.0, False, 160.0)]
+    assert result.rc == LAND.RC_OK, (result, acquisitions)
+    assert acquisitions[:3] == [(180.0, True, 20.0), (160.0, True, 0.0), (160.0, False, 160.0)]
+    assert all(window == 0.0 for window, _, _ in acquisitions[3:]), acquisitions
+    assert acquisitions[-1][1] and result.waited_s == 190.0
     assert stages == ["provenance", "fold-gate"]
 
 
@@ -3543,10 +4673,10 @@ def test_cumulative_wait_budget_exhausted_before_attempt_reason() -> None:
     result, acquisitions, _ = _exercise_cumulative_waits(
         fold=False, initial=LAND._LAND_LOCK_WAIT_SECONDS, audit=430.0, audit_wait=20.0,
     )
-    assert result.rc == LAND.RC_LOCK_BUSY, result
-    assert acquisitions[-1] == (0.0, False, 0.0)
-    assert "another cooperative land operation holds the common lock" in result.reason
-    assert "wait budget already exhausted; tried once without waiting" in result.reason
+    assert result.rc == LAND.RC_OK, (result, acquisitions)
+    assert acquisitions[1] == (0.0, False, 0.0)
+    assert acquisitions[-1] == (0.0, True, 0.0)
+    assert result.waited_s == 200.0
 
 
 def test_cumulative_wait_budget_empty_budget_free_lock_still_succeeds() -> None:
@@ -3558,6 +4688,7 @@ def test_cumulative_wait_budget_empty_budget_free_lock_still_succeeds() -> None:
 
 
 def test_cumulative_wait_budget_arithmetic_uses_production_timeouts() -> None:
+    """180秒枠消費後も旧holderには順番期限まで待ち、各枠もその期限で切る。"""
     import ast
     import inspect
     import math
@@ -3575,6 +4706,29 @@ def test_cumulative_wait_budget_arithmetic_uses_production_timeouts() -> None:
     assert all(math.isfinite(value) and value > 0 for value in components)
     assert budgets.inner_seconds + budgets.termination_grace_seconds < budgets.outer_seconds
     assert sum(components[:-1]) < test_watchdog
+
+    result, acquisitions, stages = _exercise_cumulative_waits(
+        fold=False, initial=LAND._LAND_TURN_WAIT_SECONDS + 1.0,
+        audit=0.0, audit_wait=0.0,
+    )
+    assert (result.rc, result.status) == (LAND.RC_LOCK_BUSY, "lock-busy")
+    assert result.waited_s == LAND._LAND_TURN_WAIT_SECONDS
+    assert acquisitions[0] == (LAND._LAND_LOCK_WAIT_SECONDS, False,
+                               LAND._LAND_LOCK_WAIT_SECONDS)
+    assert all(window == 0.0 for window, _, _ in acquisitions[1:])
+    assert stages == []
+
+    # The audit consumes elapsed time, not the contention budget. Only 60s of
+    # turn lifetime remains, so the untouched 180s frame must be cut to 60s.
+    result, acquisitions, stages = _exercise_cumulative_waits(
+        fold=False, initial=0.0, audit=LAND._LAND_TURN_WAIT_SECONDS - 60.0,
+        audit_wait=120.0,
+    )
+    assert (result.rc, result.status) == (LAND.RC_LOCK_BUSY, "lock-busy")
+    assert acquisitions == [(LAND._LAND_LOCK_WAIT_SECONDS, True, 0.0),
+                            (60.0, False, 60.0)]
+    assert stages == ["provenance"]
+    assert result.window_elapsed_s == LAND._LAND_TURN_WAIT_SECONDS
 
 
 def test_cumulative_wait_budget_result_before_window_omits_timing() -> None:
@@ -4602,11 +5756,21 @@ def test_provenance_subprocess_contract_and_exception_mapping() -> None:
 
 
 def test_provenance_checker_missing_and_symlink_components_are_rejected_clean() -> None:
-    """checker 欠落・leaf/ancestor symlink は clean commit tip でも rc=29。"""
+    """missing/leaf は rc29。tools 祖先 symlink は waiter 不在で h′ 登録前 rc23。
+
+    tools 全体が symlink の tested tip には受入 receipt を成立させられない。
+    checker 自体の祖先拒否は直接 binding test で別に確認する。
+    """
 
     for kind in ("missing", "leaf-symlink", "ancestor-symlink"):
         with _repo() as repo:
             wave = repo.waves["one"]
+            # Retain real waiter evidence from the original tree. Retargeting
+            # cannot make that blob exist beneath a symlink in the tested tree.
+            ancestor_receipt = (
+                repo.request(wave).acceptance_receipt
+                if kind == "ancestor-symlink" else None
+            )
             external = repo.root / f"external-{kind}"
             if kind == "missing":
                 _git(wave, "rm", "tools/check_ai_provenance.py")
@@ -4631,14 +5795,56 @@ def test_provenance_checker_missing_and_symlink_components_are_rejected_clean() 
             _git(wave, "commit", "-qm", f"make checker {kind}")
             assert _git(wave, "status", "--porcelain=v1") == ""
             tip = _git(wave, "rev-parse", "HEAD")
-            result = _land(
-                repo.request(wave, tip=tip, make_acceptance_receipt=False)
-            )
+            if ancestor_receipt is not None:
+                receipt = json.loads(ancestor_receipt.read_text())
+                receipt["tested_tip"] = tip
+                for name in ("pre_fingerprint", "post_fingerprint"):
+                    receipt[name]["head_sha"] = tip
+                    receipt[name]["digest"] = hashlib.sha256(tip.encode("ascii")).hexdigest()
+                ancestor_receipt.write_text(json.dumps(receipt))
+            audits = []
+            real_audit = LAND._audit_provenance_history
+
+            def audited(*args):
+                audits.append(True)
+                return real_audit(*args)
+
+            with _patched_land_attr("_audit_provenance_history", audited):
+                result = _land(repo.request(
+                    wave, tip=tip, make_acceptance_receipt=kind != "ancestor-symlink",
+                    acceptance_receipt=ancestor_receipt,
+                ))
             assert (result.rc, result.status) == (
-                LAND.RC_PROVENANCE,
+                LAND.RC_AUDIT if kind == "ancestor-symlink" else LAND.RC_PROVENANCE,
                 "rejected",
             ), (kind, result)
+            if kind == "ancestor-symlink":
+                assert result.reason == "acceptance-receipt-rejected"
+                assert not (repo.main / ".git/dev-wave-land-turn").exists()
+                assert not audits
             assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+
+
+def test_provenance_checker_binding_rejects_ancestor_symlink_clean() -> None:
+    with _repo() as repo:
+        wave = repo.waves["one"]
+        external = repo.root / "external-tools"
+        shutil.copytree(wave / "tools", external)
+        _git(wave, "rm", "-r", "tools")
+        os.symlink(external, wave / "tools", target_is_directory=True)
+        _git(wave, "add", "tools")
+        _git(wave, "commit", "-qm", "symlink tools ancestor")
+        request = repo.request(wave, make_acceptance_receipt=False)
+        with _cwd(wave):
+            repository = LAND._verify_repository(request)
+        try:
+            with pytest.raises(LAND._Reject) as rejected:
+                LAND._bind_provenance_checker(repository)
+            assert rejected.value.rc == LAND.RC_PROVENANCE
+            assert _git(wave, "status", "--porcelain=v1") == ""
+            assert _git(repo.main, "rev-parse", "HEAD") == repo.base
+        finally:
+            repository.close()
 
 
 _WRAPPER = """#!/usr/bin/env python3
@@ -6227,8 +7433,7 @@ def _fold_main_locked_with_failed_ref_rollback(
         tip,
     )
     with _cwd(wave):
-        repository = LAND._verify_repository(repo.request(wave, tip=tip))
-        try:
+        with _granted_land_turn(repo, repo.request(wave, tip=tip)) as repository:
             with _patched_git(wrapper, env):
                 result = LAND._fold_main_locked(
                     repository,
@@ -6244,8 +7449,6 @@ def _fold_main_locked_with_failed_ref_rollback(
                     index_tree=index_tree,
                     state_path=state_path,
                 )
-        finally:
-            repository.close()
 
     _assert_exact_git_failure(Path(env["DEV_WAVE_FAIL_RECORD"]), expected)
     return result
@@ -6868,16 +8071,11 @@ def test_unobservable_post_merge_head_is_nonretryable_failure() -> None:
         assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
-def test_control_plane_replacement_around_status_is_rejected() -> None:
-    """[意図した挙動変更] 差し替えの拒否は worktree 面に残り、handoff 面では消える。
-
-    ``file`` = foreign handoff を同 bytes・別 inode へ差し替える形。per-entry
-    identity を捨てたので期待値を ``landed`` へ反転する (assert は削除せず反転)。
-    ``directory`` = 登録済み foreign worktree の差し替えで、負例として不変。
-    """
+def test_unrelated_control_plane_replacement_around_status_is_accepted() -> None:
+    """無関係 handoff / foreign child の差替えは着地を阻害しない。"""
     expectations = {
         "file": (LAND.RC_OK, "landed"),
-        "directory": (LAND.RC_CONTROL_PLANE, "rejected"),
+        "directory": (LAND.RC_OK, "landed"),
     }
     for kind, expected in expectations.items():
         with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
@@ -6903,19 +8101,15 @@ def test_control_plane_replacement_around_status_is_rejected() -> None:
             assert (result.rc, result.status) == expected, (kind, result)
             assert marker.exists(), kind
             assert _git(repo.main, "rev-parse", "HEAD") == (
-                tip if kind == "file" else repo.base
+                tip
             ), kind
 
 
-def test_control_plane_replacement_after_collision_inspection_is_rejected() -> None:
-    """[意図した挙動変更] land 直前 (:1343) の再観測も handoff の内容/inode を見ない。
-
-    ``directory`` は負例として不変。``file`` は 764/766 と同じ理由で ``landed`` へ
-    反転する — この 2 窓は同じ ``_ControlSnapshot`` 比較なので同時に閉じる。
-    """
+def test_unrelated_control_plane_replacement_after_collision_inspection_is_accepted() -> None:
+    """無関係 handoff / foreign child の差替えは着地を阻害しない。"""
     expectations = {
         "file": (LAND.RC_OK, "landed"),
-        "directory": (LAND.RC_CONTROL_PLANE, "rejected"),
+        "directory": (LAND.RC_OK, "landed"),
     }
     for kind, expected in expectations.items():
         with _repo(waves=(("codex", "author"), ("claude", "foreign"))) as repo:
@@ -6941,7 +8135,7 @@ def test_control_plane_replacement_after_collision_inspection_is_rejected() -> N
             assert (result.rc, result.status) == expected, (kind, result)
             assert marker.exists(), kind
             assert _git(repo.main, "rev-parse", "HEAD") == (
-                tip if kind == "file" else repo.base
+                tip
             ), kind
 
 
@@ -7211,7 +8405,7 @@ def test_tracked_dirt_appearing_after_successful_merge_is_postcondition_failed()
 
 
 def test_merge_child_inherits_lock_fd_if_helper_is_killed() -> None:
-    """winner が transient dirt を持っていても loser は先に lock-busy。"""
+    """180秒の競合枠の後も、子の永久保持には3600秒の順番期限まで待つ。"""
     with _repo() as repo:
         wave = repo.waves["one"]
         tip = repo.commit(wave, "wave.txt", "wave\n")
@@ -7259,12 +8453,12 @@ def test_merge_child_inherits_lock_fd_if_helper_is_killed() -> None:
                 LAND.RC_LOCK_BUSY,
                 "lock-busy",
             ), result
-            assert runtime.now_s == pytest.approx(LAND._LAND_LOCK_WAIT_SECONDS)
+            assert runtime.now_s == pytest.approx(LAND._LAND_TURN_WAIT_SECONDS)
         finally:
             release.touch()
-        deadline = time.monotonic() + 5
-        while _git(repo.main, "rev-parse", "HEAD") != tip and time.monotonic() < deadline:
-            time.sleep(0.02)
+            deadline = time.monotonic() + 5
+            while _git(repo.main, "rev-parse", "HEAD") != tip and time.monotonic() < deadline:
+                time.sleep(0.02)
         assert _git(repo.main, "rev-parse", "HEAD") == tip
 
 
@@ -8613,6 +9807,8 @@ def test_provenance_checker_violation_rc_is_release_safe_and_releases() -> None:
             "lease_release state=released reason=none\n"
         )
         assert not lease_path.exists()
+        registry = _turn_registry_snapshot(repo)
+        assert not registry["requests"] and registry["grant"] is None
         assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
 
@@ -8623,8 +9819,10 @@ def _assert_non_authoritative_provenance_rc_retains(returncode: int) -> None:
         request = repo.request(wave, tip=tip)
         lease_dir, lease_path = _claim_acceptance_lease(repo, request)
         before = lease_path.read_bytes()
+        registered = []
 
         def incomplete_checker(_checker, _repository, _env):
+            registered.append(_turn_registry_snapshot(repo))
             return subprocess.CompletedProcess([], returncode, b"", b"")
 
         with _patched_land_attr("_run_provenance_checker", incomplete_checker):
@@ -8640,6 +9838,11 @@ def _assert_non_authoritative_provenance_rc_retains(returncode: int) -> None:
             "lease_release state=retained reason=land-result-not-release-safe\n"
         )
         assert lease_path.read_bytes() == before
+        assert len(registered) == 1
+        key, entry = next(iter(registered[0]["requests"].items()))
+        registry = _turn_registry_snapshot(repo)
+        assert registry["requests"][key]["seq"] == entry["seq"]
+        assert registry["grant"] is None
         assert _git(repo.main, "rev-parse", "HEAD") == repo.base
 
 
@@ -8749,8 +9952,7 @@ def test_successful_fold_rollback_remains_held_fail_closed() -> None:
             tip,
         )
         with _cwd(wave):
-            repository = LAND._verify_repository(repo.request(wave, tip=tip))
-            try:
+            with _granted_land_turn(repo, repo.request(wave, tip=tip)) as repository:
                 result = LAND._fold_main_locked(
                     repository,
                     successful_land,
@@ -8765,8 +9967,6 @@ def test_successful_fold_rollback_remains_held_fail_closed() -> None:
                     index_tree=index_tree,
                     state_path=state_path,
                 )
-            finally:
-                repository.close()
 
         assert (result.rc, result.status) == (
             LAND.RC_FOLD_FAILED,

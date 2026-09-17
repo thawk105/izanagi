@@ -9,6 +9,7 @@ operation guard として exact に再検査する。
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import datetime as _datetime
 import fcntl
 import hashlib
@@ -63,6 +64,10 @@ RC_FOLD_GATE = 31
 _GIT_EXE = "/usr/bin/git"
 _LOCK_NAME = b"dev-wave-land.lock"
 _LAND_LOCK_WAIT_SECONDS = 180.0
+_LAND_TURN_WAIT_SECONDS = 3600.0
+_LAND_TURN_DIRECTORY = b"dev-wave-land-turn"
+_LAND_TURN_REGISTRY_WAIT_SECONDS = 10.0
+_LAND_TURN_MAX_BYTES = 4 * 1024 * 1024
 _LAND_LOCK_INITIAL_POLL_SECONDS = 0.05
 _LAND_LOCK_MAX_POLL_SECONDS = 1.0
 _LAND_LOCK_RANDOM = random.SystemRandom()
@@ -297,6 +302,28 @@ class _LandLockHandle:
 
 
 @dataclass
+class _LandTurnHandle:
+    started: float
+    deadline: float
+    directory_fd: int = -1
+    registry_fd: int = -1
+    fd: int = -1
+    key: str = ""
+    seq: int = 0
+    ticket: str = ""
+    waited_s: float = 0.0
+    record: dict = field(default_factory=dict)
+    terminal: bool = False
+
+    def close(self) -> None:
+        for name in ("fd", "registry_fd", "directory_fd"):
+            fd = getattr(self, name)
+            if fd >= 0:
+                setattr(self, name, -1)
+                os.close(fd)
+
+
+@dataclass
 class _Repository:
     main: Path
     wave: Path
@@ -304,6 +331,8 @@ class _Repository:
     main_fd: int
     wave_fd: int
     common_fd: int
+    turn: _LandTurnHandle | None = None
+    land_lock: _LandLockHandle | None = None
 
     def close(self) -> None:
         for fd in (self.common_fd, self.wave_fd, self.main_fd):
@@ -424,6 +453,7 @@ class _AcceptanceVerification:
     verdict: str
     red_nodeids: tuple[str, ...]
     flake_nodeids: tuple[str, ...]
+    bootstrap: bool = False
 
 
 @dataclass
@@ -937,16 +967,14 @@ def _acceptance_blob_content_sha256(
     return hashlib.sha256(result.stdout).hexdigest()
 
 
-def _verify_acceptance_receipt(
+def _verify_acceptance_static(
     repository: _Repository,
     *,
-    receipt_path: Path,
+    raw: bytes,
     acceptance_wave: str,
     tested_main: str,
     tested_tip: str,
-    locked_main: str,
 ) -> _AcceptanceVerification:
-    raw = _read_acceptance_receipt(receipt_path)
     receipt = _receipt_object(raw)
     try:
         expected_holder = hashlib.sha256(
@@ -1050,6 +1078,20 @@ def _verify_acceptance_receipt(
         accepted_flake_nodeids = tuple(flake_nodeids)
     else:
         raise _acceptance_rejected()
+    # Fixed tested objects must be verified before a turn can be registered.
+    tip_runner_entry = _runner_tree_entry(repository, tested_tip)
+    main_runner_entry = _runner_tree_entry(repository, tested_main)
+    if (
+        tip_runner_entry is None
+        or main_runner_entry is None
+        or main_runner_entry[0] != "blob"
+        or tip_runner_entry[0] != "blob"
+        or _SHA_RE.fullmatch(main_runner_entry[1]) is None
+        or _SHA_RE.fullmatch(tip_runner_entry[1]) is None
+        or receipt.get("runner_executed_sha256")
+        != _acceptance_blob_content_sha256(repository, main_runner_entry[1])
+    ):
+        raise _acceptance_rejected()
     main_launcher_entry = _acceptance_tree_entry(
         repository,
         tested_main,
@@ -1058,15 +1100,7 @@ def _verify_acceptance_receipt(
     if launcher_source_revision == "tested-main":
         launcher_entry = main_launcher_entry
     else:
-        if (
-            main_launcher_entry is not None
-            or _acceptance_tree_entry(
-                repository,
-                locked_main,
-                _ACCEPTANCE_LAUNCHER_PATH,
-            )
-            is not None
-        ):
+        if main_launcher_entry is not None:
             raise _acceptance_rejected()
         launcher_entry = _acceptance_tree_entry(
             repository,
@@ -1094,14 +1128,8 @@ def _verify_acceptance_receipt(
         waiter_blob = waiter_result.stdout.decode("ascii").strip()
     except UnicodeError:
         raise _acceptance_rejected() from None
-    tip_runner_entry = _runner_tree_entry(repository, tested_tip)
-    main_runner_entry = _runner_tree_entry(repository, tested_main)
-    if tip_runner_entry is None or main_runner_entry is None:
-        raise _acceptance_rejected()
     waiter_entry = _acceptance_tree_entry(
-        repository,
-        tested_tip,
-        "tools/dev_wave_wait.py",
+        repository, tested_tip, "tools/dev_wave_wait.py",
     )
     if (
         waiter_entry is None
@@ -1109,12 +1137,6 @@ def _verify_acceptance_receipt(
         or _SHA_RE.fullmatch(waiter_entry[2]) is None
         or receipt.get("waiter_executed_sha256")
         != _acceptance_blob_content_sha256(repository, waiter_entry[2])
-        or main_runner_entry[0] != "blob"
-        or tip_runner_entry[0] != "blob"
-        or _SHA_RE.fullmatch(main_runner_entry[1]) is None
-        or _SHA_RE.fullmatch(tip_runner_entry[1]) is None
-        or receipt.get("runner_executed_sha256")
-        != _acceptance_blob_content_sha256(repository, main_runner_entry[1])
     ):
         raise _acceptance_rejected()
     checker_blob = ""
@@ -1163,7 +1185,42 @@ def _verify_acceptance_receipt(
         verdict=verdict,
         red_nodeids=accepted_red_nodeids,
         flake_nodeids=accepted_flake_nodeids,
+        bootstrap=launcher_source_revision == "tested-tip-bootstrap",
     )
+
+
+def _verify_acceptance_locked_authority(
+    repository: _Repository,
+    validated: _AcceptanceVerification,
+    locked_main: str,
+) -> None:
+    if validated.bootstrap and _acceptance_tree_entry(
+        repository, locked_main, _ACCEPTANCE_LAUNCHER_PATH,
+    ) is not None:
+        raise _acceptance_rejected()
+
+
+def _verify_acceptance_receipt(
+    repository: _Repository,
+    *,
+    receipt_path: Path,
+    acceptance_wave: str,
+    tested_main: str,
+    tested_tip: str,
+    locked_main: str,
+) -> _AcceptanceVerification:
+    raw = _read_acceptance_receipt(receipt_path)
+    validated = _verify_acceptance_static(
+        repository,
+        raw=raw,
+        acceptance_wave=acceptance_wave,
+        tested_main=tested_main,
+        tested_tip=tested_tip,
+    )
+    _verify_acceptance_locked_authority(
+        repository, validated, locked_main,
+    )
+    return validated
 
 
 def _with_acceptance_verification(
@@ -1663,30 +1720,23 @@ def _worktree_snapshot(
                 ) from exc
             protected_before: list[bytes] = []
             for name in names_before:
-                if _SAFE_CHILD_RE.fullmatch(name) is None:
-                    raise _Reject(RC_CONTROL_PLANE, "unsafe worktree child name")
                 child_relative = relative + b"/" + name
                 child_path = container_path + b"/" + name
                 protected = child_path == wave_path or any(
                     _paths_overlap(child_relative, path)
                     for path in protected_paths
                 )
-                if protected:
-                    protected_before.append(name)
-                try:
-                    child_fd = _openat_dir(
-                        container_fd,
-                        name,
-                        f"container child {child_relative!r}",
-                        rc=RC_CONTROL_PLANE,
-                    )
-                except _Reject as exc:
-                    if (
-                        not protected
-                        and isinstance(exc.__cause__, FileNotFoundError)
-                    ):
-                        continue
-                    raise
+                if not protected:
+                    continue
+                if _SAFE_CHILD_RE.fullmatch(name) is None:
+                    raise _Reject(RC_CONTROL_PLANE, "unsafe worktree child name")
+                protected_before.append(name)
+                child_fd = _openat_dir(
+                    container_fd,
+                    name,
+                    f"container child {child_relative!r}",
+                    rc=RC_CONTROL_PLANE,
+                )
                 try:
                     binding = _validate_admin_binding(
                         child_fd=child_fd,
@@ -1712,9 +1762,6 @@ def _worktree_snapshot(
                     f"container {relative!r}: relist failed ({exc})",
                     retryable_same_request=True,
                 ) from exc
-            for name in names_after:
-                if _SAFE_CHILD_RE.fullmatch(name) is None:
-                    raise _Reject(RC_CONTROL_PLANE, "unsafe worktree child name")
             protected_after = [
                 name
                 for name in names_after
@@ -1726,6 +1773,8 @@ def _worktree_snapshot(
                     )
                 )
             ]
+            if any(_SAFE_CHILD_RE.fullmatch(name) is None for name in protected_after):
+                raise _Reject(RC_CONTROL_PLANE, "unsafe worktree child name")
             if protected_after != protected_before:
                 raise _Reject(
                     RC_CONTROL_PLANE,
@@ -2574,6 +2623,554 @@ def _land_lock_now() -> float:
     return time.monotonic()
 
 
+def _land_turn_sleep(delay: float) -> None:
+    time.sleep(delay)
+
+
+def _turn_failure(reason: str) -> _Reject:
+    return _Reject(RC_IDENTITY, "land turn: " + reason)
+
+
+def _turn_file_binding(directory_fd: int, name: str, fd: int) -> None:
+    held = os.fstat(fd)
+    current = os.stat(name, dir_fd=directory_fd, follow_symlinks=False)
+    if not (
+        _same_inode(held, current)
+        and _lock_metadata_is_safe(held)
+        and _lock_metadata_is_safe(current)
+    ):
+        raise _turn_failure(f"unsafe or replaced file {name}")
+
+
+def _turn_binding(repository: _Repository, turn: _LandTurnHandle) -> None:
+    common_fd = _open_dir(repository.common, "land turn common")
+    try:
+        held = os.fstat(turn.directory_fd)
+        current = os.stat(
+            _LAND_TURN_DIRECTORY, dir_fd=common_fd, follow_symlinks=False,
+        )
+        if not (
+            _same_inode(os.fstat(repository.common_fd), os.fstat(common_fd))
+            and _same_inode(held, current)
+            and stat.S_ISDIR(current.st_mode)
+            and current.st_uid == os.getuid()
+            and not current.st_mode & 0o022
+            and not held.st_mode & 0o022
+        ):
+            raise _turn_failure("directory binding changed")
+        _turn_file_binding(turn.directory_fd, "registry.lock", turn.registry_fd)
+        if turn.fd >= 0:
+            _turn_file_binding(turn.directory_fd, turn.ticket, turn.fd)
+    finally:
+        os.close(common_fd)
+
+
+def _turn_read(turn: _LandTurnHandle, name: str) -> bytes:
+    fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                 dir_fd=turn.directory_fd)
+    try:
+        _turn_file_binding(turn.directory_fd, name, fd)
+        chunks = []
+        total = 0
+        while total <= _LAND_TURN_MAX_BYTES:
+            chunk = os.read(fd, min(65536, _LAND_TURN_MAX_BYTES + 1 - total))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            total += len(chunk)
+        raw = b"".join(chunks)
+        if len(raw) > _LAND_TURN_MAX_BYTES:
+            raise _turn_failure(f"oversized file {name}")
+        return raw
+    finally:
+        os.close(fd)
+
+
+def _turn_json(raw: bytes) -> dict:
+    try:
+        value = json.loads(raw, object_pairs_hook=_no_duplicate_json_keys)
+    except (ValueError, UnicodeError) as exc:
+        raise _turn_failure("invalid registry or journal JSON") from exc
+    if not isinstance(value, dict):
+        raise _turn_failure("registry or journal is not an object")
+    return value
+
+
+def _turn_bytes(value: dict, *, sort_keys: bool = True) -> bytes:
+    return json.dumps(value, sort_keys=sort_keys, separators=(",", ":")).encode("utf-8")
+
+
+def _turn_write_all(fd: int, raw: bytes) -> None:
+    while raw:
+        count = os.write(fd, raw)
+        if count <= 0:
+            raise _turn_failure("short journal write")
+        raw = raw[count:]
+    os.fsync(fd)
+
+
+def _turn_save_registry(turn: _LandTurnHandle, registry: dict) -> None:
+    name = ".registry-" + os.urandom(12).hex()
+    fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                 0o600, dir_fd=turn.directory_fd)
+    try:
+        _turn_write_all(fd, _turn_bytes(registry, sort_keys=False) + b"\n")
+        os.rename(name, "registry.json", src_dir_fd=turn.directory_fd,
+                  dst_dir_fd=turn.directory_fd)
+        os.fsync(turn.directory_fd)
+    finally:
+        os.close(fd)
+        try:
+            os.unlink(name, dir_fd=turn.directory_fd)
+        except FileNotFoundError:
+            pass
+
+
+@contextmanager
+def _turn_registry(repository: _Repository, turn: _LandTurnHandle):
+    """Short registry transaction; never call Git or wait for common flock here."""
+    deadline = _land_lock_now() + _LAND_TURN_REGISTRY_WAIT_SECONDS
+    acquired = False
+    try:
+        while not acquired:
+            try:
+                fcntl.flock(turn.registry_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquired = True
+            except BlockingIOError:
+                now = _land_lock_now()
+                if now >= deadline:
+                    raise _Reject(RC_LOCK_BUSY, "land turn registry lock busy",
+                                  retryable_same_request=True)
+                _land_turn_sleep(min(_land_lock_jitter(0.05), deadline - now))
+        _turn_binding(repository, turn)
+        try:
+            registry = _turn_json(_turn_read(turn, "registry.json"))
+        except FileNotFoundError:
+            if any(name.endswith(".jsonl") for name in os.listdir(turn.directory_fd)):
+                raise _turn_failure("registry missing while journals exist")
+            registry = {"next_seq": 1, "grant": None, "requests": {}}
+            # Publish the empty registry durably before a caller creates a ticket.
+            _turn_save_registry(turn, registry)
+        if not (
+            set(registry) == {"next_seq", "grant", "requests"}
+            and type(registry["next_seq"]) is int and registry["next_seq"] > 0
+            and isinstance(registry["requests"], dict)
+            and (registry["grant"] is None or registry["grant"] in registry["requests"])
+        ):
+            raise _turn_failure("invalid registry schema")
+        seqs = set()
+        for key, entry in registry["requests"].items():
+            if not (
+                isinstance(key, str) and _SHA256_RE.fullmatch(key)
+                and isinstance(entry, dict)
+                and type(entry.get("seq")) is int
+                and 0 < entry["seq"] < registry["next_seq"]
+                and type(entry.get("order")) is int
+                and 0 < entry["order"] and entry["order"] >= entry["seq"]
+                and entry["seq"] not in seqs
+                and isinstance(entry.get("binding"), dict)
+                and (entry.get("ticket") is None or (
+                    isinstance(entry["ticket"], str)
+                    and re.fullmatch(r"[0-9]{8,}-[0-9a-f]{12}\.jsonl", entry["ticket"])
+                ))
+            ):
+                raise _turn_failure("invalid request entry")
+            seqs.add(entry["seq"])
+        before = _turn_bytes(registry, sort_keys=False)
+        yield registry
+        _turn_binding(repository, turn)
+        if _turn_bytes(registry, sort_keys=False) != before:
+            _turn_save_registry(turn, registry)
+    except OSError as exc:
+        raise _turn_failure(f"registry I/O failed ({exc})") from exc
+    finally:
+        if acquired:
+            fcntl.flock(turn.registry_fd, fcntl.LOCK_UN)
+
+
+def _turn_live(turn: _LandTurnHandle, ticket: str | None) -> bool:
+    if ticket is None:
+        return False
+    fd = os.open(ticket, os.O_RDWR | os.O_NOFOLLOW | os.O_NONBLOCK,
+                 dir_fd=turn.directory_fd)
+    try:
+        _turn_file_binding(turn.directory_fd, ticket, fd)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return True
+        return False
+    finally:
+        os.close(fd)
+
+
+def _turn_last_record(turn: _LandTurnHandle, entry: dict) -> dict:
+    if entry["ticket"] is None:
+        return {"phase": "waiting"}
+    raw = _turn_read(turn, entry["ticket"])
+    last = None
+    for number, line in enumerate(raw.split(b"\n")[:-1], 1):
+        envelope = _turn_json(line)
+        record = envelope.get("record")
+        if not (
+            isinstance(record, dict) and record.get("number") == number
+            and record.get("seq") == entry["seq"]
+            and record.get("schema") == "dev-wave-land-turn/v1"
+            and all(record.get(key) == value for key, value in entry["binding"].items())
+            and record.get("phase") in {
+                "waiting", "validating", "mutating", "done", "rejected", "rolled-back",
+            }
+            and envelope.get("sha256") == hashlib.sha256(_turn_bytes(record)).hexdigest()
+        ):
+            raise _turn_failure("invalid complete journal record")
+        if record["phase"] == "mutating":
+            commits = record.get("landed_commits")
+            if not (
+                all(isinstance(record.get(key), str) and _SHA_RE.fullmatch(record[key])
+                    for key in ("main_before", "landing_tip", "trusted_main_cutoff"))
+                and isinstance(record.get("wave_ref"), str)
+                and isinstance(record.get("expected_fold"), str)
+                and isinstance(commits, list)
+                and all(isinstance(commit, str) and _SHA_RE.fullmatch(commit) for commit in commits)
+                and record.get("audited_digest") == hashlib.sha256(
+                    b"".join(commit.encode("ascii") + b"\n" for commit in commits)
+                ).hexdigest()
+            ):
+                raise _turn_failure("incomplete mutating authority")
+        last = record
+    if last is None:
+        raise _turn_failure("ticket has no complete record")
+    return last
+
+
+def _turn_append(turn: _LandTurnHandle, phase: str, **fields) -> None:
+    record = {**turn.record, **fields, "seq": turn.seq, "phase": phase,
+              "number": turn.record.get("number", 0) + 1}
+    raw = _turn_bytes({"record": record,
+                       "sha256": hashlib.sha256(_turn_bytes(record)).hexdigest()})
+    _turn_write_all(turn.fd, raw + b"\n")
+    turn.record = record
+
+
+def _turn_select(turn: _LandTurnHandle, registry: dict) -> list[str]:
+    """Keep a live grant; dead mutating records block ordinary election."""
+    live = []
+    recovery = []
+    for key, entry in list(registry["requests"].items()):
+        record = _turn_last_record(turn, entry)
+        alive = _turn_live(turn, entry["ticket"])
+        if record["phase"] == "mutating":
+            recovery.append(key)
+        elif not alive and record["phase"] in {"done", "rejected"}:
+            del registry["requests"][key]
+            continue
+        if alive:
+            live.append(key)
+    grant = registry["grant"]
+    if recovery:
+        # Recovery must never preempt a still-live owner.
+        if grant not in live:
+            registry["grant"] = next((key for key in recovery if key in live), None)
+        return recovery
+    if grant not in live:
+        registry["grant"] = min(live, key=lambda key: registry["requests"][key]["order"],
+                                default=None)
+    return []
+
+
+def _register_land_turn(repository: _Repository, request: LandRequest,
+                        verified: _AcceptanceVerification, turn: _LandTurnHandle) -> None:
+    try:
+        try:
+            os.mkdir(_LAND_TURN_DIRECTORY, 0o700, dir_fd=repository.common_fd)
+        except FileExistsError:
+            pass
+        turn.directory_fd = _openat_dir(repository.common_fd, _LAND_TURN_DIRECTORY,
+                                       "land turn directory", rc=RC_IDENTITY)
+        turn.registry_fd = os.open("registry.lock", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW,
+                                   0o600, dir_fd=turn.directory_fd)
+        binding = {"acceptance_wave": request.acceptance_wave,
+                   "tested_tip": request.tested_wave_tip_sha,
+                   "receipt_sha256": verified.receipt_sha256,
+                   "tested_main": request.tested_main_sha,
+                   "main": str(repository.main), "wave": str(repository.wave),
+                   "common": str(repository.common)}
+        turn.key = hashlib.sha256(_turn_bytes({key: binding[key] for key in (
+            "acceptance_wave", "tested_tip", "receipt_sha256",
+        )})).hexdigest()
+        with _turn_registry(repository, turn) as registry:
+            _turn_select(turn, registry)
+            entry = registry["requests"].get(turn.key)
+            previous = {}
+            if entry is not None:
+                if entry["binding"] != binding:
+                    raise _turn_failure("same request has different repository binding")
+                if _turn_live(turn, entry["ticket"]):
+                    raise _Reject(RC_LOCK_BUSY, "same request already queued " + turn.key,
+                                  retryable_same_request=True)
+                previous = _turn_last_record(turn, entry)
+                if (previous["phase"] == "mutating" and previous.get("landing_tip") != (
+                    request.landing_wave_tip_sha or request.tested_wave_tip_sha
+                )):
+                    raise _Reject(RC_FOLD_RECOVERY_FAILED,
+                                  "unresolved land turn has a different landing_tip")
+                turn.seq = entry["seq"]
+            else:
+                turn.seq = registry["next_seq"]
+                registry["next_seq"] += 1
+            turn.ticket = f"{turn.seq:08d}-{os.urandom(6).hex()}.jsonl"
+            turn.fd = os.open(turn.ticket, os.O_RDWR | os.O_APPEND | os.O_CREAT
+                              | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=turn.directory_fd)
+            fcntl.flock(turn.fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            turn.record = {**binding, "schema": "dev-wave-land-turn/v1", "pid": os.getpid(),
+                           "landing_tip": request.landing_wave_tip_sha or request.tested_wave_tip_sha}
+            if previous.get("phase") == "mutating":
+                turn.record.update({key: value for key, value in previous.items()
+                                    if key not in {"number", "pid"}})
+            _turn_append(turn, "mutating" if previous.get("phase") == "mutating" else "waiting")
+            registry["requests"][turn.key] = {"seq": turn.seq,
+                                              "order": entry["order"] if entry else turn.seq,
+                                              "binding": binding,
+                                              "ticket": turn.ticket}
+            _turn_select(turn, registry)
+    except OSError as exc:
+        raise _turn_failure(f"registration failed ({exc})") from exc
+
+
+def _land_turn_owner(repository: _Repository) -> None:
+    turn = repository.turn
+    if turn is None:
+        raise _turn_failure("mutation has no turn")
+    with _turn_registry(repository, turn) as registry:
+        entry = registry["requests"].get(turn.key)
+        if not (entry and entry["ticket"] == turn.ticket and turn.fd >= 0
+                and registry["grant"] == turn.key and _turn_live(turn, turn.ticket)):
+            raise _turn_failure("grant or live ticket ownership changed")
+        try:
+            fcntl.flock(turn.fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError as exc:
+            raise _turn_failure("ticket flock belongs to a different description") from exc
+
+
+def _land_turn_mutating(repository: _Repository, *, plan: object, main_before: str,
+                        landing_tip: str, wave_ref: str, trusted_main_cutoff: str,
+                        landed_commits: Sequence[str]) -> None:
+    if repository.land_lock is None:
+        raise _turn_failure("mutation has no common lock")
+    _verify_land_lock_binding(repository, repository.land_lock)
+    _land_turn_owner(repository)
+    turn = repository.turn
+    assert turn is not None
+    # Existing origin remains authoritative across recovery and repeated marking.
+    if turn.record.get("phase") == "mutating":
+        return
+    if _land_lock_now() >= turn.deadline:
+        raise _Reject(RC_LOCK_BUSY, "land turn deadline reached (phase=before-mutation)",
+                      retryable_same_request=True)
+    _turn_append(turn, "mutating", main_before=main_before, landing_tip=landing_tip,
+                 wave_ref=wave_ref, trusted_main_cutoff=trusted_main_cutoff,
+                 audited_digest=hashlib.sha256(b"".join(commit.encode("ascii") + b"\n" for commit in landed_commits)).hexdigest(),
+                 landed_commits=list(landed_commits), expected_fold=getattr(plan, "status"),
+                 transaction_id=getattr(plan, "transaction_id", None))
+
+
+def _finish_land_turn(repository: _Repository, result: LandResult) -> None:
+    turn = repository.turn
+    if turn is None or turn.fd < 0 or turn.terminal:
+        return
+    with _turn_registry(repository, turn) as registry:
+        entry = registry["requests"].get(turn.key)
+        if entry is None or entry["ticket"] != turn.ticket:
+            raise _turn_failure("terminal ticket binding changed")
+        mutating = turn.record.get("phase") == "mutating"
+        rollback_complete = (
+            mutating and result.rc in {RC_FOLD_FAILED, RC_FOLD_GATE}
+            and result.main_after == turn.record.get("main_before")
+            and not os.path.lexists(repository.common / _FOLD_STATE_NAME)
+        )
+        unresolved = mutating and result.rc != RC_OK and not rollback_complete
+        if result.rc == RC_OK:
+            phase = "done"
+        elif unresolved:
+            phase = "mutating"
+        elif rollback_complete:
+            phase = "rolled-back"
+        elif result.rc in {RC_STALE_MAIN, RC_LOCK_BUSY} or result.retryable_same_request:
+            phase = "waiting"
+        else:
+            phase = "rejected"
+        _turn_append(turn, phase)
+        # Close before selecting: the terminating runtime must not re-elect itself.
+        os.close(turn.fd)
+        turn.fd = -1
+        if phase in {"done", "rejected"}:
+            del registry["requests"][turn.key]
+        elif registry["grant"] == turn.key or mutating:
+            entry["order"] = registry["next_seq"] - 1
+            # Preserve FIFO among equal orders, including across registry reloads.
+            registry["requests"][turn.key] = registry["requests"].pop(turn.key)
+        if registry["grant"] == turn.key:
+            registry["grant"] = None
+        _turn_select(turn, registry)  # Release and handoff are one registry update.
+        turn.terminal = True
+
+
+def _observe_dead_land_turn(repository: _Repository, lock: _LandLockHandle,
+                            key: str, entry: dict, record: dict) -> None:
+    """Called only with common flock, without registry flock across Git reads."""
+    turn = repository.turn
+    assert turn is not None
+    _verify_land_lock_binding(repository, lock)
+    state = repository.common / _FOLD_STATE_NAME
+    if os.path.lexists(state):
+        if key == turn.key:
+            return  # The unchanged existing recovery path verifies state authority.
+        raise _Reject(RC_FOLD_RECOVERY_FAILED,
+                      "unfinished land turn requires original request recovery",
+                      retryable_same_request=True)
+    current = _head(repository.main, "main during dead land turn observation")
+    if current == record.get("main_before"):
+        phase = "rolled-back"
+    elif current == record.get("landing_tip") and record.get("expected_fold") == "noop":
+        phase = "done"
+    else:
+        parent = _git(repository.main, "rev-parse", f"{current}^1")
+        declared = None
+        if (parent.returncode == 0
+                and parent.stdout.decode("ascii").strip() == record.get("landing_tip")):
+            try:
+                declared = verify_declared_fold_commit(
+                    repository.main, fold_commit_sha=current,
+                    trusted_main_cutoff_sha=record["trusted_main_cutoff"],
+                    landed_main_sha=current,
+                    landed_commits=tuple(record["landed_commits"]),
+                    wave_tip=record["landing_tip"],
+                )
+            except (Exception, KeyboardInterrupt) as exc:
+                raise _Reject(
+                    RC_FOLD_RECOVERY_FAILED,
+                    f"dead land turn fold observation failed: main={current}, "
+                    f"landing_tip={record.get('landing_tip')}: {type(exc).__name__}: {exc}",
+                    retryable_same_request=True,
+                ) from exc
+        if declared is None or not declared.ok:
+            raise _Reject(RC_FOLD_RECOVERY_FAILED,
+                          f"unresolved mutating turn: main={current}, "
+                          f"main_before={record.get('main_before')}, "
+                          f"landing_tip={record.get('landing_tip')}",
+                          retryable_same_request=True)
+        phase = "done"
+    with _turn_registry(repository, turn) as registry:
+        if registry["requests"].get(key) != entry:
+            return
+        if key != turn.key and _turn_live(turn, entry["ticket"]):
+            return
+        latest = _turn_last_record(turn, entry)
+        # Another observer may have resolved this exact ticket while we waited
+        # for common flock. Compare the complete, digest-validated record.
+        if latest != record:
+            _turn_select(turn, registry)
+            return
+        if key == turn.key:
+            _turn_append(turn, "done" if phase == "done" else "waiting")
+            if phase == "done":
+                os.close(turn.fd)
+                turn.fd = -1
+                turn.terminal = True
+                del registry["requests"][key]
+        else:
+            fd = os.open(entry["ticket"], os.O_RDWR | os.O_APPEND | os.O_NOFOLLOW,
+                         dir_fd=turn.directory_fd)
+            try:
+                _turn_file_binding(turn.directory_fd, entry["ticket"], fd)
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                raw = _turn_read(turn, entry["ticket"])
+                os.ftruncate(fd, raw.rfind(b"\n") + 1)
+                observed = _LandTurnHandle(turn.started, turn.deadline,
+                                           fd=fd, seq=entry["seq"], record=record)
+                _turn_append(observed, phase)
+            finally:
+                os.close(fd)
+            if phase == "done":
+                del registry["requests"][key]
+        if registry["grant"] == key:
+            registry["grant"] = None
+        _turn_select(turn, registry)
+
+
+def _wait_land_turn(repository: _Repository, lock: _LandLockHandle) -> tuple[bool, float, int]:
+    turn = repository.turn
+    assert turn is not None
+    common_waited = 0.0
+    ahead = 0
+    while _land_lock_now() < turn.deadline:
+        with _turn_registry(repository, turn) as registry:
+            recovery = _turn_select(turn, registry)
+            dead = [(key, dict(registry["requests"][key]),
+                     _turn_last_record(turn, registry["requests"][key]))
+                    for key in recovery
+                    if key == turn.key or not _turn_live(turn, registry["requests"][key]["ticket"])]
+            granted = registry["grant"] == turn.key
+            ordered = sorted(registry["requests"],
+                             key=lambda key: registry["requests"][key]["order"])
+            ahead = sum(_turn_live(turn, registry["requests"][key]["ticket"])
+                        for key in ordered[:ordered.index(turn.key)])
+        if dead:
+            acquired, waited = _acquire_land_lock_until_turn(
+                repository, lock, max(0.0, _LAND_LOCK_WAIT_SECONDS - common_waited),
+            )
+            common_waited += waited
+            if not acquired:
+                return False, common_waited, ahead
+            try:
+                for key, entry, record in dead:
+                    _observe_dead_land_turn(repository, lock, key, entry, record)
+                if turn.terminal:
+                    return True, common_waited, ahead
+                # Own active state is intentionally retained and prioritized.
+                with _turn_registry(repository, turn) as registry:
+                    _turn_select(turn, registry)
+                    granted = registry["grant"] == turn.key
+            finally:
+                lock.close()
+        if granted:
+            _land_turn_owner(repository)
+            return True, common_waited, ahead
+        now = _land_lock_now()
+        delay = min(_land_lock_jitter(_LAND_LOCK_MAX_POLL_SECONDS),
+                    max(0.0, turn.deadline - now))
+        if delay:
+            _land_turn_sleep(delay)
+            turn.waited_s += max(0.0, _land_lock_now() - now)
+    return False, common_waited, ahead
+
+
+def _acquire_land_lock_until_turn(repository: _Repository, lock: _LandLockHandle,
+                                  remaining_wait_s: float) -> tuple[bool, float]:
+    turn = repository.turn
+    deadline = (turn.deadline if turn is not None else
+                _land_lock_now() + max(0.0, remaining_wait_s))
+    started = _land_lock_now()
+    if started >= deadline:
+        return False, 0.0
+    acquired, waited = _acquire_land_lock(
+        repository, lock, min(deadline, started + max(0.0, remaining_wait_s)),
+    )
+    if acquired:
+        return True, waited
+    while _land_lock_now() < deadline:
+        lock.close()
+        _land_turn_sleep(min(_land_lock_jitter(_LAND_LOCK_MAX_POLL_SECONDS),
+                             deadline - _land_lock_now()))
+        if _land_lock_now() >= deadline:
+            break
+        acquired, _ = _acquire_land_lock(repository, lock, _land_lock_now())
+        if acquired:
+            return True, max(0.0, _land_lock_now() - started)
+    lock.close()
+    return False, max(0.0, _land_lock_now() - started)
+
+
 def _land_lock_sleep(delay: float) -> None:
     time.sleep(delay)
 
@@ -3025,6 +3622,23 @@ def _audit_provenance_history(repository: _Repository) -> _ProvenanceReceipt:
         ) from exc
 
 
+def _reject_provenance_returncode(returncode: int) -> None:
+    """Share the authoritative violation versus infrastructure classification."""
+    if returncode == _PROVENANCE_VIOLATION_RC:
+        raise _Reject(
+            RC_PROVENANCE,
+            f"provenance full-history audit rejected the wave (rc={returncode})",
+            release_safe=True,
+        )
+    if returncode != 0:
+        raise _Reject(
+            RC_PROVENANCE,
+            f"provenance full-history audit did not complete authoritatively "
+            f"(rc={returncode})",
+            retryable_same_request=True,
+        )
+
+
 def _verify_provenance_receipt(
     repository: _Repository,
     receipt: _ProvenanceReceipt,
@@ -3052,19 +3666,7 @@ def _verify_provenance_receipt(
                 RC_PROVENANCE,
                 "provenance checker executed bytes do not match the committed blob",
             )
-        if receipt.returncode == _PROVENANCE_VIOLATION_RC:
-            raise _Reject(
-                RC_PROVENANCE,
-                f"provenance full-history audit rejected the wave (rc={receipt.returncode})",
-                release_safe=True,
-            )
-        if receipt.returncode != 0:
-            raise _Reject(
-                RC_PROVENANCE,
-                f"provenance full-history audit did not complete authoritatively "
-                f"(rc={receipt.returncode})",
-                retryable_same_request=True,
-            )
+        _reject_provenance_returncode(receipt.returncode)
     except _Reject as exc:
         if exc.rc == RC_PROVENANCE:
             if exc.release_safe or exc.retryable_same_request:
@@ -4066,8 +4668,9 @@ def _run_outside_land_lock(
 
     lock.close()
     payload = runner()
-    deadline = _land_lock_now() + max(0.0, remaining_wait_s)
-    acquired, waited = _acquire_land_lock(repository, lock, deadline)
+    if isinstance(payload, _ProvenanceReceipt) and payload.returncode != 0:
+        _reject_provenance_returncode(payload.returncode)
+    acquired, waited = _acquire_land_lock_until_turn(repository, lock, remaining_wait_s)
     return payload, acquired, waited
 
 
@@ -4545,6 +5148,7 @@ def _fold_main_locked(
             tested_tip,
         )
 
+    apply_started = False
     message_path: Path | None = None
     try:
         if getattr(plan, "status", None) == "noop":
@@ -4558,6 +5162,12 @@ def _fold_main_locked(
                 plan,
             )
         fold_paths = _fold_plan_paths(plan)
+        _land_turn_mutating(
+            repository, plan=plan, main_before=rollback_ref, landing_tip=tested_tip,
+            wave_ref=wave_ref, trusted_main_cutoff=trusted_main_cutoff_sha,
+            landed_commits=landed_commits,
+        )
+        apply_started = True
         fold.apply_fold(
             repository.main,
             plan,
@@ -4647,6 +5257,10 @@ def _fold_main_locked(
             release_safe=True,
         )
     except (Exception, KeyboardInterrupt) as exc:  # fold failure は必ず landed 以外へ畳む。
+        if isinstance(exc, _Reject) and not apply_started:
+            return LandResult(exc.rc, "rejected", exc.reason,
+                              successful_land.main_before, fold_base, tested_tip,
+                              retryable_same_request=exc.retryable_same_request)
         rollback_failures = _rollback_fold(
             repository,
             rollback_ref=rollback_ref,
@@ -4716,6 +5330,15 @@ def _finalize_recovered_fold_commit(
 ) -> LandResult:
     """検証済みの形 B を再 apply / 再 commit せず完遂する。"""
 
+    origin = getattr(plan, "origin")
+
+    def before_mutation() -> None:
+        _land_turn_mutating(
+            repository, plan=plan, main_before=origin.rollback_ref, landing_tip=tested_tip,
+            wave_ref=wave_ref, trusted_main_cutoff=origin.trusted_main_cutoff,
+            landed_commits=landed_commits,
+        )
+
     try:
         fold.verify_fold_commit_identity(
             repository.main,
@@ -4724,6 +5347,7 @@ def _finalize_recovered_fold_commit(
         )
         phase = getattr(plan, "phase", None)
         if phase == "applied":
+            before_mutation()
             plan = fold.mark_fold_committed(
                 repository.main,
                 plan,
@@ -4752,6 +5376,7 @@ def _finalize_recovered_fold_commit(
             retryable_same_request=True,
         )
     try:
+        before_mutation()
         fold.finalize_fold(repository.main, plan, fold_commit=fold_commit)
     except (Exception, KeyboardInterrupt) as exc:
         return LandResult(
@@ -4921,8 +5546,22 @@ def land(request: LandRequest) -> LandResult:
     quiescent_rejection = False
     lock_window_started: float | None = None
     waited_s = 0.0
+    turn: _LandTurnHandle | None = None
+    registered_verification: _AcceptanceVerification | None = None
 
     def finish(result: LandResult) -> LandResult:
+        if repository is not None:
+            try:
+                _finish_land_turn(repository, result)
+            except _Reject as exc:
+                result = replace(result, rc=exc.rc, status="rejected", reason=exc.reason,
+                                 release_safe=False, retryable_same_request=exc.retryable_same_request)
+        if result.rc == RC_LOCK_BUSY and turn is not None:
+            result = replace(result, reason=result.reason + (
+                f"; turn_waited_s={turn.waited_s:.3f}, "
+                f"turn_elapsed_s={max(0.0, _land_lock_now() - turn.started):.3f}, "
+                f"turn_limit_s={_LAND_TURN_WAIT_SECONDS:.3f}"
+            ))
         decorated = replace(
             result,
             waited_s=waited_s if lock_window_started is not None else None,
@@ -4962,6 +5601,20 @@ def land(request: LandRequest) -> LandResult:
             for index, commit in enumerate(request.audited_commits)
         )
         repository = _verify_repository(request)
+        turn_started = _land_lock_now()
+        turn = _LandTurnHandle(turn_started, turn_started + _LAND_TURN_WAIT_SECONDS)
+        try:
+            registered_verification = _verify_acceptance_static(
+                repository, raw=_read_acceptance_receipt(request.acceptance_receipt),
+                acceptance_wave=request.acceptance_wave,
+                tested_main=tested_main, tested_tip=tested_tip,
+            )
+        except _Reject as exc:
+            raise _Reject(
+                exc.rc, exc.reason,
+                release_safe=not exc.retryable_same_request,
+                retryable_same_request=exc.retryable_same_request,
+            ) from exc
         if landing_tip != tested_tip:
             _verify_history_modifiers(repository)
             _verify_effective_config(repository)
@@ -4976,13 +5629,23 @@ def land(request: LandRequest) -> LandResult:
                 repository,
                 prelocked_forward_main_merges,
             )
+        _register_land_turn(repository, request, registered_verification, turn)
+        repository.turn = turn
+        repository.land_lock = lock
+        granted, waited, ahead = _wait_land_turn(repository, lock)
+        waited_s += waited
+        # Completion observation resolves only the ticket. Existing preflight
+        # and postconditions still decide the result, including D16 gitlinks.
+        if not granted:
+            return finish(LandResult(
+                RC_LOCK_BUSY, "lock-busy",
+                f"waiting for land turn (seq={turn.seq}, ahead={ahead})",
+                None, None, landing_tip, retryable_same_request=True,
+            ))
         lock_window_started = _land_lock_now()
-        initial_lock_deadline = lock_window_started + _LAND_LOCK_WAIT_SECONDS
         try:
-            acquired, waited = _acquire_land_lock(
-                repository,
-                lock,
-                initial_lock_deadline,
+            acquired, waited = _acquire_land_lock_until_turn(
+                repository, lock, max(0.0, _LAND_LOCK_WAIT_SECONDS - waited_s),
             )
             waited_s += waited
             if not acquired:
@@ -5112,6 +5775,8 @@ def land(request: LandRequest) -> LandResult:
                 tested_tip=tested_tip,
                 locked_main=preflight.locked_main,
             )
+            if acceptance_verification.receipt_sha256 != registered_verification.receipt_sha256:
+                raise _acceptance_rejected()
             fold = preflight.fold
             active_plan = preflight.active_plan
             control = preflight.control
@@ -5439,6 +6104,28 @@ def land(request: LandRequest) -> LandResult:
                         retryable_same_request=interrupted,
                     ))
 
+                # Receipt rejection keeps its existing rc and retryability;
+                # the fold-gate exception mapper must not reclassify it.
+                try:
+                    refreshed_acceptance = _verify_acceptance_receipt(
+                        repository, receipt_path=request.acceptance_receipt,
+                        acceptance_wave=request.acceptance_wave,
+                        tested_main=tested_main, tested_tip=tested_tip,
+                        locked_main=refreshed_preflight.locked_main,
+                    )
+                    if refreshed_acceptance.receipt_sha256 != registered_verification.receipt_sha256:
+                        raise _acceptance_rejected()
+                except _Reject:
+                    raise
+                except (Exception, KeyboardInterrupt) as exc:
+                    return finish(_fold_gate_failed_result(
+                        f"fold gate revalidation failed: {type(exc).__name__}: {exc}",
+                        main_before=main_before,
+                        main_after=main_before,
+                        tested_tip=landing_tip,
+                        retryable_same_request=isinstance(exc, KeyboardInterrupt),
+                    ))
+
             fold_collision_paths = tuple(os.fsencode(path) for path in fold_paths)
             if fold_collision_paths:
                 _verify_main_clean(
@@ -5564,6 +6251,11 @@ def land(request: LandRequest) -> LandResult:
                         release_safe=not interrupted,
                         retryable_same_request=interrupted,
                     ))
+            _land_turn_mutating(
+                repository, plan=plan, main_before=locked_main, landing_tip=landing_tip,
+                wave_ref=wave_ref, trusted_main_cutoff=fold_trusted_main_cutoff,
+                landed_commits=landed_commits,
+            )
             merge = _git(
                 repository.main,
                 "merge", "--ff-only", "--no-stat", "--no-progress", landing_tip,
@@ -5614,6 +6306,9 @@ def land(request: LandRequest) -> LandResult:
             retryable_same_request=exc.retryable_same_request,
         ))
     finally:
+        lock.close()
+        if turn is not None:
+            turn.close()
         if repository is not None:
             repository.close()
 

@@ -270,9 +270,8 @@ def test_reentry_states_run_only_remaining_cleanup(tmp_path, monkeypatch, capsys
     )
     _assert_removed(repo)
     assert (("checkout", "--detach") in calls) is (state == "a")
-    assert any(call[:2] == ("worktree", "prune") and "--dry-run" in call for call in calls) is (
-        state in {"a", "b", "c"}
-    )
+    assert not any(call[:2] == ("worktree", "prune") for call in calls)
+    assert not (repo.main / ".git" / "worktrees" / "wave").exists()
     assert any(call[:2] == ("branch", "-d") for call in calls) is (state != "e")
 
 
@@ -1069,37 +1068,327 @@ def test_rejects_uninspectable_branch_reflog_without_mutation(
     _assert_rejected_preserving(repo, capsys)
 
 
-def test_prune_dry_run_stops_when_any_candidate_directory_exists(
-    tmp_path, monkeypatch, capsys,
-):
+@pytest.mark.parametrize("stale", (False, True), ids=("live", "stale"))
+def test_cleanup_preserves_foreign_stale_admin(tmp_path, monkeypatch, capsys, stale):
     repo = _make_repo(tmp_path, monkeypatch)
     _stub_unoccupied(monkeypatch)
-    _git(repo.wave, "checkout", "--detach")
-    other = repo.main / ".claude" / "worktrees" / "other"
+    other = repo.wave.parent / "other"
     _git(repo.main, "worktree", "add", "-b", "other", os.fspath(other))
-    original_must = cleanup._must_git
+    admin = repo.main / ".git" / "worktrees" / "other"
+    if stale:
+        shutil.rmtree(other)
+    before = _admin_tree_state(admin)
+    _assert_success_output(_run(repo, capsys), "removed",
+                           occupancy_phases=("preflight", "recheck"))
+    _assert_removed(repo)
+    assert other.is_dir() is (not stale)
+    assert _admin_tree_state(admin) == before
+    assert _sha(repo.main, "refs/heads/other") == repo.tip
 
-    def dry_run_with_existing_record(cwd, *args):
-        if args == ("worktree", "prune", "--dry-run", "--verbose", "--expire=now"):
-            return subprocess.CompletedProcess(
-                args,
-                0,
-                b"Removing worktrees/other: synthetic candidate\n",
-                b"",
-            )
-        return original_must(cwd, *args)
 
-    monkeypatch.setattr(cleanup, "_must_git", dry_run_with_existing_record)
-    rc, stdout, stderr = _run(repo, capsys)
-    assert rc == 30 and stdout == ""
-    assert "status=partial phase=prune-dry-run" in stderr
-    assert other.is_dir()
-    assert _sha(repo.main, f"refs/heads/{repo.branch}") == repo.tip
+def _admin_tree_state(path):
+    return {str(p.relative_to(path)): (p.lstat().st_dev, p.lstat().st_ino,
+                                      p.read_bytes() if p.is_file() else None)
+            for p in [path, *path.rglob("*")]}
+
+
+@pytest.mark.parametrize("removed", ("HEAD", "gitdir", "admin-directory"))
+@pytest.mark.parametrize("tamper", (None, "lock", "bytes", "inode"))
+def test_cleanup_partial_admin_removal_reenters(tmp_path, monkeypatch, capsys, request, removed, tamper):
+    repo = _make_repo(tmp_path, monkeypatch)
+    _stub_unoccupied(monkeypatch)
+    other = repo.wave.parent / "other"
+    _git(repo.main, "worktree", "add", "-b", "other", os.fspath(other))
+    foreign = repo.main / ".git" / "worktrees" / "other"
+    shutil.rmtree(other)
+    before = _admin_tree_state(foreign)
+    original = cleanup.os.unlink
+    original_rmdir = cleanup.os.rmdir
+    admin = repo.main / ".git" / "worktrees" / "wave"
+    held = os.open(admin, os.O_RDONLY | os.O_DIRECTORY)
+    request.addfinalizer(lambda: os.close(held))
+
+    def die_after_unlink(name, *args, **kwargs):
+        original(name, *args, **kwargs)
+        fd = kwargs.get("dir_fd")
+        if name == removed and fd is not None and os.fstat(fd).st_ino == admin.stat().st_ino:
+            raise KeyboardInterrupt("death after admin unlink")
+
+    def die_after_rmdir(name, *args, **kwargs):
+        original_rmdir(name, *args, **kwargs)
+        if removed == "admin-directory" and name == "wave" and kwargs.get("dir_fd") is not None:
+            raise KeyboardInterrupt("death after admin rmdir")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(cleanup.os, "unlink", die_after_unlink)
+        patch.setattr(cleanup.os, "rmdir", die_after_rmdir)
+        rc, out, err = _run(repo, capsys)
+    assert (rc, out) == (30, "")
+    assert "phase=admin-remove" in err
+    assert not (admin if removed == "admin-directory" else admin / removed).exists()
+    assert _sha(repo.main, "refs/heads/wave") == repo.tip
+    assert _admin_tree_state(foreign) == before
+    if tamper is not None:
+        if removed == "admin-directory":
+            admin.mkdir()
+        elif tamper == "lock":
+            (admin / "index.lock").touch()
+        elif tamper == "bytes":
+            (admin / "index").write_bytes(b"changed")
+        else:
+            saved = tmp_path / "saved-admin"
+            admin.rename(saved)
+            shutil.copytree(saved, admin)
+        rc, out, err = _run(repo, capsys)
+        assert (rc, out) == (20, "")
+        assert "phase=preflight" in err
+        assert _sha(repo.main, "refs/heads/wave") == repo.tip
+        assert _admin_tree_state(foreign) == before
+        return
+    _assert_success_output(_run(repo, capsys), "removed", occupancy_phases=())
+    _assert_removed(repo)
+    assert not admin.exists()
+    assert _admin_tree_state(foreign) == before
+
+
+@pytest.mark.parametrize("change", (
+    "locked", "index.lock", "HEAD.lock", "HEAD", "reflog", "backpointer",
+    "commondir", "binding-inode", "admin-inode", "symlink", "wave-symlink",
+))
+def test_admin_removal_rechecks_real_registry(tmp_path, monkeypatch, capsys, change):
+    repo = _make_repo(tmp_path, monkeypatch)
+    _prepare_state(repo, "c")
+    admin = repo.main / ".git" / "worktrees" / "wave"
+    original = cleanup._recheck_admin
+    injected = False
+
+    def change_before_recheck(*args):
+        nonlocal injected
+        if not injected:
+            injected = True
+            if change in {"locked", "index.lock", "HEAD.lock"}:
+                (admin / change).write_text("busy\n")
+            elif change == "HEAD":
+                (admin / "HEAD").write_text(repo.base + "\n")
+            elif change == "reflog":
+                tree = _sha(repo.main, "HEAD^{tree}")
+                unreachable = _git(repo.main, "commit-tree", tree, "-m", "unreachable").stdout.strip()
+                with (admin / "logs" / "HEAD").open("ab") as stream:
+                    stream.write(repo.tip.encode() + b" " + unreachable + b" Test <test@example.invalid> 1 +0000\tchange\n")
+            elif change == "backpointer":
+                (admin / "gitdir").write_text(str(repo.wave.parent / "other" / ".git") + "\n")
+            elif change == "commondir":
+                (admin / "commondir").write_text("../../../elsewhere\n")
+            elif change == "binding-inode":
+                original_binding = admin / "gitdir.saved"
+                (admin / "gitdir").rename(original_binding)
+                (admin / "gitdir").write_bytes(original_binding.read_bytes())
+            elif change == "admin-inode":
+                saved = tmp_path / "saved-admin"
+                admin.rename(saved)
+                shutil.copytree(saved, admin)
+            elif change == "symlink":
+                (admin / "index").unlink()
+                (admin / "index").symlink_to(repo.main / ".git" / "index")
+            else:
+                repo.wave.symlink_to(repo.main, target_is_directory=True)
+        return original(*args)
+
+    monkeypatch.setattr(cleanup, "_recheck_admin", change_before_recheck)
+    rc, out, err = _run(repo, capsys)
+    assert injected
+    assert (rc, out) == (30, "")
+    assert "phase=admin-recheck" in err
+    assert admin.is_dir()
+    assert _sha(repo.main, "refs/heads/wave") == repo.tip
+
+
+@pytest.mark.parametrize("state", ("a", "b", "c"))
+@pytest.mark.parametrize("change", ("bytes", "inode"))
+def test_admin_baseline_rejects_index_change(tmp_path, monkeypatch, capsys, state, change):
+    repo = _make_repo(tmp_path, monkeypatch)
+    _stub_unoccupied(monkeypatch)
+    _prepare_state(repo, state)
+    admin = repo.main / ".git" / "worktrees" / "wave"
+    original = cleanup._recheck_admin
+    changed = None
+
+    def change_before_first_recheck(*args):
+        nonlocal changed
+        if changed is None:
+            index = admin / "index"
+            if change == "bytes":
+                index.write_bytes(index.read_bytes() + b"changed")
+            else:
+                replacement = tmp_path / "replacement-index"
+                replacement.write_bytes(index.read_bytes())
+                assert replacement.stat().st_ino != index.stat().st_ino
+                replacement.replace(index)
+            changed = _admin_tree_state(admin)
+        return original(*args)
+
+    monkeypatch.setattr(cleanup, "_recheck_admin", change_before_first_recheck)
+    rc, out, err = _run(repo, capsys)
+    assert (rc, out) == (30, "")
+    assert "phase=admin-recheck" in err
+    assert "snapshot changed since safety check" in err
+    assert changed is not None and _admin_tree_state(admin) == changed
+    assert _sha(repo.main, "refs/heads/wave") == repo.tip
+
+
+@pytest.mark.parametrize("point", ("write", "publish", "linked"))
+def test_unpublished_admin_journal_reenters(tmp_path, monkeypatch, capsys, point):
+    repo = _make_repo(tmp_path, monkeypatch)
+    _stub_unoccupied(monkeypatch)
+    common = repo.main / ".git"
+    admin = common / "worktrees" / "wave"
+    final = common / cleanup._journal_name(repo.wave)
+    original_open = cleanup.os.open
+    original_unlink = cleanup.os.unlink
+
+    def die_after_link(name, *args, **kwargs):
+        if str(name).startswith(final.name + ".tmp-"):
+            assert (common / name).samefile(final)
+            assert final.stat().st_nlink == 2
+            raise KeyboardInterrupt("death after journal link")
+        return original_unlink(name, *args, **kwargs)
+
+    def die_after_create(name, *args, **kwargs):
+        fd = original_open(name, *args, **kwargs)
+        if str(name).startswith(final.name + ".tmp-"):
+            os.close(fd)
+            raise KeyboardInterrupt("death before journal write")
+        return fd
+
+    def die_before_publish(fd, temporary, name):
+        assert not final.exists()
+        data = json.loads((common / temporary).read_bytes())
+        index = data["snapshot"]["index"][2]
+        assert set(index) == {"length", "sha256"}
+        assert index == cleanup._admin_content((admin / "index").read_bytes())
+        raise KeyboardInterrupt("death before journal publish")
+
+    with monkeypatch.context() as patch:
+        if point == "write":
+            patch.setattr(cleanup.os, "open", die_after_create)
+        elif point == "linked":
+            patch.setattr(cleanup.os, "unlink", die_after_link)
+        else:
+            patch.setattr(cleanup, "_rename_journal", die_before_publish)
+        rc, out, err = _run(repo, capsys)
+    assert (rc, out) == (30, "")
+    assert "phase=admin-remove" in err
+    if point == "linked":
+        assert final.exists()
+        assert final.stat().st_nlink == 2
+    else:
+        assert not final.exists()
+    remnants = list(common.glob(final.name + ".tmp-*"))
+    assert remnants
+    assert admin.is_dir()
+    assert _sha(repo.main, "refs/heads/wave") == repo.tip
+    _assert_success_output(_run(repo, capsys), "removed", occupancy_phases=())
+    _assert_removed(repo)
+    if point == "linked":
+        assert not final.exists()
+        assert all(not path.exists() for path in remnants)
+
+
+def test_admin_journal_unrelated_temporary_does_not_allow_hardlink(tmp_path, monkeypatch, capsys):
+    repo = _make_repo(tmp_path, monkeypatch)
+    _prepare_state(repo, "c")
+    common = repo.main / ".git"
+    admin = common / "worktrees" / "wave"
+    final = common / cleanup._journal_name(repo.wave)
+    final.touch(mode=0o600)
+    final.write_bytes(b"{}")
+    alias = common / "unrelated-hardlink"
+    os.link(final, alias)
+    temporary = common / (final.name + ".tmp-unpublished")
+    temporary.write_bytes(final.read_bytes())
+    assert not temporary.samefile(final)
+    before = _admin_tree_state(admin)
+    for _ in range(2):
+        rc, out, err = _run(repo, capsys)
+        assert (rc, out) == (20, "")
+        assert "admin entry is not a single regular file" in err
+        assert final.stat().st_nlink == 2
+        assert alias.samefile(final)
+        assert temporary.read_bytes() == b"{}"
+        assert _admin_tree_state(admin) == before
+        assert _sha(repo.main, "refs/heads/wave") == repo.tip
+
+
+def test_incomplete_final_admin_journal_rejected(tmp_path, monkeypatch, capsys):
+    repo = _make_repo(tmp_path, monkeypatch)
+    _prepare_state(repo, "c")
+    admin = repo.main / ".git" / "worktrees" / "wave"
+    journal = repo.main / ".git" / cleanup._journal_name(repo.wave)
+    journal.touch(mode=0o600)
+    before = _admin_tree_state(admin)
+    rc, out, err = _run(repo, capsys)
+    assert (rc, out) == (20, "")
+    assert "invalid admin recovery journal: incomplete or malformed JSON" in err
+    assert _admin_tree_state(admin) == before
+    assert _sha(repo.main, "refs/heads/wave") == repo.tip
+
+
+def test_admin_journal_publication_never_overwrites_final(tmp_path, monkeypatch, capsys):
+    repo = _make_repo(tmp_path, monkeypatch)
+    _stub_unoccupied(monkeypatch)
+    common = repo.main / ".git"
+    admin = common / "worktrees" / "wave"
+    original = cleanup._rename_journal
+    before = None
+
+    def competing_final(fd, temporary, final):
+        nonlocal before
+        before = _admin_tree_state(admin)
+        (common / final).write_bytes(b"existing journal")
+        original(fd, temporary, final)
+
+    monkeypatch.setattr(cleanup, "_rename_journal", competing_final)
+    rc, out, err = _run(repo, capsys)
+    assert (rc, out) == (30, "")
+    assert "phase=admin-remove" in err
+    assert "File exists" in err
+    assert (common / cleanup._journal_name(repo.wave)).read_bytes() == b"existing journal"
+    assert _admin_tree_state(admin) == before
+    assert _sha(repo.main, "refs/heads/wave") == repo.tip
+
+
+@pytest.mark.parametrize("state", ("a", "c"))
+def test_admin_binding_must_be_unique_for_live_and_stale(tmp_path, monkeypatch, capsys, state):
+    repo = _make_repo(tmp_path, monkeypatch)
+    _stub_unoccupied(monkeypatch)
+    _prepare_state(repo, state)
+    admin = repo.main / ".git" / "worktrees" / "wave"
+    duplicate = admin.with_name("duplicate")
+    shutil.copytree(admin, duplicate)
+    before = (_admin_tree_state(admin), _admin_tree_state(duplicate))
+    rc, out, err = _run(repo, capsys)
+    assert (rc, out) == (20, "")
+    assert "phase=preflight" in err
+    assert (_admin_tree_state(admin), _admin_tree_state(duplicate)) == before
+    assert _sha(repo.main, "refs/heads/wave") == repo.tip
+
+
+def test_recordless_admin_without_recovery_journal_is_rejected(tmp_path, monkeypatch, capsys):
+    repo = _make_repo(tmp_path, monkeypatch)
+    _prepare_state(repo, "c")
+    admin = repo.main / ".git" / "worktrees" / "wave"
+    (admin / "HEAD").unlink()
+    before = _admin_tree_state(admin)
+    rc, out, err = _run(repo, capsys)
+    assert (rc, out) == (20, "")
+    assert "phase=preflight" in err
+    assert _admin_tree_state(admin) == before
+    assert _sha(repo.main, "refs/heads/wave") == repo.tip
 
 
 def test_forbidden_git_verbs_absent_from_source_calls_and_runtime_allowlist(monkeypatch):
     tree = ast.parse(_TOOL.read_text(encoding="utf-8"))
-    forbidden = {("worktree", "remove"), ("submodule", "deinit"), ("branch", "-D")}
+    forbidden = {("worktree", "prune"), ("worktree", "remove"), ("submodule", "deinit"), ("branch", "-D")}
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
@@ -1123,6 +1412,8 @@ def test_forbidden_git_verbs_absent_from_source_calls_and_runtime_allowlist(monk
 @pytest.mark.parametrize(
     "argv",
     (
+        ("worktree", "prune", "--dry-run", "--verbose", "--expire=now"),
+        ("worktree", "prune", "--expire=now"),
         ("worktree", "remove", "--force"),
         ("worktree", "remove"),
         ("worktree", "remove", "--force", "--", "x"),
@@ -1173,8 +1464,6 @@ def test_git_argv_schema_rejects_force_delete_permutations(monkeypatch, argv):
         ("symbolic-ref", "--quiet", "HEAD"),
         ("worktree", "list", "--porcelain"),
         ("worktree", "unlock", "/tmp/wave"),
-        ("worktree", "prune", "--dry-run", "--verbose", "--expire=now"),
-        ("worktree", "prune", "--expire=now"),
         ("checkout", "--detach"),
         ("branch", "-d", "--", "wave"),
     ),
@@ -1225,8 +1514,8 @@ def test_git_argv_spy_sees_only_allowlisted_cleanup_commands(tmp_path, monkeypat
         ("detach", "a"),
         ("recheck", "a"),
         ("remove-directory", "a"),
-        ("prune-dry-run", "c"),
-        ("prune", "c"),
+        ("admin-recheck", "c"),
+        ("admin-remove", "c"),
         ("registry", "c"),
         ("branch-recheck", "d"),
         ("branch-delete", "d"),
@@ -1255,14 +1544,13 @@ def test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward(
 
     monkeypatch.setattr(cleanup, "_git", no_git_after_failure)
 
-    if phase in {"unlock", "detach", "prune"}:
+    if phase in {"unlock", "detach"}:
         original_must = cleanup._must_git
 
         def fail_selected(cwd, *args):
             selected = (
                 (phase == "unlock" and args[:2] == ("worktree", "unlock"))
                 or (phase == "detach" and args[:2] == ("checkout", "--detach"))
-                or (phase == "prune" and args == ("worktree", "prune", "--expire=now"))
             )
             if selected:
                 boom()
@@ -1283,8 +1571,10 @@ def test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward(
         monkeypatch.setattr(cleanup, "_assert_clean_and_head", fail_second)
     elif phase == "remove-directory":
         monkeypatch.setattr(cleanup, "_remove_verified_tree", lambda *args: boom())
-    elif phase == "prune-dry-run":
-        monkeypatch.setattr(cleanup, "_dry_run_candidates", lambda *args: boom())
+    elif phase == "admin-recheck":
+        monkeypatch.setattr(cleanup, "_recheck_admin", lambda *args: boom())
+    elif phase == "admin-remove":
+        monkeypatch.setattr(cleanup, "_remove_admin", lambda *args: boom())
     elif phase == "registry":
         monkeypatch.setattr(cleanup, "_verify_record_state", lambda *args, **kwargs: boom())
     elif phase == "branch-recheck":
@@ -1342,7 +1632,7 @@ def test_keyboard_interrupt_during_preflight_is_not_partial(tmp_path, monkeypatc
     monkeypatch.setattr(
         cleanup,
         "_preflight",
-        lambda args: (_ for _ in ()).throw(KeyboardInterrupt()),
+        lambda *args: (_ for _ in ()).throw(KeyboardInterrupt()),
     )
     with pytest.raises(KeyboardInterrupt):
         cleanup.main([

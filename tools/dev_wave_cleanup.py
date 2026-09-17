@@ -4,6 +4,10 @@
 from __future__ import annotations
 
 import json
+import secrets
+import hashlib
+import fcntl
+from contextlib import ExitStack
 import os
 import re
 import shutil
@@ -25,7 +29,6 @@ RC_PARTIAL = 30
 
 _REPO = Path(__file__).resolve().parent.parent
 _SHA_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
-_PRUNE_LINE_RE = re.compile(r"^Removing worktrees/([^:]+): .+$")
 _OCCUPANCY_MAX_SCANS = 3
 _OCCUPANCY_ISSUE_FIELD_BYTES = 24
 _OCCUPANCY_ISSUE_MAX_ITEMS = 3
@@ -214,8 +217,6 @@ def _validate_git_argv(args: Sequence[str]) -> None:
         ("status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none"),
         ("symbolic-ref", "--quiet", "HEAD"),
         ("worktree", "list", "--porcelain"),
-        ("worktree", "prune", "--dry-run", "--verbose", "--expire=now"),
-        ("worktree", "prune", "--expire=now"),
         ("checkout", "--detach"),
     }:
         return
@@ -384,7 +385,8 @@ def _directory_identity(path: Path, common: Path) -> DirectoryIdentity:
     gitdir = Path(os.fsdecode(content[len(b"gitdir: "):].rstrip(b"\n")))
     if not gitdir.is_absolute():
         gitdir = gitfile.parent / gitdir
-    gitdir = gitdir.resolve(strict=True)
+    if gitdir.resolve(strict=True) != gitdir:
+        raise ValueError("linked worktree gitdir contains symlink or noncanonical component")
     worktrees_dir = (common / "worktrees").resolve(strict=True)
     try:
         gitdir.relative_to(worktrees_dir)
@@ -582,7 +584,10 @@ def _assert_reflog_commits_reachable(main: Path, shas: Sequence[str], label: str
 
 
 def _head_reflog_shas(administrative_gitdir: Path) -> tuple[str, ...]:
-    raw = (administrative_gitdir / "logs" / "HEAD").read_bytes()
+    return _parse_head_reflog((administrative_gitdir / "logs" / "HEAD").read_bytes())
+
+
+def _parse_head_reflog(raw: bytes) -> tuple[str, ...]:
     if not raw or b"\x00" in raw or not raw.endswith(b"\n"):
         raise ValueError("worktree HEAD reflog is missing or malformed")
     shas: list[str] = []
@@ -608,9 +613,9 @@ def _head_reflog_shas(administrative_gitdir: Path) -> tuple[str, ...]:
 
 def _administrative_gitdirs_for_wave(common: Path, wave: Path) -> tuple[Path, ...]:
     registry = common / "worktrees"
-    if not registry.exists():
+    if not os.path.lexists(registry):
         return ()
-    if not registry.is_dir():
+    if registry.resolve(strict=True) != registry or not registry.is_dir():
         raise ValueError("worktree administrative registry is not a directory")
     matches: list[Path] = []
     for candidate in registry.iterdir():
@@ -620,9 +625,10 @@ def _administrative_gitdirs_for_wave(common: Path, wave: Path) -> tuple[Path, ..
             raise ValueError(f"worktree administrative entry cannot be resolved: {exc}") from exc
         if candidate_resolved != candidate or not candidate.is_dir():
             raise ValueError("worktree administrative entry is not a direct directory")
-        binding_path = candidate / "gitdir"
         try:
-            raw = binding_path.read_bytes()
+            with ExitStack() as stack:
+                fd = _open_directory(candidate, stack)
+                raw = _read_admin_file(fd, "gitdir")
         except FileNotFoundError:
             continue
         if not raw or b"\x00" in raw or raw.count(b"\n") > 1:
@@ -717,8 +723,323 @@ def _classify(
     raise ValueError("target does not match one cleanup state")
 
 
+@dataclass(frozen=True)
+class AdminBinding:
+    common_fd: int
+    registry_fd: int
+    admin_fd: int | None
+    name: str
+    identity: tuple[int, int]
+    backpointer: bytes
+    commondir: bytes
+    tip: str
+    journal: str
+    bindings: dict
+    snapshot: dict
+    recovery: dict | None = None
+
+
+def _inode(st: os.stat_result) -> tuple[int, int]:
+    return st.st_dev, st.st_ino
+
+
+def _open_directory(path: str | Path, stack: ExitStack, *, parent: int | None = None) -> int:
+    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+    stack.callback(os.close, fd)
+    return fd
+
+
+def _read_admin_file(fd: int, name: str) -> bytes:
+    child = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
+    try:
+        metadata = os.fstat(child)
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+            raise ValueError("admin entry is not a single regular file")
+        with os.fdopen(os.dup(child), "rb") as stream:
+            raw = stream.read()
+        def stable(st):
+            return (st.st_dev, st.st_ino, st.st_mode, st.st_nlink, st.st_size,
+                    st.st_mtime_ns, st.st_ctime_ns)
+
+        if (stable(os.fstat(child)) != stable(metadata)
+                or stable(os.stat(name, dir_fd=fd, follow_symlinks=False)) != stable(metadata)):
+            raise ValueError("admin entry changed while reading")
+        return raw
+    finally:
+        os.close(child)
+
+
+def _admin_content(raw: bytes, *, semantic: bool = False) -> dict:
+    content = {"length": len(raw), "sha256": hashlib.sha256(raw).hexdigest()}
+    if semantic:
+        content["raw"] = raw.hex()
+    return content
+
+
+def _admin_snapshot(fd: int, *, allow_locked: bool = False, prefix: str = "") -> dict:
+    result = {}
+    for name in sorted(os.listdir(fd)):
+        if name.endswith(".lock") or name in {"locked", "MERGE_HEAD", "CHERRY_PICK_HEAD",
+                                               "REVERT_HEAD", "REBASE_HEAD", "AUTO_MERGE", "MERGE_MSG",
+                                               "MERGE_MODE", "SQUASH_MSG", "BISECT_START",
+                                               "BISECT_LOG", "rebase-apply",
+                                               "rebase-merge", "sequencer"}:
+            if not (name == "locked" and allow_locked):
+                raise ValueError(f"admin operation marker remains: {name}")
+        metadata = os.stat(name, dir_fd=fd, follow_symlinks=False)
+        if stat.S_ISDIR(metadata.st_mode):
+            with ExitStack() as stack:
+                child = _open_directory(name, stack, parent=fd)
+                if _inode(os.fstat(child)) != _inode(metadata):
+                    raise ValueError("admin child directory changed")
+                content = _admin_snapshot(child, prefix=prefix + name + "/")
+            kind = "directory"
+        elif stat.S_ISREG(metadata.st_mode):
+            content = _admin_content(_read_admin_file(fd, name),
+                                     semantic=prefix + name in {
+                                         "gitdir", "commondir", "HEAD", "logs/HEAD"})
+            kind = "file"
+        else:
+            raise ValueError("admin contains symlink or special entry")
+        result[name] = [kind, list(_inode(metadata)), content]
+    return result
+
+
+def _journal_name(wave: Path) -> str:
+    return "dev-wave-cleanup-" + hashlib.sha256(os.fsencode(wave)).hexdigest() + ".json"
+
+
+def _bind_admin(args: Args, common: Path, path: Path, stack: ExitStack,
+                recovery: dict | None = None) -> AdminBinding:
+    if path.parent != common / "worktrees" or path.name in {"", ".", ".."}:
+        raise ValueError("admin is not a single direct registry child")
+    if common.resolve(strict=True) != common:
+        raise ValueError("common path contains symlink")
+    common_fd = _open_directory(common, stack)
+    registry_fd = _open_directory("worktrees", stack, parent=common_fd)
+    try:
+        fd = _open_directory(path.name, stack, parent=registry_fd)
+    except FileNotFoundError:
+        if recovery is None:
+            raise
+        fd = None
+    if fd is not None:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    if recovery is None:
+        assert fd is not None
+        snapshot = _admin_snapshot(fd, allow_locked=True)
+        backpointer = _read_admin_file(fd, "gitdir")
+        commondir = _read_admin_file(fd, "commondir")
+        identity = _inode(os.fstat(fd))
+        tip = args.landing_wave_tip_sha
+        assert tip is not None
+    else:
+        snapshot = recovery["snapshot"]
+        backpointer = bytes.fromhex(snapshot["gitdir"][2]["raw"])
+        commondir = bytes.fromhex(snapshot["commondir"][2]["raw"])
+        identity = tuple(recovery["admin_inode"])
+        tip = recovery["tip"]
+        if (list(_inode(os.fstat(common_fd))) != recovery["common_inode"]
+                or list(_inode(os.fstat(registry_fd))) != recovery["registry_inode"]
+                or (fd is not None and _inode(os.fstat(fd)) != identity)):
+            raise ValueError("recovery directory identity changed")
+    for raw in (backpointer, commondir):
+        if not raw or b"\x00" in raw or raw.count(b"\n") > 1:
+            raise ValueError("admin binding is malformed")
+    if Path(os.path.abspath(path / os.fsdecode(backpointer.rstrip(b"\n")))) != args.wave_worktree / ".git":
+        raise ValueError("admin backpointer differs from wave")
+    if Path(os.path.abspath(path / os.fsdecode(commondir.rstrip(b"\n")))) != common:
+        raise ValueError("admin commondir differs from common")
+    return AdminBinding(common_fd, registry_fd, fd, path.name, identity,
+                        backpointer, commondir, tip, _journal_name(args.wave_worktree),
+                        {key: snapshot[key] for key in ("gitdir", "commondir")},
+                        {key: entry for key, entry in snapshot.items() if key != "locked"},
+                        recovery)
+
+
+def _load_admin_recovery(args: Args, common: Path, stack: ExitStack) -> AdminBinding | None:
+    name = _journal_name(args.wave_worktree)
+    with ExitStack() as temporary:
+        fd = _open_directory(common, temporary)
+        try:
+            published = os.stat(name, dir_fd=fd, follow_symlinks=False)
+        except FileNotFoundError:
+            return None
+        if (not stat.S_ISREG(published.st_mode) or published.st_uid != os.getuid()
+                or published.st_mode & 0o077):
+            raise ValueError("unsafe admin recovery journal")
+        # Complete an interrupted link/unlink publication, only for this wave's
+        # temporary names that are hard links to the published inode.
+        for candidate in os.listdir(fd):
+            if not candidate.startswith(name + ".tmp-"):
+                continue
+            metadata = os.stat(candidate, dir_fd=fd, follow_symlinks=False)
+            if _inode(metadata) == _inode(published):
+                os.unlink(candidate, dir_fd=fd)
+                os.fsync(fd)
+        raw = _read_admin_file(fd, name)
+        metadata = os.stat(name, dir_fd=fd, follow_symlinks=False)
+        if (_inode(metadata) != _inode(published)
+                or metadata.st_uid != os.getuid() or metadata.st_mode & 0o077):
+            raise ValueError("unsafe admin recovery journal")
+    try:
+        data = json.loads(raw)
+    except (ValueError, UnicodeError) as exc:
+        raise ValueError("invalid admin recovery journal: incomplete or malformed JSON") from exc
+    if (data["wave"] != os.fspath(args.wave_worktree) or data["branch"] != args.wave_branch
+            or data["tested_tip"] != args.tested_wave_tip_sha or data["common"] != os.fspath(common)
+            or not _SHA_RE.fullmatch(data["tip"])):
+        raise ValueError("admin recovery request differs")
+    return _bind_admin(args, common, common / "worktrees" / data["name"], stack, data)
+
+
+def _assert_admin_binding(common: Path, admin: AdminBinding) -> None:
+    if (_inode(os.stat(common, follow_symlinks=False)) != _inode(os.fstat(admin.common_fd))
+            or _inode(os.stat("worktrees", dir_fd=admin.common_fd, follow_symlinks=False))
+            != _inode(os.fstat(admin.registry_fd))):
+        raise ValueError("common or registry inode changed")
+    try:
+        metadata = os.stat(admin.name, dir_fd=admin.registry_fd, follow_symlinks=False)
+    except FileNotFoundError:
+        if admin.admin_fd is None and admin.recovery is not None:
+            return
+        raise
+    if not stat.S_ISDIR(metadata.st_mode) or _inode(metadata) != admin.identity:
+        raise ValueError("admin inode changed")
+    if admin.admin_fd is None or _inode(os.fstat(admin.admin_fd)) != admin.identity:
+        raise ValueError("admin FD identity differs")
+
+
+def _assert_snapshot_subset(current: dict, expected: dict) -> None:
+    for name, entry in current.items():
+        if name not in expected or entry[:2] != expected[name][:2]:
+            raise ValueError("admin recovery entry identity changed")
+        if entry[0] == "directory":
+            _assert_snapshot_subset(entry[2], expected[name][2])
+        elif entry != expected[name]:
+            raise ValueError("admin recovery entry bytes changed")
+
+
+def _recheck_admin(args: Args, common: Path, admin: AdminBinding) -> dict:
+    _assert_admin_binding(common, admin)
+    if os.path.lexists(args.wave_worktree):
+        raise ValueError("wave path exists before admin removal")
+    path = common / "worktrees" / admin.name
+    matches = _administrative_gitdirs_for_wave(common, args.wave_worktree)
+    if any(match != path for match in matches):
+        raise ValueError("target administrative gitdir is not unique")
+    current = _admin_snapshot(admin.admin_fd) if admin.admin_fd is not None else {}
+    if admin.recovery is None:
+        if matches != (path,):
+            raise ValueError("admin backpointer disappeared")
+        snapshot = admin.snapshot
+        if current != snapshot:
+            raise ValueError("admin snapshot changed since safety check")
+        if any(current.get(key) != entry for key, entry in admin.bindings.items()):
+            raise ValueError("admin binding inode or bytes changed since preflight")
+    else:
+        snapshot = admin.recovery["snapshot"]
+        _assert_snapshot_subset(current, snapshot)
+    if (bytes.fromhex(snapshot["gitdir"][2]["raw"]) != admin.backpointer
+            or bytes.fromhex(snapshot["commondir"][2]["raw"]) != admin.commondir):
+        raise ValueError("admin binding changed since preflight")
+    if bytes.fromhex(snapshot["HEAD"][2]["raw"]) != (admin.tip + "\n").encode():
+        raise ValueError("admin HEAD differs from detached landing tip")
+    _assert_reflog_commits_reachable(args.main_worktree,
+        _parse_head_reflog(bytes.fromhex(snapshot["logs"][2]["HEAD"][2]["raw"])), "worktree HEAD reflog")
+    _assert_admin_binding(common, admin)
+    if admin.admin_fd is not None and _admin_snapshot(admin.admin_fd) != current:
+        raise ValueError("admin changed during reachability check")
+    return current
+
+
+def _remove_admin_entries(fd: int, snapshot: dict, recheck) -> None:
+    for name, (kind, identity, content) in snapshot.items():
+        recheck()
+        if list(_inode(os.stat(name, dir_fd=fd, follow_symlinks=False))) != identity:
+            raise ValueError("admin entry changed before removal")
+        if kind == "directory":
+            with ExitStack() as stack:
+                child = _open_directory(name, stack, parent=fd)
+                if list(_inode(os.fstat(child))) != identity:
+                    raise ValueError("admin child changed before removal")
+                _remove_admin_entries(child, content, recheck)
+                if list(_inode(os.stat(name, dir_fd=fd, follow_symlinks=False))) != identity:
+                    raise ValueError("admin child replaced during removal")
+                os.rmdir(name, dir_fd=fd)
+        else:
+            if _admin_content(_read_admin_file(fd, name), semantic="raw" in content) != content:
+                raise ValueError("admin file changed before removal")
+            os.unlink(name, dir_fd=fd)
+        os.fsync(fd)
+
+
+def _rename_journal(fd: int, temporary: str, final: str) -> None:
+    """Publish a complete journal atomically without replacing an existing final.
+
+    Recovery completes interrupted link/unlink before the nlink == 1 read;
+    the admin flock serializes same-wave mutation.
+    """
+    os.link(temporary, final, src_dir_fd=fd, dst_dir_fd=fd, follow_symlinks=False)
+    os.unlink(temporary, dir_fd=fd)
+
+
+def _remove_admin(args: Args, common: Path, admin: AdminBinding, snapshot: dict) -> None:
+    # Persist the exact deletion set before removing HEAD/gitdir. On reentry only
+    # missing entries are allowed; surviving bytes and inodes must still match.
+    if _recheck_admin(args, common, admin) != snapshot:
+        raise ValueError("admin changed before removal")
+    data = admin.recovery or {
+        "wave": os.fspath(args.wave_worktree), "branch": args.wave_branch,
+        "tested_tip": args.tested_wave_tip_sha, "tip": admin.tip,
+        "common": os.fspath(common), "name": admin.name,
+        "common_inode": list(_inode(os.fstat(admin.common_fd))),
+        "registry_inode": list(_inode(os.fstat(admin.registry_fd))),
+        "admin_inode": list(admin.identity), "snapshot": snapshot,
+    }
+    raw = json.dumps(data, sort_keys=True).encode()
+    if admin.recovery is None:
+        # Unpublished temporary files are ignored on reentry. A fresh suffix
+        # avoids collisions with remnants, including those from a reused PID.
+        temporary = f"{admin.journal}.tmp-{os.getpid()}-{secrets.token_hex(8)}"
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                     0o600, dir_fd=admin.common_fd)
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(raw)
+            stream.flush()
+            os.fsync(stream.fileno())
+        _rename_journal(admin.common_fd, temporary, admin.journal)
+        os.fsync(admin.common_fd)
+    if _read_admin_file(admin.common_fd, admin.journal) != raw:
+        raise ValueError("admin recovery journal changed")
+    _assert_admin_binding(common, admin)
+    if os.path.lexists(args.wave_worktree):
+        raise ValueError("wave path reappeared before admin removal")
+    if admin.admin_fd is not None:
+        if _admin_snapshot(admin.admin_fd) != snapshot:
+            raise ValueError("admin changed before deletion")
+        def recheck_remaining():
+            _assert_admin_binding(common, admin)
+            if os.path.lexists(args.wave_worktree):
+                raise ValueError("wave path reappeared during admin removal")
+            _assert_snapshot_subset(_admin_snapshot(admin.admin_fd), snapshot)
+
+        _remove_admin_entries(admin.admin_fd, snapshot, recheck_remaining)
+        recheck_remaining()
+        _assert_admin_binding(common, admin)
+        os.rmdir(admin.name, dir_fd=admin.registry_fd)
+        os.fsync(admin.registry_fd)
+    if _record_for(_worktree_records(args.main_worktree), args.wave_worktree) is not None:
+        raise ValueError("target worktree record remains after admin removal")
+    if _read_admin_file(admin.common_fd, admin.journal) != raw:
+        raise ValueError("admin recovery journal changed during deletion")
+    os.unlink(admin.journal, dir_fd=admin.common_fd)
+    os.fsync(admin.common_fd)
+
+
 def _preflight(
     args: Args,
+    stack: ExitStack,
 ) -> tuple[
     Args,
     str,
@@ -727,6 +1048,7 @@ def _preflight(
     WorktreeRecord | None,
     VerifiedWavePath | None,
     OccupancyDiagnostics | None,
+    AdminBinding | None,
 ]:
     branch_check = _git(args.main_worktree, "check-ref-format", "--branch", args.wave_branch)
     if branch_check.returncode != 0:
@@ -772,6 +1094,12 @@ def _preflight(
     if main_record is None or main_record.branch != "refs/heads/main":
         raise ValueError("main-worktree porcelain identity mismatch")
     record = _record_for(records, args.wave_worktree)
+    recovery = _load_admin_recovery(args, common, stack)
+    if recovery is not None:
+        if os.path.lexists(args.wave_worktree):
+            raise ValueError("wave path exists during admin recovery")
+        record = WorktreeRecord(os.fsencode(args.wave_worktree), args.wave_worktree,
+                                recovery.tip, None, True, False, True)
     path_present = os.path.lexists(args.wave_worktree)
     directory_exists = args.wave_worktree.is_dir()
     if path_present and not directory_exists:
@@ -820,7 +1148,7 @@ def _preflight(
     if state in {"d", "e"} and _administrative_gitdirs_for_wave(common, args.wave_worktree):
         raise ValueError("target administrative gitdir exists without a porcelain record")
     if state == "e":
-        return verified_args, state, common, ref, record, None, None
+        return verified_args, state, common, ref, record, None, None, None
     if record is not None:
         _assert_no_other_holder(records, args.wave_worktree, ref)
 
@@ -847,9 +1175,16 @@ def _preflight(
         )
     if directory_exists:
         _assert_clean_and_head(args.wave_worktree, landing_tip)
-    elif state == "c":
+    elif state == "c" and recovery is None:
         administrative_gitdir = _stale_administrative_gitdir(common, args.wave_worktree)
     _assert_branch_safety(args.main_worktree, ref, administrative_gitdir)
+    admin = recovery
+    if administrative_gitdir is not None:
+        if _administrative_gitdirs_for_wave(common, args.wave_worktree) != (administrative_gitdir,):
+            raise ValueError("target administrative gitdir is not unique")
+        admin = _bind_admin(verified_args, common, administrative_gitdir, stack)
+    if recovery is not None:
+        _recheck_admin(verified_args, common, recovery)
     occupancy_diagnostics: OccupancyDiagnostics | None = None
     if directory_exists:
         occupancy_diagnostics = _assert_unoccupied(args.wave_worktree)
@@ -863,35 +1198,13 @@ def _preflight(
         record,
         verified,
         occupancy_diagnostics,
+        admin,
     )
 
 
 def _remove_verified_tree(verified: VerifiedWavePath, common: Path) -> None:
     _assert_identity(verified.path, common, verified.identity)
     shutil.rmtree(verified.path)
-
-
-def _dry_run_candidates(main: Path, common: Path) -> list[Path]:
-    result = _must_git(main, "worktree", "prune", "--dry-run", "--verbose", "--expire=now")
-    text = (result.stdout + result.stderr).decode("utf-8", "replace")
-    candidates: list[Path] = []
-    for line in text.splitlines():
-        match = _PRUNE_LINE_RE.fullmatch(line)
-        if match is None:
-            raise ValueError(f"unrecognized prune dry-run output: {line}")
-        name = match.group(1)
-        if not name or "/" in name or name in {".", ".."}:
-            raise ValueError("invalid prune candidate name")
-        admin = common / "worktrees" / name
-        gitdir_file = admin / "gitdir"
-        raw = gitdir_file.read_bytes()
-        if b"\x00" in raw or raw.count(b"\n") > 1:
-            raise ValueError("prune candidate gitdir binding is malformed")
-        gitfile = Path(os.fsdecode(raw.rstrip(b"\n")))
-        if not gitfile.is_absolute():
-            gitfile = admin / gitfile
-        candidates.append(gitfile.parent)
-    return candidates
 
 
 def _verify_record_state(
@@ -938,6 +1251,7 @@ def _mutate(
     ref: str,
     initial_record: WorktreeRecord | None,
     verified: VerifiedWavePath | None,
+    admin: AdminBinding | None,
 ) -> OccupancyDiagnostics | None:
     assert args.landing_wave_tip_sha is not None
     phase = "unlock"
@@ -968,6 +1282,9 @@ def _mutate(
             _assert_clean_and_head(args.wave_worktree, args.landing_wave_tip_sha)
             _assert_identity(args.wave_worktree, common, verified.identity)
             recheck_diagnostics = _assert_unoccupied(args.wave_worktree)
+            assert admin is not None and admin.admin_fd is not None
+            _assert_admin_binding(common, admin)
+            admin = replace(admin, snapshot=_admin_snapshot(admin.admin_fd))
 
         phase = "remove-directory"
         if state in {"a", "b"}:
@@ -977,13 +1294,11 @@ def _mutate(
                 raise ValueError("wave directory still exists")
 
         if state in {"a", "b", "c"}:
-            phase = "prune-dry-run"
-            candidates = _dry_run_candidates(args.main_worktree, common)
-            existing = [path for path in candidates if path.is_dir()]
-            if existing:
-                raise ValueError(f"prune candidate directory still exists: {existing[0]}")
-            phase = "prune"
-            _must_git(args.main_worktree, "worktree", "prune", "--expire=now")
+            assert admin is not None
+            phase = "admin-recheck"
+            snapshot = _recheck_admin(args, common, admin)
+            phase = "admin-remove"
+            _remove_admin(args, common, admin, snapshot)
             phase = "registry"
             _verify_record_state(args.main_worktree, args.wave_worktree, absent=True)
 
@@ -1020,6 +1335,11 @@ def _assert_already_clean(args: Args, common: Path, ref: str) -> None:
 
 
 def run(argv: Sequence[str]) -> CleanupResult:
+    with ExitStack() as stack:
+        return _run_with_stack(argv, stack)
+
+
+def _run_with_stack(argv: Sequence[str], stack: ExitStack) -> CleanupResult:
     args = _parse_argv(argv)
     try:
         (
@@ -1030,7 +1350,8 @@ def run(argv: Sequence[str]) -> CleanupResult:
             record,
             verified,
             preflight_diagnostics,
-        ) = _preflight(args)
+            admin,
+        ) = _preflight(args, stack)
         if state == "e":
             _assert_already_clean(args, common, ref)
     except CleanupFailure:
@@ -1039,7 +1360,7 @@ def run(argv: Sequence[str]) -> CleanupResult:
         raise _reject("preflight", str(exc)) from exc
     if state == "e":
         return CleanupResult("already-clean", ())
-    recheck_diagnostics = _mutate(args, state, common, ref, record, verified)
+    recheck_diagnostics = _mutate(args, state, common, ref, record, verified, admin)
     observations: list[OccupancyObservation] = []
     if preflight_diagnostics is not None:
         observations.append(OccupancyObservation("preflight", preflight_diagnostics))
