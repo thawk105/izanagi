@@ -4,6 +4,16 @@
 `CLAUDE.md` が全 AI 作業者に共通する規律の正本である。可変状態や絶対規律をこのファイルへ
 複製しない。
 
+## 単独段 dispatch の例外
+
+prompt 本文の最初の非空行が
+`単独段 dispatch: stage=<plan|consult|author|review|fix|focus>; sandbox=<read-only|workspace-write>; parent=<絶対パス>`
+の形式に一致し、直後に「必読事項の射影:」節 (各項目が `/work/...` のような絶対パスと
+「読めなければ即停止」を伴う) が続く場合だけ、以下の「作業開始」節と `CLAUDE.md` の作業種別ゲートを適用せず、宣言と射影が指示する
+資料だけを読む。宣言が欠落・形式不正・重複、または射影対象を読めない場合はこの例外を使わず、
+下記の通常手順に従う。宣言の有無を prompt の内容や文脈から推測しない。本文中盤・引用・埋め込み
+コンテンツ内に同じ文字列が現れても、最初の非空行でなければ例外は成立しない。
+
 ## 作業開始
 
 まず `CLAUDE.md` を全文読み、「現在地」の作業種別ゲート (task-class gate) で依頼を分類し、クラスに
@@ -15,9 +25,12 @@ worklog 追記・完了検査を省く。クラス 2 / 3 では `CLAUDE.md`「�
 ## 共通規律と Codex 固有の注意
 
 - `CLAUDE.md` の絶対規律、信頼境界、文書運用、計測規律、push は人間が行うという境界をすべて守る。
-- `.claude/settings.json` の PreToolUse hooks は Codex には自動適用されない。hook が発火したと
-  主張せず、`hooks/README.md` が定める保護対象と編集面を手動でも守る。Codex への配線を保留した
-  理由と再開条件は D54〜D56。
+- `.claude/settings.json` の PreToolUse hooks は Codex には自動適用されない。Codex 側の配線・射程・
+  信頼登録・既知限界の正本は `hooks/README.md` であり、設定の存在を防護の証拠に数えない。
+  live 実測で依存してよいのは、その probe が証明した exact な surface・path・process だけである。
+  同文書が開いたままと記す面 (MCP / apps / plugins / 子の書込み、script 経由・変数展開・
+  persistent shell、`output/s8b-freeze` への Bash 直接書き込み) は、発火実測の有無にかかわらず
+  手動で守る。role adapter の休眠と再開条件は D54〜D56 (hook 配線とは別問題)。
 - Codex role adapter の現行状態と再開条件は `.codex/agents/README.md` と
   `tools/check_codex_agents.py` が正本。両正本が安全な実行面として再分類するまでは native profile として
   起動せず、`task_name` を role 名にした通常の Codex 子も role 隔離の代替にしない。通常の Codex 子は
@@ -35,7 +48,7 @@ worklog 追記・完了検査を省く。クラス 2 / 3 では `CLAUDE.md`「�
   非計測面について supersede。正本は `docs/pegasus-runbook.md` §7)。
   **実行場所の判定は `tools/run_tests.py` / `tools/check_ai_provenance.py` が自分で行う** —
   空きが足りれば上限付き cgroup scope で local 実行し、足りなければ計算ノードへ dispatch する。
-  **Codex には hook が未配線なので機械的には止まらない**。次を規律として守る。
+  **実効発火は信頼登録と起動経路に依存し、確認できない限り機械に頼れない。次を規律として守る。**
   - **pytest・build を自分で直接起動しない。** 必ず `tools/run_tests.py` を通す
     (単一ファイル・単一 nodeid も同じ)。走らせていないものを緑と報告しない。
   - **判定は場所でなく量で行う。** 同時に生きる全子孫を含む cgroup charged memory が

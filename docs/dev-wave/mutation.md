@@ -4,10 +4,10 @@
 
 ## DW-M01 — 事前登録と単一理由性
 
-段 4 で B-057 の変異を実装前に登録する。各変異は位置に加え、同じ入力を拒否する層が前後に
-無いこと、無効化時の赤理由が一つに絞れることをコードで確認する。確認できなければ
-登録せず実効 gate へ再照準する（F28）。受理集合を縮小する wave では、承認外の過剰拒否を検出する
-正例も登録する。テスト強化だけの wave は `DW-M08` の新旧両走も登録する。
+変異は実装前に登録する。段 4 は B-057、段 6 の real 所見は fix 前。各変異は位置と、同じ
+入力を拒否する層が前後にも内側にも無く赤理由が一つに絞れることを実装後に確認し（F820）、
+できなければ登録せず実効 gate へ再照準する（F28）。未知 key を持つ spec は起動前に中止。受理集合を縮小する wave は承認外の過剰拒否の
+正例も、テスト強化だけの wave は `DW-M08` の新旧両走も登録する。
 
 ## DW-M02 — 所見ゼロの裏取り
 
@@ -27,22 +27,30 @@ equivalent としない。両層変異は kill 期待を必ず事前登録する
 
 ## DW-M05 — 復元と単一走行
 
-変異 harness は `tools/mutation_harness.py` を使う（元ソースの固定 HEAD 束縛、起動・復元時の
-内容比較、`flock` 単一走行、逐次 flush、HEAD/spec 束縛の `--resume`、signal 復元を fail-closed で
-強制する。F32）。独自 harness は同等の検査を備えると段 4 で事前登録する。
-起動前に総所要を見積り、外側の実行時間上限に掛からない経路で起動する。この 2 つは tool が
-検証できない自己申告で親の義務に残る。生存 process を `pgrep -f` で照合するなら ERE か literal を
-使い BRE の `\|` を避け、待ち手自身と並行 wave の子に当たらないよう worktree path で一意化する。
+変異harnessは`tools/mutation_harness.py`を使う。同toolは元ソースの固定HEAD束縛、起動/復元時の
+内容比較、`flock`単一走行、逐次flush、HEAD/spec束縛の`--resume`、signal復元をfail-closedで
+強制する（F32）。独自harnessは同等検査を備えると段4で事前登録する。
+変異中は親の編集とworktreeへ書きうる子の起動を止める。起動前に総所要を見積り、外側の
+実行時間上限内の経路で起動する。この2点はtoolが検証不能な親の自己申告義務。
+生存process照合はERE/literalで`\|`を避け、worktree pathで待ち手自身と並行waveの子を除く。
 
 ## DW-M06 — hang 変異
 
-hang しうる変異は spec の `hang_risk` で部分集合と timeout へ隔離する。timeout は当該変異が
-fail-closed から fail-open へ倒れた証拠として記録し、harness 全体を落とさない（F32）。
+hang 変異は `hang_risk` と timeout へ隔離し、timeout を fail-open の証拠とする（F32）。
+dispatch は `hang_timeout_seconds` < job walltime。超過は orphan hold 中止 + 変異残留になる。
 
 ## DW-M07 — fix 後 anchor
 
-fix 後の最終 commit で変異 spec の anchor（old 逐語）と期待 node を再検証してから本走する。
-mask 時の再照準と erratum は `DW-M02` に従い台帳へ残す。
+本走前にfix後の最終commitでspecのanchor(old逐語)と期待nodeを再検証。
+mask時の再照準とerratumは`DW-M02`に従い台帳へ。
+本走は`--runner-mode dispatch`既定、runner argvへ`--force-dispatch`。localはspec不問でlogin拒否。
+runner経路の変異は自壊し収集段`rc=16`。
+`--attempt-out`と`--wrapper-attempt`はdispatch専用の同時指定必須ペア(片方のみ中止)。後者は1以上の整数、
+実走は`--detached`必須。再投入は両方変え、`--resume`は前回sidecarを新pathへ複写(F453。空fileは中止)。
+KILLED期待でnode空のspecは起動前に中止。probeは全件SURVIVEDで登録し観測nodeを集める。
+`--spec`/`--out`/`--attempt-out`はcheckout外必須(repo内rc=2。spec残置で次走もrc=2)、`--out`は
+`--scratch-root`と同一device(別deviceはrename失敗)。`timeout_seconds`はdispatch envelope超
+(下回るとqueue待ちでtimeoutし変異が残る)。
 
 ## DW-M08 — 失敗 node と検出力
 
