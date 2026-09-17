@@ -856,6 +856,38 @@ B-4 prerun publication root (repo 相対): `output/b4-prerun-publication`
     block・同じ precursor・同じ model/prompt から来たことを強制しない。複数の pair を作り
     都合のよい receipt を選ぶ経路が残る (同一 receipt の再消費だけは閉じた)。
 
+    **追記 (2026-09-17、[T-1912]、D1986 項 3)。** 上の「同じ block・同じ precursor から来たことを
+    強制しない」は、2026-08-29 の [T-2049] (`227ec6892`) 以降の実装を表さない。receipt 消費点の関門
+    自体は今も receipt 1 枚しか見ないが、その後段の最終組立て
+    (`orchestrator/campaign/p3_b4_raw_record_producer.py` の `assemble_b4_raw_analysis`) が、
+    公開済みの on / off attempt artifact を次のとおり束縛する — on と off の `identity.pair_id` の
+    一致、on と off の `binding` の完全一致、その `binding` が封印済み registry と凍結 manifest から
+    再導出した期待値 (attempt id・block id・driver・registry / manifest の sha256・
+    precursor hash = registry の `initial_proposal_sha256`・reference tps・reference snapshot hash・
+    reference receipt hash) と exact に一致すること、`(campaign_id, iteration, arm)` の三つ組が
+    publication 内で一意であること。raw 行の precursor hash は arm の自己申告でなく照合済み
+    `binding` から代入する。正例・負例は `orchestrator/tests/test_p3_b4_raw_record_producer.py` の
+    `test_m01_assembly_rederives_precursor_from_the_sealed_registry`、
+    `test_m04_final_assembly_rejects_different_on_off_pair_ids`、
+    `test_m08_publication_rejects_reuse_of_campaign_iteration_arm_tuple`、
+    `test_positive_201_block_certified_preserves_decimal_and_all_pair_protocol_bindings`。
+    **したがって block id・precursor (proposal)・on / off receipt の 4 者の束縛は、1 つの publication の
+    内側では閉じている。** ただしこの束縛が示すのは registry の宣言値と artifact の一致 (転記の
+    一貫性) までであり、宣言値が実 campaign の proposal から計算されたことは示さない
+    (同 module が非保証として明記している)。
+
+    **閉じていないのは publication をまたぐ選別である。** 発行器は §6 が名指す 1 つの root へ
+    create-only でしか発行しないが (D1881)、loader と材料レポート生成
+    (`orchestrator/campaign/p3_b4_material_report.py` の `_load_and_evaluate`) は呼び手が指定した
+    root を 1 つだけ読む。別の checkout から、または既存 root を退けたうえで、名指しどおりの root へ
+    publication をもう 1 つ発行し、それぞれ整合した pair 群を走らせ、結果を見てから有利な publication
+    だけを材料レポート生成へ渡す経路は残る。最終組立ては渡されなかった publication の存在を知らない。
+    閉じるには publication をまたぐ追記専用の権威が要り、それは上の file-drawer 項と同じ機構である。
+    D1986 項 3 はこれを閉じないと裁定し、閉じていないことを本書の文面へ出すにとどめた
+    (D1884 / D1896 と同じ形)。同じ model/prompt から来たことの強制は本追記の対象外であり、
+    §10 の `expected_claude_model_snapshot` 項の現在地に従う。
+    **本追記は §7.1 の規則を実効化せず、§5 のどの欄も記入済みにしない。**
+
   **起動器が保証しないこと (2026-08-27):** 同一 process からの closure 内省と module 属性の
   書換えに対する耐性は保証しない。Python では `__closure__` の走査を塞げないため、
   同一 process 内から封印と発行者へ到達できる。**閉じたとは書かない。**
@@ -1021,6 +1053,15 @@ next synthesis・primary outcome・secondary outcome を新たに生成も閲覧
 - **certified の実行主体の trust root。** production factory は `PATH` 上の `claude` を解決するだけで
   binary の identity を認証しない。閉じるには AI が書けない領域の鍵と発行主体が要る。
 - **pair の完全性と receipt shopping の遮断** (同一 receipt の再消費だけは閉じた)。
+
+  **追記 (2026-09-17、[T-1912]、D1986 項 3)。** 上の項目のうち、on と off が同じ block・
+  同じ precursor (proposal) から来たことの束縛と、on / off receipt の束縛は、1 つの publication の
+  内側では 2026-08-29 以降閉じている (§7.2 の同日の追記に実装と正例・負例を書いた)。
+  **本項目が閉じない事項のまま残る理由は、publication をまたぐ選別 — 名指しどおりの root へ発行した
+  publication を複数用意し、結果を見てから 1 つだけを材料レポート生成へ渡すこと — が残るからである。**
+  閉じるには publication をまたぐ追記専用の権威が要り、D1986 項 3 はそれを足さず、閉じていないことを
+  文面へ出すにとどめると裁定した。同じ model/prompt から来たことの強制は
+  `expected_claude_model_snapshot` 項に従う。
 - **WAL と checkpoint の論理世代の束縛。**
 - file-drawer の機械強制 (manifest・append-only registry・完全性 consumer)。
 
