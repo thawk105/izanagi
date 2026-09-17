@@ -41,7 +41,14 @@ title: [T-2632] 順序 (2) の precheck — B-4 事前登録 §5 の 2 欄 (校�
   literal 写像と registry 属性の二重定義の解消。
 - 段 3 敵対相談 2 本 (read-only codex、`--lane luna` × 2、reasoning medium) の所見 20 件は real 10 / refuted 10。親の較正値・sha256・
   契約世代・key 再計数に誤りは無かった。dev-wave 改善候補は 0 件 (段 8 は無言通過)。
-- 検査: `tools/check_docs.py`、`spool_fold.py --dry-run`、`git diff --check` (逐語 2 本の可逆最小正規化を README に記録)。
+- 検査: `tools/check_docs.py`、`spool_fold.py --dry-run`、`git diff --check` (逐語 2 本の可逆最小正規化を README に記録)、
+  三軸語走査 rc=0、全史 provenance 監査 11,080 件・新規違反なし。
+- **受入全走 attempt 1 (計算ノード 3 shard、main `05eca6af4` 取り込み後の tip) は rc=70: 3 error / 24756 passed / 67 skipped。**
+  3 件はすべて `test_t1259_qsub_env_delivery_probe.py` の setup 段 `git ls-files --others --exclude-standard -z` の 30 秒
+  `TimeoutExpired` (shard-0 の junit.xml 本文で確認、F945 型)。本 wave は docs-only で test / production を触らず差分到達
+  不能。同 file の単独再走 (計算ノード dispatch、request 4072.nqsv) は **51 passed** で非再現 → **非帰属と判定**。login で
+  load1 26.6 のとき同 command を手計測すると約 37 秒。hold 登録・timeout 拡大はしない。attempt 2 は門番 (他 session の受入
+  leader ≤2・load1 < 30 かつ下降局面・ls-files < 25 秒) を待って同一 tip で投げ直す。
 
 ## 次の一手差分
 
