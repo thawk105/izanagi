@@ -1,0 +1,139 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 60,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "m0-equivalent-docstring",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    再帰は executor 一層を必ず消費する。密着 option を分離した正規形では\n",
+     "new": "    再帰は executor を一層ずつ消費する。密着 option を分離した正規形では\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-recursion-entry-false",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    invocation = _python_module_invocation(head, args)\n    if invocation is not None:\n        program = _script_executor_program(*invocation)\n",
+     "new": "    invocation = _python_module_invocation(head, args)\n    if False and invocation is not None:\n        program = _script_executor_program(*invocation)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-module-kind-dropped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    if kind == \"module\" and not _PYTHON_MODULE_RE.fullmatch(value):\n        return None\n    return kind, value, rest\n",
+     "new": "    if kind == \"module\":\n        return None\n    return kind, value, rest\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-coverage-run-dropped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    if module in _MULTI_TARGET_EXECUTOR_MODULES:\n        return None\n    parsed = _script_executor_arguments(module, args)\n    if parsed is None:\n        return None\n    args, value_options = parsed\n",
+     "new": "    if module in _MULTI_TARGET_EXECUTOR_MODULES:\n        return None\n    if module in {\"coverage\", \"coverage.__main__\"}:\n        return None\n    parsed = _script_executor_arguments(module, args)\n    if parsed is None:\n        return None\n    args, value_options = parsed\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-inner-rest-dropped",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "                inner_seg = [raw_head, \"-m\", value, *rest]\n",
+     "new": "                inner_seg = [raw_head, \"-m\", value]\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-script-kind-dropped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    if kind == \"module\" and not _PYTHON_MODULE_RE.fullmatch(value):\n        return None\n    return kind, value, rest\n",
+     "new": "    if kind == \"module\" and not _PYTHON_MODULE_RE.fullmatch(value):\n        return None\n    if kind == \"script\":\n        return None\n    return kind, value, rest\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-module-name-check-dropped",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    if kind == \"module\" and not _PYTHON_MODULE_RE.fullmatch(value):\n        return None\n    return kind, value, rest\n",
+     "new": "    if False:\n        return None\n    return kind, value, rest\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-multi-target-exclusion-dropped",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    if module in _MULTI_TARGET_EXECUTOR_MODULES:\n        return None\n    parsed = _script_executor_arguments(module, args)\n    if parsed is None:\n        return None\n    args, value_options = parsed\n",
+     "new": "    if False:\n        return None\n    parsed = _script_executor_arguments(module, args)\n    if parsed is None:\n        return None\n    args, value_options = parsed\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m8-recursion-after-sanctioned-control",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    invocation = _python_module_invocation(head, args)\n    if invocation is not None:\n        program = _script_executor_program(*invocation)\n        if program is not None:\n            kind, value, rest = program\n            if kind == \"module\":\n                inner_seg = [raw_head, \"-m\", value, *rest]\n            else:\n                prefix = [raw_head, \"--\"] if value.startswith(\"-\") else [raw_head]\n                inner_seg = [*prefix, value, *rest]\n            nested = _heavy_segment_violation(inner_seg, repo_root, depth + 1)\n            if nested:\n                return nested\n\n",
+     "new": ""
+    },
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    if (not _provenance_script_borrow(head, args)\n            and _is_sanctioned(raw_head, head, args, repo_root)):\n        return None\n\n",
+     "new": "    if (not _provenance_script_borrow(head, args)\n            and _is_sanctioned(raw_head, head, args, repo_root)):\n        return None\n\n    invocation = _python_module_invocation(head, args)\n    if invocation is not None:\n        program = _script_executor_program(*invocation)\n        if program is not None:\n            kind, value, rest = program\n            if kind == \"module\":\n                inner_seg = [raw_head, \"-m\", value, *rest]\n            else:\n                prefix = [raw_head, \"--\"] if value.startswith(\"-\") else [raw_head]\n                inner_seg = [*prefix, value, *rest]\n            nested = _heavy_segment_violation(inner_seg, repo_root, depth + 1)\n            if nested:\n                return nested\n\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
