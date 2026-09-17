@@ -81,7 +81,7 @@ rc の契約は次のとおりであり、削除可否そのものを表さな�
 | rc | 意味 |
 |---|---|
 | `0` | root snapshot、閉包、全 commit の判定と期限を含む可視化が完全 |
-| `2` | timeout、上限超過、root 移動、期限算出不能、台帳 parse 不能などで技術的に不完全 |
+| `2` | timeout、上限超過、root 移動、期限算出不能、台帳 parse 不能などで技術的に不完全。landed 判定に `indeterminate` が 1 件でもある場合を含む (D1231) |
 | `3` | 可視化は完全だが、未記帳 object、期限が近い未裁定 entry、または stale resolution の通知あり |
 | `64` | usage error |
 

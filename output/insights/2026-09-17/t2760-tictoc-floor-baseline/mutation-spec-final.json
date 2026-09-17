@@ -1,0 +1,142 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 3000,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M0-equivalent-trailing-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/between_run_floor.py",
+          "old": "    \"tictoc\": Genome(\"tictoc\", {\n",
+          "new": "    \"tictoc\": Genome(\"tictoc\", {  # stock = CMake cache defaults\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1-drop-tictoc-entry",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/between_run_floor.py",
+          "old": "    \"tictoc\": Genome(\"tictoc\", {\n        \"BACK_OFF\": 1,\n        \"NO_WAIT_LOCKING_IN_VALIDATION\": 1,\n        \"NO_WAIT_OF_TICTOC\": 0,\n        \"PREEMPTIVE_ABORTS\": 1,\n        \"TIMESTAMP_HISTORY\": 1,\n    }),\n",
+          "new": "    # (tictoc entry removed by mutation M1)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_baselines_are_points_of_their_registered_genome_space",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_protocol_output_stem_names_tictoc_without_colliding",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-tictoc-backoff-zero",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/between_run_floor.py",
+          "old": "        \"BACK_OFF\": 1,\n        \"NO_WAIT_LOCKING_IN_VALIDATION\": 1,\n        \"NO_WAIT_OF_TICTOC\": 0,\n        \"PREEMPTIVE_ABORTS\": 1,\n",
+          "new": "        \"BACK_OFF\": 0,\n        \"NO_WAIT_LOCKING_IN_VALIDATION\": 1,\n        \"NO_WAIT_OF_TICTOC\": 0,\n        \"PREEMPTIVE_ABORTS\": 1,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-tictoc-nowait-both-one",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/between_run_floor.py",
+          "old": "        \"NO_WAIT_OF_TICTOC\": 0,\n        \"PREEMPTIVE_ABORTS\": 1,\n",
+          "new": "        \"NO_WAIT_OF_TICTOC\": 1,\n        \"PREEMPTIVE_ABORTS\": 1,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_baselines_are_points_of_their_registered_genome_space",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-bypass-trace-hook-gate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/between_run_floor.py",
+          "old": "    if not _protocol_source_has_trace_hook_evidence_only(protocol):\n",
+          "new": "    if not (_protocol_source_has_trace_hook_evidence_only(protocol) or True):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_mocc_floor_rejected_before_build_or_measure_without_trace_hook",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-tictoc-stem-collapses-to-silo",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/between_run_floor.py",
+          "old": "    protocol_part = \"\" if protocol == \"silo\" else f\"_{protocol}\"\n",
+          "new": "    protocol_part = \"\" if protocol in (\"silo\", \"tictoc\") else f\"_{protocol}\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_protocol_output_stem_names_tictoc_without_colliding"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-parse-accepts-any-protocol",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/between_run_floor.py",
+          "old": "    if protocol not in BASELINES:\n",
+          "new": "    if protocol not in BASELINES and False:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-main-ignores-protocol-baseline",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/between_run_floor.py",
+          "old": "    baseline = BASELINES[protocol]\n",
+          "new": "    baseline = BASELINES[\"silo\"]\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_between_run_floor.py::test_hook_bearing_source_routes_mocc_baseline_through_main",
+        "orchestrator/tests/test_between_run_floor.py::test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

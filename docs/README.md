@@ -92,7 +92,8 @@
 - `isolation-phenomena.md` — verifier が判定する serializability 異常 (G0/G1/G2) の分類
 - `glossary.md` — 用語集 (用語を grep して該当項目だけ読む)
 - `related-work/` — 関連研究 (README.md が本体 — 7.7 が主張軸別の調査状態と不在主張の成立条件の規則 +
-  claim-survey/ 主張軸別の凍結棚卸し・監査 + shinka-deepdive.md 付録 + literature-map/ 文献マップ + notes/ 調査ノート)
+  claim-survey/ 主張軸別の凍結棚卸し・監査 + shinka-deepdive.md 付録 + literature-map/ 文献マップ + notes/ 調査ノート +
+  cc-candidates-2026-09-17.md 近年 CC 手法の CCBench 追加候補表 (D2114 項 4 の B 候補調査、日付付き凍結物))
 - `paper-story/` — 論文ストーリーの横断合成 (日付付き凍結スナップショットを束ねる、詳細は同 README)
 - `paper-story-backoff/` — adaptive backoff 単独論文 (2 本目) のストーリー。`paper-story/` と同じ凍結契約、
   正典は decisions / worklog / insights。本体論文との境界は同 README

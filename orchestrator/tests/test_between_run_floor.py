@@ -12,6 +12,7 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -23,6 +24,7 @@ sys.path.insert(0, os.path.dirname(_ORCH))
 
 from orchestrator.calibrator import runner                          # noqa: E402
 from orchestrator.campaign import between_run_floor                 # noqa: E402
+from orchestrator.campaign.genome import space_for                  # noqa: E402
 from orchestrator.campaign.p2_2 import _assert_single_tenant         # noqa: E402
 
 
@@ -251,6 +253,7 @@ def test_write_out_rolls_back_json_when_markdown_creation_fails():
 def test_trace_hook_admission_is_bound_to_source_facts():
     assert between_run_floor._protocol_source_has_trace_hook_evidence_only("silo")
     assert not between_run_floor._protocol_source_has_trace_hook_evidence_only("mocc")
+    assert not between_run_floor._protocol_source_has_trace_hook_evidence_only("tictoc")
 
 
 def test_trace_hook_admission_requires_readable_cmake_sources():
@@ -873,6 +876,182 @@ def test_main_measurement_failure_does_not_write_success_json():
         between_run_floor.measure_point_floor = originals["measure"]
         between_run_floor._write_out = originals["write"]
     assert writes == []
+
+
+def test_t2760_baselines_are_points_of_their_registered_genome_space():
+    assert set(between_run_floor.BASELINES) == {"silo", "mocc", "tictoc"}
+    for protocol, baseline in between_run_floor.BASELINES.items():
+        assert baseline.protocol == protocol
+        assert baseline in space_for(protocol).enumerate()
+
+
+def test_t2760_tictoc_baseline_matches_ccbench_cmake_cache_defaults_at_pin():
+    text = (between_run_floor.CCBENCH_ROOT / "cmake" / "Options.cmake").read_text(
+        encoding="utf-8",
+    )
+    flags = between_run_floor.BASELINES["tictoc"].flags
+    assert len(flags) == 5
+    for axis in flags:
+        match = re.search(rf"^\s*set\(CCBENCH_{axis}\s+(\d+)\s+CACHE\b", text, re.MULTILINE)
+        assert match is not None, axis
+        assert int(match.group(1)) == flags[axis], axis
+
+
+def test_t2760_parse_cli_args_accepts_tictoc_and_rejects_unregistered_protocol():
+    assert between_run_floor._parse_cli_args(
+        ["prog", "--protocol", "tictoc"]
+    ) == (None, "tictoc")
+    assert between_run_floor._parse_cli_args(
+        ["prog", "read-heavy", "--protocol=tictoc"]
+    ) == ("read-heavy", "tictoc")
+    try:
+        between_run_floor._parse_cli_args(["prog", "--protocol", "cicada"])
+    except ValueError as caught:
+        assert "unknown protocol" in str(caught)
+        assert "'cicada'" in str(caught)
+    else:
+        assert False, "baseline のない cicada が受理された"
+
+
+def test_t2760_protocol_output_stem_names_tictoc_without_colliding():
+    workload = {
+        "ycsb_zipf_skew": "0.9", "ycsb_rratio": "95", "ycsb_rmw": "0",
+    }
+    originals = {"scope_dir": between_run_floor.env_scope_dir}
+    with tempfile.TemporaryDirectory() as raw_tmp:
+        between_run_floor.env_scope_dir = lambda _env_tag: raw_tmp
+        try:
+            paths = {}
+            for protocol in ("silo", "mocc", "tictoc"):
+                paths[protocol] = Path(between_run_floor._write_out(
+                    "read-heavy", workload, {
+                        **_floor_result(),
+                        "genome": between_run_floor.BASELINES[protocol].canonical(),
+                    }, protocol=protocol, log=lambda *_args: None,
+                ))
+            assert paths["tictoc"].name == "between_run_noise_tictoc_t48_skew0p9_rr95_rmw0.json"
+            assert len({path.name for path in paths.values()}) == 3
+            assert between_run_floor.BASELINES["tictoc"].canonical() in (
+                paths["tictoc"].with_suffix(".md").read_text(encoding="utf-8")
+            )
+        finally:
+            between_run_floor.env_scope_dir = originals["scope_dir"]
+
+
+def test_t2760_tictoc_floor_rejected_before_build_or_measure_without_trace_hook():
+    calls = []
+    originals = {
+        "tenant": between_run_floor._assert_single_tenant,
+        "context": between_run_floor.build_run_context,
+        "evidence": between_run_floor.source_digest.resolve_evidence,
+        "admission": between_run_floor.derive_build_admission,
+        "build": between_run_floor.buildcache.build,
+        "measure": between_run_floor.measure_point_floor,
+        "write": between_run_floor._write_out,
+    }
+    between_run_floor._assert_single_tenant = lambda: calls.append("tenant")
+    between_run_floor.build_run_context = lambda **_kwargs: object()
+    between_run_floor.source_digest.resolve_evidence = (
+        lambda *_args, **_kwargs: object()
+    )
+    between_run_floor.derive_build_admission = lambda *_args: object()
+    between_run_floor.buildcache.build = lambda *_args, **_kwargs: (
+        calls.append("build") or SimpleNamespace(cached=True, binary="/fixture/tictoc")
+    )
+    between_run_floor.measure_point_floor = lambda *_args, **_kwargs: (
+        calls.append("measure") or {
+            "abort_rate": 0.0,
+            "within_run": {"cv": 0.01},
+            "between_run": {"cv": 0.02},
+        }
+    )
+    between_run_floor._write_out = lambda *_args, **_kwargs: calls.append("write")
+    try:
+        try:
+            between_run_floor.main(["prog", "read-heavy", "--protocol", "tictoc"])
+        except ValueError as caught:
+            assert "trace hook" in str(caught)
+            assert "'tictoc'" in str(caught)
+        else:
+            assert False, "trace hook のない tictoc floor が受理された"
+    finally:
+        between_run_floor._assert_single_tenant = originals["tenant"]
+        between_run_floor.build_run_context = originals["context"]
+        between_run_floor.source_digest.resolve_evidence = originals["evidence"]
+        between_run_floor.derive_build_admission = originals["admission"]
+        between_run_floor.buildcache.build = originals["build"]
+        between_run_floor.measure_point_floor = originals["measure"]
+        between_run_floor._write_out = originals["write"]
+    assert calls == []
+
+
+def test_t2760_hook_bearing_source_routes_tictoc_baseline_through_main():
+    calls = {"build": [], "measure": [], "write": []}
+    originals = {
+        "root": between_run_floor.CCBENCH_ROOT,
+        "tenant": between_run_floor._assert_single_tenant,
+        "context": between_run_floor.build_run_context,
+        "evidence": between_run_floor.source_digest.resolve_evidence,
+        "admission": between_run_floor.derive_build_admission,
+        "build": between_run_floor.buildcache.build,
+        "measure": between_run_floor.measure_point_floor,
+        "write": between_run_floor._write_out,
+    }
+    with tempfile.TemporaryDirectory() as raw_tmp:
+        root = Path(raw_tmp)
+        protocol_dir = root / "cc" / "tictoc"
+        protocol_dir.mkdir(parents=True)
+        (protocol_dir / "CMakeLists.txt").write_text(
+            "ccbench_add_protocol(tictoc SOURCES transaction.cc WORKLOADS ycsb)\n",
+            encoding="utf-8",
+        )
+        (protocol_dir / "transaction.cc").write_text(
+            '#include "../../include/trace.hh"\n'
+            "#if TRACE\n"
+            "izanagi_trace::emit_abort(1);\n"
+            "#endif\n",
+            encoding="utf-8",
+        )
+        between_run_floor.CCBENCH_ROOT = root
+        between_run_floor._assert_single_tenant = lambda: None
+        between_run_floor.build_run_context = lambda **_kwargs: object()
+        between_run_floor.source_digest.resolve_evidence = (
+            lambda *_args, **_kwargs: object()
+        )
+        between_run_floor.derive_build_admission = lambda *_args: object()
+
+        def fake_build(candidate, **_kwargs):
+            calls["build"].append(candidate)
+            return SimpleNamespace(cached=True, binary="/fixture/tictoc")
+
+        def fake_measure(_binary, _workload, *, baseline, **_kwargs):
+            calls["measure"].append(baseline)
+            return {
+                "abort_rate": 0.0,
+                "within_run": {"cv": 0.01},
+                "between_run": {"cv": 0.02},
+            }
+
+        between_run_floor.buildcache.build = fake_build
+        between_run_floor.measure_point_floor = fake_measure
+        between_run_floor._write_out = (
+            lambda *_args, **kwargs: calls["write"].append(kwargs["protocol"])
+        )
+        try:
+            assert between_run_floor.main(
+                ["prog", "read-heavy", "--protocol", "tictoc"]
+            ) == 0
+        finally:
+            between_run_floor.CCBENCH_ROOT = originals["root"]
+            between_run_floor._assert_single_tenant = originals["tenant"]
+            between_run_floor.build_run_context = originals["context"]
+            between_run_floor.source_digest.resolve_evidence = originals["evidence"]
+            between_run_floor.derive_build_admission = originals["admission"]
+            between_run_floor.buildcache.build = originals["build"]
+            between_run_floor.measure_point_floor = originals["measure"]
+            between_run_floor._write_out = originals["write"]
+    expected = between_run_floor.BASELINES["tictoc"]
+    assert calls == {"build": [expected], "measure": [expected], "write": ["tictoc"]}
 
 
 # ---- 素の runner (pytest 無しでも) ----
