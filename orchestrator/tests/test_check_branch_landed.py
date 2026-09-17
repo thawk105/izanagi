@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import json
 import os
 from pathlib import Path
+import shlex
+import shutil
 import subprocess
 import sys
 from typing import Any
@@ -1001,6 +1004,117 @@ def test_history_match_at_candidate_33_wins_before_65_plus_truncation(tmp_path: 
     unit = _unit(payload, path="f", reason="exact-state-in-main-history")
     assert unit["evidence"][0]["candidate_count"] == 65
     assert TOOL.DEFAULT_HISTORY_CANDIDATES == 1024
+
+
+def test_command_timeout_default_is_bounded_and_bound():
+    assert 0 < TOOL.COMMAND_TIMEOUT_SECONDS <= TOOL.DEFAULT_TIMEOUT_SECONDS
+    assert (
+        inspect.signature(TOOL.Git.run).parameters["command_timeout"].default
+        == TOOL.COMMAND_TIMEOUT_SECONDS
+    )
+
+
+def test_git_run_real_command_timeout_is_truncated(tmp_path: Path, monkeypatch):
+    sleep = shutil.which("sleep")
+    assert sleep is not None
+    fake_bin = tmp_path / "bin"
+    _write(fake_bin, "git", f"#!/bin/sh\nexec {shlex.quote(sleep)} 2\n", mode=0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}")
+    git = TOOL.Git(tmp_path, TOOL.time.monotonic() + 60)
+
+    with pytest.raises(TOOL.AssessmentError) as caught:
+        git.run(["status"], command_timeout=0.05)
+
+    assert caught.value.code == "assessment-timeout"
+    assert caught.value.outcome == "truncated"
+    assert isinstance(caught.value.__cause__, subprocess.TimeoutExpired)
+    assert caught.value.__cause__.timeout == pytest.approx(0.05)
+    assert git.command_count == 1
+
+
+@pytest.mark.parametrize("form", ["proof-path-log", "any-path-find-object"])
+@pytest.mark.parametrize("delayed", [True, False])
+def test_assess_real_log_timeout_is_indeterminate_not_a_verdict(
+    tmp_path: Path, monkeypatch, form: str, delayed: bool,
+):
+    if form == "proof-path-log":
+        repo, topic, oid, witness, _ = _history_fixture(tmp_path, "f")
+    else:
+        repo = _init_repo(tmp_path)
+        _topic(repo)
+        _write(repo, "unique.txt", "only topic\n")
+        _commit(repo, "pure addition")
+    real_git = shutil.which("git")
+    sleep = shutil.which("sleep")
+    assert real_git is not None and sleep is not None
+    fake_bin = tmp_path / "bin"
+    # Parse in a subshell so delegation retains every original argument.
+    selector = '''target=$(
+    while [ "$1" = "-c" ]; do shift 2; done
+    command=$1
+    find_object=false
+    path_separator=false
+    for arg in "$@"; do
+        case "$arg" in
+            --find-object=*) find_object=true ;;
+            --) path_separator=true ;;
+        esac
+    done
+    if [ "$command" = "log" ]; then
+'''
+    if form == "any-path-find-object":
+        selector += '        if "$find_object"; then printf yes; fi\n'
+    else:
+        selector += '        if ! "$find_object" && "$path_separator"; then printf yes; fi\n'
+    selector += "    fi\n)\n"
+    script = "#!/bin/sh\n" + selector
+    if delayed:
+        script += f'if [ "$target" = yes ]; then exec {shlex.quote(sleep)} 2; fi\n'
+    script += f'exec {shlex.quote(real_git)} "$@"\n'
+    _write(fake_bin, "git", script, mode=0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}")
+    original = TOOL.Git.run
+    reached = []
+    timeout_causes = []
+    timeout_values = []
+
+    def observe(self, args, **kwargs):
+        find_object = any(arg.startswith("--find-object=") for arg in args)
+        target = args[0] == "log" and (
+            find_object if form == "any-path-find-object"
+            else not find_object and "--" in args
+        )
+        if target:
+            reached.append(tuple(args))
+            assert self.remaining() > 1.0
+            if delayed:
+                kwargs["command_timeout"] = 0.05
+        try:
+            return original(self, args, **kwargs)
+        except TOOL.AssessmentError as exc:
+            if target and delayed:
+                timeout_causes.append(isinstance(exc.__cause__, subprocess.TimeoutExpired))
+                timeout_values.append(exc.__cause__.timeout)
+            raise
+
+    monkeypatch.setattr(TOOL.Git, "run", observe)
+    payload = TOOL.assess(repo, "topic")
+    assert len(reached) == 1
+    if delayed:
+        assert timeout_causes == [True]
+        assert timeout_values == [pytest.approx(0.05)]
+        assert payload["decision"] == TOOL._decision("indeterminate", "assessment-timeout")
+        assert payload["phase_outcomes"]["preflight"] == "matched"
+        assert payload["phase_outcomes"]["closure"] == "matched"
+        assert payload["phase_outcomes"]["proof"] == "truncated"
+        assert any(issue["code"] == "assessment-timeout" for issue in payload["issues"])
+        assert payload["negative_paths"] == []
+        assert payload["branch_delete_authorized"] is False
+    elif form == "proof-path-log":
+        _assert_exact_unit(payload, "f", topic, oid, witness)
+    else:
+        assert payload["decision"] == TOOL._decision("not-landed", "closed-world-negative-proof")
+        assert payload["negative_paths"] == ["unique.txt"]
 
 
 def test_global_timeout_is_indeterminate_json(tmp_path: Path):
