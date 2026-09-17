@@ -12,8 +12,8 @@ seq: 1
 `floor-pair-spec/v3` の spec 3 本を次の値で tracked file として置き、本決定と同じ commit で凍結する。既決値 (artifacts = D2069、
 cells・perf_config = D2088 / D2089、calibration = D2090、statistics・failure_policy・format ID = driver 定数) は再裁定せず逐語で継承する。
 
-1. **置き場と命名。** directory は `output/env/pegasus/floor-pair/t2288-f1/` (`output/env/<env_tag>/` の兄弟。`t2288-f1` は凍結集合の
-   識別子で、日付・commit を意味しない)。名前は issuer の `__key-value` 様式に揃え、D1641 決定 3 の 5 成分 (env_tag・protocol・threads・
+1. **置き場と命名。** directory は `output/env/pegasus/floor-pair/t2288-f1/` (`output/env/pegasus/` 配下で、`floor-pair/` は
+   `calibration/`・`binaries/` の兄弟。`t2288-f1` は凍結集合の識別子で、日付・commit を意味しない)。名前は issuer の `__key-value` 様式に揃え、D1641 決定 3 の 5 成分 (env_tag・protocol・threads・
    workload・campaign 識別子) を成果物 (窓・summary) の名前に含める。spec 名にも同じ成分を含めるのは可読性のための本 wave の選択であり、
    D1641 決定 3 が spec の命名を定めたとは読まない。`<wl>` ∈ {rr95, rr50, rr5}。
    - spec: `spec__env-pegasus__protocol-silo__threads-48__workload-<wl>-s0.9-rmw0__campaign-t2288-f1-<wl>-c1c2.json`
@@ -31,7 +31,8 @@ cells・perf_config = D2088 / D2089、calibration = D2090、statistics・failure
 4. **seed。** `seed_hex = SHA-256(UTF-8 "izanagi floor-pair-spec/v3 seed|<spec_relpath>|<source_commit>")` (改行なし)。公開式で再現できる。
    randomization (`hmac-sha256-rank/v1`) は窓内の標本順・side session 順・session 内の candidate / reference 順の 3 箇所を決める。
    親 commit や path を試行して seed を選別しない。式は再現性を与えるだけで、選別不能性や事前性を証明しない。
-5. **実行設定 (本 wave の運用選択、既決値ではない)。** `site PEGASUS_COMPUTE`・`env_tag pegasus`・`clocks_per_us 2100` (D1641 決定 3・D2089)、
+5. **実行設定 (既決値の継承と本 wave の運用選択)。** 既決値の継承 = `site PEGASUS_COMPUTE`・`env_tag pegasus`・`clocks_per_us 2100`
+   (D1641 決定 3・D2089)。本 wave の運用選択 (既決値ではない) = 以下の 5 項目:
    `numactl_argv []` (較正の certify 経路は NUMA node 数 1 で numactl を付けず、3 較正とも NUMA 1 node。「生成 command の numactl
    prefix が空」の意味で較正時と同等)、`extra_env {}` (親環境を継承し `FLAGS_` だけ除く)、`use_perf false`、`timeout_s 120`
    (calibrator の bench timeout と同値。較正時の rep wall 3.5〜4.5 秒に対する余裕であって成功率の保証ではない。短くすると標本が
