@@ -1,0 +1,39 @@
+| pid=252336 comm=python3 ppid=252322 SigIgn=0000000001005000 SigCgt=0000000000000002 Uid=31609	31609	31609	31609 TERM_IGNORED=True
+| pid=252322 comm=python3.10 ppid=252315 SigIgn=0000000001005000 SigCgt=0000000000000002 Uid=31609	31609	31609	31609 TERM_IGNORED=True
+| pid=252315 comm=python3.10 ppid=252296 SigIgn=0000000001005000 SigCgt=0000000000000002 Uid=31609	31609	31609	31609 TERM_IGNORED=True
+| pid=252296 comm=bash ppid=252295 SigIgn=0000000000004004 SigCgt=0000000000010002 Uid=31609	31609	31609	31609 TERM_IGNORED=True
+| pid=252295 comm=nqs_shpd ppid=252095 SigIgn=fffffffe7ff8f4ef SigCgt=0000000000010a00 Uid=31609	31609	31609	31609 TERM_IGNORED=True
+| pid=252095 comm=nqs_shpd ppid=2189 SigIgn=00000000083a8010 SigCgt=0000000036407a27 Uid=65534	65534	65534	65534 TERM_IGNORED=False
+| pid=2189 comm=nqs_shpd ppid=1 SigIgn=00000000083b8010 SigCgt=0000000036407a27 Uid=65534	65534	65534	65534 TERM_IGNORED=False
+| pid=1 comm=systemd ppid=0 SigIgn=0000000000001000 SigCgt=00000001000004ec Uid=65534	65534	65534	65534 TERM_IGNORED=False
+| hostname bnode145 sid 252295
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 252315, "time_ns": 1789684987410098663}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 252336, "event": "direct-child-wait-start", "pid": 252322, "time_ns": 1789684987438354432}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 252336, "event": "direct-child-wait-complete", "pid": 252322, "time_ns": 1789684987463583092}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 252322, "rc": 0, "time_ns": 1789684987463616033}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 252315, "rc": 0, "time_ns": 1789684987467681180}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 252315}, {"comm": "bash", "pid": 252296}, {"comm": "nqs_shpd", "pid": 252295}, {"comm": "nqs_shpd", "pid": 252095}, {"comm": "nqs_shpd", "pid": 2189}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 252315, "sid": 252295, "time_ns": 1789684987467958931}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 33.225715858861804, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 252315, "remaining": 0, "rounds_used": 1, "status": "clean", "time_ns": 1789684987501214984, "unattributed_total": 0, "unreadable": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 252315, "time_ns": 1789684987533522860}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 252315, "time_ns": 1789684987536709982}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 252315, "time_ns": 1789684987537418767}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 252315, "time_ns": 1789684987537428792}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 252315, "time_ns": 1789684987538520409}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 252315, "time_ns": 1789684987538528041}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 252315, "rc": 0, "time_ns": 1789684987538536879}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 252315, "rc": 0, "time_ns": 1789684987538548929}
+| 
+| ============================================================
+| Request ID:             5043.nqsv
+| Request Name:           izdw-36e8f55202
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Fri Sep 18 07:27:08 2026
+| Started Request Time:   Fri Sep 18 07:43:07 2026
+| Ended Request Time:     Fri Sep 18 07:43:07 2026
+| Resources Information:
+|   Elapse:               4S
+|   Remaining Elapse:     116S
+| ============================================================
