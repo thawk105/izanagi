@@ -604,6 +604,7 @@ class _LeaseOwnership(Enum):
 class _AcceptanceLifecycle:
     ownership: _LeaseOwnership = _LeaseOwnership.NONE
     acquired_at: float | None = None
+    # 未完了 merge の abort 権限。commit 後の巻き戻し権限ではない。
     merge_pending: bool = False
     cleanup_failure: _Outcome | None = None
     receipt_published: bool = False
@@ -3840,17 +3841,6 @@ def _run_acceptance_attempt(
                 (
                     sys.executable,
                     str(repo / "tools" / "check_ai_provenance.py"),
-                ),
-                repo,
-                "merge-history-provenance",
-                diagnostic_reason="full-history-provenance",
-                capture_failure_output=True,
-            )
-            _run_capture(
-                effects,
-                (
-                    sys.executable,
-                    str(repo / "tools" / "check_ai_provenance.py"),
                     "--message-file",
                     str(validated_message),
                 ),
@@ -3871,6 +3861,21 @@ def _run_acceptance_attempt(
             )
             active_lifecycle.merge_pending = False
             committed_sha = _head_sha(effects, repo, "commit-rev-parse")
+            # HEAD は merge commit なので、取り込んだ main と merge 自身も監査する。
+            # 赤なら commit を保持する。MERGE_HEAD は無く、abort の対象ではない。
+            # 所有する lease は後始末で解放し、受入 command は投入しない。
+            # claim 前の履歴監査は従来どおり維持する。
+            _run_capture(
+                effects,
+                (
+                    sys.executable,
+                    str(repo / "tools" / "check_ai_provenance.py"),
+                ),
+                repo,
+                "merge-history-provenance",
+                diagnostic_reason="full-history-provenance",
+                capture_failure_output=True,
+            )
             committed_message = _run_capture(
                 effects,
                 ("git", "log", "-1", "--format=%B", committed_sha),

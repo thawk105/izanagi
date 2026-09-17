@@ -754,11 +754,6 @@ def _postrun_integrity(fake: _FakeEffects, head: str = _SHA_A) -> None:
     _fingerprint(fake, head)
 
 
-def _provenance(fake: _FakeEffects, result: object = None) -> None:
-    fake.expect_run(_history_provenance_argv())
-    _message_provenance(fake, result)
-
-
 def _message_provenance(fake: _FakeEffects, result: object = None) -> None:
     fake.expect_run(
         _provenance_argv(),
@@ -6310,10 +6305,10 @@ def test_postclaim_merge_without_implementation_conflict_accepts_self_report() -
             and event[1]
             in {
                 ("git", "merge", "--no-ff", "--no-commit", "main"),
-                _history_provenance_argv(),
                 _provenance_argv(),
                 ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
                 ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
+                _history_provenance_argv(),
                 _COMMAND,
             }
         )
@@ -6324,10 +6319,10 @@ def test_postclaim_merge_without_implementation_conflict_accepts_self_report() -
     ] == [
         ("write_temp", _SELF_REPORTED_MERGE_MESSAGE),
         ("run", ("git", "merge", "--no-ff", "--no-commit", "main")),
-        ("run", _history_provenance_argv()),
         ("run", _provenance_argv()),
         ("run", ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE))),
         ("run", ("git", "commit", "-F", str(_VALIDATED_MESSAGE))),
+        ("run", _history_provenance_argv()),
         ("run", _COMMAND),
     ]
 
@@ -6551,10 +6546,10 @@ def test_owned_path_prefix_is_not_overlap_and_reaches_submission() -> None:
         in {
             ("git", "diff", "--name-only", "HEAD...main"),
             ("git", "merge", "--no-ff", "--no-commit", "main"),
-            _history_provenance_argv(),
             _provenance_argv(),
             ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
             ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
+            _history_provenance_argv(),
             _COMMAND,
         }
     ]
@@ -6562,10 +6557,10 @@ def test_owned_path_prefix_is_not_overlap_and_reaches_submission() -> None:
         _history_provenance_argv(),
         ("git", "diff", "--name-only", "HEAD...main"),
         ("git", "merge", "--no-ff", "--no-commit", "main"),
-        _history_provenance_argv(),
         _provenance_argv(),
         ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
         ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
+        _history_provenance_argv(),
         _COMMAND,
     ]
 
@@ -6594,20 +6589,20 @@ def test_missing_owned_path_skips_diff_warns_and_reaches_submission(
         and event[1]
         in {
             ("git", "merge", "--no-ff", "--no-commit", "main"),
-            _history_provenance_argv(),
             _provenance_argv(),
             ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
             ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
+            _history_provenance_argv(),
             _COMMAND,
         }
     ]
     assert selected_calls == [
         _history_provenance_argv(),
         ("git", "merge", "--no-ff", "--no-commit", "main"),
-        _history_provenance_argv(),
         _provenance_argv(),
         ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
         ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
+        _history_provenance_argv(),
         _COMMAND,
     ]
     warning = (
@@ -6641,10 +6636,11 @@ def test_merge_sequence_and_postcheck_are_exact(capsys: pytest.CaptureFixture[st
     fake.is_file_queue.append((_MESSAGE, True))
     fake.read_text_queue.append((_MESSAGE, "merge\n\nAI-Agent: codex\n"))
     fake.expect_run(("git", "merge", "--no-ff", "--no-commit", "main"))
-    _provenance(fake)
+    _message_provenance(fake)
     fake.expect_run(("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)))
     fake.expect_run(("git", "commit", "-F", str(_VALIDATED_MESSAGE)))
     fake.expect_run(("git", "rev-parse", "HEAD"), DW._CommandResult(0, _SHA_C + "\n"))
+    fake.expect_run(_history_provenance_argv())
     fake.expect_run(
         ("git", "log", "-1", "--format=%B", _SHA_C),
         DW._CommandResult(0, "merge\n\nAI-Agent: codex\n"),
@@ -6686,11 +6682,11 @@ _STAGES = (
     "postclaim-rev-parse",
     "behind-count",
     "merge",
-    "merge-history-provenance",
     "merge-message-provenance",
     "commit-dry-run",
     "commit",
     "commit-rev-parse",
+    "merge-history-provenance",
     "commit-message-postcheck",
     "postcheck",
     "commit-head-postcheck",
@@ -6735,20 +6731,8 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
             ("git", "merge", "--no-ff", "--no-commit", "main"),
             DW._CommandResult(9) if stage == "merge" else DW._CommandResult(0),
         )
-    history_provenance_stages = {
-        "merge-history-provenance", "merge-message-provenance",
-        "commit-dry-run", "commit", "commit-rev-parse",
-        "commit-message-postcheck", "postcheck", "commit-head-postcheck",
-        "prerun-clean",
-    }
-    if stage in history_provenance_stages:
-        fake.expect_run(
-            _history_provenance_argv(),
-            DW._CommandResult(9)
-            if stage == "merge-history-provenance"
-            else DW._CommandResult(0),
-        )
     if stage in {
+        "merge-history-provenance",
         "merge-message-provenance", "commit-dry-run", "commit",
         "commit-rev-parse", "commit-message-postcheck", "postcheck",
         "commit-head-postcheck", "prerun-clean",
@@ -6760,6 +6744,7 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
             else DW._CommandResult(0),
         )
     if stage in {
+        "merge-history-provenance",
         "commit-dry-run", "commit", "commit-rev-parse",
         "commit-message-postcheck", "postcheck", "commit-head-postcheck",
         "prerun-clean",
@@ -6769,6 +6754,7 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
             DW._CommandResult(9) if stage == "commit-dry-run" else DW._CommandResult(0),
         )
     if stage in {
+        "merge-history-provenance",
         "commit", "commit-rev-parse", "commit-message-postcheck", "postcheck",
         "commit-head-postcheck", "prerun-clean",
     }:
@@ -6777,6 +6763,7 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
             DW._CommandResult(9) if stage == "commit" else DW._CommandResult(0),
         )
     if stage in {
+        "merge-history-provenance",
         "commit-rev-parse", "commit-message-postcheck", "postcheck",
         "commit-head-postcheck", "prerun-clean",
     }:
@@ -6784,6 +6771,18 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
             ("git", "rev-parse", "HEAD"),
             DW._CommandResult(9) if stage == "commit-rev-parse"
             else DW._CommandResult(0, _SHA_C + "\n"),
+        )
+    history_provenance_stages = {
+        "merge-history-provenance",
+        "commit-message-postcheck", "postcheck", "commit-head-postcheck",
+        "prerun-clean",
+    }
+    if stage in history_provenance_stages:
+        fake.expect_run(
+            _history_provenance_argv(),
+            DW._CommandResult(9)
+            if stage == "merge-history-provenance"
+            else DW._CommandResult(0),
         )
     if stage in {
         "commit-message-postcheck", "postcheck", "commit-head-postcheck",
@@ -6810,7 +6809,7 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
     if stage == "prerun-clean":
         _prerun_status(fake, returncode=9)
     if stage in {
-        "merge", "merge-history-provenance", "merge-message-provenance",
+        "merge", "merge-message-provenance",
         "commit-dry-run", "commit",
     }:
         _abort_clean(fake)
@@ -6860,19 +6859,14 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
             ]
         )
     if stage in {
-        "merge-history-provenance", "merge-message-provenance",
-        "commit-dry-run", "commit", "commit-rev-parse",
-        "commit-message-postcheck", "postcheck", "commit-head-postcheck",
-        "prerun-clean",
-    }:
-        expected.append(("run", _history_provenance_argv(), _REPO, True))
-    if stage in {
+        "merge-history-provenance",
         "merge-message-provenance", "commit-dry-run", "commit",
         "commit-rev-parse", "commit-message-postcheck", "postcheck",
         "commit-head-postcheck", "prerun-clean",
     }:
         expected.append(("run", _provenance_argv(), _REPO, True))
     if stage in {
+        "merge-history-provenance",
         "commit-dry-run", "commit", "commit-rev-parse",
         "commit-message-postcheck", "postcheck", "commit-head-postcheck",
         "prerun-clean",
@@ -6881,6 +6875,7 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
             ("run", ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)), _REPO, True)
         )
     if stage in {
+        "merge-history-provenance",
         "commit", "commit-rev-parse", "commit-message-postcheck", "postcheck",
         "commit-head-postcheck", "prerun-clean",
     }:
@@ -6888,10 +6883,13 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
             ("run", ("git", "commit", "-F", str(_VALIDATED_MESSAGE)), _REPO, True)
         )
     if stage in {
+        "merge-history-provenance",
         "commit-rev-parse", "commit-message-postcheck", "postcheck",
         "commit-head-postcheck", "prerun-clean",
     }:
         expected.append(("run", ("git", "rev-parse", "HEAD"), _REPO, True))
+    if stage in history_provenance_stages:
+        expected.append(("run", _history_provenance_argv(), _REPO, True))
     if stage in {
         "commit-message-postcheck", "postcheck", "commit-head-postcheck",
         "prerun-clean",
@@ -6910,7 +6908,7 @@ def test_nonzero_stage_blocks_submission_and_releases(stage: str) -> None:
     if stage in merge_stages:
         expected.append(("unlink", _VALIDATED_MESSAGE))
     if stage in {
-        "merge", "merge-history-provenance", "merge-message-provenance",
+        "merge", "merge-message-provenance",
         "commit-dry-run", "commit",
     }:
         expected.extend(_ABORT_CLEAN_EVENTS)
@@ -7088,7 +7086,7 @@ def test_postmerge_tracked_dirty_blocks_submission_and_releases() -> None:
          "reasoning=high; role=author\n")
     )
     fake.expect_run(("git", "merge", "--no-ff", "--no-commit", "main"))
-    _provenance(fake)
+    _message_provenance(fake)
     fake.expect_run(
         ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE))
     )
@@ -7096,6 +7094,7 @@ def test_postmerge_tracked_dirty_blocks_submission_and_releases() -> None:
     fake.expect_run(
         ("git", "rev-parse", "HEAD"), DW._CommandResult(0, _SHA_C + "\n")
     )
+    fake.expect_run(_history_provenance_argv())
     fake.expect_run(
         ("git", "log", "-1", "--format=%B", _SHA_C),
         DW._CommandResult(
@@ -7148,7 +7147,6 @@ def test_postmerge_tracked_dirty_blocks_submission_and_releases() -> None:
                 _REPO,
                 True,
             ),
-            ("run", _history_provenance_argv(), _REPO, True),
             ("run", _provenance_argv(), _REPO, True),
             (
                 "run",
@@ -7163,6 +7161,7 @@ def test_postmerge_tracked_dirty_blocks_submission_and_releases() -> None:
                 True,
             ),
             ("run", ("git", "rev-parse", "HEAD"), _REPO, True),
+            ("run", _history_provenance_argv(), _REPO, True),
             (
                 "run",
                 ("git", "log", "-1", "--format=%B", _SHA_C),
@@ -7296,7 +7295,6 @@ def test_malformed_ai_agent_message_fails_provenance_before_commit() -> None:
                 _REPO,
                 True,
             ),
-            ("run", _history_provenance_argv(), _REPO, True),
             ("run", _provenance_argv(), _REPO, True),
             ("unlink", _VALIDATED_MESSAGE),
             *_ABORT_CLEAN_EVENTS,
@@ -7326,23 +7324,17 @@ def test_merge_history_provenance_failure_blocks_submission_releases_and_returns
     assert outcome.source_rc == 1
     assert outcome.detail == violation
     assert (fake.claims, fake.submissions, fake.releases) == (1, 0, 1)
-    assert (
-        "run",
-        ("git", "merge", "--abort"),
-        _REPO,
-        True,
-    ) in fake.events
-    assert not any(
-        event[0] == "run"
-        and event[1]
-        in {
-            _provenance_argv(),
-            ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
-            ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
-            _COMMAND,
-        }
-        for event in fake.events
-    )
+    calls = [event[1] for event in fake.events if event[0] == "run"]
+    assert ("git", "merge", "--abort") not in calls
+    assert _COMMAND not in calls
+    history_index = len(calls) - 1 - calls[::-1].index(_history_provenance_argv())
+    for argv in (
+        _provenance_argv(),
+        ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)),
+        ("git", "commit", "-F", str(_VALIDATED_MESSAGE)),
+        ("git", "rev-parse", "HEAD"),
+    ):
+        assert calls.index(argv) < history_index
 
 
 def test_merge_history_provenance_unexpected_rc_fails_closed() -> None:
@@ -7362,6 +7354,10 @@ def test_merge_history_provenance_unexpected_rc_fails_closed() -> None:
     assert outcome.source_rc == 29
     assert outcome.detail == reason
     assert (fake.claims, fake.submissions, fake.releases) == (1, 0, 1)
+
+    calls = [event[1] for event in fake.events if event[0] == "run"]
+    assert ("git", "commit", "-F", str(_VALIDATED_MESSAGE)) in calls
+    assert ("git", "merge", "--abort") not in calls
 
 
 def test_preflight_submodule_dirty_rejects_before_claim() -> None:
@@ -8109,10 +8105,11 @@ def test_committed_message_without_ai_agent_never_runs_acceptance() -> None:
     fake.expect_run(("git", "rev-list", "--count", "HEAD..main"), DW._CommandResult(0, "1\n"))
     fake.read_text_queue.append((_MESSAGE, "merge\nAI-Agent: codex\n"))
     fake.expect_run(("git", "merge", "--no-ff", "--no-commit", "main"))
-    _provenance(fake)
+    _message_provenance(fake)
     fake.expect_run(("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)))
     fake.expect_run(("git", "commit", "-F", str(_VALIDATED_MESSAGE)))
     fake.expect_run(("git", "rev-parse", "HEAD"), DW._CommandResult(0, _SHA_C + "\n"))
+    fake.expect_run(_history_provenance_argv())
     fake.expect_run(
         ("git", "log", "-1", "--format=%B", _SHA_C),
         DW._CommandResult(0, "merge without trailer\n"),
@@ -8137,11 +8134,11 @@ def test_committed_message_without_ai_agent_never_runs_acceptance() -> None:
         ("read_text", _MESSAGE),
         ("write_temp", b"merge\nAI-Agent: codex\n"),
         ("run", ("git", "merge", "--no-ff", "--no-commit", "main"), _REPO, True),
-        ("run", _history_provenance_argv(), _REPO, True),
         ("run", _provenance_argv(), _REPO, True),
         ("run", ("git", "commit", "--dry-run", "-F", str(_VALIDATED_MESSAGE)), _REPO, True),
         ("run", ("git", "commit", "-F", str(_VALIDATED_MESSAGE)), _REPO, True),
         ("run", ("git", "rev-parse", "HEAD"), _REPO, True),
+        ("run", _history_provenance_argv(), _REPO, True),
         ("run", ("git", "log", "-1", "--format=%B", _SHA_C), _REPO, True),
         ("unlink", _VALIDATED_MESSAGE),
         ("run", _helper("release"), _REPO, True),
@@ -8634,6 +8631,106 @@ def test_real_git_dirty_after_claim_blocks_acceptance_command(
     assert "tracked.txt" in result.stderr
     assert sentinel not in result.stdout
     assert not (lease / "acceptance.lease").exists()
+
+
+def test_real_git_main_only_history_violation_blocks_acceptance_after_commit(
+    tmp_path: Path,
+) -> None:
+    wave = "main-only-history"
+    repo, lease, env = _real_waiter_repo(tmp_path, wave=wave)
+    sha_file = tmp_path / "violation.sha"
+    trace_file = tmp_path / "checker.jsonl"
+    count_file = tmp_path / "runner.count"
+    count_file.write_text("", encoding="utf-8")
+    reason = "main-only provenance violation"
+    (repo / "tools" / "check_ai_provenance.py").write_text(
+        "import json, subprocess, sys\n"
+        "from pathlib import Path\n"
+        "head = subprocess.run(['git', 'rev-parse', 'HEAD'], check=True,\n"
+        "    capture_output=True, text=True, timeout=120).stdout.strip()\n"
+        "kind = 'message' if '--message-file' in sys.argv else 'history'\n"
+        "rc = 0\n"
+        "if kind == 'history':\n"
+        f"    sha = Path({str(sha_file)!r}).read_text().strip()\n"
+        "    ancestor = subprocess.run(\n"
+        "        ['git', 'merge-base', '--is-ancestor', sha, 'HEAD'],\n"
+        "        capture_output=True, text=True, timeout=120).returncode\n"
+        "    rc = 1 if ancestor == 0 else 0 if ancestor == 1 else ancestor\n"
+        "    if rc:\n"
+        f"        print({reason!r} + ': ' + sha, file=sys.stderr)\n"
+        f"with Path({str(trace_file)!r}).open('a') as stream:\n"
+        "    stream.write(json.dumps({'kind': kind, 'head': head, 'rc': rc,\n"
+        f"        'lease': Path({str(lease / 'acceptance.lease')!r}).exists()"
+        "}) + '\\n')\n"
+        "raise SystemExit(rc)\n",
+        encoding="utf-8",
+    )
+    _write_exact_runner(
+        repo,
+        "from pathlib import Path\n"
+        f"with Path({str(count_file)!r}).open('a') as stream:\n"
+        "    stream.write('run\\n')\n"
+        "print('IZANAGI_EFFECTIVE_SCHEDULER_V1 "
+        "{\"effective_scheduler\":\"serial\"}')\n",
+    )
+
+    def git(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["git", *args], cwd=repo, env=env, check=check,
+            capture_output=True, text=True, timeout=120,
+        )
+
+    git("add", "tools")
+    git("commit", "-m", "install history fixture")
+    start_tip = git("rev-parse", "HEAD").stdout.strip()
+    git("checkout", "main")
+    git("merge", "--ff-only", f"worktree-{wave}")
+    (repo / "main-only.txt").write_text("violation fixture\n", encoding="utf-8")
+    git("add", "main-only.txt")
+    git("commit", "-m", "main-only violation")
+    main_tip = git("rev-parse", "HEAD").stdout.strip()
+    sha_file.write_text(main_tip + "\n", encoding="ascii")
+    git("checkout", f"worktree-{wave}")
+    assert git("merge-base", "--is-ancestor", main_tip, start_tip, check=False).returncode == 1
+    assert git("merge-base", "--is-ancestor", main_tip, "main").returncode == 0
+    message = tmp_path / "merge-message.txt"
+    message.write_text(
+        "merge main\n\nAI-Agent: product=codex; model=gpt-5; "
+        "reasoning=high; role=author\n", encoding="utf-8",
+    )
+    receipt = tmp_path / "receipt.json"
+    log = tmp_path / "acceptance.log"
+    result = subprocess.run(
+        [
+            sys.executable, str(repo / "tools" / "dev_wave_wait.py"), "acceptance",
+            "--wave", wave, "--lease-dir", str(lease),
+            "--merge-message-file", str(message),
+            "--receipt-file", str(receipt), "--log-file", str(log),
+            "--", sys.executable, str(repo / "tools" / "run_tests.py"),
+        ],
+        cwd=repo, env=env, capture_output=True, text=True, check=False, timeout=120,
+    )
+
+    assert count_file.read_text(encoding="utf-8").splitlines() == []
+    assert result.returncode == 70, result.stderr
+    assert "stage=merge-history-provenance rc=70" in result.stderr
+    assert "source_rc=1" in result.stderr
+    assert f"{reason}: {main_tip}" in result.stderr
+    assert not (lease / "acceptance.lease").exists()
+    end_tip = git("rev-parse", "HEAD").stdout.strip()
+    assert end_tip != start_tip
+    assert git("show", "-s", "--format=%P", "HEAD").stdout.split() == [start_tip, main_tip]
+    assert git("merge-base", "--is-ancestor", main_tip, end_tip).returncode == 0
+    assert git("rev-parse", "-q", "--verify", "MERGE_HEAD", check=False).returncode == 1
+    assert git("status", "--porcelain", "--untracked-files=no").stdout == ""
+    assert not receipt.exists()
+    assert not log.exists()
+    trace = [json.loads(line) for line in trace_file.read_text().splitlines()]
+    assert trace == [
+        {"kind": "history", "head": start_tip, "rc": 0, "lease": False},
+        {"kind": "message", "head": start_tip, "rc": 0, "lease": True},
+        {"kind": "history", "head": end_tip, "rc": 1, "lease": True},
+    ]
 
 
 def test_real_git_production_provenance_rejects_malformed_merge_message(
