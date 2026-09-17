@@ -30,6 +30,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO, Optional
 
+from .agent_outputs import AGENT_OUTPUTS_FILENAME
 from .durable_root import (
     DurableRootError,
     DurableRootPolicy,
@@ -206,6 +207,10 @@ class CampaignLayout:
     @property
     def wal_file(self) -> str:
         return os.path.join(self.runs_dir, "wal.jsonl")
+
+    @property
+    def agent_outputs_file(self) -> str:
+        return os.path.join(self.runs_dir, AGENT_OUTPUTS_FILENAME)
 
     @property
     def variants_dir(self) -> str:
