@@ -9,6 +9,7 @@ import ast
 import hashlib
 import json
 import os
+import shlex
 import signal
 import subprocess
 import sys
@@ -2576,11 +2577,16 @@ def test_immediate_qstat_failures_exhaust_to_infra_without_latching(tmp_path):
     assert receipt["qdel"]["gate"]["allowed"] is True
 
 
+@pytest.mark.parametrize(
+    "repo_root",
+    [_REPO, Path("/__t2761__/repo release's checkout")],
+    ids=["repo-current", "repo-release-path"],
+)
 def test_compute_marker_is_cross_namespace_evidence_without_release_handshake(
-    tmp_path,
+    tmp_path, repo_root,
 ):
     script = DC._job_script(
-        repo_root=_REPO,
+        repo_root=repo_root,
         submission_dir=tmp_path,
         request_path=tmp_path / "request.json",
         probe_path=tmp_path / "interpreter_probe.py",
@@ -2589,7 +2595,44 @@ def test_compute_marker_is_cross_namespace_evidence_without_release_handshake(
     )
     assert DC._COMPUTE_MARKER_NAME in script
     assert script.index("mv \"$marker_tmp\" \"$MARKER\"") < script.index("selected=\"\"")
-    assert "release" not in script.lower()
+    normalizations = (
+        (
+            "\nRESULT=" + shlex.quote(str(tmp_path / "result.json")),
+            "\nRESULT=<SUBMISSION>/result.json",
+        ),
+        (
+            "\nPROBE=" + shlex.quote(str(tmp_path / "interpreter_probe.py")),
+            "\nPROBE=<SUBMISSION>/interpreter_probe.py",
+        ),
+        (
+            "\nREQUEST=" + shlex.quote(str(tmp_path / "request.json")),
+            "\nREQUEST=<SUBMISSION>/request.json",
+        ),
+        (
+            "\nREPO=" + shlex.quote(str(repo_root)),
+            "\nREPO=<REPO>",
+        ),
+        (
+            "\nDISPATCHER=" + shlex.quote(str(repo_root / "tools" / "pegasus" / "dispatch_compute.py")),
+            "\nDISPATCHER=<REPO>/tools/pegasus/dispatch_compute.py",
+        ),
+        (
+            "\nMARKER=" + shlex.quote(str(tmp_path / DC._COMPUTE_MARKER_NAME)),
+            "\nMARKER=<SUBMISSION>/" + DC._COMPUTE_MARKER_NAME,
+        ),
+    )
+    normalized = script
+    for needle, replacement in normalizations:
+        # 正規化の前提 (値がちょうど 1 回、shell word として完結) が崩れた入力は
+        # 保守的に拒否する。厳しくする方向だけで受理を増やさない。
+        assert script.count(needle) == 1, f"normalization needle must occur once: {needle!r}"
+        end = script.index(needle) + len(needle)
+        assert end == len(script) or script[end] in "\n \t;&|", f"normalization needle is not word-terminated: {needle!r}"
+        normalized = normalized.replace(needle, replacement, 1)
+    # 環境値を除いた本文の release 候補行を保守的に拒否する。
+    # FA-4 の release handshake 不在の代理検査。構文解析ではない。
+    release_lines = [line for line in normalized.splitlines() if "release" in line.lower()]
+    assert not release_lines, release_lines
     assert "while" not in script
 
 
