@@ -35,7 +35,9 @@ DEFAULT_MAX_FILES = 256
 DEFAULT_HISTORY_CANDIDATES = 1_024
 DEFAULT_HISTORY_SCAN_COMMITS = 20_000
 DEFAULT_MAX_CLOSURE_COMMITS = 4_096
-COMMAND_TIMEOUT_SECONDS = 5.0
+# T-2706 / D2104 item 24: 30 unreachable commits measured on the login node (main 11,246 commits, load 24-92):
+# max per git command 26.9s (find-object; path log 21.3s, repeat check 35.9s); max x1.5 -> 45, <= DEFAULT_TIMEOUT_SECONDS.
+COMMAND_TIMEOUT_SECONDS = 45.0
 OID_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 MODE_RE = re.compile(r"[0-7]{6}\Z")
 TASK_ID_RE = re.compile(r"(?i)(?:^|[-_/])t(\d+)(?=$|[-_/])")

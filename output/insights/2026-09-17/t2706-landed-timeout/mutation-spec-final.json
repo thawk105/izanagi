@@ -1,0 +1,147 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 2700,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "id": "m0-equivalent-comment",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/check_branch_landed.py",
+     "old": "# max per git command 26.9s (find-object; path log 21.3s, repeat check 35.9s); max x1.5 -> 45, <= DEFAULT_TIMEOUT_SECONDS.",
+     "new": "# maximum per git command 26.9s (find-object; path log 21.3s, repeat check 35.9s); max x1.5 -> 45, <= DEFAULT_TIMEOUT_SECONDS."
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-swallow-timeout-as-empty-success",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_landed.py",
+     "old": "        except subprocess.TimeoutExpired as exc:\n            raise AssessmentError(\n",
+     "new": "        except subprocess.TimeoutExpired as exc:\n            return subprocess.CompletedProcess([\"git\", *GIT_CONFIG, *args], 0, stdout=b\"\", stderr=b\"\")\n            raise AssessmentError(\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_landed.py::test_assess_real_log_timeout_is_indeterminate_not_a_verdict[True-any-path-find-object]",
+    "orchestrator/tests/test_check_branch_landed.py::test_assess_real_log_timeout_is_indeterminate_not_a_verdict[True-proof-path-log]",
+    "orchestrator/tests/test_check_branch_landed.py::test_git_run_real_command_timeout_is_truncated"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-timeout-outcome-error-not-truncated",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_landed.py",
+     "old": "\"assessment-timeout\", f\"git command timed out: {args[0]}\", outcome=\"truncated\"",
+     "new": "\"assessment-timeout\", f\"git command timed out: {args[0]}\", outcome=\"error\""
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_landed.py::test_assess_real_log_timeout_is_indeterminate_not_a_verdict[True-any-path-find-object]",
+    "orchestrator/tests/test_check_branch_landed.py::test_assess_real_log_timeout_is_indeterminate_not_a_verdict[True-proof-path-log]",
+    "orchestrator/tests/test_check_branch_landed.py::test_git_run_real_command_timeout_is_truncated"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-run-default-decoupled-from-constant",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_landed.py",
+     "old": "command_timeout: float = COMMAND_TIMEOUT_SECONDS,",
+     "new": "command_timeout: float = 5.0,"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_landed.py::test_command_timeout_default_is_bounded_and_bound"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-constant-exceeds-overall-budget",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_landed.py",
+     "old": "COMMAND_TIMEOUT_SECONDS = 45.0",
+     "new": "COMMAND_TIMEOUT_SECONDS = 61.0"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_landed.py::test_command_timeout_default_is_bounded_and_bound"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-toplevel-timeout-becomes-landed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_landed.py",
+     "old": "payload[\"decision\"] = _decision(\"indeterminate\", code)",
+     "new": "payload[\"decision\"] = _decision(\"landed\", code)"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_landed.py::test_assess_real_log_timeout_is_indeterminate_not_a_verdict[True-any-path-find-object]",
+    "orchestrator/tests/test_check_branch_landed.py::test_assess_real_log_timeout_is_indeterminate_not_a_verdict[True-proof-path-log]",
+    "orchestrator/tests/test_check_branch_landed.py::test_batch_failure_never_becomes_negative[command-timeout-False]",
+    "orchestrator/tests/test_check_branch_landed.py::test_batch_failure_never_becomes_negative[deadline-False]",
+    "orchestrator/tests/test_check_branch_landed.py::test_batch_failure_never_becomes_negative[parse-False]",
+    "orchestrator/tests/test_check_branch_landed.py::test_batch_invalid_stdout_is_indeterminate[ambiguous]",
+    "orchestrator/tests/test_check_branch_landed.py::test_batch_invalid_stdout_is_indeterminate[dangling]",
+    "orchestrator/tests/test_check_branch_landed.py::test_batch_invalid_stdout_is_indeterminate[dash]",
+    "orchestrator/tests/test_check_branch_landed.py::test_batch_invalid_stdout_is_indeterminate[empty]",
+    "orchestrator/tests/test_check_branch_landed.py::test_batch_invalid_stdout_is_indeterminate[extra]",
+    "orchestrator/tests/test_check_branch_landed.py::test_batch_invalid_stdout_is_indeterminate[missing-expression]",
+    "orchestrator/tests/test_check_branch_landed.py::test_batch_invalid_stdout_is_indeterminate[no-lf]",
+    "orchestrator/tests/test_check_branch_landed.py::test_batch_invalid_stdout_is_indeterminate[quote]",
+    "orchestrator/tests/test_check_branch_landed.py::test_batch_invalid_stdout_is_indeterminate[reordered]",
+    "orchestrator/tests/test_check_branch_landed.py::test_batch_invalid_stdout_is_indeterminate[short]",
+    "orchestrator/tests/test_check_branch_landed.py::test_batch_validates_all_rows_before_accepting_match",
+    "orchestrator/tests/test_check_branch_landed.py::test_branch_named_like_abbreviated_sha_is_fail_closed",
+    "orchestrator/tests/test_check_branch_landed.py::test_closure_limit_preserves_observed_measurements",
+    "orchestrator/tests/test_check_branch_landed.py::test_custom_replace_namespace_is_indeterminate",
+    "orchestrator/tests/test_check_branch_landed.py::test_global_exception_marks_the_active_phase",
+    "orchestrator/tests/test_check_branch_landed.py::test_global_timeout_is_indeterminate_json",
+    "orchestrator/tests/test_check_branch_landed.py::test_max_files_makes_changed_files_unknown",
+    "orchestrator/tests/test_check_branch_landed.py::test_missing_branch_or_commitish_has_dedicated_indeterminate_issue",
+    "orchestrator/tests/test_check_branch_landed.py::test_nonempty_grafts_file_is_indeterminate",
+    "orchestrator/tests/test_check_branch_landed.py::test_replace_ref_is_indeterminate",
+    "orchestrator/tests/test_check_branch_landed.py::test_shallow_repository_is_indeterminate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-incomplete-history-scan-keeps-negative",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_landed.py",
+     "old": "            if not payload[\"history_scan\"][\"complete\"]:\n",
+     "new": "            if False and not payload[\"history_scan\"][\"complete\"]:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_landed.py::test_history_scan_limit_is_indeterminate_and_measured"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
