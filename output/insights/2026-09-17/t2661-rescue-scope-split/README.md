@@ -145,6 +145,13 @@ DW-M03 / M08 に従い、受理集合か fail-closed 挙動が変わる本物の
 - `/cleanup-branches` は wave 中に peer session が稼働していた (main の現行 tool を使用)。本 wave の変更後経路は掃除に使っていない。
 - 「現在 145 本」(brief) は親の `scan_overlap.py` (21:5x JST、`git worktree list --porcelain` の worktree 行数) が出所。
 
+## 段 8 (自己改善) の裁定
+
+候補 1 件: 段 6 review の launcher に `--reasoning` を付け、`--dry-run` rc 2 を見ずに detach した (2 本とも即死、第 2 版で投げ直し)。
+`DW-C01` (`--reasoning` は plan / consult 専用、他段指定は rc=2) と `DW-O01` (`--dry-run` の argv を先に検査) が既に義務を持ち、
+実害は再投入で回復した 2 本の即死だけ。dev-wave docs 3 層は予算満杯で意味等価の縮約先が無いため、正本・入口は変えず記録のみ
+(D782、failures の新 F は作らない: 単発)。作法の教訓 (dry-run の rc を見てから別 call で detach する) は親の記憶へ。
+
 ## 逐語の行末空白の可逆正規化 (DW-S07)
 
 `verbatim/` の `.md` は `git diff --check` に触れる行末空白 (Codex 出力の Markdown 二重空白改行) を除いてある。可視文字は不変。

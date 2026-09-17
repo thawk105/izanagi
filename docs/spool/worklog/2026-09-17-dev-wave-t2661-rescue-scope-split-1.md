@@ -36,7 +36,9 @@ title: [T-2661][T-2663] 到達不能監査の用途分離 — 掃除は repo 外
   (growth-hold 解除 token 使用) は親の権威に数えず、親の焦点走 (計算ノード 4076.nqsv、872 passed / 3 skipped = 既存 hold 3 node)
   と fix 後の焦点走 (login、289 passed) を証拠にした。
 - **誤投入 1 件。** 段 6 review の launcher に `--reasoning` を付け、dry-run rc 2 を見ずに detach した (2 本とも即死 rc 2)。
-  `--reasoning` 無しの第 2 版で投げ直した。段 8 の改善候補。
+  `--reasoning` 無しの第 2 版で投げ直した。段 8 (自己改善) で契約どおり裁定: `DW-C01` (他段指定は rc=2) と `DW-O01` (`--dry-run` を
+  先に検査) が既に義務を持ち、実害は即死 2 本 (再投入で回復) のみ。dev-wave docs 3 層は予算満杯で意味等価の縮約先が無く、
+  正本は変えず記録のみ (D782)。
 - **変異 matrix (container worktree `56d53f247`、`run_tests.py` 3 file、probe と本走で各 14 run = baseline + 13 変異、計算ノード dispatch)。**
   probe 走 (全件 SURVIVED 登録) で観測 node を集めてから本走。本走は baseline PASSED、負例 12 件すべて KILLED で期待 node と観測
   node が完全一致 (matching 13/13)、等価変異 M0 (docstring) は SURVIVED、MISMATCH 0、TIMEOUT 0、全 anchor 一意。DW-M03 / M08 に従い
