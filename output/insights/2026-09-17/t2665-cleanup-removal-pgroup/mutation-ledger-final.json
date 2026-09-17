@@ -1,0 +1,868 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4ea6ef35d4063f576ae574200e6d538e/izdw-4ea6ef35d4.o3028",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4ea6ef35d4063f576ae574200e6d538e/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................                                     [100%]\n36 passed in 4.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "3707308fb1984d54429339f3bc3f8af2aa9d51252c56c8ddc422a7b6d67e2c71"
+    },
+    "artifact_error": null,
+    "collection_sha256": "6df7c322c6f7f29d94f4accac0dd4aa992bfe18022fc31b5ee197e8c34f8a9e1",
+    "duration_s": 27.747,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "0102a00a93649ac2e509e93e19adcf97eed206ef44f7a079f983ab7b9cc53489",
+    "repo_head": "46a88693c2371c97eb4c95ae1da44e402a60516d",
+    "runner_sha256": "362885a32dedbe64566e17548ca688fe73567a4fa4a9a6d940e03ba9beae8c5e",
+    "spec_sha256": "c9e30ccae19e0d71e02e6e9f16d0743b9314dea8814f8ad1aab66e25d1d2cd80",
+    "status": "PASSED",
+    "test_output_sha256": "3707308fb1984d54429339f3bc3f8af2aa9d51252c56c8ddc422a7b6d67e2c71",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "0eaf3f12a97c071545cc664e70d1a7378aaee127c549e85ef9d7b620d74e9132"
+  },
+  "date": "2026-09-16T23:37:52.045700+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8d1ac93c04a321c1f1320b40e4e7f239/izdw-8d1ac93c04.o3029",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8d1ac93c04a321c1f1320b40e4e7f239/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n....................................                                     [100%]\n36 passed in 4.49s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "7c17414d3df8cb6441a71bf184e47f9cdee03069f2ae76efdf71e55756cdff5e"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "6df7c322c6f7f29d94f4accac0dd4aa992bfe18022fc31b5ee197e8c34f8a9e1",
+      "duration_s": 32.638,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "m0-equivalent-docstring",
+      "injection_diff_sha256": "480952cfb2098644625b511fa1ff7bf25e1e176d06c01a4f18f7ac14e5879b08",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "7406c97b3c57f2fb62c99434f1c8ba29392eb3f0dc31bc1ebefa435a9ca0fa3e",
+      "replacements": [
+        {
+          "file": "tools/cleanup_remove_dirs.py",
+          "new": "\"\"\"Fixed directory removal launcher (D2104 item 32).\n",
+          "old": "\"\"\"Fixed directory removal launcher for D2104 item 32.\n"
+        }
+      ],
+      "repo_head": "46a88693c2371c97eb4c95ae1da44e402a60516d",
+      "runner_sha256": "362885a32dedbe64566e17548ca688fe73567a4fa4a9a6d940e03ba9beae8c5e",
+      "spec_sha256": "c9e30ccae19e0d71e02e6e9f16d0743b9314dea8814f8ad1aab66e25d1d2cd80",
+      "status": "SURVIVED",
+      "test_output_sha256": "7c17414d3df8cb6441a71bf184e47f9cdee03069f2ae76efdf71e55756cdff5e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0eaf3f12a97c071545cc664e70d1a7378aaee127c549e85ef9d7b620d74e9132"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cb817ce145f0461912d1564b01abaa1b/izdw-cb817ce145.o3031",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/cb817ce145f0461912d1564b01abaa1b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............................FFFFFFF                                     [100%]\n=================================== FAILURES ===================================\n____________________ test_two_dirs_removed_without_wrapper _____________________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_two_dirs_removed_without_0')\n\n    def test_two_dirs_removed_without_wrapper(tmp_path):\n        paths = _targets(tmp_path, 2)\n        proc = _launch(paths, env=os.environ.copy(), cwd=tmp_path)\n        try:\n            rows, summary = _finish(proc, time.monotonic() + 6)\n>           assert summary[\"rc\"] == 0\nE           assert 2 == 0\n\norchestrator/tests/test_cleanup_remove_dirs.py:140: AssertionError\n_________________ test_failed_path_does_not_hide_other_removal _________________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_failed_path_does_not_hide0')\n\n    def test_failed_path_does_not_hide_other_removal(tmp_path):\n        if os.geteuid() == 0:\n            pytest.skip(\"root bypasses directory chmod; not acceptance evidence\")\n        parent = tmp_path / \"locked\"\n        parent.mkdir()\n        failed = _targets(parent)[0]\n        removed = _targets(tmp_path)[0]\n        parent.chmod(0o500)\n        proc = None\n        try:\n            proc = _launch([failed, removed], env=os.environ.copy(), cwd=tmp_path)\n            rows, summary = _finish(proc, time.monotonic() + 6)\n>           assert summary[\"rc\"] == 1\nE           assert 2 == 1\n\norchestrator/tests/test_cleanup_remove_dirs.py:220: AssertionError\n____________ test_launcher_signal_is_forwarded_before_removal[TERM] ____________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_launcher_signal_is_forwar0')\nstopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\nsignum = <Signals.SIGTERM: 15>\n\n    @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n    def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n        paths = _targets(tmp_path)\n        deadline = time.monotonic() + 6\n        proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n        children = []\n        try:\n>           children = _stopped(proc, 1, deadline)\n\norchestrator/tests/test_cleanup_remove_dirs.py:173: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_cleanup_remove_dirs.py:107: in _stopped\n    return _wait_until(ready, deadline, children=observed)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npred = <function _stopped.<locals>.ready at 0x14d026576710>\ndeadline = 82744.473530791, children = {599338}\n\n    def _wait_until(pred, deadline, *, children):\n        while time.monotonic() < deadline:\n            try:\n                value = pred()\n            except (OSError, AssertionError) as exc:\n                raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n            if value:\n                return value\n            time.sleep(0.005)\n>       raise AssertionError(f\"synchronization deadline exceeded; {_child_states(children)}\")\nE       AssertionError: synchronization deadline exceeded; observed children pid -> /proc/<pid>/stat state: {599338: \"/proc/599338/stat unavailable: [Errno 2] No such file or directory: '/proc/599338/stat'\"}\n\norchestrator/tests/test_cleanup_remove_dirs.py:80: AssertionError\n____________ test_launcher_signal_is_forwarded_before_removal[INT] _____________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_launcher_signal_is_forwar0')\nstopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\nsignum = <Signals.SIGINT: 2>\n\n    @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n    def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n        paths = _targets(tmp_path)\n        deadline = time.monotonic() + 6\n        proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n        children = []\n        try:\n>           children = _stopped(proc, 1, deadline)\n\norchestrator/tests/test_cleanup_remove_dirs.py:173: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_cleanup_remove_dirs.py:107: in _stopped\n    return _wait_until(ready, deadline, children=observed)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npred = <function _stopped.<locals>.ready at 0x150ba60ea710>\ndeadline = 82744.473631616, children = {599337}\n\n    def _wait_until(pred, deadline, *, children):\n        while time.monotonic() < deadline:\n            try:\n                value = pred()\n            except (OSError, AssertionError) as exc:\n                raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n            if value:\n                return value\n            time.sleep(0.005)\n>       raise AssertionError(f\"synchronization deadline exceeded; {_child_states(children)}\")\nE       AssertionError: synchronization deadline exceeded; observed children pid -> /proc/<pid>/stat state: {599337: \"/proc/599337/stat unavailable: [Errno 2] No such file or directory: '/proc/599337/stat'\"}\n\norchestrator/tests/test_cleanup_remove_dirs.py:80: AssertionError\n_________________ test_children_share_parent_pgid_then_remove __________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_children_share_parent_pgi0')\nstopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n\n    def test_children_share_parent_pgid_then_remove(tmp_path, stopping_rm_bin):\n        paths = _targets(tmp_path, 2)\n        deadline = time.monotonic() + 6\n        proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n        children = []\n        try:\n>           children = _stopped(proc, 2, deadline)\n\norchestrator/tests/test_cleanup_remove_dirs.py:153: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_cleanup_remove_dirs.py:107: in _stopped\n    return _wait_until(ready, deadline, children=observed)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npred = <function _stopped.<locals>.ready at 0x145b20b4a7a0>\ndeadline = 82744.475074053, children = {599339}\n\n    def _wait_until(pred, deadline, *, children):\n        while time.monotonic() < deadline:\n            try:\n                value = pred()\n            except (OSError, AssertionError) as exc:\n                raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n            if value:\n                return value\n            time.sleep(0.005)\n>       raise AssertionError(f\"synchronization deadline exceeded; {_child_states(children)}\")\nE       AssertionError: synchronization deadline exceeded; observed children pid -> /proc/<pid>/stat state: {599339: \"/proc/599339/stat unavailable: [Errno 2] No such file or directory: '/proc/599339/stat'\"}\n\norchestrator/tests/test_cleanup_remove_dirs.py:80: AssertionError\n____________ test_launcher_signal_is_forwarded_before_removal[HUP] _____________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_launcher_signal_is_forwar0')\nstopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\nsignum = <Signals.SIGHUP: 1>\n\n    @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n    def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n        paths = _targets(tmp_path)\n        deadline = time.monotonic() + 6\n        proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n        children = []\n        try:\n>           children = _stopped(proc, 1, deadline)\n\norchestrator/tests/test_cleanup_remove_dirs.py:173: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_cleanup_remove_dirs.py:107: in _stopped\n    return _wait_until(ready, deadline, children=observed)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npred = <function _stopped.<locals>.ready at 0x14b69f78e710>\ndeadline = 82744.474187924, children = {599336}\n\n    def _wait_until(pred, deadline, *, children):\n        while time.monotonic() < deadline:\n            try:\n                value = pred()\n            except (OSError, AssertionError) as exc:\n                raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n            if value:\n                return value\n            time.sleep(0.005)\n>       raise AssertionError(f\"synchronization deadline exceeded; {_child_states(children)}\")\nE       AssertionError: synchronization deadline exceeded; observed children pid -> /proc/<pid>/stat state: {599336: \"/proc/599336/stat unavailable: [Errno 2] No such file or directory: '/proc/599336/stat'\"}\n\norchestrator/tests/test_cleanup_remove_dirs.py:80: AssertionError\n_________________________ test_timeout_is_interrupted __________________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_timeout_is_interrupted0')\nstopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n\n    def test_timeout_is_interrupted(tmp_path, stopping_rm_bin):\n        paths = _targets(tmp_path)\n        deadline = time.monotonic() + 6\n        proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path, timeout=0.5)\n        children = []\n        try:\n>           children = _stopped(proc, 1, deadline)\n\norchestrator/tests/test_cleanup_remove_dirs.py:194: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_cleanup_remove_dirs.py:107: in _stopped\n    return _wait_until(ready, deadline, children=observed)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npred = <function _stopped.<locals>.ready at 0x14ef353a2200>\ndeadline = 82744.475627578, children = {599342}\n\n    def _wait_until(pred, deadline, *, children):\n        while time.monotonic() < deadline:\n            try:\n                value = pred()\n            except (OSError, AssertionError) as exc:\n                raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n            if value:\n                return value\n            time.sleep(0.005)\n>       raise AssertionError(f\"synchronization deadline exceeded; {_child_states(children)}\")\nE       AssertionError: synchronization deadline exceeded; observed children pid -> /proc/<pid>/stat state: {599342: \"/proc/599342/stat unavailable: [Errno 2] No such file or directory: '/proc/599342/stat'\"}\n\norchestrator/tests/test_cleanup_remove_dirs.py:80: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_two_dirs_removed_without_wrapper\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_failed_path_does_not_hide_other_removal\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[TERM]\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[INT]\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_children_share_parent_pgid_then_remove\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted\n7 failed, 29 passed in 9.87s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[TERM]\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=2006 retained_bytes=2006 omitted_bytes=0 rendered_excerpt_bytes=2081 sha256=a606f21864b97b5e1fba727e2973624f1a356c33cc0ca13046393f7edc848c02\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_launcher_signal_is_forwar0')\n> stopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n> signum = <Signals.SIGTERM: 15>\n> \n>     @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n>     def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n>         paths = _targets(tmp_path)\n>         deadline = time.monotonic() + 6\n>         proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n>         children = []\n>         try:\n> >           children = _stopped(proc, 1, deadline)\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:173: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_cleanup_remove_dirs.py:107: in _stopped\n>     return _wait_until(ready, deadline, children=observed)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> pred = <function _stopped.<locals>.ready at 0x14d026576710>\n> deadline = 82744.473530791, children = {599338}\n> \n>     def _wait_until(pred, deadline, *, children):\n>         while time.monotonic() < deadline:\n>             try:\n>                 value = pred()\n>             except (OSError, AssertionError) as exc:\n>                 raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n>             if value:\n>                 return value\n>             time.sleep(0.005)\n> >       raise AssertionError(f\"synchronization deadline exceeded; {_child_states(children)}\")\n> E       AssertionError: synchronization deadline exceeded; observed children pid -> /proc/<pid>/stat state: {599338: \"/proc/599338/stat unavailable: [Errno 2] No such file or directory: '/proc/599338/stat'\"}\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:80: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=2004 retained_bytes=2004 omitted_bytes=0 rendered_excerpt_bytes=2079 sha256=5b5015b07aba2eec045fe6bf29b2d0f2f3ddbd676f3dd785372d2d3fb8c02719\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_launcher_signal_is_forwar0')\n> stopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n> signum = <Signals.SIGHUP: 1>\n> \n>     @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n>     def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n>         paths = _targets(tmp_path)\n>         deadline = time.monotonic() + 6\n>         proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n>         children = []\n>         try:\n> >           children = _stopped(proc, 1, deadline)\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:173: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_cleanup_remove_dirs.py:107: in _stopped\n>     return _wait_until(ready, deadline, children=observed)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> pred = <function _stopped.<locals>.ready at 0x14b69f78e710>\n> deadline = 82744.474187924, children = {599336}\n> \n>     def _wait_until(pred, deadline, *, children):\n>         while time.monotonic() < deadline:\n>             try:\n>                 value = pred()\n>             except (OSError, AssertionError) as exc:\n>                 raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n>             if value:\n>                 return value\n>             time.sleep(0.005)\n> >       raise AssertionError(f\"synchronization deadline exceeded; {_child_states(children)}\")\n> E       AssertionError: synchronization deadline exceeded; observed children pid -> /proc/<pid>/stat state: {599336: \"/proc/599336/stat unavailable: [Errno 2] No such file or directory: '/proc/599336/stat'\"}\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:80: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[INT]\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=2004 retained_bytes=2004 omitted_bytes=0 rendered_excerpt_bytes=2079 sha256=5218594afb833b599c61afbbcb4ecf4987d7e2a106c07e2a7a3662b855091b17\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_launcher_signal_is_forwar0')\n> stopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n> signum = <Signals.SIGINT: 2>\n> \n>     @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n>     def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n>         paths = _targets(tmp_path)\n>         deadline = time.monotonic() + 6\n>         proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n>         children = []\n>         try:\n> >           children = _stopped(proc, 1, deadline)\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:173: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_cleanup_remove_dirs.py:107: in _stopped\n>     return _wait_until(ready, deadline, children=observed)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> pred = <function _stopped.<locals>.ready at 0x150ba60ea710>\n> deadline = 82744.473631616, children = {599337}\n> \n>     def _wait_until(pred, deadline, *, children):\n>         while time.monotonic() < deadline:\n>             try:\n>                 value = pred()\n>             except (OSError, AssertionError) as exc:\n>                 raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n>             if value:\n>                 return value\n>             time.sleep(0.005)\n> >       raise AssertionError(f\"synchronization deadline exceeded; {_child_states(children)}\")\n> E       AssertionError: synchronization deadline exceeded; observed children pid -> /proc/<pid>/stat state: {599337: \"/proc/599337/stat unavailable: [Errno 2] No such file or directory: '/proc/599337/stat'\"}\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:80: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_children_share_parent_pgid_then_remove\" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=1850 retained_bytes=1850 omitted_bytes=0 rendered_excerpt_bytes=1921 sha256=6dc32376f97efbb8a4862aa2d4f82e86cb5e2b25b97e04973e8331fd4954d992\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_children_share_parent_pgi0')\n> stopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n> \n>     def test_children_share_parent_pgid_then_remove(tmp_path, stopping_rm_bin):\n>         paths = _targets(tmp_path, 2)\n>         deadline = time.monotonic() + 6\n>         proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n>         children = []\n>         try:\n> >           children = _stopped(proc, 2, deadline)\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:153: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_cleanup_remove_dirs.py:107: in _stopped\n>     return _wait_until(ready, deadline, children=observed)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> pred = <function _stopped.<locals>.ready at 0x145b20b4a7a0>\n> deadline = 82744.475074053, children = {599339}\n> \n>     def _wait_until(pred, deadline, *, children):\n>         while time.monotonic() < deadline:\n>             try:\n>                 value = pred()\n>             except (OSError, AssertionError) as exc:\n>                 raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n>             if value:\n>                 return value\n>             time.sleep(0.005)\n> >       raise AssertionError(f\"synchronization deadline exceeded; {_child_states(children)}\")\n> E       AssertionError: synchronization deadline exceeded; observed children pid -> /proc/<pid>/stat state: {599339: \"/proc/599339/stat unavailable: [Errno 2] No such file or directory: '/proc/599339/stat'\"}\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:80: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted\" nodeid_bytes=75 nodeid_omitted_bytes=0 source_bytes=1841 retained_bytes=1841 omitted_bytes=0 rendered_excerpt_bytes=1912 sha256=24c3e3de3afb1086be338831d378715abfe12c82d130a3b42065e7b616363809\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_timeout_is_interrupted0')\n> stopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n> \n>     def test_timeout_is_interrupted(tmp_path, stopping_rm_bin):\n>         paths = _targets(tmp_path)\n>         deadline = time.monotonic() + 6\n>         proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path, timeout=0.5)\n>         children = []\n>         try:\n> >           children = _stopped(proc, 1, deadline)\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:194: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_cleanup_remove_dirs.py:107: in _stopped\n>     return _wait_until(ready, deadline, children=observed)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> pred = <function _stopped.<locals>.ready at 0x14ef353a2200>\n> deadline = 82744.475627578, children = {599342}\n> \n>     def _wait_until(pred, deadline, *, children):\n>         while time.monotonic() < deadline:\n>             try:\n>                 value = pred()\n>             except (OSError, AssertionError) as exc:\n>                 raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n>             if value:\n>                 return value\n>             time.sleep(0.005)\n> >       raise AssertionError(f\"synchronization deadline exceeded; {_child_states(children)}\")\n> E       AssertionError: synchronization deadline exceeded; observed children pid -> /proc/<pid>/stat state: {599342: \"/proc/599342/stat unavailable: [Errno 2] No such file or directory: '/proc/599342/stat'\"}\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:80: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_failed_path_does_not_hide_other_removal\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=796 retained_bytes=796 omitted_bytes=0 rendered_excerpt_bytes=837 sha256=569333a0c0e42cb3bf19763cc5bd4562f04dc15d5a20075593b6e0047feedcea\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw6/test_failed_path_does_not_hide0')\n> \n>     def test_failed_path_does_not_hide_other_removal(tmp_path):\n>         if os.geteuid() == 0:\n>             pytest.skip(\"root bypasses directory chmod; not acceptance evidence\")\n>         parent = tmp_path / \"locked\"\n>         parent.mkdir()\n>         failed = _targets(parent)[0]\n>         removed = _targets(tmp_path)[0]\n>         parent.chmod(0o500)\n>         proc = None\n>         try:\n>             proc = _launch([failed, removed], env=os.environ.copy(), cwd=tmp_path)\n>             rows, summary = _finish(proc, time.monotonic() + 6)\n> >           assert summary[\"rc\"] == 1\n> E           assert 2 == 1\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:220: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_two_dirs_removed_without_wrapper\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=514 retained_bytes=514 omitted_bytes=0 rendered_excerpt_bytes=541 sha256=b80265ff826c8cf7c2aea8b3721e4101aa2376e3d705db991fa31fec1699f2a0\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_two_dirs_removed_without_0')\n> \n>     def test_two_dirs_removed_without_wrapper(tmp_path):\n>         paths = _targets(tmp_path, 2)\n>         proc = _launch(paths, env=os.environ.copy(), cwd=tmp_path)\n>         try:\n>             rows, summary = _finish(proc, time.monotonic() + 6)\n> >           assert summary[\"rc\"] == 0\n> E           assert 2 == 0\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:140: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=7 failed=7 errors=0 selected=7 omitted_failures=0 source_bytes=11015 retained_bytes=11015 omitted_bytes=0 budget_bytes=49152 rendered_bytes=14764 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "931d5170160eb86f4d767b945773945e6a2f8b423de1858f3a2dc6c70647b993"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6df7c322c6f7f29d94f4accac0dd4aa992bfe18022fc31b5ee197e8c34f8a9e1",
+      "duration_s": 44.948,
+      "expected_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_children_share_parent_pgid_then_remove",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_failed_path_does_not_hide_other_removal",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[INT]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[TERM]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_two_dirs_removed_without_wrapper"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_two_dirs_removed_without_wrapper",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_failed_path_does_not_hide_other_removal",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[TERM]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[INT]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_children_share_parent_pgid_then_remove",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted"
+      ],
+      "hang_risk": false,
+      "id": "m1-start-new-session",
+      "injection_diff_sha256": "2cb50230482de9a4ecf0b5c4826de3bd150e68299e7645db55b753b45c750f23",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "21e6bea6ac2fceb75cb7174d1c3389509b5fdacb6cee30e3b49511de90d4880f",
+      "replacements": [
+        {
+          "file": "tools/cleanup_remove_dirs.py",
+          "new": "                    stdout=current.stdout, stderr=current.stderr, start_new_session=True)\n",
+          "old": "                    stdout=current.stdout, stderr=current.stderr)\n"
+        }
+      ],
+      "repo_head": "46a88693c2371c97eb4c95ae1da44e402a60516d",
+      "runner_sha256": "362885a32dedbe64566e17548ca688fe73567a4fa4a9a6d940e03ba9beae8c5e",
+      "spec_sha256": "c9e30ccae19e0d71e02e6e9f16d0743b9314dea8814f8ad1aab66e25d1d2cd80",
+      "status": "KILLED",
+      "test_output_sha256": "931d5170160eb86f4d767b945773945e6a2f8b423de1858f3a2dc6c70647b993",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0eaf3f12a97c071545cc664e70d1a7378aaee127c549e85ef9d7b620d74e9132"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e1ade7802664252c91eb2dc2bb045d93/izdw-e1ade78026.o3032",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e1ade7802664252c91eb2dc2bb045d93/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................FFFF                                     [100%]\n=================================== FAILURES ===================================\n____________ test_launcher_signal_is_forwarded_before_removal[TERM] ____________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\npred = <function test_launcher_signal_is_forwarded_before_removal.<locals>.<lambda> at 0x15114fc3a710>\ndeadline = 83024.775364076, children = [131919]\n\n    def _wait_until(pred, deadline, *, children):\n        while time.monotonic() < deadline:\n            try:\n>               value = pred()\n\norchestrator/tests/test_cleanup_remove_dirs.py:74: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_cleanup_remove_dirs.py:175: in <lambda>\n    _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\norchestrator/tests/test_cleanup_remove_dirs.py:48: in _shdpnd\n    for line in Path(f\"/proc/{pid}/status\").read_text().splitlines():\n/usr/lib/python3.10/pathlib.py:1134: in read_text\n    with self.open(mode='r', encoding=encoding, errors=errors) as f:\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = PosixPath('/proc/131919/status'), mode = 'r', buffering = -1\nencoding = 'locale', errors = None, newline = None\n\n    def open(self, mode='r', buffering=-1, encoding=None,\n             errors=None, newline=None):\n        \"\"\"\n        Open the file pointed by this path and return a file object, as\n        the built-in open() function does.\n        \"\"\"\n        if \"b\" not in mode:\n            encoding = io.text_encoding(encoding)\n>       return self._accessor.open(self, mode, buffering, encoding, errors,\n                                   newline)\nE       FileNotFoundError: [Errno 2] No such file or directory: '/proc/131919/status'\n\n/usr/lib/python3.10/pathlib.py:1119: FileNotFoundError\n\nThe above exception was the direct cause of the following exception:\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_launcher_signal_is_forwar0')\nstopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\nsignum = <Signals.SIGTERM: 15>\n\n    @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n    def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n        paths = _targets(tmp_path)\n        deadline = time.monotonic() + 6\n        proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n        children = []\n        try:\n            children = _stopped(proc, 1, deadline)\n            os.kill(proc.pid, signum)\n>           _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\n                        min(deadline, time.monotonic() + 2), children=children)\n\norchestrator/tests/test_cleanup_remove_dirs.py:175: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npred = <function test_launcher_signal_is_forwarded_before_removal.<locals>.<lambda> at 0x15114fc3a710>\ndeadline = 83024.775364076, children = [131919]\n\n    def _wait_until(pred, deadline, *, children):\n        while time.monotonic() < deadline:\n            try:\n                value = pred()\n            except (OSError, AssertionError) as exc:\n>               raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\nE               AssertionError: synchronization failed: [Errno 2] No such file or directory: '/proc/131919/status'; observed children pid -> /proc/<pid>/stat state: {131919: \"/proc/131919/stat unavailable: [Errno 2] No such file or directory: '/proc/131919/stat'\"}\n\norchestrator/tests/test_cleanup_remove_dirs.py:76: AssertionError\n____________ test_launcher_signal_is_forwarded_before_removal[INT] _____________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\npred = <function test_launcher_signal_is_forwarded_before_removal.<locals>.<lambda> at 0x14cc04a4a710>\ndeadline = 83024.77500993, children = [131920]\n\n    def _wait_until(pred, deadline, *, children):\n        while time.monotonic() < deadline:\n            try:\n>               value = pred()\n\norchestrator/tests/test_cleanup_remove_dirs.py:74: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_cleanup_remove_dirs.py:175: in <lambda>\n    _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\norchestrator/tests/test_cleanup_remove_dirs.py:48: in _shdpnd\n    for line in Path(f\"/proc/{pid}/status\").read_text().splitlines():\n/usr/lib/python3.10/pathlib.py:1134: in read_text\n    with self.open(mode='r', encoding=encoding, errors=errors) as f:\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = PosixPath('/proc/131920/status'), mode = 'r', buffering = -1\nencoding = 'locale', errors = None, newline = None\n\n    def open(self, mode='r', buffering=-1, encoding=None,\n             errors=None, newline=None):\n        \"\"\"\n        Open the file pointed by this path and return a file object, as\n        the built-in open() function does.\n        \"\"\"\n        if \"b\" not in mode:\n            encoding = io.text_encoding(encoding)\n>       return self._accessor.open(self, mode, buffering, encoding, errors,\n                                   newline)\nE       FileNotFoundError: [Errno 2] No such file or directory: '/proc/131920/status'\n\n/usr/lib/python3.10/pathlib.py:1119: FileNotFoundError\n\nThe above exception was the direct cause of the following exception:\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_launcher_signal_is_forwar0')\nstopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\nsignum = <Signals.SIGINT: 2>\n\n    @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n    def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n        paths = _targets(tmp_path)\n        deadline = time.monotonic() + 6\n        proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n        children = []\n        try:\n            children = _stopped(proc, 1, deadline)\n            os.kill(proc.pid, signum)\n>           _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\n                        min(deadline, time.monotonic() + 2), children=children)\n\norchestrator/tests/test_cleanup_remove_dirs.py:175: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npred = <function test_launcher_signal_is_forwarded_before_removal.<locals>.<lambda> at 0x14cc04a4a710>\ndeadline = 83024.77500993, children = [131920]\n\n    def _wait_until(pred, deadline, *, children):\n        while time.monotonic() < deadline:\n            try:\n                value = pred()\n            except (OSError, AssertionError) as exc:\n>               raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\nE               AssertionError: synchronization failed: [Errno 2] No such file or directory: '/proc/131920/status'; observed children pid -> /proc/<pid>/stat state: {131920: \"/proc/131920/stat unavailable: [Errno 2] No such file or directory: '/proc/131920/stat'\"}\n\norchestrator/tests/test_cleanup_remove_dirs.py:76: AssertionError\n____________ test_launcher_signal_is_forwarded_before_removal[HUP] _____________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\npred = <function test_launcher_signal_is_forwarded_before_removal.<locals>.<lambda> at 0x147f40e2e710>\ndeadline = 83024.778564983, children = [131927]\n\n    def _wait_until(pred, deadline, *, children):\n        while time.monotonic() < deadline:\n            try:\n>               value = pred()\n\norchestrator/tests/test_cleanup_remove_dirs.py:74: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_cleanup_remove_dirs.py:175: in <lambda>\n    _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\norchestrator/tests/test_cleanup_remove_dirs.py:48: in _shdpnd\n    for line in Path(f\"/proc/{pid}/status\").read_text().splitlines():\n/usr/lib/python3.10/pathlib.py:1134: in read_text\n    with self.open(mode='r', encoding=encoding, errors=errors) as f:\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = PosixPath('/proc/131927/status'), mode = 'r', buffering = -1\nencoding = 'locale', errors = None, newline = None\n\n    def open(self, mode='r', buffering=-1, encoding=None,\n             errors=None, newline=None):\n        \"\"\"\n        Open the file pointed by this path and return a file object, as\n        the built-in open() function does.\n        \"\"\"\n        if \"b\" not in mode:\n            encoding = io.text_encoding(encoding)\n>       return self._accessor.open(self, mode, buffering, encoding, errors,\n                                   newline)\nE       FileNotFoundError: [Errno 2] No such file or directory: '/proc/131927/status'\n\n/usr/lib/python3.10/pathlib.py:1119: FileNotFoundError\n\nThe above exception was the direct cause of the following exception:\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_launcher_signal_is_forwar0')\nstopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\nsignum = <Signals.SIGHUP: 1>\n\n    @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n    def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n        paths = _targets(tmp_path)\n        deadline = time.monotonic() + 6\n        proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n        children = []\n        try:\n            children = _stopped(proc, 1, deadline)\n            os.kill(proc.pid, signum)\n>           _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\n                        min(deadline, time.monotonic() + 2), children=children)\n\norchestrator/tests/test_cleanup_remove_dirs.py:175: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npred = <function test_launcher_signal_is_forwarded_before_removal.<locals>.<lambda> at 0x147f40e2e710>\ndeadline = 83024.778564983, children = [131927]\n\n    def _wait_until(pred, deadline, *, children):\n        while time.monotonic() < deadline:\n            try:\n                value = pred()\n            except (OSError, AssertionError) as exc:\n>               raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\nE               AssertionError: synchronization failed: [Errno 2] No such file or directory: '/proc/131927/status'; observed children pid -> /proc/<pid>/stat state: {131927: \"/proc/131927/stat unavailable: [Errno 2] No such file or directory: '/proc/131927/stat'\"}\n\norchestrator/tests/test_cleanup_remove_dirs.py:76: AssertionError\n_________________________ test_timeout_is_interrupted __________________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\npred = <function test_timeout_is_interrupted.<locals>.<lambda> at 0x14f6e73be200>\ndeadline = 83024.775915705, children = [131924]\n\n    def _wait_until(pred, deadline, *, children):\n        while time.monotonic() < deadline:\n            try:\n>               value = pred()\n\norchestrator/tests/test_cleanup_remove_dirs.py:74: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_cleanup_remove_dirs.py:195: in <lambda>\n    _wait_until(lambda: _shdpnd(children[0]) & (1 << (signal.SIGTERM - 1)),\norchestrator/tests/test_cleanup_remove_dirs.py:48: in _shdpnd\n    for line in Path(f\"/proc/{pid}/status\").read_text().splitlines():\n/usr/lib/python3.10/pathlib.py:1134: in read_text\n    with self.open(mode='r', encoding=encoding, errors=errors) as f:\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = PosixPath('/proc/131924/status'), mode = 'r', buffering = -1\nencoding = 'locale', errors = None, newline = None\n\n    def open(self, mode='r', buffering=-1, encoding=None,\n             errors=None, newline=None):\n        \"\"\"\n        Open the file pointed by this path and return a file object, as\n        the built-in open() function does.\n        \"\"\"\n        if \"b\" not in mode:\n            encoding = io.text_encoding(encoding)\n>       return self._accessor.open(self, mode, buffering, encoding, errors,\n                                   newline)\nE       FileNotFoundError: [Errno 2] No such file or directory: '/proc/131924/status'\n\n/usr/lib/python3.10/pathlib.py:1119: FileNotFoundError\n\nThe above exception was the direct cause of the following exception:\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_timeout_is_interrupted0')\nstopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n\n    def test_timeout_is_interrupted(tmp_path, stopping_rm_bin):\n        paths = _targets(tmp_path)\n        deadline = time.monotonic() + 6\n        proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path, timeout=0.5)\n        children = []\n        try:\n            children = _stopped(proc, 1, deadline)\n>           _wait_until(lambda: _shdpnd(children[0]) & (1 << (signal.SIGTERM - 1)),\n                        min(deadline, time.monotonic() + 2), children=children)\n\norchestrator/tests/test_cleanup_remove_dirs.py:195: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npred = <function test_timeout_is_interrupted.<locals>.<lambda> at 0x14f6e73be200>\ndeadline = 83024.775915705, children = [131924]\n\n    def _wait_until(pred, deadline, *, children):\n        while time.monotonic() < deadline:\n            try:\n                value = pred()\n            except (OSError, AssertionError) as exc:\n>               raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\nE               AssertionError: synchronization failed: [Errno 2] No such file or directory: '/proc/131924/status'; observed children pid -> /proc/<pid>/stat state: {131924: \"/proc/131924/stat unavailable: [Errno 2] No such file or directory: '/proc/131924/stat'\"}\n\norchestrator/tests/test_cleanup_remove_dirs.py:76: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[TERM]\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[INT]\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted\n4 failed, 32 passed in 4.46s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[TERM]\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=3582 retained_bytes=3582 omitted_bytes=0 rendered_excerpt_bytes=3723 sha256=a3f463d6a4529f55b446619d32ad39b2d416e1b9647551359094b848a3e41b78\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> pred = <function test_launcher_signal_is_forwarded_before_removal.<locals>.<lambda> at 0x15114fc3a710>\n> deadline = 83024.775364076, children = [131919]\n> \n>     def _wait_until(pred, deadline, *, children):\n>         while time.monotonic() < deadline:\n>             try:\n> >               value = pred()\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:74: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_cleanup_remove_dirs.py:175: in <lambda>\n>     _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\n> orchestrator/tests/test_cleanup_remove_dirs.py:48: in _shdpnd\n>     for line in Path(f\"/proc/{pid}/status\").read_text().splitlines():\n> /usr/lib/python3.10/pathlib.py:1134: in read_text\n>     with self.open(mode='r', encoding=encoding, errors=errors) as f:\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = PosixPath('/proc/131919/status'), mode = 'r', buffering = -1\n> encoding = 'locale', errors = None, newline = None\n> \n>     def open(self, mode='r', buffering=-1, encoding=None,\n>              errors=None, newline=None):\n>         \"\"\"\n>         Open the file pointed by this path and return a file object, as\n>         the built-in open() function does.\n>         \"\"\"\n>         if \"b\" not in mode:\n>             encoding = io.text_encoding(encoding)\n> >       return self._accessor.open(self, mode, buffering, encoding, errors,\n>                                    newline)\n> E       FileNotFoundError: [Errno 2] No such file or directory: '/proc/131919/status'\n> \n> /usr/lib/python3.10/pathlib.py:1119: FileNotFoundError\n> \n> The above exception was the direct cause of the following exception:\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_launcher_signal_is_forwar0')\n> stopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n> signum = <Signals.SIGTERM: 15>\n> \n>     @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n>     def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n>         paths = _targets(tmp_path)\n>         deadline = time.monotonic() + 6\n>         proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n>         children = []\n>         try:\n>             children = _stopped(proc, 1, deadline)\n>             os.kill(proc.pid, signum)\n> >           _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\n>                         min(deadline, time.monotonic() + 2), children=children)\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:175: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> pred = <function test_launcher_signal_is_forwarded_before_removal.<locals>.<lambda> at 0x15114fc3a710>\n> deadline = 83024.775364076, children = [131919]\n> \n>     def _wait_until(pred, deadline, *, children):\n>         while time.monotonic() < deadline:\n>             try:\n>                 value = pred()\n>             except (OSError, AssertionError) as exc:\n> >               raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n> E               AssertionError: synchronization failed: [Errno 2] No such file or directory: '/proc/131919/status'; observed children pid -> /proc/<pid>/stat state: {131919: \"/proc/131919/stat unavailable: [Errno 2] No such file or directory: '/proc/131919/stat'\"}\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:76: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=3580 retained_bytes=3580 omitted_bytes=0 rendered_excerpt_bytes=3721 sha256=22984ad9340337acdbb233e42ae6841009e396e694e7495688754340f8ee2679\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> pred = <function test_launcher_signal_is_forwarded_before_removal.<locals>.<lambda> at 0x147f40e2e710>\n> deadline = 83024.778564983, children = [131927]\n> \n>     def _wait_until(pred, deadline, *, children):\n>         while time.monotonic() < deadline:\n>             try:\n> >               value = pred()\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:74: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_cleanup_remove_dirs.py:175: in <lambda>\n>     _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\n> orchestrator/tests/test_cleanup_remove_dirs.py:48: in _shdpnd\n>     for line in Path(f\"/proc/{pid}/status\").read_text().splitlines():\n> /usr/lib/python3.10/pathlib.py:1134: in read_text\n>     with self.open(mode='r', encoding=encoding, errors=errors) as f:\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = PosixPath('/proc/131927/status'), mode = 'r', buffering = -1\n> encoding = 'locale', errors = None, newline = None\n> \n>     def open(self, mode='r', buffering=-1, encoding=None,\n>              errors=None, newline=None):\n>         \"\"\"\n>         Open the file pointed by this path and return a file object, as\n>         the built-in open() function does.\n>         \"\"\"\n>         if \"b\" not in mode:\n>             encoding = io.text_encoding(encoding)\n> >       return self._accessor.open(self, mode, buffering, encoding, errors,\n>                                    newline)\n> E       FileNotFoundError: [Errno 2] No such file or directory: '/proc/131927/status'\n> \n> /usr/lib/python3.10/pathlib.py:1119: FileNotFoundError\n> \n> The above exception was the direct cause of the following exception:\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_launcher_signal_is_forwar0')\n> stopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n> signum = <Signals.SIGHUP: 1>\n> \n>     @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n>     def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n>         paths = _targets(tmp_path)\n>         deadline = time.monotonic() + 6\n>         proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n>         children = []\n>         try:\n>             children = _stopped(proc, 1, deadline)\n>             os.kill(proc.pid, signum)\n> >           _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\n>                         min(deadline, time.monotonic() + 2), children=children)\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:175: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> pred = <function test_launcher_signal_is_forwarded_before_removal.<locals>.<lambda> at 0x147f40e2e710>\n> deadline = 83024.778564983, children = [131927]\n> \n>     def _wait_until(pred, deadline, *, children):\n>         while time.monotonic() < deadline:\n>             try:\n>                 value = pred()\n>             except (OSError, AssertionError) as exc:\n> >               raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n> E               AssertionError: synchronization failed: [Errno 2] No such file or directory: '/proc/131927/status'; observed children pid -> /proc/<pid>/stat state: {131927: \"/proc/131927/stat unavailable: [Errno 2] No such file or directory: '/proc/131927/stat'\"}\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:76: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[INT]\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=3578 retained_bytes=3578 omitted_bytes=0 rendered_excerpt_bytes=3719 sha256=e753bf9cf7993108b57ed8fefdebdd35e675ba9a12c8889f596e2e1d695e6b46\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> pred = <function test_launcher_signal_is_forwarded_before_removal.<locals>.<lambda> at 0x14cc04a4a710>\n> deadline = 83024.77500993, children = [131920]\n> \n>     def _wait_until(pred, deadline, *, children):\n>         while time.monotonic() < deadline:\n>             try:\n> >               value = pred()\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:74: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_cleanup_remove_dirs.py:175: in <lambda>\n>     _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\n> orchestrator/tests/test_cleanup_remove_dirs.py:48: in _shdpnd\n>     for line in Path(f\"/proc/{pid}/status\").read_text().splitlines():\n> /usr/lib/python3.10/pathlib.py:1134: in read_text\n>     with self.open(mode='r', encoding=encoding, errors=errors) as f:\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = PosixPath('/proc/131920/status'), mode = 'r', buffering = -1\n> encoding = 'locale', errors = None, newline = None\n> \n>     def open(self, mode='r', buffering=-1, encoding=None,\n>              errors=None, newline=None):\n>         \"\"\"\n>         Open the file pointed by this path and return a file object, as\n>         the built-in open() function does.\n>         \"\"\"\n>         if \"b\" not in mode:\n>             encoding = io.text_encoding(encoding)\n> >       return self._accessor.open(self, mode, buffering, encoding, errors,\n>                                    newline)\n> E       FileNotFoundError: [Errno 2] No such file or directory: '/proc/131920/status'\n> \n> /usr/lib/python3.10/pathlib.py:1119: FileNotFoundError\n> \n> The above exception was the direct cause of the following exception:\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_launcher_signal_is_forwar0')\n> stopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n> signum = <Signals.SIGINT: 2>\n> \n>     @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n>     def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n>         paths = _targets(tmp_path)\n>         deadline = time.monotonic() + 6\n>         proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n>         children = []\n>         try:\n>             children = _stopped(proc, 1, deadline)\n>             os.kill(proc.pid, signum)\n> >           _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\n>                         min(deadline, time.monotonic() + 2), children=children)\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:175: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> pred = <function test_launcher_signal_is_forwarded_before_removal.<locals>.<lambda> at 0x14cc04a4a710>\n> deadline = 83024.77500993, children = [131920]\n> \n>     def _wait_until(pred, deadline, *, children):\n>         while time.monotonic() < deadline:\n>             try:\n>                 value = pred()\n>             except (OSError, AssertionError) as exc:\n> >               raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n> E               AssertionError: synchronization failed: [Errno 2] No such file or directory: '/proc/131920/status'; observed children pid -> /proc/<pid>/stat state: {131920: \"/proc/131920/stat unavailable: [Errno 2] No such file or directory: '/proc/131920/stat'\"}\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:76: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted\" nodeid_bytes=75 nodeid_omitted_bytes=0 source_bytes=3353 retained_bytes=3353 omitted_bytes=0 rendered_excerpt_bytes=3488 sha256=eb29508cc0d29f9569344f92da254ffcbd358cf9cd6e89ba75cb56f31ae75332\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> pred = <function test_timeout_is_interrupted.<locals>.<lambda> at 0x14f6e73be200>\n> deadline = 83024.775915705, children = [131924]\n> \n>     def _wait_until(pred, deadline, *, children):\n>         while time.monotonic() < deadline:\n>             try:\n> >               value = pred()\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:74: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_cleanup_remove_dirs.py:195: in <lambda>\n>     _wait_until(lambda: _shdpnd(children[0]) & (1 << (signal.SIGTERM - 1)),\n> orchestrator/tests/test_cleanup_remove_dirs.py:48: in _shdpnd\n>     for line in Path(f\"/proc/{pid}/status\").read_text().splitlines():\n> /usr/lib/python3.10/pathlib.py:1134: in read_text\n>     with self.open(mode='r', encoding=encoding, errors=errors) as f:\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> self = PosixPath('/proc/131924/status'), mode = 'r', buffering = -1\n> encoding = 'locale', errors = None, newline = None\n> \n>     def open(self, mode='r', buffering=-1, encoding=None,\n>              errors=None, newline=None):\n>         \"\"\"\n>         Open the file pointed by this path and return a file object, as\n>         the built-in open() function does.\n>         \"\"\"\n>         if \"b\" not in mode:\n>             encoding = io.text_encoding(encoding)\n> >       return self._accessor.open(self, mode, buffering, encoding, errors,\n>                                    newline)\n> E       FileNotFoundError: [Errno 2] No such file or directory: '/proc/131924/status'\n> \n> /usr/lib/python3.10/pathlib.py:1119: FileNotFoundError\n> \n> The above exception was the direct cause of the following exception:\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_timeout_is_interrupted0')\n> stopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n> \n>     def test_timeout_is_interrupted(tmp_path, stopping_rm_bin):\n>         paths = _targets(tmp_path)\n>         deadline = time.monotonic() + 6\n>         proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path, timeout=0.5)\n>         children = []\n>         try:\n>             children = _stopped(proc, 1, deadline)\n> >           _wait_until(lambda: _shdpnd(children[0]) & (1 << (signal.SIGTERM - 1)),\n>                         min(deadline, time.monotonic() + 2), children=children)\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:195: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> pred = <function test_timeout_is_interrupted.<locals>.<lambda> at 0x14f6e73be200>\n> deadline = 83024.775915705, children = [131924]\n> \n>     def _wait_until(pred, deadline, *, children):\n>         while time.monotonic() < deadline:\n>             try:\n>                 value = pred()\n>             except (OSError, AssertionError) as exc:\n> >               raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n> E               AssertionError: synchronization failed: [Errno 2] No such file or directory: '/proc/131924/status'; observed children pid -> /proc/<pid>/stat state: {131924: \"/proc/131924/stat unavailable: [Errno 2] No such file or directory: '/proc/131924/stat'\"}\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:76: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=14093 retained_bytes=14093 omitted_bytes=0 budget_bytes=49152 rendered_bytes=16683 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "77732e42763951983bef8d6fc2c30682672db7a8261750d78f82395ccf23532d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6df7c322c6f7f29d94f4accac0dd4aa992bfe18022fc31b5ee197e8c34f8a9e1",
+      "duration_s": 268.391,
+      "expected_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[INT]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[TERM]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[TERM]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[INT]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted"
+      ],
+      "hang_risk": false,
+      "id": "m2-no-signal-forwarding-kill-only",
+      "injection_diff_sha256": "1908e36a98e7cfdd49d6a6f862f2caed4d2d7f75697c5b8b07258079f8b47c37",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9eba4ac538a1cfcf839ce7c6392286a0a9ff62c3e8d551bae56e41a31a60d30d",
+      "replacements": [
+        {
+          "file": "tools/cleanup_remove_dirs.py",
+          "new": "    for sig, grace in ((signal.SIGKILL, KILL_GRACE_SECONDS),):\n",
+          "old": "    for sig, grace in ((signum, TERM_GRACE_SECONDS),\n                       (signal.SIGKILL, KILL_GRACE_SECONDS)):\n"
+        }
+      ],
+      "repo_head": "46a88693c2371c97eb4c95ae1da44e402a60516d",
+      "runner_sha256": "362885a32dedbe64566e17548ca688fe73567a4fa4a9a6d940e03ba9beae8c5e",
+      "spec_sha256": "c9e30ccae19e0d71e02e6e9f16d0743b9314dea8814f8ad1aab66e25d1d2cd80",
+      "status": "KILLED",
+      "test_output_sha256": "77732e42763951983bef8d6fc2c30682672db7a8261750d78f82395ccf23532d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0eaf3f12a97c071545cc664e70d1a7378aaee127c549e85ef9d7b620d74e9132"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ec3fcf287a594cb4231d9ce6ccaaa894/izdw-ec3fcf287a.o3043",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ec3fcf287a594cb4231d9ce6ccaaa894/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................................FFFF                                     [100%]\n=================================== FAILURES ===================================\n____________ test_launcher_signal_is_forwarded_before_removal[TERM] ____________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_launcher_signal_is_forwar0')\nstopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\nsignum = <Signals.SIGTERM: 15>\n\n    @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n    def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n        paths = _targets(tmp_path)\n        deadline = time.monotonic() + 6\n        proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n        children = []\n        try:\n            children = _stopped(proc, 1, deadline)\n            os.kill(proc.pid, signum)\n            _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\n                        min(deadline, time.monotonic() + 2), children=children)\n            os.kill(children[0], signal.SIGCONT)\n            rows, summary = _finish(proc, deadline)\n            assert summary[\"rc\"] == 2\n            assert summary[\"cancel_signal\"] == signum\n>           assert rows[0][\"status\"] == \"interrupted\"\nE           AssertionError: assert 'removed' == 'interrupted'\nE             \nE             - interrupted\nE             + removed\n\norchestrator/tests/test_cleanup_remove_dirs.py:181: AssertionError\n____________ test_launcher_signal_is_forwarded_before_removal[HUP] _____________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_launcher_signal_is_forwar0')\nstopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\nsignum = <Signals.SIGHUP: 1>\n\n    @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n    def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n        paths = _targets(tmp_path)\n        deadline = time.monotonic() + 6\n        proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n        children = []\n        try:\n            children = _stopped(proc, 1, deadline)\n            os.kill(proc.pid, signum)\n            _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\n                        min(deadline, time.monotonic() + 2), children=children)\n            os.kill(children[0], signal.SIGCONT)\n            rows, summary = _finish(proc, deadline)\n            assert summary[\"rc\"] == 2\n            assert summary[\"cancel_signal\"] == signum\n>           assert rows[0][\"status\"] == \"interrupted\"\nE           AssertionError: assert 'removed' == 'interrupted'\nE             \nE             - interrupted\nE             + removed\n\norchestrator/tests/test_cleanup_remove_dirs.py:181: AssertionError\n____________ test_launcher_signal_is_forwarded_before_removal[INT] _____________\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_launcher_signal_is_forwar0')\nstopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\nsignum = <Signals.SIGINT: 2>\n\n    @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n    def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n        paths = _targets(tmp_path)\n        deadline = time.monotonic() + 6\n        proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n        children = []\n        try:\n            children = _stopped(proc, 1, deadline)\n            os.kill(proc.pid, signum)\n            _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\n                        min(deadline, time.monotonic() + 2), children=children)\n            os.kill(children[0], signal.SIGCONT)\n            rows, summary = _finish(proc, deadline)\n            assert summary[\"rc\"] == 2\n            assert summary[\"cancel_signal\"] == signum\n>           assert rows[0][\"status\"] == \"interrupted\"\nE           AssertionError: assert 'removed' == 'interrupted'\nE             \nE             - interrupted\nE             + removed\n\norchestrator/tests/test_cleanup_remove_dirs.py:181: AssertionError\n_________________________ test_timeout_is_interrupted __________________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_timeout_is_interrupted0')\nstopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n\n    def test_timeout_is_interrupted(tmp_path, stopping_rm_bin):\n        paths = _targets(tmp_path)\n        deadline = time.monotonic() + 6\n        proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path, timeout=0.5)\n        children = []\n        try:\n            children = _stopped(proc, 1, deadline)\n            _wait_until(lambda: _shdpnd(children[0]) & (1 << (signal.SIGTERM - 1)),\n                        min(deadline, time.monotonic() + 2), children=children)\n            os.kill(children[0], signal.SIGCONT)\n            rows, summary = _finish(proc, deadline)\n>           assert summary[\"rc\"] == 2\nE           assert 0 == 2\n\norchestrator/tests/test_cleanup_remove_dirs.py:199: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[TERM]\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[INT]\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted\n4 failed, 32 passed in 4.47s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[TERM]\" nodeid_bytes=102 nodeid_omitted_bytes=0 source_bytes=1444 retained_bytes=1444 omitted_bytes=0 rendered_excerpt_bytes=1501 sha256=a992e7f63571304f198985b3ce24bcaa0d03b1d00f23f434b79e307da911a1f8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_launcher_signal_is_forwar0')\n> stopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n> signum = <Signals.SIGTERM: 15>\n> \n>     @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n>     def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n>         paths = _targets(tmp_path)\n>         deadline = time.monotonic() + 6\n>         proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n>         children = []\n>         try:\n>             children = _stopped(proc, 1, deadline)\n>             os.kill(proc.pid, signum)\n>             _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\n>                         min(deadline, time.monotonic() + 2), children=children)\n>             os.kill(children[0], signal.SIGCONT)\n>             rows, summary = _finish(proc, deadline)\n>             assert summary[\"rc\"] == 2\n>             assert summary[\"cancel_signal\"] == signum\n> >           assert rows[0][\"status\"] == \"interrupted\"\n> E           AssertionError: assert 'removed' == 'interrupted'\n> E             \n> E             - interrupted\n> E             + removed\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:181: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=1442 retained_bytes=1442 omitted_bytes=0 rendered_excerpt_bytes=1499 sha256=355e3134b13285f2d051901321deab72f588a270575496355040ca18b324db73\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_launcher_signal_is_forwar0')\n> stopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n> signum = <Signals.SIGHUP: 1>\n> \n>     @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n>     def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n>         paths = _targets(tmp_path)\n>         deadline = time.monotonic() + 6\n>         proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n>         children = []\n>         try:\n>             children = _stopped(proc, 1, deadline)\n>             os.kill(proc.pid, signum)\n>             _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\n>                         min(deadline, time.monotonic() + 2), children=children)\n>             os.kill(children[0], signal.SIGCONT)\n>             rows, summary = _finish(proc, deadline)\n>             assert summary[\"rc\"] == 2\n>             assert summary[\"cancel_signal\"] == signum\n> >           assert rows[0][\"status\"] == \"interrupted\"\n> E           AssertionError: assert 'removed' == 'interrupted'\n> E             \n> E             - interrupted\n> E             + removed\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:181: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[INT]\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=1442 retained_bytes=1442 omitted_bytes=0 rendered_excerpt_bytes=1499 sha256=e265118247fd805bf1f978cdd33eeb1b0fc6b5dc346d1ecf09eff1a3b817fbfb\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_launcher_signal_is_forwar0')\n> stopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n> signum = <Signals.SIGINT: 2>\n> \n>     @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n>     def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n>         paths = _targets(tmp_path)\n>         deadline = time.monotonic() + 6\n>         proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n>         children = []\n>         try:\n>             children = _stopped(proc, 1, deadline)\n>             os.kill(proc.pid, signum)\n>             _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\n>                         min(deadline, time.monotonic() + 2), children=children)\n>             os.kill(children[0], signal.SIGCONT)\n>             rows, summary = _finish(proc, deadline)\n>             assert summary[\"rc\"] == 2\n>             assert summary[\"cancel_signal\"] == signum\n> >           assert rows[0][\"status\"] == \"interrupted\"\n> E           AssertionError: assert 'removed' == 'interrupted'\n> E             \n> E             - interrupted\n> E             + removed\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:181: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted\" nodeid_bytes=75 nodeid_omitted_bytes=0 source_bytes=1038 retained_bytes=1038 omitted_bytes=0 rendered_excerpt_bytes=1079 sha256=b94f51c83ce64606ffb7028ec74df19bf5b987b4f027c6d342c654c8f85009a9\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_timeout_is_interrupted0')\n> stopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n> \n>     def test_timeout_is_interrupted(tmp_path, stopping_rm_bin):\n>         paths = _targets(tmp_path)\n>         deadline = time.monotonic() + 6\n>         proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path, timeout=0.5)\n>         children = []\n>         try:\n>             children = _stopped(proc, 1, deadline)\n>             _wait_until(lambda: _shdpnd(children[0]) & (1 << (signal.SIGTERM - 1)),\n>                         min(deadline, time.monotonic() + 2), children=children)\n>             os.kill(children[0], signal.SIGCONT)\n>             rows, summary = _finish(proc, deadline)\n> >           assert summary[\"rc\"] == 2\n> E           assert 0 == 2\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:199: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=4 failed=4 errors=0 selected=4 omitted_failures=0 source_bytes=5366 retained_bytes=5366 omitted_bytes=0 budget_bytes=49152 rendered_bytes=7607 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "83414614f0155d5827e1d0878340a4d08bd9d144fc16722958dc8ca5064d8d65"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6df7c322c6f7f29d94f4accac0dd4aa992bfe18022fc31b5ee197e8c34f8a9e1",
+      "duration_s": 29.012,
+      "expected_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[INT]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[TERM]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[TERM]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[INT]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted"
+      ],
+      "hang_risk": false,
+      "id": "m3-interrupted-becomes-removed",
+      "injection_diff_sha256": "cf193ce597dbcc5ac71e3ab85938b6bf5356f283799858b23b48d29f705327a2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "483beef2867076f9d57dd51865cd2f00e0c7d20540e76dbf6cdd7eb12b94531c",
+      "replacements": [
+        {
+          "file": "tools/cleanup_remove_dirs.py",
+          "new": "        status, reason = \"removed\", \"cancelled or signal exit\"\n",
+          "old": "        status, reason = \"interrupted\", \"cancelled or signal exit\"\n"
+        }
+      ],
+      "repo_head": "46a88693c2371c97eb4c95ae1da44e402a60516d",
+      "runner_sha256": "362885a32dedbe64566e17548ca688fe73567a4fa4a9a6d940e03ba9beae8c5e",
+      "spec_sha256": "c9e30ccae19e0d71e02e6e9f16d0743b9314dea8814f8ad1aab66e25d1d2cd80",
+      "status": "KILLED",
+      "test_output_sha256": "83414614f0155d5827e1d0878340a4d08bd9d144fc16722958dc8ca5064d8d65",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0eaf3f12a97c071545cc664e70d1a7378aaee127c549e85ef9d7b620d74e9132"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/606da5d3317ae8d8ab86b4152b13e989/izdw-606da5d331.o3046",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/606da5d3317ae8d8ab86b4152b13e989/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................F................                                     [100%]\n=================================== FAILURES ===================================\n______________ test_zero_returncode_with_existing_path_is_failed _______________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_zero_returncode_with_exis0')\n\n    def test_zero_returncode_with_existing_path_is_failed(tmp_path):\n>       assert removal.classify(_exited_child(tmp_path, 0))[\"status\"] == \"failed\"\nE       AssertionError: assert 'removed' == 'failed'\nE         \nE         - failed\nE         + removed\n\norchestrator/tests/test_cleanup_remove_dirs.py:290: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_zero_returncode_with_existing_path_is_failed\n1 failed, 35 passed in 4.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_zero_returncode_with_existing_path_is_failed\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=467 retained_bytes=467 omitted_bytes=0 rendered_excerpt_bytes=492 sha256=b2c12874d3eb384b8215575142aa1a072881133a3c9af76148be31838a636770\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw33] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_zero_returncode_with_exis0')\n> \n>     def test_zero_returncode_with_existing_path_is_failed(tmp_path):\n> >       assert removal.classify(_exited_child(tmp_path, 0))[\"status\"] == \"failed\"\n> E       AssertionError: assert 'removed' == 'failed'\n> E         \n> E         - failed\n> E         + removed\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:290: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=467 retained_bytes=467 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1211 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c4e40f0bef5d93f90e22a08de5f6cb234a7987a45a732a801b7927eab4cd8d1c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6df7c322c6f7f29d94f4accac0dd4aa992bfe18022fc31b5ee197e8c34f8a9e1",
+      "duration_s": 27.796,
+      "expected_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_zero_returncode_with_existing_path_is_failed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_zero_returncode_with_existing_path_is_failed"
+      ],
+      "hang_risk": false,
+      "id": "m4-no-final-lstat-recheck",
+      "injection_diff_sha256": "87791b3445ef4c168132b9ae753a49d6a541a7cdc203f9262b1e474cc6a5c2fb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "627cf1034487c20634706eb083cc496d29d2e72aeee82a13c104e60c7d245ef9",
+      "replacements": [
+        {
+          "file": "tools/cleanup_remove_dirs.py",
+          "new": "    absent = True\n    error = child.error\n",
+          "old": "    absent = False\n    error = child.error\n"
+        }
+      ],
+      "repo_head": "46a88693c2371c97eb4c95ae1da44e402a60516d",
+      "runner_sha256": "362885a32dedbe64566e17548ca688fe73567a4fa4a9a6d940e03ba9beae8c5e",
+      "spec_sha256": "c9e30ccae19e0d71e02e6e9f16d0743b9314dea8814f8ad1aab66e25d1d2cd80",
+      "status": "KILLED",
+      "test_output_sha256": "c4e40f0bef5d93f90e22a08de5f6cb234a7987a45a732a801b7927eab4cd8d1c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0eaf3f12a97c071545cc664e70d1a7378aaee127c549e85ef9d7b620d74e9132"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0d8ecd858670687dbb01720c80973d10/izdw-0d8ecd8586.o3049",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0d8ecd858670687dbb01720c80973d10/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............................F.......                                     [100%]\n=================================== FAILURES ===================================\n______________ test_nonzero_returncode_with_absent_path_is_failed ______________\n[gw34] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_nonzero_returncode_with_a0')\n\n    def test_nonzero_returncode_with_absent_path_is_failed(tmp_path):\n>       assert removal.classify(_exited_child(tmp_path / \"absent\", 1))[\"status\"] == \"failed\"\nE       AssertionError: assert 'removed' == 'failed'\nE         \nE         - failed\nE         + removed\n\norchestrator/tests/test_cleanup_remove_dirs.py:294: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_nonzero_returncode_with_absent_path_is_failed\n1 failed, 35 passed in 4.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_nonzero_returncode_with_absent_path_is_failed\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=479 retained_bytes=479 omitted_bytes=0 rendered_excerpt_bytes=504 sha256=db2d03848ffdc76f123988403cbec66bf73ead5ec4a5d3f45a310ee22b3073a7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw34] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw34/test_nonzero_returncode_with_a0')\n> \n>     def test_nonzero_returncode_with_absent_path_is_failed(tmp_path):\n> >       assert removal.classify(_exited_child(tmp_path / \"absent\", 1))[\"status\"] == \"failed\"\n> E       AssertionError: assert 'removed' == 'failed'\n> E         \n> E         - failed\n> E         + removed\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:294: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=479 retained_bytes=479 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1224 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b0c808a9e9c1c4d6693c1b4acfd9bcab881a2c4282191e7eb5d46b34d1c50d12"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6df7c322c6f7f29d94f4accac0dd4aa992bfe18022fc31b5ee197e8c34f8a9e1",
+      "duration_s": 32.391,
+      "expected_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_nonzero_returncode_with_absent_path_is_failed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_nonzero_returncode_with_absent_path_is_failed"
+      ],
+      "hang_risk": false,
+      "id": "m5-nonzero-exit-is-success",
+      "injection_diff_sha256": "265eff10edac0358f88d98e9e91c67cf1c66f5f2d1f6ee965fcf55a463d09ba4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4fac5703eb0dabf2e44ac17ee5e29cc9bb28fc4f823fa89bb3d3ebc467a2f583",
+      "replacements": [
+        {
+          "file": "tools/cleanup_remove_dirs.py",
+          "new": "    elif not absent:\n",
+          "old": "    elif rc > 0 or not absent:\n"
+        }
+      ],
+      "repo_head": "46a88693c2371c97eb4c95ae1da44e402a60516d",
+      "runner_sha256": "362885a32dedbe64566e17548ca688fe73567a4fa4a9a6d940e03ba9beae8c5e",
+      "spec_sha256": "c9e30ccae19e0d71e02e6e9f16d0743b9314dea8814f8ad1aab66e25d1d2cd80",
+      "status": "KILLED",
+      "test_output_sha256": "b0c808a9e9c1c4d6693c1b4acfd9bcab881a2c4282191e7eb5d46b34d1c50d12",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0eaf3f12a97c071545cc664e70d1a7378aaee127c549e85ef9d7b620d74e9132"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/44f34326fb25a7872834189cefdd10af/izdw-44f34326fb.o3055",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/44f34326fb25a7872834189cefdd10af/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................F....                                     [100%]\n=================================== FAILURES ===================================\n_______________ test_usage_rejects_paths_without_removal[nested] _______________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_usage_rejects_paths_witho0')\ncase = 'nested'\n\n    @pytest.mark.parametrize(\"case\", [\"nested\", \"duplicate\", \"relative\", \"missing\", \"symlink\", \"mid-symlink\", \"file\", \"root\", \"trailing-slash\", \"dotdot\", \"empty\", \"double-slash\", \"dot\"])\n    def test_usage_rejects_paths_without_removal(tmp_path, case):\n        target = _targets(tmp_path)[0]\n        nested = target / \"nested\"\n        nested.mkdir()\n        link = tmp_path / \"link\"\n        link.symlink_to(target, target_is_directory=True)\n        paths = {\n            \"nested\": [target, nested], \"duplicate\": [target, target],\n            \"relative\": [target.name], \"missing\": [tmp_path / \"missing\"],\n            \"symlink\": [link], \"mid-symlink\": [link / \"nested\"],\n            \"file\": [target / \"sentinel\"], \"root\": [\"/\"],\n            \"trailing-slash\": [str(target) + \"/\"],\n            \"dotdot\": [str(target) + \"/../\" + target.name], \"empty\": [\"\"],\n            \"double-slash\": [\"/\" + str(target)], \"dot\": [str(target) + \"/.\"],\n        }[case]\n        proc = _launch([target, *paths] if case not in {\"nested\", \"duplicate\"} else paths,\n                       env=os.environ.copy(), cwd=tmp_path)\n        stdout, stderr = proc.communicate(timeout=8)\n>       assert proc.returncode == 64 and stdout == \"\", stderr\nE       AssertionError: \nE       assert (0 == 64)\nE        +  where 0 = <Popen: returncode: 0 args: ['/bin/python3.10', '/work/1/SFC/tanab/dev-wave-...>.returncode\n\norchestrator/tests/test_cleanup_remove_dirs.py:248: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[nested]\n1 failed, 35 passed in 4.45s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[nested]\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=1604 retained_bytes=1604 omitted_bytes=0 rendered_excerpt_bytes=1665 sha256=e5b69518e974d4d29f3019288b2aa65affd184b1ae748a220a387bfc0550d5fd\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw7/test_usage_rejects_paths_witho0')\n> case = 'nested'\n> \n>     @pytest.mark.parametrize(\"case\", [\"nested\", \"duplicate\", \"relative\", \"missing\", \"symlink\", \"mid-symlink\", \"file\", \"root\", \"trailing-slash\", \"dotdot\", \"empty\", \"double-slash\", \"dot\"])\n>     def test_usage_rejects_paths_without_removal(tmp_path, case):\n>         target = _targets(tmp_path)[0]\n>         nested = target / \"nested\"\n>         nested.mkdir()\n>         link = tmp_path / \"link\"\n>         link.symlink_to(target, target_is_directory=True)\n>         paths = {\n>             \"nested\": [target, nested], \"duplicate\": [target, target],\n>             \"relative\": [target.name], \"missing\": [tmp_path / \"missing\"],\n>             \"symlink\": [link], \"mid-symlink\": [link / \"nested\"],\n>             \"file\": [target / \"sentinel\"], \"root\": [\"/\"],\n>             \"trailing-slash\": [str(target) + \"/\"],\n>             \"dotdot\": [str(target) + \"/../\" + target.name], \"empty\": [\"\"],\n>             \"double-slash\": [\"/\" + str(target)], \"dot\": [str(target) + \"/.\"],\n>         }[case]\n>         proc = _launch([target, *paths] if case not in {\"nested\", \"duplicate\"} else paths,\n>                        env=os.environ.copy(), cwd=tmp_path)\n>         stdout, stderr = proc.communicate(timeout=8)\n> >       assert proc.returncode == 64 and stdout == \"\", stderr\n> E       AssertionError: \n> E       assert (0 == 64)\n> E        +  where 0 = <Popen: returncode: 0 args: ['/bin/python3.10', '/work/1/SFC/tanab/dev-wave-...>.returncode\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:248: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1604 retained_bytes=1604 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2388 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9d1d23edac477e63938f8c49079c522a2bb6b5fb3f8be0493ec8855200f57273"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6df7c322c6f7f29d94f4accac0dd4aa992bfe18022fc31b5ee197e8c34f8a9e1",
+      "duration_s": 237.087,
+      "expected_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[nested]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[nested]"
+      ],
+      "hang_risk": false,
+      "id": "m6-no-nested-check",
+      "injection_diff_sha256": "755e0037f674fb5f936d8d67456fb4a61c4142c0577c9b2a62f697c800849eaa",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3f6785532f78dc6a2fbf4f3b9f14dc49a819ff5d272932d2c0afe5d613d9b376",
+      "replacements": [
+        {
+          "file": "tools/cleanup_remove_dirs.py",
+          "new": "            if path == other:\n",
+          "old": "            if os.path.commonpath([path, other]) in {path, other}:\n"
+        }
+      ],
+      "repo_head": "46a88693c2371c97eb4c95ae1da44e402a60516d",
+      "runner_sha256": "362885a32dedbe64566e17548ca688fe73567a4fa4a9a6d940e03ba9beae8c5e",
+      "spec_sha256": "c9e30ccae19e0d71e02e6e9f16d0743b9314dea8814f8ad1aab66e25d1d2cd80",
+      "status": "KILLED",
+      "test_output_sha256": "9d1d23edac477e63938f8c49079c522a2bb6b5fb3f8be0493ec8855200f57273",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0eaf3f12a97c071545cc664e70d1a7378aaee127c549e85ef9d7b620d74e9132"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/68ec12bbdc15ce4b81a59590b73eb563/izdw-68ec12bbdc.o3056",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/68ec12bbdc15ce4b81a59590b73eb563/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............................FF....                                     [100%]\n=================================== FAILURES ===================================\n_______________ test_usage_rejects_cwd_inside_target[descendant] _______________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_usage_rejects_cwd_inside_0')\ncase = 'descendant'\n\n    @pytest.mark.parametrize(\"case\", [\"exact\", \"descendant\"])\n    def test_usage_rejects_cwd_inside_target(tmp_path, case):\n        target = _targets(tmp_path)[0]\n        child = target / \"child\"\n        child.mkdir()\n        proc = _launch([target], env=os.environ.copy(), cwd=target if case == \"exact\" else child)\n        stdout, stderr = proc.communicate(timeout=8)\n>       assert proc.returncode == 64 and stdout == \"\", stderr\nE       AssertionError: \nE       assert (0 == 64)\nE        +  where 0 = <Popen: returncode: 0 args: ['/bin/python3.10', '/work/1/SFC/tanab/dev-wave-...>.returncode\n\norchestrator/tests/test_cleanup_remove_dirs.py:259: AssertionError\n_________________ test_usage_rejects_cwd_inside_target[exact] __________________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_usage_rejects_cwd_inside_0')\ncase = 'exact'\n\n    @pytest.mark.parametrize(\"case\", [\"exact\", \"descendant\"])\n    def test_usage_rejects_cwd_inside_target(tmp_path, case):\n        target = _targets(tmp_path)[0]\n        child = target / \"child\"\n        child.mkdir()\n        proc = _launch([target], env=os.environ.copy(), cwd=target if case == \"exact\" else child)\n        stdout, stderr = proc.communicate(timeout=8)\n>       assert proc.returncode == 64 and stdout == \"\", stderr\nE       AssertionError: \nE       assert (0 == 64)\nE        +  where 0 = <Popen: returncode: 0 args: ['/bin/python3.10', '/work/1/SFC/tanab/dev-wave-...>.returncode\n\norchestrator/tests/test_cleanup_remove_dirs.py:259: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_cwd_inside_target[descendant]\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_cwd_inside_target[exact]\n2 failed, 34 passed in 4.42s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_cwd_inside_target[descendant]\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=828 retained_bytes=828 omitted_bytes=0 rendered_excerpt_bytes=865 sha256=57508ee82a8ed5dd76871904b222eb09566b38d9d50b696189873ad4c7d465b8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_usage_rejects_cwd_inside_0')\n> case = 'descendant'\n> \n>     @pytest.mark.parametrize(\"case\", [\"exact\", \"descendant\"])\n>     def test_usage_rejects_cwd_inside_target(tmp_path, case):\n>         target = _targets(tmp_path)[0]\n>         child = target / \"child\"\n>         child.mkdir()\n>         proc = _launch([target], env=os.environ.copy(), cwd=target if case == \"exact\" else child)\n>         stdout, stderr = proc.communicate(timeout=8)\n> >       assert proc.returncode == 64 and stdout == \"\", stderr\n> E       AssertionError: \n> E       assert (0 == 64)\n> E        +  where 0 = <Popen: returncode: 0 args: ['/bin/python3.10', '/work/1/SFC/tanab/dev-wave-...>.returncode\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:259: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_cwd_inside_target[exact]\" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=823 retained_bytes=823 omitted_bytes=0 rendered_excerpt_bytes=860 sha256=3c79c8711af2577928483df51c0042adb915a3b6c444352b1967cad66975eadf\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_usage_rejects_cwd_inside_0')\n> case = 'exact'\n> \n>     @pytest.mark.parametrize(\"case\", [\"exact\", \"descendant\"])\n>     def test_usage_rejects_cwd_inside_target(tmp_path, case):\n>         target = _targets(tmp_path)[0]\n>         child = target / \"child\"\n>         child.mkdir()\n>         proc = _launch([target], env=os.environ.copy(), cwd=target if case == \"exact\" else child)\n>         stdout, stderr = proc.communicate(timeout=8)\n> >       assert proc.returncode == 64 and stdout == \"\", stderr\n> E       AssertionError: \n> E       assert (0 == 64)\n> E        +  where 0 = <Popen: returncode: 0 args: ['/bin/python3.10', '/work/1/SFC/tanab/dev-wave-...>.returncode\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:259: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1651 retained_bytes=1651 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2873 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "229f95db6a2b038949ee95f905481a6560f20084715fd533b231f53c20bc3b70"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6df7c322c6f7f29d94f4accac0dd4aa992bfe18022fc31b5ee197e8c34f8a9e1",
+      "duration_s": 370.503,
+      "expected_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_cwd_inside_target[descendant]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_cwd_inside_target[exact]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_cwd_inside_target[descendant]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_cwd_inside_target[exact]"
+      ],
+      "hang_risk": false,
+      "id": "m7-no-cwd-check",
+      "injection_diff_sha256": "d6d5c591e3222c12fb1aacdb0389b7d496811fe7a4d85606c78cde4b22d9fcec",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ddebd090064813cc6fa86dd9901a2676caaeb07e3b2d710309d94b0d65707cb1",
+      "replacements": [
+        {
+          "file": "tools/cleanup_remove_dirs.py",
+          "new": "        if False and os.path.commonpath([path, cwd]) == path:\n",
+          "old": "        if os.path.commonpath([path, cwd]) == path:\n"
+        }
+      ],
+      "repo_head": "46a88693c2371c97eb4c95ae1da44e402a60516d",
+      "runner_sha256": "362885a32dedbe64566e17548ca688fe73567a4fa4a9a6d940e03ba9beae8c5e",
+      "spec_sha256": "c9e30ccae19e0d71e02e6e9f16d0743b9314dea8814f8ad1aab66e25d1d2cd80",
+      "status": "KILLED",
+      "test_output_sha256": "229f95db6a2b038949ee95f905481a6560f20084715fd533b231f53c20bc3b70",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0eaf3f12a97c071545cc664e70d1a7378aaee127c549e85ef9d7b620d74e9132"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5f0b4468a6f1e25806d2e8c14d2607a0/izdw-5f0b4468a6.o3062",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5f0b4468a6f1e25806d2e8c14d2607a0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................F                                     [100%]\n=================================== FAILURES ===================================\n_________________________ test_timeout_is_interrupted __________________________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_timeout_is_interrupted0')\nstopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n\n    def test_timeout_is_interrupted(tmp_path, stopping_rm_bin):\n        paths = _targets(tmp_path)\n        deadline = time.monotonic() + 6\n        proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path, timeout=0.5)\n        children = []\n        try:\n            children = _stopped(proc, 1, deadline)\n>           _wait_until(lambda: _shdpnd(children[0]) & (1 << (signal.SIGTERM - 1)),\n                        min(deadline, time.monotonic() + 2), children=children)\n\norchestrator/tests/test_cleanup_remove_dirs.py:195: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npred = <function test_timeout_is_interrupted.<locals>.<lambda> at 0x14aabae1e200>\ndeadline = 143872.240094077, children = [1026311]\n\n    def _wait_until(pred, deadline, *, children):\n        while time.monotonic() < deadline:\n            try:\n                value = pred()\n            except (OSError, AssertionError) as exc:\n                raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n            if value:\n                return value\n            time.sleep(0.005)\n>       raise AssertionError(f\"synchronization deadline exceeded; {_child_states(children)}\")\nE       AssertionError: synchronization deadline exceeded; observed children pid -> /proc/<pid>/stat state: {1026311: 'T'}\n\norchestrator/tests/test_cleanup_remove_dirs.py:80: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted\n1 failed, 35 passed in 5.97s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted\" nodeid_bytes=75 nodeid_omitted_bytes=0 source_bytes=1740 retained_bytes=1740 omitted_bytes=0 rendered_excerpt_bytes=1809 sha256=b5278d5cda0a8df75eb69bf8a7bc679760333c75624f64deaca297f5d9415b85\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw5/test_timeout_is_interrupted0')\n> stopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n> \n>     def test_timeout_is_interrupted(tmp_path, stopping_rm_bin):\n>         paths = _targets(tmp_path)\n>         deadline = time.monotonic() + 6\n>         proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path, timeout=0.5)\n>         children = []\n>         try:\n>             children = _stopped(proc, 1, deadline)\n> >           _wait_until(lambda: _shdpnd(children[0]) & (1 << (signal.SIGTERM - 1)),\n>                         min(deadline, time.monotonic() + 2), children=children)\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:195: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> pred = <function test_timeout_is_interrupted.<locals>.<lambda> at 0x14aabae1e200>\n> deadline = 143872.240094077, children = [1026311]\n> \n>     def _wait_until(pred, deadline, *, children):\n>         while time.monotonic() < deadline:\n>             try:\n>                 value = pred()\n>             except (OSError, AssertionError) as exc:\n>                 raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n>             if value:\n>                 return value\n>             time.sleep(0.005)\n> >       raise AssertionError(f\"synchronization deadline exceeded; {_child_states(children)}\")\n> E       AssertionError: synchronization deadline exceeded; observed children pid -> /proc/<pid>/stat state: {1026311: 'T'}\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:80: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1740 retained_bytes=1740 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2511 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "910407e04593899bd31689b58d62b12dc0f91bcd00e007bcfcd09c94a5a145aa"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6df7c322c6f7f29d94f4accac0dd4aa992bfe18022fc31b5ee197e8c34f8a9e1",
+      "duration_s": 32.595,
+      "expected_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted"
+      ],
+      "hang_risk": false,
+      "id": "m8-no-timeout-term",
+      "injection_diff_sha256": "bff307bece47204c213f6a6ee4d1263e155b60739d74ab8b64f3c0abe945833c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0076ce2485c9a4a2f503b402386b679bd187f99e370e72a1e40f0b949d46c208",
+      "replacements": [
+        {
+          "file": "tools/cleanup_remove_dirs.py",
+          "new": "                if expired and not cancelled:\n                    time.sleep(POLL_SECONDS)\n",
+          "old": "                if expired and not cancelled:\n                    for child in expired:\n                        child.cancelled = True\n                    cancel(expired, signal.SIGTERM, interrupted=lambda: cancelled)\n"
+        }
+      ],
+      "repo_head": "46a88693c2371c97eb4c95ae1da44e402a60516d",
+      "runner_sha256": "362885a32dedbe64566e17548ca688fe73567a4fa4a9a6d940e03ba9beae8c5e",
+      "spec_sha256": "c9e30ccae19e0d71e02e6e9f16d0743b9314dea8814f8ad1aab66e25d1d2cd80",
+      "status": "KILLED",
+      "test_output_sha256": "910407e04593899bd31689b58d62b12dc0f91bcd00e007bcfcd09c94a5a145aa",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0eaf3f12a97c071545cc664e70d1a7378aaee127c549e85ef9d7b620d74e9132"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5c77ddc6efce7fd04e21ff2a8d0d69e8/izdw-5c77ddc6ef.o3063",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5c77ddc6efce7fd04e21ff2a8d0d69e8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...............................F....                                     [100%]\n=================================== FAILURES ===================================\n_________________ test_children_share_parent_pgid_then_remove __________________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_children_share_parent_pgi0')\nstopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n\n    def test_children_share_parent_pgid_then_remove(tmp_path, stopping_rm_bin):\n        paths = _targets(tmp_path, 2)\n        deadline = time.monotonic() + 6\n        proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n        children = []\n        try:\n            children = _stopped(proc, 2, deadline)\n            for pid in children:\n>               assert os.getpgid(pid) == os.getpgid(proc.pid)\nE               AssertionError: assert 1027791 == 1027323\nE                +  where 1027791 = <built-in function getpgid>(1027791)\nE                +    where <built-in function getpgid> = os.getpgid\nE                +  and   1027323 = <built-in function getpgid>(1027765)\nE                +    where <built-in function getpgid> = os.getpgid\nE                +    and   1027765 = <Popen: returncode: None args: ['/bin/python3.10', '/work/1/SFC/tanab/dev-wa...>.pid\n\norchestrator/tests/test_cleanup_remove_dirs.py:155: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_children_share_parent_pgid_then_remove\n1 failed, 35 passed in 4.43s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_children_share_parent_pgid_then_remove\" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=1279 retained_bytes=1279 omitted_bytes=0 rendered_excerpt_bytes=1324 sha256=505d79453b4d8b4e2dbc0173b6c996b784ccc3158faf14e2eda235d5124c857e\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_children_share_parent_pgi0')\n> stopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n> \n>     def test_children_share_parent_pgid_then_remove(tmp_path, stopping_rm_bin):\n>         paths = _targets(tmp_path, 2)\n>         deadline = time.monotonic() + 6\n>         proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n>         children = []\n>         try:\n>             children = _stopped(proc, 2, deadline)\n>             for pid in children:\n> >               assert os.getpgid(pid) == os.getpgid(proc.pid)\n> E               AssertionError: assert 1027791 == 1027323\n> E                +  where 1027791 = <built-in function getpgid>(1027791)\n> E                +    where <built-in function getpgid> = os.getpgid\n> E                +  and   1027323 = <built-in function getpgid>(1027765)\n> E                +    where <built-in function getpgid> = os.getpgid\n> E                +    and   1027765 = <Popen: returncode: None args: ['/bin/python3.10', '/work/1/SFC/tanab/dev-wa...>.pid\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:155: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1279 retained_bytes=1279 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2042 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "05dd3fa65a2ed03fc4e3d650bcb5990a6b43a73f8a9b399f885f6c7b76d1af68"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "6df7c322c6f7f29d94f4accac0dd4aa992bfe18022fc31b5ee197e8c34f8a9e1",
+      "duration_s": 32.785,
+      "expected_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_children_share_parent_pgid_then_remove"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_children_share_parent_pgid_then_remove"
+      ],
+      "hang_risk": false,
+      "id": "m9-start-new-session-and-tautological-pgid",
+      "injection_diff_sha256": "12b5e693b382f9fc01a9236362ba301aea233525d7148e508d3f72b51d7575b8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c5801ab9ecc9b67d3485e41434ceaa46277d5efd90c0596e6d6e8bd712262759",
+      "replacements": [
+        {
+          "file": "tools/cleanup_remove_dirs.py",
+          "new": "                    stdout=current.stdout, stderr=current.stderr, start_new_session=True)\n",
+          "old": "                    stdout=current.stdout, stderr=current.stderr)\n"
+        },
+        {
+          "file": "tools/cleanup_remove_dirs.py",
+          "new": "                if False:\n",
+          "old": "                if current.pgid != os.getpgrp():\n"
+        }
+      ],
+      "repo_head": "46a88693c2371c97eb4c95ae1da44e402a60516d",
+      "runner_sha256": "362885a32dedbe64566e17548ca688fe73567a4fa4a9a6d940e03ba9beae8c5e",
+      "spec_sha256": "c9e30ccae19e0d71e02e6e9f16d0743b9314dea8814f8ad1aab66e25d1d2cd80",
+      "status": "KILLED",
+      "test_output_sha256": "05dd3fa65a2ed03fc4e3d650bcb5990a6b43a73f8a9b399f885f6c7b76d1af68",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0eaf3f12a97c071545cc664e70d1a7378aaee127c549e85ef9d7b620d74e9132"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b42a24d89b8ca41d386922c024d2e527/izdw-b42a24d89b.o3064",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b42a24d89b8ca41d386922c024d2e527/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................F                                     [100%]\n=================================== FAILURES ===================================\n____________ test_launcher_signal_is_forwarded_before_removal[HUP] _____________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_launcher_signal_is_forwar0')\nstopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\nsignum = <Signals.SIGHUP: 1>\n\n    @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n    def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n        paths = _targets(tmp_path)\n        deadline = time.monotonic() + 6\n        proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n        children = []\n        try:\n            children = _stopped(proc, 1, deadline)\n            os.kill(proc.pid, signum)\n>           _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\n                        min(deadline, time.monotonic() + 2), children=children)\n\norchestrator/tests/test_cleanup_remove_dirs.py:175: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\npred = <function test_launcher_signal_is_forwarded_before_removal.<locals>.<lambda> at 0x150233536710>\ndeadline = 143979.919943314, children = [1029273]\n\n    def _wait_until(pred, deadline, *, children):\n        while time.monotonic() < deadline:\n            try:\n                value = pred()\n            except (OSError, AssertionError) as exc:\n                raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n            if value:\n                return value\n            time.sleep(0.005)\n>       raise AssertionError(f\"synchronization deadline exceeded; {_child_states(children)}\")\nE       AssertionError: synchronization deadline exceeded; observed children pid -> /proc/<pid>/stat state: {1029273: 'T'}\n\norchestrator/tests/test_cleanup_remove_dirs.py:80: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]\n1 failed, 35 passed in 5.91s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=1954 retained_bytes=1954 omitted_bytes=0 rendered_excerpt_bytes=2029 sha256=a160dae5895e69348fd47df5ccdc9cbd794e0b50cef9c945bebba2cf9402f90c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw4/test_launcher_signal_is_forwar0')\n> stopping_rm_bin = {'SHELL': '/bin/bash', 'VE_LIMIT_OPT': '-t unlimited -m unlimited', 'CONDA_EXE': '/system/apps/ubuntu/20.04-202210/oneapi/2022.3.1/intelpython/latest/bin/conda', '_CE_M': '', ...}\n> signum = <Signals.SIGHUP: 1>\n> \n>     @pytest.mark.parametrize(\"signum\", [signal.SIGTERM, signal.SIGINT, signal.SIGHUP], ids=[\"TERM\", \"INT\", \"HUP\"])\n>     def test_launcher_signal_is_forwarded_before_removal(tmp_path, stopping_rm_bin, signum):\n>         paths = _targets(tmp_path)\n>         deadline = time.monotonic() + 6\n>         proc = _launch(paths, env=stopping_rm_bin, cwd=tmp_path)\n>         children = []\n>         try:\n>             children = _stopped(proc, 1, deadline)\n>             os.kill(proc.pid, signum)\n> >           _wait_until(lambda: _shdpnd(children[0]) & (1 << (signum - 1)),\n>                         min(deadline, time.monotonic() + 2), children=children)\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:175: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> pred = <function test_launcher_signal_is_forwarded_before_removal.<locals>.<lambda> at 0x150233536710>\n> deadline = 143979.919943314, children = [1029273]\n> \n>     def _wait_until(pred, deadline, *, children):\n>         while time.monotonic() < deadline:\n>             try:\n>                 value = pred()\n>             except (OSError, AssertionError) as exc:\n>                 raise AssertionError(f\"synchronization failed: {exc}; {_child_states(children)}\") from exc\n>             if value:\n>                 return value\n>             time.sleep(0.005)\n> >       raise AssertionError(f\"synchronization deadline exceeded; {_child_states(children)}\")\n> E       AssertionError: synchronization deadline exceeded; observed children pid -> /proc/<pid>/stat state: {1029273: 'T'}\n> \n> orchestrator/tests/test_cleanup_remove_dirs.py:80: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1954 retained_bytes=1954 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2758 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "10b4bad2c3b38c7bf3d0d3cce3d2fc746277bc3e959766c516a716e63a560f08"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "6df7c322c6f7f29d94f4accac0dd4aa992bfe18022fc31b5ee197e8c34f8a9e1",
+      "duration_s": 41.904,
+      "expected_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]"
+      ],
+      "hang_risk": false,
+      "id": "m10-hup-not-registered",
+      "injection_diff_sha256": "f5357d8a412e26c134ef58fe47529d405e32d0f55ec2665dc06d8083ad946479",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "daaf5cfd1aa032e347ac1ddf6dde974a2f526d28762c9aa304589fea5937d57c",
+      "replacements": [
+        {
+          "file": "tools/cleanup_remove_dirs.py",
+          "new": "    for sig in (signal.SIGTERM, signal.SIGINT):\n",
+          "old": "    for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):\n"
+        }
+      ],
+      "repo_head": "46a88693c2371c97eb4c95ae1da44e402a60516d",
+      "runner_sha256": "362885a32dedbe64566e17548ca688fe73567a4fa4a9a6d940e03ba9beae8c5e",
+      "spec_sha256": "c9e30ccae19e0d71e02e6e9f16d0743b9314dea8814f8ad1aab66e25d1d2cd80",
+      "status": "KILLED",
+      "test_output_sha256": "10b4bad2c3b38c7bf3d0d3cce3d2fc746277bc3e959766c516a716e63a560f08",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "0eaf3f12a97c071545cc664e70d1a7378aaee127c549e85ef9d7b620d74e9132"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/da2c2c8c905f9ac6c51c0bce91c70d63/izdw-da2c2c8c90.o3022",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/da2c2c8c905f9ac6c51c0bce91c70d63/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_cleanup_remove_dirs.py::test_two_dirs_removed_without_wrapper\norchestrator/tests/test_cleanup_remove_dirs.py::test_children_share_parent_pgid_then_remove\norchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[TERM]\norchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[INT]\norchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]\norchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted\norchestrator/tests/test_cleanup_remove_dirs.py::test_failed_path_does_not_hide_other_removal\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[nested]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[duplicate]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[relative]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[missing]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[symlink]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[mid-symlink]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[file]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[root]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[trailing-slash]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[dotdot]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[empty]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[double-slash]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[dot]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_cwd_inside_target[exact]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_cwd_inside_target[descendant]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[no-separator]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[no-paths]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[unknown]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[missing-value]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[nonnumeric]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[nan]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[infinity]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[zero]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[negative]\norchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[duplicate]\norchestrator/tests/test_cleanup_remove_dirs.py::test_nul_path_is_rejected_before_spawn\norchestrator/tests/test_cleanup_remove_dirs.py::test_zero_returncode_with_existing_path_is_failed\norchestrator/tests/test_cleanup_remove_dirs.py::test_nonzero_returncode_with_absent_path_is_failed\norchestrator/tests/test_cleanup_remove_dirs.py::test_summary_never_succeeds_for_incomplete_results\n\n36 tests collected in 0.31s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "b61ecc1119b7476c68d307b62493d6fc387c9c693c1117f993788c24edcedeca"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_two_dirs_removed_without_wrapper",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_children_share_parent_pgid_then_remove",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[TERM]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[INT]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_failed_path_does_not_hide_other_removal",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[nested]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[duplicate]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[relative]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[missing]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[symlink]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[mid-symlink]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[file]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[root]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[trailing-slash]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[dotdot]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[empty]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[double-slash]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[dot]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_cwd_inside_target[exact]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_cwd_inside_target[descendant]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[no-separator]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[no-paths]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[unknown]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[missing-value]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[nonnumeric]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[nan]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[infinity]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[zero]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[negative]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_invalid_options[duplicate]",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_nul_path_is_rejected_before_spawn",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_zero_returncode_with_existing_path_is_failed",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_nonzero_returncode_with_absent_path_is_failed",
+        "orchestrator/tests/test_cleanup_remove_dirs.py::test_summary_never_succeeds_for_incomplete_results"
+      ],
+      "duration_s": 22.307,
+      "rc": 0,
+      "repo_head": "46a88693c2371c97eb4c95ae1da44e402a60516d",
+      "runner_sha256": "362885a32dedbe64566e17548ca688fe73567a4fa4a9a6d940e03ba9beae8c5e",
+      "spec_sha256": "c9e30ccae19e0d71e02e6e9f16d0743b9314dea8814f8ad1aab66e25d1d2cd80",
+      "status": "PASSED",
+      "tool_sha256": "0eaf3f12a97c071545cc664e70d1a7378aaee127c549e85ef9d7b620d74e9132"
+    },
+    "hang_timeout_seconds": 2700.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m0-equivalent-docstring": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "480952cfb2098644625b511fa1ff7bf25e1e176d06c01a4f18f7ac14e5879b08",
+        "replacements": [
+          {
+            "file": "tools/cleanup_remove_dirs.py",
+            "new": "\"\"\"Fixed directory removal launcher (D2104 item 32).\n",
+            "old": "\"\"\"Fixed directory removal launcher for D2104 item 32.\n"
+          }
+        ]
+      },
+      "m1-start-new-session": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_children_share_parent_pgid_then_remove",
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_failed_path_does_not_hide_other_removal",
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]",
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[INT]",
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[TERM]",
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted",
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_two_dirs_removed_without_wrapper"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "2cb50230482de9a4ecf0b5c4826de3bd150e68299e7645db55b753b45c750f23",
+        "replacements": [
+          {
+            "file": "tools/cleanup_remove_dirs.py",
+            "new": "                    stdout=current.stdout, stderr=current.stderr, start_new_session=True)\n",
+            "old": "                    stdout=current.stdout, stderr=current.stderr)\n"
+          }
+        ]
+      },
+      "m10-hup-not-registered": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f5357d8a412e26c134ef58fe47529d405e32d0f55ec2665dc06d8083ad946479",
+        "replacements": [
+          {
+            "file": "tools/cleanup_remove_dirs.py",
+            "new": "    for sig in (signal.SIGTERM, signal.SIGINT):\n",
+            "old": "    for sig in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP):\n"
+          }
+        ]
+      },
+      "m2-no-signal-forwarding-kill-only": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]",
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[INT]",
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[TERM]",
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1908e36a98e7cfdd49d6a6f862f2caed4d2d7f75697c5b8b07258079f8b47c37",
+        "replacements": [
+          {
+            "file": "tools/cleanup_remove_dirs.py",
+            "new": "    for sig, grace in ((signal.SIGKILL, KILL_GRACE_SECONDS),):\n",
+            "old": "    for sig, grace in ((signum, TERM_GRACE_SECONDS),\n                       (signal.SIGKILL, KILL_GRACE_SECONDS)):\n"
+          }
+        ]
+      },
+      "m3-interrupted-becomes-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[HUP]",
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[INT]",
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_launcher_signal_is_forwarded_before_removal[TERM]",
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cf193ce597dbcc5ac71e3ab85938b6bf5356f283799858b23b48d29f705327a2",
+        "replacements": [
+          {
+            "file": "tools/cleanup_remove_dirs.py",
+            "new": "        status, reason = \"removed\", \"cancelled or signal exit\"\n",
+            "old": "        status, reason = \"interrupted\", \"cancelled or signal exit\"\n"
+          }
+        ]
+      },
+      "m4-no-final-lstat-recheck": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_zero_returncode_with_existing_path_is_failed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "87791b3445ef4c168132b9ae753a49d6a541a7cdc203f9262b1e474cc6a5c2fb",
+        "replacements": [
+          {
+            "file": "tools/cleanup_remove_dirs.py",
+            "new": "    absent = True\n    error = child.error\n",
+            "old": "    absent = False\n    error = child.error\n"
+          }
+        ]
+      },
+      "m5-nonzero-exit-is-success": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_nonzero_returncode_with_absent_path_is_failed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "265eff10edac0358f88d98e9e91c67cf1c66f5f2d1f6ee965fcf55a463d09ba4",
+        "replacements": [
+          {
+            "file": "tools/cleanup_remove_dirs.py",
+            "new": "    elif not absent:\n",
+            "old": "    elif rc > 0 or not absent:\n"
+          }
+        ]
+      },
+      "m6-no-nested-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_paths_without_removal[nested]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "755e0037f674fb5f936d8d67456fb4a61c4142c0577c9b2a62f697c800849eaa",
+        "replacements": [
+          {
+            "file": "tools/cleanup_remove_dirs.py",
+            "new": "            if path == other:\n",
+            "old": "            if os.path.commonpath([path, other]) in {path, other}:\n"
+          }
+        ]
+      },
+      "m7-no-cwd-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_cwd_inside_target[descendant]",
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_usage_rejects_cwd_inside_target[exact]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d6d5c591e3222c12fb1aacdb0389b7d496811fe7a4d85606c78cde4b22d9fcec",
+        "replacements": [
+          {
+            "file": "tools/cleanup_remove_dirs.py",
+            "new": "        if False and os.path.commonpath([path, cwd]) == path:\n",
+            "old": "        if os.path.commonpath([path, cwd]) == path:\n"
+          }
+        ]
+      },
+      "m8-no-timeout-term": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_timeout_is_interrupted"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "bff307bece47204c213f6a6ee4d1263e155b60739d74ab8b64f3c0abe945833c",
+        "replacements": [
+          {
+            "file": "tools/cleanup_remove_dirs.py",
+            "new": "                if expired and not cancelled:\n                    time.sleep(POLL_SECONDS)\n",
+            "old": "                if expired and not cancelled:\n                    for child in expired:\n                        child.cancelled = True\n                    cancel(expired, signal.SIGTERM, interrupted=lambda: cancelled)\n"
+          }
+        ]
+      },
+      "m9-start-new-session-and-tautological-pgid": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_cleanup_remove_dirs.py::test_children_share_parent_pgid_then_remove"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "12b5e693b382f9fc01a9236362ba301aea233525d7148e508d3f72b51d7575b8",
+        "replacements": [
+          {
+            "file": "tools/cleanup_remove_dirs.py",
+            "new": "                    stdout=current.stdout, stderr=current.stderr, start_new_session=True)\n",
+            "old": "                    stdout=current.stdout, stderr=current.stderr)\n"
+          },
+          {
+            "file": "tools/cleanup_remove_dirs.py",
+            "new": "                if False:\n",
+            "old": "                if current.pgid != os.getpgrp():\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "0102a00a93649ac2e509e93e19adcf97eed206ef44f7a079f983ab7b9cc53489",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_cleanup_remove_dirs.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 2700.0
+  },
+  "repo_head": "46a88693c2371c97eb4c95ae1da44e402a60516d",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_cleanup_remove_dirs.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "dispatch_head_blob_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "fd65953cdd7e117806693676e45f7580839c09a3",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "362885a32dedbe64566e17548ca688fe73567a4fa4a9a6d940e03ba9beae8c5e",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "c9e30ccae19e0d71e02e6e9f16d0743b9314dea8814f8ad1aab66e25d1d2cd80",
+  "summary": {
+    "KILLED": 10,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 11,
+    "matching": 11,
+    "recorded": 11,
+    "registered": 11
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/t2665-mutation-4/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "0eaf3f12a97c071545cc664e70d1a7378aaee127c549e85ef9d7b620d74e9132",
+  "updated_at": "2026-09-17T00:00:43.319628+00:00"
+}

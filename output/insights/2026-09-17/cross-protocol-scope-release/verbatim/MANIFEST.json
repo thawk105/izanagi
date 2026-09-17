@@ -1,0 +1,79 @@
+[
+  {
+    "file": "parent-brief.md",
+    "source": "parent-brief.md",
+    "source_sha256": "f82ee0b2e93c1b54afd9a1cb091ba27e9786ed6aa15778c8b42b51c07435816c",
+    "stored_sha256": "f82ee0b2e93c1b54afd9a1cb091ba27e9786ed6aa15778c8b42b51c07435816c",
+    "trailing_ws_lines_stripped": 0
+  },
+  {
+    "file": "s2-plan.md",
+    "source": "plan-out.md",
+    "source_sha256": "1144ebabfd6dffc460cebca89b42e79cbd2428f3db62f4f66847b2b345b13993",
+    "stored_sha256": "5e820cebf55758690a7fe6de745defa96d7d7836b3cd182a8a590321b957b39c",
+    "trailing_ws_lines_stripped": 5
+  },
+  {
+    "file": "s3-lensA.md",
+    "source": "consultA-out.md",
+    "source_sha256": "0144c8759c2e9a23d8e64e564953259a2415570a8da3136a0e47ca7d10255ee9",
+    "stored_sha256": "e7ecc29ac135db9b1b52617b686bb57575225aca419a1e736886ff28c43bb388",
+    "trailing_ws_lines_stripped": 8
+  },
+  {
+    "file": "s3-lensB.md",
+    "source": "consultB-out.md",
+    "source_sha256": "2468d22ffa84c916e0750043c5d547adac3c21299c6797462e9c70667dc9b22c",
+    "stored_sha256": "ef6ccae54ac8686db2167700ce8aa8a9778bb2d358caa34ff1d910f554564ef3",
+    "trailing_ws_lines_stripped": 1
+  },
+  {
+    "file": "s4-adjudication.md",
+    "source": "stage4-ruling.md",
+    "source_sha256": "210a97f1f7723bb92562fbfde225ce71d76235ffd413fb3bf842156869fc585f",
+    "stored_sha256": "210a97f1f7723bb92562fbfde225ce71d76235ffd413fb3bf842156869fc585f",
+    "trailing_ws_lines_stripped": 0
+  },
+  {
+    "file": "s6-review.md",
+    "source": "review-out.md",
+    "source_sha256": "fb981f2aa920886252ccf30943228efc2c01c8d76a5178a7fe3d2b98ab60fcf9",
+    "stored_sha256": "900cd4459f3040482da0d562b21ed64e0dd67d7153dc2d1f65c49a21539eba18",
+    "trailing_ws_lines_stripped": 0
+  },
+  {
+    "file": "prompt-review.md",
+    "source": "prompt-review.md",
+    "source_sha256": "749948a258fca5db3f7ae3020e6b6dca23181fa696a615cb56459b580b3269af",
+    "stored_sha256": "749948a258fca5db3f7ae3020e6b6dca23181fa696a615cb56459b580b3269af",
+    "trailing_ws_lines_stripped": 0
+  },
+  {
+    "file": "prompt-plan.md",
+    "source": "prompt-plan.md",
+    "source_sha256": "bc1f374b5e59cc37fc5c697fcce8959a726d4de3e838a408e1e69b669402924e",
+    "stored_sha256": "bc1f374b5e59cc37fc5c697fcce8959a726d4de3e838a408e1e69b669402924e",
+    "trailing_ws_lines_stripped": 0
+  },
+  {
+    "file": "prompt-consult-A.md",
+    "source": "prompt-consult-A.md",
+    "source_sha256": "d2f10603321111e93a9c8cb8e94c785752019d6a2fd309ee1e4b6c41a0fe2370",
+    "stored_sha256": "d2f10603321111e93a9c8cb8e94c785752019d6a2fd309ee1e4b6c41a0fe2370",
+    "trailing_ws_lines_stripped": 0
+  },
+  {
+    "file": "prompt-consult-B.md",
+    "source": "prompt-consult-B.md",
+    "source_sha256": "a8c49037224d0218d8d67a755a36f6f4b8e62e9b19a606ed2f2f736c7906bbba",
+    "stored_sha256": "a8c49037224d0218d8d67a755a36f6f4b8e62e9b19a606ed2f2f736c7906bbba",
+    "trailing_ws_lines_stripped": 0
+  },
+  {
+    "file": "user-utterances.md",
+    "source": "user-utterances.md",
+    "source_sha256": "5c4fa2ac83e0467b19b4c60c3149cca54e1cd5f48aa2eb6375bdb5d4ad663bd8",
+    "stored_sha256": "5c4fa2ac83e0467b19b4c60c3149cca54e1cd5f48aa2eb6375bdb5d4ad663bd8",
+    "trailing_ws_lines_stripped": 0
+  }
+]
