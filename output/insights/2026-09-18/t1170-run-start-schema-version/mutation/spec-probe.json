@@ -1,0 +1,78 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 420,
+  "timeout_seconds": 2700,
+  "hang_timeout_seconds": 2700,
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "# Consumer-readable run-start generation, independent of the current producer version.\n",
+          "new": "# Consumer-readable run-start generation; independent of the current producer version.\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-drop-run-start-version-gate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "    if recorded_version != _RUN_START_SCHEMA_VERSION:\n        generation = (\n",
+          "new": "    if False:\n        generation = (\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-consumer-generation-v3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "_RUN_START_SCHEMA_VERSION = \"p3-autonomous-workload-trial/v4\"\n",
+          "new": "_RUN_START_SCHEMA_VERSION = \"p3-autonomous-workload-trial/v3\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-swap-legacy-unknown",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "            \"legacy\"\n            if recorded_version == \"p3-autonomous-workload-trial/v3\"\n            else \"unknown\"\n",
+          "new": "            \"unknown\"\n            if recorded_version == \"p3-autonomous-workload-trial/v3\"\n            else \"legacy\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-revert-rhs-to-producer-constant",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/autonomous_trial_completeness.py",
+          "old": "    if recorded_version != _RUN_START_SCHEMA_VERSION:\n        generation = (\n",
+          "new": "    if recorded_version != producer.SCHEMA_VERSION:\n        generation = (\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

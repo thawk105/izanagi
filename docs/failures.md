@@ -209,6 +209,8 @@
   (段 4 を「22:10」、段 6 を「23:10」と書いたが、子の pid file の mtime と実装 commit の時刻から 21:52 頃 / 22:17 頃だった)。
   insight の verbatim へ写した後に `date` で気づき、実測値へ訂正して commit 前に閉じた。時刻も日付と同じく一次資料
   (file の mtime・commit 時刻) から取る。
+
+- **再発: 2026-09-18** ([T-1505] A-1 sized 本走投入 wave、near miss)。親が handoff へ書いた JST 時刻 3 件 (06:33 / 06:35 / 06:37) が実測でなく推定で、直後の `date` は 06:29:42 だった (実時刻より先へ進んでいた)。原因は wave 冒頭の `date` 1 回に体感の経過を足したこと。記録 commit・insight へ入る前に `stat` の mtime で 06:24:21 / 06:28:23 / 06:29:14 へ置き換えた。恒久対応は変更なし — 時刻を書く 1 回ごとに `date` か mtime を採る。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -9422,6 +9424,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   以上あるなら少なくとも 1 つが `git merge-base --is-ancestor <parent> <tested-main>` を満たすことを
   確認する。満たさない commit が 1 つでもあれば land は必ず止まる。
 
+
+- **再発: 2026-09-18** — D427 の第 2 worktree (有効化前 commit d92800f49 を base にした実装 branch) を wave branch の
+  途中で 2 度 merge した形で land を投入し、rc=26 `fold-failed: landed-fold-owned-path` で停止した (main は不動)。
+  merge の両親 (wave 側の直前 commit と実装 branch tip) はどちらも tested main の祖先でなく trusted 親 0 になり、
+  verifier が両親と差分を取って 5 週間分の fold 署名を読んだ。T-2146 (2026-09-07) の 1 回目も同じ rc=26 だったが
+  記録が worklog に無く、本 wave は同じ形で再投入した。対処は本 F の恒久対応どおり: main から新 worktree を作り、
+  実装 branch を main 第 1 親の 1 merge で取り込み (docs 入口は main 版へ戻す)、wave 側の commit を cherry-pick で
+  積み、受入を取り直した。再発検知は本 F の手順 (land 前に `git rev-list --parents` で各 merge の親のどれかが
+  tested main の祖先であることを確認する) を `hooks/README.md` の「guard 自身の保守境界」(5) へ写した —
+  hooks/ を触る wave は第 2 worktree 経路を必ず通るので、この族に必ず入る。
 ### F267. 子の大出力 command が evidence を全損させる [証拠破損] [工数喪失]
 
 - 事象: 段 3 のレンズ B が 2 回連続で `evidence_status=invalid` となり、待ち手が rc=70
@@ -11318,6 +11330,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   本 wave の fixture は現行 producer から導出した。
 - 再発検知: 上記 producer 統合テスト。**「report が書かれない」を
   「検査が赤い」と区別する**ため、検査の緑ではなく `report.json` の実在を固定する。
+- **supersede: 2026-09-18** — 副次的所見 (run-start の schema_version を上げずに field を足していた件) は D2135 で閉じた: 版は 4c6f03048 の v4 を既存の境界として利用し、完全性 consumer が読める run-start 世代を独立定数で所有して producer の現行版と照合しない。版 gate に到達した非対応版は、v3 を `legacy`、それ以外 (欠落を含む) を `unknown` として拒否し、対応版 v4 は従来の field 検査へ進む。検出は `orchestrator/tests/test_autonomous_trial_completeness.py` の v4・binding 無し正例、v3 旧形・未知版の負例、producer 定数を別値にしても判定が変わらない独立性正例。
 
 ### F333. dispatch 親が SIGTERM された後も job がノードを 1 時間占有し、進捗ゼロの再試行ループが孤児を積み増した [手順漏れ]
 
@@ -20719,6 +20732,17 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   実 canonical を複製して byte 完全一致を検査する。深さが O(1) になった後は
   データ成長で再発しない。
 
+
+- **再発: 2026-09-18** — near miss (着地前に段 6 レビューが捕まえた)。`hooks/guard_bash.py` の script-executor
+  層剥き (D1891 の実装、段 5) を Python の自己再帰で書いたところ、`-m cProfile` を 1,100 層重ねた 13 KB の
+  command で `RecursionError` になり、`main()` の例外経路 (防護 path を含まない入力は rc 0) が後続 segment の
+  `pytest -q` を検査せず**許可**した (実入口での deny→allow、D428 違反)。深さが入力データ (今回は command の
+  層数) に比例する再帰という F709 と同じ型で、対応も同じ — 層剥きを while 化し深さを O(1) にした
+  (D2136)。再帰上限の引き上げ・深さ上限での拒否は採らなかった。再発検知は
+  `test_bash_login_executor_recursion_deep_nesting_has_no_stack_limit` (1,100 層で例外なく後続 pytest を拒否し、
+  深い軽量形は許可) と、D428 反転検査 runner が例外を fail-closed で数える経路。**新しい情報:** hook の
+  例外経路は「防護対象を含む入力だけ fail-closed」なので、重量判定の層で起きた例外は許可へ倒れる。
+  `decide()` の戻り値だけを比べる反転検査ではこの後退を捉えられず、例外を別枠で数える必要がある。
 ### F710. 同一原因の受入赤が走らせ方で件数を変え、node ID 一致の登録が原理的に使えなかった [恒真ゲート] [テスト代表性]
 
 - 事象: 上記の再帰上限赤について、並行セッションは 3 件、こちらは 4 件を観測した。
