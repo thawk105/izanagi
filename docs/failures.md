@@ -231,6 +231,17 @@
   こちらの負荷が他 wave の測定を汚す時間が 10 分あった。
   A/B や wall の測定を**投入する前に** `/proc/loadavg` と他 wave の pytest / 変異 harness の
   実在を数え、単独性が無ければ投入せず設計へ差し戻す。
+
+- **再発: 2026-09-17** — 到達不能監査の並列化 wave で、親が自分の計測系列を自分で重ねた。D958 の形の
+  独立走 (new16-7、fixture × 実根、16 worker) と、失敗の帰属用の onerror probe (同じ探索根を 16 worker で走査)
+  の待ち手の鍵を「直前の走の `.done`」(`fixture-old-4.done`) にしたため、probe が new16-7 の走行中 (09:28:46〜09:34:14)
+  に 09:29:05 から同時に走り、両方の所要 (327.0 秒 / 319 秒) を汚した。他 session の外乱ではなく親自身の producer が
+  原因で、単独性の確認 (`ps` で同じ探索根を叩く自 process 0 件) を投入前に行わなかった。new16-7 は値と理由を残して
+  無効にし、単独の代替走 (new16-8) を取った。恒久対応: 同じ資源 (探索根・repo・node) を叩く計測を chain するときの
+  鍵は**系列の終端 file** (`series-<name>.done`) にし、直前の走の `.done` にしない。投入直前に
+  `ps -eo pid,args | grep "[a]udit_dangling_commits.*--offrepo-root"` で自 process を数える (memory
+  `measurement-chains-key-on-series-end`)。正本 = `output/insights/2026-09-17/t2637-offrepo-parallel-scan/README.md`
+  の実測表。
 ### F4. 監査セッション突然死と文書一貫性の腐敗 [セッション死・救出] [ドリフト]
 - 事象: 2026-07-04 夜の監査セッションが報告済み状態で突然死。加えて docs 横断監査で
   real 39 件 — 可変状態 (完了状況・現在地) の複数文書への再掲が相互に腐っていた
@@ -22692,6 +22703,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   何も出力せず、その後に同じ tool を再実行して rc=0 になった。実装子用 worktree では 1 回目から
   rc=0 で通っており、本 wave では 2 worktree 中 1 回の発生だった。根本原因は本 wave でも
   切り分けていない。
+
+- **再発: 2026-09-17** — 本 wave の 1 つ目の worktree (`…-scope-release`) で
+  `tools/dev_wave_submodule_init.py` の 1 走目が `runtime-io-failure: detail={'label': 'submodule',
+  'kind': 'update-no-fetch'}` を出し、submodule 自体は初期化済み (status 行頭の `-` が消えていた)、
+  2 走目で `OK` rc=0。同 wave で後から作った 2 つ目の worktree (`…-scope-lift`、同一 commit) では
+  1 走目で rc=0 だった。回数は固定ではないという既知の観測と整合する。
 ### F811. 変異 wrapper の事後検査が共有 main を観測し、並行 land で本走が全損する [手順漏れ] [観測者効果]
 
 - 事象: `tools/mutation_worktree.py` で変異本走を投じたところ、6 走の見積もりどおり最後まで
@@ -27320,3 +27337,24 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   作り `"stock"` / `compute == baseline` を要求する fails-closed の負例) を追加した。変異 S2 (prefix 剥がしを外す) がこの 2 node を
   赤にすることを台帳で確認した。発見した防壁は DW-S01 の「brief 前に前提を実測する」規律 (docs/dev-wave/core.md)。
 - 再発検知: 上記 2 node の赤。裁定文が compiler / tool の挙動を前提にするときは、段 1 で対象実体の実測を brief に書く。
+
+### F1022. 部分文字列の不在検査が、script に埋め込まれた repo path の一部に当たって決定的な偽赤になる [テスト代表性]
+
+- 事象: 受入全走 1 走目で `orchestrator/tests/test_pegasus_dispatch_compute.py` の
+  `test_compute_marker_is_cross_namespace_evidence_without_release_handshake` が赤になった。同 test は
+  compute job script に「release handshake が無い」ことを `assert "release" not in script.lower()` で見るが、
+  script には `dispatcher=<repo_root>/…` として **worktree の絶対 path が埋め込まれる**。本 wave の worktree /
+  branch 名が `…-cross-protocol-scope-release` だったため、path の末尾 `scope-release` に当たって
+  決定的に赤になった (docs-only の wave で実装面 0 byte)。同じ受入の他 16 件は負荷起因の
+  `TimeoutExpired` / real-repo lock の非帰属赤で、この 1 件だけが自分起因だった。
+- 根本原因: 語 1 つの不在で構文の不在を代理させている。「release」は一般語で、path・comment・
+  branch 名にも現れる。検査対象 (script 本文) に環境依存の文字列 (repo path) が混ざる以上、語の不在検査は
+  検査対象と無関係な入力で反転する。F908 (部分文字列の存在検査の恒真) の裏返しで、こちらは偽赤の側。
+- 恒久対応: 受入を通すための即時対応は worktree / branch を `…-cross-protocol-scope-lift` に切り直した
+  (submodule を含む worktree は `git worktree move` できないため新規 worktree を同一 commit から作成)。
+  test 側の是正 (語の不在ではなく handshake 構文 — 例: `release` を含む marker 操作行 — の不在を、path を
+  除いた本文に対して検査する) は実装面なので本 wave では行わず、次の一手に起票した
+  (Codex `role=author` 必須)。暫定の防壁は memory
+  (`~/.claude/projects/-work-1-SFC-tanab-izanagi/memory/wave-slug-must-not-contain-release.md`):
+  wave の slug / branch / worktree 名に `release` を含めない。
+- 再発検知: 受入全走で同 test が赤になり、assert 本文の `'release' is contained here:` が path 断片を指す。

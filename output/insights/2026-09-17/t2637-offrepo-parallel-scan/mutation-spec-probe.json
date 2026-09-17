@@ -1,0 +1,167 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 2700,
+  "hang_timeout_seconds": 2700,
+  "mutations": [
+    {
+      "id": "m0-equivalent-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "    \"\"\"blob を読まず basename・size・mode が一致する外部実体を列挙する。\"\"\"\n",
+          "new": "    \"\"\"basename・size・mode が一致する外部実体を、blob を読まずに列挙する (等価変異の目印)。\"\"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-drop-worker-failure-sum",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "        counts.files += files\n        counts.failures += failures\n",
+          "new": "        counts.files += files\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-drop-last-sorted-child-task",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "            for name in iteration[1]\n",
+          "new": "            for name in iteration[1][:-1]\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-skip-root-level-filenames",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "    directory, dirnames, filenames = iteration\n    counts.directories += 1\n",
+          "new": "    directory, dirnames, filenames = iteration\n    if keys is not None and key_prefix == ():\n        filenames = []\n    counts.directories += 1\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-enter-symlink-directories",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "            for name in iteration[1]\n            if not os.path.islink(os.path.join(directory, name))\n",
+          "new": "            for name in iteration[1]\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4b-equivalent-followlinks-flag",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "        directory, topdown=True, onerror=counts.record_error, followlinks=False\n",
+          "new": "        directory, topdown=True, onerror=counts.record_error, followlinks=True\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-representative-by-max-key",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "                if group_key not in keys or key < keys[group_key]:\n                    group.external = external\n",
+          "new": "                if group_key not in keys or key > keys[group_key]:\n                    group.external = external\n"
+        },
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "                if group_key not in keys or key < keys[group_key]:\n                    keys[group_key] = key\n",
+          "new": "                if group_key not in keys or key > keys[group_key]:\n                    keys[group_key] = key\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-swallow-worker-exception",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "                children = _scan_offrepo_directory(\n                    *task, root, by_basename, found, found_keys, local, publish\n                )\n",
+          "new": "                try:\n                    children = _scan_offrepo_directory(\n                        *task, root, by_basename, found, found_keys, local, publish\n                    )\n                except Exception:\n                    children = []\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-progress-from-worker",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "                children = _scan_offrepo_directory(\n                    *task, root, by_basename, found, found_keys, local, publish\n                )\n",
+          "new": "                if heartbeat._progress is not None:\n                    heartbeat._progress(\"repo 外走査 heartbeat mutant\")\n                children = _scan_offrepo_directory(\n                    *task, root, by_basename, found, found_keys, local, publish\n                )\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-default-workers-zero",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "OFFREPO_SCAN_WORKERS = 16\n",
+          "new": "OFFREPO_SCAN_WORKERS = 0\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-queue-before-empty-return",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "    if not candidates:\n        return {}, 0, False\n    workers = _offrepo_scan_workers()\n",
+          "new": "    _premature = queue.Queue()\n    if not candidates:\n        return {}, 0, False\n    workers = _offrepo_scan_workers()\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
