@@ -795,12 +795,12 @@ def _script_executor_arguments(module: str, args):
 def _script_executor_program(module: str, args):
     """内側 program を ``(kind, value, rest)`` として返す。
 
-    再帰は executor 一層を必ず消費する。密着 option を分離した正規形では
-    module は 3+len(rest) < 5+len(rest)、script は
-    2+len(rest) < 4+len(rest)、runpy の positional module は
-    3+len(rest) < 4+len(rest)。先頭 '-' の script に '--' を補っても
-    3+len(rest) < 5+len(rest) なので深さ上限は不要。
-    密着形では生 token 数が増す場合もあるが、正規形の尺度は厳密に減る。
+    各層で executor module token と program token を必ず消費し、rest は
+    前層の正規形 args の真の suffix になる。密着 option の分離や先頭 '-'
+    の script への '--' 補完で生 token 数が増す場合も、正規形 token 数は
+    厳密に減るため、層剥きの反復は深さ上限なしで有限回で止まる。
+    各層の gate 呼び出しは追加の層剥きをしないので、executor 検査の
+    Python stack の追加深さは層数によらず 1 である。
     """
     if module in _MULTI_TARGET_EXECUTOR_MODULES:
         return None
@@ -1247,7 +1247,8 @@ def _interpreter_residual_violation(head: str, args, repo_root: str):
     return None
 
 
-def _heavy_segment_violation(seg, repo_root: str, depth: int):
+def _heavy_segment_violation(
+        seg, repo_root: str, depth: int, *, peel_executors: bool = True):
     seg = _expand_env_split_strings(seg)
     if seg is None:
         return "env -S split-string を解析不能"
@@ -1294,19 +1295,27 @@ def _heavy_segment_violation(seg, repo_root: str, depth: int):
             if nested:
                 return nested
 
-    invocation = _python_module_invocation(head, args)
-    if invocation is not None:
-        program = _script_executor_program(*invocation)
-        if program is not None:
+    if peel_executors:
+        inner_raw_head, inner_head, inner_args = raw_head, head, args
+        while True:
+            invocation = _python_module_invocation(inner_head, inner_args)
+            if invocation is None:
+                break
+            program = _script_executor_program(*invocation)
+            if program is None:
+                break
             kind, value, rest = program
             if kind == "module":
-                inner_seg = [raw_head, "-m", value, *rest]
+                inner_seg = [inner_raw_head, "-m", value, *rest]
             else:
-                prefix = [raw_head, "--"] if value.startswith("-") else [raw_head]
+                prefix = ([inner_raw_head, "--"] if value.startswith("-")
+                          else [inner_raw_head])
                 inner_seg = [*prefix, value, *rest]
-            nested = _heavy_segment_violation(inner_seg, repo_root, depth + 1)
+            nested = _heavy_segment_violation(
+                inner_seg, repo_root, depth + 1, peel_executors=False)
             if nested:
                 return nested
+            inner_raw_head, inner_head, inner_args = _heavy_head_and_args(inner_seg)
 
     # `-m <他 module> … <checker>` は checker を実行しないので通すが、sanctioned だけは
     # 借りさせず以降の既存判定 (pytest 等) へ落とす。
