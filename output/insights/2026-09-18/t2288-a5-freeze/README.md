@@ -153,4 +153,6 @@ spec 生成器・parse 事前 probe・plan 集計 script (`.py`) と plan 全文
 | `python3 -m orchestrator.campaign.s8b_holdout_freeze search` (三軸語走査) | rc=0。27,705 file (tracked + untracked、binary 1,827 skip)、holdout rr80 / rr20 とも conjunction hit 0 (軸別 count: rratio 20 / 7、skew 387、rmw 308)、正対照 190 hit (走査器は生きている)。spec 3 本・本 insight・fragment 2 本・verbatim を含む作業ツリーで実走 (所要約 20 分、login node、load 30〜55) |
 | `python3 tools/spool_fold.py --dry-run --show-diff` | rc=0。仮採番 D2135、worklog entry 1636、[T-2288] の `更新` は base digest `f5251c0e…` で適用 (実採番は land の fold が行う) |
 | 変異 matrix | 実装面差分 0 につき免除 (DW-S04) |
-| 受入全走 | 本記録 commit を含む最終 tip に対して land 前に 1 回だけ投入し、child-green でなければ land しない (受領証は job dir)。結果は land の受領証と worklog に残る |
+| `python3 tools/check_ai_provenance.py` (全史) | rc=0。11,208 件、新規違反なし (既知違反は D742 baseline の 53 + post-baseline 3) |
+| 受入全走 attempt 1 (07:30〜07:46 JST) | `rc=70 source_rc=16` (`dispatch-attestation-missing`)、受領証なし。shard 1 / 2 は child rc=0、shard 0 は 3,806 passed / 22 skipped / 34 setup error — 34 件すべて `test_t1259_qsub_env_delivery_probe.py` の `_repo_snapshot` の `git ls-files` 30 秒 timeout (F945 型、他 wave の受入 4 本と同時刻)。本 wave の差分に帰属しない infra 赤。孤児 job・orphan hold なし |
+| 受入全走 (land に使う走) | 本記録 commit を含む最終 tip に対して、門番 (leader ≤ 2・load 下降) の窓で投げ直し、child-green の受領証が出たものだけで land する (受領証は job dir)。結果は land の受領証と worklog に残る |

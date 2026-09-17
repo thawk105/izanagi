@@ -44,8 +44,12 @@ title: [T-2288] B-4 床値 spec 3 本の A-5 を D2120 項 4 の委任で確定�
 - 受入・検査 (本記録 commit 前、insight・fragment 2 本・D fragment の是正を含む作業ツリーで実走): `check_docs` rc=0、
   `spool_fold --dry-run --show-diff` rc=0 (仮採番 D2135・entry 1636、[T-2288] の更新は base `f5251c0e…` で適用)、三軸語走査
   `s8b_holdout_freeze search` rc=0 (27,705 file、holdout rr80 / rr20 とも conjunction hit 0、正対照 190 hit、所要約 20 分)、
-  仮置き語 grep は spec 3 本 0 件。受入全走は本記録 commit を含む最終 tip に対して land 前に 1 回だけ投入し、child-green でなければ
-  land しない (受領証は job dir)。
+  仮置き語 grep は spec 3 本 0 件。全史 provenance 監査 rc=0 (11,208 件、新規違反なし)。受入全走 (attempt 1、07:30〜07:46 JST) は
+  `stage=acceptance-command rc=70 source_rc=16` (`dispatch-attestation-missing`) で受領証なし — shard 1 / 2 は child rc=0、shard 0 は
+  3,806 passed / 22 skipped / 34 setup error で、34 件すべて `test_t1259_qsub_env_delivery_probe.py` の `_repo_snapshot` の
+  `git ls-files` 30 秒 timeout (F945 型、他 wave の受入 4 本と同時刻の共有 FS 負荷)。本 wave の差分 (docs + spec JSON) に帰属しない
+  infra 赤で、赤とは数えない。孤児 job・orphan hold なし、tree と HEAD は不変。land に使う受入は、本記録 commit を含む最終 tip に対して
+  門番 (leader ≤ 2・load 下降) の窓で投げ直し、child-green の受領証が出たものだけとする (受領証は job dir)。
 - 段 8 の自己改善: 候補 0 件 (踏んだ guard 拒否は複合 command・heredoc・python 本文中の語の既知型、docs の新規収容も F の再発追記も無い)。
 - エージェント工数: codex 子 5 本を起動し 5 本とも受理 (段 2 plan 1 / 段 3 consult 2 / 段 6 review 2、いずれも read-only、`gpt-6-astra`、
   plan・consult は `reasoning=medium`、review は docs 権威由来)。実装子・fix 子は実装面が無いため立てていない。親の実走は `place` 1 本、
