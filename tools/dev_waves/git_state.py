@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import subprocess
+import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -66,6 +69,11 @@ def _left(deadline_ns: int) -> float:
 # contains no push, merge, rebase, reset, fetch, remote mutation, branch delete,
 # worktree remove, or submodule deinit operation.
 GIT_COMMANDS: Mapping[str, tuple[str, ...]] = {
+    "git-dir": ("rev-parse", "--path-format=absolute", "--git-dir"),
+    "git-path": ("rev-parse", "--path-format=absolute", "--git-path"),
+    "add-all": ("add", "-A"),
+    "staged-quiet": ("diff", "--cached", "--quiet"),
+    "commit-file": ("-c", "commit.gpgSign=false", "commit", "-F"),
     "common-dir": ("rev-parse", "--path-format=absolute", "--git-common-dir"),
     "toplevel": ("rev-parse", "--path-format=absolute", "--show-toplevel"),
     "head": ("rev-parse", "--verify", "HEAD"),
@@ -219,6 +227,101 @@ def _sha(value: str, *, label: str) -> str:
     if _SHA_RE.fullmatch(value) is None:
         raise DevWavesError(ReasonCode.INVALID_RUN, {"label": label, "kind": "sha"})
     return value
+
+
+def commit_worker_worktree(
+    repo_root: os.PathLike[str] | str, *, wave: str, job_id: str,
+    stage: str, launcher_rc: int | None, receipt_path: Path | None = None,
+    actor: str = "launcher",
+) -> tuple[str, str | None]:
+    """Record worker residue without discarding or adopting its contents."""
+    def finish(status: str, detail: str | None = None) -> tuple[str, str | None]:
+        suffix = f" {detail}" if status == "committed" else (
+            f" reason={detail}" if detail is not None else ""
+        )
+        print(f"worktree-commit: {status}{suffix}", flush=True)
+        if status in ("refused", "failed"):
+            print(f"NG: worktree-commit {status}{suffix}", file=sys.stderr, flush=True)
+        return status, detail
+
+    operation = "toplevel"
+    message_path = None
+    try:
+        root = Path(repo_root).resolve()
+        if Path(_text(_run(root, operation)).strip()).resolve() != root:
+            return finish("refused", "root-mismatch")
+        operation = "git-dir"
+        git_dir = Path(_text(_run(root, operation)).strip()).resolve()
+        operation = "common-dir"
+        if git_dir == Path(_text(_run(root, operation)).strip()).resolve():
+            return finish("refused", "primary-worktree")
+        operation = "branch"
+        branch = _run(root, operation, allowed_returncodes=(0, 1))
+        branch_name = _text(branch).strip()
+        if branch.returncode == 1:
+            return finish("refused", "detached-head")
+        if branch_name in {"main", "master"}:
+            return finish("refused", "protected-branch")
+        operation = "git-path"
+        for marker in ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply"):
+            if Path(_text(_run(root, operation, extra=(marker,))).strip()).exists():
+                return finish("deferred", "operation-in-progress")
+        operation = "add-all"
+        _text(_run(root, operation, timeout_s=120))
+        operation = "staged-quiet"
+        staged = _run(root, operation, allowed_returncodes=(0, 1))
+        _text(staged)
+        if staged.returncode == 0:
+            return finish("clean")
+
+        receipt = {}
+        if receipt_path is not None:
+            try:
+                payload = json.loads(Path(receipt_path).read_text(encoding="utf-8"))
+                if isinstance(payload, dict):
+                    receipt = payload
+            except (OSError, ValueError, UnicodeError):
+                pass
+
+        def provenance(field: str) -> str:
+            value = next((
+                value for key in (f"recorded_{field}", f"requested_{field}")
+                if isinstance(value := receipt.get(key), str) and value.strip()
+            ), "unknown")
+            value = re.sub(r"[^a-z0-9._-]", "-", value.lower())
+            value = re.sub(r"-+", "-", value)
+            value = re.sub(r"^[^a-z0-9]+", "", value).rstrip("-")
+            if value == "none" or re.fullmatch(r"[a-z0-9][a-z0-9._-]*", value) is None:
+                return "unknown"
+            return value
+
+        def line(value: object) -> str:
+            return "".join(str(value if value is not None else "unknown").splitlines()).replace(";", "")
+
+        message = (
+            "[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録\n\n"
+            f"wave: {line(wave)}\njob-id: {line(job_id)}\nstage: {line(stage)}\n"
+            f"actor: {line(actor)}\nlauncher rc: {line(launcher_rc)}\n"
+            f"receipt outcome: {line(receipt.get('outcome', 'unknown'))}\n"
+            "scope: worktree residue at job end\n\n"
+            f"AI-Agent: product=codex; model={provenance('model')}; "
+            f"reasoning={provenance('effort')}; role=author\n"
+        )
+        operation = "message-file"
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", delete=False, dir=None) as stream:
+                message_path = Path(stream.name)
+                stream.write(message)
+            operation = "commit-file"
+            _text(_run(root, operation, extra=(str(message_path),), timeout_s=120))
+        finally:
+            if message_path is not None:
+                message_path.unlink(missing_ok=True)
+        operation = "head"
+        head = _sha(_text(_run(root, operation)), label="worker-commit")
+    except (DevWavesError, OSError, UnicodeError):
+        return finish("failed", operation)
+    return finish("committed", head)
 
 
 def resolve_repo_identity(repo_root: os.PathLike[str] | str) -> RepoIdentity:
@@ -1150,7 +1253,7 @@ __all__ = [
     "DeclaredFoldVerification", "FFChainVerification", "FOLD_AUTHOR_IDENTITY",
     "FOLD_COMMIT_MESSAGE", "GIT_COMMANDS", "GIT_HARDENING_CONFIG", "GitTraceReport", "RepoIdentity",
     "RepoSnapshot", "TrustRoot", "WaveWorktree", "WorktreeRecord", "branch_tip",
-    "create_exact_worktree", "create_isolated_checkout", "read_child_git_trace",
+    "commit_worker_worktree", "create_exact_worktree", "create_isolated_checkout", "read_child_git_trace",
     "resolve_main_worktree", "resolve_registered_worktree", "resolve_repo_identity", "snapshot_repo",
     "supervised_spool_wave_identity", "supervised_spool_wave_slug", "trust_root",
     "update_submodules_no_fetch", "verify_declared_fold_commit", "verify_ff_chain",

@@ -8,7 +8,7 @@ import subprocess
 import sys
 import tempfile
 import traceback
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
@@ -25,6 +25,7 @@ from tools.dev_waves.git_state import (
     _landed_fold_output_path,
     _parse_commit_parent_batch,
     _parse_commit_parents,
+    commit_worker_worktree,
     create_exact_worktree,
     create_isolated_checkout,
     read_child_git_trace,
@@ -1300,6 +1301,163 @@ def test_structured_git_trace_detects_push_and_malformed_tail():
         assert read_child_git_trace(trace).push_attempted is True
         trace.write_bytes(b'{"event":"child_start"}')
         assert read_child_git_trace(trace).malformed is True
+
+
+def _worker_repo(root: Path) -> tuple[Path, Path]:
+    primary = root / "primary"
+    _git(root, "init", "-b", "parent", str(primary))
+    _git(primary, "config", "user.name", "Worker Test")
+    _git(primary, "config", "user.email", "worker@example.invalid")
+    for name in ("tracked", "deleted"):
+        (primary / name).write_text("base\n", encoding="utf-8")
+    _git(primary, "add", "-A")
+    _git(primary, "commit", "-m", "base")
+    worker = root / "worker"
+    _git(primary, "worktree", "add", "-b", "topic", str(worker))
+    return primary, worker
+
+
+def _record_worker(repo: Path, **kwargs: object) -> tuple[str, str | None]:
+    return commit_worker_worktree(
+        repo, wave="wave", job_id="job", stage="author", launcher_rc=7, **kwargs,
+    )
+
+
+def _worker_trailer(repo: Path) -> tuple[str, str]:
+    sys.path.insert(0, str(_ROOT / "tools"))
+    import check_ai_provenance
+
+    message = _git(repo, "log", "-1", "--format=%B")
+    trailers = [line for line in message.splitlines() if line.startswith("AI-Agent:")]
+    assert len(trailers) == 1
+    assert message.split("\n\n")[-1] == trailers[0]
+    match = check_ai_provenance.AGENT_VALUE.fullmatch(trailers[0].removeprefix("AI-Agent: "))
+    assert match is not None, trailers
+    assert match["product"] == "codex" and match["role"] == "author"
+    assert match["model"] != "none" and match["reasoning"] != "none"
+    return match["model"], match["reasoning"]
+
+
+def test_commit_worker_worktree_records_residue_then_noop():
+    with _fresh() as tmp:
+        primary, worker = _worker_repo(Path(tmp))
+        base = _git(worker, "rev-parse", "HEAD")
+        (worker / "tracked").write_text("edited\n", encoding="utf-8")
+        (worker / "deleted").unlink()
+        (worker / "new").write_bytes(b"new\x00bytes\n")
+        _git(worker, "add", "tracked")
+        def patch_bytes():
+            return subprocess.run(
+                ["git", "diff", "--cached", base, "--", "tracked"],
+                cwd=worker, check=True, stdout=subprocess.PIPE,
+            ).stdout
+        before = patch_bytes()
+        out, err = StringIO(), StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            status, head = _record_worker(worker)
+            assert (status, head) == ("committed", _git(worker, "rev-parse", "HEAD"))
+            assert _record_worker(worker) == ("clean", None)
+        assert out.getvalue() == f"worktree-commit: committed {head}\nworktree-commit: clean\n"
+        assert err.getvalue() == ""
+        assert _git(worker, "rev-parse", "HEAD") == head
+        assert _git(worker, "rev-list", "--count", f"{base}..HEAD") == "1"
+        assert _git(primary, "rev-parse", "HEAD") == base
+        assert patch_bytes() == before and before
+        assert _git(worker, "ls-tree", "--name-only", "HEAD").splitlines() == ["new", "tracked"]
+        assert _git(worker, "status", "--porcelain") == ""
+        assert _git(worker, "log", "-1", "--format=%an <%ae>|%cn <%ce>") == (
+            "Worker Test <worker@example.invalid>|Worker Test <worker@example.invalid>"
+        )
+        assert _worker_trailer(worker) == ("unknown", "unknown")
+
+
+def test_commit_worker_worktree_provenance_values():
+    cases = (
+        ({"recorded_model": "GPT-6", "requested_model": "fallback", "recorded_effort": "HIGH", "requested_effort": "low"}, ("gpt-6", "high")),
+        ({"recorded_model": " ", "requested_model": "GPT-5.6", "requested_effort": "Medium"}, ("gpt-5.6", "medium")),
+        (None, ("unknown", "unknown")),
+        ({"recorded_model": "NONE", "recorded_effort": "none", "requested_model": "fallback"}, ("unknown", "unknown")),
+        ({"recorded_model": "._GPT\n6; X---", "recorded_effort": "..MAX;\n", "outcome": "ok\nAI-Agent: forged;"}, ("gpt-6-x", "max")),
+        ("malformed", ("unknown", "unknown")),
+    )
+    with _fresh() as tmp:
+        root = Path(tmp)
+        _, worker = _worker_repo(root)
+        receipt = root / "receipt.json"
+        for index, (payload, expected) in enumerate(cases):
+            receipt.unlink(missing_ok=True)
+            if payload is not None:
+                receipt.write_text("{" if payload == "malformed" else json.dumps(payload))
+            (worker / "tracked").write_text(f"change {index}\n")
+            assert _record_worker(worker, receipt_path=receipt)[0] == "committed"
+            assert _worker_trailer(worker) == expected
+            message = _git(worker, "log", "-1", "--format=%B")
+            assert "scope: worktree residue at job end" in message
+            if isinstance(payload, dict) and "outcome" in payload:
+                assert "receipt outcome: okAI-Agent: forged\n" in message
+
+
+def test_commit_worker_worktree_refuses_detached_protected_primary_root():
+    for case, reason in (("detached", "detached-head"), ("main", "protected-branch"),
+                         ("master", "protected-branch"), ("primary", "primary-worktree"),
+                         ("nested", "root-mismatch")):
+        with _fresh() as tmp:
+            primary, worker = _worker_repo(Path(tmp))
+            if case == "detached":
+                _git(worker, "checkout", "--detach")
+            elif case in ("main", "master"):
+                _git(worker, "branch", "-m", case)
+            target = primary if case == "primary" else worker
+            (target / "new").write_text("residue\n")
+            before_head = _git(target, "rev-parse", "HEAD")
+            before_index = Path(_git(target, "rev-parse", "--path-format=absolute", "--git-path", "index")).read_bytes()
+            if case == "nested":
+                target = worker / "nested"
+                target.mkdir()
+            out, err = StringIO(), StringIO()
+            with redirect_stdout(out), redirect_stderr(err):
+                assert _record_worker(target) == ("refused", reason)
+            assert out.getvalue() == f"worktree-commit: refused reason={reason}\n"
+            assert err.getvalue() == f"NG: worktree-commit refused reason={reason}\n"
+            assert _git(target, "rev-parse", "HEAD") == before_head
+            assert Path(_git(target, "rev-parse", "--path-format=absolute", "--git-path", "index")).read_bytes() == before_index
+            assert ((primary if case == "primary" else worker) / "new").read_text() == "residue\n"
+
+
+def test_commit_worker_worktree_defers_merge_in_progress():
+    with _fresh() as tmp:
+        primary, worker = _worker_repo(Path(tmp))
+        (primary / "tracked").write_text("parent\n")
+        _git(primary, "commit", "-am", "parent")
+        (worker / "tracked").write_text("worker\n")
+        _git(worker, "commit", "-am", "worker")
+        _git(worker, "merge", "parent", ok=(1,))
+        before = _git(worker, "ls-files", "--unmerged")
+        head = _git(worker, "rev-parse", "HEAD")
+        residue = (worker / "tracked").read_bytes()
+        assert before
+        assert _record_worker(worker) == ("deferred", "operation-in-progress")
+        assert _git(worker, "ls-files", "--unmerged") == before
+        assert _git(worker, "rev-parse", "HEAD") == head
+        assert (worker / "tracked").read_bytes() == residue
+
+
+def test_commit_worker_worktree_failed_keeps_residue():
+    with _fresh() as tmp:
+        _, worker = _worker_repo(Path(tmp))
+        base = _git(worker, "rev-parse", "HEAD")
+        _git(worker, "config", "--unset", "user.name")
+        _git(worker, "config", "--unset", "user.email")
+        _git(worker, "config", "user.useConfigOnly", "true")
+        (worker / "new").write_text("residue\n")
+        out, err = StringIO(), StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            assert _record_worker(worker) == ("failed", "commit-file")
+        assert out.getvalue() == "worktree-commit: failed reason=commit-file\n"
+        assert err.getvalue() == "NG: worktree-commit failed reason=commit-file\n"
+        assert _git(worker, "rev-parse", "HEAD") == base
+        assert _git(worker, "show", ":new") == "residue"
+        assert (worker / "new").read_text() == "residue\n"
 
 
 def _run():
