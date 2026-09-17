@@ -38,10 +38,11 @@ worklog 末尾と phase3.md)。矛盾があれば正典が勝つ。
 ループ主導権はメインセッション。harness は LLM を spawn しない。1 周:
 
 ### (a) planner-v4 を spawn (方向提案・値なし、backoff 軸と無改変で共用)
-`Agent(subagent_type='planner-v4')`。入力は段4b runbook と同型 (JSON):
+`Agent(subagent_type='planner-v4')`。入力は段4b runbook と同型 (JSON)。適用版は段 4b runbook の (a) と
+同じ (D2104 項 4: 2026-09-17 改訂以降に開始する走行に適用し、凍結済みアームとそれ以前の走行には遡及しない):
 ```json
 {
-  "current_perf": {"throughput_tps": <baseline>, "abort_rate_pct": <baseline>, "last_delta_pct": null},
+  "current_perf": {"throughput_tps": <baseline>, "abort_rate_pct": <baseline>},
   "leading_indicators": {"cache_miss_rate_pct": <baseline>, "contention_level": "<...>", "IPC_overall": <baseline>},
   "whiteboard": <loop_state.json の whiteboard (抽象・機序なし)>
 }

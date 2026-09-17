@@ -5285,6 +5285,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   **恒久対応は memory `dirty-tree-during-pending-job` から変更なし。**
   段 8 は段 7 の後・受入の後に置く方が構造的に安全だが、入口の段順序の変更は
   自己改善の範囲外なので実施せず、この観測だけを残す。
+
+- **再発: 2026-09-17** — 役割入力文書の wave。今回は受入全走でも変異本走でもなく、**計算ノードへ dispatch した
+  焦点走 (skip 理由を取るための `-rs` 再走) の走行中**に、親が段 6 の must-fix を役割 .md へ適用した。dispatch job は
+  worktree を共有 FS 越しに live で読むため、ledger 未更新の状態を計測して `test_codex_agents` / `test_codex_role_runtime`
+  が adapter parity drift で 8 failed になった。単独再走 (fix + render 後) は 2084 passed / rc=0 で消えた。根本原因は
+  F106 と同一で、「dispatch 済みの走行は起動時点の木を見る」と誤認して待ち時間に worktree を触ったこと。恒久対応は
+  F106 のまま。**焦点走であっても、投入から結果取得までは tracked file を編集しない。** 汚染した走行は合否に使わず
+  skip 理由の参考にだけ使い、権威の走行を取り直した。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
