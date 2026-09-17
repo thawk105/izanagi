@@ -402,6 +402,7 @@ _OPTION_IDENT_RE = re.compile(r"[A-Za-z_]\w*\Z")
 _CMAKE_SECTION_NAMES = frozenset({"SOURCES", "WORKLOADS", "OPTIONS"})
 _PROTOCOL_CMAKE = "cc/{protocol}/CMakeLists.txt"
 _BUILTIN_MACRO_CACHE: Dict[tuple, frozenset] = {}
+_CPP_ENV_PREFIX_CACHE: Dict[tuple, str] = {}
 
 
 def _ccbench_dir() -> str:
@@ -1643,7 +1644,10 @@ def _assert_proven_repo_absent_macros(
     return PROVEN_REPO_ABSENT_MACROS
 
 
-def _cpp_normalize(source_text: str, defines: Dict[str, str], cxx: str) -> str:
+def _cpp_normalize(
+    source_text: str, defines: Dict[str, str], cxx: str,
+    *, _environment_only: bool = False,
+) -> str:
     """#include を除去し preprocess (#if/#else 解決 + コメント除去) した正規化出力を返す。
 
     -nostdinc で系ヘッダは辿らないが、**組込 builtin (__x86_64__ 等) は実ビルドと同じく
@@ -1658,9 +1662,29 @@ def _cpp_normalize(source_text: str, defines: Dict[str, str], cxx: str) -> str:
     (D13) ゆえ実害なし。非決定 builtin (__DATE__ 等) は churn するが偽 hit しない
     (毎回 cache-miss = 新規ビルド+verify、正しさ不変)。g++ 不在・preprocess 失敗は
     RuntimeError (identity 核に best-effort skip を持ち込まない)。
+
+    -dD で有効枝の source の #define / #undef を pre-image に残す (F1016: file 間へ
+    漏れる指令が消え、別プログラムを stock と同一視した)。skipped 枝の指令は出ない。
+    対象 GCC の実測では predefined と command-line 定義も出力されるため、同じ argv の
+    空入力出力を環境 prefix として剥がす。剥がさないと追加供給 BACKOFF_FIXED /
+    BACKOFF_NOINLINE だけで inert template が非 stock になる。builtin の条件評価は
+    定義済みのまま維持する。prefix 不一致は RuntimeError で fails-closed。
+    残る限界: include 行を除去するため指令と include の相対位置は識別せず、
+    #pragma push_macro / pop_macro の復元値も出力に現れない (D2104 項 2 の scope 外)。
+    _trace_pair_diff (diff-of-diffs) の比較式 D_variant == D_stock は不変だが、
+    #if TRACE 内の未使用 #define / #undef も差分素材になるため受理集合は狭まる (規律 2 と同方向)。
     """
+    prefix = ""
+    if not _environment_only:
+        key = (cxx, tuple(sorted(defines.items())))
+        if key not in _CPP_ENV_PREFIX_CACHE:
+            _CPP_ENV_PREFIX_CACHE[key] = _cpp_normalize(
+                "", defines, cxx, _environment_only=True,
+            )
+        prefix = _CPP_ENV_PREFIX_CACHE[key]
+
     stripped = _INCLUDE_RE.sub("", source_text)
-    args = [cxx, "-E", "-P", "-nostdinc", "-Werror=undef", *BUILD_FLAGS]
+    args = [cxx, "-E", "-P", "-dD", "-nostdinc", "-Werror=undef", *BUILD_FLAGS]
     for k in sorted(defines):
         args.append(f"-D{k}={defines[k]}")
     args += ["-x", "c++", "-"]
@@ -1675,7 +1699,14 @@ def _cpp_normalize(source_text: str, defines: Dict[str, str], cxx: str) -> str:
             f"source_digest: preprocess 失敗 (rc={r.returncode})。#if が参照する "
             "マクロが defines に揃っていない (供給漏れ) 疑い → fails-closed。\n"
             f"  {r.stderr.strip()[-500:]}")
-    return r.stdout
+    if _environment_only:
+        return r.stdout
+    if not r.stdout.startswith(prefix):
+        raise RuntimeError(
+            "source_digest: preprocess 出力が空入力の環境 prefix と不一致"
+            " — identity を確定できないため fails-closed"
+        )
+    return r.stdout.removeprefix(prefix)
 
 
 def _context_overlays() -> List[Dict[str, str]]:

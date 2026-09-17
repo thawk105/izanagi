@@ -11830,6 +11830,179 @@ def test_source_digest_builtin_ifdef_not_aliased_to_stock():
     assert changed_key != stock_key
 
 
+def test_source_digest_toplevel_macro_directives_change_identity():
+    """本文が参照しない top-level の define/undef も別 identity にする。"""
+    cxx = _any_cxx()
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    hh = Path(sub, "include/backoff.hh")
+    original = hh.read_text(encoding="utf-8")
+    assert "T2731_LEAK" not in original
+    hh.write_text(original.replace(
+        '#include "tsc.hh"\n', '#include "tsc.hh"\n' + '#undef T2731_LEAK\n#define T2731_LEAK 1\n', 1,
+    ), encoding="utf-8")
+    token = source_digest.resolve(g, head, sub, cxx=cxx)
+    current = source_digest.compute(g, sub, cxx=cxx)
+    baseline = source_digest.baseline(g, head, sub, cxx=cxx)
+    assert token != source_digest.STOCK, "top-level 指令が STOCK に化けた"
+    assert current != baseline, "source 指令が digest の pre-image に入っていない"
+
+
+def test_source_digest_toplevel_trace_directives_change_identity():
+    """TRACE 漏れを別 identity にし、file 単独の trace 差分検査の境界も固定する。
+
+    実 M6 の最終層は buildcache._assert_no_trace_symbols。この fake test は binary 検査を実行しない。
+    """
+    cxx = _any_cxx()
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    hh = Path(sub, "include/backoff.hh")
+    original = hh.read_text(encoding="utf-8")
+    assert "TRACE" not in original
+    hh.write_text(original.replace(
+        '#include "tsc.hh"\n', '#include "tsc.hh"\n' + '#undef TRACE\n#define TRACE 1\n', 1,
+    ), encoding="utf-8")
+    token = source_digest.resolve(g, head, sub, cxx=cxx)
+    current = source_digest.compute(g, sub, cxx=cxx)
+    baseline = source_digest.baseline(g, head, sub, cxx=cxx)
+    assert token != source_digest.STOCK, "TRACE 指令が STOCK に化けた"
+    assert current != baseline, "TRACE 指令が digest に入っていない"
+    source_digest.assert_trace_diff_matches_head(g, head, sub, cxx=cxx)
+
+
+def test_source_digest_comment_only_preserves_stock():
+    """include 直後のコメント追加は STOCK と baseline 一致を保つ。"""
+    cxx = _any_cxx()
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    hh = Path(sub, "include/backoff.hh")
+    original = hh.read_text(encoding="utf-8")
+    hh.write_text(original.replace(
+        '#include "tsc.hh"\n', '#include "tsc.hh"\n' + '// T2731 comment only\n', 1,
+    ), encoding="utf-8")
+    token = source_digest.resolve(g, head, sub, cxx=cxx)
+    current = source_digest.compute(g, sub, cxx=cxx)
+    baseline = source_digest.baseline(g, head, sub, cxx=cxx)
+    assert token == source_digest.STOCK, "コメントだけで STOCK が変わった"
+    assert current == baseline, "コメントだけで digest が変わった"
+
+
+def test_source_digest_unused_universal_supply_preserves_stock():
+    """本文が参照しない universal 供給の追加は STOCK を変えない。"""
+    cxx = _any_cxx()
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    options = Path(sub, "cmake/Options.cmake")
+    options.write_text(
+        'set(CCBENCH_T2731_UNUSED 1 CACHE STRING "unused fixture")\n'
+        + options.read_text(encoding="utf-8").replace(
+            "    PARENT_SCOPE)",
+            "    T2731_UNUSED=${CCBENCH_T2731_UNUSED}\n    PARENT_SCOPE)",
+        ), encoding="utf-8",
+    )
+    rel = "include/backoff.hh"
+    assert source_digest._worktree_defines(sub, g, rel)["T2731_UNUSED"] == "1"
+    assert "T2731_UNUSED" not in source_digest._head_defines(sub, g, head, rel)
+    token = source_digest.resolve(g, head, sub, cxx=cxx)
+    current = source_digest.compute(g, sub, cxx=cxx)
+    baseline = source_digest.baseline(g, head, sub, cxx=cxx)
+    assert token == source_digest.STOCK, "未参照の universal 供給で STOCK が変わった"
+    assert current == baseline, "環境 prefix が identity に混入した"
+
+
+def test_source_digest_unused_protocol_supply_preserves_digest():
+    """本文が参照しない protocol 供給は compute と baseline の一致を保つ。"""
+    cxx = _any_cxx()
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    options = Path(sub, "cmake/Options.cmake")
+    options.write_text(
+        'set(CCBENCH_T2731_UNUSED 1 CACHE STRING "unused fixture")\n'
+        + options.read_text(encoding="utf-8"), encoding="utf-8",
+    )
+    protocol = Path(sub, "cc/silo/CMakeLists.txt")
+    protocol.write_text(protocol.read_text(encoding="utf-8").replace(
+        "  OPTIONS\n", "  OPTIONS\n    T2731_UNUSED=${CCBENCH_T2731_UNUSED}\n",
+    ), encoding="utf-8")
+    rel = "cc/silo/transaction.cc"
+    assert source_digest._worktree_defines(sub, g, rel)["T2731_UNUSED"] == "1"
+    assert "T2731_UNUSED" not in source_digest._head_defines(sub, g, head, rel)
+    current = source_digest.compute(g, sub, cxx=cxx)
+    baseline = source_digest.baseline(g, head, sub, cxx=cxx)
+    assert current == baseline, "未参照の protocol 供給が digest を変えた"
+
+
+def test_source_digest_skipped_macro_directives_affect_only_live_variant():
+    """dead 枝の指令は stock を保ち、live な兄弟 variant の identity だけを変える。"""
+    cxx = _any_cxx()
+    stock = Genome("silo", {"BACK_OFF": 0})
+    variant = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    hh = Path(sub, "include/backoff.hh")
+    sibling = hh.read_text(encoding="utf-8").replace("    return 1;", "    return 2;")
+    assert "T2731_LEAK" not in sibling
+    hh.write_text(sibling, encoding="utf-8")
+    stock_before = source_digest.resolve(stock, head, sub, cxx=cxx)
+    stock_digest_before = source_digest.compute(stock, sub, cxx=cxx)
+    variant_before = source_digest.resolve(variant, head, sub, cxx=cxx)
+    variant_digest_before = source_digest.compute(variant, sub, cxx=cxx)
+    assert variant_before != source_digest.STOCK
+    hh.write_text(sibling.replace(
+        "#if BACK_OFF\n", "#if BACK_OFF\n#undef T2731_LEAK\n#define T2731_LEAK 1\n",
+    ), encoding="utf-8")
+    stock_after = source_digest.resolve(stock, head, sub, cxx=cxx)
+    stock_digest_after = source_digest.compute(stock, sub, cxx=cxx)
+    variant_after = source_digest.resolve(variant, head, sub, cxx=cxx)
+    variant_digest_after = source_digest.compute(variant, sub, cxx=cxx)
+    assert stock_after == stock_before == source_digest.STOCK, \
+        "skipped 枝の指令が stock identity を変えた"
+    assert stock_digest_after == stock_digest_before, \
+        "skipped 枝の指令が stock pre-image を変えた"
+    assert variant_after != variant_before, \
+        "live 枝の指令が兄弟 variant と alias した"
+    assert variant_digest_after != variant_digest_before, \
+        "live 枝の指令が variant pre-image に入っていない"
+
+
+def test_source_digest_cpp_environment_prefix_mismatch_fails_closed():
+    """空入力と本体の prefix 不一致は、正規化結果を返さず停止する。"""
+    with tempfile.TemporaryDirectory(prefix="t2731-fake-cxx-") as directory:
+        compiler = Path(directory, f"t2731-fake-cxx-{os.getpid()}")
+        compiler.write_text(
+            '#!/bin/sh\n'
+            'input=$(cat)\n'
+            'if [ -z "$input" ]; then\n'
+            "    printf '#define ENV 1\\n'\n"
+            'else\n'
+            "    printf '#define DIFFERENT 1\\nint x;\\n'\n"
+            'fi\n',
+            encoding="utf-8",
+        )
+        compiler.chmod(0o700)
+        cxx = str(compiler)
+        try:
+            with pytest.raises(RuntimeError, match="環境 prefix と不一致"):
+                source_digest._cpp_normalize("int x;\n", {}, cxx)
+        finally:
+            getattr(source_digest, "_CPP_ENV_PREFIX_CACHE", {}).pop((cxx, ()), None)
+
+
+def test_source_digest_same_value_source_redefine_changes_identity():
+    """command-line と同名同値の source 再定義も環境 prefix と一緒に消さない。"""
+    cxx = _any_cxx()
+    g = Genome("silo", {"BACK_OFF": 1})
+    sub, head, _git = _fake_ccbench_repo()
+    hh = Path(sub, "include/backoff.hh")
+    hh.write_text(hh.read_text(encoding="utf-8").replace(
+        '#include "tsc.hh"\n', '#include "tsc.hh"\n#define BACK_OFF 1\n', 1,
+    ), encoding="utf-8")
+    token = source_digest.resolve(g, head, sub, cxx=cxx)
+    current = source_digest.compute(g, sub, cxx=cxx)
+    baseline = source_digest.baseline(g, head, sub, cxx=cxx)
+    assert token != source_digest.STOCK, "同名同値の source 再定義を消してしまった"
+    assert current != baseline, "source 再定義が環境 prefix と混同された"
+
+
 def test_source_digest_include_change_rejected_by_resolve():
     """phase3.md blocking (#include 死角, 最小案): #include の追加/差し替えは preprocess 前に
     除去され digest に現れない (identity 不変の死角) → resolve が HEAD 行集合との不一致で
