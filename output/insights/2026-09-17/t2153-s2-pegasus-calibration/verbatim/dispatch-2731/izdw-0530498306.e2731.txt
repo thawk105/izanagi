@@ -1,0 +1,42 @@
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 1424952, "time_ns": 1789596218674336461}
+IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1424972, "event": "direct-child-wait-start", "pid": 1424959, "time_ns": 1789596218701400755}
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/usr/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-s2-pegasus-calibration/submit-tree-s2/orchestrator/campaign/s2_verify_calibration.py", line 473, in <module>
+    sys.exit(main())
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-s2-pegasus-calibration/submit-tree-s2/orchestrator/campaign/s2_verify_calibration.py", line 348, in main
+    condition_gates = _preflight_condition_gates(root, sub)
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-s2-pegasus-calibration/submit-tree-s2/orchestrator/campaign/s2_verify_calibration.py", line 136, in _preflight_condition_gates
+    records.append(_require_condition_gate(sub, macro))
+  File "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-s2-pegasus-calibration/submit-tree-s2/orchestrator/campaign/s2_verify_calibration.py", line 117, in _require_condition_gate
+    raise RuntimeError(
+RuntimeError: condition gate rejected IZANAGI_BREAK_NOREAD_VALIDATION: supply=red/compiler-failed, meaning=red/compiler-failed
+IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1424972, "event": "direct-child-wait-complete", "pid": 1424959, "time_ns": 1789596220941718407}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 1424959, "rc": 0, "time_ns": 1789596220941792031}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 1424952, "rc": 0, "time_ns": 1789596220946117793}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 1424952, "time_ns": 1789596220948538611}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 1424952, "time_ns": 1789596220986268110}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 1424952, "time_ns": 1789596220987020799}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 1424952, "time_ns": 1789596220987031009}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 1424952, "time_ns": 1789596220989011559}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 1424952, "time_ns": 1789596220989019065}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 1424952, "rc": 1, "time_ns": 1789596220989029440}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 1424952, "rc": 1, "time_ns": 1789596220989043889}
+
+============================================================
+Request ID:             2731.nqsv
+Request Name:           izdw-0530498306
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Thu Sep 17 06:58:57 2026
+Started Request Time:   Thu Sep 17 07:03:38 2026
+Ended Request Time:     Thu Sep 17 07:03:41 2026
+Resources Information:
+  Elapse:               7S
+  Remaining Elapse:     1193S
+============================================================

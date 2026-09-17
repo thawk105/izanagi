@@ -1,0 +1,24 @@
+[rr95] schema=floor-pair-plan/v2 plan_sha256=a8c037d8bd3b4f60639fa57bc77ee5c2aab2521b9639c4987e61841f3db966dc
+  top keys=['plan_sha256', 'randomization_algorithm', 'schema', 'seed_hex', 'sessions', 'spec_sha256']
+  sessions=248 measurements=496 per_window={'precheck-placeholder-rr95-w1': 124, 'precheck-placeholder-rr95-w2': 124}
+  roles={'candidate': 248, 'reference': 248} artifacts={'b4-candidate': 248, 'b4-reference': 248}
+  session[0] keys=['campaign_id', 'cell_id', 'measurements', 'pair_id', 'sample_index', 'schedule_index', 'session_id', 'side_id', 'window_id']
+  session[0] = window=precheck-placeholder-rr95-w1 campaign=precheck-placeholder-rr95-c1 pair=pair-rr95 side=candidate_2 sample=18 schedule=0 id=precheck-placeholder-rr95-w1.pair-rr95.s000018.candidate_2
+  session[0].measurements[0] = {'artifact_id': 'b4-candidate', 'measurement_id': 'precheck-placeholder-rr95-w1.pair-rr95.s000018.candidate_2.candidate', 'order_index': 0, 'role': 'candidate'}
+  spec_sha256=73da760f098e522959268a6e672049b9ba75779f84f782f85f7dba210801c143
+[rr50] schema=floor-pair-plan/v2 plan_sha256=bc29ba11d368cd13dd5dae244194661e140a4b14cc3baa161604b105cc780027
+  top keys=['plan_sha256', 'randomization_algorithm', 'schema', 'seed_hex', 'sessions', 'spec_sha256']
+  sessions=248 measurements=496 per_window={'precheck-placeholder-rr50-w1': 124, 'precheck-placeholder-rr50-w2': 124}
+  roles={'reference': 248, 'candidate': 248} artifacts={'b4-reference': 248, 'b4-candidate': 248}
+  session[0] keys=['campaign_id', 'cell_id', 'measurements', 'pair_id', 'sample_index', 'schedule_index', 'session_id', 'side_id', 'window_id']
+  session[0] = window=precheck-placeholder-rr50-w1 campaign=precheck-placeholder-rr50-c1 pair=pair-rr50 side=candidate_1 sample=32 schedule=0 id=precheck-placeholder-rr50-w1.pair-rr50.s000032.candidate_1
+  session[0].measurements[0] = {'artifact_id': 'b4-reference', 'measurement_id': 'precheck-placeholder-rr50-w1.pair-rr50.s000032.candidate_1.reference', 'order_index': 0, 'role': 'reference'}
+  spec_sha256=80c24b619cbab6a7c928b242c15abe712ed199660f982c60246c13c3b1c9e9e9
+[rr5] schema=floor-pair-plan/v2 plan_sha256=290a216a01b8a39d8496b5c10de720886fb4347c5063b4fdc1e76e42b262407a
+  top keys=['plan_sha256', 'randomization_algorithm', 'schema', 'seed_hex', 'sessions', 'spec_sha256']
+  sessions=248 measurements=496 per_window={'precheck-placeholder-rr5-w1': 124, 'precheck-placeholder-rr5-w2': 124}
+  roles={'candidate': 248, 'reference': 248} artifacts={'b4-candidate': 248, 'b4-reference': 248}
+  session[0] keys=['campaign_id', 'cell_id', 'measurements', 'pair_id', 'sample_index', 'schedule_index', 'session_id', 'side_id', 'window_id']
+  session[0] = window=precheck-placeholder-rr5-w1 campaign=precheck-placeholder-rr5-c1 pair=pair-rr5 side=candidate_1 sample=51 schedule=0 id=precheck-placeholder-rr5-w1.pair-rr5.s000051.candidate_1
+  session[0].measurements[0] = {'artifact_id': 'b4-candidate', 'measurement_id': 'precheck-placeholder-rr5-w1.pair-rr5.s000051.candidate_1.candidate', 'order_index': 0, 'role': 'candidate'}
+  spec_sha256=a231b45ce8f516b9f3fab28510124b757edd3fbb95c785c52679952fd5ded7d2

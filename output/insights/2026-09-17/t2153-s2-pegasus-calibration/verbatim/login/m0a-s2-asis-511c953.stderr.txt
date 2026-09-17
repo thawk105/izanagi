@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/usr/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2153-s2-pegasus-calibration/orchestrator/campaign/s2_verify_calibration.py", line 473, in <module>
+    sys.exit(main())
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2153-s2-pegasus-calibration/orchestrator/campaign/s2_verify_calibration.py", line 347, in main
+    assert_pinned_clean(sub, PIN)
+  File "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2153-s2-pegasus-calibration/orchestrator/campaign/patchharness.py", line 193, in assert_pinned_clean
+    raise RuntimeError(
+RuntimeError: patchharness: HEAD (511c9538e4e8) が pin (dff0f1e) と不一致 — 別版の tree に patch を当てない (fails-closed)
