@@ -630,7 +630,7 @@ DEV_WAVE_DW_O28_SECTION_LITERAL = """## DW-O28 — land 後の自己撤去
 親は `landed` / `already-landed` 確認後、同じ段 9 で先に main worktree へ移り、計算ノード job 終端後に次を実行する（path は絶対）。
 `python3 tools/dev_wave_cleanup.py --main-worktree <MAIN> --wave-worktree <WAVE> --wave-branch <BRANCH> --tested-wave-tip-sha <TIP>`
 tool は unoccupied、clean、tested tip が `refs/heads/main` の祖先、fold state 不在、wave が非 primary、cwd が対象外を要求し、不成立・判定不能なら fail-closed で停止する。
-wave の worktree・branch と `DW-O20` で lock した子 worktree（Codex 子・変異 container）を同 tool で 1 本ずつ unlock・撤去し、次 wave・ユーザー・`/cleanup-branches` へ引き渡さない。
+wave の worktree・branch を撤去し、次 wave・ユーザー・`/cleanup-branches` へ引き渡さない。`DW-O20` で lock した子 worktree は同段で unlock する（撤去は D703 の例外外）。
 F26 に従い `git worktree remove` と `git submodule deinit` は使わない。branch は `git branch -d` だけで消し `-D` を使わない。撤去できない理由は報告し、次 wave の worklog へ記録する。
 """
 DEV_WAVE_DW_C01_SECTION_LITERAL = """## DW-C01 — 実測で是正した作法
