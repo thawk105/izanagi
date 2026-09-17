@@ -33,7 +33,7 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-from orchestrator.campaign import condition_meaning_gate, patchharness  # noqa: E402
+from orchestrator.campaign import buildcache, condition_meaning_gate, patchharness  # noqa: E402
 
 
 SCHEMA_VERSION = "t316-sandbox-backend-probe/v1"
@@ -1824,7 +1824,7 @@ def _toolchain_contract(profile: SandboxProfile, python: str) -> dict[str, Any]:
 
 
 def _execute_ccbench_build(
-    profile: SandboxProfile, source: Path, cache_root: Path,
+    profile: SandboxProfile, source: Path, staging_root: Path,
     dependency_root: Path, pins: Mapping[str, str], scratch: Path,
     policy: Mapping[str, Any], deadline_ns: int, *, inside: bool, stock_root: Path,
 ) -> dict[str, Any]:
@@ -1856,9 +1856,9 @@ def _execute_ccbench_build(
         "-DCMAKE_C_COMPILER_LAUNCHER=", "-DCMAKE_CXX_COMPILER_LAUNCHER=",
         "-DCMAKE_TOOLCHAIN_FILE=", "-DCMAKE_CXX_FLAGS=",
         f"-DCMAKE_PREFIX_PATH={prefix}",
-        f"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={cache_root / 'masstree'}",
-        f"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC={cache_root / 'mimalloc'}",
-        f"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST={cache_root / 'googletest'}",
+        f"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={staging_root / 'masstree'}",
+        f"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC={staging_root / 'mimalloc'}",
+        f"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST={staging_root / 'googletest'}",
         f"-DCMAKE_C_COMPILER={compiler_c}", f"-DCMAKE_CXX_COMPILER={compiler_cxx}",
     ]
     steps: list[dict[str, Any]] = []
@@ -1881,6 +1881,72 @@ def _execute_ccbench_build(
         if record.get("rc") != 0:
             failure_stage = label
             break
+    masstree_prepare: dict[str, Any] = {"attempted": False, "success": False}
+    if not inside and failure_stage is None:
+        started_ns = time.monotonic_ns()
+        masstree_prepare.update({
+            "attempted": True, "fetchcontent_base_dir": None, "build_dir": None,
+            "configure_argv": None, "build_argv": None,
+            "configure_timeout_s": None, "target_timeout_s": None,
+            "ccbench_dir": str(source), "dependency_prefix": str(prefix),
+            "source_dirs": {
+                name: str(staging_root / name)
+                for name in ("masstree", "mimalloc", "googletest")
+            },
+        })
+        try:
+            base = scratch / "fetchcontent"
+            base.mkdir(exist_ok=True)
+            base = base.resolve(strict=True)
+            masstree_prepare.update({
+                "fetchcontent_base_dir": str(base),
+                "build_dir": str(base / "izanagi-masstree-prebuild"),
+            })
+            manifest = buildcache.observed_toolchain_manifest(compiler_c, compiler_cxx)
+            remaining_s = (deadline_ns - time.monotonic_ns()) // 1_000_000_000
+            if remaining_s < 30:
+                failure_stage = "walltime"
+            else:
+                budget = int(remaining_s - 1)
+                configure_timeout_s = min(300, budget // 2)
+                target_timeout_s = min(
+                    int(policy["stage_budgets_s"]["ccbench_build_cap_s"]),
+                    budget - configure_timeout_s,
+                )
+                masstree_prepare.update({
+                    "configure_timeout_s": configure_timeout_s,
+                    "target_timeout_s": target_timeout_s,
+                })
+                prepared = buildcache.prepare_masstree_fetchcontent(
+                    ccbench_dir=str(source), fetchcontent_base_dir=str(base),
+                    expected_toolchain_manifest=manifest,
+                    configure_timeout_s=configure_timeout_s,
+                    target_timeout_s=target_timeout_s,
+                    dependency_prefix=str(prefix),
+                    masstree_source_dir=str(staging_root / "masstree"),
+                    mimalloc_source_dir=str(staging_root / "mimalloc"),
+                    googletest_source_dir=str(staging_root / "googletest"),
+                )
+                masstree_prepare.update({
+                    "success": True,
+                    "fetchcontent_base_dir": prepared.fetchcontent_base_dir,
+                    "build_dir": prepared.build_dir,
+                    "configure_argv": list(prepared.configure_argv),
+                    "build_argv": list(prepared.build_argv),
+                })
+        except buildcache.MasstreeFetchContentError as exc:
+            failure_stage = (
+                "masstree-prepare-configure" if exc.stage == "configure"
+                else "masstree-prepare-build"
+            )
+            masstree_prepare["error"] = _error(exc)
+        except Exception as exc:
+            failure_stage = "masstree-prepare"
+            masstree_prepare["error"] = _error(exc)
+        finally:
+            masstree_prepare["elapsed_ns"] = time.monotonic_ns() - started_ns
+        if failure_stage is not None:
+            masstree_prepare["failure_stage"] = failure_stage
     if failure_stage is None:
         condition_gate_family = _require_condition_gate(
             source,
@@ -1913,6 +1979,7 @@ def _execute_ccbench_build(
     cache = ccbench_build / "CMakeCache.txt"
     trace_disabled = _cmake_cache_equals(cache, "CCBENCH_TRACE", "0")
     return {
+        "_masstree_prepare": masstree_prepare,
         "mode": mode, "success": failure_stage is None and binary.is_file() and trace_disabled,
         "failure_stage": failure_stage, "trace_disabled": trace_disabled, "steps": steps,
         "condition_gates": (
@@ -1983,6 +2050,15 @@ def _require_condition_gate(
 
 
 @contextlib.contextmanager
+def _s6_third_party_staging(scratch: Path):
+    """Keep hydrated sources outside the sandbox's writable scratch bind."""
+    with tempfile.TemporaryDirectory(
+        prefix="t316-s6-thirdparty-", dir=scratch.resolve(strict=True).parent,
+    ) as directory:
+        yield Path(directory).resolve(strict=True)
+
+
+@contextlib.contextmanager
 def _s6_requested_checkout(pin: str, source: Path, scratch: Path):
     """Keep the host checkout outside the sandbox's masked /tmp.
 
@@ -2027,113 +2103,160 @@ def observe_s6(
     shared_policy = json.loads((repo_root / "tools/pegasus/policy.json").read_text(encoding="utf-8"))
     pins = shared_policy["silo_ladder_rung1"]["dependency_pins"]
     third_items = shared_policy["silo_ladder_rung1"]["third_party_sources"]
-    source_heads = {
-        "gflags": _git_head(dependency_root / "gflags"),
-        "glog": _git_head(dependency_root / "glog"),
-        **{item["source_name"]: _git_head(cache_root / item["source_name"]) for item in third_items},
-    }
-    expected_heads = {"gflags": pins["gflags"], "glog": pins["glog"], **{item["source_name"]: item["pin"] for item in third_items}}
-    gitlink_record = _run_command(
-        ["git", "--no-replace-objects", "-C", str(repo_root), "ls-tree", "HEAD", "external/ccbench"],
-        timeout_s=10,
-    )
-    gitlink_fields = gitlink_record["stdout"]["tail"].strip().split()
-    expected_ccbench_head = gitlink_fields[2] if len(gitlink_fields) >= 4 else None
-    observed_ccbench_head = _git_head(repo_root / "external/ccbench")
-    source_heads["ccbench"] = observed_ccbench_head
-    expected_heads["ccbench"] = expected_ccbench_head
-    if source_heads != expected_heads:
-        return {
-            "attempted": True,
-            "success": False,
-            "trace_disabled": False,
-            "failure_stage": "dependency-pins",
-            "source_heads": source_heads,
-            "expected_heads": expected_heads,
+    with _s6_third_party_staging(scratch) as staging_root:
+        staging: dict[str, Any] = {
+            "source_root": str(staging_root), "command": None, "payload": None,
         }
-
-    source = repo_root / "external/ccbench"
-    python = str(Path(sys.executable).resolve(strict=True))
-    toolchain = _toolchain_contract(profile, python)
-    if toolchain["host_valid"] is not True:
-        return {
-            "attempted": True,
-            "outside_success": False, "inside_success": False,
-            "trace_disabled": False,
-            "failure_stage": "toolchain-unavailable", "toolchain": toolchain,
-            "source_identity_valid": False,
+        supply_observations = {
+            "third_party_staging": staging,
+            "masstree_prepare": {"attempted": False, "success": False},
         }
-
-    identities = {
-        name: _git_source_identity(
-            (dependency_root / name) if name in {"gflags", "glog"}
-            else (source if name == "ccbench" else cache_root / name),
-            expected_heads[name],
-        ) for name in expected_heads
-    }
-    source_identity_valid = all(item["valid"] for item in identities.values())
-    if not source_identity_valid:
-        return {
-            "attempted": True, "outside_success": False, "inside_success": False,
-            "trace_disabled": False, "failure_stage": "source-identity",
-            "source_identity_valid": False, "source_identities": identities,
-            "toolchain": toolchain,
+        failure_stage = None
+        remaining_s = (deadline_ns - time.monotonic_ns()) // 1_000_000_000
+        if remaining_s < 30:
+            failure_stage = "walltime"
+        else:
+            try:
+                command = _run_command([
+                    str(Path(sys.executable).resolve(strict=True)), "-I", "-B",
+                    str(repo_root / "tools/pegasus/fetch_third_party.py"), "hydrate",
+                    "--repo-root", str(repo_root), "--cache-root", str(cache_root),
+                    "--staging-root", str(staging_root),
+                ], timeout_s=min(
+                    int(policy["stage_budgets_s"]["ccbench_build_cap_s"]),
+                    int(remaining_s - 1),
+                ))
+                staging["command"] = command
+                if command.get("rc") != 0 or command.get("timed_out"):
+                    raise RuntimeError("third-party hydrate command failed")
+                staging["payload"] = json.loads(command["stdout"]["tail"])
+            except Exception as exc:
+                failure_stage = "third-party-hydrate"
+                staging["error"] = _error(exc)
+        if failure_stage is not None:
+            return {
+                **supply_observations,
+                "attempted": True, "success": False,
+                "outside_success": False, "inside_success": False,
+                "trace_disabled": False, "source_identity_valid": False,
+                "failure_stage": failure_stage,
+            }
+        source_heads = {
+            "gflags": _git_head(dependency_root / "gflags"),
+            "glog": _git_head(dependency_root / "glog"),
+            **{item["source_name"]: _git_head(staging_root / item["source_name"]) for item in third_items},
         }
-    with _s6_requested_checkout(
-        expected_ccbench_head, source, scratch,
-    ) as requested:
-        requested_root = Path(requested).resolve(strict=True)
-        identities["ccbench_requested_base"] = _git_source_identity(
-            requested_root, expected_ccbench_head,
+        expected_heads = {"gflags": pins["gflags"], "glog": pins["glog"], **{item["source_name"]: item["pin"] for item in third_items}}
+        gitlink_record = _run_command(
+            ["git", "--no-replace-objects", "-C", str(repo_root), "ls-tree", "HEAD", "external/ccbench"],
+            timeout_s=10,
         )
+        gitlink_fields = gitlink_record["stdout"]["tail"].strip().split()
+        expected_ccbench_head = gitlink_fields[2] if len(gitlink_fields) >= 4 else None
+        observed_ccbench_head = _git_head(repo_root / "external/ccbench")
+        source_heads["ccbench"] = observed_ccbench_head
+        expected_heads["ccbench"] = expected_ccbench_head
+        if source_heads != expected_heads:
+            return {
+                **supply_observations,
+                "attempted": True,
+                "success": False,
+                "trace_disabled": False,
+                "failure_stage": "dependency-pins",
+                "source_heads": source_heads,
+                "expected_heads": expected_heads,
+            }
+
+        source = repo_root / "external/ccbench"
+        python = str(Path(sys.executable).resolve(strict=True))
+        toolchain = _toolchain_contract(profile, python)
+        if toolchain["host_valid"] is not True:
+            return {
+                **supply_observations,
+                "attempted": True,
+                "outside_success": False, "inside_success": False,
+                "trace_disabled": False,
+                "failure_stage": "toolchain-unavailable", "toolchain": toolchain,
+                "source_identity_valid": False,
+            }
+
+        identities = {
+            name: _git_source_identity(
+                (dependency_root / name) if name in {"gflags", "glog"}
+                else (source if name == "ccbench" else staging_root / name),
+                expected_heads[name],
+            ) for name in expected_heads
+        }
         source_identity_valid = all(item["valid"] for item in identities.values())
         if not source_identity_valid:
             return {
+                **supply_observations,
                 "attempted": True, "outside_success": False, "inside_success": False,
                 "trace_disabled": False, "failure_stage": "source-identity",
-                "source_identity_valid": source_identity_valid,
-                "source_identities": identities, "toolchain": toolchain,
+                "source_identity_valid": False, "source_identities": identities,
+                "toolchain": toolchain,
             }
-        # A later writable scratch bind must never cover the requested source.
-        if requested_root.is_relative_to(scratch.resolve(strict=True)):
-            raise RuntimeError("S6 requested source must be outside scratch")
-        s6_profile = SandboxProfile(
-            profile.bwrap, profile.repo_root, profile.scratch,
-            (*profile.readonly_roots, requested_root), runner=profile.runner,
+        with _s6_requested_checkout(
+            expected_ccbench_head, source, scratch,
+        ) as requested:
+            requested_root = Path(requested).resolve(strict=True)
+            identities["ccbench_requested_base"] = _git_source_identity(
+                requested_root, expected_ccbench_head,
+            )
+            source_identity_valid = all(item["valid"] for item in identities.values())
+            if not source_identity_valid:
+                return {
+                    **supply_observations,
+                    "attempted": True, "outside_success": False, "inside_success": False,
+                    "trace_disabled": False, "failure_stage": "source-identity",
+                    "source_identity_valid": source_identity_valid,
+                    "source_identities": identities, "toolchain": toolchain,
+                }
+            # A later writable scratch bind must never cover the requested source.
+            if requested_root.is_relative_to(scratch.resolve(strict=True)):
+                raise RuntimeError("S6 requested source must be outside scratch")
+            s6_profile = SandboxProfile(
+                profile.bwrap, profile.repo_root, profile.scratch,
+                (*profile.readonly_roots, requested_root, staging_root), runner=profile.runner,
+            )
+            with patchharness.applied(
+                os.fspath((repo_root / "patches/silo-backoff-fixed.patch").resolve(strict=True)),
+                expected_ccbench_head, ccbench_dir=os.fspath(requested_root),
+            ):
+                outside = _execute_ccbench_build(
+                    s6_profile, requested_root, staging_root, dependency_root, pins, scratch, policy,
+                    deadline_ns, inside=False, stock_root=source,
+                )
+                inside = (
+                    _execute_ccbench_build(
+                        s6_profile, requested_root, staging_root, dependency_root, pins, scratch, policy,
+                        deadline_ns, inside=True, stock_root=source,
+                    ) if outside["success"] else {"success": False, "failure_stage": "outside-control"}
+                )
+        supply_observations["masstree_prepare"] = outside.pop(
+            "_masstree_prepare", {"attempted": False, "success": False},
         )
-        with patchharness.applied(
-            os.fspath((repo_root / "patches/silo-backoff-fixed.patch").resolve(strict=True)),
-            expected_ccbench_head, ccbench_dir=os.fspath(requested_root),
-        ):
-            outside = _execute_ccbench_build(
-                s6_profile, requested_root, cache_root, dependency_root, pins, scratch, policy,
-                deadline_ns, inside=False, stock_root=source,
-            )
-            inside = (
-                _execute_ccbench_build(
-                    s6_profile, requested_root, cache_root, dependency_root, pins, scratch, policy,
-                    deadline_ns, inside=True, stock_root=source,
-                ) if outside["success"] else {"success": False, "failure_stage": "outside-control"}
-            )
-    condition_gate_family = outside.pop("_condition_gate_family", ())
-    inside.pop("_condition_gate_family", None)
-    return {
-        "attempted": True, "outside_success": outside["success"],
-        "inside_success": inside["success"], "success": inside["success"],
-        "failure_stage": (
-            "walltime" if "walltime" in {
-                outside.get("failure_stage"), inside.get("failure_stage")
-            } else inside.get("failure_stage") or outside.get("failure_stage")
-        ),
-        "trace_disabled": outside.get("trace_disabled") is True
-        and inside.get("trace_disabled") is True,
-        "condition_gates": outside.get("condition_gates", []),
-        "_condition_gate_family": condition_gate_family,
-        "source_identity_valid": source_identity_valid,
-        "source_identities": identities, "toolchain": toolchain,
-        "outside_build": outside, "inside_build": inside,
-        "binary": inside.get("binary"), "binary_sha256": inside.get("binary_sha256"),
-    }
+        inside.pop("_masstree_prepare", None)
+        condition_gate_family = outside.pop("_condition_gate_family", ())
+        inside.pop("_condition_gate_family", None)
+        return {
+            **supply_observations,
+            "attempted": True, "outside_success": outside["success"],
+            "inside_success": inside["success"], "success": inside["success"],
+            "failure_stage": (
+                "walltime" if "walltime" in {
+                    outside.get("failure_stage"), inside.get("failure_stage")
+                } else inside.get("failure_stage") or outside.get("failure_stage")
+            ),
+            "trace_disabled": outside.get("trace_disabled") is True
+            and inside.get("trace_disabled") is True,
+            "condition_gates": outside.get("condition_gates", []),
+            "_condition_gate_family": condition_gate_family,
+            "source_identity_valid": source_identity_valid,
+            "source_identities": identities, "toolchain": toolchain,
+            "outside_build": outside, "inside_build": inside,
+            "binary": inside.get("binary"), "binary_sha256": inside.get("binary_sha256"),
+        }
 
 
 def _resolve_perf(repo_root: Path) -> Optional[str]:
@@ -2357,6 +2480,8 @@ _BOUND_RELATIVE_PATHS = (
     "patches/silo-backoff-fixed.patch",
     "orchestrator/campaign/patchharness.py",
     "orchestrator/campaign/condition_meaning_gate.py",
+    "orchestrator/campaign/buildcache.py",
+    "tools/pegasus/fetch_third_party.py",
     "tools/pegasus/probes/t316_sandbox_backend_probe.py",
     _RUNTIME_PBS_RELATIVE_PATH,
     "tools/pegasus/policies/t316_sandbox_backend_v1.json",

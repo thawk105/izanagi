@@ -1,0 +1,210 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 2700,
+  "hang_timeout_seconds": 2700,
+  "mutations": [
+    {
+      "id": "m0-equivalent-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "    \"\"\"既存 findings に repo 外の同一実体による抑止を後段適用する。\"\"\"\n",
+          "new": "    \"\"\"repo 外の同一実体による抑止を、既存 findings へ後段で適用する (等価変異の目印)。\"\"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-off-still-scans",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "    if offrepo_scan == \"off\":\n        requested = accepted = rejected = ()\n    else:\n        requested, accepted, rejected = _validate_offrepo_roots(\n            root, offrepo_roots, worktree=root\n        )\n",
+          "new": "    requested, accepted, rejected = _validate_offrepo_roots(\n        root, offrepo_roots, worktree=root\n    )\n"
+        },
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "    if offrepo_scan == \"off\" or not requested or not accepted:\n",
+          "new": "    if not requested or not accepted:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-off-reads-env-root-pin",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "    if args.offrepo_scan == \"off\":\n        roots = ()\n",
+          "new": "    if args.offrepo_scan == \"off\":\n        roots = ()\n        os.environ.get(OFFREPO_ROOT_ENV, \"\")\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-full-without-root-not-rejected",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "    if offrepo_scan == \"full\" and not offrepo_roots:\n        raise RuntimeError(\n            \"--offrepo-scan full には --offrepo-root または \"\n            \"IZANAGI_DEV_WAVE_JOBS_DIR が必要です\"\n        )\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-rescue-argv-drops-off-pin",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_rescue.py",
+          "old": "            [sys.executable, str(audit_tool), \"--repo\", str(repo), \"--offrepo-scan\", \"off\"],\n",
+          "new": "            [sys.executable, str(audit_tool), \"--repo\", str(repo)],\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-rescue-env-allows-root-pin",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_rescue.py",
+          "old": "        \"GIT_CONFIG_NOSYSTEM\",\n    ):\n",
+          "new": "        \"GIT_CONFIG_NOSYSTEM\", \"IZANAGI_DEV_WAVE_JOBS_DIR\",\n    ):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m45-rescue-both-layers-scan-returns",
+      "category": "both-layers",
+      "replacements": [
+        {
+          "file": "tools/check_branch_rescue.py",
+          "old": "            [sys.executable, str(audit_tool), \"--repo\", str(repo), \"--offrepo-scan\", \"off\"],\n",
+          "new": "            [sys.executable, str(audit_tool), \"--repo\", str(repo)],\n"
+        },
+        {
+          "file": "tools/check_branch_rescue.py",
+          "old": "        \"GIT_CONFIG_NOSYSTEM\",\n    ):\n",
+          "new": "        \"GIT_CONFIG_NOSYSTEM\", \"IZANAGI_DEV_WAVE_JOBS_DIR\",\n    ):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-off-disclosure-same-as-missing-root-pin",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "    if report.offrepo_scan == \"off\":\n        print(\n            \"audit_dangling_commits: repo 外走査は明示 off\"\n",
+          "new": "    if report.offrepo_scan == \"off\":\n        print(\"audit_dangling_commits: repo 外の同一実体の探索を未実施\")\n        print(f\"  --offrepo-root / {OFFREPO_ROOT_ENV} が未指定\")\n    elif False:\n        print(\n            \"audit_dangling_commits: repo 外走査は明示 off\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-off-with-cli-root-accepted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "    if args.offrepo_scan == \"off\" and args.offrepo_root is not None:\n        parser.error(\"--offrepo-scan off と --offrepo-root は併用できません\")\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-rescue-json-drops-mode-pin",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_rescue.py",
+          "old": "        return [], {\"offrepo_scan\": \"off\", \"complete\": False, \"returncode\": None, \"reported_commit_count\": None,\n",
+          "new": "        return [], {\"complete\": False, \"returncode\": None, \"reported_commit_count\": None,\n"
+        },
+        {
+          "file": "tools/check_branch_rescue.py",
+          "old": "        return [], {\"offrepo_scan\": \"off\", \"complete\": False, \"returncode\": result.returncode,\n",
+          "new": "        return [], {\"complete\": False, \"returncode\": result.returncode,\n"
+        },
+        {
+          "file": "tools/check_branch_rescue.py",
+          "old": "        \"offrepo_scan\": \"off\", \"complete\": complete, \"returncode\": result.returncode,\n",
+          "new": "        \"complete\": complete, \"returncode\": result.returncode,\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-cleanup-digest-stale",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_docs.py",
+          "old": "    \"7cc008fabc10b3b495eedfeb0bfbee2de14a3c908e1eb5aa6dd7ff4d7ebaf8ae\"\n",
+          "new": "    \"a6380f90dcaf8e5e5ac21cc9af0619e000697816257f3e3e8a8844595dad1f26\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-off-loads-blob-metadata-pin",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "    original_findings = core.findings\n    if offrepo_scan == \"off\" or not requested or not accepted:\n",
+          "new": "    original_findings = core.findings\n    if offrepo_scan == \"off\":\n        _load_blob_metadata(root, original_findings)\n    if offrepo_scan == \"off\" or not requested or not accepted:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-off-validates-roots-pin",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/audit_dangling_commits.py",
+          "old": "    if offrepo_scan == \"off\":\n        requested = accepted = rejected = ()\n    else:\n",
+          "new": "    if offrepo_scan == \"off\":\n        _validate_offrepo_roots(root, offrepo_roots, worktree=root)\n        requested = accepted = rejected = ()\n    else:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

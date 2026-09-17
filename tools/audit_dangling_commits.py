@@ -81,6 +81,7 @@ class AuditReport:
     reference_failure: str | None
     regenerable_excluded_pairs: int
     regenerable_only_commits: tuple[RegenerableOnlyCommit, ...]
+    offrepo_scan: str = "full"
 
 
 @dataclass(frozen=True)
@@ -1692,18 +1693,29 @@ def audit_with_offrepo(
     *,
     regenerable_prefixes: tuple[str, ...] = DEFAULT_REGENERABLE_PREFIXES,
     offrepo_roots: Sequence[Path | str] = (),
+    offrepo_scan: str | None = None,
     progress: ProgressCallback | None = None,
 ) -> AuditReport:
     """既存 findings に repo 外の同一実体による抑止を後段適用する。"""
+    if offrepo_scan not in (None, "off", "full"):
+        raise RuntimeError(f"未知の repo 外走査 mode: {offrepo_scan}")
+    if offrepo_scan == "full" and not offrepo_roots:
+        raise RuntimeError(
+            "--offrepo-scan full には --offrepo-root または "
+            "IZANAGI_DEV_WAVE_JOBS_DIR が必要です"
+        )
     stage_started = time.monotonic()
     _progress(progress, "root 検証 開始")
     root = Path(repo).resolve()
     main_commit = _checked_git(
         root, "rev-parse", "--verify", f"{main_ref}^{{commit}}"
     ).strip()
-    requested, accepted, rejected = _validate_offrepo_roots(
-        root, offrepo_roots, worktree=root
-    )
+    if offrepo_scan == "off":
+        requested = accepted = rejected = ()
+    else:
+        requested, accepted, rejected = _validate_offrepo_roots(
+            root, offrepo_roots, worktree=root
+        )
     _stage_complete(
         progress,
         "root 検証",
@@ -1718,7 +1730,7 @@ def audit_with_offrepo(
         progress=progress,
     )
     original_findings = core.findings
-    if not requested or not accepted:
+    if offrepo_scan == "off" or not requested or not accepted:
         now = time.monotonic()
         _progress(progress, "blob metadata 開始")
         _stage_complete(progress, "blob metadata", now, "candidates=0")
@@ -1761,6 +1773,7 @@ def audit_with_offrepo(
             reference_failure=None,
             regenerable_excluded_pairs=core.regenerable_excluded_pairs,
             regenerable_only_commits=core.regenerable_only_commits,
+            offrepo_scan="off" if offrepo_scan == "off" else "full",
         )
 
     stage_started = time.monotonic()
@@ -1907,7 +1920,14 @@ def audit_with_offrepo(
 
 
 def _print_offrepo_report(report: AuditReport) -> None:
-    if not report.requested_roots:
+    if report.offrepo_scan == "off":
+        print(
+            "audit_dangling_commits: repo 外走査は明示 off"
+            f"({OFFREPO_ROOT_ENV} の指定も無視);repo 外の同一実体は未確認のため、"
+            "findings は full なら抑止されうる (commit, path) 対を含みうる。"
+            "救出 triage は --offrepo-scan full --offrepo-root <root> を指定して単独実行する"
+        )
+    elif not report.requested_roots:
         print("audit_dangling_commits: repo 外の同一実体の探索を未実施")
         print(f"  --offrepo-root / {OFFREPO_ROOT_ENV} が未指定")
     else:
@@ -1972,6 +1992,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--ref", default="main", help="取り込み先 ref (既定: main)")
     parser.add_argument(
+        "--offrepo-scan",
+        choices=("off", "full"),
+        default=None,
+        help="repo 外走査: off は環境変数の探索根も無視、full は探索根必須",
+    )
+    parser.add_argument(
         "--offrepo-root",
         type=Path,
         action="append",
@@ -1995,6 +2021,8 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     args = parser.parse_args(argv)
+    if args.offrepo_scan == "off" and args.offrepo_root is not None:
+        parser.error("--offrepo-scan off と --offrepo-root は併用できません")
 
     excluded = () if args.include_fold_trees else DEFAULT_EXCLUDED_PREFIXES
     regenerable = (
@@ -2002,8 +2030,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.include_regenerable_artifacts
         else DEFAULT_REGENERABLE_PREFIXES
     )
-    if args.offrepo_root is not None:
-        roots: Sequence[Path | str] = tuple(args.offrepo_root)
+    roots: Sequence[Path | str]
+    if args.offrepo_scan == "off":
+        roots = ()
+    elif args.offrepo_root is not None:
+        roots = tuple(args.offrepo_root)
     else:
         environment_root = os.environ.get(OFFREPO_ROOT_ENV, "")
         roots = (environment_root,) if environment_root else ()
@@ -2020,6 +2051,7 @@ def main(argv: list[str] | None = None) -> int:
             excluded,
             regenerable_prefixes=regenerable,
             offrepo_roots=roots,
+            offrepo_scan=args.offrepo_scan,
             progress=report_progress,
         )
     except (OSError, RuntimeError, UnicodeError) as exc:

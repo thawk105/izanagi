@@ -217,7 +217,7 @@ def _child_env() -> dict[str, str]:
     }
     for key in (
         "HOME", "XDG_CONFIG_HOME", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM",
-        "GIT_CONFIG_NOSYSTEM", "IZANAGI_DEV_WAVE_JOBS_DIR",
+        "GIT_CONFIG_NOSYSTEM",
     ):
         if key in os.environ:
             env[key] = os.environ[key]
@@ -1794,19 +1794,19 @@ def _audit(repo: Path, audit_tool: Path, timeout: float) -> tuple[list[str], dic
     }
     try:
         result = subprocess.run(
-            [sys.executable, str(audit_tool), "--repo", str(repo)],
+            [sys.executable, str(audit_tool), "--repo", str(repo), "--offrepo-scan", "off"],
             cwd=repo, env=python_env, stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             timeout=max(0.001, timeout), check=False,
         )
     except subprocess.TimeoutExpired:
-        return [], {"complete": False, "returncode": None, "reported_commit_count": None,
+        return [], {"offrepo_scan": "off", "complete": False, "returncode": None, "reported_commit_count": None,
                     "commits": []}, [_issue("audit-timeout", "ledger", "dangling audit timed out",
                                              scope="ledger")]
     try:
         stdout = result.stdout.decode("utf-8")
     except UnicodeDecodeError:
-        return [], {"complete": False, "returncode": result.returncode,
+        return [], {"offrepo_scan": "off", "complete": False, "returncode": result.returncode,
                     "reported_commit_count": None, "commits": []}, [
             _issue("audit-output-invalid", "ledger", "dangling audit output is not UTF-8", scope="ledger")
         ]
@@ -1837,7 +1837,7 @@ def _audit(repo: Path, audit_tool: Path, timeout: float) -> tuple[list[str], dic
                scope="ledger")
     ]
     return sorted(set(commits)), {
-        "complete": complete, "returncode": result.returncode,
+        "offrepo_scan": "off", "complete": complete, "returncode": result.returncode,
         "reported_commit_count": reported_count,
         "commits": sorted(set(commits)),
         "report_sha256": hashlib.sha256(result.stdout).hexdigest(),
