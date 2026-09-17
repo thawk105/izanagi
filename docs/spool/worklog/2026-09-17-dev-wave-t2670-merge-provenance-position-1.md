@@ -16,7 +16,11 @@ title: [T-2670] 受入前 merge 段の全史 provenance 監査を merge commit �
   違反を見逃す変異が KILLED、既存 test は正例維持。既知違反台帳の扱いは現行維持。規律 2 を緩めない。位置移動と契約修正だけ」。
 - **閉じた。** 一次資料は `output/insights/2026-09-17/t2670-merge-provenance-position/README.md`。設計判断は
   {{D:merge-history-provenance-after-commit}}、失敗の型は {{F:merge-audit-before-commit-saw-nothing-new}} (F206 / F365 へ
-  supersede 追記)。実装 commit `21e0bdc6b` (Codex author、2 file、+170/−68、fix 0 巡)。
+  supersede 追記)。実装 commit `21e0bdc6b` (Codex author、2 file、+170/−68)。fix commit `7562001c4` (Codex fix 1 巡、test 1 行)。
+- **受入 1 回目は自 wave 帰属の赤 1 件** (24,759 passed / 1 failed): `test_check_subprocess_bytecode_guard.py::test_real_repo_clean`。
+  新規負例の `subprocess.run([sys.executable, ...], env=env)` の env が helper の tuple 返り値で、bytecode guard の P2 が静的に
+  辿れず違反とした。既存の同型 test と同じ `env["PYTHONDONTWRITEBYTECODE"] = "1"` を Codex fix が 1 行足し、checker rc=0・
+  焦点走 385 passed・焦点再レビュー 1 本・変異 matrix 再走の後に受入を取り直した。
 - **設計の要点。** checker には HEAD 以外を pin する CLI が無く `--range` は authoritative でないため、同じ監査で被覆を
   広げる位置は `git commit` 後しかない。移設先は HEAD の pin 取得直後 (既存の HEAD 比較が監査を挟む)。赤でも merge commit を
   保持するのは、巻き戻しが捨てた commit を reflog に残し cleanup の喪失閉包 (D1233) が撤去を拒むため。保持される終端状態は
@@ -33,7 +37,8 @@ title: [T-2670] 受入前 merge 段の全史 provenance 監査を merge commit �
   項 5 を切り出した。plan 子が指摘し D2044 範囲内で切り直した (記憶「逐語射影は見出しで切り、直後に目視」の再発)。
   (b) 段 4 / 段 6 裁定 file の見出し時刻を推定で書いた。子の pid file の mtime と commit 時刻で実測して訂正した。
 - 実走: 焦点走 f1 (login 自動判定 → 計算ノード、7 file) 1713 passed / 4 skipped (既存 hold) / 68.9 秒。実装 commit の full
-  監査 11,076 件 新規違反なし (計算ノード)。受入全走は docs commit 後の最終 tip で land 前に 1 回。
+  監査 11,076 件 新規違反なし (計算ノード)。受入全走は記録 commit を積んだ最終 tip で行い、1 回目の赤を fix した後の
+  2 回目が land の受領証。
 - **変異 matrix (container worktree `.codex/worktrees/t2670-mutcontainer`、`run_tests.py` 3 file、計算ノード dispatch)。**
   probe 走 (8 request、全件 SURVIVED 登録で観測 node を収集) の後、本走 (22:38〜23:08) は baseline PASSED (88.5 秒)、負例 M1
   (監査を commit 前へ戻す、19 node) / M2 (監査削除、14) / M3 (監査赤を無視、4) / M4 (`merge_pending=False` を監査後へ遅らせる、5)
@@ -43,9 +48,9 @@ title: [T-2670] 受入前 merge 段の全史 provenance 監査を merge commit �
   abort が失敗) で、事前登録の予測と一致。順序 pin だけの赤は補助証拠として分けた。
 - 段 8 (自己改善): 候補 2 件 (逐語切り出しの anchor ずれ、裁定 file の推定時刻) はいずれも既存の型なので新 F を作らず
   F511 / F1 の再発として failures fragment へ記録した。`docs/dev-wave/` 本文の変更なし (既存 memory と F で説明でき、予算も満杯)。
-- 工数: codex 子 6 本 (plan 1、consult 2、author 1、review 2、fix 0、全段 `gpt-6-astra` / `medium`)。親の実測: 焦点走 1
-  (計算ノード)、実 checker probe 1 (login、2 場面 × 4 監査)、変異 2 走 (probe + 本走、計算ノード)、provenance full 1 本、
-  受入 1 回。
+- 工数: codex 子 8 本 (plan 1、consult 2、author 1、review 2、fix 1、焦点再レビュー 1、全段 `gpt-6-astra` / `medium`)。親の実測:
+  焦点走 2 (計算ノード 1・login 1)、実 checker probe 1 (login、2 場面 × 4 監査)、変異 3 走 (probe + 本走 + fix 後の再走、
+  計算ノード)、provenance full 5 本 (実装・merge・docs・fix・docs 2)、受入 2 回 (1 回目は自 wave 帰属の赤、2 回目が land の受領証)。
 
 ## 次の一手差分
 

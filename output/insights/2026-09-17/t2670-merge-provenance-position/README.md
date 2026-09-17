@@ -5,7 +5,8 @@ authority: none / default_effect: no-state-change (プロセス監査・逐語�
 - 起票: [T-2670] (P1、D2044 項 5 でユーザー裁定済み → 実装手番)
 - wave branch: `dev-wave-t2670-merge-provenance-position`
 - 基準 commit: `38353207f719acb0871cfe3d9bbe3a02490282bb` (local main = origin/main、wave 開始時、fresh worktree)
-- 実装 commit: `21e0bdc6b478cc3ced1d2b929baf558326316ec9` (Codex `role=author` 1 単位、2 file、+170/−68。fix 0 巡)
+- 実装 commit: `21e0bdc6b478cc3ced1d2b929baf558326316ec9` (Codex `role=author` 1 単位、2 file、+170/−68)。
+  fix commit: `7562001c45722b4b8e9480264198ae913dc190a0` (Codex fix 1 巡、test 1 行: 受入 1 回目の赤の是正、下記)
 - 設計判断: 本 wave の decisions fragment (slug `merge-history-provenance-after-commit`)。失敗の型: failures fragment
   (slug `merge-audit-before-commit-saw-nothing-new`、F206 / F365 へ supersede 追記)
 - job dir (prompt・log・patch・probe script・変異 spec/台帳の原本):
@@ -65,6 +66,13 @@ probe (`verbatim/s6-probe-real-checker-positions.json`、script は job dir の 
 - 実装 commit の full 監査: 計算ノード 4049.nqsv、11,076 件、新規違反なし、rc=0。
 - Codex author の直接呼び出し検査 (子の自己申告、`verbatim/s5-author-report.md`): 27 件 PASS、M2 (監査削除) の反実仮想で
   runner 計数 1 → 主張が赤化 → 復元確認。
+- **受入 1 回目 (docs commit `7cfd5d4b7` の tip、23:35 投入) は赤 1 件**: 24,759 passed / 1 failed / 67 skipped、
+  `test_check_subprocess_bytecode_guard.py::test_real_repo_clean` — 自 wave 帰属。新規負例の
+  `subprocess.run([sys.executable, ...], env=env)` の env が `_real_waiter_repo` の tuple 返り値で、bytecode guard の P2
+  が静的に辿れず `test_dev_wave_wait.py:8703:14:run` を違反とした (既存の同型 test は `env["PYTHONDONTWRITEBYTECODE"] = "1"` を
+  関数内で代入)。Codex fix 1 巡で同じ 1 行を足した (`7562001c4`、`verbatim/s6-fix1-report.md`)。fix 後: checker rc=0、
+  焦点走 f2 (test_dev_wave_wait + test_check_subprocess_bytecode_guard) 385 passed / 33.9 秒、焦点再レビュー 1 本
+  (`verbatim/s6-focus-review.md`)、変異 matrix を fix commit で再走 (下記 final2)。
 
 ## 変異 matrix (事前登録 = `verbatim/s4-ruling.md` §5、DW-M01)
 
@@ -85,7 +93,11 @@ probe 走 (22:21 投入、8 request、全件 SURVIVED 登録で観測 node を�
 KILLED 5 / SURVIVED 1 / MISMATCH 0 / TIMEOUT 0、matching 6/6、m3 / m4 の所要 469 / 755 秒は queue 待ち込み)。
 意味的 kill (負例が受理集合の変化で赤) は M1〜M4 の 4 件で、いずれも実 git 負例が専属 killer。順序 pin だけの赤と M5 は
 補助・診断として分けた (DW-M03 / M08)。
-spec: `mutation-spec-probe.json` / `mutation-spec-final.json`、台帳: `mutation-ledger-probe.json` / `mutation-ledger-final.json`。
+**fix 後の再走 (final2、DW-S06-C):** container を fix commit `7562001c4` へ切り替え、同じ spec (anchor を fix 後の現物で再検証、
+内容同一で sha256 も同一) で 23:56〜00:08 に再走。baseline PASSED (89.4 秒)、KILLED 5 / SURVIVED 1 / MISMATCH 0 / TIMEOUT 0、
+matching 6/6 で本走と同一。land の受領証が指す tip はこの commit 以降の前進 merge だけを含む。
+spec: `mutation-spec-probe.json` / `mutation-spec-final.json` / `mutation-spec-final2.json`、台帳: `mutation-ledger-probe.json` /
+`mutation-ledger-final.json` / `mutation-ledger-final2.json`。
 
 ## scope 外で残るもの
 

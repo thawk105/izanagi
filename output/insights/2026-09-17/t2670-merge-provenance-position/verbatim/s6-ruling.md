@@ -30,5 +30,14 @@ test_dev_wave_land / test_resume_gate_acceptance_boundary / test_check_docs / te
 
 ## 結論
 
-code の fix は 0 件。焦点再レビューは fix が無いため行わない (DW-S06-C)。実装は author の patch のまま commit し、
-変異 matrix (probe → 本走) と受入へ進む。A4 の受理集合変化は D fragment・F206 supersede・最終報告に明記する。
+レビュー所見に対する code の fix は 0 件。実装は author の patch のまま commit し (`21e0bdc6b`)、変異 matrix (probe → 本走) と
+受入へ進む。A4 の受理集合変化は D fragment・F206 supersede・最終報告に明記する。
+
+## 追記 (2026-09-17 23:40〜00:00 JST、受入 1 回目の赤への fix)
+
+受入 1 回目 (tip `7cfd5d4b7`) が `test_check_subprocess_bytecode_guard.py::test_real_repo_clean` で赤 (自 wave 帰属: 新規負例の
+`subprocess.run([sys.executable, ...], env=env)` を bytecode guard の P2 が静的に辿れない)。所見 R1 として Codex fix 1 巡
+(`7562001c4`、`env["PYTHONDONTWRITEBYTECODE"] = "1"` の 1 行追加、既存の同型 test と同形) を投じ、親の実測 (checker rc=0、焦点走
+385 passed) と焦点再レビュー 1 本 (GO、R1 closed、`_real_waiter_repo` が同 key を既に "1" で返すので挙動は同一、同型の未対応 0 件、
+`verbatim/s6-focus-review.md`) で閉じた。DW-S06-C に従い変異 matrix を fix commit で再走し (final2)、受入を取り直す。
+上の「焦点再レビューを行わない」は本追記で更新する。A4 以下の裁定は不変。
