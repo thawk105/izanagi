@@ -204,6 +204,11 @@
   段 6 レビュー B が「事前登録の時刻表記が焦点走・統合 commit の時刻と照合できない」と指摘し、親が全部 mtime と
   `git log --format=%ci` で実測して訂正した (事前登録 → author 投入 → 実装の順序は保たれており成果物への影響は無い)。
   転写でなく推定でも同じ型になる。時刻・日付は書く直前に `date` / mtime / commit 日時から取る。
+
+- **再発: 2026-09-17 (near miss)** — [T-2670] wave の親が段 4 / 段 6 の裁定 file の見出し時刻を推定で書いた
+  (段 4 を「22:10」、段 6 を「23:10」と書いたが、子の pid file の mtime と実装 commit の時刻から 21:52 頃 / 22:17 頃だった)。
+  insight の verbatim へ写した後に `date` で気づき、実測値へ訂正して commit 前に閉じた。時刻も日付と同じく一次資料
+  (file の mtime・commit 時刻) から取る。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -7932,6 +7937,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「HEAD 差は `--ff-only` で揃える」に従って解消し、取り込み後の full 監査は同じ木で
   rc=0 (7454 件、新規違反なし) になった。**恒久対応は増やさない** — 既存の `DW-O20` と
   F206 の再発検知手順で説明でき、待ち手側の gate は設計どおり fail-closed に働いている。
+- **supersede: 2026-09-17** — 再発 2026-09-01 の型 (受入待ち手の `merge-history-provenance` 段が main 側の既知違反 entry 追加を `index-only member does not match HEAD` で実行不能にする) は、D2129 で監査が `git commit` 後へ移り merge commit に entry が入るため起きなくなった (親の実 checker probe で旧位置 rc=2 → 新位置 rc=0 を実測)。`--ff-only` で揃える復旧手順は不要になり、台帳の内容規則と append-only 履歴検査はそのまま新位置で適用される。
 ### F207. 派生関数を期待値の出所にしたテストは、その派生関数の変異を検出できない [恒真ゲート] [検出力]
 
 - 事象: docs 権威から起動値を導出する機構で、`derive_launch` の段 6 effort を別の許容値へ
@@ -12469,6 +12475,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   rc=70・25秒で早期に land 不能を検出した (queue 待ち行列への影響ゼロ)。
   checker ソース中の「(ユーザー選択: known-violation 登録)」の指示どおり、
   この新規違反の台帳登録可否は AI 単独で判断せずユーザーへ返した。
+- **supersede: 2026-09-17** — 「merge 後・受入投入前」の全史監査は D2129 で `git commit` 後 (HEAD = merge commit) へ移り、取り込んだ main の commit と merge commit 自身を選択集合に含める。この段の赤では `git merge --abort` を行わず merge commit を保持し、所有 lease の解放と受入 command 不投入だけを行う (F1025)。
 ### F366. 呼び手を確認したと書きながら入れ子の exact 検査を見落とし、修正が end-to-end で 1 度も発効しなかった [恒真ゲート] [手順漏れ]
 
 - 事象: 2026-08-16 の commit `8a2b735b` が受入赤の分類へ第 3 分類 `flake` を足した。
@@ -16233,6 +16240,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   F511 本体と同じで、機構が違う (行範囲の切り出し漏れではなく、`git diff` が untracked を
   黙って落とす)。恒久対応は「レビューへ渡す成果物側の射影は `git status --porcelain` で
   変更集合を先に列挙し、tracked 差分と untracked file の両方を数え合わせてから作る」。
+
+- **再発: 2026-09-17** — [T-2670] wave の親が D2044 項 5 の逐語を `awk '/^### 項 5 /...'` で切ったが、anchor を
+  `## D2044` の範囲に限定せず file 先頭から当てたため、別の D の「項 5」(A-1 の本番測定の認可) を plan 子の必読資料として
+  渡した。plan 子が現物と突き合わせて「逐語が本件に一致しない」と報告し、段 3 前に親が D2044 の範囲内で切り直した
+  (near miss、実害なし。brief 本文に裁定の要旨があったため plan の実質は保たれた)。行範囲の代わりに見出し anchor を
+  使っても、**上位見出しの範囲で絞らなければ同型がずれる**。切った直後の先頭見出しの目視で防げた。
 ### F512. 受入は fold 前の tree を検査するため、fold が生む退行が緑の受領証を通り抜けて main を赤にした [テスト代表性] [手順漏れ]
 
 - 事象: `/rulings` の裁定記録が受入全走 14832 passed / 0 failed で緑の受領証を得て land したが、
@@ -25584,6 +25597,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   wave の変更は docs のみで当該 fixture・probe・Git 呼出しは触っていない。既存の恒久対応どおり timeout 拡大・
   fixture の stub 化・除外・gate 新設はせず、`DW-O18` に従い受入を 1 回再走した。記録は
   `output/insights/2026-09-17/prereg-s11-3-addendum-d2103/README.md`。
+
+- **再発: 2026-09-17** — [T-2710] 調査 wave (docs と計測成果物のみ、post-claim merge 後の tip `06ad393af`) の受入 attempt 1
+  (session `93bc7244…`、同時受入は投入時 2 本・他 session 合計 3 本) で 4 setup error (24,755 passed / 67 skipped)。全件
+  `test_s8c_preregistration_predicates.py::test_current_repository_*` の module fixture の `archive` 呼び出し (orchestrator/campaign
+  約 80 file) が 10 秒 TimeoutExpired。本 wave の差分は到達不能。同 tip・同 file の単独再走 (`run_tests.py --force-dispatch`、
+  request 4213.nqsv) は 218 passed / 92.29 秒 / rc=0 で非再現。attempt 2 (tip `b82d12ac7`、session `c8faa7f0…`、投入時 leader 2 本) は
+  33 error (t1259 の worktree に対する 30 秒 TimeoutExpired 29 件 + s8c の 10 秒 timeout 4 件、24,726 passed)、同 tip の 2 file 単独再走
+  (request 4300.nqsv) は 269 passed / 99.10 秒 / rc=0 で非再現。恒久対応は既報のまま変えず、timeout 拡大・stub 化・除外・gate 新設は
+  していない。attempt 3 は投入条件を leader ≤ 1・load1 < 15 に絞って投げた。
 ### F946. 修正可能な検査失敗で作業を終了し、ユーザーへ再開を要求した [手順漏れ] [誤前提]
 
 - 事象: insights整理のauthorが実行ログ検査で未受理になり、親は原因の切り分けや安全な再試行をせず正式停止した。
@@ -27393,3 +27415,42 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `waiting for land turn` が無い (= 順番票を知らない旧 driver か、旧 driver との混在) なら本件の型。
   順番票あり同士で起きたら D の前提 (先頭が有限時間で進む) の破れを疑い、先頭 ticket の phase と
   registry の grant を読む。
+
+### F1024. 仮想割付 probe で nodeid を書き換え、台帳 lookup が既定値に落ちた偽の均等化を敵対相談の材料に載せた [計測汚染] [手順漏れ]
+
+- 事象: T-2710 の親 probe が「成分粒度を node にした場合」を `tools/acceptance_shards.py::allocate()` で仮想計算する際、
+  `test_s8b_oracle_driver.py` の group 無し node の **nodeid 自体**を仮想 file 名へ書き換えた。allocate は nodeid で
+  `acceptance_duration_ledger.json` を引き、未登録 node を 1 秒に置くため、147 node 中 141 node が 1 秒になり
+  「M を含んでも 3 shard が 5,165 秒で均等化」という偽の結果が出た。親はそれを段 3 レンズ B の prompt に「T-2750 が land すれば
+  別系列化なしでも床が同程度まで下がるか」の材料として載せた。レンズ B が `allocate` の lookup (`AS:397,404`) を読んで検出し、
+  nodeid を保った再計算で 6,052.7×3 (M は 0/6/5、240 秒 node が残る) に訂正した。near miss (裁定前に訂正)。
+- 根本原因: (1) 仮想計算で「成分の鍵」(file) と「重みの鍵」(nodeid) を同じ文字列で扱い、片方だけ変えるべきところを両方変えた。
+  (2) probe の出力に台帳 hit 数・fallback 数を含めず、全 node 1 秒という異常が数値 (負荷総和が 18,158 → 15,495 秒へ減る) からしか
+  見えなかった。(3) 現行割付の再現 (保存済み loads と一致) は確かめたが、仮想変更後の「重みの総和が不変」という保存則を確かめなかった。
+- 恒久対応: memory `virtual-allocation-probe-keeps-identifiers-and-checks-weight-conservation` — 仮想割付 probe は識別子 (nodeid) を
+  保ち、変えるのは成分の鍵だけにする。出力に台帳 hit / fallback 数と重み総和を含め、母集合が同じ仮想変更では総和不変を assert する。
+  修正済み probe の出力は `output/insights/2026-09-17/t2710-t080-series-inquiry/probe-outputs/probe_shard_wall.895f300a.v2.txt`。
+- 再発検知: 段 3 レンズが親 probe の source を読む (本件で機能した)。probe 側は重み総和の保存則 assert。
+
+### F1025. 受入前 merge 段の全史監査が `--no-commit` 中の HEAD に対して走り、取り込んだ main の commit を一度も見ていなかった [恒真ゲート] [テスト代表性]
+
+- 事象: `tools/dev_wave_wait.py acceptance` の受入前 merge 段は、`git merge --no-ff --no-commit main` の
+  直後・`git commit` の前に全史 provenance 監査 (`merge-history-provenance`) を走らせていた。
+  この時点の HEAD は wave tip のままなので、checker の既定監査 (`{policy} ∪ rev-list(policy..HEAD)`)
+  の選択集合は claim 前の監査 (`preclaim-history-provenance`) と同一で、取り込んだ main の commit と
+  merge commit 自身は入らない。F365 の恒久対応が「その merge 自身が新しく作る違反を捕まえる」と
+  書いた監査は、導入以来その違反を一度も見ていなかった。main にだけ存在する違反 commit は受入全走
+  (1 万件超) を消費した後、land の監査で初めて赤になる。
+- 根本原因: 監査の位置を「merge 後」と呼び、checker が HEAD を pin する事実 (`_resolve_head`) と
+  `--no-commit` が HEAD を動かさない事実を突き合わせなかった。既存 test は段の順序 (`_STAGES`) を
+  `_FakeEffects` の期待列で pin していたが、監査が「取り込んだ commit を見る」ことは主張しておらず、
+  位置の誤りを緑のまま通した。旧位置の監査は claim 前の監査と入力が同じで、差分 0 件の冗長呼び出し
+  として費用だけ消えていた ([T-2670] が起票、D2044 項 5 が裁定)。
+- 恒久対応: D2129 — 監査を `git commit` 後 (HEAD の pin 取得直後)
+  へ移し、赤でも merge commit を保持して所有 lease を解放し受入 command を投入しない契約に定めた。
+  実 git の負例 `test_real_git_main_only_history_violation_blocks_acceptance_after_commit`
+  (`orchestrator/tests/test_dev_wave_wait.py`) が、main にだけ存在する違反 commit を temp repo の
+  偽 checker (`git merge-base --is-ancestor <sha> HEAD`) で赤にし、受入 command 0 回・lease の
+  監査時存在と終了時不在・HEAD が 2 親 merge commit・違反 SHA の到達性を主張する。
+- 再発検知: 同 test が「監査を commit 前へ戻す」変異 (M1) を runner 計数の主張で殺す
+  (変異台帳は本 wave の insight)。fake の順序 pin だけでは検出しない。
