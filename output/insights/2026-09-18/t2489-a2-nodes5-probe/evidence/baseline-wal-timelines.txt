@@ -1,0 +1,88 @@
+== /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-a2-certification-rr5-1af9fc2b/runs/wal.jsonl
+21:13:00 +    0.0s  build_start    960e57e1aeba
+21:13:58 +   57.8s  build_done     960e57e1aeba
+21:14:14 +   16.4s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=634598 anomalies=0
+21:16:08 +  114.5s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2379214 anomalies=0
+21:17:59 +  110.7s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2387807 anomalies=0
+21:19:49 +  110.3s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2318386 anomalies=0
+21:21:41 +  111.6s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2364037 anomalies=0
+21:23:35 +  114.1s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2382130 anomalies=0
+21:36:59 +  803.8s  bench_done     960e57e1aeba
+21:36:59 +    0.0s  commit         960e57e1aeba
+21:37:01 +    2.3s  build_start    1f2762881fcb
+21:38:02 +   60.9s  build_done     1f2762881fcb
+21:38:14 +   11.8s  verify_done    1f2762881fcb keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=521375 anomalies=0
+21:40:15 +  120.7s  verify_done    1f2762881fcb keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2523841 anomalies=0
+21:42:14 +  119.4s  verify_done    1f2762881fcb keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2529858 anomalies=0
+21:44:13 +  119.3s  verify_done    1f2762881fcb keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2525488 anomalies=0
+21:46:12 +  118.7s  verify_done    1f2762881fcb keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2515979 anomalies=0
+21:48:12 +  120.1s  verify_done    1f2762881fcb keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2529656 anomalies=0
+22:02:22 +  850.3s  bench_done     1f2762881fcb
+22:02:22 +    0.0s  commit         1f2762881fcb
+total 2962.8s
+== /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b/jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-a2-certification-rr50-5efd479e/runs/wal.jsonl
+21:13:00 +    0.0s  build_start    960e57e1aeba
+21:13:58 +   58.1s  build_done     960e57e1aeba
+21:14:14 +   16.4s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=629692 anomalies=0
+21:26:16 +  721.7s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4153232 anomalies=0
+21:28:53 +  157.2s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4138036 anomalies=0
+21:31:26 +  153.1s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4142267 anomalies=0
+21:34:07 +  160.5s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4185568 anomalies=0
+21:36:42 +  155.2s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4147978 anomalies=0
+21:37:16 +   33.9s  bench_done     960e57e1aeba
+21:37:16 +    0.1s  commit         960e57e1aeba
+21:37:18 +    2.4s  build_start    47e599584695
+21:38:21 +   62.6s  build_done     47e599584695
+21:38:34 +   13.2s  verify_done    47e599584695 keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=573874 anomalies=0
+21:51:00 +  746.1s  verify_done    47e599584695 keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4403738 anomalies=0
+21:53:48 +  168.2s  verify_done    47e599584695 keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4341633 anomalies=0
+21:56:33 +  164.5s  verify_done    47e599584695 keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4388727 anomalies=0
+21:59:19 +  166.1s  verify_done    47e599584695 keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4371466 anomalies=0
+22:02:05 +  166.6s  verify_done    47e599584695 keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4368561 anomalies=0
+22:02:39 +   33.8s  bench_done     47e599584695
+22:02:39 +    0.0s  commit         47e599584695
+total 2979.6s
+== /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2228-20260904a/jobs/rr5/campaigns/paper-story-a2-rr5-paper-story-a2-certification-rr5-285206c2/runs/wal.jsonl
+16:19:53 +    0.0s  build_start    960e57e1aeba
+16:20:57 +   64.1s  build_done     960e57e1aeba
+16:21:15 +   17.3s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=638311 anomalies=0
+16:23:06 +  111.2s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2401570 anomalies=0
+16:24:55 +  109.4s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2406136 anomalies=0
+16:26:44 +  109.3s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2422016 anomalies=0
+16:28:36 +  111.5s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2409628 anomalies=0
+16:30:29 +  112.9s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2420982 anomalies=0
+16:45:11 +  882.6s  bench_done     960e57e1aeba
+16:45:11 +    0.0s  commit         960e57e1aeba
+16:45:14 +    2.4s  build_start    1f2762881fcb
+16:46:05 +   51.4s  build_done     1f2762881fcb
+16:46:18 +   13.0s  verify_done    1f2762881fcb keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=525167 anomalies=0
+16:48:16 +  117.8s  verify_done    1f2762881fcb keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2532952 anomalies=0
+16:50:14 +  118.5s  verify_done    1f2762881fcb keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2534238 anomalies=0
+16:52:10 +  116.0s  verify_done    1f2762881fcb keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2521793 anomalies=0
+16:54:08 +  118.0s  verify_done    1f2762881fcb keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2526085 anomalies=0
+16:56:04 +  115.3s  verify_done    1f2762881fcb keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=2524201 anomalies=0
+17:11:21 +  917.2s  bench_done     1f2762881fcb
+17:11:21 +    0.0s  commit         1f2762881fcb
+total 3087.9s
+== /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2228-20260904a/jobs/rr50/campaigns/paper-story-a2-rr50-paper-story-a2-certification-rr50-bb1f5793/runs/wal.jsonl
+16:19:50 +    0.0s  build_start    960e57e1aeba
+16:21:12 +   82.6s  build_done     960e57e1aeba
+16:21:30 +   17.4s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=638652 anomalies=0
+16:33:22 +  712.3s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4201668 anomalies=0
+16:36:14 +  171.7s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4135309 anomalies=0
+16:39:10 +  176.7s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4195939 anomalies=0
+16:42:00 +  169.9s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4166455 anomalies=0
+16:44:54 +  174.2s  verify_done    960e57e1aeba keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4136750 anomalies=0
+16:45:28 +   33.8s  bench_done     960e57e1aeba
+16:45:28 +    0.0s  commit         960e57e1aeba
+16:45:31 +    2.4s  build_start    47e599584695
+16:46:21 +   50.5s  build_done     47e599584695
+16:46:36 +   14.7s  verify_done    47e599584695 keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=579876 anomalies=0
+16:59:04 +  747.9s  verify_done    47e599584695 keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4415416 anomalies=0
+17:02:05 +  181.5s  verify_done    47e599584695 keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4400411 anomalies=0
+17:05:07 +  181.3s  verify_done    47e599584695 keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4403439 anomalies=0
+17:08:06 +  179.1s  verify_done    47e599584695 keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4380016 anomalies=0
+17:11:04 +  178.3s  verify_done    47e599584695 keys=['build_attempt_id', 'verdict', 'certified', 'commits', 'aborts', 'commit_witness', 'anomalies', 'workload', 'proof_surfaces'] verdict=serializable certified=True commits=4394498 anomalies=0
+17:11:38 +   33.7s  bench_done     47e599584695
+17:11:38 +    0.0s  commit         47e599584695
+total 3108.2s
