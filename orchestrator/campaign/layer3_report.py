@@ -9,8 +9,8 @@ report 本体を再走査して得る multiset を独立に比較し、view の 
 参照することを検査する。未知 stage、重複、脱落、参照不能、読めない入力、schema
 不適合はいずれも例外にし、部分レポートを出力しない。
 
-``mechanism_hypotheses`` は未実装の予約区画であり、常に空である。WAL に必要な原料が
-構造化され、schema_version を上げて契約を拡張するまで解除しない。
+``agent_outputs`` は役割出力の全文を保持し、``mechanism_hypotheses`` は critic の
+帰属記録を逐語で射影する。機序仮説は LLM の帰属記録であり、機序の実証ではない。
 noise floor は within_run = 1 測定の品質、between_run = run 間比較の採否 floor として区別する（p2_2.py の A2 注記と同じ区別）。
 abort variant も commit-event-absent のため rejects に載り、詳細理由は aborts view が保持する。
 schema v1/v2 で生成済みの実レポートは、generator sha を内包する記録済み artifact
@@ -33,6 +33,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import stat
 import subprocess
 import sys
@@ -55,6 +56,7 @@ _HERE = Path(__file__).resolve().parent
 
 from ..calibrator import perf_preflight as _perf_preflight  # noqa: E402
 from . import (  # noqa: E402
+    agent_outputs as _agent_outputs,
     campaign_lock,
     env_contract,
     p3_s4_loop,
@@ -95,9 +97,14 @@ def _canonical_bytes(value: Any) -> bytes:
 
 
 def canonical_record_ref(kind: str, record: Mapping[str, Any]) -> str:
-    """WAL/whiteboard record の内容ハッシュ付き source-ref を返す。"""
-    if kind not in ("wal", "wb"):
+    """WAL/whiteboard/agent-output record の内容ハッシュ付き source-ref を返す。"""
+    if kind not in ("wal", "wb", "ao"):
         raise Layer3ReportError("source-ref kind が不正")
+    if kind == "ao":
+        try:
+            return "ao:" + _agent_outputs.canonical_sha256(record)
+        except _agent_outputs.AgentOutputError as exc:
+            raise Layer3ReportError("agent output canonical JSON が不正") from exc
     return "%s:%s" % (kind, hashlib.sha256(_canonical_bytes(record)).hexdigest())
 
 
@@ -136,6 +143,63 @@ def _assert_unique_refs(kind: str, records: Sequence[Mapping[str, Any]], label: 
     refs = [canonical_record_ref(kind, record) for record in records]
     if len(refs) != len(set(refs)):
         raise Layer3ReportError("%s に canonical hash の完全重複がある" % label)
+
+
+def _read_agent_outputs(path: Path) -> Tuple[Optional[List[Dict[str, Any]]], Optional[str]]:
+    """None denotes absence; reject append races across the shared reader."""
+    try:
+        mode = path.lstat().st_mode
+    except FileNotFoundError:
+        return None, None
+    except OSError as exc:
+        raise Layer3ReportError("agent outputs を読めない") from exc
+    if not stat.S_ISREG(mode):
+        raise Layer3ReportError("agent outputs が通常ファイルでない")
+    try:
+        before = _sha256_file(path)
+        envelopes = _agent_outputs.read_agent_outputs(path)
+        after = _sha256_file(path)
+    except (_agent_outputs.AgentOutputError, OSError) as exc:
+        raise Layer3ReportError("agent outputs を読めない: %s" % exc) from exc
+    if before != after:
+        raise Layer3ReportError("agent outputs bytes changed during read")
+    return envelopes, before
+
+
+def _mechanism_view(records: Sequence[Mapping[str, Any]],
+                    envelopes: Sequence[Mapping[str, Any]]) -> List[Dict[str, Any]]:
+    wal_refs = {canonical_record_ref("wal", record) for record in records}
+    variants = {record["variant"] for record in records if record["stage"] == "commit"}
+    result = []
+    for env in envelopes:
+        try:
+            _agent_outputs.validate_envelope(env)
+        except _agent_outputs.AgentOutputError as exc:
+            raise Layer3ReportError("agent output envelope が不正") from exc
+        if env["variant"] is not None and env["variant"] not in variants:
+            raise Layer3ReportError("agent output variant に WAL commit がない")
+        payload = env["payload"]
+        if any(ref not in wal_refs for ref in payload["refs"]):
+            raise Layer3ReportError("agent output refs が一次 WAL を参照しない")
+        if env["stage"] != "critic_attributed":
+            continue
+        output = payload["output"]
+        raw = output["raw_markdown"]
+        headings = list(re.finditer(r"^## ([^\r\n]+)\r?$", raw, re.MULTILINE))
+        for name in ("attribution", "recommend", "avoid", "uncertainty"):
+            matches = [i for i, heading in enumerate(headings) if heading[1] == name]
+            if len(matches) != 1:
+                raise Layer3ReportError("critic heading が欠落または重複: " + name)
+            index = matches[0]
+            end = headings[index + 1].start() if index + 1 < len(headings) else len(raw)
+            if raw[headings[index].end():end].strip() != output[name]:
+                raise Layer3ReportError("critic raw_markdown と節が一致しない: " + name)
+        result.append({
+            "variant": env["variant"], "attribution": output["attribution"],
+            "source_ref": canonical_record_ref("ao", env),
+            "refs": payload["refs"], "digest_sha256": payload["digest_sha256"],
+        })
+    return sorted(result, key=lambda row: row["source_ref"])
 
 
 def _read_wal(path: Path) -> List[Dict[str, Any]]:
@@ -257,20 +321,29 @@ def _report_primary_refs(report: Mapping[str, Any]) -> Counter:
         if not isinstance(item, Mapping):
             raise Layer3ReportError("whiteboard 行が object でない")
         refs[canonical_record_ref("wb", item)] += 1
+    for env in report.get("agent_outputs", ()):
+        refs[canonical_record_ref("ao", env)] += 1
     return refs
 
 
 def _assert_bijection(records: Sequence[Mapping[str, Any]], whiteboard: Sequence[Mapping[str, Any]],
-                      report: Mapping[str, Any]) -> None:
+                      report: Mapping[str, Any], *,
+                      agent_outputs: Optional[Sequence[Mapping[str, Any]]] = None) -> None:
     """入力と本体一次配置を独立比較し、view の参照整合も fails-closed で強制する。"""
     expected = Counter(canonical_record_ref("wal", item) for item in records)
     expected.update(canonical_record_ref("wb", item) for item in whiteboard)
+    expected.update(canonical_record_ref("ao", env) for env in (agent_outputs or ()))
     actual = _report_primary_refs(report)
     if actual != expected:
-        raise Layer3ReportError("source-ref multiset が入力 WAL/whiteboard と report 本体で一致しない")
+        raise Layer3ReportError("source-ref multiset が入力 WAL/whiteboard/AO と report 本体で一致しない")
     source_refs = Counter(report.get("source_refs", ()))
     if source_refs != actual:
         raise Layer3ReportError("source_refs 区画が report 本体走査結果と一致しない")
+    if report.get("mechanism_hypotheses", []) != _mechanism_view(records, agent_outputs or ()):
+        raise Layer3ReportError("mechanism_hypotheses が独立再射影と一致しない")
+    provenance = "absent" if agent_outputs is None else "agent_outputs"
+    if report.get("mechanism_hypotheses_provenance", "absent") != provenance:
+        raise Layer3ReportError("mechanism_hypotheses_provenance が入力と一致しない")
     primary_wal_refs = {ref for ref in actual if ref.startswith("wal:")}
     for section in ("runs", "verifications", "rejects", "aborts"):
         for row in report.get(section, ()):
@@ -768,6 +841,8 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         campaign_dir / "campaign.lock", purpose=CampaignReadPurpose.HISTORICAL_RAW,
     )
     lock = decoded_lock.identity
+    ao_path = Path(CampaignLayout(root=str(campaign_dir)).agent_outputs_file)
+    agent_outputs, ao_sha256 = _read_agent_outputs(ao_path)
     state_path = campaign_dir / "loop_state.json"
     try:
         state_mode = state_path.stat().st_mode
@@ -907,11 +982,17 @@ def build_report(campaign_dir: Path, generated_from_head: Optional[str] = None, 
         ),
         "acceptance_receipt": None,
         "certifying_input": False,
-        "mechanism_hypotheses": [],
+        "agent_outputs": sorted(agent_outputs or (), key=lambda env: canonical_record_ref("ao", env)),
+        "mechanism_hypotheses": _mechanism_view(records, agent_outputs or ()),
+        "mechanism_hypotheses_provenance": "absent" if agent_outputs is None else "agent_outputs",
     }
+    artifact_ao = [ref["sha256"] for ref in report["artifact_refs"]
+                   if ref["path"] == ao_path.relative_to(campaign_dir).as_posix()]
+    if artifact_ao != ([] if ao_sha256 is None else [ao_sha256]):
+        raise Layer3ReportError("agent outputs bytes changed before artifact_refs")
     report["source_refs"] = sorted(_report_primary_refs(report).elements())
     _validate_schema(report)
-    _assert_bijection(records, whiteboard, report)
+    _assert_bijection(records, whiteboard, report, agent_outputs=agent_outputs)
     return report
 
 

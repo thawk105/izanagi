@@ -5214,3 +5214,294 @@ def test_main_rejects_empty_output_root(tmp_path, monkeypatch):
 
     assert exc_info.value.code == 2
     assert not out.exists()
+
+
+# AO material reporting: all fixtures are temporary campaigns, never output/.
+def _ao_envelope(stage, *, variant=None, refs=(), label="one"):
+    output = {"proposal": label}
+    if stage == "critic_attributed":
+        sections = {"attribution": "帰属 " + label, "recommend": "retain",
+                    "avoid": "infer", "uncertainty": "unknown"}
+        output = {"raw_markdown": "\n\n".join(
+            "## " + name + "\n" + value for name, value in sections.items()
+        ) + "\n", **sections}
+    payload = {"output": output, "input_sha256": "1" * 64,
+               "provenance": {"mode": "ingested", "source_path": "role.json",
+                              "source_sha256": "2" * 64, "input_path": "input.json",
+                              "input_file_sha256": "3" * 64}, "refs": list(refs)}
+    if stage == "critic_attributed":
+        payload["digest_sha256"] = "4" * 64
+    return {"ts": 1.0, "stage": stage, "variant": variant,
+            "env_tag": "linux-baremetal", "payload": payload}
+
+
+def _ao_campaign(tmp_path, *, second_critic=False):
+    from orchestrator.campaign import agent_outputs
+    campaign, output_root = _certifying_campaign(tmp_path)
+    records = layer3_report._read_wal(campaign / "runs/wal.jsonl")
+    commit = next(record for record in records if record["stage"] == "commit")
+    envelopes = [_ao_envelope(stage) for stage in agent_outputs.STAGES[:2]]
+    for label in (["one", "two"] if second_critic else ["one"]):
+        envelopes.append(_ao_envelope(
+            "critic_attributed", variant=commit["variant"], label=label,
+            refs=[layer3_report.canonical_record_ref("wal", commit)],
+        ))
+    for env in envelopes:
+        agent_outputs.append_agent_output(campaign / "runs/agent_outputs.jsonl", env)
+    report = layer3_report.build_report(campaign, "fixed", output_root=output_root)
+    return campaign, output_root, records, envelopes, report
+
+
+def _ao_check(records, envelopes, report):
+    layer3_report._assert_bijection(records, [], report, agent_outputs=envelopes)
+
+
+def _ao_resync_refs(report):
+    report["source_refs"] = sorted(layer3_report._report_primary_refs(report).elements())
+
+
+def test_ao_canonical_bytes_and_three_stage_report(tmp_path):
+    from orchestrator.campaign import agent_outputs
+    campaign, _, records, envelopes, report = _ao_campaign(tmp_path)
+    for env in envelopes:
+        assert layer3_report._canonical_bytes(env) == agent_outputs.canonical_bytes(env)
+        assert layer3_report.canonical_record_ref("ao", env) == agent_outputs.envelope_ref(env)
+    assert len(report["agent_outputs"]) == 3
+    assert len(report["mechanism_hypotheses"]) == 1
+    assert len([ref for ref in report["source_refs"] if ref.startswith("ao:")]) == 3
+    assert report["agent_outputs"] == sorted(envelopes, key=agent_outputs.envelope_ref)
+    critic = envelopes[-1]
+    assert report["mechanism_hypotheses"] == [{
+        "variant": critic["variant"], "attribution": critic["payload"]["output"]["attribution"],
+        "source_ref": agent_outputs.envelope_ref(critic),
+        "refs": critic["payload"]["refs"], "digest_sha256": "4" * 64,
+    }]
+    assert report["mechanism_hypotheses_provenance"] == "agent_outputs"
+    artifact = next(ref for ref in report["artifact_refs"] if ref["path"] == "runs/agent_outputs.jsonl")
+    assert artifact["sha256"] == hashlib.sha256((campaign / artifact["path"]).read_bytes()).hexdigest()
+    layer3_report._validate_schema(report)
+    _ao_check(records, envelopes, report)
+
+
+@pytest.mark.parametrize("empty", [False, True])
+@pytest.mark.parametrize("loop_state", [False, True])
+def test_ao_absent_and_empty_independent_of_whiteboard(tmp_path, empty, loop_state):
+    campaign, output_root = _campaign(tmp_path, [_bench()], loop_state=loop_state)
+    if empty:
+        (campaign / "runs/agent_outputs.jsonl").touch()
+    report = layer3_report.build_report(campaign, "fixed", output_root=output_root)
+    assert report["agent_outputs"] == report["mechanism_hypotheses"] == []
+    assert report["mechanism_hypotheses_provenance"] == ("agent_outputs" if empty else "absent")
+    layer3_report._validate_schema(report)
+    _ao_check(layer3_report._read_wal(campaign / "runs/wal.jsonl"), [] if empty else None, report)
+
+
+@pytest.mark.parametrize("bad", ["symlink", "directory", "partial", "invalid", "stage", "duplicate"])
+def test_ao_bad_file_rejected(tmp_path, bad):
+    from orchestrator.campaign import agent_outputs
+    campaign, output_root = _campaign(tmp_path, [_bench()], loop_state=False)
+    path = campaign / "runs/agent_outputs.jsonl"
+    env = _ao_envelope("planner_proposed")
+    if bad == "symlink":
+        path.symlink_to("absent.jsonl")
+    elif bad == "directory":
+        path.mkdir()
+    else:
+        agent_outputs.append_agent_output(path, env)
+        if bad == "stage":
+            env["stage"] = "unknown"
+        suffix = {"partial": b'{', "invalid": b'{bad}\n',
+                  "stage": agent_outputs.canonical_bytes(env) + b'\n',
+                  "duplicate": agent_outputs.canonical_bytes(env) + b'\n'}[bad]
+        with path.open("ab") as stream:
+            stream.write(suffix)
+    with pytest.raises(layer3_report.Layer3ReportError):
+        layer3_report.build_report(campaign, "fixed", output_root=output_root)
+
+
+def test_ao_missing_planner_coder_even_with_source_refs_removed(tmp_path):
+    _, _, records, envelopes, report = _ao_campaign(tmp_path)
+    report["agent_outputs"] = [env for env in report["agent_outputs"] if env["stage"] == "critic_attributed"]
+    _ao_resync_refs(report)
+    with pytest.raises(layer3_report.Layer3ReportError, match="multiset"):
+        _ao_check(records, envelopes, report)
+
+
+def test_ao_view_counted_as_primary_is_rejected(tmp_path, monkeypatch):
+    _, _, records, envelopes, report = _ao_campaign(tmp_path)
+    original = layer3_report._report_primary_refs
+    def polluted(value):
+        refs = original(value)
+        refs.update(row["source_ref"] for row in value["mechanism_hypotheses"])
+        return refs
+    monkeypatch.setattr(layer3_report, "_report_primary_refs", polluted)
+    _ao_resync_refs(report)
+    with pytest.raises(layer3_report.Layer3ReportError, match="multiset"):
+        _ao_check(records, envelopes, report)
+
+
+def test_ao_equal_count_valid_replacement_is_rejected(tmp_path):
+    from orchestrator.campaign import agent_outputs
+    _, _, records, envelopes, report = _ao_campaign(tmp_path)
+    replacement = _ao_envelope("planner_proposed", label="replacement")
+    agent_outputs.validate_envelope(replacement)
+    report["agent_outputs"] = [replacement if env["stage"] == "planner_proposed" else env
+                               for env in report["agent_outputs"]]
+    _ao_resync_refs(report)
+    layer3_report._validate_schema(report)
+    with pytest.raises(layer3_report.Layer3ReportError, match="multiset"):
+        _ao_check(records, envelopes, report)
+
+
+def test_ao_two_critic_view_ref_swap_rejected(tmp_path):
+    _, _, records, envelopes, report = _ao_campaign(tmp_path, second_critic=True)
+    a, b = report["mechanism_hypotheses"]
+    a["source_ref"], b["source_ref"] = b["source_ref"], a["source_ref"]
+    report["mechanism_hypotheses"].sort(key=lambda row: row["source_ref"])
+    with pytest.raises(layer3_report.Layer3ReportError, match="独立再射影"):
+        _ao_check(records, envelopes, report)
+
+
+def test_ao_attribution_one_character_change_rejected(tmp_path):
+    _, _, records, envelopes, report = _ao_campaign(tmp_path)
+    report["mechanism_hypotheses"][0]["attribution"] += "!"
+    with pytest.raises(layer3_report.Layer3ReportError, match="独立再射影"):
+        _ao_check(records, envelopes, report)
+
+
+@pytest.mark.parametrize("mutation", ["missing", "duplicate"])
+def test_ao_view_missing_or_duplicate_rejected(tmp_path, mutation):
+    _, _, records, envelopes, report = _ao_campaign(tmp_path)
+    report["mechanism_hypotheses"] *= 0 if mutation == "missing" else 2
+    with pytest.raises(layer3_report.Layer3ReportError, match="独立再射影"):
+        _ao_check(records, envelopes, report)
+
+
+def test_ao_absent_provenance_lie_rejected(tmp_path):
+    campaign, output_root = _campaign(tmp_path, [_bench()])
+    report = layer3_report.build_report(campaign, "fixed", output_root=output_root)
+    report["mechanism_hypotheses_provenance"] = "agent_outputs"
+    with pytest.raises(layer3_report.Layer3ReportError, match="provenance"):
+        _ao_check(layer3_report._read_wal(campaign / "runs/wal.jsonl"), None, report)
+
+
+@pytest.mark.parametrize("mutation", ["refs", "variant", "planner_variant", "coder_variant",
+                                      "raw", "missing_heading", "duplicate_heading"])
+def test_ao_invalid_attribution_input_rejected(tmp_path, mutation):
+    from orchestrator.campaign import agent_outputs
+    campaign, output_root, _, envelopes, _ = _ao_campaign(tmp_path)
+    critic = envelopes[-1]
+    if mutation == "refs":
+        critic["payload"]["refs"] = ["wal:" + "f" * 64]
+    elif mutation == "variant":
+        critic["variant"] = "absent"
+    elif mutation in {"planner_variant", "coder_variant"}:
+        envelopes[0 if mutation == "planner_variant" else 1]["variant"] = "absent"
+    elif mutation == "raw":
+        critic["payload"]["output"]["attribution"] += "!"
+    elif mutation == "missing_heading":
+        critic["payload"]["output"]["raw_markdown"] = critic["payload"]["output"]["raw_markdown"].replace("## avoid", "## other")
+    else:
+        critic["payload"]["output"]["raw_markdown"] += "\n## attribution\nextra\n"
+    path = campaign / "runs/agent_outputs.jsonl"
+    path.unlink()
+    for env in envelopes:
+        agent_outputs.append_agent_output(path, env)
+    with pytest.raises(layer3_report.Layer3ReportError):
+        layer3_report.build_report(campaign, "fixed", output_root=output_root)
+
+
+def test_ao_artifact_snapshot_change_rejected(tmp_path, monkeypatch):
+    from orchestrator.campaign import agent_outputs
+    campaign, output_root, _, _, _ = _ao_campaign(tmp_path)
+    original = layer3_report._artifact_refs
+    def changed(*args, **kwargs):
+        agent_outputs.append_agent_output(campaign / "runs/agent_outputs.jsonl",
+                                         _ao_envelope("planner_proposed", label="later"))
+        return original(*args, **kwargs)
+    monkeypatch.setattr(layer3_report, "_artifact_refs", changed)
+    with pytest.raises(layer3_report.Layer3ReportError, match="bytes changed"):
+        layer3_report.build_report(campaign, "fixed", output_root=output_root)
+
+
+def _verification_producer_payload():
+    from orchestrator.verifier.model import ProofSurfaceAssessment
+    result = SimpleNamespace(verdict="serializable", certified=True, anomalies=[],
+                             integrity=SimpleNamespace(proof_surfaces=ProofSurfaceAssessment()))
+    outcome = pipeline._execute_verification_repetition(
+        "fixture", "fixture-trace", {}, 1000, timeout_s=1, numactl=None,
+        genome=None, source_evidence=None, build_admission=None,
+        receipt_sink_kind="fixture", receipt_lock_identity_sha256="0" * 64,
+        receipt_variant="v1", receipt_operation_identity="fixture",
+        receipt_workload_tag="legacy", build_attempt_id="fixture-attempt-0",
+        trace_binary_sha256="0" * 64, include_qualification_evidence=False,
+        trace_runner=lambda *a, **kw: SimpleNamespace(
+            trace_c_lines=1, returncode=0, abort_counts=0,
+            commit_count_witness=1, batch_commit_count_witness=0),
+        verifier_runner=lambda *a, **kw: (result, object()),
+    )
+    assert outcome.abort is None
+    return outcome.verify_payload
+
+
+def test_verification_producer_keys_and_schema_closure(tmp_path):
+    function = ast.parse(textwrap.dedent(inspect.getsource(
+        pipeline._execute_verification_repetition)))
+    declarations = [node for node in ast.walk(function) if isinstance(node, ast.AnnAssign)
+                    and isinstance(node.target, ast.Name) and node.target.id == "verify_payload"]
+    assert len(declarations) == 1
+    literal = declarations[0].value
+    assert isinstance(literal, ast.Dict)
+    keys = {ast.literal_eval(key) for key in literal.keys}
+    assert len(keys) == 9
+    payload = _verification_producer_payload()
+    assert set(payload) == keys
+    row = layer3_report._view_row(_record("verify_done", **payload))
+    schema = json.loads(layer3_report._SCHEMA_PATH.read_text())
+    assert set(row) <= set(schema["properties"]["verifications"]["items"]["properties"])
+    assert row["commit_witness"] == payload["commit_witness"]
+    assert row["proof_surfaces"] == payload["proof_surfaces"]
+    campaign, output_root = _campaign(tmp_path, [_record("verify_done", **payload), _bench()])
+    report = layer3_report.build_report(campaign, "fixed", output_root=output_root)
+    layer3_report._validate_schema(report)
+
+
+@pytest.mark.parametrize("mutation", ["null_count", "proof_enum"])
+def test_verification_witness_and_proof_invalid_schema(mutation):
+    payload = _verification_producer_payload()
+    if mutation == "null_count":
+        payload["commit_witness"]["commit_counts"] = None
+    else:
+        payload["proof_surfaces"]["X"] = "invalid"
+    report = _knowledge_schema_specimen()
+    report["verifications"] = [layer3_report._view_row(_record("verify_done", **payload))]
+    with pytest.raises(layer3_report.Layer3ReportError, match="schema"):
+        layer3_report._validate_schema(report)
+
+
+def test_ao_snapshot_change_during_shared_read_rejected(tmp_path, monkeypatch):
+    from orchestrator.campaign import agent_outputs
+    campaign, output_root, _, _, _ = _ao_campaign(tmp_path)
+    original = agent_outputs.read_agent_outputs
+
+    def changed(path):
+        result = original(path)
+        agent_outputs.append_agent_output(path, _ao_envelope("coder_proposed", label="later"))
+        return result
+
+    monkeypatch.setattr(agent_outputs, "read_agent_outputs", changed)
+    with pytest.raises(layer3_report.Layer3ReportError, match="bytes changed during read"):
+        layer3_report.build_report(campaign, "fixed", output_root=output_root)
+
+
+def test_ao_read_failure_is_not_absence(tmp_path, monkeypatch):
+    from orchestrator.campaign import agent_outputs
+    campaign, output_root = _campaign(tmp_path, [_bench()])
+    (campaign / "runs/agent_outputs.jsonl").touch()
+
+    def denied(path):
+        raise PermissionError("fixture read denied")
+
+    monkeypatch.setattr(agent_outputs, "read_agent_outputs", denied)
+    with pytest.raises(layer3_report.Layer3ReportError, match="agent outputs を読めない"):
+        layer3_report.build_report(campaign, "fixed", output_root=output_root)
