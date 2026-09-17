@@ -46,6 +46,12 @@ title: [T-2665] 並列撤去の launcher を置き、子を親の process group 
   `rm -rf` と同じ。Codex overlay (`.agents/skills/cleanup-branches/SKILL.md`) は未変更で §3 を継承 (real prune 禁止は維持)。
   `mutation_worktree.py` は wave worktree を source にすると共有木 (primary) の churn で事後検査 rc 125 になり、独立
   clone (`git clone --no-checkout` + local URL の submodule init) へ切り替えて完走した。
+- **段 8 (自己改善):** 候補 1 件。`mutation_worktree.py` の source を wave worktree にすると共有木 churn で rc 125 に
+  なる F300 型を再び踏み、独立 clone で回避した。routing 1 で F300 へ再発を追記 (本 wave の failures fragment)。
+  routing 3 の「DW-M05 へ独立 clone の 1 行 (123 bytes) を収容」は L1.5 層予算が 9,696 / 9,696 bytes で満杯のため
+  入らず、既存記述の削減先も見つからなかった (L1.5 の 17 節 9,537 bytes + preamble)。F300 の再発は 5 例で D730 の
+  例外条件 (3 例) を満たすので、D782 の最小増分 (9,696 → 9,819) と `test_check_docs.py` の pin 3 箇所の更新を
+  Codex author で行う wave を新規に起票する。予算・pin の変更は本 wave では実施しない。
 - 工数: codex 子 8 本 (plan 1、consult 2、author 1、review 2、fix 1、focus 1、全段 `gpt-6-astra` / `medium`)。親の実測は
   probe 4 本 (guard / 自己停止 wrapper / signal 3 種 / dogfood 2 回)、焦点走 3 本 (計算ノード)、変異 2 走。
 
@@ -57,3 +63,12 @@ title: [T-2665] 並列撤去の launcher を置き、子を親の process group 
   受けた TERM/INT/HUP を転送、中断・不明を rc 2 で完了扱いせず prune へ進まない契約を §3 手順 3 と test + 変異で固定した。
   remaining: none
   base: f15245a43ab42ef6dafc033591fdd0e5f983ce0e1bba93afc240809d42d3793a
+
+### 新規
+
+- {{T:dev-wave-l15-budget-houses-f300-remedy}} **P4・新規**: `docs/dev-wave/mutation.md` DW-M05 へ
+  「`mutation_worktree.py`の`--source-repo`は対象commitを持つ独立cloneにし、共有木のchurn(F300)を避ける。」
+  (123 bytes) を収容する。L1.5 層予算 9,696 bytes は満杯で削減先が無い (2026-09-17 実測)。F300 の再発 5 例で
+  D730 の例外条件を満たすので、D782 の最小増分 `DEV_WAVE_L1_5_BYTES_MAX` 9_696 → 9_819 と
+  `orchestrator/tests/test_check_docs.py` の pin 3 箇所 (定数 assert、overflow fixture の 9_697、層 bytes の
+  上限 assert) を Codex author で同じ commit にする。増分は収容文の bytes ちょうどに限る。
