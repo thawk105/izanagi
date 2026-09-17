@@ -1,0 +1,6 @@
+ALLOW | rm -rf /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-x |
+ALLOW | timeout 3600 rm -rf -- /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-x |
+ALLOW | python3 tools/cleanup_remove_dirs.py -- /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-x |
+ALLOW | rm -rf /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-x & rm -rf /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-y & wait |
+ALLOW | nohup setsid rm -rf /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-x & |
+ALLOW | python3 tools/dev_wave_cleanup.py --main-worktree /work/1/SFC/tanab/izanagi --wave-worktree /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-x --wave-branch b --tested-wave-tip-sha 0 |

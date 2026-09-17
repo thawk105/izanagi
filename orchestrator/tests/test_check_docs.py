@@ -578,7 +578,7 @@ _EXPECTED_CLEANUP_SKILL_SHA256 = (
     "268a32aeb2fb4a361e2a99cc7c90ff09e905c74465c64e8b4e2227d8b2d85dea"
 )
 _EXPECTED_CLEANUP_COMMAND_SHA256 = (
-    "75939b07e112fd2977ecaa0efbb77f4119a7050d052f9fdf668c35acdddb8730"
+    "a6380f90dcaf8e5e5ac21cc9af0619e000697816257f3e3e8a8844595dad1f26"
 )
 _SYNTHETIC_CLEANUP_SKILL = """---
 name: cleanup-branches
@@ -679,12 +679,13 @@ final で裁定候補として返し、実装・記録・commit は後から明�
 削除の直前に対象ごと `python3 tools/check_worktree_occupancy.py <worktree>`。rc0 のみ進み、
 rc1=占有/rc2=判定不能は停止。submodule は `git worktree remove` 禁止、F26 の手順にする:
 
-1. `git -C <worktree> checkout --detach` (branch を解放)
+1. `git -C <worktree> checkout --detach`
 2. `git branch -d <branch>` (取り込み済み確認の上)
-3. dir 撤去は 1 件 1 process・各長い timeout。一括ループ禁止、path 相互非包含時のみ並列可。
-   detach・branch 削除・prune は直列。全撤去 process 終了・成功確認後
-   (不明・中断なら停止)、`git worktree prune --dry-run --verbose` の
-   全候補＝今回所有確認済み対象なら `git worktree prune`。余分・不明候補時は real prune せず引渡し
+3. 全対象の 1・2・占有検査の後、dir 撤去は
+   `python3 tools/cleanup_remove_dirs.py -- <絶対path>...` を前景 1 回 (setsid・nohup・& 禁止)。
+   rc0 (全件 removed) 以外は停止。detach・branch 削除・prune は直列。rc0 後
+   `git worktree prune --dry-run --verbose` の全候補＝今回所有確認済み対象なら
+   `git worktree prune`。余分・不明候補時は real prune せず引渡し
 
 **`git submodule deinit` は使わない**。誤実行時は追加修復せず停止し、必要な
 `git submodule update --init external/ccbench` を final で引き渡す。正本は `docs/failures.md` F26。
@@ -9944,13 +9945,13 @@ def test_codex_cleanup_branches_skill_contract_pins_exact_surface():
 def test_cleanup_command_budget_is_pinned_and_enforced():
     rel = ".claude/commands/cleanup-branches.md"
     assert check_docs.COMMAND_LIMITS[rel] == check_docs.TextLimit(6_204, 110)
-    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 6_203
+    assert len(_SYNTHETIC_CLEANUP_COMMAND.encode("utf-8")) == 6_201
 
     root = _build_min_repo()
     try:
         original = _read(root, rel)
-        assert len(original.encode("utf-8")) == 6_203
-        oversized = original + "\n" + "x"
+        assert len(original.encode("utf-8")) == 6_201
+        oversized = original + "\n" + "x" * 3
         assert len(oversized.encode("utf-8")) == 6_205
         _write(root, rel, oversized)
 
