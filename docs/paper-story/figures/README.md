@@ -20,6 +20,7 @@
 | `fig5_a2_certification_reject.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | A-2 正式 certification (outer `reject`) の**結果図**。既存図の後継ではなく独立した新図。判定は凍結 `certification.json` から読み、生成器は再計算しない。**測定条件の記述に erratum あり (同節の Erratum)。測ったのは採用静的 backoff ではなく `BACK_OFF` の有効/無効であり、取り直しまで論文の A-2 の結論にも図にも使わない (D1645)** |
 | `fig6_a2_certification_observed_positive.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | A-2 正式 certification (outer `observed-positive`) の**結果図**。D1644 の pin + patch 束縛 src_token で identity を計算する driver で取り直した attempt `t2364-20260907b` を描く。`fig5_` の後継ではなく、**別の条件を測った別の attempt** の独立した図である (絶対規律 7)。判定は `certification.json` から読み、生成器は再計算しない |
 | `fig7_a2_builtin_backoff_onoff_reject.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | `fig5_` と**同じ attempt `t2022-20260828c`・同じ値・同じ outer `reject`** を、**効いた条件の記述へ訂正**して描いた図。比較したのは CCBench 内蔵の適応 backoff の 有効/無効 (`BACK_OFF` の 0/1) である。`fig5_` の bytes は 1 byte も変えていない。**採用静的 backoff の結論・図としては使わない (D1936項21・D1993決定5、期限なし)** |
+| `fig8_b10_static_tail_not_observed.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b10_static_tail_formal.py` | B-10 静的 backoff 右 tail の **09-15 正式 cohort** (group `b10-backoff-grid-20260915T061814Z-545445`、集団判定 `not-observed-in-any-workload`) の**記述図**。事前登録 §4.1 の 8 点 × 3 workload × 5 反復。`fig2c_` とは別格子・別 cohort であり、その続きではない。言い方は事前登録 §4.5 の固定表現に限り、**性能は未認証 (`performance_certified: false`)**。2 本目の論文と共用しない (D1637) |
 
 **fig5 の用途制限の追補 (2026-09-11、D1936項21・T-2521):** 一覧の「取り直しまで」という期限は
 当該旧図には適用しない。採用静的 backoff に関する A-2 の結論・図として使えない制限は期限なしである。
@@ -713,4 +714,103 @@ python3 tools/plotting/plot_a2_certification.py \
   逐語は `docs/paper-story/results/2026-09-07-a2-certification-reject.md` §1
 - それらが着地後もずれないこと → `orchestrator/tests/test_plot_a2_certification.py`
 - 用途制限 → D1936 項21、D1993 決定 5
+- 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`
+---
+
+# `fig8_b10_static_tail_not_observed` — B-10 静的 backoff 右 tail の 09-15 正式 cohort (集団判定 `not-observed-in-any-workload`)
+
+## 何を示す図か
+
+事前登録 `docs/b10-backoff-static-tail-preregistration.md` §4.1 の格子 (右 tail 7 点 1250 / 1768 / 2500 /
+3535 / 5000 / 7070 / 9999 マイクロ秒 + 境界参照 1000) × 3 workload の 09-15 正式 cohort
+(group `b10-backoff-grid-20260915T061814Z-545445`) を描く**記述図**である。上段は throughput の 5 反復平均と
+t 分布 95% 信頼区間、下段は整数カウンタから全精度で再計算した abort 率の 5 反復平均と同じ区間。下段で
+隣接する tail 点を結ぶ線分は集団報告の区間分類 (`workloads[].intervals[].state`) で描き分け、3 workload
+× 6 = 18 区間すべてが `declining` である。境界参照 1000 は同一 job 内で測るが区間集合に入らないので、
+中抜き marker で区別し線で結ばない。
+
+**言い方は事前登録 §4.5 の固定表現に限る。** 図と caption が言うのは「この事前登録の述語では、表現可能域で
+ある 9999 マイクロ秒までに飽和を観測しなかった」までであり、「飽和しない」「飽和点が存在しない」とは
+書かない。9999 は物理的な限界ではなく符号化の上限である。**性能は未認証 (`performance_certified: false`)**
+で、この図を variant 採用の根拠にしない (絶対規律 2)。機序は言わない (D1678 / D1724)。図が支えるのは
+B-10 の記述的な費用併記 (同じ格子上の throughput) と域内非飽和であって、主張ではない。
+
+## 既存図との関係
+
+- **`fig2c_b10_extended_backoff` の続きではない。** fig2c は別 cohort (group
+  `b10-backoff-grid-20260826T234647Z-783837`、0〜1000 マイクロ秒の拡張格子、`perf stat` 下) であり、
+  本図は別格子・別 cohort・別 report schema (`t2500-backoff-static-tail-formal-report/v1`、perf 無し) である。
+  同じ軸へ畳まず、fig2c を右 tail の図として引かない。
+- 探索走 `t2418-explore` (2000 / 4000 / 9999) と `t2266-tail` v2 系列 (150〜1000) の標本は入っていない。
+  9999 も本 cohort で新規に測り直した値である。
+- **2 本目の論文 (`docs/paper-story-backoff/`) と共用しない** (D1637: 一次資料は共有し、数値と図は共有しない)。
+
+## 入力
+
+- 権威 bytes (repo 外、root `/work/1/SFC/tanab/b10-backoff-grid-t2500-formal/`):
+  `group-report-20260915/t2500-backoff-static-tail-formal.json` (集団報告)、同 `.dat` (rep 単位の生値 120 行)、
+  同 `-complete.json` (完了記録。上 2 件の SHA-256 を `artifacts` に束縛)。生成器は repo 所有の pin 表で
+  3 件の SHA-256 を照合する。**pin は CLI から渡せない。** SHA-256 の値は
+  `docs/paper-story/results/2026-09-16-b10-static-tail-not-observed.md` §4.1 と同じで、
+  `orchestrator/tests/test_plot_b10_static_tail_formal.py` が両者の一致を検査する。
+- group id は JSON の top-level に無く、`campaigns[].admission.campaign_path` (絶対 path) に
+  `/<group>-<workload>/campaigns/` として含まれる。生成器はその包含を検査する。
+- 判定 (`verdict`、workload の `state`、区間の `state` / `qhat` / `qL` / `qU` / `L` / `U`) は集団報告から
+  コピーし、生成器は再計算しない (`L = 1 − 2^qU` と `U = 1 − 2^qL` の一致だけを検査する)。
+  平均・t 分布 95% 信頼区間・abort 率・変動係数・端点比は reps の生値から再計算する。そのうち
+  集団報告の `statistics` と fail-closed で照合するのは平均 2 種 (throughput / abort 率)・変動係数 2 種・
+  abort 率の標本標準偏差であり、信頼区間と端点比は再計算だけで照合相手を持たない。
+
+## 再現
+
+```bash
+python3 tools/plotting/plot_b10_static_tail_formal.py \
+  --measurement-root /work/1/SFC/tanab/b10-backoff-grid-t2500-formal \
+  docs/paper-story/figures/fig8_b10_static_tail_not_observed
+```
+
+図番号は出力 prefix の `fig<N>_` から導く。`fig<N>_` の形でない prefix は出力前に拒否する。
+生成は login node で行う (計測機の外、FIGURE_CONVENTIONS §7)。
+
+### 再現できるのは「値」であって「バイト列」ではない
+
+provenance JSON は生成時刻を持ち、PDF は matplotlib が生成日時を埋め、PNG は matplotlib の版と font
+解決に依存する。着地したバイト列の同一性は provenance JSON が記録した `outputs[].sha256` と
+`test_landed_fig8_repo_closure_and_caption_when_present` が守る。生成器の `generator.sha256` は生成時点の
+記録であり、現行 source を縛る pin ではない。
+
+## 作図規約への適合
+
+- §1: 数値は `.dat` / JSON の reps からその場で再計算 (集団報告の `statistics` は相互検算にだけ使う)。
+- §2: 5 反復の平均と t 分布 95% 信頼区間を上段・下段とも描く。
+- §6: provenance に入力 3 file の root 相対 path と SHA-256、group id、campaign id・lock digest・WAL SHA-256・job id、
+  測定条件、24 cell の生値と統計、区間分類のコピー、caption、展開済み再現 argv を記録する。
+- §9: 保存前に renderer-backed layout check を走らせ、text の重なり・逸脱があれば 3 成果物を 1 つも出さない。
+- §10: 単体テストの fixture は実寸 (3 workload × 8 点 × 5 反復、`.dat` 120 行、区間 6 × 3) で、本物の
+  matplotlib Figure を layout check へ通す。実データで実走して 3 成果物を確かめた (下の proof chain)。
+
+## キャプション正文
+
+キャプション正文は provenance JSON の `caption` と同一文字列であり、
+`orchestrator/tests/test_plot_b10_static_tail_formal.py` が本 README への収録と生成器の決定的な組み立てとの
+一致を検査する。英文で書く。
+
+> Figure 8. B-10 static-backoff right tail, formal cohort of 2026-09-15 (group b10-backoff-grid-20260915T061814Z-545445; aggregate verdict not-observed-in-any-workload; performance_certified: false). Columns show write-heavy (rr5), balanced (rr50) and read-heavy (rr95), each an independent campaign (job IDs, respectively: 0:998865.nqsv, 0:998866.nqsv, 0:998867.nqsv). The x axis shows seven tail points (1250, 1768, 2500, 3535, 5000, 7070 and 9999 us; filled markers) and the 1000 us boundary reference (open marker), measured in the same job but excluded from the interval set. The top row shows means of five trace-disabled repetitions with t-distribution 95% confidence intervals (error bars). M tps means million transactions per second. The bottom row shows abort rates recomputed for each repetition from integer counters as aborts / (aborts + commits), averaged over five repetitions with the same confidence intervals. Segments between adjacent tail points are colored by the interval state copied from the group report: 18/18 intervals (6 per workload) are declining; simultaneous lower bounds L on the per-doubling decrease range from 0.2738 to 0.3704 (Bonferroni over 36 one-sided limits, familywise 0.05). Under the predicates of this preregistration, saturation was not observed up to 9999 us, the representable limit of the current encoding. 9999 us is not a physical limit. From 1250 to 9999 us the mean throughput falls to 0.444, 0.481 and 0.400 of its 1250 us value (write-heavy, balanced, read-heavy) while the abort rate keeps decreasing. This figure is a descriptive accounting of that cost; it makes no mechanism claim and no adoption decision. Conditions: Pegasus compute nodes, 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s, 5 repetitions, silo, CCBench pin 511c953, no perf, trace-disabled performance. Correctness comes from separate trace-enabled runs under the recorded legacy check configuration, not the performance configuration: all 120 records were certified with 0 anomalies; certified means serializability of the observed YCSB point read/write traces under that check configuration and nothing beyond, and this is not a performance certification. Panel heights and slopes use workload-local y scales and must not be compared across panels. This cohort is a different grid and a different cohort from fig2c and is not a continuation of it. No samples from the exploratory run t2418-explore or the t2266-tail series are included; 9999 us was newly measured in this cohort.
+
+## proof chain
+
+- 図に描いた平均・信頼区間・abort 率 → provenance JSON の `workloads[].cells[]` と `artist_series`
+- 区間分類と集団判定 → 集団報告 JSON の `workloads[].intervals[].state` / `verdict`。生成器は再計算せず、
+  `L = 1 − 2^qU` と `U = 1 − 2^qL` の一致だけを検査する
+- 標本の由来 → 集団報告 `.dat` の 120 行と JSON の `campaigns[].points[].reps[]` (provenance の `external_inputs` に
+  root 相対 path と SHA-256)
+- 入力の束縛 → `-complete.json` の `artifacts` (json / dat の SHA-256) と生成器の pin 表、results 稿 §4.1 の表
+- 正しさの記録 → JSON の `campaigns[].points[].correctness[]` (120 記録 `certified`・anomaly 0。性能の認証ではない)
+- それらが着地後もずれないこと → `orchestrator/tests/test_plot_b10_static_tail_formal.py`。着地後の closure 検査
+  (`validate_repo_closure`) が見るのは、着地 PNG / PDF の SHA-256・pin 表・provenance に保存した cells からの
+  artist / caption の再投影であって、reps からの再計算ではない。値の独立な再計算は同 test の実データ読込
+  (`test_real_root_loads_and_matches_results_document_when_present`、root が読めるときだけ走る) と、
+  results 稿 §2.3 の表との照合が担う
+- 結果節・表・限定の材料 → `docs/paper-story/results/2026-09-16-b10-static-tail-not-observed.md`
+- 事前登録 → `docs/b10-backoff-static-tail-preregistration.md` (§4.1 格子、§4.4 判定、§4.5 固定表現)
 - 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`
