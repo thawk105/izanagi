@@ -26951,6 +26951,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `flaky_test_holds.py` を編集する wave は、同じ commit で
   `test_flaky_test_holds_contract.py` が赤になる。登録簿の行数・digest を固定する assert が
   そのまま signature である。
+- **supersede: 2026-09-17** — 恒久対応は D2104 項 30 で確定した: 契約テストの登録簿 pin (ちょうど 1 件) を正とし、`DW-O18` から hold 登録の一般手順を取り下げる。非帰属赤は hold でなく既存の再投入 (同一 tip で各 1 回) で扱い、真に決定的な不安定 test はその 1 件の pin 更新を個別に諮る。`DW-O18` の改訂と `tools/check_docs.py` の pin 追随は T-2692 の wave (本 fold のエントリ) が行った。
 
 ### F1001. `git worktree add` の完了前に当てた submodule 初期化が、何もせずに rc=0 と「OK」を返した [恒真ゲート] [手順漏れ]
 
