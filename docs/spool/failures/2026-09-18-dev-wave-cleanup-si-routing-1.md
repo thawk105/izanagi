@@ -36,6 +36,17 @@ seq: 1
 - 再発検知: 段 9 の自己撤去の rc を worklog に必ず書く (`DW-O28`)。rc=20 の `admin entry is not a single
   regular file` を見たら本エントリを引き、tool の修正状況を確かめる。
 
+## 再発
+
+### F26
+
+- **再発: 2026-09-18** — 作成側の再発 (2026-09-02 / 09-07 と同型)。`dev-wave-cleanup-si-routing` wave の段 6 で
+  Codex fix 子用の `git worktree add -b <branch> <path> <sha>` が checkout 57% で「システムコール割り込み」(EINTR、
+  背景 job の待ち手完了通知と同時) により fatal 終了した。残った中途状態は「branch は作成済み、directory も
+  admin dir も無く `git worktree list` に現れない」で、`git worktree prune` の後に既存 branch を再利用して
+  `git worktree add <path> <branch>` で作り直した (実害なし)。kill・背景化に続く第 3 の中断形。判別は
+  `git branch --list` と admin dir の有無を 1 command ずつ見て、残っている物だけ畳む。
+
 ## supersede 追記
 
 - F26 **supersede: 2026-09-18** — 削除側の運用則「1 worktree ずつ削除し、必要なら timeout を延ばす」は D2104 項 32 / D2113 の固定 launcher `tools/cleanup_remove_dirs.py` (`/cleanup-branches` §3 手順 3、全対象を前景 1 回で渡す) で置換済み。2026-09-17 の実走では 17 本並列 101 秒・10 本 161 秒で全件 removed (数値は同実走の final 報告を依頼文が引用したもの、job dir は消失)。作成側の運用則 (`git worktree add` は 1 件ずつ、必要なら timeout を延ばし、背景化されたら pid 終了を待つ) は残る。現行実体は §3 の同 launcher と `DW-O28` の `tools/dev_wave_cleanup.py`。
