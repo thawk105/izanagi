@@ -1028,6 +1028,13 @@ def build_production_emitter_g1(
         )
     else:
         # T-080 R already exists. Preserve its basis, source closure and ccbench pin.
+        # All acceptance inputs must come from this shared-base copy, never the
+        # live parent repo. Check before installing selector evidence so its
+        # ordinary-fixture fallback cannot run on the receipt connection path.
+        calibration_path = EC.lookup("linux-baremetal").calibration_ref.path
+        for relative in (calibration_path, *_PREDICTION_SOURCE_PATHS.values(),
+                         _PREDICTION_PARSER_PATH):
+            assert (root / relative).is_file(), f"receipt base missing input: {relative}"
         assert not (root / _gen_rel(1)).exists()
         assert not (root / "output/s8b-freeze/selector_predictions.json").exists()
         v1 = json.loads((root / M.V1_FREEZE_PATH).read_bytes())
@@ -1040,11 +1047,7 @@ def build_production_emitter_g1(
         assert compiler_input_entry.split()[1] == "blob"
         design_raw = (root / v1["design_source"]["path"]).read_bytes()
         generator_raw = (root / v1["generator"]["path"]).read_bytes()
-        calibration_path = EC.lookup("linux-baremetal").calibration_ref.path
-        _write(root, calibration_path, _real_bytes(calibration_path))
-        for relative in (*_PREDICTION_SOURCE_PATHS.values(), _PREDICTION_PARSER_PATH):
-            if not (root / relative).exists():
-                _write(root, relative, (Path(_ROOT) / relative).read_bytes())
+        _write(root, calibration_path, (root / calibration_path).read_bytes())
         _write(root, FLOOR._FLOOR_PROTOCOL_REL, FLOOR._canonical_bytes(
             _emitter_protocol(ccbench_pin=ccbench_pin),
         ))
@@ -1520,6 +1523,21 @@ def build_valid_semantic_g1(tmp_path: Path, *, mutate_g1=None, extra_closure=Non
 # --------------------------------------------------------------------------
 # 正常系
 # --------------------------------------------------------------------------
+
+@pytest.mark.parametrize("missing", [
+    EC.lookup("linux-baremetal").calibration_ref.path,
+    *_PREDICTION_SOURCE_PATHS.values(), _PREDICTION_PARSER_PATH,
+])
+def test_receipt_emitter_requires_copied_inputs(tmp_path, missing):
+    calibration_path = EC.lookup("linux-baremetal").calibration_ref.path
+    for relative in (calibration_path, *_PREDICTION_SOURCE_PATHS.values(),
+                     _PREDICTION_PARSER_PATH):
+        if relative != missing:
+            _write(tmp_path, relative, b"copied input\n")
+    with pytest.raises(AssertionError) as caught:
+        build_production_emitter_g1(tmp_path, receipt_root=tmp_path)
+    assert str(caught.value) == f"receipt base missing input: {missing}"
+
 
 @in_sealed_fixture_process
 def test_launch_token_retains_immutable_scan_and_root(tmp_path):

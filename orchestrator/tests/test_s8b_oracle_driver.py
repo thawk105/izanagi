@@ -1437,6 +1437,9 @@ def _build_t080_stub_free_e2e_repo(
 
     _copy_git_visible_output(ROOT, root / "output")
     if active_v2_base:
+        # The selector role is outside orchestrator/ and the T-080 source closure.
+        # Capture it once per shared base, before basis/R, not in each emitter copy.
+        _copy_t080_basis_file(root, ".claude/agents/selector-8b.md")
         # Declare the connection fixture's initial materials before the basis commit:
         # retain only the v1 holdout in the freeze namespace, and no budget inputs.
         # In particular, copied floor protocols would make the synthetic protocol an
@@ -1783,11 +1786,12 @@ def test_t080_active_v2_preserves_nonlayer2_receipt_refusal(tmp_path):
         "migration-receipt-verify: [receipt.user_commit_trailer] R に AI-Agent: none が逐語でない",
     }
     assert set(resolution.refusals) == expected_refusals
-    before = _t080_output_snapshot(root / "output")
+    # Use this copy's ignore rules, not the live parent's Git metadata.
+    before = git_visible_output_metadata_snapshot(root / "output", root)
     decision = driver.gate_check(root=root, freeze_path=freeze_path)
     assert not decision.allowed
     assert set(decision.refusals) == expected_refusals
-    assert _t080_output_snapshot(root / "output") == before
+    assert git_visible_output_metadata_snapshot(root / "output", root) == before
 
 
 @in_sealed_fixture_process
