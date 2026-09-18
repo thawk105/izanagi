@@ -1,0 +1,16 @@
+p3 S4 loop job refused: allocation qstat evidence is not fresh
+
+============================================================
+Request ID:             4947.nqsv
+Request Name:           izs4loop
+Queue:                  gen_S@nqsv
+Number of Jobs:         1
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Fri Sep 18 06:33:25 2026
+Started Request Time:   Fri Sep 18 06:33:59 2026
+Ended Request Time:     Fri Sep 18 06:34:02 2026
+Resources Information:
+  Elapse:               7S
+  Remaining Elapse:     10793S
+============================================================
