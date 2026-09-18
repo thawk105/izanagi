@@ -3379,7 +3379,7 @@ def test_define_sink_cross_product_t2491_injected_production_sinks_stay_covered(
     for filename, scope, lineno, kind in (
         ("s1_direct_comparison.py", "run_role", 1208, "injected-prepare_cell_fn"),
         ("s1_direct_comparison.py", "run_role", 1288, "injected-evaluate_fn"),
-        ("s8b_oracle_driver.py", "run_block", 1803, "injected-evaluate_fn"),
+        ("s8b_oracle_driver.py", "run_block", 1794, "injected-evaluate_fn"),
         ("s8b_oracle_n_pilot.py", "build_binaries", 997, "injected-build_fn"),
     ):
         sink = _BuildSink(
@@ -3457,7 +3457,7 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     s8b_sink = _BuildSink(
         "orchestrator/campaign/s8b_oracle_driver.py",
         "<module>.run_block",
-        1775,
+        1781,
         "campaign",
     )
     assert classifications[s1_sink] == Counter({

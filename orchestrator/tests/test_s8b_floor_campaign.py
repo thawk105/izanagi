@@ -12623,9 +12623,28 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
         relative: hashlib.sha256((clone_root / relative).read_bytes()).hexdigest()
         for relative in frozen_paths
     }
+    # Independent digest oracle: S deletion leaves recognized chain records intact.
+    import re
+
+    chain_patterns = (
+        r"output/s8b-freeze/holdout_freeze\.v2\.g[1-9][0-9]*\.json",
+        r"output/s8b-freeze/(?:approvals|revocations|active|active-cancellations)/[0-9a-f]{64}\.json",
+        r"output/s8b-freeze/floor-protocols/[0-9a-f]{64}--[0-9a-f]{40}\.json",
+    )
+    tracked_paths = subprocess.check_output(
+        ["git", "ls-files", "-z"], cwd=clone_root,
+    ).decode("utf-8").split("\0")
+    expected_digest_allowlist = {
+        **expected_allowlist,
+        **{
+            relative: hashlib.sha256((clone_root / relative).read_bytes()).hexdigest()
+            for relative in tracked_paths
+            if any(re.fullmatch(pattern, relative) for pattern in chain_patterns)
+        },
+    }
     expected_clean_digest = _expected_clean_digest(
         s8b_floor_campaign._holdout_freeze.enumerate_repository_files(clone_root),
-        expected_allowlist,
+        expected_digest_allowlist,
     )
     assert allowlist == expected_allowlist
     assert clean_calls == [expected_clean_digest, expected_clean_digest]

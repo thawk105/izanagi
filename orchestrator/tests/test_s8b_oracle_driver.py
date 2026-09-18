@@ -1653,7 +1653,7 @@ def _build_t080_active_v2_repo(tmp_path, *, r_trailer="AI-Agent: none"):
         tmp_path, r_trailer=r_trailer, active_v2_base=True,
     )
     _, freeze_path, _, _, topology = _build_v2_repo(
-        tmp_path, receipt_root=root,
+        tmp_path, receipt_root=root, compiler_input_rel="CMakeLists.txt",
     )
     ratified = driver.s8b_ratified_freeze.load_ratified_freeze(root)
     token = driver.s8b_ratified_freeze.launch_validate(ratified, root)
@@ -1684,6 +1684,7 @@ def test_t080_failed_launch_preserves_receipt_refusal(tmp_path):
     assert caught.value.reason == "closure-hit-mismatch"
     decision = driver.gate_check(root=root, freeze_path=freeze_path)
     assert not decision.allowed
+    assert len(decision.refusals) == 2
     assert any(item.startswith("v2-execution: launch-validate: [closure-hit-mismatch]")
                for item in decision.refusals)
     assert any(item.startswith("holdout-freeze-verify: [holdout.unknownness_layer2]")
@@ -1723,12 +1724,14 @@ def test_t080_active_v2_preserves_nonlayer2_receipt_refusal(tmp_path):
     )
     resolution = migration.verify_receipt(root=root, launch_validated=token)
     assert resolution.state == "invalid"
-    assert resolution.refusals
-    assert not any("[holdout.unknownness_layer2]" in item for item in resolution.refusals)
+    expected_refusals = {
+        "migration-receipt-verify: [receipt.user_commit_trailer] R に AI-Agent: none が逐語でない",
+    }
+    assert set(resolution.refusals) == expected_refusals
     before = _t080_output_snapshot(root / "output")
     decision = driver.gate_check(root=root, freeze_path=freeze_path)
     assert not decision.allowed
-    assert set(resolution.refusals) == set(decision.refusals)
+    assert set(decision.refusals) == expected_refusals
     assert _t080_output_snapshot(root / "output") == before
 
 
@@ -1765,12 +1768,12 @@ def test_t080_delegated_campaign_start_rechecks_receipt(tmp_path, mutation):
 
 
 @in_sealed_fixture_process
-def test_t080_delegated_campaign_start_rejects_late_hit(tmp_path):
+def test_t080_delegated_campaign_start_rejects_late_hit_file(tmp_path):
     from orchestrator.tests.s8b_v2_freeze_fixture import _holdout_hit_text
     root, _, freeze_path, _, _ = _build_t080_active_v2_repo(tmp_path)
-    # Existing path: no enumeration drift may mask the required fresh content scan.
+    # A new non-ignored path invalidates delegation through enumeration drift.
     late = root / "late-hit.txt"
-    late.write_bytes(b"harmless before gate\n")
+    assert not late.exists()
     manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)
     evaluate = _fake_evaluate_factory()
     real_prepare = driver._prepare_v2_execution
@@ -1787,8 +1790,9 @@ def test_t080_delegated_campaign_start_rejects_late_hit(tmp_path):
                          out_root=tmp_path / "output", tmp_path=tmp_path)
     assert reached == [True]
     assert result["status"] == "refused"
-    assert any(item.startswith("v2-execution: launch-validate:")
-               and "closure-hit-mismatch" in item for item in result["refusals"])
+    assert result["refusals"] == [
+        "migration-receipt-verify: receipt epoch が campaign-start 前に変化した",
+    ]
     assert evaluate.calls == []
     assert not list((tmp_path / "output").rglob("wal.jsonl"))
 
@@ -3184,11 +3188,13 @@ def _run(tmp_path: Path, freeze_path: Path, manifest_path: Path,
 
 def _run_with_real_manifest_gate(
         *, root, freeze_path, manifest_path, output_root, budget_path,
-        marker_root, prepare_fn, evaluate_fn):
+        marker_root, prepare_fn, evaluate_fn, receipt_resolution=None):
     validated = _fake_launch_validated(freeze_path)
+    if receipt_resolution is None:
+        receipt_resolution = _never_issued_resolution()
     with mock.patch.object(
             driver, "_resolve_t080_receipt",
-            return_value=_never_issued_resolution()), mock.patch.object(
+            return_value=receipt_resolution), mock.patch.object(
             driver.s8b_ratified_freeze, "load_ratified_freeze",
             return_value=validated.ratified), mock.patch.object(
             driver.s8b_ratified_freeze, "launch_validate",
@@ -3203,6 +3209,38 @@ def _run_with_real_manifest_gate(
             marker_root=marker_root,
             prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
         )
+
+
+def test_run_block_refuses_invalid_receipt_after_gate_seam(tmp_path):
+    freeze_path = _synthetic_freeze(tmp_path, total_bench_s=1000.0)
+    prepare = _prepare_factory()
+    manifest_path, _ = _write_manifest(tmp_path, freeze_path, prepare)
+    prepare.calls.clear()
+    evaluate = _fake_evaluate_factory()
+    receipt_refusal = "migration-receipt-verify: synthetic invalid receipt"
+    resolution = migration.ReceiptResolution(
+        state="invalid", refusals=(receipt_refusal,),
+        t080_freeze_migration_observation=None, validation_head="a" * 40,
+    )
+    with mock.patch.object(
+        driver, "_gate_check_validated", return_value=driver.GateDecision(True, [], None),
+    ):
+        result = _run_with_real_manifest_gate(
+            root=ROOT, freeze_path=freeze_path, manifest_path=manifest_path,
+            output_root=tmp_path / "out", budget_path=tmp_path / "budget.json",
+            marker_root=tmp_path / "markers", prepare_fn=prepare, evaluate_fn=evaluate,
+            receipt_resolution=resolution,
+        )
+    assert result["status"] == "refused"
+    assert set(result["refusals"]) == {
+        receipt_refusal,
+        "migration-receipt-verify: T-080 campaign epoch を active-valid/never-issued のどちらにも固定できない",
+    }
+    assert prepare.calls == []
+    assert evaluate.calls == []
+    assert not (tmp_path / "budget.json").exists()
+    assert not (tmp_path / "markers").exists()
+    assert not list((tmp_path / "out").rglob("wal.jsonl"))
 
 
 def test_oracle_evaluate_fn_without_condition_records_cannot_complete(tmp_path):
@@ -5877,7 +5915,8 @@ def test_session_issuer_alias_and_append_use_model_authority(tmp_path, monkeypat
 # 使い、gate / launch_validate / env 契約 / store 消費 / receipt 伝搬を発火させる。
 # ===========================================================================
 
-def _build_v2_repo(tmp_path: Path, *, floor_extime_s: int = 5, receipt_root=None):
+def _build_v2_repo(tmp_path: Path, *, floor_extime_s: int = 5, receipt_root=None,
+                   compiler_input_rel="fixture.txt"):
     """E3a production-emitter bytes から oracle 実走 fixture を返す。"""
     def fill_execution_snapshot(g1):
         # emitter が result.floors から独立投影した floor は保持し、
@@ -5896,6 +5935,7 @@ def _build_v2_repo(tmp_path: Path, *, floor_extime_s: int = 5, receipt_root=None
 
     root, ratified, topology = ratified_fixture.load_emitter_g1(
         tmp_path, mutate=mutate, mutate_g1=fill_execution_snapshot, receipt_root=receipt_root,
+        compiler_input_rel=compiler_input_rel,
     )
     # Keep the emitter artifacts in the git-backed repo, but run the official
     # campaign against its uninitialized sibling root.

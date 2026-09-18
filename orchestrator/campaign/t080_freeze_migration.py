@@ -2223,8 +2223,8 @@ def _holdout_layer2_delegation(
 ) -> Optional[Mapping]:
     """直前の full launch validation の report だけを委譲候補にする。
 
-    名前集合の digest は内容の鮮度を証明しない。caller は各 receipt 境界の
-    直前に launch_validate を実行し、返した report に凍結 doc の束縛を課す。
+    名前集合の digest は同名 file の内容の鮮度を証明しない。campaign-start では
+    gate 時 token を再利用し、HEAD・世代・列挙集合・凍結 doc 束縛を再照合する。
     """
     from . import s8b_ratified_freeze
     try:

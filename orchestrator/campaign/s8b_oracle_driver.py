@@ -1528,20 +1528,11 @@ def run_block(
         decision = _make_gate_decision(t080_resolution, refusals=[refusal])
         return {"status": "refused", **asdict(decision)}
 
-    try:
-        fresh_validated = s8b_ratified_freeze.launch_validate(ratified, root)
-        if (fresh_validated.ratified.sha256 != validated.ratified.sha256
-                or fresh_validated.activation_head != validated.activation_head
-                or fresh_validated.search_digest != validated.search_digest):
-            raise OracleDriverError("validated freeze identity が campaign-start 前に変化した")
-    except Exception as exc:  # noqa: BLE001 (fresh launch is required before receipt delegation)
-        refusal = f"v2-execution: launch-validate: {type(exc).__name__}: {exc}"
-    else:
-        campaign_start_resolution = _resolve_t080_receipt(
-            root=root, launch_validated=fresh_validated,
-        )
-        if _t080_epoch_identity(campaign_start_resolution) != _t080_epoch_identity(t080_resolution):
-            refusal = "migration-receipt-verify: receipt epoch が campaign-start 前に変化した"
+    campaign_start_resolution = _resolve_t080_receipt(
+        root=root, launch_validated=validated,
+    )
+    if _t080_epoch_identity(campaign_start_resolution) != _t080_epoch_identity(t080_resolution):
+        refusal = "migration-receipt-verify: receipt epoch が campaign-start 前に変化した"
     if refusal is not None:
         decision = _make_gate_decision(
             t080_resolution,

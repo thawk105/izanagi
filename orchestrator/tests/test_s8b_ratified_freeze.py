@@ -495,7 +495,7 @@ def _fixed_prepare(cell, ccbench_pin, *, cxx):
     )
 
 
-def _make_emitter_build():
+def _make_emitter_build(*, compiler_input_rel="fixture.txt"):
     def build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
               jobs=16, ccbench_dir="", src_token=None, contract=None,
               timeout_s=None, admission=None, build_context=None,
@@ -517,7 +517,6 @@ def _make_emitter_build():
         binary.write_bytes(payload)
         sha = _sha(payload)
         source_root = ccbench_dir or _fixed_prepare.ccbench_dir
-        compiler_input_rel = "fixture.txt"
         compiler_input = Path(source_root) / compiler_input_rel
         compiler_input_manifest = {
             "schema_version": "s8b-compiler-input/v1",
@@ -1006,7 +1005,7 @@ def build_production_emitter_g1(
         selector_valid_cell=False, selector_extra_files=(),
         selector_payload_hit=False, perf_available=True,
         result_schema=FC.LEGACY_RESULT_SCHEMA, mutate_attempt_registry=None,
-        receipt_root: Path | None = None):
+        receipt_root: Path | None = None, compiler_input_rel="fixture.txt"):
     """決定的観測下の production-emitter bytes で base→C→G→A→X を構築する。
 
     build/measure/provenance は固定 seam であり、実 build・実測の代表 bytes ではない。
@@ -1033,6 +1032,12 @@ def build_production_emitter_g1(
         assert not (root / "output/s8b-freeze/selector_predictions.json").exists()
         v1 = json.loads((root / M.V1_FREEZE_PATH).read_bytes())
         ccbench_pin = _fixed_git(root / "external/ccbench", "rev-parse", "HEAD")
+        compiler_input_entry = _fixed_git(
+            root / "external/ccbench", "ls-tree", ccbench_pin, "--", compiler_input_rel,
+        )
+        assert compiler_input_entry.split("\t")[-1] == compiler_input_rel
+        assert compiler_input_entry.split()[0] in {"100644", "100755"}
+        assert compiler_input_entry.split()[1] == "blob"
         design_raw = (root / v1["design_source"]["path"]).read_bytes()
         generator_raw = (root / v1["generator"]["path"]).read_bytes()
         calibration_path = EC.lookup("linux-baremetal").calibration_ref.path
@@ -1082,7 +1087,8 @@ def build_production_emitter_g1(
         sleep_fn=lambda _seconds: None, monotonic_fn=lambda: 0.0,
         prepare_fn=_fixed_prepare, now_fn=lambda: now,
         host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
-        execution_receipt_fn=_fixed_receipt, build_fn=_make_emitter_build(),
+        execution_receipt_fn=_fixed_receipt,
+        build_fn=_make_emitter_build(compiler_input_rel=compiler_input_rel),
         verified_calibration=_verified_calibration_v2_fixture(),
         repo_root=root, after_certificate_issued_fn=commit_certificate,
         durable_root_policy=DurableRootPolicy(
