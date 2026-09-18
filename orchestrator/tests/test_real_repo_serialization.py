@@ -51,14 +51,6 @@ from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
 # import / 導出すると、正本の node 増減が付与側と期待側へ同時伝播して恒真化する。
 _REAL_REPO_CLASSIFIED_NODES_GOLDEN = frozenset({
     "test_s8b_oracle_driver.py::test_run_block_refuses_invalid_receipt_after_gate_seam",
-    "test_s8b_oracle_driver.py::test_t080_active_v2_delegation_accepts_full_receipt",
-    "test_s8b_oracle_driver.py::test_t080_failed_launch_preserves_receipt_refusal",
-    "test_s8b_oracle_driver.py::test_t080_unactivated_chain_hit_is_invalid",
-    "test_s8b_oracle_driver.py::test_v1_gate_does_not_delegate_with_active_v2",
-    "test_s8b_oracle_driver.py::test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
-    "test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rechecks_receipt",
-    "test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rejects_late_hit_file",
-    "test_s8b_oracle_driver.py::test_t080_draft_rejects_synthetic_hit_outside_replay_deletions",
     "test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads",
     "test_s1_known_axes_freeze.py::test_historical_option_keeps_new_document_strict",
     "test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
@@ -1178,8 +1170,16 @@ def _collect_t080_default_execution_report(
 
 
 def test_stub_free_receipt_nodes_are_selected_and_reach_setup_by_default():
-    """T-080 E2E 11 node の skip / xfail / deselect / setup skip を実測する。"""
+    """T-080 E2E 20 node の skip / xfail / deselect / setup skip を実測する。"""
     target_functions = {
+        "test_t080_active_v2_delegation_accepts_full_receipt",
+        "test_t080_failed_launch_preserves_receipt_refusal",
+        "test_t080_unactivated_chain_hit_is_invalid",
+        "test_v1_gate_does_not_delegate_with_active_v2",
+        "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+        "test_t080_delegated_campaign_start_rechecks_receipt",
+        "test_t080_delegated_campaign_start_rejects_late_hit_file",
+        "test_t080_draft_rejects_synthetic_hit_outside_replay_deletions",
         "test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
         "test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5",
         "test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5",
@@ -1188,6 +1188,15 @@ def test_stub_free_receipt_nodes_are_selected_and_reach_setup_by_default():
         "test_never_issued_generator_tamper_reaches_public_driver_gate_g7",
     }
     expected_nodeids = {
+        "test_s8b_oracle_driver.py::test_t080_active_v2_delegation_accepts_full_receipt",
+        "test_s8b_oracle_driver.py::test_t080_failed_launch_preserves_receipt_refusal",
+        "test_s8b_oracle_driver.py::test_t080_unactivated_chain_hit_is_invalid",
+        "test_s8b_oracle_driver.py::test_v1_gate_does_not_delegate_with_active_v2",
+        "test_s8b_oracle_driver.py::test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+        "test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+        "test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+        "test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rejects_late_hit_file",
+        "test_s8b_oracle_driver.py::test_t080_draft_rejects_synthetic_hit_outside_replay_deletions",
         "test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
         "test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]",
         "test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[holdout-artifact-holdout.artifact_bytes]",

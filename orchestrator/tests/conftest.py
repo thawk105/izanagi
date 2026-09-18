@@ -259,14 +259,6 @@ def _declare_default_test_site(request, monkeypatch):
 # ``test_file.py::test_function``（parametrize suffix なし）で固定する。
 _REAL_REPO_NODE_INVENTORY = frozenset({
     "test_s8b_oracle_driver.py::test_run_block_refuses_invalid_receipt_after_gate_seam",
-    "test_s8b_oracle_driver.py::test_t080_active_v2_delegation_accepts_full_receipt",
-    "test_s8b_oracle_driver.py::test_t080_failed_launch_preserves_receipt_refusal",
-    "test_s8b_oracle_driver.py::test_t080_unactivated_chain_hit_is_invalid",
-    "test_s8b_oracle_driver.py::test_v1_gate_does_not_delegate_with_active_v2",
-    "test_s8b_oracle_driver.py::test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
-    "test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rechecks_receipt",
-    "test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rejects_late_hit_file",
-    "test_s8b_oracle_driver.py::test_t080_draft_rejects_synthetic_hit_outside_replay_deletions",
     "test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads",
     "test_s1_known_axes_freeze.py::test_historical_option_keeps_new_document_strict",
     "test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
@@ -546,14 +538,6 @@ _REAL_REPO_CCBENCH_WRITER_NODES_LITERAL = frozenset({
 })
 _REAL_REPO_BOTH_READER_NODES = frozenset({
     "test_s8b_oracle_driver.py::test_run_block_refuses_invalid_receipt_after_gate_seam",
-    "test_s8b_oracle_driver.py::test_t080_active_v2_delegation_accepts_full_receipt",
-    "test_s8b_oracle_driver.py::test_t080_failed_launch_preserves_receipt_refusal",
-    "test_s8b_oracle_driver.py::test_t080_unactivated_chain_hit_is_invalid",
-    "test_s8b_oracle_driver.py::test_v1_gate_does_not_delegate_with_active_v2",
-    "test_s8b_oracle_driver.py::test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
-    "test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rechecks_receipt",
-    "test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rejects_late_hit_file",
-    "test_s8b_oracle_driver.py::test_t080_draft_rejects_synthetic_hit_outside_replay_deletions",
     "test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads",
     "test_s1_known_axes_freeze.py::test_historical_option_keeps_new_document_strict",
     "test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
