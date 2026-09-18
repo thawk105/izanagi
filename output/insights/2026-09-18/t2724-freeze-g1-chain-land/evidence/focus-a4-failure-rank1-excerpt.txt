@@ -1,0 +1,42 @@
+| IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=29343 retained_bytes=3423 omitted_bytes=25920 rendered_excerpt_bytes=4096 sha256=f40f98d2030557f15d33892b042244b48377444c3d44b1757d78cd0be29dd361
+| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+| > ign/s8b_floor_campaign.py:5622: in _official_launch_preflight
+| >     first_clean_digest = clean_scan_digest(
+| > orchestrator/tests/test_s8b_floor_campaign.py:12430: in clean_spy
+| >     result = clean_original(*args, **kwargs)
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| >
+| > root = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw3/test_real_seal_protocol_to_flo0/committed-head')
+| > freeze_allowlist = {'output/s8b-freeze/holdout_freeze.json': '315b1eb83d6fbdc525448c3c96c66ab6013df72487f35d8fa519c27ba34bc688', 'output/...put/s8b-freeze/selector-runs/raw_rr80_swapped.txt': '925b5e1155509da7bcca0df775622d2cf2f7c04559a7bf462912f8641af42ed3'}
+| > protocol_relpath = 'output/s8b-freeze/floor_protocol.json'
+| >
+| >     def clean_scan_digest(
+| >             root: Path, *, freeze_allowlist: Mapping,
+| >             protocol_relpath: str | None = None) -> str:
+| >         """\u767a\u884c\u6642\u70b9\u306e clean scan \u3092\u8a3c\u660e\u3059\u308b: holdout hit 0 \u4ef6 + \u5217\u6319 digest \u3092\u8fd4\u3059 (fail-closed)\u3002
+| >
+| >         \u540c\u3058\u5217\u6319\u96c6\u5408\u3092 search_repository \u3078\u6ce8\u5165\u3057\u3001\u5171\u6709 _assert_search_pass \u3067 holdout \u5168\u4ef6 0 hit\u30fb
+| >         holdout \u96c6\u5408\u5b8c\u5168\u6027\u30fb\u967d\u6027\u5bfe\u7167\u3092\u691c\u67fb\u3059\u308b\u3002\u8d70\u67fb\u5f8c\u306b\u518d\u5217\u6319\u3057\u3066\u540d\u524d\u96c6\u5408\u306e\u5909\u5316\u3082\u62d2\u5426\u3059\u308b\u3002
+| >         search_repository \u304c\u9664\u5916\u3059\u308b output/s8b-freeze \u306f tracked/untracked \u3092\u554f\u308f\u305a\u5168\u5217\u6319\u3057\u3001
+| >         \u56fa\u5b9a4 file \u3068\u6307\u5b9a protocol path\u30fbjournal \u5ba3\u8a00 selector-runs\u30fb\u65e2\u5b58\u547d\u540d\u898f\u5247\u306e
+| >         chain record \u306e3\u96c6\u5408\u3067\u88ab\u8986\u3059\u308b\u3002\u6307\u5b9a path \u306f exact \u4e00\u81f4\u3067\u306e\u307f\u6709\u754c\u96c6\u5408\u306b\u52a0\u3048\u308b\u3002
+| >         \u672a\u77e5 file \u3068\u5168\u96c6\u5408\u306e symlink \u306f\u62d2\u5426\u3057\u3001chain record \u3082 path + bytes hash \u3092 digest \u306b\u542b\u3081\u308b\u3002
+| >
+| >         \u65e2\u77e5 residual: allowlist file \u306f path\u2192sha256 \u3092\u675f\u7e1b\u3059\u308b\u304c\u3001\u8d70\u67fb\u4e2d\u306b\u540c\u540d file \u306e\u5185\u5bb9\u3092\u4ea4\u63db\u3057\u3066
+| >         \u691c\u67fb\u5f8c\u306b\u623b\u3059 content TOCTOU \u306f\u3053\u306e\u8a3c\u660e\u7bc4\u56f2\u5916\u3067\u3042\u308b\u3002
+| >         """
+| >         root = Path(root)
+| >         try:
+| >             files_before = _holdout_freeze.enumerate_repository_files(root)
+| >             report = _holdout_freeze.search_repository(root, files=files_before)
+| >             _holdout_freeze._assert_search_pass(report)
+| >             chain_records = _assert_freeze_allowlist(
+| >                 root, freeze_allowlist, protocol_relpath=protocol_relpath,
+| >             )
+| >             files_after = _holdout_freeze.enumerate_repository_files(root)
+| >         except _holdout_freeze.FreezeError as exc:
+| > >           raise FloorCampaignError(f"launch certificate: clean scan \u62d2\u5426: {exc}") from exc
+| > E           orchestrator.campaign.s8b_floor_campaign.FloorCampaignError: launch certificate: clean scan \u62d2\u5426: rr80: holdout hit 4 \u4ef6: ['output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl', 'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json', 'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json', 'output/s8b-freeze-candidates/holdout_freeze.v2.g1.json']; rr20: holdout hit 4 \u4ef6: ['output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl', 'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json', 'output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json', 'output/s8b-freeze-candidates/holdout_freeze.v2.g1.json']
+| >
+| > orchestrator/campaign/s8b_floor_campaign.py:5540: FloorCampaignError
+| --- IZANAGI FAILURE EXCERPT rank=1 END ---

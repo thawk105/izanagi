@@ -216,6 +216,18 @@ hook が新規に閉じるのは非 sanctioned な綴りだけで、Codex 子・
 cwd 相対・変数展開・未解析 launcher・ユーザー端末・cron・subprocess の内側は原理的に見えない —
 は `docs/pegasus-runbook.md` §7 と D103 / D105 を正本とする。
 
+**script-executor 越しの重量実行 ([T-2498]、D1891)。** `python3 -m cProfile` / `profile` / `pdb` / `trace` /
+`runpy` / `coverage run` が実行する内側の program (module または script) は、既存 parser の抽出結果
+(`_script_executor_program`) から同じ head の segment を合成し、同じ重量判定を**層ごと**に受ける
+(`_heavy_segment_violation` の `peel_executors`)。層剥きは再帰ではなく反復で、各層の引数は前層の真の
+suffix なので深さ上限なしで止まり、Python の stack は層数によらず一定 (1,100 層でも例外を起こさない —
+`main()` は防護 path を含まない入力の例外を許可へ倒すため、例外は deny→allow の穴になる)。wrapper module・
+option の列挙は足していない。multi-target の executor (pydoc / doctest / unittest) は内側 program を実行
+しないので対象外、module 名が Python 識別子でない値 (path 等) は何も実行しないので剥かない。内側 segment
+は直接形と**同じ判定** (baseline の保守性を含む) を受ける — `-m cProfile /tmp/safe.py -mpytest` は直接形
+`python3 /tmp/safe.py -mpytest` と同じく拒否され、テストは包み形と直接形の受理 bit の一致を pin する
+(値は pin しない)。内側の `-h` / `--co` は既存 `_pytest_nonexecuting` の境界で直接形と同じく拒否される (未改修)。
+
 **raw `systemd-run` の拒否 ([T-300])。** LOGIN / SUSPECT では head が `systemd-run` の呼び出しを
 拒否する。上限付き scope は `tools/run_tests.py` などが**内部で**作るものであり、hook は
 subprocess の内側を見ないので raw 実行を許可する必要がない。**`_WRAPPERS` へは追加していない** —
@@ -325,6 +337,9 @@ probe したところ、**guard_agent が PreToolUse で拒否し spawn は起�
   dir) の backup は通す。
 - `git commit -m "$(...)"` の heredoc: メッセージに防護トークンが入ると不透明構文判定で拒否。単一行 `-m` か
   `git commit -F <file>` で回避。
+- `git submodule status external/ccbench` も同じ: 防護ツリーの字面を含むので、pin 照合の `$(...)` と
+  1 command に同居させると拒否される (2026-09-17 の `/cleanup-branches` §4 で実測)。
+  status は単独 command で撃ち、pin との比較は出力を見て別 command で行う。
 - **拒否メッセージは一致したトークンを名指ししない**: 不透明構文 + 防護パスの同居拒否は候補群を列挙する
   だけで、実際に一致した文字列を出さない。呼び手は「どれに当たったか」を推測することになる。
   heredoc で prompt や台帳追記を作ると再現しやすい (dev-wave の 1 巡で 2 回発火した実測がある)。
@@ -434,6 +449,16 @@ probe したところ、**guard_agent が PreToolUse で拒否し spawn は起�
   (4) 第 2 worktree は tools も古い。段 5 の midflight gate は現行 checkout の
   `check_wave_startup.py` を `--repo <第 2 worktree>` で起動する (古い版に `midflight` mode は
   無い)。submodule も別途初期化しないと同 gate が赤になる。
+  (5) **着地形は F266 が決める** ([T-2498] で実測、T-2146 も 1 回目に同じ rc=26)。実装 branch を wave branch の
+  途中で merge すると、その merge は両親とも main の祖先でない (trusted 親 0) ので land の fold verifier が両親と
+  差分を取り、旧 base 以降の fold 署名を読んで `landed-fold-owned-path` (rc=26) で止まる。main から新 worktree を
+  作り、実装 branch を **main を第 1 親とする 1 つの merge** で取り込み (docs 入口は main 版へ戻す)、その上に
+  wave 側の commit を cherry-pick で積んでから受入・land する。投入前に `git rev-list --parents <tested main>..<tip>`
+  で各 merge の親のどれかが tested main の祖先であることを確かめる。
+  (6) 第 2 worktree の旧 launcher は現行 argv を受けず、旧 docs 権威は superseded 済み model を導出する。親が
+  `AGENTS.md` / `CLAUDE.md` / `docs/dev-wave/` を現行 main へ同期する docs-only commit を作り、現行
+  `dev_wave_codex.py --dry-run` の argv で launcher だけ現行版へ差し替えて起動する (正本は D の
+  「有効化前 commit の第 2 worktree では docs 入口を現行 main へ同期し、現行 launcher で Codex 子を起動する」)。
   `.claude/settings.json` と一次防壁のコードは従来どおり防護対象外で、緩和は規律6 の監査 +
   人間のコミットレビュー。
 

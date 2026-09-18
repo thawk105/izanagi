@@ -1,0 +1,26 @@
+--- message ---
+[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録
+
+wave: dev-wave-t2638-child-worktree-commit
+job-id: t2638-fix-1
+stage: fix
+actor: launcher
+launcher rc: 0
+receipt outcome: accepted
+scope: worktree residue at job end
+
+AI-Agent: product=codex; model=gpt-6-astra; reasoning=medium; role=author
+
+--- author/committer ---
+thawk105 <thawk105@gmail.com> | thawk105 <thawk105@gmail.com> | 2026-09-18 07:29:14 +0900
+--- stat ---
+ orchestrator/tests/test_dev_wave_wait.py       |  7 ++++++-
+ orchestrator/tests/test_dev_waves_git_state.py | 10 ++++++++--
+ tools/dev_waves/git_state.py                   |  6 ++----
+ 3 files changed, 16 insertions(+), 7 deletions(-)
+--- status ---
+0
+--- msg file leftover? ---
+0
+--- launcher stdout line (s6-fix-1.log) ---
+worktree-commit: committed 5a99d99d0c253a5e5d0cde52ff7a1ead8e4b3a31
