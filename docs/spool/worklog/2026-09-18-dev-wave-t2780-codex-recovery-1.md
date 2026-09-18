@@ -23,14 +23,19 @@ title: [T-2780] mocc pilot discriminator修正を回収・独立監査し、計�
 - check_codex_agents/check_docsはrc0。統合全史provenanceは11460件・新規違反なし、既知違反56件を区別する。
   記録後のjob6378はqueue-wait-timeoutで未実行。再投入job6403を親がQUE中にqdelし、
   compute-marker-not-observedのF47ラッチを武装させた。親の取消し判断が原因で、解除は人間手番。
-  自動投入を止めたため最終受入とlandは未実施。ラッチを消したり別木へ投入して迂回したりしない。
+  この時点では自動投入を止め、最終受入とlandを未実施のまま保存した。
+- 上記停止後、取消し起因と解除境界を説明したうえでユーザーからmain landまでの再開・自己改善指示を受けた。
+  6403の不在と保存ラッチのhash一致を再確認し、この既知取消しだけを復旧した。通常のF47契約は変更しない。
+  自己改善はDW-C00の停止前runbook読了導線とmutation taskの入力形明示に限定する。
+  最終受入は全記録commit後に共通待ち手で行い、結果を受領証へ固定して共通landで取り込む。
 - 全job-stagingをrepo外へ複製し全ファイル一致を確認した。レビュー逐語・receipt・変異台帳と限界は
   `output/insights/2026-09-18/t2780-mocc-pilot-discriminator/`。清掃はland・保全・非稼働を条件に許可済み。
-  本題外のgate・台帳機構・一般化・改善実装・次waveは追加しない。
+  本題外のgate・台帳機構・一般化・次waveは追加しない。追加承認された自己改善は上記の運用文書だけ。
 
 ## 次の一手差分
 
-### 更新
+### 完了
 
-- [T-2780] 実装・独立監査・job5905の生死確認・正式変異job6360・焦点検査は完了。親のjob6403取消しでF47ラッチが発火したため、ユーザー端末からの投入有効性確認と解除後に、専用Codex回収木の最終受入・main land・条件付き清掃を再開する。
+- [T-2780] HYDRATE_PY、build前X/P patch・verifier source配線・receipt束縛を実装し、独立監査・job5905のfinalization到達・正式変異job6360・焦点検査で確認した。
+  remaining: none
   base: e2f21f233b4c5a3d9789bfb2d5b7412b3d2be19811809b7278409961b8541759
