@@ -73,6 +73,12 @@
       "primary_gate": "PBS allocation and job-body site preflight",
       "evidence": "static job-body classification"
     },
+    "tools/pegasus/floor_pair_campaign.sh": {
+      "class": "dispatch-required",
+      "reason": "PBS floor-pair window and finalize job body",
+      "primary_gate": "PBS allocation and job-body site preflight",
+      "evidence": "static job-body classification"
+    },
     "tools/pegasus/floor_scoping.sh": {
       "class": "dispatch-required",
       "reason": "PBS floor scoping job body",
@@ -342,6 +348,12 @@
       "reason": "login-side PBS floor submitter",
       "primary_gate": "qsub submission; compute work stays in job body",
       "evidence": "legacy-admitted (未実測)"
+    },
+    "tools/pegasus/submit_floor_pair.sh": {
+      "class": "local-ok",
+      "reason": "login-side PBS floor-pair submitter",
+      "primary_gate": "qsub submission; compute work stays in job body",
+      "evidence": "static login-side submitter classification"
     },
     "tools/pegasus/submit_mocc_trace.sh": {
       "class": "local-ok",

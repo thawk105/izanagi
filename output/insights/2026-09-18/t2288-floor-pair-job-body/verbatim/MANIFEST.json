@@ -1,0 +1,158 @@
+{
+ "files": {
+  "focus-1.log": {
+   "changed_lines": 8,
+   "normalized_bytes": 9091,
+   "normalized_sha256": "42dec9823a719c27fa4531901b3404e1ec0ccfe3ddb3374f65d252beb3307990",
+   "original_bytes": 9131,
+   "original_sha256": "855409278512f3b75beabcf654492b296a8200807a8576aa67afb6f1d7b46a52",
+   "trailing_whitespace_by_line": {
+    "105": " ",
+    "14": " ",
+    "26": " ",
+    "46": "                 ",
+    "49": " ",
+    "59": " ",
+    "79": "                 ",
+    "82": " "
+   }
+  },
+  "focus-2.log": {
+   "changed_lines": 2,
+   "normalized_bytes": 5278,
+   "normalized_sha256": "f7bbbda47eaaaf4bfdf9c54ba0687282d31b660c9678c4328846f0bf87cc5413",
+   "original_bytes": 5280,
+   "original_sha256": "cfaae277c0a7fe535fae0a7699c20e414d73be73da22449aed05063f3bb0dd4d",
+   "trailing_whitespace_by_line": {
+    "14": " ",
+    "44": " "
+   }
+  },
+  "s1-brief.md": {
+   "changed_lines": 0,
+   "normalized_bytes": 10559,
+   "normalized_sha256": "595cb0476c0e63a855e93a2e835ad3a1655b30acec9ac825f20817f18d4bddac",
+   "original_bytes": 10559,
+   "original_sha256": "595cb0476c0e63a855e93a2e835ad3a1655b30acec9ac825f20817f18d4bddac",
+   "trailing_whitespace_by_line": {}
+  },
+  "s2-plan.md": {
+   "changed_lines": 16,
+   "normalized_bytes": 30983,
+   "normalized_sha256": "c512691bb17964bcca956f0ba4a94fa0c8d19264e7b9946e1fe36750dfdd3f95",
+   "original_bytes": 31015,
+   "original_sha256": "93eb9a2532fdb5f9703f85dd856beb57010271ad42c45d6de56f3816f4f26197",
+   "trailing_whitespace_by_line": {
+    "381": "  ",
+    "382": "  ",
+    "385": "  ",
+    "386": "  ",
+    "389": "  ",
+    "390": "  ",
+    "393": "  ",
+    "394": "  ",
+    "397": "  ",
+    "398": "  ",
+    "401": "  ",
+    "402": "  ",
+    "407": "  ",
+    "408": "  ",
+    "409": "  ",
+    "410": "  "
+   }
+  },
+  "s3-consult-A.md": {
+   "changed_lines": 4,
+   "normalized_bytes": 16885,
+   "normalized_sha256": "4d26b8729add41b491659457cf304dcaa73f319a7cde07cfb55733d8e4af8e21",
+   "original_bytes": 16893,
+   "original_sha256": "480dba8d3b019a70d990fdfe34f520335178b91de0989f2dc71ccb8507f7435d",
+   "trailing_whitespace_by_line": {
+    "140": "  ",
+    "141": "  ",
+    "142": "  ",
+    "143": "  "
+   }
+  },
+  "s3-consult-B.md": {
+   "changed_lines": 4,
+   "normalized_bytes": 16752,
+   "normalized_sha256": "a7f60dcde959d15baa176e7d36a219f86258cd8c5de435e59b4ae0242d0d27d6",
+   "original_bytes": 16760,
+   "original_sha256": "5105600ffb3cfca9117ee12f6cb76d767848f781502ac977cfe9d42d063fa18d",
+   "trailing_whitespace_by_line": {
+    "116": "  ",
+    "117": "  ",
+    "118": "  ",
+    "119": "  "
+   }
+  },
+  "s4-ruling.md": {
+   "changed_lines": 0,
+   "normalized_bytes": 13823,
+   "normalized_sha256": "710a507f0a03bfb903a184a2dec93f62c024639228ddcf138ecb27df21a4ae09",
+   "original_bytes": 13823,
+   "original_sha256": "710a507f0a03bfb903a184a2dec93f62c024639228ddcf138ecb27df21a4ae09",
+   "trailing_whitespace_by_line": {}
+  },
+  "s5-author.md": {
+   "changed_lines": 4,
+   "normalized_bytes": 7843,
+   "normalized_sha256": "f5610df1becd6bb287c39ed9beea3632bc1d40141bec13469ccd0e3e87d88802",
+   "original_bytes": 7851,
+   "original_sha256": "09d0adfa6914809a2bb468d90f3bc962d62ce9f20295b293979f879ef5a961fb",
+   "trailing_whitespace_by_line": {
+    "92": "  ",
+    "93": "  ",
+    "94": "  ",
+    "95": "  "
+   }
+  },
+  "s6-fix1.md": {
+   "changed_lines": 2,
+   "normalized_bytes": 4504,
+   "normalized_sha256": "65604c76c4d6a4c0fd751e8d2236cc874176c450f52c49499f08ad77238babb4",
+   "original_bytes": 4508,
+   "original_sha256": "92cd12b8061009a1b1dd4065f9a177d62fc8084ed3f8191c2a8b5192c38dd2c7",
+   "trailing_whitespace_by_line": {
+    "92": "  ",
+    "93": "  "
+   }
+  },
+  "s6-review-A.md": {
+   "changed_lines": 4,
+   "normalized_bytes": 15856,
+   "normalized_sha256": "757c4e641d615716c51f56668acee5bad2f72358d96714a91e822d1bfae33164",
+   "original_bytes": 15864,
+   "original_sha256": "37a50157aa48d6c9ccc182b9464fd2b557accee1c6ec693625aca33c173fefa3",
+   "trailing_whitespace_by_line": {
+    "125": "  ",
+    "126": "  ",
+    "127": "  ",
+    "128": "  "
+   }
+  },
+  "s6-review-B.md": {
+   "changed_lines": 3,
+   "normalized_bytes": 17583,
+   "normalized_sha256": "9a4b9c915645882160bf41a035299b0f05811201fda5bf1f5d8aa814ef2086ac",
+   "original_bytes": 17589,
+   "original_sha256": "c70578e2218b984f283a1a47f14d698946d254a78a95877b13b438fc71d6e7b0",
+   "trailing_whitespace_by_line": {
+    "143": "  ",
+    "144": "  ",
+    "145": "  "
+   }
+  },
+  "s6-ruling.md": {
+   "changed_lines": 0,
+   "normalized_bytes": 5095,
+   "normalized_sha256": "7f7a8a4cfc8da9813096b90c24157a3bd48fe17f10404c606259a51ae82ec241",
+   "original_bytes": 5095,
+   "original_sha256": "7f7a8a4cfc8da9813096b90c24157a3bd48fe17f10404c606259a51ae82ec241",
+   "trailing_whitespace_by_line": {}
+  }
+ },
+ "method": "strip trailing [ \\t]+ at each line end; restore by appending trailing_whitespace_by_line[lineno] to that line",
+ "schema": "verbatim-trailing-whitespace-normalization/v1"
+}

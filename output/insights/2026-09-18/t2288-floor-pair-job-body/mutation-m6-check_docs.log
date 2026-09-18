@@ -1,0 +1,3 @@
+check_docs: 1 件の違反
+  - tools/check_docs.py: Pegasus admission drift — runbook §7.0 投影表が registry と集合完全一致しない — registry_only=[('tools/pegasus/floor_pair_campaign.sh', 'dispatch-required', 'static job-body classification')], runbook_only=[]
+rc=1
