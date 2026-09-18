@@ -46,6 +46,25 @@ check_codex_agents / check_docs / spool_fold dry-runはrc0。
 回収merge commit `235c6d2f2` 後の全履歴provenance監査は11,472件・新規違反なし、rc0。
 既知違反56件を表示したため「履歴に違反なし」とは言わない。原ログはrepo外job dirの `provenance-1.log`。
 
+## 回収受入1の失敗と切り分け
+
+tip `82f1f06ad` の受入1はrc70、child rc16。shard1 (6396.nqsv) がqueue-wait-timeout
+(903.95秒) で検査開始前に終わり、兄弟dispatcherがsignal-abortになった。
+RUNだった6398/6397は自然終端を待ち、NQSVの対象ID付き終了accountingとqstat不在を確認。
+sourceのclean/HEADを照合してから、退避した2件のorphan holdを解除した。手動qdelは行っていない。
+
+終了後に得たshard0のJUnitには、T1259のGit未追跡走査30秒timeoutによるsetup error5件と、
+S8c predicateの共通snapshot用Git archive 10秒timeoutによるsetup error4件があった。
+test/probeの変更はなく、assertion不一致ではない。同じtipで正規runnerによる当該2fileの
+単独再走を1回行い、269 passed / 95.63秒、rc0 (bounded local) で非再現を確認した。
+ログは `verbatim/recovery-focus-after-acceptance-1.log`。
+この結果は受入全走の代替ではなく、旧失敗を成功へ変更もしない。I/O遅延の根因は未分離。
+
+受入1の一次記録はrepo外job dirの `acceptance-1.log` / `acceptance-1.child.log`、
+shard rootは `/work/1/SFC/tanab/.izanagi-acceptance-shards/b24821a39b6bb7041851237003b786e3`。
+再受入では既存の `IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE=3600` を使用する。
+これは投入後の待ち時間だけを変える既存設定で、テストtimeout・期待値・除外・outer shard deadlineは変えない。
+
 ## 逐語の可逆正規化
 
 DW-S07に従い、末尾ASCII spaceだけを除き、末尾LFを付した。可視文字と行順は不変。

@@ -70,6 +70,11 @@ title: [T-2674] [T-1998] balanced stock-inline 対の単独 results 稿を一次
   改善実装・次wave・性能測定は追加しない。
 - 是正後の独立焦点再レビューはclosed 5 / partial 1 / regressed 0、新規修正要求0、着地阻害なし。
   凍結稿42,738 bytesの旧tip一致と逐語3本の可逆正規化を独立再検算した。partialは8点表を残す編集判断。
+- 回収受入1 (tip82f1f06ad) は1 shardのqueue-wait-timeoutでrc70/child16。RUNの兄弟2jobは
+  自然終端を待って確認し、clean/HEAD確認後にorphan holdを解除した。後から回収したshard0には
+  T1259のGit走査30秒timeout5件、S8c共通snapshotのGit archive 10秒timeout4件のsetup errorがあった。
+  同tipの当該2file単独再走は269 passed/95.63秒、rc0で非再現。原実装・testは変更せず、
+  再受入のキュー待ちだけを既存環境設定で900秒から3600秒へ延長する。検査のtimeout・除外は不変。
 
 ## 次の一手差分
 
