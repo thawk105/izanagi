@@ -126,3 +126,10 @@ invalid seam登録を保持する。production3fileと変異対象4test fileは�
 chain/X2/Gと実A/Xの境界、既存変異の測定時点の意味は変えない。
 統合差分の独立焦点監査はGO、must-fixなし。逐語は `verbatim/main-integration.md` と
 `verbatim/integration-review.md`。実走要約は `evidence/resume-focus-summary.txt`。
+
+修復後受入2（`2027fd428`）はT1259エラー0、25251 passed /69 skipped /1 failedだった。
+残る`test_sigterm_ignoring_child_is_killed`は外側のcommunicate 10秒timeoutでreceiptなし。
+launcherと当該test sourceへの差分はない。同tipの単独node走は既存NPROC=1設定で
+1 passed /70.36秒、rc0。個別の負荷因果や恒久修復は断定しない。
+次の全受入は既存`IZANAGI_TEST_NPROC=16`を使用する。検査集合・assertion・timeout・holdは変更しない。
+生logは回収jobの`acceptance-2.child.log`、`acceptance-2-shards/`、`launcher-single.log`に保存する。

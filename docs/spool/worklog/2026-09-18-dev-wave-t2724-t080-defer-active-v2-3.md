@@ -41,6 +41,11 @@ title: [T-2724][T-2776] 中断成果を回収しA-3整合とfixture切離しを�
   T1259の30関数/51caseとT080 receipt8関数/8node・接続20nodeを保持し、timeout/hold/除外は不変。
   計算ノードの焦点5fileは8813.nqsvで331 passed /1 skipped、37.14秒。統合後full provenanceは
   11578件・新規違反0・既知56件。最終受入の成否はこの記録後の共通受領証で確定する。
+- 修復後受入2（2027fd428）はT1259エラー0、25251 passed /69 skipped /1 failed。
+  残る1件はlauncher終了処理testの外側communicate 10秒timeout（receiptなし）だった。
+  launcher/test sourceに差分はなく、同tipの当該node単独走は既存並列度設定1で1 passed（70.36秒）。
+  F273再発として保持し、再受入は既存設定IZANAGI_TEST_NPROC=16を使って同時実行負荷を下げる。
+  全検査集合・assertion・timeout・holdは不変。負荷の個別因果や恒久修復を証明したとは記録しない。
 
 ## 次の一手差分
 
