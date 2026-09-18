@@ -1,0 +1,19 @@
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 1230800, "time_ns": 1789685350230126500}
+IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1230821, "event": "direct-child-wait-start", "pid": 1230807, "time_ns": 1789685350258507142}
+IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1230821, "event": "direct-child-wait-complete", "pid": 1230807, "time_ns": 1789685355299664476}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 1230807, "rc": 0, "time_ns": 1789685355299728200}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 1230800, "rc": 0, "time_ns": 1789685355303976381}
+IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 1230800}, {"comm": "bash", "pid": 1230781}, {"comm": "nqs_shpd", "pid": 1230780}, {"comm": "nqs_shpd", "pid": 1230580}, {"comm": "nqs_shpd", "pid": 4620}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 1230800, "sid": 1230780, "time_ns": 1789685355304278501}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "session-residual", "pid": 1230800, "process": {"attributed": true, "comm": "python3", "pgrp": 1230780, "pid": 1230822, "ppid": 1, "readable": true, "session": 1230780, "starttime": 68139316, "state": "S", "uid": 31609, "user_ns": "user:[4026535834]"}, "round": 1, "time_ns": 1789685355320783088}
+IZANAGI_DISPATCH_JOB_TRACE {"errno": null, "event": "session-signal", "pid": 1230800, "process": {"attributed": true, "comm": "python3", "pgrp": 1230780, "pid": 1230822, "ppid": 1, "readable": true, "session": 1230780, "starttime": 68139316, "state": "S", "uid": 31609, "user_ns": "user:[4026535834]"}, "result": "sent", "signal": "TERM", "time_ns": 1789685355320879125}
+IZANAGI_DISPATCH_JOB_TRACE {"errno": null, "event": "session-signal", "pid": 1230800, "process": {"attributed": true, "comm": "python3", "pgrp": 1230780, "pid": 1230822, "ppid": 1, "readable": true, "session": 1230780, "starttime": 68139316, "state": "S", "uid": 31609, "user_ns": "user:[4026535834]"}, "result": "sent", "signal": "KILL", "time_ns": 1789685360325938693}
+IZANAGI_DISPATCH_JOB_TRACE {"after": "kill", "event": "session-process-exited", "pid": 1230800, "process": {"attributed": true, "comm": "python3", "pgrp": 1230780, "pid": 1230822, "ppid": 1, "readable": true, "session": 1230780, "starttime": 68139316, "state": "S", "uid": 31609, "user_ns": "user:[4026535834]"}, "time_ns": 1789685360326935785}
+IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 1, "elapsed_ms": 5054.311881074682, "event": "session-sweep-complete", "exited_after_kill": 1, "exited_after_term": 0, "found_total": 1, "pid": 1230800, "remaining": 0, "rounds_used": 2, "session_unknown": 0, "status": "clean", "time_ns": 1789685360358621101, "unattributed_total": 0, "zombies": 0}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 1230800, "time_ns": 1789685360360623739}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 1230800, "time_ns": 1789685360378813629}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 1230800, "time_ns": 1789685360379505557}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 1230800, "time_ns": 1789685360379514517}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 1230800, "time_ns": 1789685360381091132}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 1230800, "time_ns": 1789685360381099718}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 1230800, "rc": 0, "time_ns": 1789685360381108577}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 1230800, "rc": 0, "time_ns": 1789685360381120100}

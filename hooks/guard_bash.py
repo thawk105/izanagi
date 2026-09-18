@@ -775,11 +775,11 @@ def _script_executor_output_targets(module: str, args, repo_root: str) -> tuple:
     return tuple(targets)
 
 
-def _script_executor_targets(module: str, args, repo_root: str) -> tuple:
-    """後続 script/module を実行する module の全実行対象を返す。"""
+def _script_executor_arguments(module: str, args):
+    """既存 executor の副命令と option 表を両抽出器で共有する。"""
     if module in {"coverage", "coverage.__main__"}:
         if not args or args[0] != "run":
-            return ()
+            return None
         args = args[1:]
         value_options = frozenset({
             "--concurrency", "--context", "--data-file", "--include",
@@ -788,7 +788,73 @@ def _script_executor_targets(module: str, args, repo_root: str) -> tuple:
     else:
         value_options = _SCRIPT_EXECUTOR_MODULE_OPTIONS.get(module)
         if value_options is None:
-            return ()
+            return None
+    return args, value_options
+
+
+def _script_executor_program(module: str, args):
+    """内側 program を ``(kind, value, rest)`` として返す。
+
+    各層で executor module token と program token を必ず消費し、rest は
+    前層の正規形 args の真の suffix になる。密着 option の分離や先頭 '-'
+    の script への '--' 補完で生 token 数が増す場合も、正規形 token 数は
+    厳密に減るため、層剥きの反復は深さ上限なしで有限回で止まる。
+    各層の gate 呼び出しは追加の層剥きをしないので、executor 検査の
+    Python stack の追加深さは層数によらず 1 である。
+    """
+    if module in _MULTI_TARGET_EXECUTOR_MODULES:
+        return None
+    parsed = _script_executor_arguments(module, args)
+    if parsed is None:
+        return None
+    args, value_options = parsed
+    i = 0
+    while i < len(args):
+        token = args[i]
+        if token in _MODULE_HELP_OPTIONS:
+            return None
+        if module == "trace" and token == "--report":
+            return None
+        if token == "--":
+            if i + 1 >= len(args):
+                return None
+            kind = "module" if module == "runpy" else "script"
+            value, rest = args[i + 1], args[i + 2:]
+            break
+        if token in value_options:
+            if i + 1 >= len(args):
+                return None
+            if token in {"-m", "--module"}:
+                kind, value, rest = "module", args[i + 1], args[i + 2:]
+                break
+            i += 2
+            continue
+        attached = _module_option_value(token, value_options)
+        if attached is not None:
+            if any(token.startswith(opt) for opt in {"-m", "--module"}):
+                kind, value, rest = "module", attached, args[i + 1:]
+                break
+            i += 1
+            continue
+        if token.startswith("-"):
+            i += 1
+            continue
+        kind = "module" if module == "runpy" else "script"
+        value, rest = token, args[i + 1:]
+        break
+    else:
+        return None
+    if kind == "module" and not _PYTHON_MODULE_RE.fullmatch(value):
+        return None
+    return kind, value, rest
+
+
+def _script_executor_targets(module: str, args, repo_root: str) -> tuple:
+    """後続 script/module を実行する module の全実行対象を返す。"""
+    parsed = _script_executor_arguments(module, args)
+    if parsed is None:
+        return ()
+    args, value_options = parsed
 
     targets = []
     nonexecuting_mode = False
@@ -1181,7 +1247,8 @@ def _interpreter_residual_violation(head: str, args, repo_root: str):
     return None
 
 
-def _heavy_segment_violation(seg, repo_root: str, depth: int):
+def _heavy_segment_violation(
+        seg, repo_root: str, depth: int, *, peel_executors: bool = True):
     seg = _expand_env_split_strings(seg)
     if seg is None:
         return "env -S split-string を解析不能"
@@ -1227,6 +1294,28 @@ def _heavy_segment_violation(seg, repo_root: str, depth: int):
                 args[command_index], repo_root, depth + 1)
             if nested:
                 return nested
+
+    if peel_executors:
+        inner_raw_head, inner_head, inner_args = raw_head, head, args
+        while True:
+            invocation = _python_module_invocation(inner_head, inner_args)
+            if invocation is None:
+                break
+            program = _script_executor_program(*invocation)
+            if program is None:
+                break
+            kind, value, rest = program
+            if kind == "module":
+                inner_seg = [inner_raw_head, "-m", value, *rest]
+            else:
+                prefix = ([inner_raw_head, "--"] if value.startswith("-")
+                          else [inner_raw_head])
+                inner_seg = [*prefix, value, *rest]
+            nested = _heavy_segment_violation(
+                inner_seg, repo_root, depth + 1, peel_executors=False)
+            if nested:
+                return nested
+            inner_raw_head, inner_head, inner_args = _heavy_head_and_args(inner_seg)
 
     # `-m <他 module> … <checker>` は checker を実行しないので通すが、sanctioned だけは
     # 借りさせず以降の既存判定 (pytest 等) へ落とす。

@@ -1,0 +1,275 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 7200,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "M0-docstring-control",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "    \"\"\"Record worker residue without discarding or adopting its contents.\"\"\"\n",
+          "new": "    \"\"\"Record worker residue without discarding or adopting its contents (T2638 M0).\"\"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1-sandbox-predicate-inverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_codex.py",
+          "old": "    if args.sandbox == \"workspace-write\":\n        if args.stage in (\"author\", \"fix\"):\n",
+          "new": "    if args.sandbox == \"read-only\":\n        if args.stage in (\"author\", \"fix\"):\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_read_only_and_non_author_never_commit",
+        "orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc",
+        "orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-stage-predicate-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_codex.py",
+          "old": "        if args.stage in (\"author\", \"fix\"):\n            status, _detail = commit_worker_worktree(\n",
+          "new": "        if True:\n            status, _detail = commit_worker_worktree(\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_read_only_and_non_author_never_commit"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-detached-allowed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "        if branch.returncode == 1:\n            return finish(\"refused\", \"detached-head\")\n",
+          "new": "        if branch.returncode == 99:\n            return finish(\"refused\", \"detached-head\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-protected-branch-set-empty",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "        if branch_name in {\"main\", \"master\"}:\n",
+          "new": "        if branch_name in set():\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-primary-worktree-allowed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "        if git_dir == Path(_text(_run(root, operation)).strip()).resolve():\n            return finish(\"refused\", \"primary-worktree\")\n",
+          "new": "        if False and git_dir == Path(_text(_run(root, operation)).strip()).resolve():\n            return finish(\"refused\", \"primary-worktree\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_failure_withholds_receipt[primary]",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-operation-markers-empty",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "        for marker in (\"MERGE_HEAD\", \"CHERRY_PICK_HEAD\", \"REVERT_HEAD\", \"rebase-merge\", \"rebase-apply\"):\n",
+          "new": "        for marker in ():\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_defers_merge_in_progress"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-staged-branch-swapped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "        if staged.returncode == 0:\n            return finish(\"clean\")\n",
+          "new": "        if staged.returncode == 1:\n            return finish(\"clean\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc",
+        "orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_failure_withholds_receipt[identity]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_failed_keeps_residue",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_records_residue_then_noop"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-launcher-rc-overwritten",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_codex.py",
+          "old": "            print(\"worktree-commit: skipped reason=stage\", flush=True)\n    return launcher_rc\n",
+          "new": "            print(\"worktree-commit: skipped reason=stage\", flush=True)\n    return 0\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc",
+        "orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-failed-commit-not-rc3",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_codex.py",
+          "old": "            if launcher_rc == 0 and status in (\"refused\", \"failed\"):\n                return 3\n",
+          "new": "            if launcher_rc == 0 and status in ():\n                return 3\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-trailer-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "            f\"AI-Agent: product=codex; model={provenance('model')}; \"\n            f\"reasoning={provenance('effort')}; role=author\\n\"\n",
+          "new": "            \"\"\n            \"\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_records_residue_then_noop"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11a-requested-before-recorded",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "                value for key in (f\"recorded_{field}\", f\"requested_{field}\")\n",
+          "new": "                value for key in (f\"requested_{field}\", f\"recorded_{field}\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11b-none-mapping-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "old": "            if value == \"none\" or re.fullmatch(r\"[a-z0-9][a-z0-9._-]*\", value) is None:\n",
+          "new": "            if re.fullmatch(r\"[a-z0-9][a-z0-9._-]*\", value) is None:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-waiter-optin-ignored-cwd-target",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "    commit_status, commit_detail = \"clean\", None\n    if commit_worktree is not None:\n",
+          "new": "    commit_status, commit_detail = \"clean\", None\n    if commit_worktree is None:\n        commit_worktree = Path.cwd()\n    if commit_worktree is not None:\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_waits_while_pid_alive_then_completes_after_death",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_without_commit_flag_preserves_bytes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13-waiter-commit-before-death",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "old": "    started = effects.monotonic()\n    start_time = _initial_start_time(pid, effects)\n",
+          "new": "    started = effects.monotonic()\n    if commit_worktree is not None:\n        from tools.dev_waves.git_state import commit_worker_worktree as _early_commit\n\n        _early_commit(\n            commit_worktree, wave=\"unknown\", job_id=\"unknown\", stage=\"unknown\",\n            launcher_rc=None, receipt_path=None, actor=\"waiter\",\n        )\n    start_time = _initial_start_time(pid, effects)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14-dry-run-commits",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_codex.py",
+          "old": "    if args.dry_run:\n        print(\"\\n\".join(launcher_argv))\n        return 0\n",
+          "new": "    if args.dry_run:\n        print(\"\\n\".join(launcher_argv))\n        if args.sandbox == \"workspace-write\":\n            commit_worker_worktree(\n                args.repo_root, wave=args.wave, job_id=args.job_id,\n                stage=args.stage, launcher_rc=0, receipt_path=None,\n            )\n        return 0\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_dry_run_never_commits"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

@@ -66792,3 +66792,295 @@ D2116 を満たしたと記録するものではなく、本 wave の受理対�
 
 **この決定が主張しないこと:** stock mocc の観測間隙と `absent` 非対称が実走で再現すること (静的反例候補にとどまる)、read 側 hot 経路・RLL 再試行・
 DELETE 経路の動的被覆、mocc が certified な第 2 例として成立すること、温度述語が正式な変異軸として承認されること。
+
+## D2135. 自律試行 journal `run-start` の読める世代は完全性 consumer が独立に持ち、producer の現行版には追随しない (2026-09-18)
+
+**決定 (1): D1898 の「版を上げる」は、role payload の key 改名で `SCHEMA_VERSION` を v4 へ上げた
+4c6f03048 (2026-09-16、D2064 決定 2) で run-start 側にも実体化したものとして利用し、本件のために v5 へは上げない。**
+理由は、v4 の run-start は一つの形 (無条件 key + trial_binding 条件付き key) しか持たず、v3 の記録と現行出力を
+版だけで既に区別できること、および v4 に対する新たな形の変更が無いことである。D1851 は「版を上げる差分は
+新機能を使わない構成の正例を持つ」と定めるが、形を変えない bump を禁じてはいない。v5 へ上げると role payload
+(同じ定数) も v5 になって独立の role consumer (v4) と食い違い、09-16 以降の v4 記録が現行 consumer の対象外になる。
+T-304 の wave が本件を完了したと宣言したわけではないので、そう遡って記録しない。
+
+**決定 (2): 完全性 consumer (`autonomous_trial_completeness._check_run_envelope`) は、run-start の読める世代を
+独立リテラル定数 `_RUN_START_SCHEMA_VERSION` (現行 v4) として所有し、producer の生きた `SCHEMA_VERSION` とは
+照合しない。** role payload 側の `_ROLE_SCHEMA_VERSION` (D2064 決定 2 の独立二重定義) と同型である。
+これにより、記録済み artifact の世代の判定が producer の改版から独立する。同期は「現行 producer の実走出力が
+consumer を通る」既存の統合正例と、producer 定数を別値にしても v4 記録の判定が変わらない独立性の正例で担保し、
+import 比較などの同期 gate は足さない。
+
+**決定 (3): 旧 record は記録された版のまま世代を分類して fail-closed にし、変換も alias も decoder も足さない。**
+拒否理由は記録の版・世代分類 (`legacy` は実在を確認した v3 の文字列だけ、それ以外は `unknown`)・consumer の対応版を
+文言で名指す (規律 3)。機械可読な属性や report field の追加ではない。v3 の歴史 decoder は D1669 の条件
+(実在成果物 + 読み手) のうち読み手を今回の直接参照の検索で確認できていないため作らない。受理集合は v4 のみで不変であり、v4 の形は
+従来の field 検査が担う (exact-key 契約の新設ではない)。世代診断は版 gate に到達した記録に対する保証であり、
+report 版・journal の hash・event 順序の検査が先行する。
+
+**理由:**
+- 直接の原因は consumer が producer の可変定数を受理条件に使っていたことである。producer が版を上げるたびに
+  記録済み run の判定が黙って変わり、記録済み artifact の世代と現行 producer の世代を区別できなかった
+  (F332 の副次的所見)。run-start と role payload が 1 定数を共有していることは波及要因であり、
+  その分離 (新 schema 名) は本件の局所修正では扱わない。
+- v3 の記録には 13 key の旧形と field が増えた後の形が混在しうるが、版値だけでは区別できない。
+  本決定は双方を `legacy` として拒否し、この歴史的混在を遡って解消しない (規律 7: 記録は書き換えない)。
+
+**却下した選択肢:**
+- v5 へ上げる — 形の変更が無く、role consumer との不一致と v4 記録の対象外化を招く。
+- consumer が producer 定数を参照し続け、文言だけ直す — 依存そのものが残る。
+- v3 decoder / alias を足す — 本件の依頼範囲外であり、歴史 decoder は D1669 の読み手確認条件も満たしていない
+  (D2064 決定 3 の alias 禁止は role payload の旧 throughput 名を対象とするもので、本件の直接の根拠ではない)。
+- trial_registry / s8c_acceptance_receipt (run-start の field を読むが版を見ない) へ版 gate を足す —
+  具体的な破れが示されておらず、仮想リスク向けの gate に当たる。
+
+## D2136. script-executor の内側 segment は直接形と同じ重量判定を層ごとに反復で受け、深さ上限を設けない (2026-09-18)
+
+**決定:** D1891 の「既存 parser が抽出した内側の実行対象へ同じ重量判定を再帰的に適用する」を、
+`hooks/guard_bash.py` では次の 3 点で実装する。
+
+1. **内側 segment は直接形と同じ判定を受ける。** executor (`cProfile` / `profile` / `pdb` / `trace` /
+   `runpy` / `coverage run`) が実行する内側 program (module または script) から同じ head の segment を合成し、
+   `_heavy_segment_violation` の全 gate (provenance / 出力先 / admission / residual / shell / sanctioned /
+   pytest 等) をそのまま当てる。baseline の保守性 (`-m` の anywhere 走査など) も含めて同じにする。
+   したがって `python3 -m cProfile /tmp/safe.py -mpytest` は直接形 `python3 /tmp/safe.py -mpytest` と同じく
+   拒否される。テストは包み形と直接形の**受理 bit の一致**を pin し、値そのものは pin しない
+   (baseline の保守性が将来緩めば両方が一緒に動く)。
+2. **層剥きは Python 再帰ではなく反復で行い、深さ上限を設けない。** 各層の引数は前層の正規形 args の
+   真の suffix なので有限回で止まり、Python の stack は層数によらず一定。深い軽量 command
+   (`-m cProfile` を 1,100 層重ねた `-m json.tool`) は過剰拒否しない。
+3. **層剥きは shell command-string 再帰の直後、sanctioned 早期許可の前に置く。** sanctioned な target を
+   持つ executor 形 (`python3 -m cProfile tools/run_tests.py -m pytest -q`) が内側の pytest を隠せない。
+   専用テストがこの位置を pin する。
+
+**理由:**
+- 段 5 の再帰実装は 1,100 層の入力で `RecursionError` になり、`main()` の例外経路 (防護 path を含まない
+  入力は rc 0) が後続 segment の `pytest -q` を検査せず許可した — 実入口での deny→allow (D428 違反)。
+  F709 と同じ「深さがデータに比例する再帰」の型で、対応も同じ (while 化)。深さ上限で拒否側へ倒す案は、
+  深い軽量 command の過剰拒否を残すので採らない。
+- script 形の追加拒否は「同じ判定」の帰結であり、直接形は旧版でも拒否されていた。包み形だけが穴だった。
+  期待値を固定しないと D428 の反転検査で「重量形のみ」と記録できない。
+- 位置は段 4 の provisional 裁定だったが、段 6 レビューが識別入力を見つけたので専用テストで pin した。
+
+**却下した選択肢:**
+- 深さ上限 + 上限超過で拒否 — 深い軽量 command を過剰拒否する。上限内の層数は事故で越えうる。
+- 内側 segment に residual の anywhere 走査を掛けない緩和 — D1891 の「同じ判定」に反し、受理集合を
+  広げる側へ動く (D428)。
+- `main()` の例外経路を fail-closed へ変える — 本 wave の scope 外 (防護対象を含まない入力の例外方針は
+  別の裁定面)。例外を起こさない実装で穴を閉じる。
+
+## D2137. 有効化前 commit の第 2 worktree では docs 入口を現行 main へ同期し、現行 launcher で Codex 子を起動する (2026-09-18)
+
+**決定:** D427 / D1719 の第 2 worktree (guard_write に hooks 施錠が入る 1 つ手前の commit を base) で
+Codex 子を起動するときは、次の 2 点を加える。
+
+1. 親が `AGENTS.md` / `CLAUDE.md` / `docs/dev-wave/` を現行 main の版へ同期する docs-only commit を
+   第 2 worktree に作る (role=manager)。launcher の docs 権威 (DW-O01 の model 行、DW-S05-A の reasoning) と
+   子が読む入口 (単独段 dispatch の例外) を現行と同じにするため。
+2. 起動は現行 checkout の `tools/dev_wave_codex.py --dry-run` が生成した argv を使い、launcher だけを現行
+   checkout の `tools/codex_worker_launch.py` に差し替える。第 2 worktree の旧 launcher は現行 argv
+   (`--*-admission-bound-s`) を受けず、旧 docs 権威 (V1 形式) は superseded 済みの model を導出するため。
+   現行 launcher の `snapshot_authority` は `--repo-root` (第 2 worktree) の docs から model を導出し、
+   `validate_installation` は同 worktree の hooks 配線を検査する — どちらも同期後の第 2 worktree で通ることを
+   起動前に実測する。
+
+**理由:**
+- 2026-09-10 に model 権威が `gpt-6-astra` / `medium` へ変わり (V2 形式)、有効化前 commit (2026-08-13) の
+  launcher と docs では現行権威を導出できなくなった。先行 wave の実測 (両 worktree が同じ model を導出) は
+  この改訂前の事実で、もう成り立たない。
+- 実装面 (`tools/`) を親が同期するのは D95 に反する。docs だけの同期で権威と入口を揃えられる。
+
+**却下した選択肢:**
+- 旧 launcher をそのまま使う — superseded 済みの model を起動する (ユーザー裁定に反する)。
+- 旧 launcher が読める V1 形式の model 行を親が書く — 権威の書式を偽装する。
+- 第 2 worktree の `tools/` を現行へ同期する — 実装面を親が動かす。
+
+## D2138. B-4 床値 spec 3 本の A-5 (2 窓・campaign・seed・出力 path・集約対応) を D2120 項 4 の委任で確定し、凍結 spec と同じ commit に期待 spec 列を記録する (2026-09-18)
+
+**決定 (D2120 項 4 = D1641 決定 1〜3 / D1638 の委任の下で AI が確定):** 事前登録 §11.1 手順 6 の「結果を見る前の測定手順の凍結」として、
+`floor-pair-spec/v3` の spec 3 本を次の値で tracked file として置き、本決定と同じ commit で凍結する。既決値 (artifacts = D2069、
+cells・perf_config = D2088 / D2089、calibration = D2090、statistics・failure_policy・format ID = driver 定数) は再裁定せず逐語で継承する。
+
+1. **置き場と命名。** directory は `output/env/pegasus/floor-pair/t2288-f1/` (`output/env/pegasus/` 配下で、`floor-pair/` は
+   `calibration/`・`binaries/` の兄弟。`t2288-f1` は凍結集合の識別子で、日付・commit を意味しない)。名前は issuer の `__key-value` 様式に揃え、D1641 決定 3 の 5 成分 (env_tag・protocol・threads・
+   workload・campaign 識別子) を成果物 (窓・summary) の名前に含める。spec 名にも同じ成分を含めるのは可読性のための本 wave の選択であり、
+   D1641 決定 3 が spec の命名を定めたとは読まない。`<wl>` ∈ {rr95, rr50, rr5}。
+   - spec: `spec__env-pegasus__protocol-silo__threads-48__workload-<wl>-s0.9-rmw0__campaign-t2288-f1-<wl>-c1c2.json`
+   - 窓 (JSONL、`floor-pair-jsonl/v1`): `window__env-pegasus__protocol-silo__threads-48__workload-<wl>-s0.9-rmw0__campaign-t2288-f1-<wl>-c1.jsonl`
+     と同 `-c2.jsonl`
+   - summary (JSON、`floor-pair-summary-json/v1`): `summary__env-pegasus__protocol-silo__threads-48__workload-<wl>-s0.9-rmw0__campaign-t2288-f1-<wl>-c1c2.json`
+   - 出力は spec と同じ directory に置く (git は空 directory を持たないので、tracked spec が出力 directory の実在を担う)。
+2. **窓 (UTC、半開区間、3 spec 共通)。** w1 = [2026-09-19T00:00:00Z, 2026-09-27T00:00:00Z)、w2 = [2026-09-29T00:00:00Z, 2026-10-07T00:00:00Z)。
+   各窓 `sample_count = 62` (D1695)、pair 1 つ。開始許容帯の差は 48 時間。**これは session 開始時刻の許容帯であり、w1 の終了から w2 の
+   開始までの分離を機械保証しない** (driver は session 開始時刻だけを窓と照合し、session 全体の締切を持たない)。実 campaign の
+   24 時間以上の分離 (終了→開始を含む保守的な確認) は D1974 項 3 のとおり証拠確認者が実 timestamp で確認する。窓幅 8 日は
+   後続の job body 着地・queue 待ち・走行を包むための運用余裕で、独立反復の回数を増やさず、所要時間を保証もしない。
+3. **識別子。** campaign_id = `t2288-f1-<wl>-c1` / `t2288-f1-<wl>-c2` (6 件すべて相異)、window_id = `<wl>-w1` / `<wl>-w2`、pair_id = `pair-<wl>`、
+   cell_id = `<wl>-t48-s0.9-rmw0`。campaign は D1641 決定 3 のとおりセルごとに数える。
+4. **seed。** `seed_hex = SHA-256(UTF-8 "izanagi floor-pair-spec/v3 seed|<spec_relpath>|<source_commit>")` (改行なし)。公開式で再現できる。
+   randomization (`hmac-sha256-rank/v1`) は窓内の標本順・side session 順・session 内の candidate / reference 順の 3 箇所を決める。
+   親 commit や path を試行して seed を選別しない。式は再現性を与えるだけで、選別不能性や事前性を証明しない。
+5. **実行設定 (既決値の継承と本 wave の運用選択)。** 既決値の継承 = `site PEGASUS_COMPUTE`・`env_tag pegasus`・`clocks_per_us 2100`
+   (D1641 決定 3・D2089)。本 wave の運用選択 (既決値ではない) = 以下の 5 項目:
+   `numactl_argv []` (較正の certify 経路は NUMA node 数 1 で numactl を付けず、3 較正とも NUMA 1 node。「生成 command の numactl
+   prefix が空」の意味で較正時と同等)、`extra_env {}` (親環境を継承し `FLAGS_` だけ除く)、`use_perf false`、`timeout_s 120`
+   (calibrator の bench timeout と同値。較正時の rep wall 3.5〜4.5 秒に対する余裕であって成功率の保証ではない。短くすると標本が
+   落ちて 5% 判定 (D1697) に効くので根拠なく縮めない)、`probe_timeout_s 30`。後続の実測結果を見てこれらを変えない。
+6. **`source_commit`** は spec を含む commit の親 = `d2ebef7a407dc6be61622ed596cf08b8b518f606` (凍結時点の local main)。
+7. **凍結 spec の実 bytes と期待 sha256 (集約の期待 spec 列 = `expected_specs`、この順で渡す)。**
+
+   | spec (relpath は上記 directory 直下) | sha256 | seed_hex | 束縛する較正 |
+   |---|---|---|---|
+   | `spec__…__workload-rr95-s0.9-rmw0__campaign-t2288-f1-rr95-c1c2.json` | `990e3a6feb176ccf863315fde6e2afce43b7fc16053f50a1080641dde2570619` | `7fa738507efad5105c6545e85bacde4f21c36a95e3c7b654b2e145077a9bf99e` | `calibration-5c836a22eff9ab40.json` |
+   | `spec__…__workload-rr50-s0.9-rmw0__campaign-t2288-f1-rr50-c1c2.json` | `b582d20c37268f491e4c47bb7436731197c18e737cdcca43694c64fa3e0d5e37` | `d956c31f4b17552463838626f80768873aa2c9f15757804c2e3989a228e3eb73` | `calibration-94a4b79fa31bba3c.json` |
+   | `spec__…__workload-rr5-s0.9-rmw0__campaign-t2288-f1-rr5-c1c2.json` | `d13c384473a5d24170e929f7e17aad9cc24479a5487ed0da21d06bc45430d8c4` | `b011f2af789c63afbf206f69fee0c2bd1e202dc36dcd06cf5c943d4a3074094f` | `calibration-2b7ba072b88023ae.json` |
+
+   `…` は `env-pegasus__protocol-silo__threads-48` の省略で、実 file 名は省略しない。sha256 は commit 前の実 bytes から計算し、
+   spec 自身には spec の hash も凍結 commit の OID も書かない。
+8. **集約との対応 (§5.1 追補 (b)、D1974 項 2)。** 集約発行器へ渡すのは、上表の 3 組 (relpath, sha256) を `expected_specs`、3 spec の
+   `outputs.summary_relpath` を `summary_paths`、`output/env/pegasus/floor-pair/t2288-f1/` を `output_dir` とする組で、summary から期待列を
+   導出しない。全 6 campaign・3 cell・2 窓の閉包を集約側が照合する。identity は env_tag `pegasus`・protocol `silo` (build receipt の
+   genome から導出)・threads 48。期待される集約 file 名は
+   `b4-floor-aggregate__env-pegasus__protocol-silo__threads-48__workload-set-7095cfaaa30f9b4f5228__campaign-set-3553fb844072ea43111a.json`
+   (workload 3 件を canonical bytes 順、campaign_id 6 件を文字列順に並べて canonical JSON の SHA-256 先頭 20 hex)。これは予測値で、
+   成果物の存在・採用・内容 hash を確定しない。別の manifest・台帳は新設しない (D1936 項 7)。
+9. **D2088 の訂正。** D2088 は `reps = 5` が AI の選択であることを「spec の非保証欄と本決定に残す」と書いたが、`floor-pair-spec/v3` には
+   その欄が無く、未知 key は loader が拒否する。欄を足す実装変更はせず、AI の選択 (reps と本決定の項 5) は凍結 spec の path / sha256 に
+   対応付けた本決定と insight に残す。これは D2088 の記録先の訂正であり、値の変更ではない。
+
+**理由:**
+- A-5 の各値は D2120 項 4 が列挙して AI 確定を委任した範囲にあり、対象集合・統計関数・欠測規則・時間分離要件は変えていない。
+  段 3 の敵対相談 2 本は「授権は十分、ユーザーへ返す事項なし」で一致した。
+- 期待 spec 列を凍結 spec と同じ commit に置くのは、spec の sha256・HEAD blob 一致・祖先性だけでは「後から spec と期待 hash を
+  差し替える」経路を閉じられないため。同じ commit に置いても機械的に後変更不能にはならず、後続はこの pin を使うと決めることで
+  事前性を運用として保つ。
+- 窓を 3 spec 共通にしたのは、3 cell を別々の割当てで走らせても同じ 2 つの許容帯に収めるため。並走できることは資源と admission に
+  依存し、本決定は保証しない。
+- 48 時間の隙間は「24 時間以上離した 2 campaign」を開始許容帯の構成で読み取れるようにするための余裕である。session 全体の
+  上限を driver が持たないので、終了→開始の分離は人手確認に残す (D1974 項 3・6)。
+- 現物で確かめた: 3 spec とも loader の parse 関数を通り、凍結 checkout で `--validate-only` が通ることは本決定を含む commit の
+  後に実走して insight へ記録する (本決定は結果を書かない)。
+
+**却下した選択肢:**
+- summary から期待 spec 列を導出する — 欠けた入力を期待集合からも消せる循環になる (D1974)。
+- 仮置き wave の値 (2030 年の窓、ゼロ seed、`timeout_s 600`) を先例として継承する — 仮置きは先例でないと当該 insight が明記している。
+- spec に非保証欄や説明 field を足す — 未知 key は拒否され、実装変更が要る。
+- 結果や進捗を見て窓・対象・seed を延長・差替えする — §5.1 追補 (b)(f)、§11.1 手順 7 に反する。窓を使えずに終わった場合は
+  未実施の凍結として記録を残し、新しい凍結を別 commit で行う。
+- 窓の隙間を 24 時間にとどめる — 開始許容帯の差としては条件を満たすが、session の終了が窓を越えうるため、分離の読み取りが
+  人手確認の結果に全面依存する。48 時間でも人手確認は残るが、読み取りの余裕が増える。
+
+**本決定が主張しないこと:** 期待集合・seed・凍結の事前性の機械証明。n = 62・実 campaign の分離・対象集合の意味的一致の機械保証。
+標本の統計的独立性、残存標本での 95% 被覆、contention 域の網羅。session の wall 上限、将来の割当て・環境の同一性、別 node 並走、
+admission、実走の成功。binary の将来の可用性、trace 不在の完全な検出、実行中 module bytes と記録 commit の対応。成果物の削除・改変の
+防止。床値の生成・採用・§5 の記入・本書の発効。
+
+## D2139. 実装子 worktree の終端 commit は起動器と待ち手が行い、対象外・保存未達・親担当を分けて返す (2026-09-18)
+
+**決定:** D2044 項 16 (作業木の内容を wave 終了時に branch へ commit する) の実装として、次を定める。
+
+1. 発火点は起動器 `tools/dev_wave_codex.py` の launcher 復帰後と、待ち手 `tools/dev_wave_wait.py producer`
+   の `--commit-worktree <絶対 path>` (opt-in) の producer 死亡確定後。両者は同じ helper
+   `tools/dev_waves/git_state.commit_worker_worktree` を呼ぶ。
+2. 起動器の発火条件は `--sandbox workspace-write` かつ stage が author / fix。read-only 子・dry-run は
+   何も出さず、workspace-write の他 stage は `worktree-commit: skipped reason=stage` を出して発火しない。
+   stage と sandbox は独立に受理されるため sandbox だけでは対象を限定できない (段 2 plan の指摘)。
+3. 保存対象は投入先 worktree 全体の残差 (`git add -A` → staged)。内容を選別しない。commit は記録であり、
+   採用・land・撤去のどれとも別。
+4. 状態は 5 種。`committed <sha>` / `clean` (staged 空) / `deferred reason=operation-in-progress`
+   (`MERGE_HEAD` 等の操作進行中 — merge commit は親が作る、DW-C01) / `refused reason=<root-mismatch |
+   primary-worktree | detached-head | protected-branch>` (投入先の誤り) / `failed reason=<Git 操作名>`。
+   起動器の最終 rc は launcher rc≠0 ならそのまま、rc=0 かつ committed / clean / deferred なら 0、
+   rc=0 かつ refused / failed なら 3 (起動失敗 2 と区別し、親を「再投入」でなく「手動 commit」へ導く)。
+   待ち手は既存 outcome が成功で refused / failed のとき `producer-commit` で fail-closed にし receipt を
+   公開しない。flag 無しの待ち手は stdout / stderr / rc / receipt bytes を 1 byte も変えない。
+5. commit message は固定件名 + 本文 7 field + `AI-Agent: product=codex; model=<m>; reasoning=<r>;
+   role=author` の 1 行。値は launcher receipt の `recorded_*` → `requested_*` → `unknown` の順で採り、
+   `[a-z0-9][a-z0-9._-]*` へ正規化し、`none` は `unknown` に写す (`check_ai_provenance.py` が拒否)。
+   待ち手は receipt を読まず `unknown` を書く。message file は `<git-dir>/izanagi-worker-commit.msg`
+   (作業木の外) に置き、成功・失敗とも削除する。
+6. `index.lock` の特別扱い、rebase / cherry-pick ごとの分岐、done file の内容判定、check-only 経路の
+   書込み、submodule 内編集の再帰、同一 worktree 並行投入の排他、撤去 (cleanup) との接続は足さない。
+
+**理由:**
+
+- 依頼が名指した起動器と待ち手の両方を最小配線で実装し、新しい保存 framework・台帳・schema を作らない
+  (stdout 1 行と commit だけ)。
+- 対象外 (read-only 等) と保存未達 (refused / failed) を分けないと、`.done` の rc=0 が「残差を保存した」
+  とも「対象外だった」とも読め、終端契約が空洞化する (段 3 レンズ A、段 6 レビュー A)。
+- `requested_*` は launcher が `codex exec -m` / `model_reasoning_effort` へ実際に渡した確定値であり、
+  推測ではない。
+- `tempfile(dir=None)` は `TMPDIR` 次第で作業木内に落ち、中断時の残置が次の `add -A` で成果物へ混入
+  しうる (段 6 レビュー A)。git-dir は Git が返す作業木外の位置で、linked worktree ごとに分離される。
+
+**却下した選択肢:**
+
+- sandbox だけで発火判定 — `dev_wave_codex.py` は plan + workspace-write も受理するため対象外を巻き込む。
+- 起動時 snapshot や opt-in flag を起動器に足して親 worktree での発火を防ぐ — 親 worktree での
+  workspace-write 起動は DW-C01 の mid-merge だけで、それは `deferred` が受ける。追加の gate は仮想リスク
+  向けであり scope 外。
+- `index.lock` を `skipped` に分類 — 保存未達が rc=0 に隠れる。Git 失敗として `failed` に集約する。
+- 待ち手に launcher receipt path を渡す flag — 待ち手の commit は起動器が死んだときの後詰めであり、
+  receipt が無いことが常態。`unknown` は provenance 規約の許容値。
+- 子 commit を祖先として保持する統合 (patch 展開の廃止) — 段 5 の所有・投入契約の本体を変える別裁定。
+  D2044 項 16 の限定 (記録しただけでは取り込みも撤去可能性も成立しない) に従い本 wave では扱わない。
+
+## D2140. 計算ノード job の終了遅延は job body が session の残存 process を回収して塞ぐ — 帰属は入れ子 user ns、発火は request SHA-256 束縛、signal と終了観測は pidfd (2026-09-18)
+
+**決定 (D2124 の対処。D2048 / D2124 は置換しない):** job 内 dispatcher (`tools/pegasus/dispatch_compute.py` の `_job_run`) は、直接の子が戻った後・result 書込み前に
+自分の session に残る process を回収する。
+
+1. **対象** = `/proc/<pid>/stat` の session が `os.getsid(0)` と一致し、自分と祖先鎖 (ppid を 1 まで) を除き、かつ
+   `readlink(/proc/<pid>/ns/user)` が自分 (init ns) と**異なる** process。bootstrap は全 task の子を入れ子 user ns に置くので、この述語が workload への帰属証明になる。
+   同 ns・ns 不読・stat 不読は trace に記録するだけで signal しない。
+2. **発火** = job script が export する `IZANAGI_DISPATCH_JOB_SESSION_SWEEP="$REQUEST_SHA256"` が `_job_run` の検証済み request SHA-256 と一致するときだけ。
+   値は child_env から pop する。ambient な `1` や別 sha では getsid にも `/proc` にも触れない (login node の in-process テストを守る)。
+3. **signal と観測** = `os.pidfd_open` → starttime 再照合 → `signal.pidfd_send_signal(SIGTERM)` → pidfd の `select.poll` (POLLIN = 終了) で 5 秒 →
+   生存へ SIGKILL → 1 秒 → 再列挙。最大 2 巡、新規候補 0 で終了、候補 0 の巡は待たない。`os.kill(pid)`・非子 `waitpid`・subreaper・PID ns・setsid は使わない。
+4. **記録** = `IZANAGI_DISPATCH_JOB_TRACE` の新事象 (`session-sweep-start` に祖先鎖、`session-residual`、`session-signal`、`session-process-exited`、`session-sweep-complete` の
+   status ∈ {clean, remaining, unknown} と件数、`session-sweep-error`)。result schema の field は増やさない。sweep の失敗は `child_rc` / result / return を変えない。
+5. 定数 5 秒 / 1 秒 / 2 巡は設計値 (未実測) であり、CLI・request・env から変えられない。
+
+**理由:**
+- D2124 の設計入力 (session 離脱・session を基準とする回収を検証候補とし、会計終了と残存子の終了を別々に評価) のうち、「job 終了時に残さない」は回収でしか満たせない。
+  session 離脱 (`start_new_session`) は残存を別 session へ移すだけで、離脱後の記録途絶は回収成功の証拠にならない (D2124)。
+- 計算ノードの実 trace で session leader は NQSV の `nqs_shpd` (ユーザー uid) であり、dispatcher は leader ではない。「同 session を全部 kill」は leader を殺す。
+  祖先鎖の除外だけでは同 session の非祖先 NQSV process を守れない (段 3 A-1) ので、bootstrap の構造 (入れ子 user ns) から導ける帰属述語を置いた。login で述語の可読性を実測した。
+- 既存の in-process テストは `patch.dict(os.environ, clear=True)` でないものがあり、`=1` の opt-in は ambient 継承で login の pytest session を走査しうる (段 3 A-2)。
+- pid 再利用の窓 (段 3 A-3) と終了観測の独立性 (D2124 の「別々に評価」) は pidfd で同時に満たせる。計算ノード kernel 5.15 で利用可能 (login 実測、計算ノード実走)。
+- 計算ノード 2 走 (generic 単一子 probe): 統制 no-child `E − J` = −0.468 秒 / 残存 0、陽性対照 keep (子 75 秒) `E − J` = −0.381 秒 / 残存 1 を KILL で回収
+  (`after=kill`、pidfd で終了観測、G − t0 = 10.0 秒)。前 2 wave の同条件は 69.5 / 69.7 秒。
+- **環境事実:** 計算ノード job 内の全 process は SIGTERM を SIG_IGN で継承する (nqs_shpd → bash → dispatcher → 子、F1012 と同じ)。handler を持たない残存子は TERM で死なず、
+  猶予 5 秒後の KILL で死ぬ。keep の期待は投入前にこの形へ改訂して固定した。
+
+**却下した選択肢:**
+- 隔離 child を `start_new_session=True` で別 session に置く (session 離脱) — 会計は早く終わるが残存 process が node に残る。「残さない」を満たさない。
+- subreaper で孫を回収する — F973 (zombie の窓が残存計数を汚す)。
+- uid フィルタ — 同 uid の非 workload (`nqs_shpd` は uid 31609) を守れない。ns 帰属述語に包含。
+- opt-in を固定値 `1` にする — ambient 継承で in-process テストが発火する。
+- dispatcher で SIGTERM を SIG_DFL に戻して子孫に継承させる — TERM 猶予が効くようになるが job body 全体の signal 環境を変え、受入 suite の既存挙動へ波及しうる。本 wave の scope 外、次の一手候補。
+- 計算ノードで SIGTERM を無視する子の追加 1 走 — probe の改変 (Codex author) と別事前登録が要る。結論を generic 単一子に限定し、SIGKILL 経路は login のテストで検証。
+  結果的に keep 自体が SIG_IGN 継承で KILL 経路を通った。
+- watchdog・一般的な process 管理機構・result schema への field 追加 — 依頼の scope 外。
+
+## D2141. SS2PL runner の condition gate 問題の対照材料は、gate と登録簿を repo 側で 1 byte も変えず、job dir の試作 patch と shadow 登録簿で層別に取る — shadow の結果は機構診断であり、stock 側 ycsb target の比較の成立とは扱わない (2026-09-18)
+
+**決定:** D2120 項 12 の再提示材料 (`output/insights/2026-09-18/t2737-ss2pl-gate-controls/`) は次の形で取り、次の限定を付す。
+
+1. 試作 patch (revS) と abort 無条件除去版、shadow 登録簿 (O = repo と byte 同一 / T+ = target を `tpcc_ss2pl.exe` / T− = T+ + KIND の companion 除去) は job dir にだけ置き、repo の `patches/`・`condition_meaning_gate.py`・runner は変えない。shadow の受理条件は「repo の gate bytes に許可置換だけを施した期待 bytes との全体一致」とし、`inert_values` / `owner_tus` / 式 / 非 SS2PL entry / logic の変更は拒否する。
+2. 材料の先頭に「stock の ss2pl に `ycsb_ss2pl.exe` target が無い限り、inert arm の stock 比較は gate 不変では構造的に成立しない」「shadow T± の結果は tpcc target の owner TU の機構診断であって、測定する ycsb TU の stock 逐語 (D790) の認証ではない」を置く。shadow の admission を production の認証・certified 選択に流用しない。
+3. 試作 patch に新しい lock 意味論、KIND を IMPL=0 で効かせる細工、`#line` 指令を入れない。S arm の復元は stock 本文の復元に限り、固定範囲で届かなければ残差を成果物とする (実測: 残差 1 行 = login diff で `ERR` macro の `__LINE__`)。
+4. `wfg.cc` は CMake の `CCBENCH_SS2PL_WFG_DIAG` 条件付きのまま (runner の `validate_wfg_absence` は source 名の `wfg` を拒否する)。WFG の閉包差は owner TU の `ss2pl_wfg.hh` include 無条件化と中身の `#if` 囲いで閉じる。
+5. (iii) warm-up の測り方は既存 helper `buildcache.prepare_masstree_fetchcontent` (D2131 と同形、`FETCHCONTENT_BASE_DIR` は既存 non-symlink directory を事前に作る) とし、生の `cmake --build --target masstree_build` は使わない。
+6. 採否は書かない。材料は「成立した比較 / 成立しない比較 / 必要な変更層 / 費用・隙間 / 証拠 cell」の 1 表と、択一の骨子までとする。
+
+**理由:**
+- gate (T-2018) は inert witness の防壁で、主経路外の研究のために緩めない (D2120 項 12 の (i) 不採用)。登録簿の行だけ差し替えた写しで測れば、gate logic を変えずに「どの層の変更で何まで進むか」が層別に読める。
+- tpcc target の一致を採用根拠へ昇格させると、未検査の ycsb 経路を残したまま対象を変えて防壁を迂回した結論になる (段 3 / 段 6 レンズ A)。
+- `#line` は gate の比較対象 (前処理 bytes) を人為的に揃える操作であり、材料の段階で入れると「成立」の意味が変わる。
+- 9 driver と t316 probe が既に helper 経由で masstree を準備しており、SS2PL runner だけが欠く。同形で測るのが最小差分で、生の cmake target 呼び出しは D2131 が sink として却下した形。
+
+**却下した選択肢:**
+- 8 変更群だけの試作を別版として先に測る (段 2 plan) — S 一致まで復元した 1 版で届かなければ残差が同じ材料になる。
+- `wfg.cc` を無条件 compile にする (段 2 plan) — runner の source 名検査に抵触し、owner TU の閉包にも無関係。
+- gate の positive control として S に 1 行差分を混ぜる cell を足す — abort 無条件除去版 (残差 218 行) が対照になる。ただし両版 red なので「abort 単独で green → red」の反転対照は未成立と書く。
+- 試作 patch・probe を repo へ入れる — 実装面は Codex author が書き、job dir に置いて insight に `.md` 逐語で残す (T-317 未裁定、`compute-probe-stays-out-of-repo`)。
