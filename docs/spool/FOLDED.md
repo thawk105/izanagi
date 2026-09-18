@@ -4851,3 +4851,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-09-18","base":"d6251862191083072d53c676614e1a01c6781486","content_sha256":"9fbf514dacade6dd6a14d2ced81d1a20cb308b78ef7a891c2323ea6cf1ff7658","seq":1,"tested_tip":"97e260b6a48a3518dee4b0b8a976c5c1e47f4462","wave":"dev-wave-t2608-fold-verifier-detail","wave_ref":"refs/heads/codex/dev-wave-t2608-recovery-v2"}
 - {"allocations":{},"authored":"2026-09-18","base":"d6251862191083072d53c676614e1a01c6781486","content_sha256":"26fb47948978a8c8feddbda620fca9125a94936876bb2ddfa4fa5735075d5ffc","seq":2,"tested_tip":"97e260b6a48a3518dee4b0b8a976c5c1e47f4462","wave":"dev-wave-t2608-fold-verifier-detail","wave_ref":"refs/heads/codex/dev-wave-t2608-recovery-v2"}
+
+- {"allocations":{},"authored":"2026-09-18","base":"7b7656c510a40e75f0f5b24c71b51f11e6a77918","content_sha256":"7a006a9630af7b3466140106c2ccf66f5ec974c29ae373846f0b79cb848edfce","seq":1,"tested_tip":"cff062f540b138626cbfd57728bbc99d2b92f87e","wave":"dev-wave-t2779-recovery-codex","wave_ref":"refs/heads/worktree-dev-wave-t2779-recovery-codex"}
