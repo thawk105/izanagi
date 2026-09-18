@@ -142,6 +142,45 @@ raise SystemExit({rc})
     return path
 
 
+def _make_timed_fake_landed(path: Path, *, silent: bool = False) -> Path:
+    body = f"""#!/usr/bin/env python3
+import json
+import sys
+import time
+
+timeout = float(sys.argv[sys.argv.index("--timeout-seconds") + 1])
+oid = sys.argv[-1]
+if {silent!r}:
+    time.sleep(60)
+    raise SystemExit(0)
+time.sleep(timeout + 0.3)
+payload = {{
+    "schema": "izanagi-branch-landed-v1",
+    "branch": {{"input": oid, "tip": oid}},
+    "branch_delete_authorized": False,
+    "manual_review_required": True,
+    "decision": {{"verdict": "indeterminate", "reason": "assessment-timeout",
+                 "conclusive": False}},
+    "observations": {{"ledger_corpus": {{"bytes_read": 0}}}},
+    "summary": {{"files_enumerated": True, "proof_units": 1}},
+    "proof_units": [{{
+        "commit": oid, "path": "docs/example.md", "change": "add",
+        "required_state": "blob",
+        "decision": {{"verdict": "not-landed", "reason": "assessment-timeout"}},
+        "evidence": [{{
+            "layer": "exact-tree-state", "decisive": True, "outcome": "truncated",
+            "reason": "assessment-timeout", "candidate_count": 0,
+            "candidate_limit": 1, "matched_commit": None,
+        }}],
+    }}],
+}}
+print(json.dumps(payload, sort_keys=True))
+raise SystemExit(2)
+"""
+    path.write_text(body, encoding="utf-8")
+    return path
+
+
 def _make_fake_audit(path: Path, commits: list[str]) -> Path:
     rows = "".join(f"  commit {oid} (fixture)\n" for oid in commits)
     body = f"""#!/usr/bin/env python3
@@ -1912,3 +1951,48 @@ def test_unit_details_do_not_change_rescue_rc_or_decision_inputs(tmp_path, monke
         assert (assessment["complete"], assessment["conclusive"], assessment["verdict"], assessment["checker_rc"]) == (
             False, False, "indeterminate", 2,
         )
+
+
+def test_landed_checker_timeout_json_is_collected_within_exit_grace(tmp_path: Path):
+    checker = _make_timed_fake_landed(tmp_path / "checker.py")
+    oid = "a" * 40
+
+    assessment = TOOL._landed_assessment(tmp_path, checker, oid, 0.5, 100.0)
+
+    assert assessment["reason"] == "assessment-timeout"
+    assert assessment["checker_rc"] == 2
+    assert assessment["verdict"] == "indeterminate"
+    assert assessment["conclusive"] is False
+    assert assessment["complete"] is False
+    assert assessment["manual_review_required"] is True
+    assert assessment["corpus_bytes_read"] == 0
+    details = assessment["unproven_unit_details"]
+    assert details["complete"] is True
+    assert details["missing_reason"] is None
+    assert details["units"][0]["commit"] == oid
+    assert details["reason_counts"] == {"assessment-timeout": 1}
+    assert assessment["elapsed_seconds"] >= 0.8
+
+
+def test_landed_checker_silent_child_is_cut_at_budget_plus_exit_grace(tmp_path: Path):
+    checker = _make_timed_fake_landed(tmp_path / "checker.py", silent=True)
+    oid = "a" * 40
+
+    assessment = TOOL._landed_assessment(tmp_path, checker, oid, 1.0, 100.0)
+
+    assert assessment["reason"] == "checker-timeout"
+    assert assessment["checker_rc"] is None
+    assert assessment["complete"] is False
+    assert assessment["unproven_unit_details"]["missing_reason"] == "child-report-unavailable"
+    assert 1.0 + TOOL.CHECKER_EXIT_GRACE_SECONDS - 0.2 <= assessment["elapsed_seconds"] < 10.0
+
+
+def test_landed_checker_overall_remaining_caps_the_wait(tmp_path: Path):
+    checker = _make_timed_fake_landed(tmp_path / "checker.py", silent=True)
+    oid = "a" * 40
+
+    assessment = TOOL._landed_assessment(tmp_path, checker, oid, 5.0, 0.5)
+
+    assert assessment["reason"] == "checker-timeout"
+    assert assessment["checker_rc"] is None
+    assert assessment["elapsed_seconds"] < 3.0

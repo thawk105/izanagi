@@ -41,16 +41,16 @@ dispatch は `hang_timeout_seconds` < job walltime。超過は orphan hold 中�
 
 ## DW-M07 — fix 後 anchor
 
-本走前にfix後の最終commitでspecのanchor(old逐語)と期待nodeを再検証。
+source-repoはD1009の独立clone（main=対象commitに固定）。
+本走前にfix最終commitでspec anchor(old逐語)・期待nodeを再検証。
 mask時の再照準とerratumは`DW-M02`に従い台帳へ。
 本走は`--runner-mode dispatch`既定、runner argvへ`--force-dispatch`。localはspec不問でlogin拒否。
-runner経路の変異は自壊し収集段`rc=16`。
+runner経路変異は収集段`rc=16`。
 `--attempt-out`と`--wrapper-attempt`はdispatch専用の同時指定必須ペア(片方のみ中止)。後者は1以上の整数、
 実走は`--detached`必須。再投入は両方変え、`--resume`は前回sidecarを新pathへ複写(F453。空fileは中止)。
 KILLED期待でnode空のspecは起動前に中止。probeは全件SURVIVEDで登録し観測nodeを集める。
-`--spec`/`--out`/`--attempt-out`はcheckout外必須(repo内rc=2。spec残置で次走もrc=2)、`--out`は
-`--scratch-root`と同一device(別deviceはrename失敗)。`timeout_seconds`はdispatch envelope超
-(下回るとqueue待ちでtimeoutし変異が残る)。
+`--spec`/`--out`/`--attempt-out`はcheckout外必須(repo内rc=2)、`--out`は
+`--scratch-root`と同一device(別deviceはrename失敗)。`timeout_seconds`はdispatch envelope超（不足はqueue timeout・変異残留）。
 
 ## DW-M08 — 失敗 node と検出力
 

@@ -625,6 +625,8 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
   (`tools/run_tests.py` / `tools/pegasus/dispatch_compute.py`) を含む場合は使わない** —
   `docs/dev-wave/mutation.md` の `DW-M07` が言う「runner が自壊し収集段が `rc=16` になる」が
   そのまま起きる。含まない変異でだけ使い、queue 回数の削減は実測値でだけ主張する。
+  `--task mutation` の内側runnerはdispatcherと同じPythonの**絶対path**を指定する
+  (`sys.executable` で確認)。`--walltime` は秒数でなく `HH:MM:SS`（例 `01:00:00`）。
 - **なお未充足のもの。** 「実測メモリが閾値を超えたら**自動で**投げる」判定は依然として
   実装していない。本節が持つのは admission 規範 (login で走らせない) と、上表の task を
   明示的に呼んだときの dispatch だけである。閾値判定からの自動 dispatch は裁定待ちとして残る。
@@ -1536,7 +1538,7 @@ F47 だけ解除しても hold で再び止まる。
    **変異 harness が作った hold は `job_name` が null で、timeout 経路では `request_id` と
    `submission_dir` も null になり得る。** その場合は dispatch receipt → attempt sidecar
    (`--attempt-out`) → `output/pegasus-dispatch/` の submission directory 一覧、の順で照合する。
-2. **手動 qdel は最後の手段。** 自分の dispatch job を qdel すると F47 ラッチが武装し、
+2. **手動 qdel は最後の手段。待ち時間の短縮だけを理由に取り消さない。** 自分の dispatch job を qdel すると F47 ラッチが武装し、
    その解除もユーザー手番になる。
 3. 対象の不在または終端を確認してから、変異 harness が残した dirty path を
    `git checkout --` で復元する。dirty path は停止記録の `reason.dirty_paths` にある。

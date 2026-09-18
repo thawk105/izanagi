@@ -1,0 +1,36 @@
+diff --git a/cc/mocc/transaction.cc b/cc/mocc/transaction.cc
+--- a/cc/mocc/transaction.cc
++++ b/cc/mocc/transaction.cc
+@@ -349,6 +349,13 @@
+       b = TupleBody(tuple->body_.get_key(), tuple->body_.get_val(),
+                     tuple->body_.get_val_align());
+
++#ifdef RWLOCK
++      if (tuple->rwlock_.ldAcqCounter() == W_LOCKED) {
++        status_ = TransactionStatus::aborted;
++        return Status::ERROR_LOCK_FAILED;
++      }
++#endif
++#line 350
+       desired.obj_ = __atomic_load_n(&(tuple->tidword_.obj_), __ATOMIC_ACQUIRE);
+       if (expected == desired)
+         break;
+@@ -1061,6 +1068,19 @@
+     }
+ #endif // RWLOCK
+
++    Tidword check_after_counter;
++    check_after_counter.obj_ =
++        __atomic_load_n(&((*itr).rcdptr_->tidword_.obj_), __ATOMIC_ACQUIRE);
++    if (check_after_counter.epoch != check.epoch ||
++        check_after_counter.tid != check.tid) {
++      (*itr).failed_verification_ = true;
++      this->status_ = TransactionStatus::aborted;
++#if ADD_ANALYSIS
++      ++result_->local_validation_failure_by_tid_;
++#endif
++      return false;
++    }
++#line 1038
+     this->max_rset_ = max(this->max_rset_, (*itr).rcdptr_->tidword_);
+   }

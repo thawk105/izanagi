@@ -24,6 +24,7 @@ from tools.dev_waves.git_state import (
     FOLD_COMMIT_MESSAGE,
     verify_declared_fold_commit,
 )
+from tools.dev_waves.schema import DevWavesError
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -2446,6 +2447,25 @@ def test_commit_identity_gate_rejects_gc_status_only(tmp_path: Path) -> None:
         )
     finally:
         spool_fold._commit_diff_records = original_reader
+
+
+def test_commit_identity_gate_exception_path_reports_declared_detail(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    _fragment(repo, "worklog", _worklog_body(repo))
+    plan = _plan_for_commit(repo)
+    fold_commit = _commit_applied_fold(repo, plan)
+    _assert_declared_fold(repo, plan, fold_commit)
+    _run_git(repo, "symbolic-ref", "HEAD", "refs/heads/t2608-does-not-exist")
+    exc = _transaction_raises(
+        "declared fold verifier が失敗: invalid-run ",
+        spool_fold.verify_fold_commit_identity,
+        repo,
+        plan,
+        fold_commit=fold_commit,
+    )
+    assert '{"kind":"head","label":"git"}' in str(exc)
+    assert isinstance(exc.__cause__, DevWavesError)
+    assert exc.__cause__.detail == {"kind": "head", "label": "git"}
 
 
 def test_discover_requires_exact_expected_id_complete_targets_and_absent_gc(tmp_path: Path) -> None:

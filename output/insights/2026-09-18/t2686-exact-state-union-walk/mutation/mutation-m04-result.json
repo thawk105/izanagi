@@ -1,0 +1,178 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2686-recovery-codex/mutation-m04-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/aa8e20a2b8021a7afbc6468d5e91a19e/izdw-aa8e20a2b8.o6452",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2686-recovery-codex/mutation-m04-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/aa8e20a2b8021a7afbc6468d5e91a19e/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.                                                                        [100%]\n1 passed in 4.33s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "21a4a6b3e2452abc796c95dc3a11e7c54a06e1f515c80382eada2c59db0908ec"
+    },
+    "artifact_error": null,
+    "collection_sha256": "cb6ffa9bf6aae9a33007735263ed9f3da26ffeceb3dd95d172d84e87503d3c97",
+    "duration_s": 339.075,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "e26c0e38bf3521b509ce532fcd0189f296e07f4b16e2ac2cb96f6d95fdb15e9d",
+    "repo_head": "977cda2ead6cb9d9a90741428babccbb416a3deb",
+    "runner_sha256": "8a0169d9150e8e61636244ad73419d82fdd4a3c8561a2665662f48ff7e5e9f34",
+    "spec_sha256": "6a89a6a83c9fc90a505c5085bab51d8f24c034183d87706dbf17aabc5d3333f9",
+    "status": "PASSED",
+    "test_output_sha256": "21a4a6b3e2452abc796c95dc3a11e7c54a06e1f515c80382eada2c59db0908ec",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "a41adde07ca742203aa49aab788a0a540865e31afc864762d2ebdb724d8bcbbb"
+  },
+  "date": "2026-09-18T13:52:20.995982+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2686-recovery-codex/mutation-m04-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/34512d11d4041f5f4235863b1ac91722/izdw-34512d11d4.o6454",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2686-recovery-codex/mutation-m04-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/34512d11d4041f5f4235863b1ac91722/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\nF                                                                        [100%]\n=================================== FAILURES ===================================\n_________ test_history_candidates_match_legacy_command[limit_plus_one] _________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw0/test_history_candidates_match_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14b369ba2590>\ncase = 'limit_plus_one'\n\n    @pytest.mark.parametrize(\"case\", [\n        \"ordinary\", \"one_parent_merge\", \"both_parent_merge\", \"octopus\", \"delete_only_merge\",\n        \"timestamp_inversion\", \"equal_timestamps\", \"parent_order_swapped\", \"root\",\n        \"delete_readd\", \"file_to_directory\", \"gitlink\", \"gitlink_ignore_submodules_config\",\n        \"rename_exact\", \"rename_modified\", \"limit_plus_one\", \"positive_at_limit_plus_one\",\n        \"lf_in_name\", \"rs_in_name\", \"leading_lf_name\", \"hex40_name\", \"non_utf8_sibling\",\n    ])\n    def test_history_candidates_match_legacy_command(tmp_path, monkeypatch, case):\n        merge_cases = {\"one_parent_merge\", \"both_parent_merge\", \"octopus\", \"delete_only_merge\",\n                       \"timestamp_inversion\", \"equal_timestamps\", \"parent_order_swapped\"}\n        limit = 32\n        merge = None\n        witness = None\n        if case in merge_cases:\n            repo, merge, parents = _candidate_merge_fixture(tmp_path, case, monkeypatch)\n            paths = [\"f\", \"g\"]\n            if case == \"one_parent_merge\":\n                assert _git(repo, \"rev-parse\", f\"{merge}^{{tree}}\").stdout == _git(\n                    repo, \"rev-parse\", f\"{parents[0]}^{{tree}}\").stdout\n        elif case == \"root\":\n            repo = _init_repo(tmp_path)\n            paths = [\"base.txt\"]\n            _git(repo, \"config\", \"log.showRoot\", \"false\")\n        elif case.startswith(\"rename_\"):\n            repo = _init_repo(tmp_path)\n            _git(repo, \"config\", \"diff.renames\", \"true\")\n            _write(repo, \"a\", \"shared line\\n\" * 20)\n            _commit(repo, \"source\")\n            _git(repo, \"mv\", \"a\", \"b\")\n            if case == \"rename_modified\":\n                _write(repo, \"b\", \"shared line\\n\" * 19 + \"changed line\\n\")\n            rename = _commit(repo, \"rename\")\n            assert \"R\" in _git(repo, \"diff-tree\", \"-M\", \"--name-status\", \"-r\", rename).stdout\n            _write(repo, \"a\", \"readded\\n\")\n            _commit(repo, \"readd source\")\n            paths = [\"a\", \"b\"]\n        elif case == \"file_to_directory\":\n            repo = _init_repo(tmp_path)\n            _write(repo, \"f\", \"file\\n\")\n            _commit(repo, \"file\")\n            (repo / \"f\").unlink()\n            _write(repo, \"f/child\", \"child\\n\")\n            _commit(repo, \"directory\")\n            _write(repo, \"f/child\", \"updated\\n\")\n            _commit(repo, \"child update\")\n            paths = [\"f\", \"f/child\"]\n        elif case.startswith(\"gitlink\"):\n            repo = _init_repo(tmp_path)\n            first = _git(repo, \"rev-parse\", \"HEAD\").stdout.strip()\n            _write(repo, \"other\", \"new\\n\")\n            second = _commit(repo, \"other\")\n            for oid in (first, second):\n                _git(repo, \"update-index\", \"--add\", \"--cacheinfo\", f\"160000,{oid},link\")\n                _git(repo, \"commit\", \"-m\", \"gitlink\")\n            if case.endswith(\"config\"):\n                _git(repo, \"config\", \"diff.ignoreSubmodules\", \"all\")\n            paths = [\"link\"]\n        elif case == \"non_utf8_sibling\":\n            repo = _init_repo(tmp_path)\n            _write(repo, \"dir/good\", \"good\\n\")\n            with open(os.fsencode(repo) + b\"/dir/\\xff\", \"wb\") as stream:\n                stream.write(b\"sibling\\n\")\n            _commit(repo, \"raw names\")\n            paths = [\"dir\", \"dir/good\"]\n        else:\n            path = {\"lf_in_name\": \"line\\nname\", \"rs_in_name\": \"rs\\x1ename\",\n                    \"leading_lf_name\": \"\\nfirst\", \"hex40_name\": \"a\" * 40}.get(case, \"f\")\n            repo, _, oid, witness, _ = _history_fixture(tmp_path, path)\n            paths = [path]\n            if case == \"delete_readd\":\n                _write(repo, path, \"readded\\n\")\n                _commit(repo, \"readd\")\n                _write(repo, path, \"updated\\n\")\n                _commit(repo, \"update\")\n            elif case in {\"limit_plus_one\", \"positive_at_limit_plus_one\"}:\n                limit = 3\n                for value in (\"later one\\n\", \"later two\\n\"):\n                    _write(repo, path, value)\n                    _commit(repo, value.strip())\n            elif case == \"ordinary\":\n                _write(repo, \"unrelated\", \"noise\\n\")\n                _commit(repo, \"unrelated\")\n        if case in {\"limit_plus_one\", \"positive_at_limit_plus_one\"}:\n            # Ensure the order-sensitive fixture is non-lexical regardless of commit time.\n            # Changing only the last message preserves the trees and the fourth witness.\n            probe = TOOL.Git(repo, TOOL.time.monotonic() + 30)\n            for nonce in range(100):\n                main = _git(repo, \"rev-parse\", \"main\").stdout.strip()\n                rows = _legacy_candidates(probe, main, paths[0], limit)\n                if rows != sorted(rows):\n                    break\n                _git(repo, \"commit\", \"--amend\", \"-m\", f\"non-lexical tip {nonce}\")\n            else:\n                pytest.fail(\"could not construct non-lexical candidate fixture\")\n        git, main, supplier = _candidate_supplier(repo, paths, limit)\n        assert supplier.walks == 0 and supplier.mode == \"none\"\n        for path in paths:\n            legacy = _legacy_candidates(git, main, path, limit)\n            if merge:\n                assert legacy.count(merge) == 1\n            if case in {\"limit_plus_one\", \"positive_at_limit_plus_one\"}:\n                assert len(legacy) == limit + 1\n                assert legacy != sorted(legacy)\n                assert legacy[-1] == witness\n            if case.startswith(\"rename_\"):\n                assert rename in legacy\n            if case == \"root\":\n                assert legacy == [main]\n>           assert supplier.candidates(path) == legacy\nE           AssertionError: assert ['1185514b690...3aeff55674a7'] == ['bc2490a1a0c...3aeff55674a7']\nE             \nE             At index 0 diff: '1185514b690b2763d39841afe6d9f75f62bc02f3' != 'bc2490a1a0c75eb30059c7544cf5c913f6b893af'\nE             Use -v to get more diff\n\norchestrator/tests/test_check_branch_landed.py:2198: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_branch_landed.py::test_history_candidates_match_legacy_command[limit_plus_one]\n1 failed in 4.36s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_branch_landed.py::test_history_candidates_match_legacy_command[limit_plus_one]\" nodeid_bytes=108 nodeid_omitted_bytes=0 source_bytes=6177 retained_bytes=3894 omitted_bytes=2283 rendered_excerpt_bytes=4096 sha256=a85b843442fc098174d3c2ac2af10bcdc7d440db7b62bef7047936af4e927ad7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> epo(tmp_path)\n>             _write(repo, \"f\", \"file\\x5cn\")\n>             _commit(repo, \"file\")\n>             (repo / \"f\").unlink()\n>             _write(repo, \"f/child\", \"child\\x5cn\")\n>             _commit(repo, \"directory\")\n>             _write(repo, \"f/child\", \"updated\\x5cn\")\n>             _commit(repo, \"child update\")\n>             paths = [\"f\", \"f/child\"]\n>         elif case.startswith(\"gitlink\"):\n>             repo = _init_repo(tmp_path)\n>             first = _git(repo, \"rev-parse\", \"HEAD\").stdout.strip()\n>             _write(repo, \"other\", \"new\\x5cn\")\n>             second = _commit(repo, \"other\")\n>             for oid in (first, second):\n>                 _git(repo, \"update-index\", \"--add\", \"--cacheinfo\", f\"160000,{oid},link\")\n>                 _git(repo, \"commit\", \"-m\", \"gitlink\")\n>             if case.endswith(\"config\"):\n>                 _git(repo, \"config\", \"diff.ignoreSubmodules\", \"all\")\n>             paths = [\"link\"]\n>         elif case == \"non_utf8_sibling\":\n>             repo = _init_repo(tmp_path)\n>             _write(repo, \"dir/good\", \"good\\x5cn\")\n>             with open(os.fsencode(repo) + b\"/dir/\\x5cxff\", \"wb\") as stream:\n>                 stream.write(b\"sibling\\x5cn\")\n>             _commit(repo, \"raw names\")\n>             paths = [\"dir\", \"dir/good\"]\n>         else:\n>             path = {\"lf_in_name\": \"line\\x5cnname\", \"rs_in_name\": \"rs\\x5cx1ename\",\n>                     \"leading_lf_name\": \"\\x5cnfirst\", \"hex40_name\": \"a\" * 40}.get(case, \"f\")\n>             repo, _, oid, witness, _ = _history_fixture(tmp_path, path)\n>             paths = [path]\n>             if case == \"delete_readd\":\n>                 _write(repo, path, \"readded\\x5cn\")\n>                 _commit(repo, \"readd\")\n>                 _write(repo, path, \"updated\\x5cn\")\n>                 _commit(repo, \"update\")\n>             elif case in {\"limit_plus_one\", \"positive_at_limit_plus_one\"}:\n>                 limit = 3\n>                 for value in (\"later one\\x5cn\", \"later two\\x5cn\"):\n>                     _write(repo, path, value)\n>                     _commit(repo, value.strip())\n>             elif case == \"ordinary\":\n>                 _write(repo, \"unrelated\", \"noise\\x5cn\")\n>                 _commit(repo, \"unrelated\")\n>         if case in {\"limit_plus_one\", \"positive_at_limit_plus_one\"}:\n>             # Ensure the order-sensitive fixture is non-lexical regardless of commit time.\n>             # Changing only the last message preserves the trees and the fourth witness.\n>             probe = TOOL.Git(repo, TOOL.time.monotonic() + 30)\n>             for nonce in range(100):\n>                 main = _git(repo, \"rev-parse\", \"main\").stdout.strip()\n>                 rows = _legacy_candidates(probe, main, paths[0], limit)\n>                 if rows != sorted(rows):\n>                     break\n>                 _git(repo, \"commit\", \"--amend\", \"-m\", f\"non-lexical tip {nonce}\")\n>             else:\n>                 pytest.fail(\"could not construct non-lexical candidate fixture\")\n>         git, main, supplier = _candidate_supplier(repo, paths, limit)\n>         assert supplier.walks == 0 and supplier.mode == \"none\"\n>         for path in paths:\n>             legacy = _legacy_candidates(git, main, path, limit)\n>             if merge:\n>                 assert legacy.count(merge) == 1\n>             if case in {\"limit_plus_one\", \"positive_at_limit_plus_one\"}:\n>                 assert len(legacy) == limit + 1\n>                 assert legacy != sorted(legacy)\n>                 assert legacy[-1] == witness\n>             if case.startswith(\"rename_\"):\n>                 assert rename in legacy\n>             if case == \"root\":\n>                 assert legacy == [main]\n> >           assert supplier.candidates(path) == legacy\n> E           AssertionError: assert ['1185514b690...3aeff55674a7'] == ['bc2490a1a0c...3aeff55674a7']\n> E             \n> E             At index 0 diff: '1185514b690b2763d39841afe6d9f75f62bc02f3' != 'bc2490a1a0c75eb30059c7544cf5c913f6b893af'\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_check_branch_landed.py:2198: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=6177 retained_bytes=3894 omitted_bytes=2283 budget_bytes=49152 rendered_bytes=4838 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "92e100d342bc727a6a1552dacb1f98f688d23ce5f99425d2e128edbe9f8e745b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cb6ffa9bf6aae9a33007735263ed9f3da26ffeceb3dd95d172d84e87503d3c97",
+      "duration_s": 27.298,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_landed.py::test_history_candidates_match_legacy_command[limit_plus_one]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_branch_landed.py::test_history_candidates_match_legacy_command[limit_plus_one]"
+      ],
+      "hang_risk": false,
+      "id": "m04",
+      "injection_diff_sha256": "cb843bb9b83cbcb25d28ca42ec84540eedad5db4cb30ca42e02faf5cbbc96bb4",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ea1ab1ec91205822ef2275a133ee959fd998ddf4b2c8a6db7a7e8e73241b9a1c",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "new": "        return {path: sorted(rows) for path, rows in result.items()}\n\n    def _prepare(self)",
+          "old": "        return result\n\n    def _prepare(self)"
+        }
+      ],
+      "repo_head": "977cda2ead6cb9d9a90741428babccbb416a3deb",
+      "runner_sha256": "8a0169d9150e8e61636244ad73419d82fdd4a3c8561a2665662f48ff7e5e9f34",
+      "spec_sha256": "6a89a6a83c9fc90a505c5085bab51d8f24c034183d87706dbf17aabc5d3333f9",
+      "status": "KILLED",
+      "test_output_sha256": "92e100d342bc727a6a1552dacb1f98f688d23ce5f99425d2e128edbe9f8e745b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "a41adde07ca742203aa49aab788a0a540865e31afc864762d2ebdb724d8bcbbb"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2686-recovery-codex/mutation-m04-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7052e91cdbc8789d6eb488a3b7a7bfa4/izdw-7052e91cdb.o6449",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2686-recovery-codex/mutation-m04-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7052e91cdbc8789d6eb488a3b7a7bfa4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_check_branch_landed.py::test_history_candidates_match_legacy_command[limit_plus_one]\n\n1 test collected in 0.71s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "7b2bf9e351651a99c40ab100ec9351806075c336c039972c51c2a267116b9ee4"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_check_branch_landed.py::test_history_candidates_match_legacy_command[limit_plus_one]"
+      ],
+      "duration_s": 708.736,
+      "rc": 0,
+      "repo_head": "977cda2ead6cb9d9a90741428babccbb416a3deb",
+      "runner_sha256": "8a0169d9150e8e61636244ad73419d82fdd4a3c8561a2665662f48ff7e5e9f34",
+      "spec_sha256": "6a89a6a83c9fc90a505c5085bab51d8f24c034183d87706dbf17aabc5d3333f9",
+      "status": "PASSED",
+      "tool_sha256": "a41adde07ca742203aa49aab788a0a540865e31afc864762d2ebdb724d8bcbbb"
+    },
+    "hang_timeout_seconds": 120.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m04": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_branch_landed.py::test_history_candidates_match_legacy_command[limit_plus_one]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cb843bb9b83cbcb25d28ca42ec84540eedad5db4cb30ca42e02faf5cbbc96bb4",
+        "replacements": [
+          {
+            "file": "tools/check_branch_landed.py",
+            "new": "        return {path: sorted(rows) for path, rows in result.items()}\n\n    def _prepare(self)",
+            "old": "        return result\n\n    def _prepare(self)"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "e26c0e38bf3521b509ce532fcd0189f296e07f4b16e2ac2cb96f6d95fdb15e9d",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_check_branch_landed.py::test_history_candidates_match_legacy_command[limit_plus_one]",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 10000.0
+  },
+  "repo_head": "977cda2ead6cb9d9a90741428babccbb416a3deb",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_check_branch_landed.py::test_history_candidates_match_legacy_command[limit_plus_one]",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2686-recovery-codex/mutation-m04-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2686-recovery-codex/mutation-m04-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "e38ba88b9932dd001bfb53f3809db08b5ceaaf79",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "8a0169d9150e8e61636244ad73419d82fdd4a3c8561a2665662f48ff7e5e9f34",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "6a89a6a83c9fc90a505c5085bab51d8f24c034183d87706dbf17aabc5d3333f9",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 1,
+    "matching": 1,
+    "recorded": 1,
+    "registered": 1
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2686-recovery-codex/mutation-m04-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "a41adde07ca742203aa49aab788a0a540865e31afc864762d2ebdb724d8bcbbb",
+  "updated_at": "2026-09-18T13:59:24.586581+00:00"
+}

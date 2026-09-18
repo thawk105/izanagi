@@ -1,0 +1,100 @@
+{
+  "block_id": "B2",
+  "hostname": "bnode042",
+  "arm": "e9-instr-nowit-bo1",
+  "ordinal": 77,
+  "round": 26,
+  "order": [
+    "e9-diag-nowit",
+    "e9-instr-nowit-bo1",
+    "e9-instr-nowit"
+  ],
+  "started_at": "2026-09-18T07:21:30.592636+00:00",
+  "rc": 0,
+  "elapsed": {
+    "run_s": 3.1198210270085838,
+    "verify_s": 24.2437802440254
+  },
+  "commit_count": 911995,
+  "verifier": {
+    "status": "g2",
+    "reason": null,
+    "rc": 1,
+    "verdict": "non-serializable",
+    "certified": false,
+    "total_cycles": 1,
+    "integrity": {
+      "clean": true,
+      "orphan_reads": 0,
+      "version_dups": 0,
+      "dup_txids": 0,
+      "genesis_commits": 0,
+      "missing_txids": 0,
+      "write_version_mismatch": 0,
+      "malformed_keys": 0,
+      "framing_violations": 0,
+      "framing_violation_details": [],
+      "lock_coverage_violations": 0,
+      "write_intent_violations": 0,
+      "permutation_violations": 0,
+      "permutation_violation_details": {
+        "counts": {
+          "size-changed": 0,
+          "rcdptr-set-changed": 0,
+          "unknown": 0
+        },
+        "sample": [],
+        "unknown_reason_sample": []
+      },
+      "notes": []
+    },
+    "anomaly_count": 1
+  },
+  "discriminator": {
+    "status": "not-run",
+    "reason": "witness-off",
+    "observational_only": false
+  },
+  "observational_only": false,
+  "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+  "witness": false,
+  "run_process": {
+    "argv": [
+      "/scr/t2774-2umb3deo/build-e9-instr-nowit-bo1/cc/mocc/ycsb_mocc.exe",
+      "-ycsb_tuple_num=10000",
+      "-thread_num=48",
+      "-ycsb_zipf_skew=0.9",
+      "-ycsb_rratio=50",
+      "-ycsb_rmw=0",
+      "-ycsb_max_ope=10",
+      "-extime=3"
+    ],
+    "cwd": "/scr/t2774-2umb3deo/run-077-e9-instr-nowit-bo1/trace",
+    "rc": 0,
+    "timeout": false,
+    "error": null,
+    "elapsed_s": 3.1198210270085838
+  },
+  "verifier_process": {
+    "argv": [
+      "/bin/python3.10",
+      "-B",
+      "-m",
+      "orchestrator.verifier",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2779-mocc-g2-observation-conditions/arm-B/B2/runs/077-e9-instr-nowit-bo1/trace",
+      "--json",
+      "--protocol",
+      "mocc",
+      "--ccbench-root",
+      "/scr/t2774-2umb3deo/izanagi_wt_s4xl5vpl/wt",
+      "--expected-commits",
+      "911995"
+    ],
+    "cwd": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2779-node2",
+    "rc": 1,
+    "timeout": false,
+    "error": null,
+    "elapsed_s": 24.2437802440254
+  },
+  "finished_at": "2026-09-18T07:21:58.657400+00:00"
+}

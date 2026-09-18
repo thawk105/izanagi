@@ -1,0 +1,22 @@
+no-g2: PASS
+g2: PASS
+g2-indeterminate: PASS
+g2-input-rejected: PASS
+rc-contradiction: PASS
+invalid-json: PASS
+timeout: PASS
+empty-trace: PASS
+verifier-indeterminate: PASS
+aggregate-and-cp: PASS
+dynamic-arms: PASS
+arms-json-validation: PASS
+defines-accepted: PASS
+defines-reject-unknown-key: PASS
+defines-reject-wrong-prefix: PASS
+defines-reject-non-string: PASS
+defines-reject-empty: PASS
+defines-reject-whitespace: PASS
+defines-reject-semicolon: PASS
+defines-reject-define-prefix: PASS
+acyclic-unclean-indeterminate: PASS
+selftest: PASS 21/21 cases

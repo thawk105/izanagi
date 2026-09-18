@@ -16,7 +16,7 @@ title: verifier CLI 単独計時 probe — read-heavy (rr95・3 秒・48 thread�
   内訳・代表所要時間・CC 性能を確定しない (D2144 の試算を置き換えない、規律 7)。一次資料 `output/insights/2026-09-18/t2229-verify-cost-decomposition/README.md`
   §3。実装差分ゼロの probe として返し、probe script は repo に入れない。着手直前の local main から fresh worktree。規律 2 を緩めない。本題の
   計時だけ。仮想リスク向けの gate・検査・台帳・一般化の追加は scope 外」。
-- **1 条件・1 反復・1 node の観測記録を回収した。受入・main landは未完。** 一次資料は `output/insights/2026-09-18/verifier-cli-timing-probe/README.md`。
+- **1 条件・1 反復・1 node の観測記録を回収した。** 一次資料は `output/insights/2026-09-18/verifier-cli-timing-probe/README.md`。
   decisions fragment 0 (新しい設計判断なし。D2144 は置き換えない)、failures fragment 0。
 - 本走 (job `5868.nqsv`、bnode041、2026-09-18 15:32〜15:40 JST): campaign `ed8a676b` の反復と同じ動作点 (silo、pin `511c953`、
   `TRACE=1 BACK_OFF=0 NO_WAIT_LOCKING_IN_VALIDATION=1 NO_WAIT_OF_TICTOC=0 WAL=0`、1M records・48 thread・extime 3・rr95・zipf 0.9・
@@ -71,5 +71,11 @@ title: verifier CLI 単独計時 probe — read-heavy (rr95・3 秒・48 thread�
   全投入jobの終端、対象process不在、lease freeを確認。規律2を緩める変更・skip・除外・新gateは行っていない。
   再開には受入を妨げるGit列挙timeoutの実行環境/原因を確認し、正規受入を緑で完了させる必要がある。
   専用handoffはjob dirの `RECOVERY-HANDOFF.md`。dev-wave改善候補は「なし」、改善実装と次waveは追加しない。
+- 2026-09-19、ユーザーの「main landまで」の継続指示で再開した。前回停止を復旧不能の証拠とは扱わない。
+  最新main `0ab4627d4` にはT-2780 waveによるT1259のmodule snapshot配置修復が着地していた。
+  全51ケース、実snapshot、deepcopy、timeout、期待値、lock/shard閉包を維持した既存memo登録であり、
+  独立レビューと配置変異の記録を確認して固定SHAを取り込んだ。この回収waveで別の実装修正は加えない。
+  最終受入とlandの結果は同job dirの `resume-acceptance.json` / `resume-land.json` へ固定する。
+  過去の失敗・停止記録は経緯として保持し、測定の再投入やD2144の置換は行わない。
 
 ## 次の一手差分

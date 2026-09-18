@@ -1,0 +1,86 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 150,
+ "timeout_seconds": 4800,
+ "hang_timeout_seconds": 900,
+ "mutations": [
+  {
+   "id": "m1-grace-zero",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_rescue.py",
+     "old": "CHECKER_EXIT_GRACE_SECONDS = 2.0\n",
+     "new": "CHECKER_EXIT_GRACE_SECONDS = 0.0\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_timeout_json_is_collected_within_exit_grace"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-no-overall-cap",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_rescue.py",
+     "old": "                timeout=min(timeout + CHECKER_EXIT_GRACE_SECONDS, overall_remaining),\n",
+     "new": "                timeout=timeout + CHECKER_EXIT_GRACE_SECONDS,\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_overall_remaining_caps_the_wait"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-child-budget-also-raised",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_rescue.py",
+     "old": "                 \"--timeout-seconds\", str(timeout), oid],\n",
+     "new": "                 \"--timeout-seconds\", str(timeout + CHECKER_EXIT_GRACE_SECONDS), oid],\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_timeout_json_is_collected_within_exit_grace"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-max-instead-of-sum",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/check_branch_rescue.py",
+     "old": "                timeout=min(timeout + CHECKER_EXIT_GRACE_SECONDS, overall_remaining),\n",
+     "new": "                timeout=min(max(timeout, CHECKER_EXIT_GRACE_SECONDS), overall_remaining),\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_silent_child_is_cut_at_budget_plus_exit_grace"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-equivalent-arg-order",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/check_branch_rescue.py",
+     "old": "                timeout=min(timeout + CHECKER_EXIT_GRACE_SECONDS, overall_remaining),\n",
+     "new": "                timeout=min(overall_remaining, timeout + CHECKER_EXIT_GRACE_SECONDS),\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

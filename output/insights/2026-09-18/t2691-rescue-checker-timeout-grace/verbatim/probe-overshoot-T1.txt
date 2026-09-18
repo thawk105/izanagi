@@ -1,0 +1,6 @@
+run=1 rc=2 wall=1.115863692 over=.115863692 reason=[indeterminate assessment-timeout 1.006802] load=24.96
+run=2 rc=2 wall=1.107082786 over=.107082786 reason=[indeterminate assessment-timeout 1.003081] load=24.96
+run=3 rc=2 wall=1.126052725 over=.126052725 reason=[indeterminate assessment-timeout 1.011522] load=26.64
+run=4 rc=2 wall=1.133088928 over=.133088928 reason=[indeterminate assessment-timeout 1.009839] load=26.64
+run=5 rc=2 wall=1.116767654 over=.116767654 reason=[indeterminate assessment-timeout 1.007586] load=26.64
+run=6 rc=2 wall=1.103562748 over=.103562748 reason=[indeterminate assessment-timeout 1.001908] load=26.64

@@ -557,7 +557,7 @@ def test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench():
         )
         assert job.count(resolution) == 1, name
         if name == "mocc_trace_pilot.sh":
-            hydrate = 'timeout 20 python3 "$TOOLS/fetch_third_party.py" hydrate --repo-root "$REPO_ROOT"'
+            hydrate = 'timeout 20 "$HYDRATE_PY" "$TOOLS/fetch_third_party.py" hydrate --repo-root "$REPO_ROOT"'
             assert job.count(hydrate) == 1
             cache_check = (
                 'CACHE_ROOT=${!THIRD_PARTY_CACHE_ENV:-}\n'
@@ -583,7 +583,10 @@ def test_certify_gflags_stage_is_pinned_fail_closed_and_precedes_ccbench():
             ):
                 assert hydrate_body.count(required) == 1, required
             assert (job.index("# END T1718 COMPILER VERSION BODY GATE")
-                    < job.index(cache_check) < job.index(hydrate)
+                    < job.index(cache_check)
+                    < job.index("# BEGIN T2780 HYDRATE INTERPRETER GATE")
+                    < job.index("# END T2780 HYDRATE INTERPRETER GATE")
+                    < job.index(hydrate)
                     < job.index(root_read) < job.index(resolution))
             assert "IZANAGI_THIRDPARTY_SOURCE_ROOT" not in job
             assert "job-staging/thirdparty-src" not in job
