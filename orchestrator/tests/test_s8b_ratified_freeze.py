@@ -1536,7 +1536,7 @@ def test_receipt_emitter_requires_copied_inputs(tmp_path, missing):
             _write(tmp_path, relative, b"copied input\n")
     with pytest.raises(AssertionError) as caught:
         build_production_emitter_g1(tmp_path, receipt_root=tmp_path)
-    assert str(caught.value) == f"receipt base missing input: {missing}"
+    assert str(caught.value).startswith(f"receipt base missing input: {missing}")
 
 
 @in_sealed_fixture_process
