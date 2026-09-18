@@ -2558,7 +2558,7 @@ terminal な項目 (取り消し線付き・「裁定・完了記録」節) に�
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
 - [T-2064] 並行 land 中の mutation wrapper を共通 main 進行で rc=125 にしない fixed-source clone… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
-- [T-2071] dispatch変異のtimeoutをqueue / Pre-runningと child実行に分離し、child開始前の混雑でsource変… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。 2026-09-18 に [T-2484] の実測で再訪の材料を得た (Pre-running p99 398 秒・≥300 秒 2.2%、外側 900 秒の反実仮想発火率 0.55% のうち 3/4 が Pre-running / RUN 中 = orphan hold)。裁定 (a) の候補 (a-4) に相当し、(a) と同時に扱う。追加裁定はせず記録のみ。
+- [T-2071] dispatch変異のtimeoutをqueue / Pre-runningと child実行に分離し、child開始前の混雑でsource変… — 理由: 研究実走の値・受理集合・proof参照を直接変えない開発プロセス/衛生作業であり、D205に従いactiveから除外する。 2026-09-18 に [T-2484] の実測で再訪の材料を得た (Pre-running p99 398 秒・≥300 秒 2.2%、外側 900 秒の反実仮想発火率 0.55% のうち 3/4 が Pre-running / RUN 中 = orphan hold)。裁定 (a) の候補 (a-4) に相当し、(a) と同時に扱う。追加裁定はせず記録のみ。 2026-09-18 D2148項8で区間認識watchdog (a-4) は採らず、全区間を覆う外側timeoutとdispatchの短いhangタイマー撤去 (a-1)+(a-3) を選んだ。実装は[T-2484]が持つ。
   再訪条件: 現行研究実走のblockerとなり、成果物影響を特定できたとき。
 
 - [T-2128] **land の plan 作成を協調 lock の外へ移す** — 理由: 2026-09-01 ユーザー裁定
