@@ -54,5 +54,10 @@ title: verifier CLI 単独計時 probe — read-heavy (rr95・3 秒・48 thread�
   job `6399.nqsv` は **55 passed (106.82秒、Elapse 113秒)** で非再現。テストの除外・期待値変更・timeout緩和はしない。
   初回赤を緑に読み替えず、受入を再走する。原ログと最終受領証は同job dirの `recovery-acceptance-*`、
   切り分けは `recovery-focused-1.log`。計測probeの再投入は0回。
+- 受入attempt2はshard1の900秒queue待ちtimeoutによりdispatch infrastructure rc=16で中断し、緑受領証は出ていない。
+  兄弟停止時の6416.nqsvはPre-runningでqdel見送りとなったため、runbook §7.6に従い終端まで木とholdを保全した。
+  6414/6415/6416の不在、6416の最終child rc=0、source cleanとHEAD不変を確認後、holdをjob dirへ保全して解除。
+  この部分結果を受入へ合成しない。次の受入は既存 `IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE=3600` により
+  queue待ち予算だけを延ばし、テストtimeout・期待値・合否条件は維持する。新規gate・機構の追加はない。
 
 ## 次の一手差分
