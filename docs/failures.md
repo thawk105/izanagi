@@ -2456,6 +2456,8 @@
   監査した (`DW-O01` の「未受理は未完了と記し次の子に監査させる」)。fix 子の prompt には
   `## 総括` を最初の見出しとして明示し、2 本とも受理された。恒久対応は従来どおり親検収 +
   `check_codex_output.py` で、reference は編集しない。
+
+- **再発: 2026-09-18** — T-2686回収authorはCLI0でも必須総括見出しを落としてf43_fragment/launcher1になった。実装残差を保全し、DW-O01どおり独立review2本で実コードを監査した。未受理を成功報告へ書き換えず、後続promptでliteral見出しを明示した。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
@@ -2588,6 +2590,9 @@
   そこに「実行はセッション外」という実行環境の定義を足す (裁定項目 1 の材料)
 - 記録: worklog 2026-07-28 (33)、材料 = `output/insights/2026-07-25_t088-floor-wrapper.md` §9
 
+
+- **再発: 2026-09-18** — T-2780引継ぎで親が全史監査job6403をQUE中にqdelした。ローカル実行可能という再観測を理由にしたが、runbook §7.6の「手動qdelは最後の手段」「解除はユーザー手番」の帰結を操作前に確認しなかった。dispatcherはcompute-marker-not-observedでsubmission-disabled.jsonを作成した。ラッチを保持し、最終受入・land・清掃は人間による確認後へ止める。既存の禁止・解除契約を変えない。
+- **追補: 2026-09-18** — 取消し起因と解除境界を説明した後、ユーザーがmain landまでの再開と自己改善を指示した。今回の6403に限る復旧指示として、qstat不在・保全済みラッチのhash一致を照合して退避した。F47の一般解除条件は変えない。再発防止はdocs/dev-wave/core.mdのDW-C00から停止前のrunbook §7.6読了へ接続し、待ち短縮だけを理由とするqdelを禁止する。
 ### F48. 背景 job の worktree が origin/main から分岐し、local main より古い base で brief と受入を始めた [誤前提]
 
 - 日付: 2026-07-28
@@ -9498,6 +9503,11 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   積み、受入を取り直した。再発検知は本 F の手順 (land 前に `git rev-list --parents` で各 merge の親のどれかが
   tested main の祖先であることを確認する) を `hooks/README.md` の「guard 自身の保守境界」(5) へ写した —
   hooks/ を触る wave は第 2 worktree 経路を必ず通るので、この族に必ず入る。
+
+- **再発: 2026-09-18** — T-2608の回収で、main基点へ旧waveをmergeした後に同内容のauthor tipを履歴保全目的でmergeした。
+  後者ceb258ff7はtrusted親0で、第二親から見ると `M docs/spool/FOLDED.md` があり、landはrc26で拒否した。
+  累積tree差分ゼロとspool dry-run、受入25134 passed / 69 skippedを履歴適格性と取り違えた。mainは不動。
+  既存対処どおりmain第一親の一括mergeへ組み直す。DW-O23から本Fの一括merge・各親差分確認へ接続し、gateは変更しない。
 ### F267. 子の大出力 command が evidence を全損させる [証拠破損] [工数喪失]
 
 - 事象: 段 3 のレンズ B が 2 回連続で `evidence_status=invalid` となり、待ち手が rc=70
@@ -25777,6 +25787,32 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   同条件 1 回まで置換) に従い、前者は 5650.nqsv で置換 (344.4 秒、緑)、後者は補助観測のため置換せず n=2 とした。恒久対応は既報のまま
   変えない (timeout 拡大・fixture の stub 化・除外・汎用 gate の新設は行わない)。記録は
   `output/insights/2026-09-18/t2710-b5-wall-decomposition/README.md` §3・§10。
+
+- **再発: 2026-09-18** — /rulings 第 22 回の記録 wave (docs のみ、tip `ad4fa8a37`、post-claim merge なし) の受入 attempt 2
+  (session `978ffcaa…`、3 shard) で、`test_t1259_qsub_env_delivery_probe.py` の 1 件が setup error になった (24,823 passed /
+  69 skipped / 1 error、子 rc=1、受領証未発行で待ち手は rc=70)。junit.xml の setup traceback は既報と同一で、
+  `git -C <wave worktree> ls-files --others --exclude-standard -z` の 30.0 秒 TimeoutExpired。投入時の login load average は
+  約 25〜35、同時受入は他 session 1 本。同 argv は login の単独実測で 12.85 秒 (未追跡 0 件)、同 tip・同 file の単独再走
+  (`run_tests.py --force-dispatch`、request 4991.nqsv) は 51 passed / 16.96 秒 / rc=0 で非再現。wave の変更は台帳 fragment 2 本で
+  当該 fixture・probe・Git 呼出しは触っていない。既存の恒久対応どおり timeout 拡大・fixture の stub 化・除外・gate 新設は
+  せず、`DW-O18` に従い受入を 1 回再走した (attempt 1 は worktree の submodule 未初期化による `preflight-submodule-ready`
+  rc=2 で計算資源未消費、本件とは別)。記録は `/work/1/SFC/tanab/dev-wave-jobs/rulings-all-20260918/` (`acceptance-2.out` /
+  `focus-t1259.log`)。
+- **回収時の追補: 2026-09-18** — 旧門番のfinal-7-1はsetup timeout 4件でrc=70、final-7-2は同tip `67ff09ba9` で
+  child-greenとなった。旧chainログは赤を署名で分類して自動再投入しており、上の単独再走による親判定と同等の手順を
+  満たしたとは記録しない。緑を非帰属性や自動再試行の正当性の証拠にせず、回収waveでは同scriptを再利用しない。
+- **再発: 2026-09-18 (回収受入)** — tip `fbdac3089` の単一job全件受入 (request6453) は25,130 passed / 69 skipped /
+  3 setup errors。t1259のmodule fixtureが `probe._repo_snapshot` 内で行うuntracked走査 (`git ls-files --others
+  --exclude-standard -z`) の30秒TimeoutExpiredで、本体assertionには未到達。main `56be58448` との差分はdocs fragment3本で、
+  fixture・probe・Git呼出しへの実装差分はない。同tipの当該file単独再走は51 passed / 19.42秒 / rc0で非再現。
+  親がtracebackと差分を照合し、DW-O18の1回再走へ進む。検査の除外・stub化・timeout拡大はしない。
+- **再発: 2026-09-18 (回収受入、timing正例)** — 続くtip `2a0e2c5f4` の受入はt1259を通過し、budget testの
+  `test_atomic_publication_overrun_is_visible_in_rc_and_diagnostics` だけが `not_accepted` で失敗した
+  (25,132 passed / 69 skipped)。login単独走の同型receiptは `stop_reason=wall_clock_admission_bound_s`、
+  内側2秒上限が先に発火、publication gate 0.561秒→公開後10.852秒という外側の検査点は期待どおり。
+  receipt/diagnosticsを回収job dirのbudget-focus-evidenceへ保全した。受入と同じcompute環境の単独走6471は
+  25 passed / 21.51秒 / rc0。初回loginの赤を消さず、docs差分に到達しない境界と環境差を区別する。
+  本番・testの上限や期待値を変えず全件確認へ戻す。
 ### F946. 修正可能な検査失敗で作業を終了し、ユーザーへ再開を要求した [手順漏れ] [誤前提]
 
 - 事象: insights整理のauthorが実行ログ検査で未受理になり、親は原因の切り分けや安全な再試行をせず正式停止した。
@@ -25787,6 +25823,11 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 終了判断時に、原因調査・許可範囲の修正・再検証で進める状況でないかを確認する。
   人間の裁定/権限や新しい外部状態が必要という具体的根拠がなければ、再開要求へ逃がさない。
 
+
+- **再発: 2026-09-18** — 上記の修復可能なland拒否に対し、親が次wave禁止を理由に終了し、新contextでの再開をユーザーへ要求した。
+  `retryable_same_request=false` は同じ入力の再投入を拒む値で、監査済み成果からの局所修復まで禁じる根拠ではなかった。
+  ユーザーの「main landまでやれよ。自己改善よろ」で同じ依頼を継続。DW-STOPへ同一目的の修復と次waveの区別を明記した。
+  正式停止の条件、postcondition failureの停止、規律2、rebase/force禁止は維持する。
 ### F947. 私有関数の戻り型変更を、静的レビュー 3 本が揃って数え落とした [テスト代表性] [手順漏れ]
 
 - 事象: 単位 A1' の実装差分を当てた直後の焦点走で 118 node が赤になった
@@ -26953,6 +26994,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「測定の意味を取り違えたまま数値だけが独り歩きする」型。
   前 2 例は**測定条件**の取り違えで、本件は**測定対象そのもの**の取り違えである点が異なる。
 
+
+- **再発: 2026-09-18** — T-2686のwalk観測wrapperがオプション名 --name-only だけで対象を選び、git diffを履歴logへ混入させた。test_check_branch_landed.pyの7 selectorをlogとオプションの積へ限定し、期待0/1とassertを維持して373件の焦点走を通した。さらに一回限りの対測定driverではtruncatedという状態語だけで実行失敗と読み、仕様上の非決定的patch-id merge省略を誤拒否した。producerのexactな経路と実raw4正例/timeout等の負例で区別し、元の不完全表示とrun1のrc1を保持した。成果物は output/insights/2026-09-18/t2686-exact-state-union-walk/。
 ### F993. 編集面重複検査が worktree 作成直後の wave を 0 件と数え、2 wave が 28 秒差で同じ面を掴んだ [手順漏れ]
 
 - 事象: [T-2642] の着手前検査 (2026-09-16 ≈04:33 JST) で、全 74 worktree の未 commit 差分・
@@ -27684,6 +27727,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `orchestrator/tests/test_mocc_trace_job_contract.py` の interpreter gate 検査 (checker / verifier) と同型の hydrate 版を
   [T-2780] で足す。fake interpreter は配線の検査であり、計算ノードの旧 python での推移 import は
   実 job でしか確かめられない (F650 / F651 と同じく mocc pilot の実走で検出する型)。
+- **supersede: 2026-09-18** — T-2780でHYDRATE_PYの選択と実呼出配線、契約testを実装した。job5905はhydrate・patched build・verifier・discriminator finalizationを終端accounting付きで完走しno-g2/rc0。正式変異job6360で素のpython3への差戻しを検出し、version比較削除とrejected記録削除はsensitivityとして区別した。証拠はoutput/insights/2026-09-18/t2780-mocc-pilot-discriminator/。
 
 ### F1028. 親が job body 所有の evidence attempt dir へ投入直後に file を置き、job を preflight で失った [手順漏れ]
 

@@ -1,0 +1,133 @@
+{
+  "schema_version": "t2774-summary/v1",
+  "arms": {
+    "e9-instr-nowit": {
+      "N": 120,
+      "m": 120,
+      "k": 5,
+      "failure": 0,
+      "indeterminate": 0,
+      "decisive_m": 120,
+      "k_over_m": 0.041666666666666664,
+      "cp95": [
+        0.013665384116789837,
+        0.09455879997593641
+      ],
+      "k_over_decisive_m": 0.041666666666666664,
+      "decisive_cp95": [
+        0.013665384116789837,
+        0.09455879997593641
+      ],
+      "all_submitted_rate_bounds": [
+        0.041666666666666664,
+        0.041666666666666664
+      ],
+      "discriminator_counts": {
+        "supported": 0,
+        "contradicted": 0,
+        "indeterminate": 0,
+        "no-g2": 0,
+        "input-rejected": 0,
+        "not-run": 120
+      },
+      "comparisons": [],
+      "identification": {
+        "g2_runs": 5,
+        "identified_g2_runs": 0,
+        "rate": 0.0
+      }
+    },
+    "e9-diag-nowit": {
+      "N": 120,
+      "m": 120,
+      "k": 0,
+      "failure": 0,
+      "indeterminate": 0,
+      "decisive_m": 120,
+      "k_over_m": 0.0,
+      "cp95": [
+        0.0,
+        0.03027297257742008
+      ],
+      "k_over_decisive_m": 0.0,
+      "decisive_cp95": [
+        0.0,
+        0.03027297257742008
+      ],
+      "all_submitted_rate_bounds": [
+        0.0,
+        0.0
+      ],
+      "discriminator_counts": {
+        "supported": 0,
+        "contradicted": 0,
+        "indeterminate": 0,
+        "no-g2": 0,
+        "input-rejected": 0,
+        "not-run": 120
+      },
+      "comparisons": [],
+      "identification": {
+        "g2_runs": 0,
+        "identified_g2_runs": 0,
+        "rate": null
+      }
+    },
+    "e9-instr-nowit-bo1": {
+      "N": 120,
+      "m": 120,
+      "k": 2,
+      "failure": 0,
+      "indeterminate": 0,
+      "decisive_m": 120,
+      "k_over_m": 0.016666666666666666,
+      "cp95": [
+        0.0020248223376931147,
+        0.05890921946702635
+      ],
+      "k_over_decisive_m": 0.016666666666666666,
+      "decisive_cp95": [
+        0.0020248223376931147,
+        0.05890921946702635
+      ],
+      "all_submitted_rate_bounds": [
+        0.016666666666666666,
+        0.016666666666666666
+      ],
+      "discriminator_counts": {
+        "supported": 0,
+        "contradicted": 0,
+        "indeterminate": 0,
+        "no-g2": 0,
+        "input-rejected": 0,
+        "not-run": 120
+      },
+      "comparisons": [],
+      "identification": {
+        "g2_runs": 2,
+        "identified_g2_runs": 0,
+        "rate": 0.0
+      }
+    }
+  },
+  "denominator": "m counts valid verifier verdicts, including indeterminate; decisive_m excludes zero-cycle indeterminate; neither failure nor indeterminate is no-g2",
+  "interval_assumption": "independent Bernoulli trials; node dependence not modeled",
+  "inputs": [
+    {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2779-mocc-g2-observation-conditions/arm-B/B1/result.json",
+      "sha256": "db26afc7fcab7772c672cf5b112f05f58d9c3e72d77a20fd176840aacd60e427"
+    },
+    {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2779-mocc-g2-observation-conditions/arm-B/B2/result.json",
+      "sha256": "f5cdf50fda33162039107480d0646e05d736883b83471f2a7c3da0f9200ccdb7"
+    },
+    {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2779-mocc-g2-observation-conditions/arm-B/B3/result.json",
+      "sha256": "c883caa298584ebb0d20609618ddd8de413d6cab14e2ed45109c3b9f5643075d"
+    },
+    {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2779-mocc-g2-observation-conditions/arm-B/B4/result.json",
+      "sha256": "7e43392f4af7fc64c86ce6b86fa9d79b020187b3ed712c3561b8f0f26667ea25"
+    }
+  ]
+}

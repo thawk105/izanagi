@@ -1,0 +1,73 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 4800,
+  "hang_timeout_seconds": 4800,
+  "mutations": [
+    {
+      "id": "e-memo-comment",
+      "category": "positive",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    # Keep the T1259 module snapshot consumers in one process-memo work unit.\n",
+          "new": "    # Keep all T1259 module snapshot consumers in one process-memo work unit.\n"
+        }
+      ]
+    },
+    {
+      "id": "m9-missing-t1259-memo",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "REAL_REPO_PROCESS_MEMO_NODES = frozenset({\n    # Keep the T1259 module snapshot consumers in one process-memo work unit.\n    \"test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver\",\n",
+          "new": "REAL_REPO_PROCESS_MEMO_NODES = frozenset({\n    # Keep the T1259 module snapshot consumers in one process-memo work unit.\n"
+        }
+      ]
+    },
+    {
+      "id": "m10-strip-t1259-suffix",
+      "category": "negative",
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    if node_id in REAL_REPO_PROCESS_MEMO_NODES:\n        return False\n",
+          "new": "    if (\n        node_id in REAL_REPO_PROCESS_MEMO_NODES\n        and not node_id.startswith(\"test_t1259_qsub_env_delivery_probe.py::\")\n    ):\n        return False\n"
+        }
+      ]
+    },
+    {
+      "id": "old-helper-m10-control",
+      "category": "both-layers",
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false,
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "old": "    if node_id in REAL_REPO_PROCESS_MEMO_NODES:\n        return False\n",
+          "new": "    if (\n        node_id in REAL_REPO_PROCESS_MEMO_NODES\n        and not node_id.startswith(\"test_t1259_qsub_env_delivery_probe.py::\")\n    ):\n        return False\n"
+        },
+        {
+          "file": "orchestrator/tests/test_real_repo_serialization.py",
+          "old": "    for memo_node in sorted(_REAL_REPO_PROCESS_MEMO_NODES_GOLDEN):\n        memo_item = SuffixedItem(memo_node)\n        assert suite_conftest._strip_real_repo_loadgroup_suffix(memo_item) is False\n        assert memo_item.nodeid == f\"orchestrator/tests/{memo_node}@real-repo\"\n",
+          "new": "    memo_node = (\n        \"test_s8b_oracle_driver.py::\"\n        \"test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\"\n    )\n    memo_item = SuffixedItem(memo_node)\n    assert suite_conftest._strip_real_repo_loadgroup_suffix(memo_item) is False\n    assert memo_item.nodeid == f\"orchestrator/tests/{memo_node}@real-repo\"\n"
+        }
+      ]
+    }
+  ]
+}

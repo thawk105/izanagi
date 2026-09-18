@@ -1,0 +1,91 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+bounded local に与えた予算: 2571347712 bytes。ログインノードで 2571347712 bytes の予算を予約しました（予約控除後の観測余裕=2571347712 bytes、算出予算=2571347712 bytes、現在使用量=15646310400 bytes、回収不能量=8166070528 bytes、判定占有量=8166070528 bytes、実効天井=15032385536 bytes、生存中の予約=2147483648 bytes）。
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+bounded scope の観測ピーク: 2571345920 bytes
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:scope-outcome-cap-oom
+[Pegasus dispatch] job を gen_S へ投入します (izdw-56658b839d)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2780-mocc-pilot-discriminator/output/pegasus-dispatch/orphan-holds/unknown-971748f7fef96c97c1883e4a.json
+[Pegasus dispatch] request ID 5893.nqsv を受理しました
+[Pegasus dispatch] request 5893.nqsv の状態: QUE
+[Pegasus dispatch] request 5893.nqsv の状態: RUN
+[Pegasus dispatch] request 5893.nqsv の状態: END
+[Pegasus dispatch] request 5893.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2780-mocc-pilot-discriminator/output/pegasus-dispatch/orphan-holds/unknown-971748f7fef96c97c1883e4a.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2780-mocc-pilot-discriminator/output/pegasus-dispatch/56658b839d4f08b0e26e4bc8e7d0d8ce/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 5893.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+|
+| ................................s....................................... [  4%]
+| .............s.......................................................... [  9%]
+| ........................................................................ [ 13%]
+| ........................................................................ [ 18%]
+| ........................................................................ [ 22%]
+| ........................................................................ [ 27%]
+| ........................................................................ [ 31%]
+| ........................................................................ [ 36%]
+| ........................................................................ [ 40%]
+| ........................................................................ [ 45%]
+| ........................................................................ [ 49%]
+| ........................................................................ [ 54%]
+| ........................................................................ [ 58%]
+| ........................................................................ [ 63%]
+| ........................................................................ [ 67%]
+| ........................................................................ [ 72%]
+| ........................................................................ [ 76%]
+| ........................................................................ [ 81%]
+| ....................................s................................... [ 85%]
+| ........................................................................ [ 90%]
+| ........................................................................ [ 94%]
+| ........................................................................ [ 99%]
+| ..........                                                               [100%]
+| =============================== warnings summary ===============================
+| orchestrator/tests/test_t338_submission_gate_unit5.py::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink
+|   external/ccbench/third_party/shirakami/third_party/googletest/googletest/test/gtest_list_output_unittest.py:48: DeprecationWarning: invalid escape sequence '\?'
+|     EXPECTED_XML = """<\?xml version="1.0" encoding="UTF-8"\?>
+|
+| orchestrator/tests/test_t338_submission_gate_unit5.py::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink
+|   external/ccbench/third_party/shirakami/third_party/googletest/googletest/test/gtest_list_output_unittest.py:83: DeprecationWarning: invalid escape sequence '\['
+|     EXPECTED_JSON = """{
+|
+| orchestrator/tests/test_t338_submission_gate_unit5.py::test_receipt_publish_call_sites_are_path_aware_and_allow_event_sink
+|   external/ccbench/third_party/shirakami/third_party/googletest/googletest/test/googletest-output-test.py:163: DeprecationWarning: invalid escape sequence '\d'
+|     test_output = re.sub('\x1b\\[(0;3\d)?m', '', test_output)
+|
+| -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+| 1591 passed, 3 skipped, 3 warnings in 114.92s (0:01:54)
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+[Pegasus dispatch] request 5893.nqsv child stdout end
+[Pegasus dispatch] request 5893.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 2675666, "time_ns": 1789714198146872680}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2675687, "event": "direct-child-wait-start", "pid": 2675673, "time_ns": 1789714198175194800}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2675687, "event": "direct-child-wait-complete", "pid": 2675673, "time_ns": 1789714313658296317}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 2675673, "rc": 0, "time_ns": 1789714313658383659}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 2675666, "rc": 0, "time_ns": 1789714313662873311}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 2675666}, {"comm": "bash", "pid": 2675647}, {"comm": "nqs_shpd", "pid": 2675646}, {"comm": "nqs_shpd", "pid": 2675446}, {"comm": "nqs_shpd", "pid": 4610}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 2675666, "sid": 2675646, "time_ns": 1789714313663330201}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 46.275492990389466, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 2675666, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1789714313709646215, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 2675666, "time_ns": 1789714313712906886}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 2675666, "time_ns": 1789714313731669919}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 2675666, "time_ns": 1789714313732777105}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 2675666, "time_ns": 1789714313732788701}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 2675666, "time_ns": 1789714313733744673}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 2675666, "time_ns": 1789714313733751791}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 2675666, "rc": 0, "time_ns": 1789714313733760631}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 2675666, "rc": 0, "time_ns": 1789714313733776669}
+|
+| ============================================================
+| Request ID:             5893.nqsv
+| Request Name:           izdw-56658b839d
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Fri Sep 18 15:49:48 2026
+| Started Request Time:   Fri Sep 18 15:49:57 2026
+| Ended Request Time:     Fri Sep 18 15:51:53 2026
+| Resources Information:
+|   Elapse:               121S
+|   Remaining Elapse:     3479S
+| ============================================================
+[Pegasus dispatch] request 5893.nqsv child stderr end

@@ -1,0 +1,164 @@
+{
+ "target": "559bcbc29cfa27412f103b608e8ac708dcfae6b9",
+ "total_seconds": 372.024,
+ "verdict": {
+  "verdict": "indeterminate",
+  "landed": null,
+  "conclusive": false,
+  "reason": "one-or-more-states-unproven"
+ },
+ "closure_commits": 8,
+ "closure_elapsed": 1.52537,
+ "proof_units": 41,
+ "phase_outcomes": {
+  "preflight": "matched",
+  "closure": "matched",
+  "proof": "matched",
+  "history_scan": "not-applicable",
+  "observations": "matched",
+  "ref_snapshot": "matched"
+ },
+ "phases": {
+  "_proof_unit": {
+   "calls": 41,
+   "seconds": 332.993
+  },
+  "_find_exact_state": {
+   "calls": 41,
+   "seconds": 267.132
+  },
+  "_ledger_probe": {
+   "calls": 6,
+   "seconds": 17.912
+  },
+  "_ledger_corpus": {
+   "calls": 1,
+   "seconds": 2.065
+  },
+  "_enumerate_closure": {
+   "calls": 1,
+   "seconds": 1.525
+  },
+  "_introduced_states": {
+   "calls": 1,
+   "seconds": 0.748
+  },
+  "_tip_net_path_count": {
+   "calls": 1,
+   "seconds": 0.61
+  },
+  "_read_receipts": {
+   "calls": 1,
+   "seconds": 0.23
+  },
+  "_resolve_ref": {
+   "calls": 4,
+   "seconds": 0.161
+  },
+  "_target_resolution_candidates": {
+   "calls": 2,
+   "seconds": 0.149
+  },
+  "_repository_preflight": {
+   "calls": 1,
+   "seconds": 0.09
+  },
+  "_repo_root": {
+   "calls": 1,
+   "seconds": 0.018
+  }
+ },
+ "git_by_subcommand": {
+  "log": {
+   "calls": 57,
+   "seconds": 322.767
+  },
+  "cherry": {
+   "calls": 1,
+   "seconds": 15.586
+  },
+  "cat-file": {
+   "calls": 70,
+   "seconds": 6.486
+  },
+  "ls-tree": {
+   "calls": 93,
+   "seconds": 5.725
+  },
+  "rev-list": {
+   "calls": 1,
+   "seconds": 1.525
+  },
+  "diff-tree": {
+   "calls": 10,
+   "seconds": 0.746
+  },
+  "diff": {
+   "calls": 1,
+   "seconds": 0.604
+  },
+  "rev-parse": {
+   "calls": 9,
+   "seconds": 0.313
+  },
+  "show": {
+   "calls": 1,
+   "seconds": 0.174
+  },
+  "for-each-ref": {
+   "calls": 1,
+   "seconds": 0.034
+  }
+ },
+ "git_total_calls": 244,
+ "slowest_git": [
+  [
+   28.61,
+   "log --full-history --format=%H --max-count=1025 c8e8dc06f33891aa2fd6345063b30ca11b52fe6d -- docs/spool/worklog/2026-09-10-dev-wave-t2515-calib-rr95-rr5-3.md"
+  ],
+  [
+   18.867,
+   "log --full-history --format=%H --max-count=1025 c8e8dc06f33891aa2fd6345063b30ca11b52fe6d -- orchestrator/tests/conftest.py"
+  ],
+  [
+   18.524,
+   "log --full-history --format=%H --max-count=1025 c8e8dc06f33891aa2fd6345063b30ca11b52fe6d -- docs/spool/decisions/2026-09-10-dev-wave-t2515-calib-rr95-rr5-4.md"
+  ],
+  [
+   16.725,
+   "log --full-history --format=%H --max-count=1 --find-object=7aab1f9c8be6c0bb0ccc69add1b0c60400aed5c2 c8e8dc06f33891aa2fd6345063b30ca11b52fe6d"
+  ],
+  [
+   15.586,
+   "cherry -v c8e8dc06f33891aa2fd6345063b30ca11b52fe6d 559bcbc29cfa27412f103b608e8ac708dcfae6b9"
+  ],
+  [
+   14.795,
+   "log --full-history --format=%H --max-count=1025 c8e8dc06f33891aa2fd6345063b30ca11b52fe6d -- docs/spool/decisions/2026-09-10-dev-wave-t2515-calib-rr95-rr5-1.md"
+  ],
+  [
+   12.368,
+   "log --full-history --format=%H --max-count=1025 c8e8dc06f33891aa2fd6345063b30ca11b52fe6d -- orchestrator/tests/test_real_repo_serialization.py"
+  ],
+  [
+   8.922,
+   "log --full-history --format=%H --max-count=1025 c8e8dc06f33891aa2fd6345063b30ca11b52fe6d -- docs/spool/worklog/2026-09-10-dev-wave-t2515-calib-rr95-rr5-3.md"
+  ],
+  [
+   8.612,
+   "log --full-history --format=%H --max-count=1025 c8e8dc06f33891aa2fd6345063b30ca11b52fe6d -- orchestrator/tests/test_pegasus_calibration_workload.py"
+  ],
+  [
+   8.595,
+   "log --full-history --format=%H --max-count=1025 c8e8dc06f33891aa2fd6345063b30ca11b52fe6d -- docs/spool/failures/2026-09-10-dev-wave-t2515-calib-rr95-rr5-2.md"
+  ],
+  [
+   6.795,
+   "log --full-history --format=%H --max-count=1025 c8e8dc06f33891aa2fd6345063b30ca11b52fe6d -- orchestrator/tests/test_pegasus_calibration_workload.py"
+  ],
+  [
+   6.781,
+   "log --full-history --format=%H --max-count=1025 c8e8dc06f33891aa2fd6345063b30ca11b52fe6d -- tools/pegasus/README.md"
+  ]
+ ]
+}

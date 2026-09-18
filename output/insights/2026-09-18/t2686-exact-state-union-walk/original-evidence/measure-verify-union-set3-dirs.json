@@ -1,0 +1,14 @@
+{
+ "paths": 3,
+ "union_walk_seconds": 28.752,
+ "union_output_bytes": 564458,
+ "union_commits_listed": 2504,
+ "per_path_total_seconds": 51.295,
+ "identical_paths": 3,
+ "mismatch": {},
+ "sizes": {
+  "tools/pegasus": 1025,
+  "docs/dev-wave": 1025,
+  "orchestrator/tests/test_check_branch_landed.py": 55
+ }
+}

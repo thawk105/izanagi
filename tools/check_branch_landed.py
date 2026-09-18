@@ -33,6 +33,9 @@ MAX_LEDGER_HITS = 100
 DEFAULT_TIMEOUT_SECONDS = 60.0
 DEFAULT_MAX_FILES = 256
 DEFAULT_HISTORY_CANDIDATES = 1_024
+# Linux MAX_ARG_STRLEN and the ARG_MAX floor are 128 KiB; reserve half for fixed
+# argv/environment overhead. Exceeding this budget uses the legacy per-path walk.
+HISTORY_CANDIDATE_ARGV_BYTES_LIMIT = 65536
 DEFAULT_HISTORY_SCAN_COMMITS = 20_000
 DEFAULT_MAX_CLOSURE_COMMITS = 4_096
 # T-2706 / D2104 item 24: 30 unreachable commits measured on the login node (main 11,246 commits, load 24-92):
@@ -764,23 +767,161 @@ def _batch_check_path_candidates(
     return parsed
 
 
+def _parse_history_candidate_stream(raw: bytes, oid_length: int) -> list[tuple[str, list[bytes]]]:
+    """Parse NUL-framed commit entries without decoding tree names."""
+    def invalid(reason: str) -> AssessmentError:
+        return AssessmentError("history-candidate-parse-error", reason, outcome="error")
+
+    if not raw:
+        return []
+    fields = raw.split(b"\0")
+    if fields[0] or fields[-1]:
+        raise invalid("history stream lacks boundary NUL")
+    entries: dict[str, dict[bytes, None]] = {}
+    index = 0
+    while index < len(fields) - 1:
+        if fields[index] or index + 2 >= len(fields) - 1:
+            raise invalid("history entry lacks header or name")
+        header = fields[index + 1]
+        if len(header) != oid_length or re.fullmatch(rb"(?:[0-9a-f]{40}|[0-9a-f]{64})", header) is None:
+            raise invalid("invalid history commit OID")
+        first = fields[index + 2]
+        if not first.startswith(b"\n"):
+            raise invalid("history name lacks separating LF")
+        name = first[1:]
+        if not name:
+            raise invalid("empty history name")
+        names = entries.setdefault(header.decode("ascii"), {})
+        names[name] = None
+        index += 3
+        while index < len(fields) - 1 and fields[index]:
+            names[fields[index]] = None
+            index += 1
+    return [(commit, list(names)) for commit, names in entries.items()]
+
+
+class _HistoryCandidates:
+    """Lazy candidates for normalized tree paths from _parse_raw_diff (no trailing
+    slash or standalone '.'). Successful candidate/payload equivalence is tested
+    over the supported fixtures, not proved for every DAG/configuration. Timeout
+    preserves only the indeterminate class; one implementation may time out alone.
+    Bounding the first walk is an improvement, not a non-regression time proof.
+    """
+
+    def __init__(self, git: Git, main_oid: str, candidate_limit: int,
+                 pairs: list[tuple[str, TreeEntry]]) -> None:
+        self.git = git
+        self.main_oid = main_oid
+        self.limit = candidate_limit
+        self.pairs = list(pairs)
+        self.paths = {path for path, _ in pairs}
+        self.tip_entries: dict[str, TreeEntry] = {}
+        self._candidates: dict[str, list[str]] = {}
+        self._failures: dict[str, AssessmentError | UnicodeDecodeError] = {}
+        self._union_failure: AssessmentError | None = None
+        self._prepared = False
+        self.walks = 0
+        self.seconds = 0.0
+        self.mode = "none"
+
+    def tip_entry(self, path: str) -> TreeEntry:
+        if path not in self.tip_entries:
+            self.tip_entries[path] = _tree_entry(self.git, self.main_oid, path, len(self.main_oid))
+        return self.tip_entries[path]
+
+    def _log(self, args: list[str]) -> subprocess.CompletedProcess[bytes]:
+        started = time.monotonic()
+        before = self.git.command_count
+        try:
+            return self.git.run(args)
+        finally:
+            self.walks += self.git.command_count - before
+            self.seconds += time.monotonic() - started
+
+    def _derive(self, entries: list[tuple[str, list[bytes]]], paths: set[str]) -> dict[str, list[str]]:
+        result = {}
+        for path in sorted(paths):
+            p = path.encode("utf-8")
+            result[path] = [commit for commit, names in entries
+                            if any(name == p or name.startswith(p + b"/") for name in names)][:self.limit + 1]
+        return result
+
+    def _prepare(self) -> None:
+        paths = {path for path, required in self.pairs
+                 if not _entry_matches(required, self.tip_entry(path))}
+        if not paths:
+            self._candidates = {path: [] for path in self.paths}
+            self._prepared = True
+            return
+        follow = self.git.run(["config", "--get", "--type=bool", "log.follow"], allowed=(0, 1))
+        if (follow.stdout.strip() == b"true"
+                or sum(len(p.encode("utf-8")) + 1 for p in paths) > HISTORY_CANDIDATE_ARGV_BYTES_LIMIT):
+            self.mode = "per-path"
+            self._prepared = True
+            self._candidates = {path: [] for path in self.paths - paths}
+            return
+        self.mode = "union"
+        self._prepared = True
+        try:
+            bound = (self.limit + 1) * len(paths)
+            command = ["-c", "log.showRoot=true", "log", "--full-history",
+                       "--diff-merges=separate", "--no-renames", "--ignore-submodules=none",
+                       "--name-only", "-z", "--format=%x00%H"]
+            tail = [self.main_oid, "--", *sorted(paths)]
+            entries = _parse_history_candidate_stream(
+                self._log([*command, f"--max-count={bound}", *tail]).stdout, len(self.main_oid),
+            )
+            if len(entries) > bound:
+                raise AssessmentError("history-candidate-parse-error", "history exceeded commit bound")
+            derived = self._derive(entries, paths)
+            if len(entries) == bound and any(len(rows) < self.limit + 1 for rows in derived.values()):
+                entries = _parse_history_candidate_stream(
+                    self._log([*command, *tail]).stdout, len(self.main_oid),
+                )
+                derived = self._derive(entries, paths)
+            self._candidates = {path: [] for path in self.paths - paths}
+            self._candidates.update(derived)
+        except AssessmentError as exc:
+            self._union_failure = exc
+            raise
+
+    def candidates(self, path: str) -> list[str]:
+        if path not in self.paths:
+            raise ValueError(f"unregistered history path: {path!r}")
+        if not self._prepared:
+            self._prepare()
+        if self._union_failure is not None:
+            raise self._union_failure
+        if path in self._failures:
+            raise self._failures[path]
+        if path not in self._candidates:
+            try:
+                log = self._log([
+                    "log", "--full-history", "--format=%H", f"--max-count={self.limit + 1}",
+                    self.main_oid, "--", path,
+                ])
+                candidates = [row for row in log.stdout.decode("ascii", "strict").splitlines() if row]
+                if any(not OID_RE.fullmatch(row) for row in candidates):
+                    raise AssessmentError("history-candidate-parse-error", "cannot parse history candidates")
+                self._candidates[path] = candidates
+            except (AssessmentError, UnicodeDecodeError) as exc:
+                self._failures[path] = exc
+                raise
+        return self._candidates[path]
+
+
 def _find_exact_state(
     git: Git,
     main_oid: str,
     required: TreeEntry,
     candidate_limit: int,
+    supplier: _HistoryCandidates,
 ) -> SearchResult:
     started = time.monotonic()
-    tip_entry = _tree_entry(git, main_oid, required.path, len(required.oid))
+    tip_entry = supplier.tip_entry(required.path)
     if _entry_matches(required, tip_entry):
         return SearchResult("matched", "exact-state-at-main-tip", main_oid, 1, candidate_limit, time.monotonic() - started)
-    log = git.run([
-        "log", "--full-history", "--format=%H", f"--max-count={candidate_limit + 1}",
-        main_oid, "--", required.path,
-    ])
-    candidates = [row for row in log.stdout.decode("ascii", "strict").splitlines() if row]
-    if any(not OID_RE.fullmatch(row) for row in candidates):
-        raise AssessmentError("history-candidate-parse-error", "cannot parse history candidates")
+    candidates = supplier.candidates(required.path)
     # Positive proof is checked before a candidate-limit truncation is reported.
     batch_safe = (
         not required.missing and required.object_type == "blob"
@@ -1368,6 +1509,7 @@ def _proof_unit(
     main_oid: str,
     candidate_limit: int,
     receipt_registry: ReceiptRegistry,
+    supplier: _HistoryCandidates,
 ) -> tuple[dict[str, Any], bool, dict[str, Any] | None]:
     is_spool = bool(SPOOL_RE.fullmatch(state.required.path))
     spool_exact_decisive = False
@@ -1377,7 +1519,7 @@ def _proof_unit(
             candidate_limit, 0.0,
         )
     else:
-        search = _find_exact_state(git, main_oid, state.required, candidate_limit)
+        search = _find_exact_state(git, main_oid, state.required, candidate_limit, supplier)
     any_path: SearchResult | None = None
     if (
         not is_spool
@@ -1388,7 +1530,7 @@ def _proof_unit(
         and not state.required.missing
     ):
         any_path = _find_object_any_path(git, main_oid, state.required.oid)
-    tip_entry = _tree_entry(git, main_oid, state.required.path, len(state.required.oid))
+    tip_entry = supplier.tip_entry(state.required.path)
     exact_receipt: str | None = None
     pending_probe: dict[str, Any] | None = None
     if is_spool:
@@ -1423,7 +1565,7 @@ def _proof_unit(
                     and not state.required.missing and state.required.object_type == "blob"
                     and state.required.mode in {"100644", "100755"}):
                 try:
-                    search = _find_exact_state(git, main_oid, state.required, candidate_limit)
+                    search = _find_exact_state(git, main_oid, state.required, candidate_limit, supplier)
                 except AssessmentError as exc:
                     search = SearchResult(exc.outcome, exc.code, None, 0, candidate_limit, 0.0)
                 decision, incomplete = _spool_exact_positive_decision(search, receipt_reason)
@@ -1674,6 +1816,7 @@ def assess(
     payload = _base_payload(repo, branch, main, limits)
     git = Git(repo, time.monotonic() + timeout_seconds)
     active_phase = "preflight"
+    supplier: _HistoryCandidates | None = None
     try:
         actual_root = _repo_root(git)
         payload["repository"]["root"] = str(actual_root)
@@ -1718,12 +1861,18 @@ def assess(
         receipt_registry = _read_receipts(git, start_main) if any(
             SPOOL_RE.fullmatch(state.required.path) for state in states
         ) else ReceiptRegistry("not-matched", "no-spool-fragment", {}, 0)
+        supplier = _HistoryCandidates(git, start_main, history_candidates, [
+            (state.required.path, state.required) for state in states
+            if not SPOOL_RE.fullmatch(state.required.path)
+            or (not state.required.missing and state.required.object_type == "blob"
+                and state.required.mode in {"100644", "100755"})
+        ])
         units: list[dict[str, Any]] = []
         pending_probes: list[dict[str, Any]] = []
         verbatim_observations: list[dict[str, Any]] = []
         for state in states:
             unit, _unit_incomplete, pending = _proof_unit(
-                git, state, start_main, history_candidates, receipt_registry,
+                git, state, start_main, history_candidates, receipt_registry, supplier,
             )
             units.append(unit)
             verbatim_observations.append(unit.pop("verbatim_observation"))
@@ -2008,6 +2157,8 @@ def assess(
         time.monotonic() - assess_started, 6,
     )
     payload["timing"]["git_child_processes"] = git.command_count
+    payload["timing"]["history_candidate_walks"] = supplier.walks if supplier is not None else 0
+    payload["timing"]["history_candidate_walk_seconds"] = supplier.seconds if supplier is not None else 0.0
     return payload
 
 
