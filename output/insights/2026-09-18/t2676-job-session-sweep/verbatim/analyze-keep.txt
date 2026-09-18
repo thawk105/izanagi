@@ -1,0 +1,18 @@
+request 5086.nqsv started Fri Sep 18 07:49:09 2026 ended Fri Sep 18 07:49:20 2026 elapse 15S
+W 07:49:15.303977 S 07:49:15.304279 C 07:49:20.358621 J 07:49:20.381120 E 07:49:20.000000
+J-W = 5.077 s
+E-J = -0.381 s (E is second-precision)
+E-W = 4.696 s
+ancestors [(1230800, 'python3.10'), (1230781, 'bash'), (1230780, 'nqs_shpd'), (1230580, 'nqs_shpd'), (4620, 'nqs_shpd'), (1, 'systemd')] sid 1230780 own_ns user:[4026531837]
+complete {'attributed_total': 1, 'elapsed_ms': 5054.311881074682, 'exited_after_kill': 1, 'exited_after_term': 0, 'found_total': 1, 'remaining': 0, 'rounds_used': 2, 'session_unknown': 0, 'status': 'clean', 'unattributed_total': 0, 'zombies': 0}
+residual round 1 {'pid': 1230822, 'ppid': 1, 'comm': 'python3', 'state': 'S', 'uid': 31609, 'starttime': 68139316, 'user_ns': 'user:[4026535834]', 'attributed': True, 'readable': True}
+signal TERM sent pid 1230822 at 07:49:15.320879
+signal KILL sent pid 1230822 at 07:49:20.325939
+exited after kill pid 1230822 at 07:49:20.326936
+receipt terminal_reason scheduler-end-state accounting_verified None qdel {'attempted': False} outcome.rc 0
+result stage child child_rc 0 hostname bnode080
+evidence events ['start', 'fork', 'child-start', 'child-alive', 'parent-exit', 'child-alive'] child_pid 1230822 recording_errors []
+t0 07:49:10.292102 parent-exit delta 5.001019023
+heartbeats 2 H 07:49:20.293138 child-exit False
+H <= G: True G - H = 0.034 s
+G - t0 = 10.035 s (< 75 ?)
