@@ -25709,6 +25709,28 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   33 error (t1259 の worktree に対する 30 秒 TimeoutExpired 29 件 + s8c の 10 秒 timeout 4 件、24,726 passed)、同 tip の 2 file 単独再走
   (request 4300.nqsv) は 269 passed / 99.10 秒 / rc=0 で非再現。恒久対応は既報のまま変えず、timeout 拡大・stub 化・除外・gate 新設は
   していない。attempt 3 は投入条件を leader ≤ 1・load1 < 15 に絞って投げた。
+
+- **再発: 2026-09-18** — [T-2447] wave (docs のみ、tip `7038a4d63`) の受入で 2 走続けて同型が出た。
+  attempt 1 (07:26 投入、他 session の受入 leader 2 本・`run_tests.py` 18 本、load 40→14) は
+  `test_t1259_qsub_env_delivery_probe.py` の setup error **17 件** (24,807 passed / 69 skipped)。
+  attempt 2 (07:46 投入、load 14) は同 file の setup error **20 件**に加え、launcher 系の timing test
+  4 件 (`test_codex_worker_launch_budget.py` 3 件は子 rc=1 / `receipt truth table が不正`、
+  `test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed` は rc timeout) が failure
+  (24,800 passed / 69 skipped)。setup traceback の Git argv は既報と同一で
+  `git -C <wave worktree> ls-files --others --exclude-standard -z` (12 件) と
+  `status --porcelain=v1 --untracked-files=no --ignore-submodules=none` (8 件) の 30.0 秒 TimeoutExpired。
+  同 tip の単独再走は t1259 が **51 passed / 15.22 秒 / rc=0** (login)、launcher 系 2 file が
+  **26 passed / 21.61 秒 / rc=0** (5114.nqsv) でいずれも非再現。親が同じ `git status` argv を wave
+  worktree で素に測ると 3.7 秒 (untracked 0 件)。wave の変更は docs/dev-wave と記録だけで、当該
+  fixture・probe・launcher・Git 呼出しは変更していない。attempt 2 の終了時は他 session の受入 leader が
+  5 本・worker 21 本・load 39↑ で、既報 (2026-09-16) と同じく**同時受入の本数**が要因と読む。
+  恒久対応は既報のまま変えず、timeout 拡大・stub 化・除外・gate 新設・hold 登録はしていない。
+  2 走とも測定として無効と判定し、他 session の leader ≤ 2 かつ負荷の下降局面まで待って投げ直した。
+  attempt 3 (08:17、leader 0) は postcheck 競走でテスト未走。attempt 4 (08:26 投入、tip `11e8ea415` =
+  待ち手が main `d64b278ff` を merge) は同 file の **1 件**だけ (`git ls-files` 30 秒 timeout、24,836 passed)、
+  同 tip の単独再走は 51 passed / 14.98 秒 / rc=0 で非再現。件数は 17 → 20 → 1 と同時受入の本数で
+  変わり、変更には帰属しない。既報 (2026-09-16、赤 4 → 1 → 1 → 0 件で 8 走目に緑) と同じく窓を選んで
+  投げ直す。
 ### F946. 修正可能な検査失敗で作業を終了し、ユーザーへ再開を要求した [手順漏れ] [誤前提]
 
 - 事象: insights整理のauthorが実行ログ検査で未受理になり、親は原因の切り分けや安全な再試行をせず正式停止した。
