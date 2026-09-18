@@ -16,7 +16,7 @@ title: verifier CLI 単独計時 probe — read-heavy (rr95・3 秒・48 thread�
   内訳・代表所要時間・CC 性能を確定しない (D2144 の試算を置き換えない、規律 7)。一次資料 `output/insights/2026-09-18/t2229-verify-cost-decomposition/README.md`
   §3。実装差分ゼロの probe として返し、probe script は repo に入れない。着手直前の local main から fresh worktree。規律 2 を緩めない。本題の
   計時だけ。仮想リスク向けの gate・検査・台帳・一般化の追加は scope 外」。
-- **閉じた (1 条件・1 反復・1 node の観測を記録した)。** 一次資料は `output/insights/2026-09-18/verifier-cli-timing-probe/README.md`。
+- **1 条件・1 反復・1 node の観測記録を回収した。受入・main landは未完。** 一次資料は `output/insights/2026-09-18/verifier-cli-timing-probe/README.md`。
   decisions fragment 0 (新しい設計判断なし。D2144 は置き換えない)、failures fragment 0。
 - 本走 (job `5868.nqsv`、bnode041、2026-09-18 15:32〜15:40 JST): campaign `ed8a676b` の反復と同じ動作点 (silo、pin `511c953`、
   `TRACE=1 BACK_OFF=0 NO_WAIT_LOCKING_IN_VALIDATION=1 NO_WAIT_OF_TICTOC=0 WAL=0`、1M records・48 thread・extime 3・rr95・zipf 0.9・
@@ -59,5 +59,17 @@ title: verifier CLI 単独計時 probe — read-heavy (rr95・3 秒・48 thread�
   6414/6415/6416の不在、6416の最終child rc=0、source cleanとHEAD不変を確認後、holdをjob dirへ保全して解除。
   この部分結果を受入へ合成しない。次の受入は既存 `IZANAGI_DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE=3600` により
   queue待ち予算だけを延ばし、テストtimeout・期待値・合否条件は維持する。新規gate・機構の追加はない。
+- attempt3は互換位置の `orphan-hold.json` が残っていたため投入前拒否 (新job 0)。同じ6416の不在とclean/HEADを
+  再確認し、保全済みholdとのbyte一致を確認して解除した。親の解除対象の確認不足であり、新しい防壁で補わない。
+- attempt4 (tip `b77a5340a`、queue待ち3600秒) は **25,128 passed / 69 skipped / 4 setup error / 1 failed**。
+  setup error 4件はt1259の `git ls-files --others --exclude-standard -z` の30秒timeoutで、初回受入と同じ準備処理に再発。
+  failed 1件は `test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed` の10秒communicate timeout
+  (max_wall=3、receipt missing、bnode140/gw29、load1=59.604)。同tipの当該node単独再走はbounded localで
+  **1 passed (6.93秒)**。単独緑を全走の代替とせず、負荷を原因と断定もしない。
+- 受入の緑受領証が無く、t1259の準備timeoutが切り分け後の全走で再発したため停止した。
+  mainへは未取り込み、対象worktree/branchは保持、trace・staged patch・author bundleも保全。
+  全投入jobの終端、対象process不在、lease freeを確認。規律2を緩める変更・skip・除外・新gateは行っていない。
+  再開には受入を妨げるGit列挙timeoutの実行環境/原因を確認し、正規受入を緑で完了させる必要がある。
+  専用handoffはjob dirの `RECOVERY-HANDOFF.md`。dev-wave改善候補は「なし」、改善実装と次waveは追加しない。
 
 ## 次の一手差分
