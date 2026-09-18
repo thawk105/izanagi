@@ -9,9 +9,9 @@ D2120 項 15 が「paper-story の単独 results 稿は権威 bytes から作る
 「results 系列」節が正本である。
 
 **本稿は同系列の既存の稿を改めるものではない。** 2026-09-16 の横断稿 (`2026-09-16-b7-three-run-materials.md`) は
-同じ走行を A-2 / A-6 と併記した B-7 の材料として有効なまま残る。**本稿は横断稿から 1 行も引き継がず、
+同じ走行を A-2 / A-6 と併記した B-7 の材料として有効なまま残る。**本稿は横断稿から引き継がず、
 一次資料全体 (事前登録 v1 の blob、成果物 root の権威 bytes、campaign lock と WAL、投入受領証、consumer の
-判定 JSON、4 つの insight README、裁定) から作り直した。** 横断稿の値と一致するかどうかは本稿の検算に使っていない。
+判定 JSON、5 本の insight README、裁定) から作り直した。** 本稿の数値・日付・判定の出所は §5 の一次資料である。
 
 **`accepted` は consumer (事前登録 v1 に束縛された解析器) の出力であって、研究の成功宣告ではない。**
 protocol は「baseline (無 backoff) と target (静的 fixed 5 µs) の各 5 標本の median の比」を問い、
@@ -81,7 +81,7 @@ consumer の module 定数もこれと一致する (`EXPECTED_SAMPLE_COUNT = 5`�
 
 ### 1.2 事前登録 v1 が固定した identity
 
-事前登録 §4 / §5 (機械可読 block) の値。**測定を 1 度も走らせる前に固定された** (§4 冒頭の逐語)。
+事前登録 §4 / §5 (機械可読 block) の値。§4 冒頭の逐語は「**次の値を、測定を 1 度も走らせる前に固定する。**」である。
 
 | 対象 | 事前登録の値 |
 |---|---|
@@ -94,7 +94,7 @@ consumer の module 定数もこれと一致する (`EXPECTED_SAMPLE_COUNT = 5`�
 `repository_commit` は block に無く、§4.3 の規則 (成果物が記録する `repository_commit` における事前登録 blob の
 sha256 が成果物側定数と一致すること) で決まる。事前登録 §4.2 は、patch を当てずに計算した target の値
 `6454d9f34b04fdb148bc3324c5b07786d933dcc1ab0f7267aa0b91d414f70a84` を「正しくない。本書はこれを受理しない」と
-明記している (この値は §2.4 の表で別の genome の記録として現れる)。
+明記している。
 
 ### 1.3 producer の測定条件 (成果物と、lock が束縛する code から)
 
@@ -105,7 +105,7 @@ build directory (`-DCCBENCH_TRACE=0`、`-DCMAKE_BUILD_TYPE=Release`、`-DENABLE_
 `cc/silo/ycsb_silo.exe` である (trace-disabled の性能 build)。
 
 campaign.lock の `identity_preimage` は `search_config` として `records 1000000`、`threads 48`、
-`sweep_us [2, 5, 10, 25, 50, 100]`、`workload balanced`、`ycsb {rmw 0, rratio 50, zipf_skew 0.9}`、
+`sweep_us [2, 5, 10, 25, 50, 100]`、`workload balanced`、`ycsb {"ycsb_rmw": "0", "ycsb_rratio": "50", "ycsb_zipf_skew": "0.9"}` (値は文字列)、
 `measurement_env pegasus`、`base L-W0` を持つ。標本数 5 と実行時間 3 秒は lock が束縛する
 `orchestrator/campaign/p2_2.py` (blob `9b30a7ad764f7a2dac0554349af9a46f08587db7e9ecdc91bc8501f8d2734db3`、
 `repository_commit` の現物と一致) の `RECORDS = 1_000_000` / `THREADS = 48` / `EXTIME = 3` / `REPS = 5` から来る。
@@ -128,9 +128,11 @@ adaptive、静的 2 / 5 / 10 / 25 / 50 / 100 µs) で、**この file は lock �
 
 WAL 40 record の `env_tag` はすべて `pegasus`。両 arm の `build_admission.source` は
 `tracked_clean = false`、`tracked_paths = ["cmake/Options.cmake", "include/backoff.hh"]`、
-`tracked_diff_sha256 = 29aef2bc1b9f30524ad8ceeff59ffdbfda626612986cb7851cce8accbdaa3682` で、
-**patch `patches/silo-backoff-fixed.patch` が当たった木で両 arm とも build されたことを記録している**
-(baseline は patch の inert 枝で `src_token` が `stock` のまま、target は合成 token)。
+`tracked_diff_sha256 = 29aef2bc1b9f30524ad8ceeff59ffdbfda626612986cb7851cce8accbdaa3682` を持つ。
+**両 arm の記録は、同じ 2 file の変更と同じ tracked diff digest を持つ。arm 別の source digest は事前登録の値と
+一致する** (baseline は `src_token` が `stock` のまま、target は合成 token)。事前登録 §4.2 は target の値を
+patch `patches/silo-backoff-fixed.patch` 適用下で導いたと書くので、target の一致はその状態で build されたことの
+照合になる。**ただし、この tracked diff と指定 patch file の対応そのものは本稿では再現していない** (§4 (a))。
 
 その他の identity: `campaign_id` = `backoff-sweep-silo-balanced-sweep-0dd37c05`、
 lock sha256 `ba24c65d01ce80bb17d0ae1ff8f5242078c2cb7b9a6b3c502959542b61ba0c61`、
@@ -161,7 +163,7 @@ queue `gen_S@nqsv`、`Remaining Elapse` 7200 秒の予約。toolchain は `x86_6
 
 出所は consumer の判定 JSON (`decision-final.json`、2026-09-14 03:41 JST、sha256
 `73ac9c34afb0819c1389d183075d298e21ce9467467ccc8bbe2ed4968f68d0f6`)。同 JSON の `outcome` は `accepted`、
-`prereg_commit` は `a551cdd3…`、`preregistered` block は事前登録 §5 と同値である。
+`prereg_commit` は `a551cdd3…`、`preregistered` block の identity field (gitlink、環境契約 digest、job body sha256、両 arm の canonical genome と source bytes sha256) は事前登録 §5 と全項一致する (同 block の `common` は `repository_commit` を加えて持ち、§5 の `schema_version` は持たない。block 全体が同一なのではない)。
 `ratio` と `improvement_percent` は producer の `result.json` (`ratio`、`improvement_percent`) とも全桁一致し、
 本稿が 5 標本から再計算した値 (median 比 4330570 / 3893509) とも全桁一致する。
 
@@ -193,7 +195,7 @@ toolchain digest の腕内等式) で、2026-09-14 に是正 (commit `4d7cd40a9b
   (producer の field。consumer は読まない)。`bench_wall_s` は baseline 16.738 秒、target 16.687 秒。
 - 付随記録 `leading_indicators`: baseline `abort_rate` 0.6795 / `latency_ns` 12328.2109、
   target `abort_rate` 0.4613 / `latency_ns` 11083.9913。`llc_miss_rate` と `ipc` は `null`
-  (`perf_preflight` が `unavailable`、`perf_counter_statuses` = `not_required`、`claim_scope.throughput` = `eligible`)。
+  (`perf_preflight` が `unavailable`、`result.json` の `perf_counter_statuses` = `["not_required"]`、WAL の `perf_observation.counter_status` = `not_required`、`claim_scope.throughput` = `eligible`)。
   `abort_rate` の定義は成果物に無い (§4)。
 - 性能 binary の sha256: baseline `660543647aa9b8bf0b6ff087ec461c901fd186296dc2751cd7d1deb89ae565d9`、
   target `6c89ebd91efddfd6c01fa5fbff1d5d6cf16e8488b7e2fc85f98ec76e1a8dfec4` (WAL `build_done.perf_bin_sha256`、
@@ -213,15 +215,20 @@ toolchain digest の腕内等式) で、2026-09-14 に是正 (commit `4d7cd40a9b
 - 検査は trace-enabled の別 binary (`trace_bin`) で、性能 binary とは別走である (絶対規律 1)。
   WAL の時刻は両 arm とも `build_done` → `verify_done` → `bench_done` → `commit` の順。
 - **検査条件の argv は成果物 (WAL・`result.json`・job stdout) のどこにも記録されていない。**
-  lock が束縛する `orchestrator/campaign/pipeline.py` (blob `2423849c893f7b69cfab1e11f9d6433e1f0812b77dcc0399b5db5f706393ecdd`、
-  `repository_commit` の現物と一致) の `CorrectnessWorkload` 既定値は `ycsb_tuple_num 200`、`ycsb_zipf_skew 0.9`、
-  `ycsb_rratio 50`、`ycsb_rmw true`、`ycsb_max_ope 5`、`thread_num 4`、`extime 1`、`reps 1` である。
-  **これは束縛された code から導いた値であって、成果物の記録ではない。** 性能を測った 48 thread・1,000,000 records・
+  以下は lock が束縛する `orchestrator/campaign/pipeline.py` (blob `2423849c893f7b69cfab1e11f9d6433e1f0812b77dcc0399b5db5f706393ecdd`、
+  `repository_commit` の現物と一致) の `CorrectnessWorkload` の**既定値**である — `ycsb_tuple_num 200`、`ycsb_zipf_skew 0.9`、
+  `ycsb_rratio 50`、`ycsb_rmw true`、`ycsb_max_ope 5`、`thread_num 4`、`extime 1`、`reps 1`。
+  同じく lock が束縛する `orchestrator/campaign/loop.py` (blob `785dd6fe606b083a95ebae3723403829c36224732dc40e78d1791a4180935808`、
+  現物一致) の `run_campaign` は `evaluate` へ `correctness` を渡さず (既定値へ落ちる)、追加の検査 pass は
+  `search_config` の `verify` key で決まるが、lock の `identity_preimage.search_config` にその key は無い
+  (legacy のみ。WAL の `commit.verify_configs = ["legacy"]` と整合)。`backoff_sweep.py` (`repository_commit` の現物) の
+  `run_campaign(...)` 呼出しも `correctness` を渡さない。**これは束縛された code の読み取りであって、実行時 argv の記録ではない。
+  当該走行が各既定値をそのまま使ったことを成果物から直接には確認できない。** 性能を測った 48 thread・1,000,000 records・
   `rmw 0`・3 秒の条件そのものの検査ではない。
 - **したがって、この走行の正しさの記録は「登録 2 arm とも legacy 条件で 1 回ずつ serializable / certified /
-  anomaly 0」までである。** A-2 / A-6 の attempt が持つ legacy 1 回 + 性能条件側 5 回の形式ではなく、同じ強さではない
+  anomaly 0」までである。** A-2 / A-6 の attempt が持つ「legacy 1 回 + performance 5 回」(D1993 の理由節の逐語) の形式ではなく、同じ強さではない
   (本稿はその比較を書かない。強さの違いは形式の違いとして書く)。
-- `result.json` に `correctness` 欄は無い (`a5-second-boot-result/v1` の 24 key に含まれない)。
+- `result.json` に `correctness` 欄は無い (`a5-second-boot-result/v1` の top-level 23 key に含まれない)。
   正しさの記録は WAL だけが持つ。
 
 ### 2.4 producer が測った 8 点の記録 — 推定量には入れない
@@ -244,27 +251,23 @@ producer は 8 genome を WAL の記載順に測り、8 点とも `commit` (abor
 
 - 表の `cv` は 4 桁に丸めた表示。全桁は WAL にある。8 点とも `high_variance` false、`rounds` 1、
   `proof_surfaces` は X / P `evidence-present`、I `evidence-absent`。
-- 行 2 (`BACK_OFF=1, BACKOFF_FIXED=-1`、CCBench 内蔵の adaptive backoff) の `source_bytes_sha256` は
-  `6454d9f34b04fdb148bc3324c5b07786d933dcc1ab0f7267aa0b91d414f70a84` で、事前登録 §4.2 が「patch を当てずに
-  計算した target の値。正しくない」と退けた値と同じ bytes である。**これは記録の一致であって、本稿が
-  何かを導く根拠ではない。**
-- **行 3 (2 µs) の median が行 4 (5 µs) より高いことを、本稿は結論にしない。** 事前登録は結果を見る前に 5 µs を
-  固定し、事後の最良点選択を禁じている。
+- **本表は producer 記録の所在と完走を示すもので、登録外 6 点の比較・順位付け・推奨量の根拠として使わない。**
+  推定量と結果表 (§2.1 / §2.2) には事前登録の baseline と target だけを用いる。
 
-### 2.5 時系列 (一次資料の時刻。UTC は receipt / WAL の epoch、JST は qstat / job 末尾の表記)
+### 2.5 時系列 (一次資料の時刻。UTC は WAL の `ts` (epoch) と group_id の時刻文字列、JST は qstat / NQSV の終了要約の表記)
 
 | 時刻 | 事象 | 出所 |
 |---|---|---|
 | 2026-09-11 09:59:01 JST | `repository_commit` `a551cdd3…` (事前登録 v1 を含む fold commit) | `git log` |
-| 2026-09-13 13:27:23Z (22:27:23 JST) | 投入 (`submit_t1998_balanced_stock_inline.sh`、1 回)。receipt `manifest` / `submitted` | submit receipt、qstat `Created Request Time` |
+| 2026-09-13 13:27:23Z (22:27:23 JST) | 投入 (`submit_t1998_balanced_stock_inline.sh`、1 回)。receipt は `manifest` / `submitted` の 2 record (時刻 field は持たない) | group_id の時刻文字列 `20260913T132723Z`、qstat `Created Request Time` |
 | 13:27:36Z | job `995755.nqsv` 開始、node `bnode024` | qstat `Started Request Time`、`reservation.json` |
 | 13:28:33.980Z 〜 13:29:57.002Z | baseline: `build_start` → `build_done` (13:29:23) → `verify_done` (13:29:40) → `bench_done` (13:29:56) → `commit` | WAL `ts` |
 | 13:32:41.395Z 〜 13:34:02.916Z | target: `build_start` → `build_done` (13:33:31) → `verify_done` (13:33:46) → `bench_done` (13:34:02) → `commit` | WAL `ts` |
 | 13:39:22.837Z | 8 点目の `commit` | WAL `ts` |
-| 13:39:23Z (22:39:23 JST) | job 終了、Elapse 712 秒 | job stdout 末尾 |
+| 13:39:23Z (22:39:23 JST) | job 終了、Elapse 712 秒 | job stderr 末尾 (NQSV の終了要約 `Ended Request Time` / `Elapse: 712S`) |
 | 2026-09-13 (同日) | 1 回目の解析: consumer 拒否 `performance-build-not-trace-disabled` | 2026-09-13 insight README §2 |
 | 2026-09-14 03:41 JST | consumer 是正後の判定 `accepted` (`decision-final.json`) | 同 file の mtime、2026-09-14 insight README §1 |
-| 2026-09-14 03:43:27 JST | consumer 是正の commit `4d7cd40a9…` (main への取り込みは同日 11:40:29 JST の `291892b90…` 以前。§4 (j)) | `git log`、2026-09-14 insight README §4、2026-09-15 README §1 |
+| 2026-09-14 03:43:27 JST | consumer 是正の commit `4d7cd40a9…` (同 commit を最初に含む main first-parent 上の commit は同日 08:30:25 JST の `b1a3d45d…`。§4 (j)) | `git log`、2026-09-14 insight README §4、2026-09-15 README §1 |
 | 2026-09-15 (main `0600887d9…` は 14:24:28 JST の commit) | 着地後の main で再解析、全桁一致 | 2026-09-15 insight README §2、`git log` |
 
 ### 2.6 producer の `complete` と consumer の `accepted` は別の出力
@@ -289,14 +292,16 @@ producer は 8 genome を WAL の記載順に測り、8 点とも `commit` (abor
    床値超の判定」を求め、本稿はそのどちらも供給しない。記述的な報告としての利用は許され、要件充足へは昇格しない。
 4. **有意差の判定ではなく、信頼区間も無い。** 事前登録 §6 の判定式は median 比だけを定義し、
    consumer は `accepted` / `inconclusive` の 2 値と拒否しか返さない。「11.2 % 速い」は点推定である。
-5. **1 job・1 boot・1 node (`bnode024`) の測定である。** 走行間ばらつき・cold boot・温度ドリフトを含まない。
+5. **1 job・1 boot・1 node (`bnode024`) の測定である。** 独立した走行間・boot 間・node 間のばらつきは評価していない。
+   baseline と target は同じ job の中で順次測られており (§2.5)、温度ドリフトなど時間変化の影響を分離・評価していない。
    A-5 (別の起動での取り直し) は D1525 により Pegasus では充足せず、事前登録 §9 も A-5 を解除しない。
 6. **旧 headline の +11.3 % の予測的再現ではない。** 事前登録 §3 は旧値を期待値として固定していない。
    近い値が出たことは事後の観察である。旧値 (旧 `linux-baremetal` 環境) と本値をプールしない。
 7. **正しさの記録は legacy 条件 1 回ずつである** (§2.3)。性能条件そのものでの検査ではなく、検査条件の argv は
-   成果物に無い。A-2 / A-6 の形式 (legacy 1 回 + 性能条件側 5 回) とは同じでない。
+   成果物に無い。A-2 / A-6 の形式 (D1993 の理由節が書く「legacy 1 回 + performance 5 回」) とは同じでない。
    `certified` は正しさゲートの判定であって、性能の判定ではない。
-8. **8 点のうち 6 点から何も導かない** (§2.4)。最適 backoff 量・地形・機序・「2 µs の方が速い」は本稿の命題ではない。
+8. **8 点のうち登録外の 6 点から何も導かない** (§2.4)。最適 backoff 量・登録外の点との比較・地形・機序は本稿の命題ではない。
+   事前登録は結果を見る前に 5 µs を固定し、事後の最良点選択を禁じている。
 9. **事前登録前の生値 (2026-09-07) を混ぜていない** (D1874)。本稿は数値を書いていない。
 10. **write-heavy と read-heavy は対象外** (事前登録 §9)。本走行は balanced の 1 job だけである。
 11. **compiler の同一性は証明していない。** 事前登録 §4.2 の source digest はログインノードの `g++` で導かれ、
@@ -326,30 +331,46 @@ producer は 8 genome を WAL の記載順に測り、8 点とも `commit` (abor
 
 ## 4. 欠落 — 権威 bytes・WAL・事前登録・裁定の対応が確かめられない箇所
 
+以下には、**回収成果物に情報が無い事項** (4.1)、**束縛の範囲が限られる事項** (4.2)、**本稿で対応を再確認していない事項**
+(4.3) を区別して記す。後二者を「復元不能」とは扱わない。
+
+### 4.1 回収成果物に情報が無い
+
+- **(c) 正しさ検査の argv** (§2.3)。束縛された code の既定値と呼出し経路から導いた条件を書き分けた。
+- **(d) toolchain digest の腕内再導出に要る全文 manifest** (§2.1、限定 12)。回収成果物 (result.json、reservation.json、
+  lock、WAL) は 3 key 射影しか持たない。
+- **(f) 投入器の同一性** (限定 13)。成果物が束縛するのは job body まで。投入器の sha256 は receipt にだけある。
+- **(h) `abort_rate` の定義。** `repository_commit` の `orchestrator/calibrator/model.py` の注釈は `abort/(commit+abort)` と
+  書くが、同 file は lock の loader 束縛に含まれない。本稿はこの値を比較に使わない。
+- **(i) 認可 D1874 の記録。** D1874 は「事前登録の実値を固定したうえで正式測定を認可する」と書き、実値の固定は
+  2026-09-10 ([T-2533]) に着地した。投入 (2026-09-13) が D1874 の認可の下で行われたことは 2026-09-13 insight README が
+  記録しており、成果物自体は認可を記録しない。
+
+### 4.2 束縛の範囲が限られる
+
+- **(g) `backoff_sweep.py` (8 点の集合と patch 適用の駆動点) は lock の loader 束縛に無い** (§1.3)。
+  束縛は `repository_commit` 経由に限られ、本稿はその commit の blob (sha256
+  `5d55cbbb030fd8ad33701fe23da257c7f757900d7999178b481b0c39fc0bea10`) を読んで 8 点の集合を確認した。
+- **(b) 2026-09-15 の再解析の判定 JSON。** 本稿が参照した保存先 (dev-wave の job dir) では確認できず、本稿は同日の
+  insight README の記録による。2026-09-14 の `decision-final.json` は job dir (repo 外) にあり、本稿はその sha256 を
+  §5.1 に書く。
+
+### 4.3 本稿で対応を再確認していない
+
 - **(a) patch file と `tracked_diff_sha256` の対応。** `repository_commit` の `patches/silo-backoff-fixed.patch` の
   sha256 は `a5e0710c3f76744755b58ec66024c277daba00e49ce3cbf3d6d263cd7228580a`、WAL の `tracked_diff_sha256` は
   `29aef2bc…` で、後者の pre-image は `git diff --binary HEAD` の出力 (`source_digest.py` の
   `_tracked_diff_sha256`) であり patch file そのものではない。**本稿は両者の対応を再現していない。**
-  patch 適用下の source bytes が事前登録の値と一致したこと (§1.4) が、この対応の代わりに立つ束縛である。
-- **(b) 2026-09-15 の再解析の判定 JSON は保全されていない。** 残るのは同日の insight README の転記だけである。
-  2026-09-14 の `decision-final.json` は job dir (repo 外) にあり、本稿はその sha256 を §5.1 に書く。
-- **(c) 正しさ検査の argv は成果物に無い** (§2.3)。束縛された code の既定値から導いた条件を書き分けた。
-- **(d) toolchain digest の腕内再導出は不能** (§2.1、限定 12)。
-- **(e) 環境契約 digest `e576e9cd…` の pre-image を本稿は再計算していない。** consumer が lock と各 `commit` の
-  値を事前登録と照合したこと (判定 JSON) を採った。
-- **(f) 投入器の同一性は receipt のみ** (限定 13)。
-- **(g) `backoff_sweep.py` (8 点の集合と patch 適用の駆動点) は lock の loader 束縛に無い** (§1.3)。
-  束縛は `repository_commit` 経由に限られ、本稿はその commit の blob (sha256
-  `5d55cbbb030fd8ad33701fe23da257c7f757900d7999178b481b0c39fc0bea10`) を読んで 8 点の集合を確認した。
-- **(h) `abort_rate` の定義は成果物に無い。** `repository_commit` の `orchestrator/calibrator/model.py` の注釈は
-  `abort/(commit+abort)` と書くが、同 file は lock の loader 束縛に含まれない。本稿はこの値を比較に使わない。
-- **(i) 認可 D1874 と test 投入の対応。** D1874 は「事前登録の実値を固定したうえで正式測定を認可する」と書き、
-  実値の固定は 2026-09-10 ([T-2533]) に着地した。投入 (2026-09-13) が D1874 の認可の下で行われたことは
-  2026-09-13 insight README の記述によるもので、成果物自体は認可を記録しない。
+  arm 別 source digest の一致 (§1.4) は事前登録が要求する source identity の照合であり、patch file と tracked diff の
+  対応確認とは別である。
+- **(e) 環境契約 digest `e576e9cd…` の pre-image。** 本稿は再計算していない。consumer が lock と各 `commit` の値を
+  事前登録と照合したこと (判定 JSON) を採った。
 - **(j) 是正 commit `4d7cd40a9…` (2026-09-14 03:43:27 JST) の main 着地。** 2026-09-15 README は「その後 `4d7cd40a9`
-  として main へ着地している」と書く。本稿が `git log --first-parent main` で確かめた範囲では、同 commit を最初に含む
-  main 上の commit は `291892b909706a72d501ce711f58f5fb511c56db` (2026-09-14 11:40:29 JST) で、再解析に使われた
-  main `0600887d9…` (2026-09-15 14:24:28 JST) はその子孫である。**着地の受領証 (land の receipt) は本稿では引いていない。**
+  として main へ着地している」と書く。本稿が main の first-parent 列を `a551cdd3…` から古い順に辿って確かめた範囲では、
+  同 commit を最初に含む commit は `b1a3d45d61ac7a62f589c514683e5ba999b50609` (commit 日時 2026-09-14 08:30:25 JST、
+  wave 側の前方 merge commit。その第 1 親 `e0b1c336…` は含まない) で、再解析に使われた main `0600887d9…`
+  (2026-09-15 14:24:28 JST) はその子孫である。**この履歴上の境界は、main がそこへ進んだ時刻 (land の時刻) と同じではない。
+  着地の受領証 (land の receipt) は本稿では引いていない。**
 
 ---
 
@@ -426,15 +447,18 @@ consumer の判定 JSON (repo 外、job dir):
 | 5 標本、median、`cv`、`unstable`、`high_variance`、`rounds`、`settled`、`bench_wall_s`、`leading_indicators`、`run_cmd` | WAL `bench_done.payload` (variant `84319b1127a6` / `93c62227a2d3`) |
 | `fitness_tps`、`verify_configs`、`contract_sha256`、`commit_verification_receipt` | WAL `commit.payload` |
 | verdict / certified / anomalies / commits / aborts / `workload.tag` / `proof_surfaces` | WAL `verify_done.payload` |
-| `src_token`、`source_bytes_sha256`、`tracked_*`、`genome` | WAL `build_start.payload.build_admission.source` |
+| canonical `genome`、`src_token` | WAL `build_start.payload` |
+| `source_bytes_sha256`、`genome_sha256`、`tracked_clean` / `tracked_diff_sha256` / `tracked_paths` | WAL `build_start.payload.build_admission.source` |
 | `perf_bin_sha256`、`trace_bin_sha256`、`perf_configure_cmd`、`toolchain`、`toolchain_record_sha256` | WAL `build_done.payload` |
 | status / reason / ratio / improvement_percent / identity block / 2 つの sha pin | `decision-final.json` |
 | `no_backoff_median_tps`、`target_median_tps`、`ratio`、`improvement_percent`、`status = complete`、`toolchain`、`lock_sha256`、`wal_sha256`、`pbs_jobid`、`boot_*`、`perf_preflight` | `result.json` |
 | `script_sha256`、`job_id`、`requested_s`、`source_binding` | `reservation.json` |
 | `identity_preimage` (`search_config`)、`contract_loader_commit`、`environment_contract_sha256`、63 blob | `campaign.lock` |
 | `job_script_sha256`、`submitter_sha256`、`group_id`、`submission_nonce` | submit receipt |
-| Created / Started / Ended Request Time、Elapse、queue、node | `qstat-f.stdout`、job stdout 末尾 |
-| 事前登録の 2 点・identity・判定規則の逐語 | `docs/t1998-balanced-stock-inline-preregistration.md` §2 / §4 / §5 / §6 / §8 / §9 |
+| Created / Started Request Time、queue、node | `qstat-f.stdout` |
+| Ended Request Time、Elapse | job stderr 末尾 (NQSV の終了要約) |
+| 投入時刻 13:27:23Z | group_id の時刻文字列 `20260913T132723Z`、qstat `Created Request Time` (22:27:23 JST) |
+| 事前登録の 2 点・identity (逐語)、判定規則 (§1.1 は記号を置き換えた要約・転記) | `docs/t1998-balanced-stock-inline-preregistration.md` §2 / §4 / §5 / §6 / §8 / §9 |
 
 ### 5.5 同じ結果についての既存の稿 (本稿の出所ではない)
 
