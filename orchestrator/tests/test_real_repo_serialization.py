@@ -297,6 +297,36 @@ _REAL_REPO_CCBENCH_WRITER_NODES_GOLDEN = frozenset({
     "test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding",
 })
 _REAL_REPO_PROCESS_MEMO_NODES_GOLDEN = frozenset({
+    "test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver",
+    "test_t1259_qsub_env_delivery_probe.py::test_r2_binds_explicit_value_over_distinct_ambient_duplicate_and_runs_refusal",
+    "test_t1259_qsub_env_delivery_probe.py::test_r3_records_only_the_observed_ambient_approval_condition",
+    "test_t1259_qsub_env_delivery_probe.py::test_r1_projection_follows_observed_approval_not_request_identity",
+    "test_t1259_qsub_env_delivery_probe.py::test_r2_unexpected_approval_presence_is_unbound_and_not_green",
+    "test_t1259_qsub_env_delivery_probe.py::test_missing_r1_explicit_value_cannot_be_green",
+    "test_t1259_qsub_env_delivery_probe.py::test_swapped_r2_hex_values_fail_exact_binding",
+    "test_t1259_qsub_env_delivery_probe.py::test_repository_local_evidence_directory_is_rejected",
+    "test_t1259_qsub_env_delivery_probe.py::test_submission_source_digests_are_bound_to_runtime_bytes",
+    "test_t1259_qsub_env_delivery_probe.py::test_r1_manifest_rejects_approval_that_does_not_equal_nonce",
+    "test_t1259_qsub_env_delivery_probe.py::test_r3_manifest_rejects_nonliteral_ambient_approval",
+    "test_t1259_qsub_env_delivery_probe.py::test_job_start_requires_manifest_head_detached_and_clean_repository",
+    "test_t1259_qsub_env_delivery_probe.py::test_repo_unchanged_claim_compares_target_content_digests",
+    "test_t1259_qsub_env_delivery_probe.py::test_r2_timeout_is_not_accepted_as_refusal",
+    "test_t1259_qsub_env_delivery_probe.py::test_r2_driver_argv_with_extra_tail_is_rejected_by_exact_contract",
+    "test_t1259_qsub_env_delivery_probe.py::test_r2_driver_argv_with_approval_flag_is_rejected_after_exact_match",
+    "test_t1259_qsub_env_delivery_probe.py::test_r2_refusal_rejects_any_driver_argv_mutation",
+    "test_t1259_qsub_env_delivery_probe.py::test_atomic_result_publish_is_create_only",
+    "test_t1259_qsub_env_delivery_probe.py::test_main_emits_one_prefixed_stdout_line_and_auxiliary_result",
+    "test_t1259_qsub_env_delivery_probe.py::test_pbs_contract_runs_observer_through_single_result_call_block",
+    "test_t1259_qsub_env_delivery_probe.py::test_pbs_early_ulimit_failure_emits_one_prefixed_result",
+    "test_t1259_qsub_env_delivery_probe.py::test_pbs_preserves_one_valid_negative_observer_result",
+    "test_t1259_qsub_env_delivery_probe.py::test_pbs_replaces_invalid_observer_stdout_with_one_fallback",
+    "test_t1259_qsub_env_delivery_probe.py::test_submitter_text_is_outside_execution_inventory",
+    "test_t1259_qsub_env_delivery_probe.py::test_submitter_has_exact_three_request_design_and_create_only_witnesses",
+    "test_t1259_qsub_env_delivery_probe.py::test_submitter_preflight_parses_gen_s_semantic_state",
+    "test_t1259_qsub_env_delivery_probe.py::test_request_receipt_binds_qstat_body_visibility",
+    "test_t1259_qsub_env_delivery_probe.py::test_request_receipt_accepts_measured_qstat_layout",
+    "test_t1259_qsub_env_delivery_probe.py::test_request_receipt_rejects_wrong_owner_or_non_active_state",
+    "test_t1259_qsub_env_delivery_probe.py::test_group_intent_is_create_only_and_has_no_completion_fields",
     "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
     "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
     "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
@@ -1554,13 +1584,10 @@ def _assert_real_repo_suffix_strip_mutation_killer(suite_conftest) -> None:
     assert suite_conftest._strip_real_repo_loadgroup_suffix(split_item) is True
     assert split_item.nodeid == f"orchestrator/tests/{split_node}"
 
-    memo_node = (
-        "test_s8b_oracle_driver.py::"
-        "test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing"
-    )
-    memo_item = SuffixedItem(memo_node)
-    assert suite_conftest._strip_real_repo_loadgroup_suffix(memo_item) is False
-    assert memo_item.nodeid == f"orchestrator/tests/{memo_node}@real-repo"
+    for memo_node in sorted(_REAL_REPO_PROCESS_MEMO_NODES_GOLDEN):
+        memo_item = SuffixedItem(memo_node)
+        assert suite_conftest._strip_real_repo_loadgroup_suffix(memo_item) is False
+        assert memo_item.nodeid == f"orchestrator/tests/{memo_node}@real-repo"
 
     local_only_node = (
         "test_s8b_oracle_driver.py::"

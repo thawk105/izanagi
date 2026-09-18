@@ -1,0 +1,202 @@
+--- /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2779-mocc-g2-observation-conditions/verbatim/t2774_probe-v4.py	2026-09-18 15:10:31.000000000 +0900
++++ /work/1/SFC/tanab/izanagi/.codex/worktrees/t2779-unit1-probe/probe/t2779_probe.py	2026-09-18 15:32:11.000000000 +0900
+@@ -31,6 +31,18 @@
+ CONCLUSIONS = ("supported", "contradicted", "indeterminate", "no-g2")
+ WORKLOAD_ARGV = ["-ycsb_tuple_num=10000", "-thread_num=48", "-ycsb_zipf_skew=0.9",
+                  "-ycsb_rratio=50", "-ycsb_rmw=0", "-ycsb_max_ope=10", "-extime=3"]
++BASE_CCBENCH_DEFINES = (
++    "-DCCBENCH_TRACE=1",
++    "-DCCBENCH_BACK_OFF=0",
++    "-DCCBENCH_BACKOFF_FIXED=-1",
++    "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
++    "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
++    "-DCCBENCH_WAL=0",
++    "-DCCBENCH_CCACHE=OFF",
++)
++CONFIGURE_DEFINE_KEYS = frozenset(
++    item[2:].split("=", 1)[0] for item in BASE_CCBENCH_DEFINES
++)
+
+
+ def now():
+@@ -362,6 +374,17 @@
+     return record
+
+
++def validate_defines(value):
++    if not isinstance(value, dict):
++        raise ValueError("invalid arm configure define")
++    for key, val in value.items():
++        if (not isinstance(key, str) or not key.startswith("CCBENCH_")
++                or key not in CONFIGURE_DEFINE_KEYS or not isinstance(val, str)
++                or re.fullmatch(r"-?[0-9]+|ON|OFF", val) is None):
++            raise ValueError("invalid arm configure define")
++    return dict(value)
++
++
+ def validate_arms(value):
+     """Validate JSON data before site/build/checkout work; preserve patch order."""
+     if not isinstance(value, list) or not value:
+@@ -370,7 +393,7 @@
+     required = {"name", "pin", "patches", "witness"}
+     for entry in value:
+         if (not isinstance(entry, dict) or not required <= entry.keys()
+-                or entry.keys() - required - {"observational_only"}):
++                or entry.keys() - required - {"observational_only", "defines"}):
+             raise ValueError("invalid arm fields")
+         name, pin, patches = entry["name"], entry["pin"], entry["patches"]
+         if not isinstance(name, str) or re.fullmatch(r"[A-Za-z0-9_-]+", name) is None:
+@@ -384,9 +407,11 @@
+             raise ValueError(f"arm patches must be absolute paths: {name}")
+         if type(entry["witness"]) is not bool or type(entry.get("observational_only", False)) is not bool:
+             raise ValueError(f"arm flags must be booleans: {name}")
++        defines = validate_defines(entry.get("defines", {}))
+         names.add(name)
+         arms.append({"name": name, "pin": pin.lower(), "patches": list(patches),
+-                     "witness": entry["witness"], "observational_only": entry.get("observational_only", False)})
++                     "witness": entry["witness"], "observational_only": entry.get("observational_only", False),
++                     "defines": defines})
+     return arms
+
+
+@@ -412,14 +437,13 @@
+     return names[offset:] + names[:offset]
+
+
+-def configure_argv(source, build, policy, toolchain, dependencies):
++def configure_argv(source, build, policy, toolchain, dependencies, defines=None):
+     """Pilot T-1943 argv, with runtime paths and policy/toolchain bindings."""
+-    return [
++    overrides = validate_defines({} if defines is None else defines)
++    argv = [
+         "cmake", "-S", str(source), "-B", str(build),
+         "-DCMAKE_BUILD_TYPE=Release", "-DENABLE_SANITIZER=OFF",
+-        "-DCCBENCH_TRACE=1", "-DCCBENCH_BACK_OFF=0", "-DCCBENCH_BACKOFF_FIXED=-1",
+-        "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1", "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+-        "-DCCBENCH_WAL=0", "-DCCBENCH_CCACHE=OFF", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
++        *BASE_CCBENCH_DEFINES, "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+         "-DCMAKE_C_COMPILER_LAUNCHER=", "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+         "-DRULE_LAUNCH_COMPILE=", "-DCMAKE_TOOLCHAIN_FILE=",
+         f"-DCMAKE_PREFIX_PATH={dependencies['gflags']};{dependencies['glog']}",
+@@ -431,6 +455,18 @@
+         f"-DCMAKE_C_COMPILER={toolchain['cc_path']}",
+         f"-DCMAKE_CXX_COMPILER={toolchain['cxx_path']}", "-DCMAKE_CXX_FLAGS=",
+     ]
++    present = {
++        arg[2:].split("=", 1)[0]
++        for arg in argv if arg.startswith("-DCCBENCH_")
++    }
++    if overrides.keys() - present:
++        raise ValueError("configure define is absent from fixed argv")
++    return [
++        f"-D{arg[2:].split('=', 1)[0]}={overrides[arg[2:].split('=', 1)[0]]}"
++        if arg.startswith("-DCCBENCH_") and arg[2:].split("=", 1)[0] in overrides
++        else arg
++        for arg in argv
++    ]
+
+
+ def build_variant(argv, build, driver, jobs):
+@@ -444,6 +480,11 @@
+
+
+ def run(args):
++    runner_path = Path(__file__).resolve()
++    runner_bytes = runner_path.read_bytes()
++    bindings = {"runner": {"path": str(runner_path),
++                           "sha256": hashlib.sha256(runner_bytes).hexdigest(),
++                           "bytes": len(runner_bytes)}}
+     arms = args.arm_definitions
+     names = [arm["name"] for arm in arms]
+     cycles = args.rounds if args.arms_json else args.pairs
+@@ -467,7 +508,7 @@
+                 "hostname": socket.gethostname(), "started_at": now(),
+                 "rounds" if args.arms_json else "pairs": cycles,
+                 "planned_runs": len(arms) * cycles, "status": "running", "runs": [],
+-                "bindings": {}, "output_dir": str(output)}
++                "bindings": bindings, "output_dir": str(output)}
+     scratch = None
+     try:
+         args.scratch_root.mkdir(parents=True, exist_ok=True)
+@@ -518,16 +559,21 @@
+             warm = scratch / "warmup"
+             warm_argv = configure_argv(sources[names[0]], warm, policy, toolchain, dependencies)
+             bindings["warmup_configure_argv"] = warm_argv
++            # Top-level defines describe the baseline warmup.
+             bindings["configure_defines"] = [v for v in warm_argv if v.startswith("-DCCBENCH_")]
+             driver._run_checked(warm_argv)
+             jobs = site_policy.default_build_jobs(site)
+             driver._run_checked(["cmake", "--build", str(warm), "--target", "masstree_build",
+                                  "-j", str(jobs)], timeout=1200)
+-            for arm in names:
++            for definition in arms:
++                arm = definition["name"]
+                 build = scratch / f"build-{arm}"
+                 binding = bindings["arms"][arm]
+-                binding["configure_argv"] = configure_argv(sources[arm], build, policy, toolchain, dependencies)
+-                binding["configure_defines"] = list(bindings["configure_defines"])
++                binding["configure_argv"] = configure_argv(
++                    sources[arm], build, policy, toolchain, dependencies,
++                    defines=definition["defines"])
++                binding["configure_defines"] = [
++                    arg for arg in binding["configure_argv"] if arg.startswith("-DCCBENCH_")]
+                 binary = build_variant(binding["configure_argv"], build, driver, jobs)
+                 binding.update(binary=str(binary), binary_sha256=sha(binary))
+             write_json(output / "result.json", document)
+@@ -622,9 +668,44 @@
+             validate_arms(value)
+         except ValueError:
+             rejected += 1
+-    ok = (rejected == 3 and validate_arms([entry]) == [{**entry, "observational_only": False}])
++    ok = (rejected == 3 and validate_arms([entry]) == [{**entry, "observational_only": False, "defines": {}}])
+     passed += ok
+     print(f"arms-json-validation: {'PASS' if ok else 'FAIL'}")
++    defines = {"CCBENCH_BACK_OFF": "1"}
++    normalized = validate_arms([{**entry, "defines": defines}])
++    config_args = ("/source", "/build",
++                   {"gflags_expected_head": "gflags-head", "glog_expected_head": "glog-head"},
++                   {"cc_path": "/cc", "cxx_path": "/cxx"},
++                   {key: "/" + key for key in ("gflags", "glog", "masstree", "mimalloc", "googletest")})
++    baseline = configure_argv(*config_args)
++    overridden = configure_argv(*config_args, defines=normalized[0]["defines"])
++    ok = (normalized[0]["defines"] == defines
++          and [arg for arg in baseline if arg.startswith("-DCCBENCH_")] == list(BASE_CCBENCH_DEFINES)
++          and overridden.count("-DCCBENCH_BACK_OFF=1") == 1
++          and len(overridden) == len(baseline)
++          and [(a, b) for a, b in zip(baseline, overridden) if a != b]
++              == [("-DCCBENCH_BACK_OFF=0", "-DCCBENCH_BACK_OFF=1")])
++    passed += ok
++    print(f"defines-accepted: {'PASS' if ok else 'FAIL'}")
++    invalid_defines = [
++        ("unknown-key", {"CCBENCH_KEY_SORT": "0"}),
++        ("wrong-prefix", {"BACK_OFF": "1"}),
++        ("non-string", {"CCBENCH_BACK_OFF": 1}),
++        ("empty", {"CCBENCH_BACK_OFF": ""}),
++        ("whitespace", {"CCBENCH_BACK_OFF": "1 "}),
++        ("semicolon", {"CCBENCH_BACK_OFF": "1;TRACE=0"}),
++        ("define-prefix", {"CCBENCH_BACK_OFF": "-DCCBENCH_BACK_OFF=1"}),
++    ]
++    for name, invalid_define in invalid_defines:
++        rejected = 0
++        for value in (invalid_define, [], None):
++            try:
++                validate_arms([{**entry, "defines": value}])
++            except ValueError:
++                rejected += 1
++        ok = rejected == 3
++        passed += ok
++        print(f"defines-reject-{name}: {'PASS' if ok else 'FAIL'}")
+     regression = json.loads(fixture(3))
+     regression["results"][0].update(serializable=True, certified=False, total_cycles=0,
+                                      verdict="indeterminate")
+@@ -632,8 +713,8 @@
+     ok = v["status"] == "indeterminate" and v["reason"] is None
+     passed += ok
+     print(f"acyclic-unclean-indeterminate: {'PASS' if ok else 'FAIL'}")
+-    print(f"selftest: {'PASS' if passed == 13 else 'FAIL'} {passed}/13 cases")
+-    return 0 if passed == 13 else 1
++    print(f"selftest: {'PASS' if passed == 21 else 'FAIL'} {passed}/21 cases")
++    return 0 if passed == 21 else 1
+
+
+ def absolute(text):

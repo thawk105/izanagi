@@ -1,0 +1,263 @@
+{
+  "artifacts": {
+    "attempt_dir": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2780-compute/output/env/pegasus/mocc-trace/job-staging/0:5905.nqsv",
+    "commit_count_json": "commit-count.json",
+    "commit_count_sha256": "4e63ff086818eefec2314e012e92a42e3008706635b113072c84bd62961de6fc",
+    "discriminator_json": "discriminator.json",
+    "discriminator_sha256": "36d72996a4b6a9b6a2ef2f12392a08c0f875a4b4df9852a00d62a1855778203e",
+    "instr_patch_apply_stderr": "instr-patch-apply.stderr",
+    "instr_patch_apply_stdout": "instr-patch-apply.stdout",
+    "instr_patch_numstat": "instr-patch.numstat",
+    "instr_patch_sha256": "instr-patch.sha256",
+    "instr_patch_source_sha256": "instr-patch-source.sha256",
+    "receipt_sha256_sidecar": "mocc-trace-pilot-receipt.sha256",
+    "run_dir": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2780-compute/output/env/pegasus/mocc-trace/job-staging/0:5905.nqsv/run",
+    "submit_receipt": "submit-receipt.json",
+    "submit_receipt_sha256": "4427250fc32e449666addcc1ae38ecc1e75c57fa08e36d51e7f6e92eccf23caa",
+    "throughput_json": null,
+    "throughput_sha256": null,
+    "trace0_binary_sha256": "984d37e605af75ccee2fa23b484c05d565342a6bf8cc83fdd3d66ef9b049fab4",
+    "trace_dir": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2780-compute/output/env/pegasus/mocc-trace/job-staging/0:5905.nqsv/run/trace",
+    "trace_manifest_json": "trace-manifest.json",
+    "trace_manifest_sha256": "e9cedf213626d5da6b02bd64ecda3257df21ae3c796565ee6b5eb7c789bbb6b7",
+    "verifier_json": "verifier.json",
+    "verifier_sha256": "a1d4f2ebbb0285d221f85511e06c58994641cf8c2d1157749c15eba66e8801b9",
+    "witness_manifest_json": "witness-manifest.json",
+    "witness_manifest_sha256": "c640826e7718ec89e50743f508f2083bbff0044e38a72b360aee4b4e96622a36"
+  },
+  "build": {
+    "binary": "/scr/0_5905.nqsv/ccbench-source-build-trace1/cc/mocc/ycsb_mocc.exe",
+    "binary_sha256": "64a2c460c3317459e4e17d6f89e68c47bda71dbbc3feb1470abf12988d8c8339",
+    "build_dir": "/scr/0_5905.nqsv/ccbench-source-build-trace1",
+    "cmake_target": "ycsb_mocc.exe",
+    "compiler_path": "/usr/bin/x86_64-linux-gnu-g++-11",
+    "trace_mode": 1
+  },
+  "correctness_tools": {
+    "payload_discriminator": {
+      "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2780-compute/orchestrator/campaign/mocc_g2_discriminator.py",
+      "sha256": "f3d926024911323bf478dbd3a2fb64b4541eab4fdd19e0afa1263e8155a024c5"
+    },
+    "trace0_preprocess_identity_checker": {
+      "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2780-compute/tools/check_trace0_preprocess_identity.py",
+      "sha256": "9cf5b84ce30d187ad78afa5fd8111472a790db8a6010a90b44fba091470d8f69"
+    },
+    "verifier": {
+      "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2780-compute/orchestrator/verifier/__main__.py",
+      "sha256": "9a06c813eccbc750ca412d717ee14010ffb859d2ae1afaaebf0f38577436b701"
+    }
+  },
+  "created_epoch": 1789715384,
+  "eligible_for_refreeze": false,
+  "environment": {
+    "compiler": {
+      "path": "/usr/bin/x86_64-linux-gnu-g++-11",
+      "version": "x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0\nCopyright (C) 2021 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+    },
+    "cpu_model": "Intel(R) Xeon(R) Platinum 8468",
+    "environment_tag": "pegasus",
+    "expected_cpu_model": "Intel Xeon Platinum 8468",
+    "topology": {
+      "affinity_cpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47
+      ],
+      "cpuset_size": 48,
+      "expected_physical_cores": 48,
+      "ht_off": true,
+      "physical_visible": 48
+    },
+    "trace0_preprocess_identity_checker_interpreter_path": "/usr/bin/python3.10",
+    "verifier_interpreter_path": "/usr/bin/python3.10"
+  },
+  "gates": {
+    "discriminator_conclusion": "no-g2",
+    "discriminator_rc": "0",
+    "trace0_preprocess_identity_rc": "0",
+    "verifier_rc": "0",
+    "workload_rc": "0"
+  },
+  "mocc_trace": {
+    "base_oid": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+    "cmake_target": "ycsb_mocc.exe",
+    "new_oid": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+    "source_binding": {
+      "base_oid": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+      "cmake_target": "ycsb_mocc.exe",
+      "new_oid": "e9e477ca1b55348ab4530de0b1cf663ce4555290"
+    },
+    "t1943_g2_discriminator": true,
+    "trace0_defines": {
+      "CCBENCH_TRACE": "0"
+    },
+    "trace1_defines": {
+      "CCBENCH_TRACE": "1"
+    },
+    "trace_mode": 1,
+    "workload": {
+      "extime_s": 3,
+      "records": 10000,
+      "threads": 48,
+      "ycsb_max_ope": 10,
+      "ycsb_rmw": 0,
+      "ycsb_rratio": 50,
+      "zipf_skew": 0.9
+    },
+    "workload_note": "parent-selected pilot workload; not a reproduction of historical T-816 measurements"
+  },
+  "official_certification": false,
+  "pbs": {
+    "account": "SFC",
+    "hostname": "bnode060",
+    "hostname_fqdn": "bnode060",
+    "jobid": "0:5905.nqsv",
+    "qstat_accounting_rc": 1,
+    "qstat_final_rc": 0,
+    "queue": "gen_S",
+    "requested_s": 3600,
+    "scheduler_material": {
+      "qstat_accounting": "qstat-accounting.stdout/stderr/rc",
+      "qstat_final": "qstat-final.stdout/stderr/rc"
+    }
+  },
+  "pilot": true,
+  "policy": {
+    "expected_compiler_version_body_sha256": {
+      "g++": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0",
+      "gcc": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0"
+    },
+    "raw_sha256": "66ea7135c6d84cfd09013f33da23d8ca8015dcb547e34db7c802644f4986acd6",
+    "repo_path": "tools/pegasus/mocc_trace_v1_policy.json"
+  },
+  "schema_version": "mocc-trace-pilot-receipt/t1943-g2-v2",
+  "source": {
+    "judgment_source_state": {
+      "guarantee_name": "pre/post endpoint consistency",
+      "head_unchanged": true,
+      "post": {
+        "capture_path": "judgment-source-post.json",
+        "capture_sha256": "e00aa2334e85def5f211c06e3bef0c7fb5a54692f17d6d60d890f8b26ef7be96",
+        "clean": true,
+        "head": "f93281e55c59e8a69fda2fc4295986929e123e2a"
+      },
+      "pre": {
+        "capture_path": "judgment-source-pre.json",
+        "capture_sha256": "dff185622334857bddba60f46917d60294bdaebf97f01b42754372184d1b139c",
+        "clean": true,
+        "head": "f93281e55c59e8a69fda2fc4295986929e123e2a"
+      },
+      "residual_windows": [
+        "temporary source changes between captures can be missed",
+        "source changes after the post_judgment capture can be missed"
+      ]
+    },
+    "materialization": "git worktree add --detach in qsub job body",
+    "outer_gitlink_advanced": false,
+    "outer_repo_commit": "f93281e55c59e8a69fda2fc4295986929e123e2a",
+    "submodule_base_oid": "511c9538e4e8efa54b45cda62e72389ed3b706ec",
+    "submodule_new_oid": "e9e477ca1b55348ab4530de0b1cf663ce4555290"
+  },
+  "status": "completed",
+  "t1943_g2_discriminator": {
+    "discriminator_result": {
+      "conclusion": "no-g2",
+      "path": "discriminator.json",
+      "sha256": "36d72996a4b6a9b6a2ef2f12392a08c0f875a4b4df9852a00d62a1855778203e"
+    },
+    "instrumentation_patch": {
+      "patched_source_sha256": "bd0add59890a60150b9c650155943ddd0c1e91eeccc0121a6b674c834b3ed04c",
+      "repo_path": "patches/instr-mocc-lock-coverage.patch",
+      "sha256": "e9e65b7876050865ee1cbc4d3a05516b09a8fe0b18149e0c063632162fd7bb48",
+      "touched_paths": [
+        "cc/mocc/transaction.cc"
+      ],
+      "trace0_built_from_patched_source": true
+    },
+    "trace0_watermark_absence": {
+      "binary_sha256": "984d37e605af75ccee2fa23b484c05d565342a6bf8cc83fdd3d66ef9b049fab4",
+      "path": "trace0-watermark-absence.json",
+      "sha256": "d0c2305498711084c42cefa8a7c2fbf5c0b9d56c891195a968f423fe8d5a9ff8"
+    },
+    "trace_manifest": {
+      "path": "trace-manifest.json",
+      "sha256": "e9cedf213626d5da6b02bd64ecda3257df21ae3c796565ee6b5eb7c789bbb6b7"
+    },
+    "witness_manifest": {
+      "path": "witness-manifest.json",
+      "sha256": "c640826e7718ec89e50743f508f2083bbff0044e38a72b360aee4b4e96622a36"
+    }
+  },
+  "trace0_preprocess_identity_report": {
+    "guarantee": "選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、および include 活性の同一性",
+    "path": "trace0-preprocess-identity.json",
+    "schema": "izanagi-trace0-preprocess-identity/v2",
+    "sha256": "e5df1002837ceac5d3b2a140da99f17a1c02d06683c952066d7d65f0806ec958"
+  },
+  "workload": {
+    "argv": [
+      "-ycsb_tuple_num=10000",
+      "-thread_num=48",
+      "-ycsb_zipf_skew=0.9",
+      "-ycsb_rratio=50",
+      "-ycsb_rmw=0",
+      "-ycsb_max_ope=10",
+      "-extime=3"
+    ],
+    "argv_source": "t139_r4_env_probe.py gflags spelling",
+    "config": {
+      "extime_s": 3,
+      "records": 10000,
+      "threads": 48,
+      "ycsb_max_ope": 10,
+      "ycsb_rmw": 0,
+      "ycsb_rratio": 50,
+      "zipf_skew": 0.9
+    }
+  }
+}

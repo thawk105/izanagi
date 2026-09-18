@@ -35,6 +35,13 @@ DEFAULT_ASSESSMENT_TIMEOUT_SECONDS = 8.0
 DEFAULT_MAX_DELETION_LOSS_COMMITS = 4096
 DEFAULT_MAX_ASSESSMENTS = 64
 COMMAND_TIMEOUT_SECONDS = 8.0
+# Parent-side grace for the landed checker's exit: the child measures its
+# --timeout-seconds from Git construction (after interpreter start), so the parent
+# must wait longer than the child's budget to collect the child's timeout JSON.
+# Basis: 12 probe runs on the login node (load 24-35, T=1 x10 / T=8 x2) gave
+# wall - T = 0.087..0.134 s; 2.0 s is ~15x that max. Not measured under heavy
+# shared-FS load; if exceeded the parent falls back to checker-timeout.
+CHECKER_EXIT_GRACE_SECONDS = 2.0
 OID_RE = re.compile(r"(?:[0-9a-f]{40}|[0-9a-f]{64})\Z")
 PRIVATE_REF_PREFIXES = ("refs/bisect/", "refs/worktree/", "refs/rewritten/")
 PSEUDOREFS = (
@@ -1581,7 +1588,7 @@ def _landed_assessment(repo: Path, checker: Path, oid: str, timeout: float,
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                timeout=min(timeout, overall_remaining),
+                timeout=min(timeout + CHECKER_EXIT_GRACE_SECONDS, overall_remaining),
                 check=False,
             )
     except subprocess.TimeoutExpired:

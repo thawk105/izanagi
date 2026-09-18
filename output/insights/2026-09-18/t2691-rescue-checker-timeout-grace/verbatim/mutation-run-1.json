@@ -1,0 +1,506 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2691-mutcontainer/output/pegasus-dispatch/cadc7ac31f2c3828bf7c82387becd7ec/izdw-cadc7ac31f.o5882",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2691-mutcontainer/output/pegasus-dispatch/cadc7ac31f2c3828bf7c82387becd7ec/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 79%]\n...................                                                      [100%]\n91 passed in 7.40s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "daf70a8ae78dcce4848a2be2da0fa21edb52ca9329efa1b3907b546eca7f5f1f"
+    },
+    "artifact_error": null,
+    "collection_sha256": "9305075c616784ebec2296203d0600e9f8926b4c715133d4378cfdf5bc8d0088",
+    "duration_s": 32.211,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "704e9ffaf959b665548d28a40e068d1c784f59d513bc37938907789b1259a7e5",
+    "repo_head": "b38442a981e03b39ffaab7211fab8afa28727357",
+    "runner_sha256": "839e32565295e9b5be49566a469dabf1826865068c96d8492ad2828931909c68",
+    "spec_sha256": "902beb00dac9436e2b481b323e268aaf13f5dec8f3a14d6b1dd2ce714c83762c",
+    "status": "PASSED",
+    "test_output_sha256": "daf70a8ae78dcce4848a2be2da0fa21edb52ca9329efa1b3907b546eca7f5f1f",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "f36b92335fd3603d0306b8ddaf063b9eb9c94330d04e92022d6be7c72bfa547f"
+  },
+  "date": "2026-09-18T06:42:22.655875+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2691-mutcontainer/output/pegasus-dispatch/6d47c199535954109b1b121647989b1a/izdw-6d47c19953.o5884",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2691-mutcontainer/output/pegasus-dispatch/6d47c199535954109b1b121647989b1a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 79%]\n.............F.....                                                      [100%]\n=================================== FAILURES ===================================\n_______ test_landed_checker_timeout_json_is_collected_within_exit_grace ________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_landed_checker_timeout_js0')\n\n    def test_landed_checker_timeout_json_is_collected_within_exit_grace(tmp_path: Path):\n        checker = _make_timed_fake_landed(tmp_path / \"checker.py\")\n        oid = \"a\" * 40\n    \n        assessment = TOOL._landed_assessment(tmp_path, checker, oid, 0.5, 100.0)\n    \n>       assert assessment[\"reason\"] == \"assessment-timeout\"\nE       AssertionError: assert 'checker-timeout' == 'assessment-timeout'\nE         \nE         - assessment-timeout\nE         + checker-timeout\n\norchestrator/tests/test_check_branch_rescue.py:1962: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_timeout_json_is_collected_within_exit_grace\n1 failed, 90 passed in 5.57s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_timeout_json_is_collected_within_exit_grace\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=687 retained_bytes=687 omitted_bytes=0 rendered_excerpt_bytes=722 sha256=d88b5da1d46c7412760199d0025c7617af31a3704745c8d6f4eee6736561edc5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_landed_checker_timeout_js0')\n> \n>     def test_landed_checker_timeout_json_is_collected_within_exit_grace(tmp_path: Path):\n>         checker = _make_timed_fake_landed(tmp_path / \"checker.py\")\n>         oid = \"a\" * 40\n>     \n>         assessment = TOOL._landed_assessment(tmp_path, checker, oid, 0.5, 100.0)\n>     \n> >       assert assessment[\"reason\"] == \"assessment-timeout\"\n> E       AssertionError: assert 'checker-timeout' == 'assessment-timeout'\n> E         \n> E         - assessment-timeout\n> E         + checker-timeout\n> \n> orchestrator/tests/test_check_branch_rescue.py:1962: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=687 retained_bytes=687 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1456 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "b7513f4b21ecccf6b023e0659478820081936cecb229ba2298f8cf878abe9e40"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "9305075c616784ebec2296203d0600e9f8926b4c715133d4378cfdf5bc8d0088",
+      "duration_s": 27.022,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_timeout_json_is_collected_within_exit_grace"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_timeout_json_is_collected_within_exit_grace"
+      ],
+      "hang_risk": false,
+      "id": "m1-grace-zero",
+      "injection_diff_sha256": "d7738ac7d2b8cda871906f52f00d0423ca9bdcdf2f176f8763369563d7e80187",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2342a47d648a982e52d5d1d19373f796ad237f131efe25ccb24d7c1cd1c2aa52",
+      "replacements": [
+        {
+          "file": "tools/check_branch_rescue.py",
+          "new": "CHECKER_EXIT_GRACE_SECONDS = 0.0\n",
+          "old": "CHECKER_EXIT_GRACE_SECONDS = 2.0\n"
+        }
+      ],
+      "repo_head": "b38442a981e03b39ffaab7211fab8afa28727357",
+      "runner_sha256": "839e32565295e9b5be49566a469dabf1826865068c96d8492ad2828931909c68",
+      "spec_sha256": "902beb00dac9436e2b481b323e268aaf13f5dec8f3a14d6b1dd2ce714c83762c",
+      "status": "KILLED",
+      "test_output_sha256": "b7513f4b21ecccf6b023e0659478820081936cecb229ba2298f8cf878abe9e40",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f36b92335fd3603d0306b8ddaf063b9eb9c94330d04e92022d6be7c72bfa547f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2691-mutcontainer/output/pegasus-dispatch/e4840b4ceb1229bddd84a005cfbf0865/izdw-e4840b4ceb.o5885",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2691-mutcontainer/output/pegasus-dispatch/e4840b4ceb1229bddd84a005cfbf0865/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 79%]\n..................F                                                      [100%]\n=================================== FAILURES ===================================\n_____________ test_landed_checker_overall_remaining_caps_the_wait ______________\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_landed_checker_overall_re0')\n\n    def test_landed_checker_overall_remaining_caps_the_wait(tmp_path: Path):\n        checker = _make_timed_fake_landed(tmp_path / \"checker.py\", silent=True)\n        oid = \"a\" * 40\n    \n        assessment = TOOL._landed_assessment(tmp_path, checker, oid, 5.0, 0.5)\n    \n        assert assessment[\"reason\"] == \"checker-timeout\"\n        assert assessment[\"checker_rc\"] is None\n>       assert assessment[\"elapsed_seconds\"] < 3.0\nE       assert 7.008479 < 3.0\n\norchestrator/tests/test_check_branch_rescue.py:1998: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_overall_remaining_caps_the_wait\n1 failed, 90 passed in 11.45s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_overall_remaining_caps_the_wait\" nodeid_bytes=99 nodeid_omitted_bytes=0 source_bytes=669 retained_bytes=669 omitted_bytes=0 rendered_excerpt_bytes=702 sha256=02eb7ae28e33f1e51f0e4287f8efafce65eb14001394e71e452e35c1e66384ac\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_landed_checker_overall_re0')\n> \n>     def test_landed_checker_overall_remaining_caps_the_wait(tmp_path: Path):\n>         checker = _make_timed_fake_landed(tmp_path / \"checker.py\", silent=True)\n>         oid = \"a\" * 40\n>     \n>         assessment = TOOL._landed_assessment(tmp_path, checker, oid, 5.0, 0.5)\n>     \n>         assert assessment[\"reason\"] == \"checker-timeout\"\n>         assert assessment[\"checker_rc\"] is None\n> >       assert assessment[\"elapsed_seconds\"] < 3.0\n> E       assert 7.008479 < 3.0\n> \n> orchestrator/tests/test_check_branch_rescue.py:1998: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=669 retained_bytes=669 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1423 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "094fcd96e89ca1caafba919fd7c7a6e6d866fc7a0665094d0a09683b1bce20d7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "9305075c616784ebec2296203d0600e9f8926b4c715133d4378cfdf5bc8d0088",
+      "duration_s": 37.283,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_overall_remaining_caps_the_wait"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_overall_remaining_caps_the_wait"
+      ],
+      "hang_risk": false,
+      "id": "m2-no-overall-cap",
+      "injection_diff_sha256": "a6fb42c31331faabaa8d0c579a1f6ec827281737043df89be0e0ee6cc2de7f5b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ec7cf1172d21eefb751fdbe19e4a06b0f49aec59527b914bd7e65cf680d38935",
+      "replacements": [
+        {
+          "file": "tools/check_branch_rescue.py",
+          "new": "                timeout=timeout + CHECKER_EXIT_GRACE_SECONDS,\n",
+          "old": "                timeout=min(timeout + CHECKER_EXIT_GRACE_SECONDS, overall_remaining),\n"
+        }
+      ],
+      "repo_head": "b38442a981e03b39ffaab7211fab8afa28727357",
+      "runner_sha256": "839e32565295e9b5be49566a469dabf1826865068c96d8492ad2828931909c68",
+      "spec_sha256": "902beb00dac9436e2b481b323e268aaf13f5dec8f3a14d6b1dd2ce714c83762c",
+      "status": "KILLED",
+      "test_output_sha256": "094fcd96e89ca1caafba919fd7c7a6e6d866fc7a0665094d0a09683b1bce20d7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f36b92335fd3603d0306b8ddaf063b9eb9c94330d04e92022d6be7c72bfa547f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2691-mutcontainer/output/pegasus-dispatch/f739fe31147896aba9e92360f7197155/izdw-f739fe3114.o5887",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2691-mutcontainer/output/pegasus-dispatch/f739fe31147896aba9e92360f7197155/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 79%]\n.................F.                                                      [100%]\n=================================== FAILURES ===================================\n_______ test_landed_checker_timeout_json_is_collected_within_exit_grace ________\n[gw40] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_landed_checker_timeout_js0')\n\n    def test_landed_checker_timeout_json_is_collected_within_exit_grace(tmp_path: Path):\n        checker = _make_timed_fake_landed(tmp_path / \"checker.py\")\n        oid = \"a\" * 40\n    \n        assessment = TOOL._landed_assessment(tmp_path, checker, oid, 0.5, 100.0)\n    \n>       assert assessment[\"reason\"] == \"assessment-timeout\"\nE       AssertionError: assert 'checker-timeout' == 'assessment-timeout'\nE         \nE         - assessment-timeout\nE         + checker-timeout\n\norchestrator/tests/test_check_branch_rescue.py:1962: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_timeout_json_is_collected_within_exit_grace\n1 failed, 90 passed in 7.16s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_timeout_json_is_collected_within_exit_grace\" nodeid_bytes=111 nodeid_omitted_bytes=0 source_bytes=687 retained_bytes=687 omitted_bytes=0 rendered_excerpt_bytes=722 sha256=d88b5da1d46c7412760199d0025c7617af31a3704745c8d6f4eee6736561edc5\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw40] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_landed_checker_timeout_js0')\n> \n>     def test_landed_checker_timeout_json_is_collected_within_exit_grace(tmp_path: Path):\n>         checker = _make_timed_fake_landed(tmp_path / \"checker.py\")\n>         oid = \"a\" * 40\n>     \n>         assessment = TOOL._landed_assessment(tmp_path, checker, oid, 0.5, 100.0)\n>     \n> >       assert assessment[\"reason\"] == \"assessment-timeout\"\n> E       AssertionError: assert 'checker-timeout' == 'assessment-timeout'\n> E         \n> E         - assessment-timeout\n> E         + checker-timeout\n> \n> orchestrator/tests/test_check_branch_rescue.py:1962: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=687 retained_bytes=687 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1456 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "03d6500fee6a6c96f09d8e3279f17bfc252e1947538d504b3bdca9bcb853556a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "9305075c616784ebec2296203d0600e9f8926b4c715133d4378cfdf5bc8d0088",
+      "duration_s": 32.158,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_timeout_json_is_collected_within_exit_grace"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_timeout_json_is_collected_within_exit_grace"
+      ],
+      "hang_risk": false,
+      "id": "m3-child-budget-also-raised",
+      "injection_diff_sha256": "aa74266d1477e22d0d3ce6115be244c509f87851f1c1d1d79998cbf185f15e19",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6247b77299fcd4596b6d229cca4244c4d6574c7b207818e78771287ab44b83d8",
+      "replacements": [
+        {
+          "file": "tools/check_branch_rescue.py",
+          "new": "                 \"--timeout-seconds\", str(timeout + CHECKER_EXIT_GRACE_SECONDS), oid],\n",
+          "old": "                 \"--timeout-seconds\", str(timeout), oid],\n"
+        }
+      ],
+      "repo_head": "b38442a981e03b39ffaab7211fab8afa28727357",
+      "runner_sha256": "839e32565295e9b5be49566a469dabf1826865068c96d8492ad2828931909c68",
+      "spec_sha256": "902beb00dac9436e2b481b323e268aaf13f5dec8f3a14d6b1dd2ce714c83762c",
+      "status": "KILLED",
+      "test_output_sha256": "03d6500fee6a6c96f09d8e3279f17bfc252e1947538d504b3bdca9bcb853556a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f36b92335fd3603d0306b8ddaf063b9eb9c94330d04e92022d6be7c72bfa547f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2691-mutcontainer/output/pegasus-dispatch/3625b3179cb65c81c051a6ee9b8afd68/izdw-3625b3179c.o5888",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2691-mutcontainer/output/pegasus-dispatch/3625b3179cb65c81c051a6ee9b8afd68/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 79%]\n..................F                                                      [100%]\n=================================== FAILURES ===================================\n______ test_landed_checker_silent_child_is_cut_at_budget_plus_exit_grace _______\n[gw41] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_landed_checker_silent_chi0')\n\n    def test_landed_checker_silent_child_is_cut_at_budget_plus_exit_grace(tmp_path: Path):\n        checker = _make_timed_fake_landed(tmp_path / \"checker.py\", silent=True)\n        oid = \"a\" * 40\n    \n        assessment = TOOL._landed_assessment(tmp_path, checker, oid, 1.0, 100.0)\n    \n        assert assessment[\"reason\"] == \"checker-timeout\"\n        assert assessment[\"checker_rc\"] is None\n        assert assessment[\"complete\"] is False\n        assert assessment[\"unproven_unit_details\"][\"missing_reason\"] == \"child-report-unavailable\"\n>       assert 1.0 + TOOL.CHECKER_EXIT_GRACE_SECONDS - 0.2 <= assessment[\"elapsed_seconds\"] < 10.0\nE       assert ((1.0 + 2.0) - 0.2) <= 2.003515\nE        +  where 2.0 = TOOL.CHECKER_EXIT_GRACE_SECONDS\n\norchestrator/tests/test_check_branch_rescue.py:1987: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_silent_child_is_cut_at_budget_plus_exit_grace\n1 failed, 90 passed in 6.51s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_silent_child_is_cut_at_budget_plus_exit_grace\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=952 retained_bytes=952 omitted_bytes=0 rendered_excerpt_bytes=991 sha256=e170294faa94005e24f4d25e35f82390e835c9ea5f91118e811833acfd36961c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw41] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_landed_checker_silent_chi0')\n> \n>     def test_landed_checker_silent_child_is_cut_at_budget_plus_exit_grace(tmp_path: Path):\n>         checker = _make_timed_fake_landed(tmp_path / \"checker.py\", silent=True)\n>         oid = \"a\" * 40\n>     \n>         assessment = TOOL._landed_assessment(tmp_path, checker, oid, 1.0, 100.0)\n>     \n>         assert assessment[\"reason\"] == \"checker-timeout\"\n>         assert assessment[\"checker_rc\"] is None\n>         assert assessment[\"complete\"] is False\n>         assert assessment[\"unproven_unit_details\"][\"missing_reason\"] == \"child-report-unavailable\"\n> >       assert 1.0 + TOOL.CHECKER_EXIT_GRACE_SECONDS - 0.2 <= assessment[\"elapsed_seconds\"] < 10.0\n> E       assert ((1.0 + 2.0) - 0.2) <= 2.003515\n> E        +  where 2.0 = TOOL.CHECKER_EXIT_GRACE_SECONDS\n> \n> orchestrator/tests/test_check_branch_rescue.py:1987: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=952 retained_bytes=952 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1727 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d50b59286d73cf03ea96cbf667cfde98ad72101d9fa581fd9c8c8c414cf591aa"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "9305075c616784ebec2296203d0600e9f8926b4c715133d4378cfdf5bc8d0088",
+      "duration_s": 32.177,
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_silent_child_is_cut_at_budget_plus_exit_grace"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_silent_child_is_cut_at_budget_plus_exit_grace"
+      ],
+      "hang_risk": false,
+      "id": "m4-max-instead-of-sum",
+      "injection_diff_sha256": "61dba50066464025174a0f4e38144c3bc66793b6f523a2c8db00b1f737636be9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "31188ee1f9b4feff506c589d5124f10f6ecc90956099019c3bb6c4354ef28eb8",
+      "replacements": [
+        {
+          "file": "tools/check_branch_rescue.py",
+          "new": "                timeout=min(max(timeout, CHECKER_EXIT_GRACE_SECONDS), overall_remaining),\n",
+          "old": "                timeout=min(timeout + CHECKER_EXIT_GRACE_SECONDS, overall_remaining),\n"
+        }
+      ],
+      "repo_head": "b38442a981e03b39ffaab7211fab8afa28727357",
+      "runner_sha256": "839e32565295e9b5be49566a469dabf1826865068c96d8492ad2828931909c68",
+      "spec_sha256": "902beb00dac9436e2b481b323e268aaf13f5dec8f3a14d6b1dd2ce714c83762c",
+      "status": "KILLED",
+      "test_output_sha256": "d50b59286d73cf03ea96cbf667cfde98ad72101d9fa581fd9c8c8c414cf591aa",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f36b92335fd3603d0306b8ddaf063b9eb9c94330d04e92022d6be7c72bfa547f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2691-mutcontainer/output/pegasus-dispatch/30000bc519779997472091d590493891/izdw-30000bc519.o5889",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2691-mutcontainer/output/pegasus-dispatch/30000bc519779997472091d590493891/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 79%]\n...................                                                      [100%]\n91 passed in 7.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "2b009c3f553723e6af37b37f02c980d7d2e81082ec5973f71e36c5f3dd611d74"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "9305075c616784ebec2296203d0600e9f8926b4c715133d4378cfdf5bc8d0088",
+      "duration_s": 52.759,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "m5-equivalent-arg-order",
+      "injection_diff_sha256": "fac79763c651f798c6aa547166b54329d881fbe4ecf71a9ebf0c61091eae3f99",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "4e1a1ae40b85914eae4aa2f410472d07b8e2304a8cc88887ced2cb2155ab4c23",
+      "replacements": [
+        {
+          "file": "tools/check_branch_rescue.py",
+          "new": "                timeout=min(overall_remaining, timeout + CHECKER_EXIT_GRACE_SECONDS),\n",
+          "old": "                timeout=min(timeout + CHECKER_EXIT_GRACE_SECONDS, overall_remaining),\n"
+        }
+      ],
+      "repo_head": "b38442a981e03b39ffaab7211fab8afa28727357",
+      "runner_sha256": "839e32565295e9b5be49566a469dabf1826865068c96d8492ad2828931909c68",
+      "spec_sha256": "902beb00dac9436e2b481b323e268aaf13f5dec8f3a14d6b1dd2ce714c83762c",
+      "status": "SURVIVED",
+      "test_output_sha256": "2b009c3f553723e6af37b37f02c980d7d2e81082ec5973f71e36c5f3dd611d74",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "f36b92335fd3603d0306b8ddaf063b9eb9c94330d04e92022d6be7c72bfa547f"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2691-mutcontainer/output/pegasus-dispatch/65de5ec847c0b2012efa1da36d9ea16b/izdw-65de5ec847.o5881",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2691-mutcontainer/output/pegasus-dispatch/65de5ec847c0b2012efa1da36d9ea16b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_check_branch_rescue.py::test_p01_empty_closure_is_complete_rc0\norchestrator/tests/test_check_branch_rescue.py::test_p02_real_checker_landed_and_loose_deadline_is_rc0\norchestrator/tests/test_check_branch_rescue.py::test_p03_real_checker_not_landed_is_still_rc0\norchestrator/tests/test_check_branch_rescue.py::test_p04_missing_ledger_and_real_audit_zero_is_rc0\norchestrator/tests/test_check_branch_rescue.py::test_m01_surviving_reflog_is_time_limited_not_negative_root\norchestrator/tests/test_check_branch_rescue.py::test_m02_nonretired_detached_worktree_head_is_permanent_root\norchestrator/tests/test_check_branch_rescue.py::test_m03_m18_p06_candidate_reflog_only_commit_is_a_positive_root\norchestrator/tests/test_check_branch_rescue.py::test_m04_remote_ref_is_in_full_refs_namespace_root_set\norchestrator/tests/test_check_branch_rescue.py::test_m05_all_candidates_are_subtracted_in_one_closure\norchestrator/tests/test_check_branch_rescue.py::test_m06_rev_list_stdin_uses_caret_oids_and_never_not_line\norchestrator/tests/test_check_branch_rescue.py::test_m07_indeterminate_assessment_forces_rc2\norchestrator/tests/test_check_branch_rescue.py::test_m08_not_landed_is_content_not_technical_failure\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[missing-branch]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[missing-input]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[missing-tip]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[different-input]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[different-tip]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_conclusive_mismatch[landed-False]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_conclusive_mismatch[not-landed-False]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_conclusive_mismatch[indeterminate-True]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[array]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[object]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[bool]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[null]\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[number]\norchestrator/tests/test_check_branch_rescue.py::test_m09_loose_deadline_uses_object_mtime_not_now\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[5.days.ago-30.days.ago-2030-01-06T00:00:00Z-gc.reflogExpire]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[90.days.ago-4.days.ago-2030-01-05T00:00:00Z-gc.reflogExpireUnreachable]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[never-6.days.ago-2030-01-07T00:00:00Z-gc.reflogExpireUnreachable]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[6.days.ago-never-2030-01-07T00:00:00Z-gc.reflogExpire]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[never-never-9999-12-31T23:59:59Z-gc.reflogExpire=never]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/heads/topic-3.days.ago-8.days.ago-2030-01-04T00:00:00Z-gc.refs/heads/*.reflogExpire]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/heads/topic-never-8.days.ago-2030-01-09T00:00:00Z-gc.refs/heads/*.reflogExpireUnreachable]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/heads/topic-3.days.ago-never-2030-01-04T00:00:00Z-gc.refs/heads/*.reflogExpire]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/heads/topic-never-never-9999-12-31T23:59:59Z-gc.reflogExpire=never]\norchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/tags/topic-1.days.ago-2.days.ago-2030-01-31T00:00:00Z-gc.reflogExpireUnreachable]\norchestrator/tests/test_check_branch_rescue.py::test_scoped_reflog_config_reads_ordinary_and_unreachable\norchestrator/tests/test_check_branch_rescue.py::test_m10_m26_packed_mtime_never_becomes_determinate_deadline\norchestrator/tests/test_check_branch_rescue.py::test_m11_m28_p07_packed_conservative_floor_is_complete_rc0\norchestrator/tests/test_check_branch_rescue.py::test_m12_gc_auto_uses_fanout_sample_not_total_count\norchestrator/tests/test_check_branch_rescue.py::test_m13_closure_limit_keeps_the_over_limit_observation\norchestrator/tests/test_check_branch_rescue.py::test_m14_unledgered_audit_finding_returns_rc3\norchestrator/tests/test_check_branch_rescue.py::test_audit_re_report_notifies_stale_resolutions_except_accepted_loss\norchestrator/tests/test_check_branch_rescue.py::test_m15_m24_retention_and_authorization_claims_are_absent_or_fixed\norchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn\norchestrator/tests/test_check_branch_rescue.py::test_m17_root_digest_movement_forces_rc2\norchestrator/tests/test_check_branch_rescue.py::test_retiring_one_of_two_same_detached_heads_keeps_the_other_root\norchestrator/tests/test_check_branch_rescue.py::test_surviving_index_commit_is_root_but_blob_is_not_commit_root\norchestrator/tests/test_check_branch_rescue.py::test_m21_p08_prunable_worktree_roots_use_conservative_floor\norchestrator/tests/test_check_branch_rescue.py::test_private_ref_presence_is_reported_and_never_used_as_negative_root\norchestrator/tests/test_check_branch_rescue.py::test_m29_p09_alternate_only_commit_has_conservative_external_retention\norchestrator/tests/test_check_branch_rescue.py::test_normal_preview_preserves_repository_control_bytes\norchestrator/tests/test_check_branch_rescue.py::test_assessment_limit_marks_every_unrun_commit\norchestrator/tests/test_check_branch_rescue.py::test_usage_rc64_and_fixed_coverage_boundary\norchestrator/tests/test_check_branch_rescue.py::test_a1_retired_worktree_reflog_only_commit_is_a_positive_root\norchestrator/tests/test_check_branch_rescue.py::test_a1_candidate_reflog_parse_failure_is_rc2\norchestrator/tests/test_check_branch_rescue.py::test_a1_candidate_reflog_missing_object_is_defined_rc2\norchestrator/tests/test_check_branch_rescue.py::test_a2_a6_production_cli_rejects_child_path_and_time_injection\norchestrator/tests/test_check_branch_rescue.py::test_m20_a4_effective_global_prune_config_is_observed\norchestrator/tests/test_check_branch_rescue.py::test_a4_absolute_prune_expiry_is_determinate\norchestrator/tests/test_check_branch_rescue.py::test_p05_porcelain_accepts_locked_detached_bare_and_c_quoted_path\norchestrator/tests/test_check_branch_rescue.py::test_m19_unknown_worktree_field_keeps_record_as_permanent_root\norchestrator/tests/test_check_branch_rescue.py::test_a8_git_ref_rules_and_non_utf8_ref_are_reversible\norchestrator/tests/test_check_branch_rescue.py::test_a8_non_utf8_ref_is_stable_in_snapshot_digest\norchestrator/tests/test_check_branch_rescue.py::test_a9_out_of_range_reflog_timestamp_is_defined_rc2\norchestrator/tests/test_check_branch_rescue.py::test_a9_reflog_expiry_addition_overflow_is_defined_rc2\norchestrator/tests/test_check_branch_rescue.py::test_a10_ledger_rejects_sample_threshold_not_derived_from_gc_auto\norchestrator/tests/test_check_branch_rescue.py::test_m22_audit_requires_one_final_elapsed_seconds_line\norchestrator/tests/test_check_branch_rescue.py::test_m25_promisor_fixture_forces_no_lazy_fetch_for_every_child\norchestrator/tests/test_check_branch_rescue.py::test_m27_unclassified_storage_has_null_indeterminate_floor\norchestrator/tests/test_check_branch_rescue.py::test_deadline_contract_assessment_time_failure_is_defined_rc2\norchestrator/tests/test_check_branch_rescue.py::test_m30_gc_prune_expire_never_is_determinate\norchestrator/tests/test_check_branch_rescue.py::test_audit_child_argv_is_explicit_off\norchestrator/tests/test_check_branch_rescue.py::test_child_env_omits_offrepo_root\norchestrator/tests/test_check_branch_rescue.py::test_audit_summary_discloses_off_for_all_outcomes[zero]\norchestrator/tests/test_check_branch_rescue.py::test_audit_summary_discloses_off_for_all_outcomes[finding]\norchestrator/tests/test_check_branch_rescue.py::test_audit_summary_discloses_off_for_all_outcomes[invalid]\norchestrator/tests/test_check_branch_rescue.py::test_audit_summary_discloses_off_for_all_outcomes[timeout]\norchestrator/tests/test_check_branch_rescue.py::test_audit_summary_discloses_off_for_all_outcomes[decode]\norchestrator/tests/test_check_branch_rescue.py::test_real_audit_off_reports_landed_external_copy_with_or_without_env\norchestrator/tests/test_check_branch_rescue.py::test_real_checker_unlanded_spool_details[0]\norchestrator/tests/test_check_branch_rescue.py::test_real_checker_unlanded_spool_details[2]\norchestrator/tests/test_check_branch_rescue.py::test_unproven_details_are_bounded_and_count_all_reasons\norchestrator/tests/test_check_branch_rescue.py::test_missing_child_unit_details_never_claim_complete[timeout]\norchestrator/tests/test_check_branch_rescue.py::test_missing_child_unit_details_never_claim_complete[no-units]\norchestrator/tests/test_check_branch_rescue.py::test_missing_child_unit_details_never_claim_complete[partial-units]\norchestrator/tests/test_check_branch_rescue.py::test_unit_details_do_not_change_assessment_decisions\norchestrator/tests/test_check_branch_rescue.py::test_unit_details_do_not_change_rescue_rc_or_decision_inputs\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_timeout_json_is_collected_within_exit_grace\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_silent_child_is_cut_at_budget_plus_exit_grace\norchestrator/tests/test_check_branch_rescue.py::test_landed_checker_overall_remaining_caps_the_wait\n\n91 tests collected in 0.50s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "332b2e8987ddf396f5dbc426fe533b1e3cd9a02449d429d7996a4c169bba19b2"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_check_branch_rescue.py::test_p01_empty_closure_is_complete_rc0",
+        "orchestrator/tests/test_check_branch_rescue.py::test_p02_real_checker_landed_and_loose_deadline_is_rc0",
+        "orchestrator/tests/test_check_branch_rescue.py::test_p03_real_checker_not_landed_is_still_rc0",
+        "orchestrator/tests/test_check_branch_rescue.py::test_p04_missing_ledger_and_real_audit_zero_is_rc0",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m01_surviving_reflog_is_time_limited_not_negative_root",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m02_nonretired_detached_worktree_head_is_permanent_root",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m03_m18_p06_candidate_reflog_only_commit_is_a_positive_root",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m04_remote_ref_is_in_full_refs_namespace_root_set",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m05_all_candidates_are_subtracted_in_one_closure",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m06_rev_list_stdin_uses_caret_oids_and_never_not_line",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m07_indeterminate_assessment_forces_rc2",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m08_not_landed_is_content_not_technical_failure",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[missing-branch]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[missing-input]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[missing-tip]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[different-input]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_is_bound_to_requested_full_oid[different-tip]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_conclusive_mismatch[landed-False]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_conclusive_mismatch[not-landed-False]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_conclusive_mismatch[indeterminate-True]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[array]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[object]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[bool]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[null]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_report_rejects_non_string_verdict[number]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m09_loose_deadline_uses_object_mtime_not_now",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[5.days.ago-30.days.ago-2030-01-06T00:00:00Z-gc.reflogExpire]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[90.days.ago-4.days.ago-2030-01-05T00:00:00Z-gc.reflogExpireUnreachable]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[never-6.days.ago-2030-01-07T00:00:00Z-gc.reflogExpireUnreachable]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[6.days.ago-never-2030-01-07T00:00:00Z-gc.reflogExpire]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_uses_both_global_candidates_and_never[never-never-9999-12-31T23:59:59Z-gc.reflogExpire=never]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/heads/topic-3.days.ago-8.days.ago-2030-01-04T00:00:00Z-gc.refs/heads/*.reflogExpire]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/heads/topic-never-8.days.ago-2030-01-09T00:00:00Z-gc.refs/heads/*.reflogExpireUnreachable]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/heads/topic-3.days.ago-never-2030-01-04T00:00:00Z-gc.refs/heads/*.reflogExpire]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/heads/topic-never-never-9999-12-31T23:59:59Z-gc.reflogExpire=never]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_reflog_expiry_applies_scoped_candidates_only_to_matching_refs[refs/tags/topic-1.days.ago-2.days.ago-2030-01-31T00:00:00Z-gc.reflogExpireUnreachable]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_scoped_reflog_config_reads_ordinary_and_unreachable",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m10_m26_packed_mtime_never_becomes_determinate_deadline",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m11_m28_p07_packed_conservative_floor_is_complete_rc0",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m12_gc_auto_uses_fanout_sample_not_total_count",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m13_closure_limit_keeps_the_over_limit_observation",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m14_unledgered_audit_finding_returns_rc3",
+        "orchestrator/tests/test_check_branch_rescue.py::test_audit_re_report_notifies_stale_resolutions_except_accepted_loss",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m15_m24_retention_and_authorization_claims_are_absent_or_fixed",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m16_git_allowlist_rejects_forbidden_command_before_spawn",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m17_root_digest_movement_forces_rc2",
+        "orchestrator/tests/test_check_branch_rescue.py::test_retiring_one_of_two_same_detached_heads_keeps_the_other_root",
+        "orchestrator/tests/test_check_branch_rescue.py::test_surviving_index_commit_is_root_but_blob_is_not_commit_root",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m21_p08_prunable_worktree_roots_use_conservative_floor",
+        "orchestrator/tests/test_check_branch_rescue.py::test_private_ref_presence_is_reported_and_never_used_as_negative_root",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m29_p09_alternate_only_commit_has_conservative_external_retention",
+        "orchestrator/tests/test_check_branch_rescue.py::test_normal_preview_preserves_repository_control_bytes",
+        "orchestrator/tests/test_check_branch_rescue.py::test_assessment_limit_marks_every_unrun_commit",
+        "orchestrator/tests/test_check_branch_rescue.py::test_usage_rc64_and_fixed_coverage_boundary",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a1_retired_worktree_reflog_only_commit_is_a_positive_root",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a1_candidate_reflog_parse_failure_is_rc2",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a1_candidate_reflog_missing_object_is_defined_rc2",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a2_a6_production_cli_rejects_child_path_and_time_injection",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m20_a4_effective_global_prune_config_is_observed",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a4_absolute_prune_expiry_is_determinate",
+        "orchestrator/tests/test_check_branch_rescue.py::test_p05_porcelain_accepts_locked_detached_bare_and_c_quoted_path",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m19_unknown_worktree_field_keeps_record_as_permanent_root",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a8_git_ref_rules_and_non_utf8_ref_are_reversible",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a8_non_utf8_ref_is_stable_in_snapshot_digest",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a9_out_of_range_reflog_timestamp_is_defined_rc2",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a9_reflog_expiry_addition_overflow_is_defined_rc2",
+        "orchestrator/tests/test_check_branch_rescue.py::test_a10_ledger_rejects_sample_threshold_not_derived_from_gc_auto",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m22_audit_requires_one_final_elapsed_seconds_line",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m25_promisor_fixture_forces_no_lazy_fetch_for_every_child",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m27_unclassified_storage_has_null_indeterminate_floor",
+        "orchestrator/tests/test_check_branch_rescue.py::test_deadline_contract_assessment_time_failure_is_defined_rc2",
+        "orchestrator/tests/test_check_branch_rescue.py::test_m30_gc_prune_expire_never_is_determinate",
+        "orchestrator/tests/test_check_branch_rescue.py::test_audit_child_argv_is_explicit_off",
+        "orchestrator/tests/test_check_branch_rescue.py::test_child_env_omits_offrepo_root",
+        "orchestrator/tests/test_check_branch_rescue.py::test_audit_summary_discloses_off_for_all_outcomes[zero]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_audit_summary_discloses_off_for_all_outcomes[finding]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_audit_summary_discloses_off_for_all_outcomes[invalid]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_audit_summary_discloses_off_for_all_outcomes[timeout]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_audit_summary_discloses_off_for_all_outcomes[decode]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_real_audit_off_reports_landed_external_copy_with_or_without_env",
+        "orchestrator/tests/test_check_branch_rescue.py::test_real_checker_unlanded_spool_details[0]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_real_checker_unlanded_spool_details[2]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_unproven_details_are_bounded_and_count_all_reasons",
+        "orchestrator/tests/test_check_branch_rescue.py::test_missing_child_unit_details_never_claim_complete[timeout]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_missing_child_unit_details_never_claim_complete[no-units]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_missing_child_unit_details_never_claim_complete[partial-units]",
+        "orchestrator/tests/test_check_branch_rescue.py::test_unit_details_do_not_change_assessment_decisions",
+        "orchestrator/tests/test_check_branch_rescue.py::test_unit_details_do_not_change_rescue_rc_or_decision_inputs",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_timeout_json_is_collected_within_exit_grace",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_silent_child_is_cut_at_budget_plus_exit_grace",
+        "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_overall_remaining_caps_the_wait"
+      ],
+      "duration_s": 21.914,
+      "rc": 0,
+      "repo_head": "b38442a981e03b39ffaab7211fab8afa28727357",
+      "runner_sha256": "839e32565295e9b5be49566a469dabf1826865068c96d8492ad2828931909c68",
+      "spec_sha256": "902beb00dac9436e2b481b323e268aaf13f5dec8f3a14d6b1dd2ce714c83762c",
+      "status": "PASSED",
+      "tool_sha256": "f36b92335fd3603d0306b8ddaf063b9eb9c94330d04e92022d6be7c72bfa547f"
+    },
+    "hang_timeout_seconds": 900.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m1-grace-zero": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_timeout_json_is_collected_within_exit_grace"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d7738ac7d2b8cda871906f52f00d0423ca9bdcdf2f176f8763369563d7e80187",
+        "replacements": [
+          {
+            "file": "tools/check_branch_rescue.py",
+            "new": "CHECKER_EXIT_GRACE_SECONDS = 0.0\n",
+            "old": "CHECKER_EXIT_GRACE_SECONDS = 2.0\n"
+          }
+        ]
+      },
+      "m2-no-overall-cap": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_overall_remaining_caps_the_wait"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a6fb42c31331faabaa8d0c579a1f6ec827281737043df89be0e0ee6cc2de7f5b",
+        "replacements": [
+          {
+            "file": "tools/check_branch_rescue.py",
+            "new": "                timeout=timeout + CHECKER_EXIT_GRACE_SECONDS,\n",
+            "old": "                timeout=min(timeout + CHECKER_EXIT_GRACE_SECONDS, overall_remaining),\n"
+          }
+        ]
+      },
+      "m3-child-budget-also-raised": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_timeout_json_is_collected_within_exit_grace"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "aa74266d1477e22d0d3ce6115be244c509f87851f1c1d1d79998cbf185f15e19",
+        "replacements": [
+          {
+            "file": "tools/check_branch_rescue.py",
+            "new": "                 \"--timeout-seconds\", str(timeout + CHECKER_EXIT_GRACE_SECONDS), oid],\n",
+            "old": "                 \"--timeout-seconds\", str(timeout), oid],\n"
+          }
+        ]
+      },
+      "m4-max-instead-of-sum": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_check_branch_rescue.py::test_landed_checker_silent_child_is_cut_at_budget_plus_exit_grace"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "61dba50066464025174a0f4e38144c3bc66793b6f523a2c8db00b1f737636be9",
+        "replacements": [
+          {
+            "file": "tools/check_branch_rescue.py",
+            "new": "                timeout=min(max(timeout, CHECKER_EXIT_GRACE_SECONDS), overall_remaining),\n",
+            "old": "                timeout=min(timeout + CHECKER_EXIT_GRACE_SECONDS, overall_remaining),\n"
+          }
+        ]
+      },
+      "m5-equivalent-arg-order": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "fac79763c651f798c6aa547166b54329d881fbe4ecf71a9ebf0c61091eae3f99",
+        "replacements": [
+          {
+            "file": "tools/check_branch_rescue.py",
+            "new": "                timeout=min(overall_remaining, timeout + CHECKER_EXIT_GRACE_SECONDS),\n",
+            "old": "                timeout=min(timeout + CHECKER_EXIT_GRACE_SECONDS, overall_remaining),\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "704e9ffaf959b665548d28a40e068d1c784f59d513bc37938907789b1259a7e5",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_check_branch_rescue.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 4800.0
+  },
+  "repo_head": "b38442a981e03b39ffaab7211fab8afa28727357",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_check_branch_rescue.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2691-mutcontainer/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2691-mutcontainer/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "b3cda56b70a36aa6d2bcf2e69bc6cace8fde78f1",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "839e32565295e9b5be49566a469dabf1826865068c96d8492ad2828931909c68",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "902beb00dac9436e2b481b323e268aaf13f5dec8f3a14d6b1dd2ce714c83762c",
+  "summary": {
+    "KILLED": 4,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 5,
+    "matching": 5,
+    "recorded": 5,
+    "registered": 5
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2691-mutcontainer/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "f36b92335fd3603d0306b8ddaf063b9eb9c94330d04e92022d6be7c72bfa547f",
+  "updated_at": "2026-09-18T06:46:28.691513+00:00"
+}

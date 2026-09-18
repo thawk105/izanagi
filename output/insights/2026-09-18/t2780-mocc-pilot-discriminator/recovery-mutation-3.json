@@ -1,0 +1,806 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n........................................................................ [ 96%]\n.....                                                                    [100%]\n149 passed in 4.77s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "3536e94ffecd4e4718c1c08c7a4eff755c4721dc5255287c9e0992da4d8fd464"
+    },
+    "artifact_error": null,
+    "collection_sha256": "7a131df26bf6ca77bb5b32aa905b9bc3192fab96253b0fded4998945bf0c1e40",
+    "duration_s": 5.447,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "c7cb227e35f09c01ee53c114cd3f0b3409d28be2a8c1c61655e33aa787dfd27a",
+    "repo_head": "f93281e55c59e8a69fda2fc4295986929e123e2a",
+    "runner_sha256": "06f2b1705b074c78fcbc7fdea90a6245b29a1e85198adf8e85b9e043c4c3bb17",
+    "spec_sha256": "328f57828efecfc16910294b8396014048341fd35133cbf1f93bd2e7114dcb89",
+    "status": "PASSED",
+    "test_output_sha256": "3536e94ffecd4e4718c1c08c7a4eff755c4721dc5255287c9e0992da4d8fd464",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "58fd95e41d31eddc6839602d1d571a8f17385c23e06ead30ccec483b102a41ac"
+  },
+  "date": "2026-09-18T12:24:08.799421+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n........................................................................ [ 96%]\n.....                                                                    [100%]\n149 passed in 4.81s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "3999e96d6e5c0331c1cc5574f23297755b098dd2c7625379c4e02964ad500855"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "7a131df26bf6ca77bb5b32aa905b9bc3192fab96253b0fded4998945bf0c1e40",
+      "duration_s": 5.496,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "m0-equivalent-comment",
+      "injection_diff_sha256": "fffd137e0cd5f7a7dcb29288415c9c0b5d52e9061da1bbecb89910ca6246e80a",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "72b292febfba3815de6f3a917c4622b3ce1a957128d7c7c4987b79b12c2e4bbf",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "# BEGIN T2780 HYDRATE INTERPRETER GATE\n# (equivalent mutation marker: comment only)\n",
+          "old": "# BEGIN T2780 HYDRATE INTERPRETER GATE\n"
+        }
+      ],
+      "repo_head": "f93281e55c59e8a69fda2fc4295986929e123e2a",
+      "runner_sha256": "06f2b1705b074c78fcbc7fdea90a6245b29a1e85198adf8e85b9e043c4c3bb17",
+      "spec_sha256": "328f57828efecfc16910294b8396014048341fd35133cbf1f93bd2e7114dcb89",
+      "status": "SURVIVED",
+      "test_output_sha256": "3999e96d6e5c0331c1cc5574f23297755b098dd2c7625379c4e02964ad500855",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "58fd95e41d31eddc6839602d1d571a8f17385c23e06ead30ccec483b102a41ac"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n....................................................F................... [ 48%]\n........................................................................ [ 96%]\n.....                                                                    [100%]\n=================================== FAILURES ===================================\n______ test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed _______\n[gw47] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-2/popen-gw47/test_mocc_trace_hydrate_interp0')\n\n    def test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed(\n        tmp_path: Path,\n    ) -> None:\n        source = PILOT.read_text(encoding=\"utf-8\")\n        begin = \"# BEGIN T2780 HYDRATE INTERPRETER GATE\"\n        end = \"# END T2780 HYDRATE INTERPRETER GATE\"\n        stop = 'THIRD_PARTY_SOURCE_ROOT=$(python3 - '\n        for marker in (begin, end, stop):\n            assert source.count(marker) == 1\n        assert source.index(begin) < source.index(end) < source.index(stop)\n        block = source[source.index(begin):source.index(stop)]\n        candidates = (\"python3\", \"python3.10\", \"python3.11\", \"python3.12\")\n        for case, selected in ((\"fallback\", \"python3.10\"), (\"first\", \"python3\"),\n                               (\"rejected\", None)):\n            root = tmp_path / case\n            repo = root / \"repo\"\n            attempt = root / \"attempt\"\n            bin_dir = root / \"bin\"\n            for directory in (repo, attempt, bin_dir):\n                directory.mkdir(parents=True)\n            for command in (\"realpath\", \"timeout\"):\n                real = shutil.which(command)\n                assert real is not None\n                (bin_dir / command).symlink_to(real)\n            for name in candidates:\n                stem = shlex.quote(str(root / name))\n                _make_executable(bin_dir / name, f'''\\\n                    #!/bin/sh\n                    if [ \"$1\" = -c ]; then\n                      printf '%s\\\\n' \"$@\" >{stem}.probe\n                      printf '%s\\\\n' \"$PWD\" \"$PYTHONPATH\" >{stem}.context\n                      printf '%s\\\\n' {name} >>{shlex.quote(str(root / 'order'))}\n                      exit {0 if name == selected else 1}\n                    fi\n                    printf '%s\\\\n' \"$0\" \"$@\" >{stem}.hydrate\n                    printf '%s\\\\n' \"$PWD\" >{stem}.cwd\n                    exit {3 if case == 'fallback' and name == 'python3' else 0}\n                ''')\n            variables = {\n                \"REPO_ROOT\": repo, \"TOOLS\": repo / \"tools\", \"ATTEMPT_DIR\": attempt,\n                \"CACHE_ROOT\": root / \"cache\", \"TMPDIR\": root,\n                \"THIRD_PARTY_CACHE_ENV\": \"IZANAGI_PEGASUS_THIRDPARTY_CACHE\",\n                \"IZANAGI_PEGASUS_THIRDPARTY_CACHE\": root / \"cache\",\n                \"PYTHONPATH\": str(root / \"inherited\"),\n            }\n            prefix = \"set -Eeuo pipefail\\n\" + \"\".join(\n                f\"{key}={shlex.quote(str(value))}\\n\" for key, value in variables.items()\n            ) + '''THIRD_PARTY_STAGING_ROOT=\"$TMPDIR/thirdparty-src\"\n    write_failure() { printf 'rc=%s\\\\nstage=%s\\\\nmessage=%s\\\\n' \"$1\" \"$2\" \"$3\" >\"$ATTEMPT_DIR/failure\"; }\n    '''\n            result = subprocess.run(\n                [\"/bin/bash\", \"-c\", prefix + block + \"\\nprintf 'reached\\\\n'\\n\"],\n                cwd=root, env={\"PATH\": str(bin_dir)}, capture_output=True, text=True,\n                check=False,\n            )\n            called = candidates if selected is None else candidates[:candidates.index(selected) + 1]\n            assert (root / \"order\").read_text().splitlines() == list(called)\n            for name in candidates:\n                assert (root / f\"{name}.probe\").exists() == (name in called)\n                if name in called:\n                    argv = (root / f\"{name}.probe\").read_text().splitlines()\n                    assert argv[0] == \"-c\"\n                    assert \"import orchestrator.campaign.silo_ladder_rung1\" in argv[1]\n                    assert \"sys.version_info >= (3, 10)\" in argv[1]\n                    assert argv[-1] == str(repo)\n                    context = (root / f\"{name}.context\").read_text().splitlines()\n                    assert context == [str(repo), f\"{repo}/orchestrator:{repo}:{root}/inherited\"]\n            if selected is None:\n                assert result.returncode == 2\n                assert result.stdout == \"\"\n                failure = (attempt / \"failure\").read_text()\n                assert \"rc=2\\nstage=third_party\\n\" in failure\n                diagnostic = (attempt / \"third-party-hydrate.stderr\").read_text()\n                for name in candidates:\n                    rejection = f\"{name}={(bin_dir / name).resolve()}\"\n                    assert rejection in failure\n                    assert rejection in diagnostic\n                    assert not (root / f\"{name}.hydrate\").exists()\n            else:\n>               assert result.returncode == 0, result.stderr\nE               AssertionError: \nE               assert 3 == 0\nE                +  where 3 = CompletedProcess(args=['/bin/bash', '-c', 'set -Eeuo pipefail\\nREPO_ROOT=/tmp/pytest-of-tanab/pytest-2/popen-gw47/test...on\" \\\\\\n  2>\"$ATTEMPT_DIR/third-party-hydrate.stderr\"\\n\\nprintf \\'reached\\\\n\\'\\n'], returncode=3, stdout='', stderr='').returncode\n\norchestrator/tests/test_mocc_trace_job_contract.py:1594: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed\n1 failed, 148 passed in 4.79s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=4957 retained_bytes=3853 omitted_bytes=1104 rendered_excerpt_bytes=4096 sha256=5042356c6d6d7522add854225489aa2d285fe6271280fb03d16765e78afc3acb\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> ):\n>                 directory.mkdir(parents=True)\n>             for command in (\"realpath\", \"timeout\"):\n>                 real = shutil.which(command)\n>                 assert real is not None\n>                 (bin_dir / command).symlink_to(real)\n>             for name in candidates:\n>                 stem = shlex.quote(str(root / name))\n>                 _make_executable(bin_dir / name, f'''\\x5c\n>                     #!/bin/sh\n>                     if [ \"$1\" = -c ]; then\n>                       printf '%s\\x5c\\x5cn' \"$@\" >{stem}.probe\n>                       printf '%s\\x5c\\x5cn' \"$PWD\" \"$PYTHONPATH\" >{stem}.context\n>                       printf '%s\\x5c\\x5cn' {name} >>{shlex.quote(str(root / 'order'))}\n>                       exit {0 if name == selected else 1}\n>                     fi\n>                     printf '%s\\x5c\\x5cn' \"$0\" \"$@\" >{stem}.hydrate\n>                     printf '%s\\x5c\\x5cn' \"$PWD\" >{stem}.cwd\n>                     exit {3 if case == 'fallback' and name == 'python3' else 0}\n>                 ''')\n>             variables = {\n>                 \"REPO_ROOT\": repo, \"TOOLS\": repo / \"tools\", \"ATTEMPT_DIR\": attempt,\n>                 \"CACHE_ROOT\": root / \"cache\", \"TMPDIR\": root,\n>                 \"THIRD_PARTY_CACHE_ENV\": \"IZANAGI_PEGASUS_THIRDPARTY_CACHE\",\n>                 \"IZANAGI_PEGASUS_THIRDPARTY_CACHE\": root / \"cache\",\n>                 \"PYTHONPATH\": str(root / \"inherited\"),\n>             }\n>             prefix = \"set -Eeuo pipefail\\x5cn\" + \"\".join(\n>                 f\"{key}={shlex.quote(str(value))}\\x5cn\" for key, value in variables.items()\n>             ) + '''THIRD_PARTY_STAGING_ROOT=\"$TMPDIR/thirdparty-src\"\n>     write_failure() { printf 'rc=%s\\x5c\\x5cnstage=%s\\x5c\\x5cnmessage=%s\\x5c\\x5cn' \"$1\" \"$2\" \"$3\" >\"$ATTEMPT_DIR/failure\"; }\n>     '''\n>             result = subprocess.run(\n>                 [\"/bin/bash\", \"-c\", prefix + block + \"\\x5cnprintf 'reached\\x5c\\x5cn'\\x5cn\"],\n>                 cwd=root, env={\"PATH\": str(bin_dir)}, capture_output=True, text=True,\n>                 check=False,\n>             )\n>             called = candidates if selected is None else candidates[:candidates.index(selected) + 1]\n>             assert (root / \"order\").read_text().splitlines() == list(called)\n>             for name in candidates:\n>                 assert (root / f\"{name}.probe\").exists() == (name in called)\n>                 if name in called:\n>                     argv = (root / f\"{name}.probe\").read_text().splitlines()\n>                     assert argv[0] == \"-c\"\n>                     assert \"import orchestrator.campaign.silo_ladder_rung1\" in argv[1]\n>                     assert \"sys.version_info >= (3, 10)\" in argv[1]\n>                     assert argv[-1] == str(repo)\n>                     context = (root / f\"{name}.context\").read_text().splitlines()\n>                     assert context == [str(repo), f\"{repo}/orchestrator:{repo}:{root}/inherited\"]\n>             if selected is None:\n>                 assert result.returncode == 2\n>                 assert result.stdout == \"\"\n>                 failure = (attempt / \"failure\").read_text()\n>                 assert \"rc=2\\x5cnstage=third_party\\x5cn\" in failure\n>                 diagnostic = (attempt / \"third-party-hydrate.stderr\").read_text()\n>                 for name in candidates:\n>                     rejection = f\"{name}={(bin_dir / name).resolve()}\"\n>                     assert rejection in failure\n>                     assert rejection in diagnostic\n>                     assert not (root / f\"{name}.hydrate\").exists()\n>             else:\n> >               assert result.returncode == 0, result.stderr\n> E               AssertionError: \n> E               assert 3 == 0\n> E                +  where 3 = CompletedProcess(args=['/bin/bash', '-c', 'set -Eeuo pipefail\\x5cnREPO_ROOT=/tmp/pytest-of-tanab/pytest-2/popen-gw47/test...on\" \\x5c\\x5c\\x5cn  2>\"$ATTEMPT_DIR/third-party-hydrate.stderr\"\\x5cn\\x5cnprintf \\x5c'reached\\x5c\\x5cn\\x5c'\\x5cn'], returncode=3, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_mocc_trace_job_contract.py:1594: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4957 retained_bytes=3853 omitted_bytes=1104 budget_bytes=49152 rendered_bytes=4847 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "579618b5edbba0a15f9a0fd3907e3f93708bc95eeeaf965ca14a80a2b49ba9a1"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7a131df26bf6ca77bb5b32aa905b9bc3192fab96253b0fded4998945bf0c1e40",
+      "duration_s": 5.548,
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed"
+      ],
+      "hang_risk": false,
+      "id": "m1-hydrate-plain-python3",
+      "injection_diff_sha256": "f0dd6d2bb2a0444e9a511d582235638c9c8f1b3fcdc967bfb55c28518c57be4c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "aac4f5d2396d225801c7d85915c8ba7dc33a625231fa49698f00517c43877a82",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "timeout 20 python3 \"$TOOLS/fetch_third_party.py\" hydrate --repo-root \"$REPO_ROOT\" \\\n",
+          "old": "timeout 20 \"$HYDRATE_PY\" \"$TOOLS/fetch_third_party.py\" hydrate --repo-root \"$REPO_ROOT\" \\\n"
+        }
+      ],
+      "repo_head": "f93281e55c59e8a69fda2fc4295986929e123e2a",
+      "runner_sha256": "06f2b1705b074c78fcbc7fdea90a6245b29a1e85198adf8e85b9e043c4c3bb17",
+      "spec_sha256": "328f57828efecfc16910294b8396014048341fd35133cbf1f93bd2e7114dcb89",
+      "status": "KILLED",
+      "test_output_sha256": "579618b5edbba0a15f9a0fd3907e3f93708bc95eeeaf965ca14a80a2b49ba9a1",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "58fd95e41d31eddc6839602d1d571a8f17385c23e06ead30ccec483b102a41ac"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n..................................................F..................... [ 48%]\n........................................................................ [ 96%]\n.....                                                                    [100%]\n=================================== FAILURES ===================================\n______ test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed _______\n[gw47] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-3/popen-gw47/test_mocc_trace_hydrate_interp0')\n\n    def test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed(\n        tmp_path: Path,\n    ) -> None:\n        source = PILOT.read_text(encoding=\"utf-8\")\n        begin = \"# BEGIN T2780 HYDRATE INTERPRETER GATE\"\n        end = \"# END T2780 HYDRATE INTERPRETER GATE\"\n        stop = 'THIRD_PARTY_SOURCE_ROOT=$(python3 - '\n        for marker in (begin, end, stop):\n            assert source.count(marker) == 1\n        assert source.index(begin) < source.index(end) < source.index(stop)\n        block = source[source.index(begin):source.index(stop)]\n        candidates = (\"python3\", \"python3.10\", \"python3.11\", \"python3.12\")\n        for case, selected in ((\"fallback\", \"python3.10\"), (\"first\", \"python3\"),\n                               (\"rejected\", None)):\n            root = tmp_path / case\n            repo = root / \"repo\"\n            attempt = root / \"attempt\"\n            bin_dir = root / \"bin\"\n            for directory in (repo, attempt, bin_dir):\n                directory.mkdir(parents=True)\n            for command in (\"realpath\", \"timeout\"):\n                real = shutil.which(command)\n                assert real is not None\n                (bin_dir / command).symlink_to(real)\n            for name in candidates:\n                stem = shlex.quote(str(root / name))\n                _make_executable(bin_dir / name, f'''\\\n                    #!/bin/sh\n                    if [ \"$1\" = -c ]; then\n                      printf '%s\\\\n' \"$@\" >{stem}.probe\n                      printf '%s\\\\n' \"$PWD\" \"$PYTHONPATH\" >{stem}.context\n                      printf '%s\\\\n' {name} >>{shlex.quote(str(root / 'order'))}\n                      exit {0 if name == selected else 1}\n                    fi\n                    printf '%s\\\\n' \"$0\" \"$@\" >{stem}.hydrate\n                    printf '%s\\\\n' \"$PWD\" >{stem}.cwd\n                    exit {3 if case == 'fallback' and name == 'python3' else 0}\n                ''')\n            variables = {\n                \"REPO_ROOT\": repo, \"TOOLS\": repo / \"tools\", \"ATTEMPT_DIR\": attempt,\n                \"CACHE_ROOT\": root / \"cache\", \"TMPDIR\": root,\n                \"THIRD_PARTY_CACHE_ENV\": \"IZANAGI_PEGASUS_THIRDPARTY_CACHE\",\n                \"IZANAGI_PEGASUS_THIRDPARTY_CACHE\": root / \"cache\",\n                \"PYTHONPATH\": str(root / \"inherited\"),\n            }\n            prefix = \"set -Eeuo pipefail\\n\" + \"\".join(\n                f\"{key}={shlex.quote(str(value))}\\n\" for key, value in variables.items()\n            ) + '''THIRD_PARTY_STAGING_ROOT=\"$TMPDIR/thirdparty-src\"\n    write_failure() { printf 'rc=%s\\\\nstage=%s\\\\nmessage=%s\\\\n' \"$1\" \"$2\" \"$3\" >\"$ATTEMPT_DIR/failure\"; }\n    '''\n            result = subprocess.run(\n                [\"/bin/bash\", \"-c\", prefix + block + \"\\nprintf 'reached\\\\n'\\n\"],\n                cwd=root, env={\"PATH\": str(bin_dir)}, capture_output=True, text=True,\n                check=False,\n            )\n            called = candidates if selected is None else candidates[:candidates.index(selected) + 1]\n            assert (root / \"order\").read_text().splitlines() == list(called)\n            for name in candidates:\n                assert (root / f\"{name}.probe\").exists() == (name in called)\n                if name in called:\n                    argv = (root / f\"{name}.probe\").read_text().splitlines()\n                    assert argv[0] == \"-c\"\n                    assert \"import orchestrator.campaign.silo_ladder_rung1\" in argv[1]\n>                   assert \"sys.version_info >= (3, 10)\" in argv[1]\nE                   AssertionError: assert 'sys.version_info >= (3, 10)' in 'import sys; import orchestrator.campaign.silo_ladder_rung1; raise SystemExit(0)'\n\norchestrator/tests/test_mocc_trace_job_contract.py:1578: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed\n1 failed, 148 passed in 4.91s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=3859 retained_bytes=3859 omitted_bytes=0 rendered_excerpt_bytes=4071 sha256=08951734194dd828b3e9efb7bbd197e0111254317e090f8fce3a1ee656f94436\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw47] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-3/popen-gw47/test_mocc_trace_hydrate_interp0')\n> \n>     def test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed(\n>         tmp_path: Path,\n>     ) -> None:\n>         source = PILOT.read_text(encoding=\"utf-8\")\n>         begin = \"# BEGIN T2780 HYDRATE INTERPRETER GATE\"\n>         end = \"# END T2780 HYDRATE INTERPRETER GATE\"\n>         stop = 'THIRD_PARTY_SOURCE_ROOT=$(python3 - '\n>         for marker in (begin, end, stop):\n>             assert source.count(marker) == 1\n>         assert source.index(begin) < source.index(end) < source.index(stop)\n>         block = source[source.index(begin):source.index(stop)]\n>         candidates = (\"python3\", \"python3.10\", \"python3.11\", \"python3.12\")\n>         for case, selected in ((\"fallback\", \"python3.10\"), (\"first\", \"python3\"),\n>                                (\"rejected\", None)):\n>             root = tmp_path / case\n>             repo = root / \"repo\"\n>             attempt = root / \"attempt\"\n>             bin_dir = root / \"bin\"\n>             for directory in (repo, attempt, bin_dir):\n>                 directory.mkdir(parents=True)\n>             for command in (\"realpath\", \"timeout\"):\n>                 real = shutil.which(command)\n>                 assert real is not None\n>                 (bin_dir / command).symlink_to(real)\n>             for name in candidates:\n>                 stem = shlex.quote(str(root / name))\n>                 _make_executable(bin_dir / name, f'''\\x5c\n>                     #!/bin/sh\n>                     if [ \"$1\" = -c ]; then\n>                       printf '%s\\x5c\\x5cn' \"$@\" >{stem}.probe\n>                       printf '%s\\x5c\\x5cn' \"$PWD\" \"$PYTHONPATH\" >{stem}.context\n>                       printf '%s\\x5c\\x5cn' {name} >>{shlex.quote(str(root / 'order'))}\n>                       exit {0 if name == selected else 1}\n>                     fi\n>                     printf '%s\\x5c\\x5cn' \"$0\" \"$@\" >{stem}.hydrate\n>                     printf '%s\\x5c\\x5cn' \"$PWD\" >{stem}.cwd\n>                     exit {3 if case == 'fallback' and name == 'python3' else 0}\n>                 ''')\n>             variables = {\n>                 \"REPO_ROOT\": repo, \"TOOLS\": repo / \"tools\", \"ATTEMPT_DIR\": attempt,\n>                 \"CACHE_ROOT\": root / \"cache\", \"TMPDIR\": root,\n>                 \"THIRD_PARTY_CACHE_ENV\": \"IZANAGI_PEGASUS_THIRDPARTY_CACHE\",\n>                 \"IZANAGI_PEGASUS_THIRDPARTY_CACHE\": root / \"cache\",\n>                 \"PYTHONPATH\": str(root / \"inherited\"),\n>             }\n>             prefix = \"set -Eeuo pipefail\\x5cn\" + \"\".join(\n>                 f\"{key}={shlex.quote(str(value))}\\x5cn\" for key, value in variables.items()\n>             ) + '''THIRD_PARTY_STAGING_ROOT=\"$TMPDIR/thirdparty-src\"\n>     write_failure() { printf 'rc=%s\\x5c\\x5cnstage=%s\\x5c\\x5cnmessage=%s\\x5c\\x5cn' \"$1\" \"$2\" \"$3\" >\"$ATTEMPT_DIR/failure\"; }\n>     '''\n>             result = subprocess.run(\n>                 [\"/bin/bash\", \"-c\", prefix + block + \"\\x5cnprintf 'reached\\x5c\\x5cn'\\x5cn\"],\n>                 cwd=root, env={\"PATH\": str(bin_dir)}, capture_output=True, text=True,\n>                 check=False,\n>             )\n>             called = candidates if selected is None else candidates[:candidates.index(selected) + 1]\n>             assert (root / \"order\").read_text().splitlines() == list(called)\n>             for name in candidates:\n>                 assert (root / f\"{name}.probe\").exists() == (name in called)\n>                 if name in called:\n>                     argv = (root / f\"{name}.probe\").read_text().splitlines()\n>                     assert argv[0] == \"-c\"\n>                     assert \"import orchestrator.campaign.silo_ladder_rung1\" in argv[1]\n> >                   assert \"sys.version_info >= (3, 10)\" in argv[1]\n> E                   AssertionError: assert 'sys.version_info >= (3, 10)' in 'import sys; import orchestrator.campaign.silo_ladder_rung1; raise SystemExit(0)'\n> \n> orchestrator/tests/test_mocc_trace_job_contract.py:1578: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3859 retained_bytes=3859 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4816 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "005cda148b451cba232270915e689460ecff1b39df3635e1ebdc6bf1600e64a6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7a131df26bf6ca77bb5b32aa905b9bc3192fab96253b0fded4998945bf0c1e40",
+      "duration_s": 5.605,
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed"
+      ],
+      "hang_risk": false,
+      "id": "m2-drop-version-compare",
+      "injection_diff_sha256": "ce359b99a8c2cf6d7a1037b22580510ec90d07323e04ebe67e7d70763b5d756a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "79c35299887fb7cb2b148c6d7ef710570bd80e38b8c4eeee5fa581b0f014e4bc",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "'import sys; import orchestrator.campaign.silo_ladder_rung1; raise SystemExit(0)' \\\n",
+          "old": "'import sys; import orchestrator.campaign.silo_ladder_rung1; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' \\\n"
+        }
+      ],
+      "repo_head": "f93281e55c59e8a69fda2fc4295986929e123e2a",
+      "runner_sha256": "06f2b1705b074c78fcbc7fdea90a6245b29a1e85198adf8e85b9e043c4c3bb17",
+      "spec_sha256": "328f57828efecfc16910294b8396014048341fd35133cbf1f93bd2e7114dcb89",
+      "status": "KILLED",
+      "test_output_sha256": "005cda148b451cba232270915e689460ecff1b39df3635e1ebdc6bf1600e64a6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "58fd95e41d31eddc6839602d1d571a8f17385c23e06ead30ccec483b102a41ac"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\nF....................................................................... [ 96%]\n.....                                                                    [100%]\n=================================== FAILURES ===================================\n______ test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed _______\n[gw47] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-4/popen-gw47/test_mocc_trace_hydrate_interp0')\n\n    def test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed(\n        tmp_path: Path,\n    ) -> None:\n        source = PILOT.read_text(encoding=\"utf-8\")\n        begin = \"# BEGIN T2780 HYDRATE INTERPRETER GATE\"\n        end = \"# END T2780 HYDRATE INTERPRETER GATE\"\n        stop = 'THIRD_PARTY_SOURCE_ROOT=$(python3 - '\n        for marker in (begin, end, stop):\n            assert source.count(marker) == 1\n        assert source.index(begin) < source.index(end) < source.index(stop)\n        block = source[source.index(begin):source.index(stop)]\n        candidates = (\"python3\", \"python3.10\", \"python3.11\", \"python3.12\")\n        for case, selected in ((\"fallback\", \"python3.10\"), (\"first\", \"python3\"),\n                               (\"rejected\", None)):\n            root = tmp_path / case\n            repo = root / \"repo\"\n            attempt = root / \"attempt\"\n            bin_dir = root / \"bin\"\n            for directory in (repo, attempt, bin_dir):\n                directory.mkdir(parents=True)\n            for command in (\"realpath\", \"timeout\"):\n                real = shutil.which(command)\n                assert real is not None\n                (bin_dir / command).symlink_to(real)\n            for name in candidates:\n                stem = shlex.quote(str(root / name))\n                _make_executable(bin_dir / name, f'''\\\n                    #!/bin/sh\n                    if [ \"$1\" = -c ]; then\n                      printf '%s\\\\n' \"$@\" >{stem}.probe\n                      printf '%s\\\\n' \"$PWD\" \"$PYTHONPATH\" >{stem}.context\n                      printf '%s\\\\n' {name} >>{shlex.quote(str(root / 'order'))}\n                      exit {0 if name == selected else 1}\n                    fi\n                    printf '%s\\\\n' \"$0\" \"$@\" >{stem}.hydrate\n                    printf '%s\\\\n' \"$PWD\" >{stem}.cwd\n                    exit {3 if case == 'fallback' and name == 'python3' else 0}\n                ''')\n            variables = {\n                \"REPO_ROOT\": repo, \"TOOLS\": repo / \"tools\", \"ATTEMPT_DIR\": attempt,\n                \"CACHE_ROOT\": root / \"cache\", \"TMPDIR\": root,\n                \"THIRD_PARTY_CACHE_ENV\": \"IZANAGI_PEGASUS_THIRDPARTY_CACHE\",\n                \"IZANAGI_PEGASUS_THIRDPARTY_CACHE\": root / \"cache\",\n                \"PYTHONPATH\": str(root / \"inherited\"),\n            }\n            prefix = \"set -Eeuo pipefail\\n\" + \"\".join(\n                f\"{key}={shlex.quote(str(value))}\\n\" for key, value in variables.items()\n            ) + '''THIRD_PARTY_STAGING_ROOT=\"$TMPDIR/thirdparty-src\"\n    write_failure() { printf 'rc=%s\\\\nstage=%s\\\\nmessage=%s\\\\n' \"$1\" \"$2\" \"$3\" >\"$ATTEMPT_DIR/failure\"; }\n    '''\n            result = subprocess.run(\n                [\"/bin/bash\", \"-c\", prefix + block + \"\\nprintf 'reached\\\\n'\\n\"],\n                cwd=root, env={\"PATH\": str(bin_dir)}, capture_output=True, text=True,\n                check=False,\n            )\n            called = candidates if selected is None else candidates[:candidates.index(selected) + 1]\n            assert (root / \"order\").read_text().splitlines() == list(called)\n            for name in candidates:\n                assert (root / f\"{name}.probe\").exists() == (name in called)\n                if name in called:\n                    argv = (root / f\"{name}.probe\").read_text().splitlines()\n                    assert argv[0] == \"-c\"\n                    assert \"import orchestrator.campaign.silo_ladder_rung1\" in argv[1]\n                    assert \"sys.version_info >= (3, 10)\" in argv[1]\n                    assert argv[-1] == str(repo)\n                    context = (root / f\"{name}.context\").read_text().splitlines()\n                    assert context == [str(repo), f\"{repo}/orchestrator:{repo}:{root}/inherited\"]\n            if selected is None:\n                assert result.returncode == 2\n                assert result.stdout == \"\"\n                failure = (attempt / \"failure\").read_text()\n                assert \"rc=2\\nstage=third_party\\n\" in failure\n                diagnostic = (attempt / \"third-party-hydrate.stderr\").read_text()\n                for name in candidates:\n                    rejection = f\"{name}={(bin_dir / name).resolve()}\"\n>                   assert rejection in failure\nE                   AssertionError: assert 'python3=/tmp/pytest-of-tanab/pytest-4/popen-gw47/test_mocc_trace_hydrate_interp0/rejected/bin/python3' in 'rc=2\\nstage=third_party\\nmessage=no python3 >= 3.10 candidate can import orchestrator.campaign.silo_ladder_rung1 (rejected: none)\\n'\n\norchestrator/tests/test_mocc_trace_job_contract.py:1590: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed\n1 failed, 148 passed in 4.90s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed\" nodeid_bytes=117 nodeid_omitted_bytes=0 source_bytes=4699 retained_bytes=3877 omitted_bytes=822 rendered_excerpt_bytes=4096 sha256=68e0314c85ac5abb1e00551ddb6bfbdbcd242b0084254f882dc00ddc8f271f31\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> python3.10\"), (\"first\", \"python3\"),\n>                                (\"rejected\", None)):\n>             root = tmp_path / case\n>             repo = root / \"repo\"\n>             attempt = root / \"attempt\"\n>             bin_dir = root / \"bin\"\n>             for directory in (repo, attempt, bin_dir):\n>                 directory.mkdir(parents=True)\n>             for command in (\"realpath\", \"timeout\"):\n>                 real = shutil.which(command)\n>                 assert real is not None\n>                 (bin_dir / command).symlink_to(real)\n>             for name in candidates:\n>                 stem = shlex.quote(str(root / name))\n>                 _make_executable(bin_dir / name, f'''\\x5c\n>                     #!/bin/sh\n>                     if [ \"$1\" = -c ]; then\n>                       printf '%s\\x5c\\x5cn' \"$@\" >{stem}.probe\n>                       printf '%s\\x5c\\x5cn' \"$PWD\" \"$PYTHONPATH\" >{stem}.context\n>                       printf '%s\\x5c\\x5cn' {name} >>{shlex.quote(str(root / 'order'))}\n>                       exit {0 if name == selected else 1}\n>                     fi\n>                     printf '%s\\x5c\\x5cn' \"$0\" \"$@\" >{stem}.hydrate\n>                     printf '%s\\x5c\\x5cn' \"$PWD\" >{stem}.cwd\n>                     exit {3 if case == 'fallback' and name == 'python3' else 0}\n>                 ''')\n>             variables = {\n>                 \"REPO_ROOT\": repo, \"TOOLS\": repo / \"tools\", \"ATTEMPT_DIR\": attempt,\n>                 \"CACHE_ROOT\": root / \"cache\", \"TMPDIR\": root,\n>                 \"THIRD_PARTY_CACHE_ENV\": \"IZANAGI_PEGASUS_THIRDPARTY_CACHE\",\n>                 \"IZANAGI_PEGASUS_THIRDPARTY_CACHE\": root / \"cache\",\n>                 \"PYTHONPATH\": str(root / \"inherited\"),\n>             }\n>             prefix = \"set -Eeuo pipefail\\x5cn\" + \"\".join(\n>                 f\"{key}={shlex.quote(str(value))}\\x5cn\" for key, value in variables.items()\n>             ) + '''THIRD_PARTY_STAGING_ROOT=\"$TMPDIR/thirdparty-src\"\n>     write_failure() { printf 'rc=%s\\x5c\\x5cnstage=%s\\x5c\\x5cnmessage=%s\\x5c\\x5cn' \"$1\" \"$2\" \"$3\" >\"$ATTEMPT_DIR/failure\"; }\n>     '''\n>             result = subprocess.run(\n>                 [\"/bin/bash\", \"-c\", prefix + block + \"\\x5cnprintf 'reached\\x5c\\x5cn'\\x5cn\"],\n>                 cwd=root, env={\"PATH\": str(bin_dir)}, capture_output=True, text=True,\n>                 check=False,\n>             )\n>             called = candidates if selected is None else candidates[:candidates.index(selected) + 1]\n>             assert (root / \"order\").read_text().splitlines() == list(called)\n>             for name in candidates:\n>                 assert (root / f\"{name}.probe\").exists() == (name in called)\n>                 if name in called:\n>                     argv = (root / f\"{name}.probe\").read_text().splitlines()\n>                     assert argv[0] == \"-c\"\n>                     assert \"import orchestrator.campaign.silo_ladder_rung1\" in argv[1]\n>                     assert \"sys.version_info >= (3, 10)\" in argv[1]\n>                     assert argv[-1] == str(repo)\n>                     context = (root / f\"{name}.context\").read_text().splitlines()\n>                     assert context == [str(repo), f\"{repo}/orchestrator:{repo}:{root}/inherited\"]\n>             if selected is None:\n>                 assert result.returncode == 2\n>                 assert result.stdout == \"\"\n>                 failure = (attempt / \"failure\").read_text()\n>                 assert \"rc=2\\x5cnstage=third_party\\x5cn\" in failure\n>                 diagnostic = (attempt / \"third-party-hydrate.stderr\").read_text()\n>                 for name in candidates:\n>                     rejection = f\"{name}={(bin_dir / name).resolve()}\"\n> >                   assert rejection in failure\n> E                   AssertionError: assert 'python3=/tmp/pytest-of-tanab/pytest-4/popen-gw47/test_mocc_trace_hydrate_interp0/rejected/bin/python3' in 'rc=2\\x5cnstage=third_party\\x5cnmessage=no python3 >= 3.10 candidate can import orchestrator.campaign.silo_ladder_rung1 (rejected: none)\\x5cn'\n> \n> orchestrator/tests/test_mocc_trace_job_contract.py:1590: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4699 retained_bytes=3877 omitted_bytes=822 budget_bytes=49152 rendered_bytes=4845 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "53f0be914b6bf9d8f4abe8bc87c606ae2fe0dbad6d7a90ace565b8c8ac39083b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7a131df26bf6ca77bb5b32aa905b9bc3192fab96253b0fded4998945bf0c1e40",
+      "duration_s": 5.591,
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed"
+      ],
+      "hang_risk": false,
+      "id": "m3-drop-rejected-record",
+      "injection_diff_sha256": "93b60839db98150d4d75dbd84683b83306649bb3afad4ff182badb086e60a76e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9684904786a126cdcc2cacccc4ab2d7c62ac93b41d88aa809cc6741f3208ab55",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "  :\n",
+          "old": "  hydrate_py_rejected+=\"${hydrate_py_rejected:+ }$py_name=$py_resolved\"\n"
+        }
+      ],
+      "repo_head": "f93281e55c59e8a69fda2fc4295986929e123e2a",
+      "runner_sha256": "06f2b1705b074c78fcbc7fdea90a6245b29a1e85198adf8e85b9e043c4c3bb17",
+      "spec_sha256": "328f57828efecfc16910294b8396014048341fd35133cbf1f93bd2e7114dcb89",
+      "status": "KILLED",
+      "test_output_sha256": "53f0be914b6bf9d8f4abe8bc87c606ae2fe0dbad6d7a90ace565b8c8ac39083b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "58fd95e41d31eddc6839602d1d571a8f17385c23e06ead30ccec483b102a41ac"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n......................................................................F. [ 96%]\n.....                                                                    [100%]\n=================================== FAILURES ===================================\n________ test_mocc_trace_instrumentation_patch_block_applies_and_binds _________\n[gw39] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-5/popen-gw39/test_mocc_trace_instrumentatio0')\n\n    def test_mocc_trace_instrumentation_patch_block_applies_and_binds(tmp_path: Path) -> None:\n        source = PILOT.read_text(encoding=\"utf-8\")\n        begin = \"# BEGIN T2780 INSTRUMENTATION PATCH\"\n        end = \"# END T2780 INSTRUMENTATION PATCH\"\n        for marker in (begin, end, \"build_mode() {\"):\n            assert source.count(marker) == 1\n        assert source.index(begin) < source.index(end) < source.index(\"build_mode() {\")\n        block = source[source.index(begin):source.index(end)]\n        postimage = b\"patched transaction fixture\\n\"\n        artifacts = (\"instr-patch.sha256\", \"instr-patch.numstat\", \"instr-patch-source.sha256\",\n                     \"instr-patch-apply.stdout\", \"instr-patch-apply.stderr\")\n        for case in (\"success\", \"two-files\", \"wrong-path\", \"empty\", \"bad-count\",\n                     \"check-fails\", \"apply-fails\", \"patch-changes\", \"general\"):\n            root = tmp_path / case\n            repo = root / \"repo\"\n            build = root / \"build\"\n            attempt = root / \"attempt\"\n            bin_dir = root / \"bin\"\n            for directory in (repo / \"patches\", build / \"cc/mocc\", attempt, bin_dir):\n                directory.mkdir(parents=True)\n            patch = repo / \"patches/instr-mocc-lock-coverage.patch\"\n            patch.write_bytes(b\"fixture patch bytes\\n\")\n            transaction = build / \"cc/mocc/transaction.cc\"\n            transaction.write_bytes(b\"preimage\\n\")\n            for command in (\"realpath\", \"sha256sum\", \"awk\"):\n                real = shutil.which(command)\n                assert real is not None\n                (bin_dir / command).symlink_to(real)\n            numstat = {\n                \"two-files\": \"9\\t1\\tcc/mocc/transaction.cc\\n1\\t0\\tcc/mocc/util.cc\\n\",\n                \"wrong-path\": \"9\\t1\\tcc/mocc/util.cc\\n\",\n                \"empty\": \"\", \"bad-count\": \"-\\t1\\tcc/mocc/transaction.cc\\n\",\n            }.get(case, \"9\\t1\\tcc/mocc/transaction.cc\\n\")\n            calls = root / \"git.jsonl\"\n            _make_executable(bin_dir / \"git\", f'''\\\n                #!{sys.executable}\n                import json, sys\n                from pathlib import Path\n                with Path({str(calls)!r}).open(\"a\") as stream:\n                    stream.write(json.dumps(sys.argv[1:]) + \"\\\\n\")\n                if \"--numstat\" in sys.argv:\n                    print({numstat!r}, end=\"\")\n                elif \"--check\" in sys.argv:\n                    sys.exit({1 if case == 'check-fails' else 0})\n                else:\n                    if {case == 'apply-fails'!r}:\n                        sys.exit(1)\n                    Path(sys.argv[2], \"cc/mocc/transaction.cc\").write_bytes({postimage!r})\n                    if {case == 'patch-changes'!r}:\n                        Path(sys.argv[-1]).write_bytes(b\"changed patch\")\n            ''')\n            variables = {\"REPO_ROOT\": repo, \"BUILD_SOURCE\": build, \"ATTEMPT_DIR\": attempt,\n                         \"T1943_G2\": 0 if case == \"general\" else 1}\n            prefix = \"set -Eeuo pipefail\\n\" + \"\".join(\n                f\"{key}={shlex.quote(str(value))}\\n\" for key, value in variables.items()\n            ) + '''write_failure() { printf 'rc=%s\\\\nstage=%s\\\\nmessage=%s\\\\n' \"$1\" \"$2\" \"$3\" >\"$ATTEMPT_DIR/failure\"; }\n    '''\n            result = subprocess.run(\n                [\"/bin/bash\", \"-c\", prefix + block + \"\\nprintf 'build-reached\\\\n'\\n\"],\n                cwd=root, env={\"PATH\": str(bin_dir)}, capture_output=True, text=True,\n                check=False,\n            )\n            recorded = [json.loads(line) for line in calls.read_text().splitlines()] if calls.exists() else []\n            if case == \"general\":\n                assert result.returncode == 0, result.stderr\n                assert recorded == []\n                assert transaction.read_bytes() == b\"preimage\\n\"\n                assert all(not (attempt / name).exists() for name in artifacts)\n            elif case == \"success\":\n                assert result.returncode == 0, result.stderr\n>               assert transaction.read_bytes() == postimage\nE               AssertionError: assert b'preimage\\n' == b'patched tra...ion fixture\\n'\nE                 \nE                 At index 1 diff: b'r' != b'a'\nE                 Use -v to get more diff\n\norchestrator/tests/test_mocc_trace_job_contract.py:1677: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds\n1 failed, 148 passed in 4.71s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=4447 retained_bytes=3847 omitted_bytes=600 rendered_excerpt_bytes=4096 sha256=ca27c81fb91f0910f8bbf5939c79a0e60ad82434afb83cd85d60ea730bc72dbb\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> source[source.index(begin):source.index(end)]\n>         postimage = b\"patched transaction fixture\\x5cn\"\n>         artifacts = (\"instr-patch.sha256\", \"instr-patch.numstat\", \"instr-patch-source.sha256\",\n>                      \"instr-patch-apply.stdout\", \"instr-patch-apply.stderr\")\n>         for case in (\"success\", \"two-files\", \"wrong-path\", \"empty\", \"bad-count\",\n>                      \"check-fails\", \"apply-fails\", \"patch-changes\", \"general\"):\n>             root = tmp_path / case\n>             repo = root / \"repo\"\n>             build = root / \"build\"\n>             attempt = root / \"attempt\"\n>             bin_dir = root / \"bin\"\n>             for directory in (repo / \"patches\", build / \"cc/mocc\", attempt, bin_dir):\n>                 directory.mkdir(parents=True)\n>             patch = repo / \"patches/instr-mocc-lock-coverage.patch\"\n>             patch.write_bytes(b\"fixture patch bytes\\x5cn\")\n>             transaction = build / \"cc/mocc/transaction.cc\"\n>             transaction.write_bytes(b\"preimage\\x5cn\")\n>             for command in (\"realpath\", \"sha256sum\", \"awk\"):\n>                 real = shutil.which(command)\n>                 assert real is not None\n>                 (bin_dir / command).symlink_to(real)\n>             numstat = {\n>                 \"two-files\": \"9\\x5ct1\\x5ctcc/mocc/transaction.cc\\x5cn1\\x5ct0\\x5ctcc/mocc/util.cc\\x5cn\",\n>                 \"wrong-path\": \"9\\x5ct1\\x5ctcc/mocc/util.cc\\x5cn\",\n>                 \"empty\": \"\", \"bad-count\": \"-\\x5ct1\\x5ctcc/mocc/transaction.cc\\x5cn\",\n>             }.get(case, \"9\\x5ct1\\x5ctcc/mocc/transaction.cc\\x5cn\")\n>             calls = root / \"git.jsonl\"\n>             _make_executable(bin_dir / \"git\", f'''\\x5c\n>                 #!{sys.executable}\n>                 import json, sys\n>                 from pathlib import Path\n>                 with Path({str(calls)!r}).open(\"a\") as stream:\n>                     stream.write(json.dumps(sys.argv[1:]) + \"\\x5c\\x5cn\")\n>                 if \"--numstat\" in sys.argv:\n>                     print({numstat!r}, end=\"\")\n>                 elif \"--check\" in sys.argv:\n>                     sys.exit({1 if case == 'check-fails' else 0})\n>                 else:\n>                     if {case == 'apply-fails'!r}:\n>                         sys.exit(1)\n>                     Path(sys.argv[2], \"cc/mocc/transaction.cc\").write_bytes({postimage!r})\n>                     if {case == 'patch-changes'!r}:\n>                         Path(sys.argv[-1]).write_bytes(b\"changed patch\")\n>             ''')\n>             variables = {\"REPO_ROOT\": repo, \"BUILD_SOURCE\": build, \"ATTEMPT_DIR\": attempt,\n>                          \"T1943_G2\": 0 if case == \"general\" else 1}\n>             prefix = \"set -Eeuo pipefail\\x5cn\" + \"\".join(\n>                 f\"{key}={shlex.quote(str(value))}\\x5cn\" for key, value in variables.items()\n>             ) + '''write_failure() { printf 'rc=%s\\x5c\\x5cnstage=%s\\x5c\\x5cnmessage=%s\\x5c\\x5cn' \"$1\" \"$2\" \"$3\" >\"$ATTEMPT_DIR/failure\"; }\n>     '''\n>             result = subprocess.run(\n>                 [\"/bin/bash\", \"-c\", prefix + block + \"\\x5cnprintf 'build-reached\\x5c\\x5cn'\\x5cn\"],\n>                 cwd=root, env={\"PATH\": str(bin_dir)}, capture_output=True, text=True,\n>                 check=False,\n>             )\n>             recorded = [json.loads(line) for line in calls.read_text().splitlines()] if calls.exists() else []\n>             if case == \"general\":\n>                 assert result.returncode == 0, result.stderr\n>                 assert recorded == []\n>                 assert transaction.read_bytes() == b\"preimage\\x5cn\"\n>                 assert all(not (attempt / name).exists() for name in artifacts)\n>             elif case == \"success\":\n>                 assert result.returncode == 0, result.stderr\n> >               assert transaction.read_bytes() == postimage\n> E               AssertionError: assert b'preimage\\x5cn' == b'patched tra...ion fixture\\x5cn'\n> E                 \n> E                 At index 1 diff: b'r' != b'a'\n> E                 Use -v to get more diff\n> \n> orchestrator/tests/test_mocc_trace_job_contract.py:1677: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4447 retained_bytes=3847 omitted_bytes=600 budget_bytes=49152 rendered_bytes=4841 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "18189b2fc2cef1680a9e107831153d05ffea223fa8d3263c80c20ae53094a0ca"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7a131df26bf6ca77bb5b32aa905b9bc3192fab96253b0fded4998945bf0c1e40",
+      "duration_s": 5.398,
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds"
+      ],
+      "hang_risk": false,
+      "id": "m4-drop-real-apply",
+      "injection_diff_sha256": "a7c11ad85b141d06f9ce1dea679449d62c58dc8dd4e9dcf59d0cf784e50836b6",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2f9a92920925eb516b55e1d5d35d643eb95c63abc4d9394b058f859cbf512645",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "  if ! true \"$PATCH_PATH\" \\\n",
+          "old": "  if ! git -C \"$BUILD_SOURCE\" apply \"$PATCH_PATH\" \\\n"
+        }
+      ],
+      "repo_head": "f93281e55c59e8a69fda2fc4295986929e123e2a",
+      "runner_sha256": "06f2b1705b074c78fcbc7fdea90a6245b29a1e85198adf8e85b9e043c4c3bb17",
+      "spec_sha256": "328f57828efecfc16910294b8396014048341fd35133cbf1f93bd2e7114dcb89",
+      "status": "KILLED",
+      "test_output_sha256": "18189b2fc2cef1680a9e107831153d05ffea223fa8d3263c80c20ae53094a0ca",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "58fd95e41d31eddc6839602d1d571a8f17385c23e06ead30ccec483b102a41ac"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n........................................................................ [ 96%]\n...F.                                                                    [100%]\n=================================== FAILURES ===================================\n________ test_mocc_trace_instrumentation_patch_block_applies_and_binds _________\n[gw17] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-6/popen-gw17/test_mocc_trace_instrumentatio0')\n\n    def test_mocc_trace_instrumentation_patch_block_applies_and_binds(tmp_path: Path) -> None:\n        source = PILOT.read_text(encoding=\"utf-8\")\n        begin = \"# BEGIN T2780 INSTRUMENTATION PATCH\"\n        end = \"# END T2780 INSTRUMENTATION PATCH\"\n        for marker in (begin, end, \"build_mode() {\"):\n            assert source.count(marker) == 1\n        assert source.index(begin) < source.index(end) < source.index(\"build_mode() {\")\n        block = source[source.index(begin):source.index(end)]\n        postimage = b\"patched transaction fixture\\n\"\n        artifacts = (\"instr-patch.sha256\", \"instr-patch.numstat\", \"instr-patch-source.sha256\",\n                     \"instr-patch-apply.stdout\", \"instr-patch-apply.stderr\")\n        for case in (\"success\", \"two-files\", \"wrong-path\", \"empty\", \"bad-count\",\n                     \"check-fails\", \"apply-fails\", \"patch-changes\", \"general\"):\n            root = tmp_path / case\n            repo = root / \"repo\"\n            build = root / \"build\"\n            attempt = root / \"attempt\"\n            bin_dir = root / \"bin\"\n            for directory in (repo / \"patches\", build / \"cc/mocc\", attempt, bin_dir):\n                directory.mkdir(parents=True)\n            patch = repo / \"patches/instr-mocc-lock-coverage.patch\"\n            patch.write_bytes(b\"fixture patch bytes\\n\")\n            transaction = build / \"cc/mocc/transaction.cc\"\n            transaction.write_bytes(b\"preimage\\n\")\n            for command in (\"realpath\", \"sha256sum\", \"awk\"):\n                real = shutil.which(command)\n                assert real is not None\n                (bin_dir / command).symlink_to(real)\n            numstat = {\n                \"two-files\": \"9\\t1\\tcc/mocc/transaction.cc\\n1\\t0\\tcc/mocc/util.cc\\n\",\n                \"wrong-path\": \"9\\t1\\tcc/mocc/util.cc\\n\",\n                \"empty\": \"\", \"bad-count\": \"-\\t1\\tcc/mocc/transaction.cc\\n\",\n            }.get(case, \"9\\t1\\tcc/mocc/transaction.cc\\n\")\n            calls = root / \"git.jsonl\"\n            _make_executable(bin_dir / \"git\", f'''\\\n                #!{sys.executable}\n                import json, sys\n                from pathlib import Path\n                with Path({str(calls)!r}).open(\"a\") as stream:\n                    stream.write(json.dumps(sys.argv[1:]) + \"\\\\n\")\n                if \"--numstat\" in sys.argv:\n                    print({numstat!r}, end=\"\")\n                elif \"--check\" in sys.argv:\n                    sys.exit({1 if case == 'check-fails' else 0})\n                else:\n                    if {case == 'apply-fails'!r}:\n                        sys.exit(1)\n                    Path(sys.argv[2], \"cc/mocc/transaction.cc\").write_bytes({postimage!r})\n                    if {case == 'patch-changes'!r}:\n                        Path(sys.argv[-1]).write_bytes(b\"changed patch\")\n            ''')\n            variables = {\"REPO_ROOT\": repo, \"BUILD_SOURCE\": build, \"ATTEMPT_DIR\": attempt,\n                         \"T1943_G2\": 0 if case == \"general\" else 1}\n            prefix = \"set -Eeuo pipefail\\n\" + \"\".join(\n                f\"{key}={shlex.quote(str(value))}\\n\" for key, value in variables.items()\n            ) + '''write_failure() { printf 'rc=%s\\\\nstage=%s\\\\nmessage=%s\\\\n' \"$1\" \"$2\" \"$3\" >\"$ATTEMPT_DIR/failure\"; }\n    '''\n            result = subprocess.run(\n                [\"/bin/bash\", \"-c\", prefix + block + \"\\nprintf 'build-reached\\\\n'\\n\"],\n                cwd=root, env={\"PATH\": str(bin_dir)}, capture_output=True, text=True,\n                check=False,\n            )\n            recorded = [json.loads(line) for line in calls.read_text().splitlines()] if calls.exists() else []\n            if case == \"general\":\n                assert result.returncode == 0, result.stderr\n                assert recorded == []\n                assert transaction.read_bytes() == b\"preimage\\n\"\n                assert all(not (attempt / name).exists() for name in artifacts)\n            elif case == \"success\":\n                assert result.returncode == 0, result.stderr\n                assert transaction.read_bytes() == postimage\n                assert (attempt / \"instr-patch-source.sha256\").read_text() == hashlib.sha256(postimage).hexdigest() + \"\\n\"\n                assert (attempt / \"instr-patch.sha256\").read_text() == hashlib.sha256(patch.read_bytes()).hexdigest() + \"\\n\"\n                assert (attempt / \"instr-patch.numstat\").read_text() == numstat\n                assert recorded == [\n                    [\"-C\", str(build), \"apply\", \"--numstat\", str(patch)],\n                    [\"-C\", str(build), \"apply\", \"--check\", str(patch)],\n                    [\"-C\", str(build), \"apply\", str(patch)],\n                ]\n                assert not (attempt / \"failure\").exists()\n                assert all((attempt / name).is_file() for name in artifacts)\n            else:\n>               assert result.returncode == 2, (case, result.stderr)\nE               AssertionError: ('two-files', '')\nE               assert 0 == 2\nE                +  where 0 = CompletedProcess(args=['/bin/bash', '-c', 'set -Eeuo pipefail\\nREPO_ROOT=/tmp/pytest-of-tanab/pytest-6/popen-gw17/test...R/instr-patch-source.sha256\"\\nfi\\n\\nprintf \\'build-reached\\\\n\\'\\n'], returncode=0, stdout='build-reached\\n', stderr='').returncode\n\norchestrator/tests/test_mocc_trace_job_contract.py:1689: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds\n1 failed, 148 passed in 4.75s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=5425 retained_bytes=3838 omitted_bytes=1587 rendered_excerpt_bytes=4096 sha256=c27cb67e0291ad3be2ac278f16cfd15f60f66da63ad7c31443629beb23e325ac\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> for command in (\"realpath\", \"sha256sum\", \"awk\"):\n>                 real = shutil.which(command)\n>                 assert real is not None\n>                 (bin_dir / command).symlink_to(real)\n>             numstat = {\n>                 \"two-files\": \"9\\x5ct1\\x5ctcc/mocc/transaction.cc\\x5cn1\\x5ct0\\x5ctcc/mocc/util.cc\\x5cn\",\n>                 \"wrong-path\": \"9\\x5ct1\\x5ctcc/mocc/util.cc\\x5cn\",\n>                 \"empty\": \"\", \"bad-count\": \"-\\x5ct1\\x5ctcc/mocc/transaction.cc\\x5cn\",\n>             }.get(case, \"9\\x5ct1\\x5ctcc/mocc/transaction.cc\\x5cn\")\n>             calls = root / \"git.jsonl\"\n>             _make_executable(bin_dir / \"git\", f'''\\x5c\n>                 #!{sys.executable}\n>                 import json, sys\n>                 from pathlib import Path\n>                 with Path({str(calls)!r}).open(\"a\") as stream:\n>                     stream.write(json.dumps(sys.argv[1:]) + \"\\x5c\\x5cn\")\n>                 if \"--numstat\" in sys.argv:\n>                     print({numstat!r}, end=\"\")\n>                 elif \"--check\" in sys.argv:\n>                     sys.exit({1 if case == 'check-fails' else 0})\n>                 else:\n>                     if {case == 'apply-fails'!r}:\n>                         sys.exit(1)\n>                     Path(sys.argv[2], \"cc/mocc/transaction.cc\").write_bytes({postimage!r})\n>                     if {case == 'patch-changes'!r}:\n>                         Path(sys.argv[-1]).write_bytes(b\"changed patch\")\n>             ''')\n>             variables = {\"REPO_ROOT\": repo, \"BUILD_SOURCE\": build, \"ATTEMPT_DIR\": attempt,\n>                          \"T1943_G2\": 0 if case == \"general\" else 1}\n>             prefix = \"set -Eeuo pipefail\\x5cn\" + \"\".join(\n>                 f\"{key}={shlex.quote(str(value))}\\x5cn\" for key, value in variables.items()\n>             ) + '''write_failure() { printf 'rc=%s\\x5c\\x5cnstage=%s\\x5c\\x5cnmessage=%s\\x5c\\x5cn' \"$1\" \"$2\" \"$3\" >\"$ATTEMPT_DIR/failure\"; }\n>     '''\n>             result = subprocess.run(\n>                 [\"/bin/bash\", \"-c\", prefix + block + \"\\x5cnprintf 'build-reached\\x5c\\x5cn'\\x5cn\"],\n>                 cwd=root, env={\"PATH\": str(bin_dir)}, capture_output=True, text=True,\n>                 check=False,\n>             )\n>             recorded = [json.loads(line) for line in calls.read_text().splitlines()] if calls.exists() else []\n>             if case == \"general\":\n>                 assert result.returncode == 0, result.stderr\n>                 assert recorded == []\n>                 assert transaction.read_bytes() == b\"preimage\\x5cn\"\n>                 assert all(not (attempt / name).exists() for name in artifacts)\n>             elif case == \"success\":\n>                 assert result.returncode == 0, result.stderr\n>                 assert transaction.read_bytes() == postimage\n>                 assert (attempt / \"instr-patch-source.sha256\").read_text() == hashlib.sha256(postimage).hexdigest() + \"\\x5cn\"\n>                 assert (attempt / \"instr-patch.sha256\").read_text() == hashlib.sha256(patch.read_bytes()).hexdigest() + \"\\x5cn\"\n>                 assert (attempt / \"instr-patch.numstat\").read_text() == numstat\n>                 assert recorded == [\n>                     [\"-C\", str(build), \"apply\", \"--numstat\", str(patch)],\n>                     [\"-C\", str(build), \"apply\", \"--check\", str(patch)],\n>                     [\"-C\", str(build), \"apply\", str(patch)],\n>                 ]\n>                 assert not (attempt / \"failure\").exists()\n>                 assert all((attempt / name).is_file() for name in artifacts)\n>             else:\n> >               assert result.returncode == 2, (case, result.stderr)\n> E               AssertionError: ('two-files', '')\n> E               assert 0 == 2\n> E                +  where 0 = CompletedProcess(args=['/bin/bash', '-c', 'set -Eeuo pipefail\\x5cnREPO_ROOT=/tmp/pytest-of-tanab/pytest-6/popen-gw17/test...R/instr-patch-source.sha256\"\\x5cnfi\\x5cn\\x5cnprintf \\x5c'build-reached\\x5c\\x5cn\\x5c'\\x5cn'], returncode=0, stdout='build-reached\\x5cn', stderr='').returncode\n> \n> orchestrator/tests/test_mocc_trace_job_contract.py:1689: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=5425 retained_bytes=3838 omitted_bytes=1587 budget_bytes=49152 rendered_bytes=4843 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "c66e2c3346ca5cc7794782f730b8d52ec9628b3dffdb2408cd0a995a83bfae3f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7a131df26bf6ca77bb5b32aa905b9bc3192fab96253b0fded4998945bf0c1e40",
+      "duration_s": 5.46,
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds"
+      ],
+      "hang_risk": false,
+      "id": "m5-drop-touch-set-check",
+      "injection_diff_sha256": "9eb1df951ceb00b105a0116b57ff8da8b89c5aad7754f1ba69ba57f69f37b518",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b31e287e8b903a95490fdfaa41f200c9fa06f3cfdff897ee71f98945bf1b3a66",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "    END { exit 0 }\n",
+          "old": "    END { exit (bad || NR != 1) }\n"
+        }
+      ],
+      "repo_head": "f93281e55c59e8a69fda2fc4295986929e123e2a",
+      "runner_sha256": "06f2b1705b074c78fcbc7fdea90a6245b29a1e85198adf8e85b9e043c4c3bb17",
+      "spec_sha256": "328f57828efecfc16910294b8396014048341fd35133cbf1f93bd2e7114dcb89",
+      "status": "KILLED",
+      "test_output_sha256": "c66e2c3346ca5cc7794782f730b8d52ec9628b3dffdb2408cd0a995a83bfae3f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "58fd95e41d31eddc6839602d1d571a8f17385c23e06ead30ccec483b102a41ac"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n........................................................................ [ 96%]\n...F.                                                                    [100%]\n=================================== FAILURES ===================================\n________ test_mocc_trace_instrumentation_patch_block_applies_and_binds _________\n[gw39] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-7/popen-gw39/test_mocc_trace_instrumentatio0')\n\n    def test_mocc_trace_instrumentation_patch_block_applies_and_binds(tmp_path: Path) -> None:\n        source = PILOT.read_text(encoding=\"utf-8\")\n        begin = \"# BEGIN T2780 INSTRUMENTATION PATCH\"\n        end = \"# END T2780 INSTRUMENTATION PATCH\"\n        for marker in (begin, end, \"build_mode() {\"):\n            assert source.count(marker) == 1\n        assert source.index(begin) < source.index(end) < source.index(\"build_mode() {\")\n        block = source[source.index(begin):source.index(end)]\n        postimage = b\"patched transaction fixture\\n\"\n        artifacts = (\"instr-patch.sha256\", \"instr-patch.numstat\", \"instr-patch-source.sha256\",\n                     \"instr-patch-apply.stdout\", \"instr-patch-apply.stderr\")\n        for case in (\"success\", \"two-files\", \"wrong-path\", \"empty\", \"bad-count\",\n                     \"check-fails\", \"apply-fails\", \"patch-changes\", \"general\"):\n            root = tmp_path / case\n            repo = root / \"repo\"\n            build = root / \"build\"\n            attempt = root / \"attempt\"\n            bin_dir = root / \"bin\"\n            for directory in (repo / \"patches\", build / \"cc/mocc\", attempt, bin_dir):\n                directory.mkdir(parents=True)\n            patch = repo / \"patches/instr-mocc-lock-coverage.patch\"\n            patch.write_bytes(b\"fixture patch bytes\\n\")\n            transaction = build / \"cc/mocc/transaction.cc\"\n            transaction.write_bytes(b\"preimage\\n\")\n            for command in (\"realpath\", \"sha256sum\", \"awk\"):\n                real = shutil.which(command)\n                assert real is not None\n                (bin_dir / command).symlink_to(real)\n            numstat = {\n                \"two-files\": \"9\\t1\\tcc/mocc/transaction.cc\\n1\\t0\\tcc/mocc/util.cc\\n\",\n                \"wrong-path\": \"9\\t1\\tcc/mocc/util.cc\\n\",\n                \"empty\": \"\", \"bad-count\": \"-\\t1\\tcc/mocc/transaction.cc\\n\",\n            }.get(case, \"9\\t1\\tcc/mocc/transaction.cc\\n\")\n            calls = root / \"git.jsonl\"\n            _make_executable(bin_dir / \"git\", f'''\\\n                #!{sys.executable}\n                import json, sys\n                from pathlib import Path\n                with Path({str(calls)!r}).open(\"a\") as stream:\n                    stream.write(json.dumps(sys.argv[1:]) + \"\\\\n\")\n                if \"--numstat\" in sys.argv:\n                    print({numstat!r}, end=\"\")\n                elif \"--check\" in sys.argv:\n                    sys.exit({1 if case == 'check-fails' else 0})\n                else:\n                    if {case == 'apply-fails'!r}:\n                        sys.exit(1)\n                    Path(sys.argv[2], \"cc/mocc/transaction.cc\").write_bytes({postimage!r})\n                    if {case == 'patch-changes'!r}:\n                        Path(sys.argv[-1]).write_bytes(b\"changed patch\")\n            ''')\n            variables = {\"REPO_ROOT\": repo, \"BUILD_SOURCE\": build, \"ATTEMPT_DIR\": attempt,\n                         \"T1943_G2\": 0 if case == \"general\" else 1}\n            prefix = \"set -Eeuo pipefail\\n\" + \"\".join(\n                f\"{key}={shlex.quote(str(value))}\\n\" for key, value in variables.items()\n            ) + '''write_failure() { printf 'rc=%s\\\\nstage=%s\\\\nmessage=%s\\\\n' \"$1\" \"$2\" \"$3\" >\"$ATTEMPT_DIR/failure\"; }\n    '''\n            result = subprocess.run(\n                [\"/bin/bash\", \"-c\", prefix + block + \"\\nprintf 'build-reached\\\\n'\\n\"],\n                cwd=root, env={\"PATH\": str(bin_dir)}, capture_output=True, text=True,\n                check=False,\n            )\n            recorded = [json.loads(line) for line in calls.read_text().splitlines()] if calls.exists() else []\n            if case == \"general\":\n                assert result.returncode == 0, result.stderr\n>               assert recorded == []\nE               AssertionError: assert [['-C', '/tmp...erage.patch']] == []\nE                 \nE                 Left contains 3 more items, first extra item: ['-C', '/tmp/pytest-of-tanab/pytest-7/popen-gw39/test_mocc_trace_instrumentatio0/general/build', 'apply', '--numstat',...test-of-tanab/pytest-7/popen-gw39/test_mocc_trace_instrumentatio0/general/repo/patches/instr-mocc-lock-coverage.patch']\nE                 Use -v to get more diff\n\norchestrator/tests/test_mocc_trace_job_contract.py:1672: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds\n1 failed, 148 passed in 5.06s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=4390 retained_bytes=3864 omitted_bytes=526 rendered_excerpt_bytes=4096 sha256=d9a41b3a8822c58813e4ced133b390335f1f7f6b959fc8b7843bbcd552f6a66b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> gin) < source.index(end) < source.index(\"build_mode() {\")\n>         block = source[source.index(begin):source.index(end)]\n>         postimage = b\"patched transaction fixture\\x5cn\"\n>         artifacts = (\"instr-patch.sha256\", \"instr-patch.numstat\", \"instr-patch-source.sha256\",\n>                      \"instr-patch-apply.stdout\", \"instr-patch-apply.stderr\")\n>         for case in (\"success\", \"two-files\", \"wrong-path\", \"empty\", \"bad-count\",\n>                      \"check-fails\", \"apply-fails\", \"patch-changes\", \"general\"):\n>             root = tmp_path / case\n>             repo = root / \"repo\"\n>             build = root / \"build\"\n>             attempt = root / \"attempt\"\n>             bin_dir = root / \"bin\"\n>             for directory in (repo / \"patches\", build / \"cc/mocc\", attempt, bin_dir):\n>                 directory.mkdir(parents=True)\n>             patch = repo / \"patches/instr-mocc-lock-coverage.patch\"\n>             patch.write_bytes(b\"fixture patch bytes\\x5cn\")\n>             transaction = build / \"cc/mocc/transaction.cc\"\n>             transaction.write_bytes(b\"preimage\\x5cn\")\n>             for command in (\"realpath\", \"sha256sum\", \"awk\"):\n>                 real = shutil.which(command)\n>                 assert real is not None\n>                 (bin_dir / command).symlink_to(real)\n>             numstat = {\n>                 \"two-files\": \"9\\x5ct1\\x5ctcc/mocc/transaction.cc\\x5cn1\\x5ct0\\x5ctcc/mocc/util.cc\\x5cn\",\n>                 \"wrong-path\": \"9\\x5ct1\\x5ctcc/mocc/util.cc\\x5cn\",\n>                 \"empty\": \"\", \"bad-count\": \"-\\x5ct1\\x5ctcc/mocc/transaction.cc\\x5cn\",\n>             }.get(case, \"9\\x5ct1\\x5ctcc/mocc/transaction.cc\\x5cn\")\n>             calls = root / \"git.jsonl\"\n>             _make_executable(bin_dir / \"git\", f'''\\x5c\n>                 #!{sys.executable}\n>                 import json, sys\n>                 from pathlib import Path\n>                 with Path({str(calls)!r}).open(\"a\") as stream:\n>                     stream.write(json.dumps(sys.argv[1:]) + \"\\x5c\\x5cn\")\n>                 if \"--numstat\" in sys.argv:\n>                     print({numstat!r}, end=\"\")\n>                 elif \"--check\" in sys.argv:\n>                     sys.exit({1 if case == 'check-fails' else 0})\n>                 else:\n>                     if {case == 'apply-fails'!r}:\n>                         sys.exit(1)\n>                     Path(sys.argv[2], \"cc/mocc/transaction.cc\").write_bytes({postimage!r})\n>                     if {case == 'patch-changes'!r}:\n>                         Path(sys.argv[-1]).write_bytes(b\"changed patch\")\n>             ''')\n>             variables = {\"REPO_ROOT\": repo, \"BUILD_SOURCE\": build, \"ATTEMPT_DIR\": attempt,\n>                          \"T1943_G2\": 0 if case == \"general\" else 1}\n>             prefix = \"set -Eeuo pipefail\\x5cn\" + \"\".join(\n>                 f\"{key}={shlex.quote(str(value))}\\x5cn\" for key, value in variables.items()\n>             ) + '''write_failure() { printf 'rc=%s\\x5c\\x5cnstage=%s\\x5c\\x5cnmessage=%s\\x5c\\x5cn' \"$1\" \"$2\" \"$3\" >\"$ATTEMPT_DIR/failure\"; }\n>     '''\n>             result = subprocess.run(\n>                 [\"/bin/bash\", \"-c\", prefix + block + \"\\x5cnprintf 'build-reached\\x5c\\x5cn'\\x5cn\"],\n>                 cwd=root, env={\"PATH\": str(bin_dir)}, capture_output=True, text=True,\n>                 check=False,\n>             )\n>             recorded = [json.loads(line) for line in calls.read_text().splitlines()] if calls.exists() else []\n>             if case == \"general\":\n>                 assert result.returncode == 0, result.stderr\n> >               assert recorded == []\n> E               AssertionError: assert [['-C', '/tmp...erage.patch']] == []\n> E                 \n> E                 Left contains 3 more items, first extra item: ['-C', '/tmp/pytest-of-tanab/pytest-7/popen-gw39/test_mocc_trace_instrumentatio0/general/build', 'apply', '--numstat',...test-of-tanab/pytest-7/popen-gw39/test_mocc_trace_instrumentatio0/general/repo/patches/instr-mocc-lock-coverage.patch']\n> E                 Use -v to get more diff\n> \n> orchestrator/tests/test_mocc_trace_job_contract.py:1672: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=4390 retained_bytes=3864 omitted_bytes=526 budget_bytes=49152 rendered_bytes=4841 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f418ad132136eee848b67030df909f83e027602775fbc23f89a2da6a2ab25842"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7a131df26bf6ca77bb5b32aa905b9bc3192fab96253b0fded4998945bf0c1e40",
+      "duration_s": 5.812,
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds"
+      ],
+      "hang_risk": false,
+      "id": "m6-drop-mode-guard",
+      "injection_diff_sha256": "ab9d718b6646d293d91851921a20971ddaaa514125c0a3b8ba92838973222058",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d263c2f1870cb852f3535312d49f619007c146aef44c7e2020a7f484591286d8",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "# BEGIN T2780 INSTRUMENTATION PATCH\nif true; then\n",
+          "old": "# BEGIN T2780 INSTRUMENTATION PATCH\nif [[ \"$T1943_G2\" -eq 1 ]]; then\n"
+        }
+      ],
+      "repo_head": "f93281e55c59e8a69fda2fc4295986929e123e2a",
+      "runner_sha256": "06f2b1705b074c78fcbc7fdea90a6245b29a1e85198adf8e85b9e043c4c3bb17",
+      "spec_sha256": "328f57828efecfc16910294b8396014048341fd35133cbf1f93bd2e7114dcb89",
+      "status": "KILLED",
+      "test_output_sha256": "f418ad132136eee848b67030df909f83e027602775fbc23f89a2da6a2ab25842",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "58fd95e41d31eddc6839602d1d571a8f17385c23e06ead30ccec483b102a41ac"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n.....................................F.................................. [ 96%]\n.....                                                                    [100%]\n=================================== FAILURES ===================================\n___________ test_mocc_trace_verifier_source_root_follows_t1943_mode ____________\n[gw17] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-8/popen-gw17/test_mocc_trace_verifier_sourc0')\n\n    def test_mocc_trace_verifier_source_root_follows_t1943_mode(tmp_path: Path) -> None:\n        source = PILOT.read_text(encoding=\"utf-8\")\n        begin = '  VERIFIER_SOURCE_ROOT=\"$CCBENCH_BASE\"'\n        end = '  VERIFIER_RC=$verifier_rc'\n>       assert source.count(begin) == source.count(end) == 1\nE       assert 2 == 1\nE        +  where 2 = <built-in method count of str object at 0x55b7b6cb7990>('  VERIFIER_SOURCE_ROOT=\"$CCBENCH_BASE\"')\nE        +    where <built-in method count of str object at 0x55b7b6cb7990> = '#!/bin/bash\\n#PBS -A SFC\\n#PBS -q gen_S\\n#PBS -l elapstim_req=01:00:00\\n#PBS -b 1\\n#\\n# Bounded execution reservation...ation_manifest \\\\\\n      \"artifact classification manifest does not cover job outputs\"\\n    exit 2\\n  fi\\nfi\\nexit 0\\n'.count\nE        +  and   1 = <built-in method count of str object at 0x55b7b6cb7990>('  VERIFIER_RC=$verifier_rc')\nE        +    where <built-in method count of str object at 0x55b7b6cb7990> = '#!/bin/bash\\n#PBS -A SFC\\n#PBS -q gen_S\\n#PBS -l elapstim_req=01:00:00\\n#PBS -b 1\\n#\\n# Bounded execution reservation...ation_manifest \\\\\\n      \"artifact classification manifest does not cover job outputs\"\\n    exit 2\\n  fi\\nfi\\nexit 0\\n'.count\n\norchestrator/tests/test_mocc_trace_job_contract.py:1711: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_verifier_source_root_follows_t1943_mode\n1 failed, 148 passed in 4.84s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_verifier_source_root_follows_t1943_mode\" nodeid_bytes=107 nodeid_omitted_bytes=0 source_bytes=1420 retained_bytes=1420 omitted_bytes=0 rendered_excerpt_bytes=1537 sha256=fc5349cec0da2fdf9360369683e3915d24b59a4f152624c0ea3eb8cfbb382ef9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-8/popen-gw17/test_mocc_trace_verifier_sourc0')\n> \n>     def test_mocc_trace_verifier_source_root_follows_t1943_mode(tmp_path: Path) -> None:\n>         source = PILOT.read_text(encoding=\"utf-8\")\n>         begin = '  VERIFIER_SOURCE_ROOT=\"$CCBENCH_BASE\"'\n>         end = '  VERIFIER_RC=$verifier_rc'\n> >       assert source.count(begin) == source.count(end) == 1\n> E       assert 2 == 1\n> E        +  where 2 = <built-in method count of str object at 0x55b7b6cb7990>('  VERIFIER_SOURCE_ROOT=\"$CCBENCH_BASE\"')\n> E        +    where <built-in method count of str object at 0x55b7b6cb7990> = '#!/bin/bash\\x5cn#PBS -A SFC\\x5cn#PBS -q gen_S\\x5cn#PBS -l elapstim_req=01:00:00\\x5cn#PBS -b 1\\x5cn#\\x5cn# Bounded execution reservation...ation_manifest \\x5c\\x5c\\x5cn      \"artifact classification manifest does not cover job outputs\"\\x5cn    exit 2\\x5cn  fi\\x5cnfi\\x5cnexit 0\\x5cn'.count\n> E        +  and   1 = <built-in method count of str object at 0x55b7b6cb7990>('  VERIFIER_RC=$verifier_rc')\n> E        +    where <built-in method count of str object at 0x55b7b6cb7990> = '#!/bin/bash\\x5cn#PBS -A SFC\\x5cn#PBS -q gen_S\\x5cn#PBS -l elapstim_req=01:00:00\\x5cn#PBS -b 1\\x5cn#\\x5cn# Bounded execution reservation...ation_manifest \\x5c\\x5c\\x5cn      \"artifact classification manifest does not cover job outputs\"\\x5cn    exit 2\\x5cn  fi\\x5cnfi\\x5cnexit 0\\x5cn'.count\n> \n> orchestrator/tests/test_mocc_trace_job_contract.py:1711: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1420 retained_bytes=1420 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2272 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "80b2e64bc4e371688fbfa90a653657f3212b69b515ec52d33d93226c3fa2f4f7"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7a131df26bf6ca77bb5b32aa905b9bc3192fab96253b0fded4998945bf0c1e40",
+      "duration_s": 5.624,
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_verifier_source_root_follows_t1943_mode"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_verifier_source_root_follows_t1943_mode"
+      ],
+      "hang_risk": false,
+      "id": "m7-verifier-source-base",
+      "injection_diff_sha256": "80444f28bd48dc5545b54ec52cddaff53716920b965d36784090219f96791384",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "16a8d2fffd2937806cfa8aa415649d7fe4661d87502ac1d8b0bb468467a89efc",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "    VERIFIER_SOURCE_ROOT=\"$CCBENCH_BASE\"\n",
+          "old": "    VERIFIER_SOURCE_ROOT=\"$BUILD_SOURCE\"\n"
+        }
+      ],
+      "repo_head": "f93281e55c59e8a69fda2fc4295986929e123e2a",
+      "runner_sha256": "06f2b1705b074c78fcbc7fdea90a6245b29a1e85198adf8e85b9e043c4c3bb17",
+      "spec_sha256": "328f57828efecfc16910294b8396014048341fd35133cbf1f93bd2e7114dcb89",
+      "status": "KILLED",
+      "test_output_sha256": "80b2e64bc4e371688fbfa90a653657f3212b69b515ec52d33d93226c3fa2f4f7",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "58fd95e41d31eddc6839602d1d571a8f17385c23e06ead30ccec483b102a41ac"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 48%]\n...F.................................................................... [ 96%]\n.....                                                                    [100%]\n=================================== FAILURES ===================================\n___ test_t1943_receipt_binds_trace_witness_discriminator_and_trace0_absence ____\n[gw16] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-9/popen-gw16/test_t1943_receipt_binds_trace0')\n\n    def test_t1943_receipt_binds_trace_witness_discriminator_and_trace0_absence(\n        tmp_path: Path,\n    ) -> None:\n        result, attempt_dir, _ = _run_mocc_trace_finalization(\n            tmp_path,\n            trace_mode=1,\n            t1943_g2=True,\n        )\n>       assert result.returncode == 0, result.stderr\nE       AssertionError: Traceback (most recent call last):\nE           File \"<stdin>\", line 66, in <module>\nE         ValueError: T-1943 receipt instrumentation patch binding differs\nE         \nE       assert 2 == 0\nE        +  where 2 = CompletedProcess(args=['/bin/bash', '-c', 'set -Eeuo pipefail\\nREPO_ROOT=/tmp/pytest-of-tanab/pytest-9/popen-gw16/test...ll last):\\n  File \"<stdin>\", line 66, in <module>\\nValueError: T-1943 receipt instrumentation patch binding differs\\n').returncode\n\norchestrator/tests/test_mocc_trace_job_contract.py:4838: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_binds_trace_witness_discriminator_and_trace0_absence\n1 failed, 148 passed in 4.82s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_binds_trace_witness_discriminator_and_trace0_absence\" nodeid_bytes=123 nodeid_omitted_bytes=0 source_bytes=1030 retained_bytes=1030 omitted_bytes=0 rendered_excerpt_bytes=1085 sha256=cdb85a532974a2a909188e913d9446e36038c199c6cd4c1950ce1973f4abf7be\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw16] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-9/popen-gw16/test_t1943_receipt_binds_trace0')\n> \n>     def test_t1943_receipt_binds_trace_witness_discriminator_and_trace0_absence(\n>         tmp_path: Path,\n>     ) -> None:\n>         result, attempt_dir, _ = _run_mocc_trace_finalization(\n>             tmp_path,\n>             trace_mode=1,\n>             t1943_g2=True,\n>         )\n> >       assert result.returncode == 0, result.stderr\n> E       AssertionError: Traceback (most recent call last):\n> E           File \"<stdin>\", line 66, in <module>\n> E         ValueError: T-1943 receipt instrumentation patch binding differs\n> E         \n> E       assert 2 == 0\n> E        +  where 2 = CompletedProcess(args=['/bin/bash', '-c', 'set -Eeuo pipefail\\x5cnREPO_ROOT=/tmp/pytest-of-tanab/pytest-9/popen-gw16/test...ll last):\\x5cn  File \"<stdin>\", line 66, in <module>\\x5cnValueError: T-1943 receipt instrumentation patch binding differs\\x5cn').returncode\n> \n> orchestrator/tests/test_mocc_trace_job_contract.py:4838: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1030 retained_bytes=1030 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1836 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0cd34a0a6bc39e6abdc6f74268d300255d9f6b07584fcb385cd9d2b73b679048"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "7a131df26bf6ca77bb5b32aa905b9bc3192fab96253b0fded4998945bf0c1e40",
+      "duration_s": 5.563,
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_binds_trace_witness_discriminator_and_trace0_absence"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_binds_trace_witness_discriminator_and_trace0_absence"
+      ],
+      "hang_risk": false,
+      "id": "m8-drop-receipt-binding",
+      "injection_diff_sha256": "0158c94394d1ee1feace967606e741de2cdd5929b2ea81461d9af496dcd18171",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "354b0f5e0b83cbb725989428d36a762d65bc270fd35e5fd5b3be7ca99b397b6e",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "new": "        \"instrumentation_patch_removed\": {\n            \"repo_path\": \"patches/instr-mocc-lock-coverage.patch\",\n",
+          "old": "        \"instrumentation_patch\": {\n            \"repo_path\": \"patches/instr-mocc-lock-coverage.patch\",\n"
+        }
+      ],
+      "repo_head": "f93281e55c59e8a69fda2fc4295986929e123e2a",
+      "runner_sha256": "06f2b1705b074c78fcbc7fdea90a6245b29a1e85198adf8e85b9e043c4c3bb17",
+      "spec_sha256": "328f57828efecfc16910294b8396014048341fd35133cbf1f93bd2e7114dcb89",
+      "status": "KILLED",
+      "test_output_sha256": "0cd34a0a6bc39e6abdc6f74268d300255d9f6b07584fcb385cd9d2b73b679048",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "58fd95e41d31eddc6839602d1d571a8f17385c23e06ead30ccec483b102a41ac"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_pilot_shell_syntax\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_compiler_mapping_is_exact\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_parser_emits_16_values_and_rejects_duplicates\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_rejects_writerless_fifo_policy_without_blocking\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_rejects_non_finite_policy\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_preserves_policy_pilot_walltime_type\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_parser_rejects_non_finite_policy\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_pilot_rejects_expected_compiler_version_body_mismatch[gcc]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_pilot_rejects_expected_compiler_version_body_mismatch[g++]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_gflags_and_glog_clear_compiler_launchers\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_gflags_and_glog_toolchain_guards_block_environment_adoption\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_dry_run_contract\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_rejects_policy_change_between_parse_and_clean_gate\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_pilot_requires_policy_raw_sha256_env\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_trace_mode_one_dry_run_contract\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_submit_dry_run_has_dedicated_fields\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_submit_real_qsub_publishes_completed_receipt\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_build_run_and_rc1_discriminator_order_is_fail_closed\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_submit_rejects_nonfixed_workload_before_submission\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_submit_accepts_base_gitlink_with_available_new_object\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_submit_rejects_absent_new_oid_before_submission\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_clean_gate_ignores_only_owned_regular_files[owned-attempt-file-?? output/env/pegasus/mocc-trace/attempts/old/receipt.json-file-0]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_clean_gate_ignores_only_owned_regular_files[owned-job-staging-file-?? output/env/pegasus/mocc-trace/job-staging/old/result.json-file-0]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_clean_gate_ignores_only_owned_regular_files[owned-symlink-?? output/env/pegasus/mocc-trace/attempts/old/receipt.json-symlink-2]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_clean_gate_ignores_only_owned_regular_files[unowned-file-?? dirty.txt-file-2]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_clean_gate_ignores_only_owned_regular_files[tracked-change- M tools/pegasus/mocc_trace_pilot.sh-none-2]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_reuses_custom_in_repo_attempts_root\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_rejects_colon_in_attempts_root\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_routes_pbs_streams_per_nonce\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_pilot_reads_exported_attempts_root\norchestrator/tests/test_mocc_trace_job_contract.py::test_fetch_third_party_hydrate_staging_root_contract[True]\norchestrator/tests/test_mocc_trace_job_contract.py::test_fetch_third_party_hydrate_staging_root_contract[False]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_pilot_uses_job_private_third_party_root\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_cpu_model_gate_normalizes_and_rejects_true_mismatch\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_verifier_source_root_follows_t1943_mode\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_checker_interpreter_gate_selects_first_importable_candidate\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_checker_uses_selected_interpreter_for_actual_argv\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_checker_resolver_success_path_uses_resolved_interpreter_once\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_checker_interpreter_gate_fails_closed_with_skip_artifacts\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_verifier_interpreter_gate_selects_first_importable_candidate\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_verifier_interpreter_gate_fails_closed_and_records_rejections\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_accepts_unchanged_policy\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_parse_restore_clean_attack\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_parse_restore_clean_attack_raw\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_submit_raw_sha_mismatch\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_submit_mapping_tamper\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_requires_submit_raw_sha256\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_env_binding_mismatch\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_submit_raw_sha_export_tamper\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_noncanonical_policy_repo_path\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_symlink_policy\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_non_regular_policy\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_writerless_fifo_without_blocking[writerless_fifo-regular]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_writerless_fifo_without_blocking[regular-writerless_fifo]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_symlink_or_non_regular_receipt_after_pin[symlink]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_symlink_or_non_regular_receipt_after_pin[fifo]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_non_finite_json[policy]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_non_finite_json[receipt]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_malformed_receipt_policy[0-mapping0]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_malformed_receipt_policy[5555555555555555555555555555555555555555555555555555555555555555-None]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_malformed_receipt_policy[5555555555555555555555555555555555555555555555555555555555555555-mapping2]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_malformed_receipt_policy[5555555555555555555555555555555555555555555555555555555555555555-mapping3]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_duplicate_keys[policy]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_duplicate_keys[receipt]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_gate_order_and_markers\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_values_are_not_reassigned_before_finalization\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_post_judgment_source_gate[head_changed]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_post_judgment_source_gate[dirty_after]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_post_judgment_source_gate[capture_error]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_post_judgment_source_gate[unchanged_clean]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_post_gate_precedes_mode_verdict_exit\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_finalization_records_bound_policy\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_finalization_rejects_mapping_changed_after_gate\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_finalization_rejects_raw_sha_changed_after_gate\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_finalization_rejects_writerless_fifo_receipt_without_blocking\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_artifact_manifest_schema_and_create_only[trace0]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_artifact_manifest_schema_and_create_only[trace1]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_artifact_manifest_covers_job_output_path_set\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_artifact_paths_are_absent_from_general_manifests\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_artifact_manifest_requires_real_witness_directory[real-directory]\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_artifact_manifest_requires_real_witness_directory[symlink]\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_artifact_manifest_requires_real_witness_directory[non-directory]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_artifact_manifest_names_performance_derivation_routes\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_artifact_manifest_trace0_allows_same_performance_files\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_artifact_manifest_rejects_non_derivable_claim\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_artifact_manifest_rejects_unclassified_real_file\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_artifact_manifest_validation_follows_final_output\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_artifact_classification_precedes_durable_completed_json\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_artifact_classification_failure_leaves_no_completed_json\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_report_binding_markers_remain_unique\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_report_binding_uses_one_python_report_read\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f5_early_report_sha_failure_uses_binding_stage[sha256sum-failure]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f5_early_report_sha_failure_uses_binding_stage[malformed-digest]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_g1_avoids_realpath_strict_keyword\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m01_sha_tracks_exact_report_bytes\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m02_copies_schema_v1\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m03_copies_fixture_guarantee\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m04_rejects_unrelated_schema_family\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m05_rejects_non_pass_result\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m06_rejects_old_oid_mismatch\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m07_rejects_new_oid_mismatch\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m08_rejects_repo_mismatch\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m09_rejects_compiler_mismatch\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f3_rejects_nonexistent_identity_parent_paths[repo]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f3_rejects_nonexistent_identity_parent_paths[compiler]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m10_rejects_expected_paths_mismatch\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m11_rejects_valid_report_symlink\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f2_rejects_report_symlink_swap_before_fd_open\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m12_rejects_post_checker_report_swap\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m13_rejects_receipt_replaced_before_shell_hash\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f1_rejects_receipt_and_sidecar_replaced_together\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_h1_rejects_sidecar_only_tamper\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f4_rejects_receipt_replaced_after_shell_hash\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m14_rejects_trace1_report_presence\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m15_trace1_fields_are_null\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_uses_v4_pilot_and_v2_job_result_schemas\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_binds_trace_witness_discriminator_and_trace0_absence\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_rejects_trace0_binary_swap_after_absence\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_rejects_leaf_swap_after_discriminator[trace]\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_rejects_leaf_swap_after_discriminator[witness]\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_rejects_leaf_swap_after_discriminator[trace-file-set]\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_rejects_leaf_swap_after_discriminator[witness-file-set]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_job_result_rejects_rebound_non_v4_receipt\norchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_job_result_rejects_rebound_v1_receipt\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_job_result_accepts_exact_v4_receipt\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_receipt_trace1_recursively_omits_performance_fields\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_receipt_trace0_retains_performance_fields\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_receipt_binds_commit_count_witness\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_receipt_binds_endpoint_consistency_with_residual_windows\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m17_records_verifier_interpreter\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m18_records_checker_interpreter\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_receipt_binds_mode_evidence_bytes[1-verifier.json-verifier_sha256]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_receipt_binds_mode_evidence_bytes[0-throughput.json-throughput_sha256]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_receipt_records_executed_correctness_tool[1-verifier-trace0_preprocess_identity_checker]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_receipt_records_executed_correctness_tool[0-trace0_preprocess_identity_checker-verifier]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m19_globals_precede_receipt_writer\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m20_job_result_copies_only_four_scalars\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f6_receipt_lists_sha_sidecar_artifact\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f7_synthetic_fixture_keys_match_checker_contract\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_p01_accepts_synthetic_aligned_schema_v1_report\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_p02_accepts_synthetic_aligned_schema_v2_realpath_report\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_p03_accepts_normal_trace1_without_report\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_rejects_other_invalid_report_forms[missing]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_rejects_other_invalid_report_forms[directory]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_rejects_other_invalid_report_forms[invalid-json]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_rejects_other_invalid_report_forms[array-top-level]\norchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_rejects_other_invalid_report_forms[empty-guarantee]\n\n149 tests collected in 0.65s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "773fd745ef9e443d2f3ba66b8cb7071afba3d7abbdb9078a14e2e747236b4496"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_pilot_shell_syntax",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_compiler_mapping_is_exact",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_parser_emits_16_values_and_rejects_duplicates",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_rejects_writerless_fifo_policy_without_blocking",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_rejects_non_finite_policy",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_preserves_policy_pilot_walltime_type",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_parser_rejects_non_finite_policy",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_pilot_rejects_expected_compiler_version_body_mismatch[gcc]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_pilot_rejects_expected_compiler_version_body_mismatch[g++]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_gflags_and_glog_clear_compiler_launchers",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_gflags_and_glog_toolchain_guards_block_environment_adoption",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_dry_run_contract",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_rejects_policy_change_between_parse_and_clean_gate",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_pilot_requires_policy_raw_sha256_env",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_trace_mode_one_dry_run_contract",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_submit_dry_run_has_dedicated_fields",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_submit_real_qsub_publishes_completed_receipt",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_build_run_and_rc1_discriminator_order_is_fail_closed",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_submit_rejects_nonfixed_workload_before_submission",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_submit_accepts_base_gitlink_with_available_new_object",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_submit_rejects_absent_new_oid_before_submission",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_clean_gate_ignores_only_owned_regular_files[owned-attempt-file-?? output/env/pegasus/mocc-trace/attempts/old/receipt.json-file-0]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_clean_gate_ignores_only_owned_regular_files[owned-job-staging-file-?? output/env/pegasus/mocc-trace/job-staging/old/result.json-file-0]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_clean_gate_ignores_only_owned_regular_files[owned-symlink-?? output/env/pegasus/mocc-trace/attempts/old/receipt.json-symlink-2]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_clean_gate_ignores_only_owned_regular_files[unowned-file-?? dirty.txt-file-2]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_clean_gate_ignores_only_owned_regular_files[tracked-change- M tools/pegasus/mocc_trace_pilot.sh-none-2]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_reuses_custom_in_repo_attempts_root",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_rejects_colon_in_attempts_root",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_submit_routes_pbs_streams_per_nonce",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_pilot_reads_exported_attempts_root",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_fetch_third_party_hydrate_staging_root_contract[True]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_fetch_third_party_hydrate_staging_root_contract[False]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_pilot_uses_job_private_third_party_root",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_cpu_model_gate_normalizes_and_rejects_true_mismatch",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_verifier_source_root_follows_t1943_mode",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_checker_interpreter_gate_selects_first_importable_candidate",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_checker_uses_selected_interpreter_for_actual_argv",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_checker_resolver_success_path_uses_resolved_interpreter_once",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_checker_interpreter_gate_fails_closed_with_skip_artifacts",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_verifier_interpreter_gate_selects_first_importable_candidate",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_verifier_interpreter_gate_fails_closed_and_records_rejections",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_accepts_unchanged_policy",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_parse_restore_clean_attack",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_parse_restore_clean_attack_raw",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_submit_raw_sha_mismatch",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_submit_mapping_tamper",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_requires_submit_raw_sha256",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_env_binding_mismatch",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_submit_raw_sha_export_tamper",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_noncanonical_policy_repo_path",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_symlink_policy",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_non_regular_policy",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_writerless_fifo_without_blocking[writerless_fifo-regular]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_writerless_fifo_without_blocking[regular-writerless_fifo]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_symlink_or_non_regular_receipt_after_pin[symlink]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_symlink_or_non_regular_receipt_after_pin[fifo]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_non_finite_json[policy]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_non_finite_json[receipt]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_malformed_receipt_policy[0-mapping0]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_malformed_receipt_policy[5555555555555555555555555555555555555555555555555555555555555555-None]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_malformed_receipt_policy[5555555555555555555555555555555555555555555555555555555555555555-mapping2]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_malformed_receipt_policy[5555555555555555555555555555555555555555555555555555555555555555-mapping3]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_duplicate_keys[policy]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_duplicate_keys[receipt]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_gate_order_and_markers",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_values_are_not_reassigned_before_finalization",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_post_judgment_source_gate[head_changed]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_post_judgment_source_gate[dirty_after]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_post_judgment_source_gate[capture_error]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_post_judgment_source_gate[unchanged_clean]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_post_gate_precedes_mode_verdict_exit",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_finalization_records_bound_policy",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_finalization_rejects_mapping_changed_after_gate",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_finalization_rejects_raw_sha_changed_after_gate",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_finalization_rejects_writerless_fifo_receipt_without_blocking",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_artifact_manifest_schema_and_create_only[trace0]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_artifact_manifest_schema_and_create_only[trace1]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_artifact_manifest_covers_job_output_path_set",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_artifact_paths_are_absent_from_general_manifests",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_artifact_manifest_requires_real_witness_directory[real-directory]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_artifact_manifest_requires_real_witness_directory[symlink]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_artifact_manifest_requires_real_witness_directory[non-directory]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_artifact_manifest_names_performance_derivation_routes",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_artifact_manifest_trace0_allows_same_performance_files",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_artifact_manifest_rejects_non_derivable_claim",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_artifact_manifest_rejects_unclassified_real_file",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_artifact_manifest_validation_follows_final_output",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_artifact_classification_precedes_durable_completed_json",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_artifact_classification_failure_leaves_no_completed_json",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_report_binding_markers_remain_unique",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_report_binding_uses_one_python_report_read",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f5_early_report_sha_failure_uses_binding_stage[sha256sum-failure]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f5_early_report_sha_failure_uses_binding_stage[malformed-digest]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_g1_avoids_realpath_strict_keyword",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m01_sha_tracks_exact_report_bytes",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m02_copies_schema_v1",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m03_copies_fixture_guarantee",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m04_rejects_unrelated_schema_family",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m05_rejects_non_pass_result",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m06_rejects_old_oid_mismatch",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m07_rejects_new_oid_mismatch",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m08_rejects_repo_mismatch",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m09_rejects_compiler_mismatch",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f3_rejects_nonexistent_identity_parent_paths[repo]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f3_rejects_nonexistent_identity_parent_paths[compiler]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m10_rejects_expected_paths_mismatch",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m11_rejects_valid_report_symlink",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f2_rejects_report_symlink_swap_before_fd_open",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m12_rejects_post_checker_report_swap",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m13_rejects_receipt_replaced_before_shell_hash",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f1_rejects_receipt_and_sidecar_replaced_together",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_h1_rejects_sidecar_only_tamper",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f4_rejects_receipt_replaced_after_shell_hash",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m14_rejects_trace1_report_presence",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m15_trace1_fields_are_null",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_uses_v4_pilot_and_v2_job_result_schemas",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_binds_trace_witness_discriminator_and_trace0_absence",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_rejects_trace0_binary_swap_after_absence",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_rejects_leaf_swap_after_discriminator[trace]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_rejects_leaf_swap_after_discriminator[witness]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_rejects_leaf_swap_after_discriminator[trace-file-set]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_rejects_leaf_swap_after_discriminator[witness-file-set]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_job_result_rejects_rebound_non_v4_receipt",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_job_result_rejects_rebound_v1_receipt",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_job_result_accepts_exact_v4_receipt",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_receipt_trace1_recursively_omits_performance_fields",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_receipt_trace0_retains_performance_fields",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_receipt_binds_commit_count_witness",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_receipt_binds_endpoint_consistency_with_residual_windows",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m17_records_verifier_interpreter",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m18_records_checker_interpreter",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_receipt_binds_mode_evidence_bytes[1-verifier.json-verifier_sha256]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_receipt_binds_mode_evidence_bytes[0-throughput.json-throughput_sha256]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_receipt_records_executed_correctness_tool[1-verifier-trace0_preprocess_identity_checker]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_receipt_records_executed_correctness_tool[0-trace0_preprocess_identity_checker-verifier]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m19_globals_precede_receipt_writer",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_m20_job_result_copies_only_four_scalars",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f6_receipt_lists_sha_sidecar_artifact",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_f7_synthetic_fixture_keys_match_checker_contract",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_p01_accepts_synthetic_aligned_schema_v1_report",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_p02_accepts_synthetic_aligned_schema_v2_realpath_report",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_p03_accepts_normal_trace1_without_report",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_rejects_other_invalid_report_forms[missing]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_rejects_other_invalid_report_forms[directory]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_rejects_other_invalid_report_forms[invalid-json]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_rejects_other_invalid_report_forms[array-top-level]",
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_binding_rejects_other_invalid_report_forms[empty-guarantee]"
+      ],
+      "duration_s": 1.349,
+      "rc": 0,
+      "repo_head": "f93281e55c59e8a69fda2fc4295986929e123e2a",
+      "runner_sha256": "06f2b1705b074c78fcbc7fdea90a6245b29a1e85198adf8e85b9e043c4c3bb17",
+      "spec_sha256": "328f57828efecfc16910294b8396014048341fd35133cbf1f93bd2e7114dcb89",
+      "status": "PASSED",
+      "tool_sha256": "58fd95e41d31eddc6839602d1d571a8f17385c23e06ead30ccec483b102a41ac"
+    },
+    "hang_timeout_seconds": 4800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m0-equivalent-comment": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "fffd137e0cd5f7a7dcb29288415c9c0b5d52e9061da1bbecb89910ca6246e80a",
+        "replacements": [
+          {
+            "file": "tools/pegasus/mocc_trace_pilot.sh",
+            "new": "# BEGIN T2780 HYDRATE INTERPRETER GATE\n# (equivalent mutation marker: comment only)\n",
+            "old": "# BEGIN T2780 HYDRATE INTERPRETER GATE\n"
+          }
+        ]
+      },
+      "m1-hydrate-plain-python3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f0dd6d2bb2a0444e9a511d582235638c9c8f1b3fcdc967bfb55c28518c57be4c",
+        "replacements": [
+          {
+            "file": "tools/pegasus/mocc_trace_pilot.sh",
+            "new": "timeout 20 python3 \"$TOOLS/fetch_third_party.py\" hydrate --repo-root \"$REPO_ROOT\" \\\n",
+            "old": "timeout 20 \"$HYDRATE_PY\" \"$TOOLS/fetch_third_party.py\" hydrate --repo-root \"$REPO_ROOT\" \\\n"
+          }
+        ]
+      },
+      "m2-drop-version-compare": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ce359b99a8c2cf6d7a1037b22580510ec90d07323e04ebe67e7d70763b5d756a",
+        "replacements": [
+          {
+            "file": "tools/pegasus/mocc_trace_pilot.sh",
+            "new": "'import sys; import orchestrator.campaign.silo_ladder_rung1; raise SystemExit(0)' \\\n",
+            "old": "'import sys; import orchestrator.campaign.silo_ladder_rung1; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' \\\n"
+          }
+        ]
+      },
+      "m3-drop-rejected-record": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "93b60839db98150d4d75dbd84683b83306649bb3afad4ff182badb086e60a76e",
+        "replacements": [
+          {
+            "file": "tools/pegasus/mocc_trace_pilot.sh",
+            "new": "  :\n",
+            "old": "  hydrate_py_rejected+=\"${hydrate_py_rejected:+ }$py_name=$py_resolved\"\n"
+          }
+        ]
+      },
+      "m4-drop-real-apply": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "a7c11ad85b141d06f9ce1dea679449d62c58dc8dd4e9dcf59d0cf784e50836b6",
+        "replacements": [
+          {
+            "file": "tools/pegasus/mocc_trace_pilot.sh",
+            "new": "  if ! true \"$PATCH_PATH\" \\\n",
+            "old": "  if ! git -C \"$BUILD_SOURCE\" apply \"$PATCH_PATH\" \\\n"
+          }
+        ]
+      },
+      "m5-drop-touch-set-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9eb1df951ceb00b105a0116b57ff8da8b89c5aad7754f1ba69ba57f69f37b518",
+        "replacements": [
+          {
+            "file": "tools/pegasus/mocc_trace_pilot.sh",
+            "new": "    END { exit 0 }\n",
+            "old": "    END { exit (bad || NR != 1) }\n"
+          }
+        ]
+      },
+      "m6-drop-mode-guard": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ab9d718b6646d293d91851921a20971ddaaa514125c0a3b8ba92838973222058",
+        "replacements": [
+          {
+            "file": "tools/pegasus/mocc_trace_pilot.sh",
+            "new": "# BEGIN T2780 INSTRUMENTATION PATCH\nif true; then\n",
+            "old": "# BEGIN T2780 INSTRUMENTATION PATCH\nif [[ \"$T1943_G2\" -eq 1 ]]; then\n"
+          }
+        ]
+      },
+      "m7-verifier-source-base": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_verifier_source_root_follows_t1943_mode"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "80444f28bd48dc5545b54ec52cddaff53716920b965d36784090219f96791384",
+        "replacements": [
+          {
+            "file": "tools/pegasus/mocc_trace_pilot.sh",
+            "new": "    VERIFIER_SOURCE_ROOT=\"$CCBENCH_BASE\"\n",
+            "old": "    VERIFIER_SOURCE_ROOT=\"$BUILD_SOURCE\"\n"
+          }
+        ]
+      },
+      "m8-drop-receipt-binding": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_binds_trace_witness_discriminator_and_trace0_absence"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0158c94394d1ee1feace967606e741de2cdd5929b2ea81461d9af496dcd18171",
+        "replacements": [
+          {
+            "file": "tools/pegasus/mocc_trace_pilot.sh",
+            "new": "        \"instrumentation_patch_removed\": {\n            \"repo_path\": \"patches/instr-mocc-lock-coverage.patch\",\n",
+            "old": "        \"instrumentation_patch\": {\n            \"repo_path\": \"patches/instr-mocc-lock-coverage.patch\",\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "c7cb227e35f09c01ee53c114cd3f0b3409d28be2a8c1c61655e33aa787dfd27a",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_mocc_trace_job_contract.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 4800.0
+  },
+  "repo_head": "f93281e55c59e8a69fda2fc4295986929e123e2a",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_mocc_trace_job_contract.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2780-mocc-pilot-discriminator/recovery-mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "78cad66fbaf3f41b05bf4294ea7e22cbacb19a82",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "06f2b1705b074c78fcbc7fdea90a6245b29a1e85198adf8e85b9e043c4c3bb17",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "328f57828efecfc16910294b8396014048341fd35133cbf1f93bd2e7114dcb89",
+  "summary": {
+    "KILLED": 8,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 9,
+    "matching": 9,
+    "recorded": 9,
+    "registered": 9
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2780-mocc-pilot-discriminator/recovery-mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "58fd95e41d31eddc6839602d1d571a8f17385c23e06ead30ccec483b102a41ac",
+  "updated_at": "2026-09-18T12:25:48.835708+00:00"
+}

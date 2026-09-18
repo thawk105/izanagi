@@ -1,0 +1,14 @@
+{
+  "binary_sha256": "64a2c460c3317459e4e17d6f89e68c47bda71dbbc3feb1470abf12988d8c8339",
+  "completed_epoch": 1789715384,
+  "job_script_sha256": "ebe744e674464fd2cc7d7faaad01e69acb16b66f800cc9eefc90d4e0c365e3a3",
+  "pbs_jobid": "0:5905.nqsv",
+  "receipt_sha256": "fd440cd0f23248e48ecc6fad3f1b29c630e113d6eeb5ab314a682b7e9292536f",
+  "schema_version": "mocc-trace-pilot-job-result/v2",
+  "trace0_preprocess_identity_report": {
+    "guarantee": "\u9078\u5b9a\u3057\u305f macro context \u306b\u304a\u3051\u308b TRACE=0 \u6b63\u898f\u5316 preprocess \u51fa\u529b\u306e\u540c\u4e00\u6027\u3001\u304a\u3088\u3073 include \u6d3b\u6027\u306e\u540c\u4e00\u6027",
+    "path": "trace0-preprocess-identity.json",
+    "schema": "izanagi-trace0-preprocess-identity/v2",
+    "sha256": "e5df1002837ceac5d3b2a140da99f17a1c02d06683c952066d7d65f0806ec958"
+  }
+}

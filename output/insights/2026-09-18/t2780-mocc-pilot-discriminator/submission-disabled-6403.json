@@ -1,0 +1,7 @@
+{
+  "reason": "compute-marker-not-observed",
+  "recovery": "ユーザー自身の端末から qsub し、有効性を確認してください",
+  "request_id": "6403.nqsv",
+  "schema_version": "pegasus-submission-disabled/v1",
+  "submission_dir": "/work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2780-codex-recovery/output/pegasus-dispatch/bb01ae5f40901bc74178994d4901c97b"
+}

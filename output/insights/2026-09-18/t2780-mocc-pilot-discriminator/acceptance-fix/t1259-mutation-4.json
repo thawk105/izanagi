@@ -1,0 +1,574 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 34%]\n..................................................s..................... [ 68%]\n...................................................................      [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":1,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n210 passed, 1 skipped in 66.27s (0:01:06)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "4d5d9f7de2d1701f72e9a17c981654c04e94ea78a457b60e9438ea902abd8977"
+    },
+    "artifact_error": null,
+    "collection_sha256": "e1f121afa7e13b3e7421a1007a9e0a3a678577ca94131e8986b70cfdfbaa13b5",
+    "duration_s": 67.035,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "2cabbd24fb4ce35cb0ade9aa6df1272ca9d0d77fb849747de0bf64894aa3bf71",
+    "repo_head": "252e24b4ff199e5dbb5cbedfad7130fa55bbc3c0",
+    "runner_sha256": "b2d387a851e52f7f2e25bd5b6ad1c02dee7a956b6f42f1c5543a7fd761221c8b",
+    "spec_sha256": "2d5f76ae3fc2fc88e012606ae6ee9196f750a9143910d3ace1bf012922703473",
+    "status": "PASSED",
+    "test_output_sha256": "4d5d9f7de2d1701f72e9a17c981654c04e94ea78a457b60e9438ea902abd8977",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "e737ef0781ba08106fc30eec20924b3e00d9afa6857bef8d7e2da3e1d1807f7f"
+  },
+  "date": "2026-09-18T15:22:21.912183+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 34%]\n..............................................s......................... [ 68%]\n...................................................................      [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":1,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n210 passed, 1 skipped in 65.97s (0:01:05)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "66906466f32eb3767ded6354c0bcbf709a190096d423f10f7e8697763c15a782"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "e1f121afa7e13b3e7421a1007a9e0a3a678577ca94131e8986b70cfdfbaa13b5",
+      "duration_s": 66.728,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "e-memo-comment",
+      "injection_diff_sha256": "04f630668c8ac2527413b5b753a136f5119f5602fdf371d47ff0e1610b62706e",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "4ecc8c061cc5a6254b5a26efc3fe2f90b7757720d66b2b0fac2e547160991592",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "    # Keep all T1259 module snapshot consumers in one process-memo work unit.\n",
+          "old": "    # Keep the T1259 module snapshot consumers in one process-memo work unit.\n"
+        }
+      ],
+      "repo_head": "252e24b4ff199e5dbb5cbedfad7130fa55bbc3c0",
+      "runner_sha256": "b2d387a851e52f7f2e25bd5b6ad1c02dee7a956b6f42f1c5543a7fd761221c8b",
+      "spec_sha256": "2d5f76ae3fc2fc88e012606ae6ee9196f750a9143910d3ace1bf012922703473",
+      "status": "SURVIVED",
+      "test_output_sha256": "66906466f32eb3767ded6354c0bcbf709a190096d423f10f7e8697763c15a782",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e737ef0781ba08106fc30eec20924b3e00d9afa6857bef8d7e2da3e1d1807f7f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 34%]\n.................................................s...................... [ 68%]\n...............................................................F...      [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":1,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n=================================== FAILURES ===================================\n_______ test_real_repo_group_collection_exactly_matches_canonical_nodes ________\n[gw5] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_real_repo_group_collection_exactly_matches_canonical_nodes():\n        \"\"\"全 group marker と real-repo node 集合を独立 golden で監査する。\"\"\"\n        _require_pytest()\n        report = _collect_xdist_group_report(HERE, cwd=ROOT)\n        _assert_xdist_group_contract(report, _XDIST_GROUP_NAMES_GOLDEN)\n    \n        suite_conftest = _load_suite_conftest()\n        golden = set(_REAL_REPO_CLASSIFIED_NODES_GOLDEN)\n        golden_access = _real_repo_access_golden()\n        resource_golden = set(golden_access)\n        configured_access = {\n            node_id: (access.parent, access.ccbench)\n            for node_id, access in suite_conftest.REAL_REPO_ACCESS_BY_NODE.items()\n        }\n        assert configured_access == golden_access, (\n            \"conftest.REAL_REPO_ACCESS_BY_NODE が独立 golden と不一致: \"\n            f\"missing={sorted(resource_golden - set(configured_access))} \"\n            f\"extra={sorted(set(configured_access) - resource_golden)}\"\n        )\n        assert set(suite_conftest.REAL_REPO_CLASSIFIED_NODES) == golden\n        assert set(suite_conftest.REAL_REPO_RESOURCE_NODES) == resource_golden\n        assert set(suite_conftest.REAL_REPO_LOCAL_ONLY_NODES) == set(\n            _REAL_REPO_LOCAL_ONLY_NODES_GOLDEN\n        )\n        assert set(suite_conftest.REAL_REPO_CCBENCH_WRITER_NODES) == set(\n            _REAL_REPO_CCBENCH_WRITER_NODES_GOLDEN\n        )\n>       assert set(suite_conftest.REAL_REPO_PROCESS_MEMO_NODES) == set(\n            _REAL_REPO_PROCESS_MEMO_NODES_GOLDEN\n        )\nE       AssertionError: assert {'test_s8b_bi..._fields', ...} == {'test_s8b_bi..._fields', ...}\nE         \nE         Extra items in the right set:\nE         'test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver'\nE         Use -v to get more diff\n\norchestrator/tests/test_real_repo_serialization.py:1640: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\n1 failed, 209 passed, 1 skipped in 65.31s (0:01:05)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1956 retained_bytes=1956 omitted_bytes=0 rendered_excerpt_bytes=2095 sha256=98bed03a80f3a6534488347cecb1974c400e084d79243bd21856efe67aad8acf\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /usr/bin/python3\n> \n>     def test_real_repo_group_collection_exactly_matches_canonical_nodes():\n>         \"\"\"\\u5168 group marker \\u3068 real-repo node \\u96c6\\u5408\\u3092\\u72ec\\u7acb golden \\u3067\\u76e3\\u67fb\\u3059\\u308b\\u3002\"\"\"\n>         _require_pytest()\n>         report = _collect_xdist_group_report(HERE, cwd=ROOT)\n>         _assert_xdist_group_contract(report, _XDIST_GROUP_NAMES_GOLDEN)\n>     \n>         suite_conftest = _load_suite_conftest()\n>         golden = set(_REAL_REPO_CLASSIFIED_NODES_GOLDEN)\n>         golden_access = _real_repo_access_golden()\n>         resource_golden = set(golden_access)\n>         configured_access = {\n>             node_id: (access.parent, access.ccbench)\n>             for node_id, access in suite_conftest.REAL_REPO_ACCESS_BY_NODE.items()\n>         }\n>         assert configured_access == golden_access, (\n>             \"conftest.REAL_REPO_ACCESS_BY_NODE \\u304c\\u72ec\\u7acb golden \\u3068\\u4e0d\\u4e00\\u81f4: \"\n>             f\"missing={sorted(resource_golden - set(configured_access))} \"\n>             f\"extra={sorted(set(configured_access) - resource_golden)}\"\n>         )\n>         assert set(suite_conftest.REAL_REPO_CLASSIFIED_NODES) == golden\n>         assert set(suite_conftest.REAL_REPO_RESOURCE_NODES) == resource_golden\n>         assert set(suite_conftest.REAL_REPO_LOCAL_ONLY_NODES) == set(\n>             _REAL_REPO_LOCAL_ONLY_NODES_GOLDEN\n>         )\n>         assert set(suite_conftest.REAL_REPO_CCBENCH_WRITER_NODES) == set(\n>             _REAL_REPO_CCBENCH_WRITER_NODES_GOLDEN\n>         )\n> >       assert set(suite_conftest.REAL_REPO_PROCESS_MEMO_NODES) == set(\n>             _REAL_REPO_PROCESS_MEMO_NODES_GOLDEN\n>         )\n> E       AssertionError: assert {'test_s8b_bi..._fields', ...} == {'test_s8b_bi..._fields', ...}\n> E         \n> E         Extra items in the right set:\n> E         'test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_real_repo_serialization.py:1640: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1956 retained_bytes=1956 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2838 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "02e410c5fae983e1ff7e5e36feabad2329eb8b35b79c04dc42bbcc3e8a121139"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e1f121afa7e13b3e7421a1007a9e0a3a678577ca94131e8986b70cfdfbaa13b5",
+      "duration_s": 66.108,
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "hang_risk": false,
+      "id": "m9-missing-t1259-memo",
+      "injection_diff_sha256": "394fce9205c0f68c11af17acc1cef1cb70d123a043f4ad3653ceaab2acefb3c1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ccb1fe6f4ff5567526525078b86ed36974e25705f323679eb8eba580e5dfb6f9",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "REAL_REPO_PROCESS_MEMO_NODES = frozenset({\n    # Keep the T1259 module snapshot consumers in one process-memo work unit.\n",
+          "old": "REAL_REPO_PROCESS_MEMO_NODES = frozenset({\n    # Keep the T1259 module snapshot consumers in one process-memo work unit.\n    \"test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver\",\n"
+        }
+      ],
+      "repo_head": "252e24b4ff199e5dbb5cbedfad7130fa55bbc3c0",
+      "runner_sha256": "b2d387a851e52f7f2e25bd5b6ad1c02dee7a956b6f42f1c5543a7fd761221c8b",
+      "spec_sha256": "2d5f76ae3fc2fc88e012606ae6ee9196f750a9143910d3ace1bf012922703473",
+      "status": "KILLED",
+      "test_output_sha256": "02e410c5fae983e1ff7e5e36feabad2329eb8b35b79c04dc42bbcc3e8a121139",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e737ef0781ba08106fc30eec20924b3e00d9afa6857bef8d7e2da3e1d1807f7f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 34%]\n.................................................s...................... [ 68%]\n...........................................................F.......      [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":1,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n=================================== FAILURES ===================================\n_______ test_real_repo_group_collection_exactly_matches_canonical_nodes ________\n[gw5] linux -- Python 3.10.12 /usr/bin/python3\n\n    def test_real_repo_group_collection_exactly_matches_canonical_nodes():\n        \"\"\"全 group marker と real-repo node 集合を独立 golden で監査する。\"\"\"\n        _require_pytest()\n        report = _collect_xdist_group_report(HERE, cwd=ROOT)\n        _assert_xdist_group_contract(report, _XDIST_GROUP_NAMES_GOLDEN)\n    \n        suite_conftest = _load_suite_conftest()\n        golden = set(_REAL_REPO_CLASSIFIED_NODES_GOLDEN)\n        golden_access = _real_repo_access_golden()\n        resource_golden = set(golden_access)\n        configured_access = {\n            node_id: (access.parent, access.ccbench)\n            for node_id, access in suite_conftest.REAL_REPO_ACCESS_BY_NODE.items()\n        }\n        assert configured_access == golden_access, (\n            \"conftest.REAL_REPO_ACCESS_BY_NODE が独立 golden と不一致: \"\n            f\"missing={sorted(resource_golden - set(configured_access))} \"\n            f\"extra={sorted(set(configured_access) - resource_golden)}\"\n        )\n        assert set(suite_conftest.REAL_REPO_CLASSIFIED_NODES) == golden\n        assert set(suite_conftest.REAL_REPO_RESOURCE_NODES) == resource_golden\n        assert set(suite_conftest.REAL_REPO_LOCAL_ONLY_NODES) == set(\n            _REAL_REPO_LOCAL_ONLY_NODES_GOLDEN\n        )\n        assert set(suite_conftest.REAL_REPO_CCBENCH_WRITER_NODES) == set(\n            _REAL_REPO_CCBENCH_WRITER_NODES_GOLDEN\n        )\n        assert set(suite_conftest.REAL_REPO_PROCESS_MEMO_NODES) == set(\n            _REAL_REPO_PROCESS_MEMO_NODES_GOLDEN\n        )\n        _assert_long_lived_fixture_group_contract(\n            report, resource_golden, suite_conftest,\n        )\n>       _assert_real_repo_suffix_strip_mutation_killer(suite_conftest)\n\norchestrator/tests/test_real_repo_serialization.py:1646: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nsuite_conftest = <module 'izanagi_test_suite_conftest' from '/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2780-mocc-pilot-discriminator/t1259-mutation-scratch-4/.izanagi-mutation-worktree/repo/orchestrator/tests/conftest.py'>\n\n    def _assert_real_repo_suffix_strip_mutation_killer(suite_conftest) -> None:\n        \"\"\"Exercise suffix stripping with nodeids already materialized by xdist.\"\"\"\n    \n        class SuffixedItem:\n            def __init__(self, canonical_node: str) -> None:\n                filename, function = canonical_node.split(\"::\", 1)\n                self._nodeid = f\"orchestrator/tests/{canonical_node}@real-repo\"\n                self.path = HERE / filename\n                self.name = f\"{function}@real-repo\"\n                self.originalname = function\n    \n            @property\n            def nodeid(self) -> str:\n                return self._nodeid\n    \n        split_node = \"test_campaign.py::test_source_digest_parse_options_defaults\"\n        split_item = SuffixedItem(split_node)\n        assert suite_conftest._strip_real_repo_loadgroup_suffix(split_item) is True\n        assert split_item.nodeid == f\"orchestrator/tests/{split_node}\"\n    \n        for memo_node in sorted(_REAL_REPO_PROCESS_MEMO_NODES_GOLDEN):\n            memo_item = SuffixedItem(memo_node)\n>           assert suite_conftest._strip_real_repo_loadgroup_suffix(memo_item) is False\nE           AssertionError: assert True is False\nE            +  where True = <function _strip_real_repo_loadgroup_suffix at 0x145a48d8e830>(<test_real_repo_serialization._assert_real_repo_suffix_strip_mutation_killer.<locals>.SuffixedItem object at 0x145a511a1ff0>)\nE            +    where <function _strip_real_repo_loadgroup_suffix at 0x145a48d8e830> = <module 'izanagi_test_suite_conftest' from '/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2780-mocc-pilot-discriminator/t1259-mutation-scratch-4/.izanagi-mutation-worktree/repo/orchestrator/tests/conftest.py'>._strip_real_repo_loadgroup_suffix\n\norchestrator/tests/test_real_repo_serialization.py:1597: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\n1 failed, 209 passed, 1 skipped in 65.16s (0:01:05)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=3955 retained_bytes=3899 omitted_bytes=56 rendered_excerpt_bytes=4096 sha256=9629f8580cfb3246eef77bbc4c7445895ee53ae82aee826b9ed23057fe882533\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> test_real_repo_group_collection_exactly_matches_canonical_nodes():\n>         \"\"\"\\u5168 group marker \\u3068 real-repo node \\u96c6\\u5408\\u3092\\u72ec\\u7acb golden \\u3067\\u76e3\\u67fb\\u3059\\u308b\\u3002\"\"\"\n>         _require_pytest()\n>         report = _collect_xdist_group_report(HERE, cwd=ROOT)\n>         _assert_xdist_group_contract(report, _XDIST_GROUP_NAMES_GOLDEN)\n>     \n>         suite_conftest = _load_suite_conftest()\n>         golden = set(_REAL_REPO_CLASSIFIED_NODES_GOLDEN)\n>         golden_access = _real_repo_access_golden()\n>         resource_golden = set(golden_access)\n>         configured_access = {\n>             node_id: (access.parent, access.ccbench)\n>             for node_id, access in suite_conftest.REAL_REPO_ACCESS_BY_NODE.items()\n>         }\n>         assert configured_access == golden_access, (\n>             \"conftest.REAL_REPO_ACCESS_BY_NODE \\u304c\\u72ec\\u7acb golden \\u3068\\u4e0d\\u4e00\\u81f4: \"\n>             f\"missing={sorted(resource_golden - set(configured_access))} \"\n>             f\"extra={sorted(set(configured_access) - resource_golden)}\"\n>         )\n>         assert set(suite_conftest.REAL_REPO_CLASSIFIED_NODES) == golden\n>         assert set(suite_conftest.REAL_REPO_RESOURCE_NODES) == resource_golden\n>         assert set(suite_conftest.REAL_REPO_LOCAL_ONLY_NODES) == set(\n>             _REAL_REPO_LOCAL_ONLY_NODES_GOLDEN\n>         )\n>         assert set(suite_conftest.REAL_REPO_CCBENCH_WRITER_NODES) == set(\n>             _REAL_REPO_CCBENCH_WRITER_NODES_GOLDEN\n>         )\n>         assert set(suite_conftest.REAL_REPO_PROCESS_MEMO_NODES) == set(\n>             _REAL_REPO_PROCESS_MEMO_NODES_GOLDEN\n>         )\n>         _assert_long_lived_fixture_group_contract(\n>             report, resource_golden, suite_conftest,\n>         )\n> >       _assert_real_repo_suffix_strip_mutation_killer(suite_conftest)\n> \n> orchestrator/tests/test_real_repo_serialization.py:1646: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> suite_conftest = <module 'izanagi_test_suite_conftest' from '/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2780-mocc-pilot-discriminator/t1259-mutation-scratch-4/.izanagi-mutation-worktree/repo/orchestrator/tests/conftest.py'>\n> \n>     def _assert_real_repo_suffix_strip_mutation_killer(suite_conftest) -> None:\n>         \"\"\"Exercise suffix stripping with nodeids already materialized by xdist.\"\"\"\n>     \n>         class SuffixedItem:\n>             def __init__(self, canonical_node: str) -> None:\n>                 filename, function = canonical_node.split(\"::\", 1)\n>                 self._nodeid = f\"orchestrator/tests/{canonical_node}@real-repo\"\n>                 self.path = HERE / filename\n>                 self.name = f\"{function}@real-repo\"\n>                 self.originalname = function\n>     \n>             @property\n>             def nodeid(self) -> str:\n>                 return self._nodeid\n>     \n>         split_node = \"test_campaign.py::test_source_digest_parse_options_defaults\"\n>         split_item = SuffixedItem(split_node)\n>         assert suite_conftest._strip_real_repo_loadgroup_suffix(split_item) is True\n>         assert split_item.nodeid == f\"orchestrator/tests/{split_node}\"\n>     \n>         for memo_node in sorted(_REAL_REPO_PROCESS_MEMO_NODES_GOLDEN):\n>             memo_item = SuffixedItem(memo_node)\n> >           assert suite_conftest._strip_real_repo_loadgroup_suffix(memo_item) is False\n> E           AssertionError: assert True is False\n> E            +  where True = <function _strip_real_repo_loadgroup_suffix at 0x145a48d8e830>(<test_real_repo_serialization._assert_real_repo_suffix_strip_mutation_killer.<locals>.SuffixedItem object at 0x145a511a1ff0>)\n> E            +    where <function _strip_real_repo_loadgroup_suffix at 0x145a48d8e830> = <module 'izanagi_test_suite_conftest' from '/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2780-mocc-pilot-discriminator/t1259-mutation-scratch-4/.izanagi-mutation-worktree/repo/orchestrator/tests/conftest.py'>._strip_real_repo_loadgroup_suffix\n> \n> orchestrator/tests/test_real_repo_serialization.py:1597: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3955 retained_bytes=3899 omitted_bytes=56 budget_bytes=49152 rendered_bytes=4841 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "20dafeed31ef7a22c68b248e54efe096d442291ce3169619e572b020067f17a6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e1f121afa7e13b3e7421a1007a9e0a3a678577ca94131e8986b70cfdfbaa13b5",
+      "duration_s": 65.966,
+      "expected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+      ],
+      "hang_risk": false,
+      "id": "m10-strip-t1259-suffix",
+      "injection_diff_sha256": "207229afba2f2d1e9215c75e3427ab60d2d581f6eeee7e423b572691b31e4286",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "52e0d0e8efebf5e48d8a111fec3b0b76244370b40acfad454c96936229c8986e",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "    if (\n        node_id in REAL_REPO_PROCESS_MEMO_NODES\n        and not node_id.startswith(\"test_t1259_qsub_env_delivery_probe.py::\")\n    ):\n        return False\n",
+          "old": "    if node_id in REAL_REPO_PROCESS_MEMO_NODES:\n        return False\n"
+        }
+      ],
+      "repo_head": "252e24b4ff199e5dbb5cbedfad7130fa55bbc3c0",
+      "runner_sha256": "b2d387a851e52f7f2e25bd5b6ad1c02dee7a956b6f42f1c5543a7fd761221c8b",
+      "spec_sha256": "2d5f76ae3fc2fc88e012606ae6ee9196f750a9143910d3ace1bf012922703473",
+      "status": "KILLED",
+      "test_output_sha256": "20dafeed31ef7a22c68b248e54efe096d442291ce3169619e572b020067f17a6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e737ef0781ba08106fc30eec20924b3e00d9afa6857bef8d7e2da3e1d1807f7f"
+    },
+    {
+      "anchor_counts": {
+        "0": 1,
+        "1": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 34%]\n.................................................s...................... [ 68%]\n...................................................................      [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":1,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n210 passed, 1 skipped in 65.36s (0:01:05)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "b7b9d74fa0df85bb78204bbf8286c8e1fd59de93e7e94a6cd140ecaf69433dec"
+      },
+      "artifact_error": null,
+      "category": "both-layers",
+      "collection_sha256": "e1f121afa7e13b3e7421a1007a9e0a3a678577ca94131e8986b70cfdfbaa13b5",
+      "duration_s": 66.137,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "old-helper-m10-control",
+      "injection_diff_sha256": "006588b2c00eae24fcdfdb6d1dd59c8d3b7f271e080f08406274cbec30620e7e",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "7aa514a866d326e920a013d14efca4b3f8bffaf34c544bfd5ba99b6cff6a21f5",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/conftest.py",
+          "new": "    if (\n        node_id in REAL_REPO_PROCESS_MEMO_NODES\n        and not node_id.startswith(\"test_t1259_qsub_env_delivery_probe.py::\")\n    ):\n        return False\n",
+          "old": "    if node_id in REAL_REPO_PROCESS_MEMO_NODES:\n        return False\n"
+        },
+        {
+          "file": "orchestrator/tests/test_real_repo_serialization.py",
+          "new": "    memo_node = (\n        \"test_s8b_oracle_driver.py::\"\n        \"test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\"\n    )\n    memo_item = SuffixedItem(memo_node)\n    assert suite_conftest._strip_real_repo_loadgroup_suffix(memo_item) is False\n    assert memo_item.nodeid == f\"orchestrator/tests/{memo_node}@real-repo\"\n",
+          "old": "    for memo_node in sorted(_REAL_REPO_PROCESS_MEMO_NODES_GOLDEN):\n        memo_item = SuffixedItem(memo_node)\n        assert suite_conftest._strip_real_repo_loadgroup_suffix(memo_item) is False\n        assert memo_item.nodeid == f\"orchestrator/tests/{memo_node}@real-repo\"\n"
+        }
+      ],
+      "repo_head": "252e24b4ff199e5dbb5cbedfad7130fa55bbc3c0",
+      "runner_sha256": "b2d387a851e52f7f2e25bd5b6ad1c02dee7a956b6f42f1c5543a7fd761221c8b",
+      "spec_sha256": "2d5f76ae3fc2fc88e012606ae6ee9196f750a9143910d3ace1bf012922703473",
+      "status": "SURVIVED",
+      "test_output_sha256": "b7b9d74fa0df85bb78204bbf8286c8e1fd59de93e7e94a6cd140ecaf69433dec",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e737ef0781ba08106fc30eec20924b3e00d9afa6857bef8d7e2da3e1d1807f7f"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\norchestrator/tests/test_real_repo_serialization.py::test_t080_output_snapshot_detects_git_visible_real_output_changes\norchestrator/tests/test_real_repo_serialization.py::test_t080_output_snapshot_excludes_git_ignored_real_output_changes\norchestrator/tests/test_real_repo_serialization.py::test_t080_output_snapshot_observes_git_visible_create_and_delete\norchestrator/tests/test_real_repo_serialization.py::test_stub_free_receipt_nodes_are_selected_and_reach_setup_by_default\norchestrator/tests/test_real_repo_serialization.py::test_t080_import_temp_environment_fails_closed_for_foreign_module\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes\norchestrator/tests/test_real_repo_serialization.py::test_shard_assignment_preserves_live_xdist_group_components_and_split_control\norchestrator/tests/test_real_repo_serialization.py::test_xdist_group_audit_rejects_synthetic_negative_controls\norchestrator/tests/test_real_repo_serialization.py::test_xdist_group_name_set_audit_rejects_isolated_negative_controls\norchestrator/tests/test_real_repo_serialization.py::test_canonical_real_repo_nodes_have_no_handwritten_xdist_group_decorator\norchestrator/tests/test_real_repo_serialization.py::test_handwritten_xdist_group_decorator_control_is_rejected\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_writer_drains_overlapping_reader_stream[legacy]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_writer_drains_overlapping_reader_stream[common]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_upgrade_writer_drains_overlapping_reader_stream[legacy]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_upgrade_writer_drains_overlapping_reader_stream[common]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_readers_overlap_without_writer\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_timeout_closes_fds[gate-timeout]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_timeout_closes_fds[main-timeout]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_timeout_closes_fds[open-rejected]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_open_rejection_preserves_outer_reader[legacy]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_open_rejection_preserves_outer_reader[common]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_and_main_share_deadline[writer]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_and_main_share_deadline[reader]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_fork_reset_closes_inflight_gate_fd\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_priority_order_is_literal_and_writers_follow_barrier\norchestrator/tests/test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\norchestrator/tests/test_real_repo_serialization.py::test_ratified_memo_has_a_real_resolution_payer\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_consumer_inventory_and_optouts_are_complete\norchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_consumer_inventory_and_registry_are_complete\norchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_explicit_binding_node_is_not_a_consumer\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_writers_do_not_materialize_oracle_environment_candidates\norchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_memo_roundtrip_and_getter_are_fail_closed\norchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_prewarm_hook_exception_is_not_fail_open\norchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_memo_prewarm_wiring_is_controller_only_and_lazy\norchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_memo_nonce_is_propagated_to_workers_and_restored\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_reader_rejects_cache_from_other_invocation\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_json_cache_rejects_pickle_and_invalid_json_without_resolve\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_public_endpoints_reject_all_xdist_reader_faults\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_process_state_is_scoped_to_pytest_session\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prune_keeps_locks_and_current_session_key\norchestrator/tests/test_real_repo_serialization.py::test_current_commit_snapshot_actual_fixture_owns_parent_reader_context\norchestrator/tests/test_real_repo_serialization.py::test_current_snapshot_reader_upgrades_for_same_process_candidate_fixture\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[t810-live-reader-unregistered]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[invariant-candidate-write-downgraded]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[predicate-candidate-lock-removed]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[campaign-scan-lock-removed]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[parent-key-uses-worktree-root]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[legacy-key-not-acquired]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[conflict-edge-removed]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[prewarm-lock-removed]\norchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[nested-collection-node-unregistered]\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_configure_node_wires_nonce_and_restores_nested_env\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_nonce_cleanup_preserves_unconfigure_exception\norchestrator/tests/test_real_repo_serialization.py::test_memo_cleanup_runs_oracle_after_receipt_cleanup_error\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_optout_only_selection_does_not_prewarm\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_calls_both_named_endpoints_once[collection_finish]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_calls_both_named_endpoints_once[xdist_node_collection_finished]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[collection_finish-RuntimeError-receipt]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[collection_finish-RuntimeError-oracle]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[collection_finish-SystemExit-receipt]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[collection_finish-SystemExit-oracle]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[xdist_node_collection_finished-RuntimeError-receipt]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[xdist_node_collection_finished-RuntimeError-oracle]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[xdist_node_collection_finished-SystemExit-receipt]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[xdist_node_collection_finished-SystemExit-oracle]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_waits_for_peer_after_exception[collection_finish-receipt]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_waits_for_peer_after_exception[collection_finish-oracle]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_waits_for_peer_after_exception[xdist_node_collection_finished-receipt]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_waits_for_peer_after_exception[xdist_node_collection_finished-oracle]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_worker_runs_neither_endpoint[collection_finish]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_worker_runs_neither_endpoint[xdist_node_collection_finished]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_returns_only_after_both_complete[collection_finish-receipt]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_returns_only_after_both_complete[collection_finish-oracle]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_returns_only_after_both_complete[xdist_node_collection_finished-receipt]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_returns_only_after_both_complete[xdist_node_collection_finished-oracle]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_prewarm_jobs_overlap[collection_finish]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_prewarm_jobs_overlap[xdist_node_collection_finished]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_both_failures_keep_receipt_primary[collection_finish]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_both_failures_keep_receipt_primary[xdist_node_collection_finished]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_emits_one_json_timing_line[collection_finish]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_emits_one_json_timing_line[xdist_node_collection_finished]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_no_consumers_emits_no_timing[collection_finish]\norchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_no_consumers_emits_no_timing[xdist_node_collection_finished]\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_both_worker_guards_are_required_as_redundant_defense\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_worker_hook_order_mechanism_rejects_both_mutants\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_real_xdist_order_has_no_worker_payer\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_uid_configuration_respects_xdist_and_no_xdist\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed\norchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_consumers_do_not_resolve_during_collection\norchestrator/tests/test_real_repo_serialization.py::test_sort_swo_oracle_does_not_resolve_during_collection\norchestrator/tests/test_real_repo_serialization.py::test_loadgroup_scheduler_keeps_same_group_on_one_worker_and_control_detects_absence\norchestrator/tests/test_real_repo_serialization.py::test_effective_tempdir_is_not_tmpfs\norchestrator/tests/test_real_repo_serialization.py::test_suite_conftest_does_not_wire_tmpdir_to_tmpfs\norchestrator/tests/test_real_repo_serialization.py::test_tmpdir_fstype_lookup_positive_and_negative_control\norchestrator/tests/test_real_repo_serialization.py::test_tmpfs_tmpdir_wiring_scanner_positive_and_negative_control\norchestrator/tests/test_real_repo_serialization.py::test_tmpdir_guards_are_present_and_load_bearing\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_starts_before_worker_collection_notification\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_all_workers_wait_before_test_body_without_resolving\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_order_rejects_collection_barrier_mutant\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_parsed_narrowing_keeps_nonce_and_never_resolves\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_narrowing_destinations_match_real_parser\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_success_checks_shared_deadline_after_io\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_publication_wait_is_explicit_bounded_and_fail_closed\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_unlock_failure_never_publishes_ready\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_stale_markers_are_pruned_except_current_job\norchestrator/tests/test_real_repo_serialization.py::test_early_memo_close_failure_and_lock_contention_are_fail_closed\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_live_hook_chain_preserves_collection_identity[valid-<lambda>-expected0]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_live_hook_chain_preserves_collection_identity[missing-<lambda>-expected1]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_live_hook_chain_preserves_collection_identity[broken-json-<lambda>-expected2]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_live_hook_chain_preserves_collection_identity[oversize-<lambda>-expected3]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_live_hook_chain_preserves_collection_identity[unknown-mixed-<lambda>-expected4]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_live_hook_chain_preserves_collection_identity[extra-key-<lambda>-expected5]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_filters_only_invalid_entries\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_schema_unicode_and_top_level_fail_soft[\\xff]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_schema_unicode_and_top_level_fail_soft[[]]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_schema_unicode_and_top_level_fail_soft[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_schema_unicode_and_top_level_fail_soft[{\"schema_version\":1,\"unit\":\"seconds\",\"nodeid_count\":1,\"duration_seconds_by_nodeid\":{\"node\":11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111}}]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_schema_unicode_and_top_level_fail_soft[{\"schema_version\":true,\"unit\":\"seconds\",\"nodeid_count\":0,\"duration_seconds_by_nodeid\":{}}]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_schema_unicode_and_top_level_fail_soft[{\"schema_version\":2,\"unit\":\"seconds\",\"nodeid_count\":0,\"duration_seconds_by_nodeid\":{}}]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_schema_unicode_and_top_level_fail_soft[{\"schema_version\":1,\"unit\":\"milliseconds\",\"nodeid_count\":0,\"duration_seconds_by_nodeid\":{}}]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_schema_unicode_and_top_level_fail_soft[{\"schema_version\":1,\"unit\":\"seconds\",\"nodeid_count\":0,\"duration_seconds_by_nodeid\":[]}]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_catches_only_file_io_oserror\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_does_not_hide_process_or_memory_exceptions[exception0]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_does_not_hide_process_or_memory_exceptions[exception1]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_does_not_hide_process_or_memory_exceptions[exception2]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_repo_external_item_is_unknown_without_changing_collection\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_ledger_nodeid_path_failures_are_unknown[exception0]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_ledger_nodeid_path_failures_are_unknown[exception1]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_ledger_nodeid_path_failures_are_unknown[exception2]\norchestrator/tests/test_acceptance_schedule_order.py::test_g1_ledger_nodeid_path_failures_are_unknown[exception3]\norchestrator/tests/test_acceptance_schedule_order.py::test_g2_cost_order_tie_break_and_payload_order_are_deterministic\norchestrator/tests/test_acceptance_schedule_order.py::test_g2_overflowed_unit_sum_is_unknown_not_infinite_priority\norchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[orchestrator/tests/test_plain.py::test_plain]\norchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[orchestrator/tests/test_group.py::test_case@group]\norchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[orchestrator/tests/test_group.py::test_case@first@second]\norchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[orchestrator/tests/test_group.py::test_case[param@value]@group]\norchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[orchestrator/tests/test_group.py::test_case[param@one@two]]\norchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[orchestrator/tests/test_check_acceptance_reds.py::test_collection_preserves_literal_nodeid_suffixes[orchestrator/tests/test_example.py::test_target@literal]]\norchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[orchestrator/tests/test_coder_effect_gate.py::test_malformed_tokens_and_strings_fail_closed_without_byte_reflection[int value = 0; @ SENTINEL_UNEXPECTED_TOKEN]]\norchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[]\norchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[@]\norchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[\\u8a66\\u9a13::\\u5834\\u5408[\\u5024@\\u4f8b]]\norchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[\\u8a66\\u9a13::\\u5834\\u5408@\\u76f4\\u5217]\norchestrator/tests/test_acceptance_schedule_order.py::test_g4_reorder_preserves_deselection_markers_keywords_properties_and_identity\norchestrator/tests/test_acceptance_schedule_order.py::test_g4_runner_ast_has_no_ledger_import_or_reference\norchestrator/tests/test_acceptance_schedule_order.py::test_g5_two_ledgers_preserve_outcomes_skip_markers_and_properties\norchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection\norchestrator/tests/test_acceptance_schedule_order.py::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_reordering_enablement_fails_closed_but_has_positive_control\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option0]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option1]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option2]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option3]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option4]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option5]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option6]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option7]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option8]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option9]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option10]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option11]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option12]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option13]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option14]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_negative_categories_keep_original_order[-x]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_negative_categories_keep_original_order[--ff]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_negative_categories_keep_original_order[--collect-only]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_negative_categories_keep_original_order[--no-loadscope-reorder]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_negative_categories_keep_original_order[--trace]\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_worker_dist_no_still_reorders_with_loadgroup\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_hook_uses_loadgroup_splitter\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_worker_uses_controller_snapshot_not_mutated_file\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_hook_calls_identity_guard\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_controller_reads_ledger_only_for_enabled_loadgroup\norchestrator/tests/test_acceptance_schedule_order.py::test_g2a_configure_node_only_sends_snapshot_controller_actually_read\norchestrator/tests/test_acceptance_schedule_order.py::test_g2b_workerinput_absence_is_empty_but_type_damage_is_rejected\norchestrator/tests/test_acceptance_schedule_order.py::test_g2c_enabled_worker_rejects_missing_snapshot_but_disabled_accepts_it\norchestrator/tests/test_acceptance_schedule_order.py::test_g7_worker_consumes_snapshot_without_reading_file\norchestrator/tests/test_acceptance_schedule_order.py::test_g8_unknown_cost_is_known_96th_and_zero_known_is_full_noop\norchestrator/tests/test_acceptance_schedule_order.py::test_g9_identity_guard_survives_python_optimized_mode\norchestrator/tests/test_acceptance_schedule_order.py::test_g10_collection_wrapper_order_is_worker_count_independent\norchestrator/tests/test_acceptance_schedule_order.py::test_g10_collection_wrapper_worker_dependent_tie_break_control_fails\norchestrator/tests/test_acceptance_schedule_order.py::test_g11_loadgroup_global_dequeue_order_is_worker_count_independent\norchestrator/tests/test_acceptance_schedule_order.py::test_g11_final_collection_and_mixed_scope_order_are_worker_count_independent\norchestrator/tests/test_acceptance_schedule_order.py::test_g11_loadgroup_worker_dependent_tie_break_control_fails\norchestrator/tests/test_site_policy.py::test_public_states_are_four_distinct_strings\norchestrator/tests/test_site_policy.py::test_login_fallback_regex_and_classifier_are_mechanically_consistent\norchestrator/tests/test_site_policy.py::test_login_requires_both_nqsv_markers_and_normalizes_hostname\norchestrator/tests/test_site_policy.py::test_compute_is_bnode_digits_regardless_of_nqsv_or_pbs_jobid\norchestrator/tests/test_site_policy.py::test_pegasus_unknown_names_are_suspect_only_with_site_evidence\norchestrator/tests/test_site_policy.py::test_current_site_hostname_exception_uses_nqsv_evidence\norchestrator/tests/test_site_policy.py::test_current_site_requires_qsub_and_qstat_together\norchestrator/tests/test_site_policy.py::test_has_nqsv_accepts_marker_without_path_evidence\norchestrator/tests/test_site_policy.py::test_has_nqsv_rejects_when_path_and_marker_are_absent\norchestrator/tests/test_site_policy.py::test_has_nqsv_accepts_path_evidence_without_marker\norchestrator/tests/test_site_policy.py::test_has_nqsv_marker_oserror_fails_closed_without_leaking\norchestrator/tests/test_site_policy.py::test_current_site_uses_marker_when_path_is_empty\norchestrator/tests/test_site_policy.py::test_classify_site_does_not_resolve_the_real_environment\norchestrator/tests/test_site_policy.py::test_available_cpus_prefers_process_count_then_affinity\norchestrator/tests/test_site_policy.py::test_available_cpus_permission_error_falls_back_to_cpu_count\norchestrator/tests/test_site_policy.py::test_compute_defaults_use_all_available_cpus_without_test_cap\norchestrator/tests/test_site_policy.py::test_other_preserves_existing_test_cap_and_build_jobs\norchestrator/tests/test_site_policy.py::test_refusal_helpers_cover_login_and_suspect_but_not_compute\norchestrator/tests/test_site_policy.py::test_heavy_work_refusal_is_japanese_and_names_compliant_route\norchestrator/tests/test_site_policy.py::test_heavy_work_refusal_is_pure_and_keeps_existing_text_without_hint\norchestrator/tests/test_site_policy.py::test_heavy_work_refusal_keeps_existing_text_when_queue_is_available\norchestrator/tests/test_site_policy.py::test_heavy_work_refusal_adds_queue_diagnosis_only_with_unavailable_hint\norchestrator/tests/test_site_policy.py::test_site_policy_imports_only_approved_stdlib_modules\norchestrator/tests/test_site_policy.py::test_fa3_all_changed_production_modules_defer_annotation_evaluation\nIZANAGI_GROWTH_HOLD_SUMMARY_V1 {\"collected_hold_functions\":1,\"opted_in\":false}\nIZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings \\u7b2c 3 \\u675f\"}\n\n211 tests collected in 0.87s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "f88808efb0bcad9f8d6981afd787a3814239996b153033b0ca12847bd4126ab1"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_real_repo_serialization.py::test_t080_output_snapshot_detects_git_visible_real_output_changes",
+        "orchestrator/tests/test_real_repo_serialization.py::test_t080_output_snapshot_excludes_git_ignored_real_output_changes",
+        "orchestrator/tests/test_real_repo_serialization.py::test_t080_output_snapshot_observes_git_visible_create_and_delete",
+        "orchestrator/tests/test_real_repo_serialization.py::test_stub_free_receipt_nodes_are_selected_and_reach_setup_by_default",
+        "orchestrator/tests/test_real_repo_serialization.py::test_t080_import_temp_environment_fails_closed_for_foreign_module",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes",
+        "orchestrator/tests/test_real_repo_serialization.py::test_shard_assignment_preserves_live_xdist_group_components_and_split_control",
+        "orchestrator/tests/test_real_repo_serialization.py::test_xdist_group_audit_rejects_synthetic_negative_controls",
+        "orchestrator/tests/test_real_repo_serialization.py::test_xdist_group_name_set_audit_rejects_isolated_negative_controls",
+        "orchestrator/tests/test_real_repo_serialization.py::test_canonical_real_repo_nodes_have_no_handwritten_xdist_group_decorator",
+        "orchestrator/tests/test_real_repo_serialization.py::test_handwritten_xdist_group_decorator_control_is_rejected",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_writer_drains_overlapping_reader_stream[legacy]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_writer_drains_overlapping_reader_stream[common]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_upgrade_writer_drains_overlapping_reader_stream[legacy]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_upgrade_writer_drains_overlapping_reader_stream[common]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_readers_overlap_without_writer",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_timeout_closes_fds[gate-timeout]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_timeout_closes_fds[main-timeout]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_timeout_closes_fds[open-rejected]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_open_rejection_preserves_outer_reader[legacy]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_open_rejection_preserves_outer_reader[common]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_and_main_share_deadline[writer]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_gate_and_main_share_deadline[reader]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_fork_reset_closes_inflight_gate_fd",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_priority_order_is_literal_and_writers_follow_barrier",
+        "orchestrator/tests/test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root",
+        "orchestrator/tests/test_real_repo_serialization.py::test_ratified_memo_has_a_real_resolution_payer",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_consumer_inventory_and_optouts_are_complete",
+        "orchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_consumer_inventory_and_registry_are_complete",
+        "orchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_explicit_binding_node_is_not_a_consumer",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_writers_do_not_materialize_oracle_environment_candidates",
+        "orchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_memo_roundtrip_and_getter_are_fail_closed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_prewarm_hook_exception_is_not_fail_open",
+        "orchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_memo_prewarm_wiring_is_controller_only_and_lazy",
+        "orchestrator/tests/test_real_repo_serialization.py::test_oracle_environment_memo_nonce_is_propagated_to_workers_and_restored",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_l1_to_l5_are_fail_closed_and_uid_is_hashed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_reader_rejects_cache_from_other_invocation",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_json_cache_rejects_pickle_and_invalid_json_without_resolve",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_public_endpoints_reject_all_xdist_reader_faults",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_process_state_is_scoped_to_pytest_session",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prune_keeps_locks_and_current_session_key",
+        "orchestrator/tests/test_real_repo_serialization.py::test_current_commit_snapshot_actual_fixture_owns_parent_reader_context",
+        "orchestrator/tests/test_real_repo_serialization.py::test_current_snapshot_reader_upgrades_for_same_process_candidate_fixture",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[t810-live-reader-unregistered]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[invariant-candidate-write-downgraded]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[predicate-candidate-lock-removed]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[campaign-scan-lock-removed]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[parent-key-uses-worktree-root]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[legacy-key-not-acquired]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[conflict-edge-removed]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[prewarm-lock-removed]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_closure_mutations[nested-collection-node-unregistered]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_configure_node_wires_nonce_and_restores_nested_env",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_nonce_cleanup_preserves_unconfigure_exception",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_cleanup_runs_oracle_after_receipt_cleanup_error",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_optout_only_selection_does_not_prewarm",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_calls_both_named_endpoints_once[collection_finish]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_calls_both_named_endpoints_once[xdist_node_collection_finished]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[collection_finish-RuntimeError-receipt]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[collection_finish-RuntimeError-oracle]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[collection_finish-SystemExit-receipt]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[collection_finish-SystemExit-oracle]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[xdist_node_collection_finished-RuntimeError-receipt]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[xdist_node_collection_finished-RuntimeError-oracle]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[xdist_node_collection_finished-SystemExit-receipt]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_propagates_single_exception[xdist_node_collection_finished-SystemExit-oracle]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_waits_for_peer_after_exception[collection_finish-receipt]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_waits_for_peer_after_exception[collection_finish-oracle]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_waits_for_peer_after_exception[xdist_node_collection_finished-receipt]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_waits_for_peer_after_exception[xdist_node_collection_finished-oracle]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_worker_runs_neither_endpoint[collection_finish]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_worker_runs_neither_endpoint[xdist_node_collection_finished]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_returns_only_after_both_complete[collection_finish-receipt]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_returns_only_after_both_complete[collection_finish-oracle]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_returns_only_after_both_complete[xdist_node_collection_finished-receipt]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_returns_only_after_both_complete[xdist_node_collection_finished-oracle]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_prewarm_jobs_overlap[collection_finish]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_prewarm_jobs_overlap[xdist_node_collection_finished]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_both_failures_keep_receipt_primary[collection_finish]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_both_failures_keep_receipt_primary[xdist_node_collection_finished]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_emits_one_json_timing_line[collection_finish]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_emits_one_json_timing_line[xdist_node_collection_finished]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_no_consumers_emits_no_timing[collection_finish]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_memo_barrier_no_consumers_emits_no_timing[xdist_node_collection_finished]",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_both_worker_guards_are_required_as_redundant_defense",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_worker_hook_order_mechanism_rejects_both_mutants",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_real_xdist_order_has_no_worker_payer",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_uid_configuration_respects_xdist_and_no_xdist",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_module_identity_and_resolver_caller_are_fixed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_receipt_memo_consumers_do_not_resolve_during_collection",
+        "orchestrator/tests/test_real_repo_serialization.py::test_sort_swo_oracle_does_not_resolve_during_collection",
+        "orchestrator/tests/test_real_repo_serialization.py::test_loadgroup_scheduler_keeps_same_group_on_one_worker_and_control_detects_absence",
+        "orchestrator/tests/test_real_repo_serialization.py::test_effective_tempdir_is_not_tmpfs",
+        "orchestrator/tests/test_real_repo_serialization.py::test_suite_conftest_does_not_wire_tmpdir_to_tmpfs",
+        "orchestrator/tests/test_real_repo_serialization.py::test_tmpdir_fstype_lookup_positive_and_negative_control",
+        "orchestrator/tests/test_real_repo_serialization.py::test_tmpfs_tmpdir_wiring_scanner_positive_and_negative_control",
+        "orchestrator/tests/test_real_repo_serialization.py::test_tmpdir_guards_are_present_and_load_bearing",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_starts_before_worker_collection_notification",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_all_workers_wait_before_test_body_without_resolving",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_order_rejects_collection_barrier_mutant",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_parsed_narrowing_keeps_nonce_and_never_resolves",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_narrowing_destinations_match_real_parser",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_success_checks_shared_deadline_after_io",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_publication_wait_is_explicit_bounded_and_fail_closed",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_unlock_failure_never_publishes_ready",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_stale_markers_are_pruned_except_current_job",
+        "orchestrator/tests/test_real_repo_serialization.py::test_early_memo_close_failure_and_lock_contention_are_fail_closed",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_live_hook_chain_preserves_collection_identity[valid-<lambda>-expected0]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_live_hook_chain_preserves_collection_identity[missing-<lambda>-expected1]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_live_hook_chain_preserves_collection_identity[broken-json-<lambda>-expected2]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_live_hook_chain_preserves_collection_identity[oversize-<lambda>-expected3]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_live_hook_chain_preserves_collection_identity[unknown-mixed-<lambda>-expected4]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_live_hook_chain_preserves_collection_identity[extra-key-<lambda>-expected5]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_filters_only_invalid_entries",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_schema_unicode_and_top_level_fail_soft[/xff]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_schema_unicode_and_top_level_fail_soft[[]]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_schema_unicode_and_top_level_fail_soft[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_schema_unicode_and_top_level_fail_soft[{\"schema_version\":1,\"unit\":\"seconds\",\"nodeid_count\":1,\"duration_seconds_by_nodeid\":{\"node\":11111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111}}]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_schema_unicode_and_top_level_fail_soft[{\"schema_version\":true,\"unit\":\"seconds\",\"nodeid_count\":0,\"duration_seconds_by_nodeid\":{}}]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_schema_unicode_and_top_level_fail_soft[{\"schema_version\":2,\"unit\":\"seconds\",\"nodeid_count\":0,\"duration_seconds_by_nodeid\":{}}]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_schema_unicode_and_top_level_fail_soft[{\"schema_version\":1,\"unit\":\"milliseconds\",\"nodeid_count\":0,\"duration_seconds_by_nodeid\":{}}]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_schema_unicode_and_top_level_fail_soft[{\"schema_version\":1,\"unit\":\"seconds\",\"nodeid_count\":0,\"duration_seconds_by_nodeid\":[]}]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_catches_only_file_io_oserror",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_does_not_hide_process_or_memory_exceptions[exception0]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_does_not_hide_process_or_memory_exceptions[exception1]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_loader_does_not_hide_process_or_memory_exceptions[exception2]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_repo_external_item_is_unknown_without_changing_collection",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_ledger_nodeid_path_failures_are_unknown[exception0]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_ledger_nodeid_path_failures_are_unknown[exception1]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_ledger_nodeid_path_failures_are_unknown[exception2]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g1_ledger_nodeid_path_failures_are_unknown[exception3]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g2_cost_order_tie_break_and_payload_order_are_deterministic",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g2_overflowed_unit_sum_is_unknown_not_infinite_priority",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[orchestrator/tests/test_plain.py::test_plain]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[orchestrator/tests/test_group.py::test_case@group]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[orchestrator/tests/test_group.py::test_case@first@second]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[orchestrator/tests/test_group.py::test_case[param@value]@group]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[orchestrator/tests/test_group.py::test_case[param@one@two]]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[orchestrator/tests/test_check_acceptance_reds.py::test_collection_preserves_literal_nodeid_suffixes[orchestrator/tests/test_example.py::test_target@literal]]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[orchestrator/tests/test_coder_effect_gate.py::test_malformed_tokens_and_strings_fail_closed_without_byte_reflection[int value = 0; @ SENTINEL_UNEXPECTED_TOKEN]]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[@]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[/u8a66/u9a13::/u5834/u5408[/u5024@/u4f8b]]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g3_splitter_exactly_matches_loadgroup_scheduler[/u8a66/u9a13::/u5834/u5408@/u76f4/u5217]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g4_reorder_preserves_deselection_markers_keywords_properties_and_identity",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g4_runner_ast_has_no_ledger_import_or_reference",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g5_two_ledgers_preserve_outcomes_skip_markers_and_properties",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g5_real_ledger_covers_at_least_90_percent_of_real_collection",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g6_all_real_repo_items_stay_one_unit_and_keep_relative_order",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_reordering_enablement_fails_closed_but_has_positive_control",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option0]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option1]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option2]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option3]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option4]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option5]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option6]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option7]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option8]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option9]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option10]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option11]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option12]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option13]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_early_order_and_nonexecution_options_disable_reorder[option14]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_negative_categories_keep_original_order[-x]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_negative_categories_keep_original_order[--ff]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_negative_categories_keep_original_order[--collect-only]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_negative_categories_keep_original_order[--no-loadscope-reorder]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_negative_categories_keep_original_order[--trace]",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_worker_dist_no_still_reorders_with_loadgroup",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_hook_uses_loadgroup_splitter",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_worker_uses_controller_snapshot_not_mutated_file",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_live_hook_calls_identity_guard",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_controller_reads_ledger_only_for_enabled_loadgroup",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g2a_configure_node_only_sends_snapshot_controller_actually_read",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g2b_workerinput_absence_is_empty_but_type_damage_is_rejected",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g2c_enabled_worker_rejects_missing_snapshot_but_disabled_accepts_it",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g7_worker_consumes_snapshot_without_reading_file",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g8_unknown_cost_is_known_96th_and_zero_known_is_full_noop",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g9_identity_guard_survives_python_optimized_mode",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g10_collection_wrapper_order_is_worker_count_independent",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g10_collection_wrapper_worker_dependent_tie_break_control_fails",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g11_loadgroup_global_dequeue_order_is_worker_count_independent",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g11_final_collection_and_mixed_scope_order_are_worker_count_independent",
+        "orchestrator/tests/test_acceptance_schedule_order.py::test_g11_loadgroup_worker_dependent_tie_break_control_fails",
+        "orchestrator/tests/test_site_policy.py::test_public_states_are_four_distinct_strings",
+        "orchestrator/tests/test_site_policy.py::test_login_fallback_regex_and_classifier_are_mechanically_consistent",
+        "orchestrator/tests/test_site_policy.py::test_login_requires_both_nqsv_markers_and_normalizes_hostname",
+        "orchestrator/tests/test_site_policy.py::test_compute_is_bnode_digits_regardless_of_nqsv_or_pbs_jobid",
+        "orchestrator/tests/test_site_policy.py::test_pegasus_unknown_names_are_suspect_only_with_site_evidence",
+        "orchestrator/tests/test_site_policy.py::test_current_site_hostname_exception_uses_nqsv_evidence",
+        "orchestrator/tests/test_site_policy.py::test_current_site_requires_qsub_and_qstat_together",
+        "orchestrator/tests/test_site_policy.py::test_has_nqsv_accepts_marker_without_path_evidence",
+        "orchestrator/tests/test_site_policy.py::test_has_nqsv_rejects_when_path_and_marker_are_absent",
+        "orchestrator/tests/test_site_policy.py::test_has_nqsv_accepts_path_evidence_without_marker",
+        "orchestrator/tests/test_site_policy.py::test_has_nqsv_marker_oserror_fails_closed_without_leaking",
+        "orchestrator/tests/test_site_policy.py::test_current_site_uses_marker_when_path_is_empty",
+        "orchestrator/tests/test_site_policy.py::test_classify_site_does_not_resolve_the_real_environment",
+        "orchestrator/tests/test_site_policy.py::test_available_cpus_prefers_process_count_then_affinity",
+        "orchestrator/tests/test_site_policy.py::test_available_cpus_permission_error_falls_back_to_cpu_count",
+        "orchestrator/tests/test_site_policy.py::test_compute_defaults_use_all_available_cpus_without_test_cap",
+        "orchestrator/tests/test_site_policy.py::test_other_preserves_existing_test_cap_and_build_jobs",
+        "orchestrator/tests/test_site_policy.py::test_refusal_helpers_cover_login_and_suspect_but_not_compute",
+        "orchestrator/tests/test_site_policy.py::test_heavy_work_refusal_is_japanese_and_names_compliant_route",
+        "orchestrator/tests/test_site_policy.py::test_heavy_work_refusal_is_pure_and_keeps_existing_text_without_hint",
+        "orchestrator/tests/test_site_policy.py::test_heavy_work_refusal_keeps_existing_text_when_queue_is_available",
+        "orchestrator/tests/test_site_policy.py::test_heavy_work_refusal_adds_queue_diagnosis_only_with_unavailable_hint",
+        "orchestrator/tests/test_site_policy.py::test_site_policy_imports_only_approved_stdlib_modules",
+        "orchestrator/tests/test_site_policy.py::test_fa3_all_changed_production_modules_defer_annotation_evaluation",
+        "IZANAGI_GROWTH_HOLD_V1 {\"correctness_gate\":true,\"hold_axis\":\"tracked_files\",\"node_id\":\"test_real_repo_serialization.py::test_protocol_builder_repo_tree_guard_is_wired_to_real_root\",\"reason\":\"Runs full real-repository git status snapshots before and after the action, so cost grows with tracked files.\",\"release_condition\":\"explicit-user-command-only\",\"ruling\":\"2026-08-12 rulings /u7b2c 3 /u675f\"}"
+      ],
+      "duration_s": 1.663,
+      "rc": 0,
+      "repo_head": "252e24b4ff199e5dbb5cbedfad7130fa55bbc3c0",
+      "runner_sha256": "b2d387a851e52f7f2e25bd5b6ad1c02dee7a956b6f42f1c5543a7fd761221c8b",
+      "spec_sha256": "2d5f76ae3fc2fc88e012606ae6ee9196f750a9143910d3ace1bf012922703473",
+      "status": "PASSED",
+      "tool_sha256": "e737ef0781ba08106fc30eec20924b3e00d9afa6857bef8d7e2da3e1d1807f7f"
+    },
+    "hang_timeout_seconds": 4800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "e-memo-comment": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "04f630668c8ac2527413b5b753a136f5119f5602fdf371d47ff0e1610b62706e",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "    # Keep all T1259 module snapshot consumers in one process-memo work unit.\n",
+            "old": "    # Keep the T1259 module snapshot consumers in one process-memo work unit.\n"
+          }
+        ]
+      },
+      "m10-strip-t1259-suffix": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "207229afba2f2d1e9215c75e3427ab60d2d581f6eeee7e423b572691b31e4286",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "    if (\n        node_id in REAL_REPO_PROCESS_MEMO_NODES\n        and not node_id.startswith(\"test_t1259_qsub_env_delivery_probe.py::\")\n    ):\n        return False\n",
+            "old": "    if node_id in REAL_REPO_PROCESS_MEMO_NODES:\n        return False\n"
+          }
+        ]
+      },
+      "m9-missing-t1259-memo": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_real_repo_serialization.py::test_real_repo_group_collection_exactly_matches_canonical_nodes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "394fce9205c0f68c11af17acc1cef1cb70d123a043f4ad3653ceaab2acefb3c1",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "REAL_REPO_PROCESS_MEMO_NODES = frozenset({\n    # Keep the T1259 module snapshot consumers in one process-memo work unit.\n",
+            "old": "REAL_REPO_PROCESS_MEMO_NODES = frozenset({\n    # Keep the T1259 module snapshot consumers in one process-memo work unit.\n    \"test_t1259_qsub_env_delivery_probe.py::test_r1_binds_all_three_explicit_values_and_skips_real_driver\",\n"
+          }
+        ]
+      },
+      "old-helper-m10-control": {
+        "anchor_counts": {
+          "0": 1,
+          "1": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "006588b2c00eae24fcdfdb6d1dd59c8d3b7f271e080f08406274cbec30620e7e",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/conftest.py",
+            "new": "    if (\n        node_id in REAL_REPO_PROCESS_MEMO_NODES\n        and not node_id.startswith(\"test_t1259_qsub_env_delivery_probe.py::\")\n    ):\n        return False\n",
+            "old": "    if node_id in REAL_REPO_PROCESS_MEMO_NODES:\n        return False\n"
+          },
+          {
+            "file": "orchestrator/tests/test_real_repo_serialization.py",
+            "new": "    memo_node = (\n        \"test_s8b_oracle_driver.py::\"\n        \"test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing\"\n    )\n    memo_item = SuffixedItem(memo_node)\n    assert suite_conftest._strip_real_repo_loadgroup_suffix(memo_item) is False\n    assert memo_item.nodeid == f\"orchestrator/tests/{memo_node}@real-repo\"\n",
+            "old": "    for memo_node in sorted(_REAL_REPO_PROCESS_MEMO_NODES_GOLDEN):\n        memo_item = SuffixedItem(memo_node)\n        assert suite_conftest._strip_real_repo_loadgroup_suffix(memo_item) is False\n        assert memo_item.nodeid == f\"orchestrator/tests/{memo_node}@real-repo\"\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "2cabbd24fb4ce35cb0ade9aa6df1272ca9d0d77fb849747de0bf64894aa3bf71",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_real_repo_serialization.py",
+      "orchestrator/tests/test_acceptance_schedule_order.py",
+      "orchestrator/tests/test_site_policy.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 4800.0
+  },
+  "repo_head": "252e24b4ff199e5dbb5cbedfad7130fa55bbc3c0",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_real_repo_serialization.py",
+      "orchestrator/tests/test_acceptance_schedule_order.py",
+      "orchestrator/tests/test_site_policy.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2780-mocc-pilot-discriminator/t1259-mutation-scratch-4/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "b7c9483bc23f2e29b31c14a6f18fc9888b8b769b",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "b2d387a851e52f7f2e25bd5b6ad1c02dee7a956b6f42f1c5543a7fd761221c8b",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "2d5f76ae3fc2fc88e012606ae6ee9196f750a9143910d3ace1bf012922703473",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 2,
+    "TIMEOUT": 0,
+    "completed": 4,
+    "matching": 4,
+    "recorded": 4,
+    "registered": 4
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2780-mocc-pilot-discriminator/t1259-mutation-scratch-4/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "e737ef0781ba08106fc30eec20924b3e00d9afa6857bef8d7e2da3e1d1807f7f",
+  "updated_at": "2026-09-18T15:28:13.236868+00:00"
+}

@@ -1,0 +1,78 @@
+{
+  "operation": "Restore listed ASCII whitespace suffix to the corresponding one-based line before its newline; if remove_final_lf is true remove the one LF added by the patch tool. Then verify original bytes and SHA256.",
+  "files": [
+    {
+      "path": "focus-1.log",
+      "original_sha256": "72e395976b8d00432b6b84b9ed93e6b3d4c9eb004b07fe486851e8d025edff67",
+      "original_bytes": 8160,
+      "normalized_sha256": "4ffe9f801d22dd34079ebbf85404714d97d1d1bf3e992214fc4b6d2a9e02d8c8",
+      "restore": [
+        {
+          "line": 18,
+          "suffix": " "
+        },
+        {
+          "line": 46,
+          "suffix": " "
+        },
+        {
+          "line": 50,
+          "suffix": " "
+        },
+        {
+          "line": 54,
+          "suffix": " "
+        },
+        {
+          "line": 76,
+          "suffix": " "
+        }
+      ]
+    },
+    {
+      "path": "recovery-focus.log",
+      "original_sha256": "3b98030737944c92698d6b8774a254ebc52c9f256ec631434bfad988c94cda40",
+      "original_bytes": 4755,
+      "normalized_sha256": "3b5b92d1e69e09e029741bb87ddc66d6d02e19ebf960e843d3765233a7072cd8",
+      "restore": [
+        {
+          "line": 14,
+          "suffix": " "
+        },
+        {
+          "line": 39,
+          "suffix": " "
+        }
+      ]
+    },
+    {
+      "path": "recovery-mutation-3.log",
+      "original_sha256": "047d61ca44857c3c02e9a5fcde209b7ac4ebe6d0f6186a379eb9a8ab667d099c",
+      "original_bytes": 4149,
+      "normalized_sha256": "d76b7eb388a3d6085776d377d5b7e1b099cda0d1307993e1180fc57e36220f91",
+      "restore": [
+        {
+          "line": 29,
+          "suffix": " "
+        }
+      ]
+    },
+    {
+      "path": "verbatim/s3-lensB.md",
+      "original_sha256": "53b5d19243301509ff0c9739b3658ca17fab0d09b5456c61d9adfb9df6cad6b9",
+      "original_bytes": 16676,
+      "normalized_sha256": "b37a88e50a72c1d5cb6b49099ec471a69c674f2306a847119600d3a0f3cbfb3a",
+      "remove_final_lf": true,
+      "restore": [
+        {
+          "line": 162,
+          "suffix": "  "
+        },
+        {
+          "line": 163,
+          "suffix": "  "
+        }
+      ]
+    }
+  ]
+}

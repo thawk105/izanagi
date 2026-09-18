@@ -1,0 +1,103 @@
+{
+  "runs": 1,
+  "certified_serializable": 0,
+  "non_serializable": 1,
+  "indeterminate": 0,
+  "results": [
+    {
+      "trace_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2779-mocc-g2-observation-conditions/arm-B/B4/runs/080-e9-instr-nowit/trace",
+      "verdict": "non-serializable",
+      "certified": false,
+      "serializable": false,
+      "stats": {
+        "txns": 694992,
+        "reads": 3366214,
+        "writes": 3411293,
+        "keys": 10000,
+        "edges": 9805319,
+        "abort_reasons": {}
+      },
+      "integrity": {
+        "clean": true,
+        "orphan_reads": 0,
+        "version_dups": 0,
+        "dup_txids": 0,
+        "genesis_commits": 0,
+        "missing_txids": 0,
+        "write_version_mismatch": 0,
+        "malformed_keys": 0,
+        "framing_violations": 0,
+        "framing_violation_details": [],
+        "lock_coverage_violations": 0,
+        "write_intent_violations": 0,
+        "permutation_violations": 0,
+        "permutation_violation_details": {
+          "counts": {
+            "size-changed": 0,
+            "rcdptr-set-changed": 0,
+            "unknown": 0
+          },
+          "sample": [],
+          "unknown_reason_sample": []
+        },
+        "notes": []
+      },
+      "anomaly_count": 1,
+      "total_cycles": 1,
+      "anomalies": [
+        {
+          "phenomenon": "G2",
+          "length": 2,
+          "cycle": [
+            268125,
+            268126
+          ],
+          "edges": [
+            {
+              "from": 268125,
+              "to": 268126,
+              "types": [
+                "rw"
+              ],
+              "reasons": [
+                {
+                  "type": "rw",
+                  "key": "0000000000000000",
+                  "u_ver": [
+                    29,
+                    1964
+                  ],
+                  "v_ver": [
+                    29,
+                    1966
+                  ]
+                }
+              ]
+            },
+            {
+              "from": 268126,
+              "to": 268125,
+              "types": [
+                "rw"
+              ],
+              "reasons": [
+                {
+                  "type": "rw",
+                  "key": "0000000000000001",
+                  "u_ver": [
+                    29,
+                    1964
+                  ],
+                  "v_ver": [
+                    29,
+                    1965
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
