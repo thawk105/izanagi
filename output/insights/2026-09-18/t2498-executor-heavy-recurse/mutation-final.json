@@ -1,0 +1,186 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 60,
+ "timeout_seconds": 1800,
+ "hang_timeout_seconds": 1800,
+ "mutations": [
+  {
+   "id": "m0-equivalent-docstring",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    各層で executor module token と program token を必ず消費し、rest は\n",
+     "new": "    各層は executor module token と program token を必ず消費し、rest は\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-peel-entry-false",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    if peel_executors:\n        inner_raw_head, inner_head, inner_args = raw_head, head, args\n",
+     "new": "    if False and peel_executors:\n        inner_raw_head, inner_head, inner_args = raw_head, head, args\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_coverage_denied",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_deep_nesting_has_no_stack_limit",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_matches_direct_form",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_module_denied",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_precedes_sanctioned_allow",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_script_denied"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-module-kind-dropped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    if kind == \"module\" and not _PYTHON_MODULE_RE.fullmatch(value):\n        return None\n    return kind, value, rest\n",
+     "new": "    if kind == \"module\":\n        return None\n    return kind, value, rest\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_coverage_denied",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_deep_nesting_has_no_stack_limit",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_matches_direct_form",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_module_denied"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-coverage-run-dropped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    if module in _MULTI_TARGET_EXECUTOR_MODULES:\n        return None\n    parsed = _script_executor_arguments(module, args)\n    if parsed is None:\n        return None\n    args, value_options = parsed\n",
+     "new": "    if module in _MULTI_TARGET_EXECUTOR_MODULES:\n        return None\n    if module in {\"coverage\", \"coverage.__main__\"}:\n        return None\n    parsed = _script_executor_arguments(module, args)\n    if parsed is None:\n        return None\n    args, value_options = parsed\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_coverage_denied"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-inner-rest-dropped",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "                inner_seg = [inner_raw_head, \"-m\", value, *rest]\n",
+     "new": "                inner_seg = [inner_raw_head, \"-m\", value]\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_deep_nesting_has_no_stack_limit",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_matches_direct_form",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_module_denied",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_nonexecuting_and_light_allowed"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-script-kind-dropped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    if kind == \"module\" and not _PYTHON_MODULE_RE.fullmatch(value):\n        return None\n    return kind, value, rest\n",
+     "new": "    if kind == \"module\" and not _PYTHON_MODULE_RE.fullmatch(value):\n        return None\n    if kind == \"script\":\n        return None\n    return kind, value, rest\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_matches_direct_form",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_precedes_sanctioned_allow",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_script_denied"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-module-name-check-dropped",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    if kind == \"module\" and not _PYTHON_MODULE_RE.fullmatch(value):\n        return None\n    return kind, value, rest\n",
+     "new": "    if False:\n        return None\n    return kind, value, rest\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_nonexecuting_modes_restore_baseline_allow",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_nonexecuting_and_light_allowed"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-multi-target-exclusion-dropped",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    if module in _MULTI_TARGET_EXECUTOR_MODULES:\n        return None\n    parsed = _script_executor_arguments(module, args)\n    if parsed is None:\n        return None\n    args, value_options = parsed\n",
+     "new": "    if False:\n        return None\n    parsed = _script_executor_arguments(module, args)\n    if parsed is None:\n        return None\n    args, value_options = parsed\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_pydoc_server_and_write_modes_do_not_execute_positionals"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m8-peel-after-sanctioned-allow",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    if peel_executors:\n        inner_raw_head, inner_head, inner_args = raw_head, head, args\n        while True:\n            invocation = _python_module_invocation(inner_head, inner_args)\n            if invocation is None:\n                break\n            program = _script_executor_program(*invocation)\n            if program is None:\n                break\n            kind, value, rest = program\n            if kind == \"module\":\n                inner_seg = [inner_raw_head, \"-m\", value, *rest]\n            else:\n                prefix = ([inner_raw_head, \"--\"] if value.startswith(\"-\")\n                          else [inner_raw_head])\n                inner_seg = [*prefix, value, *rest]\n            nested = _heavy_segment_violation(\n                inner_seg, repo_root, depth + 1, peel_executors=False)\n            if nested:\n                return nested\n            inner_raw_head, inner_head, inner_args = _heavy_head_and_args(inner_seg)\n\n",
+     "new": ""
+    },
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "    if (not _provenance_script_borrow(head, args)\n            and _is_sanctioned(raw_head, head, args, repo_root)):\n        return None\n\n",
+     "new": "    if (not _provenance_script_borrow(head, args)\n            and _is_sanctioned(raw_head, head, args, repo_root)):\n        return None\n\n    if peel_executors:\n        inner_raw_head, inner_head, inner_args = raw_head, head, args\n        while True:\n            invocation = _python_module_invocation(inner_head, inner_args)\n            if invocation is None:\n                break\n            program = _script_executor_program(*invocation)\n            if program is None:\n                break\n            kind, value, rest = program\n            if kind == \"module\":\n                inner_seg = [inner_raw_head, \"-m\", value, *rest]\n            else:\n                prefix = ([inner_raw_head, \"--\"] if value.startswith(\"-\")\n                          else [inner_raw_head])\n                inner_seg = [*prefix, value, *rest]\n            nested = _heavy_segment_violation(\n                inner_seg, repo_root, depth + 1, peel_executors=False)\n            if nested:\n                return nested\n            inner_raw_head, inner_head, inner_args = _heavy_head_and_args(inner_seg)\n\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_precedes_sanctioned_allow"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m9-peel-single-layer",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "hooks/guard_bash.py",
+     "old": "            inner_raw_head, inner_head, inner_args = _heavy_head_and_args(inner_seg)\n",
+     "new": "            break\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_deep_nesting_has_no_stack_limit",
+    "orchestrator/tests/test_hooks.py::test_bash_login_executor_recursion_module_denied"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

@@ -1,0 +1,186 @@
+--- /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-ss2pl-gate-controls/probe/patches/ss2pl-lock-protocol-study-define-only.patch	2026-09-18 07:23:38.000000000 +0900
++++ /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-ss2pl-gate-controls/probe/patches/ss2pl-lock-protocol-study-define-only-abort-unconditional.patch	2026-09-18 07:23:38.000000000 +0900
+@@ -400,7 +400,7 @@
+    return 0;
+  } catch (const bad_alloc&) { ERR; }
+ diff --git a/cc/ss2pl/transaction.cc b/cc/ss2pl/transaction.cc
+-index 4e5a7ed8..3ffdee73 100644
++index 4e5a7ed8..96076f5f 100644
+ --- a/cc/ss2pl/transaction.cc
+ +++ b/cc/ss2pl/transaction.cc
+ @@ -1,4 +1,3 @@
+@@ -416,7 +416,7 @@
+  
+  using namespace std;
+  
+-@@ -35,25 +35,81 @@ inline SetElement<Tuple>* TxExecutor::searchWriteSet(Storage s,
++@@ -35,25 +35,76 @@ inline SetElement<Tuple>* TxExecutor::searchWriteSet(Storage s,
+    return nullptr;
+  }
+  
+@@ -498,11 +498,7 @@
+    read_set_.clear();
+    write_set_.clear();
+  
+-+#if defined(SS2PL_WORKLOAD_YCSB) && SS2PL_WORKLOAD_YCSB
+-+// The workload owns the increment.
+-+#else
+-   ++result_->local_abort_counts_;
+-+#endif
++-  ++result_->local_abort_counts_;
+ +
+ +#if SS2PL_LOCK_IMPL == 1
+ +  control_.finish_abort();
+@@ -510,7 +506,7 @@
+  
+  #if BACK_OFF
+  #if ADD_ANALYSIS
+-@@ -65,15 +121,19 @@ void TxExecutor::abort() {
++@@ -65,15 +116,19 @@ void TxExecutor::abort() {
+  #if ADD_ANALYSIS
+    result_->local_backoff_latency_ += rdtscp() - start;
+  #endif
+@@ -535,7 +531,7 @@
+    for (auto itr = write_set_.begin(); itr != write_set_.end(); ++itr) {
+      switch ((*itr).op_) {
+        case OpType::UPDATE: {
+-@@ -85,11 +145,8 @@ bool TxExecutor::commit() {
++@@ -85,11 +140,8 @@ bool TxExecutor::commit() {
+          break;
+        }
+        case OpType::DELETE: {
+@@ -547,7 +543,7 @@
+          gc_records_.push_back((*itr).rcdptr_);
+          break;
+        }
+-@@ -98,41 +155,42 @@ bool TxExecutor::commit() {
++@@ -98,41 +150,42 @@ bool TxExecutor::commit() {
+      }
+    }
+  
+@@ -609,7 +605,7 @@
+    e = searchReadSet(s, key);
+    if (e) {
+      *body = &(e->body_);
+-@@ -144,9 +202,6 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
++@@ -144,9 +197,6 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
+      goto FINISH_READ;
+    }
+  
+@@ -619,7 +615,7 @@
+    Tuple* tuple;
+    tuple = Masstrees[get_storage(s)].get_value(key);
+  #if ADD_ANALYSIS
+-@@ -155,6 +210,14 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
++@@ -155,6 +205,14 @@ Status TxExecutor::read(Storage s, std::string_view key, TupleBody** body) {
+    if (tuple == nullptr) return Status::WARN_NOT_FOUND;
+  
+    read_internal(s, key, tuple);
+@@ -634,7 +630,7 @@
+    *body = &(read_set_.back().body_);
+  
+  FINISH_READ:
+-@@ -169,23 +232,52 @@ void TxExecutor::read_internal(Storage s, std::string_view key, Tuple* tuple) {
++@@ -169,23 +227,52 @@ void TxExecutor::read_internal(Storage s, std::string_view key, Tuple* tuple) {
+  
+    if (reconnoitering_) goto FINISH_READ_LOCK;
+  
+@@ -695,7 +691,7 @@
+  
+  FINISH_READ_LOCK:
+    body = TupleBody(tuple->body_.get_key(), tuple->body_.get_val(),
+-@@ -244,11 +336,7 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
++@@ -244,11 +331,7 @@ Status TxExecutor::scan(const Storage s, std::string_view left_key,
+    return Status::OK;
+  }
+  
+@@ -708,7 +704,7 @@
+  Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {
+  #if ADD_ANALYSIS
+    uint64_t start = rdtscp();
+-@@ -260,13 +348,13 @@ Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {
++@@ -260,13 +343,13 @@ Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {
+    for (auto rItr = read_set_.begin(); rItr != read_set_.end(); ++rItr) {
+      if ((*rItr).storage_ != s) continue;
+      if ((*rItr).key_ == key) { // hit
+@@ -724,7 +720,7 @@
+        if (!(*rItr).rcdptr_->lock_.tryupgrade()) {
+          this->status_ = TransactionStatus::aborted;
+          goto FINISH_WRITE;
+-@@ -306,12 +394,12 @@ Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {
++@@ -306,12 +389,12 @@ Status TxExecutor::update(Storage s, std::string_view key, TupleBody&& body) {
+  #endif
+    if (tuple == nullptr) return Status::WARN_NOT_FOUND;
+  
+@@ -739,7 +735,7 @@
+    if (!tuple->lock_.w_trylock()) {
+      /**
+       * No-wait and abort.
+-@@ -333,6 +421,166 @@ FINISH_WRITE:
++@@ -333,6 +416,166 @@ FINISH_WRITE:
+  #endif // ADD_ANALYSIS
+    return Status::OK;
+  }
+@@ -906,7 +902,7 @@
+  
+  Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
+  #if ADD_ANALYSIS
+-@@ -345,19 +593,55 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
++@@ -345,19 +588,55 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
+  #if ADD_ANALYSIS
+    ++result_->local_tree_traversal_;
+  #endif
+@@ -962,7 +958,7 @@
+  
+  #if ADD_ANALYSIS
+    result_->local_write_latency_ += rdtscp() - start;
+-@@ -365,6 +649,7 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
++@@ -365,6 +644,7 @@ Status TxExecutor::insert(Storage s, std::string_view key, TupleBody&& body) {
+    return Status::OK;
+  }
+  
+@@ -970,7 +966,7 @@
+  Status TxExecutor::delete_record(Storage s, std::string_view key) {
+  #if ADD_ANALYSIS
+    std::uint64_t start = rdtscp();
+-@@ -389,7 +674,82 @@ Status TxExecutor::delete_record(Storage s, std::string_view key) {
++@@ -389,7 +669,82 @@ Status TxExecutor::delete_record(Storage s, std::string_view key) {
+  #endif
+    return Status::OK;
+  }
+@@ -1053,7 +1049,7 @@
+  Status TxExecutor::read_lock(Storage s, std::string_view key) {
+    Tuple* tuple;
+    tuple = Masstrees[get_storage(s)].get_value(key);
+-@@ -408,19 +768,74 @@ Status TxExecutor::read_lock(Storage s, std::string_view key) {
++@@ -408,19 +763,74 @@ Status TxExecutor::read_lock(Storage s, std::string_view key) {
+      if (w_lock == &tuple->lock_) { return Status::OK; }
+    }
+  
+@@ -1130,7 +1126,7 @@
+  Status TxExecutor::write_lock(Storage s, std::string_view key) {
+    Tuple* tuple;
+    tuple = Masstrees[get_storage(s)].get_value(key);
+-@@ -433,9 +848,9 @@ Status TxExecutor::write_lock(Storage s, std::string_view key) {
++@@ -433,9 +843,9 @@ Status TxExecutor::write_lock(Storage s, std::string_view key) {
+      if (w_lock == &tuple->lock_) { return Status::OK; }
+    }
+  
+@@ -1142,7 +1138,7 @@
+    if (!tuple->lock_.w_trylock()) {
+      this->status_ = TransactionStatus::aborted;
+      return Status::ERROR_LOCK_FAILED;
+-@@ -445,12 +860,80 @@ Status TxExecutor::write_lock(Storage s, std::string_view key) {
++@@ -445,12 +855,80 @@ Status TxExecutor::write_lock(Storage s, std::string_view key) {
+  
+    return Status::OK;
+  }
+@@ -1227,7 +1223,7 @@
+  void TxExecutor::unlockList() {
+    for (auto itr = r_lock_list_.begin(); itr != r_lock_list_.end(); ++itr)
+      (*itr)->r_unlock();
+-@@ -464,14 +947,52 @@ void TxExecutor::unlockList() {
++@@ -464,14 +942,52 @@ void TxExecutor::unlockList() {
+    r_lock_list_.clear();
+    w_lock_list_.clear();
+  }

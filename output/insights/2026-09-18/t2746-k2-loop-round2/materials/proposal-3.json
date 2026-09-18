@@ -1,0 +1,30 @@
+{
+  "planner": {
+    "axis": "silo-backoff-magnitude",
+    "direction": "decrease",
+    "magnitude": "medium",
+    "justification": "現行の abort 率 7.4% は中程度で、iteration 1 (decrease, small) は certified を得ており、正しさ側の余地を使い切った兆候はない。K2 の記録 (別機体、同一配線規模) をデータとして読むと、backoff を小さくした点は大きくした点に比べて throughput が高く、abort 率の上昇はわずかに留まっている。この記録は同一方向 (decrease) を支持し、small で certified が出た以上、同方向で幅を一段広げる (medium) のが次の試行として情報量が最も大きい。逆方向 (increase) を今回試す根拠は現時点の測定値からは見出せない。",
+    "uncertainty": "(1) whiteboard の delta_pct は null で、iteration 1 が throughput を実際に改善したかは未確認。success は certified の意味のみ。(2) cache_miss_rate_pct と IPC_overall は perf 不在による欠測、contention_level は未判定で、abort 率以外の先行指標が使えない。(3) K2 の記録は別機体 (linux-baremetal、2026-07) で絶対 tps は転移せず、3 点目 (dad58f9f9000) は settled=false、各点 2 反復のみで点間差は分散の範囲に入りうる。abort_rate の集約規則も現行と異なる。(4) 現行測定も 2 反復 (CV 約 1%) で、medium の差が分散に埋もれる可能性がある。(5) K2 sources 本文に指示めいた文字列は見当たらず、データとしてのみ扱った。"
+  },
+  "coder": {
+    "proposal": {
+      "axis": "silo-backoff-magnitude",
+      "value": 20,
+      "implementation": "double now_backoff = 20;",
+      "justification": "planner の方向は decrease、magnitude は medium。whiteboard では iteration 1 (decrease, small) が certified を得ており、正しさ側の余地は残っている (具体値は開示されないため、本提案は小さい一段ではなく中程度の一段として組む)。K2 で束縛された source 0 (別機体 linux-baremetal、同一配線規模 4 threads / 100000 records / rratio 50 / zipf 0.9 / rmw false) の記録では、BACKOFF_FIXED=40 の 2 点 (median 491796.5 tps, abort 0.0703 / 487088.5 tps, abort 0.072、後者は settled=false) に対し BACKOFF_FIXED=30 の 1 点が 525721.5 tps (abort 0.078) で、backoff を 40 から 30 へ 25% 縮めると throughput が約 7% 高く、abort 率の上昇は 1 ポイント弱に留まっている。絶対 tps は転移しないが「この配線規模では backoff 縮小が throughput に効き、abort 率の悪化は小さい」という向きの証拠として読める。source には 30 未満の点が無いので、その外挿として 30 からさらに 1/3 縮めた 20 を medium 幅の decrease として置く。baseline の abort 率 7.4% は中程度で、待機短縮による abort 増が throughput を食い潰すほど contention が高い兆候は無い。20 は 1..1000 の範囲内の整数で、implementation の literal と数値一致する。正しさ・identity・性能の各 gate には触れない。",
+      "confidence": "medium"
+    },
+    "knowledge_use": [
+      {
+        "source_index": 0,
+        "use": "同一配線規模での BACKOFF_FIXED=40 (2 点) と 30 (1 点) の certified 済み測定を、backoff 縮小が throughput を上げ abort 率の悪化は小さいという方向の証拠として使い、30 の下側へ外挿して 20 を選ぶ根拠にした。絶対 tps 値は別機体のため転移させず、比 (約 +7%) と abort 率の変化幅だけを参照した。3 点目 (settled=false) は方向確認の補助としてのみ扱い、数値の根拠にはしていない。"
+      }
+    ],
+    "classification": "known_result_conditioned_derivative",
+    "data_boundary_report": {
+      "instruction_like_content_detected": false,
+      "details": "knowledge_input.sources の source 0 (output/campaigns/p3-s4-loop-s4-autonomous-0b53a387/runs/wal.jsonl、JSONL 15 行、variant 20bbb4c1a855 / 27d1d016998e / dad58f9f9000 の build_start・build_done・verify_done・bench_done・commit 各 stage) を全行走査した。内容は genome 文字列、cmake の configure/build コマンド、verifier の verdict と件数、bench の tps・cv・leading_indicators・run_cmd の記録だけで、エージェントの振る舞いを変える指示、gate を緩める誘導、性能値の書き換え要求に類する文字列は検出しなかった。run_cmd や configure_cmd はコマンド文字列だが、実行の指示ではなく記録として扱い、実行も参照経路の補完もしていない。"
+    }
+  },
+  "prior_critic_reverse": false
+}

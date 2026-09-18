@@ -1,0 +1,1106 @@
+{
+  "allow_to_deny": 90,
+  "corpus_size": 383,
+  "deny_to_allow": 0,
+  "evaluations": 1532,
+  "exceptions": 0,
+  "post": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2498-executor-recurse/hooks/guard_bash.py",
+  "post_blob": "7076a4ad7226832f2e58623476f17ee9c75f0654",
+  "pre": "/work/1/SFC/tanab/izanagi/hooks/guard_bash.py",
+  "pre_blob": "3b5f6b65018b130702060b9aabc780ff06f1bc89",
+  "repo_root": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2498-executor-recurse",
+  "reversals": {
+    "allow_to_deny": [
+      {
+        "command": "python3 -m cProfile -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -mcProfile -mpytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -mcProfile -mpytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m cProfile -o /tmp/p.out -m pytest -q orchestrator/tests/test_hooks.py",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile -o /tmp/p.out -m pytest -q orchestrator/tests/test_hooks.py",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m profile -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m profile -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m pdb -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m pdb -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m trace --trace --module pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m trace --trace --module pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m runpy pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m runpy pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m cProfile -m cProfile -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile -m cProfile -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m cProfile -m cmake --build build",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (cmake) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile -m cmake --build build",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (cmake) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3.10 -Bm profile -s cumulative -m pytest",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3.10 -Bm profile -s cumulative -m pytest",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m pdb -m _pytest.main",
+        "post": {
+          "allow": false,
+          "reason": "interpreter argv の python3 -m pytest を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m pdb -m _pytest.main",
+        "post": {
+          "allow": false,
+          "reason": "interpreter argv の python3 -m pytest を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "env FOO=1 nice -n 0 python3 -m cProfile -m pytest",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "env FOO=1 nice -n 0 python3 -m cProfile -m pytest",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "bash -lc 'python3 -m cProfile -m pytest -q'",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "bash -lc 'python3 -m cProfile -m pytest -q'",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m cProfile -m pytest tools/check_ai_provenance.py",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile -m pytest tools/check_ai_provenance.py",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m coverage run -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m coverage run -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m coverage run --branch -m pytest",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m coverage run --branch -m pytest",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m coverage run -m pytest.__main__",
+        "post": {
+          "allow": false,
+          "reason": "interpreter argv の python3 -m pytest を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m coverage run -m pytest.__main__",
+        "post": {
+          "allow": false,
+          "reason": "interpreter argv の python3 -m pytest を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m cProfile pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m cProfile tools/run_tests.py -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter argv の python3 -m pytest を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile tools/run_tests.py -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter argv の python3 -m pytest を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m profile -o /tmp/p tools/run_tests.py -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter argv の python3 -m pytest を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m profile -o /tmp/p tools/run_tests.py -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter argv の python3 -m pytest を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m cProfile -- -m pytest",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile -- -m pytest",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m cProfile /tmp/safe.py -mpytest",
+        "post": {
+          "allow": false,
+          "reason": "interpreter argv の python3 -m pytest を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile /tmp/safe.py -mpytest",
+        "post": {
+          "allow": false,
+          "reason": "interpreter argv の python3 -m pytest を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m cProfile -- -W pytest",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile -- -W pytest",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3.10 -Bm profile -s cumulative -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3.10 -Bm profile -s cumulative -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m coverage run --branch -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m coverage run --branch -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m coverage run -m pytest.__main__ -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter argv の python3 -m pytest を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m coverage run -m pytest.__main__ -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter argv の python3 -m pytest を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m pdb -m _pytest.main -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter argv の python3 -m pytest を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m pdb -m _pytest.main -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter argv の python3 -m pytest を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "env FOO=1 nice -n 0 python3 -m cProfile -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "env FOO=1 nice -n 0 python3 -m cProfile -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m coverage run --rcfile=tools/run_tests.py -m pytest",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m coverage run --rcfile=tools/run_tests.py -m pytest",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m cProfile -m ycsb_silo.exe",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (ycsb_silo.exe) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile -m ycsb_silo.exe",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (ycsb_silo.exe) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m cProfile -m perf stat",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (perf) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile -m perf stat",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (perf) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -W ignore -X dev -m coverage.__main__ run --source=orchestrator --rcfile /tmp/rc --data-file=/tmp/cov --module=pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -W ignore -X dev -m coverage.__main__ run --source=orchestrator --rcfile /tmp/rc --data-file=/tmp/cov --module=pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "env -S \"python3.10 -m cProfile -o/tmp/p -m profile -m pytest -q\"",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "env -S \"python3.10 -m cProfile -o/tmp/p -m profile -m pytest -q\"",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m trace --trace --module=pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m trace --trace --module=pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m cProfile -o/tmp/x -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile -o/tmp/x -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m cProfile -- pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile -- pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m coverage run --source=orchestrator --rcfile /tmp/rc --data-file /tmp/cov -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m coverage run --source=orchestrator --rcfile /tmp/rc --data-file /tmp/cov -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m trace --module pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m trace --module pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m trace -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m trace -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m cProfile -m profile -m pdb -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile -m profile -m pdb -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "env FOO=1 nice -n 0 command exec python3 -m cProfile -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "env FOO=1 nice -n 0 command exec python3 -m cProfile -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "/usr/bin/python3.10 -W ignore -X dev -m cProfile -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "/usr/bin/python3.10 -W ignore -X dev -m cProfile -m pytest -q",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m cProfile -m pytest -h",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile -m pytest -h",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m cProfile -m pytest --co",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile -m pytest --co",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      },
+      {
+        "command": "python3 -m cProfile -m cProfile -m cProfile -m cProfile -m cProfile -m cProfile ...<13220 chars>",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus ログインノードでは重い処理を実行できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_LOGIN"
+      },
+      {
+        "command": "python3 -m cProfile -m cProfile -m cProfile -m cProfile -m cProfile -m cProfile ...<13220 chars>",
+        "post": {
+          "allow": false,
+          "reason": "interpreter の baseline 重量対象 (pytest) を拒否します: Pegasus 環境の疑いがあり、安全に実行場所を確定できません。qsub または qlogin を使い、Pegasus 計算ノードで実行してください。"
+        },
+        "pre": {
+          "allow": true,
+          "reason": ""
+        },
+        "site": "PEGASUS_SUSPECT"
+      }
+    ],
+    "deny_to_allow": [],
+    "exceptions": []
+  },
+  "sites": [
+    "PEGASUS_LOGIN",
+    "PEGASUS_SUSPECT",
+    "OTHER",
+    "PEGASUS_COMPUTE"
+  ],
+  "tests": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2498-executor-recurse/orchestrator/tests/test_hooks.py",
+  "unchanged": 1442
+}

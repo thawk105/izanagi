@@ -64,7 +64,7 @@ from . import (attempt_registry_core, backoff_hole_grammar, buildcache,  # noqa:
                campaign_lock as campaign_lock_codec, condition_meaning_gate,
                coder_effect_gate, env_contract, execution_guard, ident,
                site_policy, sort_swo_oracle, trigger_gate_binding, wal)
-from . import knowledge_manifest                                      # noqa: E402
+from . import agent_outputs, knowledge_manifest                       # noqa: E402
 from .axis_trigger_gating import MARKER_ID as TRIGGER_MARKER_ID  # noqa: E402
 from .p3_b4_protocol import (  # noqa: E402
     B4_PROTOCOL_KEY,
@@ -2260,6 +2260,7 @@ def load_proposal_file(
     b4_attempt_id: str | None = None,
     knowledge_input: Optional[Dict[str, Any]] = None,
     coder_role: str | None = None,
+    capture: dict | None = None,
 ) -> Tuple[PlannerProposal, CoderProposal, Optional[bool]]:
     """メインセッションが spawn した planner/coder の構造化出力 (+ 前 critic の逆方向 bool) を
     JSON ファイルから読む。schema:
@@ -2369,6 +2370,9 @@ def load_proposal_file(
         raise ValueError(f"prior_critic_reverse は null か bool のみ (got {type(prior).__name__}: "
                          f"{prior!r}) — 非 bool は停止フィードバックを fail-open させる (規律2)")
     assert_no_ability_probe_material(d)
+    if capture is not None:
+        capture.update(proposal_bytes=proposal_bytes, planner_output=d["planner"],
+                       coder_output=d["coder"])
     return planner, coder, prior
 
 
@@ -2381,6 +2385,7 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
                     b4_closed_critic_receipt: str | os.PathLike[str] | None = None,
                     b4_proposal_receipt_sha256: str | None = None,
                     _b4_launch_context=None, *,
+                    agent_record: dict | None = None,
                     dependency_prefix: str = "",
                     fetchcontent_base_dir: str = "",
                     masstree_source_dir: Optional[object] = None,
@@ -2492,6 +2497,9 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
         return {"outcome": "stopped-before", "variant": None,
                 "stop_reason": pre.reason, "iteration": state.iteration, "ran": False}
 
+    if agent_record is not None:
+        _append_live_agent_outputs(layout, cfg, agent_record)
+
     state.iteration += 1
     # 同一 layout を run_one_iteration に渡す — reject WAL/records と checkpoint/digest を
     # co-locate させ layout 分裂 (digest 空) を防ぐ (監査 2026-07-08)。
@@ -2532,6 +2540,180 @@ def drive_iteration(cfg: CampaignConfig, perf: PerfConfig,
     post = check_stop(state)
     out.update({"stop_reason": post.reason, "iteration": state.iteration, "ran": True})
     return out
+
+
+def _agent_json(raw: bytes) -> dict:
+    value = json.loads(raw.decode("utf-8"),
+                       object_pairs_hook=knowledge_manifest._reject_duplicate_keys)
+    if not isinstance(value, dict):
+        raise ValueError("agent JSON must be an object")
+    agent_outputs.canonical_sha256(value)  # reject non-finite JSON
+    return value
+
+
+def _agent_provenance(mode, source_path, source_bytes, input_path, input_bytes,
+                      prompt_path=None):
+    """Describe recording, not observed generation or proof of input delivery.
+
+    mode is live (harness append before evaluation) or ingested (import output
+    produced elsewhere). Envelope ts is recording time; input_sha256 is the
+    canonical SHA-256 of saved JSON declared by the caller as actual input.
+    prompt_sha256 hashes the specified file bytes. mechanism_hypotheses is LLM
+    (critic) attribution, not empirical proof of a mechanism.
+    """
+    result = {
+        "mode": mode, "source_path": str(Path(source_path).resolve()),
+        "source_sha256": hashlib.sha256(source_bytes).hexdigest(),
+        "input_path": str(Path(input_path).resolve()),
+        "input_file_sha256": hashlib.sha256(input_bytes).hexdigest(),
+    }
+    if prompt_path is not None:
+        prompt = Path(prompt_path).resolve()
+        result.update(prompt_path=str(prompt),
+                      prompt_sha256=hashlib.sha256(prompt.read_bytes()).hexdigest())
+    return result
+
+
+def _append_live_agent_outputs(layout, cfg, record):
+    """Record contains proposal_path/bytes, input_path/bytes, planner_input,
+    coder_input, planner_output, coder_output, and optional <role>_prompt_path.
+    Both envelopes are checked before the first append; appends are individually
+    durable, not a two-record transaction.
+    mode describes recording, not observed generation: live appends before
+    evaluation; ingested imports output produced elsewhere. ts is recording time.
+    input_sha256 hashes canonical saved JSON declared by the caller as actual
+    input, not proof of delivery; prompt_sha256 hashes specified file bytes.
+    mechanism_hypotheses records LLM (critic) attribution, not mechanism proof.
+    """
+    # Hash caller-declared saved inputs. This does not prove actual consumption.
+    envelopes = []
+    for role in ("planner", "coder"):
+        envelope = {
+            "ts": time.time(), "stage": role + "_proposed", "variant": None,
+            "env_tag": cfg.bound_environment_contract.env_tag,
+            "payload": {
+                "output": record[role + "_output"],
+                "input_sha256": agent_outputs.canonical_sha256(record[role + "_input"]),
+                "provenance": _agent_provenance(
+                    "live", record["proposal_path"], record["proposal_bytes"],
+                    record["input_path"], record["input_bytes"],
+                    record.get(role + "_prompt_path")),
+                "refs": [],
+            },
+        }
+        agent_outputs.validate_envelope(envelope)
+        envelopes.append(envelope)
+    for envelope in envelopes:
+        agent_outputs.append_agent_output(layout.agent_outputs_file, envelope)
+
+
+def _critic_agent_output(raw: str) -> dict:
+    return {"raw_markdown": raw, **agent_outputs.extract_critic_sections(raw)}
+
+
+def _validate_agent_role_output(stage, output):
+    from orchestrator.codex_roles.events import validate_schema_instance
+    from orchestrator.codex_roles.spec import get_role_spec
+
+    if stage == "planner_proposed":
+        proposal = output.get("proposal") if set(output) == {"proposal"} else output
+        if not isinstance(proposal, dict) or set(proposal) != {
+                "axis", "direction", "magnitude", "justification", "uncertainty"}:
+            raise ValueError("planner output must contain exact five proposal keys")
+        if (any(not isinstance(v, str) for v in proposal.values())
+                or proposal["direction"] not in ("increase", "decrease", "explore_both")
+                or proposal["magnitude"] not in ("small", "medium", "large")):
+            raise ValueError("planner proposal value domain violation")
+    else:
+        validate_schema_instance(output, get_role_spec("coder-v4-autonomous-k2").output_schema,
+                                 label="coder K2 output")
+
+
+def _ingest_agent_output(a):
+    stage, source = a.record_agent_output
+    if stage not in agent_outputs.STAGES:
+        raise ValueError("unknown agent output stage")
+    root = Path(a.agent_campaign_dir).resolve()
+    layout = CampaignLayout(root=str(root))
+    if not root.is_dir() or not Path(layout.lock_file).is_file() or not Path(layout.wal_file).is_file():
+        raise ValueError("agent campaign requires existing directory, campaign.lock and runs/wal.jsonl")
+    records, truncated = wal.read_records_checked(layout)
+    tags = {r.env_tag for r in records}
+    if truncated or not records or len(tags) != 1:
+        raise ValueError("agent campaign WAL is empty, truncated or has inconsistent env_tag")
+    role = stage.split("_", 1)[0]
+    if a.agent_output_key is not None and a.agent_output_key != role:
+        raise ValueError("stage and --agent-output-key mismatch")
+    if role == "critic" and a.agent_output_key is not None:
+        raise ValueError("critic forbids --agent-output-key")
+    source_bytes = Path(source).read_bytes()
+    if role == "critic":
+        output = _critic_agent_output(source_bytes.decode("utf-8"))
+    else:
+        document = _agent_json(source_bytes)
+        if a.agent_output_key is None:
+            if role == "planner" and set(document) != {"proposal"}:
+                raise ValueError("planner role file requires proposal wrapper")
+            output = document
+        else:
+            output = document.get(a.agent_output_key)
+            if role == "planner" and isinstance(output, dict) and "proposal" in output:
+                raise ValueError("selected planner output requires five proposal keys without wrapper")
+        if not isinstance(output, dict):
+            raise ValueError("selected role output must be an object")
+        _validate_agent_role_output(stage, output)
+    input_bytes = Path(a.agent_input).read_bytes()
+    declared_input = _agent_json(input_bytes)
+    required = {
+        "planner": {"current_perf", "leading_indicators", "whiteboard"},
+        "coder": {"leakproof_context", "knowledge_input", "baseline", "planner_direction", "whiteboard"},
+        "critic": {"digest_sha256"},
+    }[role]
+    if not required <= set(declared_input):
+        raise ValueError(f"{role} input missing required keys: {sorted(required - set(declared_input))}")
+    if "knowledge_input" in declared_input:
+        knowledge = declared_input["knowledge_input"]
+        receipt_path = root / "knowledge_manifest_receipt.json"
+        if not receipt_path.is_file():
+            raise ValueError("knowledge_input requires campaign knowledge receipt")
+        receipt = _agent_json(receipt_path.read_bytes())
+        digest = receipt.get("knowledge_manifest_sha256")
+        if (not isinstance(knowledge, dict) or not isinstance(digest, str)
+                or knowledge.get("knowledge_manifest_sha256") != digest):
+            raise ValueError("knowledge_manifest_sha256 differs from campaign receipt")
+    variant = a.agent_variant
+    if role == "critic" and not variant:
+        raise ValueError("critic requires --agent-variant")
+    if variant is not None and not any(
+            r.variant == variant
+            for r in records):
+        raise ValueError("agent variant absent from required campaign WAL records")
+    refs = a.agent_wal_ref or []
+    known_refs = {"wal:" + agent_outputs.canonical_sha256(vars(r)) for r in records}
+    if any(ref not in known_refs for ref in refs):
+        raise ValueError("agent WAL ref absent from campaign")
+    payload = {
+        "output": output, "input_sha256": agent_outputs.canonical_sha256(declared_input),
+        "provenance": _agent_provenance("ingested", source, source_bytes,
+                                        a.agent_input, input_bytes, a.agent_prompt),
+        "refs": refs,
+    }
+    if role == "critic":
+        if a.agent_digest is None:
+            raise ValueError("critic requires --agent-digest")
+        digest = hashlib.sha256(Path(a.agent_digest).read_bytes()).hexdigest()
+        campaign_digest = hashlib.sha256((root / "s4_loop_digest.txt").read_bytes()).hexdigest()
+        if digest != declared_input["digest_sha256"] or digest != campaign_digest:
+            raise ValueError("critic digest_sha256 mismatch with input or campaign digest")
+        payload["digest_sha256"] = digest
+    elif a.agent_digest is not None:
+        raise ValueError("--agent-digest is critic-only")
+    envelope = {"ts": time.time(), "stage": stage, "variant": variant,
+                "env_tag": next(iter(tags)), "payload": payload}
+    agent_outputs.append_agent_output(layout.agent_outputs_file, envelope)
+    print(f"agent output recorded: stage={stage} ref={agent_outputs.envelope_ref(envelope)} "
+          f"path={layout.agent_outputs_file}")
+    return 0
 
 
 def main(
@@ -2592,7 +2774,45 @@ def main(
         default=None,
         help="job-local FetchContent prebuild receipt",
     )
-    a = ap.parse_args(argv if argv is not None else sys.argv[1:])
+    ap.add_argument("--agent-inputs", type=Path)
+    ap.add_argument("--agent-prompts", type=Path)
+    ap.add_argument("--record-agent-output", nargs=2, metavar=("STAGE", "OUTPUT_FILE"))
+    ap.add_argument("--agent-campaign-dir", type=Path)
+    ap.add_argument("--agent-input", type=Path)
+    ap.add_argument("--agent-output-key", choices=("planner", "coder"))
+    ap.add_argument("--agent-variant")
+    ap.add_argument("--agent-digest", type=Path)
+    ap.add_argument("--agent-wal-ref", nargs="+", action="extend")
+    ap.add_argument("--agent-prompt", type=Path)
+    # Track explicit actions, including abbreviations and --option=value,
+    # without changing the evaluation CLI's historical defaults.
+    arguments = list(argv if argv is not None else sys.argv[1:])
+    a = ap.parse_args(arguments)
+    supplied = set()
+    for token in arguments:
+        if token.startswith("--"):
+            parsed = ap._parse_optional(token)
+            if parsed is not None and parsed[0] is not None:
+                supplied.add(parsed[0].dest)
+    ingestion = {"record_agent_output", "agent_campaign_dir", "agent_input",
+                 "agent_output_key", "agent_variant", "agent_digest",
+                 "agent_wal_ref", "agent_prompt"}
+    if a.record_agent_output is not None:
+        if supplied - ingestion:
+            ap.error("--record-agent-output cannot be combined with evaluation options")
+        if a.agent_campaign_dir is None or a.agent_input is None:
+            ap.error("--record-agent-output requires --agent-campaign-dir and --agent-input")
+        try:
+            return _ingest_agent_output(a)
+        except (ValueError, OSError) as exc:
+            print(f"agent output recording failed: {exc}", file=sys.stderr)
+            return 1
+    if supplied & ingestion:
+        ap.error("agent ingestion options require --record-agent-output")
+    if (a.agent_inputs is not None or a.agent_prompts is not None) and not a.run_iteration:
+        ap.error("--agent-inputs/--agent-prompts require --run-iteration")
+    if a.agent_prompts is not None and a.agent_inputs is None:
+        ap.error("--agent-prompts requires --agent-inputs")
     if a.fetchcontent_prebuild_receipt is not None and a.no_build:
         ap.error("--fetchcontent-prebuild-receipt cannot be combined with --no-build")
     if (a.fetchcontent_prebuild_receipt is not None
@@ -2776,6 +2996,24 @@ def main(
             proposal_receipt_sha256 = (
                 preflight_authorization.terminal_receipt_sha256
             )
+        agent_record = None
+        if a.agent_inputs is not None:
+            input_bytes = a.agent_inputs.read_bytes()
+            inputs = _agent_json(input_bytes)
+            if set(inputs) != {"planner", "coder"} or any(
+                    not isinstance(value, dict) for value in inputs.values()):
+                raise ValueError("--agent-inputs requires exact planner/coder input objects")
+            agent_record = {
+                "proposal_path": a.run_iteration,
+                "input_path": a.agent_inputs, "input_bytes": input_bytes,
+                "planner_input": inputs["planner"], "coder_input": inputs["coder"],
+            }
+            if a.agent_prompts is not None:
+                prompts = _agent_json(a.agent_prompts.read_bytes())
+                if set(prompts) != {"planner", "coder"} or any(
+                        not isinstance(value, str) for value in prompts.values()):
+                    raise ValueError("--agent-prompts requires exact planner/coder paths")
+                agent_record.update({role + "_prompt_path": path for role, path in prompts.items()})
         planner, coder, prior_rev = load_proposal_file(
             a.run_iteration,
             b4_reflux_ablation=a.b4_reflux_ablation,
@@ -2786,6 +3024,7 @@ def main(
                 knowledge_input if a.coder_role is not None else None
             ),
             coder_role=a.coder_role,
+            **({"capture": agent_record} if agent_record is not None else {}),
         )
         print(f"=== 段 4b iteration (proposal={a.run_iteration}, "
               f"reflux={a.reflux}, build={not a.no_build}, prior_critic_reverse={prior_rev}, "
@@ -2803,6 +3042,7 @@ def main(
                                   _b4_launch_context=_b4_launch_context,
                                   _resolved_site=resolved_site,
                                   _contract=contract,
+                                  **({"agent_record": agent_record} if agent_record is not None else {}),
                                   **fetchcontent_options)
         layout = exploration_campaign_layout(str(ident.campaign_id(cfg)))
         print(f"  ran={out['ran']} outcome={out['outcome']} "
