@@ -6,6 +6,7 @@ import ast
 import copy
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from collections.abc import Mapping
@@ -1324,6 +1325,287 @@ def test_v5_rejects_second_registry_root_on_another_ref(tmp_path: Path) -> None:
         ),
     ):
         receipt.verify_acceptance_receipt(path, repository_root=repo)
+
+
+def _t2613_repo(tmp_path: Path, *, initial: str = "genesis"):
+    source, _, value = _fixture(tmp_path)
+    _upgrade_to_current(source, value)
+    full = (source / receipt.DEFAULT_ATTEMPT_REGISTRY_PATH).read_bytes()
+    genesis = full.splitlines(keepends=True)[0]
+    rows = attempt_core.load_attempt_registry(full, profile=receipt._RECEIPT_ATTEMPT_PROFILE)
+    other_rows = attempt_core.create_attempt_registry_genesis(
+        profile=receipt._RECEIPT_ATTEMPT_PROFILE,
+        freeze_id="independent-longer-receipt-history-fixture",
+        manifest_path=PurePosixPath(rows[0]["manifest_path"]),
+        manifest_sha256=rows[0]["manifest_sha256"], slots=rows[0]["slots"],
+    )
+    other = _canonical_line(other_rows[0])
+    assert len(other) > len(genesis) and not other.startswith(genesis)
+    repo = tmp_path / "history"
+    repo.mkdir()
+    for args in (("init", "-q"), ("config", "user.email", "test@example.invalid"),
+                 ("config", "user.name", "History")):
+        assert _run(repo, *args).returncode == 0
+    canonical = repo / receipt.DEFAULT_ATTEMPT_REGISTRY_PATH
+    if initial != "empty":
+        _write(canonical, genesis if initial == "genesis" else genesis[:-1])
+        _commit_all(repo, "initial canonical")
+    return repo, canonical, genesis, full, other
+
+
+def _t2613_gate(repo: Path, current: bytes, **kwargs):
+    return receipt._assert_attempt_registry_history_append_only(
+        repo, receipt.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
+        current_bytes=current, **kwargs,
+    )
+
+
+def _t2613_index_blob(repo: Path, path: str, data: bytes, mode: str) -> str:
+    result = receipt._git(repo, ("hash-object", "-w", "--stdin"), input_bytes=data)
+    assert result.returncode == 0, result.stderr
+    oid = result.stdout.decode().strip()
+    result = _run(repo, "update-index", "--add", "--cacheinfo", f"{mode},{oid},{path}")
+    assert result.returncode == 0, result.stderr
+    assert _run(repo, "commit", "-q", "-m", "index blob").returncode == 0
+    return oid
+
+
+def _t2613_merge(repo: Path, *, alternate: bytes | None = None) -> None:
+    branch = _run(repo, "branch", "--show-current").stdout.strip()
+    assert _run(repo, "checkout", "-q", "-b", "side").returncode == 0
+    _write(repo / "side", b"side")
+    _commit_all(repo, "side")
+    assert _run(repo, "checkout", "-q", branch).returncode == 0
+    _write(repo / "main", b"main")
+    _commit_all(repo, "main")
+    assert _run(repo, "merge", "--no-ff", "--no-commit", "side").returncode == 0
+    if alternate is not None:
+        _write(repo / "alternate", alternate)
+    _commit_all(repo, "merge")
+
+
+@pytest.mark.parametrize("case", ["append-merge", "gitlink", "symlink-target", "unusual-path"])
+def test_t2613_history_accepts(tmp_path: Path, case: str) -> None:
+    repo, canonical, genesis, full, _ = _t2613_repo(tmp_path)
+    current = genesis
+    if case == "append-merge":
+        lines = full.splitlines(keepends=True)
+        for prefix in (b"".join(lines[:2]), full):
+            attempt_core.load_attempt_registry(prefix, profile=receipt._RECEIPT_ATTEMPT_PROFILE)
+            canonical.write_bytes(prefix)
+            _commit_all(repo, "valid append")
+        current = full
+        _t2613_merge(repo)
+    elif case == "gitlink":
+        assert _run(repo, "update-index", "--add", "--cacheinfo",
+                    "160000," + "a" * 40 + ",alternate").returncode == 0
+        assert _run(repo, "commit", "-q", "-m", "missing gitlink").returncode == 0
+    elif case == "symlink-target":
+        (repo / "alternate").symlink_to(receipt.DEFAULT_ATTEMPT_REGISTRY_PATH)
+        _commit_all(repo, "symlink path text")
+    else:
+        unusual = repo / "tab\tline\n日本語:entry"
+        _write(unusual, b"harmless\0bytes\n")
+        _commit_all(repo, "unusual path")
+        unusual.chmod(0o755)
+        _commit_all(repo, "mode only")
+    assert _t2613_gate(repo, current) is None
+
+
+@pytest.mark.parametrize("case", [
+    "alternate-ref", "delete-recreate", "non-prefix", "copy-same-oid",
+    "symlink-bytes", "root-only", "merge-only", "type-change", "invalid-utf8",
+    "working-prefix", "canonical-schema", "canonical-gitlink-mode", "directory-gitlink-mode",
+])
+def test_t2613_history_rejects(tmp_path: Path, case: str) -> None:
+    initial = "empty" if case == "root-only" else "schema" if case == "canonical-schema" else "genesis"
+    repo, canonical, genesis, _, other = _t2613_repo(tmp_path, initial=initial)
+    current = genesis
+    message = "alternate attempt registry genesis exists on a ref"
+    if case == "alternate-ref":
+        branch = _run(repo, "branch", "--show-current").stdout.strip()
+        assert _run(repo, "checkout", "-q", "-b", "unmerged").returncode == 0
+        _write(repo / "alternate", other)
+        _commit_all(repo, "alternate on unmerged ref")
+        assert _run(repo, "checkout", "-q", branch).returncode == 0
+    elif case == "delete-recreate":
+        canonical.unlink()
+        _commit_all(repo, "delete")
+        canonical.write_bytes(genesis)
+        _commit_all(repo, "recreate")
+        message = "attempt registry was deleted"
+    elif case == "non-prefix":
+        canonical.write_bytes(other)
+        _commit_all(repo, "valid but divergent")
+        current = other
+        message = "is not a strict prefix extension"
+    elif case == "copy-same-oid":
+        _write(repo / "alternate", genesis)
+        _commit_all(repo, "identical blob copy")
+        assert _run(repo, "rev-parse", "HEAD:alternate").stdout == _run(
+            repo, "rev-parse", "HEAD:" + receipt.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(),
+        ).stdout
+    elif case == "symlink-bytes":
+        _t2613_index_blob(repo, "alternate", other, "120000")
+    elif case == "root-only":
+        assert _run(repo, "config", "log.showRoot", "false").returncode == 0
+        _write(repo / "alternate", other)
+        _commit_all(repo, "root alternate")
+        (repo / "alternate").unlink()
+        _write(repo / "ordinary", b"ordinary")
+        _commit_all(repo, "remove alternate")
+    elif case == "merge-only":
+        _t2613_merge(repo, alternate=other)
+    elif case == "type-change":
+        (repo / "alternate").symlink_to("ordinary")
+        _commit_all(repo, "harmless symlink")
+        (repo / "alternate").unlink()
+        _write(repo / "alternate", other)
+        _commit_all(repo, "type change to genesis")
+    elif case == "invalid-utf8":
+        _write(repo / b"invalid-\xff".decode("utf-8", "surrogateescape"), b"ordinary")
+        _commit_all(repo, "non UTF-8 path")
+        message = "attempt tree entry is not valid UTF-8"
+    elif case == "working-prefix":
+        current = other
+        message = "working attempt registry does not extend committed history"
+    elif case == "canonical-schema":
+        message = r"\[receipt-attempt-registry\]"
+    elif case == "directory-gitlink-mode":
+        directory = receipt.DEFAULT_ATTEMPT_REGISTRY_PATH.parent.as_posix()
+        oid = _run(repo, "rev-parse", "HEAD:" + directory).stdout.strip()
+        assert _run(repo, "rm", "-r", "--cached", directory).returncode == 0
+        assert _run(repo, "update-index", "--add", "--cacheinfo", f"160000,{oid},{directory}").returncode == 0
+        assert _run(repo, "commit", "-q", "-m", "directory gitlink").returncode == 0
+        message = "attempt registry was deleted"
+    else:
+        _t2613_index_blob(repo, receipt.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix(), genesis, "160000")
+        message = "attempt registry was deleted"
+    with pytest.raises(receipt.AcceptanceReceiptError, match=message):
+        _t2613_gate(repo, current)
+
+
+@pytest.mark.parametrize("first", ["alternate", "canonical", "same-commit", "path", "missing-then-path", "path-then-missing"])
+def test_t2613_history_error_order(tmp_path: Path, first: str) -> None:
+    repo, canonical, genesis, _, other = _t2613_repo(tmp_path)
+    if first in ("missing-then-path", "path-then-missing"):
+        missing, invalid = (("a-missing", b"z-\xff") if first == "missing-then-path"
+                            else ("z-missing", b"a-\xff"))
+        _write(repo / os.fsdecode(invalid), b"ordinary")
+        assert _run(repo, "add", "--", os.fsdecode(invalid)).returncode == 0
+        assert _run(repo, "update-index", "--add", "--cacheinfo", f"100644,{'e' * 40},{missing}").returncode == 0
+        tree = _run(repo, "write-tree", "--missing-ok")
+        assert tree.returncode == 0
+        commit = _run(repo, "commit-tree", tree.stdout.strip(), "-p", "HEAD", "-m", "missing and invalid")
+        assert commit.returncode == 0
+        assert _run(repo, "update-ref", "HEAD", commit.stdout.strip()).returncode == 0
+        expected = "blob cannot be read" if first == "missing-then-path" else "not valid UTF-8"
+        with pytest.raises(receipt.AcceptanceReceiptError, match=expected):
+            _t2613_gate(repo, genesis)
+        return
+    if first == "alternate":
+        _write(repo / "alternate", other)
+        _commit_all(repo, "alternate first")
+    if first == "path":
+        _write(repo / b"bad-\xff".decode("utf-8", "surrogateescape"), b"ordinary")
+    canonical.write_bytes(other)
+    if first == "same-commit":
+        _write(repo / "alternate", other)
+    _commit_all(repo, "canonical violation")
+    if first == "canonical":
+        _write(repo / "alternate", other)
+        _commit_all(repo, "alternate later")
+    expected = ("alternate attempt" if first == "alternate" else
+                "not valid UTF-8" if first == "path" else "is not a strict prefix")
+    with pytest.raises(receipt.AcceptanceReceiptError, match=expected):
+        _t2613_gate(repo, other)
+
+
+def test_t2613_batch_error_after_earlier_violation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, _, genesis, _, other = _t2613_repo(tmp_path)
+    _t2613_index_blob(repo, "alternate", other, "100644")
+    late = _t2613_index_blob(repo, "late", b"late ordinary blob", "100644")
+    real, injected = receipt._git, []
+    def truncate(root, args, **kwargs):
+        result = real(root, args, **kwargs)
+        if tuple(args) == ("cat-file", "--batch") and kwargs["input_bytes"] == late.encode() + b"\n":
+            injected.append(True)
+            return subprocess.CompletedProcess(result.args, result.returncode, result.stdout[:-1], result.stderr)
+        return result
+    monkeypatch.setattr(receipt, "_git", truncate)
+    with pytest.raises(receipt.AcceptanceReceiptError, match="alternate attempt registry genesis"):
+        _t2613_gate(repo, genesis, batch_max_bytes=1)
+    assert injected
+
+
+def test_t2613_batch_rejects_last_chunk_genesis(tmp_path: Path) -> None:
+    repo, _, genesis, _, other = _t2613_repo(tmp_path)
+    _write(repo / "a-ordinary", b"ordinary")
+    _commit_all(repo, "ordinary blob")
+    _write(repo / "z-genesis", other)
+    _commit_all(repo, "last chunk alternate")
+    with pytest.raises(receipt.AcceptanceReceiptError, match="alternate attempt"):
+        _t2613_gate(repo, genesis, batch_max_bytes=1)
+
+
+@pytest.mark.parametrize("case", ["boundary", "last-single", "oversize-single"])
+def test_t2613_batch_chunks(tmp_path: Path, case: str) -> None:
+    repo, _, genesis, _, _ = _t2613_repo(tmp_path)
+    for name, data in (("a", b"a\0\n"), ("b", b""), ("c", b"ccc")):
+        _write(repo / name, data)
+    _commit_all(repo, "chunk bodies")
+    oids = [receipt._git(repo, ("rev-parse", "HEAD:" + path)).stdout.strip()
+            for path in ("a", "b", "c")]
+    entries = receipt._attempt_batch_check(repo, oids)
+    sizes = [len(b" ".join(entry)) + 2 + int(entry[2]) for entry in entries]
+    cap = sizes[0] if case == "boundary" else sum(sizes[:2]) if case == "last-single" else 1
+    chunks = list(receipt._attempt_batch_chunks(entries, cap))
+    assert [len(chunk) for chunk in chunks] == ([2, 1] if case == "last-single" else [1, 1, 1])
+    assert [data for chunk in chunks for _, data in receipt._attempt_read_batch(repo, chunk)] == [b"a\0\n", b"", b"ccc"]
+    assert _t2613_gate(repo, genesis, batch_max_bytes=cap) is None
+
+
+def test_t2613_batch_rejects_truncated_body(tmp_path: Path) -> None:
+    repo, _, _, _, _ = _t2613_repo(tmp_path)
+    oid = receipt._git(repo, ("rev-parse", "HEAD:" + receipt.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix())).stdout.strip()
+    entries = receipt._attempt_batch_check(repo, [oid])
+    result = receipt._git(repo, ("cat-file", "--batch"), input_bytes=oid + b"\n")
+    assert result.returncode == 0
+    for truncated in (result.stdout[:-1], result.stdout[:-10], b""):
+        with pytest.raises(receipt.AcceptanceReceiptError, match="blob cannot be read"):
+            list(receipt._attempt_parse_batch(truncated, entries))
+
+
+def test_t2613_batch_rejects_missing_check_line(tmp_path: Path) -> None:
+    repo, _, _, _, _ = _t2613_repo(tmp_path)
+    oid = receipt._git(repo, ("rev-parse", "HEAD:" + receipt.DEFAULT_ATTEMPT_REGISTRY_PATH.as_posix())).stdout.strip()
+    requests = [oid, oid]
+    result = receipt._git(repo, ("cat-file", "--batch-check"), input_bytes=b"\n".join(requests) + b"\n")
+    assert result.returncode == 0
+    with pytest.raises(receipt.AcceptanceReceiptError, match="blob cannot be read"):
+        receipt._attempt_parse_batch_check(result.stdout.splitlines(keepends=True)[0], requests)
+
+
+def test_t2613_raw_argv_disables_signature_output() -> None:
+    assert "--no-show-signature" in receipt._ATTEMPT_HISTORY_RAW_ARGS
+
+
+def test_t2613_batch_default_cap_is_256_mib() -> None:
+    assert receipt._ATTEMPT_BATCH_MAX_BYTES == 256 * 1024 * 1024
+
+
+@pytest.mark.parametrize("valid", [True, False], ids=["success", "nonzero"])
+def test_t2613_git_stdin(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, valid: bool) -> None:
+    rc = 0 if valid else 7
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    git = bin_dir / "git"
+    git.write_text(f"#!/bin/sh\ncat\nprintf 'stderr sentinel' >&2\nexit {rc}\n")
+    git.chmod(0o755)
+    monkeypatch.setenv("PATH", str(bin_dir) + os.pathsep + os.environ.get("PATH", ""))
+    payload = b"line\n\0bytes\xff"
+    result = receipt._git(tmp_path, ("stdin-sentinel",), input_bytes=payload)
+    assert (result.returncode, result.stdout, result.stderr) == (rc, payload, b"stderr sentinel")
 
 
 def test_m3_v5_rejects_predeclared_unit_without_final_terminal(
