@@ -399,14 +399,13 @@ def test_batch_validates_all_rows_before_accepting_match(tmp_path, monkeypatch):
 
     def corrupt(self, args, **kwargs):
         result = original(self, args, **kwargs)
-        if args[0] == "log" and "--format=%H" in args and args[-1] == "f":
-            result.stdout = f"{witness}\n{tip}\n".encode()
         if args[0] == "cat-file" and args[1].startswith("--batch-check="):
             consumed.append(kwargs["input_data"])
             result.stdout = f"{oid} blob 7 0\nbroken\n".encode()
         return result
 
     monkeypatch.setattr(TOOL.Git, "run", corrupt)
+    monkeypatch.setattr(TOOL._HistoryCandidates, "candidates", lambda self, path: [witness, tip])
     payload = TOOL.assess(repo, "topic")
     assert consumed == [f"{witness}:f 0\n{tip}:f 1\n".encode()]
     assert payload["decision"] == TOOL._decision("indeterminate", "path-batch-parse-error")
@@ -459,8 +458,6 @@ def test_batch_chunk_limit_and_command_count(tmp_path, monkeypatch):
 
     def many(self, args, **kwargs):
         result = original(self, args, **kwargs)
-        if args[0] == "log" and args[-1] == "f":
-            result.stdout = ((tip + "\n") * 1024 + witness + "\n").encode()
         if args[0] == "cat-file" and args[1].startswith("--batch-check="):
             batches.append(len(kwargs["input_data"].splitlines()))
         return result
@@ -468,7 +465,16 @@ def test_batch_chunk_limit_and_command_count(tmp_path, monkeypatch):
     monkeypatch.setattr(TOOL.Git, "run", many)
     git = TOOL.Git(repo, TOOL.time.monotonic() + 30)
     required = TOOL.TreeEntry("f", "100644", "blob", oid)
-    result = TOOL._find_exact_state(git, tip, required, 1024)
+    class BatchCandidates:
+        def tip_entry(self, path):
+            return TOOL._tree_entry(git, tip, path, 40)
+
+        def candidates(self, path):
+            # Keep the real legacy acquisition command; only its supplied list is artificial.
+            _legacy_candidates(git, tip, path, 1024)
+            return [tip] * 1024 + [witness]
+
+    result = TOOL._find_exact_state(git, tip, required, 1024, BatchCandidates())
     assert batches == [1024, 1]
     assert git.command_count == 5
     assert (result.outcome, result.reason, result.matched_commit, result.candidate_count, result.candidate_limit) == (
@@ -505,7 +511,8 @@ def test_batch_preserves_nonregular_legacy_path(tmp_path, monkeypatch, kind):
     monkeypatch.setattr(TOOL, "_tree_entry", entry)
     monkeypatch.setattr(TOOL, "_batch_check_path_candidates", forbidden)
     git = TOOL.Git(repo, TOOL.time.monotonic() + 30)
-    result = TOOL._find_exact_state(git, tip, required, 1024)
+    supplier = TOOL._HistoryCandidates(git, tip, 1024, [("f", required)])
+    result = TOOL._find_exact_state(git, tip, required, 1024, supplier)
     assert observed_calls == [(tip, "f"), (tip, "f"), (witness, "f")]
     assert (result.outcome, result.reason, result.matched_commit, result.candidate_count) == (
         "matched", "exact-state-in-main-history", witness, 2,
@@ -1080,7 +1087,10 @@ def test_assess_real_log_timeout_is_indeterminate_not_a_verdict(
 
     def observe(self, args, **kwargs):
         find_object = any(arg.startswith("--find-object=") for arg in args)
-        target = args[0] == "log" and (
+        command_args = list(args)
+        while command_args[:1] == ["-c"]:
+            command_args = command_args[2:]
+        target = command_args[0] == "log" and (
             find_object if form == "any-path-find-object"
             else not find_object and "--" in args
         )
@@ -2018,3 +2028,542 @@ def test_unreceipted_spool_deletion_has_no_exact_fallback(tmp_path, monkeypatch)
     assert unit["decision"] == TOOL._decision("indeterminate", "folded-receipt-absent")
     assert unit["evidence"][0]["outcome"] == "not-applicable"
     assert unit["evidence"][1]["outcome"] == "not-matched"
+
+
+# T-2686: compare candidate order directly with the legacy command in Git.run's env.
+def _legacy_candidates(git, main, path, limit):
+    raw = git.run([
+        "log", "--full-history", "--format=%H", f"--max-count={limit + 1}",
+        main, "--", path,
+    ]).stdout
+    return raw.decode("ascii").splitlines()
+
+
+def _candidate_supplier(repo, paths, limit=32, pairs=None):
+    main = _git(repo, "rev-parse", "main").stdout.strip()
+    git = TOOL.Git(repo, TOOL.time.monotonic() + 30)
+    if pairs is None:
+        pairs = [(p, TOOL.TreeEntry(p, "100644", "blob", "f" * 40)) for p in paths]
+    return git, main, TOOL._HistoryCandidates(git, main, limit, pairs)
+
+
+def _candidate_merge_fixture(tmp_path, case, monkeypatch):
+    repo = _init_repo(tmp_path)
+    _write(repo, "f", "base\n")
+    _write(repo, "g", "base\n")
+    base = _commit(repo, "common parent")
+    parents = []
+    dates = [1800000200, 1800000300, 1800000400]
+    if case == "equal_timestamps":
+        dates = [1800000200] * 3
+    for index in range(3 if case == "octopus" else 2):
+        _git(repo, "switch", "--detach", base)
+        monkeypatch.setenv("GIT_COMMITTER_DATE", f"{dates[index]} +0000")
+        _write(repo, "f", f"parent {index}\n")
+        _write(repo, "g", f"side {index}\n")
+        parents.append(_commit(repo, f"parent {index}"))
+    _git(repo, "switch", "--detach", parents[0])
+    if case == "delete_only_merge":
+        (repo / "f").unlink()
+        (repo / "g").unlink()
+    elif case != "one_parent_merge":
+        _write(repo, "f", "resolution\n")
+        _write(repo, "g", "resolution\n")
+    _git(repo, "add", "-A")
+    tree = _git(repo, "write-tree").stdout.strip()
+    if case == "parent_order_swapped":
+        parents.reverse()
+    stamp = 1800000100 if case == "timestamp_inversion" else dates[-1]
+    monkeypatch.setenv("GIT_COMMITTER_DATE", f"{stamp} +0000")
+    merge = _git(repo, "commit-tree", tree, *[arg for p in parents for arg in ("-p", p)],
+                 "-m", "synthetic merge").stdout.strip()
+    _git(repo, "update-ref", "refs/heads/main", merge)
+    _git(repo, "switch", "main")
+    assert _git(repo, "show", "-s", "--format=%P", merge).stdout.split() == parents
+    if case == "timestamp_inversion":
+        assert int(_git(repo, "show", "-s", "--format=%ct", merge).stdout) < min(dates[:2])
+    if case == "equal_timestamps":
+        assert len({_git(repo, "show", "-s", "--format=%ct", p).stdout for p in parents}) == 1
+    return repo, merge, parents
+
+
+@pytest.mark.parametrize("case", [
+    "ordinary", "one_parent_merge", "both_parent_merge", "octopus", "delete_only_merge",
+    "timestamp_inversion", "equal_timestamps", "parent_order_swapped", "root",
+    "delete_readd", "file_to_directory", "gitlink", "gitlink_ignore_submodules_config",
+    "rename_exact", "rename_modified", "limit_plus_one", "positive_at_limit_plus_one",
+    "lf_in_name", "rs_in_name", "leading_lf_name", "hex40_name", "non_utf8_sibling",
+])
+def test_history_candidates_match_legacy_command(tmp_path, monkeypatch, case):
+    merge_cases = {"one_parent_merge", "both_parent_merge", "octopus", "delete_only_merge",
+                   "timestamp_inversion", "equal_timestamps", "parent_order_swapped"}
+    limit = 32
+    merge = None
+    witness = None
+    if case in merge_cases:
+        repo, merge, parents = _candidate_merge_fixture(tmp_path, case, monkeypatch)
+        paths = ["f", "g"]
+        if case == "one_parent_merge":
+            assert _git(repo, "rev-parse", f"{merge}^{{tree}}").stdout == _git(
+                repo, "rev-parse", f"{parents[0]}^{{tree}}").stdout
+    elif case == "root":
+        repo = _init_repo(tmp_path)
+        paths = ["base.txt"]
+        _git(repo, "config", "log.showRoot", "false")
+    elif case.startswith("rename_"):
+        repo = _init_repo(tmp_path)
+        _git(repo, "config", "diff.renames", "true")
+        _write(repo, "a", "shared line\n" * 20)
+        _commit(repo, "source")
+        _git(repo, "mv", "a", "b")
+        if case == "rename_modified":
+            _write(repo, "b", "shared line\n" * 19 + "changed line\n")
+        rename = _commit(repo, "rename")
+        assert "R" in _git(repo, "diff-tree", "-M", "--name-status", "-r", rename).stdout
+        _write(repo, "a", "readded\n")
+        _commit(repo, "readd source")
+        paths = ["a", "b"]
+    elif case == "file_to_directory":
+        repo = _init_repo(tmp_path)
+        _write(repo, "f", "file\n")
+        _commit(repo, "file")
+        (repo / "f").unlink()
+        _write(repo, "f/child", "child\n")
+        _commit(repo, "directory")
+        _write(repo, "f/child", "updated\n")
+        _commit(repo, "child update")
+        paths = ["f", "f/child"]
+    elif case.startswith("gitlink"):
+        repo = _init_repo(tmp_path)
+        first = _git(repo, "rev-parse", "HEAD").stdout.strip()
+        _write(repo, "other", "new\n")
+        second = _commit(repo, "other")
+        for oid in (first, second):
+            _git(repo, "update-index", "--add", "--cacheinfo", f"160000,{oid},link")
+            _git(repo, "commit", "-m", "gitlink")
+        if case.endswith("config"):
+            _git(repo, "config", "diff.ignoreSubmodules", "all")
+        paths = ["link"]
+    elif case == "non_utf8_sibling":
+        repo = _init_repo(tmp_path)
+        _write(repo, "dir/good", "good\n")
+        with open(os.fsencode(repo) + b"/dir/\xff", "wb") as stream:
+            stream.write(b"sibling\n")
+        _commit(repo, "raw names")
+        paths = ["dir", "dir/good"]
+    else:
+        path = {"lf_in_name": "line\nname", "rs_in_name": "rs\x1ename",
+                "leading_lf_name": "\nfirst", "hex40_name": "a" * 40}.get(case, "f")
+        repo, _, oid, witness, _ = _history_fixture(tmp_path, path)
+        paths = [path]
+        if case == "delete_readd":
+            _write(repo, path, "readded\n")
+            _commit(repo, "readd")
+            _write(repo, path, "updated\n")
+            _commit(repo, "update")
+        elif case in {"limit_plus_one", "positive_at_limit_plus_one"}:
+            limit = 3
+            for value in ("later one\n", "later two\n"):
+                _write(repo, path, value)
+                _commit(repo, value.strip())
+        elif case == "ordinary":
+            _write(repo, "unrelated", "noise\n")
+            _commit(repo, "unrelated")
+    if case in {"limit_plus_one", "positive_at_limit_plus_one"}:
+        # Ensure the order-sensitive fixture is non-lexical regardless of commit time.
+        # Changing only the last message preserves the trees and the fourth witness.
+        probe = TOOL.Git(repo, TOOL.time.monotonic() + 30)
+        for nonce in range(100):
+            main = _git(repo, "rev-parse", "main").stdout.strip()
+            rows = _legacy_candidates(probe, main, paths[0], limit)
+            if rows != sorted(rows):
+                break
+            _git(repo, "commit", "--amend", "-m", f"non-lexical tip {nonce}")
+        else:
+            pytest.fail("could not construct non-lexical candidate fixture")
+    git, main, supplier = _candidate_supplier(repo, paths, limit)
+    assert supplier.walks == 0 and supplier.mode == "none"
+    for path in paths:
+        legacy = _legacy_candidates(git, main, path, limit)
+        if merge:
+            assert legacy.count(merge) == 1
+        if case in {"limit_plus_one", "positive_at_limit_plus_one"}:
+            assert len(legacy) == limit + 1
+            assert legacy != sorted(legacy)
+            assert legacy[-1] == witness
+        if case.startswith("rename_"):
+            assert rename in legacy
+        if case == "root":
+            assert legacy == [main]
+        assert supplier.candidates(path) == legacy
+    if case == "positive_at_limit_plus_one":
+        required = TOOL.TreeEntry("f", "100644", "blob", oid)
+        result = TOOL._find_exact_state(git, main, required, limit, supplier)
+        assert (result.outcome, result.matched_commit, result.candidate_count) == (
+            "matched", witness, limit + 1,
+        )
+    with pytest.raises(ValueError, match="unregistered"):
+        supplier.candidates("not-registered")
+
+
+@pytest.mark.parametrize("case", ["bad_hex", "wrong_length", "no_lf_after_header", "empty_name",
+                                   "missing_trailing_nul", "not_starting_with_nul"])
+def test_history_candidate_parser_rejects(case):
+    h = b"a" * 40
+    raw = b"\0" + h + b"\0\nf\0"
+    raw = {
+        "bad_hex": raw.replace(h, b"A" * 40),
+        "wrong_length": raw.replace(h, b"a" * 64),
+        "no_lf_after_header": raw.replace(b"\nf", b"f"),
+        "empty_name": raw.replace(b"\nf", b"\n"),
+        "missing_trailing_nul": raw[:-1], "not_starting_with_nul": raw[1:],
+    }[case]
+    with pytest.raises(TOOL.AssessmentError) as caught:
+        TOOL._parse_history_candidate_stream(raw, 40)
+    assert (caught.value.code, caught.value.outcome) == ("history-candidate-parse-error", "error")
+
+
+@pytest.mark.parametrize("name", [b"\nfirst", b"\x1e", b"\r", b"\t", b"a" * 40, b"\xff"],
+                         ids=["leading_lf", "rs", "cr", "tab", "hex40", "non_utf8"])
+def test_history_candidate_parser_preserves_names(name):
+    for length in (40, 64):
+        h = b"a" * length
+        raw = b"\0" + h + b"\0\n" + name + b"\0"
+        assert TOOL._parse_history_candidate_stream(raw + raw, length) == [(h.decode(), [name])]
+        assert TOOL._parse_history_candidate_stream(b"", length) == []
+
+
+@pytest.mark.parametrize("case", ["n_lt_K", "n_eq_K_saturated", "n_eq_K_unsaturated",
+                                   "merge_entries_count_once"])
+def test_history_candidates_bounded_walk(tmp_path, monkeypatch, case):
+    if case == "merge_entries_count_once":
+        repo, merge, _ = _candidate_merge_fixture(tmp_path, "both_parent_merge", monkeypatch)
+        paths, limit, expected_walks = ["f"], 3, 1
+    else:
+        repo = _init_repo(tmp_path)
+        paths = ["f", "g"]
+        limit, expected_walks = 1, 1
+        count = 1 if case == "n_lt_K" else 4
+        for index in range(count):
+            _write(repo, "f", f"f {index}\n")
+            if case != "n_eq_K_unsaturated" or index == 0:
+                _write(repo, "g", f"g {index}\n")
+            _commit(repo, f"entry {index}")
+        if case == "n_eq_K_unsaturated":
+            expected_walks = 2
+    git, main, supplier = _candidate_supplier(repo, paths, limit)
+    original = git.run
+    streams = []
+
+    def observe(args, **kwargs):
+        result = original(args, **kwargs)
+        if "--name-only" in args:
+            streams.append((list(args), result.stdout))
+        return result
+
+    monkeypatch.setattr(git, "run", observe)
+    for path in paths:
+        legacy = _legacy_candidates(git, main, path, limit)
+        assert supplier.candidates(path) == legacy
+        assert supplier.candidates(path) == legacy  # memo, no concatenation or extra walks
+    assert supplier.walks == expected_walks == len(streams)
+    entries = TOOL._parse_history_candidate_stream(streams[0][1], 40)
+    bound = (limit + 1) * len(paths)
+    if case == "n_lt_K":
+        assert len(entries) < bound
+    else:
+        assert len(entries) == bound
+    if expected_walks == 2:
+        assert not any(arg.startswith("--max-count=") for arg in streams[1][0])
+        assert supplier.candidates("g") == _legacy_candidates(git, main, "g", limit)
+        assert len(supplier.candidates("g")) == 1
+    if case == "merge_entries_count_once":
+        assert streams[0][1].count(b"\0" + merge.encode() + b"\0") == 2
+        assert len(entries) == 4
+
+
+@pytest.mark.parametrize("case", ["log_follow_true", "argv_limit_zero", "argv_limit_boundary",
+                                   "per_path_failure_isolated"])
+def test_history_candidates_fallback(tmp_path, monkeypatch, case):
+    repo = _init_repo(tmp_path)
+    _write(repo, "a", "original\n")
+    _commit(repo, "source")
+    _write(repo, "a", "updated\n")
+    _commit(repo, "source update")
+    _git(repo, "mv", "a", "b")
+    _commit(repo, "rename")
+    if case in {"log_follow_true", "per_path_failure_isolated"}:
+        _git(repo, "config", "log.follow", "true")
+    elif case == "argv_limit_zero":
+        monkeypatch.setattr(TOOL, "HISTORY_CANDIDATE_ARGV_BYTES_LIMIT", 0)
+    else:
+        monkeypatch.setattr(TOOL, "HISTORY_CANDIDATE_ARGV_BYTES_LIMIT", 4)
+        git, main, supplier = _candidate_supplier(repo, ["a", "b"])
+        assert supplier.candidates("b") == _legacy_candidates(git, main, "b", 32)
+        assert supplier.mode == "union"
+        monkeypatch.setattr(TOOL, "HISTORY_CANDIDATE_ARGV_BYTES_LIMIT", 3)
+    git, main, supplier = _candidate_supplier(repo, ["a", "b"])
+    if case == "per_path_failure_isolated":
+        original = git.run
+        failure = TOOL.AssessmentError("assessment-timeout", "one path", outcome="truncated")
+
+        def fail(args, **kwargs):
+            result = original(args, **kwargs)
+            if args[0] == "log" and args[-1] == "a":
+                raise failure
+            return result
+
+        monkeypatch.setattr(git, "run", fail)
+        for _ in range(2):
+            with pytest.raises(TOOL.AssessmentError) as caught:
+                supplier.candidates("a")
+            assert caught.value is failure
+        assert supplier.walks == 1
+    else:
+        assert supplier.candidates("a") == _legacy_candidates(git, main, "a", 32)
+        assert supplier.walks == 1  # b has not been requested
+    assert supplier.mode == "per-path"
+    legacy = _legacy_candidates(git, main, "b", 32)
+    assert supplier.candidates("b") == legacy
+    assert supplier.candidates("b") == legacy
+    assert supplier.walks == 2
+    if case == "log_follow_true":
+        _git(repo, "config", "log.follow", "false")
+        assert legacy != _legacy_candidates(git, main, "b", 32)
+
+
+@pytest.mark.parametrize("case", ["multi_path_one_walk", "all_tip_matched_zero_walks",
+                                   "tip_matched_hot_path_excluded"])
+def test_history_candidates_walk_count(tmp_path, monkeypatch, case):
+    repo = _init_repo(tmp_path)
+    spool = "docs/spool/worklog/2026-08-25-topic-1.md"
+    _topic(repo)
+    _write(repo, "f", "first\n")
+    _commit(repo, "first topic state")
+    _write(repo, "f", "second\n")
+    _write(repo, "g", "wanted\n")
+    _write(repo, spool, _fragment("worklog", "Body."))
+    _commit(repo, "second topic states")
+    _main(repo)
+    _write(repo, "f", "first\n")
+    _commit(repo, "first main witness")
+    _write(repo, "f", "second\n")
+    _write(repo, "g", "wanted\n")
+    _write(repo, spool, _fragment("worklog", "Body."))
+    _commit(repo, "second main witnesses")
+    if case == "all_tip_matched_zero_walks":
+        # Use a separate topic with only the states now at main tip.
+        _git(repo, "branch", "-f", "topic", "main")
+        _topic(repo, "tip-topic")
+        _write(repo, "tip-only", "tip\n")
+        _commit(repo, "tip topic")
+        _main(repo)
+        _write(repo, "tip-only", "tip\n")
+        _commit(repo, "tip main")
+        branch = "tip-topic"
+    else:
+        branch = "topic"
+        # One f requirement matches tip and the earlier one does not: P must use
+        # all registered pairs, not only the last state for each path.
+        for path in ([spool] if case == "multi_path_one_walk" else ["f", spool]):
+            (repo / path).unlink()
+        if case == "multi_path_one_walk":
+            (repo / "g").unlink()
+        else:
+            for index in range(5):
+                _write(repo, "g", f"hot {index}\n")
+                _commit(repo, f"hot update {index}")
+            _write(repo, "g", "wanted\n")
+        _commit(repo, "main tip")
+    original = TOOL.Git.run
+    logs = []
+
+    def observe(self, args, **kwargs):
+        if "--name-only" in args:
+            logs.append(list(args))
+        return original(self, args, **kwargs)
+
+    monkeypatch.setattr(TOOL.Git, "run", observe)
+    payload = TOOL.assess(repo, branch)
+    assert payload["decision"]["verdict"] == "landed"
+    expected = 0 if case == "all_tip_matched_zero_walks" else 1
+    assert payload["timing"]["history_candidate_walks"] == expected == len(logs)
+    if expected:
+        pathspecs = logs[0][logs[0].index("--") + 1:]
+        assert pathspecs == sorted(["f", spool] + (["g"] if case == "multi_path_one_walk" else []))
+        assert sum(unit["path"] == "f" for unit in payload["proof_units"]) == 2
+    else:
+        assert payload["timing"]["history_candidate_walk_seconds"] == 0.0
+
+
+@pytest.mark.parametrize("spool", [False, True], ids=["regular", "spool"])
+def test_history_candidates_union_timeout(tmp_path, monkeypatch, spool):
+    path = "docs/spool/worklog/2026-08-25-topic-1.md" if spool else "f"
+    repo, _, _, _, _ = _history_fixture(
+        tmp_path, path, _fragment("worklog", "Body.") if spool else "wanted\n",
+    )
+    real_git, sleep = shutil.which("git"), shutil.which("sleep")
+    assert real_git and sleep
+    fake_bin = tmp_path / "bin"
+    script = '''#!/bin/sh
+target=$(
+    while [ "$1" = "-c" ]; do shift 2; done
+    command=$1
+    for arg in "$@"; do
+        if [ "$command" = log ] && [ "$arg" = --name-only ]; then printf yes; fi
+    done
+)
+'''
+    script += f'if [ "$target" = yes ]; then exec {shlex.quote(sleep)} 2; fi\n'
+    script += f'exec {shlex.quote(real_git)} "$@"\n'
+    _write(fake_bin, "git", script, mode=0o755)
+    monkeypatch.setenv("PATH", f"{fake_bin}{os.pathsep}{os.environ.get('PATH', '')}")
+    original = TOOL.Git.run
+    errors, suppliers = [], []
+    initialize = TOOL._HistoryCandidates.__init__
+
+    def capture(self, *args, **kwargs):
+        initialize(self, *args, **kwargs)
+        suppliers.append(self)
+
+    def observe(self, args, **kwargs):
+        if "--name-only" in args:
+            kwargs["command_timeout"] = 0.05
+        try:
+            return original(self, args, **kwargs)
+        except TOOL.AssessmentError as exc:
+            if "--name-only" in args:
+                errors.append(exc)
+            raise
+
+    monkeypatch.setattr(TOOL._HistoryCandidates, "__init__", capture)
+    monkeypatch.setattr(TOOL.Git, "run", observe)
+    payload = TOOL.assess(repo, "topic")
+    assert payload["decision"] == TOOL._decision(
+        "indeterminate", "one-or-more-states-unproven" if spool else "assessment-timeout",
+    )
+    assert len(errors) == 1
+    assert isinstance(errors[0].__cause__, subprocess.TimeoutExpired)
+    assert errors[0].outcome == "truncated"
+    if spool:
+        exact = _unit(payload, path=path, reason="assessment-timeout")["evidence"][0]
+        assert (exact["reason"], exact["outcome"]) == ("assessment-timeout", "truncated")
+    else:
+        assert payload["phase_outcomes"]["proof"] == "truncated"
+    assert payload["timing"]["history_candidate_walks"] == 1
+    supplier = suppliers[0]
+    for _ in range(2):
+        with pytest.raises(TOOL.AssessmentError) as caught:
+            supplier.candidates(path)
+        assert caught.value is errors[0]
+    assert supplier.walks == 1 and len(errors) == 1
+
+
+def test_history_candidates_rescan_deadline(tmp_path, monkeypatch):
+    repo = _init_repo(tmp_path)
+    for index in range(4):
+        _write(repo, "f", f"value {index}\n")
+        if index == 0:
+            _write(repo, "g", "rare\n")
+        _commit(repo, f"update {index}")
+    git, _, supplier = _candidate_supplier(repo, ["f", "g"], 1)
+    original = git.run
+    attempted = []
+
+    def expire(args, **kwargs):
+        if "--name-only" in args:
+            attempted.append(list(args))
+        result = original(args, **kwargs)
+        if "--name-only" in args:
+            git.deadline = TOOL.time.monotonic() - 1
+        return result
+
+    monkeypatch.setattr(git, "run", expire)
+    with pytest.raises(TOOL.AssessmentError) as first:
+        supplier.candidates("f")
+    assert (first.value.code, first.value.outcome) == ("assessment-timeout", "truncated")
+    assert len(attempted) == 2
+    assert not any(arg.startswith("--max-count=") for arg in attempted[1])
+    assert supplier.walks == 1  # the expired second call never starts a Git child
+    with pytest.raises(TOOL.AssessmentError) as second:
+        supplier.candidates("g")
+    assert second.value is first.value
+    assert len(attempted) == 2 and supplier.walks == 1
+
+
+def test_assess_payload_matches_legacy_supplier(tmp_path, monkeypatch):
+    repo = _init_repo(tmp_path)
+    spool = "docs/spool/worklog/2026-08-25-topic-1.md"
+    _topic(repo)
+    _write(repo, "f", "wanted\n")
+    _write(repo, spool, _fragment("worklog", "Body."))
+    _commit(repo, "topic first")
+    _write(repo, "f", "second\n")
+    _commit(repo, "topic second")
+    _main(repo)
+    _write(repo, "f", "wanted\n")
+    _write(repo, spool, _fragment("worklog", "Body."))
+    _commit(repo, "main first")
+    _write(repo, "f", "second\n")
+    _commit(repo, "main second")
+    (repo / "f").unlink()
+    (repo / spool).unlink()
+    _commit(repo, "remove witnesses")
+    current = TOOL.assess(repo, "topic")
+
+    class LegacySupplier:
+        def __init__(self, git, main_oid, candidate_limit, pairs):
+            self.git, self.main, self.limit = git, main_oid, candidate_limit
+            self.walks, self.seconds = 0, 0.0
+
+        def tip_entry(self, path):
+            return TOOL._tree_entry(self.git, self.main, path, len(self.main))
+
+        def candidates(self, path):
+            self.walks += 1
+            return _legacy_candidates(self.git, self.main, path, self.limit)
+
+    monkeypatch.setattr(TOOL, "_HistoryCandidates", LegacySupplier)
+    legacy = TOOL.assess(repo, "topic")
+
+    def stable(value):
+        if isinstance(value, dict):
+            return {key: stable(item) for key, item in value.items()
+                    if key not in {"elapsed_seconds", "timing"}}
+        if isinstance(value, list):
+            return [stable(item) for item in value]
+        return value
+
+    assert current["decision"]["verdict"] == legacy["decision"]["verdict"] == "landed"
+    assert current["timing"]["history_candidate_walks"] == 1
+    assert legacy["timing"]["history_candidate_walks"] == 3
+    assert stable(current) == stable(legacy)
+
+
+@pytest.mark.parametrize("failure", ["over_bound", "malformed_tail"])
+def test_history_candidates_union_parse_failure_is_memoized(tmp_path, monkeypatch, failure):
+    repo = _init_repo(tmp_path)
+    for index in range(3):
+        _write(repo, "f", f"value {index}\n")
+        _commit(repo, f"update {index}")
+    git, _, supplier = _candidate_supplier(repo, ["f"], 1)
+    original = git.run
+
+    def corrupt(args, **kwargs):
+        if "--name-only" not in args:
+            return original(args, **kwargs)
+        if failure == "over_bound":
+            # Return a real, valid stream with three distinct commits for K=2.
+            return original([arg for arg in args if not arg.startswith("--max-count=")], **kwargs)
+        result = original(args, **kwargs)
+        result.stdout += b"\0invalid\0\nname\0"
+        return result
+
+    monkeypatch.setattr(git, "run", corrupt)
+    with pytest.raises(TOOL.AssessmentError) as first:
+        supplier.candidates("f")
+    assert (first.value.code, first.value.outcome) == ("history-candidate-parse-error", "error")
+    with pytest.raises(TOOL.AssessmentError) as second:
+        supplier.candidates("f")
+    assert second.value is first.value
+    assert supplier.walks == 1
