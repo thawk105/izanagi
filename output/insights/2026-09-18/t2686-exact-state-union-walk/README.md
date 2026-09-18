@@ -73,6 +73,12 @@ m16はdocstringのみの等価対照である。
 
 ## 記録上の訂正と境界
 
+- 最初の全受入はtested main 0bb1dfda2c5444564a3fee1a632a26eee722282b /
+  tested tip fe600a12c2ae50f8ebb426af796483f6e153bbdeでchild-green、25185 passed/69 skipped。
+  その間にT-2691のrescue外側grace修正がmainへ入ったため、固定9886b848を統合した
+  08d7192bacbbdd8b9a28604e88861c258e6e4d32でchecker/rescue両fileを再確認し、244 passed/7.33秒。
+  checkerの実装bytesは不変。旧s4の統合条件に従い、記録後の統合tipで全受入をもう一度行う。
+
 - 元s4のargv説明「65536+固定費約700が128KiBの半分未満」は算術誤り。
   正しくはpath部分64KiBに制限して残りを固定費等に残す。閾値・受理述語は変えない。
 - anchorの初期READMEに既知provenance違反を2件と書いたのは抜粋の読み違え。
@@ -84,4 +90,5 @@ m16はdocstringのみの等価対照である。
   signal-abortのrc16をテスト成否としない。新規gate・台帳機構・一般化・次waveは追加していない。
 
 元資料はoriginal-evidence/、レビューはverbatim/。末尾空白だけを正規化した6資料は
-whitespace-restoration.jsonで元bytes/SHA256へ復元一致を確認済み。原job資料も保持する。
+whitespace-restoration.jsonで元bytes/SHA256へ復元一致を確認済み。追加焦点logの2末尾空白は
+t2691-focus-restoration.jsonに復元法を保存した。原job資料も保持する。

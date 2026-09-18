@@ -27,6 +27,8 @@ title: [T-2686] exact-state union walk実装を回収し、観測対象の混同
 - 全史provenanceは新規違反なし、既知56を別記。初回HEAD変化による監査赤、QUEでの正規取消し、
   probeのMISMATCHも保全。raw・逐語・source hash・分類は
   output/insights/2026-09-18/t2686-exact-state-union-walk/ にある。
+- 初回全受入は25185 passed/69 skipped。その間にlandしたT-2691を取り込み、checker/rescue両fileの
+  焦点244 passed/7.33秒を確認。旧s4の条件どおり、記録後の統合tipへ最終全受入を再投入する。
 - dev-wave改善候補1件を専用handoffへ記録した。共有木snapshot検査と独立clone再走の保証範囲を
   既存DW-O19/DW-M05で明確にする記述候補で、採用・改善実装・次wave・新gate/台帳機構は追加しない。
   最終受入・landの結果は固定tipに束縛した受領証へ保存する。pushは行わない。

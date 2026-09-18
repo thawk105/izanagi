@@ -1,0 +1,1 @@
+{"file":"t2691-focus.log","original_bytes":5399,"original_sha256":"ab8ca5ca9df8a445a675ef24c5cccd670433692af0989ac5dcb1fa0353a90734","restore":"Append one ASCII space at 1-based lines 18 and 43; verify original bytes and hash."}
