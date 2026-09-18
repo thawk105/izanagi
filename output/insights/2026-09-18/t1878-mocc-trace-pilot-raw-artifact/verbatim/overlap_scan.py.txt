@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+"""T-1878 段 1: docs/paper-story/README.md を base から変えている branch (稼働 wave) を列挙する (read-only)."""
+import subprocess
+import sys
+
+CWD = "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t1878-mocc-trace-pilot-raw-artifact"
+PATHS = ["docs/paper-story/README.md", "docs/paper-story/claim-evidence/"]
+
+
+def git(*args):
+    return subprocess.run(["git", *args], cwd=CWD, capture_output=True, text=True, check=False)
+
+
+refs = git("for-each-ref", "--format=%(refname:short) %(objectname)", "refs/heads/").stdout.split("\n")
+main = git("rev-parse", "main").stdout.strip()
+touched = []
+n = 0
+for line in refs:
+    if not line.strip():
+        continue
+    name, sha = line.split()
+    if name == "main":
+        continue
+    n += 1
+    mb = git("merge-base", "main", sha).stdout.strip()
+    if not mb:
+        continue
+    r = git("diff", "--quiet", mb, sha, "--", *PATHS)
+    if r.returncode != 0:
+        stat = git("diff", "--stat", mb, sha, "--", *PATHS).stdout.strip().split("\n")[-1]
+        touched.append((name, sha[:9], mb[:9], stat))
+print(f"main={main[:9]} branches_scanned={n}")
+for t in touched:
+    print("TOUCH", *t)
+print(f"touched={len(touched)}")
