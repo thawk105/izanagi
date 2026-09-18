@@ -906,19 +906,21 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   あり、ここへ出る receipt が無ければ `tools/dev_wave_land.py` は main を 1 bit も進めない。
   path は **repo 外の絶対 path**・親 directory 既存・target 未存在でなければ claim 前に rc=2。
   receipt は走行後 clean・index flag 検査通過・走行前後の fingerprint 一致が成立し
-  (lease を取得した走行はさらに TTL 残量と所有の再確認)、かつ**下の受理 2 経路のいずれか**が
-  成立したときだけ発行される。発行は temp へ書いて
+  (lease を取得した走行はさらに TTL 残量と所有の再確認)、かつ**受入 command が rc=0
+  (`verdict = "child-green"`)** のときだけ発行される。発行は temp へ書いて
   fsync → 再確認 → `os.rename` の二段階で、**final path の存在だけが「待ち手が成功終端まで
   到達した」証拠**である。予約 temp 名前空間の path を land へ渡しても rc=23 で拒否される。
 - **`--log-file` も必須である ([T-1019])。** 受入 command の stdout / stderr は
-  **待ち手自身が**この path へ捕獲する。親が別途取った log を渡す形は採らない — 任意の過去 log を
-  渡せば非帰属判定を素通りできてしまうためである。path の条件は `--receipt-file` と同じ
+  **待ち手自身が**この path へ捕獲する。親が別途取った log を渡す形は採らない — receipt に入る
+  log hash (launcher が書いた log を待ち手が独立に読み直して照合する)・実効 scheduler の
+  attestation・判定なし終了の再試行証拠はいずれもこの log から取るためである。
+  path の条件は `--receipt-file` と同じ
   (repo 外・親 directory 既存・target 未存在・dangling symlink 不可、違反は claim 前に rc=2)。
   **shell 側の `> acceptance.log` と同じ名前を使わない** — shell が先に作るので target 既存で弾かれる。
   待ち手自身の診断出力を取りたいなら別名へ redirect する。
 - **`--receipt-file` / `--log-file` は attempt ごとに別 path にする。** target 未存在が必須なので、
   同じ path のまま再走すると claim 前に rc=2 で止まる。消して撮り直すと、
-  非帰属判定の一次資料である log を失う。上の例のように attempt 番号を付ける。
+  赤の帰属を人・AI が判定する一次資料 (`DW-O18`) である log を失う。上の例のように attempt 番号を付ける。
   ここでの attempt は**外部 invocation** の番号である。
 - **1 回の invocation は内部で最大 2 attempt 走る ([T-1275])。** 受入 command が
   **pytest の判定を 1 つも産まずに戻った**ことを肯定的証拠で確定できたときだけ、待ち手は
@@ -932,25 +934,14 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   収録し、path も版 (`dev-wave-acceptance-receipt/v5`) も root field も変わらない。
   attempt 番号・分類・rc・退避先・log hash・claim した main は待ち手の stderr へ
   機械可読な retry journal 行として出る (成功終端でも消えない)。
-- **受理は 2 経路ある ([T-1019] / 2026-08-13 第 9 束 #1)。**
-  (i) 受入 command が rc=0 → `verdict = "child-green"`。
-  (ii) 受入 command が **rc=1 ちょうど** (pytest の「テストが落ちた」) で、
-  `tools/check_acceptance_reds.py` が rc=0 かつ `status = "non-attributable-only"` を返し、
-  その receipt の `log_sha256` が待ち手の捕獲 log と一致 →
-  `verdict = "non-attributable-only"`。この経路は既知赤が land を止める構造を解くためのもので、
-  **どの nodeid をどちらの分類で通したかが receipt と land 結果 JSON に残る**。
-  待ち手が受理する checker node は exact 2 形だけである。`non-attributable` は
-  `classification` / `nodeid` / `rerun_rc` の 3 field で `rerun_rc == 1`、`flake` は
-  `classification` / `main_rerun_rc` / `nodeid` / `rerun_rc` / `wave_rerun_rc` の 5 field で
-  3 個の rc がすべて 0 でなければならない。前者は `red_nodeids`、後者は `flake_nodeids` へ
-  別々に入り、各集合は sorted・unique で互いに素、和集合が非空である必要がある。
+- **受理は `child-green` の 1 本だけである (D690 決定 2、2026-08-23)。** 受入 command が rc=0 →
+  `verdict = "child-green"`。rc=1 ちょうど (pytest の「テストが落ちた」) は `acceptance-command` の
+  失敗としてそのまま返り、待ち手は赤の帰属判定器を起動しない (自動起動経路は機構から遮断済みで、
+  flag でも環境変数でも戻せない)。赤の帰属は `DW-O18` に従い人・AI が判定して根拠を worklog へ残し、
+  赤の受領証は作らない。rc が 0 でも 1 でもない非 0 (`_DELETION_GATE_RC = 13` /
+  `_PEGASUS_DISPATCH_RC = 16` / signal 由来など) は**テスト失敗以外の理由で落ちた走行**で、
+  上の内部再試行の条件を満たす場合を除きそのまま失敗として返る。
   outer receipt の schema は `dev-wave-acceptance-receipt/v5` で、v4 以前は受理しない。
-  **`flake` は原因ではなく観測の分類である** — 初回全走で赤、tested main 単独再走で緑、
-  wave tip 単独再走でも緑、という観測を指す。決定的な全走限定赤もここへ入る (明示受容した残余)。
-  rc が 0 でも 1 でもない非 0 (`_DELETION_GATE_RC = 13` / `_PEGASUS_DISPATCH_RC = 16` /
-  signal 由来など) は**テスト失敗以外の理由で落ちた走行**なので、赤が全部非帰属でも受理しない。
-  checker の `status = "green"` (log から赤 nodeid を 1 件も取れなかった) も、
-  rc=1 / rc=2 も受理しない。
 - **受領証の内容は待ち手ではなく `tools/acceptance_launcher.py` が作る ([T-1283])。**
   待ち手は launcher の source を Git blob から取り、`python3 -I -c` の stdin へ渡して実行する。
   launcher は `tested_main:tools/run_tests.py` の blob bytes を同じ形で exec して runner の rc を
@@ -964,7 +955,7 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   しないため)。v5 は `launcher_source_revision` / `launcher_blob_sha` /
   `launcher_executed_sha256` / `waiter_executed_sha256` / `runner_executed_sha256` を必須にし、
   land は 3 本の内容 SHA-256 を Git tree から独立に再計算して照合する。
-  **この照合は `child-green` にも掛かる** (受入受領証の 99.0% がこの経路。全期間 103 本中 102 本)。
+  **この照合は `child-green` の受領証に掛かる** (現行の権威経路が発行する受領証はこれだけである)。
   launcher source は `tested_main` にあればそれを使い、無いときだけ `tested-tip-bootstrap` を
   名乗る。land は `tested_main` と `locked_main` の双方で launcher 不在を要求するので、
   launcher が main へ入った後は bootstrap を名乗れない。
@@ -991,16 +982,6 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   受入後に clean な forward-main merge を足して同じ受領証を再利用するとき、land は最後に取り込んだ
   main と tested main の runner blob を比較する。最終着地物の runner が変わっていれば再利用を拒否し、
   新しい main を基準に受入をやり直させる。runner が同じ main 取り込みは再走させない (D987)。
-- **`tools/check_acceptance_reds.py` を変更した wave は経路 (ii) だけ使えない。**
-  経路 (ii) の受領証は、待ち手と land の双方が判定器の main/tip 等値を要求する。
-  こちらを触る wave は**完全に緑の走行 (child-green) でしか land できない**ので、
-  受入をそう計画すること。等値が保証するのは同一 bytes の runner が両側で使われたことだけで、
-  import 閉包・cwd・環境変数・pytest の選択と scheduler・`conftest.py`・plugin の同一性は
-  保証しない。
-- **既知の限界 (2026-08-13 時点、いずれも倒れる向きは fail-closed)。**
-  checker には timeout が無く、赤の単独再走が hang すると receipt が出ないまま待ち続ける。
-  checker 実行中の lease heartbeat も無いので、赤が多いと最終確認までに TTL 2,400 秒を
-  使い切りうる。checker は専用 process group で起動しないので、中断時に probe の残留がありうる。
 - **`stage=restart-required` (rc=70) は待ち手を再起動しろという意味である。** 受入 command を
   投入する直前に、待ち手が module 初期化直後に束縛した自 source の bytes と、その走行が束縛する
   tip の `tools/dev_wave_wait.py` blob 内容を照合し、不一致・照合不能なら command を投入せずに
@@ -1038,11 +1019,10 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   `role=integrator` だけを持つ file にし、実装面 overlap があれば待ち手が fail-closed で止まるのに
   任せる (2026-08-23 実測、取り残し branch の回収 wave)。
 - **rc=0 は「receipt が発行された」を意味する** (lease を取得した走行は保持したまま返る)。
-  受入 command 自身が緑だったとは限らない — 上の受理経路 (ii) では rc=1 で赤があり、
-  それが全部非帰属または flake だったという意味になる。**台帳へ「全テスト緑」と書く前に
-  receipt の `verdict`、`red_nodeids`、`flake_nodeids` を読むこと。** `flake_nodeids` は
-  単独再走が両側緑だったために実測証拠なしで通した残余なので、land 結果 JSON の
-  `acceptance_flake_nodeids` とあわせて台帳へ残す。成功時は release
+  現行の権威経路では受入 command 自身が rc=0 のときだけ発行されるので、receipt の `verdict` は
+  `child-green`、`red_nodeids` / `flake_nodeids` は空である。**台帳へ「全テスト緑」と書く前に
+  receipt の `verdict` と両 field を読んで確かめること** (land 結果 JSON の
+  `acceptance_red_nodeids` / `acceptance_flake_nodeids` も同様に空)。成功時は release
   しない。**land の終端で親が `release --wave "$W"` する**こと。それ以外の終わり方
   (claim 異常・Git 異常・merge 中止・受入赤・例外・signal・中断) では待ち手が release する。
   **例外は `held-self` 経路** — その呼出しが lease を作っていないので release 権限を持たず、
