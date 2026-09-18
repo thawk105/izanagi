@@ -1,0 +1,22 @@
+## 段 1 brief (11:20 JST、HEAD = main 99fcf2323 に ff 済み)
+
+- **研究前進:** 論文の結果節のうち balanced workload の「無 backoff 対 静的 fixed 5 µs」対 (版 2026-09-17 §2 第 3 幕「第 3 — balanced の stock-inline 対」と §7 チェックリストの T-1998 3 項が指す結果) に、一次資料束縛の単独 results 稿を供給する。完了判定 = `docs/paper-story/results/2026-09-18-t1998-balanced-stock-inline-accepted.md` が置かれ README results 表に 1 行、`check_docs.py` rc=0、land。
+- **scope:** 上記 2 file の docs 編集のみ。実装面差分 0。新しい測定は行わない。凍結物 (事前登録・成果物・既存稿) の bytes は 1 byte も変えない。
+- **確定済み裁定:** D1874 (正式測定認可、事前登録前の生値は転用しない)、D1993 項 6 (A-2 / A-6 / T-1998 を横断実験として集計しない、符号一致は記述的照合)、D2044 項 3 (B-7 の要件充足へ昇格させない)、D2120 項 15 (paper-story 単独 results 稿 = T-2611 / T-2674 の型を使う。層 3 材料レポートと同一視しない)、D12 (status は protocol 出力)、絶対規律 7。**活動を止める裁定は 0 件** (decisions で「単独稿」「results 系列」「統制稿」「結果節」を D1993 以降で索引、hit は D1993 の理由節と D2120 項 15 のみ、いずれも支持側)。
+- **不変条件:** (1) 数値・日付・判定は一次資料 (権威 bytes・WAL・lock・受領証・事前登録 blob・decision-final.json・insight README) からのみ。横断稿 2026-09-16 で補完しない。(2) 2026-09-07 の事前登録前生値の数値を稿に書かない (D1874、2026-09-13 / 09-15 README と同じ扱い)。(3) 8 点のうち登録 2 点以外を推定量に入れず argmax しない (事前登録 §2 / §6)。(4) 規律 2 を緩めない — 正しさの記録は WAL の逐語のまま、強さの限定を落とさない。(5) 対応が確かめられない箇所は「欠落」として明記する。
+- **成果物の形:** 2026-09-07 observed-positive 稿と同じ骨格 (0 位置づけ / 1 条件と identity / 2 結果 (性能・正しさ・8 点の記録) / 3 限定 / 4 一次資料と SHA-256 / 5 欠落)。図は無い (figures/ に T-1998 の図は 0 件) — 数値は権威 bytes から転記し file ごとの SHA-256 を書く。
+- **並列分割:** docs-only なので DW-C00 の既定軽量版。段 2・3 は省略 (scope は依頼文が固定)。段 5 は親編集。段 6 は凍結物 (append-only で in-place 訂正不能) なので read-only codex の敵対レビュー 2 レンズ (A: 数値・逐語・SHA の照合 / B: 限定・過大主張・裁定整合) を 1 巡だけ回す。変異 matrix は免除 (実装面差分 0)。受入は land 経路の 1 走。
+- **編集面照合 (段 1 実測):** README results 表 / results dir を触る未 land branch は `t2775-paper-story-a1-attempt1` (README の stale 注記節、別 hunk) と `t2498-executor-recurse-old` (merge-base が古く main 側追加が差分に見えるだけ) の 2 本。衝突なし。
+- **(P1) 攻撃対象:** 8 genome 全点の producer 記録を表として載せること (推定量には入れない)。依頼文が「8 genome 分の campaign 記録を含む一次資料全体」と言うので載せるが、6 点の値から何も導かない旨を限定に書く。
+- **(P2) 攻撃対象:** 正しさ検査の条件 (4 thread・200 tuple・rmw・1 秒・max_ope 5) は WAL に無く、lock が束縛する `pipeline.py` blob (`2423849c…`、a551cdd3 の現物と一致) の `CorrectnessWorkload` 既定値から導いた。「成果物の記録」ではなく「束縛された code から導いた値」として書き分ける。
+
+### 段 1 で実測した一次資料の要点 (稿に写す値の正本、job dir にも保全)
+
+- 成果物 root (repo 外) 23 file。result.json `354ecd5f…`、reservation.json `45cb2cf1…`、campaign.lock `ba24c65d…`、wal.jsonl `154ab894…`、qstat-f.stdout `87f56a81…`、submit.jsonl `c51521ca…`。lock / WAL の sha は result.json の `lock_sha256` / `wal_sha256` と一致。
+- WAL 40 record = 8 genome × {build_start, build_done, verify_done, bench_done, commit}、env_tag は `pegasus` のみ。abort record 0。
+- 登録 2 arm: baseline variant `84319b1127a6` (src_token `stock`、source `2d691b45…`、perf_bin `66054364…`)、target variant `93c62227a2d3` (src_token = source `678b7203…`、perf_bin `6c89ebd9…`)。両方 `tracked_paths` = [cmake/Options.cmake, include/backoff.hh]、`tracked_diff_sha256` `29aef2bc…` (patch 適用の記録)。
+- 5 標本・median・cv (標本標準偏差/平均) は再計算で全桁一致。ratio 1.1122537536191646 / improvement 11.225375361916456 も再計算一致。result.json の `no_backoff_median_tps` / `target_median_tps` / `ratio` / `improvement_percent` と consumer decision-final.json が一致。
+- 8 点の median: 3893509 (BO=0) / 1265586 (BO=1,FIXED=-1) / 4442208 (2) / 4330570 (5) / 3910016 (10) / 3066391 (25) / 2431951 (50) / 1870346 (100)。全点 unstable=false、high_variance=false、rounds=1。verify は 8 点とも serializable / certified / anomalies 0 / workload.tag legacy / X,P evidence-present, I evidence-absent。
+- 時刻 (UTC): 投入 13:27:23、job 開始 13:27:36 (qstat)、baseline build_start 13:28:33.980 → commit 13:29:57.002、target build_start 13:32:41.395 → commit 13:34:02.916、最終 commit 13:39:22.837、job 終了 13:39:23。
+- identity: repository_commit a551cdd3 (2026-09-11 09:59 JST の fold commit、HEAD の祖先)、その gitlink = 511c9538…、事前登録 blob sha256 = 464e3af5… (現行木も同値)、job body sha = dff913cb… (a551cdd3 の blob と一致)、submitter sha = dff1f9d0… (同)、lock の loader 束縛 63 blob のうち pipeline.py `2423849c…`・p2_2.py `9b30a7ad…`・env_contract.py `292bbed3…` は a551cdd3 の現物と一致。`backoff_sweep.py` は loader 束縛に無い (repository_commit 経由のみ)。
+- 欠落候補: (a) patch file `patches/silo-backoff-fixed.patch` の sha256 `a5e0710c…` と WAL `tracked_diff_sha256` `29aef2bc…` は pre-image が違い (後者は `git diff --binary HEAD` 出力) 本 wave では対応を再現していない。(b) 2026-09-15 の main 再解析の判定 JSON は job dir に保全されておらず README 転記のみ。(c) 正しさ検査 argv は成果物に無い。(d) toolchain digest の腕内再導出は不能 (T-2589 が撤去、非保証)。(e) 環境契約 digest の pre-image は稿で再計算していない (consumer が照合)。(f) 投入器の同一性は成果物から復元不能 (receipt のみ)。
