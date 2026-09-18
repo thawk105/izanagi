@@ -17637,6 +17637,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `orchestrator/tests/test_layer3_report.py` の AST 契約テストと、
   実 `_run_bench` の emit payload exact key 集合検査。両者を変異検査で殺せることを確認した。
 
+
+- **再発: 2026-09-18** — 層 3 の `verifications.items` には閉包検査そのものが無く、producer が `verify_done` に足した
+  `commit_witness` (2026-08-11) と `proof_surfaces` (2026-09-03) が消費側 schema に届かないまま、現行の loop 型 campaign を
+  renderer が `additionalProperties` 違反で描画できない状態が続いていた (2026-09-18 に 1 巡目 campaign の描画で発覚、台帳未記録)。
+  D830 の導出型閉包を `verify_done` にも置き、`_view_row` の除外集合と qualification 分岐の key を AST で導出して schema と照合する
+  検査を `orchestrator/tests/test_layer3_report.py` に足した (D2143)。
 ### F571. key の穴を塞いだだけで成果物が得られたと判断しかけた [テスト代表性]
 
 - 事象: 層 3 の `runs.items` に無かった key を追加した直後、名指しの実 artifact は
@@ -27635,3 +27641,38 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `orchestrator/tests/test_mocc_trace_job_contract.py` の interpreter gate 検査 (checker / verifier) と同型の hydrate 版を
   [T-2780] で足す。fake interpreter は配線の検査であり、計算ノードの旧 python での推移 import は
   実 job でしか確かめられない (F650 / F651 と同じく mocc pilot の実走で検出する型)。
+
+### F1028. 親が job body 所有の evidence attempt dir へ投入直後に file を置き、job を preflight で失った [手順漏れ]
+
+- 事象: P3 段 4 loop の job body (`tools/pegasus/p3_s4_loop_pegasus.sh`) は `allocation-qstat.stdout` を自分で書き、既存なら
+  `allocation qstat evidence is not fresh` で rc=2 にする。親は投入直後の `qstat -f` の写しを同名で attempt dir に置いたため、
+  attempt-0001 (`4947.nqsv`) は Elapse 7 秒・driver 未起動で拒否された。評価は attempt-0002 (`4954.nqsv`) の 1 本で済んだが、
+  投入は 2 本になり、ユーザー裁定 D2120 項 1 の「再投入なし」の文言から逸脱した (事後承認を裁定パッケージ候補として返した)。
+- 根本原因: `tools/pegasus/README.md` §7 の投入手順が attempt dir を `mkdir` するとだけ書き、「job body が所有し投入側は触らない」
+  ことを書いていなかった。親は evidence を揃えるつもりで所有権を侵した。
+- 恒久対応: `tools/pegasus/README.md` §7 に「attempt directory は job body が所有する。投入側は `mkdir` 以外に何も置かない」を
+  明記した (本 wave)。親の qstat 写しは job root 直下 (evidence dir の外) へ置く。
+- 再発検知: job body の既存 fresh 検査 (263〜265 行) がそのまま検知器である。attempt-0001 の `job.stderr` を
+  `output/insights/2026-09-18/t2746-k2-loop-round2/evidence/attempt-0001/` に残した。
+
+### F1029. 仮定付き模型の出力を「記録からの上下限」として insight に結論化し、独立レビュー 2 巡で捕捉した [誤前提] [手順漏れ]
+- 事象: 「直列性検査 1 回 23 分」の区間分解で、親は初稿に「検査器 76〜98% (1069〜1385 秒)」を
+  記録からの上下限として書いた。実体は、直列走と並列走の同一変種の差に「検査器以外の実費が
+  両 run で等しい (等 R)」と「検査器の倍率 s ≤ 4」を暗黙に置いた試算だった。1 巡目レビューが
+  「等 R は未実証、s に上限を置く根拠が無い」と指摘し、親は timeout 契約からの上限 (ベンチ process
+  < 120 秒) へ置き換えたが、2 巡目 (焦点) レビューが「`subprocess.run(timeout)` は子の起動後
+  `communicate()` から計るので厳密な実時間上限ではない」と再び指摘した。3 巡目で条件付き表現に
+  揃って閉じた。着地前に捕捉したので台帳・成果物の値は変わっていない (near miss)。
+- 根本原因: 算術の検算 (`DW-O16` の派生値再計算) は通っていたが、**模型の仮定そのものが検算の
+  対象になっていなかった**。「計算が合う」ことと「その計算の前提が記録で支持される」ことを
+  区別せず、前提を見出しと §1 の断定に昇格させた。2 度目も同型で、置き換えた根拠 (timeout) の
+  保証範囲を code の契約 (どこから計時するか) まで読まずに「厳密な上限」と書いた。
+- 恒久対応: 定量主張は出所を「契約 + 記録 (条件を明記)」「実測 (どの走か)」「換算 (どの単価か)」
+  「試算 (どの仮定か)」で列ごとに分けた表にし、仮定を要する値を見出し・要約へ上げない。実体は
+  `output/insights/2026-09-18/t2229-verify-cost-decomposition/README.md` §4 の表の形と、
+  D2144 の「仮定なしに言える定量値は無い」の明記。レビュー prompt には
+  「模型の前提が記録で支持されるか」をレンズとして明示する (本 wave の `verbatim/s6-review-prompt.md`
+  レンズ 2 が実際に捕捉した)。
+- 再発検知: 段 6 レビューの対応表で、派生値の一致だけでなく「前提の出所」列を要求する。数値の
+  結論に「上限」「下限」「必然」「仮定なし」が入るとき、その根拠が契約なら計時・発火の開始点まで
+  code で確認したことを書く。
