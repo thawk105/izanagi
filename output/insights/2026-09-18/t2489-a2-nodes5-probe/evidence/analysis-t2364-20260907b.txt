@@ -1,0 +1,64 @@
+====================================================================================================
+attempt_root: /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b
+----------------------------------------------------------------------------------------------------
+  workload rr5 accounting: {"created": "Mon Sep  7 21:10:08 2026", "started": "Mon Sep  7 21:12:07 2026", "ended": "Mon Sep  7 22:02:23 2026", "elapse": "3020", "request": "981476.nqsv", "queue_wait_s": 119.0, "run_s": 3016.0}
+  campaign: paper-story-a2-rr5-paper-story-a2-certification-rr5-1af9fc2b campaign_total_s: 2962.8
+   cell 960e57e1aeba
+     21:13:00.227 +    0.0s build_start  {}
+     21:13:58.000 +   57.8s build_done   {"source_commit": null, "trace_bin": "223aa3564c4f6cad", "perf_bin": "67caa935b6a55235"}
+     21:14:14.356 +   16.4s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 634598, "aborts": 248129, "workload": {"tag": "legacy"}}
+     21:16:08.834 +  114.5s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 2379214, "aborts": 18213743, "workload": {"tag": "performance"}}
+     21:17:59.498 +  110.7s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 2387807, "aborts": 18112264, "workload": {"tag": "performance"}}
+     21:19:49.837 +  110.3s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 2318386, "aborts": 18885710, "workload": {"tag": "performance"}}
+     21:21:41.472 +  111.6s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 2364037, "aborts": 18563877, "workload": {"tag": "performance"}}
+     21:23:35.615 +  114.1s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 2382130, "aborts": 18382761, "workload": {"tag": "performance"}}
+     21:36:59.392 +  803.8s bench_done   {"bench_wall_s": 16.850973616936244, "median_tps": 2438295.0, "cv": 0.03262426529519532}
+        run_cmd: /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b/jobs/rr5/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/97e580c6f34e600ca8713dae9041b019d758826edecb45d286b4f4fb887be105/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=5 -ycsb_rmw=0 -ycsb_max_ope=10
+        tps: [2601945.0, 2438295.0, 2395095.0, 2449052.0, 2429806.0]
+     21:36:59.436 +    0.0s commit       {"fitness_tps": 2438295.0, "cv": 0.03262426529519532, "verify_configs": ["legacy", "performance"]}
+   cell 1f2762881fcb
+     21:37:01.724 +    2.3s build_start  {}
+     21:38:02.589 +   60.9s build_done   {"source_commit": null, "trace_bin": "1e5b5a5b477cfce8", "perf_bin": "6a4da4d786d21630"}
+     21:38:14.380 +   11.8s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 521375, "aborts": 120966, "workload": {"tag": "legacy"}}
+     21:40:15.044 +  120.7s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 2523841, "aborts": 8351845, "workload": {"tag": "performance"}}
+     21:42:14.461 +  119.4s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 2529858, "aborts": 8335103, "workload": {"tag": "performance"}}
+     21:44:13.786 +  119.3s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 2525488, "aborts": 8352234, "workload": {"tag": "performance"}}
+     21:46:12.532 +  118.7s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 2515979, "aborts": 8329599, "workload": {"tag": "performance"}}
+     21:48:12.599 +  120.1s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 2529656, "aborts": 8360902, "workload": {"tag": "performance"}}
+     22:02:22.949 +  850.3s bench_done   {"bench_wall_s": 16.829794572899118, "median_tps": 3987794.0, "cv": 0.0091676473320761}
+        run_cmd: /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b/jobs/rr5/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/e876703adcf628cc03198f9a9be4219befa34bcda8a99fb35a438e0eec4a006f/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=5 -ycsb_rmw=0 -ycsb_max_ope=10
+        tps: [4066753.0, 3987794.0, 4008033.0, 3983201.0, 3976744.0]
+     22:02:22.980 +    0.0s commit       {"fitness_tps": 3987794.0, "cv": 0.0091676473320761, "verify_configs": ["legacy", "performance"]}
+  fan-out leaves: 0
+  compute-result: {"schema_version":"paper-story-a2-compute-result/v2","workload":"rr5","driver_rc":0,"pbs_jobid":"0:981476.nqsv","current_pin":"511c953"}
+----------------------------------------------------------------------------------------------------
+  workload rr50 accounting: {"created": "Mon Sep  7 21:10:10 2026", "started": "Mon Sep  7 21:12:07 2026", "ended": "Mon Sep  7 22:02:40 2026", "elapse": "3037", "request": "981477.nqsv", "queue_wait_s": 117.0, "run_s": 3033.0}
+  campaign: paper-story-a2-rr50-paper-story-a2-certification-rr50-5efd479e campaign_total_s: 2979.6
+   cell 960e57e1aeba
+     21:13:00.240 +    0.0s build_start  {}
+     21:13:58.294 +   58.1s build_done   {"source_commit": null, "trace_bin": "a3533021454599fc", "perf_bin": "f6cf6fac1553ba19"}
+     21:14:14.658 +   16.4s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 629692, "aborts": 245296, "workload": {"tag": "legacy"}}
+     21:26:16.363 +  721.7s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 4153232, "aborts": 16294517, "workload": {"tag": "performance"}}
+     21:28:53.585 +  157.2s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 4138036, "aborts": 16367355, "workload": {"tag": "performance"}}
+     21:31:26.725 +  153.1s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 4142267, "aborts": 16163693, "workload": {"tag": "performance"}}
+     21:34:07.185 +  160.5s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 4185568, "aborts": 16499918, "workload": {"tag": "performance"}}
+     21:36:42.410 +  155.2s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 4147978, "aborts": 16412922, "workload": {"tag": "performance"}}
+     21:37:16.261 +   33.9s bench_done   {"bench_wall_s": 16.855772820068523, "median_tps": 3756230.0, "cv": 0.02928349930898821}
+        run_cmd: /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b/jobs/rr50/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/8bd5255f53b4a91ec45152472aa1f4268b6cc0c1a9fbcdbbf64c1c1c80669d99/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=50 -ycsb_rmw=0 -ycsb_max_ope=10
+        tps: [4003328.0, 3738171.0, 3756230.0, 3799369.0, 3745012.0]
+     21:37:16.348 +    0.1s commit       {"fitness_tps": 3756230.0, "cv": 0.02928349930898821, "verify_configs": ["legacy", "performance"]}
+   cell 47e599584695
+     21:37:18.793 +    2.4s build_start  {}
+     21:38:21.376 +   62.6s build_done   {"source_commit": null, "trace_bin": "e215285b4a0a2496", "perf_bin": "2912ebbe63913eb3"}
+     21:38:34.570 +   13.2s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 573874, "aborts": 163947, "workload": {"tag": "legacy"}}
+     21:51:00.638 +  746.1s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 4403738, "aborts": 10553651, "workload": {"tag": "performance"}}
+     21:53:48.820 +  168.2s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 4341633, "aborts": 10469188, "workload": {"tag": "performance"}}
+     21:56:33.314 +  164.5s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 4388727, "aborts": 10515751, "workload": {"tag": "performance"}}
+     21:59:19.393 +  166.1s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 4371466, "aborts": 10503097, "workload": {"tag": "performance"}}
+     22:02:05.963 +  166.6s verify_done  {"verdict": "serializable", "certified": true, "anomalies": 0, "commits": 4368561, "aborts": 10513344, "workload": {"tag": "performance"}}
+     22:02:39.806 +   33.8s bench_done   {"bench_wall_s": 16.842807707958855, "median_tps": 4297929.0, "cv": 0.010942253518241333}
+        run_cmd: /work/1/SFC/tanab/izanagi-measurements/dev-wave-paper-story-a2-cert-20260824/t2364-20260907b/jobs/rr50/cache/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/aaf8eb46895cf5e8cb54aed215c559027424505651b2866d2dd6a4a830126703/cc/silo/ycsb_silo.exe -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=50 -ycsb_rmw=0 -ycsb_max_ope=10
+        tps: [4378620.0, 4279072.0, 4304483.0, 4297929.0, 4252521.0]
+     22:02:39.811 +    0.0s commit       {"fitness_tps": 4297929.0, "cv": 0.010942253518241333, "verify_configs": ["legacy", "performance"]}
+  fan-out leaves: 0
+  compute-result: {"schema_version":"paper-story-a2-compute-result/v2","workload":"rr50","driver_rc":0,"pbs_jobid":"0:981477.nqsv","current_pin":"511c953"}

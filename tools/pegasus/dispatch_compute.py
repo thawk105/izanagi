@@ -16,6 +16,7 @@ import math
 import os
 import re
 import secrets
+import select
 import shlex
 import signal
 import stat
@@ -166,6 +167,10 @@ _REQUEST_SCHEMA = "pegasus-dispatch-request/v2"
 _LEGACY_REQUEST_SCHEMA = "pegasus-dispatch-request/v1"
 _REQUEST_BINDING = "sha256-job-script/v1"
 _REQUEST_SHA256_ENV = "IZANAGI_DISPATCH_REQUEST_SHA256"
+_JOB_SESSION_SWEEP_ENV = "IZANAGI_DISPATCH_JOB_SESSION_SWEEP"
+_SESSION_SWEEP_TERM_GRACE_S = 5.0
+_SESSION_SWEEP_KILL_GRACE_S = 1.0
+_SESSION_SWEEP_ROUNDS = 2
 _ACCEPTANCE_SHARDS_ENV = "IZANAGI_ACCEPTANCE_SHARDS"
 _RUNNER_BINDING_FD_ENV = "IZANAGI_ACCEPTANCE_RUNNER_BINDING_FD"
 _RUNNER_BINDING_NONCE_ENV = "IZANAGI_ACCEPTANCE_RUNNER_BINDING_NONCE"
@@ -719,6 +724,219 @@ def _job_trace(event: str, **fields: Any) -> None:
         pass
 
 
+def _read_session_process(pid: int) -> dict[str, Any]:
+    """Read stat without splitting a comm that contains spaces or parentheses."""
+
+    raw = Path(f"/proc/{pid}/stat").read_text()
+    left, right = raw.index("("), raw.rindex(")")
+    tail = raw[right + 1:].split()
+    if int(raw[:left].strip()) != pid:
+        raise ValueError("stat pid mismatch")
+    return {
+        "pid": pid, "comm": raw[left + 1:right], "state": tail[0],
+        "ppid": int(tail[1]), "pgrp": int(tail[2]),
+        "session": int(tail[3]), "starttime": int(tail[19]),
+        "readable": True,
+    }
+
+
+def _list_session_residuals(
+    sid: int, excluded_pids: set[int], own_user_ns: str,
+) -> list[dict[str, Any]]:
+    records = []
+    for entry in Path("/proc").iterdir():
+        if not entry.name.isdecimal() or int(entry.name) in excluded_pids:
+            continue
+        pid = int(entry.name)
+        try:
+            record = _read_session_process(pid)
+        except (FileNotFoundError, ProcessLookupError):
+            continue
+        except (OSError, ValueError, IndexError) as exc:
+            # Session membership cannot be established: record uncertainty,
+            # but never signal a process whose stat could not be read.
+            record = dict.fromkeys(("comm", "state", "ppid", "pgrp",
+                                    "session", "starttime"))
+            record.update(pid=pid, readable=False, error=type(exc).__name__)
+        if record["readable"] and record["session"] != sid:
+            continue
+        try:
+            user_ns = os.readlink(f"/proc/{pid}/ns/user")
+        except OSError:
+            user_ns = None
+        uid = None
+        try:
+            for line in Path(f"/proc/{pid}/status").read_text().splitlines():
+                if line.startswith("Uid:"):
+                    uid = int(line.split()[1])
+                    break
+        except (OSError, ValueError, IndexError):
+            pass
+        attributed = user_ns is not None and user_ns != own_user_ns
+        record.update(user_ns=user_ns, uid=uid, attributed=attributed)
+        records.append(record)
+    return records
+
+
+def _signal_session_process(fd: int, record: dict[str, Any], sig: int) -> bool:
+    result, error_number = "sent", None
+    try:
+        signal.pidfd_send_signal(fd, sig)
+    except ProcessLookupError as exc:
+        result, error_number = "esrch", exc.errno
+    except PermissionError as exc:
+        result, error_number = "eperm", exc.errno
+    except OSError as exc:
+        result, error_number = "error", exc.errno
+    _job_trace("session-signal", process=record,
+               signal=signal.Signals(sig).name.removeprefix("SIG"),
+               result=result, errno=error_number, time_ns=time.time_ns())
+    return result == "sent"
+
+
+def _poll_session_processes(
+    pending: dict[int, dict[str, Any]], grace_s: float, after: str,
+) -> int:
+    if not pending:
+        return 0
+    poller = select.poll()
+    for fd in pending:
+        poller.register(fd, select.POLLIN)
+    deadline = time.monotonic() + grace_s
+    exited = 0
+    while pending:
+        remaining = max(0.0, deadline - time.monotonic())
+        events = poller.poll(math.ceil(remaining * 1000))
+        for fd, flags in events:
+            if fd in pending and flags & select.POLLIN:
+                record = pending.pop(fd)
+                poller.unregister(fd)
+                exited += 1
+                _job_trace("session-process-exited", process=record,
+                           after=after, time_ns=time.time_ns())
+        if time.monotonic() >= deadline:
+            break
+    return exited
+
+
+def _sweep_job_session(
+    sid: int, *, own_user_ns: str, excluded_pids: set[int],
+    term_grace_s: float, kill_grace_s: float, rounds: int,
+) -> None:
+    started = time.monotonic()
+    seen: dict[tuple[int, Optional[int]], dict[str, Any]] = {}
+    rounds_used = exited_after_term = exited_after_kill = 0
+    for round_index in range(rounds):
+        rounds_used += 1
+        candidates = _list_session_residuals(sid, excluded_pids, own_user_ns)
+        new = []
+        for record in candidates:
+            _job_trace("session-residual", round=round_index + 1, process=record)
+            key = (record["pid"], record["starttime"])
+            if key not in seen:
+                seen[key] = record
+                new.append(record)
+        if not new:
+            break
+        opened = []
+        pending: dict[int, dict[str, Any]] = {}
+        try:
+            for record in new:
+                if (not record["readable"] or not record["attributed"]
+                        or record["state"] == "Z"):
+                    continue
+                try:
+                    fd = os.pidfd_open(record["pid"])
+                except OSError as exc:
+                    _job_trace("session-signal", process=record, signal="TERM",
+                               result="pidfd-unavailable", errno=exc.errno)
+                    continue
+                opened.append(fd)
+                try:
+                    current = _read_session_process(record["pid"])
+                    result = ("identity-changed" if current["starttime"] !=
+                              record["starttime"] else "ready")
+                    if result == "ready" and current["state"] == "Z":
+                        result = "zombie"
+                except (FileNotFoundError, ProcessLookupError):
+                    result = "absent"
+                except (OSError, ValueError, IndexError):
+                    result = "unreadable"
+                if result != "ready":
+                    _job_trace("session-signal", process=record, signal="TERM",
+                               result=result)
+                    os.close(fd)
+                    opened.remove(fd)
+                    continue
+                if _signal_session_process(fd, record, signal.SIGTERM):
+                    pending[fd] = record
+            exited_after_term += _poll_session_processes(
+                pending, term_grace_s, "term",
+            )
+            for fd, record in pending.items():
+                _signal_session_process(fd, record, signal.SIGKILL)
+            exited_after_kill += _poll_session_processes(
+                pending, kill_grace_s, "kill",
+            )
+            for record in pending.values():
+                try:
+                    state = _read_session_process(record["pid"])["state"]
+                except (OSError, ValueError, IndexError):
+                    state = None
+                _job_trace("session-process-remaining", process=record, state=state)
+        finally:
+            for fd in opened:
+                os.close(fd)
+    final = _list_session_residuals(sid, excluded_pids, own_user_ns)
+    attributed = [r for r in final if r["readable"] and r["attributed"]]
+    session_unknown = sum(not r["readable"] for r in final)
+    zombies = sum(r["state"] == "Z" for r in attributed)
+    remaining = sum(r["readable"] and r["state"] != "Z" for r in attributed)
+    _job_trace(
+        "session-sweep-complete",
+        status="remaining" if remaining or zombies else "unknown" if session_unknown else "clean",
+        rounds_used=rounds_used, found_total=len(seen),
+        attributed_total=sum(r["attributed"] for r in seen.values()),
+        unattributed_total=sum(not r["attributed"] for r in seen.values()),
+        exited_after_term=exited_after_term, exited_after_kill=exited_after_kill,
+        remaining=remaining, zombies=zombies, session_unknown=session_unknown,
+        elapsed_ms=(time.monotonic() - started) * 1000,
+    )
+
+
+def _maybe_sweep_job_session(request_sha256: Optional[str]) -> None:
+    if request_sha256 is None or os.environ.get(_JOB_SESSION_SWEEP_ENV) != request_sha256:
+        return
+    try:
+        sid = os.getsid(0)
+        own_ns = os.readlink("/proc/self/ns/user")
+        ancestors = []
+        visited: set[int] = set()
+        pid = os.getpid()
+        try:
+            while pid > 0 and pid not in visited:
+                visited.add(pid)
+                record = _read_session_process(pid)
+                ancestors.append({"pid": pid, "comm": record["comm"]})
+                if pid == 1:
+                    break
+                pid = record["ppid"]
+        except (OSError, ValueError, IndexError) as exc:
+            _job_trace("session-sweep-error", reason="ancestry-unreadable",
+                       type=type(exc).__name__, message=str(exc))
+            return
+        excluded = {ancestor["pid"] for ancestor in ancestors}
+        _job_trace("session-sweep-start", sid=sid, own_user_ns=own_ns,
+                   ancestors=ancestors)
+        _sweep_job_session(
+            sid, own_user_ns=own_ns, excluded_pids=excluded,
+            term_grace_s=_SESSION_SWEEP_TERM_GRACE_S,
+            kill_grace_s=_SESSION_SWEEP_KILL_GRACE_S, rounds=_SESSION_SWEEP_ROUNDS,
+        )
+    except Exception as exc:
+        _job_trace("session-sweep-error", type=type(exc).__name__, message=str(exc))
+
+
 def _intent_path(registry_root: Path, shard_index: int, suffix: str) -> Path:
     return registry_root / f"shard-{shard_index}.{suffix}.json"
 
@@ -909,6 +1127,7 @@ fi
 
 export PATH="$(dirname "$selected"):$PATH"
 export {_REQUEST_SHA256_ENV}="$REQUEST_SHA256"
+export {_JOB_SESSION_SWEEP_ENV}="$REQUEST_SHA256"
 unset {_TASK_RUN_ENV} {_TASK_RUN_ROOT_ENV}
 {task_transport_unset}exec "$selected" "$DISPATCHER" --job-run "$REQUEST"
 """
@@ -1625,6 +1844,7 @@ def _job_run(
         child_env.pop(_TASK_RUN_ENV, None)
         child_env.pop(_TASK_RUN_ROOT_ENV, None)
         child_env.pop(_REQUEST_SHA256_ENV, None)
+        child_env.pop(_JOB_SESSION_SWEEP_ENV, None)
         for name in (_TASK_RUN_SIDECAR_ENV, _TASK_RUN_AUTO_RECORD_ENV):
             if name not in spec.env_allowlist:
                 child_env.pop(name, None)
@@ -1681,6 +1901,9 @@ def _job_run(
         child_rc = INFRA_RC
     else:
         error = None
+
+    if stage in ("child", "child-launch"):
+        _maybe_sweep_job_session(request_sha256)
 
     if isolation_failed:
         _job_trace("job-return", rc=INFRA_RC, phase="isolation-failed")
