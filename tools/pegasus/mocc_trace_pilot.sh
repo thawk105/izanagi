@@ -411,6 +411,31 @@ for path_pattern, classification, reason in (
 if t1943_g2_i:
     for path_pattern, classification, reason in (
         (
+            "instr-patch.sha256",
+            "correctness_evidence",
+            "Binds the instrumentation patch bytes before application.",
+        ),
+        (
+            "instr-patch.numstat",
+            "correctness_evidence",
+            "Records the checked instrumentation patch touch set.",
+        ),
+        (
+            "instr-patch-source.sha256",
+            "correctness_evidence",
+            "Binds the patched transaction source bytes.",
+        ),
+        (
+            "instr-patch-apply.stdout",
+            "operational_diagnostic",
+            "Records patch check/apply stdout, normally empty.",
+        ),
+        (
+            "instr-patch-apply.stderr",
+            "operational_diagnostic",
+            "Records patch numstat/check/apply stderr, normally empty.",
+        ),
+        (
             "discriminator.stderr",
             "operational_diagnostic",
             "Records payload discriminator diagnostics.",
@@ -623,6 +648,11 @@ elif any(
     entry["path_pattern"].startswith("run/witness")
     or entry["path_pattern"].startswith("discriminator")
     or entry["path_pattern"] in {
+        "instr-patch.sha256",
+        "instr-patch.numstat",
+        "instr-patch-source.sha256",
+        "instr-patch-apply.stdout",
+        "instr-patch-apply.stderr",
         "witness-manifest.json",
         "trace0-watermark-absence.json",
     }
@@ -1531,7 +1561,34 @@ if [[ -z "$CACHE_ROOT" ]]; then
   exit 2
 fi
 THIRD_PARTY_STAGING_ROOT="$TMPDIR/thirdparty-src"
-timeout 20 python3 "$TOOLS/fetch_third_party.py" hydrate --repo-root "$REPO_ROOT" \
+# BEGIN T2780 HYDRATE INTERPRETER GATE
+HYDRATE_PY=""
+hydrate_py_rejected=""
+for py_name in python3 python3.10 python3.11 python3.12; do
+  py_cmd=$(command -v -- "$py_name") || continue
+  py_resolved=$(realpath -e -- "$py_cmd") || continue
+  [[ -x "$py_resolved" ]] || continue
+  if (
+    cd "$REPO_ROOT" &&
+    PYTHONPATH="$REPO_ROOT/orchestrator:$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" \
+    "$py_resolved" -c \
+      'import sys; import orchestrator.campaign.silo_ladder_rung1; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' \
+      "$REPO_ROOT"
+  ) >/dev/null 2>&1; then
+    HYDRATE_PY="$py_resolved"
+    break
+  fi
+  hydrate_py_rejected+="${hydrate_py_rejected:+ }$py_name=$py_resolved"
+done
+if [[ -z "$HYDRATE_PY" ]]; then
+  hydrate_gate_message="no python3 >= 3.10 candidate can import orchestrator.campaign.silo_ladder_rung1 (rejected: ${hydrate_py_rejected:-none})"
+  printf '%s\n' "$hydrate_gate_message" \
+    >"$ATTEMPT_DIR/third-party-hydrate.stderr"
+  write_failure 2 third_party "$hydrate_gate_message"
+  exit 2
+fi
+# END T2780 HYDRATE INTERPRETER GATE
+timeout 20 "$HYDRATE_PY" "$TOOLS/fetch_third_party.py" hydrate --repo-root "$REPO_ROOT" \
   --cache-root "$CACHE_ROOT" --staging-root "$THIRD_PARTY_STAGING_ROOT" \
   >"$ATTEMPT_DIR/third-party-hydrate.json" \
   2>"$ATTEMPT_DIR/third-party-hydrate.stderr"
@@ -1681,6 +1738,71 @@ fi
 BUILD_SOURCE="$TMPDIR/ccbench-source"
 git -C "$CCBENCH_BASE" worktree add --detach "$BUILD_SOURCE" "$NEW_OID" \
   >"$ATTEMPT_DIR/worktree-add.stdout" 2>"$ATTEMPT_DIR/worktree-add.stderr"
+
+PATCH_PATH=""
+PATCH_SHA=""
+PATCHED_SOURCE_SHA=""
+# BEGIN T2780 INSTRUMENTATION PATCH
+if [[ "$T1943_G2" -eq 1 ]]; then
+  if ! PATCH_PATH=$(realpath -e -- \
+    "$REPO_ROOT/patches/instr-mocc-lock-coverage.patch"); then
+    write_failure 2 instrumentation_patch "instrumentation patch cannot be resolved"
+    exit 2
+  fi
+  if [[ ! -f "$PATCH_PATH" || -L "$PATCH_PATH" ]]; then
+    write_failure 2 instrumentation_patch "instrumentation patch is not a real file"
+    exit 2
+  fi
+  if ! PATCH_SHA=$(sha256sum "$PATCH_PATH" | awk '{print $1}'); then
+    write_failure 2 instrumentation_patch "instrumentation patch hash failed"
+    exit 2
+  fi
+  printf '%s\n' "$PATCH_SHA" >"$ATTEMPT_DIR/instr-patch.sha256"
+  : >"$ATTEMPT_DIR/instr-patch-apply.stdout"
+  : >"$ATTEMPT_DIR/instr-patch-apply.stderr"
+
+  if ! git -C "$BUILD_SOURCE" apply --numstat "$PATCH_PATH" \
+    >"$ATTEMPT_DIR/instr-patch.numstat" \
+    2>>"$ATTEMPT_DIR/instr-patch-apply.stderr"; then
+    write_failure 2 instrumentation_patch "instrumentation patch numstat failed"
+    exit 2
+  fi
+  if ! awk -F '\t' '
+    NF != 3 || $1 !~ /^[0-9]+$/ || $2 !~ /^[0-9]+$/ ||
+      $3 != "cc/mocc/transaction.cc" { bad=1 }
+    END { exit (bad || NR != 1) }
+  ' "$ATTEMPT_DIR/instr-patch.numstat"; then
+    write_failure 2 instrumentation_patch "instrumentation patch touch set differs"
+    exit 2
+  fi
+  if ! git -C "$BUILD_SOURCE" apply --check "$PATCH_PATH" \
+    >>"$ATTEMPT_DIR/instr-patch-apply.stdout" \
+    2>>"$ATTEMPT_DIR/instr-patch-apply.stderr"; then
+    write_failure 2 instrumentation_patch "instrumentation patch check failed"
+    exit 2
+  fi
+  if ! git -C "$BUILD_SOURCE" apply "$PATCH_PATH" \
+    >>"$ATTEMPT_DIR/instr-patch-apply.stdout" \
+    2>>"$ATTEMPT_DIR/instr-patch-apply.stderr"; then
+    write_failure 2 instrumentation_patch "instrumentation patch apply failed"
+    exit 2
+  fi
+  if ! patch_sha_after=$(sha256sum "$PATCH_PATH" | awk '{print $1}'); then
+    write_failure 2 instrumentation_patch "instrumentation patch post-apply hash failed"
+    exit 2
+  fi
+  if [[ "$patch_sha_after" != "$PATCH_SHA" ]]; then
+    write_failure 2 instrumentation_patch "instrumentation patch changed during application"
+    exit 2
+  fi
+  if ! PATCHED_SOURCE_SHA=$(sha256sum \
+    "$BUILD_SOURCE/cc/mocc/transaction.cc" | awk '{print $1}'); then
+    write_failure 2 instrumentation_patch "patched source hash failed"
+    exit 2
+  fi
+  printf '%s\n' "$PATCHED_SOURCE_SHA" >"$ATTEMPT_DIR/instr-patch-source.sha256"
+fi
+# END T2780 INSTRUMENTATION PATCH
 
 build_mode() {
   local mode=$1
@@ -2223,12 +2345,16 @@ PY_T1943_WITNESS_MANIFEST
     exit 2
   fi
 
+  VERIFIER_SOURCE_ROOT="$CCBENCH_BASE"
+  if [[ "$T1943_G2" -eq 1 ]]; then
+    VERIFIER_SOURCE_ROOT="$BUILD_SOURCE"
+  fi
   verifier_rc=0
   (
     cd "$REPO_ROOT" &&
     "$VERIFIER_PY" -m orchestrator.verifier "$TRACE_DIR" --json \
       --expected-commits "$COMMIT_COUNT" --protocol mocc \
-      --ccbench-root "$CCBENCH_BASE"
+      --ccbench-root "$VERIFIER_SOURCE_ROOT"
   ) >"$ATTEMPT_DIR/verifier.json" 2>"$ATTEMPT_DIR/verifier.stderr" || verifier_rc=$?
   VERIFIER_RC=$verifier_rc
   printf '%s\n' "$VERIFIER_RC" >"$ATTEMPT_DIR/verifier.rc"
@@ -2509,7 +2635,8 @@ RECEIPT_WRITER_SHA=$(python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" "$AT
   "$ATTEMPT_DIR/discriminator.json" "${DISCRIMINATOR_RESULT_SHA:-}" \
   "${DISCRIMINATOR_RESULT:-not-run}" "${DISCRIMINATOR_RC:-not-run}" \
   "$ATTEMPT_DIR/trace0-watermark-absence.json" \
-  "${TRACE0_WATERMARK_ABSENCE_SHA:-}" <<'PY'
+  "${TRACE0_WATERMARK_ABSENCE_SHA:-}" \
+  "${PATCH_PATH:-}" "${PATCH_SHA:-}" "${PATCHED_SOURCE_SHA:-}" <<'PY'
 import base64
 import binascii
 import hashlib
@@ -2539,6 +2666,7 @@ import time
     discriminator_result_path, discriminator_result_sha,
     discriminator_result, discriminator_rc,
     trace0_watermark_absence_path, trace0_watermark_absence_sha,
+    patch_path, patch_sha, patched_source_sha,
 ) = sys.argv[1:]
 
 
@@ -2982,6 +3110,30 @@ else:
 
 t1943_binding = None
 if t1943_g2_i:
+    if (
+        not patch_path
+        or re.fullmatch(r"[0-9a-f]{64}", patch_sha) is None
+        or re.fullmatch(r"[0-9a-f]{64}", patched_source_sha) is None
+    ):
+        reject("T-1943 instrumentation patch capture is absent or invalid")
+    for path, expected_sha, sidecar, label in (
+        (patch_path, patch_sha, "instr-patch.sha256", "instrumentation patch"),
+        (os.path.join(build_source, "cc/mocc/transaction.cc"), patched_source_sha,
+         "instr-patch-source.sha256", "patched source"),
+    ):
+        if hashlib.sha256(read_regular_bytes(path, label)).hexdigest() != expected_sha:
+            reject("T-1943 " + label + " changed after capture")
+        if read_regular_bytes(os.path.join(attempt_dir, sidecar), label + " sidecar") != (
+            expected_sha + "\n"
+        ).encode("ascii"):
+            reject("T-1943 " + label + " sidecar differs")
+    numstat = read_regular_bytes(
+        os.path.join(attempt_dir, "instr-patch.numstat"), "instrumentation patch numstat"
+    ).decode("ascii").splitlines()
+    if len(numstat) != 1 or re.fullmatch(
+        r"[0-9]+\t[0-9]+\tcc/mocc/transaction[.]cc", numstat[0]
+    ) is None:
+        reject("T-1943 instrumentation patch touch set differs")
     if verifier_rc not in {"0", "1"} or discriminator_rc != "0":
         reject("T-1943 verifier/discriminator rc differs")
     trace_manifest_path = os.path.join(attempt_dir, "trace-manifest.json")
@@ -3085,6 +3237,13 @@ if t1943_g2_i:
         "T-1943 payload discriminator",
     )
     t1943_binding = {
+        "instrumentation_patch": {
+            "repo_path": "patches/instr-mocc-lock-coverage.patch",
+            "sha256": patch_sha,
+            "touched_paths": ["cc/mocc/transaction.cc"],
+            "patched_source_sha256": patched_source_sha,
+            "trace0_built_from_patched_source": True,
+        },
         "trace_manifest": {
             "path": "trace-manifest.json",
             "sha256": trace_manifest_sha,
@@ -3104,6 +3263,9 @@ if t1943_g2_i:
             "conclusion": discriminator_result,
         },
     }
+
+elif patch_path or patch_sha or patched_source_sha:
+    reject("T-1943 instrumentation patch capture leaked into general mode")
 
 submit_receipt_bytes = read_regular_bytes(
     submit_receipt_path, "submit receipt parent"
@@ -3161,7 +3323,7 @@ if trace_mode_i == 0:
     )
 payload = {
     "schema_version": (
-        "mocc-trace-pilot-receipt/t1943-g2-v1"
+        "mocc-trace-pilot-receipt/t1943-g2-v2"
         if t1943_g2_i
         else "mocc-trace-pilot-receipt/v4"
     ),
@@ -3259,6 +3421,11 @@ if t1943_g2_i:
             "trace_manifest_sha256": trace_manifest_sha,
             "witness_manifest_json": "witness-manifest.json",
             "witness_manifest_sha256": witness_manifest_sha,
+            "instr_patch_sha256": "instr-patch.sha256",
+            "instr_patch_numstat": "instr-patch.numstat",
+            "instr_patch_source_sha256": "instr-patch-source.sha256",
+            "instr_patch_apply_stdout": "instr-patch-apply.stdout",
+            "instr_patch_apply_stderr": "instr-patch-apply.stderr",
             "discriminator_json": "discriminator.json",
             "discriminator_sha256": discriminator_result_sha,
             "trace0_binary_sha256": trace0_binary_sha,
@@ -3307,6 +3474,7 @@ python3 - "$ATTEMPT_DIR/job-result.json" "$PBS_JOBID" "$RECEIPT_WRITER_SHA" \
 import hashlib
 import json
 import os
+import re
 import stat
 import sys
 import time
@@ -3343,13 +3511,32 @@ receipt = json.loads(receipt_bytes.decode("utf-8"))
 receipt_schema = receipt.get("schema_version")
 if receipt_schema not in {
     "mocc-trace-pilot-receipt/v4",
-    "mocc-trace-pilot-receipt/t1943-g2-v1",
+    "mocc-trace-pilot-receipt/t1943-g2-v2",
 }:
     raise ValueError("job result requires an exact admitted pilot receipt schema")
-if receipt_schema == "mocc-trace-pilot-receipt/t1943-g2-v1":
+if receipt_schema == "mocc-trace-pilot-receipt/t1943-g2-v2":
     discriminator_binding = receipt.get("t1943_g2_discriminator")
     if not isinstance(discriminator_binding, dict):
         raise ValueError("T-1943 receipt discriminator binding is absent")
+    patch_binding = discriminator_binding.get("instrumentation_patch")
+    if (
+        not isinstance(patch_binding, dict)
+        or set(patch_binding) != {
+            "repo_path", "sha256", "touched_paths", "patched_source_sha256",
+            "trace0_built_from_patched_source",
+        }
+        or type(patch_binding.get("repo_path")) is not str
+        or patch_binding["repo_path"] != "patches/instr-mocc-lock-coverage.patch"
+        or any(
+            type(patch_binding.get(key)) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", patch_binding[key]) is None
+            for key in ("sha256", "patched_source_sha256")
+        )
+        or type(patch_binding.get("touched_paths")) is not list
+        or patch_binding["touched_paths"] != ["cc/mocc/transaction.cc"]
+        or patch_binding.get("trace0_built_from_patched_source") is not True
+    ):
+        raise ValueError("T-1943 receipt instrumentation patch binding differs")
     result_binding = discriminator_binding.get("discriminator_result")
     if (
         not isinstance(result_binding, dict)
