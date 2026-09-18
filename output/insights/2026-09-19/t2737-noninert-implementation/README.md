@@ -57,4 +57,27 @@ BACK_OFF=1の焦点再レビューも **GO**。全200行・17ハンクを独立�
 一致と上記の分類を確認した。詳述は `verbatim/focus.md`。C++原ログの成功件数はstudy_lock_testが
 IMPL=0で8件・IMPL=1で11件、make_db_testは各1件である。
 関連Pythonテストは最終状態で103 passed (3.77秒)。文書・Codex設定・diff検査も通過。
-この段階では変異と受入全走は未実施であり、wave全体の完了とは扱わない。
+## 変異の裏取り
+
+製品anchor `0bd0895da` と同じ本体を独立cloneへ固定し、authorの一回限りprobeと入力データだけを
+private commit `e9409610e` に追加した。この検証用commitはmainへ取り込まない。
+既存mutation harnessを使い、baselineは1 passed (102.69秒)。各走の入力は独立したpristine複製である。
+
+| 変異 | 実測結果 | 最初の拒否・判定 |
+|---|---|---|
+| M1 helper除去 | KILLED | 4軸がpreprocess-failed。依存準備の欠落を検出 |
+| M2 study条件include復活 | KILLED | IMPLだけdependency-closure-drift、他3軸はgreen |
+| M3 WFG条件include復活 | KILLED | WFGだけdependency-closure-drift、他3軸はgreen |
+| M4 DLR marker差の復活 | KILLED | DLRだけcompile-command-drift、他3軸はgreen |
+| M5 publish_wait呼出し1箇所削除 | 自動probeはSURVIVED、全TU比較で拒否 | read_internalの実呼出し欠落が追加1ハンクとなる |
+| M6 wfg.cc無条件source追加 | KILLED | plain SのcompileでSS2PLWfgMode未宣言。既存不在validatorは未到達 |
+
+M5について、各attemptの絶対rootだけを同じ表示へ置き換えてbaselineの旧新diffと比較すると、
+transactionに `publish_wait(*this, &tuple->lock_, SS2PLWfgMode::read);` の消失1ハンクが加わり、
+他3 TUのdiffは一致した。計器呼出しの保存条件に反するため、同じ差分判定で拒否する。
+この比較を関門の自動killに計上せず、自動probeの限界も保持する。生diffは
+`receipts/tu-diffs.json` にUTF-8文字列・元bytes数・SHA-256で可逆保存した。
+
+harnessは5 KILLED・1 SURVIVED、全6件が事前の自動判定期待と一致、MISMATCH/PARSE_ERROR/TIMEOUTは0。
+wrapper rc=0、共有木の前後観測一致、復元・teardown完了。原台帳とwrapper受領証は `receipts/`。
+受入全走はこの記録commit時点では未実施。実装と計器保存、局所の検出力をcontrols全体の成立へ拡張しない。
