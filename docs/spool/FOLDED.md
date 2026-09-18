@@ -4776,3 +4776,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-09-18","base":"e9e92f435bb8c2b2c2151406296ca91dda526820","content_sha256":"4f357fd313e352bf09779515132bc1707b0352d6edc5b1bc1f5c1c5eaacf582d","seq":3,"tested_tip":"6b6d799bd6c36464162cfc00b18802195d64198e","wave":"dev-wave-t2737-ss2pl-gate-controls","wave_ref":"refs/heads/worktree-dev-wave-t2737-ss2pl-gate-controls"}
 
 - {"allocations":{},"authored":"2026-09-18","base":"58ca580f584730c5a3ae6f66ccc48365d01aead4","content_sha256":"6e57007fa81adbda4f4478f6c02946c542d2c81083d0857186d15d40248a75f6","seq":1,"tested_tip":"e554c637126e226bfb6855f3e117a300ffab7390","wave":"dev-wave-t2037-axis1-second-pass-stop","wave_ref":"refs/heads/worktree-dev-wave-t2037-axis1-second-pass-stop"}
+
+- {"allocations":{},"authored":"2026-09-18","base":"49a9887ff3d201cf8d48e2c0946dc01433a1e520","content_sha256":"46b4ffab72ea086ef50d9415412e01e4c99dc824bf2d7b16e5c2e21bde335ae3","seq":1,"tested_tip":"9b62662413477bc5931e31e4d975803a6ddb4514","wave":"dev-wave-t2489-a2-nodes5-probe","wave_ref":"refs/heads/worktree-dev-wave-t2489-a2-nodes5-probe"}
