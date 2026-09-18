@@ -1,0 +1,91 @@
+"""親の運転 script (repo 外)。変異 spec を作り、各 old anchor が対象 file 内で一意であることを検査する (DW-M04)。
+使い方: python3 make_spec.py <repo の絶対 path> <出力 json> <probe|final> [expected-nodes json]
+probe = 全件 SURVIVED 登録 (観測 node 収集)。final = M0 SURVIVED、M1〜M7 KILLED (期待 node は較正結果 json から)。
+"""
+import json
+import pathlib
+import sys
+
+repo = pathlib.Path(sys.argv[1])
+out = pathlib.Path(sys.argv[2])
+mode = sys.argv[3]
+expected = json.loads(pathlib.Path(sys.argv[4]).read_text()) if len(sys.argv) > 4 else {}
+DC = "tools/pegasus/dispatch_compute.py"
+
+
+def rep(file, old, new):
+    return {"file": file, "old": old, "new": new}
+
+
+M = []
+# M0 等価対照 (docstring の言い換え、挙動不変)
+M.append(("m0-equivalent-docstring", "positive", [rep(
+    DC,
+    '    """Read stat without splitting a comm that contains spaces or parentheses."""\n',
+    '    """Parse /proc stat; comm may contain spaces or parentheses, so split on the last ")" (equivalent mutation marker)."""\n')]))
+# M1 sweep 呼出し削除
+M.append(("m1-sweep-call-removed", "negative", [rep(
+    DC,
+    "        _maybe_sweep_job_session(request_sha256)\n",
+    "        pass\n")]))
+# M2 祖先除外を自分だけに縮小 (帰属述語が先に守る冗長 gate → diagnostic sensitivity pin として別枠)
+M.append(("m2-ancestor-exclusion-self-only-pin", "negative", [rep(
+    DC,
+    '        excluded = {ancestor["pid"] for ancestor in ancestors}\n',
+    "        excluded = {os.getpid()}\n")]))
+# M3 opt-in 判定を無視 (常時発火)
+M.append(("m3-opt-in-ignored", "negative", [rep(
+    DC,
+    "    if request_sha256 is None or os.environ.get(_JOB_SESSION_SWEEP_ENV) != request_sha256:\n",
+    "    if False:\n")]))
+# M4 SIGKILL 段削除
+M.append(("m4-kill-stage-removed", "negative", [rep(
+    DC,
+    "                _signal_session_process(fd, record, signal.SIGKILL)\n",
+    "                pass\n")]))
+# M5 消滅確認削除 (poll 結果を捏造)
+M.append(("m5-exit-confirmation-forged", "negative", [rep(
+    DC,
+    "        events = poller.poll(math.ceil(remaining * 1000))\n",
+    "        events = [(fd, select.POLLIN) for fd in pending]\n")]))
+# M6 再列挙 (2 巡目) 削除
+M.append(("m6-single-round", "negative", [rep(
+    DC,
+    "    for round_index in range(rounds):\n",
+    "    for round_index in range(1):\n")]))
+# M7 帰属述語を恒真に
+M.append(("m7-attribution-always-true", "negative", [rep(
+    DC,
+    "        attributed = user_ns is not None and user_ns != own_user_ns\n",
+    "        attributed = True\n")]))
+
+mutations = []
+for mid, category, replacements in M:
+    for r in replacements:
+        text = (repo / r["file"]).read_text(encoding="utf-8")
+        n = text.count(r["old"])
+        if n != 1:
+            raise SystemExit(f"{mid}: anchor count {n} != 1 in {r['file']}")
+    if mode == "probe":
+        status, nodes = "SURVIVED", []
+    else:
+        if mid.startswith("m0"):
+            status, nodes = "SURVIVED", []
+        else:
+            status, nodes = "KILLED", sorted(expected[mid])
+            if not nodes:
+                raise SystemExit(f"{mid}: KILLED with empty expected nodes")
+    mutations.append({
+        "id": mid, "category": category, "replacements": replacements,
+        "expected_nodes": nodes, "expected_status": status, "hang_risk": False,
+    })
+
+spec = {
+    "schema": "izanagi-dev-wave-mutation-spec/v1",
+    "estimated_run_seconds": 240,
+    "timeout_seconds": 2700,
+    "hang_timeout_seconds": 2700,
+    "mutations": mutations,
+}
+out.write_text(json.dumps(spec, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+print(f"wrote {out} ({len(mutations)} mutations, mode={mode})")
