@@ -79,7 +79,18 @@ INTERNALERROR/crashitemは別に発生した。旧`evidence/focus-chain-3-summar
 
 ## 検査・記録の所在
 
-回収時の統合snapshot全史provenanceは11467件、新規違反0、既知違反56件（解消したとは扱わない）。
-新統合tipの焦点走と最終受入はこれから実施する。結果は回収jobの受領証と後続記録へ残す。
+統合tip `423bef885` の29file焦点走はrequest6381、2713 passed / 36 skipped、失敗0、309.71秒。
+共有sink testの単独走は初回request6404が900秒のqueue待ち上限でchild未開始のrc16となった。
+job不在・producer/待ち手終了を確認し、同tipをrunner既定配置で再走してbounded localで
+71 passed / 2 skipped、70.85秒、rc0。これはテスト失敗の除外やhold追加ではない。
+同tipの全史provenanceは11468件、新規違反0、既知違反56件（解消したとは扱わない）。
+修正後の焦点再レビューは `verbatim/recovery-focus-review.md`、限定4項目closed・GO。
+ログは `evidence/recovery-focus-1.log`、`recovery-pin-test-1.log`、`recovery-pin-test-2.log`。
+最終受入は記録commit後に実施し、回収jobの成功受領証とland応答を正本とする。
+既存のqueue待ちoverrideを3600秒、待ち手全体上限を10800秒とし、検査内容は変更しない。
 回収job: `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2724-t2776-recovery/`。
 改善実装と次waveは追加しない。chain/X2/G保存枝と人間A/Xの境界を維持する。
+
+原本の保全先は回収jobの`recovered-insight`と`recovered-decisions.md` / `recovered-failures.md`。
+旧dispatchの参照pathは同jobの`recovered-dispatch/source-wave`および`mut1`〜`mut4`へ対応し、
+それぞれ49/65/73/65/73fileのbyte一致を確認した。旧branchを清掃してもこの保全先で追跡できる。
