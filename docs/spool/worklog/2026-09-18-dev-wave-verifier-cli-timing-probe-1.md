@@ -47,5 +47,12 @@ title: verifier CLI 単独計時 probe — read-heavy (rr95・3 秒・48 thread�
   元の staged patch と branch bundle は同 job dir の `recovery-original-staged.patch` / `recovery-original-branches.bundle` に保全。
   回収進捗・受入・land・清掃の実測結果は同 job dir `RECOVERY-HANDOFF.md` と受領証に記録する。
   phase の実装完了項に対応しないためチェックを新設しない。dev-wave 改善候補は専用 handoff に記録し、改善実装や次 wave は行わない。
+- 回収後の受入attempt1 (tested tip `97fc3aaba`、main `b2037abfa`) は 25,115 passed / 69 skipped / 18 setup error。
+  junit本文で確認すると、S8c snapshot準備4件は `git archive` の10秒timeout、t1259準備14件は `git status` と
+  `git ls-files --others` の30秒timeoutが各7件で、assertion failureは0。今回の6文書は当該production・test・timeout値を
+  変更せず、S8cのarchive対象にも含まれない。DW-O18に従い同tipでt1259全fileとS8c該当4nodeを1回だけ再走し、
+  job `6399.nqsv` は **55 passed (106.82秒、Elapse 113秒)** で非再現。テストの除外・期待値変更・timeout緩和はしない。
+  初回赤を緑に読み替えず、受入を再走する。原ログと最終受領証は同job dirの `recovery-acceptance-*`、
+  切り分けは `recovery-focused-1.log`。計測probeの再投入は0回。
 
 ## 次の一手差分
