@@ -21,6 +21,7 @@
 | `fig6_a2_certification_observed_positive.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | A-2 正式 certification (outer `observed-positive`) の**結果図**。D1644 の pin + patch 束縛 src_token で identity を計算する driver で取り直した attempt `t2364-20260907b` を描く。`fig5_` の後継ではなく、**別の条件を測った別の attempt** の独立した図である (絶対規律 7)。判定は `certification.json` から読み、生成器は再計算しない |
 | `fig7_a2_builtin_backoff_onoff_reject.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a2_certification.py` | `fig5_` と**同じ attempt `t2022-20260828c`・同じ値・同じ outer `reject`** を、**効いた条件の記述へ訂正**して描いた図。比較したのは CCBench 内蔵の適応 backoff の 有効/無効 (`BACK_OFF` の 0/1) である。`fig5_` の bytes は 1 byte も変えていない。**採用静的 backoff の結論・図としては使わない (D1936項21・D1993決定5、期限なし)** |
 | `fig8_b10_static_tail_not_observed.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_b10_static_tail_formal.py` | B-10 静的 backoff 右 tail の **09-15 正式 cohort** (group `b10-backoff-grid-20260915T061814Z-545445`、集団判定 `not-observed-in-any-workload`) の**記述図**。事前登録 §4.1 の 8 点 × 3 workload × 5 反復。`fig2c_` とは別格子・別 cohort であり、その続きではない。言い方は事前登録 §4.5 の固定表現に限り、**性能は未認証 (`performance_certified: false`)**。2 本目の論文と共用しない (D1637) |
+| `fig9_a1_balanced5_sized_attempt1.png` / `.pdf` / `.provenance.json` | `tools/plotting/plot_a1_sized_paired.py` | A-1 balanced5 sized 本走 **attempt-0001** (study `paper-story-a1-20260901-balanced5-sized-v1`、job `4939` / `4940` / `4941`) の**記述図**。3 workload の 30 対の差 (variant − baseline) と、その対差平均 ± 登録済み区間 h を床 ±B と並べる。**非認証 lane (`formal=false` / `promotion_prohibited=true` / `result_authority=sized-preregistered-descriptive-only`)** のdescriptive 出力であり、headline 値・workload 横断の結論・C1 の再現判定にせず、単一 attempt を反復間の安定性へ一般化しない。A-1 の充足・formal 化・再認可は判定しない。既存図の後継ではなく独立した新図。2 本目の論文と共用しない (D1637) |
 
 **fig5 の用途制限の追補 (2026-09-11、D1936項21・T-2521):** 一覧の「取り直しまで」という期限は
 当該旧図には適用しない。採用静的 backoff に関する A-2 の結論・図として使えない制限は期限なしである。
@@ -814,3 +815,118 @@ provenance JSON は生成時刻を持ち、PDF は matplotlib が生成日時を
 - 結果節・表・限定の材料 → `docs/paper-story/results/2026-09-16-b10-static-tail-not-observed.md`
 - 事前登録 → `docs/b10-backoff-static-tail-preregistration.md` (§4.1 格子、§4.4 判定、§4.5 固定表現)
 - 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`
+
+# `fig9_a1_balanced5_sized_attempt1` — A-1 balanced5 sized 本走 attempt-0001 の対差平均 ± 登録済み区間 (非認証 lane の記述図)
+
+## 何を示す図か
+
+study `paper-story-a1-20260901-balanced5-sized-v1` の sized 本走 attempt-0001 (2026-09-18、job `4939.nqsv` / `4940.nqsv` /
+`4941.nqsv`、各 30 対 × 2 arm) について、3 workload (write-heavy rr5: `fixed10` − `no-backoff`、balanced rr50: `fixed5` −
+`no-backoff`、read-heavy rr95: `fixed2` − `no-backoff`) の**記述図**である。各 panel は x = pair index (0〜29)、y = 対差
+(variant − baseline、M tps) で、30 対の差を open marker、対差の算術平均を実線、登録済み区間 (平均 ± h、`h = k·s/√n`、
+`k = 2.8315526875186725`、df 29) を帯、0 を細い実線、登録済み床 ±B (B = baseline arm 平均の 3 %) を破線で描く。
+y は workload ごとの尺度で、panel 間で高さを比べない。
+
+**この lane は `formal=false` / `promotion_prohibited=true` / `result_authority=sized-preregistered-descriptive-only` である。**
+登録済み解析の分類は 3 workload とも `resolved-above-floor` (対差平均の符号は write-heavy 正 / balanced 正 / read-heavy 負、
+`variance_plan_breach` は 3 本とも false) だが、これは事前登録した分類規則の descriptive な出力であって、仮説検定でも
+性能認証でもない。図と caption が言うのは「この attempt でこの値だった」までで、**headline 値・workload 横断の結論・C1 の
+再現判定にせず、単一 attempt を反復間の安定性へ一般化しない。A-1 の充足・formal 化・再投入・再認可は判定しない**
+(認可はユーザー手番、D2044 項 8 / D2120 項 3)。図を variant 採用の根拠にしない (絶対規律 2)。
+
+## 既存図との関係
+
+- 既存図 (fig1〜fig8) のいずれの後継でもない独立した新図。A-2 / A-6 の結果図 (fig5〜fig7) は median 比 (5 標本) の
+  certification protocol、本図は 30 対の対差平均の descriptive lane で、推定量も protocol も違う。プールしない (D1993 項 6)。
+- pilot (2026-09-01、60 対) の観測値は入っていない (反復数の決定にだけ使われた。事前登録 §7.2)。
+- **2 本目の論文 (`docs/paper-story-backoff/`) と共用しない** (D1637)。
+
+## 入力
+
+- 権威 bytes (repo 内、tracked): `output/insights/2026-09-13/paper-story-a1-balanced5-sized/` の `result.json` (統計と 30 対の生値、
+  arm の `correctness_evidence`)、`receipt.json` (job / host)、`.complete.json` (3 file の SHA-256 map) と、policy
+  `orchestrator/campaign/paper_story_a1_paired.v3-sized.json` (k / df / planned sigma / arm / `authority`)。生成器は repo 所有の
+  pin 表で 4 件の SHA-256 を照合する。**pin は CLI から渡せない。** SHA-256 の値は
+  `docs/paper-story/results/2026-09-18-a1-balanced5-sized-attempt1-descriptive.md` §5.1 と同じで、
+  `orchestrator/tests/test_plot_a1_sized_paired.py` が両者の一致を検査する。
+- 統計 (mean / variance / sd / h / baseline mean / B / 区間) は `statistics.pairs` の 30 対から生成器が再計算し、`statistics` の
+  記録値と fail-closed で照合する。分類 (`classification`) は記録値をコピーし、述語 (`abs(mean) − h > B` → resolved-above-floor /
+  `abs(mean) + h ≤ B` → bounded-below-floor / それ以外 unresolved) との一致だけを検査する。`variance_plan_breach` も検算する。
+- 拒否条件: SHA-256 不一致、`formal` が false 以外、`promotion_prohibited` が true 以外、`valid` が true 以外、`errors` 非空、
+  n ≠ 30、対の差が `variant − baseline` と不一致、`pairs[i]` と `raw_tps[i]` の不一致、genome 不一致、統計の不一致、分類の
+  述語不一致、`variance_plan_breach` true、両 arm の `correctness_evidence.certified` が `[true]` 以外または `verify_configs`
+  が `["legacy"]` 以外、policy SHA-256 と `policy_sha256` の不一致、caption_source (results 稿) の不在。いずれでも成果物を出さない。
+- **caption_source:** provenance の `tracked_inputs` に `kind: "caption_source"` として results 稿
+  `docs/paper-story/results/2026-09-18-a1-balanced5-sized-attempt1-descriptive.md` の path と SHA-256 を記録する
+  (`authority_scope` = 限定と条件の言い方の出所であって、数値・分類の出所ではない)。稿は provenance の SHA-256 を持たない
+  (F36 の自己参照回避)。稿は凍結物なので着地後に変わらない。
+
+## 再現
+
+```bash
+python3 tools/plotting/plot_a1_sized_paired.py \
+  docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1
+```
+
+`--repo-root` は省略時に生成器の位置から repo root を決める。入力は repo 相対で固定 (CLI から別の leaf を渡せない)。
+図番号は出力 prefix の `fig<N>_` から導く。`fig<N>_` の形でない prefix は出力前に拒否する。
+生成は login node で行う (計測機の外、FIGURE_CONVENTIONS §7)。
+
+### 再現できるのは「値」であって「バイト列」ではない
+
+provenance JSON は生成時刻を持ち、PDF は matplotlib が生成日時を埋め、PNG は matplotlib の版と font 解決に依存する。
+着地したバイト列の同一性は provenance JSON が記録した `outputs[].sha256` と
+`test_landed_fig9_repo_closure_and_caption_when_present` が守る。生成器の `generator.sha256` は生成時点の記録であり、
+現行 source を縛る pin ではない (規律 7)。
+
+## 作図規約への適合
+
+- §1: 数値は `result.json` の `pairs` (30 対の生値) からその場で再計算し、記録値 (`statistics`) とは fail-closed で照合する。
+- §2: 30 対の生値と、登録済み区間 (平均 ± h) を描く。区間は事前登録が固定した k (`t(1 − (1/120)/2, 29)`) による幅で、
+  caption に登録済みの k と分位点を明記する (95% CI とは書かない)。
+- §3: 比較対象 (床 ±B と 0) を水平の破線・実線で描き、差の帯と目で比べられる。
+- §5: 図中ラベルは `pairs` / `mean` / `mean ± h` / `±B floor` / `zero` と workload 名 + 対比だけ。内部識別子は出さない。
+- §6: provenance に入力 4 file + caption_source の path と SHA-256、study / source commit / pin、測定条件、3 workload の
+  cells (統計・30 対・request / host・正しさの記録)、`artist_series` (実際に描いた y 値)、`limitations` (result.json の逐語)、
+  caption、展開済み再現 argv を記録する。
+- §9: 保存前に renderer-backed layout check を走らせ、text の重なり・逸脱があれば 3 成果物を 1 つも出さない。
+- §10: 単体テストの fixture は実寸 (3 workload × 30 対 × 2 arm) で、本物の matplotlib Figure を layout check へ通す。
+  実データで実走して 3 成果物を確かめた (下の proof chain)。
+
+## キャプション正文
+
+キャプション正文は provenance JSON の `caption` と同一文字列であり、
+`orchestrator/tests/test_plot_a1_sized_paired.py` が本 README への収録と生成器の決定的な組み立てとの一致を検査する。
+英文で書く。値 (mean / h / B / baseline mean / job / host / 分類 / 符号) は生成器が `result.json` / `receipt.json` から書式化する。
+
+> Figure 9. A-1 balanced five-rep paired comparison, sized run attempt-0001 (study paper-story-a1-20260901-balanced5-sized-v1; formal: false; promotion_prohibited: true; result_authority: sized-preregistered-descriptive-only). Columns: write-heavy (rr5, fixed10 minus no-backoff), balanced (rr50, fixed5 minus no-backoff), read-heavy (rr95, fixed2 minus no-backoff), each an independent campaign in its own job (job IDs, respectively: 4939.nqsv, 4940.nqsv, 4941.nqsv; hosts bnode107, bnode108, bnode109). What is drawn: 30 paired differences (variant minus baseline, one per pair index under the balanced five-rep schedule, ten-pair groups in the order A^5 B^5 B^5 A^5 or B^5 A^5 A^5 B^5) as open markers; the arithmetic mean as a solid line with the registered interval mean ± h, h = k·s/√n, k = 2.8315526875186725 (t quantile at 1 − (1/120)/2 with df 29), s the sample standard deviation of the 30 differences; the zero line; and the registered floor boundary ±B, B = 3 % of the baseline-arm mean, as dashed lines. M tps means million transactions per second. Values: write-heavy mean +1.592 M tps (h 0.024 M, B 0.069 M, baseline mean 2.293 M); balanced mean +0.449 M tps (h 0.028 M, B 0.116 M, baseline mean 3.863 M); read-heavy mean -0.577 M tps (h 0.033 M, B 0.310 M, baseline mean 10.340 M). The registered classification is resolved-above-floor in all three workloads (sign positive, positive and negative, respectively); variance_plan_breach is false in all three. The interval and the classification are the descriptive outputs of the preregistered rule; they are not a hypothesis test and are not a performance certification. This figure reports a single attempt of a non-certified lane: it is not a headline value, no cross-workload conclusion is drawn (preregistration section 7.2), it is not a reproduction of C1, and one attempt does not speak to stability across repeated attempts. Conditions: Pegasus compute nodes, 48 threads, 1,000,000 records, Zipf 0.9, read-modify-write disabled, max operations 10, 3 s per repetition, 30 pairs per workload, silo, CCBench pin 511c953, measurement source commit d2ebef7a4, no perf, trace-disabled performance. Correctness comes from separate trace-enabled verify runs under the recorded legacy check configuration, not the performance configuration: all 6 arms are recorded as certified (result.json correctness_evidence, verify_done frames bound by SHA-256); certified means serializability of the observed YCSB point read/write traces under that check configuration and nothing beyond, and this is not a performance certification. Panel y scales are workload-local and must not be compared across panels. Pilot observations did not enter the estimate; the estimand is the difference under the balanced five-rep schedule, not a carryover-free steady-state effect.
+
+## proof chain
+
+- 図に描いた 30 点・平均・帯・±B・0 → provenance JSON の `artist_series` (panel ごとの y 値) と `workloads[]` (cells)
+- cells の統計 → `result.json` の `workloads[].statistics` (生成器は `pairs` から再計算して照合。分類は記録値のコピー)
+- 標本の由来 → `result.json` の `statistics.pairs` と `arms.<name>.raw_tps` (対応を検査)、その先は campaign WAL
+  (`wal_evidence` の path と SHA-256、results 稿 §5.2)
+- 入力の束縛 → `.complete.json` の `files` map、生成器の pin 表、results 稿 §5.1 の表
+- 正しさの記録 → `result.json` の `arms.<name>.correctness_evidence` (6 arm とも `certified: [true]`、`legacy`。anomaly 数は
+  `wal_evidence.records[]` と WAL にあり、6 本とも 0。性能の認証ではない)
+- 限定と条件の言い方 → results 稿 (provenance の `caption_source`、SHA-256 束縛)
+- それらが着地後もずれないこと → `orchestrator/tests/test_plot_a1_sized_paired.py`。着地後の closure 検査
+  (`validate_repo_closure`) が見るのは、着地 PNG / PDF の SHA-256・pin 表・現行 leaf から作り直した cells / artist / caption
+  との一致・caption_source の現 SHA-256 である
+- 結果節・表・限定の材料 → `docs/paper-story/results/2026-09-18-a1-balanced5-sized-attempt1-descriptive.md`
+- 事前登録 → `output/insights/2026-09-13/paper-story-a1-balanced5-sized-preregistration/README.md` (§3 推定対象、§5.1 区間、
+  §5.2 分類、§7.2 できないこと)
+- 作図規約の正本 → `tools/plotting/FIGURE_CONVENTIONS.md`
+
+## 着地 bytes の SHA-256
+
+次の 3 行が着地 bytes の正本である。`orchestrator/tests/test_plot_a1_sized_paired.py` の着地 test が、この 3 行の値と
+着地 file の現物 SHA-256 の一致を検査する (行の形は `- \`<basename>\` SHA-256: \`<64 hex>\`` で固定)。
+
+- `fig9_a1_balanced5_sized_attempt1.png` SHA-256: `FIG9_PNG_SHA256_PLACEHOLDER`
+- `fig9_a1_balanced5_sized_attempt1.pdf` SHA-256: `FIG9_PDF_SHA256_PLACEHOLDER`
+- `fig9_a1_balanced5_sized_attempt1.provenance.json` SHA-256: `FIG9_PROV_SHA256_PLACEHOLDER`
+
+provenance が `caption_source` として束縛する results 稿の SHA-256 は `FIG9_CAPTION_SOURCE_SHA256_PLACEHOLDER`
+(稿は凍結物で、着地後に変わらない)。
