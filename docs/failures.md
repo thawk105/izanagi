@@ -9498,6 +9498,11 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   積み、受入を取り直した。再発検知は本 F の手順 (land 前に `git rev-list --parents` で各 merge の親のどれかが
   tested main の祖先であることを確認する) を `hooks/README.md` の「guard 自身の保守境界」(5) へ写した —
   hooks/ を触る wave は第 2 worktree 経路を必ず通るので、この族に必ず入る。
+
+- **再発: 2026-09-18** — T-2608の回収で、main基点へ旧waveをmergeした後に同内容のauthor tipを履歴保全目的でmergeした。
+  後者ceb258ff7はtrusted親0で、第二親から見ると `M docs/spool/FOLDED.md` があり、landはrc26で拒否した。
+  累積tree差分ゼロとspool dry-run、受入25134 passed / 69 skippedを履歴適格性と取り違えた。mainは不動。
+  既存対処どおりmain第一親の一括mergeへ組み直す。DW-O23から本Fの一括merge・各親差分確認へ接続し、gateは変更しない。
 ### F267. 子の大出力 command が evidence を全損させる [証拠破損] [工数喪失]
 
 - 事象: 段 3 のレンズ B が 2 回連続で `evidence_status=invalid` となり、待ち手が rc=70
@@ -25787,6 +25792,11 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 終了判断時に、原因調査・許可範囲の修正・再検証で進める状況でないかを確認する。
   人間の裁定/権限や新しい外部状態が必要という具体的根拠がなければ、再開要求へ逃がさない。
 
+
+- **再発: 2026-09-18** — 上記の修復可能なland拒否に対し、親が次wave禁止を理由に終了し、新contextでの再開をユーザーへ要求した。
+  `retryable_same_request=false` は同じ入力の再投入を拒む値で、監査済み成果からの局所修復まで禁じる根拠ではなかった。
+  ユーザーの「main landまでやれよ。自己改善よろ」で同じ依頼を継続。DW-STOPへ同一目的の修復と次waveの区別を明記した。
+  正式停止の条件、postcondition failureの停止、規律2、rebase/force禁止は維持する。
 ### F947. 私有関数の戻り型変更を、静的レビュー 3 本が揃って数え落とした [テスト代表性] [手順漏れ]
 
 - 事象: 単位 A1' の実装差分を当てた直後の焦点走で 118 node が赤になった

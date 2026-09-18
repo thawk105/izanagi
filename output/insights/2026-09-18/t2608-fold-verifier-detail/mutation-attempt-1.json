@@ -1,0 +1,110 @@
+{
+  "attempts": [
+    {
+      "artifact_error": null,
+      "console_sha256": "bfea38c1255bbd6f15b352c60460b377886a5e241dcbbd24f36f3062fcb01f69",
+      "finished_at": "2026-09-18T06:41:02.916600+00:00",
+      "mutation_id": null,
+      "phase": "collection",
+      "rc": 0,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/3f2bec2c8a328fc46b177e34ebdee39f/izdw-3f2bec2c8a.o5872",
+        "outcome_rc": 0,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/3f2bec2c8a328fc46b177e34ebdee39f/receipt.json",
+        "request_id": "5872.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/3f2bec2c8a328fc46b177e34ebdee39f"
+      },
+      "run_attempt_ordinal": 1,
+      "started_at": "2026-09-18T06:35:18.175513+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "4bfce4dfed51b6c7ea62f702967f46cdd5859f0d91c6118f3cb476b4ed1ddabf",
+      "finished_at": "2026-09-18T06:41:48.121021+00:00",
+      "mutation_id": null,
+      "phase": "baseline",
+      "rc": 0,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/588d9fc63dc0a2359d333eaec5efddac/izdw-588d9fc63d.o5879",
+        "outcome_rc": 0,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/588d9fc63dc0a2359d333eaec5efddac/receipt.json",
+        "request_id": "5879.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/588d9fc63dc0a2359d333eaec5efddac"
+      },
+      "run_attempt_ordinal": 2,
+      "started_at": "2026-09-18T06:41:10.019176+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "ec91e77be75ff0b9f45d5c1d2d2983851b4bc464b133988a471aad8b752ba920",
+      "finished_at": "2026-09-18T06:42:57.484975+00:00",
+      "mutation_id": "m0-equivalent-json-kwarg-order",
+      "phase": "mutation",
+      "rc": 0,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/387256ee41b89916d216538d33fd3d19/izdw-387256ee41.o5880",
+        "outcome_rc": 0,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/387256ee41b89916d216538d33fd3d19/receipt.json",
+        "request_id": "5880.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/387256ee41b89916d216538d33fd3d19"
+      },
+      "run_attempt_ordinal": 3,
+      "started_at": "2026-09-18T06:41:54.465759+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "06b7b3e282dd75c49148d1da23868b21efdff4dd61b0646aaecdb5c8e15807b3",
+      "finished_at": "2026-09-18T06:44:01.395405+00:00",
+      "mutation_id": "m1-diagnostic-pin-revert-to-str-exc",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/3a7a897bfaa464c2d4e767dc607db614/izdw-3a7a897bfa.o5883",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/3a7a897bfaa464c2d4e767dc607db614/receipt.json",
+        "request_id": "5883.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/3a7a897bfaa464c2d4e767dc607db614"
+      },
+      "run_attempt_ordinal": 4,
+      "started_at": "2026-09-18T06:43:03.394203+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    },
+    {
+      "artifact_error": null,
+      "console_sha256": "6cf83c92601d0ea99d3dea5fa14e69530b6de0d55076d7d3d450fea3ae4739a7",
+      "finished_at": "2026-09-18T06:45:11.485387+00:00",
+      "mutation_id": "m2-fail-open-return-instead-of-raise",
+      "phase": "mutation",
+      "rc": 1,
+      "request": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/363c736d571d9b9c02443604ec7d6f77/izdw-363c736d57.o5886",
+        "outcome_rc": 1,
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/363c736d571d9b9c02443604ec7d6f77/receipt.json",
+        "request_id": "5886.nqsv",
+        "submission_dir": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/363c736d571d9b9c02443604ec7d6f77"
+      },
+      "run_attempt_ordinal": 5,
+      "started_at": "2026-09-18T06:44:08.631006+00:00",
+      "state": "finished",
+      "timed_out": false,
+      "wrapper_attempt_ordinal": 1
+    }
+  ],
+  "expected_initial_requests": 5,
+  "repo_head": "08aa6cf99efeb8f49a68cb656c7f0d14d3cc40e0",
+  "runner_sha256": "39686322e2f77f08e10f464a4a04cbce800886f9051af49de7fba41cdc84e64e",
+  "schema": "izanagi-dev-wave-mutation-attempts/v1",
+  "spec_sha256": "196bfb94962ace8c8091c0be1437d724e5c357f343db4e7096a46a5760a31458",
+  "tool_sha256": "e42739255a56d6a7851c166f1672f4d8c4e3e917057e298f8802a9a0f266da7e"
+}
