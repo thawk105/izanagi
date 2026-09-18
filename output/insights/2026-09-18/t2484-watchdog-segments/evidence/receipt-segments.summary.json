@@ -1,0 +1,241 @@
+{
+ "n_receipts": 3964,
+ "n_parse_error": 115,
+ "by_outcome": [
+  {
+   "kind": "child",
+   "reason": null,
+   "n": 3834
+  },
+  {
+   "kind": "infra",
+   "reason": "DispatchError: job bootstrap failure: stage=result-guard",
+   "n": 1
+  },
+  {
+   "kind": "infra",
+   "reason": "DispatchError: queue-wait-timeout",
+   "n": 4
+  },
+  {
+   "kind": "infra",
+   "reason": "_SignalAbort: signal 15",
+   "n": 8
+  },
+  {
+   "kind": "infra",
+   "reason": "orphan-hold-release-failed",
+   "n": 2
+  }
+ ],
+ "distributions": {
+  "t_first_qstat_s": {
+   "n": 3849,
+   "min": 1.1,
+   "p50": 1.3,
+   "p90": 1.4,
+   "max": 15.9
+  },
+  "queue_wait_s": {
+   "n": 3841,
+   "min": 0.1,
+   "p50": 5.2,
+   "p90": 5.3,
+   "max": 1601.0
+  },
+  "queue_wait_derived_s": {
+   "n": 8,
+   "min": 5.1,
+   "p50": 388.9,
+   "p90": 902.4,
+   "max": 902.4
+  },
+  "run_s": {
+   "n": 3835,
+   "min": 10.2,
+   "p50": 20.5,
+   "p90": 92.3,
+   "max": 1783.5
+  },
+  "post_end_s": {
+   "n": 3835,
+   "min": -1622.6,
+   "p50": 5.2,
+   "p90": 9.3,
+   "max": 36.5
+  },
+  "qdel_cleanup_elapsed_s": {
+   "n": 15,
+   "min": 0.1,
+   "p50": 0.2,
+   "p90": 0.3,
+   "max": 10.5
+  },
+  "job_trace_span_s": {
+   "n": 400,
+   "min": 0.0,
+   "p50": 14.7,
+   "p90": 83.1,
+   "max": 1112.0
+  }
+ },
+ "n_wait": 3849,
+ "queue_wait_ge": [
+  {
+   "seconds": 300,
+   "n": 37,
+   "ratio": 0.009612886464016628,
+   "derived_n": 5,
+   "derived_ratio": 0.0012990387113535984
+  },
+  {
+   "seconds": 600,
+   "n": 19,
+   "ratio": 0.004936347103143674,
+   "derived_n": 4,
+   "derived_ratio": 0.0010392309690828788
+  },
+  {
+   "seconds": 900,
+   "n": 5,
+   "ratio": 0.0012990387113535984,
+   "derived_n": 4,
+   "derived_ratio": 0.0010392309690828788
+  },
+  {
+   "seconds": 1200,
+   "n": 1,
+   "ratio": 0.0002598077422707197,
+   "derived_n": 0,
+   "derived_ratio": 0.0
+  },
+  {
+   "seconds": 3000,
+   "n": 0,
+   "ratio": 0.0,
+   "derived_n": 0,
+   "derived_ratio": 0.0
+  }
+ ],
+ "by_congestion": [
+  {
+   "bucket": "0-9",
+   "n": 2293,
+   "n_wait": 2293,
+   "p50": 5.2,
+   "p90": 5.3,
+   "max": 1601.0,
+   "queue_wait_ge_900": 4
+  },
+  {
+   "bucket": "10-49",
+   "n": 777,
+   "n_wait": 777,
+   "p50": 5.2,
+   "p90": 10.3,
+   "max": 874.9,
+   "queue_wait_ge_900": 0
+  },
+  {
+   "bucket": "50-99",
+   "n": 672,
+   "n_wait": 672,
+   "p50": 5.2,
+   "p90": 5.3,
+   "max": 902.4,
+   "queue_wait_ge_900": 1
+  },
+  {
+   "bucket": "100+",
+   "n": 107,
+   "n_wait": 107,
+   "p50": 5.2,
+   "p90": 51.1,
+   "max": 829.5,
+   "queue_wait_ge_900": 0
+  },
+  {
+   "bucket": "unknown",
+   "n": 0,
+   "n_wait": 0,
+   "p50": null,
+   "p90": null,
+   "max": null,
+   "queue_wait_ge_900": 0
+  }
+ ],
+ "firings": [
+  {
+   "submission_dir": "616ca7a2d8402915c91589a4d15382dd",
+   "request_id": "947995.nqsv",
+   "reason": "DispatchError: queue-wait-timeout",
+   "last_state": "QUE",
+   "t_last_s": 903.6117658428848,
+   "cleanup_elapsed_s": 0.25562387704849243,
+   "preflight_que": 75
+  },
+  {
+   "submission_dir": "7203691192e48b953f64a871850f52cb",
+   "request_id": "909493.nqsv",
+   "reason": "DispatchError: queue-wait-timeout",
+   "last_state": "QUE",
+   "t_last_s": 901.5222979709506,
+   "cleanup_elapsed_s": 0.15228038397617638,
+   "preflight_que": 2
+  },
+  {
+   "submission_dir": "786f9f5ceba9c645c88e0177362fdcc2",
+   "request_id": "909506.nqsv",
+   "reason": "DispatchError: queue-wait-timeout",
+   "last_state": "QUE",
+   "t_last_s": 901.4969023000449,
+   "cleanup_elapsed_s": 0.15081396396271884,
+   "preflight_que": 1
+  },
+  {
+   "submission_dir": "12c57b236572362e1576e27d6776526c",
+   "request_id": "928116.nqsv",
+   "reason": "_SignalAbort: signal 15",
+   "last_state": "QUE",
+   "t_last_s": 298.02225427981466,
+   "cleanup_elapsed_s": 0.1567248897626996,
+   "preflight_que": 50
+  },
+  {
+   "submission_dir": "f6bc93dbec8a0925f2b6c9f6823920b9",
+   "request_id": "928128.nqsv",
+   "reason": "_SignalAbort: signal 15",
+   "last_state": "QUE",
+   "t_last_s": 298.14453691104427,
+   "cleanup_elapsed_s": 0.15818513929843903,
+   "preflight_que": 50
+  },
+  {
+   "submission_dir": "67d1f3cc3ece6949465ddeaaf2dd45c6",
+   "request_id": "5156.nqsv",
+   "reason": "DispatchError: queue-wait-timeout",
+   "last_state": "QUE",
+   "t_last_s": 902.7474742119666,
+   "cleanup_elapsed_s": 10.47213269607164,
+   "preflight_que": 9
+  },
+  {
+   "submission_dir": "0b85509afa7b32a81e34971192766ae3",
+   "request_id": "919523.nqsv",
+   "reason": "_SignalAbort: signal 15",
+   "last_state": "QUE",
+   "t_last_s": 390.17951575596817,
+   "cleanup_elapsed_s": 0.15161366784013808,
+   "preflight_que": 130
+  },
+  {
+   "submission_dir": "5331036bdddb7d52c56cb1ccfe963dc3",
+   "request_id": "978653.nqsv",
+   "reason": "_SignalAbort: signal 15",
+   "last_state": "QUE",
+   "t_last_s": 6.427214016992366,
+   "cleanup_elapsed_s": 0.257723693997832,
+   "preflight_que": 148
+  }
+ ]
+}

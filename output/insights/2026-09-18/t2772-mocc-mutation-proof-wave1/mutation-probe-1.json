@@ -1,0 +1,680 @@
+{
+ "M0-equivalent-comment": {
+  "touched": [
+   "orchestrator/campaign/s3_mocc_mutation_proof.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 1.4,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   },
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 0,
+    "seconds": 3.1,
+    "nodes": []
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 26.0,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 200.2,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 37.5,
+    "nodes": []
+   },
+   "orchestrator/tests/test_screening_driver.py": {
+    "rc": 0,
+    "seconds": 1.2,
+    "nodes": []
+   },
+   "orchestrator/tests/test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches": {
+    "rc": 0,
+    "seconds": 8.2,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted": {
+    "rc": 1,
+    "seconds": 2.1,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py",
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted"
+  ],
+  "fail_closed": [
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted"
+  ]
+ },
+ "M1-publish-relock-removed": {
+  "touched": [
+   "patches/broken-mocc-hot-update-unlock.patch",
+   "patches/broken-mocc-hot-update-unlock.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 0.8,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   },
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 0,
+    "seconds": 1.4,
+    "nodes": []
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 25.3,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 212.2,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 30.1,
+    "nodes": []
+   },
+   "orchestrator/tests/test_screening_driver.py": {
+    "rc": 0,
+    "seconds": 0.5,
+    "nodes": []
+   },
+   "orchestrator/tests/test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches": {
+    "rc": 0,
+    "seconds": 6.6,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted": {
+    "rc": 1,
+    "seconds": 0.7,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py",
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted"
+  ],
+  "fail_closed": [
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted"
+  ]
+ },
+ "M2-abort-relock-removed": {
+  "touched": [
+   "patches/broken-mocc-hot-update-unlock.patch",
+   "patches/broken-mocc-hot-update-unlock.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 1.5,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   },
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 0,
+    "seconds": 3.5,
+    "nodes": []
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 42.4,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 193.1,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 30.3,
+    "nodes": []
+   },
+   "orchestrator/tests/test_screening_driver.py": {
+    "rc": 0,
+    "seconds": 1.8,
+    "nodes": []
+   },
+   "orchestrator/tests/test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches": {
+    "rc": 0,
+    "seconds": 8.4,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted": {
+    "rc": 1,
+    "seconds": 1.2,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py",
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted"
+  ],
+  "fail_closed": [
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted"
+  ]
+ },
+ "M3-relock-via-txexecutor-lock": {
+  "touched": [
+   "patches/broken-mocc-hot-update-unlock.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 2.1,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   },
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 0,
+    "seconds": 7.8,
+    "nodes": []
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 38.5,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 194.1,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 21.4,
+    "nodes": []
+   },
+   "orchestrator/tests/test_screening_driver.py": {
+    "rc": 0,
+    "seconds": 0.4,
+    "nodes": []
+   },
+   "orchestrator/tests/test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches": {
+    "rc": 0,
+    "seconds": 5.8,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted": {
+    "rc": 1,
+    "seconds": 0.5,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py",
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted"
+  ],
+  "fail_closed": [
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted"
+  ]
+ },
+ "M4-publish-guard-inverted": {
+  "touched": [
+   "patches/broken-mocc-hot-update-unlock.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 0.7,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   },
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 0,
+    "seconds": 1.2,
+    "nodes": []
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 22.8,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 199.8,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 46.4,
+    "nodes": []
+   },
+   "orchestrator/tests/test_screening_driver.py": {
+    "rc": 0,
+    "seconds": 0.5,
+    "nodes": []
+   },
+   "orchestrator/tests/test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches": {
+    "rc": 0,
+    "seconds": 7.6,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted": {
+    "rc": 0,
+    "seconds": 0.6,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py"
+  ]
+ },
+ "M5-directive-duplicated": {
+  "touched": [
+   "patches/broken-mocc-hot-update-unlock.patch",
+   "patches/broken-mocc-hot-update-unlock.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 1.9,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_has_unique_condition_witness",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_condition_gate_uses_new_driver_id",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   },
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 0,
+    "seconds": 2.6,
+    "nodes": []
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 1,
+    "seconds": 29.1,
+    "nodes": [
+     "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches"
+    ]
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 211.6,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 36.1,
+    "nodes": []
+   },
+   "orchestrator/tests/test_screening_driver.py": {
+    "rc": 0,
+    "seconds": 0.7,
+    "nodes": []
+   },
+   "orchestrator/tests/test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches": {
+    "rc": 0,
+    "seconds": 7.7,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted": {
+    "rc": 0,
+    "seconds": 1.2,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_has_unique_condition_witness",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_condition_gate_uses_new_driver_id",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py",
+   "orchestrator/tests/test_condition_meaning_gate.py"
+  ]
+ },
+ "M6-line-460-off-by-one": {
+  "touched": [
+   "patches/broken-mocc-hot-update-unlock.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 1.3,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   },
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 0,
+    "seconds": 4.9,
+    "nodes": []
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 30.3,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 208.8,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 29.1,
+    "nodes": []
+   },
+   "orchestrator/tests/test_screening_driver.py": {
+    "rc": 0,
+    "seconds": 0.7,
+    "nodes": []
+   },
+   "orchestrator/tests/test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches": {
+    "rc": 0,
+    "seconds": 7.7,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted": {
+    "rc": 0,
+    "seconds": 1.2,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py"
+  ]
+ },
+ "M7-hot-t1-check-constant-true": {
+  "touched": [
+   "orchestrator/campaign/s3_mocc_mutation_proof.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 0.7,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_checks_are_input_derived",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_u_trace_counts_reads"
+    ]
+   },
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 0,
+    "seconds": 1.6,
+    "nodes": []
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 23.9,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 193.0,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 23.0,
+    "nodes": []
+   },
+   "orchestrator/tests/test_screening_driver.py": {
+    "rc": 0,
+    "seconds": 0.8,
+    "nodes": []
+   },
+   "orchestrator/tests/test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches": {
+    "rc": 0,
+    "seconds": 6.9,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted": {
+    "rc": 0,
+    "seconds": 0.9,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_checks_are_input_derived",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_u_trace_counts_reads"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py"
+  ]
+ },
+ "M8-timeout-recorded-false": {
+  "touched": [
+   "orchestrator/campaign/s3_mocc_mutation_proof.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 1.1,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_run_records_failure_and_timeout"
+    ]
+   },
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 0,
+    "seconds": 4.4,
+    "nodes": []
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 24.6,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 199.5,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 24.5,
+    "nodes": []
+   },
+   "orchestrator/tests/test_screening_driver.py": {
+    "rc": 0,
+    "seconds": 0.4,
+    "nodes": []
+   },
+   "orchestrator/tests/test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches": {
+    "rc": 0,
+    "seconds": 6.1,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted": {
+    "rc": 0,
+    "seconds": 0.5,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_run_records_failure_and_timeout"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py"
+  ]
+ },
+ "M9-definespec-entry-removed": {
+  "touched": [
+   "orchestrator/campaign/condition_meaning_gate.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 1.0,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_has_unique_condition_witness",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_condition_gate_uses_new_driver_id",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   },
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 0,
+    "seconds": 3.8,
+    "nodes": []
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 1,
+    "seconds": 26.2,
+    "nodes": [
+     "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+     "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK]",
+     "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact"
+    ]
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 1,
+    "seconds": 194.8,
+    "nodes": [
+     "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry"
+    ]
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 0,
+    "seconds": 24.7,
+    "nodes": []
+   },
+   "orchestrator/tests/test_screening_driver.py": {
+    "rc": 0,
+    "seconds": 0.4,
+    "nodes": []
+   },
+   "orchestrator/tests/test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches": {
+    "rc": 0,
+    "seconds": 7.6,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted": {
+    "rc": 0,
+    "seconds": 1.1,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+   "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+   "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK]",
+   "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_has_unique_condition_witness",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_condition_gate_uses_new_driver_id",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py",
+   "orchestrator/tests/test_condition_meaning_gate.py",
+   "orchestrator/tests/test_ccbench_spawn_sites.py"
+  ]
+ },
+ "M10-materializer-entry-removed": {
+  "touched": [
+   "orchestrator/campaign/materializer_admission.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 5.2,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_matrix_is_exact",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   },
+   "orchestrator/tests/test_mocc_proof_surface.py": {
+    "rc": 0,
+    "seconds": 7.2,
+    "nodes": []
+   },
+   "orchestrator/tests/test_condition_meaning_gate.py": {
+    "rc": 0,
+    "seconds": 25.5,
+    "nodes": []
+   },
+   "orchestrator/tests/test_ccbench_spawn_sites.py": {
+    "rc": 0,
+    "seconds": 197.9,
+    "nodes": []
+   },
+   "orchestrator/tests/test_p3_build_authority_cli.py": {
+    "rc": 1,
+    "seconds": 23.7,
+    "nodes": [
+     "orchestrator/tests/test_p3_build_authority_cli.py::test_python_ccbench_manual_materializers_are_explicitly_non_admissible",
+     "orchestrator/tests/test_p3_build_authority_cli.py::test_single_registry_has_typed_compatible_projections"
+    ]
+   },
+   "orchestrator/tests/test_screening_driver.py": {
+    "rc": 0,
+    "seconds": 0.4,
+    "nodes": []
+   },
+   "orchestrator/tests/test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches": {
+    "rc": 1,
+    "seconds": 5.8,
+    "nodes": [
+     "orchestrator/tests/test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches"
+    ]
+   },
+   "orchestrator/tests/test_p3_s4_loop.py::test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted": {
+    "rc": 0,
+    "seconds": 0.5,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_matrix_is_exact",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound",
+   "orchestrator/tests/test_p3_build_authority_cli.py::test_python_ccbench_manual_materializers_are_explicitly_non_admissible",
+   "orchestrator/tests/test_p3_build_authority_cli.py::test_single_registry_has_typed_compatible_projections",
+   "orchestrator/tests/test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py",
+   "orchestrator/tests/test_p3_build_authority_cli.py",
+   "orchestrator/tests/test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches"
+  ]
+ }
+}
