@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+"""T-1878 段 6 fix (R-2 / R-3): 名指し job dir / evidence dir を read-only で再走査する。
+
+v1 との違い:
+- 完全表記 b"934607.nqsv" と b"0:934607.nqsv" を **file 全体** で判定する (最初の一致だけでない)
+- 除外した対象を種別ごとに数える (拡張子 allowlist 外 / 50 MiB 超 / symlink / lstat 失敗 / 読取失敗)
+- directory symlink は追跡しない (os.walk followlinks=False)、その件数も数える
+- 読取に成功した file 数と、読取を試みた file 数を分けて数える
+"""
+import os
+import sys
+from collections import Counter
+
+ROOTS = [
+    "/work/1/SFC/tanab/dev-wave-jobs/t755-mocc-trace-execution",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t755-mocc-trace-execution",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t755-q2-mocc-trace",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t755-q2-mocc-trace-continuation",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1641-t755-report-binding",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1506-mocc-trace0",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1582-mocc-trace0-pilot",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-trace-pair",
+    "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-g2-repro-20260826",
+    "/work/1/SFC/tanab/izanagi-job-evidence",
+]
+NEEDLE_FULL = (b"934607.nqsv",)
+NEEDLE_NUM = b"934607"
+TEXT_EXT = {".json", ".md", ".log", ".txt", ".jsonl", ".sha256", ".journal", ".stdout", ".stderr", ".sh", ".rc", ".pid", ".done", ".yaml", ".yml", ".csv", ".tsv", ""}
+MAX_BYTES = 50 * 1024 * 1024
+
+c = Counter()
+full_hits = []
+num_only_files = 0
+excluded_ext = Counter()
+for root in ROOTS:
+    if not os.path.isdir(root):
+        print(f"MISSING_DIR {root}")
+        continue
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        for d in dirnames:
+            if os.path.islink(os.path.join(dirpath, d)):
+                c["dir_symlink_not_followed"] += 1
+        for fn in filenames:
+            p = os.path.join(dirpath, fn)
+            c["entries"] += 1
+            try:
+                st = os.lstat(p)
+            except OSError:
+                c["lstat_failed"] += 1
+                continue
+            if os.path.islink(p):
+                c["file_symlink_skipped"] += 1
+                continue
+            if not os.path.isfile(p):
+                c["not_regular_file"] += 1
+                continue
+            ext = os.path.splitext(fn)[1].lower()
+            if ext not in TEXT_EXT and not fn.endswith(".nqsv"):
+                c["ext_not_in_allowlist"] += 1
+                excluded_ext[ext] += 1
+                continue
+            if st.st_size > MAX_BYTES:
+                c["over_50MiB_skipped"] += 1
+                continue
+            c["read_attempted"] += 1
+            try:
+                with open(p, "rb") as fh:
+                    data = fh.read()
+            except OSError:
+                c["read_failed"] += 1
+                continue
+            c["read_ok"] += 1
+            if any(n in data for n in NEEDLE_FULL):
+                full_hits.append((p, data.count(b"934607.nqsv")))
+            elif NEEDLE_NUM in data:
+                num_only_files += 1
+
+print("# counters")
+for k in sorted(c):
+    print(f"{k}\t{c[k]}")
+print("# excluded extensions (top 30)")
+for k, v in excluded_ext.most_common(30):
+    print(f"{v}\t{k!r}")
+print(f"# files containing 934607 but never '934607.nqsv' (whole content): {num_only_files}")
+print(f"# files containing '934607.nqsv' anywhere (whole content): {len(full_hits)}")
+for p, n in sorted(full_hits):
+    print(f"{n}\t{p}")

@@ -374,6 +374,9 @@ python3 tools/pegasus/fetch_third_party.py verify       # cache の 5 本を検�
 `.claude/worktrees/` 配下は不可)、`THIRDPARTY_SOURCE_ROOT` は §6 の `hydrate` 出力 JSON の
 `.source_root`、`EVIDENCE_ROOT` はどの repository の配下でもない場所とする。同じ attempt directory は
 再利用しない。`-o` / `-e` を省くと標準出力・標準エラーが投入時 directory へ落ちて作業ツリーを汚す。
+**attempt directory は job body が所有する。** 投入側は `mkdir` 以外に何も置かない — `allocation-qstat.*` /
+`reservation.json` / receipt は job body が fresh (不在) を要求し、既存なら driver 起動前に rc=2 で拒否する
+(2026-09-18 に親が投入直後の `qstat -f` の写しを置き、attempt を 7 秒で失った)。
 
 ```bash
 # admission-site: qsub-job-body

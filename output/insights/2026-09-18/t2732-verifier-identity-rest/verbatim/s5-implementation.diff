@@ -1,0 +1,31 @@
+diff --git a/orchestrator/qualification/contract.py b/orchestrator/qualification/contract.py
+index 47fe1b3af..d5b5dbe52 100644
+--- a/orchestrator/qualification/contract.py
++++ b/orchestrator/qualification/contract.py
+@@ -76,6 +76,9 @@ REQUIRED_CODE_IDENTITY_PATHS = frozenset({
+     "orchestrator/verifier/dsg.py",
+     "orchestrator/verifier/model.py",
+     "orchestrator/verifier/parse.py",
++    "orchestrator/verifier/__init__.py",
++    "orchestrator/verifier/commit_receipt.py",
++    "orchestrator/verifier/report.py",
+     "tools/pegasus/policy.json",
+ })
+ REQUIRED_SCRIPT_IDENTITY_PATHS = frozenset({
+diff --git a/orchestrator/tests/test_t126_pegasus_tools.py b/orchestrator/tests/test_t126_pegasus_tools.py
+index 501337e8e..a0b9f7115 100644
+--- a/orchestrator/tests/test_t126_pegasus_tools.py
++++ b/orchestrator/tests/test_t126_pegasus_tools.py
+@@ -1531,6 +1531,12 @@ def test_required_code_identity_includes_verifier_core_dsg_model_parse():
+     assert "orchestrator/verifier/parse.py" in REQUIRED_CODE_IDENTITY_PATHS
+ 
+ 
++def test_required_code_identity_includes_verifier_init_report_commit_receipt():
++    assert "orchestrator/verifier/__init__.py" in REQUIRED_CODE_IDENTITY_PATHS
++    assert "orchestrator/verifier/report.py" in REQUIRED_CODE_IDENTITY_PATHS
++    assert "orchestrator/verifier/commit_receipt.py" in REQUIRED_CODE_IDENTITY_PATHS
++
++
+ def test_series_preimage_exact_code_identity_set_tracks_activation_closure(
+     tmp_path,
+ ):

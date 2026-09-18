@@ -1092,11 +1092,145 @@ def _admin_tree_state(path):
             for p in [path, *path.rglob("*")]}
 
 
+def _add_shared_admin_objects(repo, tmp_path):
+    admin = repo.main / ".git" / "worktrees" / "wave"
+    for relative in ("modules/sub", "modules/sub/modules/nested"):
+        directory = admin / relative
+        directory.mkdir(parents=True)
+        for name, raw in (("HEAD", b"ref: refs/heads/main\n"), ("config", b"[core]\n")):
+            path = directory / name
+            path.write_bytes(raw)
+            assert path.stat().st_nlink == 1
+    objects = (
+        ("modules/sub/objects/ab/" + "1" * 38, b"loose object\n"),
+        ("modules/sub/objects/pack/pack-" + "2" * 40 + ".pack", b"pack object\n"),
+        ("modules/sub/objects/pack/pack-" + "2" * 40 + ".idx", b"pack index\n"),
+        ("modules/sub/modules/nested/objects/cd/" + "3" * 38, b"nested object\n"),
+    )
+    aliases = []
+    for index, (relative, raw) in enumerate(objects):
+        path = admin / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(raw)
+        alias = tmp_path / f"object-alias-{index}"
+        os.link(path, alias)
+        assert path.stat().st_nlink == alias.stat().st_nlink == 2
+        aliases.append((alias, raw))
+    return aliases
+
+
+def test_admin_shared_objects_are_removed(tmp_path, monkeypatch, capsys):
+    repo = _make_repo(tmp_path, monkeypatch)
+    _stub_unoccupied(monkeypatch)
+    aliases = _add_shared_admin_objects(repo, tmp_path)
+    _assert_success_output(
+        _run(repo, capsys), "removed", occupancy_phases=("preflight", "recheck"),
+    )
+    _assert_removed(repo)
+    assert not (repo.main / ".git" / "worktrees" / "wave").exists()
+    for alias, raw in aliases:
+        assert alias.read_bytes() == raw
+        assert alias.stat().st_nlink == 1
+
+
+@pytest.mark.parametrize(
+    "target",
+    ["gitdir", "submodule-config", "ref-named-objects", "submodule-named-objects",
+     "ref-shaped-object", "reflog-shaped-object"],
+    ids=["gitdir", "submodule-config", "ref-named-objects", "submodule-named-objects",
+         "ref-shaped-object", "reflog-shaped-object"],
+)
+def test_admin_nonobject_hardlink_is_rejected(tmp_path, monkeypatch, capsys, target):
+    repo = _make_repo(tmp_path, monkeypatch)
+    _stub_unoccupied(monkeypatch)
+    # Keep git status's optional index refresh out of the inode comparison.
+    monkeypatch.setenv("GIT_OPTIONAL_LOCKS", "0")
+    admin = repo.main / ".git" / "worktrees" / "wave"
+    if target == "gitdir":
+        path = admin / "gitdir"
+    elif target == "submodule-config":
+        _add_shared_admin_objects(repo, tmp_path)
+        path = admin / "modules" / "sub" / "config"
+    elif target == "ref-named-objects":
+        path = admin / "modules" / "sub" / "refs" / "objects" / "topic"
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b"a" * 40 + b"\n")
+    elif target == "ref-shaped-object":
+        path = admin / "modules/sub/refs/heads/objects/ab" / ("1" * 38)
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b"a" * 40 + b"\n")
+    elif target == "reflog-shaped-object":
+        path = admin / "modules/sub/logs/refs/heads/objects/ab" / ("1" * 38)
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b"0" * 40 + b" " + b"a" * 40 + b" x <x@x> 0 +0000\tcommit: x\n")
+    else:
+        path = admin / "modules" / "objects" / "config"
+        path.parent.mkdir(parents=True)
+        (path.parent / "HEAD").write_bytes(b"ref: refs/heads/main\n")
+        path.write_bytes(b"[core]\n")
+    raw = path.read_bytes()
+    alias = tmp_path / "registry-alias"
+    os.link(path, alias)
+    before = _admin_tree_state(admin)
+    if target == "gitdir":
+        fd = os.open(admin, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            with pytest.raises(ValueError, match="admin entry is not a single regular file"):
+                cleanup._admin_snapshot(fd)
+        finally:
+            os.close(fd)
+    rc, out, err = _run(repo, capsys)
+    assert (rc, out) == (20, "")
+    assert "admin entry is not a single regular file" in err
+    assert _admin_tree_state(admin) == before
+    assert _sha(repo.main, "refs/heads/wave") == repo.tip
+    assert alias.read_bytes() == raw
+    assert alias.stat().st_nlink == 2
+
+
+@pytest.mark.parametrize("kind", ["object", "registry"])
+def test_admin_read_link_race(tmp_path, monkeypatch, kind):
+    path = tmp_path / "entry"
+    raw = b"unchanged bytes\n"
+    path.write_bytes(raw)
+    metadata = path.stat()
+    assert metadata.st_nlink == 1
+    target = (metadata.st_dev, metadata.st_ino)
+    alias = tmp_path / "alias"
+    original = cleanup.os.fstat
+    injected = False
+
+    def link_after_stat(child):
+        nonlocal injected
+        result = original(child)
+        if (result.st_dev, result.st_ino) == target and not injected:
+            injected = True
+            os.link(path, alias)
+        return result
+
+    fd = os.open(tmp_path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        with monkeypatch.context() as patch:
+            patch.setattr(cleanup.os, "fstat", link_after_stat)
+            if kind == "object":
+                assert cleanup._read_admin_file(fd, path.name, allow_shared_object=True) == raw
+            else:
+                with pytest.raises(ValueError, match="admin entry changed while reading"):
+                    cleanup._read_admin_file(fd, path.name)
+    finally:
+        os.close(fd)
+    assert injected
+    assert path.read_bytes() == alias.read_bytes() == raw
+    assert path.stat().st_nlink == alias.stat().st_nlink == 2
+
+
 @pytest.mark.parametrize("removed", ("HEAD", "gitdir", "admin-directory"))
 @pytest.mark.parametrize("tamper", (None, "lock", "bytes", "inode"))
 def test_cleanup_partial_admin_removal_reenters(tmp_path, monkeypatch, capsys, request, removed, tamper):
     repo = _make_repo(tmp_path, monkeypatch)
     _stub_unoccupied(monkeypatch)
+    aliases = (_add_shared_admin_objects(repo, tmp_path)
+               if removed == "gitdir" and tamper is None else [])
     other = repo.wave.parent / "other"
     _git(repo.main, "worktree", "add", "-b", "other", os.fspath(other))
     foreign = repo.main / ".git" / "worktrees" / "other"
@@ -1126,6 +1260,8 @@ def test_cleanup_partial_admin_removal_reenters(tmp_path, monkeypatch, capsys, r
     assert (rc, out) == (30, "")
     assert "phase=admin-remove" in err
     assert not (admin if removed == "admin-directory" else admin / removed).exists()
+    for alias, _ in aliases:
+        assert alias.stat().st_nlink == 2
     assert _sha(repo.main, "refs/heads/wave") == repo.tip
     assert _admin_tree_state(foreign) == before
     if tamper is not None:
@@ -1149,6 +1285,9 @@ def test_cleanup_partial_admin_removal_reenters(tmp_path, monkeypatch, capsys, r
     _assert_removed(repo)
     assert not admin.exists()
     assert _admin_tree_state(foreign) == before
+    for alias, raw in aliases:
+        assert alias.read_bytes() == raw
+        assert alias.stat().st_nlink == 1
 
 
 @pytest.mark.parametrize("change", (
@@ -1240,6 +1379,7 @@ def test_admin_baseline_rejects_index_change(tmp_path, monkeypatch, capsys, stat
 def test_unpublished_admin_journal_reenters(tmp_path, monkeypatch, capsys, point):
     repo = _make_repo(tmp_path, monkeypatch)
     _stub_unoccupied(monkeypatch)
+    aliases = _add_shared_admin_objects(repo, tmp_path) if point == "linked" else []
     common = repo.main / ".git"
     admin = common / "worktrees" / "wave"
     final = common / cleanup._journal_name(repo.wave)
@@ -1281,6 +1421,8 @@ def test_unpublished_admin_journal_reenters(tmp_path, monkeypatch, capsys, point
     if point == "linked":
         assert final.exists()
         assert final.stat().st_nlink == 2
+        for alias, _ in aliases:
+            assert alias.stat().st_nlink == 2
     else:
         assert not final.exists()
     remnants = list(common.glob(final.name + ".tmp-*"))
@@ -1292,6 +1434,9 @@ def test_unpublished_admin_journal_reenters(tmp_path, monkeypatch, capsys, point
     if point == "linked":
         assert not final.exists()
         assert all(not path.exists() for path in remnants)
+    for alias, raw in aliases:
+        assert alias.read_bytes() == raw
+        assert alias.stat().st_nlink == 1
 
 
 def test_admin_journal_unrelated_temporary_does_not_allow_hardlink(tmp_path, monkeypatch, capsys):
