@@ -50,6 +50,7 @@ from orchestrator.tests.output_snapshot_ignores import (  # noqa: E402
 # conftest の付与正本から意図的に重複させる独立 oracle。ここを conftest から
 # import / 導出すると、正本の node 増減が付与側と期待側へ同時伝播して恒真化する。
 _REAL_REPO_CLASSIFIED_NODES_GOLDEN = frozenset({
+    "test_s8b_oracle_driver.py::test_run_block_refuses_invalid_receipt_after_gate_seam",
     "test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads",
     "test_s1_known_axes_freeze.py::test_historical_option_keeps_new_document_strict",
     "test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
@@ -530,36 +531,10 @@ ORACLE_ENVIRONMENT_CONSUMERS_GOLDEN = frozenset({
 
 # conftest の receipt consumer 正本から導出しない独立 oracle。
 _RECEIPT_MEMO_CONSUMERS_GOLDEN = frozenset({
-    "test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract",
-    "test_s8b_oracle_driver.py::test_oracle_pipeline_contract_keyword_is_mandatory_positive_control",
-    "test_s8b_oracle_driver.py::test_oracle_evaluate_fn_without_condition_records_cannot_complete",
-    "test_s8b_oracle_driver.py::test_build_result_contract_mismatch_aborts_campaign_before_measurement",
-    "test_s8b_oracle_driver.py::test_binding_mismatch_refuses_only_that_row_before_evaluate",
-    "test_s8b_oracle_driver.py::test_v8_bulk_reservation_unavailable_runs_nothing",
-    "test_s8b_oracle_driver.py::test_reservation_envelope_exceeded_is_fail_closed",
-    "test_s8b_oracle_driver.py::test_verify_inconclusive_and_unknown_abort_reasons_are_fail_closed",
-    "test_s8b_oracle_driver.py::test_probe_error_reason_is_fail_closed_unknown_abort",
-    "test_s8b_oracle_driver.py::test_v3_all_rows_binding_refused_is_protocol_violation",
-    "test_s8b_oracle_driver.py::test_v3_partial_binding_refused_is_protocol_violation",
-    "test_s8b_oracle_driver.py::test_v6_freeze_swap_after_verify_is_not_observed",
-    "test_s8b_oracle_driver.py::test_v7_manifest_swap_after_verify_is_not_observed",
-    "test_s8b_oracle_driver.py::test_v2_resume_rejected_at_s1_s2_s3_boundaries",
-    "test_s8b_oracle_driver.py::test_atomic_one_shot_lock_rejects_second_start",
-    "test_s8b_oracle_driver.py::test_resume_wal_lstat_eio_propagates_fail_closed_from_public_driver",
-    "test_s8b_oracle_driver.py::test_driver_full_frame_fsync_eio_is_not_folded_or_followed_up",
-    "test_s8b_oracle_driver.py::test_v4_marker_fires_across_output_root_change",
-    "test_s8b_oracle_driver.py::test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records",
-    "test_s8b_oracle_driver.py::test_official_driver_records_returncodes_through_real_producer_flow",
-    "test_s8b_oracle_driver.py::test_unavailable_preflight_creates_bound_measurement_manifest_and_passes_false_kwargs",
-    "test_s8b_oracle_driver.py::test_available_preflight_preserves_call_and_artifact_shape",
-    "test_s8b_oracle_driver.py::test_probe_error_precedes_claim_marker_wal_and_budget",
     "test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null",
     "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
-    "test_s8b_oracle_driver.py::test_cli_output_root_default_is_none_and_run_block_refuses_without_root",
     "test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused",
     "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
-    "test_s8b_oracle_driver.py::test_run_block_reuses_launch_validated_and_legacy_loader_is_dead",
-    "test_s8b_oracle_driver.py::test_run_block_verifies_manifest_once_and_reuses_object",
     "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
     "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
     "test_s8b_binding_driftguards.py::test_receipt_memo_delegates_to_production_verifier_exactly_once",
@@ -1225,8 +1200,16 @@ def _collect_t080_default_execution_report(
 
 
 def test_stub_free_receipt_nodes_are_selected_and_reach_setup_by_default():
-    """T-080 E2E 11 node の skip / xfail / deselect / setup skip を実測する。"""
+    """T-080 E2E 20 node の skip / xfail / deselect / setup skip を実測する。"""
     target_functions = {
+        "test_t080_active_v2_delegation_accepts_full_receipt",
+        "test_t080_failed_launch_preserves_receipt_refusal",
+        "test_t080_unactivated_chain_hit_is_invalid",
+        "test_v1_gate_does_not_delegate_with_active_v2",
+        "test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+        "test_t080_delegated_campaign_start_rechecks_receipt",
+        "test_t080_delegated_campaign_start_rejects_late_hit_file",
+        "test_t080_draft_rejects_synthetic_hit_outside_replay_deletions",
         "test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
         "test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5",
         "test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5",
@@ -1235,6 +1218,15 @@ def test_stub_free_receipt_nodes_are_selected_and_reach_setup_by_default():
         "test_never_issued_generator_tamper_reaches_public_driver_gate_g7",
     }
     expected_nodeids = {
+        "test_s8b_oracle_driver.py::test_t080_active_v2_delegation_accepts_full_receipt",
+        "test_s8b_oracle_driver.py::test_t080_failed_launch_preserves_receipt_refusal",
+        "test_s8b_oracle_driver.py::test_t080_unactivated_chain_hit_is_invalid",
+        "test_s8b_oracle_driver.py::test_v1_gate_does_not_delegate_with_active_v2",
+        "test_s8b_oracle_driver.py::test_t080_active_v2_preserves_nonlayer2_receipt_refusal",
+        "test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+        "test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+        "test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rejects_late_hit_file",
+        "test_s8b_oracle_driver.py::test_t080_draft_rejects_synthetic_hit_outside_replay_deletions",
         "test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5",
         "test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]",
         "test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[holdout-artifact-holdout.artifact_bytes]",
@@ -2908,7 +2900,7 @@ def _receipt_consumers_from_source(path: Path) -> tuple[set[str], set[str], int]
         canonical = f"{path.name}::{function.name}"
         if has_optout:
             optouts.add(canonical)
-        elif run_calls or direct:
+        if direct:
             consumers.add(canonical)
 
         count = 1
@@ -2930,8 +2922,8 @@ def _assert_receipt_inventory(configured, consumers, optouts, node_count) -> Non
     assert set(configured) == set(_RECEIPT_MEMO_CONSUMERS_GOLDEN)
     assert set(consumers) == set(_RECEIPT_MEMO_CONSUMERS_GOLDEN)
     assert set(optouts) == set(_RECEIPT_MEMO_OPTOUT_GOLDEN)
-    assert len(consumers) == 34
-    assert node_count == 37
+    assert len(consumers) == 8
+    assert node_count == 8
     assert not set(consumers) & set(optouts)
 
 
@@ -2958,7 +2950,7 @@ def test_receipt_memo_consumer_inventory_and_optouts_are_complete():
         next(iter(sorted(_RECEIPT_MEMO_OPTOUT_GOLDEN)))
     }
     try:
-        _assert_receipt_inventory(mutated, consumers, optouts, 35)
+        _assert_receipt_inventory(mutated, consumers, optouts, driver_nodes + drift_nodes)
     except AssertionError:
         pass
     else:
@@ -4987,7 +4979,7 @@ def test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy():
     suite_conftest = _load_suite_conftest()
     consumer = (
         "test_s8b_oracle_driver.py::"
-        "test_success_wal_order_budget_and_evaluate_contract"
+        "test_real_freeze_gate_lists_floor_and_budget_null"
     )
     calls = []
     fake_module = SimpleNamespace(
@@ -5055,6 +5047,18 @@ def test_receipt_memo_prewarm_wiring_is_controller_only_and_lazy():
             items=[_receipt_hook_item(no_consumer)],
         ))
     assert lazy_import.call_count == 0
+    removed_consumer = (
+        "test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract"
+    )
+    with mock.patch.object(
+        suite_conftest, "_receipt_memo_module",
+        side_effect=AssertionError("removed consumer で memo import"),
+    ) as removed_import:
+        suite_conftest.pytest_collection_finish(SimpleNamespace(
+            config=_ReceiptHookConfig({"collectonly": False}),
+            items=[_receipt_hook_item(removed_consumer)],
+        ))
+    assert removed_import.call_count == 0
 
     # prewarm 例外は隣接する task-run stats の握り潰しへ入らず、そのまま伝播する。
     from orchestrator.tests import real_repo_receipt_memo as memo_module
@@ -5509,7 +5513,7 @@ def test_receipt_memo_real_xdist_order_has_no_worker_payer():
         directory = Path(raw_tmp)
         events = directory / "events.log"
         (directory / "test_s8b_oracle_driver.py").write_text(
-            "def test_success_wal_order_budget_and_evaluate_contract():\n"
+            "def test_real_freeze_gate_lists_floor_and_budget_null():\n"
             "    pass\n",
             encoding="utf-8",
         )

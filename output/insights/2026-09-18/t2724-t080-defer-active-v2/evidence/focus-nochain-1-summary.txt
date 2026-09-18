@@ -1,0 +1,16 @@
+2026-09-18 11:58:25 JST
+7a763575f222b4784f1aead9ab285fbdaf287180
+[Pegasus dispatch] request ID 5559.nqsv を受理しました
+1086 passed 11 skipped 9 errors 9 failed
+in 465.05s (0:07:45)
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_v2_floor_disk_swap_after_launch_uses_same_validated_object
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_active_v2_delegation_accepts_full_receipt
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rechecks_receipt[changed]
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_active_v2_preserves_nonlayer2_receipt_refusal
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rechecks_receipt[missing]
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_unactivated_chain_hit_is_invalid
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_failed_launch_preserves_receipt_refusal
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rejects_late_hit
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_v1_gate_does_not_delegate_with_active_v2
+INTERNALERROR lines: 0
+2026-09-18 12:07:05 JST
