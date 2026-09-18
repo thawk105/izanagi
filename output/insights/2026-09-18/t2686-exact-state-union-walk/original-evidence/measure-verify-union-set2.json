@@ -1,0 +1,28 @@
+{
+ "paths": 12,
+ "union_walk_seconds": 13.035,
+ "union_output_bytes": 1143707,
+ "union_commits_listed": 6350,
+ "per_path_total_seconds": 105.865,
+ "identical_paths": 11,
+ "mismatch": {
+  "tools/pegasus": [
+   1025,
+   0
+  ]
+ },
+ "sizes": {
+  "CLAUDE.md": 74,
+  "README.md": 35,
+  "docs/worklog.md": 1025,
+  "docs/decisions.md": 1025,
+  "external/ccbench": 43,
+  ".gitmodules": 2,
+  "tools/check_branch_landed.py": 55,
+  "tools/pegasus": 1025,
+  "docs/handoff/README.md": 18,
+  ".codex/worktrees/accwall-unit-a": 22,
+  "docs/spool/decisions/2026-09-02-dev-wave-t1851-unit-a-3.md": 36,
+  "docs/spool/decisions/2026-09-02-dev-wave-t2107-t1851-b1-2.md": 39
+ }
+}

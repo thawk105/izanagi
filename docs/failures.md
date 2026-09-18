@@ -2456,6 +2456,8 @@
   監査した (`DW-O01` の「未受理は未完了と記し次の子に監査させる」)。fix 子の prompt には
   `## 総括` を最初の見出しとして明示し、2 本とも受理された。恒久対応は従来どおり親検収 +
   `check_codex_output.py` で、reference は編集しない。
+
+- **再発: 2026-09-18** — T-2686回収authorはCLI0でも必須総括見出しを落としてf43_fragment/launcher1になった。実装残差を保全し、DW-O01どおり独立review2本で実コードを監査した。未受理を成功報告へ書き換えず、後続promptでliteral見出しを明示した。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
@@ -26989,6 +26991,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「測定の意味を取り違えたまま数値だけが独り歩きする」型。
   前 2 例は**測定条件**の取り違えで、本件は**測定対象そのもの**の取り違えである点が異なる。
 
+
+- **再発: 2026-09-18** — T-2686のwalk観測wrapperがオプション名 --name-only だけで対象を選び、git diffを履歴logへ混入させた。test_check_branch_landed.pyの7 selectorをlogとオプションの積へ限定し、期待0/1とassertを維持して373件の焦点走を通した。さらに一回限りの対測定driverではtruncatedという状態語だけで実行失敗と読み、仕様上の非決定的patch-id merge省略を誤拒否した。producerのexactな経路と実raw4正例/timeout等の負例で区別し、元の不完全表示とrun1のrc1を保持した。成果物は output/insights/2026-09-18/t2686-exact-state-union-walk/。
 ### F993. 編集面重複検査が worktree 作成直後の wave を 0 件と数え、2 wave が 28 秒差で同じ面を掴んだ [手順漏れ]
 
 - 事象: [T-2642] の着手前検査 (2026-09-16 ≈04:33 JST) で、全 74 worktree の未 commit 差分・

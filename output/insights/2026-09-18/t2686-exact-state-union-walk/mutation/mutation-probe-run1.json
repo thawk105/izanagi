@@ -1,0 +1,246 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 80,
+  "timeout_seconds": 7200,
+  "hang_timeout_seconds": 120,
+  "mutations": [
+    {
+      "id": "m01",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "\"--no-renames\", \"--ignore-submodules=none\"",
+          "new": "\"--ignore-submodules=none\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m02",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "\"--no-renames\", \"--ignore-submodules=none\"",
+          "new": "\"--no-renames\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m03",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "name == p or name.startswith(p + b\"/\")",
+          "new": "name == p"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "        return result\n\n    def _prepare(self)",
+          "new": "        return {path: sorted(rows) for path, rows in result.items()}\n\n    def _prepare(self)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m05",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "for name in names)][:self.limit + 1]",
+          "new": "for name in names)][:self.limit]"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m06",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "\"--diff-merges=separate\", \"--no-renames\"",
+          "new": "\"--no-renames\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m07",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "command = [\"-c\", \"log.showRoot=true\", \"log\", \"--full-history\",",
+          "new": "command = [\"-c\", \"log.showRoot=true\", \"log\","
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m08",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "command = [\"-c\", \"log.showRoot=true\", \"log\", \"--full-history\",",
+          "new": "command = [\"log\", \"--full-history\","
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m09",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "if len(entries) == bound and any(len(rows) < self.limit + 1 for rows in derived.values()):",
+          "new": "if False:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "            entries = _parse_history_candidate_stream(\n                self._log([*command, f\"--max-count={bound}\", *tail]).stdout, len(self.main_oid),\n            )\n            if len(entries) > bound:\n                raise AssessmentError(\"history-candidate-parse-error\", \"history exceeded commit bound\")\n            derived = self._derive(entries, paths)\n            if len(entries) == bound and any(len(rows) < self.limit + 1 for rows in derived.values()):",
+          "new": "            raw = self._log([*command, f\"--max-count={bound}\", *tail]).stdout\n            entries = _parse_history_candidate_stream(raw, len(self.main_oid))\n            n = raw.count(b\"\\0\\0\") + bool(raw)\n            if n > bound:\n                raise AssessmentError(\"history-candidate-parse-error\", \"history exceeded commit bound\")\n            derived = self._derive(entries, paths)\n            if n == bound and any(len(rows) < self.limit + 1 for rows in derived.values()):"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "follow.stdout.strip() == b\"true\"",
+          "new": "False"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "sum(len(p.encode(\"utf-8\")) + 1 for p in paths) > HISTORY_CANDIDATE_ARGV_BYTES_LIMIT",
+          "new": "False"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m13",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "name = first[1:]",
+          "new": "name = first.lstrip(b\"\\n\")"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m14",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "if not _entry_matches(required, self.tip_entry(path))}",
+          "new": "if True}"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m15",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "        if self._union_failure is not None:\n            raise self._union_failure",
+          "new": "        if self._union_failure is not None:\n            self._prepared = False\n            self._prepare()"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m16",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "\"\"\"Parse NUL-framed commit entries without decoding tree names.\"\"\"",
+          "new": "\"\"\"Parse NUL-framed commit entries while preserving tree-name bytes.\"\"\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m17",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "if (follow.stdout.strip() == b\"true\"\n                or sum(len(p.encode(\"utf-8\")) + 1 for p in paths) > HISTORY_CANDIDATE_ARGV_BYTES_LIMIT):",
+          "new": "if True:"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

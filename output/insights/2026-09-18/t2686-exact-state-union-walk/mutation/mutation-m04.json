@@ -1,0 +1,24 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 8,
+  "timeout_seconds": 10000,
+  "hang_timeout_seconds": 120,
+  "mutations": [
+    {
+      "id": "m04",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/check_branch_landed.py",
+          "old": "        return result\n\n    def _prepare(self)",
+          "new": "        return {path: sorted(rows) for path, rows in result.items()}\n\n    def _prepare(self)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_check_branch_landed.py::test_history_candidates_match_legacy_command[limit_plus_one]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
