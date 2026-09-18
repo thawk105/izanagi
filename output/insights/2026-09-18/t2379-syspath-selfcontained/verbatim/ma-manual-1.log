@@ -1,0 +1,40 @@
+2026-09-18 11:47:13 start
+head=b0eea37205f9f0db16610ea5e3280021f7d12b0d
+porcelain-before=[]
+head-blob=a19182bb5bcf1b6649a2185546d72510e35ba42d
+pre-blob=a19182bb5bcf1b6649a2185546d72510e35ba42d
+MA_MUTATE_OK: replaced 1 occurrence
+== diff --stat
+ orchestrator/tests/test_s8b_approved.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+== diff
+diff --git a/orchestrator/tests/test_s8b_approved.py b/orchestrator/tests/test_s8b_approved.py
+index a19182bb5..fee703dfb 100644
+--- a/orchestrator/tests/test_s8b_approved.py
++++ b/orchestrator/tests/test_s8b_approved.py
+@@ -28,7 +28,7 @@ from orchestrator.campaign import s8b_experiment_numbers  # noqa: E402
+ from orchestrator.campaign import s8b_floor_campaign  # noqa: E402
+ from orchestrator.campaign import s8b_floor_stats  # noqa: E402
+ from orchestrator.campaign import s8b_ratified_freeze  # noqa: E402
+-from orchestrator.tests.skiputil import Skip, skip  # noqa: E402
++from tests.skiputil import Skip, skip  # noqa: E402
+ 
+ 
+ def _actual_gitlink() -> str:
+mutated-blob=fee703dfbb65e6bf779ec437e209cc24960b5513
+== run_tests (2 file selection, mutated)
+run rc=1
+restore: checkout rc=0
+post-blob=a19182bb5bcf1b6649a2185546d72510e35ba42d
+porcelain-after=[]
+restore-verified: blob==HEAD, tree clean
+== extracted red lines
+18:| ImportError while importing test module '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2379-syspath-selfcontained/orchestrator/tests/test_s8b_approved.py'.
+25:| E   ModuleNotFoundError: No module named 'tests'
+26:| 59 passed, 1 error in 5.03s
+29:| IZANAGI_FAILURE rank=1 category=error when=collect nodeid="orchestrator/tests/test_s8b_approved.py" nodeid_bytes=39 nodeid_omitted_bytes=0 source_bytes=531 retained_bytes=531 omitted_bytes=0 rendered_excerpt_bytes=548 sha256=deff45aabf4c230eea4499f4602c881500b958a1c329c004efda7c36913d1ffe
+31:| > ImportError while importing test module '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2379-syspath-selfcontained/orchestrator/tests/test_s8b_approved.py'.
+38:| > E   ModuleNotFoundError: No module named 'tests'
+40:| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=0 errors=1 selected=1 omitted_failures=0 source_bytes=531 retained_bytes=531 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1211 omitted_manifest_sha256=-
+62:| Request ID:             5544.nqsv
+2026-09-18 11:47:53 end run-rc=1

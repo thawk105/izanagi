@@ -96,6 +96,13 @@
 | 3 | read-heavy 5 時間 5 分・3 変種と約 25 時間の外挿 | `docs/b10-multinode-formal-run-design.md`、`docs/archive/worklog-phase3-0902-1186.md`・同 1187、`docs/decisions.md` の D1480・D1489・D1509、`output/insights/2026-08-31_t1905-b10-formal-run/README.md`、同 `2026-09-02_t1905-b10-multinode-design/README.md`、同 `2026-09-02_paper-story-a6-certification/README.md` | request `965996` の job 壁時計と、commit 済み 3 変種 | 壁時計には commit へ到達しなかった 4 変種目の legacy 1 + performance 3 の時間も入る一方、除数は完了 3 変種のまま |
 | 4 | read-heavy の 1690 万 commit | `output/insights/2026-08-31_t1905-b10-formal-run/README.md`、`docs/archive/worklog-phase3-0902-1186.md`・同 1187・同 1189、`2026-09-02_b10-trace-truncation/README.md` | read-heavy の飽和した 3 点の performance 反復 | 3 点の 1 つが未 commit `constant-mu2` の n=3。平均 16.928M が 1690 万への丸めに入る |
 
+> **追記 (T-2321、2026-09-18): 記録境界と旧所要の区別。** 上の表 #3 の「5 時間 5 分」の計測区間は引き続き未同定である。
+> request `965996` の Started (2026-09-02 01:07:49 JST) からの秒表示差として、3 変種目の認証確定までは
+> 16,387 秒、WAL 末尾 (4 変種目の本規模 3 反復目) までは 20,682 秒、Ended までは 20,946 秒 (scheduler の
+> Elapse 記載は 20950S)。欠測 attempt の本規模 3 反復を含むことは WAL 末尾まで等の区間では確認できるが、旧所要
+> への帰属は確定しない。根拠と精度は `docs/b10-multinode-formal-run-design.md` §1 の同名追記を参照。既存行と
+> 当時の判定を保持し、値を無効にせず、欠測 attempt の時間を除いた再計算は行わない。
+
 ### 4.2 正典の 4 件のうち 1 件は帰属が違う
 
 **「15 認証単位」は欠測母集団由来ではない。** 正典は T-2191 の 1 件として

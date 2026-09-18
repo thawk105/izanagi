@@ -67122,3 +67122,102 @@ size filter・cache・受領証は導入しない。canonical の解決は direc
 **記録しないこと (D2034):** 削減版の主項は O(到達可能 unique blob bytes) (本文読取 20〜22 秒) と O(commit) の metadata で、
 成長比例費用は残る。「解消した」とは記録しない。1 呼出 35〜46 秒 (login node、負荷 14〜48) が 8c の運用に足りるかは本 wave では
 判定しない。壊れた tree (同名 entry 重複、mode と object 種別の不一致) では旧版と文言・受理が異なりうる (insight §4.3、未証明の残余)。
+
+## D2143. 層 3 機序仮説層 v3 は `runs/agent_outputs.jsonl` を loop harness の 2 口 (live / 取込み) だけが書き、renderer は critic の帰属記録を非 certifying の二次 view として決定論射影する — schema 版は v3 据え置き (2026-09-18)
+
+**決定:** `output/insights/2026-07-16_layer3-mechanism-wiring-design.md` §2 を次の契約で実装した (wave
+`dev-wave-t2746-k2-loop-round2`、見送り台帳の「層 3 機序仮説層 (v3) を実装する」項の着手条件 = agent 出力を生む loop 再走が
+D2120 項 1 の 2 巡目で成立)。
+
+1. **永続面** `runs/agent_outputs.jsonl` (append-only、WAL 同形 envelope `{ts, stage, variant, env_tag, payload}`、stage は
+   `planner_proposed` / `coder_proposed` / `critic_attributed` の 3 種のみ)。reader / writer / 検証は
+   `orchestrator/campaign/agent_outputs.py` (空行・未終端最終行・不正 UTF-8・duplicate key・完全重複・semantic 重複
+   (`stage + input_sha256 + canonical(output)`) を fails-closed、flock 内で既存検査 → 単一 write → file/dir fsync)。
+   `runs/` 配下は `guard_write` の既存判定で防護済み (hooks は変えない)。
+2. **書き手は loop harness だけ。** 2 口を持つ: (a) live = `--run-iteration --agent-inputs` 指定時に `drive_iteration` の入口停止後・
+   評価前に planner / coder を追記 (variant null)、(b) 取込み = `--record-agent-output STAGE FILE --agent-campaign-dir DIR --agent-input INPUT.json`
+   (harness の外で生まれた役割出力を取り込む口。critic は常にこれ。site 解決より前に return し login で呼べる)。取込み口は
+   stage↔出力の対応・役割 schema・K2 manifest digest と受領証の一致・critic digest の一致・variant の WAL 実在・`--agent-wal-ref` の実在を
+   fails-closed で検査し、`input_sha256` は harness が指定入力 JSON から計算する (呼出し側から値を渡す口は作らない)。
+3. **provenance の意味は申告である。** `mode` は記録方式 (live / ingested)、`ts` は記録時刻、`input_sha256` は呼出し側が実入力として申告した
+   保存 JSON の canonical sha256、`prompt_sha256` は指定 file の bytes sha256 であり、いずれも役割への実送達の証明ではない。
+   docstring と schema description に明記する。
+4. **critic の 4 節** (`## attribution` / `## recommend` / `## avoid` / `## uncertainty`、各ちょうど 1 回) は
+   `agent_outputs.extract_critic_sections` が原文の範囲選択 (見出し行の次行から次の unfenced `## ` 直前まで、前後空白 strip、
+   fenced code block 内の行は見出し候補から除外) で抽出し、harness の保存と renderer の再抽出が同じ関数を使う。`raw_markdown` 全文を併記する。
+5. **入力側防壁は不変。** `planner_context_payload` / `whiteboard_for_planner` / `project_whiteboard` / `_prepare_knowledge_campaign` は
+   `agent_outputs` を読む API を持たない (実行検査・3 状態不変・AST の 3 本で固定)。v3 は報告層の記録であり、critic 診断を次生成の
+   型付き入力へ還流する経路ではない。
+6. **renderer** (`layer3_report.py`) は AO を whiteboard と独立に読み、全 envelope を `agent_outputs` 区画へ一次配置し、`critic_attributed` だけを
+   `mechanism_hypotheses` (`variant` / `attribution` 逐語 / `source_ref: ao:<canonical sha256>` / `refs` / `digest_sha256`) へ決定論射影する。
+   双射の期待側は report と独立に読んだ AO の Counter、view は独立再射影と exact 一致、`refs` は一次 WAL ref に実在、非 null variant は
+   対象 WAL の任意 stage に実在 (harness と同条件)。不在は `mechanism_hypotheses_provenance = absent`、存在は `agent_outputs`。
+   数値・verdict・参照を attribution の文章から作らない。`certifying_input=false` / `acceptance_receipt=null` の既定は変えない。
+7. **schema は `layer3-material-report/v3` 据え置き** (D828 の同型: optional property の追加と `mechanism_hypotheses` の `maxItems: 0` 解除、
+   top-level `required` 不変)。`verifications.items` に producer の現行 key `commit_witness` (integer 2 key) と `proof_surfaces`
+   (X/P/I 3 値 enum、protocol string|null) を optional で足す (D829: view で消さない)。閉包検査は producer の AnnAssign と `update` /
+   添字代入、`_view_row` の除外集合 (exact 2 key を pin)、qualification 分岐の key を AST で導出する (D830)。
+
+**理由:**
+- 設計文書の「v3 で bump」は identifier が admission 導入 (a21bf413e) で消費済みのため据え置きにし、v4 は作らない (D828 が前方互換を
+  保証しないと定めた射程内)。
+- 現行 renderer は `verify_done` の `commit_witness` (ee81c4311、2026-08-11) と `proof_surfaces` (e4c949f08、2026-09-03) を schema に持たず
+  本 loop 型の campaign を描画できなかった。v3 の材料はこの受理が前提である。
+- 1 巡目の記録で「critic の診断は次生成の型付き入力へ届かない」ことが実測されており、v3 はその欠落を報告層の記録として埋めるもので、
+  入力側へ還流する機構ではない (規律 2/6 の入力側防壁を保つ)。
+
+**却下した選択肢:**
+- 未評価 proposal の `variant` に `diffq_variant_id` を流用する — reject / 評価済み variant との誤認を生むため `null` にした。
+- 実入力が保存されていない役割出力を `input_sha256: null` や再構成入力で取り込む — 規律 6 と provenance を濁すため採らず、取込み不能として記録する。
+- 取込み口を「harness だけが書く」違反として作らない — 設計条件は永続面の書き手と生成入力経路の分離であり、外部出力の受領を禁じていない。
+- `mechanism_hypotheses` を機序の証拠として扱う — LLM の帰属記録であり、改善の実証・certified 選択には使わない。
+
+一次資料: `output/insights/2026-09-18/t2746-k2-loop-round2/README.md`。
+
+## D2144. 「直列性検査 1 回 23 分」の区間帰属を D1554 へ追記する — timeout 契約からベンチ process は約 120 秒以下 (条件付き)、区間の約 91% が Python 側で検査器が主要項、反復の内側を計った保存資料は確認した範囲に無い (2026-09-18)
+
+**決定:** D1554 が「どれが律速かは、この時刻差からは分離できない」と書いた混合区間について、
+既存の記録と当時の code の契約だけで言える帰属を D1554 の追記として記録する。**D1554 の本文と
+結論 (walltime `12:00:00` は不変) は変えない。** 一次資料は
+`output/insights/2026-09-18/t2229-verify-cost-decomposition/README.md` である。
+
+- 「23 分」は read-heavy 正式走 `ed8a676b` の `verify_done` 13 反復 (高 commit 3 変種) の
+  **中央値 1408.8 秒 (23.48 分)** で、帯は 1346.9〜1465.6 秒。
+- 区間の中身は code の順に、前反復の WAL 行書き込みと trace dir 削除 (WAL の時刻は書き込み前に
+  採るので、どちらも次の反復の区間に入る)・一時 dir 作成・trace 有効ベンチ process・C 行の
+  数え直し・標準出力の解析・直列性検査。build (50〜53 秒 / 変種) は区間の外にある。
+- **記録と契約から言える上限は 1 つ (条件付き)**: 当時の code は trace 有効ベンチ process を
+  `subprocess.run(timeout=120)` (`TRACE_TIMEOUT_S`) で `trace-timeout` として reject する契約で、22 反復に
+  1 件もその reject が無い。timeout は子の起動後 `communicate()` から計るので起動直後の親の遅延分は
+  保証外だが、その遅延が無視できるという条件の下で、ベンチ process (記録の読み込み + 3 秒走 +
+  書き出しと flush + 終了) は各反復およそ 120 秒以下。よって**区間の約 1289 秒 (約 91%) は
+  Python 側** (数え直し・検査器・台帳操作) で、数え直しは換算で約 20 秒、台帳操作は最後の反復の
+  観測で 0.36 秒以下なので、**検査器が主要項**である。
+- 検査器の値そのものは記録に無い。試算は 2 つ (合成 trace の単価からの外挿で 71〜86%、同じ 4 変種を
+  並列化後の検査器で完走した `acf840c8` との差分に等 R と倍率 s を仮定して 57〜92%) で、
+  どちらも仮定付きなので**点推定や上下限として書かない**。
+- **反復の内側を計った保存資料は、確認した範囲 (WAL payload、driver の標準出力と標準エラー、
+  scheduler の標準出力、当時の verifier の capability / commit receipt の code) に見つからない。**
+
+**理由:**
+
+- D1554 を読んだ人が「分離できない」で止まらず、記録と契約から言える範囲 (ベンチ process 約 120 秒
+  以下、Python 側 約 91%、いずれも条件付き) まで辿れるようにする。canonical の既存 bytes は fold だけが追記でき書き換える
+  経路が無いので、追記の新エントリで残す (絶対規律 7 の「追記でのみ訂正」とも一致する)。
+- 初稿は並列走との差分に等 R 模型と s ≤ 4 を暗黙に置き「検査器 76〜98%」を記録からの上下限として
+  書いていた。段 6 の独立レビューが「等 R は実証されておらず s に上限を置く根拠も無い」と指摘し
+  (must-fix、real)、条件付き試算へ降格した。代わりに timeout 契約から出る上限を主にしたが、2 巡目の
+  焦点レビューが「timeout は `communicate()` から計るので厳密な上限ではない」と指摘し (must-fix、real)、
+  これも条件付きへ改めた。仮定なしに言える定量値は無い。
+- 欠測 attempt (`292d58f1dad8` の 3 反復) を含む数値 (帯・中央値・差・積み方) には D1529 の但し書きを
+  付け、除いた 10 反復でも中央値 1398.7 秒で結論が変わらないことを併記した。
+
+**却下した選択肢:**
+
+- 反復の内側を計る計装を足す — 本 wave の scope (原因分解まで、実装差分ゼロ) の外であり、
+  規律 5 (盛らない) にも触れる。必要になれば別の変更単位で起票する。
+- 等 R 模型の値を検査器の帰属として書く — 両 run は node・trace・code (並列側は検証への追加引数と
+  `proof_surfaces` の WAL 出力を持つ) が同一でなく、`workers` 16 の発火も未確認で、s に上限が無い。
+  試算として残し、結論には使わない。
+- 並列化後の帯 (595.5〜626.9 秒) で walltime を積み直す — 差分の材料として引いただけで、
+  walltime の再裁定も並列化の処方も本 wave では行わない。

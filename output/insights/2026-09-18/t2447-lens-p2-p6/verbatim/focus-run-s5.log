@@ -1,0 +1,66 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-91680b33fd)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2447-lens-p2-p6/output/pegasus-dispatch/orphan-holds/unknown-240bf2af3e0685258e9980dc.json
+[Pegasus dispatch] request ID 4994.nqsv を受理しました
+[Pegasus dispatch] request 4994.nqsv の状態: QUE
+[Pegasus dispatch] request 4994.nqsv の状態: RUN
+[Pegasus dispatch] request 4994.nqsv の状態: END
+[Pegasus dispatch] request 4994.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2447-lens-p2-p6/output/pegasus-dispatch/orphan-holds/unknown-240bf2af3e0685258e9980dc.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2447-lens-p2-p6/output/pegasus-dispatch/91680b33fde22203d213060d5ac114d6/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 4994.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+| 
+| ........................................................................ [  8%]
+| ........................................................................ [ 16%]
+| ........................................................................ [ 25%]
+| ........................................................................ [ 33%]
+| ........................................................................ [ 41%]
+| ........................................................................ [ 50%]
+| ........................................................................ [ 58%]
+| ........................................................................ [ 67%]
+| ........................................................................ [ 75%]
+| ........................................................................ [ 83%]
+| ..................................s..................................... [ 92%]
+| s.....................s...........................................       [100%]IZANAGI_GROWTH_HOLD_SUMMARY_V1 {"collected_hold_functions":3,"opted_in":false}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"docs_bytes","node_id":"test_check_docs.py::test_dev_wave_model_pins_accept_current_docs_contract","reason":"Runs the real tools/check_docs.py with no arguments across a variable input set: enumerated living docs, the rotating docs/archive worklog set, the handoff directory, and discovered skill, command, reference, and provenance files. Its cost therefore grows with docs bytes.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"docs_bytes","node_id":"test_check_docs.py::test_normative_exact_section_pins_accept_real_repo","reason":"Runs the real tools/check_docs.py with no arguments across a variable input set: enumerated living docs, the rotating docs/archive worklog set, the handoff directory, and discovered skill, command, reference, and provenance files. Its cost therefore grows with docs bytes.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"docs_bytes","node_id":"test_check_docs.py::test_real_repo_clean","reason":"Runs the real tools/check_docs.py with no arguments across a variable input set: enumerated living docs, the rotating docs/archive worklog set, the handoff directory, and discovered skill, command, reference, and provenance files. Its cost therefore grows with docs bytes.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| 
+| 855 passed, 3 skipped in 16.65s
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+[Pegasus dispatch] request 4994.nqsv child stdout end
+[Pegasus dispatch] request 4994.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 3418217, "time_ns": 1789682347216249234}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 3418240, "event": "direct-child-wait-start", "pid": 3418226, "time_ns": 1789682347245078999}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 3418240, "event": "direct-child-wait-complete", "pid": 3418226, "time_ns": 1789682364526757829}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 3418226, "rc": 0, "time_ns": 1789682364526842683}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 3418217, "rc": 0, "time_ns": 1789682364531491975}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 3418217, "time_ns": 1789682364534646301}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 3418217, "time_ns": 1789682364547054004}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 3418217, "time_ns": 1789682364547828378}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 3418217, "time_ns": 1789682364547837076}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 3418217, "time_ns": 1789682364548902029}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 3418217, "time_ns": 1789682364548909129}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 3418217, "rc": 0, "time_ns": 1789682364548918286}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 3418217, "rc": 0, "time_ns": 1789682364548934908}
+| 
+| ============================================================
+| Request ID:             4994.nqsv
+| Request Name:           izdw-91680b33fd
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Fri Sep 18 06:58:52 2026
+| Started Request Time:   Fri Sep 18 06:59:06 2026
+| Ended Request Time:     Fri Sep 18 06:59:24 2026
+| Resources Information:
+|   Elapse:               22S
+|   Remaining Elapse:     3578S
+| ============================================================
+[Pegasus dispatch] request 4994.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+rc=0
