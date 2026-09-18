@@ -4934,6 +4934,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-08** — 別 wave の session が主 checkout に cwd を残したまま `git add -A; git commit` を実行し、untracked だった `.codex/worktrees/` 110 本を gitlink として main へ commit した (c12e25078)。今回は near miss でなく実害で、全新規 worktree の submodule 初期化と全 session の land (provenance 全史監査 rc=1) が止まった。前進修正は D1797。
 
 - **再発: 2026-09-18** (near miss、実害なし) — 隔離 worktree の session が Bash で `cd <Codex author の probe worktree> && grep …` (読み取りだけ) を実行したところ、harness の追跡 cwd がその worktree へ移り、以後の全 command (`pwd` すら) を隔離 guard が「共有 checkout で実行しようとした」として拒否した。`EnterWorktree --path <自分の wave worktree>` で復帰。書き込みは発生していない。同型: read-only の調査で `cd <他 checkout> &&` を前置する癖が、guard の cwd 追跡と衝突する。他 worktree の file は絶対 path で読み、`cd` を前置しない (memory `worktree-discipline` の「cwd の罠」)。
+
+- **再発: 2026-09-18** (同日 2 回目、near miss、実害なし) — 隔離 worktree の session が変異 harness の `--plan-only` を打つ前に Bash で `cd <変異 container worktree> && pwd` (読み取りだけ) を実行し、harness の追跡 cwd がその worktree へ移った。`EnterWorktree --path <自分の wave worktree>` で即復帰し、以後は container への操作をすべて `.sh` (内部で `cd`) 経由にした。書き込みは発生していない。同型: 他 worktree での command 実行は launcher script に閉じ込め、対話 shell で `cd` しない。
 ### F101. 成立済みの既知赤 waiver を確認せず land 可能な wave を止めた [手順漏れ]
 
 - 事象: 段 9 の受入全走が 1 failed / 5438 passed / 19 skipped になり、赤が
@@ -27379,6 +27381,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-18** — [T-2676] の新規 fixture (別 session の leader 配下で production の session 回収を走らせる実 process テスト) の `term` mode が孤児の SIGTERM 既定動作を継承状態に依存していた。login の再現は緑 (0.5 ms で `after=term`) だが、計算ノードへ dispatch した焦点走 (request 5015) では孤児が TERM を無視して KILL 経路へ進み赤。request 5043 の probe で job 内の全 process (nqs_shpd → bash → dispatcher → 子) が SIGTERM を `SIG_IGN` で継承していることを実測。対処は fixture の子と孫に `signal.signal(SIGTERM, SIG_DFL)` + `pthread_sigmask(SIG_UNBLOCK, {SIGTERM})` を明示 (同 file の既存テストと同じ形)、期待値は緩めていない。production 側への含意 (handler を持たない残存子は TERM で死なず 5 秒後の KILL で死ぬ) は D2140 に記録し、計算ノード実測の期待を投入前に改訂した。一次資料 `output/insights/2026-09-18/t2676-job-session-sweep/README.md` §2 / §5。
+
+- **再発: 2026-09-18** ([T-2288] job body wave) — 新規契約 test `test_child_rc_collection` の TERM 経路 (job body の `run_driver` が TERM を trap して記録し、child の rc を回収する) が login では緑、計算ノードへ dispatch した焦点走 (request 5523.nqsv) では `reason=completed` の赤 (期待 `signal_observed`)。原因は同じ SIG_IGN の継承 — bash は入口で ignore された signal を trap できず、`kill -TERM "$PPID"` が無視された。対処は test の `_bash()` が bash を exec する前の子で `SIGTERM/SIGHUP/SIGINT` を `SIG_DFL` に戻し `pthread_sigmask(SIG_UNBLOCK)` する (T-2676 の既存例と同じ形)。期待値は緩めていない。production 側 (job body の TERM trap) も計算ノードでは発火しない可能性があり、`docs/pegasus-runbook.md` §7.8 に「trap の存在を終了記録の保証と読まない」と明記した。一次資料 `output/insights/2026-09-18/t2288-floor-pair-job-body/README.md`。
 ### F1013. 指定の走査器が緑でも別 gate の候補集合には当たる [恒真ゲート] [手順漏れ]
 
 - 事象: 段 7 で `docs/dev-wave/core.md` DW-S07 が指定する三軸語走査器
@@ -27639,6 +27643,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   負例 (registry file の hardlink は拒否) を同時に登録する。
 - 再発検知: 段 9 の自己撤去の rc を worklog に必ず書く (`DW-O28`)。rc=20 の `admin entry is not a single
   regular file` を見たら本エントリを引き、tool の修正状況を確かめる。
+- **supersede: 2026-09-18** — 恒久対応は [T-2777] で実装した (commit 94715928d + fbd8c7038): `_read_admin_file` は admin dir 相対 path が object の名前形 (`modules/…/objects/<2hex>/<38|62hex>`、`modules/…/objects/pack/pack-<40|64hex>.<ext>`、`modules` と末尾 3 component の間に `refs`/`logs` を含まない) の regular file に限り nlink>1 を許容し、registry file の拒否は不変。正例・負例 6・race 2 を変異登録 (M1〜M5 KILLED、等価 M0 SURVIVED)。名前形外の補助 file (`objects/info/*`、`multi-pack-index` 等) の hardlink は現行どおり rc=20。本 wave の段 9 の rc は次 wave の worklog へ。一次資料 `output/insights/2026-09-18/t2777-cleanup-hardlink-fix/README.md`。
 
 ### F1027. mocc trace pilot の hydrate だけが素の python3 で driver を import し、計算ノードで 3.10 専用式を踏んで止まった [テスト代表性] [ドリフト]
 

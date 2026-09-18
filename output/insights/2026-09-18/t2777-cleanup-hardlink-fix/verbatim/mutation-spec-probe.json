@@ -1,0 +1,78 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 150,
+ "timeout_seconds": 2700,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "id": "m0-equivalent-parens",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "    return parts[0] == \"modules\" and len(parts) >= 5 and parts[-3] == \"objects\" and bool((_OBJECT_FANOUT_RE.fullmatch(parts[-2]) and _LOOSE_OBJECT_RE.fullmatch(name)) or (parts[-2] == \"pack\" and _PACK_OBJECT_RE.fullmatch(name)))\n",
+     "new": "    return (parts[0] == \"modules\" and len(parts) >= 5 and parts[-3] == \"objects\" and bool((_OBJECT_FANOUT_RE.fullmatch(parts[-2]) and _LOOSE_OBJECT_RE.fullmatch(name)) or (parts[-2] == \"pack\" and _PACK_OBJECT_RE.fullmatch(name))))\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-predicate-always-true",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "    return parts[0] == \"modules\" and len(parts) >= 5 and parts[-3] == \"objects\" and bool((_OBJECT_FANOUT_RE.fullmatch(parts[-2]) and _LOOSE_OBJECT_RE.fullmatch(name)) or (parts[-2] == \"pack\" and _PACK_OBJECT_RE.fullmatch(name)))\n",
+     "new": "    return True\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-predicate-always-false",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "    return parts[0] == \"modules\" and len(parts) >= 5 and parts[-3] == \"objects\" and bool((_OBJECT_FANOUT_RE.fullmatch(parts[-2]) and _LOOSE_OBJECT_RE.fullmatch(name)) or (parts[-2] == \"pack\" and _PACK_OBJECT_RE.fullmatch(name)))\n",
+     "new": "    return False\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-removal-side-default-reject",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "            raw = _read_admin_file(\n                fd, name, allow_shared_object=_is_shared_object_path(prefix, name))\n",
+     "new": "            raw = _read_admin_file(fd, name)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-stable-relaxed-for-registry",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "        def stable(st):\n            if allow_shared_object:\n",
+     "new": "        def stable(st):\n            if True:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}
