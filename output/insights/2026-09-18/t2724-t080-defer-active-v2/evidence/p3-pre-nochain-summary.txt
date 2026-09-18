@@ -1,0 +1,5 @@
+2026-09-18 11:29:43 JST
+24ede1d11cb33af8d2278cd6d48d29863225465b
+"allowed": false
+"refusals": ["floor-null: freeze.floor が null", "budget-null: freeze.budget が null"]
+2026-09-18 11:33:18 JST

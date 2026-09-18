@@ -2188,8 +2188,74 @@ def _verify_known_pairing(
         raise MigrationError("known_axes.pairing", str(exc)) from exc
 
 
+def _assert_holdout_report_bindings(holdout_doc: Mapping, report: Mapping) -> None:
+    frozen_holdouts = holdout_doc.get("holdouts")
+    live_holdouts = report.get("holdouts") if isinstance(report, Mapping) else None
+    candidate_names = {"rr80", "rr20"}
+    if (not isinstance(frozen_holdouts, Mapping)
+            or not isinstance(live_holdouts, Mapping)
+            or set(frozen_holdouts) != candidate_names
+            or set(live_holdouts) != candidate_names):
+        raise MigrationError(
+            "holdout.unknownness_layer2", "rr80/rr20 candidate 集合が不一致",
+        )
+    if report.get("match_convention") != holdout_doc.get("match_convention"):
+        raise MigrationError(
+            "holdout.unknownness_layer2", "match_convention が凍結記録値と不一致",
+        )
+    for name in ("rr80", "rr20"):
+        frozen = frozen_holdouts[name]
+        live = live_holdouts[name]
+        unknownness = frozen.get("unknownness_check") if isinstance(frozen, Mapping) else None
+        if (not isinstance(live, Mapping) or not isinstance(unknownness, Mapping)
+                or live.get("candidate_id") != frozen.get("candidate_id")):
+            raise MigrationError(
+                "holdout.unknownness_layer2", f"{name} candidate 対応が不一致",
+            )
+        if live.get("expressions") != unknownness.get("expressions"):
+            raise MigrationError(
+                "holdout.unknownness_layer2", f"{name} expressions が凍結記録値と不一致",
+            )
+
+
+def _holdout_layer2_delegation(
+    *, root: Path, validation_head: Optional[str], launch_validated,
+) -> Optional[Mapping]:
+    """直前の full launch validation の report だけを委譲候補にする。
+
+    名前集合の digest は同名 file の内容の鮮度を証明しない。campaign-start では
+    gate 時 token を再利用し、HEAD・世代・列挙集合・凍結 doc 束縛を再照合する。
+    """
+    from . import s8b_ratified_freeze
+    try:
+        # Historical verification and lookalike objects are not admission tokens.
+        if type(launch_validated) is not s8b_ratified_freeze.LaunchValidatedFreeze:
+            return None
+        if launch_validated.validation_root != Path(root).resolve():
+            return None
+        if not (launch_validated.activation_head == validation_head == _capture_head(root)):
+            return None
+        ratified = launch_validated.ratified
+        if ratified.activation_head != validation_head:
+            return None
+        active = s8b_ratified_freeze.resolve_active_generation(root)
+        if (active.activation_head != ratified.activation_head
+                or active.generation_sha256 != ratified.sha256
+                or active.generation_number != ratified.generation_number
+                or active.generation_commit != ratified.generation_commit):
+            return None
+        if launch_validated.search_digest != s8b_ratified_freeze._enumeration_digest(root):
+            return None
+        _assert_holdout_report_bindings(ratified.document, launch_validated.search_report)
+        return launch_validated.search_report
+    except Exception:
+        # Predicate failure restores the ordinary scan; its errors are not suppressed.
+        return None
+
+
 def _verify_holdout_live_scan(
-    root: Path, holdout_doc: Mapping[str, object],
+    root: Path, holdout_doc: Mapping[str, object], *,
+    delegate_to=None, validation_head: Optional[str] = None,
 ) -> Mapping[str, object]:
     """holdout 層 2 を公開 scan API だけで再検証する。
 
@@ -2198,35 +2264,15 @@ def _verify_holdout_live_scan(
     """
     from . import s8b_holdout_freeze as holdout_module
     try:
-        report = holdout_module.search_repository(root)
-        frozen_holdouts = holdout_doc.get("holdouts")
-        live_holdouts = report.get("holdouts") if isinstance(report, Mapping) else None
-        candidate_names = {"rr80", "rr20"}
-        if (not isinstance(frozen_holdouts, Mapping)
-                or not isinstance(live_holdouts, Mapping)
-                or set(frozen_holdouts) != candidate_names
-                or set(live_holdouts) != candidate_names):
-            raise MigrationError(
-                "holdout.unknownness_layer2", "rr80/rr20 candidate 集合が不一致",
-            )
-        if report.get("match_convention") != holdout_doc.get("match_convention"):
-            raise MigrationError(
-                "holdout.unknownness_layer2", "match_convention が凍結記録値と不一致",
-            )
-        for name in ("rr80", "rr20"):
-            frozen = frozen_holdouts[name]
-            live = live_holdouts[name]
-            unknownness = frozen.get("unknownness_check") if isinstance(frozen, Mapping) else None
-            if (not isinstance(live, Mapping) or not isinstance(unknownness, Mapping)
-                    or live.get("candidate_id") != frozen.get("candidate_id")):
-                raise MigrationError(
-                    "holdout.unknownness_layer2", f"{name} candidate 対応が不一致",
-                )
-            if live.get("expressions") != unknownness.get("expressions"):
-                raise MigrationError(
-                    "holdout.unknownness_layer2", f"{name} expressions が凍結記録値と不一致",
-                )
-        holdout_module._assert_search_pass(report)
+        report = _holdout_layer2_delegation(
+            root=root, validation_head=validation_head, launch_validated=delegate_to,
+        ) if delegate_to is not None else None
+        delegated = report is not None
+        if not delegated:
+            report = holdout_module.search_repository(root)
+        _assert_holdout_report_bindings(holdout_doc, report)
+        if not delegated:
+            holdout_module._assert_search_pass(report)
     except MigrationError:
         raise
     except Exception as exc:
@@ -2281,7 +2327,8 @@ def _make_observation(
     }
 
 
-def verify_receipt(*, root: Path = ROOT, path: Path | str = RECEIPT_REL) -> ReceiptResolution:
+def verify_receipt(*, root: Path = ROOT, path: Path | str = RECEIPT_REL,
+                   launch_validated=None) -> ReceiptResolution:
     root = Path(root)
     if _repo_relative(Path(path), root) != RECEIPT_REL:
         raise MigrationError("receipt.invalid", "verify path は active path 固定")
@@ -2340,7 +2387,9 @@ def verify_receipt(*, root: Path = ROOT, path: Path | str = RECEIPT_REL) -> Rece
     if holdout is not None:
         checks.append((
             "holdout.unknownness_layer2",
-            lambda: _verify_holdout_live_scan(root, holdout),
+            lambda: _verify_holdout_live_scan(
+                root, holdout, delegate_to=launch_validated, validation_head=head,
+            ),
         ))
     if known is not None:
         checks.append((
@@ -2423,6 +2472,7 @@ def _verify_ccbench_basis_from_receipt(
 
 def static_gate_adapter(
     *, resolution: ReceiptResolution, known_raw: bytes, holdout_raw: bytes, root: Path = ROOT,
+    launch_validated=None,
 ) -> AdapterResult:
     """official gate 用の fail-fast しない静的 adapter。
 
@@ -2487,7 +2537,10 @@ def static_gate_adapter(
         ("holdout.positive_control", lambda: _validate_positive_control(Path(root))),
         ("known_axes.schema", lambda: _verify_known_schema(receipt, known_doc)),
         ("known_axes.pairing", lambda: _verify_known_pairing(receipt, known_doc)),
-        ("holdout.unknownness_layer2", lambda: _verify_holdout_live_scan(Path(root), holdout_doc)),
+        ("holdout.unknownness_layer2", lambda: _verify_holdout_live_scan(
+            Path(root), holdout_doc, delegate_to=launch_validated,
+            validation_head=resolution.validation_head,
+        )),
     )
     for reason, check in independent:
         try:

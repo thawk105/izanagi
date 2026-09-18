@@ -1,0 +1,10 @@
+2026-09-18 13:02:39 JST
+7c007333b1bda9c9850a9a4f240d6f12dc0b27bd
+[Pegasus dispatch] request ID 5648.nqsv を受理しました
+1093 passed 11 skipped 3 errors 3 failed
+in 544.09s (0:09:04)
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rechecks_receipt[missing]
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rejects_late_hit_file
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rechecks_receipt[changed]
+INTERNALERROR lines: 0
+2026-09-18 13:17:54 JST
