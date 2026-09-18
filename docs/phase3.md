@@ -18,7 +18,7 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
-- [x] [T-2724] A-3整合実装と[T-2776]のfixture切離しを回収した。
+- [ ] [T-2724] A-3整合実装と[T-2776]のfixture切離しを回収済み、受入はF945型のGit走査timeoutで停止中。
   receiptの履歴・静的検証・epoch・invalid拒否を維持し、同一root/HEAD/世代のactive v2 full validationへ層2だけ委譲する。
   証拠とsingle-tenant残余は `output/insights/2026-09-18/t2724-t080-defer-active-v2/README.md`。
   chain/X2/Gの取り込みと人間A/Xによる発効は別waveであり、このチェックはそれらの完了を意味しない。

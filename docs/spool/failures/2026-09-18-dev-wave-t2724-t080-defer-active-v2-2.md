@@ -24,3 +24,7 @@ seq: 2
 ### F100
 
 - **再発: 2026-09-18** (同日 3 回目、near miss、実害なし) — [T-2724] 整合 wave の親が `cd <Codex author worktree> && python3 tools/dev_wave_codex.py … --dry-run` (読み取りだけ) を打ち、harness の追跡 cwd が author worktree へ移った。`EnterWorktree --path <自分の wave worktree>` で即復帰。以後の dry-run は `cd` を前置せず絶対 path で打った。書き込みは発生していない。
+
+### F945
+
+- **再発: 2026-09-18** — T-2724/T-2776回収tip `d899c86aa` の受入shard0（6425.nqsv）で、T-1259のmodule fixtureが `git ls-files --others --exclude-standard -z` の30秒TimeoutExpiredとなり12 setup errors。全体は25153 passed / 69 skipped。test本体に入る前で、当該test/probeには今回の差分がない。正規runnerの同tip単独走でも51 setup errors（247.47秒）を再現したため、DW-O18に従い受入2を投入せず停止した。timeout/hold/除外は変更せず、T-2790の既存の設計・検証手番に範囲を残す。一次資料は `output/insights/2026-09-18/t2724-t080-defer-active-v2/README.md` の停止記録と回収jobの生log。

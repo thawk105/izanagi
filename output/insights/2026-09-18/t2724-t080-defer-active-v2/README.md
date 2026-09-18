@@ -94,3 +94,19 @@ job不在・producer/待ち手終了を確認し、同tipをrunner既定配置�
 原本の保全先は回収jobの`recovered-insight`と`recovered-decisions.md` / `recovered-failures.md`。
 旧dispatchの参照pathは同jobの`recovered-dispatch/source-wave`および`mut1`〜`mut4`へ対応し、
 それぞれ49/65/73/65/73fileのbyte一致を確認した。旧branchを清掃してもこの保全先で追跡できる。
+
+## 停止記録
+
+最終受入attempt1（tip `d899c86aa`）は25153 passed / 69 skipped / 12 setup errorsで失敗した。
+成功受領証は発行されていない。全12件はT-1259のmodule fixtureからの
+`git ls-files --others --exclude-standard -z` が30秒でTimeoutExpiredとなったもの。
+当該test/probeには今回の差分がなく、T-080の委譲を通るtest本体に到達していない。
+I/O遅延の個別要因は分離していない。
+
+同tipの正規runner単独走でも51 setup errors、247.47秒、rc1で同じtimeoutを再現した。
+DW-O18により受入2を投入せず正式停止。main land・対象branch/worktreeの清掃は未実施で全対象を保全する。
+既存T-2790（D2148項12）のfixture待機上限の設計・検証を越えて、今回timeout/hold/除外は変更しない。
+
+判定は `verbatim/acceptance-1-adjudication.md`。生logは回収jobの`acceptance-1.child.log`、
+`t1259-single.log`と`acceptance-1-shards/`に保全する。旧変異、焦点走、独立監査の結果を
+受入成功に読み替えない。再開位置と停止時mainは専用handoffに残す。
