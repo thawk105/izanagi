@@ -217,6 +217,17 @@
   worklog・insight へ写す前に気づき、handoff を date 値で訂正し、以後の時刻は `date` と job の Started/Ended Request Time から採った
   (worklog エントリ・insight に誤時刻は入っていない = near miss)。型は 2026-09-17 の再発と同じ「推定で書く」。恒久対応は変更なし
   (memory `timestamps-from-date-or-mtime-not-estimation`。時刻・日付を報告に載せる前に `date` を叩く)。
+
+- **再発: 2026-09-18 (near miss、2 件)** — [T-2674] wave (T-1998 単独 results 稿、凍結物) の親が、(1) WAL の
+  `tracked_diff_sha256` を Edit の本文へ**手打ちで転写**して 1 桁誤り (`…986cb…` を `…986dc…`)、(2) 是正 commit
+  `4d7cd40a9` を最初に含む main first-parent 上の commit を `git log --since/--until` 付きの走査で `291892b90…`
+  (11:40 JST) と導き、稿の §4 と時系列表へ書いた。(2) は同日 08:30 JST の `b1a3d45d…` が既に含んでおり、`--since`
+  の絞り込みが境界を取り逃していた。(1) は親自身の機械照合 (稿の全 sha256 と数値を権威 bytes から再計算して突き合わせる
+  使い捨て script) が commit 前に捕まえ、(2) は段 6 レンズ A が `git merge-base --is-ancestor` で反証して、
+  land 前に両方とも直した。転写対象が日付・機構・推測の確度から **hash の手打ちと、絞り込み付き履歴走査の派生値**へ
+  広がった顕在化。恒久対応は変更なし — 稿へ入れる hash は現物から貼り、履歴の境界は絞り込み無しで全区間を
+  祖先判定して確かめる (`DW-O16` の「親が書いた派生値は原データから再計算して照合するまで closed としない」の対象)。
+  一次資料は `output/insights/2026-09-18/t2674-t1998-results-doc/README.md` §3。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -24421,6 +24432,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   T-2373 の検査 (語走査の件数と索引件数の突き合わせ) は、実体に当て直した後で初めて機能した。
   是正 (収集 §1 に「carry 鎖を archive まで解決した実体本文へ当てる」を明記) は、入口の byte 予算が
   満杯で同 file を [T-2440] が所有するため、そちらの範囲へ合流させる。
+- **supersede: 2026-09-18** — 再発 (第 15 回) の是正「収集 §1 に carry 鎖を archive まで解決した実体本文へ当てると明記」は [T-2440] で入口へ着地した (`.claude/commands/rulings.md` 収集 §1、予算 5,623 の中で 5,623 bytes、意味等価な縮約 3 か所で収容)。
 ### F889. 段 8 を land の後に回し、是正の着地に受入全走をもう 1 回使った [手順漏れ]
 
 - 事象: 本 wave は段 7 の記録 commit の後、段 8 を実行せずに段 9 の land を先に走らせた。
@@ -24581,6 +24593,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   byte 予算 (5,623) の中で行い、予算の引き上げはしない。
 - 再発検知: 各回の /rulings で、索引に載せた件のうち推奨を付けなかった件数を数える。
   0 でなければ、その回は裁定を受けられない項を出したことになる。
+- **supersede: 2026-09-18** — 恒久対応「入口の出力規則を直す ([T-2440])」は D1868 (2026-09-09、commit fbf245894) で入口へ着地済み。[T-2440] は着地を照合し、残っていた Codex 側鏡像 `.agents/skills/rulings/SKILL.md` 項 3 の旧規則「`all` は全件索引のみ」を「索引と推奨」へ同期して閉じた。
 
 ### F898. 検査を足した決定を「明記だけ」の先例として引いた [恒真ゲート]
 

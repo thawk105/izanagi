@@ -1,0 +1,39 @@
+| variant | BACK_OFF | BACKOFF_FIXED | src_token | 5 sample tps | median | cv(WAL) | cv(再計算 s/mean) | unstable | high_variance | settled | rounds | bench_wall_s | abort_rate | latency_ns |
+| 84319b1127a6 | 0 | -1 | stock | 4079966 / 3891020 / 3978513 / 3859794 / 3893509 | 3893509 (再計算 3893509) | 0.022721229214372803 | 0.022721229214372803 | False | False | True | 1 | 16.738 | 0.6795 | 12328.2109 |
+| 602b4ce9c788 | 1 | -1 | stock | 1273149 / 1265586 / 1292091 / 1180562 / 1228453 | 1265586 (再計算 1265586) | 0.03542019745952476 | 0.03542019745952476 | False | False | None | 1 | 16.705 | 0.2144 | 37927.0946 |
+| 82ea3a7b8618 | 1 | 2 | d786db57… | 4656913 / 4350513 / 4451117 / 4348124 / 4442208 | 4442208 (再計算 4442208) | 0.028237246846433507 | 0.028237246846433507 | False | False | None | 1 | 16.708 | 0.5529 | 10805.4373 |
+| 93c62227a2d3 | 1 | 5 | 678b7203… | 4437166 / 4326276 / 4361949 / 4330570 / 4289164 | 4330570 (再計算 4330570) | 0.012790608817328908 | 0.012790608817328908 | False | False | None | 1 | 16.687 | 0.4613 | 11083.9913 |
+| a7f8486e1116 | 1 | 10 | 16c29935… | 3934337 / 3910016 / 3887133 / 3903443 / 3911884 | 3910016 (再計算 3910016) | 0.004355492004467944 | 0.004355492004467944 | False | False | None | 1 | 16.698 | 0.3856 | 12276.1646 |
+| f35115998eb9 | 1 | 25 | 8299956a… | 3067278 / 3083495 / 3057439 / 3066391 / 3059296 | 3066391 (再計算 3066391) | 0.0033534039456534783 | 0.0033534039456534783 | False | False | None | 1 | 16.693 | 0.2914 | 15653.581 |
+| 56df98d73105 | 1 | 50 | 96608c1e… | 2433591 / 2424838 / 2419177 / 2435450 / 2431951 | 2431951 (再計算 2431951) | 0.0028013332534493137 | 0.0028013332534493137 | False | False | None | 1 | 16.677 | 0.2268 | 19737.2398 |
+| ada51d144af8 | 1 | 100 | 9fea0c83… | 1871719 / 1862051 / 1876195 / 1870346 / 1860962 | 1870346 (再計算 1870346) | 0.003500657398570267 | 0.003500657398570267 | False | False | None | 1 | 16.671 | 0.1725 | 25663.7007 |
+
+| variant | verdict | certified | anomalies | commits | aborts | workload.tag | X | P | I | verify_configs | fitness_tps |
+| 84319b1127a6 | serializable | True | 0 | 642639 | 252104 | legacy | evidence-present | evidence-present | evidence-absent | ['legacy'] | 3893509.0 |
+| 602b4ce9c788 | serializable | True | 0 | 282460 | 8925 | legacy | evidence-present | evidence-present | evidence-absent | ['legacy'] | 1265586.0 |
+| 82ea3a7b8618 | serializable | True | 0 | 628579 | 225147 | legacy | evidence-present | evidence-present | evidence-absent | ['legacy'] | 4442208.0 |
+| 93c62227a2d3 | serializable | True | 0 | 582099 | 165681 | legacy | evidence-present | evidence-present | evidence-absent | ['legacy'] | 4330570.0 |
+| a7f8486e1116 | serializable | True | 0 | 529897 | 122126 | legacy | evidence-present | evidence-present | evidence-absent | ['legacy'] | 3910016.0 |
+| f35115998eb9 | serializable | True | 0 | 442829 | 71493 | legacy | evidence-present | evidence-present | evidence-absent | ['legacy'] | 3066391.0 |
+| 56df98d73105 | serializable | True | 0 | 388097 | 43699 | legacy | evidence-present | evidence-present | evidence-absent | ['legacy'] | 2431951.0 |
+| ada51d144af8 | serializable | True | 0 | 336623 | 24815 | legacy | evidence-present | evidence-present | evidence-absent | ['legacy'] | 1870346.0 |
+
+時刻 (UTC):
+84319b1127a6 build_start 13:28:33.980 build_done 13:29:23.837 verify_done 13:29:40.191 bench_done 13:29:56.979 commit 13:29:57.002
+602b4ce9c788 build_start 13:29:59.253 build_done 13:30:49.839 verify_done 13:30:56.852 bench_done 13:31:13.594 commit 13:31:13.614
+82ea3a7b8618 build_start 13:31:15.880 build_done 13:32:06.181 verify_done 13:32:22.409 bench_done 13:32:39.159 commit 13:32:39.171
+93c62227a2d3 build_start 13:32:41.395 build_done 13:33:31.605 verify_done 13:33:46.180 bench_done 13:34:02.911 commit 13:34:02.916
+a7f8486e1116 build_start 13:34:05.161 build_done 13:34:55.697 verify_done 13:35:09.092 bench_done 13:35:25.832 commit 13:35:25.848
+f35115998eb9 build_start 13:35:28.085 build_done 13:36:18.052 verify_done 13:36:29.158 bench_done 13:36:45.882 commit 13:36:45.899
+56df98d73105 build_start 13:36:48.104 build_done 13:37:38.071 verify_done 13:37:47.954 bench_done 13:38:04.694 commit 13:38:04.712
+ada51d144af8 build_start 13:38:06.964 build_done 13:38:57.524 verify_done 13:39:06.089 bench_done 13:39:22.820 commit 13:39:22.837
+
+baseline median 3893509.0 target median 4330570.0 ratio 1.1122537536191646 improvement_percent 11.225375361916456
+env_tag set: ['pegasus']
+run_cmd 共通 flags baseline: -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=50 -ycsb_rmw=0
+run_cmd 共通 flags target:   -thread_num=48 -ycsb_tuple_num=1000000 -extime=3 -clocks_per_us=2100 -ycsb_zipf_skew=0.9 -ycsb_rratio=50 -ycsb_rmw=0
+toolchain_record_sha256 baseline: 61f756352ad21e05f3fc52d94f3249db25f23cf43ca43248a64f405183c48fbd
+toolchain_record_sha256 target:   61f756352ad21e05f3fc52d94f3249db25f23cf43ca43248a64f405183c48fbd
+perf_configure_cmd target: /usr/bin/cmake -S /scr/0_995755.nqsv-a5-second-boot-balanced/job-repo/external/ccbench -B /scr/0_995755.nqsv-a5-second-boot-balanced/job-repo/external/ccbench/build-variants/contracts/e576e9cd1369bba3ae8faca084d1b7256bf919a7dd2e5d6facb093cd9e242c01/4f411421d50fd177a6870e8bece5163d1b5d11bce76a189af84d891c6ee96d7a -DCMAKE_BUILD_TYPE=Release -DENABLE_SANITIZER=OFF -DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11 -DCCBENCH_BACKOFF_FIXED=5 -DCCBENCH_BACK_OFF=1 -DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1 -DCCBENCH_NO_WAIT_OF_TICTOC=0 -DCCBENCH_WAL=0 -DCCBENCH_TRACE=0
+tracked_paths target: ['cmake/Options.cmake', 'include/backoff.hh'] 29aef2bc1b9f30524ad8ceeff59ffdbfda626612986cb7851cce8accbdaa3682
+tracked_diff baseline: 29aef2bc1b9f30524ad8ceeff59ffdbfda626612986cb7851cce8accbdaa3682
