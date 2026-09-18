@@ -178,7 +178,8 @@ toolchain digest の腕内等式) で、2026-09-14 に是正 (commit `4d7cd40a9b
 
 2026-09-15 に、着地後の main (`0600887d92538b3f34d894f9674d202d0a29a578`) の consumer から同じ保全成果物を
 通し直し、status / reason / ratio / improvement_percent / 両 arm の 5 標本・median・変動係数・identity が
-2026-09-14 の記録と全桁一致することが記録されている (同日の insight README。その判定 JSON は保全されていない。§4)。
+2026-09-14 の記録と全桁一致することが記録されている (同日の insight README。その判定 JSON は本稿が参照した保存先では
+確認できず、本稿は同 README の記録による。§4 (b))。
 
 ### 2.2 登録 2 arm の生標本
 
@@ -462,7 +463,6 @@ consumer の判定 JSON (repo 外、job dir):
 
 ### 5.5 同じ結果についての既存の稿 (本稿の出所ではない)
 
-- `results/2026-09-16-b7-three-run-materials.md` — 同じ走行を A-2 / A-6 と併記した B-7 の材料。**本稿はここから
-  引き継いでいない。** どちらも凍結物として残る。
+- `results/2026-09-16-b7-three-run-materials.md` — 同じ走行を A-2 / A-6 と併記した B-7 の材料。どちらも凍結物として残る。
 - 版 `docs/paper-story/2026-09-14.md` §8 と `docs/paper-story/2026-09-17.md` §2 第 3 幕 / §7 — 同じ値を版として記述する。
   版は本稿の数値の出所ではない (README の規則)。
