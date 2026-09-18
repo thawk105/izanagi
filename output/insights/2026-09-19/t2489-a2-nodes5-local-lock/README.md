@@ -59,6 +59,7 @@ probeの45秒待機上限は実験の通知待ちだけで、production timeout�
 | default→candidate | 取得成功 | 試験対象外 | 成功 |
 
 両rankはcomplete、failure記録なし。schedulerのrequest消滅と両jobの出力境界を持つ会計を確認した。
+消滅の一次出力は `evidence/qstat-terminal.stdout`（stderrは空）。Post-running時の出力とも区別して保存した。
 同一ノードcandidateの保持者PID3123598と挑戦者PID3123600は同じdevice/inodeを開き、挑戦側が拒否された。
 別ノードでは同じ数値のdevice/inodeが現れるが、それを共有inodeの証拠とはしない。
 別ノードでの独立性は保持中取得とmount情報から判定した。
@@ -87,3 +88,8 @@ CC性能binaryは実行しておらず、旧資料の約8分という静的見�
   probe原文の上記SHAは.md保全分とbyte一致する。
 - qstatと子出力の末尾空白・最終改行だけを可逆正規化した。元/正規化SHA・byte数・行ごとの復元suffixは
   `evidence/normalization.json`。9ファイルの逆変換で元SHA一致を確認し、可視文字は変更していない。
+- 試作撤回後のfile単独走は認証test **215 passed、7.10秒**、job-contract test **72 passed、15.26秒**。
+  いずれも計算ノードの正規runner。最初の単独走投入はprovenance dispatch中のholdにより投入前rc16で拒否され、
+  新jobは0件。親の直列化確認不足を訂正し、監査終端後に新しいlog/doneで再投入した結果である。
+- 焦点レビューは候補撤回・両rank照合・policy閉包をclosedとした。消滅出力の追跡性だけpartialだったため、
+  上記qstat一次出力を追加した。最終codeはpolicyと2testの3file、job bodyは基準SHAと一致する。
