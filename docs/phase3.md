@@ -18,10 +18,6 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
-- [x] [T-2779] mocc G2観測条件の中断結果を回収 (2026-09-18)。各120走で通常5、診断0、
-  BACK_OFF=1は2 signal。軽量witnessは静的設計まで。非certifyingで、昇格・pin・探索の扱いは不変。
-  記録 = `output/insights/2026-09-18/t2779-mocc-g2-observation-conditions/README.md`。
-
 - [x] [T-2674] T-1998 balanced stock-inline 対の単独results稿を回収し、独立監査を反映した (2026-09-18)。
   成果は `docs/paper-story/results/2026-09-18-t1998-balanced-stock-inline-accepted.md` と同README索引・追補。
   median比とA-1対差平均を分け、A-2/A-6とプールせず、B-7充足へ昇格しない。新規測定ではない。
@@ -31,6 +27,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   成果物は output/insights/2026-09-13/paper-story-a1-balanced5-sized-preregistration/、
   機械可読の正本は orchestrator/campaign/paper_story_a1_paired.v3-sized.json。
   本走は未投入で、正式測定の認可は[T-1505]により人間手番のまま。
+
+- [x] [T-2779] mocc G2観測条件の中断結果を回収 (2026-09-18)。各120走で通常5、診断0、
+  BACK_OFF=1は2 signal。軽量witnessは静的設計まで。非certifyingで、昇格・pin・探索の扱いは不変。
+  記録 = `output/insights/2026-09-18/t2779-mocc-g2-observation-conditions/README.md`。
 
 - [x] [T-2397] A-1 pilot attempt-0004を完走し、全3 workload validとsizing入力を生成した。
   source契約の追補は output/insights/2026-09-11/t2397-a1-source-amendment/README.md、

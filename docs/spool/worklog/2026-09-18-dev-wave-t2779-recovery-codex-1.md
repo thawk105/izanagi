@@ -22,7 +22,11 @@ title: [T-2779] mocc G2観測条件の中断結果を回収 — 通常5/120・�
   Aのshould 1 (launcherはround数を引数で受ける) / nit 1 (stamp参照行) は本文で訂正。
   実装子のprobe保存commit 9a2a52550はmergeせず、runnerは逐語資料として保存する。
 - 関連テストは正規run_tests経路で602 passed / 3 skipped (既存growth hold)、selftestは21/21。
-  check_codex_agents / check_docs、holdout検出語scanはrc=0。受入全走はこの記録時点では未実施。
+  check_codex_agents / check_docs、holdout検出語scanはrc=0。
+  受入attempt1はqueue-wait-timeoutと同時shard停止で判定なし。既存overrideで待ちを延長したattempt2は
+  25,133 passed/69 skipped・child-green (tested tip 69fa71cd3)。
+  その後のmain文書mergeでphase先頭追記を手動解消したためlandがnon-clean merge replayを拒否し、mainは動かなかった。
+  両項を保持し、T-2779の完了記録を同checkpoint内で移して、解消済みの木を受入し直す。
   製品実装差分ゼロのため段4裁定どおり変異matrix免除。新規gate・台帳・一般化はない。
 - 記録は output/insights/2026-09-18/t2779-mocc-g2-observation-conditions/README.md。
   生traceと実走runnerは元job dirに保全し、result JSON・正例判定・manifest・裁定・レビュー逐語はrepoへ保存。
