@@ -67,7 +67,7 @@ D2049 が定めるとおり、逆対応の逐語適用は片側の境界を過�
 スナップショットは凍結物なので腐る。ここは腐らない入口として、最新版の記述が既に古くなった箇所を
 指す。**矛盾があればここが指す一次資料が勝つ。**
 
-**現在この節に積んでいる項目は 2 件である。**
+**現在この節に積んでいる項目は 3 件である。**
 
 - **Silo 固定スコープの解除 — 合成対象を Silo に限定する方針は現在の方針ではない (2026-09-17、同版の導出後
   に確定)。** 同版 §1 の「2026-07-27 のユーザー裁定でスコープは Silo ベースに固定されている」と、§8 C-1 の
@@ -103,6 +103,34 @@ D2049 が定めるとおり、逆対応の逐語適用は片側の境界を過�
   測定の必要性を示さない」と裁定した。** 走らせるなら D2050 の地位明記を満たす別 wave を新規に起票する
   (同項)。当時の実行全体の独立監査も未実施のままである。同版と results 稿の当該記述は凍結物なので書き換えず、
   下の移管先 3 の「§4 (図は無い)」も同版の内容の説明として正しいので変えない。
+
+- **A-1 balanced5 sized 本走の attempt-0001 が投入され、3 workload とも完走した — 同版の「本走未投入・認可据え置き」は
+  執筆時点では真であり、後続で古くなった記述である (2026-09-18、同版の導出後に成立)。** 同版 §8 の A-1 項の見出し
+  「【未取得。pilot 完走・反復数確定・本走 policy 凍結 (非認証 lane)・本走未投入・認可据え置き (D2044 項8 で再確認)】」と
+  同項の「基準 HEAD の時点で、その実装が閉じたことを記録する着地済みの正典は無い」(同じ趣旨の「本走未投入」は §0 の
+  前進 10、§2 (g) の要点 2、§6 の「A-1 の本走は未投入である」、§9 表の「未取得」列にもあり、§2 第 2 幕と §6 の
+  「取れていないのは A-1 が定める配置と推定対象による測定である」も同じ現況を指す) は、執筆時点では真であった。2026-09-17 の D2120 項 3
+  (ユーザー裁定) が既存 submit 経路で 1 attempt を認可し (D2044 項 8 の据え置き条件「試験運転専用の分岐を外す実装が閉じた
+  時点で改めて諮る」は entry 1590、commit `ad83b108b` で成立)、[T-1505] の wave が 2026-09-18 に attempt-0001 を投入、
+  3 workload とも `valid=true` / `errors=[]` で完走した (job `4939` write-heavy / `4940` balanced / `4941` read-heavy、各 30 対、
+  `measurement_source_commit` = local main `d2ebef7a4`、submit 06:30 → materialize 06:45 JST、再投入なし)。一次資料 =
+  `output/insights/2026-09-18/t1505-a1-sized-attempt1/README.md` (時系列・受領証・分類・言わないこと) と公開 leaf
+  `output/insights/2026-09-13/paper-story-a1-balanced5-sized/` (README.md / receipt.json / result.json / .complete.json)。
+  登録済み解析 (policy `orchestrator/campaign/paper_story_a1_paired.v3-sized.json`) の分類は 3 workload とも
+  `resolved-above-floor` (B = baseline 平均の 3 %)、対差平均 (variant − baseline) の符号は write-heavy 正 / balanced 正 /
+  read-heavy 負、`variance_plan_breach` は 3 本とも false。6 arm の verifier は既存 verifier のまま 0 anomalies (規律 2 の
+  判定であり、性能の判定ではない)。**attempt の完走で変わらないこと:** result.json / receipt.json とも `formal=false` /
+  `promotion_prohibited=true` (result.json の `authority` は schema v3 の固定値 `exploratory`、policy の `result_authority` は
+  `sized-preregistered-descriptive-only`) の**非認証 lane のまま**であり、同項の「『A-1 が動き始めた』『A-1 の設計は固まった』
+  とは書けるが、『A-1 の値がある』とは書けない」という区別は本 attempt の記録では動かしていない — この非認証 lane の結果を
+  どう位置づけるかは裁定に属し (一次資料 §6)、A-1 の充足・formal 化・昇格、再投入、本走の再認可はいずれも判定されて
+  おらず、認可はユーザー手番のままである (D2044 項 8)。descriptive 出力を headline 値・workload 横断の結論・C1 の再現判定に
+  しない (符号が C1 の旧環境値と 3 workload とも一致することは再現判定ではない。D1993 / `L23` の区別は維持)。同版 §7 の
+  チェック項目「A-1 の study を『A-3 の値の対測定による追試』と呼ばない」と「T-1998 の `accepted` を A-1 の完了・A-5 の
+  充足と読まない」は有効なままである。claim-evidence 系列 `claim-evidence/2026-08-26.md` の A-1 行 (§4 の表、「未取得
+  (0 件)」) は、当時の凍結 policy v2 (`static10 − adaptive`、`formal=false`) を前提とした 2026-08-26 時点の凍結物であり、
+  D1262 の estimand 揃え直し (`fixed10 / fixed5 / fixed2 − no-backoff`) 以後の study と本 attempt を反映していない。
+  同行は書き換えず、本 attempt の記録は上の一次資料を見る。同版・claim-evidence 稿の当該記述は凍結物なので書き換えない。
 
 2026-09-17 版は同日 02:10 JST の local main
 (`fa24e6ea8`、[T-2630] と [T-2288] の記録の fold を含む) から導出している。前版 (2026-09-14 版) に対して積んでいた

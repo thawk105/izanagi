@@ -338,7 +338,7 @@ def test_derived_directive_is_accepted_by_the_role_policy_check():
     directive の受理条件は policy 側が正本 — 供給側で作った値がそこで弾かれたら結線が
     成立しない。地図外を宣言した場合に policy が弾くことも同時に確かめる。
     """
-    from codex_roles import policy  # noqa: PLC0415
+    from orchestrator.codex_roles import policy  # noqa: PLC0415
 
     surface = [{"region": r, "role": "mock", "opened": r == "include/backoff.hh"}
                for r in _REGIONS]

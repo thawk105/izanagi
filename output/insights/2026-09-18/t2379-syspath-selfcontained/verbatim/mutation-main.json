@@ -1,0 +1,303 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2379-syspath-selfcontained/output/pegasus-dispatch/53dabb1decc20b2a0fb347a70abfe90b/izdw-53dabb1dec.o5546",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2379-syspath-selfcontained/output/pegasus-dispatch/53dabb1decc20b2a0fb347a70abfe90b/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................................................    [100%]\n69 passed in 4.99s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "0f0534140da5b320ac8317abbc31acad5dceaf5ed0c87e4d709ea2d7285aee47"
+    },
+    "artifact_error": null,
+    "collection_sha256": "b8a8fd28b3b346d4dfa4ad6a6305e62552dc37d3a54885283731a56945f086db",
+    "duration_s": 29.281,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "c7e9ea962b2b21ecf07b7531cca50f22a53c6d47a7b84f4b4083513674a0cd3f",
+    "repo_head": "b0eea37205f9f0db16610ea5e3280021f7d12b0d",
+    "runner_sha256": "3e584ffdd036a5577cfb3abd1c1467a73e2266436f817c36076e35fe8dc6be2d",
+    "spec_sha256": "dd48ba86928699840a7202dd763589873287d54d609dbfcd187ae4fd3753c491",
+    "status": "PASSED",
+    "test_output_sha256": "0f0534140da5b320ac8317abbc31acad5dceaf5ed0c87e4d709ea2d7285aee47",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "25a2f2b759706b765db764ccdd4dc3b51d030246b20b557e894ccf6592f8411a"
+  },
+  "date": "2026-09-18T02:48:30.020276+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2379-syspath-selfcontained/output/pegasus-dispatch/0ac5b85dc7100ae6c38c4631fb4f8d5f/izdw-0ac5b85dc7.o5547",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2379-syspath-selfcontained/output/pegasus-dispatch/0ac5b85dc7100ae6c38c4631fb4f8d5f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....................................................................    [100%]\n69 passed in 5.14s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "e11c60db7a3f63732652c66ee7b2d23af8e838500dec807e959b16825554c09a"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "b8a8fd28b3b346d4dfa4ad6a6305e62552dc37d3a54885283731a56945f086db",
+      "duration_s": 32.598,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "mc-equivalent-trailing-comment",
+      "injection_diff_sha256": "970a6102489b39a770604ab7191cf92b137ba89e6285093353e3e8be326c097a",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "a17133c62d545581db4cdf4a774fe4b1b5a0ac8bf746a1b138d9aa3b6924d2a8",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_profiler_directive.py",
+          "new": "    from orchestrator.codex_roles import policy  # noqa: PLC0415  # equivalent-mutation\n",
+          "old": "    from orchestrator.codex_roles import policy  # noqa: PLC0415\n"
+        }
+      ],
+      "repo_head": "b0eea37205f9f0db16610ea5e3280021f7d12b0d",
+      "runner_sha256": "3e584ffdd036a5577cfb3abd1c1467a73e2266436f817c36076e35fe8dc6be2d",
+      "spec_sha256": "dd48ba86928699840a7202dd763589873287d54d609dbfcd187ae4fd3753c491",
+      "status": "SURVIVED",
+      "test_output_sha256": "e11c60db7a3f63732652c66ee7b2d23af8e838500dec807e959b16825554c09a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "25a2f2b759706b765db764ccdd4dc3b51d030246b20b557e894ccf6592f8411a"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2379-syspath-selfcontained/output/pegasus-dispatch/0a8f49f8ee28ac11af212f94991c2995/izdw-0a8f49f8ee.o5548",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2379-syspath-selfcontained/output/pegasus-dispatch/0a8f49f8ee28ac11af212f94991c2995/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...................................................................F.    [100%]\n=================================== FAILURES ===================================\n_________ test_derived_directive_is_accepted_by_the_role_policy_check __________\n[gw0] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_derived_directive_is_accepted_by_the_role_policy_check():\n        \"\"\"供給側の出力が既存の機械検査 (codex_roles/policy.py) を通ることを確かめる。\n    \n        directive の受理条件は policy 側が正本 — 供給側で作った値がそこで弾かれたら結線が\n        成立しない。地図外を宣言した場合に policy が弾くことも同時に確かめる。\n        \"\"\"\n>       from codex_roles import policy  # noqa: PLC0415\nE       ModuleNotFoundError: No module named 'codex_roles'\n\norchestrator/tests/test_profiler_directive.py:341: ModuleNotFoundError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_profiler_directive.py::test_derived_directive_is_accepted_by_the_role_policy_check\n1 failed, 68 passed in 5.10s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_profiler_directive.py::test_derived_directive_is_accepted_by_the_role_policy_check\" nodeid_bytes=106 nodeid_omitted_bytes=0 source_bytes=665 retained_bytes=665 omitted_bytes=0 rendered_excerpt_bytes=951 sha256=30898038aca65f8ec62f16e2d4bb5d29b26c371d065555a6abc6f69e19e95e2c\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw0] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_derived_directive_is_accepted_by_the_role_policy_check():\n>         \"\"\"\\u4f9b\\u7d66\\u5074\\u306e\\u51fa\\u529b\\u304c\\u65e2\\u5b58\\u306e\\u6a5f\\u68b0\\u691c\\u67fb (codex_roles/policy.py) \\u3092\\u901a\\u308b\\u3053\\u3068\\u3092\\u78ba\\u304b\\u3081\\u308b\\u3002\n>     \n>         directive \\u306e\\u53d7\\u7406\\u6761\\u4ef6\\u306f policy \\u5074\\u304c\\u6b63\\u672c \\u2014 \\u4f9b\\u7d66\\u5074\\u3067\\u4f5c\\u3063\\u305f\\u5024\\u304c\\u305d\\u3053\\u3067\\u5f3e\\u304b\\u308c\\u305f\\u3089\\u7d50\\u7dda\\u304c\n>         \\u6210\\u7acb\\u3057\\u306a\\u3044\\u3002\\u5730\\u56f3\\u5916\\u3092\\u5ba3\\u8a00\\u3057\\u305f\\u5834\\u5408\\u306b policy \\u304c\\u5f3e\\u304f\\u3053\\u3068\\u3082\\u540c\\u6642\\u306b\\u78ba\\u304b\\u3081\\u308b\\u3002\n>         \"\"\"\n> >       from codex_roles import policy  # noqa: PLC0415\n> E       ModuleNotFoundError: No module named 'codex_roles'\n> \n> orchestrator/tests/test_profiler_directive.py:341: ModuleNotFoundError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=665 retained_bytes=665 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1680 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "00437b504c56386a0fc57909e38562e59e4c064043fada842160c24d9936b9bb"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b8a8fd28b3b346d4dfa4ad6a6305e62552dc37d3a54885283731a56945f086db",
+      "duration_s": 27.293,
+      "expected_nodes": [
+        "orchestrator/tests/test_profiler_directive.py::test_derived_directive_is_accepted_by_the_role_policy_check"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_profiler_directive.py::test_derived_directive_is_accepted_by_the_role_policy_check"
+      ],
+      "hang_risk": false,
+      "id": "mb-revert-codex-roles-implicit-import",
+      "injection_diff_sha256": "77e6019324d2ec120cea29f8369178e3e678cdfb584a018edbe7164dee9966fa",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f039d788059f088c9b5a64ee4b5bd7ce766badd00e802956d822bc284a37074b",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_profiler_directive.py",
+          "new": "    from codex_roles import policy  # noqa: PLC0415\n",
+          "old": "    from orchestrator.codex_roles import policy  # noqa: PLC0415\n"
+        }
+      ],
+      "repo_head": "b0eea37205f9f0db16610ea5e3280021f7d12b0d",
+      "runner_sha256": "3e584ffdd036a5577cfb3abd1c1467a73e2266436f817c36076e35fe8dc6be2d",
+      "spec_sha256": "dd48ba86928699840a7202dd763589873287d54d609dbfcd187ae4fd3753c491",
+      "status": "KILLED",
+      "test_output_sha256": "00437b504c56386a0fc57909e38562e59e4c064043fada842160c24d9936b9bb",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "25a2f2b759706b765db764ccdd4dc3b51d030246b20b557e894ccf6592f8411a"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2379-syspath-selfcontained/output/pegasus-dispatch/f686943b17a417523c8352fec3dbbcec/izdw-f686943b17.o5545",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2379-syspath-selfcontained/output/pegasus-dispatch/f686943b17a417523c8352fec3dbbcec/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_s8b_approved.py::test_ccbench_full_sha_is_40hex_and_current_pin_is_prefix\norchestrator/tests/test_s8b_approved.py::test_ccbench_full_sha_matches_real_gitlink\norchestrator/tests/test_s8b_approved.py::test_v1_trust_root_is_single_sourced_from_ratified\norchestrator/tests/test_s8b_approved.py::test_v1_freeze_sha_matches_real_file_bytes\norchestrator/tests/test_s8b_approved.py::test_floor_campaign_pins_are_single_sourced\norchestrator/tests/test_s8b_approved.py::test_experiment_numbers_are_single_sourced_from_leaf\norchestrator/tests/test_s8b_approved.py::test_approved_protocol_free_values_match_rulings\norchestrator/tests/test_s8b_approved.py::test_approved_stock_configuration_exists_in_every_v1_holdout\norchestrator/tests/test_s8b_approved.py::test_approved_env_tag_is_registered_in_env_contract\norchestrator/tests/test_s8b_approved.py::test_approved_master_seed_has_builder_required_form\norchestrator/tests/test_profiler_directive.py::test_parse_perf_rows_picks_only_the_requested_event\norchestrator/tests/test_profiler_directive.py::test_parse_perf_rows_handles_symbol_form_with_spaces\norchestrator/tests/test_profiler_directive.py::test_parse_perf_rows_returns_empty_for_absent_event\norchestrator/tests/test_profiler_directive.py::test_mapper_drops_everything_outside_the_edit_surface[/build/ccbench/../outside/evil.cc:1]\norchestrator/tests/test_profiler_directive.py::test_mapper_drops_everything_outside_the_edit_surface[/etc/passwd:1]\norchestrator/tests/test_profiler_directive.py::test_mapper_drops_everything_outside_the_edit_surface[cc/silo/not_in_the_map.cc:1]\norchestrator/tests/test_profiler_directive.py::test_mapper_drops_everything_outside_the_edit_surface[[unknown]]\norchestrator/tests/test_profiler_directive.py::test_mapper_drops_everything_outside_the_edit_surface[??]\norchestrator/tests/test_profiler_directive.py::test_mapper_accepts_both_absolute_and_relative_paths\norchestrator/tests/test_profiler_directive.py::test_region_totals_accumulates_dropped_share\norchestrator/tests/test_profiler_directive.py::test_derive_picks_the_dominant_region\norchestrator/tests/test_profiler_directive.py::test_derive_returns_none_when_nothing_stands_out\norchestrator/tests/test_profiler_directive.py::test_derive_returns_none_below_the_floor\norchestrator/tests/test_profiler_directive.py::test_derive_returns_none_when_no_region_is_on_the_map\norchestrator/tests/test_profiler_directive.py::test_derive_filters_unmapped_regions_even_when_they_dominate\norchestrator/tests/test_profiler_directive.py::test_derive_is_deterministic_under_exact_ties\norchestrator/tests/test_profiler_directive.py::test_record_carries_position_and_provenance_only\norchestrator/tests/test_profiler_directive.py::test_human_declared_is_typed_apart_from_observation\norchestrator/tests/test_profiler_directive.py::test_human_declared_rejects_regions_off_the_map\norchestrator/tests/test_profiler_directive.py::test_record_with_no_directive_is_valid_as_a_control\norchestrator/tests/test_profiler_directive.py::test_record_rejects_inconsistent_combinations[kwargs0]\norchestrator/tests/test_profiler_directive.py::test_record_rejects_inconsistent_combinations[kwargs1]\norchestrator/tests/test_profiler_directive.py::test_record_rejects_inconsistent_combinations[kwargs2]\norchestrator/tests/test_profiler_directive.py::test_record_rejects_inconsistent_combinations[kwargs3]\norchestrator/tests/test_profiler_directive.py::test_assert_position_only_rejects_smuggled_guidance[\\u5024\\u3092 record \\u76f4\\u4e0b\\u306b\\u8db3\\u3059]\norchestrator/tests/test_profiler_directive.py::test_assert_position_only_rejects_smuggled_guidance[\\u65b9\\u5411\\u3092 record \\u76f4\\u4e0b\\u306b\\u8db3\\u3059]\norchestrator/tests/test_profiler_directive.py::test_assert_position_only_rejects_smuggled_guidance[\\u9aa8\\u683c\\u3092 provenance \\u306b\\u8db3\\u3059]\norchestrator/tests/test_profiler_directive.py::test_assert_position_only_rejects_smuggled_guidance[\\u63a8\\u5968\\u6587\\u3092 provenance \\u306b\\u8db3\\u3059]\norchestrator/tests/test_profiler_directive.py::test_assert_position_only_rejects_smuggled_guidance[\\u6307\\u793a\\u3092 evidence \\u306e\\u81ea\\u7531\\u30ad\\u30fc\\u306b\\u57cb\\u3081\\u308b]\norchestrator/tests/test_profiler_directive.py::test_assert_position_only_rejects_polluted_evidence_label\norchestrator/tests/test_profiler_directive.py::test_assert_position_only_rejects_evidence_for_another_region\norchestrator/tests/test_profiler_directive.py::test_assert_position_only_rejects_evidence_when_directive_is_none\norchestrator/tests/test_profiler_directive.py::test_build_rejects_evidence_with_extra_keys_at_construction_time\norchestrator/tests/test_profiler_directive.py::test_end_to_end_from_a_perf_report\norchestrator/tests/test_profiler_directive.py::test_evidence_drops_non_numeric_suffix_and_normalizes_valid_srcline\norchestrator/tests/test_profiler_directive.py::test_end_to_end_falls_back_to_no_hint_when_flat\norchestrator/tests/test_profiler_directive.py::test_derived_directive_is_accepted_by_the_role_policy_check\norchestrator/tests/test_profiler_directive.py::test_cli_derive_emits_dominant_region_record\norchestrator/tests/test_profiler_directive.py::test_cli_derive_emits_no_hint_control_when_flat\norchestrator/tests/test_profiler_directive.py::test_cli_derive_reads_regions_from_n1_provenance_and_writes_output\norchestrator/tests/test_profiler_directive.py::test_cli_declare_emits_human_declared_record\norchestrator/tests/test_profiler_directive.py::test_cli_declare_rejects_region_outside_the_map\norchestrator/tests/test_profiler_directive.py::test_cli_declare_rejects_freeform_region_list\norchestrator/tests/test_profiler_directive.py::test_cli_regions_from_missing_n1_hierarchy_fails_closed\norchestrator/tests/test_profiler_directive.py::test_cli_rechecks_position_only_before_output\norchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_missing_report_path\norchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_thresholds[nan---min-region-pct]\norchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_thresholds[nan---min-margin-pct]\norchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_thresholds[-1---min-region-pct]\norchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_thresholds[-1---min-margin-pct]\norchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_thresholds[101---min-region-pct]\norchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_thresholds[101---min-margin-pct]\norchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_empty_report\norchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_report_without_requested_event\norchestrator/tests/test_profiler_directive.py::test_cli_derive_keeps_no_mapped_region_as_success\norchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_provenance[empty-map]\norchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_provenance[wrong-keys]\norchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_provenance[absolute-region]\norchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_provenance[parent-region]\n\n69 tests collected in 0.96s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "471c20be6a8ac0e8eb1a7123df24aaf798b21f2eb04a73f3375d61b095a2b8fc"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_s8b_approved.py::test_ccbench_full_sha_is_40hex_and_current_pin_is_prefix",
+        "orchestrator/tests/test_s8b_approved.py::test_ccbench_full_sha_matches_real_gitlink",
+        "orchestrator/tests/test_s8b_approved.py::test_v1_trust_root_is_single_sourced_from_ratified",
+        "orchestrator/tests/test_s8b_approved.py::test_v1_freeze_sha_matches_real_file_bytes",
+        "orchestrator/tests/test_s8b_approved.py::test_floor_campaign_pins_are_single_sourced",
+        "orchestrator/tests/test_s8b_approved.py::test_experiment_numbers_are_single_sourced_from_leaf",
+        "orchestrator/tests/test_s8b_approved.py::test_approved_protocol_free_values_match_rulings",
+        "orchestrator/tests/test_s8b_approved.py::test_approved_stock_configuration_exists_in_every_v1_holdout",
+        "orchestrator/tests/test_s8b_approved.py::test_approved_env_tag_is_registered_in_env_contract",
+        "orchestrator/tests/test_s8b_approved.py::test_approved_master_seed_has_builder_required_form",
+        "orchestrator/tests/test_profiler_directive.py::test_parse_perf_rows_picks_only_the_requested_event",
+        "orchestrator/tests/test_profiler_directive.py::test_parse_perf_rows_handles_symbol_form_with_spaces",
+        "orchestrator/tests/test_profiler_directive.py::test_parse_perf_rows_returns_empty_for_absent_event",
+        "orchestrator/tests/test_profiler_directive.py::test_mapper_drops_everything_outside_the_edit_surface[/build/ccbench/../outside/evil.cc:1]",
+        "orchestrator/tests/test_profiler_directive.py::test_mapper_drops_everything_outside_the_edit_surface[/etc/passwd:1]",
+        "orchestrator/tests/test_profiler_directive.py::test_mapper_drops_everything_outside_the_edit_surface[cc/silo/not_in_the_map.cc:1]",
+        "orchestrator/tests/test_profiler_directive.py::test_mapper_drops_everything_outside_the_edit_surface[[unknown]]",
+        "orchestrator/tests/test_profiler_directive.py::test_mapper_drops_everything_outside_the_edit_surface[??]",
+        "orchestrator/tests/test_profiler_directive.py::test_mapper_accepts_both_absolute_and_relative_paths",
+        "orchestrator/tests/test_profiler_directive.py::test_region_totals_accumulates_dropped_share",
+        "orchestrator/tests/test_profiler_directive.py::test_derive_picks_the_dominant_region",
+        "orchestrator/tests/test_profiler_directive.py::test_derive_returns_none_when_nothing_stands_out",
+        "orchestrator/tests/test_profiler_directive.py::test_derive_returns_none_below_the_floor",
+        "orchestrator/tests/test_profiler_directive.py::test_derive_returns_none_when_no_region_is_on_the_map",
+        "orchestrator/tests/test_profiler_directive.py::test_derive_filters_unmapped_regions_even_when_they_dominate",
+        "orchestrator/tests/test_profiler_directive.py::test_derive_is_deterministic_under_exact_ties",
+        "orchestrator/tests/test_profiler_directive.py::test_record_carries_position_and_provenance_only",
+        "orchestrator/tests/test_profiler_directive.py::test_human_declared_is_typed_apart_from_observation",
+        "orchestrator/tests/test_profiler_directive.py::test_human_declared_rejects_regions_off_the_map",
+        "orchestrator/tests/test_profiler_directive.py::test_record_with_no_directive_is_valid_as_a_control",
+        "orchestrator/tests/test_profiler_directive.py::test_record_rejects_inconsistent_combinations[kwargs0]",
+        "orchestrator/tests/test_profiler_directive.py::test_record_rejects_inconsistent_combinations[kwargs1]",
+        "orchestrator/tests/test_profiler_directive.py::test_record_rejects_inconsistent_combinations[kwargs2]",
+        "orchestrator/tests/test_profiler_directive.py::test_record_rejects_inconsistent_combinations[kwargs3]",
+        "orchestrator/tests/test_profiler_directive.py::test_assert_position_only_rejects_smuggled_guidance[/u5024/u3092 record /u76f4/u4e0b/u306b/u8db3/u3059]",
+        "orchestrator/tests/test_profiler_directive.py::test_assert_position_only_rejects_smuggled_guidance[/u65b9/u5411/u3092 record /u76f4/u4e0b/u306b/u8db3/u3059]",
+        "orchestrator/tests/test_profiler_directive.py::test_assert_position_only_rejects_smuggled_guidance[/u9aa8/u683c/u3092 provenance /u306b/u8db3/u3059]",
+        "orchestrator/tests/test_profiler_directive.py::test_assert_position_only_rejects_smuggled_guidance[/u63a8/u5968/u6587/u3092 provenance /u306b/u8db3/u3059]",
+        "orchestrator/tests/test_profiler_directive.py::test_assert_position_only_rejects_smuggled_guidance[/u6307/u793a/u3092 evidence /u306e/u81ea/u7531/u30ad/u30fc/u306b/u57cb/u3081/u308b]",
+        "orchestrator/tests/test_profiler_directive.py::test_assert_position_only_rejects_polluted_evidence_label",
+        "orchestrator/tests/test_profiler_directive.py::test_assert_position_only_rejects_evidence_for_another_region",
+        "orchestrator/tests/test_profiler_directive.py::test_assert_position_only_rejects_evidence_when_directive_is_none",
+        "orchestrator/tests/test_profiler_directive.py::test_build_rejects_evidence_with_extra_keys_at_construction_time",
+        "orchestrator/tests/test_profiler_directive.py::test_end_to_end_from_a_perf_report",
+        "orchestrator/tests/test_profiler_directive.py::test_evidence_drops_non_numeric_suffix_and_normalizes_valid_srcline",
+        "orchestrator/tests/test_profiler_directive.py::test_end_to_end_falls_back_to_no_hint_when_flat",
+        "orchestrator/tests/test_profiler_directive.py::test_derived_directive_is_accepted_by_the_role_policy_check",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_derive_emits_dominant_region_record",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_derive_emits_no_hint_control_when_flat",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_derive_reads_regions_from_n1_provenance_and_writes_output",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_declare_emits_human_declared_record",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_declare_rejects_region_outside_the_map",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_declare_rejects_freeform_region_list",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_regions_from_missing_n1_hierarchy_fails_closed",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_rechecks_position_only_before_output",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_missing_report_path",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_thresholds[nan---min-region-pct]",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_thresholds[nan---min-margin-pct]",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_thresholds[-1---min-region-pct]",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_thresholds[-1---min-margin-pct]",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_thresholds[101---min-region-pct]",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_thresholds[101---min-margin-pct]",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_empty_report",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_report_without_requested_event",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_derive_keeps_no_mapped_region_as_success",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_provenance[empty-map]",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_provenance[wrong-keys]",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_provenance[absolute-region]",
+        "orchestrator/tests/test_profiler_directive.py::test_cli_derive_rejects_invalid_provenance[parent-region]"
+      ],
+      "duration_s": 22.663,
+      "rc": 0,
+      "repo_head": "b0eea37205f9f0db16610ea5e3280021f7d12b0d",
+      "runner_sha256": "3e584ffdd036a5577cfb3abd1c1467a73e2266436f817c36076e35fe8dc6be2d",
+      "spec_sha256": "dd48ba86928699840a7202dd763589873287d54d609dbfcd187ae4fd3753c491",
+      "status": "PASSED",
+      "tool_sha256": "25a2f2b759706b765db764ccdd4dc3b51d030246b20b557e894ccf6592f8411a"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "mb-revert-codex-roles-implicit-import": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_profiler_directive.py::test_derived_directive_is_accepted_by_the_role_policy_check"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "77e6019324d2ec120cea29f8369178e3e678cdfb584a018edbe7164dee9966fa",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_profiler_directive.py",
+            "new": "    from codex_roles import policy  # noqa: PLC0415\n",
+            "old": "    from orchestrator.codex_roles import policy  # noqa: PLC0415\n"
+          }
+        ]
+      },
+      "mc-equivalent-trailing-comment": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "970a6102489b39a770604ab7191cf92b137ba89e6285093353e3e8be326c097a",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_profiler_directive.py",
+            "new": "    from orchestrator.codex_roles import policy  # noqa: PLC0415  # equivalent-mutation\n",
+            "old": "    from orchestrator.codex_roles import policy  # noqa: PLC0415\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "c7e9ea962b2b21ecf07b7531cca50f22a53c6d47a7b84f4b4083513674a0cd3f",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_s8b_approved.py",
+      "orchestrator/tests/test_profiler_directive.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 4800.0
+  },
+  "repo_head": "b0eea37205f9f0db16610ea5e3280021f7d12b0d",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_s8b_approved.py",
+      "orchestrator/tests/test_profiler_directive.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2379-syspath-selfcontained/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2379-syspath-selfcontained/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "51c4103446936c520f9f809b7f057878588a8667",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "3e584ffdd036a5577cfb3abd1c1467a73e2266436f817c36076e35fe8dc6be2d",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "dd48ba86928699840a7202dd763589873287d54d609dbfcd187ae4fd3753c491",
+  "summary": {
+    "KILLED": 1,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 2,
+    "matching": 2,
+    "recorded": 2,
+    "registered": 2
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2379-syspath-selfcontained/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "25a2f2b759706b765db764ccdd4dc3b51d030246b20b557e894ccf6592f8411a",
+  "updated_at": "2026-09-18T02:50:34.724441+00:00"
+}
