@@ -28,6 +28,16 @@ seq: 1
 
 ## 再発
 
+### F707
+
+- **再発: 2026-09-18** — [T-2774] の runner (job dir probe、Codex author) が T-2294 driver の `_common_configure_args` を流用したため、
+  build define が pilot (T-1892 / T-1943、`BACK_OFF=0`) でなく driver の genome (`BACK_OFF=1`) になり、最初の 4 block (instr 0/56・
+  diag 0/56) は事前登録と別条件の測定として記録された。author prompt は「T-1943 と同じ argv」と書いていたが、親は smoke の
+  `result.json` の `bindings.configure_argv` (`BACK_OFF=1` が載っていた) を事前登録の条件と突き合わせずに本走を投入した。
+  是正 = 4 block を観測に格下げし、走行前に事前登録して configure を pilot と一致させた主解析 (Q2) をやり直した (insight §4)。
+  教訓 = 実装子が helper を流用した場合、smoke の bindings に出る実 define を本走前に条件表と照合する (F707 の恒久対応「要求した
+  define が実際に効いたことを build 側の実体で確かめる」を、親の投入前手順として適用する)。
+
 ### F102
 
 - **再発: 2026-09-18** — [T-2774] 段 2 plan の 1 本目 (06:39〜06:46 JST) が最終メッセージ生成時に
