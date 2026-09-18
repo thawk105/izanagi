@@ -9,6 +9,7 @@ import ast
 import hashlib
 import json
 import os
+import select
 import shlex
 import signal
 import subprocess
@@ -2308,6 +2309,8 @@ def test_job_script_binds_interpreter_path_repo_and_no_network_bootstrap(tmp_pat
     assert '&& "$resolved" "$PROBE"' in script
     assert 'selected=$resolved' in script
     assert 'export PATH="$(dirname "$selected"):$PATH"' in script
+    assert ('export IZANAGI_DISPATCH_REQUEST_SHA256="$REQUEST_SHA256"\n'
+            'export IZANAGI_DISPATCH_JOB_SESSION_SWEEP="$REQUEST_SHA256"') in script
     assert f'REPO={repo}' in script
     assert "PBS_O_WORKDIR" not in script
     assert "pip " not in script
@@ -4086,6 +4089,8 @@ def _job_run_with_mocked_child(
     child_rc: int = 0,
     expected_request_sha256=_AUTO_REQUEST_SHA256,
     hostname: str = "bnode114",
+    job_environment=None,
+    child_error=None,
 ):
     """計算ノード側 launcher を hostname / chdir / 子起動を注入して駆動する。"""
 
@@ -4146,9 +4151,11 @@ def _job_run_with_mocked_child(
             "shell": False,
             "submission_dir": kwargs["submission_dir"],
         }))
+        if child_error is not None:
+            raise child_error
         return child_rc
 
-    with mock.patch.dict(DC.os.environ, {"PBS_JOBID": _JOB_ID}), \
+    with mock.patch.dict(DC.os.environ, {"PBS_JOBID": _JOB_ID, **(job_environment or {})}), \
             mock.patch.object(DC.os, "uname", return_value=fake_uname), \
             mock.patch.object(DC.os, "chdir"), \
             mock.patch.object(DC, "_import_probe_modules"), \
@@ -7708,6 +7715,552 @@ def test_intent_recovery_visible_end_releases_owned_hold_then_marks_handled(
 
 def _run():
     return pytest.main([__file__, "-q"])
+
+
+
+# T-2676: these fixtures only sweep a separately created session.  The scanner
+# uses the real wrapper and delegates with unchanged production arguments.
+def _session_pipe_read(fd, *, deadline):
+    data = bytearray()
+    while b"\n" not in data:
+        remaining = deadline - time.monotonic()
+        assert remaining > 0, "session fixture pipe deadline"
+        assert select.select([fd], [], [], remaining)[0], "session fixture pipe timeout"
+        chunk = os.read(fd, 65536)
+        assert chunk, "session fixture unexpected EOF"
+        data.extend(chunk)
+    return json.loads(data.split(b"\n", 1)[0])
+
+
+def _session_pipe_write(fd, payload):
+    data = memoryview((json.dumps(payload) + "\n").encode())
+    while data:
+        data = data[os.write(fd, data):]
+
+
+_SESSION_ORPHAN_SOURCE = r'''
+import os, signal, sys
+fd, mode, members_fd = int(sys.argv[1]), sys.argv[2], int(sys.argv[3])
+if os.fork():
+    os._exit(0)
+signal.signal(signal.SIGTERM, signal.SIG_DFL)
+signal.pthread_sigmask(signal.SIG_UNBLOCK, {signal.SIGTERM})
+os.write(members_fd, (str(os.getpid()) + "\n").encode())
+def late(signum, frame):
+    read_fd, write_fd = os.pipe()
+    if os.fork() == 0:
+        os.close(read_fd)
+        signal.signal(signal.SIGTERM, signal.SIG_DFL)
+        signal.pthread_sigmask(signal.SIG_UNBLOCK, {signal.SIGTERM})
+        os.write(members_fd, (str(os.getpid()) + "\n").encode())
+        os.write(write_fd, b"ready")
+        os.close(write_fd)
+        while True:
+            signal.pause()
+    os.close(write_fd)
+    assert os.read(read_fd, 5) == b"ready"
+    os._exit(0)
+if mode == "ignore":
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+elif mode == "late":
+    signal.signal(signal.SIGTERM, late)
+os.write(fd, (str(os.getpid()) + "\n").encode())
+os.close(fd)
+while True:
+    signal.pause()
+'''
+
+
+def _session_fixture_leader(mode, members_fd):
+    # Bound blocking pipe writes and child waitpid as well as pipe reads.
+    signal.signal(signal.SIGALRM, signal.SIG_DFL)
+    signal.pthread_sigmask(signal.SIG_UNBLOCK, {signal.SIGALRM})
+    signal.setitimer(signal.ITIMER_REAL, 15)
+    deadline = time.monotonic() + 15
+    normal = subprocess.Popen(
+        [sys.executable, "-c", "import signal; signal.pause()"],
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    os.write(members_fd, (str(normal.pid) + "\n").encode())
+    read_fd, write_fd = os.pipe()
+    parent = subprocess.Popen(
+        ["/usr/bin/unshare", "--user", "--map-root-user", "--", sys.executable,
+         "-c", _SESSION_ORPHAN_SOURCE, str(write_fd), mode, str(members_fd)],
+        pass_fds=(write_fd, members_fd), stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+    os.write(members_fd, (str(parent.pid) + "\n").encode())
+    os.close(write_fd)
+    try:
+        orphan = _session_pipe_read(read_fd, deadline=deadline)
+        assert parent.wait(timeout=max(0.001, deadline - time.monotonic())) == 0
+    finally:
+        os.close(read_fd)
+    _session_pipe_write(1, {"ready": True, "orphan": orphan, "normal": normal.pid})
+    # Start sweep only after the test has independently opened the orphan pidfd.
+    assert select.select([0], [], [], max(0, deadline - time.monotonic()))[0]
+    assert os.read(0, 1) == b"s"
+    signal.setitimer(signal.ITIMER_REAL, 20)
+    deadline = time.monotonic() + 20
+    read_fd, write_fd = os.pipe()
+    scanner = os.fork()
+    if scanner == 0:
+        os.close(read_fd)
+        records = []
+        real_sweep = DC._sweep_job_session
+        def scan(sid, **kwargs):
+            records.append({"event": "fixture-exclusions",
+                            "excluded": sorted(kwargs["excluded_pids"]),
+                            "scanner": os.getpid(), "leader": os.getppid()})
+            return real_sweep(sid, **kwargs)
+        DC._sweep_job_session = scan
+        DC._job_trace = lambda event, **fields: records.append(dict(event=event, **fields))
+        os.environ[DC._JOB_SESSION_SWEEP_ENV] = "fixture-request"
+        DC._maybe_sweep_job_session("fixture-request")
+        _session_pipe_write(write_fd, records)
+        os._exit(0)
+    os.write(members_fd, (str(scanner) + "\n").encode())
+    os.close(write_fd)
+    try:
+        records = _session_pipe_read(read_fd, deadline=deadline)
+    finally:
+        os.close(read_fd)
+    assert os.waitpid(scanner, 0)[1] == 0
+    _session_pipe_write(1, {"records": records, "normal_alive": normal.poll() is None})
+    signal.setitimer(signal.ITIMER_REAL, 10)
+    signal.pause()
+
+
+def _exercise_session_sweep(mode):
+    leader = other = None
+    records, errors = [], []
+    pidfds, gone = {}, set()
+    members_read = members_write = None
+    member_data = bytearray()
+    elapsed = {"prepare": None, "sweep": None, "cleanup": None}
+    phase, started = "prepare", time.monotonic()
+    failure = None
+
+    def diagnostic():
+        return json.dumps(dict(mode=mode, records=records, elapsed_s=elapsed,
+                               cleanup_errors=errors), default=str)
+
+    def track(pid):
+        if pid not in pidfds and pid not in gone:
+            try:
+                pidfds[pid] = os.pidfd_open(pid)
+            except ProcessLookupError:
+                gone.add(pid)  # Already reaped: there is no process left to poll.
+
+    def collect_members():
+        if members_read is None:
+            return
+        while True:
+            try:
+                chunk = os.read(members_read, 4096)
+            except BlockingIOError:
+                break
+            if not chunk:
+                break
+            member_data.extend(chunk)
+        while b"\n" in member_data:
+            line, _, tail = member_data.partition(b"\n")
+            member_data[:] = tail
+            try:
+                track(int(line))
+            except Exception as exc:
+                errors.append(f"member pidfd {line!r}: {exc}")
+
+    try:
+        deadline = started + 15
+        members_read, members_write = os.pipe()
+        os.set_blocking(members_read, False)
+        other = subprocess.Popen(
+            [sys.executable, "-c", "import signal; signal.pause()"],
+            start_new_session=True, stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        track(other.pid)
+        leader = subprocess.Popen(
+            [sys.executable, "-B", "-c",
+             "import runpy,sys; m=runpy.run_path(sys.argv[1]); "
+             "m['_session_fixture_leader'](sys.argv[2], int(sys.argv[3]))",
+             __file__, mode, str(members_write)],
+            pass_fds=(members_write,), start_new_session=True,
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+        )
+        track(leader.pid)
+        os.close(members_write)
+        members_write = None
+        ready = _session_pipe_read(leader.stdout.fileno(), deadline=deadline)
+        orphan = ready["orphan"]
+        track(orphan)
+        track(ready["normal"])
+        collect_members()
+        orphan_fd = pidfds[orphan]
+        elapsed["prepare"] = time.monotonic() - started
+        phase, started = "sweep", time.monotonic()
+        deadline = started + 20
+        os.write(leader.stdin.fileno(), b"s")
+        # Drain membership notifications during the sweep, opening G's pidfd
+        # promptly even when the production scanner later fails or times out.
+        result_data = bytearray()
+        while b"\n" not in result_data:
+            remaining = deadline - time.monotonic()
+            assert remaining > 0, diagnostic()
+            readable = select.select(
+                [leader.stdout.fileno(), members_read], [], [], remaining)[0]
+            assert readable, diagnostic()
+            if members_read in readable:
+                collect_members()
+            if leader.stdout.fileno() in readable:
+                chunk = os.read(leader.stdout.fileno(), 65536)
+                assert chunk, diagnostic()
+                result_data.extend(chunk)
+        result = json.loads(result_data.split(b"\n", 1)[0])
+        records = result["records"]
+        elapsed["sweep"] = time.monotonic() - started
+        collect_members()
+        assert not [r for r in records if r["event"] == "session-sweep-error"], diagnostic()
+        exclusions = next(r for r in records if r["event"] == "fixture-exclusions")
+        assert {leader.pid, exclusions["scanner"]} <= set(exclusions["excluded"]), diagnostic()
+        assert leader.poll() is None, diagnostic()
+        assert result["normal_alive"] is True, diagnostic()
+        assert other.poll() is None, diagnostic()
+        signals = [r for r in records if r["event"] == "session-signal"]
+        assert all(r["process"]["pid"] not in (leader.pid, ready["normal"], other.pid)
+                   for r in signals), diagnostic()
+        residuals = [r for r in records if r["event"] == "session-residual"]
+        assert any(r["process"]["pid"] == orphan and r["process"]["attributed"]
+                   for r in residuals), diagnostic()
+        assert any(r["process"]["pid"] == ready["normal"]
+                   and not r["process"]["attributed"] for r in residuals), diagnostic()
+        exited = [r for r in records if r["event"] == "session-process-exited"]
+        expected_after = "kill" if mode == "ignore" else "term"
+        assert any(r["process"]["pid"] == orphan and r["after"] == expected_after
+                   for r in exited), diagnostic()
+        poller = select.poll()
+        poller.register(orphan_fd, select.POLLIN)
+        assert any(flags & select.POLLIN for _, flags in poller.poll(0)), diagnostic()
+        orphan_signals = [r["signal"] for r in signals if r["process"]["pid"] == orphan]
+        assert orphan_signals == (["TERM", "KILL"] if mode == "ignore" else ["TERM"]), diagnostic()
+        complete = next(r for r in records if r["event"] == "session-sweep-complete")
+        assert complete["remaining"] == 0, diagnostic()
+        if mode == "late":
+            late = [r["process"]["pid"] for r in residuals
+                    if r["round"] == 2 and r["process"]["attributed"]
+                    and r["process"]["state"] != "Z"]
+            assert len(late) == 1, diagnostic()
+            assert not any(r["process"]["pid"] == late[0] and r["round"] == 1
+                           for r in residuals), diagnostic()
+            assert any(r["process"]["pid"] == late[0] and r["after"] == "term"
+                       for r in exited), diagnostic()
+    except Exception as exc:
+        failure = exc
+    finally:
+        if elapsed[phase] is None:
+            elapsed[phase] = time.monotonic() - started
+        cleanup_started = time.monotonic()
+        deadline = cleanup_started + 10
+
+        def attempt(label, action):
+            try:
+                action()
+            except Exception as exc:
+                errors.append(f"{label}: {type(exc).__name__}: {exc}")
+
+        # Open member pidfds before KILL where possible, even after a failed
+        # preparation/sweep. The separate pipe also reports late G under M6.
+        attempt("collect before kill", collect_members)
+        for process in (leader, other):
+            if process is not None:
+                def kill_group(process=process):
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                attempt(f"killpg {process.pid}", kill_group)
+        for process in (leader, other):
+            if process is not None:
+                attempt(f"wait {process.pid}",
+                        lambda process=process: process.wait(
+                            timeout=max(0, deadline - time.monotonic())))
+        # Include notifications emitted between the first drain and killpg.
+        attempt("collect after kill", collect_members)
+        pending = {}
+
+        def poll_members():
+            poller = select.poll()
+            for pid, fd in pidfds.items():
+                def register(pid=pid, fd=fd):
+                    poller.register(fd, select.POLLIN)
+                    pending[fd] = pid
+                attempt(f"register {pid}", register)
+            while pending:
+                remaining = max(0, deadline - time.monotonic())
+                for fd, flags in poller.poll(int(remaining * 1000)):
+                    if fd in pending and flags & select.POLLIN:
+                        del pending[fd]
+                        poller.unregister(fd)
+                if time.monotonic() >= deadline:
+                    break
+        attempt("poll members", poll_members)
+        if pending:
+            errors.append(f"members still alive at cleanup deadline: {list(pending.values())}")
+        for process in (leader, other):
+            if process is not None:
+                for stream in (process.stdin, process.stdout, process.stderr):
+                    if stream is not None:
+                        attempt("stream close", stream.close)
+        for fd in [*pidfds.values(), members_read, members_write]:
+            if fd is not None:
+                attempt(f"fd close {fd}", lambda fd=fd: os.close(fd))
+        elapsed["cleanup"] = time.monotonic() - cleanup_started
+    # Raise after cleanup so every failure includes all three actual durations.
+    assert failure is None and not errors, diagnostic() + f"; failure={failure!r}"
+
+
+def test_session_sweep_terminates_attributed_orphan_and_preserves_others():
+    _exercise_session_sweep("term")
+
+
+def test_session_sweep_kills_sigterm_ignoring_orphan():
+    _exercise_session_sweep("ignore")
+
+
+def test_session_sweep_rescans_for_late_orphan():
+    _exercise_session_sweep("late")
+
+
+def _session_record(pid=101, **fields):
+    return dict(dict(pid=pid, ppid=1, pgrp=100, session=100, comm="fixture",
+                     state="S", uid=1000, starttime=pid * 10, user_ns="child",
+                     attributed=True, readable=True), **fields)
+
+
+def _fake_session(monkeypatch, records, *, events=True):
+    traces = []
+    monkeypatch.setattr(DC, "_job_trace", lambda event, **kw: traces.append(dict(event=event, **kw)))
+    monkeypatch.setattr(DC, "_list_session_residuals", lambda *args: records)
+    monkeypatch.setattr(DC, "_read_session_process", lambda pid: next(r for r in records if r["pid"] == pid))
+    monkeypatch.setattr(DC.os, "pidfd_open", mock.Mock(side_effect=lambda pid: pid + 1000))
+    monkeypatch.setattr(DC.os, "close", mock.Mock())
+    monkeypatch.setattr(DC.signal, "pidfd_send_signal", mock.Mock())
+    class Poll:
+        def __init__(self):
+            self.fds = set()
+        def register(self, fd, flags):
+            self.fds.add(fd)
+        def unregister(self, fd):
+            self.fds.remove(fd)
+        def poll(self, timeout):
+            return [(fd, select.POLLIN) for fd in self.fds] if events else []
+    monkeypatch.setattr(DC.select, "poll", Poll)
+    return traces
+
+
+def _fake_sweep(**kwargs):
+    DC._sweep_job_session(100, own_user_ns="own", excluded_pids={100},
+                          term_grace_s=0, kill_grace_s=0, **dict(rounds=2, **kwargs))
+
+
+def test_session_stat_parses_spaced_parenthesized_comm(monkeypatch):
+    tail = ["S", "11", "12", "13"] + ["0"] * 15 + ["456"]
+    monkeypatch.setattr(DC.Path, "read_text", lambda self: "42 (a (b) c)) " + " ".join(tail))
+    record = DC._read_session_process(42)
+    assert (record["comm"], record["ppid"], record["pgrp"], record["session"], record["starttime"]) == ("a (b) c)", 11, 12, 13, 456)
+    for malformed in ("broken", "42 (bad) S 1", "42 (bad) " + " ".join(tail[:-1] + ["x"])):
+        monkeypatch.setattr(DC.Path, "read_text", lambda self: malformed)
+        with pytest.raises((ValueError, IndexError)):
+            DC._read_session_process(42)
+
+
+def test_session_sweep_without_opt_in_does_not_touch_processes(monkeypatch):
+    with mock.patch.object(DC.os, "getsid", side_effect=AssertionError("getsid")), \
+            mock.patch.object(DC, "_list_session_residuals", side_effect=AssertionError("list")), \
+            mock.patch.object(DC.os, "pidfd_open", side_effect=AssertionError("pidfd")), \
+            mock.patch.object(DC.signal, "pidfd_send_signal", side_effect=AssertionError("signal")), \
+            mock.patch.object(DC, "_job_trace") as trace:
+        for value in (None, "1", "b" * 64):
+            if value is None:
+                monkeypatch.delenv(DC._JOB_SESSION_SWEEP_ENV, raising=False)
+            else:
+                monkeypatch.setenv(DC._JOB_SESSION_SWEEP_ENV, value)
+            DC._maybe_sweep_job_session("a" * 64)
+            DC._maybe_sweep_job_session(None)
+        trace.assert_not_called()
+    monkeypatch.setenv(DC._JOB_SESSION_SWEEP_ENV, "a" * 64)
+    with mock.patch.object(DC, "_sweep_job_session") as sweep:
+        DC._maybe_sweep_job_session("a" * 64)
+        sweep.assert_called_once()
+        assert sweep.call_args.args == (os.getsid(0),)
+        kw = sweep.call_args.kwargs
+        assert kw["term_grace_s"] == 5.0 and kw["kill_grace_s"] == 1.0 and kw["rounds"] == 2
+        assert {os.getpid(), os.getppid()} <= kw["excluded_pids"]
+        assert kw["own_user_ns"] == os.readlink("/proc/self/ns/user")
+
+
+def test_session_sweep_ancestry_unreadable_aborts(monkeypatch):
+    monkeypatch.setenv(DC._JOB_SESSION_SWEEP_ENV, "digest")
+    with mock.patch.object(DC, "_read_session_process", side_effect=PermissionError("ancestor")), \
+            mock.patch.object(DC, "_sweep_job_session") as sweep, \
+            mock.patch.object(DC, "_job_trace") as trace:
+        DC._maybe_sweep_job_session("digest")
+        sweep.assert_not_called()
+        assert trace.call_args.kwargs["reason"] == "ancestry-unreadable"
+
+
+def test_session_sweep_rechecks_identity_before_signal(monkeypatch):
+    traces = _fake_session(monkeypatch, [_session_record()])
+    monkeypatch.setattr(DC, "_read_session_process", lambda pid: _session_record(starttime=999))
+    _fake_sweep()
+    DC.signal.pidfd_send_signal.assert_not_called()
+    assert any(r.get("result") == "identity-changed" for r in traces)
+    DC.os.close.assert_called_once_with(1101)
+
+
+def test_session_sweep_does_not_claim_unconfirmed_disappearance(monkeypatch):
+    traces = _fake_session(monkeypatch, [_session_record()], events=False)
+    _fake_sweep()
+    complete = traces[-1]
+    assert complete["status"] == "remaining" and complete["remaining"] == 1
+    assert complete["exited_after_term"] == complete["exited_after_kill"] == 0
+    assert not any(r["event"] == "session-process-exited" for r in traces)
+    assert any(r["event"] == "session-process-remaining" for r in traces)
+    assert DC.signal.pidfd_send_signal.call_args_list == [
+        mock.call(1101, signal.SIGTERM), mock.call(1101, signal.SIGKILL)]
+
+
+def test_session_sweep_records_signal_errors_and_zombies(monkeypatch):
+    records = [_session_record(pid) for pid in range(101, 104)]
+    records += [_session_record(104, state="Z"), _session_record(105, readable=False, session=None)]
+    traces = _fake_session(monkeypatch, records)
+    DC.os.pidfd_open.side_effect = [1101, 1102, OSError(38, "pidfd")]
+    DC.signal.pidfd_send_signal.side_effect = [ProcessLookupError(3, "gone"), PermissionError(1, "denied")]
+    _fake_sweep()
+    assert [r["result"] for r in traces if r["event"] == "session-signal"] == ["esrch", "eperm", "pidfd-unavailable"]
+    assert DC.os.pidfd_open.call_args_list == [mock.call(101), mock.call(102), mock.call(103)]
+    assert traces[-1]["zombies"] == traces[-1]["session_unknown"] == 1
+    assert traces[-1]["status"] == "remaining"
+    assert traces[-1]["exited_after_term"] == traces[-1]["exited_after_kill"] == 0
+
+
+def test_session_sweep_stops_at_round_limit(monkeypatch):
+    traces = _fake_session(monkeypatch, [])
+    counter = iter(range(101, 110))
+    monkeypatch.setattr(DC, "_list_session_residuals", lambda *args: [_session_record(next(counter))])
+    monkeypatch.setattr(DC, "_read_session_process", lambda pid: _session_record(pid))
+    _fake_sweep()
+    assert DC.os.pidfd_open.call_args_list == [mock.call(101), mock.call(102)]
+    assert traces[-1]["rounds_used"] == 2 and traces[-1]["status"] == "remaining"
+    # Empty session does not even instantiate a poller, regardless of grace.
+    monkeypatch.setattr(DC, "_list_session_residuals", lambda *args: [])
+    monkeypatch.setattr(DC.select, "poll", mock.Mock(side_effect=AssertionError("poll")))
+    monkeypatch.setattr(DC.time, "sleep", mock.Mock(side_effect=AssertionError("sleep")))
+    _fake_sweep()
+    assert traces[-1]["rounds_used"] == 1 and traces[-1]["found_total"] == 0
+    assert traces[-1]["status"] == "clean"
+
+
+def test_job_run_sweeps_before_result_and_strips_opt_in(tmp_path):
+    for value in ("matched", "1"):
+        request, digest = _write_bound_job_run_request(
+            tmp_path / value, repo_root=_REPO, task="tests", args=[])
+        order = []
+        real_write = DC._write_result_replace
+        def sweep(*args, **kwargs):
+            assert json.loads((request.parent / "result.json").read_text())["stage"] == DC._RESULT_GUARD_STAGE
+            order.append("sweep")
+        def write(*args, **kwargs):
+            order.append("result")
+            return real_write(*args, **kwargs)
+        with mock.patch.object(DC, "_sweep_job_session", side_effect=sweep), \
+                mock.patch.object(DC, "_write_result_replace", side_effect=write):
+            rc, calls = _job_run_with_mocked_child(
+                request, expected_request_sha256=digest, child_rc=23,
+                job_environment={DC._JOB_SESSION_SWEEP_ENV: digest if value == "matched" else value})
+        assert rc == 23 and len(calls) == 1
+        assert DC._JOB_SESSION_SWEEP_ENV not in calls[0][1]["env"]
+        assert order == (["sweep", "result"] if value == "matched" else ["result"])
+        assert json.loads((request.parent / "result.json").read_text())["child_rc"] == 23
+
+
+def test_job_run_sweeps_after_isolation_failure_without_replacing_guard(tmp_path):
+    for name, failure in (("isolation", DC._ChildIsolationError("fixture")),
+                          ("launch", OSError("launch"))):
+        request, digest = _write_bound_job_run_request(
+            tmp_path / name, repo_root=_REPO, task="tests", args=[])
+        with mock.patch.object(DC, "_sweep_job_session") as sweep:
+            rc, _ = _job_run_with_mocked_child(
+                request, expected_request_sha256=digest, child_error=failure,
+                job_environment={DC._JOB_SESSION_SWEEP_ENV: digest})
+        sweep.assert_called_once()
+        assert rc == DC.INFRA_RC
+        result = json.loads((request.parent / "result.json").read_text())
+        assert result["stage"] == (DC._RESULT_GUARD_STAGE if name == "isolation" else "child-launch")
+        assert result["child_rc"] == DC.INFRA_RC
+
+
+def test_job_run_sweep_error_preserves_child_result(tmp_path):
+    for child_rc in (0, 23):
+        results = []
+        for inject in (False, True):
+            request, digest = _write_bound_job_run_request(
+                tmp_path / str(child_rc) / str(inject), repo_root=_REPO, task="tests", args=[])
+            with mock.patch.object(DC, "_sweep_job_session", side_effect=RuntimeError("sweep") if inject else None), \
+                    mock.patch.object(DC, "_job_trace") as trace:
+                rc, _ = _job_run_with_mocked_child(
+                    request, expected_request_sha256=digest, child_rc=child_rc,
+                    job_environment={DC._JOB_SESSION_SWEEP_ENV: digest})
+            assert rc == child_rc
+            results.append(json.loads((request.parent / "result.json").read_text()))
+            if inject:
+                assert any(c.args == ("session-sweep-error",) and c.kwargs["type"] == "RuntimeError"
+                           for c in trace.call_args_list)
+        assert results[0] == results[1]
+
+
+def test_session_residuals_filter_namespace_and_unreadable_stat(monkeypatch):
+    monkeypatch.setattr(DC.Path, "iterdir", lambda self: [
+        Path(f"/proc/{pid}") for pid in range(100, 108)
+    ] + [Path("/proc/self")])
+
+    def read(pid):
+        if pid == 105:
+            raise FileNotFoundError("gone")
+        if pid == 106:
+            raise PermissionError("stat")
+        if pid == 107:
+            raise ValueError("malformed stat")
+        return _session_record(pid, session=200 if pid == 104 else 100)
+
+    def namespace(path):
+        pid = int(path.split("/")[2])
+        if pid == 103:
+            raise PermissionError("namespace")
+        return "own" if pid == 102 else "child"
+
+    monkeypatch.setattr(DC, "_read_session_process", read)
+    monkeypatch.setattr(DC.os, "readlink", namespace)
+    monkeypatch.setattr(DC.Path, "read_text", lambda self: "Uid: 1000 1000 1000 1000\n")
+    records = DC._list_session_residuals(100, {100}, "own")
+    by_pid = {r["pid"]: r for r in records}
+    assert set(by_pid) == {101, 102, 103, 106, 107}
+    assert by_pid[101]["attributed"] is True
+    assert by_pid[102]["attributed"] is False
+    assert by_pid[103]["user_ns"] is None and by_pid[103]["attributed"] is False
+    assert by_pid[106]["readable"] is by_pid[107]["readable"] is False
+    assert all(r["uid"] == 1000 for r in records)
+    traces = _fake_session(monkeypatch, records)
+    _fake_sweep()
+    DC.os.pidfd_open.assert_called_once_with(101)
+    assert traces[-1]["session_unknown"] == 2 and traces[-1]["status"] == "remaining"
+    assert by_pid[106]["session"] is by_pid[107]["session"] is None
+    traces = _fake_session(monkeypatch, [by_pid[106], by_pid[107]])
+    _fake_sweep()
+    DC.os.pidfd_open.assert_not_called()
+    assert traces[-1]["remaining"] == traces[-1]["zombies"] == 0
+    assert traces[-1]["session_unknown"] == 2 and traces[-1]["status"] == "unknown"
 
 
 if __name__ == "__main__":
