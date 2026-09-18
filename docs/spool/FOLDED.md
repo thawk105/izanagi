@@ -4871,3 +4871,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-09-18","base":"0ab4627d4b311a81a4cab8e1fde73c78450abdf1","content_sha256":"08f53657a710d93328dfc888fee91ae5f45eb82d443564d0e4ec62e32eb2fae6","seq":2,"tested_tip":"0d1fda1b0ea0898d62525c33bbd0e932cd854ee1","wave":"dev-wave-t2775-a1-sized-results-draft","wave_ref":"refs/heads/dev-wave-t2775-a1-sized-results-recovery"}
 - {"allocations":{},"authored":"2026-09-18","base":"0ab4627d4b311a81a4cab8e1fde73c78450abdf1","content_sha256":"79c39de446514056c0bdb9a38931fd2e94f60ab0fc822ae9688b2b152b0c91c1","seq":1,"tested_tip":"0d1fda1b0ea0898d62525c33bbd0e932cd854ee1","wave":"dev-wave-t2775-a1-sized-results-recovery","wave_ref":"refs/heads/dev-wave-t2775-a1-sized-results-recovery"}
+
+- {"allocations":{},"authored":"2026-09-18","base":"6b6658b4a6f142295d190832feff155cf5dd1d28","content_sha256":"d03a5028f14d99ac195ff3285e64911f96ee9dacf947460c374db14f07b1a3b7","seq":1,"tested_tip":"645d52f8732e3f2dc2a9d2e37abe9bf029f751ee","wave":"dev-wave-verifier-cli-timing-probe","wave_ref":"refs/heads/worktree-dev-wave-verifier-cli-timing-recovery"}
