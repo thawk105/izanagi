@@ -1,0 +1,117 @@
+{
+  "description": "末尾空白だけの可逆正規化。行番号は1始まり。復元は正規化後の各指定行の改行直前へremoved_line_suffixesを加え、原文sha256とbyte_lengthを照合する。可視文字は不変。",
+  "files": {
+    "output/insights/2026-09-18/t2608-fold-verifier-detail/verbatim/s6-reviewA.md": {
+      "sha256": "0549eb508978234074a7acf6033560edeaee5c8ca0179e376745bb8966ec7852",
+      "original_ends_with_newline": false,
+      "byte_length": 8970,
+      "removed_line_suffixes": {
+        "16": "   ",
+        "17": "  ",
+        "18": "  ",
+        "19": "  ",
+        "23": "   ",
+        "24": "  ",
+        "25": "  ",
+        "27": "   ",
+        "28": "  ",
+        "32": "   ",
+        "33": "  ",
+        "34": "  ",
+        "35": "  ",
+        "39": "   ",
+        "40": "  ",
+        "41": "  ",
+        "42": "  ",
+        "46": "   ",
+        "47": "  ",
+        "48": "  ",
+        "49": "  ",
+        "55": "   ",
+        "56": "  ",
+        "57": "  ",
+        "71": "  ",
+        "75": "   ",
+        "76": "  ",
+        "77": "  ",
+        "78": "  "
+      }
+    },
+    "output/insights/2026-09-18/t2608-fold-verifier-detail/verbatim/s6-reviewB.md": {
+      "sha256": "fac627c2087b1f4e2734861331fb5d7100648af7aa0347dc54238f3ccb96ca42",
+      "original_ends_with_newline": false,
+      "byte_length": 9038,
+      "removed_line_suffixes": {
+        "11": "  ",
+        "12": "  ",
+        "13": "  ",
+        "14": "  ",
+        "17": "  ",
+        "18": "  ",
+        "19": "  ",
+        "20": "  ",
+        "25": "  ",
+        "26": "  ",
+        "27": "  ",
+        "28": "  ",
+        "31": "  ",
+        "32": "  ",
+        "33": "  ",
+        "34": "  ",
+        "37": "  ",
+        "38": "  ",
+        "39": "  ",
+        "40": "  ",
+        "43": "  ",
+        "44": "  ",
+        "45": "  ",
+        "46": "  ",
+        "53": "  ",
+        "54": "  ",
+        "55": "  ",
+        "56": "  ",
+        "59": "  ",
+        "60": "  ",
+        "61": "  ",
+        "62": "  ",
+        "65": "  ",
+        "66": "  ",
+        "67": "  ",
+        "68": "  ",
+        "71": "  ",
+        "72": "  ",
+        "73": "  ",
+        "74": "  "
+      }
+    },
+    "output/insights/2026-09-18/t2608-fold-verifier-detail/recovery/spool-single.log": {
+      "sha256": "eb91c5aeace7a18041cf6aeb95472d7ac5442a0ab6e3d10c0d7da0fdeb07a233",
+      "original_ends_with_newline": true,
+      "byte_length": 4726,
+      "removed_line_suffixes": {
+        "14": " ",
+        "38": " "
+      }
+    },
+    "output/insights/2026-09-18/t2608-fold-verifier-detail/recovery/focus.log": {
+      "sha256": "98b9b01ee6f303c2cf3154ffcaa4f135408eed22e74e2af419ea9e1cad921fa6",
+      "original_ends_with_newline": true,
+      "byte_length": 5338,
+      "removed_line_suffixes": {
+        "14": " ",
+        "23": " ",
+        "44": " "
+      }
+    },
+    "output/insights/2026-09-18/t2608-fold-verifier-detail/recovery/review-A.md": {
+      "sha256": "636039e77f636b84e5e9ad3b26fa6adaef44de857ff987d8f7eea0b63a0e2c5b",
+      "original_ends_with_newline": false,
+      "byte_length": 2643,
+      "removed_line_suffixes": {
+        "11": "  ",
+        "13": "  ",
+        "15": "  "
+      }
+    }
+  }
+}

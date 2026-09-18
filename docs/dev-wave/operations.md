@@ -169,18 +169,15 @@ HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submod
 
 ## DW-O23 — 並行 session の local main land
 
-`tools/dev_wave_land.py`へmain/waveの絶対path、tested main/tip、着地tip、監査commit列を渡す。
-cwd=wave worktree必須（rc=22）。
-監査列は`<tested main>..<tested tip>`に固定。着地tipで数えるとrc=23。
-協調wave lock内で再照合し着地tipへff-only、**同じlock内**で`docs/spool/`をfold。
-T/D/F採番・canonical3台帳追記・worklogローテーションは1度だけ。fold赤は`landed`を返さず0件はno-op。
-tracked/index/submodule dirtとincoming衝突untrackedを拒否し、
-docs/handoff直下とGit adminに双方向束縛のClaude/Codex worktreeは書式不問で非接触。
-
-成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyは終了せず、
-他sessionの処理中dirtyは非接触で終端を待つ。新main監査、固定SHAのwave-side merge、
-条件再評価を既存branchで行いlandedまで再試行。
-他session所有物、rebase、force、remote、pushで解消しない。
+`tools/dev_wave_land.py`へmain/wave絶対path、tested main/tip、着地tip、監査列を渡す。cwd=wave必須。
+監査列は`<tested main>..<tested tip>`固定。
+協調lock内で再照合・着地tipへff-only・`docs/spool/`をfold。
+T/D/F採番・canonical3台帳追記・worklogローテは1度だけ。fold赤は`landed`を返さず、0件はno-op。
+tracked/index/submodule dirt・incoming衝突untrackedは拒否。
+docs/handoff直下・Git adminに双方向束縛のClaude/Codex worktreeは書式不問で非接触。
+成功=`landed`/`already-landed`。postcondition failureは停止。stale/busyは継続し、他sessionの処理中dirtyは非接触で終端待ち。
+新main監査・固定SHAのwave側merge・条件再評価を既存branchでlandedまで再試行。他session所有物・rebase・force・remote・pushで解消しない。
+旧branch群はF266（一括merge・各親差分確認）に従う。
 ## DW-O25 — ff-only land の全史 provenance 関門
 
 D254 に従い、land は `locked_main != 着地tip` のときだけ lock を解放して全史 provenance 監査を自ら走らせ、480 秒以内の rc=0 を必須とする。赤は `RC_PROVENANCE = 29` で main を 1 bit も変えず拒否し、CLI flag・環境変数・警告化の逃がし道を作らない。

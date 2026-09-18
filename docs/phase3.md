@@ -18,6 +18,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2608] declared fold verifier の例外出力に code と sanitize 済み detail を保存。
+  拒否判定と構造的拒否の文面を維持し、実 verifier の例外と fail-open 変異の検出を確認した。
+  記録 = `output/insights/2026-09-18/t2608-fold-verifier-detail/README.md`。
+
 - [x] [T-2674] T-1998 balanced stock-inline 対の単独results稿を回収し、独立監査を反映した (2026-09-18)。
   成果は `docs/paper-story/results/2026-09-18-t1998-balanced-stock-inline-accepted.md` と同README索引・追補。
   median比とA-1対差平均を分け、A-2/A-6とプールせず、B-7充足へ昇格しない。新規測定ではない。
@@ -27,6 +31,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   成果物は output/insights/2026-09-13/paper-story-a1-balanced5-sized-preregistration/、
   機械可読の正本は orchestrator/campaign/paper_story_a1_paired.v3-sized.json。
   本走は未投入で、正式測定の認可は[T-1505]により人間手番のまま。
+
+- [x] [T-2779] mocc G2観測条件の中断結果を回収 (2026-09-18)。各120走で通常5、診断0、
+  BACK_OFF=1は2 signal。軽量witnessは静的設計まで。非certifyingで、昇格・pin・探索の扱いは不変。
+  記録 = `output/insights/2026-09-18/t2779-mocc-g2-observation-conditions/README.md`。
 
 - [x] [T-2397] A-1 pilot attempt-0004を完走し、全3 workload validとsizing入力を生成した。
   source契約の追補は output/insights/2026-09-11/t2397-a1-source-amendment/README.md、
@@ -516,6 +524,7 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    成果物は移植を見送っても層3 の説明生成に流用できるため無駄にならない。
 
    - [x] [T-2780] mocc pilot の discriminator 入力配線を修正 (2026-09-18)。hydrate の interpreter 選択、build 前の X/P patch、verifier source と receipt v2 の束縛を実装。計算ノード job 5905 は終端 accounting 確認後に no-g2 / rc0 で finalization 到達。公式認証への昇格や rc1 の実機被覆を意味しない。
+     受入で再発したT1259のmodule snapshot重複取得は、既存process memo集合への配置で抑える。実snapshot・独立copy・全51ケース・30秒timeout・P/S lockを維持する。
 
    **(2026-08-20 TicToc/Cicada タスク分解。当時は段7 発火まで全項目未着手・T 番号なし。2026-09-17 追記: Group A (b) の
    空間登録は [T-2135] (2026-09-02、tictoc / cicada) で、層3 の protocol 照合と floor driver の protocol 別 baseline
