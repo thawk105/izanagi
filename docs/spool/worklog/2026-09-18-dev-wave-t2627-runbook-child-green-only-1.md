@@ -37,6 +37,10 @@ title: [T-2627] pegasus-runbook §7.3 の受入節から、機構から外れた
   local main が 24ede1d11 → 386fc515c へ進んだので、初 commit 前に `--ff-only` で揃えた (runbook は非接触)。受入全走は fragment
   commit 後・land 前に 1 回投入する (結果は land の受領証)。
 - 工数: codex 子 0 本。親のみ (待ち手・launcher・land の現物検算、runbook の置換 script は job dir、repo 外)。
+- 同じ節で見つけた別の食い違い (本 wave では直さない、本題外): runbook §7.3 は「`--merge-message-file` は待機を始める前に
+  用意しておく。behind が判明した時点で必須になり、無ければ投入せず止まる」と書くが、現行の待ち手は省略時に self-report
+  (`merge main` + `role=integrator`、`_self_reported_merge_message_copy`) を使い、止まるのは message file の検証に失敗した
+  ときだけ (`stage=merge-message`)。argparse help も「省略時は self-report を使い」と書く → {{T:runbook-merge-message-file-optional}}。
 
 ## 次の一手差分
 
@@ -45,3 +49,9 @@ title: [T-2627] pegasus-runbook §7.3 の受入節から、機構から外れた
 - [T-2627] runbook §7.3 の受理経路の記述を現行機構 (child-green のみ) に揃えた。
   remaining: none
   base: e3e43ad81e8cef7203224d3f2a80cf95d242584210c454238d1143830681cb36
+
+### 新規
+
+- {{T:runbook-merge-message-file-optional}} **P3・新規**: `docs/pegasus-runbook.md` §7.3 の「`--merge-message-file` は
+  behind 判明時に必須、無ければ投入せず止まる」を現行機構 (省略時は self-report の integrator message、止まるのは
+  `stage=merge-message` = message 検証失敗のときだけ) に揃える (docs のみ)。同節の F588 型の消し忘れ。
