@@ -18,6 +18,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2686] exact-state の候補取得を遅延 union walk に束ねる実装を回収した。
+  正証拠・候補順・limit+1・closed-world負判定を維持し、観測wrapperのdiff/log混同を修正。
+  検証と主張範囲の記録は output/insights/2026-09-18/t2686-exact-state-union-walk/。
+
 - [x] [T-2164] A-1 balanced5のsizing証明書を凍結値で生成・検証し、本走policyを凍結した。
   D1452に従い、証明書が申告する試行回数・候補範囲・root seedをconsumerが登録値とexact照合する。
   成果物は output/insights/2026-09-13/paper-story-a1-balanced5-sized-preregistration/、

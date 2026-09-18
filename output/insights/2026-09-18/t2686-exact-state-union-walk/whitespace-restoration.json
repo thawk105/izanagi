@@ -1,0 +1,233 @@
+{
+  "description": "Only trailing spaces/tabs removed. Append suffix at each 1-based line; remove final newline if original_final_newline=false; verify original bytes and sha256. Original job artifacts remain unchanged.",
+  "files": [
+    {
+      "file": "verbatim/review-b.md",
+      "sha256": "4867b320f9ca9cf0f9fbe26abd9dfb38c3beef72d6e0b628227c35d2f4d86789",
+      "bytes": 4318,
+      "original_final_newline": false,
+      "suffixes": [
+        {
+          "line": 11,
+          "suffix": "  "
+        },
+        {
+          "line": 12,
+          "suffix": "  "
+        },
+        {
+          "line": 13,
+          "suffix": "  "
+        },
+        {
+          "line": 14,
+          "suffix": "  "
+        },
+        {
+          "line": 17,
+          "suffix": "  "
+        },
+        {
+          "line": 20,
+          "suffix": "  "
+        }
+      ]
+    },
+    {
+      "file": "verbatim/review-a.md",
+      "sha256": "20787ace3704eac6c20e0de0eb2a6755e04648ce25d3ea141c4c08c392eb3fdb",
+      "bytes": 3929,
+      "original_final_newline": false,
+      "suffixes": [
+        {
+          "line": 11,
+          "suffix": "  "
+        },
+        {
+          "line": 13,
+          "suffix": "   "
+        },
+        {
+          "line": 15,
+          "suffix": "   "
+        },
+        {
+          "line": 16,
+          "suffix": "  "
+        },
+        {
+          "line": 19,
+          "suffix": "  "
+        },
+        {
+          "line": 20,
+          "suffix": "  "
+        },
+        {
+          "line": 23,
+          "suffix": "  "
+        },
+        {
+          "line": 25,
+          "suffix": "   "
+        }
+      ]
+    },
+    {
+      "file": "original-evidence/s5-author.md",
+      "sha256": "604a9c3f6431409b3eaf611bc0ff7418365c86b8bce784cd09c1ce5f67a0635a",
+      "bytes": 5468,
+      "original_final_newline": false,
+      "suffixes": [
+        {
+          "line": 89,
+          "suffix": "  "
+        },
+        {
+          "line": 90,
+          "suffix": "  "
+        },
+        {
+          "line": 91,
+          "suffix": "  "
+        }
+      ]
+    },
+    {
+      "file": "original-evidence/s3-lensA.md",
+      "sha256": "de480ff4cba133958277ffdaadefab63cd1a27f90fca241552df78374be9cb5c",
+      "bytes": 10098,
+      "original_final_newline": false,
+      "suffixes": [
+        {
+          "line": 89,
+          "suffix": "  "
+        },
+        {
+          "line": 92,
+          "suffix": "  "
+        },
+        {
+          "line": 95,
+          "suffix": "  "
+        },
+        {
+          "line": 98,
+          "suffix": "  "
+        },
+        {
+          "line": 101,
+          "suffix": "  "
+        },
+        {
+          "line": 106,
+          "suffix": "  "
+        },
+        {
+          "line": 107,
+          "suffix": "  "
+        },
+        {
+          "line": 108,
+          "suffix": "  "
+        },
+        {
+          "line": 109,
+          "suffix": "  "
+        }
+      ]
+    },
+    {
+      "file": "original-evidence/focus1.log",
+      "sha256": "49a25d45098ef85dcd6eb5153aea66da5ca4b524a123c67e76a5c02f584aace5",
+      "bytes": 40003,
+      "original_final_newline": true,
+      "suffixes": [
+        {
+          "line": 224,
+          "suffix": " "
+        },
+        {
+          "line": 228,
+          "suffix": " "
+        },
+        {
+          "line": 274,
+          "suffix": "     "
+        },
+        {
+          "line": 279,
+          "suffix": "     "
+        },
+        {
+          "line": 287,
+          "suffix": " "
+        },
+        {
+          "line": 293,
+          "suffix": " "
+        },
+        {
+          "line": 297,
+          "suffix": " "
+        },
+        {
+          "line": 343,
+          "suffix": "     "
+        },
+        {
+          "line": 348,
+          "suffix": "     "
+        },
+        {
+          "line": 356,
+          "suffix": " "
+        },
+        {
+          "line": 362,
+          "suffix": " "
+        },
+        {
+          "line": 366,
+          "suffix": " "
+        },
+        {
+          "line": 412,
+          "suffix": "     "
+        },
+        {
+          "line": 417,
+          "suffix": "     "
+        },
+        {
+          "line": 425,
+          "suffix": " "
+        }
+      ]
+    },
+    {
+      "file": "original-evidence/s3-lensB.md",
+      "sha256": "cb6f374efe08fc899fb641b596cf7dfd21a3cd0844c4201cf2994ca3af82fbfe",
+      "bytes": 13569,
+      "original_final_newline": false,
+      "suffixes": [
+        {
+          "line": 93,
+          "suffix": "  "
+        },
+        {
+          "line": 94,
+          "suffix": "  "
+        },
+        {
+          "line": 95,
+          "suffix": "  "
+        },
+        {
+          "line": 96,
+          "suffix": "  "
+        }
+      ]
+    }
+  ]
+}

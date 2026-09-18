@@ -2257,7 +2257,7 @@ def test_history_candidates_bounded_walk(tmp_path, monkeypatch, case):
 
     def observe(args, **kwargs):
         result = original(args, **kwargs)
-        if "--name-only" in args:
+        if "log" in args[:3] and "--name-only" in args:
             streams.append((list(args), result.stdout))
         return result
 
@@ -2379,7 +2379,7 @@ def test_history_candidates_walk_count(tmp_path, monkeypatch, case):
     logs = []
 
     def observe(self, args, **kwargs):
-        if "--name-only" in args:
+        if "log" in args[:3] and "--name-only" in args:
             logs.append(list(args))
         return original(self, args, **kwargs)
 
@@ -2427,12 +2427,12 @@ target=$(
         suppliers.append(self)
 
     def observe(self, args, **kwargs):
-        if "--name-only" in args:
+        if "log" in args[:3] and "--name-only" in args:
             kwargs["command_timeout"] = 0.05
         try:
             return original(self, args, **kwargs)
         except TOOL.AssessmentError as exc:
-            if "--name-only" in args:
+            if "log" in args[:3] and "--name-only" in args:
                 errors.append(exc)
             raise
 
@@ -2471,10 +2471,10 @@ def test_history_candidates_rescan_deadline(tmp_path, monkeypatch):
     attempted = []
 
     def expire(args, **kwargs):
-        if "--name-only" in args:
+        if "log" in args[:3] and "--name-only" in args:
             attempted.append(list(args))
         result = original(args, **kwargs)
-        if "--name-only" in args:
+        if "log" in args[:3] and "--name-only" in args:
             git.deadline = TOOL.time.monotonic() - 1
         return result
 
@@ -2550,7 +2550,7 @@ def test_history_candidates_union_parse_failure_is_memoized(tmp_path, monkeypatc
     original = git.run
 
     def corrupt(args, **kwargs):
-        if "--name-only" not in args:
+        if "log" not in args[:3] or "--name-only" not in args:
             return original(args, **kwargs)
         if failure == "over_bound":
             # Return a real, valid stream with three distinct commits for K=2.
