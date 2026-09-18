@@ -67023,3 +67023,64 @@ admission、実走の成功。binary の将来の可用性、trace 不在の完�
   receipt が無いことが常態。`unknown` は provenance 規約の許容値。
 - 子 commit を祖先として保持する統合 (patch 展開の廃止) — 段 5 の所有・投入契約の本体を変える別裁定。
   D2044 項 16 の限定 (記録しただけでは取り込みも撤去可能性も成立しない) に従い本 wave では扱わない。
+
+## D2140. 計算ノード job の終了遅延は job body が session の残存 process を回収して塞ぐ — 帰属は入れ子 user ns、発火は request SHA-256 束縛、signal と終了観測は pidfd (2026-09-18)
+
+**決定 (D2124 の対処。D2048 / D2124 は置換しない):** job 内 dispatcher (`tools/pegasus/dispatch_compute.py` の `_job_run`) は、直接の子が戻った後・result 書込み前に
+自分の session に残る process を回収する。
+
+1. **対象** = `/proc/<pid>/stat` の session が `os.getsid(0)` と一致し、自分と祖先鎖 (ppid を 1 まで) を除き、かつ
+   `readlink(/proc/<pid>/ns/user)` が自分 (init ns) と**異なる** process。bootstrap は全 task の子を入れ子 user ns に置くので、この述語が workload への帰属証明になる。
+   同 ns・ns 不読・stat 不読は trace に記録するだけで signal しない。
+2. **発火** = job script が export する `IZANAGI_DISPATCH_JOB_SESSION_SWEEP="$REQUEST_SHA256"` が `_job_run` の検証済み request SHA-256 と一致するときだけ。
+   値は child_env から pop する。ambient な `1` や別 sha では getsid にも `/proc` にも触れない (login node の in-process テストを守る)。
+3. **signal と観測** = `os.pidfd_open` → starttime 再照合 → `signal.pidfd_send_signal(SIGTERM)` → pidfd の `select.poll` (POLLIN = 終了) で 5 秒 →
+   生存へ SIGKILL → 1 秒 → 再列挙。最大 2 巡、新規候補 0 で終了、候補 0 の巡は待たない。`os.kill(pid)`・非子 `waitpid`・subreaper・PID ns・setsid は使わない。
+4. **記録** = `IZANAGI_DISPATCH_JOB_TRACE` の新事象 (`session-sweep-start` に祖先鎖、`session-residual`、`session-signal`、`session-process-exited`、`session-sweep-complete` の
+   status ∈ {clean, remaining, unknown} と件数、`session-sweep-error`)。result schema の field は増やさない。sweep の失敗は `child_rc` / result / return を変えない。
+5. 定数 5 秒 / 1 秒 / 2 巡は設計値 (未実測) であり、CLI・request・env から変えられない。
+
+**理由:**
+- D2124 の設計入力 (session 離脱・session を基準とする回収を検証候補とし、会計終了と残存子の終了を別々に評価) のうち、「job 終了時に残さない」は回収でしか満たせない。
+  session 離脱 (`start_new_session`) は残存を別 session へ移すだけで、離脱後の記録途絶は回収成功の証拠にならない (D2124)。
+- 計算ノードの実 trace で session leader は NQSV の `nqs_shpd` (ユーザー uid) であり、dispatcher は leader ではない。「同 session を全部 kill」は leader を殺す。
+  祖先鎖の除外だけでは同 session の非祖先 NQSV process を守れない (段 3 A-1) ので、bootstrap の構造 (入れ子 user ns) から導ける帰属述語を置いた。login で述語の可読性を実測した。
+- 既存の in-process テストは `patch.dict(os.environ, clear=True)` でないものがあり、`=1` の opt-in は ambient 継承で login の pytest session を走査しうる (段 3 A-2)。
+- pid 再利用の窓 (段 3 A-3) と終了観測の独立性 (D2124 の「別々に評価」) は pidfd で同時に満たせる。計算ノード kernel 5.15 で利用可能 (login 実測、計算ノード実走)。
+- 計算ノード 2 走 (generic 単一子 probe): 統制 no-child `E − J` = −0.468 秒 / 残存 0、陽性対照 keep (子 75 秒) `E − J` = −0.381 秒 / 残存 1 を KILL で回収
+  (`after=kill`、pidfd で終了観測、G − t0 = 10.0 秒)。前 2 wave の同条件は 69.5 / 69.7 秒。
+- **環境事実:** 計算ノード job 内の全 process は SIGTERM を SIG_IGN で継承する (nqs_shpd → bash → dispatcher → 子、F1012 と同じ)。handler を持たない残存子は TERM で死なず、
+  猶予 5 秒後の KILL で死ぬ。keep の期待は投入前にこの形へ改訂して固定した。
+
+**却下した選択肢:**
+- 隔離 child を `start_new_session=True` で別 session に置く (session 離脱) — 会計は早く終わるが残存 process が node に残る。「残さない」を満たさない。
+- subreaper で孫を回収する — F973 (zombie の窓が残存計数を汚す)。
+- uid フィルタ — 同 uid の非 workload (`nqs_shpd` は uid 31609) を守れない。ns 帰属述語に包含。
+- opt-in を固定値 `1` にする — ambient 継承で in-process テストが発火する。
+- dispatcher で SIGTERM を SIG_DFL に戻して子孫に継承させる — TERM 猶予が効くようになるが job body 全体の signal 環境を変え、受入 suite の既存挙動へ波及しうる。本 wave の scope 外、次の一手候補。
+- 計算ノードで SIGTERM を無視する子の追加 1 走 — probe の改変 (Codex author) と別事前登録が要る。結論を generic 単一子に限定し、SIGKILL 経路は login のテストで検証。
+  結果的に keep 自体が SIG_IGN 継承で KILL 経路を通った。
+- watchdog・一般的な process 管理機構・result schema への field 追加 — 依頼の scope 外。
+
+## D2141. SS2PL runner の condition gate 問題の対照材料は、gate と登録簿を repo 側で 1 byte も変えず、job dir の試作 patch と shadow 登録簿で層別に取る — shadow の結果は機構診断であり、stock 側 ycsb target の比較の成立とは扱わない (2026-09-18)
+
+**決定:** D2120 項 12 の再提示材料 (`output/insights/2026-09-18/t2737-ss2pl-gate-controls/`) は次の形で取り、次の限定を付す。
+
+1. 試作 patch (revS) と abort 無条件除去版、shadow 登録簿 (O = repo と byte 同一 / T+ = target を `tpcc_ss2pl.exe` / T− = T+ + KIND の companion 除去) は job dir にだけ置き、repo の `patches/`・`condition_meaning_gate.py`・runner は変えない。shadow の受理条件は「repo の gate bytes に許可置換だけを施した期待 bytes との全体一致」とし、`inert_values` / `owner_tus` / 式 / 非 SS2PL entry / logic の変更は拒否する。
+2. 材料の先頭に「stock の ss2pl に `ycsb_ss2pl.exe` target が無い限り、inert arm の stock 比較は gate 不変では構造的に成立しない」「shadow T± の結果は tpcc target の owner TU の機構診断であって、測定する ycsb TU の stock 逐語 (D790) の認証ではない」を置く。shadow の admission を production の認証・certified 選択に流用しない。
+3. 試作 patch に新しい lock 意味論、KIND を IMPL=0 で効かせる細工、`#line` 指令を入れない。S arm の復元は stock 本文の復元に限り、固定範囲で届かなければ残差を成果物とする (実測: 残差 1 行 = login diff で `ERR` macro の `__LINE__`)。
+4. `wfg.cc` は CMake の `CCBENCH_SS2PL_WFG_DIAG` 条件付きのまま (runner の `validate_wfg_absence` は source 名の `wfg` を拒否する)。WFG の閉包差は owner TU の `ss2pl_wfg.hh` include 無条件化と中身の `#if` 囲いで閉じる。
+5. (iii) warm-up の測り方は既存 helper `buildcache.prepare_masstree_fetchcontent` (D2131 と同形、`FETCHCONTENT_BASE_DIR` は既存 non-symlink directory を事前に作る) とし、生の `cmake --build --target masstree_build` は使わない。
+6. 採否は書かない。材料は「成立した比較 / 成立しない比較 / 必要な変更層 / 費用・隙間 / 証拠 cell」の 1 表と、択一の骨子までとする。
+
+**理由:**
+- gate (T-2018) は inert witness の防壁で、主経路外の研究のために緩めない (D2120 項 12 の (i) 不採用)。登録簿の行だけ差し替えた写しで測れば、gate logic を変えずに「どの層の変更で何まで進むか」が層別に読める。
+- tpcc target の一致を採用根拠へ昇格させると、未検査の ycsb 経路を残したまま対象を変えて防壁を迂回した結論になる (段 3 / 段 6 レンズ A)。
+- `#line` は gate の比較対象 (前処理 bytes) を人為的に揃える操作であり、材料の段階で入れると「成立」の意味が変わる。
+- 9 driver と t316 probe が既に helper 経由で masstree を準備しており、SS2PL runner だけが欠く。同形で測るのが最小差分で、生の cmake target 呼び出しは D2131 が sink として却下した形。
+
+**却下した選択肢:**
+- 8 変更群だけの試作を別版として先に測る (段 2 plan) — S 一致まで復元した 1 版で届かなければ残差が同じ材料になる。
+- `wfg.cc` を無条件 compile にする (段 2 plan) — runner の source 名検査に抵触し、owner TU の閉包にも無関係。
+- gate の positive control として S に 1 行差分を混ぜる cell を足す — abort 無条件除去版 (残差 218 行) が対照になる。ただし両版 red なので「abort 単独で green → red」の反転対照は未成立と書く。
+- 試作 patch・probe を repo へ入れる — 実装面は Codex author が書き、job dir に置いて insight に `.md` 逐語で残す (T-317 未裁定、`compute-probe-stays-out-of-repo`)。

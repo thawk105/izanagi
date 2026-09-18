@@ -1,0 +1,9 @@
+leader pid 4031465 sid 4031465 orphan 4031530 own_ns user:[4026531837]
+orphan stat tail ['S', '1', '4031465', '4031465'] ns user:[4026537417]
+elapsed 0.139
+{"event": "session-residual", "round": 1, "process": {"pid": 4031530, "comm": "python3", "state": "S", "ppid": 1, "pgrp": 4031465, "session": 4031465, "starttime": 129090479, "readable": true, "user_ns": "user:[4026537417]", "uid": 31609, "attributed": true}}
+{"event": "session-signal", "process": {"pid": 4031530, "comm": "python3", "state": "S", "ppid": 1, "pgrp": 4031465, "session": 4031465, "starttime": 129090479, "readable": true, "user_ns": "user:[4026537417]", "uid": 31609, "attributed": true}, "signal": "TERM", "result": "sent", "errno": null, "time_ns": 1789683904598821272}
+{"event": "session-process-exited", "process": {"pid": 4031530, "comm": "python3", "state": "S", "ppid": 1, "pgrp": 4031465, "session": 4031465, "starttime": 129090479, "readable": true, "user_ns": "user:[4026537417]", "uid": 31609, "attributed": true}, "after": "term", "time_ns": 1789683904599313803}
+{"event": "session-sweep-complete", "status": "clean", "rounds_used": 2, "found_total": 1, "attributed_total": 1, "unattributed_total": 0, "exited_after_term": 1, "exited_after_kill": 0, "remaining": 0, "zombies": 0, "unreadable": 0, "elapsed_ms": 138.99635011330247}
+orphan /proc exists: False
+leader rc 0

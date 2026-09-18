@@ -1,0 +1,15 @@
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 2131355, "time_ns": 1789685264354122881}
+IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2131376, "event": "direct-child-wait-start", "pid": 2131362, "time_ns": 1789685264383540970}
+IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2131376, "event": "direct-child-wait-complete", "pid": 2131362, "time_ns": 1789685269421906329}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 2131362, "rc": 0, "time_ns": 1789685269421974074}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 2131355, "rc": 0, "time_ns": 1789685269426380627}
+IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 2131355}, {"comm": "bash", "pid": 2131335}, {"comm": "nqs_shpd", "pid": 2131334}, {"comm": "nqs_shpd", "pid": 2131135}, {"comm": "nqs_shpd", "pid": 2195}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 2131355, "sid": 2131334, "time_ns": 1789685269426855067}
+IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 30.885229993145913, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 2131355, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1789685269457779203, "unattributed_total": 0, "zombies": 0}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 2131355, "time_ns": 1789685269460125785}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 2131355, "time_ns": 1789685269466555512}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 2131355, "time_ns": 1789685269467229410}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 2131355, "time_ns": 1789685269467238738}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 2131355, "time_ns": 1789685269468080225}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 2131355, "time_ns": 1789685269468087432}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 2131355, "rc": 0, "time_ns": 1789685269468095672}
+IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 2131355, "rc": 0, "time_ns": 1789685269468107186}

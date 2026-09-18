@@ -1,0 +1,12 @@
+request 5077.nqsv started Fri Sep 18 07:47:44 2026 ended Fri Sep 18 07:47:49 2026 elapse 9S
+W 07:47:49.426381 S 07:47:49.426855 C 07:47:49.457779 J 07:47:49.468107 E 07:47:49.000000
+J-W = 0.042 s
+E-J = -0.468 s (E is second-precision)
+E-W = -0.426 s
+ancestors [(2131355, 'python3.10'), (2131335, 'bash'), (2131334, 'nqs_shpd'), (2131135, 'nqs_shpd'), (2195, 'nqs_shpd'), (1, 'systemd')] sid 2131334 own_ns user:[4026531837]
+complete {'attributed_total': 0, 'elapsed_ms': 30.885229993145913, 'exited_after_kill': 0, 'exited_after_term': 0, 'found_total': 0, 'remaining': 0, 'rounds_used': 1, 'session_unknown': 0, 'status': 'clean', 'unattributed_total': 0, 'zombies': 0}
+receipt terminal_reason scheduler-end-state accounting_verified None qdel {'attempted': False} outcome.rc 0
+result stage child child_rc 0 hostname bnode073
+evidence events ['start', 'parent-exit'] child_pid None recording_errors []
+t0 07:47:44.416283 parent-exit delta 5.001020131
+heartbeats 0 H None child-exit False

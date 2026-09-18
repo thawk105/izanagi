@@ -1,0 +1,91 @@
+"""計算ノード実測 1 走の判定材料を集計する (repo 外の運転 script)。
+使い方: python3 analyze.py <submission dir> <evidence jsonl or ->
+出力: W/S/C/T/G/J (time_ns)、E (会計)、E−J、J−W、E−W、residual/signal/exited/complete、receipt、heartbeat H。"""
+import glob
+import json
+import os
+import sys
+import time
+from datetime import datetime
+
+sub = sys.argv[1]
+ev = sys.argv[2] if len(sys.argv) > 2 else "-"
+efile = glob.glob(os.path.join(sub, "izdw-*.e*"))
+assert len(efile) == 1, efile
+trace = []
+acct = {}
+for line in open(efile[0], encoding="utf-8", errors="replace"):
+    if line.startswith("IZANAGI_DISPATCH_JOB_TRACE "):
+        trace.append(json.loads(line[len("IZANAGI_DISPATCH_JOB_TRACE "):]))
+    elif ":" in line and not line.startswith("IZANAGI"):
+        k, _, v = line.partition(":")
+        acct[k.strip()] = v.strip()
+
+
+def first(event):
+    return next((t for t in trace if t["event"] == event), None)
+
+
+def all_of(event):
+    return [t for t in trace if t["event"] == event]
+
+
+def ts(ns):
+    return datetime.fromtimestamp(ns / 1e9).strftime("%H:%M:%S.%f") if ns else None
+
+
+W = first("supervisor-wait-complete")
+S = first("session-sweep-start")
+C = first("session-sweep-complete")
+J = first("job-run-returned")
+signals = all_of("session-signal")
+exited = all_of("session-process-exited")
+residual = all_of("session-residual")
+remaining = all_of("session-process-remaining")
+errors = all_of("session-sweep-error")
+# 会計 E: "Ended Request Time:     Fri Sep 18 07:47:49 2026" (JST)
+E_str = acct.get("Ended Request Time")
+E_ns = None
+if E_str:
+    E_ns = int(time.mktime(time.strptime(E_str, "%a %b %d %H:%M:%S %Y")) * 1e9)
+print("request", acct.get("Request ID"), "started", acct.get("Started Request Time"), "ended", E_str, "elapse", acct.get("Elapse"))
+print("W", ts(W and W["time_ns"]), "S", ts(S and S["time_ns"]), "C", ts(C and C["time_ns"]), "J", ts(J and J["time_ns"]), "E", ts(E_ns))
+if W and J:
+    print("J-W = %.3f s" % ((J["time_ns"] - W["time_ns"]) / 1e9))
+if E_ns and J:
+    print("E-J = %.3f s (E is second-precision)" % ((E_ns - J["time_ns"]) / 1e9))
+if E_ns and W:
+    print("E-W = %.3f s" % ((E_ns - W["time_ns"]) / 1e9))
+print("ancestors", [(a["pid"], a["comm"]) for a in S["ancestors"]] if S else None, "sid", S and S["sid"], "own_ns", S and S["own_user_ns"])
+print("complete", {k: v for k, v in (C or {}).items() if k not in ("event", "pid", "time_ns")})
+for r in residual:
+    p = r["process"]
+    print("residual round", r["round"], {k: p[k] for k in ("pid", "ppid", "comm", "state", "uid", "starttime", "user_ns", "attributed", "readable")})
+for s in signals:
+    print("signal", s["signal"], s["result"], "pid", s["process"]["pid"], "at", ts(s.get("time_ns")))
+for x in exited:
+    print("exited after", x["after"], "pid", x["process"]["pid"], "at", ts(x.get("time_ns")))
+for x in remaining:
+    print("remaining pid", x["process"]["pid"], "state", x.get("state"))
+for x in errors:
+    print("ERROR", x)
+rc = json.load(open(os.path.join(sub, "receipt.json")))
+print("receipt terminal_reason", rc.get("terminal_reason"), "accounting_verified", rc.get("accounting_verified"),
+      "qdel", rc.get("qdel"), "outcome.rc", (rc.get("outcome") or {}).get("rc"))
+res = json.load(open(os.path.join(sub, "result.json")))
+print("result stage", res.get("stage"), "child_rc", res.get("child_rc"), "hostname", res.get("hostname"))
+if ev != "-" and os.path.exists(ev):
+    rows = [json.loads(l) for l in open(ev)]
+    events = [r["event"] for r in rows]
+    child_pid = next((r.get("child_pid") for r in rows if r["event"] == "fork"), None)
+    hb = [r for r in rows if r["event"] == "child-alive"]
+    H = max((r["realtime_ns"] for r in hb), default=None)
+    t0 = rows[0].get("t0_realtime_ns")
+    print("evidence events", events, "child_pid", child_pid, "recording_errors", [r.get("recording_errors") for r in rows if r.get("recording_errors")])
+    print("t0", ts(t0), "parent-exit delta", next(((r["monotonic_ns"] - r["t0_monotonic_ns"]) / 1e9 for r in rows if r["event"] == "parent-exit"), None))
+    print("heartbeats", len(hb), "H", ts(H), "child-exit", any(e == "child-exit" for e in events))
+    G = [x["time_ns"] for x in exited if child_pid and x["process"]["pid"] == child_pid]
+    if H and G:
+        print("H <= G:", H <= G[0], "G - H = %.3f s" % ((G[0] - H) / 1e9))
+    if child_pid and t0 and G:
+        print("G - t0 = %.3f s (< 75 ?)" % ((G[0] - t0) / 1e9))

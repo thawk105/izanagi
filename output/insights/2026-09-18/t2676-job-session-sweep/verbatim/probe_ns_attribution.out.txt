@@ -1,0 +1,13 @@
+outer rc 0 stderr
+orphan pid 3014503
+orphan state/ppid/pgrp/sid/starttime S 1 3014490 3014482 128854488
+my pid/sid 3014490 3014482
+my ns/user user:[4026531837]
+orphan ns/user user:[4026537420]
+orphan uid_map 31609      31609          1
+my uid_map 0          0 4294967295
+orphan status Uid Uid:	31609	31609	31609	31609
+pidfd 3
+pidfd poll events [(3, 1)] after 0.0008s
+orphan /proc exists after TERM: False
+pidfd_send_signal(0) after exit: ProcessLookupError(3, 'No such process')
