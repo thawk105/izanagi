@@ -1,0 +1,190 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 4500,
+  "hang_timeout_seconds": 4500,
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/agent_outputs.py",
+          "old": "    \"\"\"Select exact, unique level-two sections outside Markdown fences.\n",
+          "new": "    \"\"\"Select the exact, unique level-two sections outside Markdown fences (equivalent mutation marker).\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-stage-whitelist-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/agent_outputs.py",
+          "old": "    if env[\"stage\"] not in STAGES:\n",
+          "new": "    if False and env[\"stage\"] not in STAGES:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-unterminated-last-frame-accepted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/agent_outputs.py",
+          "old": "    if frames[-1]:\n",
+          "new": "    if False and frames[-1]:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-semantic-duplicate-accepted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/agent_outputs.py",
+          "old": "    if key in semantic_seen:\n",
+          "new": "    if False and key in semantic_seen:\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-planner-coder-dropped-from-primary",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "        \"agent_outputs\": sorted(agent_outputs or (), key=lambda env: canonical_record_ref(\"ao\", env)),\n",
+          "new": "        \"agent_outputs\": sorted((env for env in (agent_outputs or ()) if env[\"stage\"] == \"critic_attributed\"), key=lambda env: canonical_record_ref(\"ao\", env)),\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-view-double-counted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "        refs[canonical_record_ref(\"ao\", env)] += 1\n    return refs\n",
+          "new": "        refs[canonical_record_ref(\"ao\", env)] += 1\n    refs.update(row[\"source_ref\"] for row in report.get(\"mechanism_hypotheses\", ()))\n    return refs\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-expected-from-report",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    expected.update(canonical_record_ref(\"ao\", env) for env in (agent_outputs or ()))\n",
+          "new": "    expected.update(canonical_record_ref(\"ao\", env) for env in report.get(\"agent_outputs\", ()))\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-view-recheck-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "    if report.get(\"mechanism_hypotheses\", []) != _mechanism_view(records, agent_outputs or ()):\n",
+          "new": "    if False and report.get(\"mechanism_hypotheses\", []) != _mechanism_view(records, agent_outputs or ()):\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-absent-provenance-lies",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_report.py",
+          "old": "        \"mechanism_hypotheses_provenance\": \"absent\" if agent_outputs is None else \"agent_outputs\",\n",
+          "new": "        \"mechanism_hypotheses_provenance\": \"agent_outputs\",\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-input-builder-reads-ao",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    payload: Dict[str, Any] = {\"whiteboard\": whiteboard_for_planner(state)}\n",
+          "new": "    agent_outputs.read_agent_outputs(\"/forbidden-agent-output-input.jsonl\")\n    payload: Dict[str, Any] = {\"whiteboard\": whiteboard_for_planner(state)}\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10a-k2-metadata-dropped",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "                \"output\": record[role + \"_output\"],\n",
+          "new": "                \"output\": ({key: value for key, value in record[role + \"_output\"].items() if key != \"knowledge_use\"} if role == \"coder\" else record[role + \"_output\"]),\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10b-input-hash-from-output",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        \"output\": output, \"input_sha256\": agent_outputs.canonical_sha256(declared_input),\n",
+          "new": "        \"output\": output, \"input_sha256\": agent_outputs.canonical_sha256(output),\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-witness-null-allowed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/layer3_schema.json",
+          "old": "              \"commit_counts\": {\n                \"type\": \"integer\"\n              }",
+          "new": "              \"commit_counts\": {\n                \"type\": [\"integer\", \"null\"]\n              }"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
