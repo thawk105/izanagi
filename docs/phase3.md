@@ -26,6 +26,11 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   成果は `docs/paper-story/results/2026-09-18-t1998-balanced-stock-inline-accepted.md` と同README索引・追補。
   median比とA-1対差平均を分け、A-2/A-6とプールせず、B-7充足へ昇格しない。新規測定ではない。
 
+- [x] A-1 sized attempt-0001の単独results稿・図9と対応検査を作成した (2026-09-18)。
+  稿は `docs/paper-story/results/2026-09-18-a1-balanced5-sized-attempt1-descriptive.md`、
+  検証記録は `output/insights/2026-09-18/t2775-a1-sized-results-draft/README.md`。
+  単一attemptのdescriptiveな執筆材料であり、formal化・A-1要件充足・反復間安定性の判定ではない。
+
 - [x] [T-2686] exact-state の候補取得を遅延 union walk に束ねる実装を回収した。
   正証拠・候補順・limit+1・closed-world負判定を維持し、観測wrapperのdiff/log混同を修正。
   検証と主張範囲の記録は output/insights/2026-09-18/t2686-exact-state-union-walk/。

@@ -1,0 +1,45 @@
+recorded_epoch 1789681458 06:44:18
+write-heavy 4939.nqsv bnode107 sched_start 06:30:45 started 06:30:45 ended 06:39:59 elapsed 553.9599999999627 cpu 9121.249 deadline 12:30:45 requested_s 21600 script_sha 3c2b734d9c71 nonce attempt-0001.write-heavy
+balanced 4940.nqsv bnode108 sched_start 06:30:45 started 06:30:45 ended 06:43:20 elapsed 755.3000000000466 cpu 9121.098000000002 deadline 12:30:45 requested_s 21600 script_sha 3c2b734d9c71 nonce attempt-0001.balanced
+read-heavy 4941.nqsv bnode109 sched_start 06:31:13 started 06:31:13 ended 06:36:37 elapsed 323.79999999998836 cpu 9118.327000000001 deadline 12:31:13 requested_s 21600 script_sha 3c2b734d9c71 nonce attempt-0001.read-heavy
+== write-heavy
+  build_start  a7f8486e1116 06:31:42
+  build_done   a7f8486e1116 06:32:00
+  verify_done  a7f8486e1116 06:32:12
+  build_start  84319b1127a6 06:32:15
+  build_done   84319b1127a6 06:32:33
+  verify_done  84319b1127a6 06:32:47
+  bench_done   a7f8486e1116 06:39:58 bench_wall_s=100.7
+  bench_done   84319b1127a6 06:39:58 bench_wall_s=100.8
+  commit       a7f8486e1116 06:39:58
+  commit       84319b1127a6 06:39:58
+== balanced
+  build_start  93c62227a2d3 06:31:43
+  build_done   93c62227a2d3 06:32:00
+  verify_done  93c62227a2d3 06:32:12
+  build_start  84319b1127a6 06:32:15
+  build_done   84319b1127a6 06:32:32
+  verify_done  84319b1127a6 06:32:45
+  bench_done   93c62227a2d3 06:43:19 bench_wall_s=100.4
+  bench_done   84319b1127a6 06:43:19 bench_wall_s=100.6
+  commit       93c62227a2d3 06:43:19
+  commit       84319b1127a6 06:43:19
+== read-heavy
+  build_start  82ea3a7b8618 06:32:09
+  build_done   82ea3a7b8618 06:32:27
+  verify_done  82ea3a7b8618 06:32:40
+  build_start  84319b1127a6 06:32:43
+  build_done   84319b1127a6 06:33:01
+  verify_done  84319b1127a6 06:33:14
+  bench_done   82ea3a7b8618 06:36:36 bench_wall_s=100.7
+  bench_done   84319b1127a6 06:36:36 bench_wall_s=100.7
+  commit       82ea3a7b8618 06:36:36
+  commit       84319b1127a6 06:36:36
+submission keys ['attempt_root', 'completion_receipt_path', 'intent_sha256', 'jobs', 'route', 'schema_version', 'source_commit', 'study_id', 'submission_receipt_path']
+   schema_version paper-story-a1-paired-group-submission/v1
+   route direct-qsub-workload-fanout
+   intent_sha256 7eb404861e9a5336c6169445885a7083c12f801ade5068e9b1ad09ad025a2750
+   study_id paper-story-a1-20260901-balanced5-sized-v1
+completion keys ['attempt_root', 'group_terminal', 'jobs', 'schema_version', 'source_commit', 'study_id', 'submission_receipt']
+   schema_version paper-story-a1-paired-group-completion/v1
+{"attempt_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001", "group_terminal": {"path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001/raw/job-terminal.json", "sha256": "c46ae55cd9be5866956d5ffdefe5b86326de5899e8aa611725d6cf51631bbd15"}, "jobs": [{"job_terminal": {"path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001/jobs/write-heavy/job-terminal.json", "sha256": "1362eb5c7b5fc75c49fa0c741ceb2694a3a679ccb312a3077f0fb25d09a4e36d"}, "ordinal": 0, "request_id": "4939.nqsv", "scheduler_terminal": {"exit_status": {"observed": false}, "observed_epoch": 1789681458, "qstat_rc": 0, "qstat_stdout": "Batch Request: 4939.nqsv does not exist on nqsv.\n", "qstat_stdout_sha256": "052bba0ae4745d09ef7c6898a95fd125848fb264b04566b7a849c3bea20a2dd9", "qstat_visible": false, "state": {"observed": false}, "terminal_reason": "request-disappeared-after-visibility"}, "stderr": {"path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001/jobs/write-heavy/scheduler/job.stderr", "sha256": "fbe26780624f39c71919c46df94d9b4bfbc37cbc435525cd673abd61160dcf2d"}, "stdout": {"path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-paper-story-a1-balanced5-sized-20260913/measurement/attempt-0001/jobs/write-heavy/scheduler/job.stdout", "sha256": "a6616826b11899da096fb919db172da77ec9e

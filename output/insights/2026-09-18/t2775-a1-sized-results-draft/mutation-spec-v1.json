@@ -1,0 +1,235 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 3600,
+  "timeout_seconds": 7200,
+  "hang_timeout_seconds": 3600,
+  "mutations": [
+    {
+      "id": "m0-equivalent-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "old": "\"\"\"Pinned descriptive A-1 sized paired differences, attempt-0001.\"\"\"\n",
+          "new": "\"\"\"Pinned descriptive A-1 sized paired differences, attempt-0001.\n\n(equivalent mutation marker: docstring only)\n\"\"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-drop-formal-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "old": "    _require(record[\"formal\"] is False, \"formal must be false\")\n",
+          "new": "    _require(record[\"formal\"] in (False, True), \"formal must be false\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_formal_true_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-drop-promotion-prohibited-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "old": "    _require(record[\"promotion_prohibited\"] is True, \"promotion_prohibited must be true\")\n",
+          "new": "    _require(record[\"promotion_prohibited\"] in (False, True), \"promotion_prohibited must be true\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_promotion_prohibited_false_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-drop-statistics-crosscheck",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "old": "        for key, field in STAT_FIELDS.items():\n            _close(stat[field], values[key])\n",
+          "new": "        for key, field in STAT_FIELDS.items():\n            _number(stat[field])\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_statistics_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-drop-classification-predicate",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "old": "        _require(stat[\"classification\"] == expected_class, \"classification mismatch\")\n",
+          "new": "        _require(stat[\"classification\"] in (\"resolved-above-floor\", \"bounded-below-floor\", \"unresolved\", expected_class), \"classification mismatch\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_classification_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-drop-pair-difference-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "old": "            _require(d == v - b, \"pair difference mismatch\")\n",
+          "new": "            _require(_number(d) == d, \"pair difference mismatch\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_pair_difference_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-drop-sha-comparison",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "old": "        _require(digest == hashes[path], f\"SHA-256 mismatch: {path}\")\n",
+          "new": "        _require(len(digest) == len(hashes[path]), f\"SHA-256 mismatch: {path}\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_leaf_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_pinned_hashes_are_used_when_no_override"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-layout-check-noop",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "old": "def check_figure_layout(fig, axes):\n    from matplotlib.text import Text\n",
+          "new": "def check_figure_layout(fig, axes):\n    return None\n    from matplotlib.text import Text\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_layout_failure_publishes_nothing"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m8-caption-drops-lane",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "old": "sized run attempt-0001 (study {data['study_id']}; {FIXED_LANE}).\",\n",
+          "new": "sized run attempt-0001 (study {data['study_id']}).\",\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_caption_contains_fixed_literals_and_lane",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m9-drop-certified-check",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "old": "            _require(type(evidence[\"certified\"]) is list and len(evidence[\"certified\"]) == 1\n                     and evidence[\"certified\"][0] is True, \"uncertified arm\")\n",
+          "new": "            _require(type(evidence[\"certified\"]) is list and len(evidence[\"certified\"]) == 1, \"uncertified arm\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_uncertified_arm_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m10-drop-policy-sha-binding",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "old": "    _require(result[\"policy_sha256\"] == _sha256(root / POLICY_PATH), \"policy SHA-256 mismatch\")\n",
+          "new": "    _require(len(result[\"policy_sha256\"]) == 64, \"policy SHA-256 mismatch\")\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_policy_hash_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m11-artist-median-instead-of-mean",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "old": "    return [{\"workload\": c[\"workload\"], \"mean\": c[\"mean\"] / 1e6,\n",
+          "new": "    return [{\"workload\": c[\"workload\"], \"mean\": statistics.median(p[\"signed_difference\"] for p in c[\"pairs\"]) / 1e6,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_artist_series_equal_provenance_cells_and_leaf_statistics",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m12-drop-caption-source",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "old": "    tracked.append({\"kind\": \"caption_source\", \"path\": CAPTION_SOURCE,\n                    \"sha256\": _sha256(root / CAPTION_SOURCE), \"authority_scope\": CAPTION_SCOPE})\n",
+          "new": "    _sha256(root / CAPTION_SOURCE)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_provenance_binds_caption_source"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m13-restore-all-missing-skip",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_plot_a1_sized_paired.py",
+          "old": "    readme = (prefix.parent / \"README.md\").read_text()\n    assert all(path.is_file() for path in paths), \"fig9 integration bundle is incomplete\"\n",
+          "new": "    readme = (prefix.parent / \"README.md\").read_text()\n    if not any(path.exists() for path in paths):\n        skip(\"fig9 integration artifacts are parent-owned and not landed yet\")\n    assert all(path.is_file() for path in paths), \"fig9 integration bundle is incomplete\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_rejects_all_missing_outputs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
