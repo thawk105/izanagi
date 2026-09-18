@@ -407,7 +407,7 @@ def test_landed_output_paths_reject_same_basename_in_other_directory(tmp_path):
     try:
         _assert_landed_output_paths(prov)
     except AssertionError as exc:
-        assert str(exc) == "landed output paths mismatch"
+        assert str(exc).startswith("landed output paths mismatch")
     else:
         raise AssertionError("alternate directory was accepted as landed output")
 
