@@ -1,0 +1,258 @@
+{
+  "schema_version": "mocc-g2-standard-trace-manifest/v1",
+  "artifact_kind": "standard-trace",
+  "root_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2779-mocc-g2-observation-conditions/arm-B/B1/runs/082-e9-instr-nowit/trace",
+  "source_oid": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+  "binary_sha256": "4317ea39c69a7589ef27d8ed5ad2e36438cf27b52ef3e259fbad36fd46bd61d0",
+  "workload": {
+    "extime_s": 3,
+    "records": 10000,
+    "threads": 48,
+    "ycsb_max_ope": 10,
+    "ycsb_rmw": 0,
+    "ycsb_rratio": 50,
+    "zipf_skew": 0.9
+  },
+  "files": [
+    {
+      "name": "trace_0.log",
+      "sha256": "7256cc88d27e316fa8dbc75e8a4b00dfd89d9f73e2d15ef1af321acfdfb84edc",
+      "size_bytes": 3645671
+    },
+    {
+      "name": "trace_1.log",
+      "sha256": "b39a32107d3ca9196cecdbe5b7297600aa8b90bcc62b49ca6d5d1c3521824c1a",
+      "size_bytes": 3238291
+    },
+    {
+      "name": "trace_10.log",
+      "sha256": "5cc2dd90509a2147712d8f4b0438131c21da9ed74f2a6307ea506499cb9a8aa3",
+      "size_bytes": 3012227
+    },
+    {
+      "name": "trace_11.log",
+      "sha256": "9ae0f76024371e377507e4fb363f00c1c6e52e89b5985d31cfd4337c53e3fe2a",
+      "size_bytes": 406426
+    },
+    {
+      "name": "trace_12.log",
+      "sha256": "fc9854c0dcd638e6d992837a7e595afbf4dd8a93ef5f06b4af856a4fe9f1a792",
+      "size_bytes": 10848003
+    },
+    {
+      "name": "trace_13.log",
+      "sha256": "abe5487da89adf16e99ef055ef0c04c09323473b6cc49e60936176b38bddd800",
+      "size_bytes": 10562337
+    },
+    {
+      "name": "trace_14.log",
+      "sha256": "d2582d3ea2fd1fb501d091043922e8f9866a5ce4bdd894cac0a358e3dc7a9559",
+      "size_bytes": 10006808
+    },
+    {
+      "name": "trace_15.log",
+      "sha256": "487bb3b8b0fb7953a0047bd3d21c9aeca6224989812c7ce4572e0f8f51cac78f",
+      "size_bytes": 8084967
+    },
+    {
+      "name": "trace_16.log",
+      "sha256": "08b26753924c26fae99e407e3a9815ea40a6d8760a5603891833e4aebca24bb8",
+      "size_bytes": 11687988
+    },
+    {
+      "name": "trace_17.log",
+      "sha256": "179cab2c0a51b39f8ac4e56f21442ee10846522c28e03a4121eda2c6b530f36e",
+      "size_bytes": 10497560
+    },
+    {
+      "name": "trace_18.log",
+      "sha256": "adac91c17b00e0a72e97994f77cefe113f58ad44a20b5990dfe24aeae680a731",
+      "size_bytes": 12726008
+    },
+    {
+      "name": "trace_19.log",
+      "sha256": "6d6b1aa662c0934bbecc2a03162e73b264b1de1eb5245afce3ebe9448c3d8616",
+      "size_bytes": 8386693
+    },
+    {
+      "name": "trace_2.log",
+      "sha256": "78332f29916472661853aa812c7d5751f527c4cfed12cab9ac4986f7365e74e5",
+      "size_bytes": 1654181
+    },
+    {
+      "name": "trace_20.log",
+      "sha256": "bfa2cb55c2b826d6c312f8852496c03ebc288014eac10ceed5ce20a06746853a",
+      "size_bytes": 3708775
+    },
+    {
+      "name": "trace_21.log",
+      "sha256": "63886686e1ce9d53436b23b178113747ab079095209ec12901ed96f59aee4e6f",
+      "size_bytes": 5248604
+    },
+    {
+      "name": "trace_22.log",
+      "sha256": "e5d3f952cd71b2ce17c4bbc303b34dbba76fe18b79d3b09b109f6fca10db7ca0",
+      "size_bytes": 13056594
+    },
+    {
+      "name": "trace_23.log",
+      "sha256": "e597e1eeb5d78c325b45f3ea9b5a5ffc440744a28ba3ffa5248fae7108124f6d",
+      "size_bytes": 9272014
+    },
+    {
+      "name": "trace_24.log",
+      "sha256": "cc542e344ecf9daa7e1b3ab0a16adc4c1b7b16e9b12126ef720c20e334201aae",
+      "size_bytes": 11368602
+    },
+    {
+      "name": "trace_25.log",
+      "sha256": "c7044e35e7ee662da576926c68cac6d3faf967dfebf405d9452e204e1c285874",
+      "size_bytes": 3068197
+    },
+    {
+      "name": "trace_26.log",
+      "sha256": "bc9b3d383f92fcdceaccd1bf60db8b31cbe75b57527e9f68cd965b0674438f2c",
+      "size_bytes": 4013360
+    },
+    {
+      "name": "trace_27.log",
+      "sha256": "7f38b623a61b94057a6cc3993c47e01fa171f9b3bef289054ae9db76712d255e",
+      "size_bytes": 7624124
+    },
+    {
+      "name": "trace_28.log",
+      "sha256": "b5a3ce4419e3c84cbda4ce5a66d6c39b577866908271f4c7852318129ea5da35",
+      "size_bytes": 8809179
+    },
+    {
+      "name": "trace_29.log",
+      "sha256": "a4b09261f4955eac6dc6d0c1ce145cad5a0c6af6c63aef35f81efe0a07876182",
+      "size_bytes": 13749134
+    },
+    {
+      "name": "trace_3.log",
+      "sha256": "6297050ef156f33fec19084e38fa029fae6b7cb5e335e0e0593aa065504cbfcc",
+      "size_bytes": 879622
+    },
+    {
+      "name": "trace_30.log",
+      "sha256": "0c20abe7cf01205a3dba2fd0a5a9bd885d077dfc4bc8dbb86690340bf17b4294",
+      "size_bytes": 11654922
+    },
+    {
+      "name": "trace_31.log",
+      "sha256": "800078f363f2a4c7843694c86778a8dbe64756b5d9bbca43f4b693c5b855597a",
+      "size_bytes": 11388977
+    },
+    {
+      "name": "trace_32.log",
+      "sha256": "f6899d8312d0f8c751b264770e576f24c9d3732aefea4270c14ffbc81d763176",
+      "size_bytes": 9731033
+    },
+    {
+      "name": "trace_33.log",
+      "sha256": "24c18bfb39922fb2d85d040f56d758797940727bcfb1df2cffd3085d91f06163",
+      "size_bytes": 12149010
+    },
+    {
+      "name": "trace_34.log",
+      "sha256": "23381734b94cf596b7e5067a3f06353a953cd3f8943080afb5ae317c2df8f75d",
+      "size_bytes": 13425472
+    },
+    {
+      "name": "trace_35.log",
+      "sha256": "4f3132339e258539ee5c8b52be4d5a4b3d7fd8ea1929a765d8aacbbfd18634ff",
+      "size_bytes": 7523845
+    },
+    {
+      "name": "trace_36.log",
+      "sha256": "2175ce462085530d30fc261d8628e5bf77dcf7a2ce317d09b46ac68925b65512",
+      "size_bytes": 1094061
+    },
+    {
+      "name": "trace_37.log",
+      "sha256": "a3b5393d22b3517f561f07122276712f34512f20fe4f925b41ab4c6249c06e4f",
+      "size_bytes": 899125
+    },
+    {
+      "name": "trace_38.log",
+      "sha256": "cfd6ea0022880ca31e56dfd6f9550d6f16365de74ff34d041783229ab6c4a54d",
+      "size_bytes": 588561
+    },
+    {
+      "name": "trace_39.log",
+      "sha256": "7b2eb33c2a607854414c387f0594d6dda36ef32acea29c3b862c290c6b3d4584",
+      "size_bytes": 889489
+    },
+    {
+      "name": "trace_4.log",
+      "sha256": "4520a5d27f1e81a0266751c3489e7f5a2c5e2021b1f1fbaa78be51bbc558b237",
+      "size_bytes": 784533
+    },
+    {
+      "name": "trace_40.log",
+      "sha256": "993ef563869bd2eeb0be23a97da6a7d7d9ddc7b62939a00d625641a81a6b313a",
+      "size_bytes": 1120835
+    },
+    {
+      "name": "trace_41.log",
+      "sha256": "3b3a38631a1cd96e3b3225b661a89fd0cae6ce76ef75c062d1d2048377942920",
+      "size_bytes": 809825
+    },
+    {
+      "name": "trace_42.log",
+      "sha256": "d6c0cc2d72b6a51f29a3cb3569adc5b389b7fd68e82b36dd72f5622a296025fe",
+      "size_bytes": 705885
+    },
+    {
+      "name": "trace_43.log",
+      "sha256": "fd5674efa198ce52b57b7f030cd88ac181874244fc139791920d571428df9c37",
+      "size_bytes": 975231
+    },
+    {
+      "name": "trace_44.log",
+      "sha256": "735d19e5ce0388e741d873a3cf14cd7a3c44d2d3a7ee7dd2d798e66b00272c32",
+      "size_bytes": 860635
+    },
+    {
+      "name": "trace_45.log",
+      "sha256": "f2e4c10ea5d0640d326e7e63b2f33e8298ba4f58a5edc1bd27cd8c19eed7fdaa",
+      "size_bytes": 841709
+    },
+    {
+      "name": "trace_46.log",
+      "sha256": "c85d297aee54edb69ba5d5103c48d8687f7c285c9f8ef092f56432c432a53227",
+      "size_bytes": 720451
+    },
+    {
+      "name": "trace_47.log",
+      "sha256": "f8541b5855b0d520458faf47e467346ca18537f240eb8838b6d99c62a14d9fcf",
+      "size_bytes": 813736
+    },
+    {
+      "name": "trace_5.log",
+      "sha256": "3d81cba44662ac50319ba978ce2dca6f39b9a9a0cfbc854d5560f1c63a5ba25f",
+      "size_bytes": 679253
+    },
+    {
+      "name": "trace_6.log",
+      "sha256": "f668a4d0b8e1de3058eec00cc868f47d25b4b21880bd978c391c466cd3855ad6",
+      "size_bytes": 670058
+    },
+    {
+      "name": "trace_7.log",
+      "sha256": "b2739a226357f1a9532048e931766feb16a327cfd258c008f6d25a948d53cf10",
+      "size_bytes": 1949292
+    },
+    {
+      "name": "trace_8.log",
+      "sha256": "a37c5a50ac0149279eb9148b8d25d7d045822f2523b1f47a1730a013a7221707",
+      "size_bytes": 715598
+    },
+    {
+      "name": "trace_9.log",
+      "sha256": "a39f2ab2552986d9f0ee17e1144a2577d778fc918fc639551c0e6c865a7c56b2",
+      "size_bytes": 3641332
+    }
+  ]
+}
