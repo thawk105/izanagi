@@ -1135,8 +1135,10 @@ def test_admin_shared_objects_are_removed(tmp_path, monkeypatch, capsys):
 
 @pytest.mark.parametrize(
     "target",
-    ["gitdir", "submodule-config", "ref-named-objects", "submodule-named-objects"],
-    ids=["gitdir", "submodule-config", "ref-named-objects", "submodule-named-objects"],
+    ["gitdir", "submodule-config", "ref-named-objects", "submodule-named-objects",
+     "ref-shaped-object", "reflog-shaped-object"],
+    ids=["gitdir", "submodule-config", "ref-named-objects", "submodule-named-objects",
+         "ref-shaped-object", "reflog-shaped-object"],
 )
 def test_admin_nonobject_hardlink_is_rejected(tmp_path, monkeypatch, capsys, target):
     repo = _make_repo(tmp_path, monkeypatch)
@@ -1153,6 +1155,14 @@ def test_admin_nonobject_hardlink_is_rejected(tmp_path, monkeypatch, capsys, tar
         path = admin / "modules" / "sub" / "refs" / "objects" / "topic"
         path.parent.mkdir(parents=True)
         path.write_bytes(b"a" * 40 + b"\n")
+    elif target == "ref-shaped-object":
+        path = admin / "modules/sub/refs/heads/objects/ab" / ("1" * 38)
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b"a" * 40 + b"\n")
+    elif target == "reflog-shaped-object":
+        path = admin / "modules/sub/logs/refs/heads/objects/ab" / ("1" * 38)
+        path.parent.mkdir(parents=True)
+        path.write_bytes(b"0" * 40 + b" " + b"a" * 40 + b" x <x@x> 0 +0000\tcommit: x\n")
     else:
         path = admin / "modules" / "objects" / "config"
         path.parent.mkdir(parents=True)

@@ -752,11 +752,18 @@ def _open_directory(path: str | Path, stack: ExitStack, *, parent: int | None = 
 _OBJECT_FANOUT_RE = re.compile(r"[0-9a-f]{2}\Z")
 _LOOSE_OBJECT_RE = re.compile(r"(?:[0-9a-f]{38}|[0-9a-f]{62})\Z")
 _PACK_OBJECT_RE = re.compile(r"pack-(?:[0-9a-f]{40}|[0-9a-f]{64})\.[a-z]+\Z")
+_REGISTRY_TREE_NAMES = frozenset({"refs", "logs"})
 
 
 def _is_shared_object_path(prefix: str, name: str) -> bool:
     parts = (prefix + name).split("/")
-    return parts[0] == "modules" and len(parts) >= 5 and parts[-3] == "objects" and bool((_OBJECT_FANOUT_RE.fullmatch(parts[-2]) and _LOOSE_OBJECT_RE.fullmatch(name)) or (parts[-2] == "pack" and _PACK_OBJECT_RE.fullmatch(name)))
+    if parts[0] != "modules" or len(parts) < 5 or parts[-3] != "objects":
+        return False
+    # Fail closed (rc=20) even for real stores in submodule paths containing refs/logs.
+    if _REGISTRY_TREE_NAMES.intersection(parts[1:-3]):
+        return False
+    return bool((_OBJECT_FANOUT_RE.fullmatch(parts[-2]) and _LOOSE_OBJECT_RE.fullmatch(name))
+                or (parts[-2] == "pack" and _PACK_OBJECT_RE.fullmatch(name)))
 
 
 def _read_admin_file(fd: int, name: str, *, allow_shared_object: bool = False) -> bytes:
