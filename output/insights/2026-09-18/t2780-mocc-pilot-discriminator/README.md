@@ -112,3 +112,21 @@ SHA-256一致を確認して元ラッチをjob dirへ退避した。人間端末
 通常のF47条件を変更する実装や解除機構は追加しない。
 自己改善は、DW-C00の生産者停止箇所からrunbook §7.6を読む導線と、mutation taskの既存入力形式の
 明示だけである。待ち短縮のためのqdelを避け、終端まで正規待ち手で回収する。
+
+## 最初の受入と単独再確認
+
+tip `ed50d4059` / tested main `b2037abfa` の3 shard受入は、25109 passed / 69 skipped / 28 errors。
+shard2/job6436とshard1/job6438はrc0、shard0/job6437は共通setupのGit走査30秒timeoutでrc1。
+28件の内訳をJUnitから集計すると、`git status --porcelain=v1 --untracked-files=no --ignore-submodules=none`
+が10件、`git ls-files --others --exclude-standard -z` が18件。いずれも
+`test_t1259_qsub_env_delivery_probe.py` の `_clean_detached_source_snapshot_template` が
+`probe._repo_snapshot(REPO_ROOT)` を呼ぶ段階であり、test本体のassertionへ到達していない。
+
+このtestとprobeのsourceは今回変更していない。同じtipで `tools/run_tests.py` を通した
+当該file単独再走は51 passed / 12.12秒、rc0。ログは `acceptance-t1259-single-recheck.log`。
+これはsetup timeoutが単独で非再現だったという証拠で、I/O根因の分離や完全な非帰属の証明ではない。
+timeout、期待値、除外、hold登録簿を変更せず、全走を再試行する。初回は受入成功としない。
+
+初回の簡潔な全体ログは `recovery-acceptance-child-1.log`。原JUnitと各dispatch receiptは
+`/work/1/SFC/tanab/.izanagi-acceptance-shards/a4ded6951baf937c43d94745f399ce38/` に残す。
+待機中にmainへlandしたT-2674（`56be58448`）はdocsのみで、固定SHAを競合なく取り込んだ。

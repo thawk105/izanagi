@@ -28,6 +28,10 @@ title: [T-2780] mocc pilot discriminator修正を回収・独立監査し、計�
   6403の不在と保存ラッチのhash一致を再確認し、この既知取消しだけを復旧した。通常のF47契約は変更しない。
   自己改善はDW-C00の停止前runbook読了導線とmutation taskの入力形明示に限定する。
   最終受入は全記録commit後に共通待ち手で行い、結果を受領証へ固定して共通landで取り込む。
+- 初回受入は25109 passed / 69 skipped / 28 errorsで失敗。T1259の共通setupのGit走査30秒timeout
+  （status 10件、ls-files 18件）だった。該当test/probeのsourceは未変更で、同じtipのfile単独再走は
+  51 passed / 12.12秒。I/O根因は未分離とし、timeout・期待値・除外を変えず全走を再試行する。
+  待機中のmain前進56be58448（T-2674、docsのみ）は固定SHAで競合なく取り込んだ。
 - 全job-stagingをrepo外へ複製し全ファイル一致を確認した。レビュー逐語・receipt・変異台帳と限界は
   `output/insights/2026-09-18/t2780-mocc-pilot-discriminator/`。清掃はland・保全・非稼働を条件に許可済み。
   本題外のgate・台帳機構・一般化・次waveは追加しない。追加承認された自己改善は上記の運用文書だけ。

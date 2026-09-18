@@ -18,6 +18,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2674] T-1998 balanced stock-inline 対の単独results稿を回収し、独立監査を反映した (2026-09-18)。
+  成果は `docs/paper-story/results/2026-09-18-t1998-balanced-stock-inline-accepted.md` と同README索引・追補。
+  median比とA-1対差平均を分け、A-2/A-6とプールせず、B-7充足へ昇格しない。新規測定ではない。
+
 - [x] [T-2164] A-1 balanced5のsizing証明書を凍結値で生成・検証し、本走policyを凍結した。
   D1452に従い、証明書が申告する試行回数・候補範囲・root seedをconsumerが登録値とexact照合する。
   成果物は output/insights/2026-09-13/paper-story-a1-balanced5-sized-preregistration/、
