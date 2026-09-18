@@ -1,0 +1,483 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/588d9fc63dc0a2359d333eaec5efddac/izdw-588d9fc63d.o5879",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/588d9fc63dc0a2359d333eaec5efddac/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n............................................                             [100%]\n188 passed in 15.22s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "e32fe96ad7e89f57d111c8bc43e24c4135076c55ef7c6d9e7a038c3b7475bd88"
+    },
+    "artifact_error": null,
+    "collection_sha256": "cb8f087ad08b8cefaaa0b864ceec2a3ab9bec3297fb6266ba27ed3caca226ea8",
+    "duration_s": 38.076,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "f14ee9bb0bbe97b4af94219605872a33a5527f3f1ccf1a0aedcb88851745e94a",
+    "repo_head": "08aa6cf99efeb8f49a68cb656c7f0d14d3cc40e0",
+    "runner_sha256": "39686322e2f77f08e10f464a4a04cbce800886f9051af49de7fba41cdc84e64e",
+    "spec_sha256": "196bfb94962ace8c8091c0be1437d724e5c357f343db4e7096a46a5760a31458",
+    "status": "PASSED",
+    "test_output_sha256": "e32fe96ad7e89f57d111c8bc43e24c4135076c55ef7c6d9e7a038c3b7475bd88",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "e42739255a56d6a7851c166f1672f4d8c4e3e917057e298f8802a9a0f266da7e"
+  },
+  "date": "2026-09-18T06:41:02.927887+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/387256ee41b89916d216538d33fd3d19/izdw-387256ee41.o5880",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/387256ee41b89916d216538d33fd3d19/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n............................................                             [100%]\n188 passed in 15.66s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "53ea1a8970e13c20a51e19298d6466e311072aa4276c6d3f1c6842ecf3a3e7ee"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "cb8f087ad08b8cefaaa0b864ceec2a3ab9bec3297fb6266ba27ed3caca226ea8",
+      "duration_s": 63.018,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "m0-equivalent-json-kwarg-order",
+      "injection_diff_sha256": "145d56ad9439ddb36bde67d2f0191f223a16c092b403cd079b44382d5b81a652",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "9e11c1fdc84c87844a359651baad8d727c9301fa2565628718c15903bab6391f",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "new": "                f\"{json.dumps(exc.detail, sort_keys=True, ensure_ascii=False, separators=(',', ':'))}\"\n",
+          "old": "                f\"{json.dumps(exc.detail, ensure_ascii=False, sort_keys=True, separators=(',', ':'))}\"\n"
+        }
+      ],
+      "repo_head": "08aa6cf99efeb8f49a68cb656c7f0d14d3cc40e0",
+      "runner_sha256": "39686322e2f77f08e10f464a4a04cbce800886f9051af49de7fba41cdc84e64e",
+      "spec_sha256": "196bfb94962ace8c8091c0be1437d724e5c357f343db4e7096a46a5760a31458",
+      "status": "SURVIVED",
+      "test_output_sha256": "53ea1a8970e13c20a51e19298d6466e311072aa4276c6d3f1c6842ecf3a3e7ee",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e42739255a56d6a7851c166f1672f4d8c4e3e917057e298f8802a9a0f266da7e"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/3a7a897bfaa464c2d4e767dc607db614/izdw-3a7a897bfa.o5883",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/3a7a897bfaa464c2d4e767dc607db614/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 76%]\n.....................F......................                             [100%]\n=================================== FAILURES ===================================\n_______ test_commit_identity_gate_exception_path_reports_declared_detail _______\n[gw47] linux -- Python 3.10.12 /bin/python3.10\n\nrepo = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_commit_identity_gate_exce0/repo')\nplan = FoldPlan(status='planned', fold_date='2026-09-18', transaction_id='f81522a5c130018057a5416eff82445e4a9d867e65659e99388...ths=('docs/spool/worklog/2026-08-02-wave-a-1.md',), projected_worklog_bytes=325, rotation_path=None, gate_receipt=None)\nfold_commit = '642c9c29181fe5072ba76853450b99f8eb85fe64'\n\n    def verify_fold_commit_identity(\n        repo: str | os.PathLike[str] | Path,\n        plan: FoldPlan,\n        *,\n        fold_commit: str,\n    ) -> None:\n        \"\"\"state が宣言する exact fold commit identity を再利用可能に検査する。\"\"\"\n    \n        repo = Path(repo).resolve()\n        if type(fold_commit) is not str or OID_RE.fullmatch(fold_commit) is None:\n            raise TransactionError(\"fold_commit が exact Git OID でない\")\n        try:\n            resolved = _git_text(repo, \"rev-parse\", \"--verify\", f\"{fold_commit}^{{commit}}\")\n            raw_commit = _git(repo, \"cat-file\", \"commit\", fold_commit)\n        except (OSError, subprocess.SubprocessError, SpoolValidationError) as exc:\n            raise TransactionError(f\"fold commit を観測できない: {exc}\") from exc\n        if resolved != fold_commit:\n            raise TransactionError(\"fold_commit が exact commit として解決しない\")\n        header, separator, message = raw_commit.partition(b\"\\n\\n\")\n        if not separator:\n            raise TransactionError(\"fold commit object の header/message 境界がない\")\n        parents: list[str] = []\n        authors: list[bytes] = []\n        for line in header.splitlines():\n            key, space, value = line.partition(b\" \")\n            if not space:\n                raise TransactionError(\"fold commit header が不正\")\n            if key == b\"parent\":\n                try:\n                    parents.append(value.decode(\"ascii\", errors=\"strict\"))\n                except UnicodeDecodeError as exc:\n                    raise TransactionError(\"fold commit parent encoding が不正\") from exc\n            elif key == b\"author\":\n                authors.append(value)\n        try:\n            from tools.dev_waves.git_state import (\n                FOLD_AUTHOR_IDENTITY,\n                FOLD_COMMIT_MESSAGE,\n                verify_declared_fold_commit,\n            )\n            from tools.dev_waves.schema import DevWavesError\n        except (ImportError, AttributeError) as exc:\n            raise TransactionError(f\"declared fold verifier を import できない: {exc}\") from exc\n        if parents != [plan.origin.tested_tip]:\n            raise TransactionError(\"fold commit の単一 parent が origin.tested_tip と不一致\")\n        author_pattern = (\n            re.escape(FOLD_AUTHOR_IDENTITY.encode(\"utf-8\"))\n            + rb\" (?:0|[1-9][0-9]*) [+-](?:(?:0[0-9]|1[0-3])[0-5][0-9]|1400)\"\n        )\n        if len(authors) != 1 or re.fullmatch(author_pattern, authors[0]) is None:\n            raise TransactionError(\"fold commit author identity が不一致\")\n        if message != FOLD_COMMIT_MESSAGE:\n            raise TransactionError(\"fold commit message bytes が不一致\")\n    \n        try:\n            actual = _commit_diff_records(repo, plan.origin.tested_tip, fold_commit)\n            expected_paths = {target.path for target in plan.targets} | set(plan.gc_paths)\n            if set(actual) != expected_paths:\n                raise TransactionError(\"fold commit diff path 集合が state と不一致\")\n            for target in plan.targets:\n                status, old_mode, new_mode, new_oid = actual[target.path]\n                expected_status = \"M\" if target.before_exists else \"A\"\n                expected_old_mode = \"100644\" if target.before_exists else \"000000\"\n                expected_oid = _git_text(repo, \"hash-object\", \"--stdin\", input_bytes=target.after_bytes)\n                if (\n                    status != expected_status\n                    or old_mode != expected_old_mode\n                    or new_mode != \"100644\"\n                    or new_oid != expected_oid\n                ):\n                    raise TransactionError(f\"fold commit target record が不一致: {target.path}\")\n            for rel in plan.gc_paths:\n                status, _old_mode, new_mode, _new_oid = actual[rel]\n                if status != \"D\" or new_mode != \"000000\":\n                    raise TransactionError(f\"fold commit GC record が不一致: {rel}\")\n            audited = _audited_commits(repo, plan.origin)\n        except (OSError, subprocess.SubprocessError, SpoolValidationError) as exc:\n            raise TransactionError(f\"fold commit diff/audit を観測できない: {exc}\") from exc\n        if audited_commit_digest(audited) != plan.origin.audited_digest:\n            raise TransactionError(\"fold commit gate の audited closure が origin と不一致\")\n        landed_commits = audited if audited else (plan.origin.tested_tip,)\n        try:\n>           declared = verify_declared_fold_commit(\n                repo,\n                fold_commit_sha=fold_commit,\n                trusted_main_cutoff_sha=plan.origin.trusted_main_cutoff,\n                landed_main_sha=fold_commit,\n                landed_commits=landed_commits,\n                wave_tip=plan.origin.tested_tip,\n            )\n\ntools/spool_fold.py:3466: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/dev_waves/git_state.py:1068: in verify_declared_fold_commit\n    _text(_run(repo_root, \"head\", timeout_s=_left(deadline_ns))),\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrepo = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_commit_identity_gate_exce0/repo')\noperation = 'head', extra = (), timeout_s = 29.999997649\nallowed_returncodes = (0,)\n\n    def _run(\n        repo: os.PathLike[str] | str,\n        operation: str,\n        *,\n        extra: Sequence[str] = (),\n        timeout_s: float = _GIT_TIMEOUT_S,\n        allowed_returncodes: Sequence[int] = (0,),\n    ) -> subprocess.CompletedProcess[bytes]:\n        if operation not in GIT_COMMANDS:\n            raise ValueError(\"Git operation is not allowlisted\")\n        if isinstance(extra, (str, bytes)) or not all(isinstance(value, str) for value in extra):\n            raise TypeError(\"extra must be a string sequence\")\n        command = [\"git\", *GIT_HARDENING_CONFIG, *GIT_COMMANDS[operation], *extra]\n        try:\n            result = subprocess.run(\n                command, shell=False, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,\n                stderr=subprocess.PIPE, cwd=os.fspath(repo), env=_git_env(),\n                timeout=timeout_s, check=False,\n            )\n        except subprocess.TimeoutExpired:\n            raise DevWavesError(ReasonCode.INVALID_RUN, {\n                \"label\": \"git\", \"kind\": \"timeout\",\n            }) from None\n        if result.returncode not in allowed_returncodes:\n>           raise DevWavesError(ReasonCode.INVALID_RUN, {\n                \"label\": \"git\", \"kind\": operation, \"return_code\": result.returncode,\n            })\nE           tools.dev_waves.schema.DevWavesError: invalid-run\n\ntools/dev_waves/git_state.py:209: DevWavesError\n\nThe above exception was the direct cause of the following exception:\n\nneedle = 'declared fold verifier が失敗: invalid-run '\ncallable_object = <function verify_fold_commit_identity at 0x1508faaa6680>\nargs = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_commit_identity_gate_exce0/repo'), FoldPlan(status='planned'...hs=('docs/spool/worklog/2026-08-02-wave-a-1.md',), projected_worklog_bytes=325, rotation_path=None, gate_receipt=None))\nkwargs = {'fold_commit': '642c9c29181fe5072ba76853450b99f8eb85fe64'}\n\n    def _transaction_raises(needle: str, callable_object, *args, **kwargs):\n        try:\n>           callable_object(*args, **kwargs)\n\norchestrator/tests/test_spool_fold.py:387: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrepo = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_commit_identity_gate_exce0/repo')\nplan = FoldPlan(status='planned', fold_date='2026-09-18', transaction_id='f81522a5c130018057a5416eff82445e4a9d867e65659e99388...ths=('docs/spool/worklog/2026-08-02-wave-a-1.md',), projected_worklog_bytes=325, rotation_path=None, gate_receipt=None)\nfold_commit = '642c9c29181fe5072ba76853450b99f8eb85fe64'\n\n    def verify_fold_commit_identity(\n        repo: str | os.PathLike[str] | Path,\n        plan: FoldPlan,\n        *,\n        fold_commit: str,\n    ) -> None:\n        \"\"\"state が宣言する exact fold commit identity を再利用可能に検査する。\"\"\"\n    \n        repo = Path(repo).resolve()\n        if type(fold_commit) is not str or OID_RE.fullmatch(fold_commit) is None:\n            raise TransactionError(\"fold_commit が exact Git OID でない\")\n        try:\n            resolved = _git_text(repo, \"rev-parse\", \"--verify\", f\"{fold_commit}^{{commit}}\")\n            raw_commit = _git(repo, \"cat-file\", \"commit\", fold_commit)\n        except (OSError, subprocess.SubprocessError, SpoolValidationError) as exc:\n            raise TransactionError(f\"fold commit を観測できない: {exc}\") from exc\n        if resolved != fold_commit:\n            raise TransactionError(\"fold_commit が exact commit として解決しない\")\n        header, separator, message = raw_commit.partition(b\"\\n\\n\")\n        if not separator:\n            raise TransactionError(\"fold commit object の header/message 境界がない\")\n        parents: list[str] = []\n        authors: list[bytes] = []\n        for line in header.splitlines():\n            key, space, value = line.partition(b\" \")\n            if not space:\n                raise TransactionError(\"fold commit header が不正\")\n            if key == b\"parent\":\n                try:\n                    parents.append(value.decode(\"ascii\", errors=\"strict\"))\n                except UnicodeDecodeError as exc:\n                    raise TransactionError(\"fold commit parent encoding が不正\") from exc\n            elif key == b\"author\":\n                authors.append(value)\n        try:\n            from tools.dev_waves.git_state import (\n                FOLD_AUTHOR_IDENTITY,\n                FOLD_COMMIT_MESSAGE,\n                verify_declared_fold_commit,\n            )\n            from tools.dev_waves.schema import DevWavesError\n        except (ImportError, AttributeError) as exc:\n            raise TransactionError(f\"declared fold verifier を import できない: {exc}\") from exc\n        if parents != [plan.origin.tested_tip]:\n            raise TransactionError(\"fold commit の単一 parent が origin.tested_tip と不一致\")\n        author_pattern = (\n            re.escape(FOLD_AUTHOR_IDENTITY.encode(\"utf-8\"))\n            + rb\" (?:0|[1-9][0-9]*) [+-](?:(?:0[0-9]|1[0-3])[0-5][0-9]|1400)\"\n        )\n        if len(authors) != 1 or re.fullmatch(author_pattern, authors[0]) is None:\n            raise TransactionError(\"fold commit author identity が不一致\")\n        if message != FOLD_COMMIT_MESSAGE:\n            raise TransactionError(\"fold commit message bytes が不一致\")\n    \n        try:\n            actual = _commit_diff_records(repo, plan.origin.tested_tip, fold_commit)\n            expected_paths = {target.path for target in plan.targets} | set(plan.gc_paths)\n            if set(actual) != expected_paths:\n                raise TransactionError(\"fold commit diff path 集合が state と不一致\")\n            for target in plan.targets:\n                status, old_mode, new_mode, new_oid = actual[target.path]\n                expected_status = \"M\" if target.before_exists else \"A\"\n                expected_old_mode = \"100644\" if target.before_exists else \"000000\"\n                expected_oid = _git_text(repo, \"hash-object\", \"--stdin\", input_bytes=target.after_bytes)\n                if (\n                    status != expected_status\n                    or old_mode != expected_old_mode\n                    or new_mode != \"100644\"\n                    or new_oid != expected_oid\n                ):\n                    raise TransactionError(f\"fold commit target record が不一致: {target.path}\")\n            for rel in plan.gc_paths:\n                status, _old_mode, new_mode, _new_oid = actual[rel]\n                if status != \"D\" or new_mode != \"000000\":\n                    raise TransactionError(f\"fold commit GC record が不一致: {rel}\")\n            audited = _audited_commits(repo, plan.origin)\n        except (OSError, subprocess.SubprocessError, SpoolValidationError) as exc:\n            raise TransactionError(f\"fold commit diff/audit を観測できない: {exc}\") from exc\n        if audited_commit_digest(audited) != plan.origin.audited_digest:\n            raise TransactionError(\"fold commit gate の audited closure が origin と不一致\")\n        landed_commits = audited if audited else (plan.origin.tested_tip,)\n        try:\n            declared = verify_declared_fold_commit(\n                repo,\n                fold_commit_sha=fold_commit,\n                trusted_main_cutoff_sha=plan.origin.trusted_main_cutoff,\n                landed_main_sha=fold_commit,\n                landed_commits=landed_commits,\n                wave_tip=plan.origin.tested_tip,\n            )\n        except BaseException as exc:\n>           raise TransactionError(f\"declared fold verifier が失敗: {exc}\") from exc\nE           spool_fold_under_test.TransactionError: declared fold verifier が失敗: invalid-run\n\ntools/spool_fold.py:3475: TransactionError\n\nDuring handling of the above exception, another exception occurred:\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_commit_identity_gate_exce0')\n\n    def test_commit_identity_gate_exception_path_reports_declared_detail(tmp_path: Path) -> None:\n        repo = _repo(tmp_path)\n        _fragment(repo, \"worklog\", _worklog_body(repo))\n        plan = _plan_for_commit(repo)\n        fold_commit = _commit_applied_fold(repo, plan)\n        _assert_declared_fold(repo, plan, fold_commit)\n        _run_git(repo, \"symbolic-ref\", \"HEAD\", \"refs/heads/t2608-does-not-exist\")\n>       exc = _transaction_raises(\n            \"declared fold verifier が失敗: invalid-run \",\n            spool_fold.verify_fold_commit_identity,\n            repo,\n            plan,\n            fold_commit=fold_commit,\n        )\n\norchestrator/tests/test_spool_fold.py:2459: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nneedle = 'declared fold verifier が失敗: invalid-run '\ncallable_object = <function verify_fold_commit_identity at 0x1508faaa6680>\nargs = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_commit_identity_gate_exce0/repo'), FoldPlan(status='planned'...hs=('docs/spool/worklog/2026-08-02-wave-a-1.md',), projected_worklog_bytes=325, rotation_path=None, gate_receipt=None))\nkwargs = {'fold_commit': '642c9c29181fe5072ba76853450b99f8eb85fe64'}\n\n    def _transaction_raises(needle: str, callable_object, *args, **kwargs):\n        try:\n            callable_object(*args, **kwargs)\n        except spool_fold.TransactionError as exc:\n>           assert needle in str(exc), str(exc)\nE           AssertionError: declared fold verifier が失敗: invalid-run\nE           assert 'declared fold verifier が失敗: invalid-run ' in 'declared fold verifier が失敗: invalid-run'\nE            +  where 'declared fold verifier が失敗: invalid-run' = str(TransactionError('declared fold verifier が失敗: invalid-run'))\n\norchestrator/tests/test_spool_fold.py:389: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_exception_path_reports_declared_detail\n1 failed, 187 passed in 15.66s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_exception_path_reports_declared_detail\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=15588 retained_bytes=3811 omitted_bytes=11777 rendered_excerpt_bytes=4096 sha256=18ff13c5eb3c4d9118d6c3a01d73ab10c6f6c99b4628c437b960e8a28f7c6d0a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>   expected_oid = _git_text(repo, \"hash-object\", \"--stdin\", input_bytes=target.after_bytes)\n>                 if (\n>                     status != expected_status\n>                     or old_mode != expected_old_mode\n>                     or new_mode != \"100644\"\n>                     or new_oid != expected_oid\n>                 ):\n>                     raise TransactionError(f\"fold commit target record \\u304c\\u4e0d\\u4e00\\u81f4: {target.path}\")\n>             for rel in plan.gc_paths:\n>                 status, _old_mode, new_mode, _new_oid = actual[rel]\n>                 if status != \"D\" or new_mode != \"000000\":\n>                     raise TransactionError(f\"fold commit GC record \\u304c\\u4e0d\\u4e00\\u81f4: {rel}\")\n>             audited = _audited_commits(repo, plan.origin)\n>         except (OSError, subprocess.SubprocessError, SpoolValidationError) as exc:\n>             raise TransactionError(f\"fold commit diff/audit \\u3092\\u89b3\\u6e2c\\u3067\\u304d\\u306a\\u3044: {exc}\") from exc\n>         if audited_commit_digest(audited) != plan.origin.audited_digest:\n>             raise TransactionError(\"fold commit gate \\u306e audited closure \\u304c origin \\u3068\\u4e0d\\u4e00\\u81f4\")\n>         landed_commits = audited if audited else (plan.origin.tested_tip,)\n>         try:\n>             declared = verify_declared_fold_commit(\n>                 repo,\n>                 fold_commit_sha=fold_commit,\n>                 trusted_main_cutoff_sha=plan.origin.trusted_main_cutoff,\n>                 landed_main_sha=fold_commit,\n>                 landed_commits=landed_commits,\n>                 wave_tip=plan.origin.tested_tip,\n>             )\n>         except BaseException as exc:\n> >           raise TransactionError(f\"declared fold verifier \\u304c\\u5931\\u6557: {exc}\") from exc\n> E           spool_fold_under_test.TransactionError: declared fold verifier \\u304c\\u5931\\u6557: invalid-run\n> \n> tools/spool_fold.py:3475: TransactionError\n> \n> During handling of the above exception, another exception occurred:\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_commit_identity_gate_exce0')\n> \n>     def test_commit_identity_gate_exception_path_reports_declared_detail(tmp_path: Path) -> None:\n>         repo = _repo(tmp_path)\n>         _fragment(repo, \"worklog\", _worklog_body(repo))\n>         plan = _plan_for_commit(repo)\n>         fold_commit = _commit_applied_fold(repo, plan)\n>         _assert_declared_fold(repo, plan, fold_commit)\n>         _run_git(repo, \"symbolic-ref\", \"HEAD\", \"refs/heads/t2608-does-not-exist\")\n> >       exc = _transaction_raises(\n>             \"declared fold verifier \\u304c\\u5931\\u6557: invalid-run \",\n>             spool_fold.verify_fold_commit_identity,\n>             repo,\n>             plan,\n>             fold_commit=fold_commit,\n>         )\n> \n> orchestrator/tests/test_spool_fold.py:2459: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> needle = 'declared fold verifier \\u304c\\u5931\\u6557: invalid-run '\n> callable_object = <function verify_fold_commit_identity at 0x1508faaa6680>\n> args = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_commit_identity_gate_exce0/repo'), FoldPlan(status='planned'...hs=('docs/spool/worklog/2026-08-02-wave-a-1.md',), projected_worklog_bytes=325, rotation_path=None, gate_receipt=None))\n> kwargs = {'fold_commit': '642c9c29181fe5072ba76853450b99f8eb85fe64'}\n> \n>     def _transaction_raises(needle: str, callable_object, *args, **kwargs):\n>         try:\n>             callable_object(*args, **kwargs)\n>         except spool_fold.TransactionError as exc:\n> >           assert needle in str(exc), str(exc)\n> E           AssertionError: declared fold verifier \\u304c\\u5931\\u6557: invalid-run\n> E           assert 'declared fold verifier \\u304c\\u5931\\u6557: invalid-run ' in 'declared fold verifier \\u304c\\u5931\\u6557: invalid-run'\n> E            +  where 'declared fold verifier \\u304c\\u5931\\u6557: invalid-run' = str(TransactionError('declared fold verifier \\u304c\\u5931\\u6557: invalid-run'))\n> \n> orchestrator/tests/test_spool_fold.py:389: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=15588 retained_bytes=3811 omitted_bytes=11777 budget_bytes=49152 rendered_bytes=4837 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3cf45561eddf0f987a50d19b8ed6bba4c59874127c92ce290e2d330f4da86483"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cb8f087ad08b8cefaaa0b864ceec2a3ab9bec3297fb6266ba27ed3caca226ea8",
+      "duration_s": 57.998,
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_exception_path_reports_declared_detail"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_exception_path_reports_declared_detail"
+      ],
+      "hang_risk": false,
+      "id": "m1-diagnostic-pin-revert-to-str-exc",
+      "injection_diff_sha256": "05b98bb0155c21a595b9c2e37da4a99ef66213009c9886080f803e07ff304857",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1f3882ce4c73ddaa6766589505cef1ad700e77fa1261c54f9bfc1e6dda9e7e90",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "new": "        raise TransactionError(f\"declared fold verifier が失敗: {exc}\") from exc\n",
+          "old": "        if isinstance(exc, DevWavesError):\n            raise TransactionError(\n                f\"declared fold verifier が失敗: {exc.code.value} \"\n                f\"{json.dumps(exc.detail, ensure_ascii=False, sort_keys=True, separators=(',', ':'))}\"\n            ) from exc\n        raise TransactionError(f\"declared fold verifier が失敗: {exc}\") from exc\n"
+        }
+      ],
+      "repo_head": "08aa6cf99efeb8f49a68cb656c7f0d14d3cc40e0",
+      "runner_sha256": "39686322e2f77f08e10f464a4a04cbce800886f9051af49de7fba41cdc84e64e",
+      "spec_sha256": "196bfb94962ace8c8091c0be1437d724e5c357f343db4e7096a46a5760a31458",
+      "status": "KILLED",
+      "test_output_sha256": "3cf45561eddf0f987a50d19b8ed6bba4c59874127c92ce290e2d330f4da86483",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e42739255a56d6a7851c166f1672f4d8c4e3e917057e298f8802a9a0f266da7e"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/363c736d571d9b9c02443604ec7d6f77/izdw-363c736d57.o5886",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/363c736d571d9b9c02443604ec7d6f77/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n....................................................F................... [ 76%]\n............................................                             [100%]\n=================================== FAILURES ===================================\n_______ test_commit_identity_gate_exception_path_reports_declared_detail _______\n[gw42] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_commit_identity_gate_exce0')\n\n    def test_commit_identity_gate_exception_path_reports_declared_detail(tmp_path: Path) -> None:\n        repo = _repo(tmp_path)\n        _fragment(repo, \"worklog\", _worklog_body(repo))\n        plan = _plan_for_commit(repo)\n        fold_commit = _commit_applied_fold(repo, plan)\n        _assert_declared_fold(repo, plan, fold_commit)\n        _run_git(repo, \"symbolic-ref\", \"HEAD\", \"refs/heads/t2608-does-not-exist\")\n>       exc = _transaction_raises(\n            \"declared fold verifier が失敗: invalid-run \",\n            spool_fold.verify_fold_commit_identity,\n            repo,\n            plan,\n            fold_commit=fold_commit,\n        )\n\norchestrator/tests/test_spool_fold.py:2459: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nneedle = 'declared fold verifier が失敗: invalid-run '\ncallable_object = <function verify_fold_commit_identity at 0x1458ca50e5f0>\nargs = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_commit_identity_gate_exce0/repo'), FoldPlan(status='planned'...hs=('docs/spool/worklog/2026-08-02-wave-a-1.md',), projected_worklog_bytes=325, rotation_path=None, gate_receipt=None))\nkwargs = {'fold_commit': 'db0898d48f59dd6bcb52468e8a9fb8c853d0d4d2'}\n\n    def _transaction_raises(needle: str, callable_object, *args, **kwargs):\n        try:\n            callable_object(*args, **kwargs)\n        except spool_fold.TransactionError as exc:\n            assert needle in str(exc), str(exc)\n            return exc\n>       raise AssertionError(f\"TransactionError({needle!r}) を返さなかった\")\nE       AssertionError: TransactionError('declared fold verifier が失敗: invalid-run ') を返さなかった\n\norchestrator/tests/test_spool_fold.py:391: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_exception_path_reports_declared_detail\n1 failed, 187 passed in 19.89s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_exception_path_reports_declared_detail\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=1883 retained_bytes=1883 omitted_bytes=0 rendered_excerpt_bytes=2027 sha256=fae4c5837586cde004b71ecc831fee459f745d9f874c98ee7bebc086c444402b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw42] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_commit_identity_gate_exce0')\n> \n>     def test_commit_identity_gate_exception_path_reports_declared_detail(tmp_path: Path) -> None:\n>         repo = _repo(tmp_path)\n>         _fragment(repo, \"worklog\", _worklog_body(repo))\n>         plan = _plan_for_commit(repo)\n>         fold_commit = _commit_applied_fold(repo, plan)\n>         _assert_declared_fold(repo, plan, fold_commit)\n>         _run_git(repo, \"symbolic-ref\", \"HEAD\", \"refs/heads/t2608-does-not-exist\")\n> >       exc = _transaction_raises(\n>             \"declared fold verifier \\u304c\\u5931\\u6557: invalid-run \",\n>             spool_fold.verify_fold_commit_identity,\n>             repo,\n>             plan,\n>             fold_commit=fold_commit,\n>         )\n> \n> orchestrator/tests/test_spool_fold.py:2459: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> needle = 'declared fold verifier \\u304c\\u5931\\u6557: invalid-run '\n> callable_object = <function verify_fold_commit_identity at 0x1458ca50e5f0>\n> args = (PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw42/test_commit_identity_gate_exce0/repo'), FoldPlan(status='planned'...hs=('docs/spool/worklog/2026-08-02-wave-a-1.md',), projected_worklog_bytes=325, rotation_path=None, gate_receipt=None))\n> kwargs = {'fold_commit': 'db0898d48f59dd6bcb52468e8a9fb8c853d0d4d2'}\n> \n>     def _transaction_raises(needle: str, callable_object, *args, **kwargs):\n>         try:\n>             callable_object(*args, **kwargs)\n>         except spool_fold.TransactionError as exc:\n>             assert needle in str(exc), str(exc)\n>             return exc\n> >       raise AssertionError(f\"TransactionError({needle!r}) \\u3092\\u8fd4\\u3055\\u306a\\u304b\\u3063\\u305f\")\n> E       AssertionError: TransactionError('declared fold verifier \\u304c\\u5931\\u6557: invalid-run ') \\u3092\\u8fd4\\u3055\\u306a\\u304b\\u3063\\u305f\n> \n> orchestrator/tests/test_spool_fold.py:391: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1883 retained_bytes=1883 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2758 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8ccfd79ecb75c9fed78523997fe1773c05917d21ae84d81a77d437da974d63f2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cb8f087ad08b8cefaaa0b864ceec2a3ab9bec3297fb6266ba27ed3caca226ea8",
+      "duration_s": 62.852,
+      "expected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_exception_path_reports_declared_detail"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_exception_path_reports_declared_detail"
+      ],
+      "hang_risk": false,
+      "id": "m2-fail-open-return-instead-of-raise",
+      "injection_diff_sha256": "3ae8bb2a1cc92fba86159fff453008e94c6aa2c2018173659c3025a5911d14bf",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0833885a9bc2015c6fbea262487eecc508845cb6009d4de5b218564571c80d68",
+      "replacements": [
+        {
+          "file": "tools/spool_fold.py",
+          "new": "        return\n",
+          "old": "        if isinstance(exc, DevWavesError):\n            raise TransactionError(\n                f\"declared fold verifier が失敗: {exc.code.value} \"\n                f\"{json.dumps(exc.detail, ensure_ascii=False, sort_keys=True, separators=(',', ':'))}\"\n            ) from exc\n        raise TransactionError(f\"declared fold verifier が失敗: {exc}\") from exc\n"
+        }
+      ],
+      "repo_head": "08aa6cf99efeb8f49a68cb656c7f0d14d3cc40e0",
+      "runner_sha256": "39686322e2f77f08e10f464a4a04cbce800886f9051af49de7fba41cdc84e64e",
+      "spec_sha256": "196bfb94962ace8c8091c0be1437d724e5c357f343db4e7096a46a5760a31458",
+      "status": "KILLED",
+      "test_output_sha256": "8ccfd79ecb75c9fed78523997fe1773c05917d21ae84d81a77d437da974d63f2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "e42739255a56d6a7851c166f1672f4d8c4e3e917057e298f8802a9a0f266da7e"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/3f2bec2c8a328fc46b177e34ebdee39f/izdw-3f2bec2c8a.o5872",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/output/pegasus-dispatch/3f2bec2c8a328fc46b177e34ebdee39f/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_spool_fold.py::test_legacy_daily_ordinals_are_excluded_from_global_namespace\norchestrator/tests/test_spool_fold.py::test_global_max_ordinal_ignores_larger_legacy_ordinal\norchestrator/tests/test_spool_fold.py::test_global_ordinal_duplicate_is_rejected\norchestrator/tests/test_spool_fold.py::test_global_ordinal_gap_is_allowed_and_next_uses_max_plus_one\norchestrator/tests/test_spool_fold.py::test_global_carry_resolves_global_entry_not_legacy_collision\norchestrator/tests/test_spool_fold.py::test_global_carry_cannot_fall_back_to_legacy_only_target\norchestrator/tests/test_spool_fold.py::test_boundary_constant_shift_is_detected_by_real_corpus_sentinel\norchestrator/tests/test_spool_fold.py::test_real_corpus_sentinel_rejects_missing_boundary_date\norchestrator/tests/test_spool_fold.py::test_impossible_heading_date_is_rejected\norchestrator/tests/test_spool_fold.py::test_fold_date_may_precede_the_current_entry_date\norchestrator/tests/test_spool_fold.py::test_n01_frontmatter_filename_mismatch_is_rejected\norchestrator/tests/test_spool_fold.py::test_n02_undefined_placeholder_is_rejected\norchestrator/tests/test_spool_fold.py::test_n03_duplicate_symbol_definition_is_rejected\norchestrator/tests/test_spool_fold.py::test_n04_malformed_placeholder_residue_is_rejected\norchestrator/tests/test_spool_fold.py::test_n05_task_allocation_includes_archive_population\norchestrator/tests/test_spool_fold.py::test_n06_task_allocation_includes_deferred_population\norchestrator/tests/test_spool_fold.py::test_n07_task_id_is_three_digit_canonical\norchestrator/tests/test_spool_fold.py::test_n08_all_carries_preserve_order_and_count\norchestrator/tests/test_spool_fold.py::test_implicit_and_explicit_carry_render_identically\norchestrator/tests/test_spool_fold.py::test_n09_active_conservation_postcondition_rejects_implicit_drop\norchestrator/tests/test_spool_fold.py::test_parallel_fold_implicitly_carries_task_added_by_earlier_wave\norchestrator/tests/test_spool_fold.py::test_parallel_new_then_existing_update_uses_substantive_base_digest\norchestrator/tests/test_spool_fold.py::test_generated_next_action_heading_and_compact_carry_are_byte_exact\norchestrator/tests/test_spool_fold.py::test_id_only_item_remains_substantive_under_compact_carry_format\norchestrator/tests/test_spool_fold.py::test_compact_and_legacy_carry_chain_resolves_substantive_base\norchestrator/tests/test_spool_fold.py::test_compact_carry_missing_entry_rejects_before_stub_digest\norchestrator/tests/test_spool_fold.py::test_compact_carry_missing_task_rejects_before_stub_digest\norchestrator/tests/test_spool_fold.py::test_compact_carry_future_or_self_reference_is_rejected\norchestrator/tests/test_spool_fold.py::test_legacy_carry_future_reference_is_rejected\norchestrator/tests/test_spool_fold.py::test_compact_stub_digest_cannot_satisfy_mutating_base\norchestrator/tests/test_spool_fold.py::test_compact_carry_gate_rejects_noncanonical_forms_as_substantive\norchestrator/tests/test_spool_fold.py::test_multiline_compact_prefix_item_uses_full_substantive_digest\norchestrator/tests/test_spool_fold.py::test_four_digit_compact_carry_chain_resolves_ordinal_1000\norchestrator/tests/test_spool_fold.py::test_compact_carry_uses_explicit_prior_across_ordinal_gap\norchestrator/tests/test_spool_fold.py::test_two_worklog_fragments_use_immediate_prior_ordinals\norchestrator/tests/test_spool_fold.py::test_compact_carry_crosses_rotation_archive_boundary\norchestrator/tests/test_spool_fold.py::test_rotation_between_two_new_entries_preserves_compact_chain\norchestrator/tests/test_spool_fold.py::test_non_active_transition_target_remains_rejected\norchestrator/tests/test_spool_fold.py::test_n10_stale_base_digest_is_rejected\norchestrator/tests/test_spool_fold.py::test_n10_mutating_action_requires_base_field\norchestrator/tests/test_spool_fold.py::test_all_mutating_operation_blocks_resolve_placeholders\norchestrator/tests/test_spool_fold.py::test_worklog_reserved_heading_in_prose_is_rejected\norchestrator/tests/test_spool_fold.py::test_worklog_action_prefix_payload_is_not_dropped\norchestrator/tests/test_spool_fold.py::test_failure_section_payload_without_valid_h3_is_rejected\norchestrator/tests/test_spool_fold.py::test_failure_supersede_only_fragment_inserts_at_entry_end_byte_exact\norchestrator/tests/test_spool_fold.py::test_failure_recurrence_precedes_supersede_for_same_target_byte_exact\norchestrator/tests/test_spool_fold.py::test_failure_supersede_order_is_deterministic_by_fragment_key_and_item_index\norchestrator/tests/test_spool_fold.py::test_failure_supersede_body_resolves_cross_ledger_placeholder\norchestrator/tests/test_spool_fold.py::test_failure_supersede_target_placeholder_is_rejected\norchestrator/tests/test_spool_fold.py::test_failure_supersede_section_order_and_uniqueness_are_rejected\norchestrator/tests/test_spool_fold.py::test_empty_failure_supersede_section_is_rejected\norchestrator/tests/test_spool_fold.py::test_multiline_h3_and_base_failure_supersede_shapes_are_rejected\norchestrator/tests/test_spool_fold.py::test_failure_supersede_body_shape_and_calendar_date_are_rejected\norchestrator/tests/test_spool_fold.py::test_failure_supersede_unicode_line_breaks_are_rejected\norchestrator/tests/test_spool_fold.py::test_failure_supersede_accepted_body_is_preserved_byte_exact\norchestrator/tests/test_spool_fold.py::test_failure_supersede_missing_target_is_rejected\norchestrator/tests/test_spool_fold.py::test_failure_supersede_rejects_duplicate_canonical_target_ids\norchestrator/tests/test_spool_fold.py::test_failure_supersede_rejects_existing_identical_line\norchestrator/tests/test_spool_fold.py::test_failure_supersede_rejects_duplicate_line_within_same_fold\norchestrator/tests/test_spool_fold.py::test_failure_recurrence_and_supersede_identical_line_are_rejected\norchestrator/tests/test_spool_fold.py::test_failure_supersede_substring_of_existing_line_is_accepted\norchestrator/tests/test_spool_fold.py::test_failure_recurrence_supersede_misuse_is_rejected_but_prose_mention_is_accepted\norchestrator/tests/test_spool_fold.py::test_failure_topology_rejects_forged_heading_from_recurrence\norchestrator/tests/test_spool_fold.py::test_failure_list_marker_neutralizes_heading_if_shape_gate_regresses\norchestrator/tests/test_spool_fold.py::test_failure_topology_accepts_mixed_new_recurrence_and_supersede\norchestrator/tests/test_spool_fold.py::test_failure_topology_uses_new_entry_append_order_across_fragments\norchestrator/tests/test_spool_fold.py::test_failure_supersede_replay_guards_exact_and_changed_fragments\norchestrator/tests/test_spool_fold.py::test_failure_new_and_recurrence_only_output_remains_byte_exact\norchestrator/tests/test_spool_fold.py::test_failure_supersede_real_f1_boundary_without_blank_line_is_byte_exact\norchestrator/tests/test_spool_fold.py::test_failure_supersede_real_f196_f197_boundary_is_byte_exact\norchestrator/tests/test_spool_fold.py::test_failure_supersede_real_final_entry_eof_is_byte_exact\norchestrator/tests/test_spool_fold.py::test_n11_existing_canonical_bytes_are_only_appended_or_inserted\norchestrator/tests/test_spool_fold.py::test_n12_second_fold_after_gc_is_noop\norchestrator/tests/test_spool_fold.py::test_n13_same_content_replay_is_rejected_by_receipt\norchestrator/tests/test_spool_fold.py::test_changed_content_cannot_reuse_folded_symbol_identity\norchestrator/tests/test_spool_fold.py::test_n14_rotation_keeps_projected_worklog_under_shared_limit\norchestrator/tests/test_spool_fold.py::test_rotation_can_archive_original_latest_to_fit_projected_entry\norchestrator/tests/test_spool_fold.py::test_n15_rotation_updates_archive_index\norchestrator/tests/test_spool_fold.py::test_n16_transaction_rejects_third_state\norchestrator/tests/test_spool_fold.py::test_interrupted_transaction_resumes_before_and_after_targets\norchestrator/tests/test_spool_fold.py::test_plan_fold_observes_standalone_head_and_symbolic_ref\norchestrator/tests/test_spool_fold.py::test_plan_fold_rejects_origin_not_matching_observed_git\norchestrator/tests/test_spool_fold.py::test_state_v3_schema_is_exact_and_v1_v2_are_rejected\norchestrator/tests/test_spool_fold.py::test_state_v2_rejects_missing_extra_and_coerced_nested_fields\norchestrator/tests/test_spool_fold.py::test_transaction_id_binds_origin_closure_and_before_exists\norchestrator/tests/test_spool_fold.py::test_apply_rejects_each_state_transaction_id_payload_field_mutation\norchestrator/tests/test_spool_fold.py::test_input_closure_binds_both_rendering_engine_files\norchestrator/tests/test_spool_fold.py::test_resume_rejects_head_advanced_after_state_write\norchestrator/tests/test_spool_fold.py::test_apply_keeps_applied_state_and_fsyncs_every_gc_parent\norchestrator/tests/test_spool_fold.py::test_mark_and_finalize_require_commit_identity_and_phase\norchestrator/tests/test_spool_fold.py::test_commit_identity_gate_rejects_mode_only_manual_fold_commit\norchestrator/tests/test_spool_fold.py::test_commit_identity_gate_rejects_author_suffix_bytes\norchestrator/tests/test_spool_fold.py::test_commit_identity_gate_rejects_extra_state_external_path\norchestrator/tests/test_spool_fold.py::test_commit_identity_gate_rejects_target_status_only\norchestrator/tests/test_spool_fold.py::test_commit_identity_gate_rejects_target_blob_oid_only\norchestrator/tests/test_spool_fold.py::test_commit_identity_gate_rejects_gc_status_only\norchestrator/tests/test_spool_fold.py::test_commit_identity_gate_exception_path_reports_declared_detail\norchestrator/tests/test_spool_fold.py::test_discover_requires_exact_expected_id_complete_targets_and_absent_gc\norchestrator/tests/test_spool_fold.py::test_discover_detects_dangling_state_symlink\norchestrator/tests/test_spool_fold.py::test_receipt_v2_contains_independently_observed_git_values\norchestrator/tests/test_spool_fold.py::test_receipt_parser_enforces_positional_v2_cutover\norchestrator/tests/test_spool_fold.py::test_load_rotate_limit_wraps_baseexceptions_and_restores_import_state\norchestrator/tests/test_spool_fold.py::test_n17_fragment_allocation_order_is_explicitly_sorted\norchestrator/tests/test_spool_fold.py::test_explicit_fold_date_controls_plan_bytes_and_transaction_state\norchestrator/tests/test_spool_fold.py::test_explicit_dry_run_plan_object_is_directly_applicable\norchestrator/tests/test_spool_fold.py::test_n18_completion_with_remaining_work_is_rejected\norchestrator/tests/test_spool_fold.py::test_completion_without_remaining_field_is_rejected\norchestrator/tests/test_spool_fold.py::test_completion_remaining_field_rejects_noncanonical_values\norchestrator/tests/test_spool_fold.py::test_completion_remaining_field_rejects_duplicates\norchestrator/tests/test_spool_fold.py::test_completion_remaining_decoys_in_fence_and_comment_are_rejected\norchestrator/tests/test_spool_fold.py::test_completion_remaining_in_unclosed_list_relative_fences_is_rejected\norchestrator/tests/test_spool_fold.py::test_valid_completion_remaining_field_is_removed_from_canonical\norchestrator/tests/test_spool_fold.py::test_completion_base_and_remaining_trailer_order_is_independent\norchestrator/tests/test_spool_fold.py::test_update_and_defer_do_not_require_remaining_field\norchestrator/tests/test_spool_fold.py::test_deferred_append_targets_single_line_item_head\norchestrator/tests/test_spool_fold.py::test_deferred_append_accepts_first_suffix_seen_outside_head_line_end\norchestrator/tests/test_spool_fold.py::test_deferred_append_multiline_target_preserves_continuations\norchestrator/tests/test_spool_fold.py::test_deferred_append_fenced_target_does_not_break_fence\norchestrator/tests/test_spool_fold.py::test_deferred_append_is_byte_exact_for_all_insertion_shapes\norchestrator/tests/test_spool_fold.py::test_empty_deferred_append_section_is_rejected\norchestrator/tests/test_spool_fold.py::test_multiline_deferred_append_item_is_rejected\norchestrator/tests/test_spool_fold.py::test_empty_or_whitespace_deferred_append_suffix_is_rejected\norchestrator/tests/test_spool_fold.py::test_whitespace_only_deferred_append_suffix_is_rejected\norchestrator/tests/test_spool_fold.py::test_deferred_append_missing_target_is_rejected\norchestrator/tests/test_spool_fold.py::test_deferred_append_cannot_target_completion_record\norchestrator/tests/test_spool_fold.py::test_deferred_append_rejects_visible_duplicate_target_ids\norchestrator/tests/test_spool_fold.py::test_deferred_append_ignores_comment_and_fence_decoy_items\norchestrator/tests/test_spool_fold.py::test_deferred_append_before_defer_section_is_rejected\norchestrator/tests/test_spool_fold.py::test_deferred_append_can_target_item_deferred_earlier_in_same_fold\norchestrator/tests/test_spool_fold.py::test_deferred_append_resolves_cross_ledger_placeholder\norchestrator/tests/test_spool_fold.py::test_deferred_append_order_is_deterministic_by_fragment_key_and_item_index\norchestrator/tests/test_spool_fold.py::test_deferred_append_rejects_replayed_identical_suffix\norchestrator/tests/test_spool_fold.py::test_deferred_append_only_fragment_preserves_all_active_tasks\norchestrator/tests/test_spool_fold.py::test_p01_valid_single_worklog_fragment_applies\norchestrator/tests/test_spool_fold.py::test_p02_three_ledgers_with_cross_references_apply\norchestrator/tests/test_spool_fold.py::test_p03_empty_spool_is_noop\norchestrator/tests/test_spool_fold.py::test_apply_rejects_forged_noop_transaction_payload\norchestrator/tests/test_spool_fold.py::test_noop_plan_reports_observed_worklog_bytes_with_or_without_canonical_ledgers\norchestrator/tests/test_spool_fold.py::test_noop_plan_does_not_require_canonical_ledgers_or_write_state\norchestrator/tests/test_spool_fold.py::test_non_noop_plan_still_requires_canonical_ledgers\norchestrator/tests/test_spool_fold.py::test_p04_below_threshold_does_not_rotate\norchestrator/tests/test_spool_fold.py::test_completion_update_and_defer_form_explicit_sinks\norchestrator/tests/test_spool_fold.py::test_rotation_preserves_d70_archive_current_boundary\norchestrator/tests/test_spool_fold.py::test_cli_base_digest_returns_non_carry_item_digest_without_writes\norchestrator/tests/test_spool_fold.py::test_cli_base_digest_resolves_mixed_carry_chain_across_ordinals\norchestrator/tests/test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed\norchestrator/tests/test_spool_fold.py::test_cli_base_digest_rejects_not_active_id_without_writes\norchestrator/tests/test_spool_fold.py::test_cli_base_digest_rejects_malformed_task_ids_before_file_read\norchestrator/tests/test_spool_fold.py::test_cli_base_digest_accepts_four_digit_task_id\norchestrator/tests/test_spool_fold.py::test_cli_base_digest_rejects_conflicting_modes_without_writes\norchestrator/tests/test_spool_fold.py::test_cli_base_digest_ignores_transaction_state\norchestrator/tests/test_spool_fold.py::test_cli_dry_run_emits_json_without_writes\norchestrator/tests/test_spool_fold.py::test_cli_dry_run_show_diff_keeps_stdout_byte_identical\norchestrator/tests/test_spool_fold.py::test_cli_dry_run_show_diff_matches_target_after_bytes\norchestrator/tests/test_spool_fold.py::test_cli_dry_run_show_diff_emits_gc_deletion_diff\norchestrator/tests/test_spool_fold.py::test_cli_show_diff_emits_nothing_when_target_before_mismatches\norchestrator/tests/test_spool_fold.py::test_cli_show_diff_emits_nothing_when_gc_content_mismatches\norchestrator/tests/test_spool_fold.py::test_cli_show_diff_escapes_terminal_control_bytes\norchestrator/tests/test_spool_fold.py::test_diff_lines_escapes_every_terminal_control_byte\norchestrator/tests/test_spool_fold.py::test_diff_lines_keeps_control_free_bytes_identical\norchestrator/tests/test_spool_fold.py::test_cli_dry_run_show_diff_noop_emits_no_stderr\norchestrator/tests/test_spool_fold.py::test_cli_show_diff_requires_dry_run_without_writes\norchestrator/tests/test_spool_fold.py::test_cli_dry_run_show_diff_leaves_git_status_unchanged\norchestrator/tests/test_spool_fold.py::test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes\norchestrator/tests/test_spool_fold.py::test_phase3_real_canonical_plan_accepts_unique_and_rejects_generated_duplicate_id\norchestrator/tests/test_spool_fold.py::test_fixture_tools_imports_uses_fixture_restores_state_and_propagates_exceptions\norchestrator/tests/test_spool_fold.py::test_n37_real_repo_canonical_family_requires_archive_active_history\norchestrator/tests/test_spool_fold.py::test_real_worklog_105_to_106_next_action_is_byte_exact_golden\norchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_count_digest_and_family_minimums_are_frozen\norchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_schema_negative_controls_are_rejected[test_spool_fold.py:test_name-row0]\norchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_schema_negative_controls_are_rejected[test_other.py::test_name-row1]\norchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_schema_negative_controls_are_rejected[test_spool_fold.py::test_name-row2]\norchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_schema_negative_controls_are_rejected[test_spool_fold.py::test_name-row3]\norchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_schema_negative_controls_are_rejected[test_spool_fold.py::test_name-row4]\norchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_schema_negative_controls_are_rejected[test_spool_fold.py::test_name-row5]\norchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_schema_negative_controls_are_rejected[test_spool_fold.py::test_name-row6]\norchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_schema_negative_controls_are_rejected[test_spool_fold.py::test_name-row7]\norchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_rejects_empty_duplicate_and_wrong_row_types\norchestrator/tests/test_fold_gate_nodes_contract.py::test_family_minimum_schema_negative_controls_are_rejected\norchestrator/tests/test_fold_gate_nodes_contract.py::test_uncovered_allowlist_schema_and_immutability_are_fail_closed\norchestrator/tests/test_fold_gate_nodes_contract.py::test_growth_held_rows_require_exact_d781_exclusion\norchestrator/tests/test_fold_gate_nodes_contract.py::test_ast_derived_reader_set_matches_registry_in_both_directions\norchestrator/tests/test_fold_gate_nodes_contract.py::test_call_graph_follows_helpers_and_rejects_dynamic_target_routes\norchestrator/tests/test_fold_gate_nodes_contract.py::test_growth_hold_join_and_selected_registry_are_exact\norchestrator/tests/test_fold_gate_nodes_contract.py::test_family_population_and_shortfalls_are_fail_closed\norchestrator/tests/test_fold_gate_nodes_contract.py::test_uncovered_allowlist_rejects_reverse_only_drift\norchestrator/tests/test_fold_gate_nodes_contract.py::test_registered_execution_graph_cannot_restart_pytest_or_acceptance\norchestrator/tests/test_fold_gate_nodes_contract.py::test_real_node_rejects_one_byte_t139_mutation_and_accepts_clean_bytes\n\n188 tests collected in 1.29s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "e54780fd37d9df45833c5fc1b51cb43b681aa78e3d3f7b3d0dff7116096af306"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_spool_fold.py::test_legacy_daily_ordinals_are_excluded_from_global_namespace",
+        "orchestrator/tests/test_spool_fold.py::test_global_max_ordinal_ignores_larger_legacy_ordinal",
+        "orchestrator/tests/test_spool_fold.py::test_global_ordinal_duplicate_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_global_ordinal_gap_is_allowed_and_next_uses_max_plus_one",
+        "orchestrator/tests/test_spool_fold.py::test_global_carry_resolves_global_entry_not_legacy_collision",
+        "orchestrator/tests/test_spool_fold.py::test_global_carry_cannot_fall_back_to_legacy_only_target",
+        "orchestrator/tests/test_spool_fold.py::test_boundary_constant_shift_is_detected_by_real_corpus_sentinel",
+        "orchestrator/tests/test_spool_fold.py::test_real_corpus_sentinel_rejects_missing_boundary_date",
+        "orchestrator/tests/test_spool_fold.py::test_impossible_heading_date_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_fold_date_may_precede_the_current_entry_date",
+        "orchestrator/tests/test_spool_fold.py::test_n01_frontmatter_filename_mismatch_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_n02_undefined_placeholder_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_n03_duplicate_symbol_definition_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_n04_malformed_placeholder_residue_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_n05_task_allocation_includes_archive_population",
+        "orchestrator/tests/test_spool_fold.py::test_n06_task_allocation_includes_deferred_population",
+        "orchestrator/tests/test_spool_fold.py::test_n07_task_id_is_three_digit_canonical",
+        "orchestrator/tests/test_spool_fold.py::test_n08_all_carries_preserve_order_and_count",
+        "orchestrator/tests/test_spool_fold.py::test_implicit_and_explicit_carry_render_identically",
+        "orchestrator/tests/test_spool_fold.py::test_n09_active_conservation_postcondition_rejects_implicit_drop",
+        "orchestrator/tests/test_spool_fold.py::test_parallel_fold_implicitly_carries_task_added_by_earlier_wave",
+        "orchestrator/tests/test_spool_fold.py::test_parallel_new_then_existing_update_uses_substantive_base_digest",
+        "orchestrator/tests/test_spool_fold.py::test_generated_next_action_heading_and_compact_carry_are_byte_exact",
+        "orchestrator/tests/test_spool_fold.py::test_id_only_item_remains_substantive_under_compact_carry_format",
+        "orchestrator/tests/test_spool_fold.py::test_compact_and_legacy_carry_chain_resolves_substantive_base",
+        "orchestrator/tests/test_spool_fold.py::test_compact_carry_missing_entry_rejects_before_stub_digest",
+        "orchestrator/tests/test_spool_fold.py::test_compact_carry_missing_task_rejects_before_stub_digest",
+        "orchestrator/tests/test_spool_fold.py::test_compact_carry_future_or_self_reference_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_legacy_carry_future_reference_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_compact_stub_digest_cannot_satisfy_mutating_base",
+        "orchestrator/tests/test_spool_fold.py::test_compact_carry_gate_rejects_noncanonical_forms_as_substantive",
+        "orchestrator/tests/test_spool_fold.py::test_multiline_compact_prefix_item_uses_full_substantive_digest",
+        "orchestrator/tests/test_spool_fold.py::test_four_digit_compact_carry_chain_resolves_ordinal_1000",
+        "orchestrator/tests/test_spool_fold.py::test_compact_carry_uses_explicit_prior_across_ordinal_gap",
+        "orchestrator/tests/test_spool_fold.py::test_two_worklog_fragments_use_immediate_prior_ordinals",
+        "orchestrator/tests/test_spool_fold.py::test_compact_carry_crosses_rotation_archive_boundary",
+        "orchestrator/tests/test_spool_fold.py::test_rotation_between_two_new_entries_preserves_compact_chain",
+        "orchestrator/tests/test_spool_fold.py::test_non_active_transition_target_remains_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_n10_stale_base_digest_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_n10_mutating_action_requires_base_field",
+        "orchestrator/tests/test_spool_fold.py::test_all_mutating_operation_blocks_resolve_placeholders",
+        "orchestrator/tests/test_spool_fold.py::test_worklog_reserved_heading_in_prose_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_worklog_action_prefix_payload_is_not_dropped",
+        "orchestrator/tests/test_spool_fold.py::test_failure_section_payload_without_valid_h3_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_only_fragment_inserts_at_entry_end_byte_exact",
+        "orchestrator/tests/test_spool_fold.py::test_failure_recurrence_precedes_supersede_for_same_target_byte_exact",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_order_is_deterministic_by_fragment_key_and_item_index",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_body_resolves_cross_ledger_placeholder",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_target_placeholder_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_section_order_and_uniqueness_are_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_empty_failure_supersede_section_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_multiline_h3_and_base_failure_supersede_shapes_are_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_body_shape_and_calendar_date_are_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_unicode_line_breaks_are_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_accepted_body_is_preserved_byte_exact",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_missing_target_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_rejects_duplicate_canonical_target_ids",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_rejects_existing_identical_line",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_rejects_duplicate_line_within_same_fold",
+        "orchestrator/tests/test_spool_fold.py::test_failure_recurrence_and_supersede_identical_line_are_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_substring_of_existing_line_is_accepted",
+        "orchestrator/tests/test_spool_fold.py::test_failure_recurrence_supersede_misuse_is_rejected_but_prose_mention_is_accepted",
+        "orchestrator/tests/test_spool_fold.py::test_failure_topology_rejects_forged_heading_from_recurrence",
+        "orchestrator/tests/test_spool_fold.py::test_failure_list_marker_neutralizes_heading_if_shape_gate_regresses",
+        "orchestrator/tests/test_spool_fold.py::test_failure_topology_accepts_mixed_new_recurrence_and_supersede",
+        "orchestrator/tests/test_spool_fold.py::test_failure_topology_uses_new_entry_append_order_across_fragments",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_replay_guards_exact_and_changed_fragments",
+        "orchestrator/tests/test_spool_fold.py::test_failure_new_and_recurrence_only_output_remains_byte_exact",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_real_f1_boundary_without_blank_line_is_byte_exact",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_real_f196_f197_boundary_is_byte_exact",
+        "orchestrator/tests/test_spool_fold.py::test_failure_supersede_real_final_entry_eof_is_byte_exact",
+        "orchestrator/tests/test_spool_fold.py::test_n11_existing_canonical_bytes_are_only_appended_or_inserted",
+        "orchestrator/tests/test_spool_fold.py::test_n12_second_fold_after_gc_is_noop",
+        "orchestrator/tests/test_spool_fold.py::test_n13_same_content_replay_is_rejected_by_receipt",
+        "orchestrator/tests/test_spool_fold.py::test_changed_content_cannot_reuse_folded_symbol_identity",
+        "orchestrator/tests/test_spool_fold.py::test_n14_rotation_keeps_projected_worklog_under_shared_limit",
+        "orchestrator/tests/test_spool_fold.py::test_rotation_can_archive_original_latest_to_fit_projected_entry",
+        "orchestrator/tests/test_spool_fold.py::test_n15_rotation_updates_archive_index",
+        "orchestrator/tests/test_spool_fold.py::test_n16_transaction_rejects_third_state",
+        "orchestrator/tests/test_spool_fold.py::test_interrupted_transaction_resumes_before_and_after_targets",
+        "orchestrator/tests/test_spool_fold.py::test_plan_fold_observes_standalone_head_and_symbolic_ref",
+        "orchestrator/tests/test_spool_fold.py::test_plan_fold_rejects_origin_not_matching_observed_git",
+        "orchestrator/tests/test_spool_fold.py::test_state_v3_schema_is_exact_and_v1_v2_are_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_state_v2_rejects_missing_extra_and_coerced_nested_fields",
+        "orchestrator/tests/test_spool_fold.py::test_transaction_id_binds_origin_closure_and_before_exists",
+        "orchestrator/tests/test_spool_fold.py::test_apply_rejects_each_state_transaction_id_payload_field_mutation",
+        "orchestrator/tests/test_spool_fold.py::test_input_closure_binds_both_rendering_engine_files",
+        "orchestrator/tests/test_spool_fold.py::test_resume_rejects_head_advanced_after_state_write",
+        "orchestrator/tests/test_spool_fold.py::test_apply_keeps_applied_state_and_fsyncs_every_gc_parent",
+        "orchestrator/tests/test_spool_fold.py::test_mark_and_finalize_require_commit_identity_and_phase",
+        "orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_rejects_mode_only_manual_fold_commit",
+        "orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_rejects_author_suffix_bytes",
+        "orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_rejects_extra_state_external_path",
+        "orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_rejects_target_status_only",
+        "orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_rejects_target_blob_oid_only",
+        "orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_rejects_gc_status_only",
+        "orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_exception_path_reports_declared_detail",
+        "orchestrator/tests/test_spool_fold.py::test_discover_requires_exact_expected_id_complete_targets_and_absent_gc",
+        "orchestrator/tests/test_spool_fold.py::test_discover_detects_dangling_state_symlink",
+        "orchestrator/tests/test_spool_fold.py::test_receipt_v2_contains_independently_observed_git_values",
+        "orchestrator/tests/test_spool_fold.py::test_receipt_parser_enforces_positional_v2_cutover",
+        "orchestrator/tests/test_spool_fold.py::test_load_rotate_limit_wraps_baseexceptions_and_restores_import_state",
+        "orchestrator/tests/test_spool_fold.py::test_n17_fragment_allocation_order_is_explicitly_sorted",
+        "orchestrator/tests/test_spool_fold.py::test_explicit_fold_date_controls_plan_bytes_and_transaction_state",
+        "orchestrator/tests/test_spool_fold.py::test_explicit_dry_run_plan_object_is_directly_applicable",
+        "orchestrator/tests/test_spool_fold.py::test_n18_completion_with_remaining_work_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_completion_without_remaining_field_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_completion_remaining_field_rejects_noncanonical_values",
+        "orchestrator/tests/test_spool_fold.py::test_completion_remaining_field_rejects_duplicates",
+        "orchestrator/tests/test_spool_fold.py::test_completion_remaining_decoys_in_fence_and_comment_are_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_completion_remaining_in_unclosed_list_relative_fences_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_valid_completion_remaining_field_is_removed_from_canonical",
+        "orchestrator/tests/test_spool_fold.py::test_completion_base_and_remaining_trailer_order_is_independent",
+        "orchestrator/tests/test_spool_fold.py::test_update_and_defer_do_not_require_remaining_field",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_targets_single_line_item_head",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_accepts_first_suffix_seen_outside_head_line_end",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_multiline_target_preserves_continuations",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_fenced_target_does_not_break_fence",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_is_byte_exact_for_all_insertion_shapes",
+        "orchestrator/tests/test_spool_fold.py::test_empty_deferred_append_section_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_multiline_deferred_append_item_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_empty_or_whitespace_deferred_append_suffix_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_whitespace_only_deferred_append_suffix_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_missing_target_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_cannot_target_completion_record",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_rejects_visible_duplicate_target_ids",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_ignores_comment_and_fence_decoy_items",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_before_defer_section_is_rejected",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_can_target_item_deferred_earlier_in_same_fold",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_resolves_cross_ledger_placeholder",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_order_is_deterministic_by_fragment_key_and_item_index",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_rejects_replayed_identical_suffix",
+        "orchestrator/tests/test_spool_fold.py::test_deferred_append_only_fragment_preserves_all_active_tasks",
+        "orchestrator/tests/test_spool_fold.py::test_p01_valid_single_worklog_fragment_applies",
+        "orchestrator/tests/test_spool_fold.py::test_p02_three_ledgers_with_cross_references_apply",
+        "orchestrator/tests/test_spool_fold.py::test_p03_empty_spool_is_noop",
+        "orchestrator/tests/test_spool_fold.py::test_apply_rejects_forged_noop_transaction_payload",
+        "orchestrator/tests/test_spool_fold.py::test_noop_plan_reports_observed_worklog_bytes_with_or_without_canonical_ledgers",
+        "orchestrator/tests/test_spool_fold.py::test_noop_plan_does_not_require_canonical_ledgers_or_write_state",
+        "orchestrator/tests/test_spool_fold.py::test_non_noop_plan_still_requires_canonical_ledgers",
+        "orchestrator/tests/test_spool_fold.py::test_p04_below_threshold_does_not_rotate",
+        "orchestrator/tests/test_spool_fold.py::test_completion_update_and_defer_form_explicit_sinks",
+        "orchestrator/tests/test_spool_fold.py::test_rotation_preserves_d70_archive_current_boundary",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_returns_non_carry_item_digest_without_writes",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_resolves_mixed_carry_chain_across_ordinals",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_real_corpus_resolves_active_and_rejects_completed",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_rejects_not_active_id_without_writes",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_rejects_malformed_task_ids_before_file_read",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_accepts_four_digit_task_id",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_rejects_conflicting_modes_without_writes",
+        "orchestrator/tests/test_spool_fold.py::test_cli_base_digest_ignores_transaction_state",
+        "orchestrator/tests/test_spool_fold.py::test_cli_dry_run_emits_json_without_writes",
+        "orchestrator/tests/test_spool_fold.py::test_cli_dry_run_show_diff_keeps_stdout_byte_identical",
+        "orchestrator/tests/test_spool_fold.py::test_cli_dry_run_show_diff_matches_target_after_bytes",
+        "orchestrator/tests/test_spool_fold.py::test_cli_dry_run_show_diff_emits_gc_deletion_diff",
+        "orchestrator/tests/test_spool_fold.py::test_cli_show_diff_emits_nothing_when_target_before_mismatches",
+        "orchestrator/tests/test_spool_fold.py::test_cli_show_diff_emits_nothing_when_gc_content_mismatches",
+        "orchestrator/tests/test_spool_fold.py::test_cli_show_diff_escapes_terminal_control_bytes",
+        "orchestrator/tests/test_spool_fold.py::test_diff_lines_escapes_every_terminal_control_byte",
+        "orchestrator/tests/test_spool_fold.py::test_diff_lines_keeps_control_free_bytes_identical",
+        "orchestrator/tests/test_spool_fold.py::test_cli_dry_run_show_diff_noop_emits_no_stderr",
+        "orchestrator/tests/test_spool_fold.py::test_cli_show_diff_requires_dry_run_without_writes",
+        "orchestrator/tests/test_spool_fold.py::test_cli_dry_run_show_diff_leaves_git_status_unchanged",
+        "orchestrator/tests/test_spool_fold.py::test_cli_dry_run_reports_failure_supersede_semantic_issue_without_writes",
+        "orchestrator/tests/test_spool_fold.py::test_phase3_real_canonical_plan_accepts_unique_and_rejects_generated_duplicate_id",
+        "orchestrator/tests/test_spool_fold.py::test_fixture_tools_imports_uses_fixture_restores_state_and_propagates_exceptions",
+        "orchestrator/tests/test_spool_fold.py::test_n37_real_repo_canonical_family_requires_archive_active_history",
+        "orchestrator/tests/test_spool_fold.py::test_real_worklog_105_to_106_next_action_is_byte_exact_golden",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_count_digest_and_family_minimums_are_frozen",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_schema_negative_controls_are_rejected[test_spool_fold.py:test_name-row0]",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_schema_negative_controls_are_rejected[test_other.py::test_name-row1]",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_schema_negative_controls_are_rejected[test_spool_fold.py::test_name-row2]",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_schema_negative_controls_are_rejected[test_spool_fold.py::test_name-row3]",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_schema_negative_controls_are_rejected[test_spool_fold.py::test_name-row4]",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_schema_negative_controls_are_rejected[test_spool_fold.py::test_name-row5]",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_schema_negative_controls_are_rejected[test_spool_fold.py::test_name-row6]",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_schema_negative_controls_are_rejected[test_spool_fold.py::test_name-row7]",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_registry_rejects_empty_duplicate_and_wrong_row_types",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_family_minimum_schema_negative_controls_are_rejected",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_uncovered_allowlist_schema_and_immutability_are_fail_closed",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_growth_held_rows_require_exact_d781_exclusion",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_ast_derived_reader_set_matches_registry_in_both_directions",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_call_graph_follows_helpers_and_rejects_dynamic_target_routes",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_growth_hold_join_and_selected_registry_are_exact",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_family_population_and_shortfalls_are_fail_closed",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_uncovered_allowlist_rejects_reverse_only_drift",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_registered_execution_graph_cannot_restart_pytest_or_acceptance",
+        "orchestrator/tests/test_fold_gate_nodes_contract.py::test_real_node_rejects_one_byte_t139_mutation_and_accepts_clean_bytes"
+      ],
+      "duration_s": 344.739,
+      "rc": 0,
+      "repo_head": "08aa6cf99efeb8f49a68cb656c7f0d14d3cc40e0",
+      "runner_sha256": "39686322e2f77f08e10f464a4a04cbce800886f9051af49de7fba41cdc84e64e",
+      "spec_sha256": "196bfb94962ace8c8091c0be1437d724e5c357f343db4e7096a46a5760a31458",
+      "status": "PASSED",
+      "tool_sha256": "e42739255a56d6a7851c166f1672f4d8c4e3e917057e298f8802a9a0f266da7e"
+    },
+    "hang_timeout_seconds": 4800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m0-equivalent-json-kwarg-order": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "145d56ad9439ddb36bde67d2f0191f223a16c092b403cd079b44382d5b81a652",
+        "replacements": [
+          {
+            "file": "tools/spool_fold.py",
+            "new": "                f\"{json.dumps(exc.detail, sort_keys=True, ensure_ascii=False, separators=(',', ':'))}\"\n",
+            "old": "                f\"{json.dumps(exc.detail, ensure_ascii=False, sort_keys=True, separators=(',', ':'))}\"\n"
+          }
+        ]
+      },
+      "m1-diagnostic-pin-revert-to-str-exc": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_exception_path_reports_declared_detail"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "05b98bb0155c21a595b9c2e37da4a99ef66213009c9886080f803e07ff304857",
+        "replacements": [
+          {
+            "file": "tools/spool_fold.py",
+            "new": "        raise TransactionError(f\"declared fold verifier が失敗: {exc}\") from exc\n",
+            "old": "        if isinstance(exc, DevWavesError):\n            raise TransactionError(\n                f\"declared fold verifier が失敗: {exc.code.value} \"\n                f\"{json.dumps(exc.detail, ensure_ascii=False, sort_keys=True, separators=(',', ':'))}\"\n            ) from exc\n        raise TransactionError(f\"declared fold verifier が失敗: {exc}\") from exc\n"
+          }
+        ]
+      },
+      "m2-fail-open-return-instead-of-raise": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_exception_path_reports_declared_detail"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3ae8bb2a1cc92fba86159fff453008e94c6aa2c2018173659c3025a5911d14bf",
+        "replacements": [
+          {
+            "file": "tools/spool_fold.py",
+            "new": "        return\n",
+            "old": "        if isinstance(exc, DevWavesError):\n            raise TransactionError(\n                f\"declared fold verifier が失敗: {exc.code.value} \"\n                f\"{json.dumps(exc.detail, ensure_ascii=False, sort_keys=True, separators=(',', ':'))}\"\n            ) from exc\n        raise TransactionError(f\"declared fold verifier が失敗: {exc}\") from exc\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "f14ee9bb0bbe97b4af94219605872a33a5527f3f1ccf1a0aedcb88851745e94a",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_spool_fold.py",
+      "orchestrator/tests/test_fold_gate_nodes_contract.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 4800.0
+  },
+  "repo_head": "08aa6cf99efeb8f49a68cb656c7f0d14d3cc40e0",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_spool_fold.py",
+      "orchestrator/tests/test_fold_gate_nodes_contract.py",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "c9b9164c1a8721ac67cfb90837035dbbbe74d01a",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "39686322e2f77f08e10f464a4a04cbce800886f9051af49de7fba41cdc84e64e",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "196bfb94962ace8c8091c0be1437d724e5c357f343db4e7096a46a5760a31458",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2608-mutcontainer/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "e42739255a56d6a7851c166f1672f4d8c4e3e917057e298f8802a9a0f266da7e",
+  "updated_at": "2026-09-18T06:45:11.511370+00:00"
+}

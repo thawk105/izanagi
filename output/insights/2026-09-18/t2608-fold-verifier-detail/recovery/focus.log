@@ -1,0 +1,60 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-6d52ff8816)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2608-recovery/output/pegasus-dispatch/orphan-holds/unknown-52e4506731dd91a4e0bd5164.json
+[Pegasus dispatch] request ID 6367.nqsv を受理しました
+[Pegasus dispatch] request 6367.nqsv の状態: QUE
+[Pegasus dispatch] request 6367.nqsv の状態: RUN
+[Pegasus dispatch] request 6367.nqsv の状態: END
+[Pegasus dispatch] request 6367.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2608-recovery/output/pegasus-dispatch/orphan-holds/unknown-52e4506731dd91a4e0bd5164.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2608-recovery/output/pegasus-dispatch/6d52ff881635ee96a141406ab126afe4/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 6367.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+|
+| ........................................................................ [ 13%]
+| ........................................................................ [ 26%]
+| ........................................................................ [ 39%]
+| ........................................................................ [ 52%]
+| ........................................................................ [ 65%]
+| ........................................................................ [ 78%]
+| ................................s....................................... [ 91%]
+| .............................................                            [100%]IZANAGI_FLAKY_HOLD_SUMMARY_V1 {"registered_node_count":1,"matched_node_count":1,"skipped_node_count":1,"registry_sha256":"ed7b4d7e4e5eafe836f11397da6b596d2c04d227996a8a217aa5970b6e117be2"}
+|
+| 548 passed, 1 skipped in 23.24s
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+[Pegasus dispatch] request 6367.nqsv child stdout end
+[Pegasus dispatch] request 6367.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 3023768, "time_ns": 1789734326477667405}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 3023789, "event": "direct-child-wait-start", "pid": 3023775, "time_ns": 1789734326505913373}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 3023789, "event": "direct-child-wait-complete", "pid": 3023775, "time_ns": 1789734350321313747}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 3023775, "rc": 0, "time_ns": 1789734350321414475}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 3023768, "rc": 0, "time_ns": 1789734350325959273}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 3023768}, {"comm": "bash", "pid": 3023749}, {"comm": "nqs_shpd", "pid": 3023748}, {"comm": "nqs_shpd", "pid": 3023550}, {"comm": "nqs_shpd", "pid": 4572}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 3023768, "sid": 3023748, "time_ns": 1789734350326385056}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 37.37856799853034, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 3023768, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1789734350363804081, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 3023768, "time_ns": 1789734350365798449}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 3023768, "time_ns": 1789734350402368045}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 3023768, "time_ns": 1789734350403054191}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 3023768, "time_ns": 1789734350403065101}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 3023768, "time_ns": 1789734350405577649}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 3023768, "time_ns": 1789734350405584566}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 3023768, "rc": 0, "time_ns": 1789734350405593969}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 3023768, "rc": 0, "time_ns": 1789734350405609431}
+|
+| ============================================================
+| Request ID:             6367.nqsv
+| Request Name:           izdw-6d52ff8816
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Fri Sep 18 21:25:16 2026
+| Started Request Time:   Fri Sep 18 21:25:26 2026
+| Ended Request Time:     Fri Sep 18 21:25:50 2026
+| Resources Information:
+|   Elapse:               28S
+|   Remaining Elapse:     3572S
+| ============================================================
+[Pegasus dispatch] request 6367.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
