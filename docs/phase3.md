@@ -18,6 +18,11 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2737] D2148項4のSS2PL非inert局所修正を実装した (2026-09-19)。
+  関門前の依存準備、phase1の4軸と実build、計器呼出し保存、既存C++テストを確認。
+  controls全体は未成立。inert target・軸従属・比較条件・abort所有権は変更していない。
+  記録 = `output/insights/2026-09-19/t2737-noninert-implementation/README.md`。
+
 - [x] [T-2608] declared fold verifier の例外出力に code と sanitize 済み detail を保存。
   拒否判定と構造的拒否の文面を維持し、実 verifier の例外と fail-open 変異の検出を確認した。
   記録 = `output/insights/2026-09-18/t2608-fold-verifier-detail/README.md`。
