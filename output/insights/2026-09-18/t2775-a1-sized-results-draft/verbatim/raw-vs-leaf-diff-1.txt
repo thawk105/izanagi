@@ -1,0 +1,7 @@
+== result.json: 2 differing paths (raw -> leaf)
+  len	/limitations	4	5
+  only-in-leaf	/materialization_evidence
+  workloads[].statistics identical: True
+  workloads[].arms identical: True
+== receipt.json: 1 differing paths (raw -> leaf)
+  only-in-leaf	/materialization

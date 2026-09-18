@@ -163,6 +163,36 @@ root 相対 path と生成器の pin 表 (SHA-256) で束縛する。pin は CLI
 `izanagi-b10-static-tail-formal-figure-provenance/v1`。論文図の再現コマンド、caption、proof chain は
 `docs/paper-story/figures/README.md` の fig8 節を正本とする。
 
+## A-1 balanced5 sized attempt-0001 (対差平均 ± 登録済み区間) figure
+
+`plot_a1_sized_paired.py` は、A-1 balanced5 sized 本走 attempt-0001 (study
+`paper-story-a1-20260901-balanced5-sized-v1`、3 workload × 30 対 × 2 arm) の対差 (variant − baseline) を
+3 列 1 段で描く専用生成器である。既存生成器を import しない (自己完結)。
+
+```bash
+python3 tools/plotting/plot_a1_sized_paired.py [--repo-root PATH] OUT_PREFIX
+```
+
+入力は repo 内 tracked の公開 leaf `output/insights/2026-09-13/paper-story-a1-balanced5-sized/` の 3 file
+(`result.json` / `receipt.json` / `.complete.json`) と policy `orchestrator/campaign/paper_story_a1_paired.v3-sized.json` で、
+repo 相対 path と生成器の pin 表 (SHA-256) で束縛する。pin は CLI から渡せない (test は `expected_hashes` 注入 seam を使う)。
+
+- 統計 (mean / variance / sd / h / baseline mean / B / 区間) は `statistics.pairs` の 30 対から再計算し、`statistics` の記録値と
+  fail-closed で照合する。分類 (`classification`) は記録値をコピーし、述語との一致だけを検査する。
+- `formal` が false 以外、`promotion_prohibited` が true 以外、`valid` が true 以外、`errors` 非空、n ≠ 30、対の差の不整合、
+  両 arm の `correctness_evidence.certified` が `[true]` 以外、policy SHA-256 と `policy_sha256` の不一致、`variance_plan_breach`
+  true、results 稿 (caption_source) の不在のいずれでも成果物を出さない。
+- 保存前に renderer-backed layout check を実行し、text の重なり・逸脱があれば 3 成果物を 1 つも出さない。
+- caption は lane の 3 値 (`formal: false; promotion_prohibited: true; result_authority: sized-preregistered-descriptive-only`) と
+  「単一 attempt・headline 値でない・workload 横断の結論を作らない・C1 の再現ではない・反復間の安定性を言わない」の固定文を
+  逐語で含み、`improvement` / `regression` / 有意性の語を使わない。
+
+出力は `OUT_PREFIX.png`、`.pdf`、`.provenance.json` の 3 本。provenance の schema は
+`izanagi-a1-sized-paired-figure-provenance/v1`。`tracked_inputs` には results 稿
+`docs/paper-story/results/2026-09-18-a1-balanced5-sized-attempt1-descriptive.md` を `caption_source` として SHA-256 付きで記録する
+(稿は provenance の SHA-256 を持たない、F36)。論文図の再現コマンド、caption、proof chain は
+`docs/paper-story/figures/README.md` の fig9 節を正本とする。
+
 ## S-1a 9 対 (失敗報告図) command example
 
 `plot_s1_9pair.py` は、縮小主張 S' の登録 9 対を凍結 report と admission 済み WAL から描く。

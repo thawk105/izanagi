@@ -1,0 +1,64 @@
+ok sha256 0a86dec922ff… = submission
+ok sha256 0b1f177944f6… = leaf/.complete.json
+ok sha256 0c3aadaea83f… = intent(copy)
+ok sha256 137b0cc6d263… = write-heavy/sched
+ok sha256 2ebe5c4f59a4… = balanced/sched
+ok sha256 32a213246ed2… = read-heavy/lock
+ok sha256 372f199e674c… = leaf/result.json
+ok sha256 3c2b734d9c71… = job-script
+ok sha256 3d3b094e5082… = write-heavy/lock
+ok sha256 3fb068871396… = balanced/lock
+ok sha256 4001e27c1000… = read-heavy/wal
+ok sha256 43b02eef2a1c… = write-heavy/wal
+ok sha256 6047eff005fb… = prereg(field)
+ok sha256 7de00bf5515d… = raw/receipt.json
+ok sha256 7eb404861e9a… = intent_sha256(field)
+ok sha256 880919db7390… = leaf/README.md
+ok sha256 9b2541ae294c… = read-heavy/sched
+ok sha256 a2039dc1457c… = leaf/receipt.json
+ok sha256 a6228bcd5d2d… = policy_sha256(field)
+ok sha256 b080d755f5c6… = raw/result.json
+ok sha256 c46ae55cd9be… = group-terminal
+ok sha256 d26c4852150b… = completion
+ok sha256 e2530dfec7ed… = balanced/wal
+ok 40hex 511c9538e4e8… = ccbench-pin(40hex)
+ok 40hex d2ebef7a407d… = measurement_source_commit(40hex)
+ok short 0c3aadae -> intent(copy)
+ok short 372f199e -> leaf/result.json
+ok short a2039dc1 -> leaf/receipt.json
+ok short b080d755 -> raw/result.json
+ok short d26c4852 -> completion
+ok §2.1 write-heavy mean_signed_positional_difference_tps
+ok §2.1 write-heavy descriptive_half_width_tps
+ok §2.1 write-heavy floor_boundary_tps
+ok §2.1 write-heavy baseline_mean_tps
+ok §2.1 write-heavy sample_sd_positional_difference_tps
+ok §2.1 write-heavy planned_sigma_tps
+ok §2.1 balanced mean_signed_positional_difference_tps
+ok §2.1 balanced descriptive_half_width_tps
+ok §2.1 balanced floor_boundary_tps
+ok §2.1 balanced baseline_mean_tps
+ok §2.1 balanced sample_sd_positional_difference_tps
+ok §2.1 balanced planned_sigma_tps
+ok §2.1 read-heavy mean_signed_positional_difference_tps
+ok §2.1 read-heavy descriptive_half_width_tps
+ok §2.1 read-heavy floor_boundary_tps
+ok §2.1 read-heavy baseline_mean_tps
+ok §2.1 read-heavy sample_sd_positional_difference_tps
+ok §2.1 read-heavy planned_sigma_tps
+ok §2.2 write-heavy 30 pairs present
+ok §2.2 balanced 30 pairs present
+ok §2.2 read-heavy 30 pairs present
+ok §2.3/2.4 write-heavy fixed10
+ok §2.3/2.4 write-heavy no-backoff
+ok §2.3/2.4 balanced fixed5
+ok §2.3/2.4 balanced no-backoff
+ok §2.3/2.4 read-heavy fixed2
+ok §2.3/2.4 read-heavy no-backoff
+ok §1.4 write-heavy
+ok §1.4 balanced
+ok §1.4 read-heavy
+ok §1.1 planned_sigma write-heavy
+ok §1.1 planned_sigma balanced
+ok §1.1 planned_sigma read-heavy
+PROBLEMS: 0

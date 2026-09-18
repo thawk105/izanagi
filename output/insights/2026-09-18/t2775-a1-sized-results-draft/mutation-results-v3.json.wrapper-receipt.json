@@ -1,0 +1,21 @@
+{
+  "child_rc": 0,
+  "container_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2775-a1-sized-results-recovery/mutation-scratch/.izanagi-mutation-worktree",
+  "container_preserved": false,
+  "dispatch_evidence": {
+    "original_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2775-a1-sized-results-recovery/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch",
+    "rehydrated": false,
+    "relocated": false,
+    "relocated_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2775-a1-sized-results-recovery/mutation-results-v3.json.dispatch-evidence"
+  },
+  "failure": null,
+  "lock_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2775-a1-sized-results-recovery/mutation-results-v3.json.lock",
+  "resolved_commit": "fd7506c746c406543ce144a9455cef0fed19070e",
+  "schema": "izanagi-mutation-worktree-wrapper/v1",
+  "scratch_root": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2775-a1-sized-results-recovery/mutation-scratch",
+  "shared_snapshot_matches": true,
+  "teardown_attempted": true,
+  "teardown_completed": true,
+  "terminal_ledger": true,
+  "wrapper_sha256": "93363b68d44e0d319527e2097f8ab9a0dfcefa2be837bea4e5a3f05bc558be01"
+}

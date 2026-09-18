@@ -1,0 +1,50 @@
+{
+  "normalization": "Remove only trailing ASCII space/tab; restore by appending each removed_suffix_hex before LF at the specified 1-based line. Verify original_bytes and original_sha256.",
+  "records": [
+    {
+      "file": "arms-and-recheck-1.txt",
+      "original_sha256": "b356bca99d1f8ff3c5be4b9b41964b0fa8f57a9451aeda4e8a87f82fd695dbc8",
+      "original_bytes": 15556,
+      "edits": [
+        {
+          "line_1_based": 6,
+          "removed_suffix_hex": "20"
+        },
+        {
+          "line_1_based": 13,
+          "removed_suffix_hex": "20"
+        },
+        {
+          "line_1_based": 62,
+          "removed_suffix_hex": "20"
+        }
+      ]
+    },
+    {
+      "file": "raw-vs-leaf-diff-1.txt",
+      "original_sha256": "cf8696b636e420ac4bf3808e6984f645db51be6eb3fcb31befa9aebdaf0408f1",
+      "original_bytes": 273,
+      "edits": [
+        {
+          "line_1_based": 3,
+          "removed_suffix_hex": "0909"
+        },
+        {
+          "line_1_based": 7,
+          "removed_suffix_hex": "0909"
+        }
+      ]
+    },
+    {
+      "file": "recovery-focus.md",
+      "original_sha256": "ce2136055a56b9f3d421002faa1044c0dcf372630431e4acc1bda6e15443e795",
+      "original_bytes": 6636,
+      "edits": [
+        {
+          "line_1_based": 55,
+          "removed_suffix_hex": "2020"
+        }
+      ]
+    }
+  ]
+}

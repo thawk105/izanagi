@@ -1,0 +1,1005 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": null,
+      "receipt_path": null,
+      "runner_mode": "local",
+      "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n............................                                             [100%]\n28 passed in 7.50s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "8e1555b6f365856e787306c238f8964659bf2019f298893e50563fdd7c05f06b"
+    },
+    "artifact_error": null,
+    "collection_sha256": "e5ee9fbaad34bf9ff284f597e58c4aee4009d591c2b37f7f591d5fdf6cb7970a",
+    "duration_s": 8.401,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "bf5c3709825c29561b89868624a7b958ef3be11d9cd28a1a5ae98c37b29a17c8",
+    "repo_head": "fd7506c746c406543ce144a9455cef0fed19070e",
+    "runner_sha256": "0fa9b22fe13f506a36d5c8e3303e8a37717c4360c8dc0754594d7cbb780c525e",
+    "spec_sha256": "f7a03a67706a91b169a257cec3069c36fd08c014d06403d45130f3fd9ffbc94f",
+    "status": "PASSED",
+    "test_output_sha256": "8e1555b6f365856e787306c238f8964659bf2019f298893e50563fdd7c05f06b",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "ac969cb577085b82d482b28ecb8a6f9d6ecce79d65dbe5f42ec29e3d17a5fb2d"
+  },
+  "date": "2026-09-18T13:41:15.674515+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n............................                                             [100%]\n28 passed in 7.30s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "cfc5e3029ff8a3580b99ae802afb5558d7dd0e10227166f61e7c0b90c868e1d4"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "e5ee9fbaad34bf9ff284f597e58c4aee4009d591c2b37f7f591d5fdf6cb7970a",
+      "duration_s": 8.208,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "m0-equivalent-docstring",
+      "injection_diff_sha256": "9c68aa80a364fddb3b34fabe8fed02713993109e634260abf762f03eba6340af",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "689d565f26aa4a1bc09777b7be3ec5fb6c2a03006742650931f9ceea18339c99",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "\"\"\"Pinned descriptive A-1 sized paired differences, attempt-0001.\n\n(equivalent mutation marker: docstring only)\n\"\"\"\n",
+          "old": "\"\"\"Pinned descriptive A-1 sized paired differences, attempt-0001.\"\"\"\n"
+        }
+      ],
+      "repo_head": "fd7506c746c406543ce144a9455cef0fed19070e",
+      "runner_sha256": "0fa9b22fe13f506a36d5c8e3303e8a37717c4360c8dc0754594d7cbb780c525e",
+      "spec_sha256": "f7a03a67706a91b169a257cec3069c36fd08c014d06403d45130f3fd9ffbc94f",
+      "status": "SURVIVED",
+      "test_output_sha256": "cfc5e3029ff8a3580b99ae802afb5558d7dd0e10227166f61e7c0b90c868e1d4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac969cb577085b82d482b28ecb8a6f9d6ecce79d65dbe5f42ec29e3d17a5fb2d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.......................F....                                             [100%]\n=================================== FAILURES ===================================\n_________________________ test_formal_true_is_rejected _________________________\n[gw8] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-2/popen-gw8/test_formal_true_is_rejected0')\n\n    def test_formal_true_is_rejected(tmp_path):\n>       _reject_changed(tmp_path, lambda r: r.update(formal=True), \"formal must\")\n\norchestrator/tests/test_plot_a1_sized_paired.py:281: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_a1_sized_paired.py:154: in _reject_changed\n    _reject(lambda: PLOT.load_leaf(root, expected_hashes=hashes), phrase)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function _reject_changed.<locals>.<lambda> at 0x14e1d22e37f0>\nphrase = 'formal must'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_formal_true_is_rejected\n1 failed, 27 passed in 7.18s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_formal_true_is_rejected\" nodeid_bytes=77 nodeid_omitted_bytes=0 source_bytes=1136 retained_bytes=1136 omitted_bytes=0 rendered_excerpt_bytes=1191 sha256=0dcd5b37ccce3cb15a07f4af0c3ff7054bd355123214768a77bbbf6462386cd2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-2/popen-gw8/test_formal_true_is_rejected0')\n> \n>     def test_formal_true_is_rejected(tmp_path):\n> >       _reject_changed(tmp_path, lambda r: r.update(formal=True), \"formal must\")\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:281: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_a1_sized_paired.py:154: in _reject_changed\n>     _reject(lambda: PLOT.load_leaf(root, expected_hashes=hashes), phrase)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function _reject_changed.<locals>.<lambda> at 0x14e1d22e37f0>\n> phrase = 'formal must'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1136 retained_bytes=1136 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1895 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "831a8671f46e76999f24a9a845649114b937422282c406baaab3b8e093dffdfc"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e5ee9fbaad34bf9ff284f597e58c4aee4009d591c2b37f7f591d5fdf6cb7970a",
+      "duration_s": 8.082,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_formal_true_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_formal_true_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m1-drop-formal-check",
+      "injection_diff_sha256": "012878fd2929d3c9f0821b475bc633d1e2d1a36cf8722a221c46bb03cba2dbee",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "ace2cac82ee007788ad488eee90a67486c200002c05a0f2e1e80dd8388f79255",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "    _require(record[\"formal\"] in (False, True), \"formal must be false\")\n",
+          "old": "    _require(record[\"formal\"] is False, \"formal must be false\")\n"
+        }
+      ],
+      "repo_head": "fd7506c746c406543ce144a9455cef0fed19070e",
+      "runner_sha256": "0fa9b22fe13f506a36d5c8e3303e8a37717c4360c8dc0754594d7cbb780c525e",
+      "spec_sha256": "f7a03a67706a91b169a257cec3069c36fd08c014d06403d45130f3fd9ffbc94f",
+      "status": "KILLED",
+      "test_output_sha256": "831a8671f46e76999f24a9a845649114b937422282c406baaab3b8e093dffdfc",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac969cb577085b82d482b28ecb8a6f9d6ecce79d65dbe5f42ec29e3d17a5fb2d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.......................F....                                             [100%]\n=================================== FAILURES ===================================\n_________________ test_promotion_prohibited_false_is_rejected __________________\n[gw9] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-3/popen-gw9/test_promotion_prohibited_fals0')\n\n    def test_promotion_prohibited_false_is_rejected(tmp_path):\n>       _reject_changed(tmp_path, lambda r: r.update(promotion_prohibited=False), \"promotion_prohibited must\")\n\norchestrator/tests/test_plot_a1_sized_paired.py:285: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_a1_sized_paired.py:154: in _reject_changed\n    _reject(lambda: PLOT.load_leaf(root, expected_hashes=hashes), phrase)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function _reject_changed.<locals>.<lambda> at 0x14bbcddc3880>\nphrase = 'promotion_prohibited must'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_promotion_prohibited_false_is_rejected\n1 failed, 27 passed in 7.35s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_promotion_prohibited_false_is_rejected\" nodeid_bytes=92 nodeid_omitted_bytes=0 source_bytes=1196 retained_bytes=1196 omitted_bytes=0 rendered_excerpt_bytes=1251 sha256=41d47dad63bc8e5439312c349c9db2d69949bef71c8fbd56611821db77f09ba1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-3/popen-gw9/test_promotion_prohibited_fals0')\n> \n>     def test_promotion_prohibited_false_is_rejected(tmp_path):\n> >       _reject_changed(tmp_path, lambda r: r.update(promotion_prohibited=False), \"promotion_prohibited must\")\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:285: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_a1_sized_paired.py:154: in _reject_changed\n>     _reject(lambda: PLOT.load_leaf(root, expected_hashes=hashes), phrase)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function _reject_changed.<locals>.<lambda> at 0x14bbcddc3880>\n> phrase = 'promotion_prohibited must'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1196 retained_bytes=1196 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1970 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d8998ced65df28629a82506990112a5bfe5394a62c5ca071d1bf76ae8df9f5da"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e5ee9fbaad34bf9ff284f597e58c4aee4009d591c2b37f7f591d5fdf6cb7970a",
+      "duration_s": 8.222,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_promotion_prohibited_false_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_promotion_prohibited_false_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m2-drop-promotion-prohibited-check",
+      "injection_diff_sha256": "c12f41d2f4a93109bd6387b0b5ea24fbfd96211d4b645aa518065d2338cc0bbb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "b64d416f35d115ee68248a2d230a1bdbdd043ff43e939c61a68ace760e6f6d9f",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "    _require(record[\"promotion_prohibited\"] in (False, True), \"promotion_prohibited must be true\")\n",
+          "old": "    _require(record[\"promotion_prohibited\"] is True, \"promotion_prohibited must be true\")\n"
+        }
+      ],
+      "repo_head": "fd7506c746c406543ce144a9455cef0fed19070e",
+      "runner_sha256": "0fa9b22fe13f506a36d5c8e3303e8a37717c4360c8dc0754594d7cbb780c525e",
+      "spec_sha256": "f7a03a67706a91b169a257cec3069c36fd08c014d06403d45130f3fd9ffbc94f",
+      "status": "KILLED",
+      "test_output_sha256": "d8998ced65df28629a82506990112a5bfe5394a62c5ca071d1bf76ae8df9f5da",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac969cb577085b82d482b28ecb8a6f9d6ecce79d65dbe5f42ec29e3d17a5fb2d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.......................F....                                             [100%]\n=================================== FAILURES ===================================\n_____________________ test_statistics_mismatch_is_rejected _____________________\n[gw10] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-4/popen-gw10/test_statistics_mismatch_is_re0')\n\n    def test_statistics_mismatch_is_rejected(tmp_path):\n>       _reject_changed(tmp_path, lambda r: r[\"workloads\"][0][\"statistics\"].update(\n            mean_signed_positional_difference_tps=1), \"numeric crosscheck\")\n\norchestrator/tests/test_plot_a1_sized_paired.py:289: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_a1_sized_paired.py:154: in _reject_changed\n    _reject(lambda: PLOT.load_leaf(root, expected_hashes=hashes), phrase)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function _reject_changed.<locals>.<lambda> at 0x14a1f5fe77f0>\nphrase = 'numeric crosscheck'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_statistics_mismatch_is_rejected\n1 failed, 27 passed in 7.30s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_statistics_mismatch_is_rejected\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=1233 retained_bytes=1233 omitted_bytes=0 rendered_excerpt_bytes=1290 sha256=42ea6059a69dc9a423776599ddeb41f58130164bf7c7e942776cbcba76192cfc\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-4/popen-gw10/test_statistics_mismatch_is_re0')\n> \n>     def test_statistics_mismatch_is_rejected(tmp_path):\n> >       _reject_changed(tmp_path, lambda r: r[\"workloads\"][0][\"statistics\"].update(\n>             mean_signed_positional_difference_tps=1), \"numeric crosscheck\")\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:289: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_a1_sized_paired.py:154: in _reject_changed\n>     _reject(lambda: PLOT.load_leaf(root, expected_hashes=hashes), phrase)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function _reject_changed.<locals>.<lambda> at 0x14a1f5fe77f0>\n> phrase = 'numeric crosscheck'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1233 retained_bytes=1233 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2002 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d88007f34ea4231830b8f7969b282c5e6105d651274954c82ee75dd09bee1154"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e5ee9fbaad34bf9ff284f597e58c4aee4009d591c2b37f7f591d5fdf6cb7970a",
+      "duration_s": 8.193,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_statistics_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_statistics_mismatch_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m3-drop-statistics-crosscheck",
+      "injection_diff_sha256": "f2419d2ba60a56badf08a866f272ee0f5952aaaa01441ac2262448fff93313d2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "2d884cbaa11cfbeea14b76ff2daa28ff421a10780474149caeeb2d32c7756360",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "        for key, field in STAT_FIELDS.items():\n            _number(stat[field])\n",
+          "old": "        for key, field in STAT_FIELDS.items():\n            _close(stat[field], values[key])\n"
+        }
+      ],
+      "repo_head": "fd7506c746c406543ce144a9455cef0fed19070e",
+      "runner_sha256": "0fa9b22fe13f506a36d5c8e3303e8a37717c4360c8dc0754594d7cbb780c525e",
+      "spec_sha256": "f7a03a67706a91b169a257cec3069c36fd08c014d06403d45130f3fd9ffbc94f",
+      "status": "KILLED",
+      "test_output_sha256": "d88007f34ea4231830b8f7969b282c5e6105d651274954c82ee75dd09bee1154",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac969cb577085b82d482b28ecb8a6f9d6ecce79d65dbe5f42ec29e3d17a5fb2d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.......................F....                                             [100%]\n=================================== FAILURES ===================================\n___________________ test_classification_mismatch_is_rejected ___________________\n[gw11] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-5/popen-gw11/test_classification_mismatch_i0')\n\n    def test_classification_mismatch_is_rejected(tmp_path):\n>       _reject_changed(tmp_path, lambda r: r[\"workloads\"][0][\"statistics\"].update(\n            classification=\"unresolved\"), \"classification mismatch\")\n\norchestrator/tests/test_plot_a1_sized_paired.py:294: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_a1_sized_paired.py:154: in _reject_changed\n    _reject(lambda: PLOT.load_leaf(root, expected_hashes=hashes), phrase)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function _reject_changed.<locals>.<lambda> at 0x151a0047b880>\nphrase = 'classification mismatch'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_classification_mismatch_is_rejected\n1 failed, 27 passed in 7.49s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_classification_mismatch_is_rejected\" nodeid_bytes=89 nodeid_omitted_bytes=0 source_bytes=1235 retained_bytes=1235 omitted_bytes=0 rendered_excerpt_bytes=1292 sha256=3c91d601eb9da82ab501512d34cab0fb4b4ab33b130905df452316c961891e92\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-5/popen-gw11/test_classification_mismatch_i0')\n> \n>     def test_classification_mismatch_is_rejected(tmp_path):\n> >       _reject_changed(tmp_path, lambda r: r[\"workloads\"][0][\"statistics\"].update(\n>             classification=\"unresolved\"), \"classification mismatch\")\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:294: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_a1_sized_paired.py:154: in _reject_changed\n>     _reject(lambda: PLOT.load_leaf(root, expected_hashes=hashes), phrase)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function _reject_changed.<locals>.<lambda> at 0x151a0047b880>\n> phrase = 'classification mismatch'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1235 retained_bytes=1235 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2008 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "2e9815a15d1b36904a641712e9e776c0885ee25758c445c1536dbe165c6dca6f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e5ee9fbaad34bf9ff284f597e58c4aee4009d591c2b37f7f591d5fdf6cb7970a",
+      "duration_s": 8.407,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_classification_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_classification_mismatch_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m4-drop-classification-predicate",
+      "injection_diff_sha256": "600804a38afcbc60f0b8554058756cc61c4a9cd382eda657e2622f137c5d8f2d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e4595e1527aa918af3be7e1b782eb3fd91c65898551854c824d22572a20233de",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "        _require(stat[\"classification\"] in (\"resolved-above-floor\", \"bounded-below-floor\", \"unresolved\", expected_class), \"classification mismatch\")\n",
+          "old": "        _require(stat[\"classification\"] == expected_class, \"classification mismatch\")\n"
+        }
+      ],
+      "repo_head": "fd7506c746c406543ce144a9455cef0fed19070e",
+      "runner_sha256": "0fa9b22fe13f506a36d5c8e3303e8a37717c4360c8dc0754594d7cbb780c525e",
+      "spec_sha256": "f7a03a67706a91b169a257cec3069c36fd08c014d06403d45130f3fd9ffbc94f",
+      "status": "KILLED",
+      "test_output_sha256": "2e9815a15d1b36904a641712e9e776c0885ee25758c445c1536dbe165c6dca6f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac969cb577085b82d482b28ecb8a6f9d6ecce79d65dbe5f42ec29e3d17a5fb2d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.......................F....                                             [100%]\n=================================== FAILURES ===================================\n__________________ test_pair_difference_mismatch_is_rejected ___________________\n[gw12] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-6/popen-gw12/test_pair_difference_mismatch_0')\n\n    def test_pair_difference_mismatch_is_rejected(tmp_path):\n        root, _ = _fixture(tmp_path)\n        def change(r):\n            w = r[\"workloads\"][0]\n            # Alter arm and pair together: only the signed-difference identity fails.\n            arm = PLOT.VARIANT_ARMS[w[\"workload\"]]\n            w[\"arms\"][arm][\"raw_tps\"][0] += 100\n            w[\"statistics\"][\"pairs\"][0][arm + \"_tps\"] += 100\n        hashes = _change(root, change)\n>       _reject(lambda: PLOT.load_leaf(root, expected_hashes=hashes), \"pair difference\")\n\norchestrator/tests/test_plot_a1_sized_paired.py:307: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function test_pair_difference_mismatch_is_rejected.<locals>.<lambda> at 0x1537cc3677f0>\nphrase = 'pair difference'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_pair_difference_mismatch_is_rejected\n1 failed, 27 passed in 7.63s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_pair_difference_mismatch_is_rejected\" nodeid_bytes=90 nodeid_omitted_bytes=0 source_bytes=1342 retained_bytes=1342 omitted_bytes=0 rendered_excerpt_bytes=1407 sha256=b6799a2e108d1d19341c27c5c0fa252d75ab6705e329171116218b27eb73e6ec\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-6/popen-gw12/test_pair_difference_mismatch_0')\n> \n>     def test_pair_difference_mismatch_is_rejected(tmp_path):\n>         root, _ = _fixture(tmp_path)\n>         def change(r):\n>             w = r[\"workloads\"][0]\n>             # Alter arm and pair together: only the signed-difference identity fails.\n>             arm = PLOT.VARIANT_ARMS[w[\"workload\"]]\n>             w[\"arms\"][arm][\"raw_tps\"][0] += 100\n>             w[\"statistics\"][\"pairs\"][0][arm + \"_tps\"] += 100\n>         hashes = _change(root, change)\n> >       _reject(lambda: PLOT.load_leaf(root, expected_hashes=hashes), \"pair difference\")\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:307: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function test_pair_difference_mismatch_is_rejected.<locals>.<lambda> at 0x1537cc3677f0>\n> phrase = 'pair difference'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1342 retained_bytes=1342 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2124 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "d2bc2d6f2c8f6f96d6d52ef25a7682bfa4b642603a0f4ce550e84a27fe2f55f8"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e5ee9fbaad34bf9ff284f597e58c4aee4009d591c2b37f7f591d5fdf6cb7970a",
+      "duration_s": 8.535,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_pair_difference_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_pair_difference_mismatch_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m5-drop-pair-difference-check",
+      "injection_diff_sha256": "9e31f4e0a8cd3bb50df23e660654d93d5e44d5a1ed4c2e37866ac7e57fb1777d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6cbbdb835f65d3b835edcbd33387350660b50158eab679ea88c07140a929924d",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "            _require(_number(d) == d, \"pair difference mismatch\")\n",
+          "old": "            _require(d == v - b, \"pair difference mismatch\")\n"
+        }
+      ],
+      "repo_head": "fd7506c746c406543ce144a9455cef0fed19070e",
+      "runner_sha256": "0fa9b22fe13f506a36d5c8e3303e8a37717c4360c8dc0754594d7cbb780c525e",
+      "spec_sha256": "f7a03a67706a91b169a257cec3069c36fd08c014d06403d45130f3fd9ffbc94f",
+      "status": "KILLED",
+      "test_output_sha256": "d2bc2d6f2c8f6f96d6d52ef25a7682bfa4b642603a0f4ce550e84a27fe2f55f8",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac969cb577085b82d482b28ecb8a6f9d6ecce79d65dbe5f42ec29e3d17a5fb2d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n......................FF....                                             [100%]\n=================================== FAILURES ===================================\n_________________ test_pinned_hashes_are_used_when_no_override _________________\n[gw18] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-7/popen-gw18/test_pinned_hashes_are_used_wh0')\n\n    def test_pinned_hashes_are_used_when_no_override(tmp_path):\n        root, _ = _fixture(tmp_path)\n>       _reject(lambda: PLOT.load_leaf(root), \"SHA-256 mismatch\")\n\norchestrator/tests/test_plot_a1_sized_paired.py:367: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function test_pinned_hashes_are_used_when_no_override.<locals>.<lambda> at 0x153995b171c0>\nphrase = 'SHA-256 mismatch'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n_______________________ test_leaf_hash_drift_is_rejected _______________________\n[gw13] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-7/popen-gw13/test_leaf_hash_drift_is_reject0')\n\n    def test_leaf_hash_drift_is_rejected(tmp_path):\n        root, hashes = _fixture(tmp_path)\n        path = root / PLOT.COMPLETE_JSON\n        path.write_text(path.read_text() + \"\\n\")\n>       _reject(lambda: PLOT.load_leaf(root, expected_hashes=hashes), \"SHA-256\")\n\norchestrator/tests/test_plot_a1_sized_paired.py:314: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function test_leaf_hash_drift_is_rejected.<locals>.<lambda> at 0x1459f3aab130>\nphrase = 'SHA-256'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_pinned_hashes_are_used_when_no_override\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_leaf_hash_drift_is_rejected\n2 failed, 26 passed in 7.40s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_leaf_hash_drift_is_rejected\" nodeid_bytes=81 nodeid_omitted_bytes=0 source_bytes=1061 retained_bytes=1061 omitted_bytes=0 rendered_excerpt_bytes=1119 sha256=c6f62e7a2336971915b1de7484223407e626099b028bd5549548db4bd2458b2d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw13] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-7/popen-gw13/test_leaf_hash_drift_is_reject0')\n> \n>     def test_leaf_hash_drift_is_rejected(tmp_path):\n>         root, hashes = _fixture(tmp_path)\n>         path = root / PLOT.COMPLETE_JSON\n>         path.write_text(path.read_text() + \"\\x5cn\")\n> >       _reject(lambda: PLOT.load_leaf(root, expected_hashes=hashes), \"SHA-256\")\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:314: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function test_leaf_hash_drift_is_rejected.<locals>.<lambda> at 0x1459f3aab130>\n> phrase = 'SHA-256'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_pinned_hashes_are_used_when_no_override\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=984 retained_bytes=984 omitted_bytes=0 rendered_excerpt_bytes=1035 sha256=d7b190bc2bba1ab9988c95a12b1d69071d2912d6c25cde6a2a596758185b391e\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-7/popen-gw18/test_pinned_hashes_are_used_wh0')\n> \n>     def test_pinned_hashes_are_used_when_no_override(tmp_path):\n>         root, _ = _fixture(tmp_path)\n> >       _reject(lambda: PLOT.load_leaf(root), \"SHA-256 mismatch\")\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:367: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function test_pinned_hashes_are_used_when_no_override.<locals>.<lambda> at 0x153995b171c0>\n> phrase = 'SHA-256 mismatch'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2045 retained_bytes=2045 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3293 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bab9814226149de2d7c5fbd476265bf3d01f97ed277f5cf4420fba0c2c74eb41"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e5ee9fbaad34bf9ff284f597e58c4aee4009d591c2b37f7f591d5fdf6cb7970a",
+      "duration_s": 8.252,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_leaf_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_pinned_hashes_are_used_when_no_override"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_pinned_hashes_are_used_when_no_override",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_leaf_hash_drift_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m6-drop-sha-comparison",
+      "injection_diff_sha256": "f4ef929843ae13ababb5e03b0a9c11e7daa463f64c5c87983bedb72b66b4cf4d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7a43cef8f1371b815839f0bce94288fcd79f09ebe3b78d330b37a3a4c253bfda",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "        _require(len(digest) == len(hashes[path]), f\"SHA-256 mismatch: {path}\")\n",
+          "old": "        _require(digest == hashes[path], f\"SHA-256 mismatch: {path}\")\n"
+        }
+      ],
+      "repo_head": "fd7506c746c406543ce144a9455cef0fed19070e",
+      "runner_sha256": "0fa9b22fe13f506a36d5c8e3303e8a37717c4360c8dc0754594d7cbb780c525e",
+      "spec_sha256": "f7a03a67706a91b169a257cec3069c36fd08c014d06403d45130f3fd9ffbc94f",
+      "status": "KILLED",
+      "test_output_sha256": "bab9814226149de2d7c5fbd476265bf3d01f97ed277f5cf4420fba0c2c74eb41",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac969cb577085b82d482b28ecb8a6f9d6ecce79d65dbe5f42ec29e3d17a5fb2d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nbringing up nodes...\nbringing up nodes...\n\n.........................F.F                                             [100%]\n=================================== FAILURES ===================================\n________________________ test_bbox_overlap_is_a_failure ________________________\n[gw3] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-8/popen-gw3/test_bbox_overlap_is_a_failure0')\n\n    def test_bbox_overlap_is_a_failure(tmp_path):\n        fig, axes = PLOT.make_figure(_data(tmp_path))\n        try:\n            PLOT.check_figure_layout(fig, axes)\n            fig.text(.5, .5, \"overlap alpha\")\n            fig.text(.5, .5, \"overlap beta\")\n>           _reject(lambda: PLOT.check_figure_layout(fig, axes), \"overlap\")\n\norchestrator/tests/test_plot_a1_sized_paired.py:227: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function test_bbox_overlap_is_a_failure.<locals>.<lambda> at 0x14f7991cc4c0>\nphrase = 'overlap'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n____________________ test_layout_failure_publishes_nothing _____________________\n[gw4] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-8/popen-gw4/test_layout_failure_publishes_0')\n\n    def test_layout_failure_publishes_nothing(tmp_path):\n        data = _data(tmp_path)\n        fig, axes = PLOT.make_figure(data)\n        prefix = tmp_path / \"fig9_overlap\"\n        try:\n            fig.text(.5, .5, \"overlap one\")\n            fig.text(.5, .5, \"overlap two\")\n>           _reject(lambda: PLOT._publish_outputs(fig, axes, prefix, data, []), \"overlap\")\n\norchestrator/tests/test_plot_a1_sized_paired.py:239: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function test_layout_failure_publishes_nothing.<locals>.<lambda> at 0x1485b17e04c0>\nphrase = 'overlap'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_bbox_overlap_is_a_failure\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_layout_failure_publishes_nothing\n2 failed, 26 passed in 7.31s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_layout_failure_publishes_nothing\" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=1165 retained_bytes=1165 omitted_bytes=0 rendered_excerpt_bytes=1226 sha256=014eecc11dfff6d5b968be7a671ce3080a666479235412636751779f5e1d563b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-8/popen-gw4/test_layout_failure_publishes_0')\n> \n>     def test_layout_failure_publishes_nothing(tmp_path):\n>         data = _data(tmp_path)\n>         fig, axes = PLOT.make_figure(data)\n>         prefix = tmp_path / \"fig9_overlap\"\n>         try:\n>             fig.text(.5, .5, \"overlap one\")\n>             fig.text(.5, .5, \"overlap two\")\n> >           _reject(lambda: PLOT._publish_outputs(fig, axes, prefix, data, []), \"overlap\")\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:239: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function test_layout_failure_publishes_nothing.<locals>.<lambda> at 0x1485b17e04c0>\n> phrase = 'overlap'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_bbox_overlap_is_a_failure\" nodeid_bytes=79 nodeid_omitted_bytes=0 source_bytes=1124 retained_bytes=1124 omitted_bytes=0 rendered_excerpt_bytes=1183 sha256=295c1942ede653961abc498e7efe1333b9720857e757b2ac3995663e9ee3cc4f\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-8/popen-gw3/test_bbox_overlap_is_a_failure0')\n> \n>     def test_bbox_overlap_is_a_failure(tmp_path):\n>         fig, axes = PLOT.make_figure(_data(tmp_path))\n>         try:\n>             PLOT.check_figure_layout(fig, axes)\n>             fig.text(.5, .5, \"overlap alpha\")\n>             fig.text(.5, .5, \"overlap beta\")\n> >           _reject(lambda: PLOT.check_figure_layout(fig, axes), \"overlap\")\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:227: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function test_bbox_overlap_is_a_failure.<locals>.<lambda> at 0x14f7991cc4c0>\n> phrase = 'overlap'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2289 retained_bytes=2289 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3541 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e661a74a6866f2f693a1983497c8f1c3e96e8ee4fec2622435691b0b1a61ff2d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e5ee9fbaad34bf9ff284f597e58c4aee4009d591c2b37f7f591d5fdf6cb7970a",
+      "duration_s": 8.141,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_layout_failure_publishes_nothing"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_layout_failure_publishes_nothing"
+      ],
+      "hang_risk": false,
+      "id": "m7-layout-check-noop",
+      "injection_diff_sha256": "4bbcc2c4c1a35d88e1b36d1765800eaa17210a20e428b0593490e5434cd4a09d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9f2dae94307a8bb44cbeb53b86262c2837c7616f7da798a0f7efcf04fc9a0561",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "def check_figure_layout(fig, axes):\n    return None\n    from matplotlib.text import Text\n",
+          "old": "def check_figure_layout(fig, axes):\n    from matplotlib.text import Text\n"
+        }
+      ],
+      "repo_head": "fd7506c746c406543ce144a9455cef0fed19070e",
+      "runner_sha256": "0fa9b22fe13f506a36d5c8e3303e8a37717c4360c8dc0754594d7cbb780c525e",
+      "spec_sha256": "f7a03a67706a91b169a257cec3069c36fd08c014d06403d45130f3fd9ffbc94f",
+      "status": "KILLED",
+      "test_output_sha256": "e661a74a6866f2f693a1983497c8f1c3e96e8ee4fec2622435691b0b1a61ff2d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac969cb577085b82d482b28ecb8a6f9d6ecce79d65dbe5f42ec29e3d17a5fb2d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n......................FF....                                             [100%]\n=================================== FAILURES ===================================\n________________ test_caption_contains_fixed_literals_and_lane _________________\n[gw5] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-9/popen-gw5/test_caption_contains_fixed_li0')\n\n    def test_caption_contains_fixed_literals_and_lane(tmp_path):\n        caption = PLOT._caption(_data(tmp_path), \"fig9_test\")\n        literals = [\n            \"formal: false; promotion_prohibited: true; result_authority: sized-preregistered-descriptive-only\",\n            \"This figure reports a single attempt of a non-certified lane: it is not a headline value, no cross-workload conclusion is drawn (preregistration section 7.2), it is not a reproduction of C1, and one attempt does not speak to stability across repeated attempts.\",\n            \"Panel y scales are workload-local and must not be compared across panels.\",\n            \"not a performance certification\", \"fixture-0.nqsv, fixture-1.nqsv, fixture-2.nqsv\",\n            \"fixture-node-0, fixture-node-1, fixture-node-2\", \"sign positive, positive and negative\",\n            \"no perf\", \"legacy\", \"all 6 arms\", \"Pilot observations did not enter the estimate\",\n        ]\n        for literal in literals:\n>           assert literal in caption\nE           AssertionError: assert 'formal: false; promotion_prohibited: true; result_authority: sized-preregistered-descriptive-only' in 'Figure 9. A-1 balanced five-rep paired comparison, sized run attempt-0001 (study paper-story-a1-20260901-balanced5-si...timate; the estimand is the difference under the balanced five-rep schedule, not a carryover-free steady-state effect.'\n\norchestrator/tests/test_plot_a1_sized_paired.py:256: AssertionError\n____________ test_landed_fig9_repo_closure_and_caption_when_present ____________\n[gw25] linux -- Python 3.10.12 /usr/bin/python3\n\nprovenance = {'study_id': 'paper-story-a1-20260901-balanced5-sized-v1', 'measurement_source_commit': 'd2ebef7a407dc6be61622ed596cf0...62e72389ed3b706ec', 'measurement_conditions': {'threads': 48, 'records': 1000000, 'skew': '0.9', 'rmw': '0', ...}, ...}\nrepo_root = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2775-a1-sized-results-recovery/mutation-scratch/.izanagi-mutation-worktree/repo')\nexpected_hashes = None\n\n    def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):\n        \"\"\"Bind landed images, caption source, cells, and projections to the current leaf.\"\"\"\n        try:\n            root = Path(repo_root).resolve()\n            data = load_leaf(root, expected_hashes=expected_hashes)\n            _require(provenance[\"schema\"] == SCHEMA, \"provenance schema mismatch\")\n            _require(provenance[\"generator\"][\"path\"] == GENERATOR_PATH, \"generator path mismatch\")\n            for key, value in data.items():\n                if key != \"repo_root\":\n                    _require(provenance[key] == value, f\"{key} closure mismatch\")\n            outputs = provenance[\"outputs\"]\n            _require(len(outputs) == 2 and [Path(r[\"path\"]).suffix for r in outputs] == [\".png\", \".pdf\"],\n                     \"output paths mismatch\")\n            prefix = Path(outputs[0][\"path\"]).with_suffix(\"\")\n            _require(Path(outputs[1][\"path\"]).with_suffix(\"\") == prefix, \"output prefix mismatch\")\n            for row in outputs:\n                _require(_sha256(root / row[\"path\"]) == row[\"sha256\"], \"output closure mismatch\")\n            _require(provenance[\"artist_series\"] == _artist_series(data), \"artist closure mismatch\")\n>           _require(provenance[\"caption\"] == _caption(data, prefix), \"caption closure mismatch\")\n\ntools/plotting/plot_a1_sized_paired.py:409: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'caption closure mismatch'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           a1_sized_under_test.FigureDataError: caption closure mismatch\n\ntools/plotting/plot_a1_sized_paired.py:81: FigureDataError\n\nThe above exception was the direct cause of the following exception:\n\n    def test_landed_fig9_repo_closure_and_caption_when_present():\n        prefix = REPO / \"docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1\"\n        paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n        readme = (prefix.parent / \"README.md\").read_text()\n        assert all(path.is_file() for path in paths), \"fig9 integration bundle is incomplete\"\n        prov = json.loads(paths[2].read_text())\n        _assert_landed_output_paths(prov)\n>       PLOT.validate_repo_closure(prov, REPO)\n\norchestrator/tests/test_plot_a1_sized_paired.py:478: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nprovenance = {'study_id': 'paper-story-a1-20260901-balanced5-sized-v1', 'measurement_source_commit': 'd2ebef7a407dc6be61622ed596cf0...62e72389ed3b706ec', 'measurement_conditions': {'threads': 48, 'records': 1000000, 'skew': '0.9', 'rmw': '0', ...}, ...}\nrepo_root = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2775-a1-sized-results-recovery/mutation-scratch/.izanagi-mutation-worktree/repo')\nexpected_hashes = None\n\n    def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):\n        \"\"\"Bind landed images, caption source, cells, and projections to the current leaf.\"\"\"\n        try:\n            root = Path(repo_root).resolve()\n            data = load_leaf(root, expected_hashes=expected_hashes)\n            _require(provenance[\"schema\"] == SCHEMA, \"provenance schema mismatch\")\n            _require(provenance[\"generator\"][\"path\"] == GENERATOR_PATH, \"generator path mismatch\")\n            for key, value in data.items():\n                if key != \"repo_root\":\n                    _require(provenance[key] == value, f\"{key} closure mismatch\")\n            outputs = provenance[\"outputs\"]\n            _require(len(outputs) == 2 and [Path(r[\"path\"]).suffix for r in outputs] == [\".png\", \".pdf\"],\n                     \"output paths mismatch\")\n            prefix = Path(outputs[0][\"path\"]).with_suffix(\"\")\n            _require(Path(outputs[1][\"path\"]).with_suffix(\"\") == prefix, \"output prefix mismatch\")\n            for row in outputs:\n                _require(_sha256(root / row[\"path\"]) == row[\"sha256\"], \"output closure mismatch\")\n            _require(provenance[\"artist_series\"] == _artist_series(data), \"artist closure mismatch\")\n            _require(provenance[\"caption\"] == _caption(data, prefix), \"caption closure mismatch\")\n        except (OSError, KeyError, TypeError, IndexError, ValueError) as exc:\n>           raise FigureDataError(f\"invalid repo closure: {exc}\") from exc\nE           a1_sized_under_test.FigureDataError: invalid repo closure: caption closure mismatch\n\ntools/plotting/plot_a1_sized_paired.py:411: FigureDataError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_caption_contains_fixed_literals_and_lane\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present\n2 failed, 26 passed in 7.26s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=5031 retained_bytes=3965 omitted_bytes=1066 rendered_excerpt_bytes=4096 sha256=b3595bc0326af6c9bff39d871841c152c79aa788d9b90f468fa16a4c635d00ae\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> (provenance[key] == value, f\"{key} closure mismatch\")\n>             outputs = provenance[\"outputs\"]\n>             _require(len(outputs) == 2 and [Path(r[\"path\"]).suffix for r in outputs] == [\".png\", \".pdf\"],\n>                      \"output paths mismatch\")\n>             prefix = Path(outputs[0][\"path\"]).with_suffix(\"\")\n>             _require(Path(outputs[1][\"path\"]).with_suffix(\"\") == prefix, \"output prefix mismatch\")\n>             for row in outputs:\n>                 _require(_sha256(root / row[\"path\"]) == row[\"sha256\"], \"output closure mismatch\")\n>             _require(provenance[\"artist_series\"] == _artist_series(data), \"artist closure mismatch\")\n> >           _require(provenance[\"caption\"] == _caption(data, prefix), \"caption closure mismatch\")\n> \n> tools/plotting/plot_a1_sized_paired.py:409: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False, message = 'caption closure mismatch'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           a1_sized_under_test.FigureDataError: caption closure mismatch\n> \n> tools/plotting/plot_a1_sized_paired.py:81: FigureDataError\n> \n> The above exception was the direct cause of the following exception:\n> \n>     def test_landed_fig9_repo_closure_and_caption_when_present():\n>         prefix = REPO / \"docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1\"\n>         paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n>         readme = (prefix.parent / \"README.md\").read_text()\n>         assert all(path.is_file() for path in paths), \"fig9 integration bundle is incomplete\"\n>         prov = json.loads(paths[2].read_text())\n>         _assert_landed_output_paths(prov)\n> >       PLOT.validate_repo_closure(prov, REPO)\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:478: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> provenance = {'study_id': 'paper-story-a1-20260901-balanced5-sized-v1', 'measurement_source_commit': 'd2ebef7a407dc6be61622ed596cf0...62e72389ed3b706ec', 'measurement_conditions': {'threads': 48, 'records': 1000000, 'skew': '0.9', 'rmw': '0', ...}, ...}\n> repo_root = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2775-a1-sized-results-recovery/mutation-scratch/.izanagi-mutation-worktree/repo')\n> expected_hashes = None\n> \n>     def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):\n>         \"\"\"Bind landed images, caption source, cells, and projections to the current leaf.\"\"\"\n>         try:\n>             root = Path(repo_root).resolve()\n>             data = load_leaf(root, expected_hashes=expected_hashes)\n>             _require(provenance[\"schema\"] == SCHEMA, \"provenance schema mismatch\")\n>             _require(provenance[\"generator\"][\"path\"] == GENERATOR_PATH, \"generator path mismatch\")\n>             for key, value in data.items():\n>                 if key != \"repo_root\":\n>                     _require(provenance[key] == value, f\"{key} closure mismatch\")\n>             outputs = provenance[\"outputs\"]\n>             _require(len(outputs) == 2 and [Path(r[\"path\"]).suffix for r in outputs] == [\".png\", \".pdf\"],\n>                      \"output paths mismatch\")\n>             prefix = Path(outputs[0][\"path\"]).with_suffix(\"\")\n>             _require(Path(outputs[1][\"path\"]).with_suffix(\"\") == prefix, \"output prefix mismatch\")\n>             for row in outputs:\n>                 _require(_sha256(root / row[\"path\"]) == row[\"sha256\"], \"output closure mismatch\")\n>             _require(provenance[\"artist_series\"] == _artist_series(data), \"artist closure mismatch\")\n>             _require(provenance[\"caption\"] == _caption(data, prefix), \"caption closure mismatch\")\n>         except (OSError, KeyError, TypeError, IndexError, ValueError) as exc:\n> >           raise FigureDataError(f\"invalid repo closure: {exc}\") from exc\n> E           a1_sized_under_test.FigureDataError: invalid repo closure: caption closure mismatch\n> \n> tools/plotting/plot_a1_sized_paired.py:411: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_caption_contains_fixed_literals_and_lane\" nodeid_bytes=94 nodeid_omitted_bytes=0 source_bytes=1594 retained_bytes=1594 omitted_bytes=0 rendered_excerpt_bytes=1633 sha256=d6c9ab00e527722a25d8434595e74db9a9b9071afc1f297be859e6f76c816c39\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-9/popen-gw5/test_caption_contains_fixed_li0')\n> \n>     def test_caption_contains_fixed_literals_and_lane(tmp_path):\n>         caption = PLOT._caption(_data(tmp_path), \"fig9_test\")\n>         literals = [\n>             \"formal: false; promotion_prohibited: true; result_authority: sized-preregistered-descriptive-only\",\n>             \"This figure reports a single attempt of a non-certified lane: it is not a headline value, no cross-workload conclusion is drawn (preregistration section 7.2), it is not a reproduction of C1, and one attempt does not speak to stability across repeated attempts.\",\n>             \"Panel y scales are workload-local and must not be compared across panels.\",\n>             \"not a performance certification\", \"fixture-0.nqsv, fixture-1.nqsv, fixture-2.nqsv\",\n>             \"fixture-node-0, fixture-node-1, fixture-node-2\", \"sign positive, positive and negative\",\n>             \"no perf\", \"legacy\", \"all 6 arms\", \"Pilot observations did not enter the estimate\",\n>         ]\n>         for literal in literals:\n> >           assert literal in caption\n> E           AssertionError: assert 'formal: false; promotion_prohibited: true; result_authority: sized-preregistered-descriptive-only' in 'Figure 9. A-1 balanced five-rep paired comparison, sized run attempt-0001 (study paper-story-a1-20260901-balanced5-si...timate; the estimand is the difference under the balanced five-rep schedule, not a carryover-free steady-state effect.'\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:256: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=6625 retained_bytes=5559 omitted_bytes=1066 budget_bytes=49152 rendered_bytes=6900 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "004ce8a26a1c2732933563478770ca134a7f584ab138b8e8b79655c93d196a7c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e5ee9fbaad34bf9ff284f597e58c4aee4009d591c2b37f7f591d5fdf6cb7970a",
+      "duration_s": 7.974,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_caption_contains_fixed_literals_and_lane",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_caption_contains_fixed_literals_and_lane",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present"
+      ],
+      "hang_risk": false,
+      "id": "m8-caption-drops-lane",
+      "injection_diff_sha256": "71ed22365ef4792c1374d3e108f7d6e19be8b1c5eb6d15b6aa626d9115584f14",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c8ab0a5ceaf64ade3e569f6df077943913b827b192649199c6a86545cc3de339",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "sized run attempt-0001 (study {data['study_id']}).\",\n",
+          "old": "sized run attempt-0001 (study {data['study_id']}; {FIXED_LANE}).\",\n"
+        }
+      ],
+      "repo_head": "fd7506c746c406543ce144a9455cef0fed19070e",
+      "runner_sha256": "0fa9b22fe13f506a36d5c8e3303e8a37717c4360c8dc0754594d7cbb780c525e",
+      "spec_sha256": "f7a03a67706a91b169a257cec3069c36fd08c014d06403d45130f3fd9ffbc94f",
+      "status": "KILLED",
+      "test_output_sha256": "004ce8a26a1c2732933563478770ca134a7f584ab138b8e8b79655c93d196a7c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac969cb577085b82d482b28ecb8a6f9d6ecce79d65dbe5f42ec29e3d17a5fb2d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.......................F....                                             [100%]\n=================================== FAILURES ===================================\n_______________________ test_uncertified_arm_is_rejected _______________________\n[gw15] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw15/test_uncertified_arm_is_reject0')\n\n    def test_uncertified_arm_is_rejected(tmp_path):\n>       _reject_changed(tmp_path, lambda r: r[\"workloads\"][0][\"arms\"][PLOT.VARIANT_ARMS[PLOT.WORKLOADS[0]]][\n            \"correctness_evidence\"].update(certified=[False]), \"uncertified\")\n\norchestrator/tests/test_plot_a1_sized_paired.py:328: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_a1_sized_paired.py:154: in _reject_changed\n    _reject(lambda: PLOT.load_leaf(root, expected_hashes=hashes), phrase)\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function _reject_changed.<locals>.<lambda> at 0x14d8afc1b370>\nphrase = 'uncertified'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_uncertified_arm_is_rejected\n1 failed, 27 passed in 7.23s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_uncertified_arm_is_rejected\" nodeid_bytes=81 nodeid_omitted_bytes=0 source_bytes=1250 retained_bytes=1250 omitted_bytes=0 rendered_excerpt_bytes=1307 sha256=07de506e76c2d065ec786de51869979b1ca47e536cba0fd2a2ff00701d752452\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-10/popen-gw15/test_uncertified_arm_is_reject0')\n> \n>     def test_uncertified_arm_is_rejected(tmp_path):\n> >       _reject_changed(tmp_path, lambda r: r[\"workloads\"][0][\"arms\"][PLOT.VARIANT_ARMS[PLOT.WORKLOADS[0]]][\n>             \"correctness_evidence\"].update(certified=[False]), \"uncertified\")\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:328: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_a1_sized_paired.py:154: in _reject_changed\n>     _reject(lambda: PLOT.load_leaf(root, expected_hashes=hashes), phrase)\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function _reject_changed.<locals>.<lambda> at 0x14d8afc1b370>\n> phrase = 'uncertified'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1250 retained_bytes=1250 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2015 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f725056a73ecf3e6ce1be29f58629c577ca998caec6d35fcdbda74379afc0036"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e5ee9fbaad34bf9ff284f597e58c4aee4009d591c2b37f7f591d5fdf6cb7970a",
+      "duration_s": 7.935,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_uncertified_arm_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_uncertified_arm_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m9-drop-certified-check",
+      "injection_diff_sha256": "6202d508beecd6676a207798de47fa7bf74bc663719e14a3a6e4a9d97eced1a8",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fef8a7635694ceb02b31ec1d79e08557183b37e0e2c636c74008d798135983bd",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "            _require(type(evidence[\"certified\"]) is list and len(evidence[\"certified\"]) == 1, \"uncertified arm\")\n",
+          "old": "            _require(type(evidence[\"certified\"]) is list and len(evidence[\"certified\"]) == 1\n                     and evidence[\"certified\"][0] is True, \"uncertified arm\")\n"
+        }
+      ],
+      "repo_head": "fd7506c746c406543ce144a9455cef0fed19070e",
+      "runner_sha256": "0fa9b22fe13f506a36d5c8e3303e8a37717c4360c8dc0754594d7cbb780c525e",
+      "spec_sha256": "f7a03a67706a91b169a257cec3069c36fd08c014d06403d45130f3fd9ffbc94f",
+      "status": "KILLED",
+      "test_output_sha256": "f725056a73ecf3e6ce1be29f58629c577ca998caec6d35fcdbda74379afc0036",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac969cb577085b82d482b28ecb8a6f9d6ecce79d65dbe5f42ec29e3d17a5fb2d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.......................F....                                             [100%]\n=================================== FAILURES ===================================\n____________________ test_policy_hash_mismatch_is_rejected _____________________\n[gw14] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw14/test_policy_hash_mismatch_is_r0')\n\n    def test_policy_hash_mismatch_is_rejected(tmp_path):\n        root, _ = _fixture(tmp_path)\n        path = root / PLOT.RECEIPT_JSON\n        receipt = json.loads(path.read_text())\n        receipt[\"policy\"][\"sha256\"] = \"c\" * 64\n        _write(path, receipt)\n        hashes = _change(root, lambda r: r.update(policy_sha256=\"c\" * 64))\n>       _reject(lambda: PLOT.load_leaf(root, expected_hashes=hashes), \"policy SHA-256\")\n\norchestrator/tests/test_plot_a1_sized_paired.py:324: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncall = <function test_policy_hash_mismatch_is_rejected.<locals>.<lambda> at 0x148b5fb67130>\nphrase = 'policy SHA-256'\n\n    def _reject(call, phrase=None):\n        try:\n            call()\n        except PLOT.FigureDataError as exc:\n            if phrase is not None:\n                assert phrase in str(exc), str(exc)\n        else:\n>           raise AssertionError(\"invalid evidence was accepted\")\nE           AssertionError: invalid evidence was accepted\n\norchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_policy_hash_mismatch_is_rejected\n1 failed, 27 passed in 7.24s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_policy_hash_mismatch_is_rejected\" nodeid_bytes=86 nodeid_omitted_bytes=0 source_bytes=1230 retained_bytes=1230 omitted_bytes=0 rendered_excerpt_bytes=1291 sha256=88bef2b4938d389fe4aa1f33e7b33b4dc531bec685e0cf2318f1a843cb71c5e1\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-11/popen-gw14/test_policy_hash_mismatch_is_r0')\n> \n>     def test_policy_hash_mismatch_is_rejected(tmp_path):\n>         root, _ = _fixture(tmp_path)\n>         path = root / PLOT.RECEIPT_JSON\n>         receipt = json.loads(path.read_text())\n>         receipt[\"policy\"][\"sha256\"] = \"c\" * 64\n>         _write(path, receipt)\n>         hashes = _change(root, lambda r: r.update(policy_sha256=\"c\" * 64))\n> >       _reject(lambda: PLOT.load_leaf(root, expected_hashes=hashes), \"policy SHA-256\")\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:324: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> call = <function test_policy_hash_mismatch_is_rejected.<locals>.<lambda> at 0x148b5fb67130>\n> phrase = 'policy SHA-256'\n> \n>     def _reject(call, phrase=None):\n>         try:\n>             call()\n>         except PLOT.FigureDataError as exc:\n>             if phrase is not None:\n>                 assert phrase in str(exc), str(exc)\n>         else:\n> >           raise AssertionError(\"invalid evidence was accepted\")\n> E           AssertionError: invalid evidence was accepted\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:148: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1230 retained_bytes=1230 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2004 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8ffb463085a95af71966a4b97b5e9418d5676eb7d2d0118a2983ea88d80d9adf"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e5ee9fbaad34bf9ff284f597e58c4aee4009d591c2b37f7f591d5fdf6cb7970a",
+      "duration_s": 7.923,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_policy_hash_mismatch_is_rejected"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_policy_hash_mismatch_is_rejected"
+      ],
+      "hang_risk": false,
+      "id": "m10-drop-policy-sha-binding",
+      "injection_diff_sha256": "3e19e1b5a299fc67ded12eb0fa907309f719d6104fec8e150ed2e89d1aca5aaf",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0be366b6f23930ad61cfbd9dd31edba0534b61da8f510ff285e2c8b69dc6cf34",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "    _require(len(result[\"policy_sha256\"]) == 64, \"policy SHA-256 mismatch\")\n",
+          "old": "    _require(result[\"policy_sha256\"] == _sha256(root / POLICY_PATH), \"policy SHA-256 mismatch\")\n"
+        }
+      ],
+      "repo_head": "fd7506c746c406543ce144a9455cef0fed19070e",
+      "runner_sha256": "0fa9b22fe13f506a36d5c8e3303e8a37717c4360c8dc0754594d7cbb780c525e",
+      "spec_sha256": "f7a03a67706a91b169a257cec3069c36fd08c014d06403d45130f3fd9ffbc94f",
+      "status": "KILLED",
+      "test_output_sha256": "8ffb463085a95af71966a4b97b5e9418d5676eb7d2d0118a2983ea88d80d9adf",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac969cb577085b82d482b28ecb8a6f9d6ecce79d65dbe5f42ec29e3d17a5fb2d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n......................FF....                                             [100%]\n=================================== FAILURES ===================================\n____________ test_landed_fig9_repo_closure_and_caption_when_present ____________\n[gw25] linux -- Python 3.10.12 /usr/bin/python3\n\nprovenance = {'study_id': 'paper-story-a1-20260901-balanced5-sized-v1', 'measurement_source_commit': 'd2ebef7a407dc6be61622ed596cf0...62e72389ed3b706ec', 'measurement_conditions': {'threads': 48, 'records': 1000000, 'skew': '0.9', 'rmw': '0', ...}, ...}\nrepo_root = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2775-a1-sized-results-recovery/mutation-scratch/.izanagi-mutation-worktree/repo')\nexpected_hashes = None\n\n    def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):\n        \"\"\"Bind landed images, caption source, cells, and projections to the current leaf.\"\"\"\n        try:\n            root = Path(repo_root).resolve()\n            data = load_leaf(root, expected_hashes=expected_hashes)\n            _require(provenance[\"schema\"] == SCHEMA, \"provenance schema mismatch\")\n            _require(provenance[\"generator\"][\"path\"] == GENERATOR_PATH, \"generator path mismatch\")\n            for key, value in data.items():\n                if key != \"repo_root\":\n                    _require(provenance[key] == value, f\"{key} closure mismatch\")\n            outputs = provenance[\"outputs\"]\n            _require(len(outputs) == 2 and [Path(r[\"path\"]).suffix for r in outputs] == [\".png\", \".pdf\"],\n                     \"output paths mismatch\")\n            prefix = Path(outputs[0][\"path\"]).with_suffix(\"\")\n            _require(Path(outputs[1][\"path\"]).with_suffix(\"\") == prefix, \"output prefix mismatch\")\n            for row in outputs:\n                _require(_sha256(root / row[\"path\"]) == row[\"sha256\"], \"output closure mismatch\")\n>           _require(provenance[\"artist_series\"] == _artist_series(data), \"artist closure mismatch\")\n\ntools/plotting/plot_a1_sized_paired.py:408: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'artist closure mismatch'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           a1_sized_under_test.FigureDataError: artist closure mismatch\n\ntools/plotting/plot_a1_sized_paired.py:81: FigureDataError\n\nThe above exception was the direct cause of the following exception:\n\n    def test_landed_fig9_repo_closure_and_caption_when_present():\n        prefix = REPO / \"docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1\"\n        paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n        readme = (prefix.parent / \"README.md\").read_text()\n        assert all(path.is_file() for path in paths), \"fig9 integration bundle is incomplete\"\n        prov = json.loads(paths[2].read_text())\n        _assert_landed_output_paths(prov)\n>       PLOT.validate_repo_closure(prov, REPO)\n\norchestrator/tests/test_plot_a1_sized_paired.py:478: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nprovenance = {'study_id': 'paper-story-a1-20260901-balanced5-sized-v1', 'measurement_source_commit': 'd2ebef7a407dc6be61622ed596cf0...62e72389ed3b706ec', 'measurement_conditions': {'threads': 48, 'records': 1000000, 'skew': '0.9', 'rmw': '0', ...}, ...}\nrepo_root = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2775-a1-sized-results-recovery/mutation-scratch/.izanagi-mutation-worktree/repo')\nexpected_hashes = None\n\n    def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):\n        \"\"\"Bind landed images, caption source, cells, and projections to the current leaf.\"\"\"\n        try:\n            root = Path(repo_root).resolve()\n            data = load_leaf(root, expected_hashes=expected_hashes)\n            _require(provenance[\"schema\"] == SCHEMA, \"provenance schema mismatch\")\n            _require(provenance[\"generator\"][\"path\"] == GENERATOR_PATH, \"generator path mismatch\")\n            for key, value in data.items():\n                if key != \"repo_root\":\n                    _require(provenance[key] == value, f\"{key} closure mismatch\")\n            outputs = provenance[\"outputs\"]\n            _require(len(outputs) == 2 and [Path(r[\"path\"]).suffix for r in outputs] == [\".png\", \".pdf\"],\n                     \"output paths mismatch\")\n            prefix = Path(outputs[0][\"path\"]).with_suffix(\"\")\n            _require(Path(outputs[1][\"path\"]).with_suffix(\"\") == prefix, \"output prefix mismatch\")\n            for row in outputs:\n                _require(_sha256(root / row[\"path\"]) == row[\"sha256\"], \"output closure mismatch\")\n            _require(provenance[\"artist_series\"] == _artist_series(data), \"artist closure mismatch\")\n            _require(provenance[\"caption\"] == _caption(data, prefix), \"caption closure mismatch\")\n        except (OSError, KeyError, TypeError, IndexError, ValueError) as exc:\n>           raise FigureDataError(f\"invalid repo closure: {exc}\") from exc\nE           a1_sized_under_test.FigureDataError: invalid repo closure: artist closure mismatch\n\ntools/plotting/plot_a1_sized_paired.py:411: FigureDataError\n________ test_artist_series_equal_provenance_cells_and_leaf_statistics _________\n[gw1] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-12/popen-gw1/test_artist_series_equal_prove0')\n\n    def test_artist_series_equal_provenance_cells_and_leaf_statistics(tmp_path):\n        root, hashes = _fixture(tmp_path)\n        data = PLOT.load_leaf(root, expected_hashes=hashes)\n        leaf = json.loads((root / PLOT.RESULT_JSON).read_text())\n        fig, axes = PLOT.make_figure(data)\n        try:\n            prov = _provenance(data, tmp_path)\n            assert fig._a1_artist_series == prov[\"artist_series\"]\n            for ax, s, c, w in zip(axes.flat, prov[\"artist_series\"], prov[\"workloads\"], leaf[\"workloads\"]):\n                for key, field in PLOT.STAT_FIELDS.items():\n                    assert math.isclose(c[key], w[\"statistics\"][field], rel_tol=1e-12)\n>               assert s[\"mean\"] == c[\"mean\"] / 1e6\nE               assert 0.406315 == (408555.0 / 1000000.0)\n\norchestrator/tests/test_plot_a1_sized_paired.py:191: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_artist_series_equal_provenance_cells_and_leaf_statistics\n2 failed, 26 passed in 7.32s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=4930 retained_bytes=3963 omitted_bytes=967 rendered_excerpt_bytes=4096 sha256=a2a2585c21f44cdea1ec8f4cbef983b47d5034a94b280b213f15e6d2de5e38fc\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> for key, value in data.items():\n>                 if key != \"repo_root\":\n>                     _require(provenance[key] == value, f\"{key} closure mismatch\")\n>             outputs = provenance[\"outputs\"]\n>             _require(len(outputs) == 2 and [Path(r[\"path\"]).suffix for r in outputs] == [\".png\", \".pdf\"],\n>                      \"output paths mismatch\")\n>             prefix = Path(outputs[0][\"path\"]).with_suffix(\"\")\n>             _require(Path(outputs[1][\"path\"]).with_suffix(\"\") == prefix, \"output prefix mismatch\")\n>             for row in outputs:\n>                 _require(_sha256(root / row[\"path\"]) == row[\"sha256\"], \"output closure mismatch\")\n> >           _require(provenance[\"artist_series\"] == _artist_series(data), \"artist closure mismatch\")\n> \n> tools/plotting/plot_a1_sized_paired.py:408: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False, message = 'artist closure mismatch'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           a1_sized_under_test.FigureDataError: artist closure mismatch\n> \n> tools/plotting/plot_a1_sized_paired.py:81: FigureDataError\n> \n> The above exception was the direct cause of the following exception:\n> \n>     def test_landed_fig9_repo_closure_and_caption_when_present():\n>         prefix = REPO / \"docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1\"\n>         paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n>         readme = (prefix.parent / \"README.md\").read_text()\n>         assert all(path.is_file() for path in paths), \"fig9 integration bundle is incomplete\"\n>         prov = json.loads(paths[2].read_text())\n>         _assert_landed_output_paths(prov)\n> >       PLOT.validate_repo_closure(prov, REPO)\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:478: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> provenance = {'study_id': 'paper-story-a1-20260901-balanced5-sized-v1', 'measurement_source_commit': 'd2ebef7a407dc6be61622ed596cf0...62e72389ed3b706ec', 'measurement_conditions': {'threads': 48, 'records': 1000000, 'skew': '0.9', 'rmw': '0', ...}, ...}\n> repo_root = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2775-a1-sized-results-recovery/mutation-scratch/.izanagi-mutation-worktree/repo')\n> expected_hashes = None\n> \n>     def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):\n>         \"\"\"Bind landed images, caption source, cells, and projections to the current leaf.\"\"\"\n>         try:\n>             root = Path(repo_root).resolve()\n>             data = load_leaf(root, expected_hashes=expected_hashes)\n>             _require(provenance[\"schema\"] == SCHEMA, \"provenance schema mismatch\")\n>             _require(provenance[\"generator\"][\"path\"] == GENERATOR_PATH, \"generator path mismatch\")\n>             for key, value in data.items():\n>                 if key != \"repo_root\":\n>                     _require(provenance[key] == value, f\"{key} closure mismatch\")\n>             outputs = provenance[\"outputs\"]\n>             _require(len(outputs) == 2 and [Path(r[\"path\"]).suffix for r in outputs] == [\".png\", \".pdf\"],\n>                      \"output paths mismatch\")\n>             prefix = Path(outputs[0][\"path\"]).with_suffix(\"\")\n>             _require(Path(outputs[1][\"path\"]).with_suffix(\"\") == prefix, \"output prefix mismatch\")\n>             for row in outputs:\n>                 _require(_sha256(root / row[\"path\"]) == row[\"sha256\"], \"output closure mismatch\")\n>             _require(provenance[\"artist_series\"] == _artist_series(data), \"artist closure mismatch\")\n>             _require(provenance[\"caption\"] == _caption(data, prefix), \"caption closure mismatch\")\n>         except (OSError, KeyError, TypeError, IndexError, ValueError) as exc:\n> >           raise FigureDataError(f\"invalid repo closure: {exc}\") from exc\n> E           a1_sized_under_test.FigureDataError: invalid repo closure: artist closure mismatch\n> \n> tools/plotting/plot_a1_sized_paired.py:411: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_artist_series_equal_provenance_cells_and_leaf_statistics\" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=996 retained_bytes=996 omitted_bytes=0 rendered_excerpt_bytes=1035 sha256=35a93a492022563d0bc72ff6b8cb9f8c0fdecb0296d63d75440f2ef6068094f0\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-12/popen-gw1/test_artist_series_equal_prove0')\n> \n>     def test_artist_series_equal_provenance_cells_and_leaf_statistics(tmp_path):\n>         root, hashes = _fixture(tmp_path)\n>         data = PLOT.load_leaf(root, expected_hashes=hashes)\n>         leaf = json.loads((root / PLOT.RESULT_JSON).read_text())\n>         fig, axes = PLOT.make_figure(data)\n>         try:\n>             prov = _provenance(data, tmp_path)\n>             assert fig._a1_artist_series == prov[\"artist_series\"]\n>             for ax, s, c, w in zip(axes.flat, prov[\"artist_series\"], prov[\"workloads\"], leaf[\"workloads\"]):\n>                 for key, field in PLOT.STAT_FIELDS.items():\n>                     assert math.isclose(c[key], w[\"statistics\"][field], rel_tol=1e-12)\n> >               assert s[\"mean\"] == c[\"mean\"] / 1e6\n> E               assert 0.406315 == (408555.0 / 1000000.0)\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:191: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=5926 retained_bytes=4959 omitted_bytes=967 budget_bytes=49152 rendered_bytes=6315 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f7a5c2aa4dce95043990e5f1cb39913d0bf0fa6377e615668bd206fd7a96a9d6"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e5ee9fbaad34bf9ff284f597e58c4aee4009d591c2b37f7f591d5fdf6cb7970a",
+      "duration_s": 8.116,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_artist_series_equal_provenance_cells_and_leaf_statistics",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_artist_series_equal_provenance_cells_and_leaf_statistics"
+      ],
+      "hang_risk": false,
+      "id": "m11-artist-median-instead-of-mean",
+      "injection_diff_sha256": "e822edb1f083672f1b3aaa68d163778de85cdbe37ee15861ae7748d191fb54be",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0f5afffd28fcdd796db36d5d3eb0f254cb80cf3a8dead3b18abbd65ff7dd95f6",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "    return [{\"workload\": c[\"workload\"], \"mean\": statistics.median(p[\"signed_difference\"] for p in c[\"pairs\"]) / 1e6,\n",
+          "old": "    return [{\"workload\": c[\"workload\"], \"mean\": c[\"mean\"] / 1e6,\n"
+        }
+      ],
+      "repo_head": "fd7506c746c406543ce144a9455cef0fed19070e",
+      "runner_sha256": "0fa9b22fe13f506a36d5c8e3303e8a37717c4360c8dc0754594d7cbb780c525e",
+      "spec_sha256": "f7a03a67706a91b169a257cec3069c36fd08c014d06403d45130f3fd9ffbc94f",
+      "status": "KILLED",
+      "test_output_sha256": "f7a5c2aa4dce95043990e5f1cb39913d0bf0fa6377e615668bd206fd7a96a9d6",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac969cb577085b82d482b28ecb8a6f9d6ecce79d65dbe5f42ec29e3d17a5fb2d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n......................FF....                                             [100%]\n=================================== FAILURES ===================================\n_____________________ test_provenance_binds_caption_source _____________________\n[gw17] linux -- Python 3.10.12 /usr/bin/python3\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-13/popen-gw17/test_provenance_binds_caption_0')\n\n    def test_provenance_binds_caption_source(tmp_path):\n        root, hashes = _fixture(tmp_path)\n        data = PLOT.load_leaf(root, expected_hashes=hashes)\n        prov = _provenance(data, tmp_path)\n        rows = [r for r in prov[\"tracked_inputs\"] if r[\"kind\"] == \"caption_source\"]\n>       assert rows == [{\"kind\": \"caption_source\", \"path\": PLOT.CAPTION_SOURCE,\n                         \"sha256\": _hash(root / PLOT.CAPTION_SOURCE),\n                         \"authority_scope\": \"wording of limitations and conditions only; not measurement values or classification\"}]\nE       AssertionError: assert [] == [{'kind': 'ca...ssification'}]\nE         \nE         Right contains one more item: {'kind': 'caption_source', 'path': 'docs/paper-story/results/2026-09-18-a1-balanced5-sized-attempt1-descriptive.md', '...ec3eecf885', 'authority_scope': 'wording of limitations and conditions only; not measurement values or classification'}\nE         Use -v to get more diff\n\norchestrator/tests/test_plot_a1_sized_paired.py:355: AssertionError\n____________ test_landed_fig9_repo_closure_and_caption_when_present ____________\n[gw25] linux -- Python 3.10.12 /usr/bin/python3\n\nprovenance = {'study_id': 'paper-story-a1-20260901-balanced5-sized-v1', 'measurement_source_commit': 'd2ebef7a407dc6be61622ed596cf0...62e72389ed3b706ec', 'measurement_conditions': {'threads': 48, 'records': 1000000, 'skew': '0.9', 'rmw': '0', ...}, ...}\nrepo_root = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2775-a1-sized-results-recovery/mutation-scratch/.izanagi-mutation-worktree/repo')\nexpected_hashes = None\n\n    def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):\n        \"\"\"Bind landed images, caption source, cells, and projections to the current leaf.\"\"\"\n        try:\n            root = Path(repo_root).resolve()\n            data = load_leaf(root, expected_hashes=expected_hashes)\n            _require(provenance[\"schema\"] == SCHEMA, \"provenance schema mismatch\")\n            _require(provenance[\"generator\"][\"path\"] == GENERATOR_PATH, \"generator path mismatch\")\n            for key, value in data.items():\n                if key != \"repo_root\":\n>                   _require(provenance[key] == value, f\"{key} closure mismatch\")\n\ntools/plotting/plot_a1_sized_paired.py:399: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncondition = False, message = 'tracked_inputs closure mismatch'\n\n    def _require(condition, message):\n        if not condition:\n>           raise FigureDataError(message)\nE           a1_sized_under_test.FigureDataError: tracked_inputs closure mismatch\n\ntools/plotting/plot_a1_sized_paired.py:81: FigureDataError\n\nThe above exception was the direct cause of the following exception:\n\n    def test_landed_fig9_repo_closure_and_caption_when_present():\n        prefix = REPO / \"docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1\"\n        paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n        readme = (prefix.parent / \"README.md\").read_text()\n        assert all(path.is_file() for path in paths), \"fig9 integration bundle is incomplete\"\n        prov = json.loads(paths[2].read_text())\n        _assert_landed_output_paths(prov)\n>       PLOT.validate_repo_closure(prov, REPO)\n\norchestrator/tests/test_plot_a1_sized_paired.py:478: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nprovenance = {'study_id': 'paper-story-a1-20260901-balanced5-sized-v1', 'measurement_source_commit': 'd2ebef7a407dc6be61622ed596cf0...62e72389ed3b706ec', 'measurement_conditions': {'threads': 48, 'records': 1000000, 'skew': '0.9', 'rmw': '0', ...}, ...}\nrepo_root = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2775-a1-sized-results-recovery/mutation-scratch/.izanagi-mutation-worktree/repo')\nexpected_hashes = None\n\n    def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):\n        \"\"\"Bind landed images, caption source, cells, and projections to the current leaf.\"\"\"\n        try:\n            root = Path(repo_root).resolve()\n            data = load_leaf(root, expected_hashes=expected_hashes)\n            _require(provenance[\"schema\"] == SCHEMA, \"provenance schema mismatch\")\n            _require(provenance[\"generator\"][\"path\"] == GENERATOR_PATH, \"generator path mismatch\")\n            for key, value in data.items():\n                if key != \"repo_root\":\n                    _require(provenance[key] == value, f\"{key} closure mismatch\")\n            outputs = provenance[\"outputs\"]\n            _require(len(outputs) == 2 and [Path(r[\"path\"]).suffix for r in outputs] == [\".png\", \".pdf\"],\n                     \"output paths mismatch\")\n            prefix = Path(outputs[0][\"path\"]).with_suffix(\"\")\n            _require(Path(outputs[1][\"path\"]).with_suffix(\"\") == prefix, \"output prefix mismatch\")\n            for row in outputs:\n                _require(_sha256(root / row[\"path\"]) == row[\"sha256\"], \"output closure mismatch\")\n            _require(provenance[\"artist_series\"] == _artist_series(data), \"artist closure mismatch\")\n            _require(provenance[\"caption\"] == _caption(data, prefix), \"caption closure mismatch\")\n        except (OSError, KeyError, TypeError, IndexError, ValueError) as exc:\n>           raise FigureDataError(f\"invalid repo closure: {exc}\") from exc\nE           a1_sized_under_test.FigureDataError: invalid repo closure: tracked_inputs closure mismatch\n\ntools/plotting/plot_a1_sized_paired.py:410: FigureDataError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_provenance_binds_caption_source\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present\n2 failed, 26 passed in 7.31s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present\" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=4366 retained_bytes=3959 omitted_bytes=407 rendered_excerpt_bytes=4096 sha256=84ba7a13550b3f6c4a83ef17ed5d69b5e4149ec617dc65b3b152a7bb24390b86\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> -scratch/.izanagi-mutation-worktree/repo')\n> expected_hashes = None\n> \n>     def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):\n>         \"\"\"Bind landed images, caption source, cells, and projections to the current leaf.\"\"\"\n>         try:\n>             root = Path(repo_root).resolve()\n>             data = load_leaf(root, expected_hashes=expected_hashes)\n>             _require(provenance[\"schema\"] == SCHEMA, \"provenance schema mismatch\")\n>             _require(provenance[\"generator\"][\"path\"] == GENERATOR_PATH, \"generator path mismatch\")\n>             for key, value in data.items():\n>                 if key != \"repo_root\":\n> >                   _require(provenance[key] == value, f\"{key} closure mismatch\")\n> \n> tools/plotting/plot_a1_sized_paired.py:399: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> condition = False, message = 'tracked_inputs closure mismatch'\n> \n>     def _require(condition, message):\n>         if not condition:\n> >           raise FigureDataError(message)\n> E           a1_sized_under_test.FigureDataError: tracked_inputs closure mismatch\n> \n> tools/plotting/plot_a1_sized_paired.py:81: FigureDataError\n> \n> The above exception was the direct cause of the following exception:\n> \n>     def test_landed_fig9_repo_closure_and_caption_when_present():\n>         prefix = REPO / \"docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1\"\n>         paths = [Path(f\"{prefix}{s}\") for s in (\".png\", \".pdf\", \".provenance.json\")]\n>         readme = (prefix.parent / \"README.md\").read_text()\n>         assert all(path.is_file() for path in paths), \"fig9 integration bundle is incomplete\"\n>         prov = json.loads(paths[2].read_text())\n>         _assert_landed_output_paths(prov)\n> >       PLOT.validate_repo_closure(prov, REPO)\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:478: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> provenance = {'study_id': 'paper-story-a1-20260901-balanced5-sized-v1', 'measurement_source_commit': 'd2ebef7a407dc6be61622ed596cf0...62e72389ed3b706ec', 'measurement_conditions': {'threads': 48, 'records': 1000000, 'skew': '0.9', 'rmw': '0', ...}, ...}\n> repo_root = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2775-a1-sized-results-recovery/mutation-scratch/.izanagi-mutation-worktree/repo')\n> expected_hashes = None\n> \n>     def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):\n>         \"\"\"Bind landed images, caption source, cells, and projections to the current leaf.\"\"\"\n>         try:\n>             root = Path(repo_root).resolve()\n>             data = load_leaf(root, expected_hashes=expected_hashes)\n>             _require(provenance[\"schema\"] == SCHEMA, \"provenance schema mismatch\")\n>             _require(provenance[\"generator\"][\"path\"] == GENERATOR_PATH, \"generator path mismatch\")\n>             for key, value in data.items():\n>                 if key != \"repo_root\":\n>                     _require(provenance[key] == value, f\"{key} closure mismatch\")\n>             outputs = provenance[\"outputs\"]\n>             _require(len(outputs) == 2 and [Path(r[\"path\"]).suffix for r in outputs] == [\".png\", \".pdf\"],\n>                      \"output paths mismatch\")\n>             prefix = Path(outputs[0][\"path\"]).with_suffix(\"\")\n>             _require(Path(outputs[1][\"path\"]).with_suffix(\"\") == prefix, \"output prefix mismatch\")\n>             for row in outputs:\n>                 _require(_sha256(root / row[\"path\"]) == row[\"sha256\"], \"output closure mismatch\")\n>             _require(provenance[\"artist_series\"] == _artist_series(data), \"artist closure mismatch\")\n>             _require(provenance[\"caption\"] == _caption(data, prefix), \"caption closure mismatch\")\n>         except (OSError, KeyError, TypeError, IndexError, ValueError) as exc:\n> >           raise FigureDataError(f\"invalid repo closure: {exc}\") from exc\n> E           a1_sized_under_test.FigureDataError: invalid repo closure: tracked_inputs closure mismatch\n> \n> tools/plotting/plot_a1_sized_paired.py:410: FigureDataError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_provenance_binds_caption_source\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=1178 retained_bytes=1178 omitted_bytes=0 rendered_excerpt_bytes=1215 sha256=6fc5161829dd0b200d6fe3fa960d6ada365f7dc5ee95082a71400726fecc25a1\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw17] linux -- Python 3.10.12 /usr/bin/python3\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-13/popen-gw17/test_provenance_binds_caption_0')\n> \n>     def test_provenance_binds_caption_source(tmp_path):\n>         root, hashes = _fixture(tmp_path)\n>         data = PLOT.load_leaf(root, expected_hashes=hashes)\n>         prov = _provenance(data, tmp_path)\n>         rows = [r for r in prov[\"tracked_inputs\"] if r[\"kind\"] == \"caption_source\"]\n> >       assert rows == [{\"kind\": \"caption_source\", \"path\": PLOT.CAPTION_SOURCE,\n>                          \"sha256\": _hash(root / PLOT.CAPTION_SOURCE),\n>                          \"authority_scope\": \"wording of limitations and conditions only; not measurement values or classification\"}]\n> E       AssertionError: assert [] == [{'kind': 'ca...ssification'}]\n> E         \n> E         Right contains one more item: {'kind': 'caption_source', 'path': 'docs/paper-story/results/2026-09-18-a1-balanced5-sized-attempt1-descriptive.md', '...ec3eecf885', 'authority_scope': 'wording of limitations and conditions only; not measurement values or classification'}\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:355: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=5544 retained_bytes=5137 omitted_bytes=407 budget_bytes=49152 rendered_bytes=6471 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "887704fb9f6431dfaa32c84095b050331b71e10f39966bc464297eb910fb853e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e5ee9fbaad34bf9ff284f597e58c4aee4009d591c2b37f7f591d5fdf6cb7970a",
+      "duration_s": 8.007,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_provenance_binds_caption_source"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_provenance_binds_caption_source",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present"
+      ],
+      "hang_risk": false,
+      "id": "m12-drop-caption-source",
+      "injection_diff_sha256": "3da0664e49d7ef60b7babc21b4801a66041e942d7343909b3f4edd310281af26",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5e0e84a316b9b0f61262522ce2b820c7c33fe908bf1edc7b6340c171123cb1e9",
+      "replacements": [
+        {
+          "file": "tools/plotting/plot_a1_sized_paired.py",
+          "new": "    _sha256(root / CAPTION_SOURCE)\n",
+          "old": "    tracked.append({\"kind\": \"caption_source\", \"path\": CAPTION_SOURCE,\n                    \"sha256\": _sha256(root / CAPTION_SOURCE), \"authority_scope\": CAPTION_SCOPE})\n"
+        }
+      ],
+      "repo_head": "fd7506c746c406543ce144a9455cef0fed19070e",
+      "runner_sha256": "0fa9b22fe13f506a36d5c8e3303e8a37717c4360c8dc0754594d7cbb780c525e",
+      "spec_sha256": "f7a03a67706a91b169a257cec3069c36fd08c014d06403d45130f3fd9ffbc94f",
+      "status": "KILLED",
+      "test_output_sha256": "887704fb9f6431dfaa32c84095b050331b71e10f39966bc464297eb910fb853e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac969cb577085b82d482b28ecb8a6f9d6ecce79d65dbe5f42ec29e3d17a5fb2d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\nIZANAGI_TASK_RUN_DIAGNOSTIC_V1 pilot-closed:max-task-runs\nbringing up nodes...\nbringing up nodes...\n\n.......................F....                                             [100%]\n=================================== FAILURES ===================================\n_________________ test_landed_fig9_rejects_all_missing_outputs _________________\n[gw26] linux -- Python 3.10.12 /usr/bin/python3\n\nroot = PosixPath('/tmp/pytest-of-tanab/pytest-14/popen-gw26/test_landed_fig9_rejects_all_m0/repo')\npresent_suffixes = ()\n\n    def _reject_missing_landed_bundle(root, present_suffixes):\n        global REPO\n        prefix = root / \"docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1\"\n        prefix.parent.mkdir(parents=True)\n        (prefix.parent / \"README.md\").write_text(\"Figure 9 landing regression.\\n\")\n        for suffix in present_suffixes:\n            Path(f\"{prefix}{suffix}\").write_bytes(b\"presence only; closure must reject missing files first\")\n        original_repo = REPO\n        try:\n            REPO = root\n            try:\n>               test_landed_fig9_repo_closure_and_caption_when_present()\n\norchestrator/tests/test_plot_a1_sized_paired.py:502: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \norchestrator/tests/test_plot_a1_sized_paired.py:476: in test_landed_fig9_repo_closure_and_caption_when_present\n    skip(\"fig9 integration artifacts are parent-owned and not landed yet\")\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nreason = 'fig9 integration artifacts are parent-owned and not landed yet'\n\n    def skip(reason: str) -> None:\n        if os.environ.get(\"PYTEST_CURRENT_TEST\"):\n            import pytest\n>           pytest.skip(reason)\nE           Skipped: fig9 integration artifacts are parent-owned and not landed yet\n\norchestrator/tests/skiputil.py:31: Skipped\n\nThe above exception was the direct cause of the following exception:\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-14/popen-gw26/test_landed_fig9_rejects_all_m0')\n\n    def test_landed_fig9_rejects_all_missing_outputs(tmp_path):\n>       _reject_missing_landed_bundle(tmp_path / \"repo\", ())\n\norchestrator/tests/test_plot_a1_sized_paired.py:518: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nroot = PosixPath('/tmp/pytest-of-tanab/pytest-14/popen-gw26/test_landed_fig9_rejects_all_m0/repo')\npresent_suffixes = ()\n\n    def _reject_missing_landed_bundle(root, present_suffixes):\n        global REPO\n        prefix = root / \"docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1\"\n        prefix.parent.mkdir(parents=True)\n        (prefix.parent / \"README.md\").write_text(\"Figure 9 landing regression.\\n\")\n        for suffix in present_suffixes:\n            Path(f\"{prefix}{suffix}\").write_bytes(b\"presence only; closure must reject missing files first\")\n        original_repo = REPO\n        try:\n            REPO = root\n            try:\n                test_landed_fig9_repo_closure_and_caption_when_present()\n            except AssertionError as exc:\n                assert str(exc).startswith(\"fig9 integration bundle is incomplete\"), str(exc)\n            except BaseException as exc:\n                # pytest's skip is a BaseException; the plain runner uses Skip.\n                pytest = sys.modules.get(\"pytest\")\n                if isinstance(exc, Skip) or (pytest is not None and isinstance(exc, pytest.skip.Exception)):\n>                   raise AssertionError(\"missing fig9 bundle was skipped instead of rejected\") from exc\nE                   AssertionError: missing fig9 bundle was skipped instead of rejected\n\norchestrator/tests/test_plot_a1_sized_paired.py:509: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_rejects_all_missing_outputs\n1 failed, 27 passed in 7.25s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_rejects_all_missing_outputs\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=3347 retained_bytes=3347 omitted_bytes=0 rendered_excerpt_bytes=3492 sha256=ff37e0222142bdf1a164ba63ae72e7d2582747ca8bbde7970bb4c20767a2ffe3\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw26] linux -- Python 3.10.12 /usr/bin/python3\n> \n> root = PosixPath('/tmp/pytest-of-tanab/pytest-14/popen-gw26/test_landed_fig9_rejects_all_m0/repo')\n> present_suffixes = ()\n> \n>     def _reject_missing_landed_bundle(root, present_suffixes):\n>         global REPO\n>         prefix = root / \"docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1\"\n>         prefix.parent.mkdir(parents=True)\n>         (prefix.parent / \"README.md\").write_text(\"Figure 9 landing regression.\\x5cn\")\n>         for suffix in present_suffixes:\n>             Path(f\"{prefix}{suffix}\").write_bytes(b\"presence only; closure must reject missing files first\")\n>         original_repo = REPO\n>         try:\n>             REPO = root\n>             try:\n> >               test_landed_fig9_repo_closure_and_caption_when_present()\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:502: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> orchestrator/tests/test_plot_a1_sized_paired.py:476: in test_landed_fig9_repo_closure_and_caption_when_present\n>     skip(\"fig9 integration artifacts are parent-owned and not landed yet\")\n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> reason = 'fig9 integration artifacts are parent-owned and not landed yet'\n> \n>     def skip(reason: str) -> None:\n>         if os.environ.get(\"PYTEST_CURRENT_TEST\"):\n>             import pytest\n> >           pytest.skip(reason)\n> E           Skipped: fig9 integration artifacts are parent-owned and not landed yet\n> \n> orchestrator/tests/skiputil.py:31: Skipped\n> \n> The above exception was the direct cause of the following exception:\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-14/popen-gw26/test_landed_fig9_rejects_all_m0')\n> \n>     def test_landed_fig9_rejects_all_missing_outputs(tmp_path):\n> >       _reject_missing_landed_bundle(tmp_path / \"repo\", ())\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:518: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> root = PosixPath('/tmp/pytest-of-tanab/pytest-14/popen-gw26/test_landed_fig9_rejects_all_m0/repo')\n> present_suffixes = ()\n> \n>     def _reject_missing_landed_bundle(root, present_suffixes):\n>         global REPO\n>         prefix = root / \"docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1\"\n>         prefix.parent.mkdir(parents=True)\n>         (prefix.parent / \"README.md\").write_text(\"Figure 9 landing regression.\\x5cn\")\n>         for suffix in present_suffixes:\n>             Path(f\"{prefix}{suffix}\").write_bytes(b\"presence only; closure must reject missing files first\")\n>         original_repo = REPO\n>         try:\n>             REPO = root\n>             try:\n>                 test_landed_fig9_repo_closure_and_caption_when_present()\n>             except AssertionError as exc:\n>                 assert str(exc).startswith(\"fig9 integration bundle is incomplete\"), str(exc)\n>             except BaseException as exc:\n>                 # pytest's skip is a BaseException; the plain runner uses Skip.\n>                 pytest = sys.modules.get(\"pytest\")\n>                 if isinstance(exc, Skip) or (pytest is not None and isinstance(exc, pytest.skip.Exception)):\n> >                   raise AssertionError(\"missing fig9 bundle was skipped instead of rejected\") from exc\n> E                   AssertionError: missing fig9 bundle was skipped instead of rejected\n> \n> orchestrator/tests/test_plot_a1_sized_paired.py:509: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=3347 retained_bytes=3347 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4212 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3f9cf6e1eb0c11811facaeb109caa3cb3fe73a2e1921974d6d25b0153f3fc24c"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "e5ee9fbaad34bf9ff284f597e58c4aee4009d591c2b37f7f591d5fdf6cb7970a",
+      "duration_s": 7.95,
+      "expected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_rejects_all_missing_outputs"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_rejects_all_missing_outputs"
+      ],
+      "hang_risk": false,
+      "id": "m13-restore-all-missing-skip",
+      "injection_diff_sha256": "7054b08c01bf35bf40a959f1f933e18da78772ac0208f4246ebb1ae5352762d3",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fcfcce13e4fc6399891b7b11c4b1ceacf870738e39201e82e19e9cccb6a321a5",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_plot_a1_sized_paired.py",
+          "new": "    readme = (prefix.parent / \"README.md\").read_text()\n    if not any(path.exists() for path in paths):\n        skip(\"fig9 integration artifacts are parent-owned and not landed yet\")\n    assert all(path.is_file() for path in paths), \"fig9 integration bundle is incomplete\"\n",
+          "old": "    readme = (prefix.parent / \"README.md\").read_text()\n    assert all(path.is_file() for path in paths), \"fig9 integration bundle is incomplete\"\n"
+        }
+      ],
+      "repo_head": "fd7506c746c406543ce144a9455cef0fed19070e",
+      "runner_sha256": "0fa9b22fe13f506a36d5c8e3303e8a37717c4360c8dc0754594d7cbb780c525e",
+      "spec_sha256": "f7a03a67706a91b169a257cec3069c36fd08c014d06403d45130f3fd9ffbc94f",
+      "status": "KILLED",
+      "test_output_sha256": "3f9cf6e1eb0c11811facaeb109caa3cb3fe73a2e1921974d6d25b0153f3fc24c",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ac969cb577085b82d482b28ecb8a6f9d6ecce79d65dbe5f42ec29e3d17a5fb2d"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": null,
+        "receipt_path": null,
+        "runner_mode": "local",
+        "stdout": "警告: 受入形でない走行です。この結果を受入全走として扱わないでください。\norchestrator/tests/test_plot_a1_sized_paired.py::test_fixture_has_production_shape_and_recomputes_statistics\norchestrator/tests/test_plot_a1_sized_paired.py::test_artist_series_equal_provenance_cells_and_leaf_statistics\norchestrator/tests/test_plot_a1_sized_paired.py::test_real_figure_passes_layout_check\norchestrator/tests/test_plot_a1_sized_paired.py::test_bbox_overlap_is_a_failure\norchestrator/tests/test_plot_a1_sized_paired.py::test_layout_failure_publishes_nothing\norchestrator/tests/test_plot_a1_sized_paired.py::test_caption_contains_fixed_literals_and_lane\norchestrator/tests/test_plot_a1_sized_paired.py::test_caption_avoids_forbidden_claims\norchestrator/tests/test_plot_a1_sized_paired.py::test_caption_figure_number_comes_from_prefix\norchestrator/tests/test_plot_a1_sized_paired.py::test_formal_true_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_promotion_prohibited_false_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_statistics_mismatch_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_classification_mismatch_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_pair_difference_mismatch_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_leaf_hash_drift_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_policy_hash_mismatch_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_uncertified_arm_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_variance_plan_breach_true_is_rejected\norchestrator/tests/test_plot_a1_sized_paired.py::test_provenance_binds_caption_source\norchestrator/tests/test_plot_a1_sized_paired.py::test_pinned_hashes_are_used_when_no_override\norchestrator/tests/test_plot_a1_sized_paired.py::test_generator_comment_change_preserves_provenance_closure\norchestrator/tests/test_plot_a1_sized_paired.py::test_landed_output_paths_reject_same_basename_in_other_directory\norchestrator/tests/test_plot_a1_sized_paired.py::test_pinned_input_hashes_match_results_document\norchestrator/tests/test_plot_a1_sized_paired.py::test_cli_writes_three_outputs_and_provenance_closure\norchestrator/tests/test_plot_a1_sized_paired.py::test_cli_rejects_prefix_without_fig_number\norchestrator/tests/test_plot_a1_sized_paired.py::test_real_leaf_loads_and_matches_results_document\norchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present\norchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_rejects_all_missing_outputs\norchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_rejects_partial_missing_outputs\n\n28 tests collected in 1.47s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "7d89fdb7f0a6001e30f83d27549b8dc47e9d3eceabe88face9bb8f2d40d28f21"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_fixture_has_production_shape_and_recomputes_statistics",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_artist_series_equal_provenance_cells_and_leaf_statistics",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_real_figure_passes_layout_check",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_bbox_overlap_is_a_failure",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_layout_failure_publishes_nothing",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_caption_contains_fixed_literals_and_lane",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_caption_avoids_forbidden_claims",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_caption_figure_number_comes_from_prefix",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_formal_true_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_promotion_prohibited_false_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_statistics_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_classification_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_pair_difference_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_leaf_hash_drift_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_policy_hash_mismatch_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_uncertified_arm_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_variance_plan_breach_true_is_rejected",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_provenance_binds_caption_source",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_pinned_hashes_are_used_when_no_override",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_generator_comment_change_preserves_provenance_closure",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_output_paths_reject_same_basename_in_other_directory",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_pinned_input_hashes_match_results_document",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_cli_writes_three_outputs_and_provenance_closure",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_cli_rejects_prefix_without_fig_number",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_real_leaf_loads_and_matches_results_document",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_rejects_all_missing_outputs",
+        "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_rejects_partial_missing_outputs"
+      ],
+      "duration_s": 2.316,
+      "rc": 0,
+      "repo_head": "fd7506c746c406543ce144a9455cef0fed19070e",
+      "runner_sha256": "0fa9b22fe13f506a36d5c8e3303e8a37717c4360c8dc0754594d7cbb780c525e",
+      "spec_sha256": "f7a03a67706a91b169a257cec3069c36fd08c014d06403d45130f3fd9ffbc94f",
+      "status": "PASSED",
+      "tool_sha256": "ac969cb577085b82d482b28ecb8a6f9d6ecce79d65dbe5f42ec29e3d17a5fb2d"
+    },
+    "hang_timeout_seconds": 3600.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m0-equivalent-docstring": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "9c68aa80a364fddb3b34fabe8fed02713993109e634260abf762f03eba6340af",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "\"\"\"Pinned descriptive A-1 sized paired differences, attempt-0001.\n\n(equivalent mutation marker: docstring only)\n\"\"\"\n",
+            "old": "\"\"\"Pinned descriptive A-1 sized paired differences, attempt-0001.\"\"\"\n"
+          }
+        ]
+      },
+      "m1-drop-formal-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_formal_true_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "012878fd2929d3c9f0821b475bc633d1e2d1a36cf8722a221c46bb03cba2dbee",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "    _require(record[\"formal\"] in (False, True), \"formal must be false\")\n",
+            "old": "    _require(record[\"formal\"] is False, \"formal must be false\")\n"
+          }
+        ]
+      },
+      "m10-drop-policy-sha-binding": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_policy_hash_mismatch_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3e19e1b5a299fc67ded12eb0fa907309f719d6104fec8e150ed2e89d1aca5aaf",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "    _require(len(result[\"policy_sha256\"]) == 64, \"policy SHA-256 mismatch\")\n",
+            "old": "    _require(result[\"policy_sha256\"] == _sha256(root / POLICY_PATH), \"policy SHA-256 mismatch\")\n"
+          }
+        ]
+      },
+      "m11-artist-median-instead-of-mean": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_artist_series_equal_provenance_cells_and_leaf_statistics",
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "e822edb1f083672f1b3aaa68d163778de85cdbe37ee15861ae7748d191fb54be",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "    return [{\"workload\": c[\"workload\"], \"mean\": statistics.median(p[\"signed_difference\"] for p in c[\"pairs\"]) / 1e6,\n",
+            "old": "    return [{\"workload\": c[\"workload\"], \"mean\": c[\"mean\"] / 1e6,\n"
+          }
+        ]
+      },
+      "m12-drop-caption-source": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present",
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_provenance_binds_caption_source"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3da0664e49d7ef60b7babc21b4801a66041e942d7343909b3f4edd310281af26",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "    _sha256(root / CAPTION_SOURCE)\n",
+            "old": "    tracked.append({\"kind\": \"caption_source\", \"path\": CAPTION_SOURCE,\n                    \"sha256\": _sha256(root / CAPTION_SOURCE), \"authority_scope\": CAPTION_SCOPE})\n"
+          }
+        ]
+      },
+      "m13-restore-all-missing-skip": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_rejects_all_missing_outputs"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7054b08c01bf35bf40a959f1f933e18da78772ac0208f4246ebb1ae5352762d3",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_plot_a1_sized_paired.py",
+            "new": "    readme = (prefix.parent / \"README.md\").read_text()\n    if not any(path.exists() for path in paths):\n        skip(\"fig9 integration artifacts are parent-owned and not landed yet\")\n    assert all(path.is_file() for path in paths), \"fig9 integration bundle is incomplete\"\n",
+            "old": "    readme = (prefix.parent / \"README.md\").read_text()\n    assert all(path.is_file() for path in paths), \"fig9 integration bundle is incomplete\"\n"
+          }
+        ]
+      },
+      "m2-drop-promotion-prohibited-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_promotion_prohibited_false_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c12f41d2f4a93109bd6387b0b5ea24fbfd96211d4b645aa518065d2338cc0bbb",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "    _require(record[\"promotion_prohibited\"] in (False, True), \"promotion_prohibited must be true\")\n",
+            "old": "    _require(record[\"promotion_prohibited\"] is True, \"promotion_prohibited must be true\")\n"
+          }
+        ]
+      },
+      "m3-drop-statistics-crosscheck": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_statistics_mismatch_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f2419d2ba60a56badf08a866f272ee0f5952aaaa01441ac2262448fff93313d2",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "        for key, field in STAT_FIELDS.items():\n            _number(stat[field])\n",
+            "old": "        for key, field in STAT_FIELDS.items():\n            _close(stat[field], values[key])\n"
+          }
+        ]
+      },
+      "m4-drop-classification-predicate": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_classification_mismatch_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "600804a38afcbc60f0b8554058756cc61c4a9cd382eda657e2622f137c5d8f2d",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "        _require(stat[\"classification\"] in (\"resolved-above-floor\", \"bounded-below-floor\", \"unresolved\", expected_class), \"classification mismatch\")\n",
+            "old": "        _require(stat[\"classification\"] == expected_class, \"classification mismatch\")\n"
+          }
+        ]
+      },
+      "m5-drop-pair-difference-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_pair_difference_mismatch_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9e31f4e0a8cd3bb50df23e660654d93d5e44d5a1ed4c2e37866ac7e57fb1777d",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "            _require(_number(d) == d, \"pair difference mismatch\")\n",
+            "old": "            _require(d == v - b, \"pair difference mismatch\")\n"
+          }
+        ]
+      },
+      "m6-drop-sha-comparison": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_leaf_hash_drift_is_rejected",
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_pinned_hashes_are_used_when_no_override"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f4ef929843ae13ababb5e03b0a9c11e7daa463f64c5c87983bedb72b66b4cf4d",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "        _require(len(digest) == len(hashes[path]), f\"SHA-256 mismatch: {path}\")\n",
+            "old": "        _require(digest == hashes[path], f\"SHA-256 mismatch: {path}\")\n"
+          }
+        ]
+      },
+      "m7-layout-check-noop": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_bbox_overlap_is_a_failure",
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_layout_failure_publishes_nothing"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "4bbcc2c4c1a35d88e1b36d1765800eaa17210a20e428b0593490e5434cd4a09d",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "def check_figure_layout(fig, axes):\n    return None\n    from matplotlib.text import Text\n",
+            "old": "def check_figure_layout(fig, axes):\n    from matplotlib.text import Text\n"
+          }
+        ]
+      },
+      "m8-caption-drops-lane": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_caption_contains_fixed_literals_and_lane",
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_landed_fig9_repo_closure_and_caption_when_present"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "71ed22365ef4792c1374d3e108f7d6e19be8b1c5eb6d15b6aa626d9115584f14",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "sized run attempt-0001 (study {data['study_id']}).\",\n",
+            "old": "sized run attempt-0001 (study {data['study_id']}; {FIXED_LANE}).\",\n"
+          }
+        ]
+      },
+      "m9-drop-certified-check": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_plot_a1_sized_paired.py::test_uncertified_arm_is_rejected"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "6202d508beecd6676a207798de47fa7bf74bc663719e14a3a6e4a9d97eced1a8",
+        "replacements": [
+          {
+            "file": "tools/plotting/plot_a1_sized_paired.py",
+            "new": "            _require(type(evidence[\"certified\"]) is list and len(evidence[\"certified\"]) == 1, \"uncertified arm\")\n",
+            "old": "            _require(type(evidence[\"certified\"]) is list and len(evidence[\"certified\"]) == 1\n                     and evidence[\"certified\"][0] is True, \"uncertified arm\")\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "bf5c3709825c29561b89868624a7b958ef3be11d9cd28a1a5ae98c37b29a17c8",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "local",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_plot_a1_sized_paired.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 7200.0
+  },
+  "repo_head": "fd7506c746c406543ce144a9455cef0fed19070e",
+  "runner_identity": {
+    "command": [
+      "/usr/bin/python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_plot_a1_sized_paired.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": null,
+    "dispatch_entrypoint_sha256": null,
+    "dispatch_head_blob_sha256": null,
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2775-a1-sized-results-recovery/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "d6bca2b84e73c7775a0dd5e6a76899cfe4ee62863d7c8f88513811d1fda23f49",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "9cc545a13aef0adb7ae798e8a7c71b964ea0576a",
+    "runner_mode": "local"
+  },
+  "runner_sha256": "0fa9b22fe13f506a36d5c8e3303e8a37717c4360c8dc0754594d7cbb780c525e",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "f7a03a67706a91b169a257cec3069c36fd08c014d06403d45130f3fd9ffbc94f",
+  "summary": {
+    "KILLED": 13,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 14,
+    "matching": 14,
+    "recorded": 14,
+    "registered": 14
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2775-a1-sized-results-recovery/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "ac969cb577085b82d482b28ecb8a6f9d6ecce79d65dbe5f42ec29e3d17a5fb2d",
+  "updated_at": "2026-09-18T13:44:50.169396+00:00"
+}
