@@ -18,6 +18,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2608] declared fold verifier の例外出力に code と sanitize 済み detail を保存。
+  拒否判定と構造的拒否の文面を維持し、実 verifier の例外と fail-open 変異の検出を確認した。
+  記録 = `output/insights/2026-09-18/t2608-fold-verifier-detail/README.md`。
+
 - [x] [T-2164] A-1 balanced5のsizing証明書を凍結値で生成・検証し、本走policyを凍結した。
   D1452に従い、証明書が申告する試行回数・候補範囲・root seedをconsumerが登録値とexact照合する。
   成果物は output/insights/2026-09-13/paper-story-a1-balanced5-sized-preregistration/、
