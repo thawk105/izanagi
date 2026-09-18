@@ -3421,6 +3421,7 @@ def verify_fold_commit_identity(
             FOLD_COMMIT_MESSAGE,
             verify_declared_fold_commit,
         )
+        from tools.dev_waves.schema import DevWavesError
     except (ImportError, AttributeError) as exc:
         raise TransactionError(f"declared fold verifier を import できない: {exc}") from exc
     if parents != [plan.origin.tested_tip]:
@@ -3471,6 +3472,11 @@ def verify_fold_commit_identity(
             wave_tip=plan.origin.tested_tip,
         )
     except BaseException as exc:
+        if isinstance(exc, DevWavesError):
+            raise TransactionError(
+                f"declared fold verifier が失敗: {exc.code.value} "
+                f"{json.dumps(exc.detail, ensure_ascii=False, sort_keys=True, separators=(',', ':'))}"
+            ) from exc
         raise TransactionError(f"declared fold verifier が失敗: {exc}") from exc
     if not declared.ok:
         raise TransactionError(f"declared fold verifier が拒否: {declared.detail}")
