@@ -88,6 +88,13 @@ rc の契約は次のとおりであり、削除可否そのものを表さな�
 rc `1` は使わない。`not-landed` は技術的失敗ではなく JSON 内の判断材料である。全 rc と JSON 結果を
 `/cleanup-branches` §5 の報告へ含める。
 
+判定対象の commit が多いときは、landed 判定 1 件あたりの既定 8 秒で `checker-timeout` が出て rc `2` に
+なりうるので、`--assessment-timeout-seconds` (上限 60) を判定対象 commit 数に応じて上げ、commit 数 ×
+判定秒に inventory 等の時間を足した見積りが全体の `--timeout-seconds` (既定 300、上限 900) に迫るなら
+そちらも上げる。rc `2` の `root-snapshot-moved` は、開始と終了の root inventory digest が異なれば出るので、
+走行中に別 wave が worktree・branch を作った場合にも出る (削除可否の判定ではなく可視化の不完全)。
+再走は候補集合を変えずに行う。
+
 `retention.loss_possible_not_before` は object が失われうる最早時刻の下界である。object 自身の loose
 mtime と実効 prune 期限から算術で導けた場合は `determinate` とする。相対期限は mtime へ保持期間を
 加算し、有効な ISO 形式の絶対期限は mtime と Git が解釈した cutoff を比較して下界を導く。packed、
