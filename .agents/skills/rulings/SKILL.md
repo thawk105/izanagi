@@ -11,7 +11,7 @@ description: Collect, index, and explain Izanagi decisions that await the user's
 2. `.claude/commands/rulings.md` を全文読み、収集・出力・記録・自己改善の共通 dispatcher として
    そのまま実行する。手順を本 Skill の記憶や要約で代用しない。
 3. command の `$ARGUMENTS` は本 Skill に渡された指定と読み替える。未指定は先頭 5 件を詳説し、
-   `all` は全件索引のみ、ID はその件だけを詳説する。冒頭に収集時点 (entry N) と件数
+   `all` は索引と推奨、ID はその件だけを詳説する。冒頭に収集時点 (entry N) と件数
    (ユーザー裁定待ち N / 裁定済み未実装 M) を分けて出す。
 4. 本 Skill の起動語は Codex の `$rulings` とする。
 
