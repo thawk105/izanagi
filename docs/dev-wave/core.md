@@ -90,7 +90,8 @@ scope/must-fix は、放置時に成果物（certified 選択・レポート・�
 ## DW-S04 — 段 4 裁定
 
 親が各所見を real/refuted、採用/不採用、scope 内/外に裁定しプラン v2 を確定する。
-scope 外の real 所見は実装せず、設計択一・所見・推奨案を裁定パッケージでユーザーへ返す。
+全段の scope 外 real 所見は実装せず、研究前進か実測欠陥を資料/実測で示した場合だけ設計択一・推奨案付き
+裁定パッケージでユーザーへ返し、他は起票せず insight に記録する。
 gate の禁止は署名で書き、通る正例を 1 つ添える。
 
 実装面 (D95 決定 2) の差分ゼロの wave だけ変異 matrix を免除する。受入全走は免除せず、
@@ -123,7 +124,7 @@ hash 自己参照は禁止（F36）。
 
 全 commit・受入結果を固定し、tested main/tip と監査 commit 列を実測して `DW-O23` を行う。
 `tools/dev_wave_land.py` は local main を変更する唯一の通常 land 経路である。
-再試行・停止は `DW-O23` に従い、正式な停止時だけ main HEAD と既存 branch を報告する。
+正式な停止時だけ main HEAD と既存 branch を報告する。
 段 9 後に `tools/collect_wave_usage.py` を実行。
 
 ## DW-CTX — fresh context と外部 supervisor
