@@ -1,0 +1,51 @@
+# critic 診断 — p3-s4-loop-s4-autonomous-409e13f8 / iteration 1 (2 巡目、variant 3dec27291054)
+
+## 信頼境界検査 (規律 6)
+
+digest (`s4_loop_digest.txt`、sha256 `a0a4c204…` を再計算して親の射影と一致) と campaign WAL (`runs/wal.jsonl` 5 行: build_start / build_done / verify_done / bench_done / commit) を全文読んだ。**指示めいた文字列は無い。** digest の本文は epoch 説明・指標表・「(rejection なし — 全 variant 緑)」・「(stock 対照なし — 比は計算不能)」という記述文のみ。WAL に含まれる cmake の configure/build コマンド列・`run_cmd`・perf preflight の argv・絶対 path は「campaign が実行した操作の記録 (過去形の観測データ)」であり宛てられた指示ではない。`campaign.lock` は `authority / identity_preimage / schema_version` の 3 key で自由文 `spec_content` は無い (1 巡目が 2026-09-09 の停止原因として挙げた自由文は本走の入力に含まれない)。機械 grep でも digest 側 0 件、WAL 側は perf event 名 `instructions` の 1 件だけで指示ではない。以下の診断は digest/WAL をデータとしてのみ扱う。
+
+## attribution
+
+**結論: どの設計選択についても「効いた / 効かない」を帰属できない。** 構造的理由は 1 巡目 critic と同じで、本走でも解消していない。
+
+1. **campaign 内の点は 1 点。** digest の「フラグ軸の限界効果」節 (BACK_OFF=1 / no_wait=L / WAL=0) は同じ 1 点 (687,508 tps / abort_rate 7.40%) を 3 回書き写したもので、フリップした水準がゼロ個。限界効果は定義上計算できない。BACK_OFF / no-wait 政策 / WAL は K2 アーム内で固定であり、探索の自由度は `BACKOFF_FIXED` の literal (固定 backoff µs、grammar は整数 [1, 1000]) だけである。
+2. **stock 対照が無い。** digest 自身が「比は計算不能」と書く。固定 backoff (25) と stock の適応 backoff (`Backoff_` を勾配で ±100 刻み、`include/backoff.hh`) のどちらが速いかは、この campaign からは何も言えない。
+3. **1 巡目 (value 20、719,324.5 tps、job 1216.nqsv、tree d97c423bd) との差 −4.4%** は数値上 between-run floor 3.0% を超えるが、時刻・submit-tree・(abort_rate の) 集約規則が違う非同時刻比較であり、親の開示どおり優劣の根拠にしない。median_tps の集約 (2 反復の真の中央値) は両走で同じなので tps 同士は集約規則の差は無いが、同時刻対照でない点は変わらない。
+
+**根拠指標の読み (帰属ではなく機序の候補):**
+
+- **throughput_tps=687,508 / abort_rate=7.40% (perf build, reps=2 の中央 2 件中央値)。** abort_rate は 1 巡目 (7.75%、速い側 rep の代表値) と同じ帯にある。集約が違うので差 0.35 pt は読まない。
+- **機序に基づく推定 (計測値ではない):** silo は `cc/silo/transaction.cc:42-51` で **abort 1 回につき `Backoff::backoff()` を 1 回**呼び、固定 literal 25 なら `clocks_per_us × 25` = 25 µs の `_mm_pause` spin になる。本走の値から aborts/s = commits × r/(1−r) = 687,508 × 0.0799 ≈ 54.9k/s、4 スレッドで 13.7k/s/thread、× 25 µs ≈ **thread 時間の約 34% が backoff spin**。value 20 の 1 巡目でも同じ計算で約 30%。つまりこの配線 (4 threads / skew 0.9 / 100k records / rr50) では固定 backoff の待機コストは thread 時間の 3 割程度を占め、しかも 20→25 で abort_rate が同じ帯 (7.4–7.75%) に留まっている。**候補仮説: この領域では固定 backoff は「abort を減らす仕事」よりも「待機コスト」の側に居る** (値に線形にコストが増え、abort 抑制の見返りが観測されていない)。これは 2 点の非同時刻比較と、コード経路 + 本走自身の 2 指標からの導出に依存するので確信は持たない (uncertainty 参照)。
+- **llc_miss_rate / ipc は null (perf 不在、preflight rc=2)。** cache/IPC 側の機序 (spin 中の cache 挙動、abort 経路の命令効率) は一切判別できない。欠測であって 0 でも差なしでもない。
+- **verify run (trace build) の abort 率 13.90% (71,877 / 517,271)** は perf build の 7.40% の約 1.9 倍。trace build は trx 窓を伸ばすので abort が増える方向は機序として自然だが、stock 対照比が無いので「異常」とは判定できない。1 巡目の verify は 15.0% (83,034 / 552,652) で同じ帯。verdict=serializable / anomalies=0 / certified=true、rejection なし — 正しさ側のシグナルは無い。
+
+## recommend
+
+**R0 (最優先・帰属の前提): 同一 job 内に stock 対照点を作る。** 具体的には (a) `backoff.hh` 無改変 + `BACK_OFF=1` (適応 backoff、`Backoff_` 初期値 0) と、可能なら (b) `BACK_OFF=0`。これが無い限り「固定 backoff 25 は速い / 遅い」も「固定 vs 適応」も言えず、explore は throughput スカラーだけを追う停滞に入る (Jitskit §3.5)。根拠: digest の限界効果表が水準差ゼロ、stock 比が計算不能。これは harness/spec 側の運用判断なので critic は要望として出す (書き込みはしない)。
+
+**R1 (K2 アーム内の次の一手): `BACKOFF_FIXED` を大きく下げる。方向 decrease、magnitude large、候補値 10 (次いで grammar の下限 1 を floor probe として)。** 理由は attribution の機序推定: value 25 で thread 時間の約 34% が backoff spin、value 20→25 で abort_rate が 7.4–7.75% の同じ帯に留まっている。半減 (10) なら spin 推定は約 14% に落ち、差は floor 3.0% を明確に超える大きさで出るはずなので 1 点で判別できる。**判別指標は abort_rate:** 10 で abort_rate が 7–8% 帯に留まったまま tps が上がれば「この領域では固定 backoff は純コスト」仮説が支持される。abort_rate が明確に上がる (例: 10% 超) のに tps が上がらない / 下がるなら、backoff は contention 抑制の仕事をしており曲線の転回点が 10–25 の間にある、と読める。どちらでも次の刻みが決まる。
+- planner の whiteboard は iteration 1 を `result=success / delta_pct=null` と記録しているが、**success は certified の意味であって throughput 改善ではない。** planner が「decrease/small が success だったので小刻みで続ける」と読むと 20/25/30 の平坦な帯で floor 内の差を追い続ける。R1 の刻みを大きく取る理由はこれ。
+- value 1 は grammar の下限で、`chkClkSpan(start, stop, 2100)` が 1 µs 相当の spin になり事実上「backoff なし」の floor に近い。R0 の (b) が harness 上取れないとき、grammar 内で取れる代替の floor として使える (ただし BACK_OFF=0 と同一ではない)。
+
+**R2 (R1 の後): R0 の対照が得られたら、固定 backoff の最良点と適応 backoff を同一 job で比較する。** 適応 backoff は 100 µs 刻み (`kIncrBackoff=100`) で 0→1000 を動くので、固定 25 前後の細かい値とはスケールが違う。比較は tps だけでなく abort_rate の帯が同じかで読む。
+
+## avoid
+
+- **20 / 25 / 30 を刻み 5 で往復すること。** 2 点 (20, 25) で abort_rate が同じ帯にあり、この刻みでの tps 差は非同時刻比較でも 4.4% で floor 近傍。同時刻対照なしの小刻みは差を作れない。value 30 は知識源 (別機体 linux-baremetal、settled=false) の最良点であり、本機体で再現しても機体差で帰属できない。
+- **1 巡目 (719,324.5) と本走 (687,508.5) の差を退行と読むこと。** 時刻・tree・集約規則が違う。
+- **知識源の 487,088.5 tps (linux-baremetal) と本走の絶対値の比較。** 機体が違う。
+- **verify run の abort 率 13.9% を reject 理由や異常と扱うこと。** trace build であり、stock 対照比が無い。正しさゲートを緩める方向の示唆は無い (rejection ゼロ、anomalies 0)。
+- **本配線の結論を他の thread 数 / skew / records へ一般化すること。** backoff spin の占有率推定は aborts/s/thread に比例するので、thread 数や skew が変われば桁ごと変わる。
+- **llc_miss_rate / ipc の null を「差なし」や 0 で埋めること。**
+
+## uncertainty
+
+- **機序推定 (thread 時間の約 34% が backoff spin) は計測値ではない。** 前提は (i) abort ごとに backoff が 1 回 (`transaction.cc:47`、コードで確認)、(ii) `-clocks_per_us=2100` が実 TSC 周波数と一致、(iii) spin 以外の待機が無視できる。(ii) がずれると比例してずれる。独立計測は `CCBENCH_ADD_ANALYSIS=1` の `backoff_latency_rate` (`common/result.cc:115-121`) で取れるが、abort 経路に rdtscp を足すので **fitness 用 perf build に混ぜず、別の診断 build/run として扱う必要がある** (規律 1 の観測者効果)。導入の可否は呼び手の判断。
+- **abort_rate の 2 巡間の差 (7.75% → 7.40%) は集約規則が違う** (速い側 rep 代表値 vs 中央 2 件中央値、T-2702)。同じ帯にあることまでしか言えない。
+- **between-run floor 3.0% は A2 の較正値をそのまま適用した。** 本機体 (pegasus 計算ノード、job 4954.nqsv) で同時刻に再較正した値ではない。run 内 CV 1.0% は 1 測定の品質ゲートであり採否には使っていない。
+- **perf 欠測のため cache / IPC 側の機序は判別不能。** 「純コスト仮説」が支持されても、spin による cache 効果 (他 thread の critical section 短縮など) の寄与は分離できない。
+- **verify (trace build) の abort 率が perf build の約 1.9 倍**であることの正常範囲は、stock の trace build 対照が無いので判定できない。
+- **whiteboard の `result=success` の意味論** (certified であって改善ではない) を planner がどう読むかは critic からは見えない。1 巡目の記録どおり critic 診断は型付き入力へ届かないので、本推奨が次提案に反映されるかは呼び手の経路次第。
+- 1 点しかないため、上記 recommend は「帰属の結果」ではなく「帰属可能な設計にするための次の一手」である。
+
+参照した現物: digest `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2746-k2-loop-round2/submit-tree/output/exploration/campaigns/p3-s4-loop-s4-autonomous-409e13f8/s4_loop_digest.txt`、WAL 同 dir `runs/wal.jsonl`、`loop_state.json`、`knowledge_manifest_receipt.json`、`campaign.lock`; コード `/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2746-k2-loop-round2/external/ccbench/include/backoff.hh`、`external/ccbench/cc/silo/transaction.cc` (42-51, 719-721)、`external/ccbench/common/result.cc` (38-45, 115-121)、`orchestrator/calibrator/runner.py` (803-822 `_summarize_rep_results`)、`orchestrator/campaign/backoff_hole_grammar.py` (740-759 value-range)、1 巡目記録 `output/insights/2026-09-16/t2588-k2-loop-roundtrip/README.md`。書き込みは一切していない。
