@@ -90,3 +90,16 @@ M2/M3 は条件文字列・診断記録への sensitivity pin とし、correctne
 追加焦点走 job6365 は contract / pegasus_tools / mocc_proof_surface の239件が通過 (5.29秒)。
 TRACE0 preprocess 同一性の既存 witness を含む。contract 単独は正式変異 baseline149件、
 pegasus_tools 単独も正規 run_tests 経由で72件が通過。旧全14 file焦点走の結果と合算しない。
+
+## 終端手続きの停止
+
+記録後の全史監査job6378は15分のqueue-wait-timeoutでchild_started=false。
+10分予約・1時間queue待ちで再投入したjob6403には23:12 JSTという開始予定が表示された。
+親はその後の正規headroom観測がlocal可だったことを理由に、QUE中の6403をqdelした。
+この取消しでdispatcherがcompute-marker-not-observedと判定し、F47の自動投入停止ラッチが発火した。
+これは親の操作による停止であり、実装修正や監査内容の不合格ではない。
+
+ラッチは専用木の `output/pegasus-dispatch/submission-disabled.json`、requestは6403.nqsv。
+runbook §7.6/§8に従い、ユーザー自身の端末で投入の永続性・qstat可視性・終了会計を確認する
+手番へ返す。ラッチの自動削除・別木への投入での迂回はしない。最終受入・main land・清掃は未実施。
+元tipのbundleと全pilot artifactを保全し、専用の `CODEX-HANDOFF.md` に再開手順を残す。
