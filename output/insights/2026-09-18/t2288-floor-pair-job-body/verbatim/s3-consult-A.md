@@ -137,8 +137,8 @@
 
 ## 総括
 
-plan は前段拒否・create-only・実測未検証の区別を概ね保っている。  
-必須訂正は、3 段同一 HEAD の保証範囲、失敗 terminal からも summary が作られる事実、10h の根拠である。  
-terminal 欠落時の早すぎる finalize は、現 driver が summary 作成前に拒否する。  
-二重投入・途中死・時計と walltime の関係は完全には閉じず、経路表の運用条件と後続確認が必要となる。  
+plan は前段拒否・create-only・実測未検証の区別を概ね保っている。
+必須訂正は、3 段同一 HEAD の保証範囲、失敗 terminal からも summary が作られる事実、10h の根拠である。
+terminal 欠落時の早すぎる finalize は、現 driver が summary 作成前に拒否する。
+二重投入・途中死・時計と walltime の関係は完全には閉じず、経路表の運用条件と後続確認が必要となる。
 指定資料は読解済み。ファイル変更・pytest・qsub・実測は行っていない。

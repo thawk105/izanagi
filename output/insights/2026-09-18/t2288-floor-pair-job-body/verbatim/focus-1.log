@@ -11,7 +11,7 @@ Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/wor
 [Pegasus dispatch] request 5523.nqsv child stdout begin
 | bringing up nodes...
 | bringing up nodes...
-| 
+|
 | ........................................................................ [ 14%]
 | ........................................................................ [ 28%]
 | ........................................................................ [ 42%]
@@ -23,7 +23,7 @@ Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/wor
 | =================================== FAILURES ===================================
 | ___________________________ test_child_rc_collection ___________________________
 | [gw32] linux -- Python 3.10.12 /bin/python3.10
-| 
+|
 |     def test_child_rc_collection():
 |         for child in ("exit 7", 'kill -TERM "$PPID"; sleep 0.1; exit 7'):
 |             with tempfile.TemporaryDirectory() as directory:
@@ -43,10 +43,10 @@ Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/wor
 |                 assert payload["driver_stdout_sha256"] == hashlib.sha256(b"").hexdigest()
 | >               assert payload["reason"] == ("completed" if child == "exit 7" else "signal_observed")
 | E               AssertionError: assert 'completed' == 'signal_observed'
-| E                 
+| E
 | E                 - signal_observed
 | E                 + completed
-| 
+|
 | orchestrator/tests/test_floor_pair_job_contract.py:306: AssertionError
 | =========================== short test summary info ============================
 | FAILED orchestrator/tests/test_floor_pair_job_contract.py::test_child_rc_collection
@@ -56,7 +56,7 @@ Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/wor
 | IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_floor_pair_job_contract.py::test_child_rc_collection" nodeid_bytes=76 nodeid_omitted_bytes=0 source_bytes=1363 retained_bytes=1363 omitted_bytes=0 rendered_excerpt_bytes=1416 sha256=5ab4cd147afc4de80967363181e1e1c4199e4f268267329bbd10c43d4ea6147c
 | --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
 | > [gw32] linux -- Python 3.10.12 /bin/python3.10
-| > 
+| >
 | >     def test_child_rc_collection():
 | >         for child in ("exit 7", 'kill -TERM "$PPID"; sleep 0.1; exit 7'):
 | >             with tempfile.TemporaryDirectory() as directory:
@@ -76,10 +76,10 @@ Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/wor
 | >                 assert payload["driver_stdout_sha256"] == hashlib.sha256(b"").hexdigest()
 | > >               assert payload["reason"] == ("completed" if child == "exit 7" else "signal_observed")
 | > E               AssertionError: assert 'completed' == 'signal_observed'
-| > E                 
+| > E
 | > E                 - signal_observed
 | > E                 + completed
-| > 
+| >
 | > orchestrator/tests/test_floor_pair_job_contract.py:306: AssertionError
 | --- IZANAGI FAILURE EXCERPT rank=1 END ---
 | IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1363 retained_bytes=1363 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2119 omitted_manifest_sha256=-
@@ -102,7 +102,7 @@ Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/wor
 | IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 1601923, "time_ns": 1789699125881243387}
 | IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 1601923, "rc": 1, "time_ns": 1789699125881255121}
 | IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 1601923, "rc": 1, "time_ns": 1789699125881273395}
-| 
+|
 | ============================================================
 | Request ID:             5523.nqsv
 | Request Name:           izdw-47b52cbc5f

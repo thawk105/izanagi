@@ -113,8 +113,8 @@
 
 ## 総括
 
-plan は `-I -m`、evidence 所有、窓境界、hostname 判定について brief を適切に訂正している。  
-着手前の必須修正は、hook golden 2集合の更新、scratch 名の colon 処理、`nm` の前段確認、契約testの実行検査方法の固定。  
-login smoke は script の rc=4 到達を保証できず、hook拒否を別成果として記録する必要がある。  
-M3 の境界値と M0 の通常コメントは妥当だが、M0〜M6だけでは本番分岐・signal処理の接続を覆わない。  
+plan は `-I -m`、evidence 所有、窓境界、hostname 判定について brief を適切に訂正している。
+着手前の必須修正は、hook golden 2集合の更新、scratch 名の colon 処理、`nm` の前段確認、契約testの実行検査方法の固定。
+login smoke は script の rc=4 到達を保証できず、hook拒否を別成果として記録する必要がある。
+M3 の境界値と M0 の通常コメントは妥当だが、M0〜M6だけでは本番分岐・signal処理の接続を覆わない。
 PBS配送・compute成功・queue待ち時間は未実測。今回の静的検証で成功扱いにはできない。

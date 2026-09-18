@@ -89,8 +89,8 @@ M7 は引き続き `admit_and_run()` 内、M8 は `submit_or_dry_run()` 内で�
 
 ## 総括
 
-F1〜F6 を所有する3ファイルに実装し、自走 harness は22件すべて通過しました。  
-計算ノードでの3ファイル検査は dispatch 障害により未実走で、再実行が必要です。  
+F1〜F6 を所有する3ファイルに実装し、自走 harness は22件すべて通過しました。
+計算ノードでの3ファイル検査は dispatch 障害により未実走で、再実行が必要です。
 commit は作成していません。実 driver・実 job/submitter 全体の実行もありません。
 
 追加の exact old 一括照合は、PreToolUse `guard_bash` が対象を dispatch-required 実行体と判定して実行前に拒否しました。迂回せず、上表は静的照合結果として報告しています。

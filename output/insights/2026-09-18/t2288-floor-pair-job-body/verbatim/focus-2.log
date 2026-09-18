@@ -11,7 +11,7 @@ Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/wor
 [Pegasus dispatch] request 5553.nqsv child stdout begin
 | bringing up nodes...
 | bringing up nodes...
-| 
+|
 | ..........................................................s....s........ [ 12%]
 | ........................................................................ [ 24%]
 | ........................................................................ [ 37%]
@@ -41,7 +41,7 @@ Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/wor
 | IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 4191060, "time_ns": 1789700260677183882}
 | IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 4191060, "rc": 0, "time_ns": 1789700260677193273}
 | IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 4191060, "rc": 0, "time_ns": 1789700260677210814}
-| 
+|
 | ============================================================
 | Request ID:             5553.nqsv
 | Request Name:           izdw-2b020a9769

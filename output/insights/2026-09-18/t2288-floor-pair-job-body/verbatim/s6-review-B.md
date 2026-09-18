@@ -140,9 +140,9 @@ author の報告は「未実走」「殺傷未観測」と明記しており、�
 
 ## 総括
 
-凍結pin、driver起動経路、create-only、登録簿・golden・runbook投影は整合しています。  
-環境消去の不足、TERMテストの入口条件、signal時の成功rc変更が必須修正です。  
-M0は等価で、M1〜M10の意図した検出は静的に成立しますが、M1・M5の期待node集合は不足しています。  
+凍結pin、driver起動経路、create-only、登録簿・golden・runbook投影は整合しています。
+環境消去の不足、TERMテストの入口条件、signal時の成功rc変更が必須修正です。
+M0は等価で、M1〜M10の意図した検出は静的に成立しますが、M1・M5の期待node集合は不足しています。
 pytest・実driver・qsub・ファイル変更は行っていません。実走証拠は親のrequest 5523.nqsvのみです。
 
 補助的なPythonによる登録簿・golden自動照合は、PreToolUse hookがJSON pathを「未登録Pegasus実行体」と分類して実行前に拒否しました。迂回せず、当該照合はソースの静的読解による判定としています。

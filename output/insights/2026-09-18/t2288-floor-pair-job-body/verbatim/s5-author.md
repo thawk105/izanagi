@@ -89,10 +89,10 @@ M6 は親所有で、対象行はこの worktree にまだ存在しません。�
 
 ## 総括
 
-所有 5 path の実装を置き、commit はしていません。  
-submitter 構文、Codex agent checker、diff whitespace は通過しました。  
-docs は親の投影表待ちによる期待赤 1 件だけです。  
-テストは dispatch infrastructure failure で実走 0 件のため、状態は **実装済み・未実走**です。  
+所有 5 path の実装を置き、commit はしていません。
+submitter 構文、Codex agent checker、diff whitespace は通過しました。
+docs は親の投影表待ちによる期待赤 1 件だけです。
+テストは dispatch infrastructure failure で実走 0 件のため、状態は **実装済み・未実走**です。
 M1 は entry 文脈限定、M6 は親の docs 実装後の exact old 確定が必要です。
 
 自動 hook は job body の `bash -n` を `dispatch-required` として実行前に拒否しました。ソース生成用 shell command も保護 path／未登録実行体として拒否されたため、許可されたファイルの編集は patch で行い、拒否された実行を迂回していません。

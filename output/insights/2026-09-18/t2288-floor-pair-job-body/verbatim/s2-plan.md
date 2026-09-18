@@ -378,34 +378,34 @@
 
 ## 親 brief への訂正
 
-- **P5の `"$PY" -I -B -m orchestrator...`**  
-  何が：isolated modeでcheckoutをmodule探索対象にできる前提。  
+- **P5の `"$PY" -I -B -m orchestrator...`**
+  何が：isolated modeでcheckoutをmodule探索対象にできる前提。
   正しくは：`-I -B -c` でcanonical repo rootを明示挿入し、正規driverの `main()` を呼ぶ。driverを変更しない。
 
-- **P4/P5のwindow IDの粒度不足**  
-  何が：CLIの `w1/w2` とdriverのIDが区別されていない。  
+- **P4/P5のwindow IDの粒度不足**
+  何が：CLIの `w1/w2` とdriverのIDが区別されていない。
   正しくは：driverへ渡すのは `<workload>-w1/w2`。specの実fieldで選択する。
 
-- **P5/P9のwalltime保持方法不足**  
-  何が：mode別時間とPBS header literalを両立すると二重管理になりうる。  
+- **P5/P9のwalltime保持方法不足**
+  何が：mode別時間とPBS header literalを両立すると二重管理になりうる。
   正しくは：値はsubmitter一箇所、`qsub -l` とenvへ同じ値を渡し、headerには置かない。
 
-- **P6の所有記述の矛盾**  
-  何が：同directoryへsubmit receiptを保存しながら「投入側はmkdir以外置かない」。  
+- **P6の所有記述の矛盾**
+  何が：同directoryへsubmit receiptを保存しながら「投入側はmkdir以外置かない」。
   正しくは：directory内のファイル所有をsubmitter／scheduler／jobで分ける。
 
-- **P5のhostname gateとsite evidenceの説明**  
-  何が：prefix regexだけでは `bnode009evil` も通り、PBS envが証拠になるようにも読める。  
+- **P5のhostname gateとsite evidenceの説明**
+  何が：prefix regexだけでは `bnode009evil` も通り、PBS envが証拠になるようにも読める。
   正しくは：第一labelの完全一致を使う。`site_policy.py:33–46,66–84` はPBS envを分類条件に使わない。shell判定はdriver gateの代替ではない。
 
-- **P5のsignal説明と起動確認の到達保証**  
-  何が：「driverは殺さない」でwalltimeから保護できるかのような余地と、loginでは必ずhostname gateまで進む前提。  
+- **P5のsignal説明と起動確認の到達保証**
+  何が：「driverは殺さない」でwalltimeから保護できるかのような余地と、loginでは必ずhostname gateまで進む前提。
   正しくは：shellから追加killしないだけで、schedulerによる終了は防げない。login起動はhookが先に拒否しうるため、実際の到達点を記録する。
 
 ## 総括
 
-shell２本・契約test１本・registry２entry・親のrunbook差分で閉じる計画とする。  
-P1/P2の時間値/P3/P6のrepo外rootは採用し、P5の起動argv・walltime配置とP6の所有記述を修正する。  
-driverのgate・create-only・凍結specは変更せず、未来時刻の正例は契約snippetで確認する。  
-残る不確定はlogin hook下での全script起動到達性と、後続waveでのみ確認できるPBS伝播・compute実行である。  
+shell２本・契約test１本・registry２entry・親のrunbook差分で閉じる計画とする。
+P1/P2の時間値/P3/P6のrepo外rootは採用し、P5の起動argv・walltime配置とP6の所有記述を修正する。
+driverのgate・create-only・凍結specは変更せず、未来時刻の正例は契約snippetで確認する。
+残る不確定はlogin hook下での全script起動到達性と、後続waveでのみ確認できるPBS伝播・compute実行である。
 本段は静的読解のみで、テスト緑・起動成功・実測成功は主張しない。
