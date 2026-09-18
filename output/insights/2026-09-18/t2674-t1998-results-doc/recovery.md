@@ -24,6 +24,10 @@ launcher receiptは outcome=accepted / stop_reason=completed / validator_rc=0、
 A-1の旧README差分はstale注記と同results表末尾の行追加。相手の未commit差分は回収しない。
 mainに着地したA-1行があれば両方を保つ。旧T-2674成果の13 file以外の旧branch差分はない。
 
+是正後の焦点再レビューは `verbatim/recovery-focus.output.md`。closed 5 / partial 1 / regressed 0、
+新規修正要求0、着地阻害なし。partialは8点表を残す編集判断だけ。凍結稿42,738 bytesの旧tip一致と、
+正規化した逐語3本の原文byte数・hash・原文との一致も独立に再確認された。
+
 ## 旧赤と今回の検査
 
 旧 `acceptance-final-6.done=70`。同chainの3回は全てrc70。最終走のJUnitは
@@ -39,6 +43,8 @@ assertion本文には未到達。旧tipと着手時mainで当該test/probeは同
 bounded local、51 passed / 12.23秒、rc0。ログは `verbatim/recovery-focus-t1259.log`。
 これは最終受入全走ではない。timeout・fixture・除外は変えていない。
 check_codex_agents / check_docs / spool_fold dry-runはrc0。
+回収merge commit `235c6d2f2` 後の全履歴provenance監査は11,472件・新規違反なし、rc0。
+既知違反56件を表示したため「履歴に違反なし」とは言わない。原ログはrepo外job dirの `provenance-1.log`。
 
 ## 逐語の可逆正規化
 
