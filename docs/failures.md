@@ -5063,6 +5063,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   計算して `ls-tree` の値と比べる)。完成していれば再投入せず回収し、完成度の確定を段 6 の
   レビューへ渡す (`DW-O01` の「中断子は未完了と記して保全し、次の子に監査させる」の実行形)。
   重い巡では `--max-model-calls` を先に上げる。
+
+- **再発: 2026-09-18** — [T-2774] 段 2 plan の 1 本目 (06:39〜06:46 JST) が最終メッセージ生成時に
+  `This content was flagged for possible cybersecurity risk` で `turn.failed` になり成果物 0 byte。引き金は brief の
+  「攻撃対象」「隙間」「反実仮想 patch」と、並行制御の race 順序を patch で塞ぐという作業内容。memory
+  (`codex-adversarial-prompt-defensive-framing`) の対処 (前置き節 + 語彙中立化) を投入前に読み返さなかった親の手順漏れ。
+  v2 は前置き節「DB 研究ベンチマークの直列化可能性検査であって攻撃ツールではない」と語彙置換で通った (所見の深さは不変)。
 ### F103. 背景 job の codex 子を detach せずに起動し、tool call の終了に巻き込まれて消えた [手順漏れ]
 
 - 事象: 段 2 の plan 子を `bash run-stage2.sh` として背景 Bash tool で起動したところ、
@@ -8500,6 +8506,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   log 本文を読むまで原因に到達しない。(2) 再投入では `.done` と `-o` を新 path にする必要が
   あるため、同じ prompt でも成果物 path を作り直す手間が掛かる。回避は変わらず、docs 編集を
   統合 commit にしてから子を投げること。
+
+- **再発: 2026-09-18** — [T-2290][T-2291] 親が `docs/dev-wave/operations.md` を編集した未 commit 状態で、Codex 子で
+  なく**焦点走** (計算ノード 5433.nqsv、`test_check_docs` / `test_codex_worker_launch` /
+  `test_dev_wave_launch_authority` の 3 file) を投入し、116 node が
+  `docs/dev-wave/operations.md: working tree が authority commit と異なる` で赤になった (739 passed / 3 skipped)。
+  追加事実は、`snapshot_authority` の拒否は dispatcher だけでなく**実 repo の launcher を subprocess で起動する
+  test 群にも同じ形で効く**ことで、docs-only wave が「子ゼロだから commit 前に焦点走してよい」と読むと踏む。
+  回避は変わらず、docs/dev-wave の編集を commit してから焦点走・子投入を行うこと (commit 後の再走 5437.nqsv は
+  855 passed / 3 skipped / rc=0)。
 ### F226. source hash を埋め込む golden が同族ファイルの全変異を道連れにする [ドリフト]
 
 - 事象: 変異 11 件のうち 4 件が MISMATCH になった。うち 2 件 (judge / report の変異) は
@@ -20733,6 +20748,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 
 
 - **再発: 2026-09-04** — A-2 certification の既完走 attempt `t2022-20260828c` (2026-08-28) の adopted cell が同じ型だったと判明した。当時の driver (`639c1dbad`) は patch 無しの共有木を `run_campaign` へ渡し、`BACKOFF_FIXED=10` / `=5` は CMake に無視され、`BACK_OFF=1` (内蔵指数 backoff) だけが効いていた。一次資料は当時の WAL の `src_token` が adopted でも `stock` であること。関門 (D1198) を通した初の実走 `t2228-20260904a` では adopted が非 `stock` token になり、stock より速い逆符号の値が出た (certified ではない)。位置づけは `output/insights/2026-09-04_t2228-a2-gate-layers/ruling-package.md` の裁定 2。
+
+- **再発: 2026-09-18** — [T-2774] の runner (job dir probe、Codex author) が T-2294 driver の `_common_configure_args` を流用したため、
+  build define が pilot (T-1892 / T-1943、`BACK_OFF=0`) でなく driver の genome (`BACK_OFF=1`) になり、最初の 4 block (instr 0/56・
+  diag 0/56) は事前登録と別条件の測定として記録された。author prompt は「T-1943 と同じ argv」と書いていたが、親は smoke の
+  `result.json` の `bindings.configure_argv` (`BACK_OFF=1` が載っていた) を事前登録の条件と突き合わせずに本走を投入した。
+  是正 = 4 block を観測に格下げし、走行前に事前登録して configure を pilot と一致させた主解析 (Q2) をやり直した (insight §4)。
+  教訓 = 実装子が helper を流用した場合、smoke の bindings に出る実 define を本走前に条件表と照合する (F707 の恒久対応「要求した
+  define が実際に効いたことを build 側の実体で確かめる」を、親の投入前手順として適用する)。
 ### F708. 新規 worktree に無い ignored directory を前提にする検査が決定的に赤になる [テスト代表性]
 
 - 事象: `test_s8b_floor_campaign.py::test_real_output_snapshot_excludes_git_ignored_real_output_changes`
@@ -27562,3 +27585,21 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   負例 (registry file の hardlink は拒否) を同時に登録する。
 - 再発検知: 段 9 の自己撤去の rc を worklog に必ず書く (`DW-O28`)。rc=20 の `admin entry is not a single
   regular file` を見たら本エントリを引き、tool の修正状況を確かめる。
+
+### F1027. mocc trace pilot の hydrate だけが素の python3 で driver を import し、計算ノードで 3.10 専用式を踏んで止まった [テスト代表性] [ドリフト]
+
+- 事象: 2026-09-18 06:29 JST、`tools/pegasus/submit_mocc_trace.sh --t1943-g2-discriminator` の生死確認 job `4936.nqsv` が
+  `mocc_trace_pilot.sh:1534` の hydrate で `fetch_third_party: unsupported operand type(s) for |: 'type' and '_LiteralGenericAlias'`
+  を出し rc=2 (起動 9 秒)。hydrate 出力 JSON は 0 byte。
+- 根本原因: T-548 (2026-09-16、`0165027e0`) で `tools/pegasus/fetch_third_party.py` が driver
+  `orchestrator.campaign.silo_ladder_rung1` を import するようになり、推移的に `orchestrator/verifier/parse.py:71` の module 直下
+  alias `bool | Literal["NOT_EVALUATED"] | None` (実行時評価、Python 3.10 専用、2026-08-20 `3c9932591`) へ到達する。pilot の
+  checker (1756〜) と verifier (2203〜) は `python3 python3.10 …` の候補から `sys.version_info >= (3, 10)` で interpreter を選ぶが、
+  hydrate 呼び出しだけが素の `python3` (計算ノードでは 3.10 未満) のままだった。T-548 の段 6 レビューが静的に見つけた断線 3 件と
+  同じ「テスト緑・実 job 断線」型で、同 wave は compute 実走をしていない。
+- 恒久対応: 修正設計 = `output/insights/2026-09-18/t2774-mocc-torn-read-probe/README.md` §8 (hydrate 直前に同型の interpreter
+  選択 block と契約 test 1 本) を [T-2780] で実施する。本 wave は pilot を使わず job dir の runner で
+  実測したため修正していない。
+- 再発検知: `orchestrator/tests/test_mocc_trace_job_contract.py` の interpreter gate 検査 (checker / verifier) と同型の hydrate 版を
+  [T-2780] で足す。fake interpreter は配線の検査であり、計算ノードの旧 python での推移 import は
+  実 job でしか確かめられない (F650 / F651 と同じく mocc pilot の実走で検出する型)。
