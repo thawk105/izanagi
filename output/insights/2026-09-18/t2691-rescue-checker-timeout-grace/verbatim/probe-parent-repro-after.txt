@@ -1,0 +1,8 @@
+GRACE = 2.0
+oid=9de7385a6 timeout=1.0 reason=assessment-timeout verdict=indeterminate rc=2 elapsed=1.07814 wall=1.078 unit_missing=None unit_count=0 load=31.37
+oid=9de7385a6 timeout=8.0 reason=branch-closure-empty verdict=landed rc=0 elapsed=3.827414 wall=3.828 unit_missing=None unit_count=0 load=31.98
+oid=81e0f9f64 timeout=1.0 reason=assessment-timeout verdict=indeterminate rc=2 elapsed=1.076188 wall=1.076 unit_missing=None unit_count=0 load=31.98
+oid=81e0f9f64 timeout=8.0 reason=branch-closure-empty verdict=landed rc=0 elapsed=7.81529 wall=7.815 unit_missing=None unit_count=0 load=32.44
+GRACE = 2.0
+oid=9de7385a6 timeout=4.0 reason=assessment-timeout verdict=indeterminate rc=2 elapsed=4.087327 wall=4.088 unit_missing=None unit_count=0 load=31.88
+oid=81e0f9f64 timeout=4.0 reason=assessment-timeout verdict=indeterminate rc=2 elapsed=4.092393 wall=4.093 unit_missing=None unit_count=0 load=32.29

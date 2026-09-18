@@ -1,0 +1,2 @@
+timeout=1.0 reason=checker-timeout verdict=indeterminate rc=None elapsed=1.003335 wall=1.003
+timeout=8.0 reason=checker-timeout verdict=indeterminate rc=None elapsed=8.040609 wall=8.041
