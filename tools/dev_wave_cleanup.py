@@ -749,15 +749,29 @@ def _open_directory(path: str | Path, stack: ExitStack, *, parent: int | None = 
     return fd
 
 
-def _read_admin_file(fd: int, name: str) -> bytes:
+_OBJECT_FANOUT_RE = re.compile(r"[0-9a-f]{2}\Z")
+_LOOSE_OBJECT_RE = re.compile(r"(?:[0-9a-f]{38}|[0-9a-f]{62})\Z")
+_PACK_OBJECT_RE = re.compile(r"pack-(?:[0-9a-f]{40}|[0-9a-f]{64})\.[a-z]+\Z")
+
+
+def _is_shared_object_path(prefix: str, name: str) -> bool:
+    parts = (prefix + name).split("/")
+    return parts[0] == "modules" and len(parts) >= 5 and parts[-3] == "objects" and bool((_OBJECT_FANOUT_RE.fullmatch(parts[-2]) and _LOOSE_OBJECT_RE.fullmatch(name)) or (parts[-2] == "pack" and _PACK_OBJECT_RE.fullmatch(name)))
+
+
+def _read_admin_file(fd: int, name: str, *, allow_shared_object: bool = False) -> bytes:
     child = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
     try:
         metadata = os.fstat(child)
-        if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+        if (not stat.S_ISREG(metadata.st_mode)
+                or (metadata.st_nlink != 1
+                    and not (allow_shared_object and metadata.st_nlink > 1))):
             raise ValueError("admin entry is not a single regular file")
         with os.fdopen(os.dup(child), "rb") as stream:
             raw = stream.read()
         def stable(st):
+            if allow_shared_object:
+                return (st.st_dev, st.st_ino, st.st_mode, st.st_size, st.st_mtime_ns)
             return (st.st_dev, st.st_ino, st.st_mode, st.st_nlink, st.st_size,
                     st.st_mtime_ns, st.st_ctime_ns)
 
@@ -795,9 +809,11 @@ def _admin_snapshot(fd: int, *, allow_locked: bool = False, prefix: str = "") ->
                 content = _admin_snapshot(child, prefix=prefix + name + "/")
             kind = "directory"
         elif stat.S_ISREG(metadata.st_mode):
-            content = _admin_content(_read_admin_file(fd, name),
-                                     semantic=prefix + name in {
-                                         "gitdir", "commondir", "HEAD", "logs/HEAD"})
+            content = _admin_content(
+                _read_admin_file(
+                    fd, name, allow_shared_object=_is_shared_object_path(prefix, name)),
+                semantic=prefix + name in {
+                    "gitdir", "commondir", "HEAD", "logs/HEAD"})
             kind = "file"
         else:
             raise ValueError("admin contains symlink or special entry")
@@ -953,7 +969,7 @@ def _recheck_admin(args: Args, common: Path, admin: AdminBinding) -> dict:
     return current
 
 
-def _remove_admin_entries(fd: int, snapshot: dict, recheck) -> None:
+def _remove_admin_entries(fd: int, snapshot: dict, recheck, *, prefix: str = "") -> None:
     for name, (kind, identity, content) in snapshot.items():
         recheck()
         if list(_inode(os.stat(name, dir_fd=fd, follow_symlinks=False))) != identity:
@@ -963,12 +979,14 @@ def _remove_admin_entries(fd: int, snapshot: dict, recheck) -> None:
                 child = _open_directory(name, stack, parent=fd)
                 if list(_inode(os.fstat(child))) != identity:
                     raise ValueError("admin child changed before removal")
-                _remove_admin_entries(child, content, recheck)
+                _remove_admin_entries(child, content, recheck, prefix=prefix + name + "/")
                 if list(_inode(os.stat(name, dir_fd=fd, follow_symlinks=False))) != identity:
                     raise ValueError("admin child replaced during removal")
                 os.rmdir(name, dir_fd=fd)
         else:
-            if _admin_content(_read_admin_file(fd, name), semantic="raw" in content) != content:
+            raw = _read_admin_file(
+                fd, name, allow_shared_object=_is_shared_object_path(prefix, name))
+            if _admin_content(raw, semantic="raw" in content) != content:
                 raise ValueError("admin file changed before removal")
             os.unlink(name, dir_fd=fd)
         os.fsync(fd)
@@ -1024,7 +1042,7 @@ def _remove_admin(args: Args, common: Path, admin: AdminBinding, snapshot: dict)
                 raise ValueError("wave path reappeared during admin removal")
             _assert_snapshot_subset(_admin_snapshot(admin.admin_fd), snapshot)
 
-        _remove_admin_entries(admin.admin_fd, snapshot, recheck_remaining)
+        _remove_admin_entries(admin.admin_fd, snapshot, recheck_remaining, prefix="")
         recheck_remaining()
         _assert_admin_binding(common, admin)
         os.rmdir(admin.name, dir_fd=admin.registry_fd)
