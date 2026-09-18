@@ -1,0 +1,90 @@
+[Pegasus dispatch] job を gen_S へ投入します (izdw-0c426796f2)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2737-ss2pl-gate-controls/output/pegasus-dispatch/orphan-holds/unknown-858c22f48153058e9a32275e.json
+[Pegasus dispatch] request ID 5051.nqsv を受理しました
+[Pegasus dispatch] request 5051.nqsv の状態: QUE
+[Pegasus dispatch] request 5051.nqsv の状態: RUN
+[Pegasus dispatch] request 5051.nqsv の状態: END
+[Pegasus dispatch] request 5051.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2737-ss2pl-gate-controls/output/pegasus-dispatch/orphan-holds/unknown-858c22f48153058e9a32275e.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2737-ss2pl-gate-controls/output/pegasus-dispatch/0c426796f2cc319501efb4f8f8a11b8e/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 5051.nqsv child stdout begin
+| current.O.phase1.impl.pristine
+| current.O.phase1.kind.pristine
+| current.O.phase1.dlr.pristine
+| current.O.phase1.wfg.pristine
+| revs.T-.S.impl.pristine
+| revs.T-.S.kind.pristine
+| revs.T-.S.dlr.pristine
+| revs.T-.S.wfg.pristine
+| warm-up
+| current.O.phase1.impl.warm
+| current.O.phase1.kind.warm
+| current.O.phase1.dlr.warm
+| current.O.phase1.wfg.warm
+| revs.T-.S.impl.warm
+| revs.T-.S.kind.warm
+| revs.T-.S.dlr.warm
+| revs.T-.S.wfg.warm
+| revs.T+.phase1.kind.warm
+| revs.T-.phase1.impl.warm
+| revs.T-.phase1.kind.warm
+| revs.T-.phase1.dlr.warm
+| revs.T-.phase1.wfg.warm
+| abort-unconditional.T-.S.impl.warm
+| abort-unconditional.T-.S.kind.warm
+| abort-unconditional.T-.S.dlr.warm
+| abort-unconditional.T-.S.wfg.warm
+| plain-build.S
+| plain-build.phase1
+| current.O.S.impl.warm
+| current.O.S.kind.warm
+| current.O.S.dlr.warm
+| current.O.S.wfg.warm
+| current.T-.S.impl.warm
+| current.T-.S.kind.warm
+| current.T-.S.dlr.warm
+| current.T-.S.wfg.warm
+| revs.O.S.impl.warm
+| revs.O.S.kind.warm
+| revs.O.S.dlr.warm
+| revs.O.S.wfg.warm
+| revs.O.phase1.impl.warm
+| revs.O.phase1.kind.warm
+| revs.O.phase1.dlr.warm
+| revs.O.phase1.wfg.warm
+| revs.T+.S.impl.warm
+| revs.T+.S.kind.warm
+| revs.T+.S.dlr.warm
+| revs.T+.S.wfg.warm
+| {"rc": 0, "status": "complete", "output": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-ss2pl-gate-controls/receipts/probe-result-2.json"}
+[Pegasus dispatch] request 5051.nqsv child stdout end
+[Pegasus dispatch] request 5051.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 760678, "time_ns": 1789684581854060754}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 760699, "event": "direct-child-wait-start", "pid": 760685, "time_ns": 1789684581881779671}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 760699, "event": "direct-child-wait-complete", "pid": 760685, "time_ns": 1789684725969023503}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 760685, "rc": 0, "time_ns": 1789684725969107384}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 760678, "rc": 0, "time_ns": 1789684725973665288}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 760678, "time_ns": 1789684725976318517}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 760678, "time_ns": 1789684725993527547}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 760678, "time_ns": 1789684725994472446}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 760678, "time_ns": 1789684725994482306}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 760678, "time_ns": 1789684725996088654}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 760678, "time_ns": 1789684725996097642}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 760678, "rc": 0, "time_ns": 1789684725996107299}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 760678, "rc": 0, "time_ns": 1789684725996121485}
+| 
+| ============================================================
+| Request ID:             5051.nqsv
+| Request Name:           izdw-0c426796f2
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Fri Sep 18 07:30:03 2026
+| Started Request Time:   Fri Sep 18 07:36:21 2026
+| Ended Request Time:     Fri Sep 18 07:38:46 2026
+| Resources Information:
+|   Elapse:               149S
+|   Remaining Elapse:     2251S
+| ============================================================
+[Pegasus dispatch] request 5051.nqsv child stderr end
