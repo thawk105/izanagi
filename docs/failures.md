@@ -2590,6 +2590,9 @@
   そこに「実行はセッション外」という実行環境の定義を足す (裁定項目 1 の材料)
 - 記録: worklog 2026-07-28 (33)、材料 = `output/insights/2026-07-25_t088-floor-wrapper.md` §9
 
+
+- **再発: 2026-09-18** — T-2780引継ぎで親が全史監査job6403をQUE中にqdelした。ローカル実行可能という再観測を理由にしたが、runbook §7.6の「手動qdelは最後の手段」「解除はユーザー手番」の帰結を操作前に確認しなかった。dispatcherはcompute-marker-not-observedでsubmission-disabled.jsonを作成した。ラッチを保持し、最終受入・land・清掃は人間による確認後へ止める。既存の禁止・解除契約を変えない。
+- **追補: 2026-09-18** — 取消し起因と解除境界を説明した後、ユーザーがmain landまでの再開と自己改善を指示した。今回の6403に限る復旧指示として、qstat不在・保全済みラッチのhash一致を照合して退避した。F47の一般解除条件は変えない。再発防止はdocs/dev-wave/core.mdのDW-C00から停止前のrunbook §7.6読了へ接続し、待ち短縮だけを理由とするqdelを禁止する。
 ### F48. 背景 job の worktree が origin/main から分岐し、local main より古い base で brief と受入を始めた [誤前提]
 
 - 日付: 2026-07-28
@@ -27724,6 +27727,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `orchestrator/tests/test_mocc_trace_job_contract.py` の interpreter gate 検査 (checker / verifier) と同型の hydrate 版を
   [T-2780] で足す。fake interpreter は配線の検査であり、計算ノードの旧 python での推移 import は
   実 job でしか確かめられない (F650 / F651 と同じく mocc pilot の実走で検出する型)。
+- **supersede: 2026-09-18** — T-2780でHYDRATE_PYの選択と実呼出配線、契約testを実装した。job5905はhydrate・patched build・verifier・discriminator finalizationを終端accounting付きで完走しno-g2/rc0。正式変異job6360で素のpython3への差戻しを検出し、version比較削除とrejected記録削除はsensitivityとして区別した。証拠はoutput/insights/2026-09-18/t2780-mocc-pilot-discriminator/。
 
 ### F1028. 親が job body 所有の evidence attempt dir へ投入直後に file を置き、job を preflight で失った [手順漏れ]
 
