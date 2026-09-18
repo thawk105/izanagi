@@ -25,6 +25,7 @@ from orchestrator.campaign import (  # noqa: E402
     s2_verify_calibration,
     s3_lock_coverage,
     s3_mocc_lock_coverage,
+    s3_mocc_mutation_proof,
 )
 
 _PRODUCTION_DIRS = (
@@ -60,6 +61,8 @@ _DIRECT_SAFE_ALLOWLIST = Counter({
     ("campaign/s3_lock_coverage.py", "<module>._run_trace"): 1,
     # Both module-level mocc workloads are fixed at rr0.
     ("campaign/s3_mocc_lock_coverage.py", "<module>._run_trace"): 1,
+    # W and U, at both thread counts, are fixed at rr0.
+    ("campaign/s3_mocc_mutation_proof.py", "<module>._run_trace"): 1,
     # Public profile paths runtime-reject protected ratios before build/profile.
     ("campaign/backoff_profile.py", "<module>._profile_run"): 1,
     # Fixed argv, no shell expansion, sanitized env, read-only Git tree query.
@@ -3463,10 +3466,10 @@ def test_define_sink_cross_product_classifies_t2155_production_sinks_exactly():
     assert classifications[s1_sink] == Counter({
         "covered": 4,
         # Patches B and C plus the mocc controls cannot reach this sink.
-        "proven-unreachable": 34,
+        "proven-unreachable": 35,
     })
     # Patch-derived define interfaces are covered by the s8b sink.
-    assert classifications[s8b_sink] == Counter({"covered": 38})
+    assert classifications[s8b_sink] == Counter({"covered": 39})
     assert failures == []
 
 
@@ -3490,7 +3493,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
         sources, patch_macros,
     )
     assert failures == []
-    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 24})
+    assert before[target] == Counter({"deferred": 14, "proven-unreachable": 25})
     remaining = tuple(item for item in _DEFERRED_GATE_MEMBERS if item != member)
     assert len(remaining) == len(_DEFERRED_GATE_MEMBERS) - 1
     monkeypatch.setattr(sys.modules[__name__], "_DEFERRED_GATE_MEMBERS", remaining)
@@ -3499,7 +3502,7 @@ def test_define_sink_cross_product_t2520_certify_entry_removal(monkeypatch):
     )
     assert failures == [(macro, target, "reachable") for macro in sorted(expected_macros)]
     assert after[target] == Counter({
-        "failure-reachable": 14, "proven-unreachable": 24,
+        "failure-reachable": 14, "proven-unreachable": 25,
     })
     assert {sink: counts for sink, counts in after.items() if sink != target} == {
         sink: counts for sink, counts in before.items() if sink != target
@@ -4110,6 +4113,13 @@ def test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios():
     assert classify_minimal_holdout_signature(
         _flags(s3_mocc_lock_coverage.HIGH_FLAGS)
     ) is None
+    for workload in (
+        s3_mocc_mutation_proof.SINGLE_FLAGS,
+        s3_mocc_mutation_proof.HIGH_FLAGS,
+        s3_mocc_mutation_proof.U_SINGLE_FLAGS,
+        s3_mocc_mutation_proof.U_HIGH_FLAGS,
+    ):
+        assert classify_minimal_holdout_signature(_flags(workload)) is None
     assert {
         point[1]["ycsb_rratio"] for point in backoff_profile.POINTS
     } == {"5", "50"}
