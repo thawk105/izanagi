@@ -1,0 +1,18 @@
+{
+  "binary_sha256": "984d37e605af75ccee2fa23b484c05d565342a6bf8cc83fdd3d66ef9b049fab4",
+  "binary_tokens_absent": true,
+  "forbidden_binary_tokens": [
+    "directory_env",
+    "enable_env",
+    "marker",
+    "symbol",
+    "witness_file_prefix"
+  ],
+  "marker": "IZANAGI_MOCC_G2_WATERMARK_V1",
+  "marker_absent": true,
+  "nm_rc": 0,
+  "present_binary_tokens": [],
+  "schema_version": "mocc-g2-trace0-watermark-absence/v1",
+  "symbol_absent": true,
+  "symbol_token": "izanagi_mocc_g2"
+}

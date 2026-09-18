@@ -1,0 +1,150 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 4800,
+ "hang_timeout_seconds": 4800,
+ "mutations": [
+  {
+   "id": "m0-equivalent-comment",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "# BEGIN T2780 HYDRATE INTERPRETER GATE\n",
+     "new": "# BEGIN T2780 HYDRATE INTERPRETER GATE\n# (equivalent mutation marker: comment only)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-hydrate-plain-python3",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "timeout 20 \"$HYDRATE_PY\" \"$TOOLS/fetch_third_party.py\" hydrate --repo-root \"$REPO_ROOT\" \\\n",
+     "new": "timeout 20 python3 \"$TOOLS/fetch_third_party.py\" hydrate --repo-root \"$REPO_ROOT\" \\\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-drop-version-compare",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "'import sys; import orchestrator.campaign.silo_ladder_rung1; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' \\\n",
+     "new": "'import sys; import orchestrator.campaign.silo_ladder_rung1; raise SystemExit(0)' \\\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-drop-rejected-record",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "  hydrate_py_rejected+=\"${hydrate_py_rejected:+ }$py_name=$py_resolved\"\n",
+     "new": "  :\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-drop-real-apply",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "  if ! git -C \"$BUILD_SOURCE\" apply \"$PATCH_PATH\" \\\n",
+     "new": "  if ! true \"$PATCH_PATH\" \\\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-drop-touch-set-check",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "    END { exit (bad || NR != 1) }\n",
+     "new": "    END { exit 0 }\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-drop-mode-guard",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "# BEGIN T2780 INSTRUMENTATION PATCH\nif [[ \"$T1943_G2\" -eq 1 ]]; then\n",
+     "new": "# BEGIN T2780 INSTRUMENTATION PATCH\nif true; then\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_instrumentation_patch_block_applies_and_binds"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-verifier-source-base",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "    VERIFIER_SOURCE_ROOT=\"$BUILD_SOURCE\"\n",
+     "new": "    VERIFIER_SOURCE_ROOT=\"$CCBENCH_BASE\"\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_verifier_source_root_follows_t1943_mode"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m8-drop-receipt-binding",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/mocc_trace_pilot.sh",
+     "old": "        \"instrumentation_patch\": {\n            \"repo_path\": \"patches/instr-mocc-lock-coverage.patch\",\n",
+     "new": "        \"instrumentation_patch_removed\": {\n            \"repo_path\": \"patches/instr-mocc-lock-coverage.patch\",\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_mocc_trace_job_contract.py::test_t1943_receipt_binds_trace_witness_discriminator_and_trace0_absence"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
