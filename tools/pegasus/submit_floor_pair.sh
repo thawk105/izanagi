@@ -26,7 +26,7 @@ clean_environment() {
   export PATH=/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin
   unset PYTHONPATH PYTHONHOME PYTHONSTARTUP LD_PRELOAD LD_LIBRARY_PATH || fail 2 environment cleanup_failed
   local name
-  for name in ${!GIT_@}; do
+  for name in ${!PYTHON@} ${!LD_@} ${!GIT_@}; do
     unset "$name" || fail 2 environment cleanup_failed
   done
 }
@@ -254,30 +254,34 @@ print(request)
   [[ "$STATUS" == submitted ]] || fail 4 submission "$STATUS"
 }
 
-parse_args "$@"
-clean_environment
-select_python
-trap 'fail 4 submission unhandled_failure' ERR
-select_pin
-select_walltime
-WINDOW_ID=none
-if [[ "$MODE" == window ]]; then WINDOW_ID=$WORKLOAD-$WINDOW; fi
-SCRIPT_DIR=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P) || fail 4 checkout script_root_unavailable
-check_checkout
-check_spec_binding
-check_binaries "$REPO_ROOT" "$SPEC_RELPATH"
-if [[ "$MODE" == window ]]; then
-  read_window_bounds "$REPO_ROOT/$SPEC_RELPATH" "$WINDOW_ID"
-  NOW=$(date -u +%s 2>/dev/null) || fail 4 window clock_unavailable
-  window_gate "$NOW" "$NOT_BEFORE" "$NOT_AFTER" "$DURATION"
-fi
-check_outputs || exit $?
-BASE=/work/1/SFC/tanab/izanagi-job-evidence/floor-pair
-NONCE=$("$PY" -I -B -c 'import secrets; print(secrets.token_hex(16))' 2>/dev/null) || fail 4 evidence nonce_failed
-EVIDENCE_DIR=$BASE/$NONCE
-mkdir -p -- "$BASE" 2>/dev/null || fail 4 evidence base_create_failed
-mkdir -m 0700 -- "$EVIDENCE_DIR" 2>/dev/null || fail 4 evidence leaf_create_failed
-PREPARED_EPOCH=$(date -u +%s 2>/dev/null) || fail 4 evidence clock_unavailable
-build_qsub_argv
-write_pre_submit
-submit_or_dry_run
+main() {
+  parse_args "$@"
+  clean_environment
+  select_python
+  trap 'fail 4 submission unhandled_failure' ERR
+  select_pin
+  select_walltime
+  WINDOW_ID=none
+  if [[ "$MODE" == window ]]; then WINDOW_ID=$WORKLOAD-$WINDOW; fi
+  SCRIPT_DIR=$(cd -- "${BASH_SOURCE[0]%/*}" && pwd -P) || fail 4 checkout script_root_unavailable
+  check_checkout
+  check_spec_binding
+  check_binaries "$REPO_ROOT" "$SPEC_RELPATH"
+  if [[ "$MODE" == window ]]; then
+    read_window_bounds "$REPO_ROOT/$SPEC_RELPATH" "$WINDOW_ID"
+    NOW=$(date -u +%s 2>/dev/null) || fail 4 window clock_unavailable
+    window_gate "$NOW" "$NOT_BEFORE" "$NOT_AFTER" "$DURATION"
+  fi
+  check_outputs || exit $?
+  BASE=/work/1/SFC/tanab/izanagi-job-evidence/floor-pair
+  NONCE=$("$PY" -I -B -c 'import secrets; print(secrets.token_hex(16))' 2>/dev/null) || fail 4 evidence nonce_failed
+  EVIDENCE_DIR=$BASE/$NONCE
+  mkdir -p -- "$BASE" 2>/dev/null || fail 4 evidence base_create_failed
+  mkdir -m 0700 -- "$EVIDENCE_DIR" 2>/dev/null || fail 4 evidence leaf_create_failed
+  PREPARED_EPOCH=$(date -u +%s 2>/dev/null) || fail 4 evidence clock_unavailable
+  build_qsub_argv
+  write_pre_submit
+  submit_or_dry_run
+}
+
+main "$@"

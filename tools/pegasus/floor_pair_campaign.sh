@@ -36,7 +36,7 @@ clean_environment() {
   export PATH=/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin
   unset PYTHONPATH PYTHONHOME PYTHONSTARTUP LD_PRELOAD LD_LIBRARY_PATH || fail 2 environment cleanup_failed
   local name
-  for name in ${!GIT_@}; do
+  for name in ${!PYTHON@} ${!LD_@} ${!GIT_@}; do
     unset "$name" || fail 2 environment cleanup_failed
   done
 }
@@ -187,7 +187,6 @@ run_driver() {
   GATE=driver REASON=completed
   if (( SIGNAL_RC )); then REASON=signal_observed; fi
   JOB_RC=$DRIVER_RC
-  if (( JOB_RC == 0 && SIGNAL_RC != 0 )); then JOB_RC=$SIGNAL_RC; fi
 }
 
 admit_and_run() {
@@ -207,27 +206,31 @@ admit_and_run() {
   run_driver
 }
 
-bootstrap
-clean_environment
-select_python
-trap finish_job EXIT
-trap 'fail 4 "$GATE" unhandled_failure' ERR
-GATE=commands
-for command_name in git nm pgrep sha256sum hostname date realpath mkdir env; do
-  command -v -- "$command_name" >/dev/null 2>&1 || fail 2 commands required_command_missing
-done
-GATE=checkout
-REPO_ROOT=$(realpath -e -- "$PBS_O_WORKDIR" 2>/dev/null) || fail 4 checkout root_unavailable
-CANONICAL_ROOT=$(git -C "$REPO_ROOT" rev-parse --show-toplevel 2>/dev/null) || fail 4 checkout root_unavailable
-CANONICAL_ROOT=$(realpath -e -- "$CANONICAL_ROOT" 2>/dev/null) || fail 4 checkout root_unavailable
-[[ "$REPO_ROOT" == "$CANONICAL_ROOT" ]] || fail 4 checkout root_mismatch
-HEAD=$(git -C "$REPO_ROOT" rev-parse --verify HEAD^{commit} 2>/dev/null) || fail 4 checkout head_unavailable
-[[ "$HEAD" == "$FP_EXPECTED_HEAD" ]] || fail 4 checkout head_mismatch
-cd -P -- "$REPO_ROOT" 2>/dev/null || fail 4 checkout root_unavailable
-SPEC_HASH=$(sha256sum -- "$FP_SPEC_RELPATH" 2>/dev/null) || fail 4 spec hash_unavailable
-[[ "${SPEC_HASH%% *}" == "$FP_SPEC_SHA256" ]] || fail 4 spec hash_mismatch
-check_binaries "$REPO_ROOT" "$FP_SPEC_RELPATH"
-HOST_OBSERVED=$(hostname 2>/dev/null) || fail 4 site hostname_unavailable
-build_driver_argv
-admit_and_run
-exit "$JOB_RC"
+main() {
+  bootstrap
+  clean_environment
+  select_python
+  trap finish_job EXIT
+  trap 'fail 4 "$GATE" unhandled_failure' ERR
+  GATE=commands
+  for command_name in git nm pgrep sha256sum hostname date realpath mkdir env; do
+    command -v -- "$command_name" >/dev/null 2>&1 || fail 2 commands required_command_missing
+  done
+  GATE=checkout
+  REPO_ROOT=$(realpath -e -- "$PBS_O_WORKDIR" 2>/dev/null) || fail 4 checkout root_unavailable
+  CANONICAL_ROOT=$(git -C "$REPO_ROOT" rev-parse --show-toplevel 2>/dev/null) || fail 4 checkout root_unavailable
+  CANONICAL_ROOT=$(realpath -e -- "$CANONICAL_ROOT" 2>/dev/null) || fail 4 checkout root_unavailable
+  [[ "$REPO_ROOT" == "$CANONICAL_ROOT" ]] || fail 4 checkout root_mismatch
+  HEAD=$(git -C "$REPO_ROOT" rev-parse --verify HEAD^{commit} 2>/dev/null) || fail 4 checkout head_unavailable
+  [[ "$HEAD" == "$FP_EXPECTED_HEAD" ]] || fail 4 checkout head_mismatch
+  cd -P -- "$REPO_ROOT" 2>/dev/null || fail 4 checkout root_unavailable
+  SPEC_HASH=$(sha256sum -- "$FP_SPEC_RELPATH" 2>/dev/null) || fail 4 spec hash_unavailable
+  [[ "${SPEC_HASH%% *}" == "$FP_SPEC_SHA256" ]] || fail 4 spec hash_mismatch
+  check_binaries "$REPO_ROOT" "$FP_SPEC_RELPATH"
+  HOST_OBSERVED=$(hostname 2>/dev/null) || fail 4 site hostname_unavailable
+  build_driver_argv
+  admit_and_run
+  exit "$JOB_RC"
+}
+
+main "$@"

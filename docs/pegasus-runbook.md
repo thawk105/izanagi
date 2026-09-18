@@ -1659,14 +1659,15 @@ probe worktree / dispatch 成果物の掃除は別物である — lease が解�
 凍結済み spec 3 本 (`output/env/pegasus/floor-pair/t2288-f1/`、D2138) を `orchestrator/campaign/floor_pair_driver.py` の
 `--execute-window` / `--finalize` で走らせる資材は、login 側の `tools/pegasus/submit_floor_pair.sh` (submitter) と
 計算ノードの `tools/pegasus/floor_pair_campaign.sh` (job body) である。**着地 wave では実 qsub・計算ノードでの実行・
-8 変数の伝播・実効 walltime・signal 配送を実測していない** (F660)。最初の実投入は次の測定 wave の段 1 で
-これらを確認してから行う。
+8 変数の伝播・実効 walltime・signal 配送を実測していない** (F660)。これらは次の測定 wave の初回実行で確認し、
+結果 (到達した段・rc・receipt) を記録する。
 
 - **1 job = 1 spec × (1 窓 | finalize)。** 3 spec × 2 窓 = 6 window job + 3 finalize job。並走できるかは admission に
   依存し、資材は保証しない。
-- **投入元 checkout は detached で、9 job すべて同じ HEAD `H` から投入する** (申し送り 2)。driver は finalize で
-  両窓 header の `loaded_head` と finalize 時の HEAD の exact 一致を要求する。**測定の途中で checkout の HEAD を
-  進めない** (成果物の commit は 3 段が終わってから)。submitter は同 spec の他窓 JSONL が既にあればその header の
+- **投入元 checkout は detached で、各 spec の w1・w2・finalize の 3 job を同じ HEAD `H` から投入する** (申し送り 2)。
+  driver は finalize で両窓 header の `loaded_head` と finalize 時の HEAD の exact 一致を要求する。3 spec を同じ `H` から
+  投げるのは運用の単純化であって要件ではない。**測定の途中で checkout の HEAD を進めない** (成果物の commit は
+  3 段が終わってから)。submitter は同 spec の他窓 JSONL が既にあればその header の
   `loaded_head` と現 HEAD の一致を、finalize では両窓 JSONL の存在・header 一致・末尾 record が terminal であることを、
   qsub 前に確認する (driver の検査の代替ではない早期拒否)。
 - **binary は checkout ごとに `place` する** (D2069 項 7)。ignored file なので merge で移らない。
@@ -1700,7 +1701,11 @@ probe worktree / dispatch 成果物の掃除は別物である — lease が解�
   `--workload` は `rr95` / `rr50` / `rr5`。spec の relpath と sha256 は submitter が D2138 項 7 の値で pin しており、
   引数で差し替えられない。
 - **未検証の前提**: 計算ノードの時計が走行中に安定していること、scheduler の終了猶予、`nm` / `pgrep` の存在
-  (job body は起動時に `command -v` で確認する)、compute での動的 link 解決 (binary の NEEDED は system lib 4 本)。
+  (job body は起動時に `command -v` で確認する。finalize は session を走らせないので `nm` / `pgrep` を使わないが、
+  同じ集合を要求する)、compute での動的 link 解決 (binary の NEEDED は system lib 4 本)。**job body の bash が
+  SIGTERM を ignore も block もしない状態で起動することは未検証** — 計算ノードの job は SIGTERM を SIG_IGN で継承する
+  (F1012) ので、その場合 `record_signal` は発火せず、walltime 到達時は KILL で driver が止まり、terminal の無い JSONL と
+  `job-result.json` の欠落が残りうる。trap の存在を終了記録の保証と読まない。
 - job rc=0 は「床値が生成された」を意味しない。driver は window / finalize の result JSON (`driver.stdout`) を書いて
   rc=0 を返し、`status` は別に持つ。n = 62、欠測率、実 campaign の 24 時間以上の分離、採用は証拠確認者
   (D1641、申し送り 6) と集約 (D1974、申し送り 7) に残る。

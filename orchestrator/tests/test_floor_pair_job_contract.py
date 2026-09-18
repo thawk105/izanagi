@@ -2,6 +2,7 @@
 import hashlib
 import json
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -28,9 +29,15 @@ def _functions(path, *names):
 
 
 def _bash(source, *args):
+    def reset_signals():
+        signals = {signal.SIGTERM, signal.SIGHUP, signal.SIGINT}
+        for signum in signals:
+            signal.signal(signum, signal.SIG_DFL)
+        signal.pthread_sigmask(signal.SIG_UNBLOCK, signals)
+
     return subprocess.run(["bash", "-c", "set -Eeuo pipefail\n" + source,
                            "floor-pair-contract", *map(str, args)],
-                          capture_output=True, text=True, timeout=10)
+                          capture_output=True, text=True, timeout=10, preexec_fn=reset_signals)
 
 
 def _ok(result):
@@ -62,6 +69,23 @@ def test_registry_entries():
         "primary_gate": "qsub submission; compute work stays in job body",
         "evidence": "static login-side submitter classification",
     }
+
+
+def test_scripts_parse():
+    for path in (JOB, SUBMIT):
+        _ok(subprocess.run(["bash", "-n", str(path)], capture_output=True, text=True, timeout=10))
+
+
+def test_clean_environment():
+    for path in (JOB, SUBMIT):
+        result = _bash(_functions(path, "fail", "clean_environment") + '''
+export PYTHONWARNINGS=1 LD_AUDIT=x GIT_DIR=y PBS_JOBID=keep
+clean_environment
+[[ ! -v PYTHONWARNINGS && ! -v LD_AUDIT && ! -v GIT_DIR ]]
+printf '%s\n' "$PBS_JOBID" "$PATH"
+''')
+        _ok(result)
+        assert result.stdout.splitlines() == ["keep", "/usr/bin:/bin:/opt/nec/nqsv/bin:/system/tool/bin"]
 
 
 def test_frozen_spec_pins():
@@ -201,6 +225,86 @@ admit_and_run
             assert path.read_text().splitlines() == trace
 
 
+def test_job_main_gate_order_and_calls():
+    snippet = _functions(JOB, "fail", "main") + '''
+trace() { printf '%s\n' "$1" >>"$TRACE"; }
+bootstrap() { trace bootstrap; }
+clean_environment() { trace clean_environment; }
+select_python() { trace select_python; }
+finish_job() { :; }
+command() { trace "command:$3"; }
+realpath() { trace realpath; printf '%s\n' "$ROOT"; }
+git() {
+  case "$*" in
+    *--show-toplevel) trace checkout_root; printf '%s\n' "$ROOT" ;;
+    *'HEAD^{commit}') trace checkout_head; printf '%s\n' "$OBSERVED_HEAD" ;;
+    *) exit 99 ;;
+  esac
+}
+sha256sum() { trace spec; printf '%s\n' sha; }
+check_binaries() { trace binary; }
+hostname() { trace hostname; printf '%s\n' unused; }
+build_driver_argv() { trace build_driver_argv; }
+admit_and_run() { trace admit_and_run; JOB_RC=0; }
+TRACE=$1 ROOT=$2 OBSERVED_HEAD=$3 PBS_O_WORKDIR=$2
+FP_EXPECTED_HEAD=expected FP_SPEC_RELPATH=unused FP_SPEC_SHA256=sha
+main
+'''
+    prefix = ["bootstrap", "clean_environment", "select_python"] + [
+        "command:" + name for name in
+        "git nm pgrep sha256sum hostname date realpath mkdir env".split()
+    ] + ["realpath", "checkout_root", "realpath", "checkout_head"]
+    for head in ("expected", "different"):
+        with tempfile.TemporaryDirectory() as directory:
+            trace = Path(directory) / "trace"
+            result = _bash(snippet, trace, directory, head)
+            if head == "expected":
+                _ok(result)
+                expected = prefix + ["spec", "binary", "hostname", "build_driver_argv", "admit_and_run"]
+            else:
+                _refused(result, "checkout", "head_mismatch")
+                expected = prefix
+            assert trace.read_text().splitlines() == expected
+
+
+def test_submitter_main_gate_order_and_calls():
+    snippet = _functions(SUBMIT, "fail", "main") + '''
+trace() { printf '%s\n' "$1" >>"$TRACE"; }
+parse_args() { trace parse_args; MODE=window WORKLOAD=rr95 WINDOW=w1; }
+clean_environment() { trace clean_environment; }
+select_python() { trace select_python; PY=python_stub; }
+select_pin() { trace select_pin; SPEC_RELPATH=unused; }
+select_walltime() { trace select_walltime; DURATION=86400; }
+cd() { trace cd; }
+pwd() { trace pwd; printf '%s\n' /unused; }
+check_checkout() { trace check_checkout; REPO_ROOT=/unused; }
+check_spec_binding() { trace check_spec_binding; }
+check_binaries() { trace check_binaries; }
+read_window_bounds() { trace read_window_bounds; NOT_BEFORE=0 NOT_AFTER=999999; }
+date() { trace date; printf '%s\n' 1; }
+window_gate() { trace window_gate; }
+check_outputs() { trace check_outputs; if [[ "$STOP" == outputs ]]; then return 4; fi; }
+python_stub() { trace nonce; printf '%s\n' unused; }
+mkdir() { trace mkdir; }
+build_qsub_argv() { trace build_qsub_argv; }
+write_pre_submit() { trace write_pre_submit; }
+submit_or_dry_run() { trace submit_or_dry_run; }
+TRACE=$1 STOP=$2
+main
+'''
+    prefix = ["parse_args", "clean_environment", "select_python", "select_pin", "select_walltime",
+              "cd", "pwd", "check_checkout", "check_spec_binding", "check_binaries",
+              "read_window_bounds", "date", "window_gate", "check_outputs"]
+    for stop in ("none", "outputs"):
+        with tempfile.TemporaryDirectory() as directory:
+            trace = Path(directory) / "trace"
+            result = _bash(snippet, trace, stop)
+            assert result.returncode == (0 if stop == "none" else 4), result.stderr
+            expected = prefix + (["nonce", "mkdir", "mkdir", "date", "build_qsub_argv",
+                                  "write_pre_submit", "submit_or_dry_run"] if stop == "none" else [])
+            assert trace.read_text().splitlines() == expected
+
+
 def test_driver_argv():
     bootstrap = "import sys; sys.path.insert(0, sys.argv.pop(1)); from orchestrator.campaign.floor_pair_driver import main; raise SystemExit(main())"
     for mode, tail in (("window", ["--execute-window", "rr95-w1"]), ("finalize", ["--finalize"])):
@@ -215,6 +319,7 @@ printf '%s\n' "${driver_argv[@]}"
 
 
 def test_checkout_and_input_binding():
+    # 静的な限定検査。接続の実効性は stub 到達 test が担う。
     for path in (JOB, SUBMIT):
         source = path.read_text()
         for text in ("rev-parse --show-toplevel", "realpath -e", "rev-parse --verify HEAD^{commit}",
@@ -238,6 +343,7 @@ def test_checkout_and_input_binding():
             _ok(_bash(snippet, sys.executable, root))
             binary.write_bytes(b"changed")
             _refused(_bash(snippet, sys.executable, root), "binary", "missing_or_mismatch")
+            binary.write_bytes(b"contract-only")
             binary.chmod(0o600)
             _refused(_bash(snippet, sys.executable, root), "binary", "missing_or_mismatch")
 
@@ -287,7 +393,8 @@ submit_or_dry_run
 
 
 def test_child_rc_collection():
-    for child in ("exit 7", 'kill -TERM "$PPID"; sleep 0.1; exit 7'):
+    for child, expected_rc in (("exit 7", 7), ('kill -TERM "$PPID"; sleep 0.1; exit 7', 7),
+                               ('kill -TERM "$PPID"; sleep 0.1; exit 0', 0)):
         with tempfile.TemporaryDirectory() as directory:
             result = _bash(_functions(JOB, "fail", "record_signal", "run_driver", "write_result") + '''
 PY=$1 FP_EVIDENCE_DIR=$2 SIGNAL_RC=0
@@ -299,9 +406,9 @@ FP_SPEC_RELPATH=spec FP_SPEC_SHA256=sha FP_MODE=window FP_WINDOW_ID=rr95-w1 STAR
 write_result "$JOB_RC"
 exit "$JOB_RC"
 ''', sys.executable, directory, child)
-            assert result.returncode == 7, result.stderr
+            assert result.returncode == expected_rc, result.stderr
             payload = json.loads((Path(directory) / "job-result.json").read_text())
-            assert payload["driver_rc"] == payload["job_rc"] == 7
+            assert payload["driver_rc"] == payload["job_rc"] == expected_rc
             assert payload["driver_stdout_sha256"] == hashlib.sha256(b"").hexdigest()
             assert payload["reason"] == ("completed" if child == "exit 7" else "signal_observed")
 
@@ -346,6 +453,8 @@ def test_finalize_preflight_requires_terminal():
         for name in ("one", "two"):
             (root / name).write_text('{"loaded_head":"expected"}\n{"event":"terminal","status":"incomplete"}\n')
         _ok(_output_case(root, spec, "finalize"))
+        (root / "two").write_text('{"loaded_head":"different"}\n{"event":"terminal","status":"incomplete"}\n')
+        _refused(_output_case(root, spec, "finalize"), "outputs", "loaded_head_mismatch")
         (root / "two").write_text('{"loaded_head":"expected"}\n{"event":"measurement"}\n')
         _refused(_output_case(root, spec, "finalize"), "outputs", "terminal_missing")
         (root / "summary").symlink_to(root / "absent")
@@ -353,6 +462,7 @@ def test_finalize_preflight_requires_terminal():
 
 
 def test_no_build_or_output_replacement():
+    # 静的な限定検査。接続の実効性は stub 到達 test が担う。
     for path in (JOB, SUBMIT):
         source = path.read_text()
         for forbidden in ("cmake --build", "--validate-only", "--assume-now", "rm -", "unlink(", "shutil.rmtree", "kill ", "qsub -V"):
