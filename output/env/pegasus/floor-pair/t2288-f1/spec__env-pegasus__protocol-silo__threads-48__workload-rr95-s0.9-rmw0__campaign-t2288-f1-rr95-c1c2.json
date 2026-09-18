@@ -1,0 +1,133 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "b4-candidate",
+      "binary_relpath": "output/env/pegasus/binaries/7cdf0dc345f7eccdb50604e77521ce625c1792cc0eb8966b544f65a15ef274a4",
+      "binary_sha256": "7cdf0dc345f7eccdb50604e77521ce625c1792cc0eb8966b544f65a15ef274a4",
+      "build_receipt": {
+        "path": "output/insights/2026-09-16/t2636-b4-binary-record/records/rr20--stock_common.json",
+        "sha256": "760287f629ee96c5c0e31c43be7b6dc30bfbf48dd5ebbe4c0da8b5b0b3e389b0"
+      },
+      "trace": false
+    },
+    {
+      "artifact_id": "b4-reference",
+      "binary_relpath": "output/env/pegasus/binaries/7cdf0dc345f7eccdb50604e77521ce625c1792cc0eb8966b544f65a15ef274a4",
+      "binary_sha256": "7cdf0dc345f7eccdb50604e77521ce625c1792cc0eb8966b544f65a15ef274a4",
+      "build_receipt": {
+        "path": "output/insights/2026-09-16/t2636-b4-binary-record/records/rr20--stock_common.json",
+        "sha256": "760287f629ee96c5c0e31c43be7b6dc30bfbf48dd5ebbe4c0da8b5b0b3e389b0"
+      },
+      "trace": false
+    }
+  ],
+  "cells": [
+    {
+      "cell_id": "rr95-t48-s0.9-rmw0",
+      "perf_config": {
+        "extime": 3,
+        "records": 1000000,
+        "reps": 5,
+        "threads": 48,
+        "workload": {
+          "ycsb_rmw": "0",
+          "ycsb_rratio": "95",
+          "ycsb_zipf_skew": "0.9"
+        },
+        "ycsb_max_ope": 10
+      }
+    }
+  ],
+  "environment": {
+    "clocks_per_us": 2100,
+    "env_tag": "pegasus",
+    "extra_env": {},
+    "numactl_argv": [],
+    "probe_timeout_s": 30,
+    "site": "PEGASUS_COMPUTE",
+    "timeout_s": 120,
+    "use_perf": false
+  },
+  "failure_policy": {
+    "max_dropped_fraction": "1/20",
+    "policy": "d1641-drop-and-count-max-5pct/v1",
+    "require_all_reps": true,
+    "retry_count": 0
+  },
+  "outputs": {
+    "summary_format": "floor-pair-summary-json/v1",
+    "summary_relpath": "output/env/pegasus/floor-pair/t2288-f1/summary__env-pegasus__protocol-silo__threads-48__workload-rr95-s0.9-rmw0__campaign-t2288-f1-rr95-c1c2.json",
+    "window_format": "floor-pair-jsonl/v1"
+  },
+  "pairs": [
+    {
+      "cell_id": "rr95-t48-s0.9-rmw0",
+      "pair_id": "pair-rr95",
+      "reference_artifact_id": "b4-reference",
+      "sides": [
+        {
+          "candidate_artifact_id": "b4-candidate",
+          "side_id": "candidate_1"
+        },
+        {
+          "candidate_artifact_id": "b4-candidate",
+          "side_id": "candidate_2"
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "calibration": {
+      "attestation_mode": "required",
+      "path": "output/env/pegasus/calibration/registered/calibration-5c836a22eff9ab40.json",
+      "sha256": "5c836a22eff9ab40cabb23cb597cd0b3c232979696c5784b6b3d358b92c789cc"
+    },
+    "source_commit": "d2ebef7a407dc6be61622ed596cf08b8b518f606"
+  },
+  "randomization": {
+    "algorithm": "hmac-sha256-rank/v1",
+    "seed_hex": "7fa738507efad5105c6545e85bacde4f21c36a95e3c7b654b2e145077a9bf99e"
+  },
+  "schema": "floor-pair-spec/v3",
+  "statistics": {
+    "closed_strata": [
+      {
+        "pair_id": "pair-rr95",
+        "window_id": "rr95-w1"
+      },
+      {
+        "pair_id": "pair-rr95",
+        "window_id": "rr95-w2"
+      }
+    ],
+    "difference_formula": "D=abs((median(candidate_1)/median(reference_1)-1)-(median(candidate_2)/median(reference_2)-1))",
+    "final_combiner": "max_over_closed_strata/v1",
+    "reference_measurements_per_pair_sample": 2,
+    "session_reducer": "median/v1",
+    "stratum_upper": "sample_max/v1"
+  },
+  "windows": [
+    {
+      "artifact_relpath": "output/env/pegasus/floor-pair/t2288-f1/window__env-pegasus__protocol-silo__threads-48__workload-rr95-s0.9-rmw0__campaign-t2288-f1-rr95-c1.jsonl",
+      "campaign_id": "t2288-f1-rr95-c1",
+      "not_after": "2026-09-27T00:00:00Z",
+      "not_before": "2026-09-19T00:00:00Z",
+      "pair_ids": [
+        "pair-rr95"
+      ],
+      "sample_count": 62,
+      "window_id": "rr95-w1"
+    },
+    {
+      "artifact_relpath": "output/env/pegasus/floor-pair/t2288-f1/window__env-pegasus__protocol-silo__threads-48__workload-rr95-s0.9-rmw0__campaign-t2288-f1-rr95-c2.jsonl",
+      "campaign_id": "t2288-f1-rr95-c2",
+      "not_after": "2026-10-07T00:00:00Z",
+      "not_before": "2026-09-29T00:00:00Z",
+      "pair_ids": [
+        "pair-rr95"
+      ],
+      "sample_count": 62,
+      "window_id": "rr95-w2"
+    }
+  ]
+}
