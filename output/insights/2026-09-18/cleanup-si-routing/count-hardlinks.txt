@@ -1,0 +1,25 @@
+# hardlink 走査の原出力 (sidecar、逐語)
+
+- 走査 script: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-cleanup-si-routing/count_hardlinks.py
+  (repo 外に保全。実行可能資材は実装面なので repo へ入れない)
+- 走査対象: /work/1/SFC/tanab/izanagi/.git/worktrees/<name>/modules/** の regular file (symlink 除外)。
+  各 admin dir で st_nlink > 1 の最初の 1 件を見つけた時点で打ち切り。
+  scanned = admin dir 数、with_modules = modules/ を持つ数、with_hardlink = nlink>1 を 1 件以上持つ数。
+- 1 回目 (2026-09-18 段 6、同じ script を ~/.claude/jobs/5757c513/tmp/ から実行、stdout 逐語):
+
+```
+scanned=172 with_modules=171 with_hardlink=171
+examples: ['a56-t2668-impl', 'a5f-f480', 'a5f-hang', 'a5f-t080', 'a5f-weight']
+```
+
+- 2 回目 (2026-09-18 07:22 JST、焦点再レビュー後に wave job dir から再実行、stdout 逐語。
+  並行 wave の worktree 作成で母数が増えている):
+
+```
+scanned=184 with_modules=183 with_hardlink=183
+examples: ['a56-t2668-impl', 'a5f-f480', 'a5f-hang', 'a5f-t080', 'a5f-weight']
+```
+
+- 読み: 2 回とも with_hardlink == with_modules (modules/ を持つ admin dir はすべて nlink>1 の regular file を
+  少なくとも 1 件持つ)。「必ず rc=20」の主張ではなく、`tools/dev_wave_cleanup.py` の `_read_admin_file` が
+  通常 preflight の snapshot で到達する file 集合に nlink>1 が含まれることの全数観測である。

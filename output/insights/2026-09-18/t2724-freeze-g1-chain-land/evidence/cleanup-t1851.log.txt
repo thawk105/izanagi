@@ -1,0 +1,1 @@
+dev-wave-cleanup: status=rejected phase=preflight reason=wave worktree is dirty

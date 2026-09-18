@@ -635,6 +635,122 @@ def test_help_marks_resource_defaults_non_authoritative() -> None:
     assert "--wall-clock-admission-bound-s が 90 未満ならそれに切り下げる" in evidence_block
 
 
+def _terminal_git(repo: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", *args], cwd=repo, check=True, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        env={**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull},
+    )
+    return result.stdout.strip()
+
+
+def _terminal_repo(root: Path, launcher_rc: int = 0) -> Path:
+    primary = root / "primary"
+    _prepare_fake_repo(primary)
+    launcher = primary / "tools/codex_worker_launch.py"
+    launcher.write_text(
+        launcher.read_text() +
+        '\nPath(entry["repo_root"], "residue").write_text("worker output\\n")\n'
+        f'raise SystemExit({launcher_rc})\n'
+    )
+    _terminal_git(primary, "commit", "-am", "fake worker writes residue")
+    worker = root / "worker"
+    _terminal_git(primary, "worktree", "add", "-b", "topic", str(worker))
+    return worker
+
+
+def _terminal_dispatch(root: Path, worker: Path, *, stage: str = "author",
+                       sandbox: str = "workspace-write", dry_run: bool = False):
+    prompt = root / "prompt.txt"
+    prompt.write_text("worker prompt\n")
+    artifacts = root / "artifacts"
+    artifacts.mkdir(exist_ok=True)
+    command = [
+        sys.executable, str(_DISPATCHER), "--stage", stage, "--wave", "terminal",
+        "--prompt-file", str(prompt), "--artifact-root", str(artifacts),
+        "-o", str(root / "answer.txt"), "--repo-root", str(worker), "--sandbox", sandbox,
+    ]
+    if stage == "plan":
+        command += ["--reasoning", "high"]
+    if dry_run:
+        command.append("--dry-run")
+    return subprocess.run(command, check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+
+def test_workspace_write_author_commits_after_launcher() -> None:
+    for launcher_rc in (0, 7):
+        for stage in ("author", "fix"):
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                worker = _terminal_repo(root, launcher_rc)
+                base = _terminal_git(worker, "rev-parse", "HEAD")
+                result = _terminal_dispatch(root, worker, stage=stage)
+                head = _terminal_git(worker, "rev-parse", "HEAD")
+                assert result.returncode == launcher_rc, result.stderr
+                assert result.stdout == f"worktree-commit: committed {head}\n"
+                assert result.stderr == ""
+                assert _terminal_git(worker, "rev-list", "--count", f"{base}..HEAD") == "1"
+                assert _terminal_git(worker, "show", "HEAD:residue") == "worker output"
+                assert _terminal_git(worker, "status", "--porcelain") == ""
+                message = _terminal_git(worker, "log", "-1", "--format=%B")
+                assert f"launcher rc: {launcher_rc}\n" in message
+                assert f"stage: {stage}\n" in message
+                assert "wave: terminal\njob-id: terminal-" in message
+
+
+def test_terminal_commit_failure_rc() -> None:
+    for launcher_rc, expected_rc in ((0, 3), (7, 7)):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            worker = _terminal_repo(root, launcher_rc)
+            base = _terminal_git(worker, "rev-parse", "HEAD")
+            _terminal_git(worker, "config", "--unset", "user.name")
+            _terminal_git(worker, "config", "--unset", "user.email")
+            _terminal_git(worker, "config", "user.useConfigOnly", "true")
+            result = _terminal_dispatch(root, worker)
+            assert result.returncode == expected_rc, result.stderr
+            assert result.stdout == "worktree-commit: failed reason=commit-file\n"
+            assert result.stderr == "NG: worktree-commit failed reason=commit-file\n"
+            assert _terminal_git(worker, "rev-parse", "HEAD") == base
+            assert _terminal_git(worker, "show", ":residue") == "worker output"
+
+
+def test_read_only_and_non_author_never_commit() -> None:
+    for stage, sandbox in (("author", "read-only"), ("plan", "workspace-write")):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            worker = _terminal_repo(root)
+            (worker / "dirty").write_text("existing residue\n")
+            head = _terminal_git(worker, "rev-parse", "HEAD")
+            index = Path(_terminal_git(worker, "rev-parse", "--path-format=absolute", "--git-path", "index"))
+            before_index = index.read_bytes()
+            result = _terminal_dispatch(root, worker, stage=stage, sandbox=sandbox)
+            assert result.returncode == 0, result.stderr
+            assert result.stdout == ("" if sandbox == "read-only" else "worktree-commit: skipped reason=stage\n")
+            assert result.stderr == ""
+            assert _terminal_git(worker, "rev-parse", "HEAD") == head
+            assert index.read_bytes() == before_index
+            assert (worker / "dirty").read_text() == "existing residue\n"
+            assert (worker / "residue").read_text() == "worker output\n"
+
+
+def test_dry_run_never_commits() -> None:
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        worker = _terminal_repo(root)
+        (worker / "dirty").write_text("existing residue\n")
+        head = _terminal_git(worker, "rev-parse", "HEAD")
+        index = Path(_terminal_git(worker, "rev-parse", "--path-format=absolute", "--git-path", "index"))
+        before_index = index.read_bytes()
+        result = _terminal_dispatch(root, worker, dry_run=True)
+        assert result.returncode == 0, result.stderr
+        assert "worktree-commit:" not in result.stdout
+        assert result.stderr == ""
+        assert _terminal_git(worker, "rev-parse", "HEAD") == head
+        assert index.read_bytes() == before_index
+        assert not (worker / "residue").exists()
+
+
 def _run() -> int:
     functions = [
         value
