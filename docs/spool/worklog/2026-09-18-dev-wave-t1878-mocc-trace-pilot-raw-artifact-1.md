@@ -47,8 +47,17 @@ title: [T-1878] mocc trace-hook (TRACE=1) pilot (PBS 934607.nqsv) の raw verifi
   ことの**独立 2 例目** (1 例目 = entry 998)。`DW-G03` の 2 例は満たすが、段構成の変更なので skill-self-improvement の dev-wave 終端に従い
   実装せず**裁定パッケージ候補**として insight §7 に残す (推奨案 = `DW-C00` の「docs-only は子ゼロでよい」へ「一次資料から事実を再抽出する
   docs wave は review 1 本を残す」を足す。L1 予算は満杯 (1649 実測 10,622 / 10,625) で原資は D730 の手順)。
-- 検査: `tools/check_docs.py` 違反なし、`spool_fold.py --dry-run` rc=0。変異 matrix は実装面差分ゼロで免除 (DW-S04)、受入全走は
-  land 経路で 1 走 (結果は land の受領証)。
+- 検査: `tools/check_docs.py` 違反なし、`spool_fold.py --dry-run` rc=0。変異 matrix は実装面差分ゼロで免除 (DW-S04)。
+- **受入 attempt 1 (門番経由、13:17〜13:40 JST、tip a578e7400 = main 697025ec9 取り込み後) は rc=70、赤 1 件を非帰属と判定した
+  (DW-O18)。** 赤 = `orchestrator/tests/test_pegasus_floor_tools.py::test_floor_checkpoint_filesystem_hang_has_a_wall_clock_bound[write]`
+  (`AssertionError: diagnostic timeout did not interrupt the syscall`、5 秒 sleep を 0.02 秒の診断 timeout が中断できるかを見る時間依存
+  test、shard-2、同時受入 2〜3 本)。根拠 4 つ: (i) 本 wave の変更面は docs 3 種 (paper-story README・spool fragment・insights) だけで、
+  同 test file も `floor_job_checkpoint.py` もそれを参照しない (差分到達不能)。(ii) 同一 tip a578e7400 で同 file を単独再走 (計算ノード
+  request `5666.nqsv`、`run_tests.py` 経由) すると **3 passed / 4.44 秒 / child rc=0** で非再現。(iii) assertion 本文が時間依存で、
+  同じ node の同型の赤は archive の entry 1482 (2026-09-14、load 88〜133) と 1546 (2026-09-16) でも単独非再現で非帰属と判定されている
+  (今回で 3 例目。failures には未起票で、本 wave の scope 外なので起票せず報告に載せる)。(iv) 赤の受領証は受理しない。テストの弱体化・
+  deselect・hold 登録はしない。受入は本判定の記録 commit を積んだ tip に対して 1 回だけ再投入する (門番 = 他 wave の leader ≤ 1 ∧
+  load ≤ 60、乱数周期 + 二重確認。マネージャー thread の 12:09 / 12:53 の受入調停に従う)。結果は land の受領証。
 - 工数: codex 子 1 本 (review、read-only)。親の実測: repo 外走査 3 回 (Write tool で Python を書いて実行 — 隔離 session の Bash guard は
   複数 dir の `grep -rl` を拒否する)、git 履歴・ignore・tree の照合、当時 script と verifier の `git show` 読み、編集面照合 (209 branch)。
 

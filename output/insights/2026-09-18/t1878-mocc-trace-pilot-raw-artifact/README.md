@@ -126,3 +126,19 @@ probe `949555` (`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-trace-pair/materi
   仮想リスクではなく実測 2 例に基づくが、採否はユーザー裁定に属する
 - 上記以外に作法の欠落・無駄は観測していない (隔離 session の Bash guard が複数 dir の `grep -rl` を拒否する件は既知で、Write tool の
   Python で回避した)
+
+## §8 受入 attempt 1 の赤 1 件と非帰属判定 (DW-O18)
+
+- attempt 1 (門番経由、13:17〜13:40 JST、tip `a578e7400` = main `697025ec9` 取り込み後、同時受入 2〜3 本): rc=70、赤 1 件
+  `orchestrator/tests/test_pegasus_floor_tools.py::test_floor_checkpoint_filesystem_hang_has_a_wall_clock_bound[write]`
+  (`AssertionError: diagnostic timeout did not interrupt the syscall`。0.02 秒の診断 timeout が 5 秒 sleep を中断できるかを見る時間依存 test)。
+  junit は `/work/1/SFC/tanab/.izanagi-acceptance-shards/fc46ab5b3249116b0bfd8c4f7b9a4e6a/shard-2/junit.xml`
+- 判定 = 非帰属。根拠: (i) 本 wave の変更面 (paper-story README・spool fragment・insights) を同 test file も `floor_job_checkpoint.py` も
+  参照しない。(ii) 同一 tip で同 file を単独再走 (`run_tests.py` 経由、計算ノード request `5666.nqsv`) → **3 passed / 4.44 秒 / child rc=0**
+  (`verbatim/acceptance-red-rerun-5666.log`)。(iii) 同型の赤は archive worklog の entry 1482 (2026-09-14) と 1546 (2026-09-16) でも
+  単独非再現で非帰属判定 (今回で 3 例目、failures 未起票)。(iv) 赤の受領証は受理せず、テストの弱体化・deselect・hold 登録はしない
+- 対応: 本判定の記録 commit を積み、門番 (leader ≤ 1 ∧ load ≤ 60、乱数周期 + 二重確認) で受入を 1 回だけ再投入する
+- `verbatim/acceptance-red-rerun-5666.log` の可逆最小正規化 (DW-S07): 行 58 / 80 の行末 space 1 byte ずつを除いた (可視文字不変)。原文 sha256
+  `3a0d9fbe9102ab1fca0adb010dc3b0f64d651ee2a3c110b3e247899d3bafcc0d` (8,595 bytes)、正規化後
+  `65f31290e95adf03aeb7828b52f8c5b71679b672a58666d888172b66c72b3ba8` (8,593 bytes)。復元法 = 同 2 行の末尾に space 1 個を戻す。
+  原文は job dir の `rerun-red-1.log`
