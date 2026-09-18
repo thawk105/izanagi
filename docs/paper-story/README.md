@@ -176,6 +176,23 @@ D2049 が定めるとおり、逆対応の逐語適用は片側の境界を過�
 - **数値・日付・判定の出所は一次資料だけとする。** 版の記述を数値の出所にしない。
 - 版と同じく `tools/check_docs.py` の `LIVING_DOCS`（現況主張 lint）対象外である。
 
+**C14a の所在調査の追記 (2026-09-18、[T-1878])。** 2026-08-26 稿は変更せず、今回の探索結果をここに記録する。claim-evidence matrix の
+新稿ではない (一項目だけを直した新しい日付の稿は規則 2 が禁じる)。矛盾があれば下で指す一次資料が勝つ。
+
+- **C14a の `[権威 bytes]` は 2026-09-18 時点でも未特定 — 探索した範囲での未特定であり、全体での不在の断定ではない。**
+  2026-08-26 稿の C14a 行 (mocc trace-hook TRACE=1 pilot、PBS `934607.nqsv`、outer `2efe6282`) が `[権威 bytes]` を「未特定」と書いた件を、
+  pilot の insight 5 群が名指す job dir 9 件、`/work/1/SFC/tanab/izanagi-job-evidence/` 配下、`tools/pegasus/mocc_trace_pilot.sh` の出力先に
+  限って探索した結果、raw `verifier.json` もその sha256 も特定できなかった。当時の script の出力先は投入 worktree
+  (`dev-wave-t755-mocc-trace-execution`) 配下の `output/env/pegasus/mocc-trace/job-staging/$PBS_JOBID/` (request 934607 の実表記は
+  `934607.nqsv` か `0:934607.nqsv`) で、同 worktree は現在存在しない。探索時点の全 ref から辿れる履歴に同 path を触る commit は無く、
+  evidence dir と名指し job dir (50 MiB 以下の全 file の本文と path 名) にも raw も退避物も特定できなかった。当時の receipt 生成処理は
+  `verifier.json` を名前で指すだけで sha256 を束縛していなかった。消失の経緯と過去の保存履歴は確定していない。insight に埋め込まれた
+  JSON block は raw の逐語ではない (当時の verifier `--json` が出す `trace_dir` など 3 key を欠く) ので、その sha256 を `[権威 bytes]` の
+  代わりに書くこともできない。一次資料 = `output/insights/2026-09-18/t1878-mocc-trace-pilot-raw-artifact/README.md` (探索範囲・方法・
+  結果と、探索していない範囲)。**変わらないこと:** C14a の判定値 (`serializable` / `certified` 真 / anomaly 0) と `[導出索引]` は
+  2026-08-26 稿のままで、C14a を引くときは「raw artifact 未特定 (insight 転記のみ)」の限定を外さない。2026-08-26 の pair wave の
+  TRACE=1 leg (`0:949961.nqsv` / `0:949963.nqsv`) には raw と sha256 があるが、別 request の観測であり C14a の行に流用しない。
+
 ## results 系列（`results/` サブディレクトリ）
 
 **版とも claim-evidence とも別の、結果 1 件ごとの結果節の材料を置く場所。** 版が「その時点で何を語るか」、
