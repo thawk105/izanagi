@@ -18,6 +18,11 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2489] D2148項5のA-2 scheduler.nodes=5とpolicy pin・fixture閉包を整合。
+  A-2/A-6のnode-local lock候補は計算ノードで実測し、既存default consumerとの同一ノード排他を
+  失うため不採用とした。共通job bodyと認証条件を維持し、追加総timeout・性能値の昇格は行わない。
+  根拠 = `output/insights/2026-09-19/t2489-a2-nodes5-local-lock/README.md`。
+
 - [x] [T-2608] declared fold verifier の例外出力に code と sanitize 済み detail を保存。
   拒否判定と構造的拒否の文面を維持し、実 verifier の例外と fail-open 変異の検出を確認した。
   記録 = `output/insights/2026-09-18/t2608-fold-verifier-detail/README.md`。
