@@ -2895,16 +2895,19 @@ def test_report_and_run_start_schema_versions_are_required(tmp_path, target) -> 
     value = report if target == "report" else events[0]
     value.pop("schema_version")
     _persist(run, events, report)
-    expected = (
-        r"report\.schema_version does not match producer version"
-        if target == "report"
-        else r"run-start\.schema_version does not match producer version"
-    )
-    with pytest.raises(
-        C.AutonomousTrialCompletenessError,
-        match=rf"\[run-envelope\] {expected}$",
-    ):
-        _verify(run, report)
+    if target == "report":
+        with pytest.raises(
+            C.AutonomousTrialCompletenessError,
+            match=r"\[run-envelope\] report\.schema_version does not match producer version$",
+        ):
+            _verify(run, report)
+    else:
+        with pytest.raises(C.AutonomousTrialCompletenessError) as exc:
+            _verify(run, report)
+        assert str(exc.value) == (
+            "[run-envelope] run-start.schema_version unsupported: recorded=None; "
+            "generation=unknown; consumer_supported='p3-autonomous-workload-trial/v4'"
+        )
 
 
 def test_role_schema_v4_and_report_schema_v3_are_required(tmp_path) -> None:
@@ -2916,16 +2919,85 @@ def test_role_schema_v4_and_report_schema_v3_are_required(tmp_path) -> None:
         run, events, report = _complete_trial(tmp_path / target)
         if target == "start":
             events[0]["schema_version"] = "p3-autonomous-workload-trial/v3"
-            expected = "run-start.schema_version does not match producer version"
         else:
             report["schema_version"] = "p3-autonomous-workload-trial-report/v2"
-            expected = "report.schema_version does not match producer version"
         _persist(run, events, report)
-        with pytest.raises(
-            C.AutonomousTrialCompletenessError,
-            match=rf"\[run-envelope\] {expected}$",
-        ):
-            _verify(run, report)
+        if target == "report":
+            with pytest.raises(
+                C.AutonomousTrialCompletenessError,
+                match=r"\[run-envelope\] report.schema_version does not match producer version$",
+            ):
+                _verify(run, report)
+        else:
+            with pytest.raises(C.AutonomousTrialCompletenessError) as exc:
+                _verify(run, report)
+            assert str(exc.value) == (
+                "[run-envelope] run-start.schema_version unsupported: "
+                "recorded='p3-autonomous-workload-trial/v3'; generation=legacy; "
+                "consumer_supported='p3-autonomous-workload-trial/v4'"
+            )
+
+
+def test_run_start_v4_without_binding_is_accepted(tmp_path) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    start = events[0]
+    assert start["schema_version"] == "p3-autonomous-workload-trial/v4"
+    assert {"generation_driver", "gating_spec_sha256", "honest_accounting_authority"} <= start.keys()
+    assert {
+        "prereg_commit", "prereg_content_commit", "prereg_effective_commit",
+        "slot_id", "measurement_head", "manifest_sha256", "arm_execution",
+    }.isdisjoint(start)
+    _verify(run, report)
+
+
+def test_run_start_v3_legacy_shape_is_rejected(tmp_path) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    start = events[0]
+    start["schema_version"] = "p3-autonomous-workload-trial/v3"
+    for key in ("generation_driver", "gating_spec_sha256", "honest_accounting_authority"):
+        del start[key]
+    assert set(start) == {
+        "event", "schema_version", "trial_id", "provider", "workloads",
+        "generation_budget_per_workload", "max_wall_s", "do_build",
+        "performance_early_stop", "scientific_claim", "launch_admission", "seq", "ts",
+    }
+    _persist(run, events, report)
+    with pytest.raises(C.AutonomousTrialCompletenessError) as exc:
+        _verify(run, report)
+    assert str(exc.value) == (
+        "[run-envelope] run-start.schema_version unsupported: "
+        "recorded='p3-autonomous-workload-trial/v3'; generation=legacy; "
+        "consumer_supported='p3-autonomous-workload-trial/v4'"
+    )
+
+
+def test_run_start_unknown_schema_version_is_rejected(tmp_path) -> None:
+    run, events, report = _complete_trial(tmp_path)
+    events[0]["schema_version"] = "p3-autonomous-workload-trial/v99"
+    _persist(run, events, report)
+    with pytest.raises(C.AutonomousTrialCompletenessError) as exc:
+        _verify(run, report)
+    assert str(exc.value) == (
+        "[run-envelope] run-start.schema_version unsupported: "
+        "recorded='p3-autonomous-workload-trial/v99'; generation=unknown; "
+        "consumer_supported='p3-autonomous-workload-trial/v4'"
+    )
+
+
+def test_run_start_schema_version_is_independent_of_producer(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(A, "SCHEMA_VERSION", "p3-autonomous-workload-trial/v5-fixture")
+    run, events, report = _complete_trial(tmp_path)
+    assert events[0]["schema_version"] == "p3-autonomous-workload-trial/v4"
+    _verify(run, report)
+    events[0]["schema_version"] = "p3-autonomous-workload-trial/v5-fixture"
+    _persist(run, events, report)
+    with pytest.raises(C.AutonomousTrialCompletenessError) as exc:
+        _verify(run, report)
+    assert str(exc.value) == (
+        "[run-envelope] run-start.schema_version unsupported: "
+        "recorded='p3-autonomous-workload-trial/v5-fixture'; generation=unknown; "
+        "consumer_supported='p3-autonomous-workload-trial/v4'"
+    )
 
 
 def test_producer_cell_metadata_and_descriptor_binding_are_required(

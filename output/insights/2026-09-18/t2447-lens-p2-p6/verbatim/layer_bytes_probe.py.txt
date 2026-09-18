@@ -1,0 +1,51 @@
+"""dev-wave reference の三層 unique footprint を印字する probe (repo へ入れない)。"""
+import sys
+from pathlib import Path
+
+REPO = Path(sys.argv[1] if len(sys.argv) > 1 else "/work/1/SFC/tanab/izanagi")
+sys.path.insert(0, str(REPO / "tools"))
+import check_docs as cd  # noqa: E402
+
+dev_wave_text = (REPO / ".claude/commands/dev-wave.md").read_text(encoding="utf-8")
+dispatch = cd._dispatch_tables(dev_wave_text)
+decoded = {
+    rel: (REPO / rel).read_bytes().decode("utf-8")
+    for rel in cd.DEV_WAVE_REFERENCE_FILES
+}
+registered = {
+    (p, s) for p, ss in cd.REQUIRED_REFERENCE_SECTIONS.items() for s in ss
+}
+unc = cd._stage_dispatch_from_edges(dispatch.edges, "U")
+l1 = set().union(*(unc.get(k, set()) for k in cd.DEV_WAVE_L1_STAGE_KEYS))
+l15 = set().union(*(unc.get(k, set()) for k in cd.DEV_WAVE_L1_5_STAGE_KEYS)) - l1
+l1 &= registered
+l15 &= registered
+l2 = registered - l1 - l15
+layers = {"L1": l1, "L1.5": l15, "L2": l2}
+tot = {"L1": 0, "L1.5": 0, "L2": 0}
+per = []
+for rel in sorted(cd.DEV_WAVE_REFERENCE_FILES):
+    text = decoded[rel]
+    preamble, slices, visible = cd._visible_reference_slices(text)
+    present = [
+        L for L in ("L1", "L1.5", "L2") if any(p == rel for p, _ in layers[L])
+    ]
+    pl = "L1" if "L1" in present else ("L1.5" if "L1.5" in present else None)
+    if pl:
+        b = len(preamble.encode())
+        tot[pl] += b
+        per.append((pl, rel, "<preamble>", b))
+    for L, pairs in layers.items():
+        for p, s in sorted(pairs):
+            if p != rel:
+                continue
+            b = len(slices[s][0].encode())
+            tot[L] += b
+            per.append((L, rel, s, b))
+for row in sorted(per):
+    print(f"{row[0]:5} {row[1]:32} {row[2]:12} {row[3]:6}")
+print("L1   =", tot["L1"], "/", cd.DEV_WAVE_L1_BYTES_MAX,
+      " 残", cd.DEV_WAVE_L1_BYTES_MAX - tot["L1"])
+print("L1.5 =", tot["L1.5"], "/", cd.DEV_WAVE_L1_5_BYTES_MAX,
+      " 残", cd.DEV_WAVE_L1_5_BYTES_MAX - tot["L1.5"])
+print("L2   =", tot["L2"], " (単節上限", cd.DEV_WAVE_L2_SECTION_BYTES_MAX, ")")
