@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-09-18
 wave: dev-wave-t2129-spool-carry-wording
 seq: 1
-title: [T-2129] docs/spool/worklog/README.md の「明示 carry と暗黙 carry は同じ出力を生む」を、fold の時点でその T が active なときに限る条件付きの記述へ直した — 別 wave が先に land して外した T の明示 carry は land lock の内側で transition-target になり受入全走の後に初めて分かる (docs のみ、branch worktree-dev-wave-t2129-spool-carry-wording、変異 matrix 免除 = 実装面差分ゼロ)
+title: [T-2129] docs/spool/worklog/README.md の「明示 carry と暗黙 carry は同じ出力を生む」を、fold の時点でその T が active なときに限る条件付きの記述へ直した — 別 wave が先に land して外した T の明示 carry は land lock の内側で transition-target になり受入全走の後に初めて分かる場合がある (docs のみ、branch worktree-dev-wave-t2129-spool-carry-wording、変異 matrix 免除 = 実装面差分ゼロ)
 ---
 
 ## 本文
@@ -14,7 +14,7 @@ title: [T-2129] docs/spool/worklog/README.md の「明示 carry と暗黙 carry 
   fragment は fold が transition-target で止まり、停止は land lock の内側なので受入全走の後に初めて分かる。是正は文言だけ
   とし、tools/spool_fold.py の挙動は変えない (現行の拒否は正しい)。docs のみ。着手直前の local main から fresh worktree。
   本題の文言だけ。仮想リスク向けの gate・検査・台帳・一般化の追加は scope 外」。
-- **閉じた (README の 1 項目 = 4 行 → 12 行、他の項目は 1 byte も変えていない)。** `tools/spool_fold.py`・`check_docs.py`・
+- **旧 wave で修正した (README の 1 項目 = 4 行 → 12 行、他の項目は 1 byte も変えていない)。** `tools/spool_fold.py`・`check_docs.py`・
   test は不変。insight は作らず、裏取りの事実は本文に残す。
 - 裏取り (login node pegasus02、着手直前の local main `c8e8dc06f` の現物): `tools/spool_fold.py` の `_render_next_actions` は
   `carry` を `新規` 以外の操作として `action_by_id` に入れ、`set(action_by_id) - set(active_by_id)` が非空なら
@@ -36,6 +36,9 @@ title: [T-2129] docs/spool/worklog/README.md の「明示 carry と暗黙 carry 
   `-`/`+` なし) 再走で rc=0。実害なし。
 - 検査: `tools/check_docs.py`、`spool_fold.py --dry-run`、`git diff --check`、provenance 監査。受入全走は land 前に 1 回
   (結果は land の受領証)。
+- 回収 wave の独立監査で検出時点の断定を限定した。上記依頼の引用は保持するが、実装上は作業木へ反映済みの
+  完了・見送りや同一 fold 内の先行 fragment による除外を `--dry-run` でも検出する。未反映の main 側の変化により、
+  lock 内で初めて判明する場合がある。README と本 title を条件付きへ直し、spool の挙動は変えていない。
 
 ## 次の一手差分
 

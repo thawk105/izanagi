@@ -60,9 +60,10 @@ title: 並行 docs 衝突を spool + fold で解消する (コード + docs、br
   **明示 carry と暗黙 carry が同じ出力を生むのは、fold の時点でその T がまだ active なときに限る。**
   fold は明示 carry を `完了`/`更新`/`見送り` と同じ「active な item への操作」として扱うので、
   別 wave が先に land してその T を `完了`/`見送り` で active から外していると、fold は
-  `transition-target` (active でない操作対象) で止まる。この停止は land lock の内側で起き、
-  受入全走を通した後に初めて分かる。作業木に取り込んでいない main 側の完了・見送りは
-  `--dry-run` にも映らない。暗黙 carry にはこの失敗が無い (非 active な T は走査に現れないだけ)。
+  `transition-target` (active でない操作対象) で止まる。作業木に取り込んでいない main 側の
+  完了・見送りは `--dry-run` に映らず、受入全走後の land lock 内で初めて検出される場合がある。
+  作業木へ反映済みの場合や、同一 fold 内の先行 fragment が対象を外す場合は、`--dry-run` でも検出される。
+  暗黙 carry にはこの失敗が無い (非 active な T は走査に現れないだけ)。
   したがって並行 wave では、自分が `完了`/`更新`/`見送り` に置かない T を `carry` へ列挙しない
   (節ごと省く) のが安全側である。同一 fold 内で先に適用された別 fragment が外した場合も同じ (F233)。
   暗黙 carry は並行 wave のために必要である — 他の wave が新しい T を先に fold しても、
