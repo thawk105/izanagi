@@ -2429,6 +2429,16 @@
   (2 本目は `check_codex_output.py` rc=0 で採用)。
 
 - **再発: 2026-09-11** — T-2528のfix子は必須の総括見出しを欠き、CLI rc=0でもlauncherがf43_fragmentとして未受理にした。親は別のread-only focus子に未受理差分を独立監査させて採用した。既存の検収経路を使用し、新しい防壁は追加しない。原報告と検証記録は `output/insights/2026-09-11/t2528-role-input/README.md`。
+
+- **再発: 2026-09-18** — [T-2613] wave の段 5 author 子 2 本 (発行側 / 受入側) が両方とも
+  `failure_class=f43_fragment` で不受理 (`codex_exit_code=0`、`validator_rc=1`、報告 5,445 / 7,637 bytes)。
+  原因は 2026-08-26 型と同じく**親の prompt 側の誤り** — plan / consult / review の prompt には
+  `## 総括` を書いたが、author 2 本の「完了報告に必ず含める」節に `## 総括` 見出しを要求しなかった
+  (`DW-O01` の「prompt に `## 総括` 必須」を author 段で落とした)。実装は両 worktree に正しく
+  あり、親が未受理と明記して報告本文を段 6 レビュー 2 本の入力 (データ) に渡し、レビューが実装を
+  監査した (`DW-O01` の「未受理は未完了と記し次の子に監査させる」)。fix 子の prompt には
+  `## 総括` を最初の見出しとして明示し、2 本とも受理された。恒久対応は従来どおり親検収 +
+  `check_codex_output.py` で、reference は編集しない。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
