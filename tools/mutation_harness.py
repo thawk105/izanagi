@@ -1418,6 +1418,51 @@ def _dispatch_timeout_overrides(
     return overrides
 
 
+def _effective_timeout(
+    spec: MutationSpec,
+    runner_mode: str,
+    *,
+    collection: bool = False,
+    hang_risk: bool = False,
+) -> float:
+    """D2148: dispatch 全区間の運用予算。厳密な実行上限ではない。"""
+    if runner_mode == "local":
+        return spec.hang_timeout_seconds if hang_risk else spec.timeout_seconds
+    from tools.pegasus import dispatch_compute
+
+    try:
+        overrides = _dispatch_timeout_overrides(environ=os.environ)
+    except (TypeError, ValueError) as exc:
+        # 新しい拒否 gate にしない。collection / dispatcher の既存拒否へ渡す。
+        print(f"[mutation timeout] Q/G override 不正: {exc}; 予算は既定値", file=sys.stderr)
+        overrides = {}
+    walltime = dispatch_compute._walltime_seconds(dispatch_compute.DEFAULT_WALLTIME)
+    raw_walltime = None if collection else os.environ.get("IZANAGI_DISPATCH_WALLTIME_OVERRIDE")
+    if not collection and raw_walltime:
+        try:
+            walltime = dispatch_compute._walltime_seconds(raw_walltime)
+        except ValueError as exc:
+            print(f"[mutation timeout] W override 不正: {exc}; 予算は既定値", file=sys.stderr)
+    # 前段実測 max 15.9s に10倍以上の余裕。harness 起動・観測・終端も含む暫定値。
+    preparation = 180.0
+    queue = overrides.get("queue_wait_timeout_s", dispatch_compute.DEFAULT_QUEUE_WAIT_TIMEOUT_S)
+    grace = overrides.get("overall_grace_s", dispatch_compute.DEFAULT_OVERALL_GRACE_S)
+    accounting = dispatch_compute.DEFAULT_ACCOUNTING_GRACE_S
+    cleanup = dispatch_compute.DEFAULT_CLEANUP_BUDGET_S
+    budget = preparation + queue + walltime + grace + accounting + cleanup
+    effective = max(spec.timeout_seconds, budget)
+    print(
+        f"[mutation timeout] {'collection' if collection else 'execution'}: "
+        f"spec={spec.timeout_seconds}, P={preparation}, Q={queue}, W={walltime}, "
+        f"G={grace}, A={accounting}, C={cleanup}, budget={budget}, effective={effective}; "
+        "全区間を覆うため max(spec, 運用予算) を使用（厳密上限ではない）。"
+        "dispatch hang は内側 walltime に委ね、短い hang timeout は外側に使わない",
+        file=sys.stderr,
+        flush=True,
+    )
+    return effective
+
+
 def _collection_command(
     repo: Path,
     command: Sequence[str],
@@ -1523,7 +1568,7 @@ def _collect_expected_nodes(
             runner_mode,
             outer_timeout_s=spec.timeout_seconds,
         ),
-        timeout_s=spec.timeout_seconds,
+        timeout_s=_effective_timeout(spec, runner_mode, collection=True),
         runner_mode=runner_mode,
         attempt_recorder=attempt_recorder,
         attempt_phase="collection" if attempt_recorder is not None else None,
@@ -2127,7 +2172,7 @@ def _baseline(
     result = _run_tests(
         repo,
         command,
-        timeout_s=spec.timeout_seconds,
+        timeout_s=_effective_timeout(spec, runner_mode),
         runner_mode=runner_mode,
         attempt_recorder=attempt_recorder,
         attempt_phase="baseline" if attempt_recorder is not None else None,
@@ -2244,8 +2289,8 @@ def _apply_mutation(
         )
         if pending_stop is not None:
             raise pending_stop
-        timeout_s = (
-            spec.hang_timeout_seconds if mutation.hang_risk else spec.timeout_seconds
+        timeout_s = _effective_timeout(
+            spec, runner_mode, hang_risk=mutation.hang_risk
         )
         result = _run_tests(
             repo,
