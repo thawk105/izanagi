@@ -1,0 +1,35 @@
+[
+  {
+    "name": "e9-instr-nowit",
+    "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+    "patches": [
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2779-mocc-g2-observation-conditions/verbatim/instr-mocc-lock-coverage.patch"
+    ],
+    "witness": false,
+    "observational_only": false,
+    "defines": {}
+  },
+  {
+    "name": "e9-diag-nowit",
+    "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+    "patches": [
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2779-mocc-g2-observation-conditions/verbatim/instr-mocc-lock-coverage.patch",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2779-mocc-g2-observation-conditions/verbatim/mocc-close-version-counter-gap.patch"
+    ],
+    "witness": false,
+    "observational_only": true,
+    "defines": {}
+  },
+  {
+    "name": "e9-instr-nowit-bo1",
+    "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+    "patches": [
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2779-mocc-g2-observation-conditions/verbatim/instr-mocc-lock-coverage.patch"
+    ],
+    "witness": false,
+    "observational_only": false,
+    "defines": {
+      "CCBENCH_BACK_OFF": "1"
+    }
+  }
+]

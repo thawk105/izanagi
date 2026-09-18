@@ -18,6 +18,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2779] mocc G2観測条件の中断結果を回収 (2026-09-18)。各120走で通常5、診断0、
+  BACK_OFF=1は2 signal。軽量witnessは静的設計まで。非certifyingで、昇格・pin・探索の扱いは不変。
+  記録 = `output/insights/2026-09-18/t2779-mocc-g2-observation-conditions/README.md`。
+
 - [x] [T-2164] A-1 balanced5のsizing証明書を凍結値で生成・検証し、本走policyを凍結した。
   D1452に従い、証明書が申告する試行回数・候補範囲・root seedをconsumerが登録値とexact照合する。
   成果物は output/insights/2026-09-13/paper-story-a1-balanced5-sized-preregistration/、

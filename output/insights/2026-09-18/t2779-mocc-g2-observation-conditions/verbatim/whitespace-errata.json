@@ -1,0 +1,151 @@
+[
+  {
+    "file": "instr-mocc-lock-coverage.patch.txt",
+    "sha256": "e9e65b7876050865ee1cbc4d3a05516b09a8fe0b18149e0c063632162fd7bb48",
+    "bytes": 4080,
+    "trailing": {
+      "6": " ",
+      "13": " ",
+      "15": " ",
+      "18": " ",
+      "72": " "
+    },
+    "original_line_count": 116,
+    "final_newline": true
+  },
+  {
+    "file": "s3-consult-A.md",
+    "sha256": "570d94090d19f019562bdbd840b1c068bd476787dad7f423eb188cb0f518e545",
+    "bytes": 13949,
+    "trailing": {},
+    "original_line_count": 110,
+    "final_newline": false
+  },
+  {
+    "file": "recovery-review-A.md",
+    "sha256": "7e6f0e592ea05c187323551f570ca7f1fe276a8f7405fd40bad3bdc6a6c6dd62",
+    "bytes": 2944,
+    "trailing": {},
+    "original_line_count": 46,
+    "final_newline": false
+  },
+  {
+    "file": "s2-plan.md",
+    "sha256": "f88163ddda03e12042da8f104d239de4faf6d3179bc909b7393b1e0a8ee89bfa",
+    "bytes": 27240,
+    "trailing": {},
+    "original_line_count": 415,
+    "final_newline": false
+  },
+  {
+    "file": "s5-author.md",
+    "sha256": "148c5bf5a9056b5e7f3232a119415818a3ca53bb596765534fd9ec4fab1d33e1",
+    "bytes": 1439,
+    "trailing": {},
+    "original_line_count": 29,
+    "final_newline": false
+  },
+  {
+    "file": "dispatch-B2.log",
+    "sha256": "d297be267774a6028639b4ce025643098f7e0598340d60977042c36d1284cce3",
+    "bytes": 4145,
+    "trailing": {
+      "29": " "
+    },
+    "original_line_count": 44,
+    "final_newline": true
+  },
+  {
+    "file": "recovery-review-B.md",
+    "sha256": "8127726d9a482127df5189ceeaada4d1a837072fc03d09d1c4768ff054bebcc5",
+    "bytes": 2090,
+    "trailing": {},
+    "original_line_count": 29,
+    "final_newline": false
+  },
+  {
+    "file": "dispatch-B4.log",
+    "sha256": "2bf96c2d08abff4cc2508b3918c3ba59321f44d97f0d97ce0ccc15f0009d3857",
+    "bytes": 4145,
+    "trailing": {
+      "29": " "
+    },
+    "original_line_count": 44,
+    "final_newline": true
+  },
+  {
+    "file": "v4-to-v5.diff.txt",
+    "sha256": "e6979b719766013495f5e485228dcfc64c1c723bb4ec76e46092f322aaa4a547",
+    "bytes": 9956,
+    "trailing": {
+      "19": " ",
+      "20": " ",
+      "24": " ",
+      "25": " ",
+      "60": " ",
+      "61": " ",
+      "64": " ",
+      "65": " ",
+      "97": " ",
+      "98": " ",
+      "101": " ",
+      "102": " ",
+      "200": " ",
+      "201": " "
+    },
+    "original_line_count": 202,
+    "final_newline": true
+  },
+  {
+    "file": "mocc-close-version-counter-gap.patch.txt",
+    "sha256": "8a25bd0a5687437269c720cb34a4b26024a6f1f119adf1c16281d455b9ecaa1d",
+    "bytes": 1168,
+    "trailing": {
+      "7": " ",
+      "21": " ",
+      "37": " "
+    },
+    "original_line_count": 37,
+    "final_newline": true
+  },
+  {
+    "file": "s3-consult-B.md",
+    "sha256": "91454346c2d358022889c20beb103b4d38a38160109d893ec31bec861e85eea3",
+    "bytes": 12642,
+    "trailing": {},
+    "original_line_count": 97,
+    "final_newline": false
+  },
+  {
+    "file": "dispatch-B3.log",
+    "sha256": "e1cb1b06505c18bf81d32f350afe634f756f900098729ddc87b8b9b068a111e1",
+    "bytes": 4144,
+    "trailing": {
+      "29": " "
+    },
+    "original_line_count": 44,
+    "final_newline": true
+  },
+  {
+    "file": "dispatch-B1.log",
+    "sha256": "14a6b8ed39a5ad25f8a61a81e22af3b73c640b6a63dcbd997c0d1178597010cd",
+    "bytes": 4249,
+    "trailing": {
+      "29": " "
+    },
+    "original_line_count": 44,
+    "final_newline": true
+  },
+  {
+    "file": "mocc-transaction-e9e477ca.cc.txt",
+    "sha256": "79982b23dce106766dab9e8d8183154d9de4af94724d1a003a09a79e84155a21",
+    "bytes": 36518,
+    "trailing": {
+      "119": " ",
+      "136": " ",
+      "298": " "
+    },
+    "original_line_count": 1294,
+    "final_newline": true
+  }
+]
