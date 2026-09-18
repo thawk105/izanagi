@@ -599,6 +599,30 @@ Tidword ベース計装 (`instr-silo-*.patch`) は転用しない。preimage は
 
 ---
 
+## broken-mocc-hot-update-unlock.patch — mocc の hot 経路 (update の早期 w_lock) 専用の positive control ([T-2772]、D2134 項 4)
+
+**わざと壊した CC** 1 本。T-2294 の 6 走には hot/cold を弁別する記録が無く、hot 経路 (`update()` の温度述語 true 側で validation 前に w_lock を取る枝) の実行証拠が無かった。本負例は「hot 経路が実行され、既存の X 3 検査点がそこでも歯を持つ」ことを負例の発火で機械化する (計数行は足さない、D2134 項 4)。preimage は e9e477ca + `instr-mocc-lock-coverage.patch`。
+
+- **裸 define `IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK`、balanced**: file scope の 1 directive で `static constexpr bool izanagi_break_mocc_hot_update_unlock = TRACE != 0` (OFF は `false`) と `static thread_local Tuple* izanagi_hot_update_pending` を宣言し、3 site は `if constexpr` で従う。(1) `update()` の hot 分岐 (論理行 459) で `lock(tuple, true)` が成功した直後に `w_unlock()` して pending に記録 (CLL の writer 記録は残す)、(2) `writePhase()` の publish 検査の後・tidword store の前に `pending->rwlock_.w_lock()` で**直接**再取得、(3) `abort()` の `unlockCLL()` 前にも同じ再取得。`TxExecutor::lock()` で再取得すると stale CLL で早期 return し `unlockCLL()` が counter を `0 → 1` に壊すので使わない。各 block の後に `#line` (17 / 460 / 1069 / 1195) で論理行を復元する。
+- **発火 workload U = `ycsb_rratio=0, ycsb_rmw=false, ycsb_max_ope=1`** (他は T-2294 の SINGLE/HIGH と同じ)。全操作が `Ope::WRITE` → `tx.update()` の直接呼出で read_set_ を作らない blind update 1 操作。多操作では次の `lock()` の canonical restore が stale CLL 要素を再解放しうるので balanced にならない — **保証は U に限る**。
+- **regime は runtime gflag `-temp_threshold`** (0 = hot 強制、21 = cold 強制 (`TEMP_MAX` 20 超)、10 = 既定)。温度は `construct_RLL()` の `failed_verification_` を持つ read でしか上がらないので、blind update では既定閾値で述語は常に false (cold と同じ挙動)。
+- **保証名 (D2134 項 4)**: 「stock 等価述語における hot-update 負例の到達と、既存 X 3 検査点の検出」。4 site 全被覆・read 側 hot 経路・RLL 再試行・候補ごとの空振り検査・DELETE 経路の動的被覆は含意しない。
+- **既定 OFF inert**: 裸マクロ (`CCBENCH_` 接頭辞なし) で pipeline から定義不能。`condition_meaning_gate` (DefineSpec / witness) / `screening_driver` / spawn_sites の裸 define 登録簿に登録済み。baseline に絶対混ぜない (絶対規律 2)。
+- **駆動の正本 = `orchestrator/campaign/s3_mocc_mutation_proof.py`** (compute 専用。旧 driver `s3_mocc_lock_coverage.py` の helper を import で再利用し、旧 driver・旧 JSON・旧 14 check は不変)。36 走 = 3 regime × {1, 4} thread × {stock-W、stock-U、lockskip-W、perm-erase-W、early-unlock-W、hot-update-unlock-U}、受入必須 25 走だけを 32 check に対応させ、観測のみ 11 走は完走 (`matrix_runs_complete_and_terminated`) だけを要求する。別 integrity 異常 (version_dups 等) の clean を要求するのは stock 12 走・hot-update の cold/default 4 走・1 thread の必須負例 7 走だけで、4 thread の負例は lock を故意に欠くため同じ版の重複が正当に起きうる (記録のみ、certified は verifier の値をそのまま残す)。run ごとに実 argv・終了状態・timeout・verifier の raw record を JSON `output/env/pegasus/calibration/s3_mocc_mutation_proof.json` に残す。
+- **実証** (2026-09-18、Pegasus gen_S job 5096.nqsv、Elapse 791 秒、fix 後 driver、**32 check all_pass**): hot 強制 (閾値 0) 1 thread = 697,364 txn で
+  `not-locked-at-entry` / `lock-lost-before-write` / `lock-lost-before-publish` が各 697,364 (1 txn 1 回ずつ)、P 0、cycle 0、R 行 0、indeterminate。
+  hot 4 thread = 2,431,108 txn を timeout なしで完走し X 7,241,088 (reason 別正数は保証しない、観測)。cold (21) / 既定 (10) の 4 走は stock-U と同じく
+  certified で沈黙 (1 thread ≈ 110 万 txn、4 thread ≈ 360〜380 万 txn)。stock-W / stock-U 12 走 certified (hot 強制 4 thread でも cycle 0)、
+  lockskip cold / default は t1 = 3 reason 正数の indeterminate・t4 = cycle 3,622〜3,882 の non-serializable、perm-erase t1 = P だけ、early-unlock t1 =
+  保持 2 reason だけ。trace0 (無 patch ↔ 計装のみ) は nm / strings 0、`.text` 差分 0 行、論理行列 543 行一致。fix 前 driver の compute-1 (5045.nqsv、
+  794 秒) も同型で all_pass。
+- **観測 (設計が予見していなかったもの、記録のみ)**: (1) lockskip は hot 強制でも 3 reason が正数 — 多操作 txn では `lock()` の canonical restore が先に取った
+  早期 w_lock を解放して CLL から消すため、validation の lock skip がそのまま入口違反になる。(2) perm-erase の hot 強制は `pop_back()` で落ちた要素の早期
+  w_lock が CLL に残り、read 検証が「W_LOCKED かつ write_set_ に無い」として abort するので 1 秒の commit が 20〜55 txn に落ちる (P は 1,111〜620,462 と
+  走ごとに大きく変わる = ほぼ全 abort + backoff の挙動で、受入必須の述語 (I・P>0・X 0・cycle 0・txn>0) は満たす)。
+
+---
+
 ## トレース形式 (verifier = タスク2 の入力契約)
 
 trace-hook の**実装**は submodule `izanagi-trace` ブランチにある (Silo は `writePhase` の `maxtid`
