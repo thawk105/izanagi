@@ -1,0 +1,248 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 4800,
+  "hang_timeout_seconds": 5400,
+  "mutations": [
+    {
+      "id": "M0-equivalent-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s3_mocc_mutation_proof.py",
+          "old": "# Stock W and U share build S; the remaining controls each have one build.\n",
+          "new": "# Build S is shared by stock W and U; every other control owns one build.\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1-publish-relock-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/broken-mocc-hot-update-unlock.patch",
+          "old": "@@ -1257,6 +1282,13 @@\n",
+          "new": "@@ -1257,6 +1282,7 @@\n"
+        },
+        {
+          "file": "patches/broken-mocc-hot-update-unlock.patch",
+          "old": "+    if constexpr (izanagi_break_mocc_hot_update_unlock) {\n+      if (izanagi_hot_update_pending == (*itr).rcdptr_) {\n+        izanagi_hot_update_pending->rwlock_.w_lock();\n+        izanagi_hot_update_pending = nullptr;\n+      }\n+    }\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-abort-relock-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/broken-mocc-hot-update-unlock.patch",
+          "old": "@@ -1092,6 +1110,13 @@\n",
+          "new": "@@ -1092,6 +1110,7 @@\n"
+        },
+        {
+          "file": "patches/broken-mocc-hot-update-unlock.patch",
+          "old": "+  if constexpr (izanagi_break_mocc_hot_update_unlock) {\n+    if (izanagi_hot_update_pending != nullptr) {\n+      izanagi_hot_update_pending->rwlock_.w_lock();\n+      izanagi_hot_update_pending = nullptr;\n+    }\n+  }\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-relock-via-txexecutor-lock",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/broken-mocc-hot-update-unlock.patch",
+          "old": "+      if (izanagi_hot_update_pending == (*itr).rcdptr_) {\n+        izanagi_hot_update_pending->rwlock_.w_lock();\n",
+          "new": "+      if (izanagi_hot_update_pending == (*itr).rcdptr_) {\n+        lock(izanagi_hot_update_pending, true);\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-publish-guard-inverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/broken-mocc-hot-update-unlock.patch",
+          "old": "+      if (izanagi_hot_update_pending == (*itr).rcdptr_) {\n",
+          "new": "+      if (izanagi_hot_update_pending != (*itr).rcdptr_) {\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-directive-duplicated",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/broken-mocc-hot-update-unlock.patch",
+          "old": "@@ -16,6 +16,14 @@\n",
+          "new": "@@ -16,6 +16,16 @@\n"
+        },
+        {
+          "file": "patches/broken-mocc-hot-update-unlock.patch",
+          "old": "+#endif\n+#line 17\n",
+          "new": "+#endif\n+#if IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK\n+#endif\n+#line 17\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_has_unique_condition_witness",
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_condition_gate_uses_new_driver_id",
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-line-460-off-by-one",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/broken-mocc-hot-update-unlock.patch",
+          "old": "+#line 460\n",
+          "new": "+#line 461\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-hot-t1-check-constant-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s3_mocc_mutation_proof.py",
+          "old": "    check(\"hot_update_unlock_hot_t1_three_reasons_cycles_zero\",\n          lambda: _three_reasons(runs[\"hot_update_unlock_hot_t1\"], update=True))\n",
+          "new": "    check(\"hot_update_unlock_hot_t1_three_reasons_cycles_zero\",\n          lambda: True)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_checks_are_input_derived",
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_u_trace_counts_reads"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-timeout-recorded-false",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s3_mocc_mutation_proof.py",
+          "old": "        record.update(timed_out=True, error=str(exc))\n",
+          "new": "        record.update(timed_out=False, error=str(exc))\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_run_records_failure_and_timeout"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-definespec-entry-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    \"IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK\": DefineSpec(\n        ROUTE_CMAKE_CXX_FLAGS, _MOCC_OWNER, \"ycsb_mocc.exe\",\n        \"patches/broken-mocc-hot-update-unlock.patch\",\n    ),\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_has_unique_condition_witness",
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_condition_gate_uses_new_driver_id"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-materializer-entry-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/materializer_admission.py",
+          "old": "    \"orchestrator.campaign.s3_mocc_mutation_proof._build_variant\":\n        MaterializerRegistration(\n            NON_ADMISSIBLE,\n            \"trace-only mocc mutation proof controls; never source performance values\",\n        ),\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_matrix_is_exact",
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound",
+        "orchestrator/tests/test_p3_build_authority_cli.py::test_python_ccbench_manual_materializers_are_explicitly_non_admissible",
+        "orchestrator/tests/test_p3_build_authority_cli.py::test_single_registry_has_typed_compatible_projections",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-json-hot-patch-sha-changed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "output/env/pegasus/calibration/s3_mocc_mutation_proof.json",
+          "old": "\"sha256\": \"5562c566cf29153e092dc4ae43d7b0d8184b54ae58a1fa7e10e76e4e0e9440c8\"",
+          "new": "\"sha256\": \"0562c566cf29153e092dc4ae43d7b0d8184b54ae58a1fa7e10e76e4e0e9440c8\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-json-all-pass-false",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "output/env/pegasus/calibration/s3_mocc_mutation_proof.json",
+          "old": "\"all_pass\": true",
+          "new": "\"all_pass\": false"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

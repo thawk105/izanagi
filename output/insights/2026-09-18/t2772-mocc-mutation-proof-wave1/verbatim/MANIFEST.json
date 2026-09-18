@@ -1,0 +1,269 @@
+{
+ "parent-brief.md": {
+  "sha256": "c9400a89114639668cd357114bb82bbff5d3d4bde215ce93a9f66e8fc5557b84",
+  "bytes": 13659
+ },
+ "prompt-author.md": {
+  "sha256": "90a2d8159c51b6b127eb772b19b017201bed7803280783d033113ff5bbbef2dc",
+  "bytes": 16850
+ },
+ "prompt-consult-A.md": {
+  "sha256": "27ebfbbf777c63428f3276bc36cf219ae79e4538190dff8ee6cf973f21a025bb",
+  "bytes": 5591
+ },
+ "prompt-consult-B.md": {
+  "sha256": "929f91c1a565169fdb0a284583172aa8004eeb61178f87caaaf12fa388d53a62",
+  "bytes": 5702
+ },
+ "prompt-fix-1.md": {
+  "sha256": "32d5c690181e553d5ba3af098ff42dad3d42867cc5fe801925e7b5ae2d5841d5",
+  "bytes": 6089
+ },
+ "prompt-plan.md": {
+  "sha256": "ba148542d18332759872b750d4a2c66703b0abcc0058d400ad4f16e7fbefd46e",
+  "bytes": 9634
+ },
+ "prompt-review-A.md": {
+  "sha256": "d41c76d87aba4c3840b93dac45cc43b0995016e07c26ab1f22cfc9e1dda539d8",
+  "bytes": 6347
+ },
+ "prompt-review-B.md": {
+  "sha256": "3b8ac979db284ca24dc59c05b0b0b9dcf52057acd947a52d8acb7f4872ff545c",
+  "bytes": 5688
+ },
+ "s2-plan.md": {
+  "sha256": "7cc4823ecbd1703412878fcd4ba612a7507f4d6aabb715def80e04fed0e53cc8",
+  "bytes": 35202
+ },
+ "s3-lensA.md": {
+  "sha256": "5f0cbf828853bffeb56a013574fba212b3864d923712d235e2ac75444c3a33c1",
+  "bytes": 13239
+ },
+ "s3-lensB.md": {
+  "sha256": "1cfeb69b42af7abce800e5f1d67bfbf2877bca0c84e25483405e09c90f37a207",
+  "bytes": 13970
+ },
+ "s4-ruling.md": {
+  "sha256": "3055f4232097457299ffaba9334ba3b8f27a4e7bf6419ad2610c25ff6a9a9d50",
+  "bytes": 13462
+ },
+ "s5-author-1.md": {
+  "sha256": "5ddc164c1a03a38c4a8b77b41bce9a5c98d4e3a3c54e0d39c806e13dd8318106",
+  "bytes": 3851
+ },
+ "s6-fix-1.md": {
+  "sha256": "c318c1111c5968a5d92a72429b8036858cf0a56706dc276f222027aaa2db476d",
+  "bytes": 2684
+ },
+ "s6-reviewA-2.md": {
+  "sha256": "764f9322b401f7220a9d8d5fa4bc701bef91197072992d8b14a30c43dd4f2e15",
+  "bytes": 9416
+ },
+ "s6-reviewB-2.md": {
+  "sha256": "c663f1a6acb04a103028a5be7d8bb3509b2fa2ed65e3bff5baf641a8ad9829ad",
+  "bytes": 7513
+ },
+ "compute-1.log": {
+  "original_sha256": "ef850986df5c29fd1c69c979e72f92cbc89878261f3efb14d10f5e017589cd3f",
+  "original_bytes": 3529,
+  "normalized_sha256": "0b2c46560fcb85145ee66eeb6c01bd5231a5313dbea30fc6d6a168c348c372e4",
+  "normalized_bytes": 3528,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {
+   "26": " "
+  }
+ },
+ "compute-2.log": {
+  "original_sha256": "77055cde202fe30e7a42c8c26adec2f5d6b300494e734f791c83ae974b8cee07",
+  "original_bytes": 3529,
+  "normalized_sha256": "62d401c56458e5d9e546413f10a4ba6264e686abd8509d1e1b8c79458248374c",
+  "normalized_bytes": 3528,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {
+   "26": " "
+  }
+ },
+ "focus-1.log": {
+  "original_sha256": "4dde6f2a881da67f59c6e28ee5c3df287e8e5f5c7b1c60fab40df370f406d641",
+  "original_bytes": 8555,
+  "normalized_sha256": "b76d40ac42d7f2c30d2a01f211a0fbb02057a96470b41c763217d9f7b3b1baa0",
+  "normalized_bytes": 8537,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {
+   "18": " ",
+   "27": " ",
+   "36": " ",
+   "37": " ",
+   "38": " ",
+   "43": " ",
+   "44": " ",
+   "46": " ",
+   "53": " ",
+   "63": " ",
+   "72": " ",
+   "73": " ",
+   "74": " ",
+   "79": " ",
+   "80": " ",
+   "82": " ",
+   "89": " ",
+   "110": " "
+  }
+ },
+ "focus-3.log": {
+  "original_sha256": "bb1b54f0365727b10459953ccd6a04d275b1caec78c5bdbdb5546c7d2787e3db",
+  "original_bytes": 5095,
+  "normalized_sha256": "ac2e40bfd0fcc4121a30be09cf9b8f4084f6d4d85bd94c785b222e349a1b44de",
+  "normalized_bytes": 5093,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {
+   "22": " ",
+   "46": " "
+  }
+ },
+ "liveness-run-1.log": {
+  "original_sha256": "f296f0c4d0e4aadc3a04fe9a1de97d949b3fa7fd5c3e1790d795881dfb6ac77c",
+  "original_bytes": 3553,
+  "normalized_sha256": "f296f0c4d0e4aadc3a04fe9a1de97d949b3fa7fd5c3e1790d795881dfb6ac77c",
+  "normalized_bytes": 3553,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {}
+ },
+ "verbatim/parent-brief.md": {
+  "original_sha256": "c9400a89114639668cd357114bb82bbff5d3d4bde215ce93a9f66e8fc5557b84",
+  "original_bytes": 13659,
+  "normalized_sha256": "c9400a89114639668cd357114bb82bbff5d3d4bde215ce93a9f66e8fc5557b84",
+  "normalized_bytes": 13659,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {}
+ },
+ "verbatim/prompt-author.md": {
+  "original_sha256": "90a2d8159c51b6b127eb772b19b017201bed7803280783d033113ff5bbbef2dc",
+  "original_bytes": 16850,
+  "normalized_sha256": "90a2d8159c51b6b127eb772b19b017201bed7803280783d033113ff5bbbef2dc",
+  "normalized_bytes": 16850,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {}
+ },
+ "verbatim/prompt-consult-A.md": {
+  "original_sha256": "27ebfbbf777c63428f3276bc36cf219ae79e4538190dff8ee6cf973f21a025bb",
+  "original_bytes": 5591,
+  "normalized_sha256": "27ebfbbf777c63428f3276bc36cf219ae79e4538190dff8ee6cf973f21a025bb",
+  "normalized_bytes": 5591,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {}
+ },
+ "verbatim/prompt-consult-B.md": {
+  "original_sha256": "929f91c1a565169fdb0a284583172aa8004eeb61178f87caaaf12fa388d53a62",
+  "original_bytes": 5702,
+  "normalized_sha256": "929f91c1a565169fdb0a284583172aa8004eeb61178f87caaaf12fa388d53a62",
+  "normalized_bytes": 5702,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {}
+ },
+ "verbatim/prompt-fix-1.md": {
+  "original_sha256": "32d5c690181e553d5ba3af098ff42dad3d42867cc5fe801925e7b5ae2d5841d5",
+  "original_bytes": 6089,
+  "normalized_sha256": "32d5c690181e553d5ba3af098ff42dad3d42867cc5fe801925e7b5ae2d5841d5",
+  "normalized_bytes": 6089,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {}
+ },
+ "verbatim/prompt-plan.md": {
+  "original_sha256": "ba148542d18332759872b750d4a2c66703b0abcc0058d400ad4f16e7fbefd46e",
+  "original_bytes": 9634,
+  "normalized_sha256": "ba148542d18332759872b750d4a2c66703b0abcc0058d400ad4f16e7fbefd46e",
+  "normalized_bytes": 9634,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {}
+ },
+ "verbatim/prompt-review-A.md": {
+  "original_sha256": "d41c76d87aba4c3840b93dac45cc43b0995016e07c26ab1f22cfc9e1dda539d8",
+  "original_bytes": 6347,
+  "normalized_sha256": "d41c76d87aba4c3840b93dac45cc43b0995016e07c26ab1f22cfc9e1dda539d8",
+  "normalized_bytes": 6347,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {}
+ },
+ "verbatim/prompt-review-B.md": {
+  "original_sha256": "3b8ac979db284ca24dc59c05b0b0b9dcf52057acd947a52d8acb7f4872ff545c",
+  "original_bytes": 5688,
+  "normalized_sha256": "3b8ac979db284ca24dc59c05b0b0b9dcf52057acd947a52d8acb7f4872ff545c",
+  "normalized_bytes": 5688,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {}
+ },
+ "verbatim/s2-plan.md": {
+  "original_sha256": "7cc4823ecbd1703412878fcd4ba612a7507f4d6aabb715def80e04fed0e53cc8",
+  "original_bytes": 35202,
+  "normalized_sha256": "7cc4823ecbd1703412878fcd4ba612a7507f4d6aabb715def80e04fed0e53cc8",
+  "normalized_bytes": 35202,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {}
+ },
+ "verbatim/s3-lensA.md": {
+  "original_sha256": "5f0cbf828853bffeb56a013574fba212b3864d923712d235e2ac75444c3a33c1",
+  "original_bytes": 13239,
+  "normalized_sha256": "5f0cbf828853bffeb56a013574fba212b3864d923712d235e2ac75444c3a33c1",
+  "normalized_bytes": 13239,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {}
+ },
+ "verbatim/s3-lensB.md": {
+  "original_sha256": "1cfeb69b42af7abce800e5f1d67bfbf2877bca0c84e25483405e09c90f37a207",
+  "original_bytes": 13970,
+  "normalized_sha256": "1cfeb69b42af7abce800e5f1d67bfbf2877bca0c84e25483405e09c90f37a207",
+  "normalized_bytes": 13970,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {}
+ },
+ "verbatim/s4-ruling.md": {
+  "original_sha256": "3055f4232097457299ffaba9334ba3b8f27a4e7bf6419ad2610c25ff6a9a9d50",
+  "original_bytes": 13462,
+  "normalized_sha256": "3055f4232097457299ffaba9334ba3b8f27a4e7bf6419ad2610c25ff6a9a9d50",
+  "normalized_bytes": 13462,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {}
+ },
+ "verbatim/s5-author-1.md": {
+  "original_sha256": "5ddc164c1a03a38c4a8b77b41bce9a5c98d4e3a3c54e0d39c806e13dd8318106",
+  "original_bytes": 3851,
+  "normalized_sha256": "5ddc164c1a03a38c4a8b77b41bce9a5c98d4e3a3c54e0d39c806e13dd8318106",
+  "normalized_bytes": 3851,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {}
+ },
+ "verbatim/s6-fix-1.md": {
+  "original_sha256": "c318c1111c5968a5d92a72429b8036858cf0a56706dc276f222027aaa2db476d",
+  "original_bytes": 2684,
+  "normalized_sha256": "c318c1111c5968a5d92a72429b8036858cf0a56706dc276f222027aaa2db476d",
+  "normalized_bytes": 2684,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {}
+ },
+ "verbatim/s6-reviewA-2.md": {
+  "original_sha256": "764f9322b401f7220a9d8d5fa4bc701bef91197072992d8b14a30c43dd4f2e15",
+  "original_bytes": 9416,
+  "normalized_sha256": "7ba8de13b064d0cbb00e8405ad8f53befede0ac365eace13c92f16dc368ab8ef",
+  "normalized_bytes": 9400,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {
+   "2": "  ",
+   "7": "  ",
+   "16": "  ",
+   "25": "  ",
+   "43": "  ",
+   "62": "  ",
+   "77": "  ",
+   "90": "  "
+  }
+ },
+ "verbatim/s6-reviewB-2.md": {
+  "original_sha256": "c663f1a6acb04a103028a5be7d8bb3509b2fa2ed65e3bff5baf641a8ad9829ad",
+  "original_bytes": 7513,
+  "normalized_sha256": "c663f1a6acb04a103028a5be7d8bb3509b2fa2ed65e3bff5baf641a8ad9829ad",
+  "normalized_bytes": 7513,
+  "normalization": "trailing-whitespace-only (visible characters unchanged); restore = re-append trailing_whitespace per 0-based line index",
+  "trailing_whitespace": {}
+ }
+}
