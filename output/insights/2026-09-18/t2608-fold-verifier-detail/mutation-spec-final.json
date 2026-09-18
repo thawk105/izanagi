@@ -1,0 +1,54 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 4800,
+ "hang_timeout_seconds": 4800,
+ "mutations": [
+  {
+   "id": "m0-equivalent-json-kwarg-order",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/spool_fold.py",
+     "old": "                f\"{json.dumps(exc.detail, ensure_ascii=False, sort_keys=True, separators=(',', ':'))}\"\n",
+     "new": "                f\"{json.dumps(exc.detail, sort_keys=True, ensure_ascii=False, separators=(',', ':'))}\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-diagnostic-pin-revert-to-str-exc",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/spool_fold.py",
+     "old": "        if isinstance(exc, DevWavesError):\n            raise TransactionError(\n                f\"declared fold verifier が失敗: {exc.code.value} \"\n                f\"{json.dumps(exc.detail, ensure_ascii=False, sort_keys=True, separators=(',', ':'))}\"\n            ) from exc\n        raise TransactionError(f\"declared fold verifier が失敗: {exc}\") from exc\n",
+     "new": "        raise TransactionError(f\"declared fold verifier が失敗: {exc}\") from exc\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_exception_path_reports_declared_detail"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-fail-open-return-instead-of-raise",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/spool_fold.py",
+     "old": "        if isinstance(exc, DevWavesError):\n            raise TransactionError(\n                f\"declared fold verifier が失敗: {exc.code.value} \"\n                f\"{json.dumps(exc.detail, ensure_ascii=False, sort_keys=True, separators=(',', ':'))}\"\n            ) from exc\n        raise TransactionError(f\"declared fold verifier が失敗: {exc}\") from exc\n",
+     "new": "        return\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_spool_fold.py::test_commit_identity_gate_exception_path_reports_declared_detail"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

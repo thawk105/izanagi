@@ -18,13 +18,17 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
-- [x] [T-2686] exact-state の候補取得を遅延 union walk に束ねる実装を回収した。
-  正証拠・候補順・limit+1・closed-world負判定を維持し、観測wrapperのdiff/log混同を修正。
-  検証と主張範囲の記録は output/insights/2026-09-18/t2686-exact-state-union-walk/。
+- [x] [T-2608] declared fold verifier の例外出力に code と sanitize 済み detail を保存。
+  拒否判定と構造的拒否の文面を維持し、実 verifier の例外と fail-open 変異の検出を確認した。
+  記録 = `output/insights/2026-09-18/t2608-fold-verifier-detail/README.md`。
 
 - [x] [T-2674] T-1998 balanced stock-inline 対の単独results稿を回収し、独立監査を反映した (2026-09-18)。
   成果は `docs/paper-story/results/2026-09-18-t1998-balanced-stock-inline-accepted.md` と同README索引・追補。
   median比とA-1対差平均を分け、A-2/A-6とプールせず、B-7充足へ昇格しない。新規測定ではない。
+
+- [x] [T-2686] exact-state の候補取得を遅延 union walk に束ねる実装を回収した。
+  正証拠・候補順・limit+1・closed-world負判定を維持し、観測wrapperのdiff/log混同を修正。
+  検証と主張範囲の記録は output/insights/2026-09-18/t2686-exact-state-union-walk/。
 
 - [x] [T-2164] A-1 balanced5のsizing証明書を凍結値で生成・検証し、本走policyを凍結した。
   D1452に従い、証明書が申告する試行回数・候補範囲・root seedをconsumerが登録値とexact照合する。
