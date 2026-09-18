@@ -258,7 +258,7 @@ full-scale 10 回。§2 の但し書き (D1529) のとおり、いずれも欠�
 - 帰属と積み方の是正: D1554、`output/insights/2026-09-02/t2229-t2230-verify-cost-erratum/README.md`
 - 当時の code: `git show 0a07481b8:orchestrator/campaign/pipeline.py` (L337 `TRACE_TIMEOUT_S = 120.0`、L389〜437 `_run_trace`、L1193〜1336 `_run_one_repetition`、L1200〜1202 `trace-timeout`)、`git show 0a07481b8:orchestrator/campaign/wal.py` (L930〜937 `log()`: `ts` を採ってから `append()`)、`external/ccbench/include/trace.hh` (`stream()` の thread_local `std::ofstream`)
 - 同梱 file: `ed8a676b-intervals.tsv`、`acf840c8-intervals.tsv` (WAL を変種ごとに時刻順へ並べ、直前事象との差を付けた表)、`attribution.txt` (§5.3 の算術の出力。初稿の表記「bound arithmetic」は等 R 模型の試算であり、上下限ではない)
-- 段 6 レビューの逐語: `verbatim/s6-review-A.md` (1 巡目、再計算の対応表と所見)、`verbatim/s6-focus-A.md` (2 巡目、閉鎖判定と timeout 契約の指摘)
+- 段 6 レビューの逐語: `verbatim/s6-review-A.md` (1 巡目、再計算の対応表と所見)、`verbatim/s6-focus-A.md` (2 巡目、閉鎖判定と timeout 契約の指摘)、`verbatim/s6-focus-B.md` (3 巡目、closed 8 / 0 / 0、新しい所見なし)。prompt と親の fix 報告も同 dir
 
 WAL からの抽出は、`.ts` (epoch 秒の float) を変種ごとに昇順へ並べ、直前の事象との差を取った。
 1 行で確かめるなら次のとおり (campaign ごとに繰り返す)。

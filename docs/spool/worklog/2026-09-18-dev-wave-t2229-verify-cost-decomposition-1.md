@@ -57,7 +57,7 @@ title: [T-2229] 「直列性検査 1 回 23 分」を既存の記録だけで区
 - 1189 の [T-2191] 項の逐語 (「直列性検査が単一スレッドで … 1 回 22-24 分」) へ訂正注記 2 を
   純追記した (main 比 15 行追加・削除 0)。1223 で並行 wave が所有していた slot は空いていた
   ((P3) real、当時の所有状況は判定不能)。
-- **段 6 レビュー (read-only codex、1 巡目 review + 2 巡目 focus)。**
+- **段 6 レビュー (read-only codex、1 巡目 review + 2 巡目 focus + 3 巡目 focus = DW-O16 の上限)。**
   1 巡目 (レンズ = 算術の再計算・差分帰属の前提・断定の範囲・1189 追記・平易さ): 全数値を TSV と
   WAL 原本から再計算して丸めの範囲で一致、must-fix 1 (等 R 模型の結論化、real → 条件付き試算へ
   降格し timeout 契約の上限を主に据えた)、nit 6 (「構造上の下限 R ≥ 24」の転用、WAL 書き込みの
@@ -65,9 +65,18 @@ title: [T-2229] 「直列性検査 1 回 23 分」を既存の記録だけで区
   平易さ 4 語) すべて real で反映。2 巡目 (焦点、対応表): closed 3 / partial 3 / regressed 1、
   新規 must-fix 1 = 「timeout を厳密な実時間上限に転用」(real → 条件付きへ改めた)、partial 3 =
   3.4 秒を trace 有効版の下端扱い・pooled D が欠測 3 反復を含む・派生値の丸め (1288.8 を ≥1289 と
-  書いた) をいずれも real で反映。certified の変更・規律 2 の弱体化・D1554 との矛盾は 2 巡とも
-  無し。逐語は insight の `verbatim/s6-review-A.md`、`s6-focus-A.md`。
-- 工数: codex 子 2 本 (review 1、focus 1、`gpt-6-astra` / docs 権威の reasoning = medium)。親の実測: WAL 2 本の抽出
+  書いた) をいずれも real で反映。3 巡目 (焦点、最終): 対応表 closed 8 / partial 0 / regressed 0、
+  派生値 5 項目一致、新しい所見なし。certified の変更・規律 2 の弱体化・D1554 との矛盾は 3 巡とも
+  無し。逐語は insight の `verbatim/s6-review-A.md`、`s6-focus-A.md`、`s6-focus-B.md`。
+  仮定付き模型を上下限として結論化した near miss (2 度同型) は {{F:model-assumption-written-as-bound}}
+  に起票した (着地前に捕捉、成果物の値は不変)。
+- 段 8 (自己改善候補 3 件): (i) `*.out` が `.gitignore` で insight の同梱 file が黙って落ちる
+  (1 例、`.txt` へ改名で解決、docs 変更なし)、(ii) レビュー prompt の「算術の再計算」「模型の前提」
+  レンズが過大主張を捕捉した (作法として有効、F の恒久対応に記載し docs 変更なし)、(iii) 焦点
+  再レビューで派生値の前提 (模型の仮定・計時起点) も裏取りする → `DW-O16` へ 1 文を追記 (節は
+  919 → 992 / 1000 bytes、exact pin なし、`check_docs` rc=0、専用 commit)。routing 先は F 1 本と
+  reference 1 節、command 入口の編集なし。
+- 工数: codex 子 3 本 (review 1、focus 2、`gpt-6-astra` / docs 権威の reasoning = medium)。親の実測: WAL 2 本の抽出
   (jq + 使い捨て script、job dir に留め repo へ入れていない)、block record 45 本の `rep_walltime_s`
   集計、当時の commit の `pipeline.py` / `wal.py` / `trace.hh` の段構成と timeout 契約の確認、
   両 run の受領証 (job ID・node・開始終了時刻) の照合、`check_docs.py`、三軸語走査、
