@@ -502,7 +502,6 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    2026-07-10 (9)、材料は worklog 2026-07-10 (8))。生データ =
    `docs/related-work/literature-map/gap-research-2026-07-10.md`。
 7. **(cross-protocol 基盤の準備は 2026-09-17 改訂で着手可能。b2 移植・カタログ化への本格投資は 8b + 層3の後に再判断) cross-protocol 最適化移植 + カタログ化** — roadmap §2 層2(b) の当初案
-   - [x] [T-2780] mocc pilot の discriminator 入力配線を修正 (2026-09-18)。hydrate の interpreter 選択、build 前の X/P patch、verifier source と receipt v2 の束縛を実装。計算ノード job 5905 は終端 accounting 確認後に no-g2 / rc0 で finalization 到達。公式認証への昇格や rc1 の実機被覆を意味しない。
    「他 CC の最適化を CCBench コーパスから移植する」+「最適化カタログ化 (前提/効果/競合の三つ組、I5 対策)」は、
    **workload descriptor と evidence-bound report の最小 E2E を先に成立させた後の拡張**として
    ここに予約する (a' 方針、D32)。根拠 = 非対称性: 空間外合成には P2-4 の成立例がある一方、**移植の価値は未検証仮説** (I5 =
@@ -511,6 +510,8 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    一歩目は**カタログ化の試作 1 枚** (他 CC の最適化 1 つを「前提/効果/競合」でカード化し、移植先で前提が満たせるかを
    判定) で、本格投資はその結果で決める。cicada/oze への空間拡大 (S1 移植を伴う) と束ねるのが自然。カタログ化の
    成果物は移植を見送っても層3 の説明生成に流用できるため無駄にならない。
+
+   - [x] [T-2780] mocc pilot の discriminator 入力配線を修正 (2026-09-18)。hydrate の interpreter 選択、build 前の X/P patch、verifier source と receipt v2 の束縛を実装。計算ノード job 5905 は終端 accounting 確認後に no-g2 / rc0 で finalization 到達。公式認証への昇格や rc1 の実機被覆を意味しない。
 
    **(2026-08-20 TicToc/Cicada タスク分解。当時は段7 発火まで全項目未着手・T 番号なし。2026-09-17 追記: Group A (b) の
    空間登録は [T-2135] (2026-09-02、tictoc / cicada) で、層3 の protocol 照合と floor driver の protocol 別 baseline

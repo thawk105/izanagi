@@ -1,5 +1,5 @@
 {
-  "operation": "Remove trailing ASCII spaces/tabs only. Restore listed suffix to the corresponding one-based line before its newline, then verify original bytes and SHA256.",
+  "operation": "Restore listed ASCII whitespace suffix to the corresponding one-based line before its newline; if remove_final_lf is true remove the one LF added by the patch tool. Then verify original bytes and SHA256.",
   "files": [
     {
       "path": "focus-1.log",
@@ -61,7 +61,8 @@
       "path": "verbatim/s3-lensB.md",
       "original_sha256": "53b5d19243301509ff0c9739b3658ca17fab0d09b5456c61d9adfb9df6cad6b9",
       "original_bytes": 16676,
-      "normalized_sha256": "11ecf6faed31987db13a5858f10e3395a3e8d8333c542b66c25039ea07a925ac",
+      "normalized_sha256": "b37a88e50a72c1d5cb6b49099ec471a69c674f2306a847119600d3a0f3cbfb3a",
+      "remove_final_lf": true,
       "restore": [
         {
           "line": 162,
