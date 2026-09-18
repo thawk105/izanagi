@@ -548,6 +548,8 @@ def _reserve_oracle_fixture(root: Path, protocol: dict, freeze: dict):
         ratified=ratified,
         activation_head=ratified.activation_head,
         search_digest="d" * 64,
+        validation_root=Path("/nondelegating-test-token"),
+        search_report={},
         symlink_gitlink_inventory=(),
         floor_artifact=floor,
         binaries_by_cell={},

@@ -495,7 +495,7 @@ def _fixed_prepare(cell, ccbench_pin, *, cxx):
     )
 
 
-def _make_emitter_build():
+def _make_emitter_build(*, compiler_input_rel="fixture.txt"):
     def build(genome, ccbench_commit, trace, cache_root="", cc=None, cxx=None,
               jobs=16, ccbench_dir="", src_token=None, contract=None,
               timeout_s=None, admission=None, build_context=None,
@@ -517,7 +517,6 @@ def _make_emitter_build():
         binary.write_bytes(payload)
         sha = _sha(payload)
         source_root = ccbench_dir or _fixed_prepare.ccbench_dir
-        compiler_input_rel = "fixture.txt"
         compiler_input = Path(source_root) / compiler_input_rel
         compiler_input_manifest = {
             "schema_version": "s8b-compiler-input/v1",
@@ -1005,7 +1004,8 @@ def build_production_emitter_g1(
         cert_at_generation=False, generation_strings_escaped=False, now=_FIXED_NOW,
         selector_valid_cell=False, selector_extra_files=(),
         selector_payload_hit=False, perf_available=True,
-        result_schema=FC.LEGACY_RESULT_SCHEMA, mutate_attempt_registry=None):
+        result_schema=FC.LEGACY_RESULT_SCHEMA, mutate_attempt_registry=None,
+        receipt_root: Path | None = None, compiler_input_rel="fixture.txt"):
     """決定的観測下の production-emitter bytes で base→C→G→A→X を構築する。
 
     build/measure/provenance は固定 seam であり、実 build・実測の代表 bytes ではない。
@@ -1019,12 +1019,41 @@ def build_production_emitter_g1(
         raise ValueError(f"unknown result_schema: {result_schema}")
     if mutate_attempt_registry is not None and result_schema != FC.RESULT_SCHEMA_V5:
         raise ValueError("attempt registry mutation requires result v5")
-    root = tmp_path / "repo"
-    v1, ccbench_pin, base, design_raw, generator_raw = _prepare_emitter_base(
-        root, selector_valid_cell=selector_valid_cell,
-        selector_extra_files=selector_extra_files,
-        selector_payload_hit=selector_payload_hit,
-    )
+    root = tmp_path / "repo" if receipt_root is None else Path(receipt_root)
+    if receipt_root is None:
+        v1, ccbench_pin, base, design_raw, generator_raw = _prepare_emitter_base(
+            root, selector_valid_cell=selector_valid_cell,
+            selector_extra_files=selector_extra_files,
+            selector_payload_hit=selector_payload_hit,
+        )
+    else:
+        # T-080 R already exists. Preserve its basis, source closure and ccbench pin.
+        # All acceptance inputs must come from this shared-base copy, never the
+        # live parent repo. Check before installing selector evidence so its
+        # ordinary-fixture fallback cannot run on the receipt connection path.
+        calibration_path = EC.lookup("linux-baremetal").calibration_ref.path
+        for relative in (calibration_path, *_PREDICTION_SOURCE_PATHS.values(),
+                         _PREDICTION_PARSER_PATH):
+            assert (root / relative).is_file(), f"receipt base missing input: {relative}"
+        assert not (root / _gen_rel(1)).exists()
+        assert not (root / "output/s8b-freeze/selector_predictions.json").exists()
+        v1 = json.loads((root / M.V1_FREEZE_PATH).read_bytes())
+        ccbench_pin = _fixed_git(root / "external/ccbench", "rev-parse", "HEAD")
+        compiler_input_entry = _fixed_git(
+            root / "external/ccbench", "ls-tree", ccbench_pin, "--", compiler_input_rel,
+        )
+        assert compiler_input_entry.split("\t")[-1] == compiler_input_rel
+        assert compiler_input_entry.split()[0] in {"100644", "100755"}
+        assert compiler_input_entry.split()[1] == "blob"
+        design_raw = (root / v1["design_source"]["path"]).read_bytes()
+        generator_raw = (root / v1["generator"]["path"]).read_bytes()
+        _write(root, calibration_path, (root / calibration_path).read_bytes())
+        _write(root, FLOOR._FLOOR_PROTOCOL_REL, FLOOR._canonical_bytes(
+            _emitter_protocol(ccbench_pin=ccbench_pin),
+        ))
+        seed = _fixed_commit_all(root, "receipt emitter seed", "fixture")
+        _install_emitter_selector_prediction(root, pre_oracle_head=seed)
+        base = _fixed_commit_all(root, "receipt emitter base", "fixture")
     protocol = _emitter_protocol(ccbench_pin=ccbench_pin)
     verified = VerifiedFreeze(document=v1, sha256=M.V1_FREEZE_SHA256)
     out_root = root / "output"
@@ -1061,7 +1090,8 @@ def build_production_emitter_g1(
         sleep_fn=lambda _seconds: None, monotonic_fn=lambda: 0.0,
         prepare_fn=_fixed_prepare, now_fn=lambda: now,
         host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
-        execution_receipt_fn=_fixed_receipt, build_fn=_make_emitter_build(),
+        execution_receipt_fn=_fixed_receipt,
+        build_fn=_make_emitter_build(compiler_input_rel=compiler_input_rel),
         verified_calibration=_verified_calibration_v2_fixture(),
         repo_root=root, after_certificate_issued_fn=commit_certificate,
         durable_root_policy=DurableRootPolicy(
@@ -1493,6 +1523,44 @@ def build_valid_semantic_g1(tmp_path: Path, *, mutate_g1=None, extra_closure=Non
 # --------------------------------------------------------------------------
 # 正常系
 # --------------------------------------------------------------------------
+
+@pytest.mark.parametrize("missing", [
+    EC.lookup("linux-baremetal").calibration_ref.path,
+    *_PREDICTION_SOURCE_PATHS.values(), _PREDICTION_PARSER_PATH,
+])
+def test_receipt_emitter_requires_copied_inputs(tmp_path, missing):
+    calibration_path = EC.lookup("linux-baremetal").calibration_ref.path
+    for relative in (calibration_path, *_PREDICTION_SOURCE_PATHS.values(),
+                     _PREDICTION_PARSER_PATH):
+        if relative != missing:
+            _write(tmp_path, relative, b"copied input\n")
+    with pytest.raises(AssertionError) as caught:
+        build_production_emitter_g1(tmp_path, receipt_root=tmp_path)
+    assert str(caught.value).startswith(f"receipt base missing input: {missing}")
+
+
+@in_sealed_fixture_process
+def test_launch_token_retains_immutable_scan_and_root(tmp_path):
+    from orchestrator.campaign import t080_freeze_migration as migration
+    root, ratified, _topology = load_emitter_g1(tmp_path)
+    token = M.launch_validate(ratified, root)
+    assert token.validation_root == root.resolve()
+    assert token.search_digest == M._enumeration_digest(root)
+    assert set(token.search_report["holdouts"]) == {"rr80", "rr20"}
+    for name in HF.HOLDOUTS:
+        row = token.search_report["holdouts"][name]
+        assert row["candidate_id"] == HF.HOLDOUTS[name]["candidate_id"]
+        assert row["conjunction_hits"]
+        assert isinstance(row["conjunction_hits"], tuple)
+        with pytest.raises(TypeError):
+            row["expressions"]["unexpected"] = "changed"
+    with pytest.raises(TypeError):
+        token.search_report["match_convention"] = "changed"
+    historical = M.ReverifiedFreeze(**vars(token))
+    assert migration._holdout_layer2_delegation(
+        root=root, validation_head=token.activation_head, launch_validated=historical,
+    ) is None
+
 
 @in_sealed_fixture_process
 def test_happy_path_resolves_and_loads(tmp_path):

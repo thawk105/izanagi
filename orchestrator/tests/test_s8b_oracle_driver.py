@@ -831,7 +831,13 @@ def _copy_git_visible_output(source_root: Path, destination: Path) -> set[str]:
         migration.RECEIPT_REL,
         migration.DRAFT_REL,
     }
-    for relative in sorted(visible_output - excluded_artifacts):
+    excluded_artifacts.update(
+        relative for relative in visible_output
+        if relative.startswith("output/env/pegasus/calibration/s8b-floor-official/")
+        or relative == s8b_holdout_freeze.V2_CANDIDATE_REL
+    )
+    retained_output = visible_output - excluded_artifacts
+    for relative in sorted(retained_output):
         source = source_root / relative
         if not source.is_file() or source.is_symlink():
             raise AssertionError(
@@ -841,11 +847,11 @@ def _copy_git_visible_output(source_root: Path, destination: Path) -> set[str]:
 
     visible_output_ancestors = {
         parent.as_posix()
-        for relative in visible_output
+        for relative in retained_output
         for parent in Path(relative).parents
         if parent != Path(".")
     }
-    copyable_output = visible_output | visible_output_ancestors
+    copyable_output = retained_output | visible_output_ancestors
 
     def ignore_non_visible_output_and_t080_artifacts(directory, names):
         ignored = {
@@ -916,7 +922,11 @@ class _T080SharedBases:
             self.lifetime.close()
 
     def get(self, key):
-        digest = hashlib.sha256(json.dumps(key).encode("utf-8")).hexdigest()
+        if len(key) == 4:
+            key = (*key, False)
+        # Keep the existing non-v2 base identity, including direct four-field callers.
+        digest_key = key if key[4] else key[:4]
+        digest = hashlib.sha256(json.dumps(digest_key).encode("utf-8")).hexdigest()
         parent = self.parent / digest
         with (self.parent / f"{digest}.lock").open("a+b") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
@@ -929,6 +939,7 @@ class _T080SharedBases:
                 root, _receipt, document = _build_t080_stub_free_e2e_repo(
                     parent, r_trailer=key[0], extra_r_path=key[1],
                     issue_receipt=key[2], distinct_basis_blob=key[3],
+                    active_v2_base=key[4],
                 )
                 pending = parent / "complete.pending"
                 pending.write_text(json.dumps({
@@ -964,7 +975,7 @@ _T080_SHARED_BASES = _t080_join_shared_bases()
 def _t080_stub_free_e2e_repo(
         tmp_path: Path, *, r_trailer: str = "AI-Agent: none",
         extra_r_path: bool = False, issue_receipt: bool = True,
-        distinct_basis_blob: bool = False,
+        distinct_basis_blob: bool = False, active_v2_base: bool = False,
         ) -> tuple[Path, Path, dict]:
     """同じ xdist session の引数ごとに base を 1 回だけ組む。
 
@@ -977,7 +988,7 @@ def _t080_stub_free_e2e_repo(
     base_temp_root = _assert_t080_temp_root_outside_real_output(
         Path(tempfile.gettempdir())
     )
-    key = (r_trailer, extra_r_path, issue_receipt, distinct_basis_blob)
+    key = (r_trailer, extra_r_path, issue_receipt, distinct_basis_blob, active_v2_base)
     cached = (
         _T080_SHARED_BASES.get(key) if _T080_SHARED_BASES is not None
         else _T080_E2E_BASE_CACHE.get(key)
@@ -992,6 +1003,7 @@ def _t080_stub_free_e2e_repo(
         base_root, _receipt, document = _build_t080_stub_free_e2e_repo(
             base_parent, r_trailer=r_trailer, extra_r_path=extra_r_path,
             issue_receipt=issue_receipt, distinct_basis_blob=distinct_basis_blob,
+            active_v2_base=active_v2_base,
         )
         cached = (base_root, document)
         _T080_E2E_BASE_CACHE[key] = cached
@@ -1006,7 +1018,7 @@ def t080_shared_cache_probe(tmp_path, monkeypatch):
     bases = _T080SharedBases(tmp_path / "bases")
     monkeypatch.setattr(sys.modules[__name__], "_T080_SHARED_BASES", bases)
     try:
-        # callable fixture: 既存の 6 function / 11 node の E2E consumer とは
+        # callable fixture: 14 function / 20 node の E2E consumer とは
         # 別に、cache の配線そのものを検査する。
         yield _t080_stub_free_e2e_repo, bases
     finally:
@@ -1069,7 +1081,9 @@ def test_t080_shared_base_builds_real_builder_once_across_processes(
 
 @pytest.fixture
 def t080_small_cache_builder():
-    def build(parent, **kwargs):
+    def build(parent, *, active_v2_base=False, **kwargs):
+        if active_v2_base:
+            kwargs["active_v2_base"] = active_v2_base
         root = parent / "t080-stub-free-e2e"
         root.mkdir()
         (root / "payload").write_bytes(b"original\n")
@@ -1200,6 +1214,33 @@ def test_t080_shared_base_keeps_all_four_key_fields_separate(
     assert t080_small_cache_builder.call_count == 5
 
 
+def test_t080_shared_base_separates_active_v2_and_reuses_legacy_identity(
+        tmp_path, t080_shared_cache_probe, t080_small_cache_builder):
+    repo, bases = t080_shared_cache_probe
+    legacy_key = ("AI-Agent: none", False, True, False)
+    legacy_root, legacy_doc = bases.get(legacy_key)
+    assert bases.get((*legacy_key, False)) == (legacy_root, legacy_doc)
+    assert legacy_root.parent.name == hashlib.sha256(
+        json.dumps(legacy_key).encode("utf-8"),
+    ).hexdigest()
+    first, _, first_doc = repo(tmp_path / "active-first", active_v2_base=True)
+    second, _, second_doc = repo(tmp_path / "active-second", active_v2_base=True)
+    _, _, bad_trailer_doc = repo(
+        tmp_path / "active-bad-trailer", active_v2_base=True,
+        r_trailer="AI-Agent: fixture",
+    )
+    assert first_doc == second_doc == {
+        "arguments": {**legacy_doc["arguments"], "active_v2_base": True},
+    }
+    assert bad_trailer_doc == {
+        "arguments": {**first_doc["arguments"], "r_trailer": "AI-Agent: fixture"},
+    }
+    (first / "payload").write_bytes(b"changed\n")
+    assert (second / "payload").read_bytes() == b"original\n"
+    assert (legacy_root / "payload").read_bytes() == b"original\n"
+    assert t080_small_cache_builder.call_count == 3
+
+
 def test_t080_shared_base_only_last_participant_removes_tree(tmp_path):
     first = _T080SharedBases(tmp_path / "bases")
     second = _T080SharedBases(first.parent)
@@ -1283,7 +1324,7 @@ def test_t080_shared_base_cleanup_exhausted_disappearance_is_error(tmp_path):
 
 
 def test_t080_stub_free_e2e_exact_consumers_and_nodeids_b5():
-    """helper の全 direct consumer と対象 6 function / 11 node を固定する。"""
+    """shared base の直接・active-v2 経由 consumer 14 function / 20 node を固定する。"""
     tree = ast.parse(Path(__file__).read_text(encoding="utf-8"))
     functions = [
         node
@@ -1291,6 +1332,14 @@ def test_t080_stub_free_e2e_exact_consumers_and_nodeids_b5():
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
     ]
     expected_consumers = {
+        "test_t080_active_v2_delegation_accepts_full_receipt": 1,
+        "test_t080_failed_launch_preserves_receipt_refusal": 1,
+        "test_t080_unactivated_chain_hit_is_invalid": 1,
+        "test_v1_gate_does_not_delegate_with_active_v2": 1,
+        "test_t080_active_v2_preserves_nonlayer2_receipt_refusal": 1,
+        "test_t080_delegated_campaign_start_rechecks_receipt": 2,
+        "test_t080_delegated_campaign_start_rejects_late_hit_file": 1,
+        "test_t080_draft_rejects_synthetic_hit_outside_replay_deletions": 1,
         "test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5": 1,
         "test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5": 4,
         "test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5": 1,
@@ -1299,6 +1348,9 @@ def test_t080_stub_free_e2e_exact_consumers_and_nodeids_b5():
         "test_never_issued_generator_tamper_reaches_public_driver_gate_g7": 1,
     }
     expected_parametrizations = {
+        "test_t080_delegated_campaign_start_rechecks_receipt": (
+            "mutation", ("changed", "missing"),
+        ),
         "test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5": (
             "defect, expected_reason",
             (
@@ -1323,7 +1375,7 @@ def test_t080_stub_free_e2e_exact_consumers_and_nodeids_b5():
         if any(
             isinstance(node, ast.Call)
             and isinstance(node.func, ast.Name)
-            and node.func.id == "_t080_stub_free_e2e_repo"
+            and node.func.id in {"_t080_stub_free_e2e_repo", "_build_t080_active_v2_repo"}
             for node in ast.walk(function)
         )
     ]
@@ -1331,6 +1383,7 @@ def test_t080_stub_free_e2e_exact_consumers_and_nodeids_b5():
 
     assert len(helper_consumer_nodes) == len(helper_consumers)
     assert helper_consumers == set(expected_consumers) | {
+        "_build_t080_active_v2_repo",
         "test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary",
     }
 
@@ -1358,13 +1411,13 @@ def test_t080_stub_free_e2e_exact_consumers_and_nodeids_b5():
         assert observed_parametrizations == ([] if expected is None else [expected])
         expanded_nodeids[name] = count
     assert expanded_nodeids == expected_consumers
-    assert sum(expanded_nodeids.values()) == 11
+    assert sum(expanded_nodeids.values()) == 20
 
 
 def _build_t080_stub_free_e2e_repo(
         tmp_path: Path, *, r_trailer: str = "AI-Agent: none",
         extra_r_path: bool = False, issue_receipt: bool = True,
-        distinct_basis_blob: bool = False,
+        distinct_basis_blob: bool = False, active_v2_base: bool = False,
         ) -> tuple[Path, Path, dict]:
     """production builder/verifier/gate を一度も stub しない T-080 発行 repo。"""
     tmp_path = _assert_t080_temp_root_outside_real_output(tmp_path)
@@ -1383,6 +1436,29 @@ def _build_t080_stub_free_e2e_repo(
     )
 
     _copy_git_visible_output(ROOT, root / "output")
+    if active_v2_base:
+        # The selector role is outside orchestrator/ and the T-080 source closure.
+        # Capture it once per shared base, before basis/R, not in each emitter copy.
+        _copy_t080_basis_file(root, ".claude/agents/selector-8b.md")
+        # Declare the connection fixture's initial materials before the basis commit:
+        # retain only the v1 holdout in the freeze namespace, and no budget inputs.
+        # In particular, copied floor protocols would make the synthetic protocol an
+        # AI reseal of a human seal; G/A/X and selector evidence belong to this repo.
+        # This is deliberately separate from the replay deletion set S.
+        for relative, retained_names in (
+            ("output/s8b-freeze", {"holdout_freeze.json"}),
+            ("output/s8b-freeze-budget-inputs", set()),
+        ):
+            namespace = root / relative
+            if not namespace.exists():
+                continue
+            for path in namespace.iterdir():
+                if path.name in retained_names:
+                    continue
+                if path.is_dir() and not path.is_symlink():
+                    shutil.rmtree(path)
+                else:
+                    path.unlink()
 
     known = json.loads((ROOT / migration.KNOWN_AXES_REL).read_text(encoding="utf-8"))
     source_paths: set[str] = set()
@@ -1630,6 +1706,176 @@ def _build_t080_stub_free_e2e_repo(
     return root, receipt, document
 
 
+def _build_t080_active_v2_repo(tmp_path, *, r_trailer="AI-Agent: none"):
+    root, receipt_path, _details = _t080_stub_free_e2e_repo(
+        tmp_path, r_trailer=r_trailer, active_v2_base=True,
+    )
+    _, freeze_path, _, _, topology = _build_v2_repo(
+        tmp_path, receipt_root=root, compiler_input_rel="CMakeLists.txt",
+    )
+    ratified = driver.s8b_ratified_freeze.load_ratified_freeze(root)
+    token = driver.s8b_ratified_freeze.launch_validate(ratified, root)
+    return root, receipt_path, freeze_path, token, topology
+
+
+@in_sealed_fixture_process
+def test_t080_active_v2_delegation_accepts_full_receipt(tmp_path):
+    root, _, _, token, _ = _build_t080_active_v2_repo(tmp_path)
+    ordinary = migration.verify_receipt(root=root)
+    assert ordinary.state == "invalid"
+    assert ordinary.refusals
+    assert all(item.startswith("holdout-freeze-verify: [holdout.unknownness_layer2]")
+               for item in ordinary.refusals)
+    delegated = migration.verify_receipt(root=root, launch_validated=token)
+    assert delegated.state == "active-valid", delegated.refusals
+    assert delegated.refusals == ()
+    assert delegated.t080_freeze_migration_observation is not None
+
+
+@in_sealed_fixture_process
+def test_t080_failed_launch_preserves_receipt_refusal(tmp_path):
+    from orchestrator.tests.s8b_v2_freeze_fixture import _holdout_hit_text
+    root, _, freeze_path, token, _ = _build_t080_active_v2_repo(tmp_path)
+    (root / "undeclared-hit.txt").write_bytes(_holdout_hit_text(s8b_holdout_freeze, "rr80"))
+    with pytest.raises(driver.s8b_ratified_freeze.RatifiedFreezeError) as caught:
+        driver.s8b_ratified_freeze.launch_validate(token.ratified, root)
+    assert caught.value.reason == "closure-hit-mismatch"
+    decision = driver.gate_check(root=root, freeze_path=freeze_path)
+    assert not decision.allowed
+    assert len(decision.refusals) == 2
+    assert any(item.startswith("v2-execution: launch-validate: [closure-hit-mismatch]")
+               for item in decision.refusals)
+    assert any(item.startswith("holdout-freeze-verify: [holdout.unknownness_layer2]")
+               for item in decision.refusals)
+
+
+@in_sealed_fixture_process
+def test_t080_unactivated_chain_hit_is_invalid(tmp_path):
+    from orchestrator.tests.s8b_v2_freeze_fixture import _holdout_hit_text
+    root, _, _, _, topology = _build_t080_active_v2_repo(tmp_path)
+    # A/X are not ancestors of this fixture checkout; only basis -> R -> C -> G remains.
+    _run_git(root, "checkout", "--quiet", "--detach", topology["G"])
+    hit = root / "output/env/pegasus/calibration/s8b-floor-official/synthetic-chain/result.json"
+    hit.parent.mkdir(parents=True, exist_ok=True)
+    hit.write_bytes(_holdout_hit_text(s8b_holdout_freeze, "rr80"))
+    resolution = migration.verify_receipt(root=root)
+    assert resolution.state == "invalid"
+    assert len(resolution.refusals) == 1
+    assert resolution.refusals[0].startswith(
+        "holdout-freeze-verify: [holdout.unknownness_layer2]",
+    )
+
+
+@in_sealed_fixture_process
+def test_v1_gate_does_not_delegate_with_active_v2(tmp_path):
+    root, _, _, _, _ = _build_t080_active_v2_repo(tmp_path)
+    decision = driver.gate_check(root=root, freeze_path=root / migration.HOLDOUT_REL)
+    assert not decision.allowed
+    assert any(item.startswith("holdout-freeze-verify: [holdout.unknownness_layer2]")
+               for item in decision.refusals)
+
+
+@in_sealed_fixture_process
+def test_t080_active_v2_preserves_nonlayer2_receipt_refusal(tmp_path):
+    root, _, freeze_path, token, _ = _build_t080_active_v2_repo(
+        tmp_path, r_trailer="AI-Agent: fixture",
+    )
+    resolution = migration.verify_receipt(root=root, launch_validated=token)
+    assert resolution.state == "invalid"
+    expected_refusals = {
+        "migration-receipt-verify: [receipt.user_commit_trailer] R に AI-Agent: none が逐語でない",
+    }
+    assert set(resolution.refusals) == expected_refusals
+    # Use this copy's ignore rules, not the live parent's Git metadata.
+    before = git_visible_output_metadata_snapshot(root / "output", root)
+    decision = driver.gate_check(root=root, freeze_path=freeze_path)
+    assert not decision.allowed
+    assert set(decision.refusals) == expected_refusals
+    assert git_visible_output_metadata_snapshot(root / "output", root) == before
+
+
+@in_sealed_fixture_process
+@pytest.mark.parametrize("mutation", ["changed", "missing"])
+def test_t080_delegated_campaign_start_rechecks_receipt(tmp_path, mutation):
+    root, receipt, freeze_path, token, _ = _build_t080_active_v2_repo(tmp_path)
+    assert migration.verify_receipt(root=root, launch_validated=token).state == "active-valid"
+    manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)
+    evaluate = _fake_evaluate_factory()
+    prepare = _prepare_factory()
+    real_prepare = driver._prepare_v2_execution
+    reached = []
+    output_root = tmp_path / "output"
+    layout = campaign_layout(_campaign_id(manifest_path), output_root=str(output_root))
+
+    def change_after_gate(**kwargs):
+        plan = real_prepare(**kwargs)
+        reached.append(True)
+        if mutation == "missing":
+            receipt.unlink()
+        else:
+            receipt.write_bytes(receipt.read_bytes() + b"\n")
+        return plan
+
+    with mock.patch.object(driver, "_prepare_v2_execution", side_effect=change_after_gate):
+        result = _run_v2(root, freeze_path, manifest_path, prepare, evaluate,
+                         out_root=output_root, tmp_path=tmp_path)
+    assert reached == [True]
+    assert result["status"] == "refused"
+    assert result["refusals"] == [
+        "migration-receipt-verify: receipt epoch が campaign-start 前に変化した",
+    ]
+    assert evaluate.calls == []
+    assert not list(Path(layout.root).rglob("wal.jsonl"))
+    assert not (tmp_path / "v2-markers").exists()
+    assert not (tmp_path / "v2-budget.json").exists()
+
+
+@in_sealed_fixture_process
+def test_t080_delegated_campaign_start_rejects_late_hit_file(tmp_path):
+    from orchestrator.tests.s8b_v2_freeze_fixture import _holdout_hit_text
+    root, _, freeze_path, _, _ = _build_t080_active_v2_repo(tmp_path)
+    # A new non-ignored path invalidates delegation through enumeration drift.
+    late = root / "late-hit.txt"
+    assert not late.exists()
+    manifest_path, _ = _emitter_manifest(tmp_path, root, freeze_path)
+    evaluate = _fake_evaluate_factory()
+    real_prepare = driver._prepare_v2_execution
+    reached = []
+    output_root = tmp_path / "output"
+    layout = campaign_layout(_campaign_id(manifest_path), output_root=str(output_root))
+
+    def change_after_gate(**kwargs):
+        plan = real_prepare(**kwargs)
+        reached.append(True)
+        late.write_bytes(_holdout_hit_text(s8b_holdout_freeze, "rr80"))
+        return plan
+
+    with mock.patch.object(driver, "_prepare_v2_execution", side_effect=change_after_gate):
+        result = _run_v2(root, freeze_path, manifest_path, _prepare_factory(), evaluate,
+                         out_root=output_root, tmp_path=tmp_path)
+    assert reached == [True]
+    assert result["status"] == "refused"
+    assert result["refusals"] == [
+        "migration-receipt-verify: receipt epoch が campaign-start 前に変化した",
+    ]
+    assert evaluate.calls == []
+    assert not list(Path(layout.root).rglob("wal.jsonl"))
+    assert not (tmp_path / "v2-markers").exists()
+    assert not (tmp_path / "v2-budget.json").exists()
+
+
+def test_t080_draft_rejects_synthetic_hit_outside_replay_deletions(tmp_path):
+    from orchestrator.tests.s8b_v2_freeze_fixture import _holdout_hit_text
+    root, _, _ = _t080_stub_free_e2e_repo(tmp_path)
+    hit = "synthetic-draft-hit.txt"
+    (root / hit).write_bytes(_holdout_hit_text(s8b_holdout_freeze, "rr80"))
+    report = s8b_holdout_freeze.search_repository(root)
+    assert hit in report["holdouts"]["rr80"]["conjunction_hits"]
+    holdout = json.loads((root / migration.HOLDOUT_REL).read_bytes())
+    with pytest.raises(s8b_holdout_freeze.FreezeError, match="holdout hit"):
+        migration._draft_reconstruct_holdout(holdout, [], [], root=root)
+
+
 def test_t080_output_copy_visibility_matches_production_enumeration(
         tmp_path, monkeypatch):
     for key in tuple(os.environ):
@@ -1676,6 +1922,17 @@ def test_t080_output_copy_visibility_matches_production_enumeration(
         migration.DRAFT_REL, retained.relative_to(root).as_posix(),
     )
 
+    chain_files = {
+        "output/env/pegasus/calibration/s8b-floor-official/synthetic-chain/result.json",
+        s8b_holdout_freeze.V2_CANDIDATE_REL,
+    }
+    candidate_sibling = "output/s8b-freeze-candidates/unrelated.json"
+    for relative in chain_files | {candidate_sibling}:
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"harmless fixture bytes\n")
+    _run_git(root, "add", "--", *sorted(chain_files | {candidate_sibling}))
+
     expected_visible = {
         "output/tracked.txt",
         "output/a/b/c.txt",
@@ -1684,6 +1941,7 @@ def test_t080_output_copy_visibility_matches_production_enumeration(
         migration.DRAFT_REL,
         retained.relative_to(root).as_posix(),
     }
+    expected_visible.update(chain_files | {candidate_sibling})
     copied_output = tmp_path / "copied-output"
     fixture_visible = _copy_git_visible_output(root, copied_output)
     production_visible = {
@@ -1699,12 +1957,18 @@ def test_t080_output_copy_visibility_matches_production_enumeration(
     expected_copied = {
         Path(relative).relative_to("output").as_posix()
         for relative in expected_visible
-        if relative not in {migration.RECEIPT_REL, migration.DRAFT_REL}
+        if relative not in {migration.RECEIPT_REL, migration.DRAFT_REL} | chain_files
     }
 
     assert fixture_visible == expected_visible
     assert fixture_visible == production_visible
     assert copied_regular == expected_copied
+    copied_relative = {"output/" + relative for relative in copied_regular}
+    assert expected_visible - copied_relative == {
+        migration.RECEIPT_REL, migration.DRAFT_REL,
+    } | chain_files
+    for relative in copied_regular:
+        assert (copied_output / relative).read_bytes() == (root / "output" / relative).read_bytes()
 
     (output / "tracked.txt").unlink()
     with pytest.raises(
@@ -1724,11 +1988,17 @@ def test_t080_stub_free_e2e_temp_roots_fail_closed_at_real_output_boundary(
     with pytest.raises(
             AssertionError, match=r"T-080 E2E temp root は実 repo の output/ 配下"):
         _t080_stub_free_e2e_repo(forbidden, issue_receipt=False)
+    with pytest.raises(
+            AssertionError, match=r"T-080 E2E temp root は実 repo の output/ 配下"):
+        _build_t080_active_v2_repo(forbidden)
 
     monkeypatch.setattr(tempfile, "gettempdir", lambda: str(forbidden))
     with pytest.raises(
             AssertionError, match=r"T-080 E2E temp root は実 repo の output/ 配下"):
         _t080_stub_free_e2e_repo(tmp_path, issue_receipt=False)
+    with pytest.raises(
+            AssertionError, match=r"T-080 E2E temp root は実 repo の output/ 配下"):
+        _build_t080_active_v2_repo(tmp_path)
     assert _t080_output_snapshot(forbidden) == before
 
 
@@ -2835,6 +3105,8 @@ def _fake_launch_validated(freeze_path: Path, *, env_tag=None):
     return s8b_ratified_freeze.LaunchValidatedFreeze(
         ratified=ratified, activation_head=ratified.activation_head,
         search_digest="d" * 64, symlink_gitlink_inventory=(),
+        validation_root=Path("/nondelegating-test-token"),
+        search_report={},
         floor_artifact=floor, binaries_by_cell={},
     )
 
@@ -2848,6 +3120,8 @@ def test_gate_check_core_rejects_reverified_freeze_token(tmp_path):
         ratified=live.ratified,
         activation_head=live.activation_head,
         search_digest=live.search_digest,
+        validation_root=Path("/nondelegating-test-token"),
+        search_report={},
         symlink_gitlink_inventory=live.symlink_gitlink_inventory,
         floor_artifact=live.floor_artifact,
         binaries_by_cell=live.binaries_by_cell,
@@ -2955,15 +3229,14 @@ def _run(tmp_path: Path, freeze_path: Path, manifest_path: Path,
     # future-approved gate + canned v2 plan を代入して WAL・budget・schedule 契約だけを
     # 突く (v2 gate/store/env の実発火は専用テストが git fixture で検査する)。
     #
-    # [T-057] root=ROOT のため run_block は実 repo の T-080 receipt を解決する
-    # (1 回 22.4 秒 = git subprocess 1845 本、commit 数に比例)。この経路の consumer は
-    # receipt 解決が incidental (対象は WAL / budget / schedule 契約) なので、実解決値を
-    # process 内 memo で共有する。**解決の回数や世代差そのものを検査する node は
-    # `memo_receipt=False` を渡すこと** (memo はその機序を消す)。
+    # WAL / budget / schedule の入力を checkout の receipt 履歴から切り離す。
+    # 解決回数・epoch の検査だけは memo_receipt=False を使う。
     validated = _fake_launch_validated(freeze_path)
     with contextlib.ExitStack() as stack:
         if memo_receipt:
-            stack.enter_context(receipt_memo.patch_driver_resolver())
+            stack.enter_context(mock.patch.object(
+                driver, "_resolve_t080_receipt", return_value=_never_issued_resolution(),
+            ))
         stack.enter_context(mock.patch.object(
             driver, "_gate_check_validated",
             return_value=driver.GateDecision(True, [], None)))
@@ -2988,11 +3261,13 @@ def _run(tmp_path: Path, freeze_path: Path, manifest_path: Path,
 
 def _run_with_real_manifest_gate(
         *, root, freeze_path, manifest_path, output_root, budget_path,
-        marker_root, prepare_fn, evaluate_fn):
+        marker_root, prepare_fn, evaluate_fn, receipt_resolution=None):
     validated = _fake_launch_validated(freeze_path)
+    if receipt_resolution is None:
+        receipt_resolution = _never_issued_resolution()
     with mock.patch.object(
             driver, "_resolve_t080_receipt",
-            return_value=_never_issued_resolution()), mock.patch.object(
+            return_value=receipt_resolution), mock.patch.object(
             driver.s8b_ratified_freeze, "load_ratified_freeze",
             return_value=validated.ratified), mock.patch.object(
             driver.s8b_ratified_freeze, "launch_validate",
@@ -3007,6 +3282,38 @@ def _run_with_real_manifest_gate(
             marker_root=marker_root,
             prepare_fn=prepare_fn, evaluate_fn=evaluate_fn,
         )
+
+
+def test_run_block_refuses_invalid_receipt_after_gate_seam(tmp_path):
+    freeze_path = _synthetic_freeze(tmp_path, total_bench_s=1000.0)
+    prepare = _prepare_factory()
+    manifest_path, _ = _write_manifest(tmp_path, freeze_path, prepare)
+    prepare.calls.clear()
+    evaluate = _fake_evaluate_factory()
+    receipt_refusal = "migration-receipt-verify: synthetic invalid receipt"
+    resolution = migration.ReceiptResolution(
+        state="invalid", refusals=(receipt_refusal,),
+        t080_freeze_migration_observation=None, validation_head="a" * 40,
+    )
+    with mock.patch.object(
+        driver, "_gate_check_validated", return_value=driver.GateDecision(True, [], None),
+    ):
+        result = _run_with_real_manifest_gate(
+            root=ROOT, freeze_path=freeze_path, manifest_path=manifest_path,
+            output_root=tmp_path / "out", budget_path=tmp_path / "budget.json",
+            marker_root=tmp_path / "markers", prepare_fn=prepare, evaluate_fn=evaluate,
+            receipt_resolution=resolution,
+        )
+    assert result["status"] == "refused"
+    assert set(result["refusals"]) == {
+        receipt_refusal,
+        "migration-receipt-verify: T-080 campaign epoch を active-valid/never-issued のどちらにも固定できない",
+    }
+    assert prepare.calls == []
+    assert evaluate.calls == []
+    assert not (tmp_path / "budget.json").exists()
+    assert not (tmp_path / "markers").exists()
+    assert not list((tmp_path / "out").rglob("wal.jsonl"))
 
 
 def test_oracle_evaluate_fn_without_condition_records_cannot_complete(tmp_path):
@@ -3342,7 +3649,8 @@ def test_cli_output_root_default_is_none_and_run_block_refuses_without_root(tmp_
     )
     budget_path = tmp_path / "missing-output-budget.json"
     marker_root = tmp_path / "missing-output-markers"
-    with receipt_memo.patch_driver_resolver(), \
+    with mock.patch.object(
+            driver, "_resolve_t080_receipt", return_value=_never_issued_resolution()), \
             mock.patch.object(
                 driver, "_gate_check_validated",
                 return_value=driver.GateDecision(True, [], None)), \
@@ -4112,6 +4420,8 @@ def test_two_real_subprocess_oracle_submissions_only_one_acquires_g12_claim(tmp_
         validated = s8b_ratified_freeze.LaunchValidatedFreeze(
             ratified=ratified, activation_head=ratified.activation_head,
             search_digest="d" * 64, symlink_gitlink_inventory=(),
+            validation_root=Path("/nondelegating-test-token"),
+            search_report={{}},
             floor_artifact=floor, binaries_by_cell={{}})
         spec_raw = {approved.raw_bytes!r}
         spec_document = json.loads(spec_raw)
@@ -4993,6 +5303,8 @@ def test_v3_cli_subprocess_returns_rc_3_on_protocol_violation(tmp_path):
         validated = s8b_ratified_freeze.LaunchValidatedFreeze(
             ratified=ratified, activation_head=ratified.activation_head,
             search_digest="d" * 64, symlink_gitlink_inventory=(),
+            validation_root=Path("/nondelegating-test-token"),
+            search_report={{}},
             floor_artifact=floor, binaries_by_cell={{}})
 
         def fake_plan(**kwargs):
@@ -5156,8 +5468,9 @@ def test_run_block_reuses_launch_validated_and_legacy_loader_is_dead(tmp_path):
         captured["plan_validated"] = kwargs["validated"]
         return _canned_plan(**kwargs)
 
-    # [T-057] 対象は loader identity と read 回数。receipt 解決は incidental なので memo する。
-    with receipt_memo.patch_driver_resolver(), \
+    # [T-057] 対象は loader identity と read 回数。receipt 解決は incidental なので合成 resolution を使う。
+    with mock.patch.object(
+            driver, "_resolve_t080_receipt", return_value=_never_issued_resolution()), \
             mock.patch.object(Path, "read_bytes", counting_read_bytes), \
             mock.patch.object(
                 driver, "_load_verified_freeze",
@@ -5236,8 +5549,9 @@ def test_run_block_verifies_manifest_once_and_reuses_object(tmp_path):
         captured["approved_spec"] = approved_spec
         return driver.GateDecision(True, [], None)
 
-    # [T-057] 対象は manifest verify / read 回数。receipt 解決は incidental なので memo する。
-    with receipt_memo.patch_driver_resolver(), \
+    # [T-057] 対象は manifest verify / read 回数。receipt 解決は incidental なので合成 resolution を使う。
+    with mock.patch.object(
+            driver, "_resolve_t080_receipt", return_value=_never_issued_resolution()), \
             mock.patch.object(Path, "read_text", counting_read_text), \
             mock.patch.object(driver, "verify_manifest", counting_verify), \
             mock.patch.object(driver.s8b_ratified_freeze,
@@ -5674,7 +5988,8 @@ def test_session_issuer_alias_and_append_use_model_authority(tmp_path, monkeypat
 # 使い、gate / launch_validate / env 契約 / store 消費 / receipt 伝搬を発火させる。
 # ===========================================================================
 
-def _build_v2_repo(tmp_path: Path, *, floor_extime_s: int = 5):
+def _build_v2_repo(tmp_path: Path, *, floor_extime_s: int = 5, receipt_root=None,
+                   compiler_input_rel="fixture.txt"):
     """E3a production-emitter bytes から oracle 実走 fixture を返す。"""
     def fill_execution_snapshot(g1):
         # emitter が result.floors から独立投影した floor は保持し、
@@ -5692,7 +6007,8 @@ def _build_v2_repo(tmp_path: Path, *, floor_extime_s: int = 5):
             state["protocol"]["extime_s"] = floor_extime_s
 
     root, ratified, topology = ratified_fixture.load_emitter_g1(
-        tmp_path, mutate=mutate, mutate_g1=fill_execution_snapshot,
+        tmp_path, mutate=mutate, mutate_g1=fill_execution_snapshot, receipt_root=receipt_root,
+        compiler_input_rel=compiler_input_rel,
     )
     # Keep the emitter artifacts in the git-backed repo, but run the official
     # campaign against its uninitialized sibling root.

@@ -19,10 +19,12 @@ from unittest import mock
 from pathlib import Path
 from typing import Callable
 
+import pytest
 
 _ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_ROOT))
 
+from orchestrator.tests.s8b_v2_freeze_fixture import in_sealed_fixture_process
 from orchestrator.campaign import s8b_holdout_freeze as holdout_module
 from orchestrator.campaign import t080_freeze_migration as migration
 
@@ -566,7 +568,7 @@ def test_gate_normalizes_unexpected_check_exceptions_and_continues_g5():
     reached = []
     try:
         migration._validate_positive_control = lambda *_args: (_ for _ in ()).throw(OSError("positive"))
-        migration._verify_holdout_live_scan = lambda *_args: (_ for _ in ()).throw(
+        migration._verify_holdout_live_scan = lambda *_args, **_kwargs: (_ for _ in ()).throw(
             holdout_module.FreezeError("scan")
         )
         migration._verify_ccbench_current = lambda *_args: (_ for _ in ()).throw(ValueError("ccbench"))
@@ -2144,13 +2146,104 @@ def test_cat_blob_memoizes_per_object_without_changing_bytes():
         assert len(blob_calls) == 2, blob_calls
 
 
+@contextlib.contextmanager
+def _real_layer2_token():
+    from orchestrator.tests import test_s8b_ratified_freeze as emitter
+    with tempfile.TemporaryDirectory(prefix="t080-layer2-") as directory:
+        root, ratified, _topology = emitter.load_emitter_g1(Path(directory))
+        token = emitter.M.launch_validate(ratified, root)
+        holdout = json.loads((root / migration.HOLDOUT_REL).read_bytes())
+        assert migration._verify_holdout_live_scan(
+            root, holdout, delegate_to=token, validation_head=token.activation_head,
+        ) is token.search_report
+        yield root, token, holdout
+
+
+def _assert_layer2_token_rejected(root, token, holdout):
+    assert migration._holdout_layer2_delegation(
+        root=root, validation_head=migration._capture_head(root), launch_validated=token,
+    ) is None
+    _expect_reason(lambda: migration._verify_holdout_live_scan(
+        root, holdout, delegate_to=token, validation_head=migration._capture_head(root),
+    ), "holdout.unknownness_layer2")
+
+
+@in_sealed_fixture_process
+def test_layer2_delegation_rejects_wrong_activation_head():
+    from dataclasses import replace
+    with _real_layer2_token() as (root, token, holdout):
+        _assert_layer2_token_rejected(root, replace(token, activation_head="0" * 40), holdout)
+
+
+@in_sealed_fixture_process
+def test_layer2_delegation_rejects_foreign_root():
+    import shutil
+    from orchestrator.campaign import s8b_ratified_freeze as ratified
+    with _real_layer2_token() as (root, token, holdout):
+        clone = root.parent / "same-head-clone"
+        shutil.copytree(root, clone)
+        assert migration._capture_head(clone) == token.activation_head
+        assert ratified._enumeration_digest(clone) == token.search_digest
+        _assert_layer2_token_rejected(clone, token, holdout)
+        (clone / "additional-file.txt").write_text("different enumeration\n")
+        _assert_layer2_token_rejected(clone, token, holdout)
+
+
+@in_sealed_fixture_process
+def test_layer2_delegation_rejects_enumeration_drift():
+    with _real_layer2_token() as (root, token, holdout):
+        (root / "additional-file.txt").write_text("outside the freeze namespace\n")
+        _assert_layer2_token_rejected(root, token, holdout)
+
+
+@in_sealed_fixture_process
+def test_layer2_delegation_rejects_nonlaunch_type():
+    from types import SimpleNamespace
+    from orchestrator.campaign import s8b_ratified_freeze as ratified
+    class DerivedToken(ratified.LaunchValidatedFreeze):
+        pass
+    with _real_layer2_token() as (root, token, holdout):
+        for cls in (ratified.ReverifiedFreeze, SimpleNamespace, DerivedToken):
+            _assert_layer2_token_rejected(root, cls(**vars(token)), holdout)
+
+
+@in_sealed_fixture_process
+def test_layer2_delegation_rejects_stale_generation_token():
+    with _real_layer2_token() as (root, token, holdout):
+        generation = root / f"output/s8b-freeze/holdout_freeze.v2.g{token.ratified.generation_number}.json"
+        generation.write_bytes(generation.read_bytes() + b"\n")
+        _assert_layer2_token_rejected(root, token, holdout)
+
+
+@in_sealed_fixture_process
+@pytest.mark.parametrize("field", ["expressions", "match_convention", "candidate_id", "candidate_set"])
+def test_delegated_scan_keeps_frozen_document_bindings(field):
+    with _real_layer2_token() as (root, token, holdout):
+        doc = copy.deepcopy(holdout)
+        if field == "expressions":
+            doc["holdouts"]["rr80"]["unknownness_check"][field] = {}
+        elif field == "match_convention":
+            doc[field] = "different convention"
+        elif field == "candidate_id":
+            doc["holdouts"]["rr80"][field] = "different candidate"
+        else:
+            del doc["holdouts"]["rr20"]
+        _expect_reason(lambda: migration._verify_holdout_live_scan(
+            root, doc, delegate_to=token, validation_head=token.activation_head,
+        ), "holdout.unknownness_layer2")
+
+
 def _run():
     fns = [value for name, value in sorted(globals().items())
            if name.startswith("test_") and callable(value)]
     passed = failed = errors = skipped = 0
     for fn in fns:
         try:
-            fn()
+            if fn is test_delegated_scan_keeps_frozen_document_bindings:
+                for field in ("expressions", "match_convention", "candidate_id", "candidate_set"):
+                    fn(field)
+            else:
+                fn()
             passed += 1
         except unittest.SkipTest as exc:
             skipped += 1
