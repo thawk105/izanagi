@@ -1,0 +1,1113 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-76acae63cb)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2290-o23-o27-docs/output/pegasus-dispatch/orphan-holds/unknown-2365dd5e4d54d20eeffcaaed.json
+[Pegasus dispatch] request ID 5433.nqsv を受理しました
+[Pegasus dispatch] request 5433.nqsv の状態: QUE
+[Pegasus dispatch] request 5433.nqsv の状態: RUN
+[Pegasus dispatch] request 5433.nqsv の状態: END
+[Pegasus dispatch] request 5433.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2290-o23-o27-docs/output/pegasus-dispatch/orphan-holds/unknown-2365dd5e4d54d20eeffcaaed.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2290-o23-o27-docs/output/pegasus-dispatch/76acae63cb3a4c2788bbc32f78ead10c/receipt.json へ保存しました (child rc=1)
+[Pegasus dispatch] request 5433.nqsv child stdout begin (size=512183 bytes, omitted_bytes=446647)
+|  -> str:
+|             # These 30-second watchdogs bound failure recovery, not expected order.
+|             # Match the local fixture budget: 11 * 2 * 1.25 = 27.5, rounded up
+|             # to 30 seconds; this is design headroom, not a measured percentile.
+|             try:
+|                 return coordination.get(timeout=30)
+|             except queue.Empty:
+|                 pytest.fail(f"timed out waiting for {reason}", pytrace=False)
+|     
+|         def first_hook() -> None:
+|             causal_trace.append("first-critical-enter")
+|             first_inside.set()
+|             assert release_first.wait(30), (
+|                 "job-a timed out waiting for the manifest conflict probe to finish"
+|             )
+|             causal_trace.append("first-critical-exit")
+|     
+|         def second_hook() -> None:
+|             causal_trace.append("second-critical-enter")
+|             second_inside.set()
+|             coordination.put("second-critical-enter")
+|     
+|         def append(job_id: str, session_id: str, hook: Any = None) -> None:
+|             if job_id == "job-b":
+|                 second_thread_ids.add(threading.get_ident())
+|             try:
+|                 snapshot = LAUNCHER.snapshot_authority(_ROOT)
+|                 LAUNCHER._append_manifest(
+|                     manifest_path,
+|                     wave_id="wave-a",
+|                     entry={
+|                         "job_id": job_id,
+|                         "attempt_index": 1,
+|                         "session_id": session_id,
+|                         "stage": "author",
+|                         "lane": None,
+|                         "repo_root": os.fspath(_ROOT),
+|                         "base_commit": _BASE_COMMIT,
+|                         "requested_cwd": os.fspath(_ROOT),
+|                         "recorded_cwd": os.fspath(_ROOT),
+|                         "sessions_root": os.fspath(tmp_path / "sessions"),
+|                         "receipt_path": os.fspath(tmp_path / f"{job_id}.json"),
+|                         "authority_commit": snapshot.authority_commit,
+|                         "authority_digest": snapshot.digest,
+|                     },
+|                     critical_section_hook=hook,
+|                 )
+|             except BaseException as exc:
+|                 errors.append(exc)
+|             finally:
+|                 if job_id == "job-b":
+|                     second_done.set()
+|                     coordination.put("second-done")
+|     
+|         first = threading.Thread(
+|             target=append,
+|             args=("job-a", "aaaaaaaa-0000-4000-8000-000000000001", first_hook),
+|         )
+|         second = threading.Thread(
+|             target=append,
+|             args=(
+|                 "job-b",
+|                 "bbbbbbbb-0000-4000-8000-000000000002",
+|                 second_hook,
+|             ),
+|         )
+|         monkeypatch.setattr(LAUNCHER.fcntl, "flock", observe_flock)
+|         first.start()
+| >       assert first_inside.wait(30), "job-a did not enter the manifest critical section"
+| E       AssertionError: job-a did not enter the manifest critical section
+| E       assert False
+| E        +  where False = wait(30)
+| E        +    where wait = <threading.Event object at 0x14b5930730a0>.wait
+| 
+| orchestrator/tests/test_codex_worker_launch.py:6054: AssertionError
+| ------------------- Captured launcher-failure-artifact call --------------------
+| archive_status=complete bundle=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2290-o23-o27-docs/output/runs/pytest-launcher-failures/0-5433.nqsv--bnode042/gw42/da57aa08adf32fbd--pid2110066--1789691842353118131--4m1o5_ic
+| =========================== short test summary info ============================
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_seal_failure_still_writes_launcher_error_receipt
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_evidence_forced_stop_propagates_unknown_residual_to_sidecar
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_docs_authority_alone_rejects_consistent_effort_mutation
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_detects_output_tampering
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_all_v3_stages_reject_prior_invalid_attempt[consult-sol]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rejects_unknown_and_duplicate_fields
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_rollout_duplicate_key_remains_invalid
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_f43_fragment_is_classified_and_retried
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reads_v3_parent_attempt_field_sets_without_upgrade[main-parent]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rejects_impossible_truth_table
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_late_rollout_writer_does_not_change_sealed_receipt
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reads_v3_parent_attempt_field_sets_without_upgrade[wave-parent]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_correlated_authority_invalid_session_uses_nullable_manifest_value
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reads_v2_parent_attempt_field_sets_without_upgrade[wave-parent]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rechecks_all_manifest_header_fields[base_commit]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_failure_class_enum_and_receipt_recomputation_are_closed
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_thread_missing_after_grace_kills_process_group
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_max_attempts_never_spawns_extra_attempt
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reads_v2_parent_attempt_field_sets_without_upgrade[main-parent]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_detects_executable_identity_change
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_manifest_refuses_foreign_wave_id
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_marks_self_asserted_limits_and_accepts_external_expectations
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_recomputes_usage_actuals_from_sealed_artifacts
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_checker_rejects_v3_acceptance_with_prior_invalid_attempt
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_incomplete_evidence
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_external_limit_detects_self_asserted_limit_tampering
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rechecks_all_manifest_header_fields[wave_id]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_cli_reported_token_limit_stops_process
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_post_attempt_audit_failure_still_writes_launcher_error_receipt
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_enforces_v2_wall_clock_admission_boundary[at-bound]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_null_token_count_is_observed_and_makes_metering_incomplete
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_authority_bound_launch_uses_derived_model_and_effort
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_evidence_grace_starts_at_spawn_completed_on_retry
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_missing_metering_evidence_is_not_accepted
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_final_drain_actuals_are_rechecked_before_acceptance
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_positive_p1_normal_job_is_accepted
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_launcher_diagnostics_sidecar_is_outside_receipt_schema
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rechecks_all_manifest_header_fields[repo_root]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_f43_fragment_excludes_non_utf8_and_oversized_output[oversized]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_workspace_write_failure_classification_is_sandbox_independent[child_error]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_usage_rollback_alone_is_rejected_without_peak_or_terminal_mask
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_positive_accepted_attempt_has_no_failure_class_and_no_retry
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[high]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_cli_reported_running_max_latches_usage_rollback
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_complete_receipt_publication_is_atomic_create_only_at_run_callsite
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_delayed_thread_and_rollout_are_read_from_byte_zero
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_workspace_write_failure_classification_is_sandbox_independent[retry_reject]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_token_cap_uses_cli_reported_definition
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_workspace_write_failure_classification_is_sandbox_independent[normal]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_nonzero_codex_exit_code
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_invalid_evidence_reason_is_recorded
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_cached_exceeding_input_is_malformed
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_all_v3_stages_reject_prior_invalid_attempt[author-None]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_parallel_jobs_preserve_both_manifest_entries
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reads_v4_without_evidence_issues
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_limit_stop_is_never_accepted
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_evidence_grace_starts_at_spawn_completed
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[max]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_rejects_non_string_evidence_issue_reason_with_rc2
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_inconsistent_metering_is_not_accepted
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_f43_heading_missing_is_classified
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_retry_admission_exact_model_call_limit_is_not_accepted
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_fake_can_reproduce_thread_id_change_and_multiple_sessions
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics[True]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_validator_rejection
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_rollout_missing_after_grace_is_stopped_and_not_accepted
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_web_search_duplicate_stdout_is_accepted_and_auditable
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_launcher_failure_diagnostic_reports_failed_predicates
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_positive_p3_exact_limit_natural_exit_is_accepted
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[xhigh]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[low]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_f45_zero_or_missing_output_fails_closed_without_retry[missing_output]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_codex_argv_has_exact_trust_bypass_without_sandbox_bypass
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_turn_context_top_level_and_collaboration_decoys_are_rejected
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_recomputes_attempt_output_hash
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_f43_fragment_excludes_non_utf8_and_oversized_output[non_utf8]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_reads_v1_field_sets_with_explicit_skip_diagnostics[False]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_default_max_attempts_observes_failure_class_without_retry
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_setsid_escape_is_not_claimed_as_contained
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_all_repo_policy_reasoning_values_are_accepted[medium]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_fake_stdout_matches_observed_cli_event_shape
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_workspace_write_f45_is_classified_without_retry[missing_output]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_partial_existing_receipt_is_atomically_replaced
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_manifest_is_appended_while_correlated_session_is_running
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_spawned_process_group_is_cleaned_on_manifest_append_failure
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_launcher_diagnostics_write_failure_does_not_change_control_result
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_launcher_process_wall_clock_includes_version_preflight
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_workspace_write_f45_is_classified_without_retry[empty_output]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_check_receipt_enforces_v2_wall_clock_admission_boundary[over-bound]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_cumulative_limits_do_not_reset_between_attempts
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_receipt_publication_failure_removes_output_and_writes_error_receipt
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_accepted_publication_reuses_the_staged_receipt_temp
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_hook_preflight_validates_repo_root
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_f45_zero_or_missing_output_fails_closed_without_retry[empty_output]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_preflight_rejects_cwd_outside_repo_and_unknown_base
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_authority_bound_job_rejects_prior_invalid_attempt
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_hook_preflight_is_rechecked_before_each_retry
+| FAILED orchestrator/tests/test_dev_wave_launch_authority.py::test_review_effort_matches_independent_docs_cross_check
+| FAILED orchestrator/tests/test_dev_wave_launch_authority.py::test_all_stage_models_match_independent_docs_cross_check
+| FAILED orchestrator/tests/test_dev_wave_launch_authority.py::test_fix_effort_matches_author_docs_cross_check
+| FAILED orchestrator/tests/test_dev_wave_launch_authority.py::test_author_effort_matches_independent_docs_cross_check
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_attempt_loop_propagates_non_exception_baseexceptions[SystemExit]
+| FAILED orchestrator/tests/test_dev_wave_launch_authority.py::test_focus_effort_matches_independent_docs_cross_check
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_attempt_preflight_delay_exhausts_wall_clock_before_spawn
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_attempt_loop_propagates_non_exception_baseexceptions[KeyboardInterrupt]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_attempt_loop_propagates_non_exception_baseexceptions[GeneratorExit]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_authority_bound_reasoning_is_rejected_before_all_side_effects
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_append_manifest_header_gate_fails_without_checker_mask
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_author_and_fix_reasoning_is_rejected_before_all_side_effects[fix]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_author_and_fix_reasoning_is_rejected_before_all_side_effects[author]
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_workspace_write_retry_is_refused
+| FAILED orchestrator/tests/test_dev_wave_launch_authority.py::test_fix_effort_matches_author_derivation
+| FAILED orchestrator/tests/test_codex_worker_launch.py::test_manifest_lock_covers_load_replace_critical_section
+| 116 failed, 739 passed, 3 skipped in 43.97s
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+| === IZANAGI FAILURE DIGEST v1 BEGIN ===
+| IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_codex_worker_launch.py::test_complete_receipt_publication_is_atomic_create_only_at_run_callsite" nodeid_bytes=119 nodeid_omitted_bytes=0 source_bytes=5906 retained_bytes=3923 omitted_bytes=1983 rendered_excerpt_bytes=4096 sha256=18dc3eb042eb9aa0a2f7b4f0fa68dfc7e2ceed1d8ea083bc7e37b720f09b92d0
+| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+| > first_output, first_paths),
+| >                 ("second launcher", second, second_output, second_paths),
+| >             ],
+| >             [0, 2],
+| >         )
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:6141: 
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > 
+| > processes = [('first launcher', <Popen: returncode: 2 args: ['/bin/python3.10', '/work/1/SFC/tanab/izanagi/....>, ('', 'NG: docs/d..., 'artifact': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw22/test_complete_receipt_publicat0/artifacts-b'), ...})]
+| > expected_returncodes = [0, 2]
+| > 
+| >     def _assert_unordered_launcher_returncodes(
+| >         processes: list[
+| >             tuple[str, subprocess.Popen[str], tuple[str, str], dict[str, Path]]
+| >         ],
+| >         expected_returncodes: list[int],
+| >     ) -> None:
+| >         actual = sorted(
+| >             process.returncode
+| >             for _label, process, _output, _paths in processes
+| >         )
+| >         if actual == sorted(expected_returncodes):
+| >             return
+| >         prefix = (
+| >             f"actual rc {actual} != expected rc {sorted(expected_returncodes)}; "
+| >             "labels=" + ",".join(label for label, *_rest in processes)
+| >         )
+| >         bodies: list[str] = []
+| >         for label, process, (stdout, stderr), paths in processes:
+| >             try:
+| >                 bodies.append(
+| >                     f"[{label}]\x5cn"
+| >                     + _launcher_failure_message(
+| >                         process, paths=paths, stdout=stdout, stderr=stderr
+| >                     )
+| >                 )
+| >             except Exception as exc:
+| >                 bodies.append(f"[{label}] diagnostic_status=failed:{type(exc).__name__}")
+| > >       raise LauncherReturncodeMismatch(
+| >             _bounded_failure_message(prefix, "\x5cn".join(bodies))
+| >         )
+| > E       test_codex_worker_launch.LauncherReturncodeMismatch: actual rc [2, 2] != expected rc [0, 2]; labels=first launcher,second launcher
+| > E       [first launcher]
+| > E       receipt_status=missing path='/tmp/pytest-of-tanab/pytest-0/popen-gw22/test_complete_receipt_publicat0/receipt-a.json'
+| > E       launcher.stdout: path='<captured>' total_bytes=0 sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 truncated_bytes=0 excerpt=''
+| > E       launcher.stderr: path='<captured>' total_bytes=80 sha256=f518c46b4b79387524d3983feb62d70341cf3f074266fea496e784b5e3bdc208 truncated_bytes=0 excerpt='NG: docs/dev-wave/operations.md: working tree \u304c authority commit \u3068\u7570\u306a\u308b\x5cn'
+| > E       observability_status=insufficient
+| > E       runtime_context: hostname='bnode042' PYTEST_XDIST_WORKER='gw22' PBS_JOBID='0:5433.nqsv' test_pid=2109926 loadavg=(0.6962890625, 1.2236328125, 4.9892578125)
+| > E       launcher_budgets: wall='3' evidence='1.0' termination='0.05' poll='0.01'
+| > E       receipt_limits=unavailable
+| > E       receipt_actuals=unavailable
+| > E       truth_summary: receipt_status=missing attempts=unavailable
+| > E       [second launcher]
+| > E       receipt_status=missing path='/tmp/pytest-of-tanab/pytest-0/popen-gw22/test_complete_receipt_publicat0/receipt-a.json'
+| > E       launcher.stdout: path='<captured>' total_bytes=0 sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 truncated_bytes=0 excerpt=''
+| > E       launcher.stderr: path='<captured>' total_bytes=80 sha256=f518c46b4b79387524d3983feb62d70341cf3f074266fea496e784b5e3bdc208 truncated_bytes=0 excerpt='NG: docs/dev-wave/operations.md: working tree \u304c authority commit \u3068\u7570\u306a\u308b\x5cn'
+| > E       observability_status=insufficient
+| > E       runtime_context: hostname='bnode042' PYTEST_XDIST_WORKER='gw22' PBS_JOBID='0:5433.nqsv' test_pid=2109926 loadavg=(0.6962890625, 1.2236328125, 4.9892578125)
+| > E       launcher_budgets: wall='3' evidence='1.0' termination='0.05' poll='0.01'
+| > E       receipt_limits=unavailable
+| > E       receipt_actuals=unavailable
+| > E       truth_summary: receipt_status=missing attempts=unavailable
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:1203: LauncherReturncodeMismatch
+| --- IZANAGI FAILURE EXCERPT rank=1 END ---
+| IZANAGI_FAILURE rank=2 category=failed when=call nodeid="orchestrator/tests/test_dev_wave_launch_authority.py::test_all_stage_models_match_independent_docs_cross_check" nodeid_bytes=110 nodeid_omitted_bytes=0 source_bytes=1948 retained_bytes=1948 omitted_bytes=0 rendered_excerpt_bytes=2125 sha256=8d00e18202d83a57c2f735e8a687fe28273193aeb099948077ccf5c6edb5a2ba
+| --- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---
+| > [gw21] linux -- Python 3.10.12 /bin/python3.10
+| > 
+| >     def test_all_stage_models_match_independent_docs_cross_check() -> None:
+| >         section = _independent_docs_section(_ROOT / _OPERATIONS, "DW-O01")
+| >         expected_models = re.findall(r"`(gpt-[A-Za-z0-9._-]+)`", section)
+| >         assert expected_models == ["gpt-6-astra"]
+| >     
+| > >       snapshot = snapshot_authority(_ROOT)
+| > 
+| > orchestrator/tests/test_dev_wave_launch_authority.py:379: 
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > 
+| > repo_root = PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2290-o23-o27-docs')
+| > commit = None, allow_mid_merge = False
+| > 
+| >     def snapshot_authority(
+| >         repo_root: Path,
+| >         *,
+| >         commit: str | None = None,
+| >         allow_mid_merge: bool = False,
+| >     ) -> AuthoritySnapshot:
+| >         """commit \u306e docs blob \u3092\u8aad\u307f\u3001live \u4f7f\u7528\u6642\u306f working tree \u3068 byte \u6bd4\u8f03\u3059\u308b\u3002"""
+| >     
+| >         root = repo_root.resolve()
+| >         resolved = _resolve_commit(root, commit)
+| >         raw_documents = _documents_at_commit(root, resolved)
+| >         if commit is None:
+| >             mid_merge_admitted = (
+| >                 allow_mid_merge and _healthy_two_parent_merge(root)
+| >             )
+| >             if not mid_merge_admitted:
+| >                 for path, committed in raw_documents.items():
+| >                     try:
+| >                         working = (root / path).read_bytes()
+| >                     except OSError as exc:
+| >                         raise AuthorityError(f"{path}: working tree \u3092\u8aad\u3081\u306a\u3044") from exc
+| >                     if working != committed:
+| > >                       raise AuthorityError(
+| >                             f"{path}: working tree \u304c authority commit \u3068\u7570\u306a\u308b"
+| >                         )
+| > E                       tools.dev_waves.launch_authority.AuthorityError: docs/dev-wave/operations.md: working tree \u304c authority commit \u3068\u7570\u306a\u308b
+| > 
+| > tools/dev_waves/launch_authority.py:516: AuthorityError
+| --- IZANAGI FAILURE EXCERPT rank=2 END ---
+| IZANAGI_FAILURE rank=3 category=failed when=call nodeid="orchestrator/tests/test_codex_worker_launch.py::test_manifest_lock_covers_load_replace_critical_section" nodeid_bytes=103 nodeid_omitted_bytes=0 source_bytes=5030 retained_bytes=3913 omitted_bytes=1117 rendered_excerpt_bytes=4096 sha256=a8cee4d569a533b076a2425b9608fa393eb0e3f24bc447f37798dc93471c85b8
+| --- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---
+| > and operation == LAUNCHER.fcntl.LOCK_EX
+| >             ):
+| >                 try:
+| >                     original_flock(fd, operation | LAUNCHER.fcntl.LOCK_NB)
+| >                 except BlockingIOError:
+| >                     pass
+| >                 else:
+| >                     original_flock(fd, LAUNCHER.fcntl.LOCK_UN)
+| >                     raise AssertionError(
+| >                         "job-b manifest contender fd did not conflict with job-a"
+| >                     )
+| >                 causal_trace.append("second-lock-attempt")
+| >                 second_lock_conflict_observed.set()
+| >                 coordination.put("second-lock-attempt")
+| >             original_flock(fd, operation)
+| >     
+| >         def wait_for_coordination(reason: str) -> str:
+| >             # These 30-second watchdogs bound failure recovery, not expected order.
+| >             # Match the local fixture budget: 11 * 2 * 1.25 = 27.5, rounded up
+| >             # to 30 seconds; this is design headroom, not a measured percentile.
+| >             try:
+| >                 return coordination.get(timeout=30)
+| >             except queue.Empty:
+| >                 pytest.fail(f"timed out waiting for {reason}", pytrace=False)
+| >     
+| >         def first_hook() -> None:
+| >             causal_trace.append("first-critical-enter")
+| >             first_inside.set()
+| >             assert release_first.wait(30), (
+| >                 "job-a timed out waiting for the manifest conflict probe to finish"
+| >             )
+| >             causal_trace.append("first-critical-exit")
+| >     
+| >         def second_hook() -> None:
+| >             causal_trace.append("second-critical-enter")
+| >             second_inside.set()
+| >             coordination.put("second-critical-enter")
+| >     
+| >         def append(job_id: str, session_id: str, hook: Any = None) -> None:
+| >             if job_id == "job-b":
+| >                 second_thread_ids.add(threading.get_ident())
+| >             try:
+| >                 snapshot = LAUNCHER.snapshot_authority(_ROOT)
+| >                 LAUNCHER._append_manifest(
+| >                     manifest_path,
+| >                     wave_id="wave-a",
+| >                     entry={
+| >                         "job_id": job_id,
+| >                         "attempt_index": 1,
+| >                         "session_id": session_id,
+| >                         "stage": "author",
+| >                         "lane": None,
+| >                         "repo_root": os.fspath(_ROOT),
+| >                         "base_commit": _BASE_COMMIT,
+| >                         "requested_cwd": os.fspath(_ROOT),
+| >                         "recorded_cwd": os.fspath(_ROOT),
+| >                         "sessions_root": os.fspath(tmp_path / "sessions"),
+| >                         "receipt_path": os.fspath(tmp_path / f"{job_id}.json"),
+| >                         "authority_commit": snapshot.authority_commit,
+| >                         "authority_digest": snapshot.digest,
+| >                     },
+| >                     critical_section_hook=hook,
+| >                 )
+| >             except BaseException as exc:
+| >                 errors.append(exc)
+| >             finally:
+| >                 if job_id == "job-b":
+| >                     second_done.set()
+| >                     coordination.put("second-done")
+| >     
+| >         first = threading.Thread(
+| >             target=append,
+| >             args=("job-a", "aaaaaaaa-0000-4000-8000-000000000001", first_hook),
+| >         )
+| >         second = threading.Thread(
+| >             target=append,
+| >             args=(
+| >                 "job-b",
+| >                 "bbbbbbbb-0000-4000-8000-000000000002",
+| >                 second_hook,
+| >             ),
+| >         )
+| >         monkeypatch.setattr(LAUNCHER.fcntl, "flock", observe_flock)
+| >         first.start()
+| > >       assert first_inside.wait(30), "job-a did not enter the manifest critical section"
+| > E       AssertionError: job-a did not enter the manifest critical section
+| > E       assert False
+| > E        +  where False = wait(30)
+| > E        +    where wait = <threading.Event object at 0x14b5930730a0>.wait
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:6054: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=3 END ---
+| IZANAGI_FAILURE rank=4 category=failed when=call nodeid="orchestrator/tests/test_codex_worker_launch.py::test_manifest_is_appended_while_correlated_session_is_running" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=4771 retained_bytes=3900 omitted_bytes=871 rendered_excerpt_bytes=4096 sha256=0425a28289e0d1a5fa6856ece484aba9ef975dcfc6a4fc139ccabce4aa77ec1a
+| --- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---
+| > put: tuple[str, str] | None = None
+| >             while time.monotonic() < deadline:
+| >                 if paths["manifest"].exists():
+| >                     manifest = json.loads(
+| >                         paths["manifest"].read_text(encoding="utf-8")
+| >                     )
+| >                     if manifest["sessions"]:
+| >                         break
+| >                 if process.poll() is not None:
+| > >                   launcher_output = _communicate_launcher(
+| >                         process,
+| >                         timeout=60.0,
+| >                         paths=paths,
+| >                         expected_returncode=0,
+| >                         label="correlated-session launcher",
+| >                     )
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:7052: 
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > orchestrator/tests/test_codex_worker_launch.py:1165: in _communicate_launcher
+| >     _assert_launcher_returncode(
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > 
+| > result = <Popen: returncode: 2 args: ['/bin/python3.10', '/work/1/SFC/tanab/izanagi/....>
+| > expected_returncode = 0
+| > paths = {'prompt': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_manifest_is_appended_whil0/prompt.txt'), 'codex_ho...ds'), 'artifact': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_manifest_is_appended_whil0/artifacts'), ...}
+| > stdout = ''
+| > stderr = 'NG: docs/dev-wave/operations.md: working tree \u304c authority commit \u3068\u7570\u306a\u308b\x5cn'
+| > label = 'correlated-session launcher', command = None
+| > 
+| >     def _assert_launcher_returncode(
+| >         result: (
+| >             subprocess.CompletedProcess[Any]
+| >             | subprocess.Popen[Any]
+| >             | subprocess.TimeoutExpired
+| >             | int
+| >         ),
+| >         expected_returncode: int,
+| >         *,
+| >         paths: dict[str, Path],
+| >         stdout: str | bytes | None = None,
+| >         stderr: str | bytes | None = None,
+| >         label: str = "launcher",
+| >         command: list[str] | None = None,
+| >     ) -> None:
+| >         actual = _returncode_value(result)
+| >         if actual == expected_returncode:
+| >             return
+| >         prefix = (
+| >             f"actual rc {actual} != expected rc {expected_returncode}; "
+| >             f"label={label}"
+| >         )
+| >         try:
+| >             body = _launcher_failure_message(
+| >                 result,
+| >                 paths=paths,
+| >                 stdout=stdout,
+| >                 stderr=stderr,
+| >                 command=command,
+| >             )
+| >         except Exception as exc:
+| >             body = (
+| >                 f"diagnostic_status=failed:{type(exc).__name__}\x5cn"
+| >                 f"truth_summary: diagnostic_status=failed:{type(exc).__name__}"
+| >             )
+| > >       raise LauncherReturncodeMismatch(_bounded_failure_message(prefix, body))
+| > E       test_codex_worker_launch.LauncherReturncodeMismatch: actual rc 2 != expected rc 0; label=correlated-session launcher
+| > E       receipt_status=missing path='/tmp/pytest-of-tanab/pytest-0/popen-gw24/test_manifest_is_appended_whil0/receipt.json'
+| > E       launcher.stdout: path='<captured>' total_bytes=0 sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 truncated_bytes=0 excerpt=''
+| > E       launcher.stderr: path='<captured>' total_bytes=80 sha256=f518c46b4b79387524d3983feb62d70341cf3f074266fea496e784b5e3bdc208 truncated_bytes=0 excerpt='NG: docs/dev-wave/operations.md: working tree \u304c authority commit \u3068\u7570\u306a\u308b\x5cn'
+| > E       observability_status=insufficient
+| > E       runtime_context: hostname='bnode042' PYTEST_XDIST_WORKER='gw24' PBS_JOBID='0:5433.nqsv' test_pid=2109939 loadavg=(0.6962890625, 1.2236328125, 4.9892578125)
+| > E       launcher_budgets: wall='30' evidence='1.0' termination='0.05' poll='0.01'
+| > E       receipt_limits=unavailable
+| > E       receipt_actuals=unavailable
+| > E       truth_summary: receipt_status=missing attempts=unavailable
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:1121: LauncherReturncodeMismatch
+| --- IZANAGI FAILURE EXCERPT rank=4 END ---
+| IZANAGI_FAILURE rank=5 category=failed when=call nodeid="orchestrator/tests/test_codex_worker_launch.py::test_parallel_jobs_preserve_both_manifest_entries" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=4704 retained_bytes=3886 omitted_bytes=818 rendered_excerpt_bytes=4096 sha256=3508d9f666b1eea6a12d59e97f29641b18394715722b6c419988ecc5140dc8db
+| --- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---
+| >       env["FAKE_BARRIER_COUNT"] = "2"
+| >         first = subprocess.Popen(
+| >             first_command,
+| >             env=first_env,
+| >             text=True,
+| >             errors="backslashreplace",
+| >             stdout=subprocess.PIPE,
+| >             stderr=subprocess.PIPE,
+| >         )
+| >         second = subprocess.Popen(
+| >             second_command,
+| >             env=second_env,
+| >             text=True,
+| >             errors="backslashreplace",
+| >             stdout=subprocess.PIPE,
+| >             stderr=subprocess.PIPE,
+| >         )
+| > >       first_stdout, first_stderr = _communicate_launcher(
+| >             first,
+| >             paths=first_paths,
+| >             expected_returncode=0,
+| >             label="first launcher",
+| >         )
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:5642: 
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > orchestrator/tests/test_codex_worker_launch.py:1165: in _communicate_launcher
+| >     _assert_launcher_returncode(
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > 
+| > result = <Popen: returncode: 2 args: ['/bin/python3.10', '/work/1/SFC/tanab/izanagi/....>
+| > expected_returncode = 0
+| > paths = {'prompt': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_parallel_jobs_preserve_bo0/prompt-a.txt'), 'codex_...'), 'artifact': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_parallel_jobs_preserve_bo0/artifacts-a'), ...}
+| > stdout = ''
+| > stderr = 'NG: docs/dev-wave/operations.md: working tree \u304c authority commit \u3068\u7570\u306a\u308b\x5cn'
+| > label = 'first launcher', command = None
+| > 
+| >     def _assert_launcher_returncode(
+| >         result: (
+| >             subprocess.CompletedProcess[Any]
+| >             | subprocess.Popen[Any]
+| >             | subprocess.TimeoutExpired
+| >             | int
+| >         ),
+| >         expected_returncode: int,
+| >         *,
+| >         paths: dict[str, Path],
+| >         stdout: str | bytes | None = None,
+| >         stderr: str | bytes | None = None,
+| >         label: str = "launcher",
+| >         command: list[str] | None = None,
+| >     ) -> None:
+| >         actual = _returncode_value(result)
+| >         if actual == expected_returncode:
+| >             return
+| >         prefix = (
+| >             f"actual rc {actual} != expected rc {expected_returncode}; "
+| >             f"label={label}"
+| >         )
+| >         try:
+| >             body = _launcher_failure_message(
+| >                 result,
+| >                 paths=paths,
+| >                 stdout=stdout,
+| >                 stderr=stderr,
+| >                 command=command,
+| >             )
+| >         except Exception as exc:
+| >             body = (
+| >                 f"diagnostic_status=failed:{type(exc).__name__}\x5cn"
+| >                 f"truth_summary: diagnostic_status=failed:{type(exc).__name__}"
+| >             )
+| > >       raise LauncherReturncodeMismatch(_bounded_failure_message(prefix, body))
+| > E       test_codex_worker_launch.LauncherReturncodeMismatch: actual rc 2 != expected rc 0; label=first launcher
+| > E       receipt_status=missing path='/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_parallel_jobs_preserve_bo0/receipt-a.json'
+| > E       launcher.stdout: path='<captured>' total_bytes=0 sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 truncated_bytes=0 excerpt=''
+| > E       launcher.stderr: path='<captured>' total_bytes=80 sha256=f518c46b4b79387524d3983feb62d70341cf3f074266fea496e784b5e3bdc208 truncated_bytes=0 excerpt='NG: docs/dev-wave/operations.md: working tree \u304c authority commit \u3068\u7570\u306a\u308b\x5cn'
+| > E       observability_status=insufficient
+| > E       runtime_context: hostname='bnode042' PYTEST_XDIST_WORKER='gw44' PBS_JOBID='0:5433.nqsv' test_pid=2110078 loadavg=(0.6962890625, 1.2236328125, 4.9892578125)
+| > E       launcher_budgets: wall='3' evidence='1.0' termination='0.05' poll='0.01'
+| > E       receipt_limits=unavailable
+| > E       receipt_actuals=unavailable
+| > E       truth_summary: receipt_status=missing attempts=unavailable
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:1121: LauncherReturncodeMismatch
+| --- IZANAGI FAILURE EXCERPT rank=5 END ---
+| IZANAGI_FAILURE rank=6 category=failed when=call nodeid="orchestrator/tests/test_codex_worker_launch.py::test_receipt_audit_wall_overrun_flips_to_not_accepted" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=4521 retained_bytes=3930 omitted_bytes=591 rendered_excerpt_bytes=4096 sha256=6b19db3eb976f146e946f1af24c2443634957c32f6ea7fcdd2f3bbef633989a2
+| --- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---
+| > _offset_ns = 0
+| >         original_audit = LAUNCHER._audit_receipt_value
+| >         published_audits = 0
+| >     
+| >         def logical_clock() -> int:
+| >             return time.monotonic_ns() + clock_offset_ns
+| >     
+| >         def delayed_audit(*args: Any, **kwargs: Any) -> Any:
+| >             nonlocal clock_offset_ns, published_audits
+| >             result = original_audit(*args, **kwargs)
+| >             if kwargs.get("check_published_output") is True:
+| >                 published_audits += 1
+| >                 assert paths["output"].exists()
+| >                 clock_offset_ns += 4_000_000_000
+| >             return result
+| >     
+| >         monkeypatch.setattr(LAUNCHER, "_monotonic_ns", logical_clock)
+| >         monkeypatch.setattr(LAUNCHER, "_audit_receipt_value", delayed_audit)
+| > >       _run_main_in_process(
+| >             command, env, monkeypatch, paths=paths, expected_returncode=1
+| >         )
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:5507: 
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > orchestrator/tests/test_codex_worker_launch.py:2609: in _run_main_in_process
+| >     _assert_launcher_returncode(
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > 
+| > result = 2, expected_returncode = 1
+| > paths = {'prompt': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_receipt_audit_wall_overru0/prompt.txt'), 'codex_ho...ds'), 'artifact': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_receipt_audit_wall_overru0/artifacts'), ...}
+| > stdout = None, stderr = None, label = 'in-process launcher'
+| > command = ['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2290-o23-o27-docs/tools/codex_worker_launch.py', 'run', '--stage', 'author', '--job-id', ...]
+| > 
+| >     def _assert_launcher_returncode(
+| >         result: (
+| >             subprocess.CompletedProcess[Any]
+| >             | subprocess.Popen[Any]
+| >             | subprocess.TimeoutExpired
+| >             | int
+| >         ),
+| >         expected_returncode: int,
+| >         *,
+| >         paths: dict[str, Path],
+| >         stdout: str | bytes | None = None,
+| >         stderr: str | bytes | None = None,
+| >         label: str = "launcher",
+| >         command: list[str] | None = None,
+| >     ) -> None:
+| >         actual = _returncode_value(result)
+| >         if actual == expected_returncode:
+| >             return
+| >         prefix = (
+| >             f"actual rc {actual} != expected rc {expected_returncode}; "
+| >             f"label={label}"
+| >         )
+| >         try:
+| >             body = _launcher_failure_message(
+| >                 result,
+| >                 paths=paths,
+| >                 stdout=stdout,
+| >                 stderr=stderr,
+| >                 command=command,
+| >             )
+| >         except Exception as exc:
+| >             body = (
+| >                 f"diagnostic_status=failed:{type(exc).__name__}\x5cn"
+| >                 f"truth_summary: diagnostic_status=failed:{type(exc).__name__}"
+| >             )
+| > >       raise LauncherReturncodeMismatch(_bounded_failure_message(prefix, body))
+| > E       test_codex_worker_launch.LauncherReturncodeMismatch: actual rc 2 != expected rc 1; label=in-process launcher
+| > E       receipt_status=missing path='/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_receipt_audit_wall_overru0/receipt.json'
+| > E       stdout: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<in-process>
+| > E       stderr: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<in-process>
+| > E       observability_status=insufficient
+| > E       runtime_context: hostname='bnode042' PYTEST_XDIST_WORKER='gw21' PBS_JOBID='0:5433.nqsv' test_pid=2109922 loadavg=(0.6962890625, 1.2236328125, 4.9892578125)
+| > E       launcher_budgets: wall='3' evidence='1.0' termination='0.05' poll='0.01'
+| > E       receipt_limits=unavailable
+| > E       receipt_actuals=unavailable
+| > E       truth_summary: receipt_status=missing attempts=unavailable
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:1121: LauncherReturncodeMismatch
+| --- IZANAGI FAILURE EXCERPT rank=6 END ---
+| IZANAGI_FAILURE rank=7 category=failed when=call nodeid="orchestrator/tests/test_codex_worker_launch.py::test_receipt_staging_wall_overrun_flips_to_not_accepted_and_removes_output" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=4499 retained_bytes=3928 omitted_bytes=571 rendered_excerpt_bytes=4096 sha256=977951b4b431469f16929d6fdc3f4c2460cc974130811d653cf82ec00565eff5
+| --- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---
+| > env["FAKE_MODE"] = "normal"
+| >         clock_offset_ns = 0
+| >         original_stage = LAUNCHER._stage_receipt_write
+| >         stage_calls = 0
+| >     
+| >         def logical_clock() -> int:
+| >             return time.monotonic_ns() + clock_offset_ns
+| >     
+| >         def delayed_stage(path: Path, receipt: Any) -> Path:
+| >             nonlocal clock_offset_ns, stage_calls
+| >             temporary = original_stage(path, receipt)
+| >             stage_calls += 1
+| >             if stage_calls == 1:
+| >                 assert paths["output"].exists()
+| >                 clock_offset_ns += 4_000_000_000
+| >             return temporary
+| >     
+| >         monkeypatch.setattr(LAUNCHER, "_monotonic_ns", logical_clock)
+| >         monkeypatch.setattr(LAUNCHER, "_stage_receipt_write", delayed_stage)
+| > >       _run_main_in_process(
+| >             command, env, monkeypatch, paths=paths, expected_returncode=1
+| >         )
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:5458: 
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > orchestrator/tests/test_codex_worker_launch.py:2609: in _run_main_in_process
+| >     _assert_launcher_returncode(
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > 
+| > result = 2, expected_returncode = 1
+| > paths = {'prompt': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_receipt_staging_wall_over0/prompt.txt'), 'codex_ho...ds'), 'artifact': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_receipt_staging_wall_over0/artifacts'), ...}
+| > stdout = None, stderr = None, label = 'in-process launcher'
+| > command = ['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2290-o23-o27-docs/tools/codex_worker_launch.py', 'run', '--stage', 'author', '--job-id', ...]
+| > 
+| >     def _assert_launcher_returncode(
+| >         result: (
+| >             subprocess.CompletedProcess[Any]
+| >             | subprocess.Popen[Any]
+| >             | subprocess.TimeoutExpired
+| >             | int
+| >         ),
+| >         expected_returncode: int,
+| >         *,
+| >         paths: dict[str, Path],
+| >         stdout: str | bytes | None = None,
+| >         stderr: str | bytes | None = None,
+| >         label: str = "launcher",
+| >         command: list[str] | None = None,
+| >     ) -> None:
+| >         actual = _returncode_value(result)
+| >         if actual == expected_returncode:
+| >             return
+| >         prefix = (
+| >             f"actual rc {actual} != expected rc {expected_returncode}; "
+| >             f"label={label}"
+| >         )
+| >         try:
+| >             body = _launcher_failure_message(
+| >                 result,
+| >                 paths=paths,
+| >                 stdout=stdout,
+| >                 stderr=stderr,
+| >                 command=command,
+| >             )
+| >         except Exception as exc:
+| >             body = (
+| >                 f"diagnostic_status=failed:{type(exc).__name__}\x5cn"
+| >                 f"truth_summary: diagnostic_status=failed:{type(exc).__name__}"
+| >             )
+| > >       raise LauncherReturncodeMismatch(_bounded_failure_message(prefix, body))
+| > E       test_codex_worker_launch.LauncherReturncodeMismatch: actual rc 2 != expected rc 1; label=in-process launcher
+| > E       receipt_status=missing path='/tmp/pytest-of-tanab/pytest-0/popen-gw44/test_receipt_staging_wall_over0/receipt.json'
+| > E       stdout: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<in-process>
+| > E       stderr: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<in-process>
+| > E       observability_status=insufficient
+| > E       runtime_context: hostname='bnode042' PYTEST_XDIST_WORKER='gw44' PBS_JOBID='0:5433.nqsv' test_pid=2110078 loadavg=(0.6962890625, 1.2236328125, 4.9892578125)
+| > E       launcher_budgets: wall='3' evidence='1.0' termination='0.05' poll='0.01'
+| > E       receipt_limits=unavailable
+| > E       receipt_actuals=unavailable
+| > E       truth_summary: receipt_status=missing attempts=unavailable
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:1121: LauncherReturncodeMismatch
+| --- IZANAGI FAILURE EXCERPT rank=7 END ---
+| IZANAGI_FAILURE rank=8 category=failed when=call nodeid="orchestrator/tests/test_codex_worker_launch.py::test_attempt_preflight_delay_exhausts_wall_clock_before_spawn" nodeid_bytes=109 nodeid_omitted_bytes=0 source_bytes=4450 retained_bytes=3924 omitted_bytes=526 rendered_excerpt_bytes=4096 sha256=56f5c476f3dc409bf8e785acc2bec9d9af18f7b81bee99cd00b721fd5ebd388a
+| --- IZANAGI FAILURE EXCERPT rank=8 BEGIN ---
+| >    command.extend(("--preparation-admission-bound-s", "3"))
+| >         clock_ns = time.monotonic_ns()
+| >         offset_ns = 0
+| >     
+| >         def logical_clock() -> int:
+| >             return clock_ns + offset_ns
+| >     
+| >         def delayed_validator(_root: Path) -> list[str]:
+| >             nonlocal offset_ns
+| >             offset_ns += 4_000_000_000
+| >             return []
+| >     
+| >         for name, value in env.items():
+| >             monkeypatch.setenv(name, value)
+| >         monkeypatch.setattr(LAUNCHER, "_LAUNCHER_PROCESS_STARTED_NS", clock_ns)
+| >         monkeypatch.setattr(LAUNCHER, "_monotonic_ns", logical_clock)
+| >         monkeypatch.setattr(
+| >             LAUNCHER._hook_checker,
+| >             "validate_installation",
+| >             delayed_validator,
+| >         )
+| > >       _run_main_in_process(
+| >             command, env, monkeypatch, paths=paths, expected_returncode=1
+| >         )
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:3985: 
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > orchestrator/tests/test_codex_worker_launch.py:2609: in _run_main_in_process
+| >     _assert_launcher_returncode(
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > 
+| > result = 2, expected_returncode = 1
+| > paths = {'prompt': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_attempt_preflight_delay_e0/prompt.txt'), 'codex_ho...ds'), 'artifact': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_attempt_preflight_delay_e0/artifacts'), ...}
+| > stdout = None, stderr = None, label = 'in-process launcher'
+| > command = ['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2290-o23-o27-docs/tools/codex_worker_launch.py', 'run', '--stage', 'author', '--job-id', ...]
+| > 
+| >     def _assert_launcher_returncode(
+| >         result: (
+| >             subprocess.CompletedProcess[Any]
+| >             | subprocess.Popen[Any]
+| >             | subprocess.TimeoutExpired
+| >             | int
+| >         ),
+| >         expected_returncode: int,
+| >         *,
+| >         paths: dict[str, Path],
+| >         stdout: str | bytes | None = None,
+| >         stderr: str | bytes | None = None,
+| >         label: str = "launcher",
+| >         command: list[str] | None = None,
+| >     ) -> None:
+| >         actual = _returncode_value(result)
+| >         if actual == expected_returncode:
+| >             return
+| >         prefix = (
+| >             f"actual rc {actual} != expected rc {expected_returncode}; "
+| >             f"label={label}"
+| >         )
+| >         try:
+| >             body = _launcher_failure_message(
+| >                 result,
+| >                 paths=paths,
+| >                 stdout=stdout,
+| >                 stderr=stderr,
+| >                 command=command,
+| >             )
+| >         except Exception as exc:
+| >             body = (
+| >                 f"diagnostic_status=failed:{type(exc).__name__}\x5cn"
+| >                 f"truth_summary: diagnostic_status=failed:{type(exc).__name__}"
+| >             )
+| > >       raise LauncherReturncodeMismatch(_bounded_failure_message(prefix, body))
+| > E       test_codex_worker_launch.LauncherReturncodeMismatch: actual rc 2 != expected rc 1; label=in-process launcher
+| > E       receipt_status=missing path='/tmp/pytest-of-tanab/pytest-0/popen-gw29/test_attempt_preflight_delay_e0/receipt.json'
+| > E       stdout: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<in-process>
+| > E       stderr: total_bytes=unavailable sha256=unavailable truncated_bytes=unavailable stream_status=unavailable path=<in-process>
+| > E       observability_status=insufficient
+| > E       runtime_context: hostname='bnode042' PYTEST_XDIST_WORKER='gw29' PBS_JOBID='0:5433.nqsv' test_pid=2109975 loadavg=(2.962890625, 1.68505859375, 5.11865234375)
+| > E       launcher_budgets: wall='3' evidence='1.0' termination='0.05' poll='0.01'
+| > E       receipt_limits=unavailable
+| > E       receipt_actuals=unavailable
+| > E       truth_summary: receipt_status=missing attempts=unavailable
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:1121: LauncherReturncodeMismatch
+| --- IZANAGI FAILURE EXCERPT rank=8 END ---
+| IZANAGI_FAILURE rank=9 category=failed when=call nodeid="orchestrator/tests/test_codex_worker_launch.py::test_workspace_write_failure_classification_is_sandbox_independent[retry_reject]" nodeid_bytes=128 nodeid_omitted_bytes=0 source_bytes=4381 retained_bytes=3906 omitted_bytes=475 rendered_excerpt_bytes=4096 sha256=85780e2d47c95c146efcede5e6e2d914bcfbf80776253d8d4588f5634b58f56b
+| --- IZANAGI FAILURE EXCERPT rank=9 BEGIN ---
+| > 
+| >             "child_error": (1, "other"),
+| >         }
+| >         expected_returncode, failure_class = expected[mode]
+| > >       _completed, receipt, _paths = _run_case(
+| >             tmp_path,
+| >             mode,
+| >             expected_returncode=expected_returncode,
+| >             max_wall="10",
+| >             evidence_grace="3",
+| >             sandbox="workspace-write",
+| >         )
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:3351: 
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > orchestrator/tests/test_codex_worker_launch.py:1719: in _run_case
+| >     completed = _run_launcher_subprocess(
+| > orchestrator/tests/test_codex_worker_launch.py:1146: in _run_launcher_subprocess
+| >     _assert_launcher_returncode(
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > 
+| > result = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2290-o23-o27-docs/too...s', '0.01'], returncode=2, stdout='', stderr='NG: docs/dev-wave/operations.md: working tree \u304c authority commit \u3068\u7570\u306a\u308b\x5cn')
+| > expected_returncode = 1
+| > paths = {'prompt': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_workspace_write_failure_c0/prompt.txt'), 'codex_ho...ds'), 'artifact': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_workspace_write_failure_c0/artifacts'), ...}
+| > stdout = None, stderr = None, label = 'launcher'
+| > command = ['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2290-o23-o27-docs/tools/codex_worker_launch.py', 'run', '--stage', 'author', '--job-id', ...]
+| > 
+| >     def _assert_launcher_returncode(
+| >         result: (
+| >             subprocess.CompletedProcess[Any]
+| >             | subprocess.Popen[Any]
+| >             | subprocess.TimeoutExpired
+| >             | int
+| >         ),
+| >         expected_returncode: int,
+| >         *,
+| >         paths: dict[str, Path],
+| >         stdout: str | bytes | None = None,
+| >         stderr: str | bytes | None = None,
+| >         label: str = "launcher",
+| >         command: list[str] | None = None,
+| >     ) -> None:
+| >         actual = _returncode_value(result)
+| >         if actual == expected_returncode:
+| >             return
+| >         prefix = (
+| >             f"actual rc {actual} != expected rc {expected_returncode}; "
+| >             f"label={label}"
+| >         )
+| >         try:
+| >             body = _launcher_failure_message(
+| >                 result,
+| >                 paths=paths,
+| >                 stdout=stdout,
+| >                 stderr=stderr,
+| >                 command=command,
+| >             )
+| >         except Exception as exc:
+| >             body = (
+| >                 f"diagnostic_status=failed:{type(exc).__name__}\x5cn"
+| >                 f"truth_summary: diagnostic_status=failed:{type(exc).__name__}"
+| >             )
+| > >       raise LauncherReturncodeMismatch(_bounded_failure_message(prefix, body))
+| > E       test_codex_worker_launch.LauncherReturncodeMismatch: actual rc 2 != expected rc 1; label=launcher
+| > E       receipt_status=missing path='/tmp/pytest-of-tanab/pytest-0/popen-gw40/test_workspace_write_failure_c0/receipt.json'
+| > E       launcher.stdout: path='<captured>' total_bytes=0 sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 truncated_bytes=0 excerpt=''
+| > E       launcher.stderr: path='<captured>' total_bytes=80 sha256=f518c46b4b79387524d3983feb62d70341cf3f074266fea496e784b5e3bdc208 truncated_bytes=0 excerpt='NG: docs/dev-wave/operations.md: working tree \u304c authority commit \u3068\u7570\u306a\u308b\x5cn'
+| > E       observability_status=insufficient
+| > E       runtime_context: hostname='bnode042' PYTEST_XDIST_WORKER='gw40' PBS_JOBID='0:5433.nqsv' test_pid=2110050 loadavg=(0.6962890625, 1.2236328125, 4.9892578125)
+| > E       launcher_budgets: wall='10' evidence='3' termination='0.05' poll='0.01'
+| > E       receipt_limits=unavailable
+| > E       receipt_actuals=unavailable
+| > E       truth_summary: receipt_status=missing attempts=unavailable
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:1121: LauncherReturncodeMismatch
+| --- IZANAGI FAILURE EXCERPT rank=9 END ---
+| IZANAGI_FAILURE rank=10 category=failed when=call nodeid="orchestrator/tests/test_codex_worker_launch.py::test_workspace_write_failure_classification_is_sandbox_independent[child_error]" nodeid_bytes=127 nodeid_omitted_bytes=0 source_bytes=4380 retained_bytes=3906 omitted_bytes=474 rendered_excerpt_bytes=4096 sha256=455600f23a7c3308b9a0cea001e0d33a79e554c83795a61fb4ade22e45751766
+| --- IZANAGI FAILURE EXCERPT rank=10 BEGIN ---
+| > 
+| >             "child_error": (1, "other"),
+| >         }
+| >         expected_returncode, failure_class = expected[mode]
+| > >       _completed, receipt, _paths = _run_case(
+| >             tmp_path,
+| >             mode,
+| >             expected_returncode=expected_returncode,
+| >             max_wall="10",
+| >             evidence_grace="3",
+| >             sandbox="workspace-write",
+| >         )
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:3351: 
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > orchestrator/tests/test_codex_worker_launch.py:1719: in _run_case
+| >     completed = _run_launcher_subprocess(
+| > orchestrator/tests/test_codex_worker_launch.py:1146: in _run_launcher_subprocess
+| >     _assert_launcher_returncode(
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > 
+| > result = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2290-o23-o27-docs/too...s', '0.01'], returncode=2, stdout='', stderr='NG: docs/dev-wave/operations.md: working tree \u304c authority commit \u3068\u7570\u306a\u308b\x5cn')
+| > expected_returncode = 1
+| > paths = {'prompt': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_workspace_write_failure_c0/prompt.txt'), 'codex_ho...ds'), 'artifact': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_workspace_write_failure_c0/artifacts'), ...}
+| > stdout = None, stderr = None, label = 'launcher'
+| > command = ['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2290-o23-o27-docs/tools/codex_worker_launch.py', 'run', '--stage', 'author', '--job-id', ...]
+| > 
+| >     def _assert_launcher_returncode(
+| >         result: (
+| >             subprocess.CompletedProcess[Any]
+| >             | subprocess.Popen[Any]
+| >             | subprocess.TimeoutExpired
+| >             | int
+| >         ),
+| >         expected_returncode: int,
+| >         *,
+| >         paths: dict[str, Path],
+| >         stdout: str | bytes | None = None,
+| >         stderr: str | bytes | None = None,
+| >         label: str = "launcher",
+| >         command: list[str] | None = None,
+| >     ) -> None:
+| >         actual = _returncode_value(result)
+| >         if actual == expected_returncode:
+| >             return
+| >         prefix = (
+| >             f"actual rc {actual} != expected rc {expected_returncode}; "
+| >             f"label={label}"
+| >         )
+| >         try:
+| >             body = _launcher_failure_message(
+| >                 result,
+| >                 paths=paths,
+| >                 stdout=stdout,
+| >                 stderr=stderr,
+| >                 command=command,
+| >             )
+| >         except Exception as exc:
+| >             body = (
+| >                 f"diagnostic_status=failed:{type(exc).__name__}\x5cn"
+| >                 f"truth_summary: diagnostic_status=failed:{type(exc).__name__}"
+| >             )
+| > >       raise LauncherReturncodeMismatch(_bounded_failure_message(prefix, body))
+| > E       test_codex_worker_launch.LauncherReturncodeMismatch: actual rc 2 != expected rc 1; label=launcher
+| > E       receipt_status=missing path='/tmp/pytest-of-tanab/pytest-0/popen-gw47/test_workspace_write_failure_c0/receipt.json'
+| > E       launcher.stdout: path='<captured>' total_bytes=0 sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 truncated_bytes=0 excerpt=''
+| > E       launcher.stderr: path='<captured>' total_bytes=80 sha256=f518c46b4b79387524d3983feb62d70341cf3f074266fea496e784b5e3bdc208 truncated_bytes=0 excerpt='NG: docs/dev-wave/operations.md: working tree \u304c authority commit \u3068\u7570\u306a\u308b\x5cn'
+| > E       observability_status=insufficient
+| > E       runtime_context: hostname='bnode042' PYTEST_XDIST_WORKER='gw47' PBS_JOBID='0:5433.nqsv' test_pid=2110098 loadavg=(0.6962890625, 1.2236328125, 4.9892578125)
+| > E       launcher_budgets: wall='10' evidence='3' termination='0.05' poll='0.01'
+| > E       receipt_limits=unavailable
+| > E       receipt_actuals=unavailable
+| > E       truth_summary: receipt_status=missing attempts=unavailable
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:1121: LauncherReturncodeMismatch
+| --- IZANAGI FAILURE EXCERPT rank=10 END ---
+| IZANAGI_FAILURE rank=11 category=failed when=call nodeid="orchestrator/tests/test_codex_worker_launch.py::test_workspace_write_failure_classification_is_sandbox_independent[normal]" nodeid_bytes=122 nodeid_omitted_bytes=0 source_bytes=4375 retained_bytes=3906 omitted_bytes=469 rendered_excerpt_bytes=4096 sha256=517ba7dad820fd98322543984da34abdc75351aee2587781e186f19277485c63
+| --- IZANAGI FAILURE EXCERPT rank=11 BEGIN ---
+| > 
+| >             "child_error": (1, "other"),
+| >         }
+| >         expected_returncode, failure_class = expected[mode]
+| > >       _completed, receipt, _paths = _run_case(
+| >             tmp_path,
+| >             mode,
+| >             expected_returncode=expected_returncode,
+| >             max_wall="10",
+| >             evidence_grace="3",
+| >             sandbox="workspace-write",
+| >         )
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:3351: 
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > orchestrator/tests/test_codex_worker_launch.py:1719: in _run_case
+| >     completed = _run_launcher_subprocess(
+| > orchestrator/tests/test_codex_worker_launch.py:1146: in _run_launcher_subprocess
+| >     _assert_launcher_returncode(
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+| > 
+| > result = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2290-o23-o27-docs/too...s', '0.01'], returncode=2, stdout='', stderr='NG: docs/dev-wave/operations.md: working tree \u304c authority commit \u3068\u7570\u306a\u308b\x5cn')
+| > expected_returncode = 0
+| > paths = {'prompt': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_workspace_write_failure_c0/prompt.txt'), 'codex_ho...ds'), 'artifact': PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_workspace_write_failure_c0/artifacts'), ...}
+| > stdout = None, stderr = None, label = 'launcher'
+| > command = ['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2290-o23-o27-docs/tools/codex_worker_launch.py', 'run', '--stage', 'author', '--job-id', ...]
+| > 
+| >     def _assert_launcher_returncode(
+| >         result: (
+| >             subprocess.CompletedProcess[Any]
+| >             | subprocess.Popen[Any]
+| >             | subprocess.TimeoutExpired
+| >             | int
+| >         ),
+| >         expected_returncode: int,
+| >         *,
+| >         paths: dict[str, Path],
+| >         stdout: str | bytes | None = None,
+| >         stderr: str | bytes | None = None,
+| >         label: str = "launcher",
+| >         command: list[str] | None = None,
+| >     ) -> None:
+| >         actual = _returncode_value(result)
+| >         if actual == expected_returncode:
+| >             return
+| >         prefix = (
+| >             f"actual rc {actual} != expected rc {expected_returncode}; "
+| >             f"label={label}"
+| >         )
+| >         try:
+| >             body = _launcher_failure_message(
+| >                 result,
+| >                 paths=paths,
+| >                 stdout=stdout,
+| >                 stderr=stderr,
+| >                 command=command,
+| >             )
+| >         except Exception as exc:
+| >             body = (
+| >                 f"diagnostic_status=failed:{type(exc).__name__}\x5cn"
+| >                 f"truth_summary: diagnostic_status=failed:{type(exc).__name__}"
+| >             )
+| > >       raise LauncherReturncodeMismatch(_bounded_failure_message(prefix, body))
+| > E       test_codex_worker_launch.LauncherReturncodeMismatch: actual rc 2 != expected rc 0; label=launcher
+| > E       receipt_status=missing path='/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_workspace_write_failure_c0/receipt.json'
+| > E       launcher.stdout: path='<captured>' total_bytes=0 sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 truncated_bytes=0 excerpt=''
+| > E       launcher.stderr: path='<captured>' total_bytes=80 sha256=f518c46b4b79387524d3983feb62d70341cf3f074266fea496e784b5e3bdc208 truncated_bytes=0 excerpt='NG: docs/dev-wave/operations.md: working tree \u304c authority commit \u3068\u7570\u306a\u308b\x5cn'
+| > E       observability_status=insufficient
+| > E       runtime_context: hostname='bnode042' PYTEST_XDIST_WORKER='gw18' PBS_JOBID='0:5433.nqsv' test_pid=2109910 loadavg=(0.6962890625, 1.2236328125, 4.9892578125)
+| > E       launcher_budgets: wall='10' evidence='3' termination='0.05' poll='0.01'
+| > E       receipt_limits=unavailable
+| > E       receipt_actuals=unavailable
+| > E       truth_summary: receipt_status=missing attempts=unavailable
+| > 
+| > orchestrator/tests/test_codex_worker_launch.py:1121: LauncherReturncodeMismatch
+| --- IZANAGI FAILURE EXCERPT rank=11 END ---
+| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=116 failed=116 errors=0 selected=11 omitted_failures=105 source_bytes=401433 retained_bytes=41070 omitted_bytes=360363 budget_bytes=49152 rendered_bytes=48476 omitted_manifest_sha256=9d5fd9da7e343cc203577561d8d2d62f04ce05d5e9e7d42b605e012ffafba95c
+| === IZANAGI FAILURE DIGEST v1 END ===
+[Pegasus dispatch] request 5433.nqsv child stdout end
+[Pegasus dispatch] request 5433.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 2109818, "time_ns": 1789691798510699582}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2109839, "event": "direct-child-wait-start", "pid": 2109825, "time_ns": 1789691798538871639}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2109839, "event": "direct-child-wait-complete", "pid": 2109825, "time_ns": 1789691843116459860}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 2109825, "rc": 0, "time_ns": 1789691843116561866}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 2109818, "rc": 0, "time_ns": 1789691843121053435}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 2109818}, {"comm": "bash", "pid": 2109799}, {"comm": "nqs_shpd", "pid": 2109798}, {"comm": "nqs_shpd", "pid": 2109591}, {"comm": "nqs_shpd", "pid": 4551}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 2109818, "sid": 2109798, "time_ns": 1789691843121477651}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 33.25015099835582, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 2109818, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1789691843154766832, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 2109818, "time_ns": 1789691843157132441}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 2109818, "time_ns": 1789691843213635644}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 2109818, "time_ns": 1789691843214587620}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 2109818, "time_ns": 1789691843214596622}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 2109818, "time_ns": 1789691843220488440}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 2109818, "time_ns": 1789691843220497461}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 2109818, "rc": 1, "time_ns": 1789691843220506771}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 2109818, "rc": 1, "time_ns": 1789691843220523177}
+| 
+| ============================================================
+| Request ID:             5433.nqsv
+| Request Name:           izdw-76acae63cb
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Fri Sep 18 09:36:27 2026
+| Started Request Time:   Fri Sep 18 09:36:38 2026
+| Ended Request Time:     Fri Sep 18 09:37:23 2026
+| Resources Information:
+|   Elapse:               49S
+|   Remaining Elapse:     3551S
+| ============================================================
+[Pegasus dispatch] request 5433.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+rc=1

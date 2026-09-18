@@ -280,7 +280,100 @@
         }
       }
     },
-    "verifications": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["variant", "source_ref", "verdict", "certified"], "properties": {"variant": {"type": "string"}, "source_ref": {"$ref": "#/definitions/wal_ref"}, "verdict": {"type": "string"}, "certified": {"type": "boolean"}, "commits": {"type": "integer"}, "aborts": {"type": "integer"}, "anomalies": {"type": "integer"}, "workload": {"type": "object"}}}},
+    "verifications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "variant",
+          "source_ref",
+          "verdict",
+          "certified"
+        ],
+        "properties": {
+          "variant": {
+            "type": "string"
+          },
+          "source_ref": {
+            "$ref": "#/definitions/wal_ref"
+          },
+          "verdict": {
+            "type": "string"
+          },
+          "certified": {
+            "type": "boolean"
+          },
+          "commits": {
+            "type": "integer"
+          },
+          "aborts": {
+            "type": "integer"
+          },
+          "anomalies": {
+            "type": "integer"
+          },
+          "workload": {
+            "type": "object"
+          },
+          "commit_witness": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "commit_counts",
+              "batch_commit_counts"
+            ],
+            "properties": {
+              "commit_counts": {
+                "type": "integer"
+              },
+              "batch_commit_counts": {
+                "type": "integer"
+              }
+            }
+          },
+          "proof_surfaces": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "protocol",
+              "X",
+              "P",
+              "I"
+            ],
+            "properties": {
+              "protocol": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "X": {
+                "enum": [
+                  "evidence-present",
+                  "evidence-absent",
+                  "unavailable"
+                ]
+              },
+              "P": {
+                "enum": [
+                  "evidence-present",
+                  "evidence-absent",
+                  "unavailable"
+                ]
+              },
+              "I": {
+                "enum": [
+                  "evidence-present",
+                  "evidence-absent",
+                  "unavailable"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     "rejects": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["variant", "reason", "source_ref"], "properties": {"variant": {"type": "string"}, "reason": {"enum": ["commit-event-absent"]}, "source_ref": {"$ref": "#/definitions/wal_ref"}}}},
     "aborts": {"type": "array", "items": {"type": "object", "required": ["variant", "source_ref", "reason"], "properties": {"variant": {"type": "string"}, "source_ref": {"$ref": "#/definitions/wal_ref"}, "reason": {"type": "string", "minLength": 1}}}},
     "noise_floor": {"type": "object", "additionalProperties": false, "required": ["within_run", "between_run"], "properties": {"within_run": {"$ref": "#/definitions/floor_result"}, "between_run": {"$ref": "#/definitions/floor_result"}}},
@@ -288,7 +381,7 @@
     "whiteboard": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["iteration", "direction", "magnitude", "result", "delta_pct"], "properties": {"iteration": {"type": "integer"}, "direction": {"type": "string"}, "magnitude": {"type": "string"}, "result": {"type": "string"}, "delta_pct": {"type": ["number", "null"]}}}},
     "whiteboard_provenance": {"enum": ["loop_state", "absent"]},
     "artifact_refs": {"type": "array", "items": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}},
-    "source_refs": {"type": "array", "items": {"type": "string", "pattern": "^(wal|wb):[0-9a-f]{64}$"}},
+    "source_refs": {"type": "array", "items": {"type": "string", "pattern": "^(wal|wb|ao):[0-9a-f]{64}$"}},
     "admission_decision": {
       "type": "object",
       "additionalProperties": false,
@@ -345,9 +438,152 @@
       ]
     },
     "certifying_input": {"type": "boolean"},
-    "mechanism_hypotheses": {"type": "array", "maxItems": 0, "description": "原料配線設計 = docs/ 側の設計文書に従い、実装時に v3 へ上げる"}
+    "agent_outputs": {"type": "array", "items": {"$ref": "#/definitions/agent_output"}},
+    "mechanism_hypotheses_provenance": {"enum": ["absent", "agent_outputs"]},
+    "mechanism_hypotheses": {
+      "description": "LLM (critic) attribution records, not empirical proof of a mechanism.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "variant",
+          "attribution",
+          "source_ref",
+          "refs",
+          "digest_sha256"
+        ],
+        "properties": {
+          "variant": {
+            "type": "string"
+          },
+          "attribution": {
+            "type": "string"
+          },
+          "source_ref": {
+            "$ref": "#/definitions/ao_ref"
+          },
+          "refs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/wal_ref"
+            }
+          },
+          "digest_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    }
   },
   "definitions": {
+    "ao_ref": {"type": "string", "pattern": "^ao:[0-9a-f]{64}$"},
+    "agent_output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ts",
+        "stage",
+        "variant",
+        "env_tag",
+        "payload"
+      ],
+      "properties": {
+        "ts": {
+          "description": "Recording time, not generation time.",
+          "type": "number"
+        },
+        "stage": {
+          "enum": [
+            "planner_proposed",
+            "coder_proposed",
+            "critic_attributed"
+          ]
+        },
+        "variant": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "env_tag": {
+          "type": "string"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "output",
+            "input_sha256",
+            "provenance",
+            "refs"
+          ],
+          "properties": {
+            "output": {
+              "type": "object"
+            },
+            "input_sha256": {
+              "description": "Canonical SHA-256 of saved JSON declared by the caller as actual input; not proof of delivery.",
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "provenance": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "mode",
+                "source_path",
+                "source_sha256",
+                "input_path",
+                "input_file_sha256"
+              ],
+              "properties": {
+                "mode": {
+                  "description": "Recording method, not observed generation: live is appended by harness before evaluation; ingested imports output produced elsewhere.",
+                  "enum": [
+                    "live",
+                    "ingested"
+                  ]
+                },
+                "source_path": {
+                  "type": "string"
+                },
+                "source_sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "input_path": {
+                  "type": "string"
+                },
+                "input_file_sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                },
+                "prompt_path": {
+                  "type": "string"
+                },
+                "prompt_sha256": {
+                  "description": "SHA-256 of the specified prompt file bytes.",
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            "refs": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/wal_ref"
+              }
+            },
+            "digest_sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      }
+    },
     "knowledge_source": {
       "type": "object",
       "additionalProperties": false,

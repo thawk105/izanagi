@@ -1,0 +1,171 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 2700,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "id": "m0-equivalent-comment",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/pegasus/floor_pair_campaign.sh",
+     "old": "  # Window admission is checked again after scratch preparation.\n",
+     "new": "  # Window admission is checked again after scratch preparation, deliberately.\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-registry-job-class-local-ok",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/admission_registry.json",
+     "old": "    \"tools/pegasus/floor_pair_campaign.sh\": {\n      \"class\": \"dispatch-required\",\n",
+     "new": "    \"tools/pegasus/floor_pair_campaign.sh\": {\n      \"class\": \"local-ok\",\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_job_contract.py::test_registry_entries",
+    "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_login_and_suspect_bits_are_pinned",
+    "orchestrator/tests/test_hooks.py::test_bash_pegasus_registry_schema_and_fixed_classes",
+    "orchestrator/tests/test_hooks.py::test_bash_sanctioned_pegasus_paths_are_derived_from_registry"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-submitter-rr95-pin-digit",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/submit_floor_pair.sh",
+     "old": "      SPEC_SHA256=990e3a6feb176ccf863315fde6e2afce43b7fc16053f50a1080641dde2570619 ;;\n",
+     "new": "      SPEC_SHA256=890e3a6feb176ccf863315fde6e2afce43b7fc16053f50a1080641dde2570619 ;;\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_job_contract.py::test_frozen_spec_pins"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-window-gate-strict-upper",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/floor_pair_campaign.sh",
+     "old": "  (( now + duration <= not_after )) || fail 4 window insufficient_remaining_time\n",
+     "new": "  (( now + duration < not_after )) || fail 4 window insufficient_remaining_time\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_job_contract.py::test_window_gate_boundaries"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-hostname-gate-noop",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/floor_pair_campaign.sh",
+     "old": "  [[ \"$label\" =~ ^bnode[0-9]+$ ]] || fail 4 site compute_node_required\n",
+     "new": "  : || fail 4 site compute_node_required\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_job_contract.py::test_hostname_gate"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-driver-argv-validate-only",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/floor_pair_campaign.sh",
+     "old": "    window) driver_argv+=(--execute-window \"$FP_WINDOW_ID\") ;;\n",
+     "new": "    window) driver_argv+=(--validate-only) ;;\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_job_contract.py::test_driver_argv",
+    "orchestrator/tests/test_floor_pair_job_contract.py::test_no_build_or_output_replacement"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-site-gate-unreachable",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/floor_pair_campaign.sh",
+     "old": "  require_compute_hostname \"$HOST_OBSERVED\"\n",
+     "new": "  if false; then require_compute_hostname \"$HOST_OBSERVED\"; fi\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_job_contract.py::test_gate_order_and_calls"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m8-dry-run-branch-inverted",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/submit_floor_pair.sh",
+     "old": "  if (( DRY_RUN )); then\n",
+     "new": "  if (( ! DRY_RUN )); then\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_job_contract.py::test_dry_run_has_no_execution"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m9-scratch-colon-not-normalized",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/floor_pair_campaign.sh",
+     "old": "  export TMPDIR=/scr/${PBS_JOBID//:/_}\n",
+     "new": "  export TMPDIR=/scr/${PBS_JOBID}\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_job_contract.py::test_scratch_name_normalizes_colon"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m10-head-consistency-disabled",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/submit_floor_pair.sh",
+     "old": "            if header.get(\"loaded_head\") != head: refuse(\"loaded_head_mismatch\")\n",
+     "new": "            if False: refuse(\"loaded_head_mismatch\")\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_floor_pair_job_contract.py::test_finalize_preflight_requires_terminal",
+    "orchestrator/tests/test_floor_pair_job_contract.py::test_submitter_head_consistency_preflight"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
