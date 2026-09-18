@@ -14,7 +14,7 @@
 - **受理集合の含意:** JSON 検証述語は不変。変わるのは「時間内に回収できる契約準拠の報告」の範囲で、期限で書かれる `indeterminate/assessment-timeout` (rc=2、`proof_units` と `summary` 付き) に加え、旧期限後に届く `landed` / `not-landed` も回収される (D498 と同型の「宣言した子予算への是正」)。緩和ではない。
 - **実 repo での対照 (§2, §4):** 修正前は T=1 / T=8 で 0/2 (`checker-timeout`、`checker_rc=None`)。修正後は期限に達した 4 事例 (2 OID × T=1, 4) が 4/4 で `assessment-timeout` / `checker_rc=2` / 未証明 unit 0 件・詳細射影 complete。
 - **変異 matrix (§5):** baseline PASSED、m1〜m4 KILLED (期待 node 完全一致)、等価 m5 SURVIVED、MISMATCH 0。m4 の kill 根拠は待機区間の時間契約 (elapsed 下限) であって JSON 受理の変化ではないので、集計は「m1〜m3 (受理・打切り) 3 本」+「時間契約 pin m4 1 本」に分ける。
-- **限界 (裁定済み、追加実装しない):** (a) 2.0 s は login node 12 走 (load 24〜35) の観測に基づく暫定値で、共有 FS 高負荷 (load 60 超) や計算ノードは未測定。超えれば従来どおり `checker-timeout` に戻るだけで受理集合は緩まない。(b) 総待機の上限は `max_assessments × (子予算 + 2 s)` へ伸びる (沈黙 checker が続く仮定で 512 → 640 s、300 s 予算内の判定件数は概算 37 → 30 件)。`--timeout-seconds` の cap は残るが、`overall_remaining` は残時間取得後の準備・後処理を含まないので厳密な wall 上限ではない (既存の限界、実害の観測なし、scope 外 real として記録のみ)。(c) 子の per-command 45 s 上限 (`check_branch_landed.py` `COMMAND_TIMEOUT_SECONDS`) による早期 `assessment-timeout` は別契約で、本 wave は触らない。(d) 改善が効くのは `--branch` / `--retire-worktree` を伴う preview 経路だけで、`--ledger-check` 単独は `_landed_assessment` を通らない。親の返却は reason・unit 詳細への射影で、子の phase outcome 全文は返さず、台帳 file も自動更新しない。(e) 新規 3 本は時間依存 test (正例の親期限 2.5 s に対し公称 0.8 s、m4 検出は 2.0 s vs 下限 2.8 s の差 0.8 s)。極端な遅延で偽陰性の余地は残る。受入で赤なら DW-O18 で判定する。
+- **限界 (裁定済み、追加実装しない):** (a) 2.0 s は login node 12 走 (load 24〜35) の観測に基づく暫定値で、共有 FS 高負荷 (load 60 超) や計算ノードは未測定。超えれば従来どおり `checker-timeout` に戻るだけでJSON検証述語は不変。(b) 総待機の上限は `max_assessments × (子予算 + 2 s)` へ伸びる (沈黙 checker が続く仮定で 512 → 640 s、300 s 予算内の判定件数は概算 37 → 30 件)。`--timeout-seconds` の cap は残るが、`overall_remaining` は残時間取得後の準備・後処理を含まないので厳密な wall 上限ではない (既存の限界、実害の観測なし、scope 外 real として記録のみ)。(c) 子の per-command 45 s 上限 (`check_branch_landed.py` `COMMAND_TIMEOUT_SECONDS`) による早期 `assessment-timeout` は別契約で、本 wave は触らない。(d) 改善が効くのは `--branch` / `--retire-worktree` を伴う preview 経路だけで、`--ledger-check` 単独は `_landed_assessment` を通らない。親の返却は reason・unit 詳細への射影で、子の phase outcome 全文は返さず、台帳 file も自動更新しない。(e) 新規 3 本は時間依存 test (正例の親期限 2.5 s に対し公称 0.8 s、m4 検出は 2.0 s vs 下限 2.8 s の差 0.8 s)。極端な遅延で偽陰性の余地は残る。受入で赤なら DW-O18 で判定する。
 
 ## 1. 変更面
 
@@ -48,7 +48,7 @@
 
 ## 5. 変異 matrix (container `.codex/worktrees/t2691-mutcontainer` @ `b38442a98`、`tools/mutation_harness.py` 直接、dispatch、runner = `run_tests.py --force-dispatch orchestrator/tests/test_check_branch_rescue.py -q -rf -p no:cacheprovider`、`verbatim/mutation-spec.json` / `mutation-run-1.json`、15:41:41 → 15:46:28 JST、rc=0)
 
-| 変異 | 内容 (`tools/check_branch_rescue.py`) | 期待 | 結果 | 失敗 node | 所要 |
+| 変異 | 内容 (`tools/check_branch_rescue.py`) | 期待 | 結果 | 失敗 node | 外側wall (`duration_s`) |
 |---|---|---|---|---|---|
 | m1 | `CHECKER_EXIT_GRACE_SECONDS = 2.0` → `0.0` | KILLED | KILLED | `test_landed_checker_timeout_json_is_collected_within_exit_grace` | 27.0 s |
 | m2 | `min(timeout + G, overall_remaining)` → `timeout + G` (cap 除去) | KILLED | KILLED | `test_landed_checker_overall_remaining_caps_the_wait` | 37.3 s |
@@ -56,15 +56,15 @@
 | m4 | `min(timeout + G, overall)` → `min(max(timeout, G), overall)` | KILLED | KILLED | `test_landed_checker_silent_child_is_cut_at_budget_plus_exit_grace` | 32.2 s |
 | m5 | `min(timeout + G, overall)` → `min(overall, timeout + G)` (等価) | SURVIVED | SURVIVED | — | 52.8 s |
 
-baseline PASSED (32.2 s)、matching 5/5、MISMATCH 0、anchor 件数は各 1、各変異の `injection_diff_sha256` 非空 (注入実在)。**集計: 受理・打切りの kill = m1〜m3 の 3 本、時間契約 pin = m4 の 1 本 (kill 根拠は elapsed 下限だけで JSON 受理の変化ではない)、等価 SURVIVED = m5**。
+baseline PASSED、matching 5/5、MISMATCH 0、anchor 件数は各 1、各変異の `injection_diff_sha256` 非空 (注入実在)。表の値とbaselineの32.211秒はdispatchの外側wallで、queue待ち等を含みテスト実行所要ではない。保存stdoutのpytest所要はbaseline 7.40秒、m1〜m5が順に5.57 / 11.45 / 7.16 / 6.51 / 7.26秒。**集計: 受理・打切りの kill = m1〜m3 の 3 本、時間契約 pin = m4 の 1 本 (kill 根拠は elapsed 下限だけで JSON 受理の変化ではない)、等価 SURVIVED = m5**。
 
 ## 6. 受入全走
 
-(受入は記録 commit の後に `run-acceptance-gated.sh` で投入する。結果は本 README には書けず (記録 commit は受入前に凍結される)、worklog fragment と最終報告に載せる。)
+旧waveには受入receiptが無く、受入全走は未実施だった。回収waveの最終受入は記録commit後に正規の `tools/dev_wave_wait.py acceptance` で行い、結果をrepo外の受領証と専用handoffへ保存する。旧waveの全走成功を意味しない。
 
 ## 7. 工数
 
-codex 子 6 本 (plan 1、consult 2、author 1、review 2)、親の probe 6 種、焦点走 2 走、変異 6 走。wave 開始 14:52 JST → 記録 commit 15:5x JST。
+旧waveはcodex 子 6 本 (plan 1、consult 2、author 1、review 2)、親の probe 6 種、焦点走 2 走、変異 6 走。回収waveは独立read-onlyレビュー1本を追加した。
 
 ## 8. verbatim 一覧 (本 dir `verbatim/`)
 
