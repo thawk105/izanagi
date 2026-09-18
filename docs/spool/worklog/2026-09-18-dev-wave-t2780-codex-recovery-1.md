@@ -32,6 +32,15 @@ title: [T-2780] mocc pilot discriminator修正を回収・独立監査し、計�
   （status 10件、ls-files 18件）だった。該当test/probeのsourceは未変更で、同じtipのfile単独再走は
   51 passed / 12.12秒。I/O根因は未分離とし、timeout・期待値・除外を変えず全走を再試行する。
   待機中のmain前進56be58448（T-2674、docsのみ）は固定SHAで競合なく取り込んだ。
+- 2回目も同じsetup timeoutが1件残ったため、再投入だけで閉じず隔離Codex authorで配置を局所修復した。
+  D1936項43の既存module snapshotを同一workerで共有できるよう、T1259の30関数を既存memo集合へ
+  明示追加した。全51ケース・実snapshot・deepcopy・timeout・lock/shard閉包は不変。独立レビューmust-fix0。
+  焦点走はcollection時に既存site_policy初期化が確立する集合で261 passed/1 skipped。
+- 配置変異でchildの4条件は期待どおりだったが共有木事後検査が赤になった試行を保持した。
+  D1009の独立cloneへsourceを固定してwrapperを再走し、DW-M07から同規律への導線を補った。
+  再走job6654はwrapper rc0・共有木一致・復元完了、4条件とも期待一致。M10は新helperで検出し
+  旧helper対照では生存、M9は冗長な登録検査として区別する。verifier correctness killへ加算しない。
+- 元author/fix authorの履歴はmain第1親の一括mergeで保全した。旧回収枝も保全し、rebase/forceは使わない。
 - 全job-stagingをrepo外へ複製し全ファイル一致を確認した。レビュー逐語・receipt・変異台帳と限界は
   `output/insights/2026-09-18/t2780-mocc-pilot-discriminator/`。清掃はland・保全・非稼働を条件に許可済み。
   本題外のgate・台帳機構・一般化・次waveは追加しない。追加承認された自己改善は上記の運用文書だけ。
@@ -43,3 +52,6 @@ title: [T-2780] mocc pilot discriminator修正を回収・独立監査し、計�
 - [T-2780] HYDRATE_PY、build前X/P patch・verifier source配線・receipt束縛を実装し、独立監査・job5905のfinalization到達・正式変異job6360・焦点検査で確認した。
   remaining: none
   base: e2f21f233b4c5a3d9789bfb2d5b7412b3d2be19811809b7278409961b8541759
+- [T-2504] D1936項43のmodule snapshotと各testへの独立copyを維持し、T1259の全consumerを既存memo配置へ接続した。timeout延長・検査除外をせず、実装着地済みだった追跡項を終端する。
+  remaining: none
+  base: c3b73b01c864b1e22c2bec7b8e2fc3038c7329c5bc8d8478bb27977ad067b30a

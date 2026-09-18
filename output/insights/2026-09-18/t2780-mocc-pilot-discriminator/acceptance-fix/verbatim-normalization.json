@@ -1,0 +1,18 @@
+{
+  "operation": "Restore each suffix at its one-based line before the newline; remove final LF when flagged; verify original byte length and SHA256.",
+  "files": [
+    {
+      "path": "t1259-diagnosis.md",
+      "original_sha256": "d61ca073dd2f99d8480e13d049e7366031203fbb11ce91447428e7df7b08b679",
+      "original_bytes": 7527,
+      "normalized_sha256": "4583bd741e2db690524b343624854d55f030ea8145c9cc63d7903b3846651629",
+      "remove_final_lf": true,
+      "restore": [
+        {
+          "line": 3,
+          "suffix": "  "
+        }
+      ]
+    }
+  ]
+}

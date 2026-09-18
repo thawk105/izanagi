@@ -130,3 +130,44 @@ timeout、期待値、除外、hold登録簿を変更せず、全走を再試行
 初回の簡潔な全体ログは `recovery-acceptance-child-1.log`。原JUnitと各dispatch receiptは
 `/work/1/SFC/tanab/.izanagi-acceptance-shards/a4ded6951baf937c43d94745f399ce38/` に残す。
 待機中にmainへlandしたT-2674（`56be58448`）はdocsのみで、固定SHAを競合なく取り込んだ。
+
+## 受入の再発とmodule配置の修復
+
+2回目は `26b2968bc` で25136 passed /69 skipped /1 setup error。同じT1259 fixtureの
+`git ls-files` 30秒timeoutが残った（`recovery-acceptance-child-2.log`）。
+同条件の再投入を重ねず、D1936項43で採用済みのmodule snapshot共有を実行配置へつなぐ。
+D1877のtimeout延長方針は同項で限定変更済みであり、timeoutを上げる方針へ戻していない。
+
+隔離Codex author `36cd305e` の修復はconftestの既存process memo集合へT1259の30関数を明示追加し、
+独立goldenへ同じ30関数を追加、既存suffix helperをgolden全34関数へ適用するもの。
+既存4関数、実snapshot、module scope、ケースごとのdeepcopy、全51ケース、30秒timeout、
+access分類・P/S lock・shard閉包を維持する。新cache・新group・新gate・新台帳は作らない。
+統合は `252e24b4f`。独立診断・author報告・焦点レビューは `acceptance-fix/` へ逐語保全した。
+レビューはmust-fix0。通常loadgroupで同じworker単位になることを確認するが、worker再起動を跨ぐ
+「必ず取得1回」やI/O根因の確定、full wall改善は主張しない。
+
+最初の親focusは、選択集合にsite_policyのcollection-time importが無く、既存autouse初期化が
+効かなかった。loginではenv生成拒否、computeでもenv digest差で同じ既存writer検査が赤だった。
+既存 `test_site_policy.py` をcollectionへ加えた同じcommitの焦点走は261 passed /1 skipped、30.96秒。
+追加のsite偽装・timeout/期待値/除外変更はない。記録は `acceptance-fix/t1259-parent-focus-with-site.log`。
+
+配置変異の最初の試行は同じbaseline前提不足で変異0件。次は保全containerの再使用を拒否され変異0件。
+3回目はbaseline通過・4条件すべて期待一致だったが、wrapperの共有木事後検査で外側rc125となった。
+child rc0とwrapper成功を分離し、`acceptance-fix/t1259-mutation-3.json.wrapper-receipt.json` を保全する。
+D1009どおり、対象commitをmainに固定した独立cloneをsourceへ使って再検証する。
+同じ失敗を繰り返さないため、DW-M07からD1009へ読了導線を接続した。事後検査は緩めない。
+
+独立cloneでのjob6654はwrapper rc0、baseline PASSED、Eと旧helper対照はSURVIVED、
+M9/M10は期待したmeta nodeでKILLED、4/4一致、MISMATCH/PARSE_ERROR/TIMEOUTは0。
+`shared_snapshot_matches=true`、`teardown_completed=true`、`container_preserved=false`。
+台帳・attempt・wrapper receiptは `acceptance-fix/t1259-mutation-4*`。
+M9はgoldenとsuffixの冗長検査として扱い、単一理由の独立killには数えない。
+M10の配置違反を新helperが検出し、旧helper対照では生存したという検出増分を確認した。
+これはscheduler配置契約の感度であり、verifier correctness killではない。
+
+## author履歴の保全
+
+旧回収枝を `worktree-dev-wave-t2780-codex-preserved` として保全し、同じ専用木で現行main
+`9886b8489` を第1親に、旧回収tip `252e24b4f`・元author `f75ca703c`・fix author `36cd305e` を
+1回のmergeで取り込んだ (`29b430440`)。F266に従い、順次mergeでtrusted親0を作らない。
+pilotとmemo修復2fileは `252e24b4f` とbytes一致。rebase/forceや履歴の破棄はしていない。
