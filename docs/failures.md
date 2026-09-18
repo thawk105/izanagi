@@ -8506,6 +8506,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   log 本文を読むまで原因に到達しない。(2) 再投入では `.done` と `-o` を新 path にする必要が
   あるため、同じ prompt でも成果物 path を作り直す手間が掛かる。回避は変わらず、docs 編集を
   統合 commit にしてから子を投げること。
+
+- **再発: 2026-09-18** — [T-2290][T-2291] 親が `docs/dev-wave/operations.md` を編集した未 commit 状態で、Codex 子で
+  なく**焦点走** (計算ノード 5433.nqsv、`test_check_docs` / `test_codex_worker_launch` /
+  `test_dev_wave_launch_authority` の 3 file) を投入し、116 node が
+  `docs/dev-wave/operations.md: working tree が authority commit と異なる` で赤になった (739 passed / 3 skipped)。
+  追加事実は、`snapshot_authority` の拒否は dispatcher だけでなく**実 repo の launcher を subprocess で起動する
+  test 群にも同じ形で効く**ことで、docs-only wave が「子ゼロだから commit 前に焦点走してよい」と読むと踏む。
+  回避は変わらず、docs/dev-wave の編集を commit してから焦点走・子投入を行うこと (commit 後の再走 5437.nqsv は
+  855 passed / 3 skipped / rc=0)。
 ### F226. source hash を埋め込む golden が同族ファイルの全変異を道連れにする [ドリフト]
 
 - 事象: 変異 11 件のうち 4 件が MISMATCH になった。うち 2 件 (judge / report の変異) は
