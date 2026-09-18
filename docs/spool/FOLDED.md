@@ -4822,3 +4822,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 - {"allocations":{},"authored":"2026-09-18","base":"e4dc44a2423b1c90d806f0acb2a09407e6fb91b4","content_sha256":"844d24316d2c05dc25bdb1d81f168eb4d40f1a46e83a1a780a1f31eaf4b61e4d","seq":2,"tested_tip":"4ef8ee0c3be4381545527b0fab14c094c8c17967","wave":"dev-wave-t2288-floor-pair-job-body","wave_ref":"refs/heads/worktree-dev-wave-t2288-floor-pair-job-body"}
 
 - {"allocations":{},"authored":"2026-09-18","base":"e889dff808ba3488f84d27fc381038159b8c5078","content_sha256":"6b8a560278ff75aa77dd0a530242e05c67ecb970e33476f0f59a01fb2bbf6181","seq":1,"tested_tip":"44b00f2af06b7d76f0c7f278510eb8032b58a1d9","wave":"dev-wave-t2611-a6-results-draft","wave_ref":"refs/heads/worktree-dev-wave-t2611-a6-results-draft"}
+
+- {"allocations":{},"authored":"2026-09-18","base":"62e416a1d24b51fe911bfe892e1e71568592060b","content_sha256":"8d16b50a6e6ab98b68c5dac9929cc8bf6400b728d4225f92d6426d4bb18d2482","seq":1,"tested_tip":"f440d967cd7c2b9e61e010eaa2446daa4d109416","wave":"dev-wave-t1878-mocc-trace-pilot-raw-artifact","wave_ref":"refs/heads/worktree-dev-wave-t1878-mocc-trace-pilot-raw-artifact"}
