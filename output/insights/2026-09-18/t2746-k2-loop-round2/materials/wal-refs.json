@@ -1,0 +1,27 @@
+[
+  {
+    "stage": "build_start",
+    "variant": "3dec27291054",
+    "ref": "wal:1bb5f324d66f7671ad97531adc776f24458a636943e91eee2c6b9b2e75e4e364"
+  },
+  {
+    "stage": "build_done",
+    "variant": "3dec27291054",
+    "ref": "wal:9ec26b2dddf6dca2563425b20a7c9cba24c2ee2b0cfe31f1bc67e212dc85bdc6"
+  },
+  {
+    "stage": "verify_done",
+    "variant": "3dec27291054",
+    "ref": "wal:22b3149c49e6f5e777129645f543bc23f9db83f3a5a9411b6f5023eb5522ce32"
+  },
+  {
+    "stage": "bench_done",
+    "variant": "3dec27291054",
+    "ref": "wal:ca4eb9538d4d7512cedb5bdab8c8dfc38df93721538db2fd4fe25817a00c43d5"
+  },
+  {
+    "stage": "commit",
+    "variant": "3dec27291054",
+    "ref": "wal:78049595dee3a7fdef3de8eec6b04e889904dba4acae0629ab9f280c76c317a2"
+  }
+]
