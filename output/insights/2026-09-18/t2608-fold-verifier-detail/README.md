@@ -99,6 +99,22 @@ timeout 仮説を否定したが残る候補を絞れなかった)。是正は�
 - 着手時main b2037abfaから作った専用Codex worktreeへ、旧waveとunitを履歴ごと回収。
   不足していたphaseチェックは回収mergeに含めた。コード・テストは既存Codex authorの内容を保持する。
 
+## land拒否の修復と自己改善
+
+- 初回の `recovery/acceptance-1.json` は7a144e023に対するchild-green。しかし `recovery/land-1.json` は
+  rc26 / landed-fold-owned-pathで拒否し、mainはb2037abfaのままだった。
+- 原因は親が後付けした履歴保全merge ceb258ff7。両親がtrusted cutoffの祖先でなく、第二親との差分に
+  FOLDED.mdのMが現れた。累積tree差分ゼロを根拠に採用したのは既存F266の再発である。
+- 続いて「次wave禁止」を理由に修復せず終了したのはF946の再発。ユーザーの完遂・自己改善指示に従い継続した。
+- 復旧merge 9c0300993の親はb2037abfa / 2b1015486 / 2975fcf6d。既存F266の一括mergeを使い、失敗履歴を取り込まない。
+  本体2fileは旧受入tipと同一。自己改善063a743d6はDW-STOPとDW-O23の既存義務を明確化し、両Fへ再発を記録した。
+- `recovery/v2-final-review.md` は固定tip063a743d6の独立静的レビュー。全7commitの選択親差分に拒否署名なし、
+  安全義務保存、GO / must-fix 0。実走やland成功の代替ではない。
+- 初回の修復相談は見出し形式でF43未受理、次の起動は未commit authority差で拒否された。どちらも緑と数えず、
+  文書をcommitした後の上記レビューで独立再検証した。
+- 旧逐語5fileは末尾空白だけを正規化。`recovery/whitespace-restoration.json` の行suffixと末尾改行有無で復元し、
+  5fileとも原文hash・byte数一致を確認した。可視文字は変えていない。
+
 ## 残余 (scope 外、次の一手に起票しない)
 
 - 同値 3 類 (`git/timeout` ×3、`fold-diff/record` ×2、`fold-parents/record` ×2) は detail でも区別できない。

@@ -75,6 +75,15 @@ title: [T-2608] declared fold verifier の例外出力に sanitize 済み detail
   9c0300993の実際の親列はこの順で、失敗mergeを取り込んでいない。本体2fileは旧受入tipから不変。
 - 自己改善はDW-STOPの「同一目的の修復は次waveでない」と再試行不可/修復不可の区別、DW-O23から
   既存F266への接続に限定。両Fへ再発を追記し、新しいgate・台帳・受理集合変更は加えていない。
+- 修復後063a743d6への独立焦点レビューはGO / must-fix 0。全7commitの選択親差分に禁止署名なし、
+  自己改善後も停止境界・同lock fold・規律2が保存されていると静的確認した。
+- 自己改善後の文書関連testは正規runnerの上限付きlocal実行で580 passed / 3 skipped (171.80s)。
+  `check_docs`自体、`check_codex_agents`、spool dry-runもrc0。文書予算・checker・既存skip方針は変更していない。
+- 履歴形の既存正負test (`zero_trusted_merge_scans_signature_visible_only_from_second_parent` と
+  `octopus_with_exactly_one_trusted_parent_is_accepted`) も正規runnerで2 passed (1.19s)。
+- 親は初回焦点走のQueued job6429を不要に手動取消し、runbook§7.6で予告されたF47ラッチを発火させた。
+  この操作がユーザー手番を作ったのであり、問題の論理が複雑で判断委譲が必要だったわけではない。
+  ユーザーは今回だけ解除を明示委任し、既存smoke probe6447.nqsvを投入した。一般の解除権限は変更していない。
 
 ## 次の一手差分
 
