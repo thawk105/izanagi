@@ -27639,6 +27639,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   負例 (registry file の hardlink は拒否) を同時に登録する。
 - 再発検知: 段 9 の自己撤去の rc を worklog に必ず書く (`DW-O28`)。rc=20 の `admin entry is not a single
   regular file` を見たら本エントリを引き、tool の修正状況を確かめる。
+- **supersede: 2026-09-18** — 恒久対応は [T-2777] で実装した (commit 94715928d + fbd8c7038): `_read_admin_file` は admin dir 相対 path が object の名前形 (`modules/…/objects/<2hex>/<38|62hex>`、`modules/…/objects/pack/pack-<40|64hex>.<ext>`、`modules` と末尾 3 component の間に `refs`/`logs` を含まない) の regular file に限り nlink>1 を許容し、registry file の拒否は不変。正例・負例 6・race 2 を変異登録 (M1〜M5 KILLED、等価 M0 SURVIVED)。名前形外の補助 file (`objects/info/*`、`multi-pack-index` 等) の hardlink は現行どおり rc=20。本 wave の段 9 の rc は次 wave の worklog へ。一次資料 `output/insights/2026-09-18/t2777-cleanup-hardlink-fix/README.md`。
 
 ### F1027. mocc trace pilot の hydrate だけが素の python3 で driver を import し、計算ノードで 3.10 専用式を踏んで止まった [テスト代表性] [ドリフト]
 
