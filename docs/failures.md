@@ -5371,6 +5371,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   F106 と同一で、「dispatch 済みの走行は起動時点の木を見る」と誤認して待ち時間に worktree を触ったこと。恒久対応は
   F106 のまま。**焦点走であっても、投入から結果取得までは tracked file を編集しない。** 汚染した走行は合否に使わず
   skip 理由の参考にだけ使い、権威の走行を取り直した。
+
+- **再発: 2026-09-18** — [T-2732] wave。**変異 matrix の走行中** (baseline PASSED、E1 / N1 / N2 完了後) に、親が段 7 の準備として
+  insight の逐語 file を wave worktree の `output/insights/2026-09-18/...` へ複製し、末尾空白検査のために `git add -N` (intent-to-add) を
+  掛けた。`tools/mutation_harness.py` は次の変異の直前検査 `_assert_only_expected_dirt` (`git diff --quiet HEAD -- . :(exclude)<変異対象>`) で
+  intent-to-add を「固定 HEAD 外の変更」として検出し rc=2 で中止した (変異対象 2 file は HEAD へ復元済み)。追加事実は 2 つ。
+  (1) **書き込み先が `output/` でも harness の検査には掛かる** — 計測 job の dispatch 中に `output/` へ書く運用が通るのは job が投入時点の作業ツリーを見るためで、
+  変異 harness は変異ごとに worktree 全体の tracked/index/untracked を固定 HEAD と照合する。(2) `git add -N` は「stage しない」つもりでも index を変える。
+  復旧は index を戻して file を job dir へ退避 → `--resume` (sidecar を新 path へ複写、`--wrapper-attempt` を進める) で残りだけ走らせた。
+  順序の固定 (走行前に記録を書き終える、走行中は repo 外だけで作業する) が対応であり、本 wave では insight README・fragment を job dir で下書きして
+  変異完了後に worktree へ移した。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
