@@ -1,0 +1,9 @@
+{
+  "monotonic_100000": 0.0069899020018056035,
+  "dict_append_100000": 0.02170199202373624,
+  "json_write_1000": 0.004378021985758096,
+  "clock_unit": 6.989902001805603e-08,
+  "record_unit": 2.170199202373624e-07,
+  "json_line_unit": 4.378021985758096e-06,
+  "note": "Clock/dict costs are proxies, not an upper bound on predicate or I/O interference."
+}
