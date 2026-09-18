@@ -1,0 +1,36 @@
+{
+  "M4B": [
+    "orchestrator/tests/test_t080_freeze_migration.py::test_delegated_scan_keeps_frozen_document_bindings[match_convention]",
+    "orchestrator/tests/test_t080_freeze_migration.py::test_live_scan_is_bound_to_frozen_expressions_match_convention_and_candidates_g1"
+  ],
+  "M5": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_run_block_rejects_receipt_epoch_drift_before_campaign_start_g4",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_run_block_resolves_receipt_once_and_propagates_observation_to_wal_and_result[False]",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_run_block_resolves_receipt_once_and_propagates_observation_to_wal_and_result[True]",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rechecks_receipt[changed]",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rechecks_receipt[missing]",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rejects_late_hit_file"
+  ],
+  "M6": [
+    "orchestrator/tests/test_t080_freeze_migration.py::test_layer2_delegation_rejects_wrong_activation_head"
+  ],
+  "M7": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rejects_late_hit_file",
+    "orchestrator/tests/test_t080_freeze_migration.py::test_layer2_delegation_rejects_enumeration_drift"
+  ],
+  "M8A": [
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_clean_scan_digest_rejects_incomplete_or_failed_search[dirty]",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_clean_scan_digest_rejects_incomplete_or_failed_search[empty]",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_clean_scan_digest_rejects_incomplete_or_failed_search[missing]",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_clean_scan_digest_rejects_incomplete_or_failed_search[positive-zero]",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_clean_scan_rejects_synthetic_chain_artifacts[both]",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_clean_scan_rejects_synthetic_chain_artifacts[candidate]",
+    "orchestrator/tests/test_s8b_floor_campaign.py::test_clean_scan_rejects_synthetic_chain_artifacts[official]"
+  ],
+  "M9": [
+    "orchestrator/tests/test_t080_freeze_migration.py::test_layer2_delegation_rejects_foreign_root"
+  ],
+  "M10": [
+    "orchestrator/tests/test_t080_freeze_migration.py::test_layer2_delegation_rejects_stale_generation_token"
+  ]
+}

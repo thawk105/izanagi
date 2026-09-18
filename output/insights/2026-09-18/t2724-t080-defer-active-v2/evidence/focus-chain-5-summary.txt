@@ -1,0 +1,14 @@
+2026-09-18 14:07:56 JST
+1cbd28aa166414f8bd81c57a8766a00e4ffdacd1
+[Pegasus dispatch] request ID 5685.nqsv を受理しました
+1097 passed 11 skipped 7 errors 7 failed
+in 416.76s (0:06:56)
+| FAILED orchestrator/tests/test_s8b_ratified_freeze.py::test_receipt_emitter_requires_copied_inputs[orchestrator/campaign/s8b_selector_output_schema.json]
+| FAILED orchestrator/tests/test_s8b_ratified_freeze.py::test_receipt_emitter_requires_copied_inputs[orchestrator/campaign/s8b_selector_output.py]
+| FAILED orchestrator/tests/test_s8b_ratified_freeze.py::test_receipt_emitter_requires_copied_inputs[orchestrator/campaign/s8b_selector_catalog.json]
+| FAILED orchestrator/tests/test_s8b_ratified_freeze.py::test_receipt_emitter_requires_copied_inputs[output/s8b-freeze/holdout_freeze.json]
+| FAILED orchestrator/tests/test_s8b_ratified_freeze.py::test_receipt_emitter_requires_copied_inputs[orchestrator/campaign/s8b_selector_input.py]
+| FAILED orchestrator/tests/test_s8b_ratified_freeze.py::test_receipt_emitter_requires_copied_inputs[output/env/linux-baremetal/calibration/calibration_t48_skew0p9_rr50_rmw0.json]
+| FAILED orchestrator/tests/test_s8b_ratified_freeze.py::test_receipt_emitter_requires_copied_inputs[.claude/agents/selector-8b.md]
+INTERNALERROR lines: 0
+2026-09-18 14:15:20 JST
