@@ -2292,10 +2292,12 @@ def _clone_committed_head_with_ccbench(
         destination: Path, *, ccbench_pin: str,
         held_checks: list[dict[str, object]]) -> Path:
     """ネットワークを使わず、committed HEAD と初期化済み submodule を複製する。"""
+    source_head = _git_stdout(ROOT, "rev-parse", "HEAD").strip()
     subprocess.run(
         ["git", "clone", "--quiet", "--no-hardlinks", str(ROOT), str(destination)],
         check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
+    assert _git_stdout(destination, "rev-parse", "HEAD").strip() == source_head
     source_submodule = ROOT / "external" / "ccbench"
     assert source_submodule.is_dir()
     _assert_sealed_protocol_ccbench_pin(source_submodule, ccbench_pin, held_checks)
@@ -2326,7 +2328,48 @@ def _clone_committed_head_with_ccbench(
         cwd=destination, check=True,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
+    assert _git_stdout(destination, "rev-parse", "HEAD^").strip() == source_head
+    assert _git_stdout(
+        destination, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD",
+    ).splitlines() == ["external/ccbench"]
+    _remove_chain_artifacts_from_replay(destination)
     return destination
+
+
+def _remove_chain_artifacts_from_replay(clone_root: Path) -> None:
+    """宣言 S だけを削除し、残存 tree の mode / OID と親を独立に照合する。"""
+    parent = _git_stdout(clone_root, "rev-parse", "HEAD").strip()
+    entries = {
+        line.split("\t", 1)[1]: line.split("\t", 1)[0]
+        for line in _git_stdout(clone_root, "ls-tree", "-r", parent).splitlines()
+    }
+    removed = {
+        path for path in entries
+        if path.startswith("output/env/pegasus/calibration/s8b-floor-official/")
+        or path == s8b_floor_campaign._holdout_freeze.V2_CANDIDATE_REL
+    }
+    if removed:
+        subprocess.run(
+            ["git", "rm", "--quiet", "--", *sorted(removed)],
+            cwd=clone_root, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        subprocess.run(
+            ["git", "-c", "user.name=Izanagi Test",
+             "-c", "user.email=izanagi-test@example.invalid", "commit", "--quiet",
+             "-m", "test: remove declared chain artifacts from replay"],
+            cwd=clone_root, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        assert _git_stdout(clone_root, "rev-parse", "HEAD^").strip() == parent
+        assert set(_git_stdout(
+            clone_root, "diff-tree", "--no-commit-id", "--name-status", "-r", "HEAD",
+        ).splitlines()) == {"D\t" + path for path in removed}
+    else:
+        assert _git_stdout(clone_root, "rev-parse", "HEAD").strip() == parent
+    remaining = {
+        line.split("\t", 1)[1]: line.split("\t", 1)[0]
+        for line in _git_stdout(clone_root, "ls-tree", "-r", "HEAD").splitlines()
+    }
+    assert remaining == {path: entry for path, entry in entries.items() if path not in removed}
 
 
 def _remove_post_seal_floor_protocols_from_replay(
@@ -11490,6 +11533,64 @@ def _expected_clean_digest(files, allowlist) -> str:
     ).encode("utf-8")).hexdigest()
 
 
+@pytest.mark.parametrize("placement", ["official", "candidate", "both"])
+def test_clean_scan_rejects_synthetic_chain_artifacts(tmp_path, placement):
+    from orchestrator.tests import test_s8b_ratified_freeze as emitter
+    from orchestrator.tests.s8b_v2_freeze_fixture import _holdout_hit_text
+    base = tmp_path / "base"
+    emitter._prepare_emitter_base(base)
+    root = tmp_path / "clean-clone"
+    shutil.copytree(base, root)
+    scanner = s8b_floor_campaign._holdout_freeze
+    protocol_raw = (root / s8b_floor_campaign._FLOOR_PROTOCOL_REL).read_bytes()
+    allowlist = s8b_floor_campaign._floor_preflight_freeze_allowlist(
+        root, freeze_path=emitter.M.V1_FREEZE_PATH,
+        freeze_sha256=emitter.M.V1_FREEZE_SHA256,
+        protocol_sha256=hashlib.sha256(protocol_raw).hexdigest(),
+    )
+    paths = {
+        "official": "output/env/pegasus/calibration/s8b-floor-official/synthetic-chain/result.json",
+        "candidate": scanner.V2_CANDIDATE_REL,
+    }
+    selected = set(paths.values()) if placement == "both" else {paths[placement]}
+    for relative in selected:
+        destination = root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(b"harmless fixture bytes\n")
+    assert s8b_floor_campaign.clean_scan_digest(root, freeze_allowlist=allowlist)
+    for relative in selected:
+        (root / relative).write_bytes(_holdout_hit_text(scanner, "rr80"))
+    report = scanner.search_repository(root)
+    assert selected <= set(report["holdouts"]["rr80"]["conjunction_hits"])
+    with pytest.raises(s8b_floor_campaign.FloorCampaignError, match="clean scan 拒否:.*holdout hit"):
+        s8b_floor_campaign.clean_scan_digest(root, freeze_allowlist=allowlist)
+
+
+def test_replay_clone_removes_only_declared_chain_artifacts(tmp_path):
+    from orchestrator.tests import test_s8b_ratified_freeze as emitter
+    root = tmp_path / "replay"
+    emitter._prepare_emitter_base(root)
+    parent = _git_stdout(root, "rev-parse", "HEAD").strip()
+    _remove_chain_artifacts_from_replay(root)
+    assert _git_stdout(root, "rev-parse", "HEAD").strip() == parent
+    removed = {
+        "output/env/pegasus/calibration/s8b-floor-official/synthetic-chain/result.json",
+        s8b_floor_campaign._holdout_freeze.V2_CANDIDATE_REL,
+    }
+    retained = "output/s8b-freeze-candidates/unrelated.json"
+    for relative in removed | {retained}:
+        emitter._write(root, relative, b"harmless replay fixture\n")
+    (root / retained).chmod(0o755)
+    parent = emitter._fixed_commit_all(root, "replay input", "fixture")
+    before = _git_stdout(root, "ls-tree", "HEAD", "--", retained)
+    _remove_chain_artifacts_from_replay(root)
+    assert _git_stdout(root, "rev-parse", "HEAD^").strip() == parent
+    assert set(_git_stdout(
+        root, "diff-tree", "--no-commit-id", "--name-status", "-r", "HEAD",
+    ).splitlines()) == {"D\t" + relative for relative in removed}
+    assert _git_stdout(root, "ls-tree", "HEAD", "--", retained) == before
+
+
 def test_clean_scan_digest_returns_digest_when_clean(tmp_path, monkeypatch):
     files = ("a.py", "b.py")
     _stub_clean_scan(
@@ -12100,6 +12201,7 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
     )
 
     held_checks = []
+    source_head = _git_stdout(ROOT, "rev-parse", "HEAD").strip()
     clone_root = _clone_committed_head_with_ccbench(
         tmp_path / "committed-head", ccbench_pin=ccbench_pin,
         held_checks=held_checks,
@@ -12126,10 +12228,13 @@ def test_real_seal_protocol_to_floor_official_core_e2e(tmp_path, monkeypatch):
             if left != right:
                 assert not left.is_relative_to(right)
 
-    source_head = _git_stdout(ROOT, "rev-parse", "HEAD").strip()
-    assert _git_stdout(clone_root, "rev-parse", "HEAD^").strip() == source_head
+    replay_commits = _git_stdout(
+        clone_root, "rev-list", "--reverse", f"{source_head}..HEAD",
+    ).splitlines()
+    gitlink_commit = replay_commits[0]
+    assert _git_stdout(clone_root, "rev-parse", gitlink_commit + "^").strip() == source_head
     assert _git_stdout(
-        clone_root, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD",
+        clone_root, "diff-tree", "--no-commit-id", "--name-only", "-r", gitlink_commit,
     ).splitlines() == ["external/ccbench"]
     seal_protocol_paths = set(_git_stdout(
         clone_root, "ls-tree", "-r", "--name-only", seal_commit, "--",
@@ -15622,6 +15727,7 @@ def _protocol_binding_public_preflight(
     fc = s8b_floor_campaign
     root = tmp_path / "repository"
     root.parent.mkdir(parents=True, exist_ok=True)
+    source_head = _git_stdout(ROOT, "rev-parse", "HEAD").strip()
     subprocess.run(
         ["git", "clone", "--quiet", "--no-hardlinks", str(ROOT), str(root)],
         check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -15631,6 +15737,7 @@ def _protocol_binding_public_preflight(
          str(ROOT / "external/ccbench"), str(root / "external/ccbench")],
         check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
     )
+    assert _git_stdout(root, "rev-parse", "HEAD").strip() == source_head
     if not versioned:
         legacy = fc.load_protocol(root / fc._FLOOR_PROTOCOL_REL)
         subprocess.run(
@@ -15649,6 +15756,11 @@ def _protocol_binding_public_preflight(
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         )
 
+        assert _git_stdout(root, "rev-parse", "HEAD^").strip() == source_head
+        assert _git_stdout(
+            root, "diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD",
+        ).splitlines() == ["external/ccbench"]
+    _remove_chain_artifacts_from_replay(root)
     selected = fc.resolve_current_floor_protocol(root=root)
     assert (selected.path != fc._FLOOR_PROTOCOL_REL) is versioned
     observations["selected"] = selected.path
