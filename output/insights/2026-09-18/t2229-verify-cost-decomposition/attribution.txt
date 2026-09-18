@@ -1,0 +1,39 @@
+=== ed8a676b (serial verifier) ===
+perf high-commit (>10M): n=13 min=1346.874 median=1408.834 mean=1406.186 max=1465.558 | commits 16828873..17186358 | us/commit 79.62..85.95
+perf low-commit (adaptive): n=5 min=401.692 median=415.330 mean=415.089 max=427.378 | commits 5540262..5616027 | us/commit 72.01..77.14
+legacy: n=4 min=10.481 median=23.018 mean=21.351 max=28.885 | commits 281422..636239 | us/commit 36.73..45.48
+build (build_start->build_done): n=4 min=50.049 median=51.380 mean=51.413 max=52.846 | commits 0..0
+last verify_done -> commit (includes rmtree of last trace dir): n=3 min=0.145 median=0.347 mean=0.283 max=0.358 | commits 0..0
+high-commit values sorted: [1346.874, 1372.467, 1374.816, 1376.564, 1376.649, 1388.513, 1408.834, 1425.424, 1429.752, 1434.51, 1436.218, 1444.244, 1465.558]
+
+=== acf840c8 (parallel verifier, workers default 16) ===
+perf all 75: n=75 min=173.069 median=551.570 mean=493.360 max=626.855 | commits 5531876..17011364 | us/commit 31.18..36.97
+legacy: n=15 min=8.283 median=14.028 mean=13.452 max=17.554 | commits 277526..646783 | us/commit 26.07..29.85
+build: n=15 min=50.209 median=57.030 mean=61.788 max=77.273 | commits 0..0
+last verify_done -> commit: n=15 min=0.125 median=0.346 mean=0.305 max=0.372 | commits 0..0
+
+=== same-variant pairing ===
+variant 292d58f1dad8: serial n=3 median=1429.8 (1346.9..1444.2) commits 16.92M..16.94M | parallel n=5 median=611.8 (601.1..619.8) commits 16.77M..16.94M | diff of medians=817.9s ratio=2.34
+variant 5053f150932e: serial n=5 median=1388.5 (1372.5..1465.6) commits 17.02M..17.19M | parallel n=5 median=607.4 (603.9..626.9) commits 16.87M..17.01M | diff of medians=781.1s ratio=2.29
+variant 602b4ce9c788: serial n=5 median=415.3 (401.7..427.4) commits 5.54M..5.62M | parallel n=5 median=177.6 (173.1..178.7) commits 5.53M..5.58M | diff of medians=237.7s ratio=2.34
+variant 84319b1127a6: serial n=5 median=1425.4 (1374.8..1436.2) commits 16.83M..16.91M | parallel n=5 median=602.0 (595.5..612.0) commits 16.69M..16.84M | diff of medians=823.4s ratio=2.37
+
+=== bound arithmetic (I_s = V + R, I_p = V/s + R) ===
+17M class (3 variants pooled medians): I_s=1408.8 I_p=607.4 D=I_s-I_p=801.4
+   if s=2.22: V=1458 (104%), R=-49 (-4%)
+   if s=2.6: V=1302 (92%), R=107 (8%)
+   if s=3.0: V=1202 (85%), R=207 (15%)
+   if s=3.5: V=1122 (80%), R=287 (20%)
+   if s=4.0: V=1069 (76%), R=340 (24%)
+   if R>=3.4: V<=1405 -> s>=2.33
+   if R>=25.0: V<=1384 -> s>=2.38
+   if R>=50.0: V<=1359 -> s>=2.44
+5.5M class (602b4ce9c788): I_s=415.3 I_p=177.6 D=I_s-I_p=237.7
+   if s=2.22: V=433 (104%), R=-17 (-4%)
+   if s=2.6: V=386 (93%), R=29 (7%)
+   if s=3.0: V=357 (86%), R=59 (14%)
+   if s=3.5: V=333 (80%), R=83 (20%)
+   if s=4.0: V=317 (76%), R=98 (24%)
+   if R>=3.4: V<=412 -> s>=2.36
+   if R>=25.0: V<=390 -> s>=2.56
+   if R>=50.0: V<=365 -> s>=2.86

@@ -211,6 +211,12 @@
   (file の mtime・commit 時刻) から取る。
 
 - **再発: 2026-09-18** ([T-1505] A-1 sized 本走投入 wave、near miss)。親が handoff へ書いた JST 時刻 3 件 (06:33 / 06:35 / 06:37) が実測でなく推定で、直後の `date` は 06:29:42 だった (実時刻より先へ進んでいた)。原因は wave 冒頭の `date` 1 回に体感の経過を足したこと。記録 commit・insight へ入る前に `stat` の mtime で 06:24:21 / 06:28:23 / 06:29:14 へ置き換えた。恒久対応は変更なし — 時刻を書く 1 回ごとに `date` か mtime を採る。
+
+- **再発: 2026-09-18** — [T-2379] wave (branch `dev-wave-t2379-syspath-selfcontained`) の親が、専用 handoff (repo 外) の「最終更新」と
+  段 4 の見出しに `date` を叩かず推定した時刻 (11:52 / 11:30) を書いた。直後の `date` 実測は 11:31 で、片方は 20 分以上未来だった。
+  worklog・insight へ写す前に気づき、handoff を date 値で訂正し、以後の時刻は `date` と job の Started/Ended Request Time から採った
+  (worklog エントリ・insight に誤時刻は入っていない = near miss)。型は 2026-09-17 の再発と同じ「推定で書く」。恒久対応は変更なし
+  (memory `timestamps-from-date-or-mtime-not-estimation`。時刻・日付を報告に載せる前に `date` を叩く)。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -5365,6 +5371,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   F106 と同一で、「dispatch 済みの走行は起動時点の木を見る」と誤認して待ち時間に worktree を触ったこと。恒久対応は
   F106 のまま。**焦点走であっても、投入から結果取得までは tracked file を編集しない。** 汚染した走行は合否に使わず
   skip 理由の参考にだけ使い、権威の走行を取り直した。
+
+- **再発: 2026-09-18** — [T-2732] wave。**変異 matrix の走行中** (baseline PASSED、E1 / N1 / N2 完了後) に、親が段 7 の準備として
+  insight の逐語 file を wave worktree の `output/insights/2026-09-18/...` へ複製し、末尾空白検査のために `git add -N` (intent-to-add) を
+  掛けた。`tools/mutation_harness.py` は次の変異の直前検査 `_assert_only_expected_dirt` (`git diff --quiet HEAD -- . :(exclude)<変異対象>`) で
+  intent-to-add を「固定 HEAD 外の変更」として検出し rc=2 で中止した (変異対象 2 file は HEAD へ復元済み)。追加事実は 2 つ。
+  (1) **書き込み先が `output/` でも harness の検査には掛かる** — 計測 job の dispatch 中に `output/` へ書く運用が通るのは job が投入時点の作業ツリーを見るためで、
+  変異 harness は変異ごとに worktree 全体の tracked/index/untracked を固定 HEAD と照合する。(2) `git add -N` は「stage しない」つもりでも index を変える。
+  復旧は index を戻して file を job dir へ退避 → `--resume` (sidecar を新 path へ複写、`--wrapper-attempt` を進める) で残りだけ走らせた。
+  順序の固定 (走行前に記録を書き終える、走行中は repo 外だけで作業する) が対応であり、本 wave では insight README・fragment を job dir で下書きして
+  変異完了後に worktree へ移した。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -17637,6 +17653,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `orchestrator/tests/test_layer3_report.py` の AST 契約テストと、
   実 `_run_bench` の emit payload exact key 集合検査。両者を変異検査で殺せることを確認した。
 
+
+- **再発: 2026-09-18** — 層 3 の `verifications.items` には閉包検査そのものが無く、producer が `verify_done` に足した
+  `commit_witness` (2026-08-11) と `proof_surfaces` (2026-09-03) が消費側 schema に届かないまま、現行の loop 型 campaign を
+  renderer が `additionalProperties` 違反で描画できない状態が続いていた (2026-09-18 に 1 巡目 campaign の描画で発覚、台帳未記録)。
+  D830 の導出型閉包を `verify_done` にも置き、`_view_row` の除外集合と qualification 分岐の key を AST で導出して schema と照合する
+  検査を `orchestrator/tests/test_layer3_report.py` に足した (D2143)。
 ### F571. key の穴を塞いだだけで成果物が得られたと判断しかけた [テスト代表性]
 
 - 事象: 層 3 の `runs.items` に無かった key を追加した直後、名指しの実 artifact は
@@ -25709,6 +25731,28 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   33 error (t1259 の worktree に対する 30 秒 TimeoutExpired 29 件 + s8c の 10 秒 timeout 4 件、24,726 passed)、同 tip の 2 file 単独再走
   (request 4300.nqsv) は 269 passed / 99.10 秒 / rc=0 で非再現。恒久対応は既報のまま変えず、timeout 拡大・stub 化・除外・gate 新設は
   していない。attempt 3 は投入条件を leader ≤ 1・load1 < 15 に絞って投げた。
+
+- **再発: 2026-09-18** — [T-2447] wave (docs のみ、tip `7038a4d63`) の受入で 2 走続けて同型が出た。
+  attempt 1 (07:26 投入、他 session の受入 leader 2 本・`run_tests.py` 18 本、load 40→14) は
+  `test_t1259_qsub_env_delivery_probe.py` の setup error **17 件** (24,807 passed / 69 skipped)。
+  attempt 2 (07:46 投入、load 14) は同 file の setup error **20 件**に加え、launcher 系の timing test
+  4 件 (`test_codex_worker_launch_budget.py` 3 件は子 rc=1 / `receipt truth table が不正`、
+  `test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed` は rc timeout) が failure
+  (24,800 passed / 69 skipped)。setup traceback の Git argv は既報と同一で
+  `git -C <wave worktree> ls-files --others --exclude-standard -z` (12 件) と
+  `status --porcelain=v1 --untracked-files=no --ignore-submodules=none` (8 件) の 30.0 秒 TimeoutExpired。
+  同 tip の単独再走は t1259 が **51 passed / 15.22 秒 / rc=0** (login)、launcher 系 2 file が
+  **26 passed / 21.61 秒 / rc=0** (5114.nqsv) でいずれも非再現。親が同じ `git status` argv を wave
+  worktree で素に測ると 3.7 秒 (untracked 0 件)。wave の変更は docs/dev-wave と記録だけで、当該
+  fixture・probe・launcher・Git 呼出しは変更していない。attempt 2 の終了時は他 session の受入 leader が
+  5 本・worker 21 本・load 39↑ で、既報 (2026-09-16) と同じく**同時受入の本数**が要因と読む。
+  恒久対応は既報のまま変えず、timeout 拡大・stub 化・除外・gate 新設・hold 登録はしていない。
+  2 走とも測定として無効と判定し、他 session の leader ≤ 2 かつ負荷の下降局面まで待って投げ直した。
+  attempt 3 (08:17、leader 0) は postcheck 競走でテスト未走。attempt 4 (08:26 投入、tip `11e8ea415` =
+  待ち手が main `d64b278ff` を merge) は同 file の **1 件**だけ (`git ls-files` 30 秒 timeout、24,836 passed)、
+  同 tip の単独再走は 51 passed / 14.98 秒 / rc=0 で非再現。件数は 17 → 20 → 1 と同時受入の本数で
+  変わり、変更には帰属しない。既報 (2026-09-16、赤 4 → 1 → 1 → 0 件で 8 走目に緑) と同じく窓を選んで
+  投げ直す。
 ### F946. 修正可能な検査失敗で作業を終了し、ユーザーへ再開を要求した [手順漏れ] [誤前提]
 
 - 事象: insights整理のauthorが実行ログ検査で未受理になり、親は原因の切り分けや安全な再試行をせず正式停止した。
@@ -27595,6 +27639,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   負例 (registry file の hardlink は拒否) を同時に登録する。
 - 再発検知: 段 9 の自己撤去の rc を worklog に必ず書く (`DW-O28`)。rc=20 の `admin entry is not a single
   regular file` を見たら本エントリを引き、tool の修正状況を確かめる。
+- **supersede: 2026-09-18** — 恒久対応は [T-2777] で実装した (commit 94715928d + fbd8c7038): `_read_admin_file` は admin dir 相対 path が object の名前形 (`modules/…/objects/<2hex>/<38|62hex>`、`modules/…/objects/pack/pack-<40|64hex>.<ext>`、`modules` と末尾 3 component の間に `refs`/`logs` を含まない) の regular file に限り nlink>1 を許容し、registry file の拒否は不変。正例・負例 6・race 2 を変異登録 (M1〜M5 KILLED、等価 M0 SURVIVED)。名前形外の補助 file (`objects/info/*`、`multi-pack-index` 等) の hardlink は現行どおり rc=20。本 wave の段 9 の rc は次 wave の worklog へ。一次資料 `output/insights/2026-09-18/t2777-cleanup-hardlink-fix/README.md`。
 
 ### F1027. mocc trace pilot の hydrate だけが素の python3 で driver を import し、計算ノードで 3.10 専用式を踏んで止まった [テスト代表性] [ドリフト]
 
@@ -27613,3 +27658,38 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `orchestrator/tests/test_mocc_trace_job_contract.py` の interpreter gate 検査 (checker / verifier) と同型の hydrate 版を
   [T-2780] で足す。fake interpreter は配線の検査であり、計算ノードの旧 python での推移 import は
   実 job でしか確かめられない (F650 / F651 と同じく mocc pilot の実走で検出する型)。
+
+### F1028. 親が job body 所有の evidence attempt dir へ投入直後に file を置き、job を preflight で失った [手順漏れ]
+
+- 事象: P3 段 4 loop の job body (`tools/pegasus/p3_s4_loop_pegasus.sh`) は `allocation-qstat.stdout` を自分で書き、既存なら
+  `allocation qstat evidence is not fresh` で rc=2 にする。親は投入直後の `qstat -f` の写しを同名で attempt dir に置いたため、
+  attempt-0001 (`4947.nqsv`) は Elapse 7 秒・driver 未起動で拒否された。評価は attempt-0002 (`4954.nqsv`) の 1 本で済んだが、
+  投入は 2 本になり、ユーザー裁定 D2120 項 1 の「再投入なし」の文言から逸脱した (事後承認を裁定パッケージ候補として返した)。
+- 根本原因: `tools/pegasus/README.md` §7 の投入手順が attempt dir を `mkdir` するとだけ書き、「job body が所有し投入側は触らない」
+  ことを書いていなかった。親は evidence を揃えるつもりで所有権を侵した。
+- 恒久対応: `tools/pegasus/README.md` §7 に「attempt directory は job body が所有する。投入側は `mkdir` 以外に何も置かない」を
+  明記した (本 wave)。親の qstat 写しは job root 直下 (evidence dir の外) へ置く。
+- 再発検知: job body の既存 fresh 検査 (263〜265 行) がそのまま検知器である。attempt-0001 の `job.stderr` を
+  `output/insights/2026-09-18/t2746-k2-loop-round2/evidence/attempt-0001/` に残した。
+
+### F1029. 仮定付き模型の出力を「記録からの上下限」として insight に結論化し、独立レビュー 2 巡で捕捉した [誤前提] [手順漏れ]
+- 事象: 「直列性検査 1 回 23 分」の区間分解で、親は初稿に「検査器 76〜98% (1069〜1385 秒)」を
+  記録からの上下限として書いた。実体は、直列走と並列走の同一変種の差に「検査器以外の実費が
+  両 run で等しい (等 R)」と「検査器の倍率 s ≤ 4」を暗黙に置いた試算だった。1 巡目レビューが
+  「等 R は未実証、s に上限を置く根拠が無い」と指摘し、親は timeout 契約からの上限 (ベンチ process
+  < 120 秒) へ置き換えたが、2 巡目 (焦点) レビューが「`subprocess.run(timeout)` は子の起動後
+  `communicate()` から計るので厳密な実時間上限ではない」と再び指摘した。3 巡目で条件付き表現に
+  揃って閉じた。着地前に捕捉したので台帳・成果物の値は変わっていない (near miss)。
+- 根本原因: 算術の検算 (`DW-O16` の派生値再計算) は通っていたが、**模型の仮定そのものが検算の
+  対象になっていなかった**。「計算が合う」ことと「その計算の前提が記録で支持される」ことを
+  区別せず、前提を見出しと §1 の断定に昇格させた。2 度目も同型で、置き換えた根拠 (timeout) の
+  保証範囲を code の契約 (どこから計時するか) まで読まずに「厳密な上限」と書いた。
+- 恒久対応: 定量主張は出所を「契約 + 記録 (条件を明記)」「実測 (どの走か)」「換算 (どの単価か)」
+  「試算 (どの仮定か)」で列ごとに分けた表にし、仮定を要する値を見出し・要約へ上げない。実体は
+  `output/insights/2026-09-18/t2229-verify-cost-decomposition/README.md` §4 の表の形と、
+  D2144 の「仮定なしに言える定量値は無い」の明記。レビュー prompt には
+  「模型の前提が記録で支持されるか」をレンズとして明示する (本 wave の `verbatim/s6-review-prompt.md`
+  レンズ 2 が実際に捕捉した)。
+- 再発検知: 段 6 レビューの対応表で、派生値の一致だけでなく「前提の出所」列を要求する。数値の
+  結論に「上限」「下限」「必然」「仮定なし」が入るとき、その根拠が契約なら計時・発火の開始点まで
+  code で確認したことを書く。
