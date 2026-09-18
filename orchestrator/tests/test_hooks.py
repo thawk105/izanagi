@@ -3173,6 +3173,7 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/exec_calibrate.py": "dispatch-required",
     "tools/pegasus/fetch_third_party.py": "local-ok",
     "tools/pegasus/floor_campaign.sh": "dispatch-required",
+    "tools/pegasus/floor_pair_campaign.sh": "dispatch-required",
     "tools/pegasus/floor_scoping.sh": "dispatch-required",
     "tools/pegasus/generate_floor_masstree_payload_policy.py": "unknown",
     "tools/pegasus/make_acquisition_receipt.py": "dispatch-required",
@@ -3218,6 +3219,7 @@ _PEGASUS_EXPECTED_CLASSES = {
     "tools/pegasus/submit_b10_backoff_shape.sh": "local-ok",
     "tools/pegasus/submit_certify.sh": "local-ok",
     "tools/pegasus/submit_floor.sh": "local-ok",
+    "tools/pegasus/submit_floor_pair.sh": "local-ok",
     "tools/pegasus/submit_mocc_trace.sh": "local-ok",
     "tools/pegasus/submit_oracle_n_pilot.sh": "local-ok",
     "tools/pegasus/submit_paper_story_a2_certification.sh": "local-ok",
@@ -3306,6 +3308,12 @@ _PEGASUS_EXPECTED_ENTRIES = {
     "tools/pegasus/floor_campaign.sh": {
         "class": "dispatch-required",
         "reason": "PBS floor campaign job body",
+        "primary_gate": "PBS allocation and job-body site preflight",
+        "evidence": "static job-body classification"
+    },
+    "tools/pegasus/floor_pair_campaign.sh": {
+        "class": "dispatch-required",
+        "reason": "PBS floor-pair window and finalize job body",
         "primary_gate": "PBS allocation and job-body site preflight",
         "evidence": "static job-body classification"
     },
@@ -3578,6 +3586,12 @@ _PEGASUS_EXPECTED_ENTRIES = {
         "reason": "login-side PBS floor submitter",
         "primary_gate": "qsub submission; compute work stays in job body",
         "evidence": "legacy-admitted (未実測)"
+    },
+    "tools/pegasus/submit_floor_pair.sh": {
+        "class": "local-ok",
+        "reason": "login-side PBS floor-pair submitter",
+        "primary_gate": "qsub submission; compute work stays in job body",
+        "evidence": "static login-side submitter classification"
     },
     "tools/pegasus/submit_mocc_trace.sh": {
         "class": "local-ok",
@@ -4108,6 +4122,7 @@ def test_bash_pegasus_registry_schema_and_fixed_classes():
             "static login-side submitter classification",
         "tools/pegasus/submit_certify.sh": "legacy-admitted (未実測)",
         "tools/pegasus/submit_floor.sh": "legacy-admitted (未実測)",
+        "tools/pegasus/submit_floor_pair.sh": "static login-side submitter classification",
         "tools/pegasus/submit_mocc_trace.sh": "static login-side submitter classification",
         "tools/pegasus/submit_oracle_n_pilot.sh":
             "login-side submitter; compute work stays in job body (未実測)",
