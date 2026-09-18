@@ -38,6 +38,7 @@ _COMPILE_TIME_BRANCH_MACROS = (
     "IZANAGI_BREAK_MOCC_LOCK_COVERAGE",
     "IZANAGI_BREAK_MOCC_PERMUTATION",
     "IZANAGI_BREAK_MOCC_EARLY_UNLOCK",
+    "IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK",
     "IZANAGI_BREAK_WRITE_INTENT_ERASE",
     "IZANAGI_BREAK_WRITE_INTENT_FORGE",
     "IZANAGI_BREAK_WRITE_INTENT_OPSWAP",
@@ -2683,6 +2684,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
         "IZANAGI_BREAK_WRITE_INTENT_OPSWAP", "IZANAGI_BREAK_WRITE_INTENT_PTRSWAP",
         "IZANAGI_BREAK_MOCC_LOCK_COVERAGE", "IZANAGI_BREAK_MOCC_PERMUTATION",
         "IZANAGI_BREAK_MOCC_EARLY_UNLOCK",
+        "IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK",
         "IZANAGI_BREAK_TRIGGER_MISATTR", "IZANAGI_SILO_LADDER_RUNG1",
         "IZANAGI_SILO_LADDER_RUNG1_REPORT",
     }
@@ -2779,7 +2781,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     ) == 22
     assert sum(
         spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
-    ) == 16
+    ) == 17
     assert G.CONTEXT_STARTS == (1, 2)
     assert G.DRIVER_INTEGRATION == "none"
     for invalid in (True, -1, 1.0, "1"):
@@ -2899,9 +2901,9 @@ def test_define_inventory_includes_counterfactual_defaults() -> None:
 
 
 def test_module_claim_names_the_exact_38_define_supply_domain() -> None:
-    assert "supply domain contains the 38 patch-derived defines" in G.__doc__
-    assert "registered macros plus three mocc controls additionally have a bounded" in G.__doc__
-    assert "compile-time witness (12 total)" in G.__doc__
+    assert "supply domain contains the 39 patch-derived defines" in G.__doc__
+    assert "registered macros plus four mocc controls additionally have a bounded" in G.__doc__
+    assert "compile-time witness (15 total)" in G.__doc__
 
 
 def test_captured_input_hash_drift_fails_closed():
