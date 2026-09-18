@@ -4,7 +4,7 @@ ledger: worklog
 authored: 2026-09-18
 wave: dev-wave-t2608-fold-verifier-detail
 seq: 1
-title: [T-2608] declared fold verifier の例外出力に sanitize 済み detail を保存し、旧 wave の実装を独立監査して回収した (コード + テスト + docs、branch codex/dev-wave-t2608-recovery、変異 = M0 SURVIVED・M1 diagnostic sensitivity pin・M2 KILLED)
+title: [T-2608] declared fold verifier の例外出力に sanitize 済み detail を保存し、旧 wave の実装を独立監査して回収した (コード + テスト + docs、branch codex/dev-wave-t2608-recovery-v2、変異 = M0 SURVIVED・M1 diagnostic sensitivity pin・M2 KILLED)
 ---
 
 ## 本文
@@ -68,6 +68,13 @@ title: [T-2608] declared fold verifier の例外出力に sanitize 済み detail
   変更test fileの正規単独走も168 passed (12.30s、6369.nqsv) で通過した。
   check_codex_agents、check_docs、spool dry-run、三軸語走査はrc=0。全史監査は11,465件、新規違反なし・既知56件。
   新規実装修正なしのため既存の変異証拠を保持し、記録commit後の受入で統合tipを検査する。
+- 初回回収tip 7a144e023は受入25134 passed / 69 skippedだったが、履歴保全の逐次merge ceb258ff7が
+  F266を再発させ、landはrc26・landed-fold-owned-pathで拒否した。main b2037abfaは不動だった。
+  親が次wave禁止を理由に止めた判断もF946の再発。ユーザーの完遂・自己改善指示により同じ依頼を継続した。
+- 復旧は既存F266に従い、main b2037abfa / 旧wave 2b1015486 / author 2975fcf6dを一度のmergeにした。
+  9c0300993の実際の親列はこの順で、失敗mergeを取り込んでいない。本体2fileは旧受入tipから不変。
+- 自己改善はDW-STOPの「同一目的の修復は次waveでない」と再試行不可/修復不可の区別、DW-O23から
+  既存F266への接続に限定。両Fへ再発を追記し、新しいgate・台帳・受理集合変更は加えていない。
 
 ## 次の一手差分
 
