@@ -1,0 +1,38 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 300,
+  "timeout_seconds": 4800,
+  "hang_timeout_seconds": 3000,
+  "mutations": [
+    {
+      "id": "mc-equivalent-trailing-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_profiler_directive.py",
+          "old": "    from orchestrator.codex_roles import policy  # noqa: PLC0415\n",
+          "new": "    from orchestrator.codex_roles import policy  # noqa: PLC0415  # equivalent-mutation\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "mb-revert-codex-roles-implicit-import",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_profiler_directive.py",
+          "old": "    from orchestrator.codex_roles import policy  # noqa: PLC0415\n",
+          "new": "    from codex_roles import policy  # noqa: PLC0415\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_profiler_directive.py::test_derived_directive_is_accepted_by_the_role_policy_check"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
