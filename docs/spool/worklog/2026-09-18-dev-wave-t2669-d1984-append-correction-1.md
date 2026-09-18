@@ -34,7 +34,10 @@ title: [T-2669] D1984 の却下欄「二読 fallback の択一は未裁定」を
   再現し、句点を復元し、本行を経過どおりに改めた。残件は文字列一致だけなので 3 巡目の codex は投げず、親が
   canonical bytes との機械照合 (引用 2 箇所 = D1984 却下欄 3 項目目・D1872 決定文、依頼引用 = `verbatim/request.md`。
   正規化は入れ子括弧『』→「」と折返しの除去だけ、script は job dir の `verify_quotes.py`、結果 ALL-MATCH) で一致を確かめて
-  閉じた。dev-wave 改善候補 0 (段 8 は無言通過)。
+  閉じた。dev-wave 改善候補 1 (`tools/dev_wave_submodule_init.py` が高負荷時に内側 30 秒 deadline で rc=1
+  `runtime-io-failure kind=update-no-fetch` を返し、同じ argv の再走で入れ子 googletest まで揃った) → 不採用: 実害なし
+  (再走 1 回) で、収容先の `DW-C01` は exact pin 節のため Codex author + fixture placeholder を要し費用対効果が合わない。
+  本行の記録に留める。
 - 検査: `tools/check_docs.py`、`spool_fold.py --dry-run`、`git diff --check`、provenance 監査。受入全走は land 前に 1 回
   (結果は land の受領証)。
 
