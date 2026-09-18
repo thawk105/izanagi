@@ -67842,3 +67842,19 @@ sidecar を照合し、job-result writer が binding の field・型・値を確
 - A-1 (承認済み世代の artifact から期待集合を導出) と A-2 (active v2 なら receipt を要求しない) — 裁定で却下済み (C2-4 の二重実装 / 置換範囲が広い)。
 
 **研究状態への影響:** certified 選択・レポート・台帳の値は変えない。変わるのは「active v2 の full validation を直前に通した木で、receipt 層 2 の重複した zero-hit 判定を委譲する」の 1 形だけ。これにより chain + G を main に載せた後の oracle 実走 (W-5) が gate に到達できる前提が整う。
+
+## D2155. K2手動loopのcritic診断は明示逐語から兄弟keyへ射影し、同一診断を次planner/coderへ渡す (2026-09-19)
+
+**決定:** D2148項3の局所実装として `k2_critic_diagnosis` を追加する。親が指定したcritic逐語bytesから
+既存抽出器で4節を取り、data boundary・source SHA-256と合わせたexact6fieldを両role入力へ組み込む。
+K2・非B-4・reflux onに限定し、直接builderにも適用条件を置く。未指定はkey自体なし。
+whiteboardの5field・delta_pct=None・AO非読取と、評価・停止判定は不変。実consumerは登録Claude roleへの
+親のinline送付であり、新しい自動launcherや送達receiptは作らない。実受領・採用・改善効果は別の実走で確認する。
+
+**理由:** 診断未送達と既知値再提案は実走で観測されたが、因果は未検証。4節は留保を落とさず既存抽出器を
+再利用する局所案であり、候補値の採用強制ではない。診断中の権限・検証上書き命令は既存境界報告へ返し、
+knowledge source indexを捏造しない。static adapterは本文とsource pinのみ同期し、既存schemaとruntime blockedを維持する。
+
+**却下:** whiteboard拡張、報告用AOからの自動還流、8c数値射影への置換、static schemaのついで修復、
+新launcher・汎用台帳・候補再抽選。次の実走計画には同機体・同jobのstock適応backoff対照を含め、
+予算は別途確定する。本変更では3巡目を投入しない。検証記録は `output/insights/2026-09-19/t2783-critic-input/README.md`。
