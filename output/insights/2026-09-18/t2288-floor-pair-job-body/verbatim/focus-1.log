@@ -1,0 +1,122 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-47b52cbc5f)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2288-floor-pair-job-body/output/pegasus-dispatch/orphan-holds/unknown-69c3202b4bccf5e54536c9e4.json
+[Pegasus dispatch] request ID 5523.nqsv を受理しました
+[Pegasus dispatch] request 5523.nqsv の状態: QUE
+[Pegasus dispatch] request 5523.nqsv の状態: RUN
+[Pegasus dispatch] request 5523.nqsv の状態: END
+[Pegasus dispatch] request 5523.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2288-floor-pair-job-body/output/pegasus-dispatch/orphan-holds/unknown-69c3202b4bccf5e54536c9e4.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2288-floor-pair-job-body/output/pegasus-dispatch/47b52cbc5f97f581b0cee38e588fad89/receipt.json へ保存しました (child rc=1)
+[Pegasus dispatch] request 5523.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+| 
+| ........................................................................ [ 14%]
+| ........................................................................ [ 28%]
+| ........................................................................ [ 42%]
+| ........................................................................ [ 57%]
+| .....................................................................F.. [ 71%]
+| ........................................................................ [ 85%]
+| .......................s................................................ [ 99%]
+| .                                                                        [100%]
+| =================================== FAILURES ===================================
+| ___________________________ test_child_rc_collection ___________________________
+| [gw32] linux -- Python 3.10.12 /bin/python3.10
+| 
+|     def test_child_rc_collection():
+|         for child in ("exit 7", 'kill -TERM "$PPID"; sleep 0.1; exit 7'):
+|             with tempfile.TemporaryDirectory() as directory:
+|                 result = _bash(_functions(JOB, "fail", "record_signal", "run_driver", "write_result") + '''
+|     PY=$1 FP_EVIDENCE_DIR=$2 SIGNAL_RC=0
+|     trap 'fail 4 driver unexpected_err_trap' ERR
+|     driver_argv=(sh -c "$3")
+|     run_driver
+|     PBS_JOBID=0:123.nqsv HOST_OBSERVED=bnode009 FP_NONCE=n FP_EXPECTED_HEAD=h
+|     FP_SPEC_RELPATH=spec FP_SPEC_SHA256=sha FP_MODE=window FP_WINDOW_ID=rr95-w1 STARTED_EPOCH=1
+|     write_result "$JOB_RC"
+|     exit "$JOB_RC"
+|     ''', sys.executable, directory, child)
+|                 assert result.returncode == 7, result.stderr
+|                 payload = json.loads((Path(directory) / "job-result.json").read_text())
+|                 assert payload["driver_rc"] == payload["job_rc"] == 7
+|                 assert payload["driver_stdout_sha256"] == hashlib.sha256(b"").hexdigest()
+| >               assert payload["reason"] == ("completed" if child == "exit 7" else "signal_observed")
+| E               AssertionError: assert 'completed' == 'signal_observed'
+| E                 
+| E                 - signal_observed
+| E                 + completed
+| 
+| orchestrator/tests/test_floor_pair_job_contract.py:306: AssertionError
+| =========================== short test summary info ============================
+| FAILED orchestrator/tests/test_floor_pair_job_contract.py::test_child_rc_collection
+| 1 failed, 503 passed, 1 skipped in 7.07s
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+| === IZANAGI FAILURE DIGEST v1 BEGIN ===
+| IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_floor_pair_job_contract.py::test_child_rc_collection" nodeid_bytes=76 nodeid_omitted_bytes=0 source_bytes=1363 retained_bytes=1363 omitted_bytes=0 rendered_excerpt_bytes=1416 sha256=5ab4cd147afc4de80967363181e1e1c4199e4f268267329bbd10c43d4ea6147c
+| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+| > [gw32] linux -- Python 3.10.12 /bin/python3.10
+| > 
+| >     def test_child_rc_collection():
+| >         for child in ("exit 7", 'kill -TERM "$PPID"; sleep 0.1; exit 7'):
+| >             with tempfile.TemporaryDirectory() as directory:
+| >                 result = _bash(_functions(JOB, "fail", "record_signal", "run_driver", "write_result") + '''
+| >     PY=$1 FP_EVIDENCE_DIR=$2 SIGNAL_RC=0
+| >     trap 'fail 4 driver unexpected_err_trap' ERR
+| >     driver_argv=(sh -c "$3")
+| >     run_driver
+| >     PBS_JOBID=0:123.nqsv HOST_OBSERVED=bnode009 FP_NONCE=n FP_EXPECTED_HEAD=h
+| >     FP_SPEC_RELPATH=spec FP_SPEC_SHA256=sha FP_MODE=window FP_WINDOW_ID=rr95-w1 STARTED_EPOCH=1
+| >     write_result "$JOB_RC"
+| >     exit "$JOB_RC"
+| >     ''', sys.executable, directory, child)
+| >                 assert result.returncode == 7, result.stderr
+| >                 payload = json.loads((Path(directory) / "job-result.json").read_text())
+| >                 assert payload["driver_rc"] == payload["job_rc"] == 7
+| >                 assert payload["driver_stdout_sha256"] == hashlib.sha256(b"").hexdigest()
+| > >               assert payload["reason"] == ("completed" if child == "exit 7" else "signal_observed")
+| > E               AssertionError: assert 'completed' == 'signal_observed'
+| > E                 
+| > E                 - signal_observed
+| > E                 + completed
+| > 
+| > orchestrator/tests/test_floor_pair_job_contract.py:306: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=1 END ---
+| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1363 retained_bytes=1363 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2119 omitted_manifest_sha256=-
+| === IZANAGI FAILURE DIGEST v1 END ===
+[Pegasus dispatch] request 5523.nqsv child stdout end
+[Pegasus dispatch] request 5523.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 1601923, "time_ns": 1789699118159503467}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1601944, "event": "direct-child-wait-start", "pid": 1601930, "time_ns": 1789699118187852224}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 1601944, "event": "direct-child-wait-complete", "pid": 1601930, "time_ns": 1789699125813211636}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 1601930, "rc": 0, "time_ns": 1789699125813565174}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 1601923, "rc": 0, "time_ns": 1789699125818094478}
+| IZANAGI_DISPATCH_JOB_TRACE {"ancestors": [{"comm": "python3.10", "pid": 1601923}, {"comm": "bash", "pid": 1601904}, {"comm": "nqs_shpd", "pid": 1601903}, {"comm": "nqs_shpd", "pid": 1601692}, {"comm": "nqs_shpd", "pid": 2256}, {"comm": "systemd", "pid": 1}], "event": "session-sweep-start", "own_user_ns": "user:[4026531837]", "pid": 1601923, "sid": 1601903, "time_ns": 1789699125818506191}
+| IZANAGI_DISPATCH_JOB_TRACE {"attributed_total": 0, "elapsed_ms": 34.13483593612909, "event": "session-sweep-complete", "exited_after_kill": 0, "exited_after_term": 0, "found_total": 0, "pid": 1601923, "remaining": 0, "rounds_used": 1, "session_unknown": 0, "status": "clean", "time_ns": 1789699125852679430, "unattributed_total": 0, "zombies": 0}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 1601923, "time_ns": 1789699125854561168}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 1601923, "time_ns": 1789699125879249779}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 1601923, "time_ns": 1789699125879970642}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 1601923, "time_ns": 1789699125879982082}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 1601923, "time_ns": 1789699125881236063}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 1601923, "time_ns": 1789699125881243387}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 1601923, "rc": 1, "time_ns": 1789699125881255121}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 1601923, "rc": 1, "time_ns": 1789699125881273395}
+| 
+| ============================================================
+| Request ID:             5523.nqsv
+| Request Name:           izdw-47b52cbc5f
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Fri Sep 18 11:38:30 2026
+| Started Request Time:   Fri Sep 18 11:38:37 2026
+| Ended Request Time:     Fri Sep 18 11:38:45 2026
+| Resources Information:
+|   Elapse:               13S
+|   Remaining Elapse:     3587S
+| ============================================================
+[Pegasus dispatch] request 5523.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+rc=1
