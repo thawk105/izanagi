@@ -146,3 +146,11 @@ stock-U 4 thread = 343〜379 万 txn、perm-erase hot t1 = txn 55 / P 1,111 — 
 - read 側 hot 経路・RLL 再試行・DELETE の動的被覆、多操作 txn での balanced 性 (U 限定)。
 - 4 thread 負例の別 integrity 異常は raw record に残すだけで check にしていない (R1)。
 - wave 2 ([T-2773]) = template 接続、auditor.md の mocc 節、DQ / consumer 束縛の対照、gate test、n=1。
+
+## 8. 段 8 (自己改善) の候補と routing
+
+- 候補 1 (near miss、本 wave で実測): 変異の login probe は自走 harness を持つ test file しか観測できず、pytest 専用 allowlist の file
+  (`test_screening_driver.py`) を本走の runner argv に入れると観測不能な赤 node で MISMATCH になりうる。routing = `docs/dev-wave/mutation.md` の
+  DW-M08 へ 1 文 (119 bytes) を統合する案 → `check_docs.py` の L1.5 unique footprint が 9,815 > 予算 9,696 で赤。D782 / D730 の手順: 既存記述の
+  意味等価な削減候補を見つけられず、独立例は本 wave の 1 件で 3 例未満 → 上限は引き上げず「実施しない」。候補はここと親の memory に残す。
+- 候補 2 (自分の argv 誤り、既存正本 DW-C01 が既に規定): review 段への `--lane`、workspace-write への `--max-attempts > 1` は rc=2。docs 変更なし。

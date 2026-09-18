@@ -42,6 +42,8 @@ title: [T-2772] mocc の auditor-live 相当の機械実証 wave 1 を実走し�
 - login 生死確認 (build のみ): 新負例 ON/OFF × TRACE=1 で `-Wall -Wextra -Werror` 通過、macro 0/1 × TRACE=0 は無 patch と `.text` 一致 59,854 行 (binary sha 同一)。
 - 実走: 焦点走 (gen_S 5029.nqsv: 303 passed / 1 failed = scratch 競合、fix 後の焦点走 3 (gen_S 5152.nqsv、JSON consumer 込み) = 305 passed / 0 failed / 2 skipped (既存 skip))、compute 2 回、変異 matrix (baseline PASSED・12/12 KILLED 期待 node 完全一致・等価 M0 SURVIVED・MISMATCH 0)、
   受入全走 (本 commit を含む tip、結果は land の受領証)。
+- 段 8: 候補 1 件 (pytest 専用 test file は変異 probe で観測不能 → 本走 argv から外す) を DW-M08 へ統合する案は L1.5 予算 (9,696 bytes) 超過で
+  D782 / D730 の手順により「実施しない」(削減候補なし、独立例 1 件)。insight §8 と memory に記録。
 - 工数: codex 子 7 本 (plan 1、consult 2、author 1、review 2 (+ argv 誤り 2 本は未起動)、fix 1、全段 `gpt-6-astra`)。親の実測: verifier 予算 probe 1、生死確認 build 12 本、
   焦点走 2 回、compute 2 回、変異 probe / 本走。
 
