@@ -9,10 +9,10 @@ compatibility wrappers for the F707/F718 contracts.
 The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
-Claim boundary: the supply domain contains the 38 patch-derived defines.  The
-legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Nine
-registered macros plus three mocc controls additionally have a bounded
-compile-time witness (12 total): it
+Claim boundary: the supply domain contains the 39 patch-derived defines.  The
+legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Eleven
+registered macros plus four mocc controls additionally have a bounded
+compile-time witness (15 total): it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
 guarded branch for value 1 and omits it for value 0.  It
@@ -202,6 +202,10 @@ _DEFINE_SPECS = {
         ROUTE_CMAKE_CXX_FLAGS, _MOCC_OWNER, "ycsb_mocc.exe",
         "patches/broken-mocc-early-unlock.patch",
     ),
+    "IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK": DefineSpec(
+        ROUTE_CMAKE_CXX_FLAGS, _MOCC_OWNER, "ycsb_mocc.exe",
+        "patches/broken-mocc-hot-update-unlock.patch",
+    ),
     "IZANAGI_BREAK_NOREAD_VALIDATION": DefineSpec(
         ROUTE_CMAKE_CXX_FLAGS, _SILO_OWNER, "ycsb_silo.exe",
         "patches/broken-silo-norw-validation.patch",
@@ -266,6 +270,9 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     ),
     "IZANAGI_BREAK_MOCC_EARLY_UNLOCK": (
         "cc/mocc/transaction.cc", "#if IZANAGI_BREAK_MOCC_EARLY_UNLOCK",
+    ),
+    "IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK": (
+        "cc/mocc/transaction.cc", "#if IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK",
     ),
     "IZANAGI_BREAK_WRITE_INTENT_ERASE": (
         "cc/silo/transaction.cc", "#if IZANAGI_BREAK_WRITE_INTENT_ERASE",

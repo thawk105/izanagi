@@ -7920,6 +7920,9 @@ def test_all_naked_izanagi_macro_patches_are_registered_or_allowlisted():
         "patches/broken-mocc-early-unlock.patch": frozenset({
             "IZANAGI_BREAK_MOCC_EARLY_UNLOCK",
         }),
+        "patches/broken-mocc-hot-update-unlock.patch": frozenset({
+            "IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK",
+        }),
         "patches/instr-silo-backoff-trigger-gating-tally.patch": frozenset(),
     }
     literal_only_tokens = {
@@ -8995,6 +8998,468 @@ def test_terminal_variant_still_skips_prebuild_transport_without_build(
     forbidden.assert_not_called()
     assert summary.skipped == 1 and summary.evaluated == 0
     assert summary.skipped_variants == [variant]
+
+
+@pytest.fixture
+def agent_ingest_fixture(tmp_path):
+    """Small, synthetic campaign; never read a real campaign or admission receipt."""
+    layout = CampaignLayout(root=str(tmp_path / "campaign")).ensure()
+    root = Path(layout.root)
+    record = {"ts": 1.0, "stage": "commit", "variant": "fixture-v",
+              "env_tag": "pegasus", "payload": {}}
+    Path(layout.wal_file).write_text(json.dumps(record) + "\n", encoding="utf-8")
+    Path(layout.lock_file).write_bytes(b'{"fixture":true}\n')
+    (root / "loop_state.json").write_bytes(b'{"fixture":true}\n')
+    digest = root / "s4_loop_digest.txt"
+    digest.write_bytes(b"fixture digest\n")
+    receipt = root / "knowledge_manifest_receipt.json"
+    receipt.write_text(json.dumps({"knowledge_manifest_sha256": "a" * 64}))
+    document = _k2_proposal_document()
+    document["planner"]["uncertainty"] = "fixture uncertainty"
+    proposal = _write_k2_proposal(tmp_path, document, "proposal.json")
+    inputs = {
+        "planner": {"current_perf": {}, "leading_indicators": {}, "whiteboard": []},
+        "coder": {"leakproof_context": {}, "knowledge_input": {
+            "knowledge_manifest_sha256": "a" * 64}, "baseline": {},
+            "planner_direction": document["planner"], "whiteboard": []},
+        "critic": {"digest_sha256": hashlib.sha256(digest.read_bytes()).hexdigest()},
+    }
+    input_paths = {role: _write_k2_proposal(tmp_path, value, role + "-input.json")
+                   for role, value in inputs.items()}
+    critic = tmp_path / "critic.md"
+    critic.write_bytes(b"preamble\r\n## attribution\r\n  exact text\r\nline two  \r\n"
+                       b"## extra\r\nnot attribution\r\n## recommend\r\nnext\r\n"
+                       b"## avoid\r\nnone\r\n## uncertainty\r\nunknown\r\n")
+    prompt = tmp_path / "prompt.txt"
+    prompt.write_bytes(b"original prompt\n")
+
+    def argv(role):
+        stage = role + ("_attributed" if role == "critic" else "_proposed")
+        args = ["--record-agent-output", stage, str(critic if role == "critic" else proposal),
+                "--agent-campaign-dir", str(root), "--agent-input", str(input_paths[role])]
+        if role == "critic":
+            args += ["--agent-variant", "fixture-v", "--agent-digest", str(digest)]
+        else:
+            args += ["--agent-output-key", role]
+        return args
+
+    return SimpleNamespace(layout=layout, root=root, record=record, document=document,
+                           proposal=proposal, inputs=inputs, input_paths=input_paths,
+                           critic=critic, digest=digest, receipt=receipt, prompt=prompt, argv=argv)
+
+
+@pytest.mark.parametrize("fence", ["```", "~~~"])
+def test_agent_critic_fenced_only_rejected(agent_ingest_fixture, fence):
+    f = agent_ingest_fixture
+    f.critic.write_bytes((fence + "\n").encode() + f.critic.read_bytes()
+                         + (fence + "\n").encode())
+    assert L.main(f.argv("critic")) == 1
+    assert not Path(f.layout.agent_outputs_file).exists()
+
+
+@pytest.mark.parametrize("role", ["planner", "coder", "critic"])
+def test_agent_ingest_uncommitted_variant(agent_ingest_fixture, role):
+    f = agent_ingest_fixture
+    Path(f.layout.wal_file).write_text(json.dumps({**f.record, "stage": "abort"}) + "\n")
+    args = f.argv(role)
+    if role != "critic":
+        args += ["--agent-variant", "fixture-v"]
+    assert L.main(args) == 0
+    assert L.agent_outputs.read_agent_outputs(f.layout.agent_outputs_file)[0]["variant"] == "fixture-v"
+
+
+def test_agent_ingest_three_stages_preserve_campaign(agent_ingest_fixture, monkeypatch, capsys):
+    f = agent_ingest_fixture
+    forbidden = unittest.mock.Mock(side_effect=AssertionError("evaluation entry reached"))
+    for name in ("_current_site", "_admit_env_contract", "_resolve_knowledge_manifest_argument",
+                 "build_run_context", "drive_iteration"):
+        monkeypatch.setattr(L, name, forbidden)
+    paths = [Path(f.layout.lock_file), Path(f.layout.wal_file), f.root / "loop_state.json",
+             f.digest, f.receipt]
+    before = {path: path.read_bytes() for path in paths}
+    ref = "wal:" + L.agent_outputs.canonical_sha256(f.record)
+    for role in ("planner", "coder", "critic"):
+        assert L.main(f.argv(role) + ["--agent-wal-ref", ref, "--agent-prompt", str(f.prompt)]) == 0
+    rows = L.agent_outputs.read_agent_outputs(f.layout.agent_outputs_file)
+    assert len(rows) == 3
+    for role, row in zip(("planner", "coder", "critic"), rows):
+        payload = row["payload"]
+        source = f.critic if role == "critic" else f.proposal
+        assert payload["input_sha256"] == L.agent_outputs.canonical_sha256(f.inputs[role])
+        assert payload["refs"] == [ref]
+        assert payload["provenance"] == {
+            "mode": "ingested", "source_path": str(source.resolve()),
+            "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+            "input_path": str(f.input_paths[role].resolve()),
+            "input_file_sha256": hashlib.sha256(f.input_paths[role].read_bytes()).hexdigest(),
+            "prompt_path": str(f.prompt.resolve()),
+            "prompt_sha256": hashlib.sha256(f.prompt.read_bytes()).hexdigest(),
+        }
+        assert row["env_tag"] == "pegasus"
+        assert row["variant"] == ("fixture-v" if role == "critic" else None)
+        if role != "critic":
+            assert payload["output"] == f.document[role]
+    assert rows[2]["payload"]["output"] == {
+        "raw_markdown": f.critic.read_bytes().decode(),
+        "attribution": "exact text\r\nline two", "recommend": "next",
+        "avoid": "none", "uncertainty": "unknown",
+    }
+    assert rows[2]["payload"]["digest_sha256"] == f.inputs["critic"]["digest_sha256"]
+    assert {path: path.read_bytes() for path in paths} == before
+    lines = capsys.readouterr().out.splitlines()
+    assert lines == [
+        f"agent output recorded: stage={row['stage']} ref={L.agent_outputs.envelope_ref(row)} "
+        f"path={f.layout.agent_outputs_file}" for row in rows
+    ]
+    forbidden.assert_not_called()
+
+
+@pytest.mark.parametrize("role", ["planner", "coder"])
+def test_agent_ingest_role_file(agent_ingest_fixture, role):
+    f = agent_ingest_fixture
+    output = f.document[role]
+    if role == "planner":
+        output = {"proposal": output}
+    f.proposal.write_text(json.dumps(output))
+    assert L.main(f.argv(role)[:-2]) == 0
+    assert L.agent_outputs.read_agent_outputs(f.layout.agent_outputs_file)[0]["payload"]["output"] == output
+
+
+@pytest.mark.parametrize("extra", [
+    ["--run-iteration", "x"], ["--emit-planner-context", "x"], ["--no-build"],
+    ["--value", "20"], ["--value=20"], ["--reflux", "on"], ["--b4-reflux-ablation"],
+    ["--b4-closed-critic-receipt", "x"], ["--b4-prerun-publication", "x"],
+    ["--b4-attempt-id", "x"], ["--knowledge-manifest", "x"],
+    ["--knowledge-classification", "reproduction_or_selection"],
+    ["--knowledge-de-novo-claim", "false"], ["--coder-role", "coder-v4-autonomous-k2"],
+    ["--policy-hint", "x"], ["--isolate-worktree"],
+    ["--fetchcontent-prebuild-receipt", "x"], ["--allow-coder-derived-build"],
+    ["--agent-inputs", "x"], ["--agent-prompts", "x"],
+])
+def test_agent_ingest_rejects_evaluation_options(agent_ingest_fixture, extra):
+    with pytest.raises(SystemExit) as exc:
+        L.main(agent_ingest_fixture.argv("planner") + extra)
+    assert exc.value.code == 2
+
+
+@pytest.mark.parametrize("option,value", [
+    ("--agent-campaign-dir", "x"), ("--agent-input", "x"), ("--agent-output-key", "planner"),
+    ("--agent-variant", "x"), ("--agent-digest", "x"), ("--agent-wal-ref", "wal:" + "a" * 64),
+    ("--agent-prompt", "x"), ("--agent-inputs", "x"), ("--agent-prompts", "x"),
+])
+def test_agent_options_require_mode(option, value):
+    with pytest.raises(SystemExit) as exc:
+        L.main([option, value])
+    assert exc.value.code == 2
+
+
+@pytest.mark.parametrize("case,role,reason", [
+    ("missing-dir", "planner", "directory"), ("missing-lock", "planner", "campaign.lock"),
+    ("empty-wal", "planner", "empty"), ("env", "planner", "env_tag"),
+    ("stage-key", "planner", "mismatch"), ("planner-schema", "planner", "five"),
+    ("planner-direction", "planner", "domain"), ("coder-schema", "coder", "schema"),
+    ("critic-missing", "critic", "exactly once"), ("critic-duplicate", "critic", "exactly once"),
+    ("knowledge", "coder", "knowledge_manifest_sha256"),
+    ("receipt-missing", "coder", "receipt"), ("digest", "critic", "digest_sha256"),
+    ("campaign-digest", "critic", "digest_sha256"), ("digest-missing", "critic", "--agent-digest"),
+    ("variant", "critic", "variant absent"), ("variant-missing", "critic", "--agent-variant"),
+    ("planner-variant", "planner", "variant absent"), ("ref", "planner", "WAL ref"),
+    ("input-missing", "planner", "input missing"), ("input-array", "planner", "object"),
+])
+def test_agent_ingest_invalid_bindings(agent_ingest_fixture, capsys, case, role, reason):
+    f = agent_ingest_fixture
+    args = f.argv(role)
+    if case == "missing-dir":
+        args[args.index("--agent-campaign-dir") + 1] += "-absent"
+    elif case == "missing-lock":
+        Path(f.layout.lock_file).unlink()
+    elif case == "empty-wal":
+        Path(f.layout.wal_file).write_bytes(b"")
+    elif case == "env":
+        with Path(f.layout.wal_file).open("a") as stream:
+            stream.write(json.dumps({**f.record, "env_tag": "other"}) + "\n")
+    elif case == "stage-key":
+        args[-1] = "coder"
+    elif case in ("planner-schema", "coder-schema", "planner-direction"):
+        if case == "planner-schema":
+            del f.document["planner"]["uncertainty"]
+        elif case == "planner-direction":
+            f.document["planner"]["direction"] = "sideways"
+        else:
+            del f.document["coder"]["knowledge_use"]
+        f.proposal.write_text(json.dumps(f.document))
+    elif case.startswith("critic-"):
+        raw = f.critic.read_bytes()
+        f.critic.write_bytes(raw.replace(b"## avoid", b"## other") if case == "critic-missing"
+                             else raw + b"## avoid\nagain\n")
+    elif case == "knowledge":
+        f.inputs[role]["knowledge_input"]["knowledge_manifest_sha256"] = "b" * 64
+        f.input_paths[role].write_text(json.dumps(f.inputs[role]))
+    elif case == "receipt-missing":
+        f.receipt.unlink()
+    elif case == "digest":
+        f.inputs[role]["digest_sha256"] = "b" * 64
+        f.input_paths[role].write_text(json.dumps(f.inputs[role]))
+    elif case == "campaign-digest":
+        other = f.root.parent / "other-digest.txt"
+        other.write_bytes(b"other digest")
+        args[-1] = str(other)
+        f.inputs[role]["digest_sha256"] = hashlib.sha256(other.read_bytes()).hexdigest()
+        f.input_paths[role].write_text(json.dumps(f.inputs[role]))
+    elif case == "digest-missing":
+        args = args[:-2]
+    elif case == "variant":
+        args[args.index("--agent-variant") + 1] = "absent"
+    elif case == "variant-missing":
+        index = args.index("--agent-variant")
+        del args[index:index + 2]
+    elif case == "planner-variant":
+        args += ["--agent-variant", "absent"]
+    elif case == "ref":
+        args += ["--agent-wal-ref", "wal:" + "b" * 64]
+    elif case == "input-missing":
+        f.input_paths[role].write_text("{}")
+    elif case == "input-array":
+        f.input_paths[role].write_text("[]")
+    assert L.main(args) == 1
+    assert reason in capsys.readouterr().err
+    assert not Path(f.layout.agent_outputs_file).exists()
+
+
+@pytest.mark.parametrize("same_ts", [True, False])
+def test_agent_ingest_duplicate(agent_ingest_fixture, monkeypatch, capsys, same_ts):
+    f = agent_ingest_fixture
+    monkeypatch.setattr(L.time, "time", lambda: 1.0)
+    assert L.main(f.argv("planner")) == 0
+    path = Path(f.layout.agent_outputs_file)
+    before = path.read_bytes()
+    if not same_ts:
+        monkeypatch.setattr(L.time, "time", lambda: 2.0)
+    assert L.main(f.argv("planner")) == 1
+    assert "duplicate" in capsys.readouterr().err
+    assert path.read_bytes() == before
+
+
+def test_agent_reader_unknown_stage(agent_ingest_fixture):
+    f = agent_ingest_fixture
+    assert L.main(f.argv("planner")) == 0
+    path = Path(f.layout.agent_outputs_file)
+    row = json.loads(path.read_bytes())
+    row["stage"] = "unknown"
+    path.write_text(json.dumps(row) + "\n")
+    with pytest.raises(L.agent_outputs.AgentOutputError, match="unknown stage"):
+        L.agent_outputs.read_agent_outputs(path)
+
+
+@pytest.mark.parametrize("recording,stopped,prompts", [
+    (True, False, False), (True, True, False), (False, False, False), (True, False, True),
+])
+def test_agent_live_main(tmp_path, monkeypatch, capsys, recording, stopped, prompts):
+    from orchestrator.campaign import patchharness
+
+    layout = CampaignLayout(root=str(tmp_path / "live")).ensure()
+    resolved = _resolved_empty_knowledge_fixture(tmp_path)
+    document = _k2_proposal_document()
+    proposal = _write_k2_proposal(tmp_path, document, "live-proposal.json")
+    inputs = {"planner": {"actual": "planner input"}, "coder": {"actual": "coder input"}}
+    input_path = _write_k2_proposal(tmp_path, inputs, "inputs.json")
+    monkeypatch.setattr(L, "_current_site", lambda: site_policy.OTHER)
+    monkeypatch.setattr(L.time, "time", lambda: 1000.0)
+    monkeypatch.setattr(L, "_resolve_knowledge_manifest_argument", lambda _p: resolved)
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(patchharness, "assert_pinned_clean", lambda *_a, **_k: None)
+    monkeypatch.setattr(ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
+    if stopped:
+        L.save_loop_state(layout, L.LoopState(start_wall=time.time(), reverse_recommendations=100))
+
+    def evaluate(*_a, **_k):
+        assert not stopped
+        if recording:
+            assert len(L.agent_outputs.read_agent_outputs(layout.agent_outputs_file)) == 2
+        return {"outcome": "dry-pass", "variant": None}
+
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", evaluate)
+    args = ["--run-iteration", str(proposal), "--no-build", "--coder-role", "coder-v4-autonomous-k2"]
+    if recording:
+        args += ["--agent-inputs", str(input_path)]
+    if prompts:
+        prompt = tmp_path / "prompt.md"
+        prompt.write_bytes(b"original role prompt\n")
+        prompt_paths = _write_k2_proposal(tmp_path, {
+            "planner": str(prompt), "coder": str(prompt)}, "prompts.json")
+        args += ["--agent-prompts", str(prompt_paths)]
+    assert L.main(args) == 0
+    if stopped or not recording:
+        assert not Path(layout.agent_outputs_file).exists()
+        if not recording:
+            legacy_stdout = capsys.readouterr().out
+            checkpoint = Path(L.loop_state_path(layout))
+            legacy_checkpoint = checkpoint.read_bytes()
+            checkpoint.unlink()
+            assert L.main(args + ["--agent-inputs", str(input_path)]) == 0
+            assert capsys.readouterr().out == legacy_stdout
+            assert checkpoint.read_bytes() == legacy_checkpoint
+    else:
+        rows = L.agent_outputs.read_agent_outputs(layout.agent_outputs_file)
+        assert len(rows) == 2
+        for role, row in zip(("planner", "coder"), rows):
+            assert row["stage"] == role + "_proposed"
+            assert row["variant"] is None
+            assert row["env_tag"] == L.ENV_TAG
+            assert row["payload"]["output"] == document[role]
+            assert row["payload"]["input_sha256"] == L.agent_outputs.canonical_sha256(inputs[role])
+            provenance = row["payload"]["provenance"]
+            assert provenance["mode"] == "live"
+            assert provenance["source_sha256"] == hashlib.sha256(proposal.read_bytes()).hexdigest()
+            assert provenance["input_file_sha256"] == hashlib.sha256(input_path.read_bytes()).hexdigest()
+            if prompts:
+                assert provenance["prompt_path"] == str(prompt.resolve())
+                assert provenance["prompt_sha256"] == hashlib.sha256(prompt.read_bytes()).hexdigest()
+
+
+def test_agent_live_actual_no_build(tmp_path, monkeypatch, ratified_enforcement_source):
+    import contextlib
+    from orchestrator.campaign import patchharness
+
+    layout = CampaignLayout(root=str(tmp_path / "live-actual")).ensure()
+    sub = _mk_template_dir(L.SOURCE_REL)
+    document = _k2_proposal_document()
+    proposal = _write_k2_proposal(tmp_path, document, "proposal.json")
+    inputs = {"planner": {"actual": "planner"}, "coder": {"actual": "coder"}}
+    input_path = _write_k2_proposal(tmp_path, inputs, "inputs.json")
+    record = {"proposal_path": proposal, "input_path": input_path,
+              "input_bytes": input_path.read_bytes(), "planner_input": inputs["planner"],
+              "coder_input": inputs["coder"]}
+    planner, coder, prior = L.load_proposal_file(
+        str(proposal), capture=record, coder_role="coder-v4-autonomous-k2",
+        knowledge_input=KM.planner_projection(_resolved_empty_knowledge_fixture(tmp_path)))
+    monkeypatch.setattr(patchharness, "applied", lambda *_a, **_k: contextlib.nullcontext())
+    monkeypatch.setattr(L, "_current_site", lambda: site_policy.OTHER)
+    out = L.drive_iteration(L.default_cfg(), L.default_perf(), planner, coder, prior, sub,
+                            do_build=False, layout=layout, agent_record=record)
+    assert out["outcome"] == "dry-pass" and out["ran"] is True
+    rows = L.agent_outputs.read_agent_outputs(layout.agent_outputs_file)
+    assert [row["payload"]["output"] for row in rows] == [document["planner"], document["coder"]]
+
+
+def test_agent_live_append_failure_propagates(tmp_path, monkeypatch):
+    layout = CampaignLayout(root=str(tmp_path / "append-failure")).ensure()
+    planner, coder = _site_test_proposals()
+    record = {"proposal_path": tmp_path / "proposal.json", "proposal_bytes": b"{}",
+              "input_path": tmp_path / "inputs.json", "input_bytes": b"{}",
+              "planner_input": {}, "coder_input": {},
+              "planner_output": {}, "coder_output": {}}
+    monkeypatch.setattr(L, "_current_site", lambda: site_policy.OTHER)
+    monkeypatch.setattr(ident, "ensure_resumable_attempts", lambda *_a, **_k: None)
+    append = unittest.mock.Mock(side_effect=OSError("fixture fsync failure"))
+    evaluate = unittest.mock.Mock(side_effect=AssertionError("evaluation reached"))
+    monkeypatch.setattr(L.agent_outputs, "append_agent_output", append)
+    monkeypatch.setattr(L, "_run_one_iteration_resolved", evaluate)
+    with pytest.raises(OSError, match="fsync"):
+        L.drive_iteration(L.default_cfg(), L.default_perf(), planner, coder, None, "unused",
+                          do_build=False, layout=layout, agent_record=record)
+    append.assert_called_once()
+    evaluate.assert_not_called()
+
+
+def test_agent_loader_capture_only_after_validation(tmp_path):
+    document = _k2_proposal_document()
+    document["prior_critic_reverse"] = "not boolean"
+    proposal = _write_k2_proposal(tmp_path, document, "invalid.json")
+    capture = {}
+    with pytest.raises(ValueError):
+        L.load_proposal_file(str(proposal), capture=capture,
+                            coder_role="coder-v4-autonomous-k2",
+                            knowledge_input=KM.planner_projection(
+                                _resolved_empty_knowledge_fixture(tmp_path)))
+    assert capture == {}
+
+
+def _assert_agent_input_ast_isolated(source):
+    tree = ast.parse(source)
+    functions = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
+    roots = {"planner_context_payload", "whiteboard_for_planner", "project_whiteboard",
+             "_prepare_knowledge_campaign"}
+    targets = set(roots)
+    for name in roots:
+        targets.update(node.func.id for node in ast.walk(functions[name])
+                       if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                       and node.func.id in functions)
+    for name in targets:
+        for node in ast.walk(functions[name]):
+            if isinstance(node, ast.Name):
+                assert node.id not in {"read_agent_outputs", "agent_outputs_file", "open"}
+            if isinstance(node, ast.Attribute):
+                assert node.attr not in {"read_agent_outputs", "agent_outputs_file", "open"}
+
+
+@pytest.mark.parametrize("target", ["planner_context_payload", "_prepare_knowledge_campaign",
+                                    "whiteboard_for_planner"])
+def test_agent_input_ast_isolation_and_mutant(target):
+    source = Path(L.__file__).read_text()
+    _assert_agent_input_ast_isolated(source)
+    for name in ("planner_context_payload", "whiteboard_for_planner", "project_whiteboard",
+                 "_prepare_knowledge_campaign"):
+        parameters = inspect.signature(getattr(L, name)).parameters
+        assert not set(parameters) & {"agent_record", "agent_outputs", "layout", "path"}
+    tree = ast.parse(source)
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name == target:
+            node.body.insert(0, ast.parse("agent_outputs.read_agent_outputs('forbidden')").body[0])
+    with pytest.raises(AssertionError):
+        _assert_agent_input_ast_isolated(ast.unparse(tree))
+
+
+def test_agent_input_execution_isolation(tmp_path, monkeypatch):
+    forbidden = unittest.mock.Mock(side_effect=AssertionError("AO input read"))
+    monkeypatch.setattr(L.agent_outputs, "read_agent_outputs", forbidden)
+    layout = _tmp_layout("agent-input-execution-isolation")
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(L, "_current_site", lambda: site_policy.OTHER)
+    cfg = L.default_cfg()
+    state = L.LoopState(iteration=1)
+    L.project_whiteboard(state, _site_test_proposals()[0], "success")
+    assert L.whiteboard_for_planner(state) == L.planner_context_payload(state, cfg)["whiteboard"]
+    resolved = _resolved_empty_knowledge_fixture(tmp_path)
+    _cfg, _layout, knowledge = L._prepare_knowledge_campaign(
+        cfg, resolved, classification="de_novo", de_novo_claim=False)
+    assert knowledge == KM.planner_projection(resolved)
+    monkeypatch.setattr(L, "_resolve_knowledge_manifest_argument", lambda _p: resolved)
+    output = tmp_path / "context.json"
+    assert L.main(["--emit-planner-context", str(output),
+                   "--knowledge-classification", "de_novo",
+                   "--knowledge-de-novo-claim", "false"]) == 0
+    assert "knowledge_input" in json.loads(output.read_bytes())
+    forbidden.assert_not_called()
+
+
+def test_agent_input_bytes_independent_of_ao(agent_ingest_fixture, monkeypatch, tmp_path):
+    f = agent_ingest_fixture
+    layout = _tmp_layout("agent-input-bytes-independent-of-ao")
+    monkeypatch.setattr(L, "exploration_campaign_layout", lambda _id: layout)
+    monkeypatch.setattr(L, "_current_site", lambda: site_policy.OTHER)
+    resolved = _resolved_empty_knowledge_fixture(tmp_path)
+    monkeypatch.setattr(L, "_resolve_knowledge_manifest_argument", lambda _p: resolved)
+    state, cfg = L.LoopState(iteration=1), L.default_cfg()
+    L.project_whiteboard(state, _site_test_proposals()[0], "success")
+    L.save_loop_state(layout, state)
+    observed = []
+    for status in ("absent", "valid", "corrupt"):
+        if status == "valid":
+            assert L.main(f.argv("planner")) == 0
+            Path(layout.agent_outputs_file).write_bytes(
+                Path(f.layout.agent_outputs_file).read_bytes())
+        elif status == "corrupt":
+            Path(layout.agent_outputs_file).write_bytes(b"broken\n")
+        output = tmp_path / (status + ".json")
+        assert L.main(["--emit-planner-context", str(output),
+                       "--knowledge-classification", "de_novo",
+                       "--knowledge-de-novo-claim", "false"]) == 0
+        _cfg, _layout, knowledge = L._prepare_knowledge_campaign(
+            cfg, resolved, classification="de_novo", de_novo_claim=False)
+        observed.append((output.read_bytes(), L.agent_outputs.canonical_bytes(
+            L.planner_context_payload(state, cfg, knowledge_input=knowledge))))
+    assert observed[0] == observed[1] == observed[2]
 
 
 if __name__ == "__main__":

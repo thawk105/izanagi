@@ -1,0 +1,281 @@
+{
+ "M0-equivalent-comment": {
+  "touched": [
+   "orchestrator/campaign/s3_mocc_mutation_proof.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 0,
+    "seconds": 1.0,
+    "nodes": []
+   }
+  },
+  "failed_nodes": [],
+  "rc_nonzero": []
+ },
+ "M1-publish-relock-removed": {
+  "touched": [
+   "patches/broken-mocc-hot-update-unlock.patch",
+   "patches/broken-mocc-hot-update-unlock.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 0.9,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py"
+  ]
+ },
+ "M2-abort-relock-removed": {
+  "touched": [
+   "patches/broken-mocc-hot-update-unlock.patch",
+   "patches/broken-mocc-hot-update-unlock.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 1.3,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py"
+  ]
+ },
+ "M3-relock-via-txexecutor-lock": {
+  "touched": [
+   "patches/broken-mocc-hot-update-unlock.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 1.0,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py"
+  ]
+ },
+ "M4-publish-guard-inverted": {
+  "touched": [
+   "patches/broken-mocc-hot-update-unlock.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 0.8,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py"
+  ]
+ },
+ "M5-directive-duplicated": {
+  "touched": [
+   "patches/broken-mocc-hot-update-unlock.patch",
+   "patches/broken-mocc-hot-update-unlock.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 0.8,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_has_unique_condition_witness",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_condition_gate_uses_new_driver_id",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_has_unique_condition_witness",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_condition_gate_uses_new_driver_id",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py"
+  ]
+ },
+ "M6-line-460-off-by-one": {
+  "touched": [
+   "patches/broken-mocc-hot-update-unlock.patch"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 1.0,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_is_balanced_on_commit_and_abort",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py"
+  ]
+ },
+ "M7-hot-t1-check-constant-true": {
+  "touched": [
+   "orchestrator/campaign/s3_mocc_mutation_proof.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 1.1,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_checks_are_input_derived",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_u_trace_counts_reads"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_checks_are_input_derived",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_u_trace_counts_reads"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py"
+  ]
+ },
+ "M8-timeout-recorded-false": {
+  "touched": [
+   "orchestrator/campaign/s3_mocc_mutation_proof.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 0.9,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_run_records_failure_and_timeout"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_run_records_failure_and_timeout"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py"
+  ]
+ },
+ "M9-definespec-entry-removed": {
+  "touched": [
+   "orchestrator/campaign/condition_meaning_gate.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 0.7,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_has_unique_condition_witness",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_condition_gate_uses_new_driver_id"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_has_unique_condition_witness",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_condition_gate_uses_new_driver_id"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py"
+  ]
+ },
+ "M10-materializer-entry-removed": {
+  "touched": [
+   "orchestrator/campaign/materializer_admission.py"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 0.8,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_matrix_is_exact",
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_matrix_is_exact",
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py"
+  ]
+ },
+ "M11-json-hot-patch-sha-changed": {
+  "touched": [
+   "output/env/pegasus/calibration/s3_mocc_mutation_proof.json"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 0.8,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py"
+  ]
+ },
+ "M12-json-all-pass-false": {
+  "touched": [
+   "output/env/pegasus/calibration/s3_mocc_mutation_proof.json"
+  ],
+  "harness": {
+   "orchestrator/tests/test_mocc_mutation_proof.py": {
+    "rc": 1,
+    "seconds": 0.7,
+    "nodes": [
+     "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+    ]
+   }
+  },
+  "failed_nodes": [
+   "orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_mutation_proof_json_is_complete_and_bound"
+  ],
+  "rc_nonzero": [
+   "orchestrator/tests/test_mocc_mutation_proof.py"
+  ]
+ }
+}

@@ -1,0 +1,127 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-d6dfda7f39)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2772-mocc-mutation-proof-wave1/output/pegasus-dispatch/orphan-holds/unknown-21b0eebd3cc72677b9c291b5.json
+[Pegasus dispatch] request ID 5029.nqsv を受理しました
+[Pegasus dispatch] request 5029.nqsv の状態: QUE
+[Pegasus dispatch] request 5029.nqsv の状態: RUN
+[Pegasus dispatch] request 5029.nqsv の状態: END
+[Pegasus dispatch] request 5029.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2772-mocc-mutation-proof-wave1/output/pegasus-dispatch/orphan-holds/unknown-21b0eebd3cc72677b9c291b5.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2772-mocc-mutation-proof-wave1/output/pegasus-dispatch/d6dfda7f39ceb3b7409ad8f3cf45048f/receipt.json へ保存しました (child rc=1)
+[Pegasus dispatch] request 5029.nqsv child stdout begin
+| ============================= test session starts ==============================
+| platform linux -- Python 3.10.12, pytest-9.1.1, pluggy-1.6.0
+| rootdir: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2772-mocc-mutation-proof-wave1
+| configfile: pytest.ini
+| plugins: xdist-3.8.0, cov-7.1.0, hypothesis-6.165.2
+| created: 48/48 workers
+| 48 workers [306 items]
+|
+| .................................s..s.........................F......... [ 23%]
+| ........................................................................ [ 47%]
+| ........................................................................ [ 70%]
+| ........................................................................ [ 94%]
+| ..................                                                       [100%]
+| =================================== FAILURES ===================================
+| ______________ test_mocc_hot_unlock_has_unique_condition_witness _______________
+| [gw46] linux -- Python 3.10.12 /bin/python3.10
+|
+|     def test_mocc_hot_unlock_has_unique_condition_witness():
+|         macro = "IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK"
+|         assert G.CONDITIONAL_BRANCH_WITNESSES[macro] == (_SOURCE, f"#if {macro}")
+|         assert G.DEFINE_SPECS[macro].patch_rel == _PATCHES[4]
+|         declaration = G.ConditionalBranchMeaningDeclaration(
+|             macro=macro, source_rel=_SOURCE, start_directive=f"#if {macro}",
+|         )
+| >       with _source_root(_PATCHES[0], _PATCHES[4]) as root:
+|
+| orchestrator/tests/test_mocc_mutation_proof.py:189:
+| _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| /usr/lib/python3.10/contextlib.py:142: in __exit__
+|     next(self.gen)
+| orchestrator/tests/test_mocc_mutation_proof.py:112: in _source_root
+|     scratch.rmdir()
+| _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+|
+| self = PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2772-mocc-mutation-proof-wave1/.scratch-t2772')
+|
+|     def rmdir(self):
+|         """
+|         Remove this directory.  The directory must be empty.
+|         """
+| >       self._accessor.rmdir(self)
+| E       OSError: [Errno 39] Directory not empty: '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2772-mocc-mutation-proof-wave1/.scratch-t2772'
+|
+| /usr/lib/python3.10/pathlib.py:1215: OSError
+| =========================== short test summary info ============================
+| FAILED orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_has_unique_condition_witness
+| ============= 1 failed, 303 passed, 2 skipped in 82.53s (0:01:22) ==============
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+| === IZANAGI FAILURE DIGEST v1 BEGIN ===
+| IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_mocc_mutation_proof.py::test_mocc_hot_unlock_has_unique_condition_witness" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=1350 retained_bytes=1350 omitted_bytes=0 rendered_excerpt_bytes=1409 sha256=69496992b91870664e99802fc55d57f1346a42015833351c817ebce60593e4a4
+| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+| > [gw46] linux -- Python 3.10.12 /bin/python3.10
+| >
+| >     def test_mocc_hot_unlock_has_unique_condition_witness():
+| >         macro = "IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK"
+| >         assert G.CONDITIONAL_BRANCH_WITNESSES[macro] == (_SOURCE, f"#if {macro}")
+| >         assert G.DEFINE_SPECS[macro].patch_rel == _PATCHES[4]
+| >         declaration = G.ConditionalBranchMeaningDeclaration(
+| >             macro=macro, source_rel=_SOURCE, start_directive=f"#if {macro}",
+| >         )
+| > >       with _source_root(_PATCHES[0], _PATCHES[4]) as root:
+| >
+| > orchestrator/tests/test_mocc_mutation_proof.py:189:
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| > /usr/lib/python3.10/contextlib.py:142: in __exit__
+| >     next(self.gen)
+| > orchestrator/tests/test_mocc_mutation_proof.py:112: in _source_root
+| >     scratch.rmdir()
+| > _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+| >
+| > self = PosixPath('/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2772-mocc-mutation-proof-wave1/.scratch-t2772')
+| >
+| >     def rmdir(self):
+| >         """
+| >         Remove this directory.  The directory must be empty.
+| >         """
+| > >       self._accessor.rmdir(self)
+| > E       OSError: [Errno 39] Directory not empty: '/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2772-mocc-mutation-proof-wave1/.scratch-t2772'
+| >
+| > /usr/lib/python3.10/pathlib.py:1215: OSError
+| --- IZANAGI FAILURE EXCERPT rank=1 END ---
+| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1350 retained_bytes=1350 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2133 omitted_manifest_sha256=-
+| === IZANAGI FAILURE DIGEST v1 END ===
+[Pegasus dispatch] request 5029.nqsv child stdout end
+[Pegasus dispatch] request 5029.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 2103734, "time_ns": 1789683757286557316}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2103755, "event": "direct-child-wait-start", "pid": 2103741, "time_ns": 1789683757314791839}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2103755, "event": "direct-child-wait-complete", "pid": 2103741, "time_ns": 1789683840392422857}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 2103741, "rc": 0, "time_ns": 1789683840392528541}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 2103734, "rc": 0, "time_ns": 1789683840397131936}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 2103734, "time_ns": 1789683840400073152}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 2103734, "time_ns": 1789683840470071540}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 2103734, "time_ns": 1789683840470745277}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 2103734, "time_ns": 1789683840470755014}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 2103734, "time_ns": 1789683840472667253}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 2103734, "time_ns": 1789683840472675569}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 2103734, "rc": 1, "time_ns": 1789683840472685190}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 2103734, "rc": 1, "time_ns": 1789683840472703792}
+|
+| ============================================================
+| Request ID:             5029.nqsv
+| Request Name:           izdw-d6dfda7f39
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Fri Sep 18 07:22:24 2026
+| Started Request Time:   Fri Sep 18 07:22:36 2026
+| Ended Request Time:     Fri Sep 18 07:24:00 2026
+| Resources Information:
+|   Elapse:               88S
+|   Remaining Elapse:     3512S
+| ============================================================
+[Pegasus dispatch] request 5029.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid

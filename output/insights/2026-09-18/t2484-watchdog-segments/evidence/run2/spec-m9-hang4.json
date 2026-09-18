@@ -1,0 +1,24 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 3600,
+  "hang_timeout_seconds": 4,
+  "mutations": [
+    {
+      "id": "M9-gate-policy-drop-nofollow",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/mocc_trace_pilot.sh",
+          "old": "        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)\n    except OSError as exc:\n        raise ValueError(\"policy cannot be opened without following\") from exc\n",
+          "new": "        fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)\n    except OSError as exc:\n        raise ValueError(\"policy cannot be opened without following\") from exc\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_trace_job_contract.py::test_mocc_trace_policy_binding_rejects_symlink_policy"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": true
+    }
+  ]
+}

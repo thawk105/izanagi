@@ -1,0 +1,66 @@
+=== start 07:22:16 host=pegasus02 load=40.55 54.49 56.55
+patch instr-mocc-lock-coverage sha256=e9e65b7876050865 lines=116
+patch broken-mocc-lockskip-validation sha256=c0d4498946ca75ac lines=16
+patch broken-mocc-permutation-erase sha256=b2976ad3d076dcc5 lines=15
+patch broken-mocc-early-unlock sha256=5fc1b4c21e4413dd lines=41
+patch broken-mocc-hot-update-unlock sha256=5562c566cf29153e lines=65
+tree hotu ok (instr-mocc-lock-coverage broken-mocc-hot-update-unlock)
+built hotu-on-t1 trace=1 07:22:29 nm_izanagi=16 strings_izanagi_trace=7 strings_IZANAGI_=4 sha=689990974fd7881f text_lines=60708
+built hotu-off-t1 trace=1 07:22:38 nm_izanagi=15 strings_izanagi_trace=7 strings_IZANAGI_=4 sha=01b5f2ad999de4c6 text_lines=60696
+built hotu-off-t0 trace=0 07:22:49 nm_izanagi=0 strings_izanagi_trace=0 strings_IZANAGI_=0 sha=71fc8a8e6f6a17c1 text_lines=59856
+TEXT IDENTICAL base-t0 vs hotu-off-t0 (59854 lines)
+tree instr ok (instr-mocc-lock-coverage)
+built instr-t1 trace=1 07:22:58 nm_izanagi=15 strings_izanagi_trace=7 strings_IZANAGI_=4 sha=281c923993d49930 text_lines=60696
+built instr-t0 trace=0 07:23:06 nm_izanagi=0 strings_izanagi_trace=0 strings_IZANAGI_=0 sha=670c12640091dbd5 text_lines=59856
+TEXT DIFFERS base-t0 vs instr-t0: 158 lines
+1336c1336
+< lea    0x3e316(%rip),%rdi        # 43630 <_IO_stdin_used+0x630>
+---
+> lea    0x3e326(%rip),%rdi        # 43640 <_IO_stdin_used+0x640>
+1341c1341
+< lea    0x3df28(%rip),%r8        # 43260 <_IO_stdin_used+0x260>
+---
+> lea    0x3df30(%rip),%r8        # 43268 <_IO_stdin_used+0x268>
+1347c1347
+< lea    0x3e2e6(%rip),%rdx        # 43636 <_IO_stdin_used+0x636>
+---
+> lea    0x3e2f6(%rip),%rdx        # 43646 <_IO_stdin_used+0x646>
+3317c3317
+< lea    0x3c20a(%rip),%rdi        # 43616 <_IO_stdin_used+0x616>
+---
+> lea    0x3c21a(%rip),%rdi        # 43626 <_IO_stdin_used+0x626>
+3346c3346
+< lea    0x3bebb(%rip),%r15        # 43338 <_IO_stdin_used+0x338>
+---
+> lea    0x3becb(%rip),%r15        # 43348 <_IO_stdin_used+0x348>
+3348c3348
+< lea    0x3bf72(%rip),%r14        # 433f8 <_IO_stdin_used+0x3f8>
+---
+> lea    0x3bf82(%rip),%r14        # 43408 <_IO_stdin_used+0x408>
+3352c3352
+< lea    0x3be18(%rip),%r12        # 432b0 <_IO_stdin_used+0x2b0>
+---
+> lea    0x3be28(%rip),%r12        # 432c0 <_IO_stdin_used+0x2c0>
+3373c3373
+< lea    0x3bdfa(%rip),%rdx        # 43308 <_IO_stdin_used+0x308>
+---
+> lea    0x3be0a(%rip),%rdx        # 43318 <_IO_stdin_used+0x318>
+3408c3408
+< lea    0x3bd8f(%rip),%rdx        # 43370 <_IO_stdin_used+0x370>
+---
+> lea    0x3bd9f(%rip),%rdx        # 43380 <_IO_stdin_used+0x380>
+3415c3415
+< lea    0x3bdb4(%rip),%rdx        # 433c0 <_IO_stdin_used+0x3c0>
+---
+> lea    0x3bdc4(%rip),%rdx        # 433d0 <_IO_stdin_used+0x3d0>
+tree lockskip ok (instr-mocc-lock-coverage broken-mocc-lockskip-validation)
+built lockskip-t1 trace=1 07:23:16 nm_izanagi=15 strings_izanagi_trace=7 strings_IZANAGI_=4 sha=0b9aee102cadae49 text_lines=60402
+tree perm ok (instr-mocc-lock-coverage broken-mocc-permutation-erase)
+built perm-t1 trace=1 07:23:26 nm_izanagi=15 strings_izanagi_trace=7 strings_IZANAGI_=4 sha=ccdbb7ea3dd9c0f2 text_lines=60695
+tree early ok (instr-mocc-lock-coverage broken-mocc-early-unlock)
+built early-t1 trace=1 07:23:35 nm_izanagi=15 strings_izanagi_trace=7 strings_IZANAGI_=4 sha=889c52ed1a25dd43 text_lines=60704
+=== end 07:23:35 rc=0
+=== on-t0 start 07:24:45
+built hotu-on-t0 trace=0 macro=1 07:24:56 nm_izanagi=0 strings_izanagi_trace=0 strings_IZANAGI_=0 sha=71fc8a8e6f6a17c1 text_lines=59856
+TEXT IDENTICAL base-t0 vs hotu-on-t0 (59854 lines)
+=== on-t0 end 07:24:56

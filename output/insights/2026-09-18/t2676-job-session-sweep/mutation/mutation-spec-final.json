@@ -1,0 +1,146 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 2700,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "id": "m0-equivalent-docstring",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "    \"\"\"Read stat without splitting a comm that contains spaces or parentheses.\"\"\"\n",
+     "new": "    \"\"\"Parse /proc stat; comm may contain spaces or parentheses, so split on the last \")\" (equivalent mutation marker).\"\"\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-sweep-call-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "        _maybe_sweep_job_session(request_sha256)\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_sweep_error_preserves_child_result",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_sweeps_after_isolation_failure_without_replacing_guard",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_sweeps_before_result_and_strips_opt_in"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-ancestor-exclusion-self-only-pin",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "        excluded = {ancestor[\"pid\"] for ancestor in ancestors}\n",
+     "new": "        excluded = {os.getpid()}\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_kills_sigterm_ignoring_orphan",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_rescans_for_late_orphan",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_terminates_attributed_orphan_and_preserves_others",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_without_opt_in_does_not_touch_processes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-opt-in-ignored",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "    if request_sha256 is None or os.environ.get(_JOB_SESSION_SWEEP_ENV) != request_sha256:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_sweeps_before_result_and_strips_opt_in",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_without_opt_in_does_not_touch_processes"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-kill-stage-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "                _signal_session_process(fd, record, signal.SIGKILL)\n",
+     "new": "                pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_does_not_claim_unconfirmed_disappearance",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_kills_sigterm_ignoring_orphan"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-exit-confirmation-forged",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "        events = poller.poll(math.ceil(remaining * 1000))\n",
+     "new": "        events = [(fd, select.POLLIN) for fd in pending]\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_does_not_claim_unconfirmed_disappearance",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_kills_sigterm_ignoring_orphan"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-single-round",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "    for round_index in range(rounds):\n",
+     "new": "    for round_index in range(1):\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_rescans_for_late_orphan",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_stops_at_round_limit"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-attribution-always-true",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "        attributed = user_ns is not None and user_ns != own_user_ns\n",
+     "new": "        attributed = True\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_residuals_filter_namespace_and_unreadable_stat",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_kills_sigterm_ignoring_orphan",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_rescans_for_late_orphan",
+    "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_terminates_attributed_orphan_and_preserves_others"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

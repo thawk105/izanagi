@@ -1,0 +1,65 @@
+diff --git a/cc/mocc/transaction.cc b/cc/mocc/transaction.cc
+--- a/cc/mocc/transaction.cc
++++ b/cc/mocc/transaction.cc
+@@ -16,6 +16,14 @@
+ #include "../../include/trace.hh"
+ #endif
+ #line 17
++#if IZANAGI_BREAK_MOCC_HOT_UPDATE_UNLOCK
++[[maybe_unused]] static constexpr bool izanagi_break_mocc_hot_update_unlock = TRACE != 0;
++[[maybe_unused]] static thread_local Tuple* izanagi_hot_update_pending = nullptr;
++#else
++[[maybe_unused]] static constexpr bool izanagi_break_mocc_hot_update_unlock = false;
++[[maybe_unused]] static thread_local Tuple* izanagi_hot_update_pending = nullptr;
++#endif
++#line 17
+ 
+ using namespace std;
+ 
+@@ -458,7 +466,17 @@
+   /**
+    * If this record has high temperature, use lock.
+    */
+-  if (loadepot.temp >= FLAGS_temp_threshold) lock(tuple, true);
++  if (loadepot.temp >= FLAGS_temp_threshold) {
++    lock(tuple, true);
++    if constexpr (izanagi_break_mocc_hot_update_unlock) {
++      if (this->status_ != TransactionStatus::aborted &&
++          izanagi_hot_update_pending == nullptr) {
++        tuple->rwlock_.w_unlock();
++        izanagi_hot_update_pending = tuple;
++      }
++    }
++  }
++#line 460
+   /**
+    * If it failed locking, it aborts.
+    */
+@@ -1092,6 +1110,13 @@
+   }
+ 
+   // unlock CLL_
++  if constexpr (izanagi_break_mocc_hot_update_unlock) {
++    if (izanagi_hot_update_pending != nullptr) {
++      izanagi_hot_update_pending->rwlock_.w_lock();
++      izanagi_hot_update_pending = nullptr;
++    }
++  }
++#line 1069
+   unlockCLL();
+ 
+   construct_RLL();
+@@ -1257,6 +1282,13 @@
+           "lock-lost-before-publish");
+ #endif
+ #line 1195
++    if constexpr (izanagi_break_mocc_hot_update_unlock) {
++      if (izanagi_hot_update_pending == (*itr).rcdptr_) {
++        izanagi_hot_update_pending->rwlock_.w_lock();
++        izanagi_hot_update_pending = nullptr;
++      }
++    }
++#line 1195
+     __atomic_store_n(&((*itr).rcdptr_->tidword_.obj_), maxtid.obj_,
+                      __ATOMIC_RELEASE);
+ #if TRACE

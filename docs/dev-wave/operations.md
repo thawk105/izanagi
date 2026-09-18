@@ -1,7 +1,6 @@
 # dev-wave 条件付き運用
 
 発火条件の正本は入口の条件dispatch、成立時の実行手順だけは本書。
-該当節を操作直前に読み、停止条件を迂回しない。
 
 ## DW-O01 — codex subprocess 起動
 
@@ -119,7 +118,7 @@ monkeypatch は最後の手段とする（D78）。
 
 所見ごとの closed / partial / regressed 対応表を要求し、表なしで root cause が閉じたと判定しない（D78）。
 親が書いた派生値（平均・差・率・補正値・「すべて」「だけ」「例外なく」の量化）は原データから
-再計算して照合するまで closed としない。訂正にも同じ検算を掛ける。
+再計算して照合するまで closed としない。訂正にも同じ検算を掛ける。派生値の前提 (模型の仮定・計時起点) も裏取りする。
 PATH 構築・interpreter 解決・外部 command 選定・signal 処理など実行環境に依存する実装は、レビュー通過だけで
 closed とせず実機で動かすまで確かめる。実機の構造が子の推測と食い違えば親が測って prompt へ貼る。
 NO-GO が続く場合は fix を重ねず 3 巡を上限とし (親の実機 blocker は別枠)、親が変異で裏取りして残る所見を real/refuted に
@@ -171,15 +170,16 @@ HEAD差は`--ff-only`で揃える（F48）。新規worktreeは未初期化submod
 ## DW-O23 — 並行 session の local main land
 
 `tools/dev_wave_land.py`へmain/waveの絶対path、tested main/tip、着地tip、監査commit列を渡す。
-監査列の範囲は`<tested main>..<tested tip>`で固定。着地tipで数え直すとrc=23。
-協調wave lock内で再照合して着地tipへff-onlyし、**同じlock内**で`docs/spool/`をfoldする。
-T/D/F採番・canonical3台帳追記・worklogローテーションは一度だけ。fold赤は`landed`を返さず、0件はno-op。
+cwd=wave worktree必須（rc=22）。
+監査列は`<tested main>..<tested tip>`に固定。着地tipで数えるとrc=23。
+協調wave lock内で再照合し着地tipへff-only、**同じlock内**で`docs/spool/`をfold。
+T/D/F採番・canonical3台帳追記・worklogローテーションは1度だけ。fold赤は`landed`を返さず0件はno-op。
 tracked/index/submodule dirtとincoming衝突untrackedを拒否し、
-docs/handoff直下とGit adminに双方向束縛したClaude/Codex worktreeは書式不問で非接触。
+docs/handoff直下とGit adminに双方向束縛のClaude/Codex worktreeは書式不問で非接触。
 
 成功は`landed`/`already-landed`だけ。postcondition failureは停止。stale/busyは終了せず、
 他sessionの処理中dirtyは非接触で終端を待つ。新main監査、固定SHAのwave-side merge、
-条件再評価を既存branchで行いlandedまで再試行する。
+条件再評価を既存branchで行いlandedまで再試行。
 他session所有物、rebase、force、remote、pushで解消しない。
 ## DW-O25 — ff-only land の全史 provenance 関門
 
@@ -201,13 +201,13 @@ D662 で lease 待ち行列は廃止。`acceptance`は投入前 claim を 1 回�
 疑似 holder で投入する。待つ経路は flag でも戻らない。
 `--lease-optional`と`--poll-seconds`は no-op。`stale-held`・`unavailable`は fail-closed。
 integrity 検査と receipt 全 field は未取得でも不変。`--lease-dir`は省略せず専用 dir で迂回しない。
-未取得が確定した走行は`release`しない。`--wave`は branch 名の末尾一致を要求 (codex の wave slug
-とは別でよい)。不一致は`preflight-branch` rc=2。
+未取得が確定した走行は`release`しない。`--wave`は branch 名の末尾一致を要求 (codex の slug
+と別でよい)。不一致は`preflight-branch` rc=2。
+`--log-file`/`--receipt-file`は既存 file で rc=2。再投入は新 path にする。
 
-`tools/check_docs.py` の dispatch 契約へ新節を登録する際は、
-`orchestrator/tests/test_check_docs.py` の合成 fixture との整合性を同じ
-commit で確認する（`DW-O26` の精神を checker 変更にも適用。怠ると多数の
-テストが連鎖的に失敗する — T-1458 実測、320 件）。
+`tools/check_docs.py` の dispatch 契約へ新節を登録する際は `orchestrator/tests/test_check_docs.py` の
+合成 fixture との整合を同じ commit で確認する（`DW-O26` の精神。怠ると test が連鎖的に赤 —
+T-1458、320 件）。
 
 ## DW-O28 — land 後の自己撤去
 

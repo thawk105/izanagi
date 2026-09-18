@@ -1,0 +1,159 @@
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-e7d2fdaf9e)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2638-child-worktree-commit/output/pegasus-dispatch/orphan-holds/unknown-7610001646478f218eb8725c.json
+[Pegasus dispatch] request ID 5011.nqsv を受理しました
+[Pegasus dispatch] request 5011.nqsv の状態: QUE
+[Pegasus dispatch] request 5011.nqsv の状態: RUN
+[Pegasus dispatch] request 5011.nqsv の状態: END
+[Pegasus dispatch] request 5011.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2638-child-worktree-commit/output/pegasus-dispatch/orphan-holds/unknown-7610001646478f218eb8725c.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2638-child-worktree-commit/output/pegasus-dispatch/e7d2fdaf9e530acffdfa8190ec14f4ee/receipt.json へ保存しました (child rc=1)
+[Pegasus dispatch] request 5011.nqsv child stdout begin
+| bringing up nodes...
+| bringing up nodes...
+|
+| ........................................................................ [ 15%]
+| ........................................................................ [ 31%]
+| ........................................................................ [ 46%]
+| ........................................................................ [ 62%]
+| ........................................................................ [ 77%]
+| ........................................................................ [ 93%]
+| ...............F..............                                           [100%]
+| =================================== FAILURES ===================================
+| __________________ test_producer_commit_worktree_after_death ___________________
+| [gw41] linux -- Python 3.10.12 /bin/python3.10
+|
+| tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_producer_commit_worktree_0')
+| capsys = <_pytest.capture.CaptureFixture object at 0x145a45c397b0>
+|
+|     def test_producer_commit_worktree_after_death(tmp_path: Path, capsys) -> None:
+|         from dataclasses import replace
+|
+|         worker = _producer_commit_repo(tmp_path)
+|         base = _producer_commit_git(worker, "rev-parse", "HEAD")
+|         (worker / "residue").write_text("before death\n")
+|         (tmp_path / "producer.done").write_text("0\n")
+|         (tmp_path / "artifact.json").write_text("{}\n")
+|         # Real producer stays alive until the waiter's sleep seam releases it.
+|         # A premature commit is caught before the final producer write is allowed.
+|         producer = subprocess.Popen(
+|             [sys.executable, "-c", "import sys; from pathlib import Path; sys.stdin.read(); Path('residue').write_text('final residue\\n')"],
+|             cwd=worker, stdin=subprocess.PIPE,
+|         )
+|         sleeps = []
+|         def release_producer(seconds):
+|             sleeps.append(seconds)
+|             assert producer.poll() is None
+|             assert _producer_commit_git(worker, "rev-parse", "HEAD") == base
+|             producer.communicate(timeout=10)
+|         try:
+|             effects = replace(DW._default_effects(), sleep=release_producer)
+|             rc = DW.main(
+|                 _producer_commit_args(tmp_path, producer.pid) + ["--commit-worktree", str(worker)],
+|                 effects=effects,
+|             )
+|         finally:
+|             if producer.poll() is None:
+|                 producer.kill()
+|             producer.wait(timeout=10)
+|         captured = capsys.readouterr()
+|         head = _producer_commit_git(worker, "rev-parse", "HEAD")
+|         assert sleeps == [5]
+|         assert rc == DW.RC_OK, captured.err
+|         assert captured.out == f"worktree-commit: committed {head}\n"
+| >       assert captured.err == ""
+| E       AssertionError: assert 'producer: /p...only へ縮退します\n' == ''
+| E
+| E         + producer: /proc/2384630/stat を読めないため pid-only へ縮退します
+|
+| orchestrator/tests/test_dev_wave_wait.py:5155: AssertionError
+| =========================== short test summary info ============================
+| FAILED orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death
+| 1 failed, 461 passed in 65.18s (0:01:05)
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+| === IZANAGI FAILURE DIGEST v1 BEGIN ===
+| IZANAGI_FAILURE rank=1 category=failed when=call nodeid="orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=2196 retained_bytes=2196 omitted_bytes=0 rendered_excerpt_bytes=2367 sha256=51b4e7178f56a4aa04adba1ea7784494608f1bb8514c4dc9f61484ae14dad886
+| --- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---
+| > [gw41] linux -- Python 3.10.12 /bin/python3.10
+| >
+| > tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw41/test_producer_commit_worktree_0')
+| > capsys = <_pytest.capture.CaptureFixture object at 0x145a45c397b0>
+| >
+| >     def test_producer_commit_worktree_after_death(tmp_path: Path, capsys) -> None:
+| >         from dataclasses import replace
+| >
+| >         worker = _producer_commit_repo(tmp_path)
+| >         base = _producer_commit_git(worker, "rev-parse", "HEAD")
+| >         (worker / "residue").write_text("before death\x5cn")
+| >         (tmp_path / "producer.done").write_text("0\x5cn")
+| >         (tmp_path / "artifact.json").write_text("{}\x5cn")
+| >         # Real producer stays alive until the waiter's sleep seam releases it.
+| >         # A premature commit is caught before the final producer write is allowed.
+| >         producer = subprocess.Popen(
+| >             [sys.executable, "-c", "import sys; from pathlib import Path; sys.stdin.read(); Path('residue').write_text('final residue\x5c\x5cn')"],
+| >             cwd=worker, stdin=subprocess.PIPE,
+| >         )
+| >         sleeps = []
+| >         def release_producer(seconds):
+| >             sleeps.append(seconds)
+| >             assert producer.poll() is None
+| >             assert _producer_commit_git(worker, "rev-parse", "HEAD") == base
+| >             producer.communicate(timeout=10)
+| >         try:
+| >             effects = replace(DW._default_effects(), sleep=release_producer)
+| >             rc = DW.main(
+| >                 _producer_commit_args(tmp_path, producer.pid) + ["--commit-worktree", str(worker)],
+| >                 effects=effects,
+| >             )
+| >         finally:
+| >             if producer.poll() is None:
+| >                 producer.kill()
+| >             producer.wait(timeout=10)
+| >         captured = capsys.readouterr()
+| >         head = _producer_commit_git(worker, "rev-parse", "HEAD")
+| >         assert sleeps == [5]
+| >         assert rc == DW.RC_OK, captured.err
+| >         assert captured.out == f"worktree-commit: committed {head}\x5cn"
+| > >       assert captured.err == ""
+| > E       AssertionError: assert 'producer: /p...only \u3078\u7e2e\u9000\u3057\u307e\u3059\x5cn' == ''
+| > E
+| > E         + producer: /proc/2384630/stat \u3092\u8aad\u3081\u306a\u3044\u305f\u3081 pid-only \u3078\u7e2e\u9000\u3057\u307e\u3059
+| >
+| > orchestrator/tests/test_dev_wave_wait.py:5155: AssertionError
+| --- IZANAGI FAILURE EXCERPT rank=1 END ---
+| IZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2196 retained_bytes=2196 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3077 omitted_manifest_sha256=-
+| === IZANAGI FAILURE DIGEST v1 END ===
+[Pegasus dispatch] request 5011.nqsv child stdout end
+[Pegasus dispatch] request 5011.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 2380395, "time_ns": 1789682923011451266}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2380416, "event": "direct-child-wait-start", "pid": 2380402, "time_ns": 1789682923040184509}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 2380416, "event": "direct-child-wait-complete", "pid": 2380402, "time_ns": 1789682988826980716}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 2380402, "rc": 0, "time_ns": 1789682988827079432}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 2380395, "rc": 0, "time_ns": 1789682988831559811}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 2380395, "time_ns": 1789682988833477719}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 2380395, "time_ns": 1789682988901949181}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 2380395, "time_ns": 1789682988902626155}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 2380395, "time_ns": 1789682988902635946}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 2380395, "time_ns": 1789682988905094629}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 2380395, "time_ns": 1789682988905102277}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 2380395, "rc": 1, "time_ns": 1789682988905112161}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 2380395, "rc": 1, "time_ns": 1789682988905130124}
+|
+| ============================================================
+| Request ID:             5011.nqsv
+| Request Name:           izdw-e7d2fdaf9e
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Fri Sep 18 07:08:35 2026
+| Started Request Time:   Fri Sep 18 07:08:42 2026
+| Ended Request Time:     Fri Sep 18 07:09:48 2026
+| Resources Information:
+|   Elapse:               71S
+|   Remaining Elapse:     3529S
+| ============================================================
+[Pegasus dispatch] request 5011.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+focus rc=1

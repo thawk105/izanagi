@@ -1,0 +1,35 @@
+{
+ "m1-sweep-call-removed": [
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_sweep_error_preserves_child_result",
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_sweeps_after_isolation_failure_without_replacing_guard",
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_sweeps_before_result_and_strips_opt_in"
+ ],
+ "m2-ancestor-exclusion-self-only-pin": [
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_kills_sigterm_ignoring_orphan",
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_rescans_for_late_orphan",
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_terminates_attributed_orphan_and_preserves_others",
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_without_opt_in_does_not_touch_processes"
+ ],
+ "m3-opt-in-ignored": [
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_job_run_sweeps_before_result_and_strips_opt_in",
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_without_opt_in_does_not_touch_processes"
+ ],
+ "m4-kill-stage-removed": [
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_does_not_claim_unconfirmed_disappearance",
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_kills_sigterm_ignoring_orphan"
+ ],
+ "m5-exit-confirmation-forged": [
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_does_not_claim_unconfirmed_disappearance",
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_kills_sigterm_ignoring_orphan"
+ ],
+ "m6-single-round": [
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_rescans_for_late_orphan",
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_stops_at_round_limit"
+ ],
+ "m7-attribution-always-true": [
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_residuals_filter_namespace_and_unreadable_stat",
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_kills_sigterm_ignoring_orphan",
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_rescans_for_late_orphan",
+  "orchestrator/tests/test_pegasus_dispatch_compute.py::test_session_sweep_terminates_attributed_orphan_and_preserves_others"
+ ]
+}

@@ -1,0 +1,215 @@
+[
+ {
+  "submission": "ac9f3e55cf657b223e3b3b4e6065b8d1",
+  "request_id": "5430.nqsv",
+  "outcome": {
+   "accounting_verified": true,
+   "kind": "child",
+   "rc": 0
+  },
+  "terminal_reason": "scheduler-end-state",
+  "queue_wait_s": 5.228434740798548,
+  "queue_wait_observed": true,
+  "state_history": [
+   {
+    "elapsed_s": 1.298695367993787,
+    "qstat_rc": 0,
+    "request_present": true,
+    "state": "QUE"
+   },
+   {
+    "elapsed_s": 6.425510952947661,
+    "qstat_rc": 0,
+    "request_present": true,
+    "state": "RUN"
+   },
+   {
+    "elapsed_s": 11.548817553091794,
+    "qstat_rc": 0,
+    "request_present": true,
+    "state": "RUN"
+   },
+   {
+    "elapsed_s": 16.672665050951764,
+    "qstat_rc": 0,
+    "request_present": true,
+    "state": "RUN"
+   },
+   {
+    "elapsed_s": 21.80095327598974,
+    "qstat_rc": 0,
+    "request_present": true,
+    "state": "END"
+   }
+  ],
+  "qdel": {
+   "attempted": false,
+   "gate_reason": null
+  },
+  "preflight_gen_S": [
+   "gen_S",
+   "1",
+   "139",
+   "ENA",
+   "ACT",
+   "30",
+   "104",
+   "0",
+   "0",
+   "67",
+   "3",
+   "34",
+   "0",
+   "0",
+   "0",
+   "0",
+   "0",
+   "0",
+   "0"
+  ],
+  "dispatch_sh_mtime": 1789691638.0,
+  "receipt_mtime": 1789691665.0
+ },
+ {
+  "submission": "bd21d5c2fa40e92d4d8f6934b17edc41",
+  "request_id": "5432.nqsv",
+  "outcome": {
+   "accounting_verified": true,
+   "kind": "child",
+   "rc": 1
+  },
+  "terminal_reason": "scheduler-end-state",
+  "queue_wait_s": 5.218592840945348,
+  "queue_wait_observed": true,
+  "state_history": [
+   {
+    "elapsed_s": 1.3039232599548995,
+    "qstat_rc": 0,
+    "request_present": true,
+    "state": "QUE"
+   },
+   {
+    "elapsed_s": 6.42245038296096,
+    "qstat_rc": 0,
+    "request_present": true,
+    "state": "RUN"
+   },
+   {
+    "elapsed_s": 11.538792798994109,
+    "qstat_rc": 0,
+    "request_present": true,
+    "state": "RUN"
+   },
+   {
+    "elapsed_s": 16.66243642102927,
+    "qstat_rc": 0,
+    "request_present": true,
+    "state": "RUN"
+   },
+   {
+    "elapsed_s": 21.786356111988425,
+    "qstat_rc": 0,
+    "request_present": true,
+    "state": "END"
+   }
+  ],
+  "qdel": {
+   "attempted": false,
+   "gate_reason": null
+  },
+  "preflight_gen_S": [
+   "gen_S",
+   "1",
+   "139",
+   "ENA",
+   "ACT",
+   "30",
+   "104",
+   "0",
+   "0",
+   "67",
+   "1",
+   "36",
+   "0",
+   "0",
+   "0",
+   "0",
+   "0",
+   "0",
+   "0"
+  ],
+  "dispatch_sh_mtime": 1789691706.0,
+  "receipt_mtime": 1789691733.0
+ },
+ {
+  "submission": "d2a73a5dbf0ab6f64f36f9565e77adea",
+  "request_id": "5431.nqsv",
+  "outcome": {
+   "accounting_verified": true,
+   "kind": "child",
+   "rc": 0
+  },
+  "terminal_reason": "scheduler-end-state",
+  "queue_wait_s": 5.226025348994881,
+  "queue_wait_observed": true,
+  "state_history": [
+   {
+    "elapsed_s": 1.2941418311093003,
+    "qstat_rc": 0,
+    "request_present": true,
+    "state": "QUE"
+   },
+   {
+    "elapsed_s": 6.416692059021443,
+    "qstat_rc": 0,
+    "request_present": true,
+    "state": "RUN"
+   },
+   {
+    "elapsed_s": 11.536833066958934,
+    "qstat_rc": 0,
+    "request_present": true,
+    "state": "RUN"
+   },
+   {
+    "elapsed_s": 16.6605132650584,
+    "qstat_rc": 0,
+    "request_present": true,
+    "state": "RUN"
+   },
+   {
+    "elapsed_s": 21.776555340969935,
+    "qstat_rc": 0,
+    "request_present": true,
+    "state": "END"
+   }
+  ],
+  "qdel": {
+   "attempted": false,
+   "gate_reason": null
+  },
+  "preflight_gen_S": [
+   "gen_S",
+   "1",
+   "139",
+   "ENA",
+   "ACT",
+   "30",
+   "104",
+   "0",
+   "0",
+   "67",
+   "3",
+   "34",
+   "0",
+   "0",
+   "0",
+   "0",
+   "0",
+   "0",
+   "0"
+  ],
+  "dispatch_sh_mtime": 1789691671.0,
+  "receipt_mtime": 1789691698.0
+ }
+]

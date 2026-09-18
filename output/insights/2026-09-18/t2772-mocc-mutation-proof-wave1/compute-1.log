@@ -1,0 +1,42 @@
+[Pegasus dispatch] job を gen_S へ投入します (izdw-4942b12672)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2772-mocc-mutation-proof-wave1/output/pegasus-dispatch/orphan-holds/unknown-5d586a782c9781e364aa9beb.json
+[Pegasus dispatch] request ID 5045.nqsv を受理しました
+[Pegasus dispatch] request 5045.nqsv の状態: QUE
+[Pegasus dispatch] request 5045.nqsv の状態: RUN
+[Pegasus dispatch] request 5045.nqsv の状態: END
+[Pegasus dispatch] request 5045.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2772-mocc-mutation-proof-wave1/output/pegasus-dispatch/orphan-holds/unknown-5d586a782c9781e364aa9beb.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2772-mocc-mutation-proof-wave1/output/pegasus-dispatch/4942b12672183e3eff4c7fc548dc15c3/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 5045.nqsv child stdout begin
+| all_pass=True -> /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2772-mocc-mutation-proof-wave1/output/env/pegasus/calibration/s3_mocc_mutation_proof.json
+[Pegasus dispatch] request 5045.nqsv child stdout end
+[Pegasus dispatch] request 5045.nqsv child stderr begin
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-start", "pid": 3956804, "time_ns": 1789684496557001879}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 3956825, "event": "direct-child-wait-start", "pid": 3956811, "time_ns": 1789684496586398632}
+| IZANAGI_DISPATCH_JOB_TRACE {"child_pid": 3956825, "event": "direct-child-wait-complete", "pid": 3956811, "time_ns": 1789685285721250249}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-return", "pid": 3956811, "rc": 0, "time_ns": 1789685285721362796}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "supervisor-wait-complete", "pid": 3956804, "rc": 0, "time_ns": 1789685285725754695}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-start", "pid": 3956804, "time_ns": 1789685285728890057}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-file-fsync-complete", "pid": 3956804, "time_ns": 1789685285740838918}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-published", "pid": 3956804, "time_ns": 1789685285741847917}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-start", "pid": 3956804, "time_ns": 1789685285741857654}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-dir-fsync-complete", "pid": 3956804, "time_ns": 1789685285743210257}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "result-write-return", "pid": 3956804, "time_ns": 1789685285743219337}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-return", "phase": "result-durable", "pid": 3956804, "rc": 0, "time_ns": 1789685285743228541}
+| IZANAGI_DISPATCH_JOB_TRACE {"event": "job-run-returned", "pid": 3956804, "rc": 0, "time_ns": 1789685285743241342}
+|
+| ============================================================
+| Request ID:             5045.nqsv
+| Request Name:           izdw-4942b12672
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Fri Sep 18 07:27:45 2026
+| Started Request Time:   Fri Sep 18 07:34:56 2026
+| Ended Request Time:     Fri Sep 18 07:48:05 2026
+| Resources Information:
+|   Elapse:               794S
+|   Remaining Elapse:     2806S
+| ============================================================
+[Pegasus dispatch] request 5045.nqsv child stderr end
