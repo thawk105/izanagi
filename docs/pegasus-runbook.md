@@ -513,6 +513,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/exec_calibrate.py` | `dispatch-required` | `static arbitrary-exec classification` |
 | `tools/pegasus/fetch_third_party.py` | `local-ok` | `runbook §7.0 実測` |
 | `tools/pegasus/floor_campaign.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/floor_pair_campaign.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/floor_scoping.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/generate_floor_masstree_payload_policy.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
 | `tools/pegasus/make_acquisition_receipt.py` | `dispatch-required` | `static compute-side call-site classification` |
@@ -559,6 +560,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/submit_b10_backoff_shape.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/submit_certify.sh` | `local-ok` | `legacy-admitted (未実測)` |
 | `tools/pegasus/submit_floor.sh` | `local-ok` | `legacy-admitted (未実測)` |
+| `tools/pegasus/submit_floor_pair.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/submit_mocc_trace.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/submit_oracle_n_pilot.sh` | `local-ok` | `login-side submitter; compute work stays in job body (未実測)` |
 | `tools/pegasus/submit_paper_story_a2_certification.sh` | `local-ok` | `static login-side submitter classification` |
@@ -904,19 +906,21 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   あり、ここへ出る receipt が無ければ `tools/dev_wave_land.py` は main を 1 bit も進めない。
   path は **repo 外の絶対 path**・親 directory 既存・target 未存在でなければ claim 前に rc=2。
   receipt は走行後 clean・index flag 検査通過・走行前後の fingerprint 一致が成立し
-  (lease を取得した走行はさらに TTL 残量と所有の再確認)、かつ**下の受理 2 経路のいずれか**が
-  成立したときだけ発行される。発行は temp へ書いて
+  (lease を取得した走行はさらに TTL 残量と所有の再確認)、かつ**受入 command が rc=0
+  (`verdict = "child-green"`)** のときだけ発行される。発行は temp へ書いて
   fsync → 再確認 → `os.rename` の二段階で、**final path の存在だけが「待ち手が成功終端まで
   到達した」証拠**である。予約 temp 名前空間の path を land へ渡しても rc=23 で拒否される。
 - **`--log-file` も必須である ([T-1019])。** 受入 command の stdout / stderr は
-  **待ち手自身が**この path へ捕獲する。親が別途取った log を渡す形は採らない — 任意の過去 log を
-  渡せば非帰属判定を素通りできてしまうためである。path の条件は `--receipt-file` と同じ
+  **待ち手自身が**この path へ捕獲する。親が別途取った log を渡す形は採らない — receipt に入る
+  log hash (launcher が書いた log を待ち手が独立に読み直して照合する)・実効 scheduler の
+  attestation・判定なし終了の再試行証拠はいずれもこの log から取るためである。
+  path の条件は `--receipt-file` と同じ
   (repo 外・親 directory 既存・target 未存在・dangling symlink 不可、違反は claim 前に rc=2)。
   **shell 側の `> acceptance.log` と同じ名前を使わない** — shell が先に作るので target 既存で弾かれる。
   待ち手自身の診断出力を取りたいなら別名へ redirect する。
 - **`--receipt-file` / `--log-file` は attempt ごとに別 path にする。** target 未存在が必須なので、
   同じ path のまま再走すると claim 前に rc=2 で止まる。消して撮り直すと、
-  非帰属判定の一次資料である log を失う。上の例のように attempt 番号を付ける。
+  赤の帰属を人・AI が判定する一次資料 (`DW-O18`) である log を失う。上の例のように attempt 番号を付ける。
   ここでの attempt は**外部 invocation** の番号である。
 - **1 回の invocation は内部で最大 2 attempt 走る ([T-1275])。** 受入 command が
   **pytest の判定を 1 つも産まずに戻った**ことを肯定的証拠で確定できたときだけ、待ち手は
@@ -930,25 +934,14 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   収録し、path も版 (`dev-wave-acceptance-receipt/v5`) も root field も変わらない。
   attempt 番号・分類・rc・退避先・log hash・claim した main は待ち手の stderr へ
   機械可読な retry journal 行として出る (成功終端でも消えない)。
-- **受理は 2 経路ある ([T-1019] / 2026-08-13 第 9 束 #1)。**
-  (i) 受入 command が rc=0 → `verdict = "child-green"`。
-  (ii) 受入 command が **rc=1 ちょうど** (pytest の「テストが落ちた」) で、
-  `tools/check_acceptance_reds.py` が rc=0 かつ `status = "non-attributable-only"` を返し、
-  その receipt の `log_sha256` が待ち手の捕獲 log と一致 →
-  `verdict = "non-attributable-only"`。この経路は既知赤が land を止める構造を解くためのもので、
-  **どの nodeid をどちらの分類で通したかが receipt と land 結果 JSON に残る**。
-  待ち手が受理する checker node は exact 2 形だけである。`non-attributable` は
-  `classification` / `nodeid` / `rerun_rc` の 3 field で `rerun_rc == 1`、`flake` は
-  `classification` / `main_rerun_rc` / `nodeid` / `rerun_rc` / `wave_rerun_rc` の 5 field で
-  3 個の rc がすべて 0 でなければならない。前者は `red_nodeids`、後者は `flake_nodeids` へ
-  別々に入り、各集合は sorted・unique で互いに素、和集合が非空である必要がある。
+- **受理は `child-green` の 1 本だけである (D690 決定 2、2026-08-23)。** 受入 command が rc=0 →
+  `verdict = "child-green"`。rc=1 ちょうど (pytest の「テストが落ちた」) は `acceptance-command` の
+  失敗としてそのまま返り、待ち手は赤の帰属判定器を起動しない (自動起動経路は機構から遮断済みで、
+  flag でも環境変数でも戻せない)。赤の帰属は `DW-O18` に従い人・AI が判定して根拠を worklog へ残し、
+  赤の受領証は作らない。rc が 0 でも 1 でもない非 0 (`_DELETION_GATE_RC = 13` /
+  `_PEGASUS_DISPATCH_RC = 16` / signal 由来など) は**テスト失敗以外の理由で落ちた走行**で、
+  上の内部再試行の条件を満たす場合を除きそのまま失敗として返る。
   outer receipt の schema は `dev-wave-acceptance-receipt/v5` で、v4 以前は受理しない。
-  **`flake` は原因ではなく観測の分類である** — 初回全走で赤、tested main 単独再走で緑、
-  wave tip 単独再走でも緑、という観測を指す。決定的な全走限定赤もここへ入る (明示受容した残余)。
-  rc が 0 でも 1 でもない非 0 (`_DELETION_GATE_RC = 13` / `_PEGASUS_DISPATCH_RC = 16` /
-  signal 由来など) は**テスト失敗以外の理由で落ちた走行**なので、赤が全部非帰属でも受理しない。
-  checker の `status = "green"` (log から赤 nodeid を 1 件も取れなかった) も、
-  rc=1 / rc=2 も受理しない。
 - **受領証の内容は待ち手ではなく `tools/acceptance_launcher.py` が作る ([T-1283])。**
   待ち手は launcher の source を Git blob から取り、`python3 -I -c` の stdin へ渡して実行する。
   launcher は `tested_main:tools/run_tests.py` の blob bytes を同じ形で exec して runner の rc を
@@ -962,7 +955,7 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   しないため)。v5 は `launcher_source_revision` / `launcher_blob_sha` /
   `launcher_executed_sha256` / `waiter_executed_sha256` / `runner_executed_sha256` を必須にし、
   land は 3 本の内容 SHA-256 を Git tree から独立に再計算して照合する。
-  **この照合は `child-green` にも掛かる** (受入受領証の 99.0% がこの経路。全期間 103 本中 102 本)。
+  **この照合は `child-green` の受領証に掛かる** (現行の権威経路が発行する受領証はこれだけである)。
   launcher source は `tested_main` にあればそれを使い、無いときだけ `tested-tip-bootstrap` を
   名乗る。land は `tested_main` と `locked_main` の双方で launcher 不在を要求するので、
   launcher が main へ入った後は bootstrap を名乗れない。
@@ -989,16 +982,6 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   受入後に clean な forward-main merge を足して同じ受領証を再利用するとき、land は最後に取り込んだ
   main と tested main の runner blob を比較する。最終着地物の runner が変わっていれば再利用を拒否し、
   新しい main を基準に受入をやり直させる。runner が同じ main 取り込みは再走させない (D987)。
-- **`tools/check_acceptance_reds.py` を変更した wave は経路 (ii) だけ使えない。**
-  経路 (ii) の受領証は、待ち手と land の双方が判定器の main/tip 等値を要求する。
-  こちらを触る wave は**完全に緑の走行 (child-green) でしか land できない**ので、
-  受入をそう計画すること。等値が保証するのは同一 bytes の runner が両側で使われたことだけで、
-  import 閉包・cwd・環境変数・pytest の選択と scheduler・`conftest.py`・plugin の同一性は
-  保証しない。
-- **既知の限界 (2026-08-13 時点、いずれも倒れる向きは fail-closed)。**
-  checker には timeout が無く、赤の単独再走が hang すると receipt が出ないまま待ち続ける。
-  checker 実行中の lease heartbeat も無いので、赤が多いと最終確認までに TTL 2,400 秒を
-  使い切りうる。checker は専用 process group で起動しないので、中断時に probe の残留がありうる。
 - **`stage=restart-required` (rc=70) は待ち手を再起動しろという意味である。** 受入 command を
   投入する直前に、待ち手が module 初期化直後に束縛した自 source の bytes と、その走行が束縛する
   tip の `tools/dev_wave_wait.py` blob 内容を照合し、不一致・照合不能なら command を投入せずに
@@ -1036,11 +1019,10 @@ python3 tools/dev_wave_wait.py acceptance --wave "$W" \
   `role=integrator` だけを持つ file にし、実装面 overlap があれば待ち手が fail-closed で止まるのに
   任せる (2026-08-23 実測、取り残し branch の回収 wave)。
 - **rc=0 は「receipt が発行された」を意味する** (lease を取得した走行は保持したまま返る)。
-  受入 command 自身が緑だったとは限らない — 上の受理経路 (ii) では rc=1 で赤があり、
-  それが全部非帰属または flake だったという意味になる。**台帳へ「全テスト緑」と書く前に
-  receipt の `verdict`、`red_nodeids`、`flake_nodeids` を読むこと。** `flake_nodeids` は
-  単独再走が両側緑だったために実測証拠なしで通した残余なので、land 結果 JSON の
-  `acceptance_flake_nodeids` とあわせて台帳へ残す。成功時は release
+  現行の権威経路では受入 command 自身が rc=0 のときだけ発行されるので、receipt の `verdict` は
+  `child-green`、`red_nodeids` / `flake_nodeids` は空である。**台帳へ「全テスト緑」と書く前に
+  receipt の `verdict` と両 field を読んで確かめること** (land 結果 JSON の
+  `acceptance_red_nodeids` / `acceptance_flake_nodeids` も同様に空)。成功時は release
   しない。**land の終端で親が `release --wave "$W"` する**こと。それ以外の終わり方
   (claim 異常・Git 異常・merge 中止・受入赤・例外・signal・中断) では待ち手が release する。
   **例外は `held-self` 経路** — その呼出しが lease を作っていないので release 権限を持たず、
@@ -1651,6 +1633,62 @@ probe worktree / dispatch 成果物の掃除は別物である — lease が解�
 - この経路は `tools/pegasus/` の admission 登録簿の対象外である。登録簿は `tools/` 配下の実行体を
   分類するもので、driver の subcommand は管轄外である。§7.0 の実行場所判定にも掛からない —
   qsub 自体は login 側で行う軽い操作である。
+
+### 7.8 B-4 床値 (floor-pair) の窓 job と finalize job の投入 ([T-2288] 2026-09-18 着地、実投入は未実施)
+
+凍結済み spec 3 本 (`output/env/pegasus/floor-pair/t2288-f1/`、D2138) を `orchestrator/campaign/floor_pair_driver.py` の
+`--execute-window` / `--finalize` で走らせる資材は、login 側の `tools/pegasus/submit_floor_pair.sh` (submitter) と
+計算ノードの `tools/pegasus/floor_pair_campaign.sh` (job body) である。**着地 wave では実 qsub・計算ノードでの実行・
+8 変数の伝播・実効 walltime・signal 配送を実測していない** (F660)。これらは次の測定 wave の初回実行で確認し、
+結果 (到達した段・rc・receipt) を記録する。
+
+- **1 job = 1 spec × (1 窓 | finalize)。** 3 spec × 2 窓 = 6 window job + 3 finalize job。並走できるかは admission に
+  依存し、資材は保証しない。
+- **投入元 checkout は detached で、各 spec の w1・w2・finalize の 3 job を同じ HEAD `H` から投入する** (申し送り 2)。
+  driver は finalize で両窓 header の `loaded_head` と finalize 時の HEAD の exact 一致を要求する。3 spec を同じ `H` から
+  投げるのは運用の単純化であって要件ではない。**測定の途中で checkout の HEAD を進めない** (成果物の commit は
+  3 段が終わってから)。submitter は同 spec の他窓 JSONL が既にあればその header の
+  `loaded_head` と現 HEAD の一致を、finalize では両窓 JSONL の存在・header 一致・末尾 record が terminal であることを、
+  qsub 前に確認する (driver の検査の代替ではない早期拒否)。
+- **binary は checkout ごとに `place` する** (D2069 項 7)。ignored file なので merge で移らない。
+  `python3 -m orchestrator.campaign.b4_binary_record place --record output/insights/2026-09-16/t2636-b4-binary-record/records/rr20--stock_common.json --source-root /work/1/SFC/tanab/izanagi-b4-floor-binaries --env-tag pegasus`
+  を投入元 checkout で先に実行する。
+- **窓の手前・末端に投入しない** (申し送り 4)。submitter と job body は `now >= not_before` かつ
+  `now + elapstim_req <= not_after` (UTC 実時計、半開区間) を検査し、外れれば driver を起動せず rc=4 で止める
+  (create-only の path は未消費のまま残る)。walltime は submitter が 1 箇所で決める: window job `24:00:00`
+  (gen_S の上限。窓の喪失は回復不能で、要求超過の費用は queue 待ちだけ)、finalize job `00:30:00`。24 h は
+  成功保証ではない — walltime 切れ・node 障害で terminal の無い JSONL が残ればその窓は失われ、再走は無い。
+- **spec × 窓は 1 回だけ投入する。** submitter は対象窓の JSONL が既にあれば拒否するが、同時投入は排除しない。
+  qsub の結果が不明 (`indeterminate`) でも自動再投入しない。
+- **finalize は両窓の terminal が出て結果を受け入れてから投げる。** driver は `incomplete` terminal の窓からも
+  `not_generated_*` の summary を create-only で作る (失敗の記録)。失敗 summary も 1 回限りで、成功 summary への
+  再生成には使えない。
+- **既存の出力を削除・置換・延長しない** (申し送り 5、D2138 却下肢)。窓を使えずに終わった場合は未実施の凍結として
+  記録し、新しい凍結を別 commit で行う。
+- **証拠の置き場** は repo 外 `/work/1/SFC/tanab/izanagi-job-evidence/floor-pair/<nonce>/`。submitter が
+  `pre-submit.json` / `qsub.*` / `submit-receipt.json`、scheduler が `scheduler.stdout` / `scheduler.stderr`、job body が
+  `driver.stdout` / `driver.stderr` / `job-result.json` を書く (投入側は job body の file を先に置かない)。
+  測定 JSONL と summary は凍結 spec が指す repo 内 path (投入元 checkout) に create-only で書かれる。
+- 投入 (login node、投入元 checkout の root で):
+
+  ```bash
+  bash tools/pegasus/submit_floor_pair.sh --workload rr95 --window w1 --dry-run   # qsub だけを省く (gate は同一)
+  bash tools/pegasus/submit_floor_pair.sh --workload rr95 --window w1             # w1 は 2026-09-19T00:00Z 以降
+  bash tools/pegasus/submit_floor_pair.sh --workload rr95 --window w2             # w2 は 2026-09-29T00:00Z 以降
+  bash tools/pegasus/submit_floor_pair.sh --workload rr95 --finalize              # 両窓の terminal の後
+  ```
+
+  `--workload` は `rr95` / `rr50` / `rr5`。spec の relpath と sha256 は submitter が D2138 項 7 の値で pin しており、
+  引数で差し替えられない。
+- **未検証の前提**: 計算ノードの時計が走行中に安定していること、scheduler の終了猶予、`nm` / `pgrep` の存在
+  (job body は起動時に `command -v` で確認する。finalize は session を走らせないので `nm` / `pgrep` を使わないが、
+  同じ集合を要求する)、compute での動的 link 解決 (binary の NEEDED は system lib 4 本)。**job body の bash が
+  SIGTERM を ignore も block もしない状態で起動することは未検証** — 計算ノードの job は SIGTERM を SIG_IGN で継承する
+  (F1012) ので、その場合 `record_signal` は発火せず、walltime 到達時は KILL で driver が止まり、terminal の無い JSONL と
+  `job-result.json` の欠落が残りうる。trap の存在を終了記録の保証と読まない。
+- job rc=0 は「床値が生成された」を意味しない。driver は window / finalize の result JSON (`driver.stdout`) を書いて
+  rc=0 を返し、`status` は別に持つ。n = 62、欠測率、実 campaign の 24 時間以上の分離、採用は証拠確認者
+  (D1641、申し送り 6) と集約 (D1974、申し送り 7) に残る。
 
 ## 8. 投入前チェックリスト
 
