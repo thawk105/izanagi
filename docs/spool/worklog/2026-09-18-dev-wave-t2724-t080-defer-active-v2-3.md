@@ -35,20 +35,25 @@ title: [T-2724][T-2776] 中断成果を回収しA-3整合とfixture切離しを�
   同tipの正規runner単独走でも同じargvで51 setup errors（247.47秒、rc1）となった。
   DW-O18に従い受入2を投入せず正式停止。成功受領証はなく、main landと対象清掃は未実施。
   赤はF945再発として記録し、既存T-2790の設計・検証を越えてtimeout/hold/除外を変更しない。
+- 9月19日、ユーザーからmain landまでの続行を指示された。同じ目的の修復を続行し、
+  main `0ab4627d4` に入ったT1259の既存module snapshot配置修復（T2780/T2504）を採用した。
+  隔離Codex authorがconftestとserializationの両側変更を合成し、`98f06e374`で統合。
+  T1259の30関数/51caseとT080 receipt8関数/8node・接続20nodeを保持し、timeout/hold/除外は不変。
+  計算ノードの焦点5fileは8813.nqsvで331 passed /1 skipped、37.14秒。統合後full provenanceは
+  11578件・新規違反0・既知56件。最終受入の成否はこの記録後の共通受領証で確定する。
 
 ## 次の一手差分
 
-### 更新
+### 完了
 
-- [T-2776] **P1・実装と焦点/変異証拠は回収済み、受入未了・未land**: A-3整合waveに同梱した。
-  宣言集合だけを除いたreplay baseと実scan正負例、両木焦点走、変異の検出力は保存済み。
-  統合受入とT-1259単独走でGit未追跡走査の30秒timeoutが再現し、DW-O18に従って停止した。
-  T-2790の既存手番との照合後、回収branchから再開する。hold/除外/正しさ判定は変更しない。
+- [T-2776] A-3整合waveに同梱し、宣言集合だけを除いたreplay base、実scan正負例、両木焦点走と変異の検出力を回収した。
+  remaining: none
   base: b067abb4f95284ceb22f15ff41177f43071cfa7599705f5eff671db62c65d008
 
-- [T-2724] **P1・A-3整合実装とT-2776の証拠は回収済み、受入未了・未land**:
+### 更新
+
+- [T-2724] **P1・A-3整合実装とT-2776は完了、chain/X2/Gの取り込みは別wave**:
   receiptの履歴・静的検証・epoch・invalid拒否を維持し、同一root/HEAD/世代で成功したactive v2のfull validationへ層2だけ委譲する。
-  統合受入とT-1259単独走がF945型timeoutで赤となり、DW-O18により正式停止した。
   保存branchのchain/X2/Gをfold後mainへ取り込んで受入・landする作業、続く人間A/Xの発効は未実施。
   `worktree-dev-wave-t2724-freeze-g1-gen` tip `229982652` とchain/X2保存枝を維持する。
   D2120項2(a)は有効、(b)のA/Xはユーザーcommit、(d)記録済み、(e)の退避とT-1851 cleanup残件、(f)のT-750管理は維持。

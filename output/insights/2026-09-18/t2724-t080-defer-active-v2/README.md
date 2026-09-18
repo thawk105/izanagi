@@ -95,7 +95,7 @@ job不在・producer/待ち手終了を確認し、同tipをrunner既定配置�
 旧dispatchの参照pathは同jobの`recovered-dispatch/source-wave`および`mut1`〜`mut4`へ対応し、
 それぞれ49/65/73/65/73fileのbyte一致を確認した。旧branchを清掃してもこの保全先で追跡できる。
 
-## 停止記録
+## 9月18日の停止記録
 
 最終受入attempt1（tip `d899c86aa`）は25153 passed / 69 skipped / 12 setup errorsで失敗した。
 成功受領証は発行されていない。全12件はT-1259のmodule fixtureからの
@@ -110,3 +110,19 @@ DW-O18により受入2を投入せず正式停止。main land・対象branch/wor
 判定は `verbatim/acceptance-1-adjudication.md`。生logは回収jobの`acceptance-1.child.log`、
 `t1259-single.log`と`acceptance-1-shards/`に保全する。旧変異、焦点走、独立監査の結果を
 受入成功に読み替えない。再開位置と停止時mainは専用handoffに残す。
+
+## 9月19日の続行
+
+ユーザーのmain landまでの続行指示に従い、同じ目的の修復として再開した。
+現main `0ab4627d4` にはT2780/T2504のT1259配置修復が入り、30関数/51caseを既存process-memoへ
+接続していた。module snapshotと各testのdeepcopy、実検査、30秒timeout、lock/shard閉包は維持される。
+単に失敗した同じ配置を繰り返さず、この修復を取り込んだ。
+
+重複するconftest/serializationの2fileは、隔離authorがmain側へ監査済みT2724差分を実装し、
+両側の構成集合を保持して`98f06e374`に統合した。T080のreceipt memo8関数/8node・接続20nodeと
+invalid seam登録を保持する。production3fileと変異対象4test fileは旧`e2b3cc483`からbyte不変。
+焦点5fileは8813.nqsvで331 passed /1 skipped、37.14秒、失敗0。
+全史provenanceは11578件・新規違反0・既知56件。最終受入は記録commit後の共通受領証に束縛する。
+chain/X2/Gと実A/Xの境界、既存変異の測定時点の意味は変えない。
+統合差分の独立焦点監査はGO、must-fixなし。逐語は `verbatim/main-integration.md` と
+`verbatim/integration-review.md`。実走要約は `evidence/resume-focus-summary.txt`。
