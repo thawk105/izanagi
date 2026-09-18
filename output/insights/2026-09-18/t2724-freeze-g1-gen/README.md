@@ -270,6 +270,11 @@ oracle 実走の全条件ではない** — §4 の T-080 receipt live scan の�
 - `evidence/focus-1-summary.txt` — 焦点走の FAILED 行と集計行
 - `evidence/failure-table.txt` — 45 node ごとの最初の assertion 本文 (計算ノード完全出力から射影、job dir `failure_table.py`)
 - `evidence/p3-gate-check.log` — P3 の JSON 出力 (hold marker 行は除いた)
+- `evidence/consult-a-correctness.md` / `evidence/consult-b-sequencing.md` — 裁定相談 (ユーザー委任「codex に相談して決めて」、
+  2026-09-18 09:15〜09:18 JST) の逐語。原文 (job dir `artifacts/…/s10-a.md` sha256 `9ac397471ef042f3f218d461d5095a72f5b21b2d46a4412993d045d7b36652fa`
+  11,135 bytes、`s10-b.md` sha256 `d18a2fde3d1842c6f3ca21757e8b168c7be97496916eda263f219b0c256a45b7` 11,877 bytes) の行末空白
+  (Markdown の強制改行 2 空白、a: 82・83 行、b: 3・8・26・33・38 行) を `git diff --check` のため除いた可逆最小正規化 (可視文字不変、
+  11,131 / 11,867 bytes)。復元は当該行末に空白 2 つを戻す。裁定は `package.md` 末尾「裁定」節と decisions fragment
 - job dir `/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2724-freeze-g1-gen/` — brief、裁定、prompt、子の成果物 (`artifacts/`)、
   runner script、probe script、生 log (repo には入れない)
 

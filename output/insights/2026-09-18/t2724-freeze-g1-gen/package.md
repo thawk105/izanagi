@@ -1,6 +1,6 @@
 # 裁定パッケージ — [T-2724] 世代導入 G はできたが、chain (X1') を main へ載せると受入全走が赤になり oracle の gate も閉じる
 
-`authority: none` / `default_effect: no-state-change`。本文書は本 wave (`dev-wave-t2724-freeze-g1-gen`) が実測した
+`authority: none` / `default_effect: no-state-change`。**裁定済み (末尾の「裁定」節、2026-09-18、ユーザー委任)。** 本文書は本 wave (`dev-wave-t2724-freeze-g1-gen`) が実測した
 新事実と択を並べる。決めるのは人間。G の作成 (D2120 項 2 (b) の AI 手番) は完了し、branch
 `freeze-g1-gen-t2724` (G `32ba8cae45001697f050bee377413153e6d798a5`) と wave branch `worktree-dev-wave-t2724-freeze-g1-gen`
 (merge `88d02046644acff922937f2c5c10cbf10da2413b`) に保全した。land はしていない。
@@ -67,3 +67,22 @@
 - A / X の人間手番 (README §5) は上の着地後、G と X1' を含む branch 上で行う。T-750 P-1 / P-3 は別管理のまま。
 - 本 wave は受入全走を投入していない (赤が確定しているため。赤の受領証は取らない)。land していない。前 wave の資料は直接
   編集せず、本資料と worklog で訂正する。
+
+## 裁定 (2026-09-18、ユーザー委任「codex に相談して決めて」)
+
+read-only codex 2 レンズ (正しさ境界 `artifacts/…/s10-a.md`、実効性・順序 `s10-b.md`、job dir) が一致し、親が次のとおり決めた。
+記録は本 wave の decisions fragment (slug `t080-receipt-defers-unknownness-to-active-v2`、番号は fold が付ける)。
+
+- **択 A、設計候補 A-3。** receipt の履歴・静的検証・epoch 束縛・`_make_gate_decision` の集約・`_campaign_t080_value` の拒否は
+  維持し、承認済み active v2 の `launch_validate` が同一 root・HEAD・世代で成功した場合に限り、未知性層 2 (zero-hit 判定) をその
+  完全一致検証へ委譲する。未発効の木と official clean scan は従来どおり拒否。走査除外・hold・chain と G の bytes・A / X の境界は不変。
+- **4 経路 45 node の test の実 root 切り離し (負例維持) を同じ実装 wave に含める** (A-3 だけでは A / X 前の受入が成立しない)。
+- **設計 wave と再裁定を分けず**、新 D + 境界 test + 変異 matrix + 段階別 preflight 文書を Codex author の 1 wave に収める (D96)。
+  A-3 の同等性を境界 test で示せなければ停止する (検査を省略して通さない)。
+- **順序:** 整合 wave を chain の無い main へ land → 本 wave が保存 branch の X2 と fold 後の main を固定 SHA で merge し X1' + X2 + G
+  を 1 wave で受入・land → 人間 A / X (README §5) → W-4 spec (T-750 P-1) → W-5。
+- 却下: A-1 (C2-4 の二重実装)、A-2 (置換範囲が広い)、E (走査免除の拡大)、B 単独、C、D。
+
+相談で確認した事実: main は `a0ccb8ad9` へ前進、並行 wave (a) は entry 1640 で「land せず再裁定へ戻した」記録だけを着地 (X1' / X2 は
+main に無い)。よって chain を運ぶ wave は本 wave 1 本になり、merge-base 2 つの問題は本 wave が fold 後の main を固定 SHA で取り込む
+ことで回避する。
