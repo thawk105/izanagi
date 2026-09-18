@@ -66973,3 +66973,91 @@ cells・perf_config = D2088 / D2089、calibration = D2090、statistics・failure
 標本の統計的独立性、残存標本での 95% 被覆、contention 域の網羅。session の wall 上限、将来の割当て・環境の同一性、別 node 並走、
 admission、実走の成功。binary の将来の可用性、trace 不在の完全な検出、実行中 module bytes と記録 commit の対応。成果物の削除・改変の
 防止。床値の生成・採用・§5 の記入・本書の発効。
+
+## D2139. 実装子 worktree の終端 commit は起動器と待ち手が行い、対象外・保存未達・親担当を分けて返す (2026-09-18)
+
+**決定:** D2044 項 16 (作業木の内容を wave 終了時に branch へ commit する) の実装として、次を定める。
+
+1. 発火点は起動器 `tools/dev_wave_codex.py` の launcher 復帰後と、待ち手 `tools/dev_wave_wait.py producer`
+   の `--commit-worktree <絶対 path>` (opt-in) の producer 死亡確定後。両者は同じ helper
+   `tools/dev_waves/git_state.commit_worker_worktree` を呼ぶ。
+2. 起動器の発火条件は `--sandbox workspace-write` かつ stage が author / fix。read-only 子・dry-run は
+   何も出さず、workspace-write の他 stage は `worktree-commit: skipped reason=stage` を出して発火しない。
+   stage と sandbox は独立に受理されるため sandbox だけでは対象を限定できない (段 2 plan の指摘)。
+3. 保存対象は投入先 worktree 全体の残差 (`git add -A` → staged)。内容を選別しない。commit は記録であり、
+   採用・land・撤去のどれとも別。
+4. 状態は 5 種。`committed <sha>` / `clean` (staged 空) / `deferred reason=operation-in-progress`
+   (`MERGE_HEAD` 等の操作進行中 — merge commit は親が作る、DW-C01) / `refused reason=<root-mismatch |
+   primary-worktree | detached-head | protected-branch>` (投入先の誤り) / `failed reason=<Git 操作名>`。
+   起動器の最終 rc は launcher rc≠0 ならそのまま、rc=0 かつ committed / clean / deferred なら 0、
+   rc=0 かつ refused / failed なら 3 (起動失敗 2 と区別し、親を「再投入」でなく「手動 commit」へ導く)。
+   待ち手は既存 outcome が成功で refused / failed のとき `producer-commit` で fail-closed にし receipt を
+   公開しない。flag 無しの待ち手は stdout / stderr / rc / receipt bytes を 1 byte も変えない。
+5. commit message は固定件名 + 本文 7 field + `AI-Agent: product=codex; model=<m>; reasoning=<r>;
+   role=author` の 1 行。値は launcher receipt の `recorded_*` → `requested_*` → `unknown` の順で採り、
+   `[a-z0-9][a-z0-9._-]*` へ正規化し、`none` は `unknown` に写す (`check_ai_provenance.py` が拒否)。
+   待ち手は receipt を読まず `unknown` を書く。message file は `<git-dir>/izanagi-worker-commit.msg`
+   (作業木の外) に置き、成功・失敗とも削除する。
+6. `index.lock` の特別扱い、rebase / cherry-pick ごとの分岐、done file の内容判定、check-only 経路の
+   書込み、submodule 内編集の再帰、同一 worktree 並行投入の排他、撤去 (cleanup) との接続は足さない。
+
+**理由:**
+
+- 依頼が名指した起動器と待ち手の両方を最小配線で実装し、新しい保存 framework・台帳・schema を作らない
+  (stdout 1 行と commit だけ)。
+- 対象外 (read-only 等) と保存未達 (refused / failed) を分けないと、`.done` の rc=0 が「残差を保存した」
+  とも「対象外だった」とも読め、終端契約が空洞化する (段 3 レンズ A、段 6 レビュー A)。
+- `requested_*` は launcher が `codex exec -m` / `model_reasoning_effort` へ実際に渡した確定値であり、
+  推測ではない。
+- `tempfile(dir=None)` は `TMPDIR` 次第で作業木内に落ち、中断時の残置が次の `add -A` で成果物へ混入
+  しうる (段 6 レビュー A)。git-dir は Git が返す作業木外の位置で、linked worktree ごとに分離される。
+
+**却下した選択肢:**
+
+- sandbox だけで発火判定 — `dev_wave_codex.py` は plan + workspace-write も受理するため対象外を巻き込む。
+- 起動時 snapshot や opt-in flag を起動器に足して親 worktree での発火を防ぐ — 親 worktree での
+  workspace-write 起動は DW-C01 の mid-merge だけで、それは `deferred` が受ける。追加の gate は仮想リスク
+  向けであり scope 外。
+- `index.lock` を `skipped` に分類 — 保存未達が rc=0 に隠れる。Git 失敗として `failed` に集約する。
+- 待ち手に launcher receipt path を渡す flag — 待ち手の commit は起動器が死んだときの後詰めであり、
+  receipt が無いことが常態。`unknown` は provenance 規約の許容値。
+- 子 commit を祖先として保持する統合 (patch 展開の廃止) — 段 5 の所有・投入契約の本体を変える別裁定。
+  D2044 項 16 の限定 (記録しただけでは取り込みも撤去可能性も成立しない) に従い本 wave では扱わない。
+
+## D2140. 計算ノード job の終了遅延は job body が session の残存 process を回収して塞ぐ — 帰属は入れ子 user ns、発火は request SHA-256 束縛、signal と終了観測は pidfd (2026-09-18)
+
+**決定 (D2124 の対処。D2048 / D2124 は置換しない):** job 内 dispatcher (`tools/pegasus/dispatch_compute.py` の `_job_run`) は、直接の子が戻った後・result 書込み前に
+自分の session に残る process を回収する。
+
+1. **対象** = `/proc/<pid>/stat` の session が `os.getsid(0)` と一致し、自分と祖先鎖 (ppid を 1 まで) を除き、かつ
+   `readlink(/proc/<pid>/ns/user)` が自分 (init ns) と**異なる** process。bootstrap は全 task の子を入れ子 user ns に置くので、この述語が workload への帰属証明になる。
+   同 ns・ns 不読・stat 不読は trace に記録するだけで signal しない。
+2. **発火** = job script が export する `IZANAGI_DISPATCH_JOB_SESSION_SWEEP="$REQUEST_SHA256"` が `_job_run` の検証済み request SHA-256 と一致するときだけ。
+   値は child_env から pop する。ambient な `1` や別 sha では getsid にも `/proc` にも触れない (login node の in-process テストを守る)。
+3. **signal と観測** = `os.pidfd_open` → starttime 再照合 → `signal.pidfd_send_signal(SIGTERM)` → pidfd の `select.poll` (POLLIN = 終了) で 5 秒 →
+   生存へ SIGKILL → 1 秒 → 再列挙。最大 2 巡、新規候補 0 で終了、候補 0 の巡は待たない。`os.kill(pid)`・非子 `waitpid`・subreaper・PID ns・setsid は使わない。
+4. **記録** = `IZANAGI_DISPATCH_JOB_TRACE` の新事象 (`session-sweep-start` に祖先鎖、`session-residual`、`session-signal`、`session-process-exited`、`session-sweep-complete` の
+   status ∈ {clean, remaining, unknown} と件数、`session-sweep-error`)。result schema の field は増やさない。sweep の失敗は `child_rc` / result / return を変えない。
+5. 定数 5 秒 / 1 秒 / 2 巡は設計値 (未実測) であり、CLI・request・env から変えられない。
+
+**理由:**
+- D2124 の設計入力 (session 離脱・session を基準とする回収を検証候補とし、会計終了と残存子の終了を別々に評価) のうち、「job 終了時に残さない」は回収でしか満たせない。
+  session 離脱 (`start_new_session`) は残存を別 session へ移すだけで、離脱後の記録途絶は回収成功の証拠にならない (D2124)。
+- 計算ノードの実 trace で session leader は NQSV の `nqs_shpd` (ユーザー uid) であり、dispatcher は leader ではない。「同 session を全部 kill」は leader を殺す。
+  祖先鎖の除外だけでは同 session の非祖先 NQSV process を守れない (段 3 A-1) ので、bootstrap の構造 (入れ子 user ns) から導ける帰属述語を置いた。login で述語の可読性を実測した。
+- 既存の in-process テストは `patch.dict(os.environ, clear=True)` でないものがあり、`=1` の opt-in は ambient 継承で login の pytest session を走査しうる (段 3 A-2)。
+- pid 再利用の窓 (段 3 A-3) と終了観測の独立性 (D2124 の「別々に評価」) は pidfd で同時に満たせる。計算ノード kernel 5.15 で利用可能 (login 実測、計算ノード実走)。
+- 計算ノード 2 走 (generic 単一子 probe): 統制 no-child `E − J` = −0.468 秒 / 残存 0、陽性対照 keep (子 75 秒) `E − J` = −0.381 秒 / 残存 1 を KILL で回収
+  (`after=kill`、pidfd で終了観測、G − t0 = 10.0 秒)。前 2 wave の同条件は 69.5 / 69.7 秒。
+- **環境事実:** 計算ノード job 内の全 process は SIGTERM を SIG_IGN で継承する (nqs_shpd → bash → dispatcher → 子、F1012 と同じ)。handler を持たない残存子は TERM で死なず、
+  猶予 5 秒後の KILL で死ぬ。keep の期待は投入前にこの形へ改訂して固定した。
+
+**却下した選択肢:**
+- 隔離 child を `start_new_session=True` で別 session に置く (session 離脱) — 会計は早く終わるが残存 process が node に残る。「残さない」を満たさない。
+- subreaper で孫を回収する — F973 (zombie の窓が残存計数を汚す)。
+- uid フィルタ — 同 uid の非 workload (`nqs_shpd` は uid 31609) を守れない。ns 帰属述語に包含。
+- opt-in を固定値 `1` にする — ambient 継承で in-process テストが発火する。
+- dispatcher で SIGTERM を SIG_DFL に戻して子孫に継承させる — TERM 猶予が効くようになるが job body 全体の signal 環境を変え、受入 suite の既存挙動へ波及しうる。本 wave の scope 外、次の一手候補。
+- 計算ノードで SIGTERM を無視する子の追加 1 走 — probe の改変 (Codex author) と別事前登録が要る。結論を generic 単一子に限定し、SIGKILL 経路は login のテストで検証。
+  結果的に keep 自体が SIG_IGN 継承で KILL 経路を通った。
+- watchdog・一般的な process 管理機構・result schema への field 追加 — 依頼の scope 外。

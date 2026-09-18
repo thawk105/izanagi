@@ -5087,6 +5087,141 @@ def test_producer_rejects_invalid_pid_source(source: str) -> None:
     fake.assert_drained([])
 
 
+def _producer_commit_git(repo: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", *args], cwd=repo, check=True, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        env={**os.environ, "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull},
+    )
+    return result.stdout.strip()
+
+
+def _producer_commit_repo(root: Path) -> Path:
+    primary = root / "primary"
+    _producer_commit_git(root, "init", "-b", "parent", str(primary))
+    _producer_commit_git(primary, "config", "user.name", "Producer Test")
+    _producer_commit_git(primary, "config", "user.email", "producer@example.invalid")
+    (primary / "tracked").write_text("base\n")
+    _producer_commit_git(primary, "add", "-A")
+    _producer_commit_git(primary, "commit", "-m", "base")
+    worker = root / "worker"
+    _producer_commit_git(primary, "worktree", "add", "-b", "topic", str(worker))
+    return worker
+
+
+def _producer_commit_args(root: Path, pid: int) -> list[str]:
+    return [
+        "producer", "--done-file", str(root / "producer.done"),
+        "--artifact-file", str(root / "artifact.json"), "--pid", str(pid),
+        "--receipt-file", str(root / "producer-receipt.json"),
+    ]
+
+
+def test_producer_commit_worktree_after_death(tmp_path: Path, capsys) -> None:
+    from dataclasses import replace
+
+    worker = _producer_commit_repo(tmp_path)
+    base = _producer_commit_git(worker, "rev-parse", "HEAD")
+    (worker / "residue").write_text("before death\n")
+    (tmp_path / "producer.done").write_text("0\n")
+    (tmp_path / "artifact.json").write_text("{}\n")
+    # Real producer stays alive until the waiter's sleep seam releases it.
+    # A premature commit is caught before the final producer write is allowed.
+    producer = subprocess.Popen(
+        [sys.executable, "-c", "import sys; from pathlib import Path; sys.stdin.read(); Path('residue').write_text('final residue\\n')"],
+        cwd=worker, stdin=subprocess.PIPE,
+    )
+    sleeps = []
+    def release_producer(seconds):
+        sleeps.append(seconds)
+        assert producer.poll() is None
+        assert _producer_commit_git(worker, "rev-parse", "HEAD") == base
+        producer.communicate(timeout=10)
+    try:
+        effects = replace(DW._default_effects(), sleep=release_producer)
+        rc = DW.main(
+            _producer_commit_args(tmp_path, producer.pid) + ["--commit-worktree", str(worker)],
+            effects=effects,
+        )
+    finally:
+        if producer.poll() is None:
+            producer.kill()
+        producer.wait(timeout=10)
+    captured = capsys.readouterr()
+    head = _producer_commit_git(worker, "rev-parse", "HEAD")
+    assert sleeps == [5]
+    assert rc == DW.RC_OK, captured.err
+    assert captured.out == f"worktree-commit: committed {head}\n"
+    assert "NG:" not in captured.err
+    assert "producer-commit" not in captured.err
+    assert captured.err in (
+        "",
+        f"producer: /proc/{producer.pid}/stat を読めないため pid-only へ縮退します\n",
+    )
+    assert _producer_commit_git(worker, "rev-list", "--count", f"{base}..HEAD") == "1"
+    assert _producer_commit_git(worker, "show", "HEAD:residue") == "final residue"
+    message = _producer_commit_git(worker, "log", "-1", "--format=%B")
+    assert "actor: waiter\nlauncher rc: unknown\n" in message
+    assert "model=unknown; reasoning=unknown; role=author" in message
+    assert json.loads((tmp_path / "producer-receipt.json").read_bytes())["status"] == "success"
+
+
+def test_producer_without_commit_flag_preserves_bytes(tmp_path: Path) -> None:
+    worker = _producer_commit_repo(tmp_path)
+    head = _producer_commit_git(worker, "rev-parse", "HEAD")
+    (tmp_path / "producer.done").write_text("0\n")
+    (tmp_path / "artifact.json").write_text("{}\n")
+    with subprocess.Popen(["sleep", "0"]) as producer:
+        producer.wait(timeout=10)
+    command = [sys.executable, str(_TOOL), *_producer_commit_args(tmp_path, producer.pid)]
+    first = subprocess.run(command, cwd=worker, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    receipt = tmp_path / "producer-receipt.json"
+    before = receipt.read_bytes()
+    (worker / "residue").write_text("uncommitted\n")
+    second = subprocess.run(command, cwd=worker, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    assert first.returncode == second.returncode == DW.RC_OK
+    assert first.stdout == second.stdout == b""
+    assert first.stderr == second.stderr
+    assert receipt.read_bytes() == before
+    assert _producer_commit_git(worker, "rev-parse", "HEAD") == head
+    assert _producer_commit_git(worker, "diff", "--cached") == ""
+    assert (worker / "residue").read_text() == "uncommitted\n"
+
+
+def test_producer_commit_worktree_requires_absolute_path(capsys) -> None:
+    fake = _FakeEffects()
+    rc = DW.main(
+        ["producer", "--done-file", "d", "--artifact-file", "a", "--pid", "1",
+         "--commit-worktree", "relative"], effects=fake.effects,
+    )
+    assert rc == DW.RC_USAGE
+    assert capsys.readouterr().out == ""
+    fake.assert_drained([])
+
+
+@pytest.mark.parametrize("failure", ["primary", "identity"])
+def test_producer_commit_failure_withholds_receipt(tmp_path: Path, capsys, failure: str) -> None:
+    worker = _producer_commit_repo(tmp_path)
+    if failure == "primary":
+        worker = tmp_path / "primary"
+    else:
+        _producer_commit_git(worker, "config", "--unset", "user.name")
+        _producer_commit_git(worker, "config", "--unset", "user.email")
+        _producer_commit_git(worker, "config", "user.useConfigOnly", "true")
+    (worker / "residue").write_text("uncommitted\n")
+    (tmp_path / "producer.done").write_text("0\n")
+    (tmp_path / "artifact.json").write_text("{}\n")
+    with subprocess.Popen(["sleep", "0"]) as producer:
+        producer.wait(timeout=10)
+    rc = DW.main(_producer_commit_args(tmp_path, producer.pid) + ["--commit-worktree", str(worker)])
+    captured = capsys.readouterr()
+    assert rc == DW.RC_FAIL_CLOSED
+    assert "producer-commit" in captured.err
+    assert "NG: worktree-commit" in captured.err
+    assert not (tmp_path / "producer-receipt.json").exists()
+    assert (worker / "residue").read_text() == "uncommitted\n"
+
+
 def test_producer_cli_surface_has_no_pattern_input(capsys: pytest.CaptureFixture[str]) -> None:
     parser = DW._producer_parser()
     expected_options = {
@@ -5099,6 +5234,7 @@ def test_producer_cli_surface_has_no_pattern_input(capsys: pytest.CaptureFixture
         "--max-wait-seconds",
         "--check-only",
         "--receipt-file",
+        "--commit-worktree",
     }
     actual_options = {
         option

@@ -1,0 +1,120 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 2700,
+ "hang_timeout_seconds": 2700,
+ "mutations": [
+  {
+   "id": "m0-equivalent-docstring",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "    \"\"\"Read stat without splitting a comm that contains spaces or parentheses.\"\"\"\n",
+     "new": "    \"\"\"Parse /proc stat; comm may contain spaces or parentheses, so split on the last \")\" (equivalent mutation marker).\"\"\"\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-sweep-call-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "        _maybe_sweep_job_session(request_sha256)\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-ancestor-exclusion-self-only-pin",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "        excluded = {ancestor[\"pid\"] for ancestor in ancestors}\n",
+     "new": "        excluded = {os.getpid()}\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-opt-in-ignored",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "    if request_sha256 is None or os.environ.get(_JOB_SESSION_SWEEP_ENV) != request_sha256:\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-kill-stage-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "                _signal_session_process(fd, record, signal.SIGKILL)\n",
+     "new": "                pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-exit-confirmation-forged",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "        events = poller.poll(math.ceil(remaining * 1000))\n",
+     "new": "        events = [(fd, select.POLLIN) for fd in pending]\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-single-round",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "    for round_index in range(rounds):\n",
+     "new": "    for round_index in range(1):\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-attribution-always-true",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/pegasus/dispatch_compute.py",
+     "old": "        attributed = user_ns is not None and user_ns != own_user_ns\n",
+     "new": "        attributed = True\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

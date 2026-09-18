@@ -1,0 +1,1149 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/f3fa1dfb0097969d60ec50e188ea99ad/izdw-f3fa1dfb00.o5150",
+      "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/f3fa1dfb0097969d60ec50e188ea99ad/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n................                                                         [100%]\n16 passed in 5.97s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "b921e770b0128f33082580de332ce8bd6ba95186818f5c6171ddb1da225f2ac8"
+    },
+    "artifact_error": null,
+    "collection_sha256": "b359d21b5e761821222bacfc17d11c9444b4b4b41721179503663c58742d6b68",
+    "duration_s": 27.988,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "b6d4067706ced03e7ca0093e78d54ce6ec7fcc8aa650b6694e61d9cd4f0f27aa",
+    "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+    "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+    "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+    "status": "PASSED",
+    "test_output_sha256": "b921e770b0128f33082580de332ce8bd6ba95186818f5c6171ddb1da225f2ac8",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+  },
+  "date": "2026-09-17T23:16:59.393975+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/b9c392da1b59a5577eed0d4433410f27/izdw-b9c392da1b.o5153",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/b9c392da1b59a5577eed0d4433410f27/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n................                                                         [100%]\n16 passed in 6.00s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "64ea29ce202717cee1ab8dfb6eca4ae4137a92afd7412a68fd1ba162975e0255"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "b359d21b5e761821222bacfc17d11c9444b4b4b41721179503663c58742d6b68",
+      "duration_s": 32.435,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M0-docstring-control",
+      "injection_diff_sha256": "a0d8a33c70f141a5eb1975ec1ad49272a7eeb4067a62982fcdda090160fdfac0",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "f0c81a68e0da67e5ccb41b28ff224a7b703cc3ae131287fcb5fb2ead4baab6c6",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "    \"\"\"Record worker residue without discarding or adopting its contents (T2638 M0).\"\"\"\n",
+          "old": "    \"\"\"Record worker residue without discarding or adopting its contents.\"\"\"\n"
+        }
+      ],
+      "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+      "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+      "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+      "status": "SURVIVED",
+      "test_output_sha256": "64ea29ce202717cee1ab8dfb6eca4ae4137a92afd7412a68fd1ba162975e0255",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/a5f49f78c3eca05ade18b95af330f7d1/izdw-a5f49f78c3.o5155",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/a5f49f78c3eca05ade18b95af330f7d1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............FFF                                                         [100%]\n=================================== FAILURES ===================================\n_______________________ test_terminal_commit_failure_rc ________________________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_terminal_commit_failure_rc() -> None:\n        for launcher_rc, expected_rc in ((0, 3), (7, 7)):\n            with tempfile.TemporaryDirectory() as tmp:\n                root = Path(tmp)\n                worker = _terminal_repo(root, launcher_rc)\n                base = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n                _terminal_git(worker, \"config\", \"--unset\", \"user.name\")\n                _terminal_git(worker, \"config\", \"--unset\", \"user.email\")\n                _terminal_git(worker, \"config\", \"user.useConfigOnly\", \"true\")\n                result = _terminal_dispatch(root, worker)\n>               assert result.returncode == expected_rc, result.stderr\nE               AssertionError: \nE               assert 0 == 3\nE                +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/tools/dev_wav...er.txt', '--repo-root', '/tmp/tmp5_vucdfn/worker', '--sandbox', 'workspace-write'], returncode=0, stdout='', stderr='').returncode\n\norchestrator/tests/test_dev_wave_codex.py:711: AssertionError\n______________ test_workspace_write_author_commits_after_launcher ______________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_workspace_write_author_commits_after_launcher() -> None:\n        for launcher_rc in (0, 7):\n            for stage in (\"author\", \"fix\"):\n                with tempfile.TemporaryDirectory() as tmp:\n                    root = Path(tmp)\n                    worker = _terminal_repo(root, launcher_rc)\n                    base = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n                    result = _terminal_dispatch(root, worker, stage=stage)\n                    head = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n                    assert result.returncode == launcher_rc, result.stderr\n>                   assert result.stdout == f\"worktree-commit: committed {head}\\n\"\nE                   AssertionError: assert '' == 'worktree-com...9188806853f\\n'\nE                     \nE                     - worktree-commit: committed 6324a05714001157f9b67c6f840be9188806853f\n\norchestrator/tests/test_dev_wave_codex.py:690: AssertionError\n__________________ test_read_only_and_non_author_never_commit __________________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_read_only_and_non_author_never_commit() -> None:\n        for stage, sandbox in ((\"author\", \"read-only\"), (\"plan\", \"workspace-write\")):\n            with tempfile.TemporaryDirectory() as tmp:\n                root = Path(tmp)\n                worker = _terminal_repo(root)\n                (worker / \"dirty\").write_text(\"existing residue\\n\")\n                head = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n                index = Path(_terminal_git(worker, \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"index\"))\n                before_index = index.read_bytes()\n                result = _terminal_dispatch(root, worker, stage=stage, sandbox=sandbox)\n                assert result.returncode == 0, result.stderr\n>               assert result.stdout == (\"\" if sandbox == \"read-only\" else \"worktree-commit: skipped reason=stage\\n\")\nE               AssertionError: assert 'worktree-com...db32e521f87\\n' == ''\nE                 \nE                 + worktree-commit: committed 370aa1bc24f76c7d6b137255ae925db32e521f87\n\norchestrator/tests/test_dev_wave_codex.py:729: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc\nFAILED orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher\nFAILED orchestrator/tests/test_dev_wave_codex.py::test_read_only_and_non_author_never_commit\n3 failed, 13 passed in 5.56s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_codex.py::test_read_only_and_non_author_never_commit\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=1139 retained_bytes=1139 omitted_bytes=0 rendered_excerpt_bytes=1187 sha256=0c4eea3bfe0d28a4958a05c04e8b172177b427efcc9607bab478edac3d86d905\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_read_only_and_non_author_never_commit() -> None:\n>         for stage, sandbox in ((\"author\", \"read-only\"), (\"plan\", \"workspace-write\")):\n>             with tempfile.TemporaryDirectory() as tmp:\n>                 root = Path(tmp)\n>                 worker = _terminal_repo(root)\n>                 (worker / \"dirty\").write_text(\"existing residue\\x5cn\")\n>                 head = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n>                 index = Path(_terminal_git(worker, \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"index\"))\n>                 before_index = index.read_bytes()\n>                 result = _terminal_dispatch(root, worker, stage=stage, sandbox=sandbox)\n>                 assert result.returncode == 0, result.stderr\n> >               assert result.stdout == (\"\" if sandbox == \"read-only\" else \"worktree-commit: skipped reason=stage\\x5cn\")\n> E               AssertionError: assert 'worktree-com...db32e521f87\\x5cn' == ''\n> E                 \n> E                 + worktree-commit: committed 370aa1bc24f76c7d6b137255ae925db32e521f87\n> \n> orchestrator/tests/test_dev_wave_codex.py:729: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc\" nodeid_bytes=74 nodeid_omitted_bytes=0 source_bytes=1128 retained_bytes=1128 omitted_bytes=0 rendered_excerpt_bytes=1165 sha256=a9fbabe2769879320243b5ec817f3beeb4023f5ea8f79c013cfb8ea994e0349a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_terminal_commit_failure_rc() -> None:\n>         for launcher_rc, expected_rc in ((0, 3), (7, 7)):\n>             with tempfile.TemporaryDirectory() as tmp:\n>                 root = Path(tmp)\n>                 worker = _terminal_repo(root, launcher_rc)\n>                 base = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n>                 _terminal_git(worker, \"config\", \"--unset\", \"user.name\")\n>                 _terminal_git(worker, \"config\", \"--unset\", \"user.email\")\n>                 _terminal_git(worker, \"config\", \"user.useConfigOnly\", \"true\")\n>                 result = _terminal_dispatch(root, worker)\n> >               assert result.returncode == expected_rc, result.stderr\n> E               AssertionError: \n> E               assert 0 == 3\n> E                +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/tools/dev_wav...er.txt', '--repo-root', '/tmp/tmp5_vucdfn/worker', '--sandbox', 'workspace-write'], returncode=0, stdout='', stderr='').returncode\n> \n> orchestrator/tests/test_dev_wave_codex.py:711: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=985 retained_bytes=985 omitted_bytes=0 rendered_excerpt_bytes=1028 sha256=45ef88f1586c022d6147350973e9602905b2e5bbfe44f0601e45fd41b075bbc4\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_workspace_write_author_commits_after_launcher() -> None:\n>         for launcher_rc in (0, 7):\n>             for stage in (\"author\", \"fix\"):\n>                 with tempfile.TemporaryDirectory() as tmp:\n>                     root = Path(tmp)\n>                     worker = _terminal_repo(root, launcher_rc)\n>                     base = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n>                     result = _terminal_dispatch(root, worker, stage=stage)\n>                     head = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n>                     assert result.returncode == launcher_rc, result.stderr\n> >                   assert result.stdout == f\"worktree-commit: committed {head}\\x5cn\"\n> E                   AssertionError: assert '' == 'worktree-com...9188806853f\\x5cn'\n> E                     \n> E                     - worktree-commit: committed 6324a05714001157f9b67c6f840be9188806853f\n> \n> orchestrator/tests/test_dev_wave_codex.py:690: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=3252 retained_bytes=3252 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4937 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "e1e7440ff32e6c35830e9dd7fb2d46edef15824590b88c08ee8041294b4e61af"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b359d21b5e761821222bacfc17d11c9444b4b4b41721179503663c58742d6b68",
+      "duration_s": 48.279,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_read_only_and_non_author_never_commit",
+        "orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc",
+        "orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc",
+        "orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher",
+        "orchestrator/tests/test_dev_wave_codex.py::test_read_only_and_non_author_never_commit"
+      ],
+      "hang_risk": false,
+      "id": "M1-sandbox-predicate-inverted",
+      "injection_diff_sha256": "cc3b23619fd630ddea605a48b10b803621652221b678934d674f0433e219d8f3",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c4db8dbc9b20e020ec04e6b8cf7fdf77e114b9e4d58cc20858289ac57204a83c",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_codex.py",
+          "new": "    if args.sandbox == \"read-only\":\n        if args.stage in (\"author\", \"fix\"):\n",
+          "old": "    if args.sandbox == \"workspace-write\":\n        if args.stage in (\"author\", \"fix\"):\n"
+        }
+      ],
+      "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+      "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+      "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+      "status": "KILLED",
+      "test_output_sha256": "e1e7440ff32e6c35830e9dd7fb2d46edef15824590b88c08ee8041294b4e61af",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/812ced251f8acb4d79dcbaaf363795c8/izdw-812ced251f.o5158",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/812ced251f8acb4d79dcbaaf363795c8/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............F.                                                         [100%]\n=================================== FAILURES ===================================\n__________________ test_read_only_and_non_author_never_commit __________________\n[gw8] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_read_only_and_non_author_never_commit() -> None:\n        for stage, sandbox in ((\"author\", \"read-only\"), (\"plan\", \"workspace-write\")):\n            with tempfile.TemporaryDirectory() as tmp:\n                root = Path(tmp)\n                worker = _terminal_repo(root)\n                (worker / \"dirty\").write_text(\"existing residue\\n\")\n                head = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n                index = Path(_terminal_git(worker, \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"index\"))\n                before_index = index.read_bytes()\n                result = _terminal_dispatch(root, worker, stage=stage, sandbox=sandbox)\n                assert result.returncode == 0, result.stderr\n>               assert result.stdout == (\"\" if sandbox == \"read-only\" else \"worktree-commit: skipped reason=stage\\n\")\nE               AssertionError: assert 'worktree-com...7731c50bc9a\\n' == 'worktree-com...eason=stage\\n'\nE                 \nE                 - worktree-commit: skipped reason=stage\nE                 + worktree-commit: committed c00460c484c6808cc8c9ba9af08697731c50bc9a\n\norchestrator/tests/test_dev_wave_codex.py:729: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_codex.py::test_read_only_and_non_author_never_commit\n1 failed, 15 passed in 6.01s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_codex.py::test_read_only_and_non_author_never_commit\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=1225 retained_bytes=1225 omitted_bytes=0 rendered_excerpt_bytes=1278 sha256=f76787622b40ad3bf1da924311648debc4281e0cae02d30dc2dcdf54604a0807\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw8] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_read_only_and_non_author_never_commit() -> None:\n>         for stage, sandbox in ((\"author\", \"read-only\"), (\"plan\", \"workspace-write\")):\n>             with tempfile.TemporaryDirectory() as tmp:\n>                 root = Path(tmp)\n>                 worker = _terminal_repo(root)\n>                 (worker / \"dirty\").write_text(\"existing residue\\x5cn\")\n>                 head = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n>                 index = Path(_terminal_git(worker, \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"index\"))\n>                 before_index = index.read_bytes()\n>                 result = _terminal_dispatch(root, worker, stage=stage, sandbox=sandbox)\n>                 assert result.returncode == 0, result.stderr\n> >               assert result.stdout == (\"\" if sandbox == \"read-only\" else \"worktree-commit: skipped reason=stage\\x5cn\")\n> E               AssertionError: assert 'worktree-com...7731c50bc9a\\x5cn' == 'worktree-com...eason=stage\\x5cn'\n> E                 \n> E                 - worktree-commit: skipped reason=stage\n> E                 + worktree-commit: committed c00460c484c6808cc8c9ba9af08697731c50bc9a\n> \n> orchestrator/tests/test_dev_wave_codex.py:729: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1225 retained_bytes=1225 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1990 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "3d8a7f628a43c4982c73ed72891a7a9c919149483e548108e3ef9ae963ab539d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b359d21b5e761821222bacfc17d11c9444b4b4b41721179503663c58742d6b68",
+      "duration_s": 59.482,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_read_only_and_non_author_never_commit"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_read_only_and_non_author_never_commit"
+      ],
+      "hang_risk": false,
+      "id": "M2-stage-predicate-removed",
+      "injection_diff_sha256": "093553f66f9107857f2fcb50ebf623bd3bbc397f38e00e4685d82c77b989220c",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "9a071343947cd46c254869eecd876ab71a0cda21e1a7c36add6da8d86cf2f0ab",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_codex.py",
+          "new": "        if True:\n            status, _detail = commit_worker_worktree(\n",
+          "old": "        if args.stage in (\"author\", \"fix\"):\n            status, _detail = commit_worker_worktree(\n"
+        }
+      ],
+      "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+      "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+      "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+      "status": "KILLED",
+      "test_output_sha256": "3d8a7f628a43c4982c73ed72891a7a9c919149483e548108e3ef9ae963ab539d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/29d7b0dc5cce9725b6d3ef0a5f908bda/izdw-29d7b0dc5c.o5162",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/29d7b0dc5cce9725b6d3ef0a5f908bda/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........F.......                                                         [100%]\n=================================== FAILURES ===================================\n_____ test_commit_worker_worktree_refuses_detached_protected_primary_root ______\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_commit_worker_worktree_refuses_detached_protected_primary_root():\n        for case, reason in ((\"detached\", \"detached-head\"), (\"main\", \"protected-branch\"),\n                             (\"master\", \"protected-branch\"), (\"primary\", \"primary-worktree\"),\n                             (\"nested\", \"root-mismatch\")):\n            with _fresh() as tmp:\n                primary, worker = _worker_repo(Path(tmp))\n                if case == \"detached\":\n                    _git(worker, \"checkout\", \"--detach\")\n                elif case in (\"main\", \"master\"):\n                    _git(worker, \"branch\", \"-m\", case)\n                target = primary if case == \"primary\" else worker\n                (target / \"new\").write_text(\"residue\\n\")\n                before_head = _git(target, \"rev-parse\", \"HEAD\")\n                before_index = Path(_git(target, \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"index\")).read_bytes()\n                if case == \"nested\":\n                    target = worker / \"nested\"\n                    target.mkdir()\n                out, err = StringIO(), StringIO()\n                with redirect_stdout(out), redirect_stderr(err):\n>                   assert _record_worker(target) == (\"refused\", reason)\nE                   AssertionError: assert ('committed',...b18c2a1fb2ea') == ('refused', 'detached-head')\nE                     \nE                     At index 0 diff: 'committed' != 'refused'\nE                     Use -v to get more diff\n\norchestrator/tests/test_dev_waves_git_state.py:1422: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root\n1 failed, 15 passed in 5.92s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1587 retained_bytes=1587 omitted_bytes=0 rendered_excerpt_bytes=1647 sha256=3e893179a9b8f62487fb64c25b5d6211d254111af432fe9198008b146821f10d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_commit_worker_worktree_refuses_detached_protected_primary_root():\n>         for case, reason in ((\"detached\", \"detached-head\"), (\"main\", \"protected-branch\"),\n>                              (\"master\", \"protected-branch\"), (\"primary\", \"primary-worktree\"),\n>                              (\"nested\", \"root-mismatch\")):\n>             with _fresh() as tmp:\n>                 primary, worker = _worker_repo(Path(tmp))\n>                 if case == \"detached\":\n>                     _git(worker, \"checkout\", \"--detach\")\n>                 elif case in (\"main\", \"master\"):\n>                     _git(worker, \"branch\", \"-m\", case)\n>                 target = primary if case == \"primary\" else worker\n>                 (target / \"new\").write_text(\"residue\\x5cn\")\n>                 before_head = _git(target, \"rev-parse\", \"HEAD\")\n>                 before_index = Path(_git(target, \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"index\")).read_bytes()\n>                 if case == \"nested\":\n>                     target = worker / \"nested\"\n>                     target.mkdir()\n>                 out, err = StringIO(), StringIO()\n>                 with redirect_stdout(out), redirect_stderr(err):\n> >                   assert _record_worker(target) == (\"refused\", reason)\n> E                   AssertionError: assert ('committed',...b18c2a1fb2ea') == ('refused', 'detached-head')\n> E                     \n> E                     At index 0 diff: 'committed' != 'refused'\n> E                     Use -v to get more diff\n> \n> orchestrator/tests/test_dev_waves_git_state.py:1422: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1587 retained_bytes=1587 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2390 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "8074999da5b975b91a863d956c0401c7f48902954daac1e6f2e3c1d8ba9763e9"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b359d21b5e761821222bacfc17d11c9444b4b4b41721179503663c58742d6b68",
+      "duration_s": 27.959,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root"
+      ],
+      "hang_risk": false,
+      "id": "M3-detached-allowed",
+      "injection_diff_sha256": "f7cec3fb2134ca718861407f627775561e8cc6558f3ae76f02d54d38bbd318d1",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "4aefb648203071996a4705a9174375d06868ea2598c1f283a69d0320f0dc7f34",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "        if branch.returncode == 99:\n            return finish(\"refused\", \"detached-head\")\n",
+          "old": "        if branch.returncode == 1:\n            return finish(\"refused\", \"detached-head\")\n"
+        }
+      ],
+      "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+      "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+      "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+      "status": "KILLED",
+      "test_output_sha256": "8074999da5b975b91a863d956c0401c7f48902954daac1e6f2e3c1d8ba9763e9",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/3d5f5f857e4e247cbf61d91fcac91187/izdw-3d5f5f857e.o5165",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/3d5f5f857e4e247cbf61d91fcac91187/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........F......                                                         [100%]\n=================================== FAILURES ===================================\n_____ test_commit_worker_worktree_refuses_detached_protected_primary_root ______\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_commit_worker_worktree_refuses_detached_protected_primary_root():\n        for case, reason in ((\"detached\", \"detached-head\"), (\"main\", \"protected-branch\"),\n                             (\"master\", \"protected-branch\"), (\"primary\", \"primary-worktree\"),\n                             (\"nested\", \"root-mismatch\")):\n            with _fresh() as tmp:\n                primary, worker = _worker_repo(Path(tmp))\n                if case == \"detached\":\n                    _git(worker, \"checkout\", \"--detach\")\n                elif case in (\"main\", \"master\"):\n                    _git(worker, \"branch\", \"-m\", case)\n                target = primary if case == \"primary\" else worker\n                (target / \"new\").write_text(\"residue\\n\")\n                before_head = _git(target, \"rev-parse\", \"HEAD\")\n                before_index = Path(_git(target, \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"index\")).read_bytes()\n                if case == \"nested\":\n                    target = worker / \"nested\"\n                    target.mkdir()\n                out, err = StringIO(), StringIO()\n                with redirect_stdout(out), redirect_stderr(err):\n>                   assert _record_worker(target) == (\"refused\", reason)\nE                   AssertionError: assert ('committed',...f471fa8aebc1') == ('refused', '...ected-branch')\nE                     \nE                     At index 0 diff: 'committed' != 'refused'\nE                     Use -v to get more diff\n\norchestrator/tests/test_dev_waves_git_state.py:1422: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root\n1 failed, 15 passed in 5.98s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1589 retained_bytes=1589 omitted_bytes=0 rendered_excerpt_bytes=1649 sha256=d3f2ac33ec8cba51f0ff1ddd01a80b1a2ebaa469d15e9eb6b94a7a06d41aa303\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_commit_worker_worktree_refuses_detached_protected_primary_root():\n>         for case, reason in ((\"detached\", \"detached-head\"), (\"main\", \"protected-branch\"),\n>                              (\"master\", \"protected-branch\"), (\"primary\", \"primary-worktree\"),\n>                              (\"nested\", \"root-mismatch\")):\n>             with _fresh() as tmp:\n>                 primary, worker = _worker_repo(Path(tmp))\n>                 if case == \"detached\":\n>                     _git(worker, \"checkout\", \"--detach\")\n>                 elif case in (\"main\", \"master\"):\n>                     _git(worker, \"branch\", \"-m\", case)\n>                 target = primary if case == \"primary\" else worker\n>                 (target / \"new\").write_text(\"residue\\x5cn\")\n>                 before_head = _git(target, \"rev-parse\", \"HEAD\")\n>                 before_index = Path(_git(target, \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"index\")).read_bytes()\n>                 if case == \"nested\":\n>                     target = worker / \"nested\"\n>                     target.mkdir()\n>                 out, err = StringIO(), StringIO()\n>                 with redirect_stdout(out), redirect_stderr(err):\n> >                   assert _record_worker(target) == (\"refused\", reason)\n> E                   AssertionError: assert ('committed',...f471fa8aebc1') == ('refused', '...ected-branch')\n> E                     \n> E                     At index 0 diff: 'committed' != 'refused'\n> E                     Use -v to get more diff\n> \n> orchestrator/tests/test_dev_waves_git_state.py:1422: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1589 retained_bytes=1589 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2392 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "992c15d0a231c90ad6fe1d3f9416dbd8359c33c4cd71771fda1b7ad513e4070f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b359d21b5e761821222bacfc17d11c9444b4b4b41721179503663c58742d6b68",
+      "duration_s": 32.713,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root"
+      ],
+      "hang_risk": false,
+      "id": "M4-protected-branch-set-empty",
+      "injection_diff_sha256": "52277275149f9acb1e7f30b15163583d45fb6ab27187c29b80391706503ce634",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6de1f50fd4c30617f934ae4c1f15003d7cf12edf178cecedfe35597d10b69b4e",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "        if branch_name in set():\n",
+          "old": "        if branch_name in {\"main\", \"master\"}:\n"
+        }
+      ],
+      "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+      "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+      "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+      "status": "KILLED",
+      "test_output_sha256": "992c15d0a231c90ad6fe1d3f9416dbd8359c33c4cd71771fda1b7ad513e4070f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/2a0474f27c5e1e0d50f86c9e5906a233/izdw-2a0474f27c.o5168",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/2a0474f27c5e1e0d50f86c9e5906a233/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........F...F...                                                         [100%]\n=================================== FAILURES ===================================\n_____ test_commit_worker_worktree_refuses_detached_protected_primary_root ______\n[gw3] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_commit_worker_worktree_refuses_detached_protected_primary_root():\n        for case, reason in ((\"detached\", \"detached-head\"), (\"main\", \"protected-branch\"),\n                             (\"master\", \"protected-branch\"), (\"primary\", \"primary-worktree\"),\n                             (\"nested\", \"root-mismatch\")):\n            with _fresh() as tmp:\n                primary, worker = _worker_repo(Path(tmp))\n                if case == \"detached\":\n                    _git(worker, \"checkout\", \"--detach\")\n                elif case in (\"main\", \"master\"):\n                    _git(worker, \"branch\", \"-m\", case)\n                target = primary if case == \"primary\" else worker\n                (target / \"new\").write_text(\"residue\\n\")\n                before_head = _git(target, \"rev-parse\", \"HEAD\")\n                before_index = Path(_git(target, \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"index\")).read_bytes()\n                if case == \"nested\":\n                    target = worker / \"nested\"\n                    target.mkdir()\n                out, err = StringIO(), StringIO()\n                with redirect_stdout(out), redirect_stderr(err):\n>                   assert _record_worker(target) == (\"refused\", reason)\nE                   AssertionError: assert ('committed',...f11fdf7049ef') == ('refused', '...ary-worktree')\nE                     \nE                     At index 0 diff: 'committed' != 'refused'\nE                     Use -v to get more diff\n\norchestrator/tests/test_dev_waves_git_state.py:1422: AssertionError\n___________ test_producer_commit_failure_withholds_receipt[primary] ____________\n[gw14] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_producer_commit_failure_w0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x14842d6fde10>\nfailure = 'primary'\n\n    @pytest.mark.parametrize(\"failure\", [\"primary\", \"identity\"])\n    def test_producer_commit_failure_withholds_receipt(tmp_path: Path, capsys, failure: str) -> None:\n        worker = _producer_commit_repo(tmp_path)\n        if failure == \"primary\":\n            worker = tmp_path / \"primary\"\n        else:\n            _producer_commit_git(worker, \"config\", \"--unset\", \"user.name\")\n            _producer_commit_git(worker, \"config\", \"--unset\", \"user.email\")\n            _producer_commit_git(worker, \"config\", \"user.useConfigOnly\", \"true\")\n        (worker / \"residue\").write_text(\"uncommitted\\n\")\n        (tmp_path / \"producer.done\").write_text(\"0\\n\")\n        (tmp_path / \"artifact.json\").write_text(\"{}\\n\")\n        with subprocess.Popen([\"sleep\", \"0\"]) as producer:\n            producer.wait(timeout=10)\n        rc = DW.main(_producer_commit_args(tmp_path, producer.pid) + [\"--commit-worktree\", str(worker)])\n        captured = capsys.readouterr()\n>       assert rc == DW.RC_FAIL_CLOSED\nE       assert 0 == 70\nE        +  where 70 = DW.RC_FAIL_CLOSED\n\norchestrator/tests/test_dev_wave_wait.py:5218: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root\nFAILED orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_failure_withholds_receipt[primary]\n2 failed, 14 passed in 6.02s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root\" nodeid_bytes=115 nodeid_omitted_bytes=0 source_bytes=1589 retained_bytes=1589 omitted_bytes=0 rendered_excerpt_bytes=1649 sha256=c842cdb53322272ddf5db40d318e8dcb3a44bef3650e1be7130c8daff10cc771\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw3] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_commit_worker_worktree_refuses_detached_protected_primary_root():\n>         for case, reason in ((\"detached\", \"detached-head\"), (\"main\", \"protected-branch\"),\n>                              (\"master\", \"protected-branch\"), (\"primary\", \"primary-worktree\"),\n>                              (\"nested\", \"root-mismatch\")):\n>             with _fresh() as tmp:\n>                 primary, worker = _worker_repo(Path(tmp))\n>                 if case == \"detached\":\n>                     _git(worker, \"checkout\", \"--detach\")\n>                 elif case in (\"main\", \"master\"):\n>                     _git(worker, \"branch\", \"-m\", case)\n>                 target = primary if case == \"primary\" else worker\n>                 (target / \"new\").write_text(\"residue\\x5cn\")\n>                 before_head = _git(target, \"rev-parse\", \"HEAD\")\n>                 before_index = Path(_git(target, \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"index\")).read_bytes()\n>                 if case == \"nested\":\n>                     target = worker / \"nested\"\n>                     target.mkdir()\n>                 out, err = StringIO(), StringIO()\n>                 with redirect_stdout(out), redirect_stderr(err):\n> >                   assert _record_worker(target) == (\"refused\", reason)\n> E                   AssertionError: assert ('committed',...f11fdf7049ef') == ('refused', '...ary-worktree')\n> E                     \n> E                     At index 0 diff: 'committed' != 'refused'\n> E                     Use -v to get more diff\n> \n> orchestrator/tests/test_dev_waves_git_state.py:1422: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_failure_withholds_receipt[primary]\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=1344 retained_bytes=1344 omitted_bytes=0 rendered_excerpt_bytes=1408 sha256=b0076db278c1006603856b707f7f06b8a28c0ddd7137b5d86f9ceab1483d6d72\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw14] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw14/test_producer_commit_failure_w0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x14842d6fde10>\n> failure = 'primary'\n> \n>     @pytest.mark.parametrize(\"failure\", [\"primary\", \"identity\"])\n>     def test_producer_commit_failure_withholds_receipt(tmp_path: Path, capsys, failure: str) -> None:\n>         worker = _producer_commit_repo(tmp_path)\n>         if failure == \"primary\":\n>             worker = tmp_path / \"primary\"\n>         else:\n>             _producer_commit_git(worker, \"config\", \"--unset\", \"user.name\")\n>             _producer_commit_git(worker, \"config\", \"--unset\", \"user.email\")\n>             _producer_commit_git(worker, \"config\", \"user.useConfigOnly\", \"true\")\n>         (worker / \"residue\").write_text(\"uncommitted\\x5cn\")\n>         (tmp_path / \"producer.done\").write_text(\"0\\x5cn\")\n>         (tmp_path / \"artifact.json\").write_text(\"{}\\x5cn\")\n>         with subprocess.Popen([\"sleep\", \"0\"]) as producer:\n>             producer.wait(timeout=10)\n>         rc = DW.main(_producer_commit_args(tmp_path, producer.pid) + [\"--commit-worktree\", str(worker)])\n>         captured = capsys.readouterr()\n> >       assert rc == DW.RC_FAIL_CLOSED\n> E       assert 0 == 70\n> E        +  where 70 = DW.RC_FAIL_CLOSED\n> \n> orchestrator/tests/test_dev_wave_wait.py:5218: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2933 retained_bytes=2933 omitted_bytes=0 budget_bytes=49152 rendered_bytes=4237 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5a17f96ae56c221186e773a53875898176bcd5d620cd914e497ec4e513c86757"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b359d21b5e761821222bacfc17d11c9444b4b4b41721179503663c58742d6b68",
+      "duration_s": 28.019,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_failure_withholds_receipt[primary]",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_failure_withholds_receipt[primary]"
+      ],
+      "hang_risk": false,
+      "id": "M5-primary-worktree-allowed",
+      "injection_diff_sha256": "3b0d87dedf2c29d5839f4d35ddead0187750ea479124afbef08441df737e2ad0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8eb5090d08decc7227496301f013513314540da0729e86290a02dd4f01323cb0",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "        if False and git_dir == Path(_text(_run(root, operation)).strip()).resolve():\n            return finish(\"refused\", \"primary-worktree\")\n",
+          "old": "        if git_dir == Path(_text(_run(root, operation)).strip()).resolve():\n            return finish(\"refused\", \"primary-worktree\")\n"
+        }
+      ],
+      "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+      "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+      "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+      "status": "KILLED",
+      "test_output_sha256": "5a17f96ae56c221186e773a53875898176bcd5d620cd914e497ec4e513c86757",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/d98601379d40b35168548adcc85bd2be/izdw-d98601379d.o5171",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/d98601379d40b35168548adcc85bd2be/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......F........                                                         [100%]\n=================================== FAILURES ===================================\n_____________ test_commit_worker_worktree_defers_merge_in_progress _____________\n[gw4] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_commit_worker_worktree_defers_merge_in_progress():\n        with _fresh() as tmp:\n            primary, worker = _worker_repo(Path(tmp))\n            (primary / \"tracked\").write_text(\"parent\\n\")\n            _git(primary, \"commit\", \"-am\", \"parent\")\n            (worker / \"tracked\").write_text(\"worker\\n\")\n            _git(worker, \"commit\", \"-am\", \"worker\")\n            _git(worker, \"merge\", \"parent\", ok=(1,))\n            before = _git(worker, \"ls-files\", \"--unmerged\")\n            head = _git(worker, \"rev-parse\", \"HEAD\")\n            residue = (worker / \"tracked\").read_bytes()\n            assert before\n>           assert _record_worker(worker) == (\"deferred\", \"operation-in-progress\")\nE           AssertionError: assert ('committed',...e414d65ec04a') == ('deferred', ...-in-progress')\nE             \nE             At index 0 diff: 'committed' != 'deferred'\nE             Use -v to get more diff\n\norchestrator/tests/test_dev_waves_git_state.py:1442: AssertionError\n----------------------------- Captured stdout call -----------------------------\nworktree-commit: committed 616e776fbc7284907374e87a2ee4e414d65ec04a\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_defers_merge_in_progress\n1 failed, 15 passed in 5.84s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_defers_merge_in_progress\" nodeid_bytes=100 nodeid_omitted_bytes=0 source_bytes=1022 retained_bytes=1022 omitted_bytes=0 rendered_excerpt_bytes=1071 sha256=121568a3f8d1e0dad7ad7628a32e72c4f9ced247284de4691c040c947ca16158\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw4] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_commit_worker_worktree_defers_merge_in_progress():\n>         with _fresh() as tmp:\n>             primary, worker = _worker_repo(Path(tmp))\n>             (primary / \"tracked\").write_text(\"parent\\x5cn\")\n>             _git(primary, \"commit\", \"-am\", \"parent\")\n>             (worker / \"tracked\").write_text(\"worker\\x5cn\")\n>             _git(worker, \"commit\", \"-am\", \"worker\")\n>             _git(worker, \"merge\", \"parent\", ok=(1,))\n>             before = _git(worker, \"ls-files\", \"--unmerged\")\n>             head = _git(worker, \"rev-parse\", \"HEAD\")\n>             residue = (worker / \"tracked\").read_bytes()\n>             assert before\n> >           assert _record_worker(worker) == (\"deferred\", \"operation-in-progress\")\n> E           AssertionError: assert ('committed',...e414d65ec04a') == ('deferred', ...-in-progress')\n> E             \n> E             At index 0 diff: 'committed' != 'deferred'\n> E             Use -v to get more diff\n> \n> orchestrator/tests/test_dev_waves_git_state.py:1442: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1022 retained_bytes=1022 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1799 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4c5b36b94ccec35540afcd37a6f2bdda126933310909ccf583ac3161c317ed7d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b359d21b5e761821222bacfc17d11c9444b4b4b41721179503663c58742d6b68",
+      "duration_s": 27.344,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_defers_merge_in_progress"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_defers_merge_in_progress"
+      ],
+      "hang_risk": false,
+      "id": "M6-operation-markers-empty",
+      "injection_diff_sha256": "9e2f076882c94b553e421b0f4d22efa795a2594d15f7a610309af2a2fbebb5ad",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "68d6cc0c10cf392e95ac0925a3a3ccee7a43dfee2f6eb71cd6f554dd9654a58f",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "        for marker in ():\n",
+          "old": "        for marker in (\"MERGE_HEAD\", \"CHERRY_PICK_HEAD\", \"REVERT_HEAD\", \"rebase-merge\", \"rebase-apply\"):\n"
+        }
+      ],
+      "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+      "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+      "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+      "status": "KILLED",
+      "test_output_sha256": "4c5b36b94ccec35540afcd37a6f2bdda126933310909ccf583ac3161c317ed7d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/36a816218f477bbc040f88430b14ba90/izdw-36a816218f.o5174",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/36a816218f477bbc040f88430b14ba90/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.....FFF...FFFF.                                                         [100%]\n=================================== FAILURES ===================================\n________________ test_commit_worker_worktree_provenance_values _________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_commit_worker_worktree_provenance_values():\n        cases = (\n            ({\"recorded_model\": \"GPT-6\", \"requested_model\": \"fallback\", \"recorded_effort\": \"HIGH\", \"requested_effort\": \"low\"}, (\"gpt-6\", \"high\")),\n            ({\"recorded_model\": \" \", \"requested_model\": \"GPT-5.6\", \"requested_effort\": \"Medium\"}, (\"gpt-5.6\", \"medium\")),\n            (None, (\"unknown\", \"unknown\")),\n            ({\"recorded_model\": \"NONE\", \"recorded_effort\": \"none\", \"requested_model\": \"fallback\"}, (\"unknown\", \"unknown\")),\n            ({\"recorded_model\": \"._GPT\\n6; X---\", \"recorded_effort\": \"..MAX;\\n\", \"outcome\": \"ok\\nAI-Agent: forged;\"}, (\"gpt-6-x\", \"max\")),\n            (\"malformed\", (\"unknown\", \"unknown\")),\n        )\n        with _fresh() as tmp:\n            root = Path(tmp)\n            _, worker = _worker_repo(root)\n            receipt = root / \"receipt.json\"\n            for index, (payload, expected) in enumerate(cases):\n                receipt.unlink(missing_ok=True)\n                if payload is not None:\n                    receipt.write_text(\"{\" if payload == \"malformed\" else json.dumps(payload))\n                (worker / \"tracked\").write_text(f\"change {index}\\n\")\n>               assert _record_worker(worker, receipt_path=receipt)[0] == \"committed\"\nE               AssertionError: assert 'clean' == 'committed'\nE                 \nE                 - committed\nE                 + clean\n\norchestrator/tests/test_dev_waves_git_state.py:1395: AssertionError\n----------------------------- Captured stdout call -----------------------------\nworktree-commit: clean\n_______________ test_commit_worker_worktree_failed_keeps_residue _______________\n[gw5] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_commit_worker_worktree_failed_keeps_residue():\n        with _fresh() as tmp:\n            _, worker = _worker_repo(Path(tmp))\n            base = _git(worker, \"rev-parse\", \"HEAD\")\n            _git(worker, \"config\", \"--unset\", \"user.name\")\n            _git(worker, \"config\", \"--unset\", \"user.email\")\n            _git(worker, \"config\", \"user.useConfigOnly\", \"true\")\n            (worker / \"new\").write_text(\"residue\\n\")\n            out, err = StringIO(), StringIO()\n            with redirect_stdout(out), redirect_stderr(err):\n>               assert _record_worker(worker) == (\"failed\", \"commit-file\")\nE               AssertionError: assert ('clean', None) == ('failed', 'commit-file')\nE                 \nE                 At index 0 diff: 'clean' != 'failed'\nE                 Use -v to get more diff\n\norchestrator/tests/test_dev_waves_git_state.py:1458: AssertionError\n____________ test_commit_worker_worktree_records_residue_then_noop _____________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_commit_worker_worktree_records_residue_then_noop():\n        with _fresh() as tmp:\n            primary, worker = _worker_repo(Path(tmp))\n            base = _git(worker, \"rev-parse\", \"HEAD\")\n            (worker / \"tracked\").write_text(\"edited\\n\", encoding=\"utf-8\")\n            (worker / \"deleted\").unlink()\n            (worker / \"new\").write_bytes(b\"new\\x00bytes\\n\")\n            _git(worker, \"add\", \"-A\")\n            def patch_bytes():\n                return subprocess.run(\n                    [\"git\", \"diff\", \"--cached\", base],\n                    cwd=worker, check=True, stdout=subprocess.PIPE,\n                ).stdout\n            before = patch_bytes()\n            out, err = StringIO(), StringIO()\n            with redirect_stdout(out), redirect_stderr(err):\n                status, head = _record_worker(worker)\n>               assert (status, head) == (\"committed\", _git(worker, \"rev-parse\", \"HEAD\"))\nE               AssertionError: assert ('clean', None) == ('committed',...c101a5305a14')\nE                 \nE                 At index 0 diff: 'clean' != 'committed'\nE                 Use -v to get more diff\n\norchestrator/tests/test_dev_waves_git_state.py:1358: AssertionError\n___________ test_producer_commit_failure_withholds_receipt[identity] ___________\n[gw15] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_producer_commit_failure_w0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x150ba6cc87f0>\nfailure = 'identity'\n\n    @pytest.mark.parametrize(\"failure\", [\"primary\", \"identity\"])\n    def test_producer_commit_failure_withholds_receipt(tmp_path: Path, capsys, failure: str) -> None:\n        worker = _producer_commit_repo(tmp_path)\n        if failure == \"primary\":\n            worker = tmp_path / \"primary\"\n        else:\n            _producer_commit_git(worker, \"config\", \"--unset\", \"user.name\")\n            _producer_commit_git(worker, \"config\", \"--unset\", \"user.email\")\n            _producer_commit_git(worker, \"config\", \"user.useConfigOnly\", \"true\")\n        (worker / \"residue\").write_text(\"uncommitted\\n\")\n        (tmp_path / \"producer.done\").write_text(\"0\\n\")\n        (tmp_path / \"artifact.json\").write_text(\"{}\\n\")\n        with subprocess.Popen([\"sleep\", \"0\"]) as producer:\n            producer.wait(timeout=10)\n        rc = DW.main(_producer_commit_args(tmp_path, producer.pid) + [\"--commit-worktree\", str(worker)])\n        captured = capsys.readouterr()\n>       assert rc == DW.RC_FAIL_CLOSED\nE       assert 0 == 70\nE        +  where 70 = DW.RC_FAIL_CLOSED\n\norchestrator/tests/test_dev_wave_wait.py:5218: AssertionError\n_______________________ test_terminal_commit_failure_rc ________________________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_terminal_commit_failure_rc() -> None:\n        for launcher_rc, expected_rc in ((0, 3), (7, 7)):\n            with tempfile.TemporaryDirectory() as tmp:\n                root = Path(tmp)\n                worker = _terminal_repo(root, launcher_rc)\n                base = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n                _terminal_git(worker, \"config\", \"--unset\", \"user.name\")\n                _terminal_git(worker, \"config\", \"--unset\", \"user.email\")\n                _terminal_git(worker, \"config\", \"user.useConfigOnly\", \"true\")\n                result = _terminal_dispatch(root, worker)\n>               assert result.returncode == expected_rc, result.stderr\nE               AssertionError: \nE               assert 0 == 3\nE                +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/tools/dev_wav...'/tmp/tmp7ipsnbcv/worker', '--sandbox', 'workspace-write'], returncode=0, stdout='worktree-commit: clean\\n', stderr='').returncode\n\norchestrator/tests/test_dev_wave_codex.py:711: AssertionError\n______________ test_workspace_write_author_commits_after_launcher ______________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_workspace_write_author_commits_after_launcher() -> None:\n        for launcher_rc in (0, 7):\n            for stage in (\"author\", \"fix\"):\n                with tempfile.TemporaryDirectory() as tmp:\n                    root = Path(tmp)\n                    worker = _terminal_repo(root, launcher_rc)\n                    base = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n                    result = _terminal_dispatch(root, worker, stage=stage)\n                    head = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n                    assert result.returncode == launcher_rc, result.stderr\n>                   assert result.stdout == f\"worktree-commit: committed {head}\\n\"\nE                   AssertionError: assert 'worktree-commit: clean\\n' == 'worktree-com...26aeb2e019f\\n'\nE                     \nE                     - worktree-commit: committed b6cdb8344e59350b37febe59de64f26aeb2e019f\nE                     + worktree-commit: clean\n\norchestrator/tests/test_dev_wave_codex.py:690: AssertionError\n__________________ test_producer_commit_worktree_after_death ___________________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_producer_commit_worktree_0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x14c0247ebb20>\n\n    def test_producer_commit_worktree_after_death(tmp_path: Path, capsys) -> None:\n        from dataclasses import replace\n    \n        worker = _producer_commit_repo(tmp_path)\n        base = _producer_commit_git(worker, \"rev-parse\", \"HEAD\")\n        (worker / \"residue\").write_text(\"before death\\n\")\n        (tmp_path / \"producer.done\").write_text(\"0\\n\")\n        (tmp_path / \"artifact.json\").write_text(\"{}\\n\")\n        # Real producer stays alive until the waiter's sleep seam releases it.\n        # A premature commit is caught before the final producer write is allowed.\n        producer = subprocess.Popen(\n            [sys.executable, \"-c\", \"import sys; from pathlib import Path; sys.stdin.read(); Path('residue').write_text('final residue\\\\n')\"],\n            cwd=worker, stdin=subprocess.PIPE,\n        )\n        sleeps = []\n        def release_producer(seconds):\n            sleeps.append(seconds)\n            assert producer.poll() is None\n            assert _producer_commit_git(worker, \"rev-parse\", \"HEAD\") == base\n            producer.communicate(timeout=10)\n        try:\n            effects = replace(DW._default_effects(), sleep=release_producer)\n            rc = DW.main(\n                _producer_commit_args(tmp_path, producer.pid) + [\"--commit-worktree\", str(worker)],\n                effects=effects,\n            )\n        finally:\n            if producer.poll() is None:\n                producer.kill()\n            producer.wait(timeout=10)\n        captured = capsys.readouterr()\n        head = _producer_commit_git(worker, \"rev-parse\", \"HEAD\")\n        assert sleeps == [5]\n        assert rc == DW.RC_OK, captured.err\n>       assert captured.out == f\"worktree-commit: committed {head}\\n\"\nE       AssertionError: assert 'worktree-commit: clean\\n' == 'worktree-com...f49a660c22c\\n'\nE         \nE         - worktree-commit: committed 7069b9f6b9d6ecad1deb4939641d5f49a660c22c\nE         + worktree-commit: clean\n\norchestrator/tests/test_dev_wave_wait.py:5154: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_failed_keeps_residue\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_records_residue_then_noop\nFAILED orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_failure_withholds_receipt[identity]\nFAILED orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc\nFAILED orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher\nFAILED orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death\n7 failed, 9 passed in 5.65s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=2198 retained_bytes=2198 omitted_bytes=0 rendered_excerpt_bytes=2315 sha256=71b296c218f17403711c7930a17cc5612ca4f833502346c554a61a507479c86b\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_producer_commit_worktree_0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x14c0247ebb20>\n> \n>     def test_producer_commit_worktree_after_death(tmp_path: Path, capsys) -> None:\n>         from dataclasses import replace\n>     \n>         worker = _producer_commit_repo(tmp_path)\n>         base = _producer_commit_git(worker, \"rev-parse\", \"HEAD\")\n>         (worker / \"residue\").write_text(\"before death\\x5cn\")\n>         (tmp_path / \"producer.done\").write_text(\"0\\x5cn\")\n>         (tmp_path / \"artifact.json\").write_text(\"{}\\x5cn\")\n>         # Real producer stays alive until the waiter's sleep seam releases it.\n>         # A premature commit is caught before the final producer write is allowed.\n>         producer = subprocess.Popen(\n>             [sys.executable, \"-c\", \"import sys; from pathlib import Path; sys.stdin.read(); Path('residue').write_text('final residue\\x5c\\x5cn')\"],\n>             cwd=worker, stdin=subprocess.PIPE,\n>         )\n>         sleeps = []\n>         def release_producer(seconds):\n>             sleeps.append(seconds)\n>             assert producer.poll() is None\n>             assert _producer_commit_git(worker, \"rev-parse\", \"HEAD\") == base\n>             producer.communicate(timeout=10)\n>         try:\n>             effects = replace(DW._default_effects(), sleep=release_producer)\n>             rc = DW.main(\n>                 _producer_commit_args(tmp_path, producer.pid) + [\"--commit-worktree\", str(worker)],\n>                 effects=effects,\n>             )\n>         finally:\n>             if producer.poll() is None:\n>                 producer.kill()\n>             producer.wait(timeout=10)\n>         captured = capsys.readouterr()\n>         head = _producer_commit_git(worker, \"rev-parse\", \"HEAD\")\n>         assert sleeps == [5]\n>         assert rc == DW.RC_OK, captured.err\n> >       assert captured.out == f\"worktree-commit: committed {head}\\x5cn\"\n> E       AssertionError: assert 'worktree-commit: clean\\x5cn' == 'worktree-com...f49a660c22c\\x5cn'\n> E         \n> E         - worktree-commit: committed 7069b9f6b9d6ecad1deb4939641d5f49a660c22c\n> E         + worktree-commit: clean\n> \n> orchestrator/tests/test_dev_wave_wait.py:5154: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1512 retained_bytes=1512 omitted_bytes=0 rendered_excerpt_bytes=1579 sha256=c946da09328476aed78eaf16f7e5e50b776642476d177f0bd4f5330fd7ace76a\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_commit_worker_worktree_provenance_values():\n>         cases = (\n>             ({\"recorded_model\": \"GPT-6\", \"requested_model\": \"fallback\", \"recorded_effort\": \"HIGH\", \"requested_effort\": \"low\"}, (\"gpt-6\", \"high\")),\n>             ({\"recorded_model\": \" \", \"requested_model\": \"GPT-5.6\", \"requested_effort\": \"Medium\"}, (\"gpt-5.6\", \"medium\")),\n>             (None, (\"unknown\", \"unknown\")),\n>             ({\"recorded_model\": \"NONE\", \"recorded_effort\": \"none\", \"requested_model\": \"fallback\"}, (\"unknown\", \"unknown\")),\n>             ({\"recorded_model\": \"._GPT\\x5cn6; X---\", \"recorded_effort\": \"..MAX;\\x5cn\", \"outcome\": \"ok\\x5cnAI-Agent: forged;\"}, (\"gpt-6-x\", \"max\")),\n>             (\"malformed\", (\"unknown\", \"unknown\")),\n>         )\n>         with _fresh() as tmp:\n>             root = Path(tmp)\n>             _, worker = _worker_repo(root)\n>             receipt = root / \"receipt.json\"\n>             for index, (payload, expected) in enumerate(cases):\n>                 receipt.unlink(missing_ok=True)\n>                 if payload is not None:\n>                     receipt.write_text(\"{\" if payload == \"malformed\" else json.dumps(payload))\n>                 (worker / \"tracked\").write_text(f\"change {index}\\x5cn\")\n> >               assert _record_worker(worker, receipt_path=receipt)[0] == \"committed\"\n> E               AssertionError: assert 'clean' == 'committed'\n> E                 \n> E                 - committed\n> E                 + clean\n> \n> orchestrator/tests/test_dev_waves_git_state.py:1395: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc\" nodeid_bytes=74 nodeid_omitted_bytes=0 source_bytes=1128 retained_bytes=1128 omitted_bytes=0 rendered_excerpt_bytes=1168 sha256=3a93f15b35cb3022fe0dbdb711c01b434c8fc3261ed24fa13d7faeea1c85e9c3\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_terminal_commit_failure_rc() -> None:\n>         for launcher_rc, expected_rc in ((0, 3), (7, 7)):\n>             with tempfile.TemporaryDirectory() as tmp:\n>                 root = Path(tmp)\n>                 worker = _terminal_repo(root, launcher_rc)\n>                 base = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n>                 _terminal_git(worker, \"config\", \"--unset\", \"user.name\")\n>                 _terminal_git(worker, \"config\", \"--unset\", \"user.email\")\n>                 _terminal_git(worker, \"config\", \"user.useConfigOnly\", \"true\")\n>                 result = _terminal_dispatch(root, worker)\n> >               assert result.returncode == expected_rc, result.stderr\n> E               AssertionError: \n> E               assert 0 == 3\n> E                +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/tools/dev_wav...'/tmp/tmp7ipsnbcv/worker', '--sandbox', 'workspace-write'], returncode=0, stdout='worktree-commit: clean\\x5cn', stderr='').returncode\n> \n> orchestrator/tests/test_dev_wave_codex.py:711: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE rank=4 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_failure_withholds_receipt[identity]\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=1345 retained_bytes=1345 omitted_bytes=0 rendered_excerpt_bytes=1409 sha256=2630004f123fc241f4a1459b0ed0b824312bbac73d14adbb07a65e20a7c258c7\n--- IZANAGI FAILURE EXCERPT rank=4 BEGIN ---\n> [gw15] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw15/test_producer_commit_failure_w0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x150ba6cc87f0>\n> failure = 'identity'\n> \n>     @pytest.mark.parametrize(\"failure\", [\"primary\", \"identity\"])\n>     def test_producer_commit_failure_withholds_receipt(tmp_path: Path, capsys, failure: str) -> None:\n>         worker = _producer_commit_repo(tmp_path)\n>         if failure == \"primary\":\n>             worker = tmp_path / \"primary\"\n>         else:\n>             _producer_commit_git(worker, \"config\", \"--unset\", \"user.name\")\n>             _producer_commit_git(worker, \"config\", \"--unset\", \"user.email\")\n>             _producer_commit_git(worker, \"config\", \"user.useConfigOnly\", \"true\")\n>         (worker / \"residue\").write_text(\"uncommitted\\x5cn\")\n>         (tmp_path / \"producer.done\").write_text(\"0\\x5cn\")\n>         (tmp_path / \"artifact.json\").write_text(\"{}\\x5cn\")\n>         with subprocess.Popen([\"sleep\", \"0\"]) as producer:\n>             producer.wait(timeout=10)\n>         rc = DW.main(_producer_commit_args(tmp_path, producer.pid) + [\"--commit-worktree\", str(worker)])\n>         captured = capsys.readouterr()\n> >       assert rc == DW.RC_FAIL_CLOSED\n> E       assert 0 == 70\n> E        +  where 70 = DW.RC_FAIL_CLOSED\n> \n> orchestrator/tests/test_dev_wave_wait.py:5218: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=4 END ---\nIZANAGI_FAILURE rank=5 category=failed when=call nodeid=\"orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_records_residue_then_noop\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=1243 retained_bytes=1243 omitted_bytes=0 rendered_excerpt_bytes=1305 sha256=d160046d3d46cb46a40344e23ca276c40f2b71c8dcc61a95434ab893faf57299\n--- IZANAGI FAILURE EXCERPT rank=5 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_commit_worker_worktree_records_residue_then_noop():\n>         with _fresh() as tmp:\n>             primary, worker = _worker_repo(Path(tmp))\n>             base = _git(worker, \"rev-parse\", \"HEAD\")\n>             (worker / \"tracked\").write_text(\"edited\\x5cn\", encoding=\"utf-8\")\n>             (worker / \"deleted\").unlink()\n>             (worker / \"new\").write_bytes(b\"new\\x5cx00bytes\\x5cn\")\n>             _git(worker, \"add\", \"-A\")\n>             def patch_bytes():\n>                 return subprocess.run(\n>                     [\"git\", \"diff\", \"--cached\", base],\n>                     cwd=worker, check=True, stdout=subprocess.PIPE,\n>                 ).stdout\n>             before = patch_bytes()\n>             out, err = StringIO(), StringIO()\n>             with redirect_stdout(out), redirect_stderr(err):\n>                 status, head = _record_worker(worker)\n> >               assert (status, head) == (\"committed\", _git(worker, \"rev-parse\", \"HEAD\"))\n> E               AssertionError: assert ('clean', None) == ('committed',...c101a5305a14')\n> E                 \n> E                 At index 0 diff: 'clean' != 'committed'\n> E                 Use -v to get more diff\n> \n> orchestrator/tests/test_dev_waves_git_state.py:1358: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=5 END ---\nIZANAGI_FAILURE rank=6 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1056 retained_bytes=1056 omitted_bytes=0 rendered_excerpt_bytes=1104 sha256=d80536269c6f0c65583ce6c21d3e837abd711a672721582767ef0709ba167bdf\n--- IZANAGI FAILURE EXCERPT rank=6 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_workspace_write_author_commits_after_launcher() -> None:\n>         for launcher_rc in (0, 7):\n>             for stage in (\"author\", \"fix\"):\n>                 with tempfile.TemporaryDirectory() as tmp:\n>                     root = Path(tmp)\n>                     worker = _terminal_repo(root, launcher_rc)\n>                     base = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n>                     result = _terminal_dispatch(root, worker, stage=stage)\n>                     head = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n>                     assert result.returncode == launcher_rc, result.stderr\n> >                   assert result.stdout == f\"worktree-commit: committed {head}\\x5cn\"\n> E                   AssertionError: assert 'worktree-commit: clean\\x5cn' == 'worktree-com...26aeb2e019f\\x5cn'\n> E                     \n> E                     - worktree-commit: committed b6cdb8344e59350b37febe59de64f26aeb2e019f\n> E                     + worktree-commit: clean\n> \n> orchestrator/tests/test_dev_wave_codex.py:690: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=6 END ---\nIZANAGI_FAILURE rank=7 category=failed when=call nodeid=\"orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_failed_keeps_residue\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=925 retained_bytes=925 omitted_bytes=0 rendered_excerpt_bytes=967 sha256=59e0038c9fd5fd36677cdbcd0f8fbc2c76bfa37c3ce7b66be2e2e317195fc57b\n--- IZANAGI FAILURE EXCERPT rank=7 BEGIN ---\n> [gw5] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_commit_worker_worktree_failed_keeps_residue():\n>         with _fresh() as tmp:\n>             _, worker = _worker_repo(Path(tmp))\n>             base = _git(worker, \"rev-parse\", \"HEAD\")\n>             _git(worker, \"config\", \"--unset\", \"user.name\")\n>             _git(worker, \"config\", \"--unset\", \"user.email\")\n>             _git(worker, \"config\", \"user.useConfigOnly\", \"true\")\n>             (worker / \"new\").write_text(\"residue\\x5cn\")\n>             out, err = StringIO(), StringIO()\n>             with redirect_stdout(out), redirect_stderr(err):\n> >               assert _record_worker(worker) == (\"failed\", \"commit-file\")\n> E               AssertionError: assert ('clean', None) == ('failed', 'commit-file')\n> E                 \n> E                 At index 0 diff: 'clean' != 'failed'\n> E                 Use -v to get more diff\n> \n> orchestrator/tests/test_dev_waves_git_state.py:1458: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=7 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=7 failed=7 errors=0 selected=7 omitted_failures=0 source_bytes=9407 retained_bytes=9407 omitted_bytes=0 budget_bytes=49152 rendered_bytes=13151 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9d859cb3a3f06b65f782a342423fb189b3888e055680c243436dc99c86e4a680"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b359d21b5e761821222bacfc17d11c9444b4b4b41721179503663c58742d6b68",
+      "duration_s": 27.931,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc",
+        "orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_failure_withholds_receipt[identity]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_failed_keeps_residue",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_records_residue_then_noop"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_failed_keeps_residue",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_records_residue_then_noop",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_failure_withholds_receipt[identity]",
+        "orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc",
+        "orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death"
+      ],
+      "hang_risk": false,
+      "id": "M7-staged-branch-swapped",
+      "injection_diff_sha256": "dc66da9ce0e3a949f12ed4b68a07a264ffc68140560228a96e8cc55184127897",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "813367f1c19890ff8dd7143c8524bc47faada125924e5410bf16397aecefd364",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "        if staged.returncode == 1:\n            return finish(\"clean\")\n",
+          "old": "        if staged.returncode == 0:\n            return finish(\"clean\")\n"
+        }
+      ],
+      "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+      "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+      "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+      "status": "KILLED",
+      "test_output_sha256": "9d859cb3a3f06b65f782a342423fb189b3888e055680c243436dc99c86e4a680",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/2a0ca33ad6fcecfefe834f126a643933/izdw-2a0ca33ad6.o5175",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/2a0ca33ad6fcecfefe834f126a643933/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..............FF                                                         [100%]\n=================================== FAILURES ===================================\n_______________________ test_terminal_commit_failure_rc ________________________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_terminal_commit_failure_rc() -> None:\n        for launcher_rc, expected_rc in ((0, 3), (7, 7)):\n            with tempfile.TemporaryDirectory() as tmp:\n                root = Path(tmp)\n                worker = _terminal_repo(root, launcher_rc)\n                base = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n                _terminal_git(worker, \"config\", \"--unset\", \"user.name\")\n                _terminal_git(worker, \"config\", \"--unset\", \"user.email\")\n                _terminal_git(worker, \"config\", \"user.useConfigOnly\", \"true\")\n                result = _terminal_dispatch(root, worker)\n>               assert result.returncode == expected_rc, result.stderr\nE               AssertionError: NG: worktree-commit failed reason=commit-file\nE                 \nE               assert 0 == 7\nE                +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/tools/dev_wav...ode=0, stdout='worktree-commit: failed reason=commit-file\\n', stderr='NG: worktree-commit failed reason=commit-file\\n').returncode\n\norchestrator/tests/test_dev_wave_codex.py:711: AssertionError\n______________ test_workspace_write_author_commits_after_launcher ______________\n[gw6] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_workspace_write_author_commits_after_launcher() -> None:\n        for launcher_rc in (0, 7):\n            for stage in (\"author\", \"fix\"):\n                with tempfile.TemporaryDirectory() as tmp:\n                    root = Path(tmp)\n                    worker = _terminal_repo(root, launcher_rc)\n                    base = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n                    result = _terminal_dispatch(root, worker, stage=stage)\n                    head = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n>                   assert result.returncode == launcher_rc, result.stderr\nE                   AssertionError: \nE                   assert 0 == 7\nE                    +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/tools/dev_wav...space-write'], returncode=0, stdout='worktree-commit: committed 7dd2d3d2f6c46da5a31a857c2110a8810ac3cdcd\\n', stderr='').returncode\n\norchestrator/tests/test_dev_wave_codex.py:689: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc\nFAILED orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher\n2 failed, 14 passed in 5.77s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc\" nodeid_bytes=74 nodeid_omitted_bytes=0 source_bytes=1192 retained_bytes=1192 omitted_bytes=0 rendered_excerpt_bytes=1237 sha256=d276afd3428b4bcd19a66d020ce90095fb595bd9384831332ca8bf351201722d\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_terminal_commit_failure_rc() -> None:\n>         for launcher_rc, expected_rc in ((0, 3), (7, 7)):\n>             with tempfile.TemporaryDirectory() as tmp:\n>                 root = Path(tmp)\n>                 worker = _terminal_repo(root, launcher_rc)\n>                 base = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n>                 _terminal_git(worker, \"config\", \"--unset\", \"user.name\")\n>                 _terminal_git(worker, \"config\", \"--unset\", \"user.email\")\n>                 _terminal_git(worker, \"config\", \"user.useConfigOnly\", \"true\")\n>                 result = _terminal_dispatch(root, worker)\n> >               assert result.returncode == expected_rc, result.stderr\n> E               AssertionError: NG: worktree-commit failed reason=commit-file\n> E                 \n> E               assert 0 == 7\n> E                +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/tools/dev_wav...ode=0, stdout='worktree-commit: failed reason=commit-file\\x5cn', stderr='NG: worktree-commit failed reason=commit-file\\x5cn').returncode\n> \n> orchestrator/tests/test_dev_wave_codex.py:711: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1064 retained_bytes=1064 omitted_bytes=0 rendered_excerpt_bytes=1102 sha256=58f21ff15f01b750e89b062bafc2fad7ed7eb758291e43056fa860c24e8407e9\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw6] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_workspace_write_author_commits_after_launcher() -> None:\n>         for launcher_rc in (0, 7):\n>             for stage in (\"author\", \"fix\"):\n>                 with tempfile.TemporaryDirectory() as tmp:\n>                     root = Path(tmp)\n>                     worker = _terminal_repo(root, launcher_rc)\n>                     base = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n>                     result = _terminal_dispatch(root, worker, stage=stage)\n>                     head = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n> >                   assert result.returncode == launcher_rc, result.stderr\n> E                   AssertionError: \n> E                   assert 0 == 7\n> E                    +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/tools/dev_wav...space-write'], returncode=0, stdout='worktree-commit: committed 7dd2d3d2f6c46da5a31a857c2110a8810ac3cdcd\\x5cn', stderr='').returncode\n> \n> orchestrator/tests/test_dev_wave_codex.py:689: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2256 retained_bytes=2256 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3473 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5b3bdba913120523a13bc421b224dc5002433eed45f67bf8a488bd7fc638b57e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b359d21b5e761821222bacfc17d11c9444b4b4b41721179503663c58742d6b68",
+      "duration_s": 27.885,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc",
+        "orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc",
+        "orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher"
+      ],
+      "hang_risk": false,
+      "id": "M8-launcher-rc-overwritten",
+      "injection_diff_sha256": "12f95b8d1cb9cf911a6db6e85242aa8f96edd2458a9e0393035edf19eb4b27ce",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "dc79f0fa6961abcbf572cffb6422bbf86fbc469a357318f302c4ec22a8ebc177",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_codex.py",
+          "new": "            print(\"worktree-commit: skipped reason=stage\", flush=True)\n    return 0\n",
+          "old": "            print(\"worktree-commit: skipped reason=stage\", flush=True)\n    return launcher_rc\n"
+        }
+      ],
+      "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+      "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+      "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+      "status": "KILLED",
+      "test_output_sha256": "5b3bdba913120523a13bc421b224dc5002433eed45f67bf8a488bd7fc638b57e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/9a9ecc7c78e3834b32b496ccdc0e70d9/izdw-9a9ecc7c78.o5179",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/9a9ecc7c78e3834b32b496ccdc0e70d9/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.............F..                                                         [100%]\n=================================== FAILURES ===================================\n_______________________ test_terminal_commit_failure_rc ________________________\n[gw7] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_terminal_commit_failure_rc() -> None:\n        for launcher_rc, expected_rc in ((0, 3), (7, 7)):\n            with tempfile.TemporaryDirectory() as tmp:\n                root = Path(tmp)\n                worker = _terminal_repo(root, launcher_rc)\n                base = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n                _terminal_git(worker, \"config\", \"--unset\", \"user.name\")\n                _terminal_git(worker, \"config\", \"--unset\", \"user.email\")\n                _terminal_git(worker, \"config\", \"user.useConfigOnly\", \"true\")\n                result = _terminal_dispatch(root, worker)\n>               assert result.returncode == expected_rc, result.stderr\nE               AssertionError: NG: worktree-commit failed reason=commit-file\nE                 \nE               assert 0 == 3\nE                +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/tools/dev_wav...ode=0, stdout='worktree-commit: failed reason=commit-file\\n', stderr='NG: worktree-commit failed reason=commit-file\\n').returncode\n\norchestrator/tests/test_dev_wave_codex.py:711: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc\n1 failed, 15 passed in 5.97s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc\" nodeid_bytes=74 nodeid_omitted_bytes=0 source_bytes=1192 retained_bytes=1192 omitted_bytes=0 rendered_excerpt_bytes=1237 sha256=80ecd7d9a8a7084245b4774dd052255ce9c6647cb64641fbe56d37633eff7319\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw7] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_terminal_commit_failure_rc() -> None:\n>         for launcher_rc, expected_rc in ((0, 3), (7, 7)):\n>             with tempfile.TemporaryDirectory() as tmp:\n>                 root = Path(tmp)\n>                 worker = _terminal_repo(root, launcher_rc)\n>                 base = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n>                 _terminal_git(worker, \"config\", \"--unset\", \"user.name\")\n>                 _terminal_git(worker, \"config\", \"--unset\", \"user.email\")\n>                 _terminal_git(worker, \"config\", \"user.useConfigOnly\", \"true\")\n>                 result = _terminal_dispatch(root, worker)\n> >               assert result.returncode == expected_rc, result.stderr\n> E               AssertionError: NG: worktree-commit failed reason=commit-file\n> E                 \n> E               assert 0 == 3\n> E                +  where 0 = CompletedProcess(args=['/bin/python3.10', '/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/tools/dev_wav...ode=0, stdout='worktree-commit: failed reason=commit-file\\x5cn', stderr='NG: worktree-commit failed reason=commit-file\\x5cn').returncode\n> \n> orchestrator/tests/test_dev_wave_codex.py:711: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1192 retained_bytes=1192 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1938 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bdeb045663f68511358e6ef1886375c4c94a091b176c67c37ffa197bd2f5035b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b359d21b5e761821222bacfc17d11c9444b4b4b41721179503663c58742d6b68",
+      "duration_s": 32.402,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc"
+      ],
+      "hang_risk": false,
+      "id": "M9-failed-commit-not-rc3",
+      "injection_diff_sha256": "0e64928505397d2d5a08c740a44237da3a487aec1d79b1ff6240f028bfea60d7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3db2ee6038616ef842fa60dc763bed1f3a8126230aa1c62560fc3506ddc6dc17",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_codex.py",
+          "new": "            if launcher_rc == 0 and status in ():\n                return 3\n",
+          "old": "            if launcher_rc == 0 and status in (\"refused\", \"failed\"):\n                return 3\n"
+        }
+      ],
+      "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+      "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+      "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+      "status": "KILLED",
+      "test_output_sha256": "bdeb045663f68511358e6ef1886375c4c94a091b176c67c37ffa197bd2f5035b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/5d863997b9cd5e40397fce30ef722430/izdw-5d863997b9.o5302",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/5d863997b9cd5e40397fce30ef722430/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.......F.F..F...                                                         [100%]\n=================================== FAILURES ===================================\n________________ test_commit_worker_worktree_provenance_values _________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_commit_worker_worktree_provenance_values():\n        cases = (\n            ({\"recorded_model\": \"GPT-6\", \"requested_model\": \"fallback\", \"recorded_effort\": \"HIGH\", \"requested_effort\": \"low\"}, (\"gpt-6\", \"high\")),\n            ({\"recorded_model\": \" \", \"requested_model\": \"GPT-5.6\", \"requested_effort\": \"Medium\"}, (\"gpt-5.6\", \"medium\")),\n            (None, (\"unknown\", \"unknown\")),\n            ({\"recorded_model\": \"NONE\", \"recorded_effort\": \"none\", \"requested_model\": \"fallback\"}, (\"unknown\", \"unknown\")),\n            ({\"recorded_model\": \"._GPT\\n6; X---\", \"recorded_effort\": \"..MAX;\\n\", \"outcome\": \"ok\\nAI-Agent: forged;\"}, (\"gpt-6-x\", \"max\")),\n            (\"malformed\", (\"unknown\", \"unknown\")),\n        )\n        with _fresh() as tmp:\n            root = Path(tmp)\n            _, worker = _worker_repo(root)\n            receipt = root / \"receipt.json\"\n            for index, (payload, expected) in enumerate(cases):\n                receipt.unlink(missing_ok=True)\n                if payload is not None:\n                    receipt.write_text(\"{\" if payload == \"malformed\" else json.dumps(payload))\n                (worker / \"tracked\").write_text(f\"change {index}\\n\")\n                assert _record_worker(worker, receipt_path=receipt)[0] == \"committed\"\n>               assert _worker_trailer(worker) == expected\n\norchestrator/tests/test_dev_waves_git_state.py:1396: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrepo = PosixPath('/tmp/test-dev-waves-git-s_qxedc5/worker')\n\n    def _worker_trailer(repo: Path) -> tuple[str, str]:\n        sys.path.insert(0, str(_ROOT / \"tools\"))\n        import check_ai_provenance\n    \n        message = _git(repo, \"log\", \"-1\", \"--format=%B\")\n        trailers = [line for line in message.splitlines() if line.startswith(\"AI-Agent:\")]\n>       assert len(trailers) == 1\nE       assert 0 == 1\nE        +  where 0 = len([])\n\norchestrator/tests/test_dev_waves_git_state.py:1332: AssertionError\n----------------------------- Captured stdout call -----------------------------\nworktree-commit: committed 80e057b8450c300b2d9ce1f592fce1bc0e4e9c72\n____________ test_commit_worker_worktree_records_residue_then_noop _____________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_commit_worker_worktree_records_residue_then_noop():\n        with _fresh() as tmp:\n            primary, worker = _worker_repo(Path(tmp))\n            base = _git(worker, \"rev-parse\", \"HEAD\")\n            (worker / \"tracked\").write_text(\"edited\\n\", encoding=\"utf-8\")\n            (worker / \"deleted\").unlink()\n            (worker / \"new\").write_bytes(b\"new\\x00bytes\\n\")\n            _git(worker, \"add\", \"-A\")\n            def patch_bytes():\n                return subprocess.run(\n                    [\"git\", \"diff\", \"--cached\", base],\n                    cwd=worker, check=True, stdout=subprocess.PIPE,\n                ).stdout\n            before = patch_bytes()\n            out, err = StringIO(), StringIO()\n            with redirect_stdout(out), redirect_stderr(err):\n                status, head = _record_worker(worker)\n                assert (status, head) == (\"committed\", _git(worker, \"rev-parse\", \"HEAD\"))\n                assert _record_worker(worker) == (\"clean\", None)\n            assert out.getvalue() == f\"worktree-commit: committed {head}\\nworktree-commit: clean\\n\"\n            assert err.getvalue() == \"\"\n            assert _git(worker, \"rev-parse\", \"HEAD\") == head\n            assert _git(worker, \"rev-list\", \"--count\", f\"{base}..HEAD\") == \"1\"\n            assert _git(primary, \"rev-parse\", \"HEAD\") == base\n            assert patch_bytes() == before and before\n            assert _git(worker, \"ls-tree\", \"--name-only\", \"HEAD\").splitlines() == [\"new\", \"tracked\"]\n            assert _git(worker, \"status\", \"--porcelain\") == \"\"\n            assert _git(worker, \"status\", \"--porcelain\", \"--untracked-files=all\") == \"\"\n            git_dir = Path(_git(worker, \"rev-parse\", \"--path-format=absolute\", \"--git-dir\"))\n            assert not (git_dir / \"izanagi-worker-commit.msg\").exists()\n            assert _git(worker, \"log\", \"-1\", \"--format=%an <%ae>|%cn <%ce>\") == (\n                \"Worker Test <worker@example.invalid>|Worker Test <worker@example.invalid>\"\n            )\n>           assert _worker_trailer(worker) == (\"unknown\", \"unknown\")\n\norchestrator/tests/test_dev_waves_git_state.py:1374: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrepo = PosixPath('/tmp/test-dev-waves-git-wzvjpbeg/worker')\n\n    def _worker_trailer(repo: Path) -> tuple[str, str]:\n        sys.path.insert(0, str(_ROOT / \"tools\"))\n        import check_ai_provenance\n    \n        message = _git(repo, \"log\", \"-1\", \"--format=%B\")\n        trailers = [line for line in message.splitlines() if line.startswith(\"AI-Agent:\")]\n>       assert len(trailers) == 1\nE       assert 0 == 1\nE        +  where 0 = len([])\n\norchestrator/tests/test_dev_waves_git_state.py:1332: AssertionError\n__________________ test_producer_commit_worktree_after_death ___________________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_producer_commit_worktree_0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x14ae1ab95840>\n\n    def test_producer_commit_worktree_after_death(tmp_path: Path, capsys) -> None:\n        from dataclasses import replace\n    \n        worker = _producer_commit_repo(tmp_path)\n        base = _producer_commit_git(worker, \"rev-parse\", \"HEAD\")\n        (worker / \"residue\").write_text(\"before death\\n\")\n        (tmp_path / \"producer.done\").write_text(\"0\\n\")\n        (tmp_path / \"artifact.json\").write_text(\"{}\\n\")\n        # Real producer stays alive until the waiter's sleep seam releases it.\n        # A premature commit is caught before the final producer write is allowed.\n        producer = subprocess.Popen(\n            [sys.executable, \"-c\", \"import sys; from pathlib import Path; sys.stdin.read(); Path('residue').write_text('final residue\\\\n')\"],\n            cwd=worker, stdin=subprocess.PIPE,\n        )\n        sleeps = []\n        def release_producer(seconds):\n            sleeps.append(seconds)\n            assert producer.poll() is None\n            assert _producer_commit_git(worker, \"rev-parse\", \"HEAD\") == base\n            producer.communicate(timeout=10)\n        try:\n            effects = replace(DW._default_effects(), sleep=release_producer)\n            rc = DW.main(\n                _producer_commit_args(tmp_path, producer.pid) + [\"--commit-worktree\", str(worker)],\n                effects=effects,\n            )\n        finally:\n            if producer.poll() is None:\n                producer.kill()\n            producer.wait(timeout=10)\n        captured = capsys.readouterr()\n        head = _producer_commit_git(worker, \"rev-parse\", \"HEAD\")\n        assert sleeps == [5]\n        assert rc == DW.RC_OK, captured.err\n        assert captured.out == f\"worktree-commit: committed {head}\\n\"\n        assert \"NG:\" not in captured.err\n        assert \"producer-commit\" not in captured.err\n        assert captured.err in (\n            \"\",\n            f\"producer: /proc/{producer.pid}/stat を読めないため pid-only へ縮退します\\n\",\n        )\n        assert _producer_commit_git(worker, \"rev-list\", \"--count\", f\"{base}..HEAD\") == \"1\"\n        assert _producer_commit_git(worker, \"show\", \"HEAD:residue\") == \"final residue\"\n        message = _producer_commit_git(worker, \"log\", \"-1\", \"--format=%B\")\n        assert \"actor: waiter\\nlauncher rc: unknown\\n\" in message\n>       assert \"model=unknown; reasoning=unknown; role=author\" in message\nE       AssertionError: assert 'model=unknown; reasoning=unknown; role=author' in '[T-2638] 起動器/待ち手の終端契約 (D2044 項 16): 実装子の作業木残差を記録\\n\\nwave: unknown\\njob-id: unknown\\nstage: unknown\\nactor: waiter\\nlauncher rc: unknown\\nreceipt outcome: unknown\\nscope: worktree residue at job end'\n\norchestrator/tests/test_dev_wave_wait.py:5165: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_records_residue_then_noop\nFAILED orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death\n3 failed, 13 passed in 5.96s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=2960 retained_bytes=2960 omitted_bytes=0 rendered_excerpt_bytes=3231 sha256=240bcd8403897e22028e447a0a3f14332178ab3a5eb53893c632e307ee45d675\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_producer_commit_worktree_0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x14ae1ab95840>\n> \n>     def test_producer_commit_worktree_after_death(tmp_path: Path, capsys) -> None:\n>         from dataclasses import replace\n>     \n>         worker = _producer_commit_repo(tmp_path)\n>         base = _producer_commit_git(worker, \"rev-parse\", \"HEAD\")\n>         (worker / \"residue\").write_text(\"before death\\x5cn\")\n>         (tmp_path / \"producer.done\").write_text(\"0\\x5cn\")\n>         (tmp_path / \"artifact.json\").write_text(\"{}\\x5cn\")\n>         # Real producer stays alive until the waiter's sleep seam releases it.\n>         # A premature commit is caught before the final producer write is allowed.\n>         producer = subprocess.Popen(\n>             [sys.executable, \"-c\", \"import sys; from pathlib import Path; sys.stdin.read(); Path('residue').write_text('final residue\\x5c\\x5cn')\"],\n>             cwd=worker, stdin=subprocess.PIPE,\n>         )\n>         sleeps = []\n>         def release_producer(seconds):\n>             sleeps.append(seconds)\n>             assert producer.poll() is None\n>             assert _producer_commit_git(worker, \"rev-parse\", \"HEAD\") == base\n>             producer.communicate(timeout=10)\n>         try:\n>             effects = replace(DW._default_effects(), sleep=release_producer)\n>             rc = DW.main(\n>                 _producer_commit_args(tmp_path, producer.pid) + [\"--commit-worktree\", str(worker)],\n>                 effects=effects,\n>             )\n>         finally:\n>             if producer.poll() is None:\n>                 producer.kill()\n>             producer.wait(timeout=10)\n>         captured = capsys.readouterr()\n>         head = _producer_commit_git(worker, \"rev-parse\", \"HEAD\")\n>         assert sleeps == [5]\n>         assert rc == DW.RC_OK, captured.err\n>         assert captured.out == f\"worktree-commit: committed {head}\\x5cn\"\n>         assert \"NG:\" not in captured.err\n>         assert \"producer-commit\" not in captured.err\n>         assert captured.err in (\n>             \"\",\n>             f\"producer: /proc/{producer.pid}/stat \\u3092\\u8aad\\u3081\\u306a\\u3044\\u305f\\u3081 pid-only \\u3078\\u7e2e\\u9000\\u3057\\u307e\\u3059\\x5cn\",\n>         )\n>         assert _producer_commit_git(worker, \"rev-list\", \"--count\", f\"{base}..HEAD\") == \"1\"\n>         assert _producer_commit_git(worker, \"show\", \"HEAD:residue\") == \"final residue\"\n>         message = _producer_commit_git(worker, \"log\", \"-1\", \"--format=%B\")\n>         assert \"actor: waiter\\x5cnlauncher rc: unknown\\x5cn\" in message\n> >       assert \"model=unknown; reasoning=unknown; role=author\" in message\n> E       AssertionError: assert 'model=unknown; reasoning=unknown; role=author' in '[T-2638] \\u8d77\\u52d5\\u5668/\\u5f85\\u3061\\u624b\\u306e\\u7d42\\u7aef\\u5951\\u7d04 (D2044 \\u9805 16): \\u5b9f\\u88c5\\u5b50\\u306e\\u4f5c\\u696d\\u6728\\u6b8b\\u5dee\\u3092\\u8a18\\u9332\\x5cn\\x5cnwave: unknown\\x5cnjob-id: unknown\\x5cnstage: unknown\\x5cnactor: waiter\\x5cnlauncher rc: unknown\\x5cnreceipt outcome: unknown\\x5cnscope: worktree residue at job end'\n> \n> orchestrator/tests/test_dev_wave_wait.py:5165: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_records_residue_then_noop\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=2747 retained_bytes=2747 omitted_bytes=0 rendered_excerpt_bytes=2869 sha256=5a86afc573327ba28ef59620d74b68650bf786efa5f5419762dcfa44d5b509ab\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_commit_worker_worktree_records_residue_then_noop():\n>         with _fresh() as tmp:\n>             primary, worker = _worker_repo(Path(tmp))\n>             base = _git(worker, \"rev-parse\", \"HEAD\")\n>             (worker / \"tracked\").write_text(\"edited\\x5cn\", encoding=\"utf-8\")\n>             (worker / \"deleted\").unlink()\n>             (worker / \"new\").write_bytes(b\"new\\x5cx00bytes\\x5cn\")\n>             _git(worker, \"add\", \"-A\")\n>             def patch_bytes():\n>                 return subprocess.run(\n>                     [\"git\", \"diff\", \"--cached\", base],\n>                     cwd=worker, check=True, stdout=subprocess.PIPE,\n>                 ).stdout\n>             before = patch_bytes()\n>             out, err = StringIO(), StringIO()\n>             with redirect_stdout(out), redirect_stderr(err):\n>                 status, head = _record_worker(worker)\n>                 assert (status, head) == (\"committed\", _git(worker, \"rev-parse\", \"HEAD\"))\n>                 assert _record_worker(worker) == (\"clean\", None)\n>             assert out.getvalue() == f\"worktree-commit: committed {head}\\x5cnworktree-commit: clean\\x5cn\"\n>             assert err.getvalue() == \"\"\n>             assert _git(worker, \"rev-parse\", \"HEAD\") == head\n>             assert _git(worker, \"rev-list\", \"--count\", f\"{base}..HEAD\") == \"1\"\n>             assert _git(primary, \"rev-parse\", \"HEAD\") == base\n>             assert patch_bytes() == before and before\n>             assert _git(worker, \"ls-tree\", \"--name-only\", \"HEAD\").splitlines() == [\"new\", \"tracked\"]\n>             assert _git(worker, \"status\", \"--porcelain\") == \"\"\n>             assert _git(worker, \"status\", \"--porcelain\", \"--untracked-files=all\") == \"\"\n>             git_dir = Path(_git(worker, \"rev-parse\", \"--path-format=absolute\", \"--git-dir\"))\n>             assert not (git_dir / \"izanagi-worker-commit.msg\").exists()\n>             assert _git(worker, \"log\", \"-1\", \"--format=%an <%ae>|%cn <%ce>\") == (\n>                 \"Worker Test <worker@example.invalid>|Worker Test <worker@example.invalid>\"\n>             )\n> >           assert _worker_trailer(worker) == (\"unknown\", \"unknown\")\n> \n> orchestrator/tests/test_dev_waves_git_state.py:1374: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> repo = PosixPath('/tmp/test-dev-waves-git-wzvjpbeg/worker')\n> \n>     def _worker_trailer(repo: Path) -> tuple[str, str]:\n>         sys.path.insert(0, str(_ROOT / \"tools\"))\n>         import check_ai_provenance\n>     \n>         message = _git(repo, \"log\", \"-1\", \"--format=%B\")\n>         trailers = [line for line in message.splitlines() if line.startswith(\"AI-Agent:\")]\n> >       assert len(trailers) == 1\n> E       assert 0 == 1\n> E        +  where 0 = len([])\n> \n> orchestrator/tests/test_dev_waves_git_state.py:1332: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE rank=3 category=failed when=call nodeid=\"orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=2011 retained_bytes=2011 omitted_bytes=0 rendered_excerpt_bytes=2102 sha256=dcc76a46ad3d064c4a87b023ab9cdac8db90c35956bb902629bb205a3b270f4e\n--- IZANAGI FAILURE EXCERPT rank=3 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_commit_worker_worktree_provenance_values():\n>         cases = (\n>             ({\"recorded_model\": \"GPT-6\", \"requested_model\": \"fallback\", \"recorded_effort\": \"HIGH\", \"requested_effort\": \"low\"}, (\"gpt-6\", \"high\")),\n>             ({\"recorded_model\": \" \", \"requested_model\": \"GPT-5.6\", \"requested_effort\": \"Medium\"}, (\"gpt-5.6\", \"medium\")),\n>             (None, (\"unknown\", \"unknown\")),\n>             ({\"recorded_model\": \"NONE\", \"recorded_effort\": \"none\", \"requested_model\": \"fallback\"}, (\"unknown\", \"unknown\")),\n>             ({\"recorded_model\": \"._GPT\\x5cn6; X---\", \"recorded_effort\": \"..MAX;\\x5cn\", \"outcome\": \"ok\\x5cnAI-Agent: forged;\"}, (\"gpt-6-x\", \"max\")),\n>             (\"malformed\", (\"unknown\", \"unknown\")),\n>         )\n>         with _fresh() as tmp:\n>             root = Path(tmp)\n>             _, worker = _worker_repo(root)\n>             receipt = root / \"receipt.json\"\n>             for index, (payload, expected) in enumerate(cases):\n>                 receipt.unlink(missing_ok=True)\n>                 if payload is not None:\n>                     receipt.write_text(\"{\" if payload == \"malformed\" else json.dumps(payload))\n>                 (worker / \"tracked\").write_text(f\"change {index}\\x5cn\")\n>                 assert _record_worker(worker, receipt_path=receipt)[0] == \"committed\"\n> >               assert _worker_trailer(worker) == expected\n> \n> orchestrator/tests/test_dev_waves_git_state.py:1396: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> repo = PosixPath('/tmp/test-dev-waves-git-s_qxedc5/worker')\n> \n>     def _worker_trailer(repo: Path) -> tuple[str, str]:\n>         sys.path.insert(0, str(_ROOT / \"tools\"))\n>         import check_ai_provenance\n>     \n>         message = _git(repo, \"log\", \"-1\", \"--format=%B\")\n>         trailers = [line for line in message.splitlines() if line.startswith(\"AI-Agent:\")]\n> >       assert len(trailers) == 1\n> E       assert 0 == 1\n> E        +  where 0 = len([])\n> \n> orchestrator/tests/test_dev_waves_git_state.py:1332: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=3 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=3 failed=3 errors=0 selected=3 omitted_failures=0 source_bytes=7718 retained_bytes=7718 omitted_bytes=0 budget_bytes=49152 rendered_bytes=9787 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "bd455ee0529ac7a414917eef42751ce6ea8efe250197deb193bf83d25a1469c0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b359d21b5e761821222bacfc17d11c9444b4b4b41721179503663c58742d6b68",
+      "duration_s": 647.106,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_records_residue_then_noop"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_records_residue_then_noop",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death"
+      ],
+      "hang_risk": false,
+      "id": "M10-trailer-removed",
+      "injection_diff_sha256": "f63717fdbf26968fcd904de50ac1facc205c2fcd198cd49d7b43d6e9524569f2",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "6f6ce312ca8af63475ff3190f34f111a4117c8800a704d2c60a2e5c0a35ce457",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "            \"\"\n            \"\"\n",
+          "old": "            f\"AI-Agent: product=codex; model={provenance('model')}; \"\n            f\"reasoning={provenance('effort')}; role=author\\n\"\n"
+        }
+      ],
+      "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+      "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+      "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+      "status": "KILLED",
+      "test_output_sha256": "bd455ee0529ac7a414917eef42751ce6ea8efe250197deb193bf83d25a1469c0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/8849089dadaf3f43b94c7f1a1e059ef3/izdw-8849089dad.o5321",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/8849089dadaf3f43b94c7f1a1e059ef3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.........F......                                                         [100%]\n=================================== FAILURES ===================================\n________________ test_commit_worker_worktree_provenance_values _________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_commit_worker_worktree_provenance_values():\n        cases = (\n            ({\"recorded_model\": \"GPT-6\", \"requested_model\": \"fallback\", \"recorded_effort\": \"HIGH\", \"requested_effort\": \"low\"}, (\"gpt-6\", \"high\")),\n            ({\"recorded_model\": \" \", \"requested_model\": \"GPT-5.6\", \"requested_effort\": \"Medium\"}, (\"gpt-5.6\", \"medium\")),\n            (None, (\"unknown\", \"unknown\")),\n            ({\"recorded_model\": \"NONE\", \"recorded_effort\": \"none\", \"requested_model\": \"fallback\"}, (\"unknown\", \"unknown\")),\n            ({\"recorded_model\": \"._GPT\\n6; X---\", \"recorded_effort\": \"..MAX;\\n\", \"outcome\": \"ok\\nAI-Agent: forged;\"}, (\"gpt-6-x\", \"max\")),\n            (\"malformed\", (\"unknown\", \"unknown\")),\n        )\n        with _fresh() as tmp:\n            root = Path(tmp)\n            _, worker = _worker_repo(root)\n            receipt = root / \"receipt.json\"\n            for index, (payload, expected) in enumerate(cases):\n                receipt.unlink(missing_ok=True)\n                if payload is not None:\n                    receipt.write_text(\"{\" if payload == \"malformed\" else json.dumps(payload))\n                (worker / \"tracked\").write_text(f\"change {index}\\n\")\n                assert _record_worker(worker, receipt_path=receipt)[0] == \"committed\"\n>               assert _worker_trailer(worker) == expected\nE               AssertionError: assert ('fallback', 'low') == ('gpt-6', 'high')\nE                 \nE                 At index 0 diff: 'fallback' != 'gpt-6'\nE                 Use -v to get more diff\n\norchestrator/tests/test_dev_waves_git_state.py:1396: AssertionError\n----------------------------- Captured stdout call -----------------------------\nworktree-commit: committed afb66ea879d8c4f8fc739dc8f713fd86973bab3d\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values\n1 failed, 15 passed in 5.89s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=1632 retained_bytes=1632 omitted_bytes=0 rendered_excerpt_bytes=1701 sha256=4999af86003b019daf5ac89a5c8c6c5bb608cde1fb8162c7e2cadac5ad21e5a2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_commit_worker_worktree_provenance_values():\n>         cases = (\n>             ({\"recorded_model\": \"GPT-6\", \"requested_model\": \"fallback\", \"recorded_effort\": \"HIGH\", \"requested_effort\": \"low\"}, (\"gpt-6\", \"high\")),\n>             ({\"recorded_model\": \" \", \"requested_model\": \"GPT-5.6\", \"requested_effort\": \"Medium\"}, (\"gpt-5.6\", \"medium\")),\n>             (None, (\"unknown\", \"unknown\")),\n>             ({\"recorded_model\": \"NONE\", \"recorded_effort\": \"none\", \"requested_model\": \"fallback\"}, (\"unknown\", \"unknown\")),\n>             ({\"recorded_model\": \"._GPT\\x5cn6; X---\", \"recorded_effort\": \"..MAX;\\x5cn\", \"outcome\": \"ok\\x5cnAI-Agent: forged;\"}, (\"gpt-6-x\", \"max\")),\n>             (\"malformed\", (\"unknown\", \"unknown\")),\n>         )\n>         with _fresh() as tmp:\n>             root = Path(tmp)\n>             _, worker = _worker_repo(root)\n>             receipt = root / \"receipt.json\"\n>             for index, (payload, expected) in enumerate(cases):\n>                 receipt.unlink(missing_ok=True)\n>                 if payload is not None:\n>                     receipt.write_text(\"{\" if payload == \"malformed\" else json.dumps(payload))\n>                 (worker / \"tracked\").write_text(f\"change {index}\\x5cn\")\n>                 assert _record_worker(worker, receipt_path=receipt)[0] == \"committed\"\n> >               assert _worker_trailer(worker) == expected\n> E               AssertionError: assert ('fallback', 'low') == ('gpt-6', 'high')\n> E                 \n> E                 At index 0 diff: 'fallback' != 'gpt-6'\n> E                 Use -v to get more diff\n> \n> orchestrator/tests/test_dev_waves_git_state.py:1396: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1632 retained_bytes=1632 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2421 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "5f9291468f649f914cc3c4793c2b36e5c7666d2b01b827b7cdea685e40304d03"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b359d21b5e761821222bacfc17d11c9444b4b4b41721179503663c58742d6b68",
+      "duration_s": 32.661,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values"
+      ],
+      "hang_risk": false,
+      "id": "M11a-requested-before-recorded",
+      "injection_diff_sha256": "f909d1417605168daf45a1e10d80d6deba456fb49e901e58e56403e7c6bf721b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e89e641f683ef42477f63ed39138b254d579042f34f237261188cc386db9f63e",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "                value for key in (f\"requested_{field}\", f\"recorded_{field}\")\n",
+          "old": "                value for key in (f\"recorded_{field}\", f\"requested_{field}\")\n"
+        }
+      ],
+      "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+      "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+      "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+      "status": "KILLED",
+      "test_output_sha256": "5f9291468f649f914cc3c4793c2b36e5c7666d2b01b827b7cdea685e40304d03",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/89fae3bcbb0feb4d5884b0d9efff8e3a/izdw-89fae3bcbb.o5325",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/89fae3bcbb0feb4d5884b0d9efff8e3a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...........F....                                                         [100%]\n=================================== FAILURES ===================================\n________________ test_commit_worker_worktree_provenance_values _________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_commit_worker_worktree_provenance_values():\n        cases = (\n            ({\"recorded_model\": \"GPT-6\", \"requested_model\": \"fallback\", \"recorded_effort\": \"HIGH\", \"requested_effort\": \"low\"}, (\"gpt-6\", \"high\")),\n            ({\"recorded_model\": \" \", \"requested_model\": \"GPT-5.6\", \"requested_effort\": \"Medium\"}, (\"gpt-5.6\", \"medium\")),\n            (None, (\"unknown\", \"unknown\")),\n            ({\"recorded_model\": \"NONE\", \"recorded_effort\": \"none\", \"requested_model\": \"fallback\"}, (\"unknown\", \"unknown\")),\n            ({\"recorded_model\": \"._GPT\\n6; X---\", \"recorded_effort\": \"..MAX;\\n\", \"outcome\": \"ok\\nAI-Agent: forged;\"}, (\"gpt-6-x\", \"max\")),\n            (\"malformed\", (\"unknown\", \"unknown\")),\n        )\n        with _fresh() as tmp:\n            root = Path(tmp)\n            _, worker = _worker_repo(root)\n            receipt = root / \"receipt.json\"\n            for index, (payload, expected) in enumerate(cases):\n                receipt.unlink(missing_ok=True)\n                if payload is not None:\n                    receipt.write_text(\"{\" if payload == \"malformed\" else json.dumps(payload))\n                (worker / \"tracked\").write_text(f\"change {index}\\n\")\n                assert _record_worker(worker, receipt_path=receipt)[0] == \"committed\"\n>               assert _worker_trailer(worker) == expected\n\norchestrator/tests/test_dev_waves_git_state.py:1396: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nrepo = PosixPath('/tmp/test-dev-waves-git-riq4393p/worker')\n\n    def _worker_trailer(repo: Path) -> tuple[str, str]:\n        sys.path.insert(0, str(_ROOT / \"tools\"))\n        import check_ai_provenance\n    \n        message = _git(repo, \"log\", \"-1\", \"--format=%B\")\n        trailers = [line for line in message.splitlines() if line.startswith(\"AI-Agent:\")]\n        assert len(trailers) == 1\n        assert message.split(\"\\n\\n\")[-1] == trailers[0]\n        match = check_ai_provenance.AGENT_VALUE.fullmatch(trailers[0].removeprefix(\"AI-Agent: \"))\n        assert match is not None, trailers\n        assert match[\"product\"] == \"codex\" and match[\"role\"] == \"author\"\n>       assert match[\"model\"] != \"none\" and match[\"reasoning\"] != \"none\"\nE       AssertionError: assert ('none' != 'none')\n\norchestrator/tests/test_dev_waves_git_state.py:1337: AssertionError\n----------------------------- Captured stdout call -----------------------------\nworktree-commit: committed e86f89b3000f67c2db9975c06593849cbb9aadcd\nworktree-commit: committed a78dcc61826492cd44d3e639001edff1874b3c1d\nworktree-commit: committed 3e9fedba0dd7312ee76b84b43864d9b05ee58e28\nworktree-commit: committed c3f8bbcba4054cd3f1b912adad8dbd0fce540b30\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values\n1 failed, 15 passed in 6.00s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=2352 retained_bytes=2352 omitted_bytes=0 rendered_excerpt_bytes=2457 sha256=0dd28c5966df47fe9a7d9f46751e5191c5eaa46b670bb2c471134c11a1218f00\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_commit_worker_worktree_provenance_values():\n>         cases = (\n>             ({\"recorded_model\": \"GPT-6\", \"requested_model\": \"fallback\", \"recorded_effort\": \"HIGH\", \"requested_effort\": \"low\"}, (\"gpt-6\", \"high\")),\n>             ({\"recorded_model\": \" \", \"requested_model\": \"GPT-5.6\", \"requested_effort\": \"Medium\"}, (\"gpt-5.6\", \"medium\")),\n>             (None, (\"unknown\", \"unknown\")),\n>             ({\"recorded_model\": \"NONE\", \"recorded_effort\": \"none\", \"requested_model\": \"fallback\"}, (\"unknown\", \"unknown\")),\n>             ({\"recorded_model\": \"._GPT\\x5cn6; X---\", \"recorded_effort\": \"..MAX;\\x5cn\", \"outcome\": \"ok\\x5cnAI-Agent: forged;\"}, (\"gpt-6-x\", \"max\")),\n>             (\"malformed\", (\"unknown\", \"unknown\")),\n>         )\n>         with _fresh() as tmp:\n>             root = Path(tmp)\n>             _, worker = _worker_repo(root)\n>             receipt = root / \"receipt.json\"\n>             for index, (payload, expected) in enumerate(cases):\n>                 receipt.unlink(missing_ok=True)\n>                 if payload is not None:\n>                     receipt.write_text(\"{\" if payload == \"malformed\" else json.dumps(payload))\n>                 (worker / \"tracked\").write_text(f\"change {index}\\x5cn\")\n>                 assert _record_worker(worker, receipt_path=receipt)[0] == \"committed\"\n> >               assert _worker_trailer(worker) == expected\n> \n> orchestrator/tests/test_dev_waves_git_state.py:1396: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> repo = PosixPath('/tmp/test-dev-waves-git-riq4393p/worker')\n> \n>     def _worker_trailer(repo: Path) -> tuple[str, str]:\n>         sys.path.insert(0, str(_ROOT / \"tools\"))\n>         import check_ai_provenance\n>     \n>         message = _git(repo, \"log\", \"-1\", \"--format=%B\")\n>         trailers = [line for line in message.splitlines() if line.startswith(\"AI-Agent:\")]\n>         assert len(trailers) == 1\n>         assert message.split(\"\\x5cn\\x5cn\")[-1] == trailers[0]\n>         match = check_ai_provenance.AGENT_VALUE.fullmatch(trailers[0].removeprefix(\"AI-Agent: \"))\n>         assert match is not None, trailers\n>         assert match[\"product\"] == \"codex\" and match[\"role\"] == \"author\"\n> >       assert match[\"model\"] != \"none\" and match[\"reasoning\"] != \"none\"\n> E       AssertionError: assert ('none' != 'none')\n> \n> orchestrator/tests/test_dev_waves_git_state.py:1337: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2352 retained_bytes=2352 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3177 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "4a5f2c2edb7cc957f1904efb46a21187a3f5d555cc5966622b32933152acf105"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b359d21b5e761821222bacfc17d11c9444b4b4b41721179503663c58742d6b68",
+      "duration_s": 27.624,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values"
+      ],
+      "hang_risk": false,
+      "id": "M11b-none-mapping-removed",
+      "injection_diff_sha256": "1831a657b7052d45940d42878926da78144b66c90b2a73e7bfdd8ce0c4a0ecb0",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d7dd28fb7ce6f7dfb001957025024c69ccd03ca2e9beb2a5a8e005a5ba4a42e2",
+      "replacements": [
+        {
+          "file": "tools/dev_waves/git_state.py",
+          "new": "            if re.fullmatch(r\"[a-z0-9][a-z0-9._-]*\", value) is None:\n",
+          "old": "            if value == \"none\" or re.fullmatch(r\"[a-z0-9][a-z0-9._-]*\", value) is None:\n"
+        }
+      ],
+      "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+      "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+      "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+      "status": "KILLED",
+      "test_output_sha256": "4a5f2c2edb7cc957f1904efb46a21187a3f5d555cc5966622b32933152acf105",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/bf676b519aeb935a351030af37606dd1/izdw-bf676b519a.o5328",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/bf676b519aeb935a351030af37606dd1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n..........F...F.                                                         [100%]\n=================================== FAILURES ===================================\n________ test_producer_waits_while_pid_alive_then_completes_after_death ________\n[gw10] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_producer_waits_while_pid_alive_then_completes_after_death() -> None:\n        fake = _FakeEffects()\n        pid = 42\n        stat_path = Path(f\"/proc/{pid}/stat\")\n        fake.read_text_queue.extend(\n            [(stat_path, _stat_text(pid, 11)), (stat_path, _stat_text(pid, 11))]\n        )\n        fake.kill_queue.extend([None, ProcessLookupError(errno.ESRCH, \"gone\")])\n        fake.is_file_queue.extend([(Path(\"done\"), True), (Path(\"artifact\"), True)])\n    \n        outcome = DW.wait_for_producer(\n            done_file=Path(\"done\"),\n            artifact_file=Path(\"artifact\"),\n            pid=pid,\n            max_wait_seconds=None,\n            effects=fake.effects,\n        )\n    \n>       assert outcome.rc == 0\nE       assert 70 == 0\nE        +  where 70 = _Outcome(rc=70, stage='producer-commit', source_rc=None, detail='{\"observed\":\"detached-head\",\"reason\":\"refused\"}').rc\n\norchestrator/tests/test_dev_wave_wait.py:5022: AssertionError\n----------------------------- Captured stdout call -----------------------------\nworktree-commit: refused reason=detached-head\n----------------------------- Captured stderr call -----------------------------\nNG: worktree-commit refused reason=detached-head\n______________ test_producer_without_commit_flag_preserves_bytes _______________\n[gw12] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_producer_without_commit_f0')\n\n    def test_producer_without_commit_flag_preserves_bytes(tmp_path: Path) -> None:\n        worker = _producer_commit_repo(tmp_path)\n        head = _producer_commit_git(worker, \"rev-parse\", \"HEAD\")\n        (tmp_path / \"producer.done\").write_text(\"0\\n\")\n        (tmp_path / \"artifact.json\").write_text(\"{}\\n\")\n        with subprocess.Popen([\"sleep\", \"0\"]) as producer:\n            producer.wait(timeout=10)\n        command = [sys.executable, str(_TOOL), *_producer_commit_args(tmp_path, producer.pid)]\n        first = subprocess.run(command, cwd=worker, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)\n        receipt = tmp_path / \"producer-receipt.json\"\n        before = receipt.read_bytes()\n        (worker / \"residue\").write_text(\"uncommitted\\n\")\n        second = subprocess.run(command, cwd=worker, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)\n        assert first.returncode == second.returncode == DW.RC_OK\n>       assert first.stdout == second.stdout == b\"\"\nE       AssertionError: assert b'worktree-commit: clean\\n' == b'worktree-co...fa3257444ed\\n'\nE         \nE         At index 18 diff: b'l' != b'o'\nE         Use -v to get more diff\n\norchestrator/tests/test_dev_wave_wait.py:5183: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_wait.py::test_producer_waits_while_pid_alive_then_completes_after_death\nFAILED orchestrator/tests/test_dev_wave_wait.py::test_producer_without_commit_flag_preserves_bytes\n2 failed, 14 passed in 5.92s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_wait.py::test_producer_without_commit_flag_preserves_bytes\" nodeid_bytes=91 nodeid_omitted_bytes=0 source_bytes=1379 retained_bytes=1379 omitted_bytes=0 rendered_excerpt_bytes=1445 sha256=08e3700dc7f4aae2469811933208285e16d3628257f39434995070344805a1bc\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw12] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw12/test_producer_without_commit_f0')\n> \n>     def test_producer_without_commit_flag_preserves_bytes(tmp_path: Path) -> None:\n>         worker = _producer_commit_repo(tmp_path)\n>         head = _producer_commit_git(worker, \"rev-parse\", \"HEAD\")\n>         (tmp_path / \"producer.done\").write_text(\"0\\x5cn\")\n>         (tmp_path / \"artifact.json\").write_text(\"{}\\x5cn\")\n>         with subprocess.Popen([\"sleep\", \"0\"]) as producer:\n>             producer.wait(timeout=10)\n>         command = [sys.executable, str(_TOOL), *_producer_commit_args(tmp_path, producer.pid)]\n>         first = subprocess.run(command, cwd=worker, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)\n>         receipt = tmp_path / \"producer-receipt.json\"\n>         before = receipt.read_bytes()\n>         (worker / \"residue\").write_text(\"uncommitted\\x5cn\")\n>         second = subprocess.run(command, cwd=worker, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)\n>         assert first.returncode == second.returncode == DW.RC_OK\n> >       assert first.stdout == second.stdout == b\"\"\n> E       AssertionError: assert b'worktree-commit: clean\\x5cn' == b'worktree-co...fa3257444ed\\x5cn'\n> E         \n> E         At index 18 diff: b'l' != b'o'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_dev_wave_wait.py:5183: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_wait.py::test_producer_waits_while_pid_alive_then_completes_after_death\" nodeid_bytes=104 nodeid_omitted_bytes=0 source_bytes=1002 retained_bytes=1002 omitted_bytes=0 rendered_excerpt_bytes=1053 sha256=1452f93f41a38c2c08ad71825702ff7ccb885fa4160b50087b9aa6b8922b79ee\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw10] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_producer_waits_while_pid_alive_then_completes_after_death() -> None:\n>         fake = _FakeEffects()\n>         pid = 42\n>         stat_path = Path(f\"/proc/{pid}/stat\")\n>         fake.read_text_queue.extend(\n>             [(stat_path, _stat_text(pid, 11)), (stat_path, _stat_text(pid, 11))]\n>         )\n>         fake.kill_queue.extend([None, ProcessLookupError(errno.ESRCH, \"gone\")])\n>         fake.is_file_queue.extend([(Path(\"done\"), True), (Path(\"artifact\"), True)])\n>     \n>         outcome = DW.wait_for_producer(\n>             done_file=Path(\"done\"),\n>             artifact_file=Path(\"artifact\"),\n>             pid=pid,\n>             max_wait_seconds=None,\n>             effects=fake.effects,\n>         )\n>     \n> >       assert outcome.rc == 0\n> E       assert 70 == 0\n> E        +  where 70 = _Outcome(rc=70, stage='producer-commit', source_rc=None, detail='{\"observed\":\"detached-head\",\"reason\":\"refused\"}').rc\n> \n> orchestrator/tests/test_dev_wave_wait.py:5022: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=2381 retained_bytes=2381 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3661 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "1172e3c2f047e757e467373f7651f95c18c14f2421b670b07aee546ed73ea406"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b359d21b5e761821222bacfc17d11c9444b4b4b41721179503663c58742d6b68",
+      "duration_s": 27.301,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_waits_while_pid_alive_then_completes_after_death",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_without_commit_flag_preserves_bytes"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_waits_while_pid_alive_then_completes_after_death",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_without_commit_flag_preserves_bytes"
+      ],
+      "hang_risk": false,
+      "id": "M12-waiter-optin-ignored-cwd-target",
+      "injection_diff_sha256": "62fb317902546c20b88970dbfca0656a5980e4fff52490951442f843bbcd851b",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "356383d3171f33beed343829cc02c3facef134278de6b7edfe238dafa10518c9",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "new": "    commit_status, commit_detail = \"clean\", None\n    if commit_worktree is None:\n        commit_worktree = Path.cwd()\n    if commit_worktree is not None:\n",
+          "old": "    commit_status, commit_detail = \"clean\", None\n    if commit_worktree is not None:\n"
+        }
+      ],
+      "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+      "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+      "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+      "status": "KILLED",
+      "test_output_sha256": "1172e3c2f047e757e467373f7651f95c18c14f2421b670b07aee546ed73ea406",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/0854df1daff106c64990157edc46b427/izdw-0854df1daf.o5330",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/0854df1daff106c64990157edc46b427/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............F...                                                         [100%]\n=================================== FAILURES ===================================\n__________________ test_producer_commit_worktree_after_death ___________________\n[gw11] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_producer_commit_worktree_0')\ncapsys = <_pytest.capture.CaptureFixture object at 0x1544cc68e8c0>\n\n    def test_producer_commit_worktree_after_death(tmp_path: Path, capsys) -> None:\n        from dataclasses import replace\n    \n        worker = _producer_commit_repo(tmp_path)\n        base = _producer_commit_git(worker, \"rev-parse\", \"HEAD\")\n        (worker / \"residue\").write_text(\"before death\\n\")\n        (tmp_path / \"producer.done\").write_text(\"0\\n\")\n        (tmp_path / \"artifact.json\").write_text(\"{}\\n\")\n        # Real producer stays alive until the waiter's sleep seam releases it.\n        # A premature commit is caught before the final producer write is allowed.\n        producer = subprocess.Popen(\n            [sys.executable, \"-c\", \"import sys; from pathlib import Path; sys.stdin.read(); Path('residue').write_text('final residue\\\\n')\"],\n            cwd=worker, stdin=subprocess.PIPE,\n        )\n        sleeps = []\n        def release_producer(seconds):\n            sleeps.append(seconds)\n            assert producer.poll() is None\n            assert _producer_commit_git(worker, \"rev-parse\", \"HEAD\") == base\n            producer.communicate(timeout=10)\n        try:\n            effects = replace(DW._default_effects(), sleep=release_producer)\n            rc = DW.main(\n                _producer_commit_args(tmp_path, producer.pid) + [\"--commit-worktree\", str(worker)],\n                effects=effects,\n            )\n        finally:\n            if producer.poll() is None:\n                producer.kill()\n            producer.wait(timeout=10)\n        captured = capsys.readouterr()\n        head = _producer_commit_git(worker, \"rev-parse\", \"HEAD\")\n        assert sleeps == [5]\n>       assert rc == DW.RC_OK, captured.err\nE       AssertionError: error: stage=internal rc=70\nE         \nE       assert 70 == 0\nE        +  where 0 = DW.RC_OK\n\norchestrator/tests/test_dev_wave_wait.py:5153: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death\n1 failed, 15 passed in 6.08s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death\" nodeid_bytes=83 nodeid_omitted_bytes=0 source_bytes=2027 retained_bytes=2027 omitted_bytes=0 rendered_excerpt_bytes=2133 sha256=527ba0f377785559b739b45f14060e3fc27e7b2393b8fd7f886581310dc9a475\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw11] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw11/test_producer_commit_worktree_0')\n> capsys = <_pytest.capture.CaptureFixture object at 0x1544cc68e8c0>\n> \n>     def test_producer_commit_worktree_after_death(tmp_path: Path, capsys) -> None:\n>         from dataclasses import replace\n>     \n>         worker = _producer_commit_repo(tmp_path)\n>         base = _producer_commit_git(worker, \"rev-parse\", \"HEAD\")\n>         (worker / \"residue\").write_text(\"before death\\x5cn\")\n>         (tmp_path / \"producer.done\").write_text(\"0\\x5cn\")\n>         (tmp_path / \"artifact.json\").write_text(\"{}\\x5cn\")\n>         # Real producer stays alive until the waiter's sleep seam releases it.\n>         # A premature commit is caught before the final producer write is allowed.\n>         producer = subprocess.Popen(\n>             [sys.executable, \"-c\", \"import sys; from pathlib import Path; sys.stdin.read(); Path('residue').write_text('final residue\\x5c\\x5cn')\"],\n>             cwd=worker, stdin=subprocess.PIPE,\n>         )\n>         sleeps = []\n>         def release_producer(seconds):\n>             sleeps.append(seconds)\n>             assert producer.poll() is None\n>             assert _producer_commit_git(worker, \"rev-parse\", \"HEAD\") == base\n>             producer.communicate(timeout=10)\n>         try:\n>             effects = replace(DW._default_effects(), sleep=release_producer)\n>             rc = DW.main(\n>                 _producer_commit_args(tmp_path, producer.pid) + [\"--commit-worktree\", str(worker)],\n>                 effects=effects,\n>             )\n>         finally:\n>             if producer.poll() is None:\n>                 producer.kill()\n>             producer.wait(timeout=10)\n>         captured = capsys.readouterr()\n>         head = _producer_commit_git(worker, \"rev-parse\", \"HEAD\")\n>         assert sleeps == [5]\n> >       assert rc == DW.RC_OK, captured.err\n> E       AssertionError: error: stage=internal rc=70\n> E         \n> E       assert 70 == 0\n> E        +  where 0 = DW.RC_OK\n> \n> orchestrator/tests/test_dev_wave_wait.py:5153: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2027 retained_bytes=2027 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2843 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6162660440ffb845e3b30690b80aecff55bc3b15f727d2ba43dd07acefb8dc95"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b359d21b5e761821222bacfc17d11c9444b4b4b41721179503663c58742d6b68",
+      "duration_s": 73.551,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death"
+      ],
+      "hang_risk": false,
+      "id": "M13-waiter-commit-before-death",
+      "injection_diff_sha256": "f119385d1788ff34b43bc754dfe8ac8393394f0cfcbdf1215f412075c39bfc5a",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "d9c937c625bb5a14b30d91b1769b7b765113e2a1ac0dd23439715549a935c6da",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_wait.py",
+          "new": "    started = effects.monotonic()\n    if commit_worktree is not None:\n        from tools.dev_waves.git_state import commit_worker_worktree as _early_commit\n\n        _early_commit(\n            commit_worktree, wave=\"unknown\", job_id=\"unknown\", stage=\"unknown\",\n            launcher_rc=None, receipt_path=None, actor=\"waiter\",\n        )\n    start_time = _initial_start_time(pid, effects)\n",
+          "old": "    started = effects.monotonic()\n    start_time = _initial_start_time(pid, effects)\n"
+        }
+      ],
+      "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+      "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+      "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+      "status": "KILLED",
+      "test_output_sha256": "6162660440ffb845e3b30690b80aecff55bc3b15f727d2ba43dd07acefb8dc95",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/374d193ad009b6911efd81008f406d99/izdw-374d193ad0.o5336",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/374d193ad009b6911efd81008f406d99/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n............F...                                                         [100%]\n=================================== FAILURES ===================================\n__________________________ test_dry_run_never_commits __________________________\n[gw9] linux -- Python 3.10.12 /bin/python3.10\n\n    def test_dry_run_never_commits() -> None:\n        with tempfile.TemporaryDirectory() as tmp:\n            root = Path(tmp)\n            worker = _terminal_repo(root)\n            (worker / \"dirty\").write_text(\"existing residue\\n\")\n            head = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n            index = Path(_terminal_git(worker, \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"index\"))\n            before_index = index.read_bytes()\n            result = _terminal_dispatch(root, worker, dry_run=True)\n            assert result.returncode == 0, result.stderr\n>           assert \"worktree-commit:\" not in result.stdout\nE           AssertionError: assert 'worktree-commit:' not in 'python3\\n/t...29d08153c7\\n'\nE             \nE             'worktree-commit:' is contained here:\nE               fest.json\nE               worktree-commit: committed 17e222faf0e402c30c4470545764ad29d08153c7\nE             ? ++++++++++++++++\n\norchestrator/tests/test_dev_wave_codex.py:747: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_codex.py::test_dry_run_never_commits\n1 failed, 15 passed in 5.93s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_codex.py::test_dry_run_never_commits\" nodeid_bytes=69 nodeid_omitted_bytes=0 source_bytes=1043 retained_bytes=1043 omitted_bytes=0 rendered_excerpt_bytes=1095 sha256=a865e010acf80eb58a112fa1db41fdc390441eb1b92936eaa164cad482923c16\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw9] linux -- Python 3.10.12 /bin/python3.10\n> \n>     def test_dry_run_never_commits() -> None:\n>         with tempfile.TemporaryDirectory() as tmp:\n>             root = Path(tmp)\n>             worker = _terminal_repo(root)\n>             (worker / \"dirty\").write_text(\"existing residue\\x5cn\")\n>             head = _terminal_git(worker, \"rev-parse\", \"HEAD\")\n>             index = Path(_terminal_git(worker, \"rev-parse\", \"--path-format=absolute\", \"--git-path\", \"index\"))\n>             before_index = index.read_bytes()\n>             result = _terminal_dispatch(root, worker, dry_run=True)\n>             assert result.returncode == 0, result.stderr\n> >           assert \"worktree-commit:\" not in result.stdout\n> E           AssertionError: assert 'worktree-commit:' not in 'python3\\x5cn/t...29d08153c7\\x5cn'\n> E             \n> E             'worktree-commit:' is contained here:\n> E               fest.json\n> E               worktree-commit: committed 17e222faf0e402c30c4470545764ad29d08153c7\n> E             ? ++++++++++++++++\n> \n> orchestrator/tests/test_dev_wave_codex.py:747: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1043 retained_bytes=1043 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1791 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "04713c667f7cfe2f7113416701dca9f624f8fbcdc931efdc324e37568e142c49"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "b359d21b5e761821222bacfc17d11c9444b4b4b41721179503663c58742d6b68",
+      "duration_s": 422.626,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_dry_run_never_commits"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_codex.py::test_dry_run_never_commits"
+      ],
+      "hang_risk": false,
+      "id": "M14-dry-run-commits",
+      "injection_diff_sha256": "80dd5c34022512df5b56f991020370f0359cf52f1d9bf4cb91d0e470ffccad37",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "e6a8f43e32deb2028ac47fecc33d981b615c490884d8657ecdae027d1275c0a5",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_codex.py",
+          "new": "    if args.dry_run:\n        print(\"\\n\".join(launcher_argv))\n        if args.sandbox == \"workspace-write\":\n            commit_worker_worktree(\n                args.repo_root, wave=args.wave, job_id=args.job_id,\n                stage=args.stage, launcher_rc=0, receipt_path=None,\n            )\n        return 0\n",
+          "old": "    if args.dry_run:\n        print(\"\\n\".join(launcher_argv))\n        return 0\n"
+        }
+      ],
+      "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+      "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+      "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+      "status": "KILLED",
+      "test_output_sha256": "04713c667f7cfe2f7113416701dca9f624f8fbcdc931efdc324e37568e142c49",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/c6dcd430ffe9ba712a1e0e78b4353648/izdw-c6dcd430ff.o5148",
+        "receipt_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/output/pegasus-dispatch/c6dcd430ffe9ba712a1e0e78b4353648/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_records_residue_then_noop\norchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values\norchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root\norchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_defers_merge_in_progress\norchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_failed_keeps_residue\norchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher\norchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc\norchestrator/tests/test_dev_wave_codex.py::test_read_only_and_non_author_never_commit\norchestrator/tests/test_dev_wave_codex.py::test_dry_run_never_commits\norchestrator/tests/test_dev_wave_wait.py::test_producer_waits_while_pid_alive_then_completes_after_death\norchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death\norchestrator/tests/test_dev_wave_wait.py::test_producer_without_commit_flag_preserves_bytes\norchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_requires_absolute_path\norchestrator/tests/test_dev_wave_wait.py::test_producer_commit_failure_withholds_receipt[primary]\norchestrator/tests/test_dev_wave_wait.py::test_producer_commit_failure_withholds_receipt[identity]\norchestrator/tests/test_dev_wave_wait.py::test_producer_cli_surface_has_no_pattern_input\n\n16/462 tests collected (446 deselected) in 1.31s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "d190cc32ede1b712ea7ad44c0c30c25e3ffa688c84d929b47f180dc615aeace6"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_records_residue_then_noop",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_defers_merge_in_progress",
+        "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_failed_keeps_residue",
+        "orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher",
+        "orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc",
+        "orchestrator/tests/test_dev_wave_codex.py::test_read_only_and_non_author_never_commit",
+        "orchestrator/tests/test_dev_wave_codex.py::test_dry_run_never_commits",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_waits_while_pid_alive_then_completes_after_death",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_without_commit_flag_preserves_bytes",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_requires_absolute_path",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_failure_withholds_receipt[primary]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_failure_withholds_receipt[identity]",
+        "orchestrator/tests/test_dev_wave_wait.py::test_producer_cli_surface_has_no_pattern_input"
+      ],
+      "duration_s": 32.395,
+      "rc": 0,
+      "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+      "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+      "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+      "status": "PASSED",
+      "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227"
+    },
+    "hang_timeout_seconds": 3000.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M0-docstring-control": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "a0d8a33c70f141a5eb1975ec1ad49272a7eeb4067a62982fcdda090160fdfac0",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "    \"\"\"Record worker residue without discarding or adopting its contents (T2638 M0).\"\"\"\n",
+            "old": "    \"\"\"Record worker residue without discarding or adopting its contents.\"\"\"\n"
+          }
+        ]
+      },
+      "M1-sandbox-predicate-inverted": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_codex.py::test_read_only_and_non_author_never_commit",
+          "orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc",
+          "orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cc3b23619fd630ddea605a48b10b803621652221b678934d674f0433e219d8f3",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_codex.py",
+            "new": "    if args.sandbox == \"read-only\":\n        if args.stage in (\"author\", \"fix\"):\n",
+            "old": "    if args.sandbox == \"workspace-write\":\n        if args.stage in (\"author\", \"fix\"):\n"
+          }
+        ]
+      },
+      "M10-trailer-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death",
+          "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values",
+          "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_records_residue_then_noop"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f63717fdbf26968fcd904de50ac1facc205c2fcd198cd49d7b43d6e9524569f2",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "            \"\"\n            \"\"\n",
+            "old": "            f\"AI-Agent: product=codex; model={provenance('model')}; \"\n            f\"reasoning={provenance('effort')}; role=author\\n\"\n"
+          }
+        ]
+      },
+      "M11a-requested-before-recorded": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f909d1417605168daf45a1e10d80d6deba456fb49e901e58e56403e7c6bf721b",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "                value for key in (f\"requested_{field}\", f\"recorded_{field}\")\n",
+            "old": "                value for key in (f\"recorded_{field}\", f\"requested_{field}\")\n"
+          }
+        ]
+      },
+      "M11b-none-mapping-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1831a657b7052d45940d42878926da78144b66c90b2a73e7bfdd8ce0c4a0ecb0",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "            if re.fullmatch(r\"[a-z0-9][a-z0-9._-]*\", value) is None:\n",
+            "old": "            if value == \"none\" or re.fullmatch(r\"[a-z0-9][a-z0-9._-]*\", value) is None:\n"
+          }
+        ]
+      },
+      "M12-waiter-optin-ignored-cwd-target": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_wait.py::test_producer_waits_while_pid_alive_then_completes_after_death",
+          "orchestrator/tests/test_dev_wave_wait.py::test_producer_without_commit_flag_preserves_bytes"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "62fb317902546c20b88970dbfca0656a5980e4fff52490951442f843bbcd851b",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_wait.py",
+            "new": "    commit_status, commit_detail = \"clean\", None\n    if commit_worktree is None:\n        commit_worktree = Path.cwd()\n    if commit_worktree is not None:\n",
+            "old": "    commit_status, commit_detail = \"clean\", None\n    if commit_worktree is not None:\n"
+          }
+        ]
+      },
+      "M13-waiter-commit-before-death": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f119385d1788ff34b43bc754dfe8ac8393394f0cfcbdf1215f412075c39bfc5a",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_wait.py",
+            "new": "    started = effects.monotonic()\n    if commit_worktree is not None:\n        from tools.dev_waves.git_state import commit_worker_worktree as _early_commit\n\n        _early_commit(\n            commit_worktree, wave=\"unknown\", job_id=\"unknown\", stage=\"unknown\",\n            launcher_rc=None, receipt_path=None, actor=\"waiter\",\n        )\n    start_time = _initial_start_time(pid, effects)\n",
+            "old": "    started = effects.monotonic()\n    start_time = _initial_start_time(pid, effects)\n"
+          }
+        ]
+      },
+      "M14-dry-run-commits": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_codex.py::test_dry_run_never_commits"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "80dd5c34022512df5b56f991020370f0359cf52f1d9bf4cb91d0e470ffccad37",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_codex.py",
+            "new": "    if args.dry_run:\n        print(\"\\n\".join(launcher_argv))\n        if args.sandbox == \"workspace-write\":\n            commit_worker_worktree(\n                args.repo_root, wave=args.wave, job_id=args.job_id,\n                stage=args.stage, launcher_rc=0, receipt_path=None,\n            )\n        return 0\n",
+            "old": "    if args.dry_run:\n        print(\"\\n\".join(launcher_argv))\n        return 0\n"
+          }
+        ]
+      },
+      "M2-stage-predicate-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_codex.py::test_read_only_and_non_author_never_commit"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "093553f66f9107857f2fcb50ebf623bd3bbc397f38e00e4685d82c77b989220c",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_codex.py",
+            "new": "        if True:\n            status, _detail = commit_worker_worktree(\n",
+            "old": "        if args.stage in (\"author\", \"fix\"):\n            status, _detail = commit_worker_worktree(\n"
+          }
+        ]
+      },
+      "M3-detached-allowed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f7cec3fb2134ca718861407f627775561e8cc6558f3ae76f02d54d38bbd318d1",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "        if branch.returncode == 99:\n            return finish(\"refused\", \"detached-head\")\n",
+            "old": "        if branch.returncode == 1:\n            return finish(\"refused\", \"detached-head\")\n"
+          }
+        ]
+      },
+      "M4-protected-branch-set-empty": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "52277275149f9acb1e7f30b15163583d45fb6ab27187c29b80391706503ce634",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "        if branch_name in set():\n",
+            "old": "        if branch_name in {\"main\", \"master\"}:\n"
+          }
+        ]
+      },
+      "M5-primary-worktree-allowed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_failure_withholds_receipt[primary]",
+          "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_refuses_detached_protected_primary_root"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "3b0d87dedf2c29d5839f4d35ddead0187750ea479124afbef08441df737e2ad0",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "        if False and git_dir == Path(_text(_run(root, operation)).strip()).resolve():\n            return finish(\"refused\", \"primary-worktree\")\n",
+            "old": "        if git_dir == Path(_text(_run(root, operation)).strip()).resolve():\n            return finish(\"refused\", \"primary-worktree\")\n"
+          }
+        ]
+      },
+      "M6-operation-markers-empty": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_defers_merge_in_progress"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "9e2f076882c94b553e421b0f4d22efa795a2594d15f7a610309af2a2fbebb5ad",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "        for marker in ():\n",
+            "old": "        for marker in (\"MERGE_HEAD\", \"CHERRY_PICK_HEAD\", \"REVERT_HEAD\", \"rebase-merge\", \"rebase-apply\"):\n"
+          }
+        ]
+      },
+      "M7-staged-branch-swapped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc",
+          "orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher",
+          "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_failure_withholds_receipt[identity]",
+          "orchestrator/tests/test_dev_wave_wait.py::test_producer_commit_worktree_after_death",
+          "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_failed_keeps_residue",
+          "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_provenance_values",
+          "orchestrator/tests/test_dev_waves_git_state.py::test_commit_worker_worktree_records_residue_then_noop"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "dc66da9ce0e3a949f12ed4b68a07a264ffc68140560228a96e8cc55184127897",
+        "replacements": [
+          {
+            "file": "tools/dev_waves/git_state.py",
+            "new": "        if staged.returncode == 1:\n            return finish(\"clean\")\n",
+            "old": "        if staged.returncode == 0:\n            return finish(\"clean\")\n"
+          }
+        ]
+      },
+      "M8-launcher-rc-overwritten": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc",
+          "orchestrator/tests/test_dev_wave_codex.py::test_workspace_write_author_commits_after_launcher"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "12f95b8d1cb9cf911a6db6e85242aa8f96edd2458a9e0393035edf19eb4b27ce",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_codex.py",
+            "new": "            print(\"worktree-commit: skipped reason=stage\", flush=True)\n    return 0\n",
+            "old": "            print(\"worktree-commit: skipped reason=stage\", flush=True)\n    return launcher_rc\n"
+          }
+        ]
+      },
+      "M9-failed-commit-not-rc3": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_codex.py::test_terminal_commit_failure_rc"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "0e64928505397d2d5a08c740a44237da3a487aec1d79b1ff6240f028bfea60d7",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_codex.py",
+            "new": "            if launcher_rc == 0 and status in ():\n                return 3\n",
+            "old": "            if launcher_rc == 0 and status in (\"refused\", \"failed\"):\n                return 3\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "b6d4067706ced03e7ca0093e78d54ce6ec7fcc8aa650b6694e61d9cd4f0f27aa",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_dev_waves_git_state.py",
+      "orchestrator/tests/test_dev_wave_codex.py",
+      "orchestrator/tests/test_dev_wave_wait.py",
+      "-k",
+      "commit_worker_worktree or terminal_commit_failure or workspace_write_author_commits or read_only_and_non_author or dry_run_never_commits or producer_commit or producer_without_commit_flag or producer_cli_surface or producer_waits_while_pid_alive",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 7200.0
+  },
+  "repo_head": "c5403437c4704ab98e147dfdbb5bd7267354ab31",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "orchestrator/tests/test_dev_waves_git_state.py",
+      "orchestrator/tests/test_dev_wave_codex.py",
+      "orchestrator/tests/test_dev_wave_wait.py",
+      "-k",
+      "commit_worker_worktree or terminal_commit_failure or workspace_write_author_commits or read_only_and_non_author or dry_run_never_commits or producer_commit or producer_without_commit_flag or producer_cli_surface or producer_waits_while_pid_alive",
+      "-q",
+      "-rf",
+      "--force-dispatch",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "dispatch_head_blob_sha256": "3b4a5c53a95189e72cf89dbcfa4a8d233a53f7aac4e969aef1b54d71668c6351",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "c211a94e89f1978e16f513c54a9096c8dfe73501",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "6d3f98f3d60e47ca389cb04aad6755a8d8c169e3ddb7a3c62c6b0089bddd299e",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "72013b8578ae71fbd81b98b89eafe80345eef069c5efecc9bd655f47de5c2374",
+  "summary": {
+    "KILLED": 15,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 16,
+    "matching": 16,
+    "recorded": 16,
+    "registered": 16
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2638-mutcontainer/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "df73a72c8bf90e66c76ca0aecbdb24ab626137997ea8665b4b266b5d233ca227",
+  "updated_at": "2026-09-17T23:47:40.193684+00:00"
+}
