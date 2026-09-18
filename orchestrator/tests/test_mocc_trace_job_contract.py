@@ -1512,6 +1512,229 @@ def test_mocc_trace_cpu_model_gate_normalizes_and_rejects_true_mismatch(
     )
 
 
+def test_mocc_trace_hydrate_interpreter_gate_selects_and_fails_closed(
+    tmp_path: Path,
+) -> None:
+    source = PILOT.read_text(encoding="utf-8")
+    begin = "# BEGIN T2780 HYDRATE INTERPRETER GATE"
+    end = "# END T2780 HYDRATE INTERPRETER GATE"
+    stop = 'THIRD_PARTY_SOURCE_ROOT=$(python3 - '
+    for marker in (begin, end, stop):
+        assert source.count(marker) == 1
+    assert source.index(begin) < source.index(end) < source.index(stop)
+    block = source[source.index(begin):source.index(stop)]
+    candidates = ("python3", "python3.10", "python3.11", "python3.12")
+    for case, selected in (("fallback", "python3.10"), ("first", "python3"),
+                           ("rejected", None)):
+        root = tmp_path / case
+        repo = root / "repo"
+        attempt = root / "attempt"
+        bin_dir = root / "bin"
+        for directory in (repo, attempt, bin_dir):
+            directory.mkdir(parents=True)
+        for command in ("realpath", "timeout"):
+            real = shutil.which(command)
+            assert real is not None
+            (bin_dir / command).symlink_to(real)
+        for name in candidates:
+            stem = shlex.quote(str(root / name))
+            _make_executable(bin_dir / name, f'''\
+                #!/bin/sh
+                if [ "$1" = -c ]; then
+                  printf '%s\\n' "$@" >{stem}.probe
+                  printf '%s\\n' "$PWD" "$PYTHONPATH" >{stem}.context
+                  printf '%s\\n' {name} >>{shlex.quote(str(root / 'order'))}
+                  exit {0 if name == selected else 1}
+                fi
+                printf '%s\\n' "$0" "$@" >{stem}.hydrate
+                printf '%s\\n' "$PWD" >{stem}.cwd
+                exit {3 if case == 'fallback' and name == 'python3' else 0}
+            ''')
+        variables = {
+            "REPO_ROOT": repo, "TOOLS": repo / "tools", "ATTEMPT_DIR": attempt,
+            "CACHE_ROOT": root / "cache", "TMPDIR": root,
+            "THIRD_PARTY_CACHE_ENV": "IZANAGI_PEGASUS_THIRDPARTY_CACHE",
+            "IZANAGI_PEGASUS_THIRDPARTY_CACHE": root / "cache",
+            "PYTHONPATH": str(root / "inherited"),
+        }
+        prefix = "set -Eeuo pipefail\n" + "".join(
+            f"{key}={shlex.quote(str(value))}\n" for key, value in variables.items()
+        ) + '''THIRD_PARTY_STAGING_ROOT="$TMPDIR/thirdparty-src"
+write_failure() { printf 'rc=%s\\nstage=%s\\nmessage=%s\\n' "$1" "$2" "$3" >"$ATTEMPT_DIR/failure"; }
+'''
+        result = subprocess.run(
+            ["/bin/bash", "-c", prefix + block + "\nprintf 'reached\\n'\n"],
+            cwd=root, env={"PATH": str(bin_dir)}, capture_output=True, text=True,
+            check=False,
+        )
+        called = candidates if selected is None else candidates[:candidates.index(selected) + 1]
+        assert (root / "order").read_text().splitlines() == list(called)
+        for name in candidates:
+            assert (root / f"{name}.probe").exists() == (name in called)
+            if name in called:
+                argv = (root / f"{name}.probe").read_text().splitlines()
+                assert argv[0] == "-c"
+                assert "import orchestrator.campaign.silo_ladder_rung1" in argv[1]
+                assert "sys.version_info >= (3, 10)" in argv[1]
+                assert argv[-1] == str(repo)
+                context = (root / f"{name}.context").read_text().splitlines()
+                assert context == [str(repo), f"{repo}/orchestrator:{repo}:{root}/inherited"]
+        if selected is None:
+            assert result.returncode == 2
+            assert result.stdout == ""
+            failure = (attempt / "failure").read_text()
+            assert "rc=2\nstage=third_party\n" in failure
+            diagnostic = (attempt / "third-party-hydrate.stderr").read_text()
+            for name in candidates:
+                rejection = f"{name}={(bin_dir / name).resolve()}"
+                assert rejection in failure
+                assert rejection in diagnostic
+                assert not (root / f"{name}.hydrate").exists()
+        else:
+            assert result.returncode == 0, result.stderr
+            assert result.stdout == "reached\n"
+            assert not (attempt / "failure").exists()
+            assert (root / f"{selected}.hydrate").read_text().splitlines() == [
+                str((bin_dir / selected).resolve()), str(repo / "tools/fetch_third_party.py"),
+                "hydrate", "--repo-root", str(repo), "--cache-root", str(root / "cache"),
+                "--staging-root", str(root / "thirdparty-src"),
+            ]
+            assert (root / f"{selected}.cwd").read_text().strip() == str(root)
+            for name in candidates:
+                assert (root / f"{name}.hydrate").exists() == (name == selected)
+
+
+def test_mocc_trace_instrumentation_patch_block_applies_and_binds(tmp_path: Path) -> None:
+    source = PILOT.read_text(encoding="utf-8")
+    begin = "# BEGIN T2780 INSTRUMENTATION PATCH"
+    end = "# END T2780 INSTRUMENTATION PATCH"
+    for marker in (begin, end, "build_mode() {"):
+        assert source.count(marker) == 1
+    assert source.index(begin) < source.index(end) < source.index("build_mode() {")
+    block = source[source.index(begin):source.index(end)]
+    postimage = b"patched transaction fixture\n"
+    artifacts = ("instr-patch.sha256", "instr-patch.numstat", "instr-patch-source.sha256",
+                 "instr-patch-apply.stdout", "instr-patch-apply.stderr")
+    for case in ("success", "two-files", "wrong-path", "empty", "bad-count",
+                 "check-fails", "apply-fails", "patch-changes", "general"):
+        root = tmp_path / case
+        repo = root / "repo"
+        build = root / "build"
+        attempt = root / "attempt"
+        bin_dir = root / "bin"
+        for directory in (repo / "patches", build / "cc/mocc", attempt, bin_dir):
+            directory.mkdir(parents=True)
+        patch = repo / "patches/instr-mocc-lock-coverage.patch"
+        patch.write_bytes(b"fixture patch bytes\n")
+        transaction = build / "cc/mocc/transaction.cc"
+        transaction.write_bytes(b"preimage\n")
+        for command in ("realpath", "sha256sum", "awk"):
+            real = shutil.which(command)
+            assert real is not None
+            (bin_dir / command).symlink_to(real)
+        numstat = {
+            "two-files": "9\t1\tcc/mocc/transaction.cc\n1\t0\tcc/mocc/util.cc\n",
+            "wrong-path": "9\t1\tcc/mocc/util.cc\n",
+            "empty": "", "bad-count": "-\t1\tcc/mocc/transaction.cc\n",
+        }.get(case, "9\t1\tcc/mocc/transaction.cc\n")
+        calls = root / "git.jsonl"
+        _make_executable(bin_dir / "git", f'''\
+            #!{sys.executable}
+            import json, sys
+            from pathlib import Path
+            with Path({str(calls)!r}).open("a") as stream:
+                stream.write(json.dumps(sys.argv[1:]) + "\\n")
+            if "--numstat" in sys.argv:
+                print({numstat!r}, end="")
+            elif "--check" in sys.argv:
+                sys.exit({1 if case == 'check-fails' else 0})
+            else:
+                if {case == 'apply-fails'!r}:
+                    sys.exit(1)
+                Path(sys.argv[2], "cc/mocc/transaction.cc").write_bytes({postimage!r})
+                if {case == 'patch-changes'!r}:
+                    Path(sys.argv[-1]).write_bytes(b"changed patch")
+        ''')
+        variables = {"REPO_ROOT": repo, "BUILD_SOURCE": build, "ATTEMPT_DIR": attempt,
+                     "T1943_G2": 0 if case == "general" else 1}
+        prefix = "set -Eeuo pipefail\n" + "".join(
+            f"{key}={shlex.quote(str(value))}\n" for key, value in variables.items()
+        ) + '''write_failure() { printf 'rc=%s\\nstage=%s\\nmessage=%s\\n' "$1" "$2" "$3" >"$ATTEMPT_DIR/failure"; }
+'''
+        result = subprocess.run(
+            ["/bin/bash", "-c", prefix + block + "\nprintf 'build-reached\\n'\n"],
+            cwd=root, env={"PATH": str(bin_dir)}, capture_output=True, text=True,
+            check=False,
+        )
+        recorded = [json.loads(line) for line in calls.read_text().splitlines()] if calls.exists() else []
+        if case == "general":
+            assert result.returncode == 0, result.stderr
+            assert recorded == []
+            assert transaction.read_bytes() == b"preimage\n"
+            assert all(not (attempt / name).exists() for name in artifacts)
+        elif case == "success":
+            assert result.returncode == 0, result.stderr
+            assert transaction.read_bytes() == postimage
+            assert (attempt / "instr-patch-source.sha256").read_text() == hashlib.sha256(postimage).hexdigest() + "\n"
+            assert (attempt / "instr-patch.sha256").read_text() == hashlib.sha256(patch.read_bytes()).hexdigest() + "\n"
+            assert (attempt / "instr-patch.numstat").read_text() == numstat
+            assert recorded == [
+                ["-C", str(build), "apply", "--numstat", str(patch)],
+                ["-C", str(build), "apply", "--check", str(patch)],
+                ["-C", str(build), "apply", str(patch)],
+            ]
+            assert not (attempt / "failure").exists()
+            assert all((attempt / name).is_file() for name in artifacts)
+        else:
+            assert result.returncode == 2, (case, result.stderr)
+            assert result.stdout == ""
+            failure = (attempt / "failure").read_text()
+            assert "rc=2\nstage=instrumentation_patch\n" in failure
+            if case in {"two-files", "wrong-path", "empty", "bad-count"}:
+                assert "touch set differs" in failure
+                assert len(recorded) == 1
+                assert transaction.read_bytes() == b"preimage\n"
+            elif case == "check-fails":
+                assert "check failed" in failure
+                assert len(recorded) == 2
+            elif case == "apply-fails":
+                assert "apply failed" in failure
+                assert transaction.read_bytes() == b"preimage\n"
+            else:
+                assert "changed during application" in failure
+
+
+def test_mocc_trace_verifier_source_root_follows_t1943_mode(tmp_path: Path) -> None:
+    source = PILOT.read_text(encoding="utf-8")
+    begin = '  VERIFIER_SOURCE_ROOT="$CCBENCH_BASE"'
+    end = '  VERIFIER_RC=$verifier_rc'
+    assert source.count(begin) == source.count(end) == 1
+    assert source.index(begin) < source.index(end)
+    block = source[source.index(begin):source.index(end)]
+    verifier = tmp_path / "verifier"
+    argv_path = tmp_path / "argv"
+    _make_executable(verifier, f'''\
+        #!/bin/sh
+        printf '%s\\n' "$@" >{shlex.quote(str(argv_path))}
+    ''')
+    for mode in (1, 0):
+        variables = {"REPO_ROOT": tmp_path, "ATTEMPT_DIR": tmp_path,
+                     "CCBENCH_BASE": tmp_path / "base", "BUILD_SOURCE": tmp_path / "build",
+                     "T1943_G2": mode, "VERIFIER_PY": verifier,
+                     "TRACE_DIR": tmp_path / "trace", "COMMIT_COUNT": 17}
+        prefix = "set -Eeuo pipefail\n" + "".join(
+            f"{key}={shlex.quote(str(value))}\n" for key, value in variables.items()
+        )
+        result = subprocess.run(["/bin/bash", "-c", prefix + block],
+                                capture_output=True, text=True, check=False)
+        assert result.returncode == 0, result.stderr
+        argv = argv_path.read_text().splitlines()
+        assert argv[:2] == ["-m", "orchestrator.verifier"]
+        assert argv[argv.index("--ccbench-root") + 1] == str(
+            tmp_path / ("build" if mode else "base")
+        )
+
+
 def test_mocc_trace_checker_interpreter_gate_selects_first_importable_candidate(
     tmp_path: Path,
 ) -> None:
@@ -2056,6 +2279,7 @@ def test_mocc_trace_verifier_interpreter_gate_selects_first_importable_candidate
             "",
         ]
     )
+    prefix += 'CCBENCH_BASE="fixture-base"\nBUILD_SOURCE="fixture-build"\nT1943_G2=0\n'
     suffix = '\nprintf \'%s\\n\' "$VERIFIER_PY"\n'
     result = subprocess.run(
         ["/bin/bash", "-c", prefix + verifier_gate + suffix],
@@ -2733,6 +2957,10 @@ def test_mocc_trace_policy_binding_gate_order_and_markers() -> None:
         "# END T2195 POLICY BINDING GATE",
         "# BEGIN T2195 POLICY FINALIZATION CHECK",
         "# END T2195 POLICY FINALIZATION CHECK",
+        "# BEGIN T2780 HYDRATE INTERPRETER GATE",
+        "# END T2780 HYDRATE INTERPRETER GATE",
+        "# BEGIN T2780 INSTRUMENTATION PATCH",
+        "# END T2780 INSTRUMENTATION PATCH",
     )
     assert {marker: source.count(marker) for marker in markers} == {
         marker: 1 for marker in markers
@@ -3108,8 +3336,10 @@ PY_TAMPER_SIDECAR
 """
 
 
-def _receipt_schema_tamper_and_rebind_fragment() -> str:
-    return """
+def _receipt_schema_tamper_and_rebind_fragment(
+    target_schema: str = "mocc-trace-pilot-receipt/v3",
+) -> str:
+    fragment = """
 python3 - "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" \
   "$ATTEMPT_DIR/mocc-trace-pilot-receipt.sha256" <<'PY_TAMPER_SCHEMA'
 import hashlib
@@ -3131,6 +3361,7 @@ PY_TAMPER_SCHEMA
 RECEIPT_WRITER_SHA=$(sha256sum \
   "$ATTEMPT_DIR/mocc-trace-pilot-receipt.json" | awk '{print $1}')
 """
+    return fragment.replace('"mocc-trace-pilot-receipt/v3"', repr(target_schema))
 
 
 def _run_mocc_trace_finalization(
@@ -3149,6 +3380,7 @@ def _run_mocc_trace_finalization(
     tamper_sidecar_after_write: bool = False,
     tamper_receipt_after_shell_hash: bool = False,
     tamper_schema_and_rebind_after_write: bool = False,
+    target_receipt_schema: str = "mocc-trace-pilot-receipt/v3",
     swap_report_to_symlink_before_open: bool = False,
     tamper_trace0_binary_after_absence: bool = False,
     tamper_manifest_leaf_after_discriminator: str | None = None,
@@ -3351,7 +3583,22 @@ def _run_mocc_trace_finalization(
     discriminator_result_sha = ""
     discriminator_result = discriminator_rc = "not-run"
     trace0_absence_sha = ""
+    patch_path = patch_sha = patched_source_sha = ""
     if t1943_g2:
+        patch = tmp_path / "fixture-repo/patches/instr-mocc-lock-coverage.patch"
+        patch.parent.mkdir(parents=True)
+        patch.write_bytes(b"fixture instrumentation patch\n")
+        patched_source = build_source / "cc/mocc/transaction.cc"
+        patched_source.parent.mkdir(parents=True)
+        patched_source.write_bytes(b"fixture patched transaction source\n")
+        patch_path = str(patch)
+        patch_sha = hashlib.sha256(patch.read_bytes()).hexdigest()
+        patched_source_sha = hashlib.sha256(patched_source.read_bytes()).hexdigest()
+        (attempt_dir / "instr-patch.sha256").write_text(patch_sha + "\n")
+        (attempt_dir / "instr-patch-source.sha256").write_text(patched_source_sha + "\n")
+        (attempt_dir / "instr-patch.numstat").write_text("9\t1\tcc/mocc/transaction.cc\n")
+        (attempt_dir / "instr-patch-apply.stdout").write_bytes(b"")
+        (attempt_dir / "instr-patch-apply.stderr").write_bytes(b"")
         run_dir = tmp_path / "run"
         trace_root = run_dir / "trace"
         witness_root = run_dir / "witness"
@@ -3552,6 +3799,9 @@ def _run_mocc_trace_finalization(
         "DISCRIMINATOR_RESULT": discriminator_result,
         "DISCRIMINATOR_RC": discriminator_rc,
         "TRACE0_WATERMARK_ABSENCE_SHA": trace0_absence_sha,
+        "PATCH_PATH": patch_path,
+        "PATCH_SHA": patch_sha,
+        "PATCHED_SOURCE_SHA": patched_source_sha,
     }
     prefix_lines = ["set -Eeuo pipefail"]
     prefix_lines.extend(
@@ -3616,7 +3866,7 @@ def _run_mocc_trace_finalization(
     assert prehash_tamper_count <= 1
     if prehash_tamper_count:
         tamper = (
-            _receipt_schema_tamper_and_rebind_fragment()
+            _receipt_schema_tamper_and_rebind_fragment(target_receipt_schema)
             if tamper_schema_and_rebind_after_write
             else (
                 _receipt_sidecar_tamper_fragment()
@@ -3931,6 +4181,11 @@ def test_t1943_artifact_paths_are_absent_from_general_manifests(
         _load_json(general_attempt / "artifact-classification-manifest.json")
     )
     dedicated_paths = {
+        "instr-patch.sha256",
+        "instr-patch.numstat",
+        "instr-patch-source.sha256",
+        "instr-patch-apply.stdout",
+        "instr-patch-apply.stderr",
         "run/witness",
         "run/witness/witness_*.log",
         "witness-manifest.json",
@@ -3955,6 +4210,11 @@ def test_t1943_artifact_paths_are_absent_from_general_manifests(
         _load_json(t1943_attempt / "artifact-classification-manifest.json")
     )
     assert dedicated_paths <= {path for _scope, path in dedicated_entries}
+    for name in ("instr-patch.sha256", "instr-patch.numstat", "instr-patch-source.sha256"):
+        assert dedicated_entries[("attempt_dir", name)]["classification"] == "correctness_evidence"
+    for name in ("instr-patch-apply.stdout", "instr-patch-apply.stderr"):
+        assert dedicated_entries[("attempt_dir", name)]["classification"] == "operational_diagnostic"
+        assert "normally empty" in dedicated_entries[("attempt_dir", name)]["reason"]
 
 
 @pytest.mark.parametrize(
@@ -4192,6 +4452,10 @@ def test_mocc_trace_report_binding_markers_remain_unique() -> None:
     source = PILOT.read_text(encoding="utf-8")
     markers = (
         "CPU_MODEL=$(awk",
+        "# BEGIN T2780 HYDRATE INTERPRETER GATE",
+        "# END T2780 HYDRATE INTERPRETER GATE",
+        "# BEGIN T2780 INSTRUMENTATION PATCH",
+        "# END T2780 INSTRUMENTATION PATCH",
         "\nmodule_rc=0",
         '  CHECKER_PY=""',
         "  CHECKER_RC=0",
@@ -4573,8 +4837,23 @@ def test_t1943_receipt_binds_trace_witness_discriminator_and_trace0_absence(
     )
     assert result.returncode == 0, result.stderr
     receipt = _load_json(attempt_dir / "mocc-trace-pilot-receipt.json")
-    assert receipt["schema_version"] == "mocc-trace-pilot-receipt/t1943-g2-v1"
+    assert receipt["schema_version"] == "mocc-trace-pilot-receipt/t1943-g2-v2"
     binding = receipt["t1943_g2_discriminator"]
+    assert (attempt_dir / "job-result.json").is_file()
+    assert binding["instrumentation_patch"] == {
+        "repo_path": "patches/instr-mocc-lock-coverage.patch",
+        "sha256": hashlib.sha256(
+            (tmp_path / "fixture-repo/patches/instr-mocc-lock-coverage.patch").read_bytes()
+        ).hexdigest(),
+        "touched_paths": ["cc/mocc/transaction.cc"],
+        "patched_source_sha256": hashlib.sha256(
+            (tmp_path / "build-source/cc/mocc/transaction.cc").read_bytes()
+        ).hexdigest(),
+        "trace0_built_from_patched_source": True,
+    }
+    for name in ("instr-patch.sha256", "instr-patch.numstat", "instr-patch-source.sha256",
+                 "instr-patch-apply.stdout", "instr-patch-apply.stderr"):
+        assert name in receipt["artifacts"].values()
     assert binding["discriminator_result"]["conclusion"] == "supported"
     for name, artifact in (
         ("trace-manifest.json", binding["trace_manifest"]),
@@ -4652,6 +4931,22 @@ def test_mocc_trace_job_result_rejects_rebound_non_v4_receipt(
     assert not (attempt_dir / "job-result.json").exists()
     failure = (attempt_dir / "fragment-failure.txt").read_text(encoding="utf-8")
     assert failure == "2|job_result_report_binding|job result report binding failed\n"
+
+
+def test_t1943_job_result_rejects_rebound_v1_receipt(tmp_path: Path) -> None:
+    result, attempt_dir, _ = _run_mocc_trace_finalization(
+        tmp_path, trace_mode=1, t1943_g2=True,
+        tamper_schema_and_rebind_after_write=True,
+        target_receipt_schema="mocc-trace-pilot-receipt/t1943-g2-v1",
+    )
+    assert result.returncode == 2, result.stderr
+    receipt_path = attempt_dir / "mocc-trace-pilot-receipt.json"
+    assert _load_json(receipt_path)["schema_version"] == "mocc-trace-pilot-receipt/t1943-g2-v1"
+    assert (attempt_dir / "mocc-trace-pilot-receipt.sha256").read_text().strip() == hashlib.sha256(
+        receipt_path.read_bytes()
+    ).hexdigest()
+    assert "exact admitted pilot receipt schema" in result.stderr
+    assert not (attempt_dir / "job-result.json").exists()
 
 
 def test_mocc_trace_job_result_accepts_exact_v4_receipt(tmp_path: Path) -> None:
