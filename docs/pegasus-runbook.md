@@ -513,6 +513,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/exec_calibrate.py` | `dispatch-required` | `static arbitrary-exec classification` |
 | `tools/pegasus/fetch_third_party.py` | `local-ok` | `runbook §7.0 実測` |
 | `tools/pegasus/floor_campaign.sh` | `dispatch-required` | `static job-body classification` |
+| `tools/pegasus/floor_pair_campaign.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/floor_scoping.sh` | `dispatch-required` | `static job-body classification` |
 | `tools/pegasus/generate_floor_masstree_payload_policy.py` | `unknown` | `unmeasured; unbounded input surfaces remain` |
 | `tools/pegasus/make_acquisition_receipt.py` | `dispatch-required` | `static compute-side call-site classification` |
@@ -559,6 +560,7 @@ checker 自身が計算ノードへ自動 dispatch する (D105)。
 | `tools/pegasus/submit_b10_backoff_shape.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/submit_certify.sh` | `local-ok` | `legacy-admitted (未実測)` |
 | `tools/pegasus/submit_floor.sh` | `local-ok` | `legacy-admitted (未実測)` |
+| `tools/pegasus/submit_floor_pair.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/submit_mocc_trace.sh` | `local-ok` | `static login-side submitter classification` |
 | `tools/pegasus/submit_oracle_n_pilot.sh` | `local-ok` | `login-side submitter; compute work stays in job body (未実測)` |
 | `tools/pegasus/submit_paper_story_a2_certification.sh` | `local-ok` | `static login-side submitter classification` |
@@ -1631,6 +1633,62 @@ probe worktree / dispatch 成果物の掃除は別物である — lease が解�
 - この経路は `tools/pegasus/` の admission 登録簿の対象外である。登録簿は `tools/` 配下の実行体を
   分類するもので、driver の subcommand は管轄外である。§7.0 の実行場所判定にも掛からない —
   qsub 自体は login 側で行う軽い操作である。
+
+### 7.8 B-4 床値 (floor-pair) の窓 job と finalize job の投入 ([T-2288] 2026-09-18 着地、実投入は未実施)
+
+凍結済み spec 3 本 (`output/env/pegasus/floor-pair/t2288-f1/`、D2138) を `orchestrator/campaign/floor_pair_driver.py` の
+`--execute-window` / `--finalize` で走らせる資材は、login 側の `tools/pegasus/submit_floor_pair.sh` (submitter) と
+計算ノードの `tools/pegasus/floor_pair_campaign.sh` (job body) である。**着地 wave では実 qsub・計算ノードでの実行・
+8 変数の伝播・実効 walltime・signal 配送を実測していない** (F660)。これらは次の測定 wave の初回実行で確認し、
+結果 (到達した段・rc・receipt) を記録する。
+
+- **1 job = 1 spec × (1 窓 | finalize)。** 3 spec × 2 窓 = 6 window job + 3 finalize job。並走できるかは admission に
+  依存し、資材は保証しない。
+- **投入元 checkout は detached で、各 spec の w1・w2・finalize の 3 job を同じ HEAD `H` から投入する** (申し送り 2)。
+  driver は finalize で両窓 header の `loaded_head` と finalize 時の HEAD の exact 一致を要求する。3 spec を同じ `H` から
+  投げるのは運用の単純化であって要件ではない。**測定の途中で checkout の HEAD を進めない** (成果物の commit は
+  3 段が終わってから)。submitter は同 spec の他窓 JSONL が既にあればその header の
+  `loaded_head` と現 HEAD の一致を、finalize では両窓 JSONL の存在・header 一致・末尾 record が terminal であることを、
+  qsub 前に確認する (driver の検査の代替ではない早期拒否)。
+- **binary は checkout ごとに `place` する** (D2069 項 7)。ignored file なので merge で移らない。
+  `python3 -m orchestrator.campaign.b4_binary_record place --record output/insights/2026-09-16/t2636-b4-binary-record/records/rr20--stock_common.json --source-root /work/1/SFC/tanab/izanagi-b4-floor-binaries --env-tag pegasus`
+  を投入元 checkout で先に実行する。
+- **窓の手前・末端に投入しない** (申し送り 4)。submitter と job body は `now >= not_before` かつ
+  `now + elapstim_req <= not_after` (UTC 実時計、半開区間) を検査し、外れれば driver を起動せず rc=4 で止める
+  (create-only の path は未消費のまま残る)。walltime は submitter が 1 箇所で決める: window job `24:00:00`
+  (gen_S の上限。窓の喪失は回復不能で、要求超過の費用は queue 待ちだけ)、finalize job `00:30:00`。24 h は
+  成功保証ではない — walltime 切れ・node 障害で terminal の無い JSONL が残ればその窓は失われ、再走は無い。
+- **spec × 窓は 1 回だけ投入する。** submitter は対象窓の JSONL が既にあれば拒否するが、同時投入は排除しない。
+  qsub の結果が不明 (`indeterminate`) でも自動再投入しない。
+- **finalize は両窓の terminal が出て結果を受け入れてから投げる。** driver は `incomplete` terminal の窓からも
+  `not_generated_*` の summary を create-only で作る (失敗の記録)。失敗 summary も 1 回限りで、成功 summary への
+  再生成には使えない。
+- **既存の出力を削除・置換・延長しない** (申し送り 5、D2138 却下肢)。窓を使えずに終わった場合は未実施の凍結として
+  記録し、新しい凍結を別 commit で行う。
+- **証拠の置き場** は repo 外 `/work/1/SFC/tanab/izanagi-job-evidence/floor-pair/<nonce>/`。submitter が
+  `pre-submit.json` / `qsub.*` / `submit-receipt.json`、scheduler が `scheduler.stdout` / `scheduler.stderr`、job body が
+  `driver.stdout` / `driver.stderr` / `job-result.json` を書く (投入側は job body の file を先に置かない)。
+  測定 JSONL と summary は凍結 spec が指す repo 内 path (投入元 checkout) に create-only で書かれる。
+- 投入 (login node、投入元 checkout の root で):
+
+  ```bash
+  bash tools/pegasus/submit_floor_pair.sh --workload rr95 --window w1 --dry-run   # qsub だけを省く (gate は同一)
+  bash tools/pegasus/submit_floor_pair.sh --workload rr95 --window w1             # w1 は 2026-09-19T00:00Z 以降
+  bash tools/pegasus/submit_floor_pair.sh --workload rr95 --window w2             # w2 は 2026-09-29T00:00Z 以降
+  bash tools/pegasus/submit_floor_pair.sh --workload rr95 --finalize              # 両窓の terminal の後
+  ```
+
+  `--workload` は `rr95` / `rr50` / `rr5`。spec の relpath と sha256 は submitter が D2138 項 7 の値で pin しており、
+  引数で差し替えられない。
+- **未検証の前提**: 計算ノードの時計が走行中に安定していること、scheduler の終了猶予、`nm` / `pgrep` の存在
+  (job body は起動時に `command -v` で確認する。finalize は session を走らせないので `nm` / `pgrep` を使わないが、
+  同じ集合を要求する)、compute での動的 link 解決 (binary の NEEDED は system lib 4 本)。**job body の bash が
+  SIGTERM を ignore も block もしない状態で起動することは未検証** — 計算ノードの job は SIGTERM を SIG_IGN で継承する
+  (F1012) ので、その場合 `record_signal` は発火せず、walltime 到達時は KILL で driver が止まり、terminal の無い JSONL と
+  `job-result.json` の欠落が残りうる。trap の存在を終了記録の保証と読まない。
+- job rc=0 は「床値が生成された」を意味しない。driver は window / finalize の result JSON (`driver.stdout`) を書いて
+  rc=0 を返し、`status` は別に持つ。n = 62、欠測率、実 campaign の 24 時間以上の分離、採用は証拠確認者
+  (D1641、申し送り 6) と集約 (D1974、申し送り 7) に残る。
 
 ## 8. 投入前チェックリスト
 
