@@ -12,10 +12,9 @@ L0=入口、L1=常時段の U 節、L1.5=クラス依存段の U 節、L2=C 節�
 review 子を省ける。実装面があれば段 5 の Codex 実装子と fix 子は省略不可で、
 親は直接編集しない。docs-only は子ゼロでよい。実測は省かず、全 9 段はユーザー明示時に使う。
 
-待ち手は 1 条件 1 本とし、通知ごとに作り直さず `tools/dev_wave_wait.py` を使う。生産者を止める
-とき待ち手も落とし、その死も待ち条件に含む。停止後`ps`全cmdlineで対象worktreeの
-0件実測後に投入。完了は`.done`非空で決める。同一worktreeのdispatchは全種直列（並行はorphan
-holdでrc=16、`DW-O26`）。
+待ち手は 1 条件 1 本とし、通知ごとに作り直さず `tools/dev_wave_wait.py` を使う。停止時は生産者・待ち手を止めて死を待つ。
+`ps`全cmdlineで対象worktreeの0件実測後に投入。完了は`.done`非空。同一worktreeのdispatchは全種直列（並行はorphan
+holdでrc=16、`DW-O26`）。`qdel`前に`docs/pegasus-runbook.md`§7.6を読む
 
 ## DW-C01 — 実測で是正した作法
 

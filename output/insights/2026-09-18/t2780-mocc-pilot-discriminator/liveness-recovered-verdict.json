@@ -1,0 +1,39 @@
+{
+  "success": true,
+  "state": "terminal",
+  "attempt_dir": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2780-compute/output/env/pegasus/mocc-trace/job-staging/0:5905.nqsv",
+  "checks": {
+    "terminal_accounting_present": true,
+    "failure_json_absent": true,
+    "job_result_present": true,
+    "job_result_schema_ok": true,
+    "receipt_schema": "mocc-trace-pilot-receipt/t1943-g2-v2",
+    "receipt_schema_ok": true,
+    "receipt_status_completed": true,
+    "receipt_digest_ok": true,
+    "patch_binding": {
+      "patched_source_sha256": "bd0add59890a60150b9c650155943ddd0c1e91eeccc0121a6b674c834b3ed04c",
+      "repo_path": "patches/instr-mocc-lock-coverage.patch",
+      "sha256": "e9e65b7876050865ee1cbc4d3a05516b09a8fe0b18149e0c063632162fd7bb48",
+      "touched_paths": [
+        "cc/mocc/transaction.cc"
+      ],
+      "trace0_built_from_patched_source": true
+    },
+    "patch_sha_actual": "e9e65b7876050865ee1cbc4d3a05516b09a8fe0b18149e0c063632162fd7bb48",
+    "patch_binding_ok": true,
+    "gates": {
+      "discriminator_conclusion": "no-g2",
+      "discriminator_rc": "0",
+      "trace0_preprocess_identity_rc": "0",
+      "verifier_rc": "0",
+      "workload_rc": "0"
+    },
+    "gates_ok": true,
+    "discriminator_conclusion": "no-g2",
+    "result_binding_ok": true,
+    "conclusion_ok": true,
+    "classification_ok": true,
+    "verifier_rc": 0
+  }
+}

@@ -1,0 +1,712 @@
+{
+  "artifacts": [
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "allocation-unavailable.json",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "artifact-classification-manifest.json",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "binary-trace*.path",
+      "reason": "Records the executed workload binary path.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "binary-trace*.sha256",
+      "reason": "Binds the executed workload binary bytes.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "build-trace*.stderr",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "build-trace*.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "cmake.path",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "cmake.version",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "performance_evidence",
+      "path_pattern": "commit-count.json",
+      "reason": "The commit-count witness combines with elapsed time to derive throughput.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "compiler-gcc.path",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "compiler-gcc.version",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "compiler-gxx.path",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "compiler-gxx.version",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "compiler-used.version",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "configure-trace*.argv.json",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "configure-trace*.stderr",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "configure-trace*.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "cpu-model.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "discriminator.json",
+      "reason": "Records the bounded payload-lineage discriminator conclusion.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "discriminator.rc",
+      "reason": "Records the payload discriminator return code.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "discriminator.stderr",
+      "reason": "Records payload discriminator diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "failure.json",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "gflags-build.stderr",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "gflags-build.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "gflags-configure.argv.json",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "gflags-configure.stderr",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "gflags-configure.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "gflags-install.stderr",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "gflags-install.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "gflags-source-head.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "gflags-source-status.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "glog-build.stderr",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "glog-build.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "glog-configure.argv.json",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "glog-configure.stderr",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "glog-configure.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "glog-install.stderr",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "glog-install.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "glog-source-head.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "glog-source-status.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "hostname-f.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "hostname.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "instr-patch-apply.stderr",
+      "reason": "Records patch numstat/check/apply stderr, normally empty.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "instr-patch-apply.stdout",
+      "reason": "Records patch check/apply stdout, normally empty.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "instr-patch-source.sha256",
+      "reason": "Binds the patched transaction source bytes.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "instr-patch.numstat",
+      "reason": "Records the checked instrumentation patch touch set.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "instr-patch.sha256",
+      "reason": "Binds the instrumentation patch bytes before application.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "job-result.json",
+      "reason": "Binds the completed job result to the pilot receipt.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "judgment-source-post.json",
+      "reason": "Records the source identity and clean state after judgment.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "judgment-source-pre.json",
+      "reason": "Records the source identity and clean state before judgment.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "mocc-trace-pilot-receipt.json",
+      "reason": "The TRACE=1 receipt binds correctness artifacts while other listed files still permit performance derivation.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "mocc-trace-pilot-receipt.sha256",
+      "reason": "Binds the pilot receipt bytes by digest.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "module-list.rc",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "module-list.stderr",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "module-list.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "qstat-accounting.rc",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "qstat-accounting.stderr",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "qstat-accounting.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "qstat-f.rc",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "qstat-f.stderr",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "qstat-f.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "qstat-final.rc",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "qstat-final.stderr",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "qstat-final.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "reservation.json",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "run/trace/trace_*.log",
+      "reason": "Trace records support verification and may expose timing or transaction-count information.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "run/witness",
+      "reason": "Separates payload-lineage evidence from the standard trace directory.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "run/witness/witness_*.log",
+      "reason": "Payload lineage is isolated from standard verifier trace files.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "run/workload.argv.json",
+      "reason": "Records the exact workload configuration and arguments.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "performance_evidence",
+      "path_pattern": "run/workload.elapsed_ns",
+      "reason": "Elapsed time combines with a commit count to derive throughput.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "run/workload.rc",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "run/workload.stderr",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "performance_evidence",
+      "path_pattern": "run/workload.stdout",
+      "reason": "CCBench stdout contains the commit-count witness and may expose other performance values.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "submit-receipt.json",
+      "reason": "Binds the job to the submitted request and frozen source inputs.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "submodule-head.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "submodule-status.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "third-party-hydrate.json",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "third-party-hydrate.stderr",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "third-party-source-root.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "performance_evidence",
+      "path_pattern": "throughput.json",
+      "reason": "Records TRACE=0 throughput and latency derived from count and elapsed time.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "topology.json",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "trace-manifest.json",
+      "reason": "Binds trace file names, sizes, and digests for verification.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "trace0-execution.json",
+      "reason": "Records fail-closed skipping when the TRACE=0 identity gate rejects.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "trace0-preprocess-identity.json",
+      "reason": "Certifies the D297 TRACE=0 preprocess identity gate, which is only one necessary condition for complete trace removal from the measurement build and does not prove that removal.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "trace0-preprocess-identity.rc",
+      "reason": "Records the TRACE=0 preprocess identity gate return code.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "trace0-preprocess-identity.stderr",
+      "reason": "Records diagnostics from the TRACE=0 preprocess identity gate.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "trace0-watermark-absence.json",
+      "reason": "Certifies T-1943 marker and symbol absence in the TRACE=0 binary.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "verifier.json",
+      "reason": "The verifier verdict includes stats.txns, which exposes a transaction count.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "verifier.rc",
+      "reason": "Records the verifier return code.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "verifier.stderr",
+      "reason": "Records verifier diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "window-remaining-*.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "correctness_evidence",
+      "path_pattern": "witness-manifest.json",
+      "reason": "Binds payload witness file names, sizes, and digests.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "worktree-add.stderr",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "worktree-add.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "worktree-cleanup.stderr",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "worktree-cleanup.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "worktree-remove.stderr",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "worktree-remove.stdout",
+      "reason": "Records execution, environment, build, scheduler, or failure diagnostics.",
+      "scope": "attempt_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "pbs-job.stderr",
+      "reason": "PBS captures the job's unredirected standard error.",
+      "scope": "submission_dir",
+      "trace1_performance_use_forbidden": true
+    },
+    {
+      "classification": "operational_diagnostic",
+      "path_pattern": "pbs-job.stdout",
+      "reason": "PBS captures the job's unredirected standard output.",
+      "scope": "submission_dir",
+      "trace1_performance_use_forbidden": true
+    }
+  ],
+  "classification_enum": [
+    "correctness_evidence",
+    "performance_evidence",
+    "operational_diagnostic"
+  ],
+  "performance_use_policy": "TRACE=1 files must not be used as performance evidence even when performance values remain derivable from their contents or combinations.",
+  "schema_version": "mocc-trace-artifact-classification-manifest/v1",
+  "trace_mode": 1
+}

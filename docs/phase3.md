@@ -523,6 +523,9 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    判定) で、本格投資はその結果で決める。cicada/oze への空間拡大 (S1 移植を伴う) と束ねるのが自然。カタログ化の
    成果物は移植を見送っても層3 の説明生成に流用できるため無駄にならない。
 
+   - [x] [T-2780] mocc pilot の discriminator 入力配線を修正 (2026-09-18)。hydrate の interpreter 選択、build 前の X/P patch、verifier source と receipt v2 の束縛を実装。計算ノード job 5905 は終端 accounting 確認後に no-g2 / rc0 で finalization 到達。公式認証への昇格や rc1 の実機被覆を意味しない。
+     受入で再発したT1259のmodule snapshot重複取得は、既存process memo集合への配置で抑える。実snapshot・独立copy・全51ケース・30秒timeout・P/S lockを維持する。
+
    **(2026-08-20 TicToc/Cicada タスク分解。当時は段7 発火まで全項目未着手・T 番号なし。2026-09-17 追記: Group A (b) の
    空間登録は [T-2135] (2026-09-02、tictoc / cicada) で、層3 の protocol 照合と floor driver の protocol 別 baseline
    (silo / mocc) は [T-2115] (2026-09-01) で進展済み。2026-09-17 改訂により基盤準備の T 5 本を worklog へ起票)** D32 の「一歩目」を
