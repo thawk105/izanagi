@@ -28,7 +28,7 @@ from orchestrator.campaign import s8b_experiment_numbers  # noqa: E402
 from orchestrator.campaign import s8b_floor_campaign  # noqa: E402
 from orchestrator.campaign import s8b_floor_stats  # noqa: E402
 from orchestrator.campaign import s8b_ratified_freeze  # noqa: E402
-from tests.skiputil import Skip, skip  # noqa: E402
+from orchestrator.tests.skiputil import Skip, skip  # noqa: E402
 
 
 def _actual_gitlink() -> str:
