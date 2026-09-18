@@ -19,6 +19,7 @@ if os.fspath(_ROOT) not in sys.path:
     sys.path.insert(0, os.fspath(_ROOT))
 
 from tools.dev_waves.schema import canonical_decimal
+from tools.dev_waves.git_state import commit_worker_worktree
 from tools.dev_waves.time_values import positive_safe_nanosecond_decimal
 
 
@@ -249,6 +250,8 @@ def _launcher_argv(
     artifact_dir = wave_artifact_root / job_id
     args.generated_directories = (wave_artifact_root, artifact_dir)
     receipt = artifact_dir / "receipt.json"
+    args.receipt_path = receipt
+    args.job_id = job_id
     manifest = wave_artifact_root / "manifest.json"
 
     argv = [
@@ -345,9 +348,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("\n".join(launcher_argv))
         return 0
     try:
-        return subprocess.run(launcher_argv, check=False).returncode
+        launcher_rc = subprocess.run(launcher_argv, check=False).returncode
     except OSError as exc:
         parser.error(f"launcher を起動できない: {exc}")
+    if args.sandbox == "workspace-write":
+        if args.stage in ("author", "fix"):
+            status, _detail = commit_worker_worktree(
+                args.repo_root, wave=args.wave, job_id=args.job_id,
+                stage=args.stage, launcher_rc=launcher_rc,
+                receipt_path=args.receipt_path,
+            )
+            if launcher_rc == 0 and status in ("refused", "failed"):
+                return 3
+        else:
+            print("worktree-commit: skipped reason=stage", flush=True)
+    return launcher_rc
 
 
 if __name__ == "__main__":

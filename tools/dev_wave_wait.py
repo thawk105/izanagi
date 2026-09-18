@@ -1597,6 +1597,8 @@ class _ProducerArgumentParser(_ArgumentParser):
         parsed = super().parse_args(args, namespace)
         if parsed.check_only and parsed.receipt_file is None:
             self.error("--receipt-file is required with --check-only")
+        if parsed.commit_worktree is not None and not parsed.commit_worktree.is_absolute():
+            self.error("--commit-worktree requires an absolute path")
         return parsed
 
 
@@ -1637,6 +1639,7 @@ def _producer_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-wait-seconds", type=_positive_int)
     parser.add_argument("--check-only", action="store_true")
     parser.add_argument("--receipt-file", type=Path)
+    parser.add_argument("--commit-worktree", type=Path, default=None)
     return parser
 
 
@@ -1965,6 +1968,7 @@ def wait_for_producer(
     pid: int,
     max_wait_seconds: int | None,
     effects: _Effects,
+    commit_worktree: Path | None = None,
 ) -> _Outcome:
     started = effects.monotonic()
     start_time = _initial_start_time(pid, effects)
@@ -1983,6 +1987,15 @@ def wait_for_producer(
                 return _Outcome(RC_FAIL_CLOSED, "producer-timeout")
         effects.sleep(_PRODUCER_POLL_SECONDS)
 
+    commit_status, commit_detail = "clean", None
+    if commit_worktree is not None:
+        from tools.dev_waves.git_state import commit_worker_worktree
+
+        commit_status, commit_detail = commit_worker_worktree(
+            commit_worktree, wave="unknown", job_id="unknown", stage="unknown",
+            launcher_rc=None, receipt_path=None, actor="waiter",
+        )
+
     grace_elapsed = 0
     while True:
         done_exists, artifact_exists = _producer_file_state(
@@ -1991,6 +2004,11 @@ def wait_for_producer(
             effects,
         )
         if done_exists and artifact_exists:
+            if commit_status in ("refused", "failed"):
+                return _Outcome(
+                    RC_FAIL_CLOSED, "producer-commit",
+                    detail=_attestation_detail(commit_status, commit_detail),
+                )
             return _Outcome(RC_OK)
         if grace_elapsed >= _PRODUCER_GRACE_SECONDS:
             return _Outcome(RC_FAIL_CLOSED, "producer-files")
@@ -4470,6 +4488,7 @@ def main(
                     pid=pid,
                     max_wait_seconds=args.max_wait_seconds,
                     effects=active_effects,
+                    commit_worktree=args.commit_worktree,
                 )
                 if outcome.rc == RC_OK and args.receipt_file is not None:
                     state = _derive_producer_state(
