@@ -56,8 +56,17 @@ title: 並行 docs 衝突を spool + fold で解消する (コード + docs、br
 ## 規則
 
 - **`carry` 節は任意である。** 触れなかった active な T は fold が自動的に carry する。
-  明示 carry と暗黙 carry は同じ出力を生む。item は ID だけの 1 行 (`- [T-NNN]`) とする。
-  これは並行 wave のために必要である — 他の wave が新しい T を先に fold しても、
+  item は ID だけの 1 行 (`- [T-NNN]`) とする。
+  **明示 carry と暗黙 carry が同じ出力を生むのは、fold の時点でその T がまだ active なときに限る。**
+  fold は明示 carry を `完了`/`更新`/`見送り` と同じ「active な item への操作」として扱うので、
+  別 wave が先に land してその T を `完了`/`見送り` で active から外していると、fold は
+  `transition-target` (active でない操作対象) で止まる。作業木に取り込んでいない main 側の
+  完了・見送りは `--dry-run` に映らず、受入全走後の land lock 内で初めて検出される場合がある。
+  作業木へ反映済みの場合や、同一 fold 内の先行 fragment が対象を外す場合は、`--dry-run` でも検出される。
+  暗黙 carry にはこの失敗が無い (非 active な T は走査に現れないだけ)。
+  したがって並行 wave では、自分が `完了`/`更新`/`見送り` に置かない T を `carry` へ列挙しない
+  (節ごと省く) のが安全側である。同一 fold 内で先に適用された別 fragment が外した場合も同じ (F233)。
+  暗黙 carry は並行 wave のために必要である — 他の wave が新しい T を先に fold しても、
   先に書かれた fragment がそれを知らないまま畳める。
 - 脱落は fold の**保存則 postcondition** が塞ぐ。
   「出力 active 集合 == 入力 active 集合 − 完了 − 見送り + 新規」を実際に突き合わせて検査する。
