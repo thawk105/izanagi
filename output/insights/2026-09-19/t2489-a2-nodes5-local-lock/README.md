@@ -93,3 +93,10 @@ CC性能binaryは実行しておらず、旧資料の約8分という静的見�
   新jobは0件。親の直列化確認不足を訂正し、監査終端後に新しいlog/doneで再投入した結果である。
 - 焦点レビューは候補撤回・両rank照合・policy閉包をclosedとした。消滅出力の追跡性だけpartialだったため、
   上記qstat一次出力を追加した。最終codeはpolicyと2testの3file、job bodyは基準SHAと一致する。
+- 変異は `eda92f10774b297c0abe292a3bd757bb3e861802` 固定の独立cloneで実施。baseline5件通過、
+  登録2/記録2/KILLED2/期待一致2、SURVIVED・MISMATCH・TIMEOUTは0。wrapperもrc0で復元確認を完了。
+  M1（nodes 5→1）はpolicy pin1件、M2（host count拒否無効化）はA2/A6の不足・過剰4件だけが失敗した。
+  `evidence/mutations.json` と `evidence/mutation-results.json` にanchor・完全な期待node集合・実結果を保存。
+- 段6の正規受入は **25,231 passed / 69 skipped、child-green**。tested main
+  `57485e280f2b13efc48e145a41462b2760e7e68b`、tested tip `73d4a16c5dcc3a7aa65437c1ad0ebf874c7c8724`。
+  `evidence/acceptance1.json` にsource・実行経路・前後cleanlinessが束縛される。除外・期待緩和は行っていない。
