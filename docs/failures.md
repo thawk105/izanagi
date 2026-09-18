@@ -211,6 +211,12 @@
   (file の mtime・commit 時刻) から取る。
 
 - **再発: 2026-09-18** ([T-1505] A-1 sized 本走投入 wave、near miss)。親が handoff へ書いた JST 時刻 3 件 (06:33 / 06:35 / 06:37) が実測でなく推定で、直後の `date` は 06:29:42 だった (実時刻より先へ進んでいた)。原因は wave 冒頭の `date` 1 回に体感の経過を足したこと。記録 commit・insight へ入る前に `stat` の mtime で 06:24:21 / 06:28:23 / 06:29:14 へ置き換えた。恒久対応は変更なし — 時刻を書く 1 回ごとに `date` か mtime を採る。
+
+- **再発: 2026-09-18** — [T-2379] wave (branch `dev-wave-t2379-syspath-selfcontained`) の親が、専用 handoff (repo 外) の「最終更新」と
+  段 4 の見出しに `date` を叩かず推定した時刻 (11:52 / 11:30) を書いた。直後の `date` 実測は 11:31 で、片方は 20 分以上未来だった。
+  worklog・insight へ写す前に気づき、handoff を date 値で訂正し、以後の時刻は `date` と job の Started/Ended Request Time から採った
+  (worklog エントリ・insight に誤時刻は入っていない = near miss)。型は 2026-09-17 の再発と同じ「推定で書く」。恒久対応は変更なし
+  (memory `timestamps-from-date-or-mtime-not-estimation`。時刻・日付を報告に載せる前に `date` を叩く)。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -5365,6 +5371,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   F106 と同一で、「dispatch 済みの走行は起動時点の木を見る」と誤認して待ち時間に worktree を触ったこと。恒久対応は
   F106 のまま。**焦点走であっても、投入から結果取得までは tracked file を編集しない。** 汚染した走行は合否に使わず
   skip 理由の参考にだけ使い、権威の走行を取り直した。
+
+- **再発: 2026-09-18** — [T-2732] wave。**変異 matrix の走行中** (baseline PASSED、E1 / N1 / N2 完了後) に、親が段 7 の準備として
+  insight の逐語 file を wave worktree の `output/insights/2026-09-18/...` へ複製し、末尾空白検査のために `git add -N` (intent-to-add) を
+  掛けた。`tools/mutation_harness.py` は次の変異の直前検査 `_assert_only_expected_dirt` (`git diff --quiet HEAD -- . :(exclude)<変異対象>`) で
+  intent-to-add を「固定 HEAD 外の変更」として検出し rc=2 で中止した (変異対象 2 file は HEAD へ復元済み)。追加事実は 2 つ。
+  (1) **書き込み先が `output/` でも harness の検査には掛かる** — 計測 job の dispatch 中に `output/` へ書く運用が通るのは job が投入時点の作業ツリーを見るためで、
+  変異 harness は変異ごとに worktree 全体の tracked/index/untracked を固定 HEAD と照合する。(2) `git add -N` は「stage しない」つもりでも index を変える。
+  復旧は index を戻して file を job dir へ退避 → `--resume` (sidecar を新 path へ複写、`--wrapper-attempt` を進める) で残りだけ走らせた。
+  順序の固定 (走行前に記録を書き終える、走行中は repo 外だけで作業する) が対応であり、本 wave では insight README・fragment を job dir で下書きして
+  変異完了後に worktree へ移した。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**

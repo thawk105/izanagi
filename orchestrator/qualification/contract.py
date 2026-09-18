@@ -76,6 +76,9 @@ REQUIRED_CODE_IDENTITY_PATHS = frozenset({
     "orchestrator/verifier/dsg.py",
     "orchestrator/verifier/model.py",
     "orchestrator/verifier/parse.py",
+    "orchestrator/verifier/__init__.py",
+    "orchestrator/verifier/commit_receipt.py",
+    "orchestrator/verifier/report.py",
     "tools/pegasus/policy.json",
 })
 REQUIRED_SCRIPT_IDENTITY_PATHS = frozenset({
