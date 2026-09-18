@@ -1390,17 +1390,25 @@ def _build_t080_stub_free_e2e_repo(
 
     _copy_git_visible_output(ROOT, root / "output")
     if active_v2_base:
-        # Only this new connection fixture starts without pre-existing G/selector history.
+        # Declare the connection fixture's initial materials before the basis commit:
+        # retain only the v1 holdout in the freeze namespace, and no budget inputs.
+        # In particular, copied floor protocols would make the synthetic protocol an
+        # AI reseal of a human seal; G/A/X and selector evidence belong to this repo.
         # This is deliberately separate from the replay deletion set S.
-        for relative in (
-            "output/s8b-freeze/holdout_freeze.v2.g1.json",
-            "output/s8b-freeze-budget-inputs/g1.json",
-            "output/s8b-freeze/selector_predictions.json",
+        for relative, retained_names in (
+            ("output/s8b-freeze", {"holdout_freeze.json"}),
+            ("output/s8b-freeze-budget-inputs", set()),
         ):
-            (root / relative).unlink(missing_ok=True)
-        selector_runs = root / "output/s8b-freeze/selector-runs"
-        if selector_runs.exists():
-            shutil.rmtree(selector_runs)
+            namespace = root / relative
+            if not namespace.exists():
+                continue
+            for path in namespace.iterdir():
+                if path.name in retained_names:
+                    continue
+                if path.is_dir() and not path.is_symlink():
+                    shutil.rmtree(path)
+                else:
+                    path.unlink()
 
     known = json.loads((ROOT / migration.KNOWN_AXES_REL).read_text(encoding="utf-8"))
     source_paths: set[str] = set()
