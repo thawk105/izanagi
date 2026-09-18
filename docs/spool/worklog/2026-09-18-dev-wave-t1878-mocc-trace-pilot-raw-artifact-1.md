@@ -43,6 +43,10 @@ title: [T-1878] mocc trace-hook (TRACE=1) pilot (PBS 934607.nqsv) の raw verifi
   最初の一致だけの分類に依拠)、nit 4 (D920 引用の射程、README 追記の見出しが一般規則化、request 内訳、行番号と根拠の無い「別 binary」)、
   記録 1 (branch 差分から「稼働 wave が編集中」は導けない)。refuted 0。**全件採用し、R-3 は文言でなく全本文で完全表記を判定する
   再走査 (v2 / v3) で閉じた** (結果は同じ 13 件)。逐語は insight `verbatim/`。
+- 段 8 (自己改善候補 1 件、docs/dev-wave は編集しない): 一次資料から事実を再抽出する docs-only wave で段 6 の review 1 本を省かない
+  ことの**独立 2 例目** (1 例目 = entry 998)。`DW-G03` の 2 例は満たすが、段構成の変更なので skill-self-improvement の dev-wave 終端に従い
+  実装せず**裁定パッケージ候補**として insight §7 に残す (推奨案 = `DW-C00` の「docs-only は子ゼロでよい」へ「一次資料から事実を再抽出する
+  docs wave は review 1 本を残す」を足す。L1 予算は満杯 (1649 実測 10,622 / 10,625) で原資は D730 の手順)。
 - 検査: `tools/check_docs.py` 違反なし、`spool_fold.py --dry-run` rc=0。変異 matrix は実装面差分ゼロで免除 (DW-S04)、受入全走は
   land 経路で 1 走 (結果は land の受領証)。
 - 工数: codex 子 1 本 (review、read-only)。親の実測: repo 外走査 3 回 (Write tool で Python を書いて実行 — 隔離 session の Bash guard は

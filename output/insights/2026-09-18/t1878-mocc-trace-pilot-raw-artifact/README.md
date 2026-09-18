@@ -55,7 +55,8 @@ worktree を畳むと失われるため、land 前に必ず内容を記録へ落
   1,006 件と dynamic-backoff の `stage*-rep*-*_<request>.nqsv.json{,.journal.jsonl}` 2 件で、最小は 52.5 MB。file 名の request は 934607 でない。
   探している `verifier.json` は同型の raw (pair wave の `verifier-trace1.json`) が 1,330 bytes なので、この上限で除外されることはない
   (ただし raw が別名で 50 MiB 超の file に連結されている可能性は本走査では否定できない)。
-- v1 は拡張子 allowlist で 3,846 file を除外していたが、v3 は allowlist を外して同じ 16,372 file を読んだ (結果は同一)。
+- v1 は拡張子 allowlist で 3,846 file を除外し 12,526 file を読んでいた。v3 は allowlist を外して 16,372 file (12,526 + 3,846) を読んだ
+  (完全表記の hit は同じ 13 件、数字のみの hit も同じ 151 件)。
 - symlink (file・directory) は追跡しない設計だが、対象 dir には 0 件だった。lstat・読取の失敗は 0 件。
 - 当時の raw `verifier.json` は `results[0].trace_dir` に `job-staging/<PBS_JOBID>/run/trace` の絶対 path を含む (§3) ので、
   本文検索は改名された写しも (50 MiB 以下なら) 捕捉する。捕捉したのは本文言及 13 件だけだった。
@@ -112,3 +113,16 @@ probe `949555` (`/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-trace-pair/materi
 - 親の実測: 走査 3 回 (v1 12,526 file、v2 同集合で全本文判定、v3 16,372 file 拡張子不問 + path 名)、git 履歴・ignore・tree の照合、
   当時 script と verifier の `git show` 読み、編集面照合 (209 branch)
 - 検査: `tools/check_docs.py`、`tools/spool_fold.py --dry-run`、受入全走は land 経路で 1 走 (結果は land の受領証)。実装子 0 (docs-only)
+
+## §7 段 8 自己改善 (候補 1 件、docs/dev-wave は編集しない)
+
+- 候補: **一次資料から事実を再抽出する docs-only wave では、段 6 の read-only review を 1 本省かない。** `DW-C00` は「docs-only は子ゼロでよい」
+  と定めるが、本 wave は 1 本入れた review が must-fix 3 件 (消失の断定、走査の除外条件の未記載、最初の一致だけの分類) を出し、
+  記録の正しさを直した。独立 2 例目である (1 例目 = entry 998 の claim-evidence matrix wave、「本 wave が 1 例目なので制度化しない」と記録)。
+  `DW-G03` の「独立 2 例」は満たすが、これは段構成 (どの段の子を省けるか) の変更なので、`docs/skill-self-improvement.md` の
+  dev-wave 終端「段構成…の変更は実装せず裁定パッケージへ送る」に従い実装しない。L1 (常時読む節) の byte 予算も満杯
+  (entry 1649 の実測 10,622 / 10,625) で `DW-C00` へ 1 文を足す余地は無い。**裁定パッケージ候補として本 insight と worklog に残す**
+  (推奨案: `DW-C00` の「docs-only は子ゼロでよい」に「一次資料から事実を再抽出する docs wave は review 1 本を残す」を足す。原資は D730 の手順)。
+  仮想リスクではなく実測 2 例に基づくが、採否はユーザー裁定に属する
+- 上記以外に作法の欠落・無駄は観測していない (隔離 session の Bash guard が複数 dir の `grep -rl` を拒否する件は既知で、Write tool の
+  Python で回避した)
