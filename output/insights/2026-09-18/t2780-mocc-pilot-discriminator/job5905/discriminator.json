@@ -1,0 +1,30 @@
+{
+  "bindings": {
+    "binary_sha256": "64a2c460c3317459e4e17d6f89e68c47bda71dbbc3feb1470abf12988d8c8339",
+    "source_oid": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+    "trace_manifest_sha256": "e9cedf213626d5da6b02bd64ecda3257df21ae3c796565ee6b5eb7c789bbb6b7",
+    "verifier_sha256": "a1d4f2ebbb0285d221f85511e06c58994641cf8c2d1157749c15eba66e8801b9",
+    "witness_manifest_sha256": "c640826e7718ec89e50743f508f2083bbff0044e38a72b360aee4b4e96622a36",
+    "workload": {
+      "extime_s": 3,
+      "records": 10000,
+      "threads": 48,
+      "ycsb_max_ope": 10,
+      "ycsb_rmw": 0,
+      "ycsb_rratio": 50,
+      "zipf_skew": 0.9
+    }
+  },
+  "blockers": [],
+  "comparisons": [],
+  "conclusion": "no-g2",
+  "limits": {
+    "commit_order_verified": false,
+    "mocc_root_cause_verified": false,
+    "serializable_elevation_allowed": false,
+    "write_store_order_verified_beyond_post_store_token": false,
+    "writer_version_verified": false
+  },
+  "meaning": "the completed verifier reported no G2 cycle",
+  "schema_version": "mocc-g2-payload-discriminator/v1"
+}

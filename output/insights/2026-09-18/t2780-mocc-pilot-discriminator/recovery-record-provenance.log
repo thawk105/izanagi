@@ -1,0 +1,8 @@
+[Pegasus dispatch] job を gen_S へ投入します (izdw-3e450ff133)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2780-codex-recovery/output/pegasus-dispatch/orphan-holds/unknown-3f1bb820fee3d9ab53345cd8.json
+[Pegasus dispatch] request ID 6378.nqsv を受理しました
+[Pegasus dispatch] request 6378.nqsv の状態: QUE
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2780-codex-recovery/output/pegasus-dispatch/orphan-holds/unknown-3f1bb820fee3d9ab53345cd8.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.codex/worktrees/dev-wave-t2780-codex-recovery/output/pegasus-dispatch/3e450ff133a58e01e16d99aa7f6632cb/receipt.json へ保存しました (child rc=16)
+Pegasus dispatch infrastructure failure: queue-wait-timeout
+IZANAGI_DISPATCH_OUTCOME_V1 {"child_rc":null,"child_started":false,"kind":"infra","reason":"queue-wait-timeout"}

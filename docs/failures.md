@@ -2456,6 +2456,8 @@
   監査した (`DW-O01` の「未受理は未完了と記し次の子に監査させる」)。fix 子の prompt には
   `## 総括` を最初の見出しとして明示し、2 本とも受理された。恒久対応は従来どおり親検収 +
   `check_codex_output.py` で、reference は編集しない。
+
+- **再発: 2026-09-18** — T-2686回収authorはCLI0でも必須総括見出しを落としてf43_fragment/launcher1になった。実装残差を保全し、DW-O01どおり独立review2本で実コードを監査した。未受理を成功報告へ書き換えず、後続promptでliteral見出しを明示した。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
@@ -2588,6 +2590,9 @@
   そこに「実行はセッション外」という実行環境の定義を足す (裁定項目 1 の材料)
 - 記録: worklog 2026-07-28 (33)、材料 = `output/insights/2026-07-25_t088-floor-wrapper.md` §9
 
+
+- **再発: 2026-09-18** — T-2780引継ぎで親が全史監査job6403をQUE中にqdelした。ローカル実行可能という再観測を理由にしたが、runbook §7.6の「手動qdelは最後の手段」「解除はユーザー手番」の帰結を操作前に確認しなかった。dispatcherはcompute-marker-not-observedでsubmission-disabled.jsonを作成した。ラッチを保持し、最終受入・land・清掃は人間による確認後へ止める。既存の禁止・解除契約を変えない。
+- **追補: 2026-09-18** — 取消し起因と解除境界を説明した後、ユーザーがmain landまでの再開と自己改善を指示した。今回の6403に限る復旧指示として、qstat不在・保全済みラッチのhash一致を照合して退避した。F47の一般解除条件は変えない。再発防止はdocs/dev-wave/core.mdのDW-C00から停止前のrunbook §7.6読了へ接続し、待ち短縮だけを理由とするqdelを禁止する。
 ### F48. 背景 job の worktree が origin/main から分岐し、local main より古い base で brief と受入を始めた [誤前提]
 
 - 日付: 2026-07-28
@@ -26989,6 +26994,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   「測定の意味を取り違えたまま数値だけが独り歩きする」型。
   前 2 例は**測定条件**の取り違えで、本件は**測定対象そのもの**の取り違えである点が異なる。
 
+
+- **再発: 2026-09-18** — T-2686のwalk観測wrapperがオプション名 --name-only だけで対象を選び、git diffを履歴logへ混入させた。test_check_branch_landed.pyの7 selectorをlogとオプションの積へ限定し、期待0/1とassertを維持して373件の焦点走を通した。さらに一回限りの対測定driverではtruncatedという状態語だけで実行失敗と読み、仕様上の非決定的patch-id merge省略を誤拒否した。producerのexactな経路と実raw4正例/timeout等の負例で区別し、元の不完全表示とrun1のrc1を保持した。成果物は output/insights/2026-09-18/t2686-exact-state-union-walk/。
 ### F993. 編集面重複検査が worktree 作成直後の wave を 0 件と数え、2 wave が 28 秒差で同じ面を掴んだ [手順漏れ]
 
 - 事象: [T-2642] の着手前検査 (2026-09-16 ≈04:33 JST) で、全 74 worktree の未 commit 差分・
@@ -27720,6 +27727,7 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `orchestrator/tests/test_mocc_trace_job_contract.py` の interpreter gate 検査 (checker / verifier) と同型の hydrate 版を
   [T-2780] で足す。fake interpreter は配線の検査であり、計算ノードの旧 python での推移 import は
   実 job でしか確かめられない (F650 / F651 と同じく mocc pilot の実走で検出する型)。
+- **supersede: 2026-09-18** — T-2780でHYDRATE_PYの選択と実呼出配線、契約testを実装した。job5905はhydrate・patched build・verifier・discriminator finalizationを終端accounting付きで完走しno-g2/rc0。正式変異job6360で素のpython3への差戻しを検出し、version比較削除とrejected記録削除はsensitivityとして区別した。証拠はoutput/insights/2026-09-18/t2780-mocc-pilot-discriminator/。
 
 ### F1028. 親が job body 所有の evidence attempt dir へ投入直後に file を置き、job を preflight で失った [手順漏れ]
 
