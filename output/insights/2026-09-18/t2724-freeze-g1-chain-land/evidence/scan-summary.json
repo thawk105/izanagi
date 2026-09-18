@@ -1,0 +1,32 @@
+{
+  "baseline_main_d2ebef7a4": {
+    "file_count": 27691,
+    "holdout_hits": {
+      "rr20": [],
+      "rr80": []
+    },
+    "positive_control_hit_count": 188,
+    "rc": 0
+  },
+  "cli": "python3 -m orchestrator.campaign.s8b_holdout_freeze search",
+  "measured_at_jst": "2026-09-18 06:40-06:42",
+  "merged_b227d0d91": {
+    "file_count": 27698,
+    "holdout_hits": {
+      "rr20": [
+        "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl",
+        "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+        "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json",
+        "output/s8b-freeze-candidates/holdout_freeze.v2.g1.json"
+      ],
+      "rr80": [
+        "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl",
+        "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+        "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json",
+        "output/s8b-freeze-candidates/holdout_freeze.v2.g1.json"
+      ]
+    },
+    "positive_control_hit_count": 189,
+    "rc": 1
+  }
+}
