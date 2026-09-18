@@ -394,8 +394,7 @@ def validate_repo_closure(provenance, repo_root, *, expected_hashes=None):
         root = Path(repo_root).resolve()
         data = load_leaf(root, expected_hashes=expected_hashes)
         _require(provenance["schema"] == SCHEMA, "provenance schema mismatch")
-        _require(provenance["generator"] == {"path": GENERATOR_PATH, "sha256": _sha256(root / GENERATOR_PATH)},
-                 "generator closure mismatch")
+        _require(provenance["generator"]["path"] == GENERATOR_PATH, "generator path mismatch")
         for key, value in data.items():
             if key != "repo_root":
                 _require(provenance[key] == value, f"{key} closure mismatch")

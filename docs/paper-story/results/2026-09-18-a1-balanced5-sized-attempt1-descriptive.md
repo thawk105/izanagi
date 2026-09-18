@@ -10,8 +10,9 @@ D12 が定める機械射影の材料レポートではない (数値は一次�
 **本稿は同系列の既存の稿を改めるものではない。** A-1 の sized 本走について、本稿の前に results 系列の稿は無い
 (`docs/paper-story/README.md` の「最新スナップショット以後に確定したこと」の 3 件目 (2026-09-18) が attempt の完走を
 指しているが、それは stale 注記であって結果節の材料ではない)。**本稿は版 (`2026-09-17.md`)・claim-evidence 稿・
-stale 注記・記録 insight の記述を数値の出所にしていない。** 出所は §5 に挙げる一次資料 (公開 leaf の result.json /
-receipt.json、campaign WAL、事前登録、policy、裁定) だけである。
+stale 注記・記録 insight の本文を測定値・統計値の出所にしていない。** 出所は §5 に挙げる一次資料 (公開 leaf の result.json /
+receipt.json、campaign WAL、事前登録、policy、裁定) だけである。例外は投入・complete・materialize の時刻で、これは記録 insight §3 が
+記録した job dir file の mtime に依る (§5.5 に明記)。
 
 **本稿が判定しないこと (最初に置く):** A-1 の充足、`formal=false` から formal への昇格、再投入、本走の再認可のいずれも
 本稿は判定しない。認可はユーザー手番である (D2044 項 8、D2120 項 3)。本稿は「attempt-0001 が何を出力したか」を
@@ -44,8 +45,9 @@ receipt.json、campaign WAL、事前登録、policy、裁定) だけである。
 - **headline 値としての採用。** この lane は `formal=false` / `promotion_prohibited=true` /
   `result_authority = sized-preregistered-descriptive-only` であり、policy と事前登録がその反転を文書編集で行うことを禁じている
   (事前登録 §7.2)。
-- **C1 の再現判定。** 符号が C1 の旧環境値 (write-heavy +38.3% / balanced +11.3% / read-heavy −6.6%) と 3 workload とも一致する
-  ことは観察であって再現判定ではない (推定対象・環境・分母の処理が異なる。D1993 と claim-evidence の `L23` の区別を維持)。
+- **C1 の再現判定。** 符号が C1 の旧環境値 (write-heavy +38.3% / balanced +11.3% / read-heavy −6.6%。照合先は claim-evidence
+  `2026-08-26.md` の C1 行、本 attempt の測定値ではない) と 3 workload とも一致することは観察であって再現判定ではない (推定対象・環境・分母の処理が異なる。
+  D1993 と claim-evidence の `L23` の区別を維持)。
 - **反復間の安定性への一般化。** 単一 attempt であり、attempt 間の再現性については何も言えない (§3 限定 4)。
 - A-2 / A-6 / [T-1998] との集計 (D1993 項 6)、pilot の観測値の混入 (事前登録 §7.2)、機序の同定、他の CCBench pin・他の機体への転移。
 
@@ -121,8 +123,9 @@ variant の識別子 (WAL の `variant`): `fixed10` = `a7f8486e1116`、`fixed5` 
 - 裁定: D2120 項 3 (2026-09-17) が既存 submit 経路で 1 attempt を認可 (落ちたら再投入せず報告して止める)。
   D2044 項 8 / D1986 項 5 の据え置き条件は entry 1590 (commit `ad83b108b`) で成立。
 - submit: `paper_story_a1_paired submit --study-id paper-story-a1-20260901-balanced5-sized-v1 --expected-head d2ebef7a4…`
-  (2026-09-18 06:30:16 → 06:30:38 JST、rc 0)。route `direct-qsub-workload-fanout`、intent sha256
-  `7eb404861e9a5336c6169445885a7083c12f801ade5068e9b1ad09ad025a2750`。
+  (2026-09-18 06:30:16 → 06:30:38 JST、rc 0)。route `direct-qsub-workload-fanout`、submission 受領証が持つ intent の canonical digest
+  (`intent_sha256`) `7eb404861e9a5336c6169445885a7083c12f801ade5068e9b1ad09ad025a2750` (intent file 全体の bytes の SHA-256 は
+  §5.2 の `0c3aadae…` で、別の値である)。
 - job (receipt.json `job_executions` / `reservation_binding`): 3 本とも queue `gen_S`、`requested_s` 21600、
   job script sha256 `3c2b734d9c71caca583baa4fd950bb55957dc64e90b2c27ec8e60eb8705fed80` (= `tools/pegasus/paper_story_a1_paired.sh`)。
 
@@ -250,7 +253,9 @@ read-heavy (`fixed2_tps`, `no-backoff_tps`, `signed_difference_tps`):
 - `proof_surfaces` は 6 record とも `{protocol: silo, X: evidence-present, P: evidence-present, I: evidence-absent}`、
   `commit_witness.commit_counts` は `commits` と一致、`batch_commit_counts` 0。
 - result.json 側は `arms.<name>.correctness_evidence = {certified: [true], verify_configs: ["legacy"], verify_done_frames: [1 件]}`
-  で、frame の `raw_sha256` と byte range で WAL の該当行を束縛する (anomaly 数は result.json には無く、WAL だけが持つ)。
+  で、frame の `raw_sha256` と byte range で WAL の該当行を束縛する。anomaly 数は `arms.<name>.correctness_evidence` には無いが、
+  result.json の `workloads[].wal_evidence.records[]` に WAL 10 record がそのまま収録されており、`verify_done` 2 record の
+  `payload.anomalies` (計 6 件、いずれも 0) が上の表の値と一致する。
 - **これは規律 2 の判定であって性能の判定ではない。** `certified` が言うのは、記録された `legacy` 検査条件の下で観測した
   YCSB point read/write trace の直列化可能性までであり、性能認証ではない。verify は trace-enabled build、bench は
   trace-disabled build で、別 build・別 run である (絶対規律 1)。
@@ -290,6 +295,10 @@ read-heavy (`fixed2_tps`, `no-backoff_tps`, `signed_difference_tps`):
   (限定と条件の言い方の出所。数値・分類の出所ではない) ので、本稿が provenance の sha256 を持つと相互参照になる (F36)。
   provenance JSON の sha256、キャプション正文、proof chain の正本は `docs/paper-story/figures/README.md` の fig9 節が持つ
   (fig8 と同じ形)。結果節の表の数値は本稿 (= result.json) から、図は figures/ から取り、両者の同一性は上の test に委ねる。
+  **系列規則との関係:** `docs/paper-story/README.md` の results 系列の規則は「数値は図の provenance JSON から転記し、転記元の
+  SHA-256 を文書に書く」と定めるが、本稿は F36 回避のため、その転記方式に対する個別の扱いとして数値を公開 leaf の result.json
+  から転記し、その SHA-256 を §5.1 に記す。図の provenance の SHA-256 は figures/README.md に置く。将来の執筆者は provenance の
+  hash を本稿へ追記しない (循環が戻る)。
 - caption は英文で、lane の 3 値 (`formal: false; promotion_prohibited: true; result_authority: sized-preregistered-descriptive-only`)、
   「単一 attempt・headline 値でない・workload 横断の結論を作らない・C1 の再現ではない・反復間の安定性を言わない」の固定文、
   測定条件、正しさは別走行で性能認証ではないこと、panel 間で y を比べない注意を含む。図番号は出力 prefix `fig9_` から導く。
@@ -301,7 +310,7 @@ read-heavy (`fixed2_tps`, `no-backoff_tps`, `signed_difference_tps`):
 | # | 限定 | 出所 |
 |---|---|---|
 | L-A1S-1 | **非認証 lane の結果である。** `formal=false` / `promotion_prohibited=true` / `result_authority=sized-preregistered-descriptive-only` は結果を見た後も動いていない。これらは事前登録と policy の編集だけで反転させない | policy `authority`、事前登録 §1.1 / §7.2 |
-| L-A1S-2 | **headline 値にしない。** 論文の主張の数値 (C1 等) にこの attempt の値を置かない。「A-1 の値がある」と書けるかどうかは本稿の外の裁定である | D2044 項 8、stale 注記 3 件目 |
+| L-A1S-2 | **headline 値にしない。** 論文の主張の数値 (C1 等) にこの attempt の値を置かない。「A-1 の値がある」と書けるかどうかは本稿の外の裁定である | 本稿の利用範囲 (§0.3)、policy `authority`、事前登録 §1.1 / §7.2。投入・再投入の認可主体は D2044 項 8 / D2120 項 3 |
 | L-A1S-3 | **workload をまたぐ結論を作らない。** 3 行の表は並記であり、「2 勝 1 敗」「平均して改善」のような集計・要約を作らない | 事前登録 §7.2、result.json `limitations` 4 項目め |
 | L-A1S-4 | **単一 attempt を反復間の安定性へ一般化しない。** attempt-0001 が 1 本あるだけで、attempt 間の再現性は測っていない。同じ study の pilot は反復数の決定にだけ使われ、比較対象でも再現例でもない | 事前登録 §7.2、policy `sizing_inputs` |
 | L-A1S-5 | **C1 の再現判定にしない。** 符号が C1 の旧環境値と 3 workload とも一致することは観察であって再現ではない。推定対象 (対差の算術平均 対 比)、環境 (Pegasus 計算ノード 対 D496 以前の環境)、分母の処理が異なる | D1993、claim-evidence `L23`、D1262 |
@@ -312,14 +321,14 @@ read-heavy (`fixed2_tps`, `no-backoff_tps`, `signed_difference_tps`):
 | L-A1S-10 | **`legacy` 検査条件の実引数は本 attempt の成果物に無い。** WAL は `workload.tag = legacy` とだけ記録し、tuple 数・thread 数・rratio・rmw・extime は別の一次資料 (束縛 code) からしか導けない。本稿はそれを導いていない | §4.1 |
 | L-A1S-11 | **source binding は artifact 単独の証明ではない。** `evidence_level = source-routed-trace0`、`artifact_standalone_proof = false`。build が束縛 file の bytes から行われたことは成果物の外の経路 (job preflight・submit 時の HEAD 検査) に依る | result.json `source_binding`、`limitations` 3 項目め |
 | L-A1S-12 | **scheduler の終了状態は未観測である。** 3 job とも終端後に `qstat` から消えた形で、exit_status / state は記録されていない。成功は driver rc / shell rc / status で確定している | result.json `materialization_evidence`、completion 受領証 |
-| L-A1S-13 | **公開 leaf の publish は非協力的な書き手に対して原子的な no-replace ではない** (`RENAME_NOREPLACE` が EINVAL、fallback の限界)。本 attempt では衝突は起きていない | `.complete.json` `publish.limitations`、`limitations` 5 項目め |
+| L-A1S-13 | **公開 leaf の publish は非協力的な書き手に対して原子的な no-replace ではない** (`RENAME_NOREPLACE` が EINVAL、fallback の限界)。公開の完了は記録されているが、存在確認後から rename までの非協力的な書き手との衝突不在は、この記録からは確認できない | `.complete.json` `publish.limitations`、`limitations` 5 項目め |
 | L-A1S-14 | **abort 率・latency・cache・IPC は測っていない。** leading indicator は throughput だけで、機序 (なぜ read-heavy で負か) は本 attempt から言えない | WAL `bench_done.leading_indicators` |
 | L-A1S-15 | **他の attempt・他の series とプールしない。** A-2 (`t2364-20260907b`)、A-6 (`a6-20260908b`)、[T-1998] の balanced 対は別の protocol・別の推定量 (median 比) で、本 attempt と足し合わせない。B-7 の要件充足でもない | D1993 項 6、D2044 項 3 |
 | L-A1S-16 | **他の CCBench pin・他の機体・他の read 比率への転移は言わない。** 測ったのは pin `511c9538`、Pegasus `gen_S` の bnode107〜109、rratio 5 / 50 / 95 だけである | policy `ccbench_acceptance`、receipt `reservation_binding` |
 | L-A1S-17 | **2 本目の論文 (`docs/paper-story-backoff/`) と数値・図を共用しない** | D1637 |
 | L-A1S-18 | **図は記述図である。** fig9 は §2.1 の値を描いたもので、採用判断・性能認証・主張の根拠にしない (絶対規律 2)。panel 間で y を比べない | §2.6、FIGURE_CONVENTIONS |
 | L-A1S-19 | **baseline の cv が variant より大きいこと (§2.3) の理由を述べない。** 観察であり、機序・環境要因の帰属はしていない | §2.3 |
-| L-A1S-20 | **1 attempt の所要 (投入から materialize まで 15 分) は再投入の予算や計画値ではない。** 所要は job の accounting と WAL の ts から書いた事実で、別の attempt がこの時間で終わるとは言わない | §1.4、§2.5 |
+| L-A1S-20 | **投入から materialize 完了までの約 15 分は再投入の予算や計画値ではない。** これは記録 insight §3 が記録した job dir file の mtime (06:30:16 〜 06:45:38) の差であり、本稿はこの時刻を再計測していない (job の accounting と WAL の ts が持つのは job 開始〜終了と campaign 内の段の時刻だけである)。別の attempt がこの時間で終わるとは言わない | §1.4、§2.5、§5.5 |
 
 ---
 
@@ -410,7 +419,8 @@ read-heavy (`fixed2_tps`, `no-backoff_tps`, `signed_difference_tps`):
   job body `tools/pegasus/paper_story_a1_paired.sh` (いずれも result.json `source_binding.files` の 9 本に含まれる。
   measurement source commit `d2ebef7a407dc6be61622ed596cf08b8b518f606`)。
 - 記録 insight `output/insights/2026-09-18/t1505-a1-sized-attempt1/README.md` (投入・時系列・受領証。§2.4 に記した表の差を
-  除き本稿の記述と一致。本稿は同 insight を数値の出所にしていない)。
+  除き本稿の記述と一致。本稿は同 insight の本文を測定値・統計値の出所にしていない。submit / complete / materialize の
+  時刻だけは同 insight §3 の mtime 記録に依る)。
 - 本稿を書いた wave の insight `output/insights/2026-09-18/t2775-a1-sized-results-draft/README.md` (検算の逐語、レビュー)。
 
 ### 5.4 裁定

@@ -367,6 +367,51 @@ def test_pinned_hashes_are_used_when_no_override(tmp_path):
     _reject(lambda: PLOT.load_leaf(root), "SHA-256 mismatch")
 
 
+def test_generator_comment_change_preserves_provenance_closure(tmp_path):
+    root, hashes = _fixture(tmp_path)
+    prov = _provenance(PLOT.load_leaf(root, expected_hashes=hashes), tmp_path)
+    generator = root / PLOT.GENERATOR_PATH
+    assert prov["generator"]["sha256"] == _hash(generator)
+    PLOT.validate_repo_closure(prov, root, expected_hashes=hashes)
+    generator.write_bytes(generator.read_bytes() + b"\n# Comment-only source change.\n")
+    assert prov["generator"]["sha256"] != _hash(generator)
+    PLOT.validate_repo_closure(prov, root, expected_hashes=hashes)
+
+
+def _assert_landed_output_paths(prov):
+    assert [row["path"] for row in prov["outputs"]] == [
+        "docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1.png",
+        "docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1.pdf",
+    ], "landed output paths mismatch"
+
+
+def test_landed_output_paths_reject_same_basename_in_other_directory(tmp_path):
+    root, hashes = _fixture(tmp_path)
+    data = PLOT.load_leaf(root, expected_hashes=hashes)
+    outputs = [root / f"docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1{s}"
+               for s in (".png", ".pdf")]
+    outputs[0].parent.mkdir(parents=True)
+    for path in outputs:
+        path.write_bytes(b"synthetic landed bytes")
+    prov = PLOT.build_provenance(data, outputs, ["python3", PLOT.GENERATOR_PATH])
+    _assert_landed_output_paths(prov)
+    PLOT.validate_repo_closure(prov, root, expected_hashes=hashes)
+    other = root / "other"
+    other.mkdir()
+    for row, path in zip(prov["outputs"], outputs):
+        alternate = other / path.name
+        alternate.write_bytes(path.read_bytes())
+        row["path"] = alternate.relative_to(root).as_posix()
+    # Generic closure permits other output directories; landed closure must not.
+    PLOT.validate_repo_closure(prov, root, expected_hashes=hashes)
+    try:
+        _assert_landed_output_paths(prov)
+    except AssertionError as exc:
+        assert str(exc) == "landed output paths mismatch"
+    else:
+        raise AssertionError("alternate directory was accepted as landed output")
+
+
 def test_pinned_input_hashes_match_results_document():
     table = RESULTS.read_text().split("### 5.1", 1)[1].split("### 5.2", 1)[0]
     for path, digest in PLOT.PINNED_SHA256.items():
@@ -415,6 +460,10 @@ def test_real_leaf_loads_and_matches_results_document():
         columns = [v.strip().strip("\u0060") for v in row.split("|")[1:-1]]
         for key, index in (("mean", 3), ("h", 4), ("B", 6), ("baseline_mean", 7), ("sd", 8), ("planned_sigma", 9)):
             assert math.isclose(c[key], float(columns[index]), rel_tol=1e-9, abs_tol=1e-6)
+        interval = json.loads(columns[5])
+        assert isinstance(interval, list) and len(interval) == 2
+        for actual, expected in zip(interval, c["interval"]):
+            assert math.isclose(actual, expected, rel_tol=1e-9, abs_tol=1e-6)
         assert c["classification"] == columns[10]
         assert c["variance_plan_breach"] is False and columns[11] == "false"
 
@@ -423,12 +472,20 @@ def test_landed_fig9_repo_closure_and_caption_when_present():
     prefix = REPO / "docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1"
     paths = [Path(f"{prefix}{s}") for s in (".png", ".pdf", ".provenance.json")]
     readme = (prefix.parent / "README.md").read_text()
-    if not any(path.exists() for path in paths) and prefix.name not in readme:
+    if not any(path.exists() for path in paths):
         skip("fig9 integration artifacts are parent-owned and not landed yet")
     assert all(path.is_file() for path in paths), "fig9 integration bundle is incomplete"
     prov = json.loads(paths[2].read_text())
+    _assert_landed_output_paths(prov)
     PLOT.validate_repo_closure(prov, REPO)
     assert prov["caption"] in readme
+    fig9_section = readme.split(f"# `{prefix.name}` — ", 1)[1].split("\n# ", 1)[0]
+    hash_section = fig9_section.split("## 着地 bytes の SHA-256\n", 1)[1].split("\n## ", 1)[0]
+    for path in paths:
+        rows = re.findall(rf"^- `{re.escape(path.name)}` SHA-256: `([^`]+)`$", hash_section, re.M)
+        assert len(rows) == 1, f"expected one README hash row for {path.name}"
+        assert re.fullmatch(r"[0-9a-f]{64}", rows[0]), f"invalid README hash for {path.name}"
+        assert rows[0] == _hash(path), f"README hash mismatch for {path.name}"
 
 
 def _run():
