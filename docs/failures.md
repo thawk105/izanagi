@@ -2429,6 +2429,16 @@
   (2 本目は `check_codex_output.py` rc=0 で採用)。
 
 - **再発: 2026-09-11** — T-2528のfix子は必須の総括見出しを欠き、CLI rc=0でもlauncherがf43_fragmentとして未受理にした。親は別のread-only focus子に未受理差分を独立監査させて採用した。既存の検収経路を使用し、新しい防壁は追加しない。原報告と検証記録は `output/insights/2026-09-11/t2528-role-input/README.md`。
+
+- **再発: 2026-09-18** — [T-2613] wave の段 5 author 子 2 本 (発行側 / 受入側) が両方とも
+  `failure_class=f43_fragment` で不受理 (`codex_exit_code=0`、`validator_rc=1`、報告 5,445 / 7,637 bytes)。
+  原因は 2026-08-26 型と同じく**親の prompt 側の誤り** — plan / consult / review の prompt には
+  `## 総括` を書いたが、author 2 本の「完了報告に必ず含める」節に `## 総括` 見出しを要求しなかった
+  (`DW-O01` の「prompt に `## 総括` 必須」を author 段で落とした)。実装は両 worktree に正しく
+  あり、親が未受理と明記して報告本文を段 6 レビュー 2 本の入力 (データ) に渡し、レビューが実装を
+  監査した (`DW-O01` の「未受理は未完了と記し次の子に監査させる」)。fix 子の prompt には
+  `## 総括` を最初の見出しとして明示し、2 本とも受理された。恒久対応は従来どおり親検収 +
+  `check_codex_output.py` で、reference は編集しない。
 ### F44. pipefail 下の `producer | grep -q` が SIGPIPE で計測ジョブを偽赤停止させた [手順漏れ]
 - 事象: [T-140] set-size 実測ジョブ 1 回目 (872881.nqsv、2026-07-28) が、trace シンボル存在検査
   `nm -C bin | grep -qi izanagi_trace` で「シンボル無し」と誤判定し 43 秒で停止した。実際は
@@ -8506,6 +8516,15 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   log 本文を読むまで原因に到達しない。(2) 再投入では `.done` と `-o` を新 path にする必要が
   あるため、同じ prompt でも成果物 path を作り直す手間が掛かる。回避は変わらず、docs 編集を
   統合 commit にしてから子を投げること。
+
+- **再発: 2026-09-18** — [T-2290][T-2291] 親が `docs/dev-wave/operations.md` を編集した未 commit 状態で、Codex 子で
+  なく**焦点走** (計算ノード 5433.nqsv、`test_check_docs` / `test_codex_worker_launch` /
+  `test_dev_wave_launch_authority` の 3 file) を投入し、116 node が
+  `docs/dev-wave/operations.md: working tree が authority commit と異なる` で赤になった (739 passed / 3 skipped)。
+  追加事実は、`snapshot_authority` の拒否は dispatcher だけでなく**実 repo の launcher を subprocess で起動する
+  test 群にも同じ形で効く**ことで、docs-only wave が「子ゼロだから commit 前に焦点走してよい」と読むと踏む。
+  回避は変わらず、docs/dev-wave の編集を commit してから焦点走・子投入を行うこと (commit 後の再走 5437.nqsv は
+  855 passed / 3 skipped / rc=0)。
 ### F226. source hash を埋め込む golden が同族ファイルの全変異を道連れにする [ドリフト]
 
 - 事象: 変異 11 件のうち 4 件が MISMATCH になった。うち 2 件 (judge / report の変異) は
@@ -17618,6 +17637,12 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `orchestrator/tests/test_layer3_report.py` の AST 契約テストと、
   実 `_run_bench` の emit payload exact key 集合検査。両者を変異検査で殺せることを確認した。
 
+
+- **再発: 2026-09-18** — 層 3 の `verifications.items` には閉包検査そのものが無く、producer が `verify_done` に足した
+  `commit_witness` (2026-08-11) と `proof_surfaces` (2026-09-03) が消費側 schema に届かないまま、現行の loop 型 campaign を
+  renderer が `additionalProperties` 違反で描画できない状態が続いていた (2026-09-18 に 1 巡目 campaign の描画で発覚、台帳未記録)。
+  D830 の導出型閉包を `verify_done` にも置き、`_view_row` の除外集合と qualification 分岐の key を AST で導出して schema と照合する
+  検査を `orchestrator/tests/test_layer3_report.py` に足した (D2143)。
 ### F571. key の穴を塞いだだけで成果物が得られたと判断しかけた [テスト代表性]
 
 - 事象: 層 3 の `runs.items` に無かった key を追加した直後、名指しの実 artifact は
@@ -25690,6 +25715,28 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   33 error (t1259 の worktree に対する 30 秒 TimeoutExpired 29 件 + s8c の 10 秒 timeout 4 件、24,726 passed)、同 tip の 2 file 単独再走
   (request 4300.nqsv) は 269 passed / 99.10 秒 / rc=0 で非再現。恒久対応は既報のまま変えず、timeout 拡大・stub 化・除外・gate 新設は
   していない。attempt 3 は投入条件を leader ≤ 1・load1 < 15 に絞って投げた。
+
+- **再発: 2026-09-18** — [T-2447] wave (docs のみ、tip `7038a4d63`) の受入で 2 走続けて同型が出た。
+  attempt 1 (07:26 投入、他 session の受入 leader 2 本・`run_tests.py` 18 本、load 40→14) は
+  `test_t1259_qsub_env_delivery_probe.py` の setup error **17 件** (24,807 passed / 69 skipped)。
+  attempt 2 (07:46 投入、load 14) は同 file の setup error **20 件**に加え、launcher 系の timing test
+  4 件 (`test_codex_worker_launch_budget.py` 3 件は子 rc=1 / `receipt truth table が不正`、
+  `test_codex_worker_launch.py::test_sigterm_ignoring_child_is_killed` は rc timeout) が failure
+  (24,800 passed / 69 skipped)。setup traceback の Git argv は既報と同一で
+  `git -C <wave worktree> ls-files --others --exclude-standard -z` (12 件) と
+  `status --porcelain=v1 --untracked-files=no --ignore-submodules=none` (8 件) の 30.0 秒 TimeoutExpired。
+  同 tip の単独再走は t1259 が **51 passed / 15.22 秒 / rc=0** (login)、launcher 系 2 file が
+  **26 passed / 21.61 秒 / rc=0** (5114.nqsv) でいずれも非再現。親が同じ `git status` argv を wave
+  worktree で素に測ると 3.7 秒 (untracked 0 件)。wave の変更は docs/dev-wave と記録だけで、当該
+  fixture・probe・launcher・Git 呼出しは変更していない。attempt 2 の終了時は他 session の受入 leader が
+  5 本・worker 21 本・load 39↑ で、既報 (2026-09-16) と同じく**同時受入の本数**が要因と読む。
+  恒久対応は既報のまま変えず、timeout 拡大・stub 化・除外・gate 新設・hold 登録はしていない。
+  2 走とも測定として無効と判定し、他 session の leader ≤ 2 かつ負荷の下降局面まで待って投げ直した。
+  attempt 3 (08:17、leader 0) は postcheck 競走でテスト未走。attempt 4 (08:26 投入、tip `11e8ea415` =
+  待ち手が main `d64b278ff` を merge) は同 file の **1 件**だけ (`git ls-files` 30 秒 timeout、24,836 passed)、
+  同 tip の単独再走は 51 passed / 14.98 秒 / rc=0 で非再現。件数は 17 → 20 → 1 と同時受入の本数で
+  変わり、変更には帰属しない。既報 (2026-09-16、赤 4 → 1 → 1 → 0 件で 8 走目に緑) と同じく窓を選んで
+  投げ直す。
 ### F946. 修正可能な検査失敗で作業を終了し、ユーザーへ再開を要求した [手順漏れ] [誤前提]
 
 - 事象: insights整理のauthorが実行ログ検査で未受理になり、親は原因の切り分けや安全な再試行をせず正式停止した。
@@ -27594,3 +27641,16 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: `orchestrator/tests/test_mocc_trace_job_contract.py` の interpreter gate 検査 (checker / verifier) と同型の hydrate 版を
   [T-2780] で足す。fake interpreter は配線の検査であり、計算ノードの旧 python での推移 import は
   実 job でしか確かめられない (F650 / F651 と同じく mocc pilot の実走で検出する型)。
+
+### F1028. 親が job body 所有の evidence attempt dir へ投入直後に file を置き、job を preflight で失った [手順漏れ]
+
+- 事象: P3 段 4 loop の job body (`tools/pegasus/p3_s4_loop_pegasus.sh`) は `allocation-qstat.stdout` を自分で書き、既存なら
+  `allocation qstat evidence is not fresh` で rc=2 にする。親は投入直後の `qstat -f` の写しを同名で attempt dir に置いたため、
+  attempt-0001 (`4947.nqsv`) は Elapse 7 秒・driver 未起動で拒否された。評価は attempt-0002 (`4954.nqsv`) の 1 本で済んだが、
+  投入は 2 本になり、ユーザー裁定 D2120 項 1 の「再投入なし」の文言から逸脱した (事後承認を裁定パッケージ候補として返した)。
+- 根本原因: `tools/pegasus/README.md` §7 の投入手順が attempt dir を `mkdir` するとだけ書き、「job body が所有し投入側は触らない」
+  ことを書いていなかった。親は evidence を揃えるつもりで所有権を侵した。
+- 恒久対応: `tools/pegasus/README.md` §7 に「attempt directory は job body が所有する。投入側は `mkdir` 以外に何も置かない」を
+  明記した (本 wave)。親の qstat 写しは job root 直下 (evidence dir の外) へ置く。
+- 再発検知: job body の既存 fresh 検査 (263〜265 行) がそのまま検知器である。attempt-0001 の `job.stderr` を
+  `output/insights/2026-09-18/t2746-k2-loop-round2/evidence/attempt-0001/` に残した。

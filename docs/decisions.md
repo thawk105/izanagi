@@ -67084,3 +67084,92 @@ admission、実走の成功。binary の将来の可用性、trace 不在の完�
 - `wfg.cc` を無条件 compile にする (段 2 plan) — runner の source 名検査に抵触し、owner TU の閉包にも無関係。
 - gate の positive control として S に 1 行差分を混ぜる cell を足す — abort 無条件除去版 (残差 218 行) が対照になる。ただし両版 red なので「abort 単独で green → red」の反転対照は未成立と書く。
 - 試作 patch・probe を repo へ入れる — 実装面は Codex author が書き、job dir に置いて insight に `.md` 逐語で残す (T-317 未裁定、`compute-probe-stays-out-of-repo`)。
+
+## D2142. attempt registry の全 ref 履歴 gate は、同じ 3 規則のまま少数 process へ再構成した形を採用し、成長項が残ることを記録する (2026-09-18)
+
+**決定:** 発行側 `orchestrator/campaign/trial_registry.py` と受入側 `orchestrator/campaign/s8c_acceptance_receipt.py` の
+`_assert_attempt_registry_history_append_only` を、commit ごとの `ls-tree -r` と blob ごとの `cat-file` process
+(現行、1 呼出 = 1 + 11,7xx + 約 1.78 億 process) から、`cat-file --batch-check` / `cat-file --batch` (応答 256 MiB 上限の
+chunk 分割) / `log --stdin --root --diff-merges=separate --full-history --raw -z --no-renames --no-abbrev
+--no-show-signature --format=%H --diff-filter=AMT` の計 37 process へ再構成した形 (commit `6616fa06c`) を採用する。
+規則は R1 (topo 順・全 ref の canonical の strict prefix 拡張と deleted)、R2 (全 commit の全 tree の非 canonical
+path にある genesis 形 blob の拒否)、R3 (working の prefix 拡張) と拒否文言を現行のまま保ち、範囲限定・path filter・
+size filter・cache・受領証は導入しない。canonical の解決は directory の tree object を成分ごとに parse し entry mode
+(中間 `40000`、末尾 `100644`/`100755`/`120000`) で判定する (object 種別だけで判定しない)。診断は (rank, 段, path bytes)
+最小の 1 件で、帰属不能な process/応答異常だけ順序保証外。git 呼出は両 module とも既存の `_git` に `input_bytes` を
+足しただけ (spawn site 各 1、発行側の 300 秒/回は不変、受入側に timeout は足さない)。
+
+**理由:**
+- D2044 項 19 / D2034 の順序どおり、範囲を 1 件も削らず定数だけを下げた。実 repo (11,778 commit、到達可能 unique blob
+  49,123 件 / 7.37 GB) での同時刻対照 (旧版標本の窓内観測からの外挿 vs 削減版の全走、2 走) で、削減版 1 呼出
+  34.7〜46.1 秒に対し旧版推定 1.7×10^6〜5.4×10^6 秒 (20〜62 日)。事前登録した採用条件 (N_max < E_min/100、
+  合成 repo の旧新一致 10/10、AMTD 復元と 20 標本の 20/20 一致、5 区分の窓内被覆、全 git 呼出 rc=0) を満たした
+  (`output/insights/2026-09-18/t2613-append-only-constant/README.md` §3.3)。
+- 現行形は genesis 作成後に 8c の登録 launch と受入 receipt 検証を最初の 1 回で止める (完走不能)。
+- 等価性の根拠: 固定した C について「全 tree の blob entry 集合 = root と各 parent への差分の新側 A/M/T の和集合」
+  (初出による帰納法)、`-m` / root 表示 / 署名表示の repo-local 設定依存を argv で固定、C を stdin で固定 (ref 変動の遮断)、
+  entry mode の検査、診断順の path 順 tie-break。実 git fixture の負例・正例 (両 file 35 / 34 node) と変異 matrix で守る。
+
+**却下した選択肢:**
+- `<commit>:<path>` の `cat-file --batch-check` だけで canonical を判定する — object 種別しか分からず、gitlink entry が
+  blob/tree oid を指す壊れた tree で現行より緩む (段 6 レビュー A の反例)。
+- raw log に `--all` を残す — 固定 C の外の ref 変動で失敗・変動する。`--stdin` に一本化した。
+- `rev-list --objects` で (path, blob) を列挙する — 1 object 1 path しか出ず、同じ genesis blob の別 path copy を見落とす。
+- 受入側の戻り値・`current_bytes` の契約変更 — production caller に不要で、旧新比較の不一致を生んだ。変更前へ戻した。
+- 範囲限定 (HEAD 祖先・直近 N commit) — D2044 項 19 が「定数削減で足りないことを示してから」と順序を定める。本 wave は
+  設計しない。
+
+**記録しないこと (D2034):** 削減版の主項は O(到達可能 unique blob bytes) (本文読取 20〜22 秒) と O(commit) の metadata で、
+成長比例費用は残る。「解消した」とは記録しない。1 呼出 35〜46 秒 (login node、負荷 14〜48) が 8c の運用に足りるかは本 wave では
+判定しない。壊れた tree (同名 entry 重複、mode と object 種別の不一致) では旧版と文言・受理が異なりうる (insight §4.3、未証明の残余)。
+
+## D2143. 層 3 機序仮説層 v3 は `runs/agent_outputs.jsonl` を loop harness の 2 口 (live / 取込み) だけが書き、renderer は critic の帰属記録を非 certifying の二次 view として決定論射影する — schema 版は v3 据え置き (2026-09-18)
+
+**決定:** `output/insights/2026-07-16_layer3-mechanism-wiring-design.md` §2 を次の契約で実装した (wave
+`dev-wave-t2746-k2-loop-round2`、見送り台帳の「層 3 機序仮説層 (v3) を実装する」項の着手条件 = agent 出力を生む loop 再走が
+D2120 項 1 の 2 巡目で成立)。
+
+1. **永続面** `runs/agent_outputs.jsonl` (append-only、WAL 同形 envelope `{ts, stage, variant, env_tag, payload}`、stage は
+   `planner_proposed` / `coder_proposed` / `critic_attributed` の 3 種のみ)。reader / writer / 検証は
+   `orchestrator/campaign/agent_outputs.py` (空行・未終端最終行・不正 UTF-8・duplicate key・完全重複・semantic 重複
+   (`stage + input_sha256 + canonical(output)`) を fails-closed、flock 内で既存検査 → 単一 write → file/dir fsync)。
+   `runs/` 配下は `guard_write` の既存判定で防護済み (hooks は変えない)。
+2. **書き手は loop harness だけ。** 2 口を持つ: (a) live = `--run-iteration --agent-inputs` 指定時に `drive_iteration` の入口停止後・
+   評価前に planner / coder を追記 (variant null)、(b) 取込み = `--record-agent-output STAGE FILE --agent-campaign-dir DIR --agent-input INPUT.json`
+   (harness の外で生まれた役割出力を取り込む口。critic は常にこれ。site 解決より前に return し login で呼べる)。取込み口は
+   stage↔出力の対応・役割 schema・K2 manifest digest と受領証の一致・critic digest の一致・variant の WAL 実在・`--agent-wal-ref` の実在を
+   fails-closed で検査し、`input_sha256` は harness が指定入力 JSON から計算する (呼出し側から値を渡す口は作らない)。
+3. **provenance の意味は申告である。** `mode` は記録方式 (live / ingested)、`ts` は記録時刻、`input_sha256` は呼出し側が実入力として申告した
+   保存 JSON の canonical sha256、`prompt_sha256` は指定 file の bytes sha256 であり、いずれも役割への実送達の証明ではない。
+   docstring と schema description に明記する。
+4. **critic の 4 節** (`## attribution` / `## recommend` / `## avoid` / `## uncertainty`、各ちょうど 1 回) は
+   `agent_outputs.extract_critic_sections` が原文の範囲選択 (見出し行の次行から次の unfenced `## ` 直前まで、前後空白 strip、
+   fenced code block 内の行は見出し候補から除外) で抽出し、harness の保存と renderer の再抽出が同じ関数を使う。`raw_markdown` 全文を併記する。
+5. **入力側防壁は不変。** `planner_context_payload` / `whiteboard_for_planner` / `project_whiteboard` / `_prepare_knowledge_campaign` は
+   `agent_outputs` を読む API を持たない (実行検査・3 状態不変・AST の 3 本で固定)。v3 は報告層の記録であり、critic 診断を次生成の
+   型付き入力へ還流する経路ではない。
+6. **renderer** (`layer3_report.py`) は AO を whiteboard と独立に読み、全 envelope を `agent_outputs` 区画へ一次配置し、`critic_attributed` だけを
+   `mechanism_hypotheses` (`variant` / `attribution` 逐語 / `source_ref: ao:<canonical sha256>` / `refs` / `digest_sha256`) へ決定論射影する。
+   双射の期待側は report と独立に読んだ AO の Counter、view は独立再射影と exact 一致、`refs` は一次 WAL ref に実在、非 null variant は
+   対象 WAL の任意 stage に実在 (harness と同条件)。不在は `mechanism_hypotheses_provenance = absent`、存在は `agent_outputs`。
+   数値・verdict・参照を attribution の文章から作らない。`certifying_input=false` / `acceptance_receipt=null` の既定は変えない。
+7. **schema は `layer3-material-report/v3` 据え置き** (D828 の同型: optional property の追加と `mechanism_hypotheses` の `maxItems: 0` 解除、
+   top-level `required` 不変)。`verifications.items` に producer の現行 key `commit_witness` (integer 2 key) と `proof_surfaces`
+   (X/P/I 3 値 enum、protocol string|null) を optional で足す (D829: view で消さない)。閉包検査は producer の AnnAssign と `update` /
+   添字代入、`_view_row` の除外集合 (exact 2 key を pin)、qualification 分岐の key を AST で導出する (D830)。
+
+**理由:**
+- 設計文書の「v3 で bump」は identifier が admission 導入 (a21bf413e) で消費済みのため据え置きにし、v4 は作らない (D828 が前方互換を
+  保証しないと定めた射程内)。
+- 現行 renderer は `verify_done` の `commit_witness` (ee81c4311、2026-08-11) と `proof_surfaces` (e4c949f08、2026-09-03) を schema に持たず
+  本 loop 型の campaign を描画できなかった。v3 の材料はこの受理が前提である。
+- 1 巡目の記録で「critic の診断は次生成の型付き入力へ届かない」ことが実測されており、v3 はその欠落を報告層の記録として埋めるもので、
+  入力側へ還流する機構ではない (規律 2/6 の入力側防壁を保つ)。
+
+**却下した選択肢:**
+- 未評価 proposal の `variant` に `diffq_variant_id` を流用する — reject / 評価済み variant との誤認を生むため `null` にした。
+- 実入力が保存されていない役割出力を `input_sha256: null` や再構成入力で取り込む — 規律 6 と provenance を濁すため採らず、取込み不能として記録する。
+- 取込み口を「harness だけが書く」違反として作らない — 設計条件は永続面の書き手と生成入力経路の分離であり、外部出力の受領を禁じていない。
+- `mechanism_hypotheses` を機序の証拠として扱う — LLM の帰属記録であり、改善の実証・certified 選択には使わない。
+
+一次資料: `output/insights/2026-09-18/t2746-k2-loop-round2/README.md`。
