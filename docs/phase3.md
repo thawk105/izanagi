@@ -18,6 +18,11 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] A-1 sized attempt-0001の単独results稿・図9と対応検査を作成した (2026-09-18)。
+  稿は `docs/paper-story/results/2026-09-18-a1-balanced5-sized-attempt1-descriptive.md`、
+  検証記録は `output/insights/2026-09-18/t2775-a1-sized-results-draft/README.md`。
+  単一attemptのdescriptiveな執筆材料であり、formal化・A-1要件充足・反復間安定性の判定ではない。
+
 - [x] [T-2164] A-1 balanced5のsizing証明書を凍結値で生成・検証し、本走policyを凍結した。
   D1452に従い、証明書が申告する試行回数・候補範囲・root seedをconsumerが登録値とexact照合する。
   成果物は output/insights/2026-09-13/paper-story-a1-balanced5-sized-preregistration/、

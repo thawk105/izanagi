@@ -472,8 +472,6 @@ def test_landed_fig9_repo_closure_and_caption_when_present():
     prefix = REPO / "docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1"
     paths = [Path(f"{prefix}{s}") for s in (".png", ".pdf", ".provenance.json")]
     readme = (prefix.parent / "README.md").read_text()
-    if not any(path.exists() for path in paths):
-        skip("fig9 integration artifacts are parent-owned and not landed yet")
     assert all(path.is_file() for path in paths), "fig9 integration bundle is incomplete"
     prov = json.loads(paths[2].read_text())
     _assert_landed_output_paths(prov)
@@ -486,6 +484,44 @@ def test_landed_fig9_repo_closure_and_caption_when_present():
         assert len(rows) == 1, f"expected one README hash row for {path.name}"
         assert re.fullmatch(r"[0-9a-f]{64}", rows[0]), f"invalid README hash for {path.name}"
         assert rows[0] == _hash(path), f"README hash mismatch for {path.name}"
+
+
+def _reject_missing_landed_bundle(root, present_suffixes):
+    global REPO
+    prefix = root / "docs/paper-story/figures/fig9_a1_balanced5_sized_attempt1"
+    prefix.parent.mkdir(parents=True)
+    (prefix.parent / "README.md").write_text("Figure 9 landing regression.\n")
+    for suffix in present_suffixes:
+        Path(f"{prefix}{suffix}").write_bytes(b"presence only; closure must reject missing files first")
+    original_repo = REPO
+    try:
+        REPO = root
+        try:
+            test_landed_fig9_repo_closure_and_caption_when_present()
+        except AssertionError as exc:
+            assert str(exc).startswith("fig9 integration bundle is incomplete"), str(exc)
+        except BaseException as exc:
+            # pytest's skip is a BaseException; the plain runner uses Skip.
+            pytest = sys.modules.get("pytest")
+            if isinstance(exc, Skip) or (pytest is not None and isinstance(exc, pytest.skip.Exception)):
+                raise AssertionError("missing fig9 bundle was skipped instead of rejected") from exc
+            raise
+        else:
+            raise AssertionError("missing fig9 bundle was accepted")
+    finally:
+        REPO = original_repo
+
+
+def test_landed_fig9_rejects_all_missing_outputs(tmp_path):
+    _reject_missing_landed_bundle(tmp_path / "repo", ())
+
+
+def test_landed_fig9_rejects_partial_missing_outputs(tmp_path):
+    suffixes = (".png", ".pdf", ".provenance.json")
+    # Exercise all six nonempty, incomplete subsets, including each single loss.
+    for mask in range(1, 7):
+        present = [suffix for i, suffix in enumerate(suffixes) if mask & (1 << i)]
+        _reject_missing_landed_bundle(tmp_path / f"repo-{mask}", present)
 
 
 def _run():

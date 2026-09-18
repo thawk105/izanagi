@@ -924,9 +924,9 @@ provenance JSON は生成時刻を持ち、PDF は matplotlib が生成日時を
 次の 3 行が着地 bytes の正本である。`orchestrator/tests/test_plot_a1_sized_paired.py` の着地 test が、この 3 行の値と
 着地 file の現物 SHA-256 の一致を検査する (行の形は `- \`<basename>\` SHA-256: \`<64 hex>\`` で固定)。
 
-- `fig9_a1_balanced5_sized_attempt1.png` SHA-256: `FIG9_PNG_SHA256_PLACEHOLDER`
-- `fig9_a1_balanced5_sized_attempt1.pdf` SHA-256: `FIG9_PDF_SHA256_PLACEHOLDER`
-- `fig9_a1_balanced5_sized_attempt1.provenance.json` SHA-256: `FIG9_PROV_SHA256_PLACEHOLDER`
+- `fig9_a1_balanced5_sized_attempt1.png` SHA-256: `7bbf0b16c856e9534577b100dc783f9b97b337adb9c9675772eeb4cf7956ce95`
+- `fig9_a1_balanced5_sized_attempt1.pdf` SHA-256: `a2db2577f1db830c8fd252dccde496e004738e779fcb8fbf5f8ddb8965a7ade7`
+- `fig9_a1_balanced5_sized_attempt1.provenance.json` SHA-256: `6e386d42457b154c9c58910bc1905df0947e7988f980237381cb6116e5ebf5ac`
 
-provenance が `caption_source` として束縛する results 稿の SHA-256 は `FIG9_CAPTION_SOURCE_SHA256_PLACEHOLDER`
+provenance が `caption_source` として束縛する results 稿の SHA-256 は `67e8c53cbfe27a33fa51d55744364050cadbd1e83e605c0f9c06477f882d8e2e`
 (稿は凍結物で、着地後に変わらない)。
