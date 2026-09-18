@@ -1,0 +1,2 @@
+mutation estimate: 1 mutation(s) x 120.000s, baseline=1 run(s), total=2 run(s)/240.000s; actual execution requires an outer-limit-free detached path
+mutation harness aborted: orphan-hold。変異を残した状態=mutation-left-in-place、dirty path=tools/pegasus/mocc_trace_pilot.sh、hold path=/work/1/SFC/tanab/izanagi/.codex/worktrees/t2484-mutcontainer/output/pegasus-dispatch/orphan-hold.json。復旧順序: qstat で対象の不在または終端を確認し、dirty path (tools/pegasus/mocc_trace_pilot.sh) を git checkout -- で復元し、clean/HEAD を確認してから hold と sidecar を手動削除する。手動 qdel は F47 ラッチを武装させ、その解除もユーザー手番になる。
