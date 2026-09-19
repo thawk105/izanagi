@@ -80,6 +80,11 @@ MATERIALIZER_ADMISSION_REGISTRY = MappingProxyType({
             NON_ADMISSIBLE,
             "trace-only mocc lock/permutation controls used to prove the verifier has teeth",
         ),
+    "orchestrator.campaign.s3_mocc_template_proof._build_variant":
+        MaterializerRegistration(
+            NON_ADMISSIBLE,
+            "fixed-producer mocc template proof; never source performance values",
+        ),
     "orchestrator.campaign.s3_mocc_mutation_proof._build_variant":
         MaterializerRegistration(
             NON_ADMISSIBLE,

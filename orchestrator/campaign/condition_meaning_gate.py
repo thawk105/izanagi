@@ -9,10 +9,10 @@ compatibility wrappers for the F707/F718 contracts.
 The two arms may share an immutable pair of configured owner-TU commands, but
 never share a verdict, evidence record, or reason code.
 
-Claim boundary: the supply domain contains the 39 patch-derived defines.  The
+Claim boundary: the supply domain contains the 40 patch-derived defines.  The
 legacy runtime-meaning witness remains exclusive to ``BACKOFF_FIXED``.  Eleven
-registered macros plus four mocc controls additionally have a bounded
-compile-time witness (15 total): it
+registered macros plus five mocc controls additionally have a bounded
+compile-time witness (16 total): it
 preprocesses an instrumented copy of the complete owner TU with the real
 compile-command context and proves that the declared conditional selects its
 guarded branch for value 1 and omits it for value 0.  It
@@ -153,6 +153,11 @@ _DEFINE_SPECS = {
         "patches/cicada-adaptive-params.patch",
         inert_values=("10",),
     ),
+    "MOCC_TEMP_PREDICATE": DefineSpec(
+        ROUTE_CMAKE_CACHE, _MOCC_OWNER, "ycsb_mocc.exe",
+        "patches/mocc-temperature-predicate-variant.patch",
+        inert_values=("0",),
+    ),
     "SORT_VARIANT": DefineSpec(
         ROUTE_CMAKE_CACHE, _SILO_OWNER, "ycsb_silo.exe",
         "patches/silo-sort-variant.patch",
@@ -292,6 +297,9 @@ _CONDITIONAL_BRANCH_WITNESSES = {
     "IZANAGI_BREAK_HIGHKEY_VALIDATION": (
         "cc/silo/transaction.cc", "#if IZANAGI_BREAK_HIGHKEY_VALIDATION",
     ),
+    "MOCC_TEMP_PREDICATE": (
+        "cc/mocc/transaction.cc", "#if MOCC_TEMP_PREDICATE // file-scope helper",
+    ),
 }
 CONDITIONAL_BRANCH_WITNESSES: Mapping[str, tuple[str, str]] = MappingProxyType(
     _CONDITIONAL_BRANCH_WITNESSES,
@@ -301,7 +309,7 @@ MEANING_SUPPORTED_MACROS = frozenset(
 )
 RELATED_DEFINE_DECODE_MACROS = frozenset({
     "BACKOFF_FIXED", "BACKOFF_NOINLINE", "BACKOFF_REQUESTED_US",
-    "BACKOFF_TRIGGER_GATING", "SORT_VARIANT", "SS2PL_LOCK_IMPL",
+    "MOCC_TEMP_PREDICATE", "BACKOFF_TRIGGER_GATING", "SORT_VARIANT", "SS2PL_LOCK_IMPL",
     "SS2PL_LOCK_KIND", "SS2PL_DLR", "SS2PL_WFG_DIAG",
 })
 SOURCE_REL = "include/backoff.hh"
