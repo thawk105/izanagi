@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from orchestrator.tests import t1259_scan_bound
 from tools.pegasus.probes import t1259_qsub_env_delivery_probe as probe
 
 
@@ -73,7 +74,7 @@ EXECUTING_PBS_SHA256 = _sha256(REPO_ROOT / PBS_PATH)
 @pytest.fixture(scope="module")
 def _clean_detached_source_snapshot_template() -> dict[str, object]:
     """Capture the real submit-tree identity once, before modelling cleanliness."""
-    snapshot = probe._repo_snapshot(REPO_ROOT)
+    snapshot = t1259_scan_bound.fixture_repo_snapshot(REPO_ROOT)
     snapshot["detached"] = True
     snapshot["tracked_status"] = ""
     snapshot["untracked_paths"] = []
