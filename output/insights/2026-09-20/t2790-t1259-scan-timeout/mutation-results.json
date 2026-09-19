@@ -1,0 +1,299 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2790-t1259-scan-timeout/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b3408852855d33e6e1f9db6d64ee53ad/izdw-b340885285.o11357",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2790-t1259-scan-timeout/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b3408852855d33e6e1f9db6d64ee53ad/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n...                                                                      [100%]\n3 passed in 4.10s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "8a1be90ead72b4868af854a144ba1c75e9d3cc68d13132eb98bdd1da40a91145"
+    },
+    "artifact_error": null,
+    "collection_sha256": "2342069a637d24abe090e1e954d98a8f2ea7fae952676ecf58e1b8729ddd976e",
+    "duration_s": 27.132,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "86918b751f463b08d4fd72dfaecbd1efb35bc02ab5004c00ab9c0aa431d35763",
+    "repo_head": "4208bf332dd999f98737cb468aeec0bf527de9ec",
+    "runner_sha256": "1e6ff2cf0b5e181d9d6f97f55c68a8dcf105a195cfc5c2ed37850643d253ea47",
+    "spec_sha256": "ac9fe0d9922bf0bc16d71249047a1261bd7b562d98ab0e7726c8ff1675e36224",
+    "status": "PASSED",
+    "test_output_sha256": "8a1be90ead72b4868af854a144ba1c75e9d3cc68d13132eb98bdd1da40a91145",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "ef04cb31bd91600913e18cf7d20371a76ab3869b9e40440b6890661524b08dd0"
+  },
+  "date": "2026-09-19T15:30:52.525176+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2790-t1259-scan-timeout/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4a1c5402729ce852c77d919aacf2ce17/izdw-4a1c540272.o11358",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2790-t1259-scan-timeout/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/4a1c5402729ce852c77d919aacf2ce17/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n...                                                                      [100%]\n3 passed in 4.03s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "e5ecab0738697a02519dfb37565e9867beed8f9e1fd4efde49f3a0ca4e3c0c54"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "2342069a637d24abe090e1e954d98a8f2ea7fae952676ecf58e1b8729ddd976e",
+      "duration_s": 27.107,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "m0-equivalent-import-comment",
+      "injection_diff_sha256": "b546f8483908dee4d4d11e13eb0789589a29878be66958cbf7978455de3a3e45",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "171dce1a2950457f1dd8e9cb4837464cfac41035754e32f6a7d3a4edd03b7ea2",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/t1259_scan_bound.py",
+          "new": "from typing import Any\n\nfrom tools.pegasus.probes import t1259_qsub_env_delivery_probe as probe  # helper import\n",
+          "old": "from typing import Any\n\nfrom tools.pegasus.probes import t1259_qsub_env_delivery_probe as probe\n"
+        }
+      ],
+      "repo_head": "4208bf332dd999f98737cb468aeec0bf527de9ec",
+      "runner_sha256": "1e6ff2cf0b5e181d9d6f97f55c68a8dcf105a195cfc5c2ed37850643d253ea47",
+      "spec_sha256": "ac9fe0d9922bf0bc16d71249047a1261bd7b562d98ab0e7726c8ff1675e36224",
+      "status": "SURVIVED",
+      "test_output_sha256": "e5ecab0738697a02519dfb37565e9867beed8f9e1fd4efde49f3a0ca4e3c0c54",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ef04cb31bd91600913e18cf7d20371a76ab3869b9e40440b6890661524b08dd0"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2790-t1259-scan-timeout/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/98bcb76b9e87b67dc46732138d34ada1/izdw-98bcb76b9e.o11359",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2790-t1259-scan-timeout/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/98bcb76b9e87b67dc46732138d34ada1/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.F.                                                                      [100%]\n=================================== FAILURES ===================================\n_______________ test_fixture_snapshot_uses_local_candidate_bound _______________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_fixture_snapshot_uses_loc0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14df39ca7580>\n\n    def test_fixture_snapshot_uses_local_candidate_bound(tmp_path, monkeypatch):\n>       assert t1259_scan_bound.FIXTURE_GIT_TIMEOUT_SECONDS == 120.0\nE       assert 0.0 == 120.0\nE        +  where 0.0 = t1259_scan_bound.FIXTURE_GIT_TIMEOUT_SECONDS\n\norchestrator/tests/test_t1259_scan_bound.py:64: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_uses_local_candidate_bound\n1 failed, 2 passed in 4.01s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_uses_local_candidate_bound\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=527 retained_bytes=527 omitted_bytes=0 rendered_excerpt_bytes=550 sha256=dd6a4445b75105fbb64c936bfcdf124ee068c67d289f40ee8f67315df962d3f2\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_fixture_snapshot_uses_loc0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14df39ca7580>\n> \n>     def test_fixture_snapshot_uses_local_candidate_bound(tmp_path, monkeypatch):\n> >       assert t1259_scan_bound.FIXTURE_GIT_TIMEOUT_SECONDS == 120.0\n> E       assert 0.0 == 120.0\n> E        +  where 0.0 = t1259_scan_bound.FIXTURE_GIT_TIMEOUT_SECONDS\n> \n> orchestrator/tests/test_t1259_scan_bound.py:64: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=527 retained_bytes=527 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1265 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "cc72a065c5dda9d99851c42fd3c51bb51109f91435d08d39a4217f9710a89da2"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2342069a637d24abe090e1e954d98a8f2ea7fae952676ecf58e1b8729ddd976e",
+      "duration_s": 27.145,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_uses_local_candidate_bound"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_uses_local_candidate_bound"
+      ],
+      "hang_risk": false,
+      "id": "m1-fixture-bound-zero",
+      "injection_diff_sha256": "f599f83a83c362f12e80f66a5ef3881a249f9790c1a63200e1ed23653a5fda65",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "1bb66891f5573b895aeb9de23332c65b1a0e6e29b7ef74d9683b770fc0ce93d7",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/t1259_scan_bound.py",
+          "new": "FIXTURE_GIT_TIMEOUT_SECONDS: float = 0.0\n",
+          "old": "FIXTURE_GIT_TIMEOUT_SECONDS: float = 120.0\n"
+        }
+      ],
+      "repo_head": "4208bf332dd999f98737cb468aeec0bf527de9ec",
+      "runner_sha256": "1e6ff2cf0b5e181d9d6f97f55c68a8dcf105a195cfc5c2ed37850643d253ea47",
+      "spec_sha256": "ac9fe0d9922bf0bc16d71249047a1261bd7b562d98ab0e7726c8ff1675e36224",
+      "status": "KILLED",
+      "test_output_sha256": "cc72a065c5dda9d99851c42fd3c51bb51109f91435d08d39a4217f9710a89da2",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ef04cb31bd91600913e18cf7d20371a76ab3869b9e40440b6890661524b08dd0"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2790-t1259-scan-timeout/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0a285adb133dec42ff5956293322b5a0/izdw-0a285adb13.o11360",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2790-t1259-scan-timeout/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/0a285adb133dec42ff5956293322b5a0/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n.FF                                                                      [100%]\n=================================== FAILURES ===================================\n___________________ test_fixture_snapshot_propagates_timeout ___________________\n[gw2] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_fixture_snapshot_propagat0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145684a11000>\n\n    def test_fixture_snapshot_propagates_timeout(tmp_path, monkeypatch):\n        root, _ = _temporary_repo(tmp_path)\n        failure = subprocess.TimeoutExpired(\n            cmd=[\"git\", \"-C\", str(root), \"rev-parse\", \"--verify\", \"HEAD\"],\n            timeout=t1259_scan_bound.FIXTURE_GIT_TIMEOUT_SECONDS,\n        )\n    \n        def timeout(*args, **kwargs):\n            raise failure\n    \n        monkeypatch.setattr(probe.subprocess, \"run\", timeout)\n>       with pytest.raises(subprocess.TimeoutExpired) as caught:\nE       Failed: DID NOT RAISE TimeoutExpired\n\norchestrator/tests/test_t1259_scan_bound.py:90: Failed\n_______________ test_fixture_snapshot_uses_local_candidate_bound _______________\n[gw1] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_fixture_snapshot_uses_loc0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1487e8f43580>\n\n    def test_fixture_snapshot_uses_local_candidate_bound(tmp_path, monkeypatch):\n        assert t1259_scan_bound.FIXTURE_GIT_TIMEOUT_SECONDS == 120.0\n        root, head = _temporary_repo(tmp_path)\n        production = probe._repo_snapshot(root)\n        calls = _spy(monkeypatch)\n        snapshot = t1259_scan_bound.fixture_repo_snapshot(root)\n>       assert len(calls) == 4\nE       assert 0 == 4\nE        +  where 0 = len([])\n\norchestrator/tests/test_t1259_scan_bound.py:69: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_propagates_timeout\nFAILED orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_uses_local_candidate_bound\n2 failed, 1 passed in 4.00s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_propagates_timeout\" nodeid_bytes=85 nodeid_omitted_bytes=0 source_bytes=831 retained_bytes=831 omitted_bytes=0 rendered_excerpt_bytes=872 sha256=2f47501dc4345a9985e4bc1d03e6828c78444441de769ca1814ef00f6a75a57f\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw2] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw2/test_fixture_snapshot_propagat0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x145684a11000>\n> \n>     def test_fixture_snapshot_propagates_timeout(tmp_path, monkeypatch):\n>         root, _ = _temporary_repo(tmp_path)\n>         failure = subprocess.TimeoutExpired(\n>             cmd=[\"git\", \"-C\", str(root), \"rev-parse\", \"--verify\", \"HEAD\"],\n>             timeout=t1259_scan_bound.FIXTURE_GIT_TIMEOUT_SECONDS,\n>         )\n>     \n>         def timeout(*args, **kwargs):\n>             raise failure\n>     \n>         monkeypatch.setattr(probe.subprocess, \"run\", timeout)\n> >       with pytest.raises(subprocess.TimeoutExpired) as caught:\n> E       Failed: DID NOT RAISE TimeoutExpired\n> \n> orchestrator/tests/test_t1259_scan_bound.py:90: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_uses_local_candidate_bound\" nodeid_bytes=93 nodeid_omitted_bytes=0 source_bytes=706 retained_bytes=706 omitted_bytes=0 rendered_excerpt_bytes=739 sha256=70094dc04f3940ea5f53708fa35bd43ad6315339a1638a2358ef27567468d588\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw1] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw1/test_fixture_snapshot_uses_loc0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1487e8f43580>\n> \n>     def test_fixture_snapshot_uses_local_candidate_bound(tmp_path, monkeypatch):\n>         assert t1259_scan_bound.FIXTURE_GIT_TIMEOUT_SECONDS == 120.0\n>         root, head = _temporary_repo(tmp_path)\n>         production = probe._repo_snapshot(root)\n>         calls = _spy(monkeypatch)\n>         snapshot = t1259_scan_bound.fixture_repo_snapshot(root)\n> >       assert len(calls) == 4\n> E       assert 0 == 4\n> E        +  where 0 = len([])\n> \n> orchestrator/tests/test_t1259_scan_bound.py:69: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=1537 retained_bytes=1537 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2750 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "51cb4743a4c2498d62eaf4c2daeed131c728b50825c7d6766deea244d0aaadd4"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "2342069a637d24abe090e1e954d98a8f2ea7fae952676ecf58e1b8729ddd976e",
+      "duration_s": 27.834,
+      "expected_nodes": [
+        "orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_uses_local_candidate_bound",
+        "orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_propagates_timeout"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_propagates_timeout",
+        "orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_uses_local_candidate_bound"
+      ],
+      "hang_risk": false,
+      "id": "m2-fixture-skips-scan",
+      "injection_diff_sha256": "553d28a9d9e521995ee32c1a8ea9c1d2212efaa0a6c2d2a67c66f4dac0da7316",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "514163f924fb4ab524d6480b61f4506d87a12ea0b0a9db5f35c7a9aa65a06258",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/t1259_scan_bound.py",
+          "new": "def fixture_repo_snapshot(repo_root: Path) -> dict[str, Any]:\n    return {\n        \"head\": \"0\" * 40,\n        \"detached\": True,\n        \"tracked_status\": \"\",\n        \"untracked_paths\": [],\n        \"source_sha256\": {},\n    }\n",
+          "old": "def fixture_repo_snapshot(repo_root: Path) -> dict[str, Any]:\n    return probe._repo_snapshot(\n        repo_root, git_timeout_seconds=FIXTURE_GIT_TIMEOUT_SECONDS\n    )\n"
+        }
+      ],
+      "repo_head": "4208bf332dd999f98737cb468aeec0bf527de9ec",
+      "runner_sha256": "1e6ff2cf0b5e181d9d6f97f55c68a8dcf105a195cfc5c2ed37850643d253ea47",
+      "spec_sha256": "ac9fe0d9922bf0bc16d71249047a1261bd7b562d98ab0e7726c8ff1675e36224",
+      "status": "KILLED",
+      "test_output_sha256": "51cb4743a4c2498d62eaf4c2daeed131c728b50825c7d6766deea244d0aaadd4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "ef04cb31bd91600913e18cf7d20371a76ab3869b9e40440b6890661524b08dd0"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2790-t1259-scan-timeout/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/203120be5a64e06dabf5f9d7ec02b208/izdw-203120be5a.o11356",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2790-t1259-scan-timeout/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/203120be5a64e06dabf5f9d7ec02b208/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_t1259_scan_bound.py::test_production_snapshot_keeps_thirty_second_bound\norchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_uses_local_candidate_bound\norchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_propagates_timeout\n\n3 tests collected in 0.48s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "00f7c5b35420e1a527c4a6608b9b17ed4cf1dce53460db6341792969dee7295c"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_t1259_scan_bound.py::test_production_snapshot_keeps_thirty_second_bound",
+        "orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_uses_local_candidate_bound",
+        "orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_propagates_timeout"
+      ],
+      "duration_s": 21.778,
+      "rc": 0,
+      "repo_head": "4208bf332dd999f98737cb468aeec0bf527de9ec",
+      "runner_sha256": "1e6ff2cf0b5e181d9d6f97f55c68a8dcf105a195cfc5c2ed37850643d253ea47",
+      "spec_sha256": "ac9fe0d9922bf0bc16d71249047a1261bd7b562d98ab0e7726c8ff1675e36224",
+      "status": "PASSED",
+      "tool_sha256": "ef04cb31bd91600913e18cf7d20371a76ab3869b9e40440b6890661524b08dd0"
+    },
+    "hang_timeout_seconds": 4800.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m0-equivalent-import-comment": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "b546f8483908dee4d4d11e13eb0789589a29878be66958cbf7978455de3a3e45",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/t1259_scan_bound.py",
+            "new": "from typing import Any\n\nfrom tools.pegasus.probes import t1259_qsub_env_delivery_probe as probe  # helper import\n",
+            "old": "from typing import Any\n\nfrom tools.pegasus.probes import t1259_qsub_env_delivery_probe as probe\n"
+          }
+        ]
+      },
+      "m1-fixture-bound-zero": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_uses_local_candidate_bound"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "f599f83a83c362f12e80f66a5ef3881a249f9790c1a63200e1ed23653a5fda65",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/t1259_scan_bound.py",
+            "new": "FIXTURE_GIT_TIMEOUT_SECONDS: float = 0.0\n",
+            "old": "FIXTURE_GIT_TIMEOUT_SECONDS: float = 120.0\n"
+          }
+        ]
+      },
+      "m2-fixture-skips-scan": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_uses_local_candidate_bound",
+          "orchestrator/tests/test_t1259_scan_bound.py::test_fixture_snapshot_propagates_timeout"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "553d28a9d9e521995ee32c1a8ea9c1d2212efaa0a6c2d2a67c66f4dac0da7316",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/t1259_scan_bound.py",
+            "new": "def fixture_repo_snapshot(repo_root: Path) -> dict[str, Any]:\n    return {\n        \"head\": \"0\" * 40,\n        \"detached\": True,\n        \"tracked_status\": \"\",\n        \"untracked_paths\": [],\n        \"source_sha256\": {},\n    }\n",
+            "old": "def fixture_repo_snapshot(repo_root: Path) -> dict[str, Any]:\n    return probe._repo_snapshot(\n        repo_root, git_timeout_seconds=FIXTURE_GIT_TIMEOUT_SECONDS\n    )\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "86918b751f463b08d4fd72dfaecbd1efb35bc02ab5004c00ab9c0aa431d35763",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t1259_scan_bound.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 4800.0
+  },
+  "repo_head": "4208bf332dd999f98737cb468aeec0bf527de9ec",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_t1259_scan_bound.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2790-t1259-scan-timeout/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2790-t1259-scan-timeout/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "e5d98f73a78aea1c08693d80d0cfac7f7c0e0564",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "1e6ff2cf0b5e181d9d6f97f55c68a8dcf105a195cfc5c2ed37850643d253ea47",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "ac9fe0d9922bf0bc16d71249047a1261bd7b562d98ab0e7726c8ff1675e36224",
+  "summary": {
+    "KILLED": 2,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2790-t1259-scan-timeout/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "4f85ec88fdc18d4ff34eca463ea02d13779c2441163dfbda94c96043bf94aeb8"
+  },
+  "tool_sha256": "ef04cb31bd91600913e18cf7d20371a76ab3869b9e40440b6890661524b08dd0",
+  "updated_at": "2026-09-19T15:33:00.318186+00:00"
+}
