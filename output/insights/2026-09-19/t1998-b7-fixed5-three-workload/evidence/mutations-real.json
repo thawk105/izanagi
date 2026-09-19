@@ -1,0 +1,180 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 4500,
+  "hang_timeout_seconds": 30,
+  "mutations": [
+    {
+      "id": "M1-b7-adopted-genome",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_b7_fixed5_regression.v2.json",
+          "old": "      \"id\": \"rr50-fixed5\",\n      \"workload\": \"rr50\",\n      \"role\": \"adopted\",\n      \"genome\": {\n        \"BACK_OFF\": 1,\n        \"BACKOFF_FIXED\": 5",
+          "new": "      \"id\": \"rr50-fixed5\",\n      \"workload\": \"rr50\",\n      \"role\": \"adopted\",\n      \"genome\": {\n        \"BACK_OFF\": 1,\n        \"BACKOFF_FIXED\": 10"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_cli_canonical_policy[absolute]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_cli_canonical_policy[relative]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_full_collect_materializes[0.9-reject]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_full_collect_materializes[1.1-observed-positive]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_noncanonical_policy_rejected",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_partial_boundary[1]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_partial_boundary[2]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_policy_bytes_pin",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_policy_literal",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_b7_submitter_three_requests",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-a2-other-study]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-a6-other-study]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-prefix-collision]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-same-study]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-b7-shape",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "        \"paper-story-b7-fixed5-regression\": (3, 6),",
+          "new": "        \"paper-story-b7-fixed5-regression\": (2, 4),"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_cli_canonical_policy[absolute]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_cli_canonical_policy[relative]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_full_collect_materializes[0.9-reject]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_full_collect_materializes[1.1-observed-positive]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_invalid_policy[genome-adopted cell does not match workload policy]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_noncanonical_policy_rejected",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_partial_boundary[1]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_partial_boundary[2]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_policy_literal",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_b7_submitter_three_requests",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-a2-other-study]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-a6-other-study]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-prefix-collision]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-same-study]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-b7-canonical-path",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "    canonical_paths = (POLICY_PATH, A6_POLICY_PATH, B7_FIXED5_POLICY_PATH)",
+          "new": "    canonical_paths = (POLICY_PATH, A6_POLICY_PATH)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_cli_canonical_policy[absolute]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_cli_canonical_policy[relative]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_b7_submitter_three_requests",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-a2-other-study]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-a6-other-study]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-prefix-collision]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-same-study]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-b7-job-name",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "        \"paper-story-b7-fixed5-regression\": \"paper-b7-fixed5\",\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_full_collect_materializes[0.9-reject]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_full_collect_materializes[1.1-observed-positive]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_partial_boundary[1]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_partial_boundary[2]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_policy_literal",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_b7_submitter_three_requests",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-a2-other-study]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-a6-other-study]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-prefix-collision]",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-same-study]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-b7-env-keys",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "    if policy.study in {\"paper-story-a6-certification\", \"paper-story-b7-fixed5-regression\"}:\n        keys.add(\"IZANAGI_A2_POLICY_PATH\")",
+          "new": "    if policy.study in {\"paper-story-a6-certification\"}:\n        keys.add(\"IZANAGI_A2_POLICY_PATH\")\n    elif policy.study == \"paper-story-b7-fixed5-regression\":\n        pass"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_full_collect_materializes[0.9-reject]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_full_collect_materializes[1.1-observed-positive]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_partial_boundary[1]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_partial_boundary[2]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_policy_literal",
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_b7_submitter_three_requests"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-submitter-273",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_paper_story_a2_certification.sh",
+          "old": "  if [[ \"$STUDY\" == paper-story-a6-certification || \"$STUDY\" == paper-story-b7-fixed5-regression ]]; then",
+          "new": "  if [[ \"$STUDY\" == paper-story-a6-certification ]]; then"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_b7_submitter_three_requests"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-submitter-365",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/pegasus/submit_paper_story_a2_certification.sh",
+          "old": "    if policy.study in {\"paper-story-a6-certification\", \"paper-story-b7-fixed5-regression\"}:\n        environment[\"IZANAGI_A2_POLICY_PATH\"] = str(policy.path)",
+          "new": "    if policy.study in {\"paper-story-a6-certification\"}:\n        environment[\"IZANAGI_A2_POLICY_PATH\"] = str(policy.path)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_job_contract.py::test_b7_submitter_three_requests"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-cli-help-text",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "        help=\"select one of the three canonical repository certification policies\",",
+          "new": "        help=\"select one of the two canonical repository certification policies\","
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}

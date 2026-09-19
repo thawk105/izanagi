@@ -36,6 +36,14 @@ def _a6_policy(tmp_path):
     return A2.load_policy(path)
 
 
+def _b7_fixed5_policy(tmp_path):
+    document = json.loads(A2.B7_FIXED5_POLICY_PATH.read_text(encoding="utf-8"))
+    document["durable_measurement_base"] = str(tmp_path / "durable-b7-fixed5")
+    path = tmp_path / "b7-fixed5-policy.json"
+    path.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
+    return A2.load_policy(path)
+
+
 def _assert_static_job_contract(source):
     required = {
         "compute-only": "^bnode[0-9]+([.].*)?$",
@@ -441,7 +449,9 @@ def _run_submitter_harness(
         third_party_mutation=None):
     a2_policy = _policy(tmp_path)
     a6_policy = _a6_policy(tmp_path)
-    policy = a6_policy if study == "a6" else a2_policy
+    policy = {"a2": a2_policy, "a6": a6_policy,
+              "b7-fixed5": (_b7_fixed5_policy(tmp_path)
+                            if study == "b7-fixed5" else None)}[study]
     workloads = A2.workload_ids(policy)
     first_workload = workloads[0]
     attempt_id = "submitter-harness"
@@ -621,12 +631,19 @@ def production_a2():
         path=a2.A6_POLICY_PATH,
     )
 
+    loaded_b7 = (replace(
+        original_load_policy(Path(os.environ["A2_TEST_B7_POLICY"])),
+        path=a2.B7_FIXED5_POLICY_PATH,
+    ) if os.environ["A2_TEST_STUDY"] == "b7-fixed5" else None)
+
     def load_fixture_policy(path=a2.POLICY_PATH):
         selected = Path(path).resolve()
         if selected == a2.POLICY_PATH.resolve():
             return loaded_a2
         if selected == a2.A6_POLICY_PATH.resolve():
             return loaded_a6
+        if selected == a2.B7_FIXED5_POLICY_PATH.resolve():
+            return loaded_b7
         return original_load_policy(path)
 
     a2.load_policy = load_fixture_policy
@@ -676,6 +693,7 @@ os.execv(sys.executable, [sys.executable, *args])
         "A2_TEST_REPO": str(REPO),
         "A2_TEST_A2_POLICY": str(a2_policy.path),
         "A2_TEST_A6_POLICY": str(a6_policy.path),
+        "A2_TEST_B7_POLICY": str(tmp_path / "b7-fixed5-policy.json"),
         "A2_TEST_ATTEMPT_ROOT": str(attempt_root),
         "A2_TEST_FIRST_WORKLOAD": first_workload,
         "A2_TEST_STUDY": study,
@@ -703,8 +721,10 @@ os.execv(sys.executable, [sys.executable, *args])
         "A2_TEST_TRACKED_DIRTY": "1" if tracked_dirty else "0",
     })
     command = [str(SUBMITTER)]
-    if study == "a6":
-        command.extend(["--policy", str(A2.A6_POLICY_PATH)])
+    if study in {"a6", "b7-fixed5"}:
+        selected_path = {"a6": A2.A6_POLICY_PATH,
+                         "b7-fixed5": A2.B7_FIXED5_POLICY_PATH}[study]
+        command.extend(["--policy", str(selected_path)])
     command.extend([
         "--attempt-id", attempt_id,
         "--ccbench-root", str(ccbench),
@@ -720,8 +740,8 @@ os.execv(sys.executable, [sys.executable, *args])
     )
     if exercise_finish_group and completed.returncode == 0:
         finish_command = [str(SUBMITTER), "finish-group"]
-        if study == "a6":
-            finish_command.extend(["--policy", str(A2.A6_POLICY_PATH)])
+        if study in {"a6", "b7-fixed5"}:
+            finish_command.extend(["--policy", str(selected_path)])
         finish_command.extend(["--attempt-id", attempt_id])
         subprocess.run(
             finish_command, cwd=REPO, env=environment,
@@ -1108,6 +1128,12 @@ def test_submitter_rejects_an_existing_a2_request_before_preregistration(
     "study,inventory_names,expected_rc",
     (
         pytest.param("a2", ("paper-a2-cert",), 2, id="a2-same-study"),
+        pytest.param("b7-fixed5", ("paper-b7-fixed5",), 2, id="b7-same-study"),
+        pytest.param("b7-fixed5", ("paper-a2-cert",), 37, id="b7-a2-other-study"),
+        pytest.param("b7-fixed5", ("paper-a6-cert",), 37, id="b7-a6-other-study"),
+        pytest.param("b7-fixed5", ("paper-b7-fixed5-x",), 37, id="b7-prefix-collision"),
+        pytest.param("a2", ("paper-b7-fixed5",), 37, id="a2-b7-other-study"),
+        pytest.param("a6", ("paper-b7-fixed5",), 37, id="a6-b7-other-study"),
         pytest.param("a2", ("paper-a6-cert",), 37, id="a2-other-study"),
         pytest.param(
             "a6", ("paper-a2-cert", "izdw-b51"), 37,
@@ -1321,6 +1347,40 @@ def test_p3_a6_submitter_uses_one_rr95_job_and_policy_scheduler(tmp_path):
         / "qstat-visibility-fanout-945413.stdout"
     ).read_text(encoding="utf-8")
     assert "rr50" not in json.dumps(receipt)
+
+
+def test_b7_submitter_three_requests(tmp_path):
+    completed, attempt_root, driver_log = _run_submitter_harness(
+        tmp_path, study="b7-fixed5", visibility_fail_workload="",
+        exercise_finish_group=True)
+    receipt_path = attempt_root / "receipts" / "submission.json"
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.splitlines() == [str(receipt_path),
+        "945411.nqsv", "945412.nqsv", "945413.nqsv"]
+    receipt = json.loads(receipt_path.read_text())
+    assert receipt["study"] == "paper-story-b7-fixed5-regression"
+    assert [job["workload"] for job in receipt["jobs"]] == ["rr5", "rr50", "rr95"]
+    for job in receipt["jobs"]:
+        environment = job["qsub_environment"]
+        assert environment["IZANAGI_A2_POLICY_PATH"] == str(A2.B7_FIXED5_POLICY_PATH)
+        assert set(environment) == A2._QSUB_ENV_KEYS | {"IZANAGI_A2_POLICY_PATH"}
+        argv = job["qsub_argv"]
+        assert argv[5:11] == ["-b", "5", "-l", "elapstim_req=12:00:00",
+                              "-N", "paper-b7-fixed5"]
+        raw_argv = (tmp_path / "qsub-log" / (job["workload"] + ".argv")).read_bytes()
+        actual_argv = [part.decode("utf-8") for part in raw_argv.split(b"\0") if part]
+        assert actual_argv == argv[1:]
+    invocations = []
+    module = "orchestrator.campaign.paper_story_a2_certification"
+    for line in driver_log.splitlines():
+        tokens = shlex.split(line)
+        if module in tokens:
+            arguments = tokens[tokens.index(module) + 1:]
+            assert arguments[:2] == ["--policy", str(A2.B7_FIXED5_POLICY_PATH)]
+            invocations.append(arguments[2])
+    assert invocations == ["preregister", *(
+        ["exact-qsub", "durabilize-qsub-diagnostics", "record-request-id"] * 3),
+        "record-submission", "finish-group"]
 
 
 def _reservation_environment(repo, *, job_id="123.nqsv"):
