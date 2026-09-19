@@ -1,0 +1,223 @@
+{
+  "schema": "izanagi-arc-status/v1",
+  "story_version": "2026-09-19",
+  "story_path": "docs/paper-story/2026-09-19.md",
+  "figure_created": "2026-09-20",
+  "reference_ids": [
+    "T-1998"
+  ],
+  "state_definitions": {
+    "obtained": "A recorded judgment or completion exists; it need not support the claim.",
+    "uncertified": "Materials exist; the item is not certified, promoted, or closed.",
+    "awaiting-ruling": "A ruling or human action remains pending before the item can advance.",
+    "not-obtained": "The required evidence is not yet obtained, including blocked work."
+  },
+  "acts": [
+    {
+      "id": "Act 1",
+      "label": "Trustworthy evaluator",
+      "progress": "complete",
+      "source_anchor": "§0 act 1",
+      "items": [
+        {
+          "id": "act1-evaluator",
+          "label": "Build a trustworthy evaluator",
+          "state": "obtained",
+          "sublabel": "complete",
+          "source_anchor": "§0 act 1"
+        }
+      ]
+    },
+    {
+      "id": "Act 2",
+      "label": "Falsification and synthesis",
+      "progress": "complete",
+      "source_anchor": "§0 act 2",
+      "items": [
+        {
+          "id": "act2-hypothesis",
+          "label": "Search hypothesis",
+          "state": "obtained",
+          "sublabel": "falsified",
+          "source_anchor": "§0 act 2"
+        },
+        {
+          "id": "act2-value",
+          "label": "Value beyond the search space",
+          "state": "obtained",
+          "sublabel": "relocated to synthesis",
+          "source_anchor": "§0 act 2"
+        }
+      ]
+    },
+    {
+      "id": "Act 3",
+      "label": "Code-level synthesis",
+      "progress": "in-progress",
+      "source_anchor": "§0 act 3",
+      "items": [
+        {
+          "id": "act3-claim",
+          "label": "S' claim",
+          "state": "obtained",
+          "sublabel": "not met",
+          "source_anchor": "§8 B-1"
+        },
+        {
+          "id": "act3-scope",
+          "label": "Silo-only scope",
+          "state": null,
+          "sublabel": "lifted; preparation underway",
+          "source_anchor": "§0 item 3"
+        },
+        {
+          "id": "act3-mechanism",
+          "label": "Mechanism work",
+          "state": null,
+          "sublabel": "advanced; claim remains unmet",
+          "source_anchor": "§0 act 3"
+        },
+        {
+          "id": "act3-formal",
+          "label": "Adopted configuration",
+          "state": "obtained",
+          "sublabel": "A-2 observed-positive; A-6 reject; T-1998 accepted",
+          "source_anchor": "§0 act 3"
+        },
+        {
+          "id": "act3-descriptive",
+          "label": "A-1 descriptive attempt",
+          "state": "uncertified",
+          "sublabel": "completed; non-certifying",
+          "source_anchor": "§0 item 1"
+        }
+      ]
+    }
+  ],
+  "evidence_groups": [
+    {
+      "id": "A",
+      "label": "A-series items",
+      "items": [
+        {
+          "id": "A-1",
+          "label": "Paired headline estimand",
+          "state": "uncertified",
+          "sublabel": "descriptive; non-certifying; fulfilment undetermined; reauthorization requires human action",
+          "source_anchor": "§8 A-1"
+        },
+        {
+          "id": "A-2",
+          "label": "Write-heavy / balanced certification",
+          "state": "obtained",
+          "sublabel": "observed-positive; limitations retained",
+          "source_anchor": "§8 A-2"
+        },
+        {
+          "id": "A-3",
+          "label": "Reporting rule",
+          "state": "obtained",
+          "sublabel": "settled; rule only; not evidence",
+          "source_anchor": "§8 A-3"
+        },
+        {
+          "id": "A-5",
+          "label": "Separate-boot reproduction",
+          "state": "not-obtained",
+          "sublabel": "unfulfilled; Pegasus does not establish separate-boot reproduction",
+          "source_anchor": "§8 A-5"
+        },
+        {
+          "id": "A-6",
+          "label": "Read-heavy certification",
+          "state": "obtained",
+          "sublabel": "reject; limitations retained",
+          "source_anchor": "§8 A-6"
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "label": "B-group requirements",
+      "items": [
+        {
+          "id": "A-4",
+          "label": "Official floor",
+          "state": "awaiting-ruling",
+          "sublabel": "adoption decided; chain not landed; inactive; human action pending",
+          "source_anchor": "§8 A-4"
+        },
+        {
+          "id": "B-1",
+          "label": "Beyond best known axis",
+          "state": "obtained",
+          "sublabel": "not met",
+          "source_anchor": "§8 B-1"
+        },
+        {
+          "id": "B-2",
+          "label": "Descriptor causal evidence",
+          "state": "not-obtained",
+          "sublabel": "not run; layered blockage",
+          "source_anchor": "§8 B-2"
+        },
+        {
+          "id": "B-3",
+          "label": "Formal holdout series",
+          "state": "not-obtained",
+          "sublabel": "not completed; authority absent",
+          "source_anchor": "§8 B-3"
+        },
+        {
+          "id": "B-4",
+          "label": "Detailed anomaly feedback",
+          "state": "not-obtained",
+          "sublabel": "not run; descriptive-only; specs frozen; eligible precursor absent",
+          "source_anchor": "§8 B-4"
+        },
+        {
+          "id": "B-5",
+          "label": "Budget-matched generator comparison",
+          "state": "not-obtained",
+          "sublabel": "not obtained",
+          "source_anchor": "§8 B-5"
+        },
+        {
+          "id": "B-6",
+          "label": "Leak-controlled execution",
+          "state": "not-obtained",
+          "sublabel": "loop exercised; leak control incomplete",
+          "source_anchor": "§8 B-6"
+        },
+        {
+          "id": "B-7",
+          "label": "All-workload regression reporting",
+          "state": "uncertified",
+          "sublabel": "materials complete; not promoted to requirement fulfilment",
+          "source_anchor": "§8 B-7"
+        },
+        {
+          "id": "B-8",
+          "label": "Independent long-run validation",
+          "state": "not-obtained",
+          "sublabel": "not obtained",
+          "source_anchor": "§8 B-8"
+        },
+        {
+          "id": "B-9",
+          "label": "Mechanism reporting",
+          "state": "uncertified",
+          "sublabel": "screening support scoped; deep check stopped by ruling; secondary view applied, non-certifying",
+          "source_anchor": "§8 B-9"
+        },
+        {
+          "id": "B-10",
+          "label": "Extended mechanism evidence",
+          "state": "uncertified",
+          "sublabel": "grid and tail judged; performance uncertified; not closed",
+          "source_anchor": "§8 B-10"
+        }
+      ]
+    }
+  ]
+}
