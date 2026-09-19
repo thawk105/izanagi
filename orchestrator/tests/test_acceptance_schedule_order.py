@@ -1755,6 +1755,281 @@ def test_g11_loadgroup_worker_dependent_tie_break_control_fails(monkeypatch):
         )
 
 
+# G12: queue ranks do not guarantee each worker's second unit.
+_PAIRING_ENV = "IZANAGI_ACCEPTANCE_PAIRING_V1"
+_PAIRING_TOKEN = "t2766-min-cost-partners"
+_PAIRING_PREFIX = "izanagi_acceptance_pairing_v1_"
+_PAIRING_A_UNITS = tuple(range(120))
+_PAIRING_B_UNITS = (*range(48), *range(119, 71, -1), *range(48, 72))
+
+
+@pytest.fixture(autouse=True)
+def _isolate_pairing_measurement_environment(monkeypatch):
+    # A B-arm acceptance run still tests the default behavior of synthetic
+    # collections. G12 explicitly enables pairing where that is under test.
+    monkeypatch.delenv(_PAIRING_ENV, raising=False)
+
+
+def _pairing_nodeids(indices):
+    return tuple(
+        f"orchestrator/tests/test_pairing_probe.py::test_{i:03d}_{j}@u{i:03d}"
+        for i in indices for j in range(3 if i == 0 else 2 if i == 1 else 1)
+    )
+
+
+def _pairing_fixture(count=120, double_units=0):
+    items, ledger = [], {}
+    for i in reversed(range(count)):
+        cardinality = (2 if i < double_units else 1) if double_units else (
+            3 if i == 0 else 2 if i == 1 else 1
+        )
+        for j in range(cardinality):
+            base = f"orchestrator/tests/test_pairing_probe.py::test_{i:03d}_{j}"
+            item = _item(
+                f"{base}@u{i:03d}",
+                markers=(
+                    pytest.mark.xdist_group(f"u{i:03d}").mark,
+                    pytest.mark.skip(reason="retained fixture skip").mark,
+                ),
+                user_properties=(("existing", base),),
+            )
+            item.name = f"test_{i:03d}_{j}"
+            items.append(item)
+            ledger[base] = (count - i) * 6.0 / cardinality
+    return tuple(items), ledger
+
+
+def test_g12_pairing_queue_and_all_item_witness(monkeypatch):
+    monkeypatch.delenv(_PAIRING_ENV, raising=False)
+    a_items, ledger = _pairing_fixture()
+    a = _run_scheduler_arm(48, a_items, ledger, lambda _n: _TracingWorkQueue())
+    monkeypatch.setenv(_PAIRING_ENV, _PAIRING_TOKEN)
+    option_config = _OptionConfig
+
+    def worker_config(**overrides):
+        config = option_config(**overrides)
+        config.workerinput = {"workerid": "gw7"}
+        config.args = ["orchestrator/tests/test_pairing_probe.py"]
+        return config
+
+    b_items, ledger = _pairing_fixture()
+    before = _semantic_snapshot(b_items)
+    with monkeypatch.context() as patcher:
+        patcher.setitem(globals(), "_OptionConfig", worker_config)
+        b = _run_scheduler_arm(48, b_items, ledger, lambda _n: _TracingWorkQueue())
+    assert b["dequeue_trace"][:48] == a["dequeue_trace"][:48] == tuple(
+        f"u{i:03d}" for i in range(48)
+    )
+    assert b["dequeue_trace"][48:96] == tuple(f"u{i:03d}" for i in range(119, 71, -1))
+    assert b["dequeue_trace"][96:] == tuple(f"u{i:03d}" for i in range(48, 72))
+    assert b["collection"] == _pairing_nodeids(_PAIRING_B_UNITS)
+    assert Counter(b["collection"]) == Counter(item.nodeid for item in b_items)
+    assert b["before_identities"] == Counter(map(id, b_items))
+    expected_ranks = {f"u{i:03d}": rank for rank, i in enumerate(_PAIRING_B_UNITS)}
+    for item in b_items:
+        scope = item.nodeid.rsplit("@", 1)[1]
+        rank = expected_ranks[scope]
+        assert item.user_properties == [
+            *before[id(item)]["user_properties"],
+            (_PAIRING_PREFIX + "scope", scope),
+            (_PAIRING_PREFIX + "rank", str(rank)),
+            (_PAIRING_PREFIX + "partner", "1" if 48 <= rank < 96 else "0"),
+            (_PAIRING_PREFIX + "worker", "gw7"),
+        ]
+        after = _semantic_snapshot([item])[id(item)]
+        assert after["markers"] == before[id(item)]["markers"]
+        assert after["keywords"] == before[id(item)]["keywords"]
+
+
+@pytest.mark.parametrize("value", (None, ""), ids=("unset", "empty"))
+def test_g12_off_preserves_literal_collection_and_item_state(monkeypatch, value):
+    if value is None:
+        monkeypatch.delenv(_PAIRING_ENV, raising=False)
+    else:
+        monkeypatch.setenv(_PAIRING_ENV, value)
+    items, ledger = _pairing_fixture()
+    selected = frozenset(item.nodeid for item in items)
+    before = _semantic_snapshot(items)
+    observation = _run_collection_wrapper_arm(48, items, ledger)
+    assert observation["after_nodeids"] == _pairing_nodeids(_PAIRING_A_UNITS)
+    assert observation["after_identities"] == observation["before_identities"]
+    assert frozenset(observation["after_nodeids"]) == selected
+    assert _semantic_snapshot(observation["after_items"]) == before
+    assert all(
+        not key.startswith(_PAIRING_PREFIX)
+        for item in items for key, _ in item.user_properties
+    )
+
+
+@pytest.mark.parametrize("value", ("1", "true", "t2766-min-cost-partners "))
+def test_g12_invalid_token_fails_closed(monkeypatch, value):
+    monkeypatch.setenv(_PAIRING_ENV, value)
+    items, ledger = _pairing_fixture()
+    with pytest.raises(
+        pytest.UsageError, match="IZANAGI_ACCEPTANCE_PAIRING_V1.*t2766-min-cost-partners",
+    ):
+        _run_collection_wrapper_arm(48, items, ledger)
+
+
+def test_g12_cardinality_infeasible_fails_closed(monkeypatch):
+    monkeypatch.setenv(_PAIRING_ENV, _PAIRING_TOKEN)
+    items, ledger = _pairing_fixture(double_units=49)
+    before = _semantic_snapshot(items)
+    with pytest.raises(pytest.UsageError, match="infeasible"):
+        _run_collection_wrapper_arm(48, items, ledger)
+    assert _semantic_snapshot(items) == before
+
+
+@pytest.mark.parametrize("count", (1, 48, 95))
+def test_g12_short_queue_has_no_pairing_witness(monkeypatch, count):
+    monkeypatch.setenv(_PAIRING_ENV, _PAIRING_TOKEN)
+    items, ledger = _pairing_fixture(count)
+    before = _semantic_snapshot(items)
+    result = _run_collection_wrapper_arm(48, items, ledger)
+    assert result["after_nodeids"] == _pairing_nodeids(range(count))
+    assert _semantic_snapshot(result["after_items"]) == before
+
+
+def test_g12_collection_is_worker_count_independent(monkeypatch):
+    monkeypatch.setenv(_PAIRING_ENV, _PAIRING_TOKEN)
+    for nproc in (16, 32, 48):
+        items, ledger = _pairing_fixture()
+        result = _run_collection_wrapper_arm(nproc, items, ledger)
+        assert result["after_nodeids"] == _pairing_nodeids(_PAIRING_B_UNITS)
+
+
+def test_g12_live_junit_witness_includes_skips_and_execution_worker(pytester, monkeypatch):
+    import xml.etree.ElementTree as ET
+
+    monkeypatch.setenv(_PAIRING_ENV, _PAIRING_TOKEN)
+    source = "import pytest\n\n" + "\n\n".join(
+        ("@pytest.mark.skip(reason='retained skip')\n" if i == 119 else "")
+        + f"def test_case_{i:03d}():\n    pass"
+        for i in range(120)
+    )
+    _install_live_suite(pytester, source)
+    ledger = _ledger_bytes({f"test_sample.py::test_case_{i:03d}": 120 - i for i in range(120)})
+    junit = pytester.path / "pairing-junit.xml"
+    result, collection, _outcomes = _run_live(pytester, ledger, f"--junitxml={junit}")
+    result.assert_outcomes(passed=119, skipped=1)
+    assert _ordered_names(collection) == [f"test_case_{i:03d}" for i in _PAIRING_B_UNITS]
+    ranks = {f"test_case_{i:03d}": rank for rank, i in enumerate(_PAIRING_B_UNITS)}
+    cases = list(ET.parse(junit).getroot().iter("testcase"))
+    assert len(cases) == 120
+    for case in cases:
+        name = case.attrib["name"]
+        rank = ranks[name]
+        properties = {p.attrib["name"]: p.attrib["value"]
+                      for p in case.findall("./properties/property")}
+        assert properties == {
+            _PAIRING_PREFIX + "scope": "test_sample.py::" + name,
+            _PAIRING_PREFIX + "rank": str(rank),
+            _PAIRING_PREFIX + "partner": "1" if 48 <= rank < 96 else "0",
+            _PAIRING_PREFIX + "worker": "gw0",
+        }
+    assert sum(case.find("skipped") is not None for case in cases) == 1
+
+
+class _PairingRecordingNode(_FakeSchedulerNode):
+    def __init__(self, index):
+        super().__init__(index)
+        self.sent = []
+
+    def send_runtest_some(self, indexes):
+        self.sent.append(tuple(indexes))
+
+
+@pytest.mark.parametrize("enabled", (False, True), ids=("A", "B"))
+def test_g12_holds_shard_selection_and_real_repo_suffix_survive(monkeypatch, enabled):
+    if enabled:
+        monkeypatch.setenv(_PAIRING_ENV, _PAIRING_TOKEN)
+    monkeypatch.delenv("IZANAGI_RUN_GROWTH_HELD_TESTS", raising=False)
+    initial, ledger = _pairing_fixture()
+    growth = _item(
+        "orchestrator/tests/test_s8c_preregistration_invariant.py::"
+        "test_candidate_freeze_matches_contract_and_generation_chain"
+    )
+    flaky = _item(
+        "orchestrator/tests/test_dev_wave_land.py::"
+        "test_exploration_external_root_keeps_wave_clean"
+    )
+    real_base = (
+        "orchestrator/tests/test_sort_swo_oracle.py::"
+        "test_real_patchharness_checkout_and_resolver_use_explicit_binding"
+    )
+    real = _item(real_base + "@real-repo", markers=(pytest.mark.xdist_group("real-repo").mark,))
+    deselected = _item("orchestrator/tests/test_pairing_probe.py::test_deselected")
+    for item in (growth, flaky, real, deselected):
+        item.name = item.nodeid.split("::")[-1].split("@", 1)[0]
+        item.originalname = item.name
+    ledger.update({growth.nodeid: .3, flaky.nodeid: .2, real_base: .1})
+    items = [*initial, growth, flaky, real, deselected]
+    config = _OptionConfig(dist="loadgroup", numprocesses=48)
+    config.workerinput = {"workerid": "gw7"}
+    config.args = ["orchestrator/tests/test_pairing_probe.py"]
+    setattr(config, CONF._ACCEPTANCE_DURATION_LEDGER_CONFIG_ATTR, ledger)
+    wrapper = CONF.pytest_collection_modifyitems(config, items)
+    assert next(wrapper) is None
+    assert list(growth.iter_markers("skip"))
+    assert list(flaky.iter_markers("skip"))
+    assert "growth_hold_node_id" in dict(growth.user_properties)
+    assert "flaky_hold_node_id" in dict(flaky.user_properties)
+    items.remove(deselected)
+    selected = frozenset(id(item) for item in items)
+    config._izanagi_acceptance_shard_state = {"selected": selected}
+    before = _semantic_snapshot(items)
+    with pytest.raises(StopIteration):
+        next(wrapper)
+    assert frozenset(map(id, items)) == selected
+    assert config._izanagi_acceptance_shard_state == {"selected": selected}
+    assert real.nodeid == real_base
+    assert [mark.args for mark in real.iter_markers("xdist_group")] == [("real-repo",)]
+    for item in items:
+        after = _semantic_snapshot([item])[id(item)]
+        assert after["markers"] == before[id(item)]["markers"]
+        assert after["keywords"] == before[id(item)]["keywords"]
+        properties = tuple((key, value) for key, value in item.user_properties
+                           if not key.startswith(_PAIRING_PREFIX))
+        assert properties == before[id(item)]["user_properties"]
+        assert sum(key.startswith(_PAIRING_PREFIX) for key, _ in item.user_properties) == (
+            4 if enabled else 0
+        )
+
+
+def test_g12_real_distribution_second_unit_counterexample(monkeypatch):
+    monkeypatch.setenv(_PAIRING_ENV, _PAIRING_TOKEN)
+    items, ledger = _pairing_fixture()
+    result = _run_collection_wrapper_arm(48, items, ledger)
+    collection = result["after_nodeids"]
+    scheduler = LoadGroupScheduling(_SchedulerConfig(48))
+    nodes = [_PairingRecordingNode(i) for i in range(48)]
+    for node in nodes:
+        scheduler.add_node(node)
+        scheduler.add_node_collection(node, collection)
+    scheduler.schedule()
+
+    def assigned_scopes(node):
+        return [collection[batch[0]].rsplit("@", 1)[1] for batch in node.sent]
+
+    partner_scopes = {f"u{i:03d}" for i in range(72, 120)}
+    assert [len(batch) for batch in nodes[0].sent] == [3]
+    assert assigned_scopes(nodes[0]) == ["u000"]
+    assert assigned_scopes(nodes[1]) == ["u001", "u119"]
+    for node in nodes[2:]:
+        assert len(node.sent[0]) == 1
+        assert assigned_scopes(node)[1] in partner_scopes
+    # A singleton consumes the last partner before the three-item worker
+    # reports its first completion; that worker's second unit is then rest.
+    scheduler.mark_test_complete(nodes[2], nodes[2].sent[0][0])
+    assert assigned_scopes(nodes[2])[2] == "u072"
+    scheduler.mark_test_complete(nodes[0], nodes[0].sent[0][0])
+    assert assigned_scopes(nodes[0]) == ["u000", "u048"]
+    assert assigned_scopes(nodes[0])[1] not in partner_scopes
+    scheduler.mark_test_complete(nodes[1], nodes[1].sent[0][0])
+    assert assigned_scopes(nodes[1]) == ["u001", "u119", "u049"]
+    assert assigned_scopes(nodes[1])[2] not in partner_scopes
+
+
 def _run() -> int:
     """Keep this test file inside the repository plain-runner contract."""
     return int(pytest.main([__file__, "-q"]))

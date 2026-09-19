@@ -6257,6 +6257,26 @@ def test_task_kind_enum_is_closed_and_unknown_task_is_setup_infra_rc(tmp_path):
     assert raised.value.code == 2
 
 
+def test_tests_task_env_allowlist_carries_pairing_token(tmp_path):
+    root = tmp_path / "dispatch"
+    rc = DC.dispatch(
+        ["orchestrator/tests/test_sample.py", "-q"],
+        task="tests", repo_root=_REPO, output_root=root,
+        environ={
+            "PATH": os.environ.get("PATH", ""),
+            "IZANAGI_ACCEPTANCE_PAIRING_V1": "t2766-min-cost-partners",
+            "IZANAGI_UNLISTED": "must-not-propagate",
+        },
+        run_command=_Scheduler(), clock=_Clock(),
+        sleep=lambda _seconds: None, poll_interval_s=5, nonce="pairing-transport",
+    )
+    assert rc == 0
+    request = json.loads((root / "pairing-transport" / "request.json").read_text())
+    assert request["environment"] == {
+        "IZANAGI_ACCEPTANCE_PAIRING_V1": "t2766-min-cost-partners",
+    }
+
+
 def test_tests_task_env_allowlist_is_exact():
     assert DC.TASKS["tests"].env_allowlist == frozenset({
         "PYTEST_ADDOPTS",
@@ -6266,6 +6286,7 @@ def test_tests_task_env_allowlist_is_exact():
         "IZANAGI_TASK_RUN_AUTO_RECORD",
         "PYTHONDONTWRITEBYTECODE",
         "IZANAGI_RUN_GROWTH_HELD_TESTS",
+        "IZANAGI_ACCEPTANCE_PAIRING_V1",
     })
 
 

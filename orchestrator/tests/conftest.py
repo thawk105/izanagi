@@ -1019,6 +1019,11 @@ _ACCEPTANCE_DURATION_LEDGER_WORKERINPUT_KEY = (
 # loadscope.schedule() synchronously gives 48 workers one unit and then one
 # prefetched unit via _reschedule(), so the initial distribution window is 96.
 _ACCEPTANCE_INITIAL_DISTRIBUTION_UNITS = 48 * 2
+# T-2766 measurement opt-in, off by default; adoption needs a separate ruling.
+_ACCEPTANCE_PAIRING_ENV = "IZANAGI_ACCEPTANCE_PAIRING_V1"
+_ACCEPTANCE_PAIRING_TOKEN = "t2766-min-cost-partners"
+_ACCEPTANCE_PAIRING_PROPERTY_PREFIX = "izanagi_acceptance_pairing_v1"
+_ACCEPTANCE_PAIRING_HEAD_UNITS = _ACCEPTANCE_INITIAL_DISTRIBUTION_UNITS // 2
 _COLLECTION_NARROWING_OPTIONS = frozenset({"--ignore", "--ignore-glob", "--pyargs"})
 _RUNNER_EXCLUSION_ENV = (
     None if _SELECTION_CONTRACT is None
@@ -1780,7 +1785,55 @@ def _replace_acceptance_items(items, reordered) -> None:
         )
 
 
-def _reorder_acceptance_items_by_duration(items, durations) -> bool:
+def _acceptance_pairing_opted_in() -> bool:
+    value = os.environ.get(_ACCEPTANCE_PAIRING_ENV)
+    if value in (None, ""):
+        return False
+    if value != _ACCEPTANCE_PAIRING_TOKEN:
+        raise pytest.UsageError(
+            f"{_ACCEPTANCE_PAIRING_ENV} must be exactly "
+            f"{_ACCEPTANCE_PAIRING_TOKEN!r}, empty, or unset"
+        )
+    return True
+
+
+def _pair_initial_distribution_units(ordered_units, unknown_cost) -> list:
+    realized = sorted(ordered_units, key=lambda unit: -len(unit["items"]))
+    if len(realized) < _ACCEPTANCE_INITIAL_DISTRIBUTION_UNITS:
+        return ordered_units
+    width = _ACCEPTANCE_PAIRING_HEAD_UNITS
+    candidates = list(enumerate(realized[width:], start=width))
+    partners = sorted(
+        candidates,
+        key=lambda entry: (
+            entry[1]["cost"] if entry[1]["known"] else unknown_cost,
+            entry[0],
+        ),
+    )[:width]
+    partner_positions = {position for position, _unit in partners}
+    paired = (
+        realized[:width]
+        + [unit for _position, unit in partners]
+        + [unit for position, unit in candidates if position not in partner_positions]
+    )
+
+    def scopes(units):
+        return [
+            _acceptance_loadgroup_scope(str(unit["items"][0].nodeid))
+            for unit in units
+        ]
+
+    if scopes(sorted(paired, key=lambda unit: -len(unit["items"]))) != scopes(paired):
+        raise pytest.UsageError(
+            "acceptance pairing infeasible: cardinality reorder would change the intended queue"
+        )
+    for rank, unit in enumerate(paired):
+        unit["pairing_rank"] = rank
+        unit["pairing_partner"] = width <= rank < 2 * width
+    return paired
+
+
+def _reorder_acceptance_items_by_duration(items, durations, workerid="") -> bool:
     """Order loadgroup work units by descending known or policy-default cost."""
     if not durations:
         return False
@@ -1827,7 +1880,20 @@ def _reorder_acceptance_items_by_duration(items, durations) -> bool:
             unit["index"],
         ),
     )
-    reordered = [item for unit in ordered_units for item in unit["items"]]
+    if _acceptance_pairing_opted_in():
+        ordered_units = _pair_initial_distribution_units(ordered_units, unknown_cost)
+    reordered = []
+    for unit in ordered_units:
+        for item in unit["items"]:
+            if "pairing_rank" in unit:
+                prefix = _ACCEPTANCE_PAIRING_PROPERTY_PREFIX
+                item.user_properties.extend((
+                    (prefix + "_scope", _acceptance_loadgroup_scope(str(item.nodeid))),
+                    (prefix + "_rank", str(unit["pairing_rank"])),
+                    (prefix + "_partner", "1" if unit["pairing_partner"] else "0"),
+                    (prefix + "_worker", workerid),
+                ))
+            reordered.append(item)
     _replace_acceptance_items(items, reordered)
     return True
 
@@ -2279,7 +2345,13 @@ def pytest_collection_modifyitems(config, items):
             raise pytest.UsageError(
                 "acceptance duration ledger が collection hook に配線されていない"
             )
-        _reorder_acceptance_items_by_duration(items, durations)
+        if _acceptance_pairing_opted_in():
+            _reorder_acceptance_items_by_duration(
+                items, durations,
+                workerid=getattr(config, "workerinput", {}).get("workerid", ""),
+            )
+        else:
+            _reorder_acceptance_items_by_duration(items, durations)
 
 
 @pytest.hookimpl(wrapper=True, tryfirst=True)
