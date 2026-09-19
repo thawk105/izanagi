@@ -14,6 +14,7 @@ from orchestrator.tests.s8b_v2_freeze_fixture import sealed_source_protection_fi
 import contextlib
 import dataclasses
 import datetime as dt
+import fcntl
 import hashlib
 import json
 import os
@@ -22,6 +23,8 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
+import uuid
 from collections import UserDict
 from pathlib import Path
 from types import SimpleNamespace
@@ -56,6 +59,7 @@ import s8b_v2_freeze_fixture as V2FIX  # noqa: E402
 from test_schema_v2 import _valid_document as _valid_calibration_v2_document  # noqa: E402
 
 _REAL_V1 = Path(_ROOT) / "output" / "s8b-freeze" / "holdout_freeze.json"
+_EMITTER_MEMO_PROCESS_TOKEN = uuid.uuid4().hex
 
 _ATTEMPT_REGISTRY_PROOF_KEYS = (
     "schema", "registry_schema", "freeze_sha256", "protocol_sha256",
@@ -998,6 +1002,75 @@ def _run_official_fixture_campaign(
         )
 
 
+def _emitter_memo_parent(tmp_path: Path) -> Path | None:
+    # The key isolates sessions even with nested paths or an outer custom basetemp.
+    for parent in (tmp_path, *tmp_path.parents):
+        if (re.fullmatch(r"pytest-[0-9]+", parent.name)
+                and parent.parent.name.startswith("pytest-of-")
+                and parent.is_dir()):
+            return parent / "izanagi-emitter-memo"
+    return None
+
+
+def _emitter_memo_key(*, now, selector_valid_cell, selector_payload_hit,
+                      perf_available, compiler_input_rel, cert_at_generation):
+    key = [os.path.realpath(_ROOT), now.isoformat(), selector_valid_cell,
+           selector_payload_hit, perf_available, compiler_input_rel,
+           cert_at_generation,
+           os.environ.get("PYTEST_XDIST_TESTRUNUID") or _EMITTER_MEMO_PROCESS_TOKEN]
+    return key, hashlib.sha256(_json_bytes(key)).hexdigest()
+
+
+def _emitter_git_bytes(root: Path, *args: str) -> bytes:
+    return subprocess.run(
+        ["git", "-c", "core.autocrlf=false", *args], cwd=root, check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        env={**os.environ, **_FIXED_GIT_ENV},
+    ).stdout
+
+
+def _emitter_repo_status(root: Path) -> dict[str, str]:
+    # Preserve porcelain bytes, including leading spaces and final newline.
+    return {rel: _emitter_git_bytes(root / rel, "status", "--porcelain").hex()
+            for rel in (".", "external/ccbench")}
+
+
+def _copy_emitter_memo(memo_repo: Path, root: Path, status: dict) -> None:
+    shutil.copytree(memo_repo, root, symlinks=True)
+    for rel in (".", "external/ccbench"):
+        _emitter_git_bytes(root / rel, "update-index", "-q", "--refresh")
+    assert _emitter_repo_status(root) == status, "emitter memo copy status changed"
+
+
+def _materialize_emitter_memo(parent: Path | None, digest: str, key: list,
+                              root: Path, build) -> dict:
+    if parent is None:
+        return build()
+    parent.mkdir(parents=True, exist_ok=True)
+    entry = parent / digest
+    with (parent / f"{digest}.lock").open("a+b") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        marker = entry / "complete.json"
+        if not marker.is_file():
+            # Interrupted construction never becomes a reusable fixture.
+            if entry.exists():
+                shutil.rmtree(entry)
+            entry.mkdir()
+            metadata = build()
+            metadata["key"] = key
+            metadata["status"] = _emitter_repo_status(root)
+            memo_repo = entry / "repo"
+            shutil.copytree(root, memo_repo, symlinks=True)
+            pending = entry / "complete.pending"
+            pending.write_text(json.dumps(metadata, ensure_ascii=False), encoding="utf-8")
+            os.replace(pending, marker)
+        else:
+            metadata = json.loads(marker.read_bytes())
+            assert metadata["key"] == key, "emitter memo key mismatch"
+            _copy_emitter_memo(entry / "repo", root, metadata["status"])
+        return metadata
+
+
 def build_production_emitter_g1(
         tmp_path: Path, *, mutate=None, mutate_g1=None, extra_closure=None,
         journal_manifest_before_g=False, executable_role=None,
@@ -1020,90 +1093,116 @@ def build_production_emitter_g1(
     if mutate_attempt_registry is not None and result_schema != FC.RESULT_SCHEMA_V5:
         raise ValueError("attempt registry mutation requires result v5")
     root = tmp_path / "repo" if receipt_root is None else Path(receipt_root)
-    if receipt_root is None:
-        v1, ccbench_pin, base, design_raw, generator_raw = _prepare_emitter_base(
-            root, selector_valid_cell=selector_valid_cell,
-            selector_extra_files=selector_extra_files,
-            selector_payload_hit=selector_payload_hit,
+
+    def build_prefix():
+        if receipt_root is None:
+            v1, ccbench_pin, base, design_raw, generator_raw = _prepare_emitter_base(
+                root, selector_valid_cell=selector_valid_cell,
+                selector_extra_files=selector_extra_files,
+                selector_payload_hit=selector_payload_hit,
+            )
+        else:
+            # T-080 R already exists. Preserve its basis, source closure and ccbench pin.
+            # All acceptance inputs must come from this shared-base copy, never the
+            # live parent repo. Check before installing selector evidence so its
+            # ordinary-fixture fallback cannot run on the receipt connection path.
+            calibration_path = EC.lookup("linux-baremetal").calibration_ref.path
+            for relative in (calibration_path, *_PREDICTION_SOURCE_PATHS.values(),
+                             _PREDICTION_PARSER_PATH):
+                assert (root / relative).is_file(), f"receipt base missing input: {relative}"
+            assert not (root / _gen_rel(1)).exists()
+            assert not (root / "output/s8b-freeze/selector_predictions.json").exists()
+            v1 = json.loads((root / M.V1_FREEZE_PATH).read_bytes())
+            ccbench_pin = _fixed_git(root / "external/ccbench", "rev-parse", "HEAD")
+            compiler_input_entry = _fixed_git(
+                root / "external/ccbench", "ls-tree", ccbench_pin, "--", compiler_input_rel,
+            )
+            assert compiler_input_entry.split("\t")[-1] == compiler_input_rel
+            assert compiler_input_entry.split()[0] in {"100644", "100755"}
+            assert compiler_input_entry.split()[1] == "blob"
+            design_raw = (root / v1["design_source"]["path"]).read_bytes()
+            generator_raw = (root / v1["generator"]["path"]).read_bytes()
+            _write(root, calibration_path, (root / calibration_path).read_bytes())
+            _write(root, FLOOR._FLOOR_PROTOCOL_REL, FLOOR._canonical_bytes(
+                _emitter_protocol(ccbench_pin=ccbench_pin),
+            ))
+            seed = _fixed_commit_all(root, "receipt emitter seed", "fixture")
+            _install_emitter_selector_prediction(root, pre_oracle_head=seed)
+            base = _fixed_commit_all(root, "receipt emitter base", "fixture")
+        protocol = _emitter_protocol(ccbench_pin=ccbench_pin)
+        verified = VerifiedFreeze(document=v1, sha256=M.V1_FREEZE_SHA256)
+        out_root = root / "output"
+        _fixed_prepare.ccbench_dir = str(root / "external" / "ccbench")
+        _fixed_prepare.cache_root = str(out_root / "prepared-cache")
+        checkpoint = {}
+
+        def commit_certificate(cert_path: Path):
+            rel = cert_path.relative_to(root).as_posix()
+            if cert_at_generation:
+                checkpoint["C"] = base
+                return
+            checkpoint["C"] = _commit_exact(
+                root, [rel], subject="launch certificate", agent="fixture",
+            )
+
+        def payload_hit_preflight(repo_root: Path, **_kwargs) -> dict[str, str]:
+            paths = set(FLOOR._PREFLIGHT_FIXED_FILES)
+            paths.update(
+                path.relative_to(repo_root).as_posix()
+                for path in (repo_root / FLOOR._SELECTOR_RUNS_REL).iterdir()
+                if path.is_file() and not path.is_symlink()
+            )
+            return {
+                rel: hashlib.sha256((repo_root / rel).read_bytes()).hexdigest()
+                for rel in paths
+            }
+
+        outcome = _run_official_fixture_campaign(
+            protocol, verified, out_root=out_root,
+            measure_fn=(_emitter_measure if perf_available else _emitter_measure_degraded),
+            perf_receipt=_perf_receipt(available=perf_available),
+            probe_fn=lambda: (1, "", ""),
+            sleep_fn=lambda _seconds: None, monotonic_fn=lambda: 0.0,
+            prepare_fn=_fixed_prepare, now_fn=lambda: now,
+            host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
+            execution_receipt_fn=_fixed_receipt,
+            build_fn=_make_emitter_build(compiler_input_rel=compiler_input_rel),
+            verified_calibration=_verified_calibration_v2_fixture(),
+            repo_root=root, after_certificate_issued_fn=commit_certificate,
+            durable_root_policy=DurableRootPolicy(
+                approved_roots=(root.resolve(),), forbidden_roots=(),
+            ),
+            _floor_preflight_fn=(payload_hit_preflight if selector_payload_hit else None),
         )
-    else:
-        # T-080 R already exists. Preserve its basis, source closure and ccbench pin.
-        # All acceptance inputs must come from this shared-base copy, never the
-        # live parent repo. Check before installing selector evidence so its
-        # ordinary-fixture fallback cannot run on the receipt connection path.
-        calibration_path = EC.lookup("linux-baremetal").calibration_ref.path
-        for relative in (calibration_path, *_PREDICTION_SOURCE_PATHS.values(),
-                         _PREDICTION_PARSER_PATH):
-            assert (root / relative).is_file(), f"receipt base missing input: {relative}"
-        assert not (root / _gen_rel(1)).exists()
-        assert not (root / "output/s8b-freeze/selector_predictions.json").exists()
-        v1 = json.loads((root / M.V1_FREEZE_PATH).read_bytes())
-        ccbench_pin = _fixed_git(root / "external/ccbench", "rev-parse", "HEAD")
-        compiler_input_entry = _fixed_git(
-            root / "external/ccbench", "ls-tree", ccbench_pin, "--", compiler_input_rel,
-        )
-        assert compiler_input_entry.split("\t")[-1] == compiler_input_rel
-        assert compiler_input_entry.split()[0] in {"100644", "100755"}
-        assert compiler_input_entry.split()[1] == "blob"
-        design_raw = (root / v1["design_source"]["path"]).read_bytes()
-        generator_raw = (root / v1["generator"]["path"]).read_bytes()
-        _write(root, calibration_path, (root / calibration_path).read_bytes())
-        _write(root, FLOOR._FLOOR_PROTOCOL_REL, FLOOR._canonical_bytes(
-            _emitter_protocol(ccbench_pin=ccbench_pin),
-        ))
-        seed = _fixed_commit_all(root, "receipt emitter seed", "fixture")
-        _install_emitter_selector_prediction(root, pre_oracle_head=seed)
-        base = _fixed_commit_all(root, "receipt emitter base", "fixture")
+        return {
+            "v1": v1, "ccbench_pin": ccbench_pin, "base": base,
+            "checkpoint": checkpoint, "design_raw": design_raw.hex(),
+            "generator_raw": generator_raw.hex(),
+            "run_dir": Path(outcome["run_dir"]).relative_to(root).as_posix(),
+            "source_paths": [str(tmp_path), str(root), str(out_root)],
+        }
+
+    key, digest = _emitter_memo_key(
+        now=now, selector_valid_cell=selector_valid_cell,
+        selector_payload_hit=selector_payload_hit, perf_available=perf_available,
+        compiler_input_rel=compiler_input_rel, cert_at_generation=cert_at_generation,
+    )
+    memo_parent = (None if receipt_root is not None or selector_valid_cell
+                   or selector_payload_hit else _emitter_memo_parent(tmp_path))
+    metadata = _materialize_emitter_memo(memo_parent, digest, key, root, build_prefix)
+    v1, ccbench_pin, base = metadata["v1"], metadata["ccbench_pin"], metadata["base"]
+    checkpoint = metadata["checkpoint"]
+    design_raw = bytes.fromhex(metadata["design_raw"])
+    generator_raw = bytes.fromhex(metadata["generator_raw"])
     protocol = _emitter_protocol(ccbench_pin=ccbench_pin)
-    verified = VerifiedFreeze(document=v1, sha256=M.V1_FREEZE_SHA256)
     out_root = root / "output"
     _fixed_prepare.ccbench_dir = str(root / "external" / "ccbench")
     _fixed_prepare.cache_root = str(out_root / "prepared-cache")
-    checkpoint = {}
-
-    def commit_certificate(cert_path: Path):
-        rel = cert_path.relative_to(root).as_posix()
-        if cert_at_generation:
-            checkpoint["C"] = base
-            return
-        checkpoint["C"] = _commit_exact(
-            root, [rel], subject="launch certificate", agent="fixture",
-        )
-
-    def payload_hit_preflight(repo_root: Path, **_kwargs) -> dict[str, str]:
-        paths = set(FLOOR._PREFLIGHT_FIXED_FILES)
-        paths.update(
-            path.relative_to(repo_root).as_posix()
-            for path in (repo_root / FLOOR._SELECTOR_RUNS_REL).iterdir()
-            if path.is_file() and not path.is_symlink()
-        )
-        return {
-            rel: hashlib.sha256((repo_root / rel).read_bytes()).hexdigest()
-            for rel in paths
-        }
-
-    outcome = _run_official_fixture_campaign(
-        protocol, verified, out_root=out_root,
-        measure_fn=(_emitter_measure if perf_available else _emitter_measure_degraded),
-        perf_receipt=_perf_receipt(available=perf_available),
-        probe_fn=lambda: (1, "", ""),
-        sleep_fn=lambda _seconds: None, monotonic_fn=lambda: 0.0,
-        prepare_fn=_fixed_prepare, now_fn=lambda: now,
-        host_provenance_fn=_fixed_host, process_identity_fn=_fixed_process,
-        execution_receipt_fn=_fixed_receipt,
-        build_fn=_make_emitter_build(compiler_input_rel=compiler_input_rel),
-        verified_calibration=_verified_calibration_v2_fixture(),
-        repo_root=root, after_certificate_issued_fn=commit_certificate,
-        durable_root_policy=DurableRootPolicy(
-            approved_roots=(root.resolve(),), forbidden_roots=(),
-        ),
-        _floor_preflight_fn=(payload_hit_preflight if selector_payload_hit else None),
-    )
+    run_dir = root / metadata["run_dir"]
     selector_mutation_paths = []
     for relative, raw in selector_extra_files:
         _write(root, relative, raw)
         selector_mutation_paths.append(relative)
-    run_dir = Path(outcome["run_dir"])
     paths = _emitter_artifact_paths(run_dir, root)
     state = {
         "protocol": protocol,
@@ -1274,13 +1373,69 @@ def build_production_emitter_g1(
     topology["mode_map"] = _fixed_mode_map(root, x_commit, [
         *bound_mode_paths, gen_path, approval_path, pointer_path,
     ])
-    needles = (str(tmp_path).encode(), str(root).encode(), str(out_root).encode())
+    needles = tuple(path.encode() for path in (
+        str(tmp_path), str(root), str(out_root), *metadata["source_paths"],
+    ))
     _assert_no_root_bytes(
         (cert_raw, manifest_raw, journal_raw, result_raw, gen_raw,
          approval_raw, pointer_raw),
         needles,
     )
     return root, gen_sha, gen_path, g1, topology
+
+
+@in_sealed_fixture_process
+def test_emitter_memo_copy_matches_fresh_build(tmp_path):
+    # Isolate the memo even when the runner supplies a custom --basetemp.
+    session = tmp_path / "pytest-of-emitter-check" / "pytest-0"
+    session.mkdir(parents=True)
+    key, digest = _emitter_memo_key(
+        now=_FIXED_NOW, selector_valid_cell=False, selector_payload_hit=False,
+        perf_available=True, compiler_input_rel="fixture.txt", cert_at_generation=False,
+    )
+    memo_parent = _emitter_memo_parent(session / "seed")
+    assert memo_parent is not None
+
+    def snapshot(built):
+        root, gen_sha, gen_path, g1, topology = built
+        repos = {}
+        for rel in (".", "external/ccbench"):
+            repo = root / rel
+            entries = _emitter_git_bytes(repo, "ls-files", "-s", "-z")
+            tracked = {}
+            for row in entries.split(b"\0"):
+                if not row:
+                    continue
+                info, name = row.split(b"\t", 1)
+                mode, _sha, stage = info.split()
+                assert stage == b"0"
+                if mode == b"160000":
+                    continue  # Compare the nested repository separately.
+                path = repo / os.fsdecode(name)
+                raw = (os.fsencode(os.readlink(path)) if path.is_symlink()
+                       else path.read_bytes())
+                tracked[name] = raw
+            repos[rel] = (_emitter_git_bytes(repo, "rev-parse", "HEAD"),
+                          _emitter_git_bytes(repo, "status", "--porcelain"),
+                          entries, tracked)
+        return repos, gen_sha, gen_path, g1, topology
+
+    # A plain tempfile path bypasses memo without replacing any mechanism.
+    with tempfile.TemporaryDirectory(prefix="izanagi-emitter-fresh-", dir="/tmp") as fresh:
+        assert _emitter_memo_parent(Path(fresh)) is None
+        expected = snapshot(build_production_emitter_g1(Path(fresh)))
+        assert snapshot(build_production_emitter_g1(session / "seed")) == expected
+        marker = memo_parent / digest / "complete.json"
+        completed = marker.read_bytes()
+        assert json.loads(completed)["key"] == key
+        assert snapshot(build_production_emitter_g1(session / "copy")) == expected
+        assert marker.read_bytes() == completed
+        marker.unlink()
+        debris = memo_parent / digest / "interrupted"
+        debris.write_bytes(b"must be removed")
+        assert snapshot(build_production_emitter_g1(session / "rebuilt")) == expected
+        assert marker.is_file()
+        assert not debris.exists()
 
 
 def load_emitter_g1(tmp_path: Path, **kwargs):

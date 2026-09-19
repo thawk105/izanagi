@@ -11382,8 +11382,9 @@ def test_axis_driver_source_rel_within_edit_surface():
     軸取り違え (例: sort driver が backoff.hh を指す) を全通しする (段 6 RA-2) ため、
     driver ごとの期待値を literal pin する。取り違えると driver は marker 不在の
     ソースを読み malformed reject に落ち、certified 受理集合が全 reject に縮む。"""
-    from orchestrator.campaign import axis_trigger_gating, p3_s4_loop, p3_s4_loop_sort
+    from orchestrator.campaign import axis_mocc_temperature, axis_trigger_gating, p3_s4_loop, p3_s4_loop_sort
     expected = [
+        (axis_mocc_temperature, "cc/mocc/transaction.cc"),
         (p3_s4_loop, "include/backoff.hh"),          # 段 4 backoff 軸
         (p3_s4_loop_sort, "cc/silo/transaction.cc"),  # sort 軸 (D38)
         (axis_trigger_gating, "cc/silo/transaction.cc"),  # trigger-gating 軸

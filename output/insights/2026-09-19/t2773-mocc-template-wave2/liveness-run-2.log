@@ -1,0 +1,27 @@
+=== start 23:15:00 host=pegasus02 load=31.24 23.55 22.31 HEAD=2d76e785f
+patch mocc-temperature-predicate-variant sha256=229419efe1dffe87 lines=96
+patch instr-mocc-lock-coverage-temperature sha256=7e6c97bb4ad1cf40 lines=116
+patch instr-mocc-lock-coverage sha256=e9e65b7876050865 lines=116
+tree tmpl ok (mocc-temperature-predicate-variant)
+expected rc!=0: instr-mocc-lock-coverage does not apply (git apply --check) to tmpl: error: patch failed: cc/mocc/transaction.cc:11 error: cc/mocc/transaction.cc: patch does not apply
+expected rc!=0: instr-mocc-lock-coverage-temperature does not apply (git apply --check) to base: error: patch failed: cc/mocc/transaction.cc:30 error: cc/mocc/transaction.cc: patch does not apply
+marker begin=20 if=22 else=24 endif=26 end=27 hole_lines=1
+hole bytes match: True | block bytes match: True
+unique outer guard line: [17]
+built tmpl-off-t0 trace=0 pred=0 23:15:16 nm_izanagi=0 nm_mocc_is_hot=0 strings_izanagi_trace=0 sha=20abb518a26e5b07 text_lines=59856
+TEXT DIFFERS base-t0 vs tmpl-off-t0: 2 lines
+16754c16754
+< mov    $0x4a9,%r9d
+---
+> mov    $0x4cc,%r9d
+built tmpl-on-t1 trace=1 pred=1 23:15:27 nm_izanagi=14 nm_mocc_is_hot=0 strings_izanagi_trace=6 sha=3d63ae9a05778569 text_lines=60506
+built tmpl-on-t0 trace=0 pred=1 23:15:36 nm_izanagi=0 nm_mocc_is_hot=0 strings_izanagi_trace=0 sha=6ff3d301bacef6a0 text_lines=59856
+tree tmplb0 ok (mocc-temperature-predicate-variant)
+hole -> B in tmplb0
+built tmplb0-on-t0 trace=0 pred=1 23:15:46 nm_izanagi=0 nm_mocc_is_hot=0 strings_izanagi_trace=0 sha=081e52b839467890 text_lines=59856
+tree tmplbi ok (mocc-temperature-predicate-variant)
+hole -> B in tmplbi
+built tmplbi-on-t1 trace=1 pred=1 23:15:58 nm_izanagi=15 nm_mocc_is_hot=0 strings_izanagi_trace=7 sha=c2aeaf334641e0ea text_lines=60696
+built tmplbi-on-t0 trace=0 pred=1 23:16:09 nm_izanagi=0 nm_mocc_is_hot=0 strings_izanagi_trace=0 sha=627e2a4ffa2f01c0 text_lines=59856
+TEXT IDENTICAL tmplb0-on-t0 vs tmplbi-on-t0 (59854 lines)
+=== end 23:16:09 rc=0
