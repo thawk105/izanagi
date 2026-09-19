@@ -12,6 +12,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+from types import SimpleNamespace
 
 import pytest
 
@@ -42,9 +43,69 @@ def test_condition_family_dominates_stock_build_and_includes_companion_macro():
     assert "configure_argv=configure" in correctness
     assert '("BACKOFF_FIXED", -1, None, True)' in gate
     assert "(REPORT_MACRO, 1, 0, False)" in gate
+    assert "declare_define_runtime_meaning(request)" in gate
+    assert "declaration=None" not in gate
     configure = inspect.getsource(driver._configure_argv)
     assert '"-DCCBENCH_BACKOFF_FIXED=-1"' in configure
     assert '"-DBACKOFF_FIXED=-1"' not in configure
+
+
+def test_condition_gates_pass_real_factory_declarations_to_evaluator(monkeypatch, tmp_path):
+    gate = driver.condition_meaning_gate
+    patched_source = tmp_path / "patched"
+    stock_source = tmp_path / "stock"
+    for source in (patched_source, stock_source):
+        source.mkdir()
+        (source / "CMakeLists.txt").write_text("# fixture\n", encoding="utf-8")
+    tools = {"cmake": "/fixture/cmake", "g++": "/fixture/g++"}
+    captured = object()
+    observed = []
+    record = SimpleNamespace(canonical_json=lambda: "{}")
+
+    def capture(source, *, stock_root, configure_args):
+        assert source == patched_source
+        assert stock_root == stock_source
+        return captured
+
+    def observe_meaning(inputs, *, request, declaration, cxx):
+        assert inputs is captured
+        assert cxx == tools["g++"]
+        observed.append((request, declaration))
+        return record
+
+    monkeypatch.setattr(gate, "capture_define_inputs", capture)
+    monkeypatch.setattr(
+        gate, "evaluate_define_supply_effectuation", lambda *args, **kwargs: record,
+    )
+    monkeypatch.setattr(gate, "evaluate_define_runtime_meaning", observe_meaning)
+    monkeypatch.setattr(
+        gate, "require_condition_gate_family",
+        lambda *args, **kwargs: SimpleNamespace(admitted=True, canonical_json=lambda: "{}"),
+    )
+
+    driver._require_condition_gates(
+        patched_source=patched_source,
+        stock_source=stock_source,
+        tools=tools,
+        configure_argv=[
+            tools["cmake"], "-S", str(patched_source), "-B", str(tmp_path / "build"),
+            "-DCCBENCH_BACKOFF_FIXED=-1",
+            "-DCMAKE_CXX_FLAGS=-DIZANAGI_SILO_LADDER_RUNG1=1 "
+            "-DIZANAGI_SILO_LADDER_RUNG1_REPORT=1",
+        ],
+    )
+
+    assert [request.macro for request, _ in observed] == [
+        "BACKOFF_FIXED", driver.RUNG_MACRO, driver.REPORT_MACRO,
+    ]
+    (backoff, backoff_declaration), (_, rung_declaration), (report, declaration) = observed
+    assert backoff.requested_value == -1
+    assert backoff.stock_comparison is True
+    assert backoff_declaration is None
+    assert rung_declaration is None
+    assert type(declaration) is gate.ConditionalBranchMeaningDeclaration
+    assert declaration.macro == report.macro == "IZANAGI_SILO_LADDER_RUNG1_REPORT"
+    assert declaration.source_rel == "cc/silo/ycsb_silo.cc"
 
 
 def _text_fixture(name: str) -> str:

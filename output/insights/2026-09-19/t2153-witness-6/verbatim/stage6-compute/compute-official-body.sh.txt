@@ -1,0 +1,33 @@
+#!/bin/bash
+# 計算ノード上で実行される本体 (generic dispatch の argv)。最終 production 登録簿 (wave 7cc76d98b) の CLI を
+# official 同形供給 (env CMAKE_PREFIX_PATH + FETCHCONTENT_BASE_DIR + SOURCE_DIR x3) で SORT / REPORT の順に実走する。
+set -u
+out=/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2153-witness-6/stage6-compute
+mkdir -p "$out"
+base=/work/1/SFC/tanab/dev-wave-scratch/t2153-witness-6-20260919/fetchcontent-base-compute
+mkdir -p "$base"
+export CMAKE_PREFIX_PATH=/work/SFC/tanab/ss2pl-study-deps/gflags-install:/work/SFC/tanab/ss2pl-study-deps/glog-install
+hostname > "$out/host.txt"
+date "+%Y-%m-%dT%H:%M:%S%z" >> "$out/host.txt"
+rc_all=0
+for pair in "sort:SORT_VARIANT:ccbench-511c953-sort" "report:IZANAGI_SILO_LADDER_RUNG1_REPORT:ccbench-511c953-rung1"; do
+  tag=${pair%%:*}
+  rest=${pair#*:}
+  macro=${rest%%:*}
+  tree=${rest#*:}
+  python3 -m orchestrator.campaign.condition_meaning_gate \
+    --source-root "/work/1/SFC/tanab/dev-wave-scratch/t2153-witness-6-20260919/$tree" \
+    --driver-id "t2153.stage6.compute.$tag" \
+    --macro "$macro" --requested-value 1 --default-value 0 \
+    --cxx /usr/bin/x86_64-linux-gnu-g++-11 --cmake /usr/bin/cmake \
+    --use-class certified-selection \
+    "--configure-arg=-DFETCHCONTENT_BASE_DIR=$base" \
+    "--configure-arg=-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/work/1/SFC/tanab/izanagi-thirdparty-cache/masstree" \
+    "--configure-arg=-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/work/1/SFC/tanab/izanagi-thirdparty-cache/mimalloc" \
+    "--configure-arg=-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/work/1/SFC/tanab/izanagi-thirdparty-cache/googletest" \
+    > "$out/$tag.stdout.jsonl" 2> "$out/$tag.stderr.txt"
+  rc=$?
+  echo "$tag rc=$rc" >> "$out/rc.txt"
+  if [ "$rc" -ne 0 ]; then rc_all=1; fi
+done
+exit "$rc_all"
