@@ -1278,6 +1278,43 @@ python3 tools/wave_land_window.py message --kind landed --wave "$W" --land-json 
 - **公平性は保証しない。** 待ち行列を消した以上、lease の取得順は競争であり先着順ではない。
   D662 はこれを承知の上で「止めないこと」を公平性より優先すると裁定した。
 
+#### 受入投入・再走の運用の所在 — repo に正本があるものと job dir にしか無いもの ([T-2789]、2026-09-20)
+
+受入の投入・再走に関わる運用は、**repo に正本があるもの**と、**各 wave が job dir へ手書きした script にしか無いもの**が
+混在している。後者は正本ではなく、operator が投入時刻を選ぶ手段である。棚卸しの一次資料 (script の本数・条件形の分岐・
+調停実測の相関と因果の分離・regime 差) は `output/insights/2026-09-20/t2789-acceptance-ops-inventory/README.md`。裁定は D2148 項 12。
+
+**repo に正本があるもの (本棚卸しに関係する正本):**
+
+| 事項 | 正本 |
+|---|---|
+| 待ち手の起動形・claim・取り込み・投入前後の検査・受領証 | 本節 §7.3 と `tools/dev_wave_wait.py acceptance` |
+| 投入後の live main 照合 (`postcheck`) | `tools/dev_wave_wait.py` (D2148 項 12 で変更しない) |
+| 受理の定義 | D690 |
+| 赤の判定主体と方法 | `DW-O18` |
+| 再走制限 | `DW-O18`、`DW-O27` |
+| 取り込み (post-claim merge)、同一 worktree の dispatch 直列 | `DW-O20`、`DW-C00`、`DW-O26` |
+| 待ち行列 (無い) | D662 |
+| 判定器 `tools/check_acceptance_reds.py` の位置づけ | D688、D690 |
+| t1259 fixture の走査 timeout | F945 (2026-09-20 supersede)、[T-2790] |
+
+**job dir にしか無いもの (正本なし。値は写した時点の助言値で、採用した裁定は無い):**
+
+| 事項 | 所在 |
+|---|---|
+| 門番 (他 wave の受入 leader 本数 ∧ 1 分 load で投入時刻を選ぶ sleep loop)、leader の数え方 | `dev-wave-jobs/*/run-acceptance-gated.sh` (条件形・attempt 上限は wave ごとに異なる。本数と分岐は insight §4) |
+| 自前の取り込み連結 (merge → provenance preflight → commit → 投入) | 同上。待ち手の post-claim merge と二重で、取り込み〜投入の競走の窓は消えない |
+| 再投入 loop (赤を文字列一致で分類して再投入する型、単独再走を挟む型) | 同上、`dev-wave-t2484-watchdog-segments/gate-acceptance-loop2.sh` + `classify_reds.py` |
+| 待ち行列の可視化 (門番・leader・land の本数を数える 3 コマンド) | insight §4 |
+
+**注意:**
+
+1. script の自動分類・自動再投入は `DW-O18` の判定 (人・AI が assertion 本文と差分実体で判定) を代替しない (F945 台帳の 2026-09-18 回収追補も同旨)。
+   script の attempt 上限は起動 1 回内の投入回数であり、同一 tip の再走回数を管理しない。script が再投入した attempt は、その判定を親が worklog に書く。
+2. 門番の条件値・周期・自動再投入の分岐は未採用である (D2148 項 12)。同時受入本数・load・他ユーザー process と赤の関係は相関にとどまる。
+   原因や成功を load や本数だけで断定しない。
+3. 2026-09-18 の調停実測は 252e24b4f 以前の regime の事実である。当時の件数を現行 regime の予測に使わない (insight §6)。
+
 ### 7.4 変異 harness の runner argv
 
 `tools/mutation_harness.py --runner-mode dispatch` は「runner が計算ノードへ投げる」ことを
