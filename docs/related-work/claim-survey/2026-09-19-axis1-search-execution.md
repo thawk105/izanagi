@@ -1,4 +1,4 @@
-# 2026-09-19 — 軸 1 検索の実行記録 — 新 epoch `AX1-20260902-E1` の OpenAlex、取得済み 78 leaf の全列挙と 2 本目論文への導線 (2026-09-18 (b) の追補、request 0 件)
+# 2026-09-19 — 軸 1 検索の実行記録 — 新 epoch `AX1-20260902-E1` の OpenAlex、登録 78 leaf の全列挙 (取得証拠あり 77・未走 1)と 2 本目論文への導線 (2026-09-18 (b) の追補、request 0 件)
 
 **これは実行記録であって、登録でも改訂でもない。** 登録の正本は
 `2026-09-02-axis1-search-amendment.md`、query program の正本は
@@ -17,7 +17,7 @@
 **本記録は request を 1 本も出さず、bundle にも触れず、検査器も再走していない。新しい裁定も反映していない。**
 先行記録 2 本 (2026-09-18 / 2026-09-18 (b)) は、材料の範囲を区分の**件数** (材料に数える 61・数えない 16・未走 1) と、
 `complete` 8 leaf・落ちた 16 leaf・未走 1 leaf の**名前**で持つが、pass 1 完了・2 走目は裁定で停止の 53 leaf は件数だけで名前を
-持たない。本記録は 2026-09-18 (b) の**追補**として、OpenAlex 78 leaf を 1 行 1 leaf で全列挙し (§2)、枝ごとの内訳 (§3)、
+持たない。本記録は 2026-09-18 (b) の**追補**として、OpenAlex の登録 78 leaf (取得証拠あり 77 + 未走 1) を 1 行 1 leaf で全列挙し (§2)、枝ごとの内訳 (§3)、
 限定 (§4)、未走 query (§5)、2 本目論文 (`docs/paper-story-backoff/`) が参考材料として引くときの読み方 (§6) を 1 か所に置く。
 数値・leaf 名・検査器の状態はすべて repo 内の凍結済み一次資料の逐語から採った (§0)。
 
@@ -30,7 +30,7 @@
 | 登録 commit | `4ec3eba04354f9ba86117a2dd488c72d007045e6` (1〜6 窓目・先行記録と同じ。本記録は登録検査を再走していない — request を出さず登録木を必要としないため) |
 | 導出元 commit (本記録が読んだ repo の版) | local main `657e1e5a7860a0ff77fd02ab37a6cb58b64cc78c` (本 wave の base)。下の入力 path はこの commit の blob そのものである |
 | 入力 path (1) — leaf の状態 | `output/insights/2026-09-17/t2035-axis1-openalex-window6/bundle-check.json` (SHA-256 `7a39126b35ee7981d2e2db48f3dc777c4bb6bf2985ae73c531197ecfc46f0bc1`、`status.leaf_diagnostics` の `@openalex` 78 件) と同 `leaf-states.txt` (SHA-256 `952bfd261c8e2dfe9b464667ddeaf304d75e3cb4fec1ec0a85363406a01f5aa7`)。6 窓目の走行後に検査器が出した出力で、2026-09-18 (b) §4 が bundle に対する offline 再走 (2026-09-18 10:41 JST) で byte 一致を確認したもの |
-| 入力 path (2) — 区分の区別 | `2026-09-18-axis1-search-execution.md` §3 (SHA-256 `f4c7f288…`)、`2026-09-18b-axis1-search-execution.md` §3・§4 (SHA-256 `63140879…`)、窓 4 の `output/insights/2026-09-08/t2090-axis1-openalex-window4/README.md` (`declared_total_drift` の 2 leaf)、窓 3 の `output/insights/2026-09-07/t2090-axis1-openalex-window3/cond5-detail.txt`・窓 5 / 6 の `evidence-detail.txt` (条件 5 で pass 1 が落ちた 5 leaf) |
+| 入力 path (2) — 区分の区別 | `2026-09-18-axis1-search-execution.md` §3 (SHA-256 `f4c7f2887f30440f1d0716d283f406d225c7c04085ea3b89ce5490620f89a3ab`)、`2026-09-18b-axis1-search-execution.md` §3・§4 (SHA-256 `631408794537d13532c0f4503f12c3ad910f64b1c53dd73835b891c4ecd2cc25`)、窓 4 の `output/insights/2026-09-08/t2090-axis1-openalex-window4/README.md` (`declared_total_drift` の 2 leaf)、窓 3 の `output/insights/2026-09-07/t2090-axis1-openalex-window3/cond5-detail.txt`・窓 5 / 6 の `evidence-detail.txt` (条件 5 で pass 1 が落ちた 5 leaf) |
 | catalog | `docs/related-work/claim-survey/2026-09-02-axis1-search-catalog.json` |
 | catalog SHA-256 | `8e23d63a799c8ab9d25151012c34bc738dbb422ac3dfb237999c359137c816ab` |
 | 文献 cutoff | `2026-12-31` |
@@ -44,17 +44,10 @@
 
 ## 1. 何を起動したか
 
-何も起動していない。
+何も起動していない。初回取得・中断 pass 1 の再開・独立 2 走目 (停止済み、D2120 項 14)・生死確認・件数 probe のいずれも 0 起動・0 request で、
+無償枠の残量は観測していない。
 
-| 区分 | 起動 | request | 結果 |
-|---|---|---|---|
-| 初回取得 (`--query-id`) | 0 | 0 | — |
-| 中断 pass 1 の再開 (`continue_cursor`) | 0 | 0 | — |
-| 独立 2 走目 (`--checkpoint`) | 0 | 0 | 停止済み (D2120 項 14) |
-| 生死確認・件数 probe | 0 | 0 | — |
-| 合計 | 0 | 0 | 無償枠の残量は観測していない |
-
-## 2. OpenAlex 78 leaf の全列挙
+## 2. OpenAlex の登録 78 leaf の全列挙 (取得証拠あり 77 + 未走 1)
 
 区分の意味 (件数は 2026-09-18 (b) §3 と同じ。**材料に数える leaf を 61 から増やしていない**):
 
@@ -223,8 +216,7 @@ bundle にあるため。必要なら上の引き方で bundle から読む。
 
 ## 7. 次に残るもの
 
-2026-09-18 (b) §5 のとおりで、本記録は何も足していない。独立 2 走目 53 本は起動しない、落ちた 16 leaf は据え置き、`Q6-SY2026` は未走のまま置く、
-OpenAlex 側で裁定待ちの leaf は無い、arXiv / DBLP は 0 request、候補判定の 5 層は未実装。
+2026-09-18 (b) §5 のとおりで、本記録は何も足しても減らしてもいない。
 
 ## 8. 凍結物への注記の限界 (D1208)
 
