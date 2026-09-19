@@ -93,7 +93,7 @@ D12 が定める機械射影の材料レポートではない (数値は一次�
 | 0.0417 | [T-2779] 通常 arm 5/120 (旧 witness source・別日・別 block の観測率) | 0 (完全抑制) | **0.105** |
 | 0.058 | [T-2774] witness off 3 arm 合算 7/120 (丸めた率。7/120 のままなら 0.272) | 0 (完全抑制) | 0.268 |
 | 0.119 | [T-1892] 5/42 | 0 (完全抑制) | 0.856 |
-| 0.0417 | 同上 | 0.014 (部分抑制) | 0.050 |
+| 0.0417 | [T-2779] 通常 arm 5/120 (1 行目と同じ出所) | 0.014 (部分抑制) | 0.050 |
 
 **適用条件:** 片側 Fisher の正確検定、α=.05、両 arm とも独立・同率の Bernoulli 試行、等標本 K=60、対立仮説は「on 率が off 率より低い」。on=0 のとき
 p<.05 になるのは off ≥5 のときだけである (off=4 で p=0.059、off=5 で 0.029)。node 内相関・回転順・時間変動はモデル化していない。
@@ -118,7 +118,7 @@ S の identity Counter = 標準 trace の W Counter、各 identity 1 件、C の
 |---|---|
 | outer repo | main `a99425b66` (wave worktree + detached worktree 3 本、同 base)。CCBench gitlink `511c9538` は動かしていない |
 | hook commit **W** | `5b02546fcd7b0302c8c92b6e05957541c9660902`、親 `e9e477ca1b55348ab4530de0b1cf663ce4555290`、tree `a41e6c54a43fb78044f3b8bd42ec7e4338476218`、branch `izanagi-t1943-mocc-g2-witlight`、touch = `cc/mocc/transaction.cc` +26/−6、include 行不変、`#line` 無し、author 日時 2026-09-19 22:23:41 JST。初版 `e0905b3d` (trailer 2 行) を 22:44 JST に message だけ amend (tree 不変)。trailer 3 行 = `role=author` (codex gpt-6-astra medium) / `role=reviewer` (同) / `role=manager` (claude-opus-5-1m xhigh)。GitHub 未 push (人間手番、D16)。自己完結 bundle `W.bundle` (3,215,451 byte、sha256 `874f6dc064bad128c3d310e49d55ea1f63d187cd0a6b9d98e292a84d3c1a4351`) |
-| 測定用合成 source | pin `e9e477ca` + patches [X/P `patches/instr-mocc-lock-coverage.patch` (repo、D1686、sha256 `e9e65b7876050865ee1cbc4d3a05516b09a8fe0b18149e0c063632162fd7bb48`)、`witlight.patch` (job dir、X/P 適用後 source に対する diff、`#line 115 / 1136 / 1201 / 1208` 付き、sha256 `0648e2c6de46319da02056cb516d706ff9f09c3c0ffb2cadb6c94ee069473363`)]。(e9e477ca + X/P + witlight.patch) と (e9e477ca + W + X/P) は `^#line` 行を除いた bytes が一致 (39,378 byte、`check-patches.log`)。pin を W でなく `e9e477ca` に固定したのは、runner v5 の discriminator が `pin != e9e477ca` で `not-run (pin-outside-t1943)` になるためである |
+| 測定用合成 source | pin `e9e477ca` + patches [X/P `patches/instr-mocc-lock-coverage.patch` (repo、D1686、sha256 `e9e65b7876050865ee1cbc4d3a05516b09a8fe0b18149e0c063632162fd7bb48`)、`witlight.patch` (job dir、X/P 適用後 source に対する diff、`#line 115 / 1136 / 1201 / 1208` 付き、sha256 `0648e2c6de46319da02056cb516d706ff9f09c3c0ffb2cadb6c94ee069473363`)]。(e9e477ca + X/P + witlight.patch) と (e9e477ca + W + X/P) は `^#line` 行を除いた bytes が一致 (`check-patches.log` の V3 `MATCH`。39,378 byte という大きさは前 wave の段 6 レビュー A `codex/s6-review-A.md` の独立再構成の記録)。pin を W でなく `e9e477ca` に固定したのは、runner v5 の discriminator が `pin != e9e477ca` で `not-run (pin-outside-t1943)` になるためである |
 | source file digest | `source_file_sha256` = `d22b8e439ef486019e2abc8b6bb1fe02edfb450655abc7999a13715e6b547264`、4 arm × 5 block (smoke 含む) で同一 (本稿で再照合)。on / off は実行時 env (`IZANAGI_MOCC_G2_WITNESS=1` + `IZANAGI_MOCC_G2_WITNESS_DIR`) だけの差。同 source・同 define でも runner は arm ごとに別 build し、binary sha は build ごとに異なる (path 埋込み等、命令列の一致は未確認) |
 | runner | `probe/t2779_probe.py` v5、sha256 `7907a545b719845d69b36590cc90cff6b28c242d3b7140d9c52b4a838798df99` (40,315 byte、[T-2779] と同一 bytes、無変更)。本走は runner 直。smoke だけ観測 wrapper `probe/smoke_capture.py` (sha256 `65017778972c7dcab6b5bdd0da801da11fb7e923e1075d9755101ff90446bc55`) 経由 |
 | policy / toolchain | `tools/pegasus/mocc_trace_v1_policy.json` sha256 `66ea7135c6d84cfd09013f33da23d8ca8015dcb547e34db7c802644f4986acd6`。gcc-11 / g++-11 (`/usr/bin/x86_64-linux-gnu-g++-11`)、version body sha256 `b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0`。5 block で同一 |
@@ -144,7 +144,7 @@ S の identity Counter = 標準 trace の W Counter、各 identity 1 件、C の
 
 **射程:** これは W 単体 (hook branch の commit) の identity であり、**測定に使った合成 source (e9e477ca + X/P + witlight.patch) の TRACE=0 binary identity は
 本 wave で検査していない。** 合成 source は TRACE=1 専用の観測 build として扱い、性能値には使わない。W が `#if TRACE` の外を変えないことは
-TRACE 外 31,698 byte の一致 (段 6 レビュー A の独立確認) と checker の `match` で示されている。
+TRACE 外 31,698 byte の一致 (前 wave の段 6 レビュー A `codex/s6-review-A.md` の独立確認) と checker の `match` で示されている。
 
 ---
 
@@ -197,7 +197,8 @@ TRACE 外 31,698 byte の一致 (段 6 レビュー A の独立確認) と check
 | W3 / 5 (round 2) | `e9-witlight-nowit-bo1` | 243580 ↔ 243582 | G2、長さ 2、両辺 rw | 243580→243582: key `0x4c`、(20, 2499) → (20, 2546) と key `0x1`、(20, 2544) → (20, 2546) の 2 reason。243582→243580: key `0x0`、(20, 2544) → (20, 2545) | 923,923 | 48 file、341,192,067 byte |
 
 - 両走とも verifier `verdict=non-serializable`、`certified=false`、`total_cycles=1`、`anomaly_count=1`、現象名 `G2` (保存済み verifier JSON の
-  `results[0].anomalies[]` で照合。親の会計 JSON の `phenomenon` 欄は runner の縮約 record から取るため null で、現象名の証拠ではない)。非 G2 の cycle は 0。
+  `results[0].anomalies[]` で照合。親の会計 JSON `parent-accounting.json` の `phenomenon[]` 要素の `phenomena` / `anomalies` field は runner の縮約 record から取るため
+  null で、現象名の証拠ではない)。非 G2 の cycle は 0。
 - 形は [T-1892] / [T-2774] / [T-2779] の G2 (長さ 2・両辺 rw) と整合するが、**witness off なので payload lineage による識別はできない。**
   同一性・根因は本稿で主張しない。
 - 生 trace は 2 走 × 48 file = 96 file、計 602,978,444 byte を job dir に保全し、trace-manifest と集合・サイズ・sha256 が一致 (`verify-manifests.log`、
@@ -218,7 +219,8 @@ TRACE 外 31,698 byte の一致 (段 6 レビュー A の独立確認) と check
 
 軽量 witness でも L 行の出力・decode・push・unlock 後の S 出力は残るので、on の曝露量 (3 秒あたりの commit 数) は off より少ない。
 記録 insight §6 の「on の曝露量は off の約 86%」は BACK_OFF=0 側の値である。**これは曝露量の記録であって性能主張ではない**
-(TRACE=1 build、規律 1)。[T-2774] の heavyweight on (instr-wit) 541,601 対 off 711,199 は別日・別 node の値で、同時刻対照ではない。
+(TRACE=1 build、規律 1)。[T-2774] の heavyweight on (instr-wit) 541,601 対 off 711,199 (同 wave の記録 insight §1 の走あたり平均、旧束縛の転記。
+本稿では再集計していない) は別日・別 node の値で、同時刻対照ではない。
 
 ### 2.7 smoke (request `10799.nqsv`、bnode084、Created 22:27:21 / Started 22:30:07 / Ended 22:32:31 JST、Elapse 148 秒、runner 13:30:08.95〜13:32:31.19 UTC)
 
@@ -237,7 +239,7 @@ TRACE 外 31,698 byte の一致 (段 6 レビュー A の独立確認) と check
 |---|---|
 | 4 arm × 60 走が計画どおり完全収載された (欠測 0、failure 0、indeterminate 0、回転 15/15/15/15) | 軽量 witness on と off の G2 signal 検出率の差 (p=0.500、検出力 0.105) |
 | 軽量 witness on の G2 signal は BACK_OFF=0 / 1 とも 0/60 (CP 上限 5.963%) | 軽量 witness の観測者効果の有無・大きさ、「on では出ない」か「60 走で引けなかった」か |
-| witness off では同一 source・同一 block 内で G2 signal が 1/60 ずつ再現し、形 (長さ 2・両辺 rw) は [T-1892] 型と整合する | その 2 件の実 anomaly / torn read の別 (witness off なので payload lineage が無い)、根因 |
+| witness off では同一 source の G2 signal が、各 block に on/off 対照を置いた 4 block 合計で arm 別 1/60 ずつ (W1 の BACK_OFF=0 off、W3 の BACK_OFF=1 off、block 内の arm 分母は 15) 再現し、形 (長さ 2・両辺 rw) は [T-1892] 型と整合する | その 2 件の実 anomaly / torn read の別 (witness off なので payload lineage が無い)、根因 |
 | on arm に G2 が無く、discriminator の入力に到達しなかった (到達点 0/0/0) | discriminator の実例での識別性能 (問い (ii)) |
 | W は TRACE=0 preprocess identity を 2 本の正例で `pass` / `match`、負例で rc=1 (include 契約) | 合成 source (X/P + witlight.patch) の TRACE=0 binary identity、旧 off binary との命令列・TLS 領域・cache 挙動の同一性 |
 | smoke の正例で witness 文法 (H 1 行、S = W Counter、第 5 値 == writer txid) が保たれた | 不一致値の runtime 注入に対する消費側の検出 (未実施) |
@@ -280,15 +282,17 @@ TRACE 外 31,698 byte の一致 (段 6 レビュー A の独立確認) と check
    求めていたことによる。結果を見た後に §3〜§4 の数値が動いた証拠は無く、本稿はそのように扱うが、mtime による裏付けは無い。
 2. **投入直前の `ps` 実測 (4 投入元で同一投入元の dispatch が 0 件) の保存証拠が無い** (22:27:13 と 22:35:10 JST に本 wave の dispatch 0 件、W4 投入後に 4 件、
    という実測は親の session 記録にあり保存 log には無い)。当時それ以外の同一投入元 dispatch が無かったことは遡及検証できず、未確認の事前条件として扱う
-   (前 wave の段 6 レビュー B M1)。`check-base-dirs-2.log` (22:27 JST) と各 result の `bindings.base_dir` / `base_git_dir` の事後照合 (5 request の投入元が
-   相互に異なる) は保存されている。
+   (前 wave の段 6 レビュー B M1)。`check-base-dirs-2.log` (22:27 JST) と各 result の `bindings.base_dir` / `base_git_dir` の事後照合は保存されている —
+   投入元は 4 つで、本走 W1〜W4 は相互に異なり、smoke と W1 は事前登録どおり (smoke の終端確認を挟んで) 同じ投入元 (wave worktree) を使った
+   (記録 insight §7 の「5 request の投入元が相互に異なる」は誤記で、本稿の記述が原本の `bindings` に従う)。
 3. **合成 source の TRACE=0 binary identity は未検査** (§1.6)。W 単体の preprocess identity と、W と witlight.patch の同内容性 (`#line` 除去後 39,378 byte 一致)
    から間接に言えるだけである。
 4. **保存値の pass-through は静的確認 + smoke の正例まで。** 第 5 値が writer txid と異なる入力を runtime で注入し、消費側 `witness-post-store-token-mismatch` が
    発火することは本 wave では確認していない。
 5. **検査 script の最終 rc は各検査の合否を集約していない** (前 wave の段 6 レビュー A S1)。V1〜V4 の合否は個別 log / JSON (`check-patches.log`、`check-identity.log`、
    `identity-*.json`、`identity-V2-negative.stderr`) で読む。
-6. **binary sha は build ごとに異なり、命令列の一致は未確認。** 「同一 binary で 60 走した」とは書けない。source file sha・toolchain・configure は 4 arm × 5 block で一致。
+6. **binary sha は build ごとに異なり、命令列の一致は未確認。** 「同一 binary で 60 走した」とは書けない。source file sha と toolchain は 4 arm × 5 block の 20 組で一致し、configure の define は
+   同じ arm の 5 block 間で一致する (arm 間には事前登録どおり `BACK_OFF` 0 / 1 の差だけがある)。
 7. **本稿は job dir の原本 (repo 外) に束縛される。** repo 内の逐語 (`verbatim/`) は 17 file について行末空白を除去した可視文字不変の写しで、原本の sha256・byte 数・
    復元法は `verbatim/NORMALIZATION.md` にある。§5.1 の sha256 は job dir 原本を本稿の執筆時に再計算した値である。
 
@@ -309,6 +313,7 @@ TRACE 外 31,698 byte の一致 (段 6 レビュー A の独立確認) と check
 | `arm-W/smoke/result.json` | `a05f01950ebc0957405f14500d8ce0cb09a14fc1d480d6db774f526ea5daad19` | smoke 4 走 (bnode084) |
 | `s4-ruling.md` | `d117465073f172f32e372e0a8163fce1bd75bf16ba5f2cecad21a14f6eb36b7c` | 前 wave の段 4 裁定 = 事前登録 §3、欠測規則・smoke 合格集合 §4、検査登録 §5 (mtime 22:48:34 JST、§4 項 1) |
 | `s1-brief.md` | `d1477c36eca02b2291bc62cca3d27cd4036a950503902bab462627f3d6e4a044` | 前 wave の段 1 brief (mtime 21:51:27 JST) |
+| `codex/s6-review-A.md` | `26eebea2b88444bc38ea67d3cd7dba88aa10fdd7c266c1594b90f5d5cf39a68f` | 前 wave の段 6 レビュー A の逐語 (W の同内容性 39,378 byte・TRACE 外 31,698 byte の独立再構成、mtime 22:43:17 JST) |
 | `check-phenomenon.log` | `22b25008f551ca57d5cece72ab03091e554c2d264bbf1747583509866840ce74` | G2 2 走の現象名・長さ・辺種別の照合 |
 | `verify-manifests.log` | `074dcce97ede28799cb004c7a636bdce187f81986ade73fc6b2f1ef289f247d9` | 生 trace 96 file / 602,978,444 byte の manifest 照合 (`ALL MATCH`) |
 | `check-smoke-witness-001.log` / `-003.log` | `94e017747775df8cd22f4a92c066352152ecc5b422d93bb18823db29dcf7a3cb` / `97ee3dd3ebaa84ac6138314ff1626fe6620b82b8360a062f37b0d2e67128e096` | smoke on arm 2 走の witness 検算 |
@@ -330,7 +335,8 @@ TRACE 外 31,698 byte の一致 (段 6 レビュー A の独立確認) と check
 - hook commit W `5b02546fcd7b0302c8c92b6e05957541c9660902`: 本稿の執筆時に、local main から新規に作った worktree の submodule git dir (network fetch なし、
   local の submodule git dir から初期化) で `git cat-file -t` = commit、親 / tree / author 日時 / touch set / trailer 3 行を `git show` で再確認した。
   branch `izanagi-t1943-mocc-g2-witlight` の主 checkout の submodule git dir への fetch は前 wave の記録 (worklog entry 1696) による。GitHub 未 push。
-- 前提となる観測の一次資料 (本稿の数値の出所ではない): `output/insights/2026-09-18/t2774-mocc-torn-read-probe/README.md`、
+- 前提となる観測の一次資料 (本稿の結果数値の出所ではない。§2.6 に参考値として置いた [T-2774] heavyweight の commit 数 541,601 / 711,199 だけは
+  同 README §1 からの転記): `output/insights/2026-09-18/t2774-mocc-torn-read-probe/README.md`、
   `output/insights/2026-09-18/t2779-mocc-g2-observation-conditions/README.md` (§3 = W の静的設計)、`output/insights/2026-09-18/t2780-mocc-pilot-discriminator/README.md`。
 
 ### 5.3 裁定・決定
@@ -357,11 +363,14 @@ TRACE 外 31,698 byte の一致 (段 6 レビュー A の独立確認) と check
 | pin / patches sha / witness / observational_only / source_file_sha256 / configure_defines / binary_sha256 | 各 block の `result.json` `bindings.arms.<arm>` |
 | runner sha / bytes、repo_head、workload argv、policy sha、toolchain (cc / cxx path、version body sha)、base_dir / base_git_dir | 各 block の `result.json` `bindings` |
 | request ID / Queue / Created / Started / Ended Request Time / Elapse / child rc | `dispatch-{smoke,W1..W4}.log` (NQSV の終了要約) |
-| smoke 4 走の rc / verifier status / verdict / cycles / commit_count / witness flag / discriminator status、runner started_at / finished_at | `arm-W/smoke/result.json` `runs[]` |
+| smoke 4 走の rc / verifier status / verdict / cycles / commit_count / witness flag / discriminator status | `arm-W/smoke/result.json` `runs[]` |
 | smoke の witness 検算 (48/48、H bad 0、S = W = 3,014,285 / 3,933,687、L = R = 2,968,147 / 3,873,346、第 5 値不一致 0、G 9,895 / 9,946) | `check-smoke-witness-001.log` / `-003.log` |
 | W の OID / 親 / tree / author 日時 / touch set (+26/−6) / trailer、初版 `e0905b3d` と amend 22:44 JST | submodule git object (`git show`)、`W.oid` / `W.oid.superseded`、前 wave の handoff (`HANDOFF.md`) |
 | identity `pass` / `match` / 16 context / `old_is_ancestor_of_new`、負例の stderr | `identity-511c-to-W.json`、`identity-e9-to-W.json`、`identity-V2-negative.stderr` |
-| 同内容性 39,378 byte (`#line` 除去後)、TRACE 外 31,698 byte | `check-patches.log`、記録 insight §7 (段 6 レビュー A の独立確認) |
+| 同内容性の `MATCH` (V3) と 4 系列 apply rc=0 | `check-patches.log` |
+| 同内容性 39,378 byte (`#line` 除去後)、TRACE 外 31,698 byte | 前 wave の段 6 レビュー A の逐語 `codex/s6-review-A.md` (job dir、sha256 `26eebea2b88444bc38ea67d3cd7dba88aa10fdd7c266c1594b90f5d5cf39a68f`。repo 内の写しは記録 insight `verbatim/s6-reviewA.md`) |
+| [T-2774] heavyweight on 541,601 / off 711,199 (§2.6 の参考値) | `output/insights/2026-09-18/t2774-mocc-torn-read-probe/README.md` §1 (旧束縛の記録からの転記。本稿では再集計していない) |
+| smoke runner の `started_at` / `finished_at` (13:30:08.95 / 13:32:31.19 UTC) | `arm-W/smoke/result.json` のトップレベル (走ごとの `runs[].started_at` / `finished_at` とは別) |
 | 事前登録 (設計・主表示・比較・到達点・欠測規則)、検出力表、smoke 合格集合 | `s4-ruling.md` §3 / §4 (逐語は記録 insight `verbatim/s4-ruling.md`) |
 | 検出力の独立再計算 (0.105 / 0.268 / 0.856 / 0.050、off=4 で 0.059、off=5 で 0.029、K=56 で 0.812)、CP の独立再計算 | 本稿の執筆時の計算 (二項分布と超幾何分布の直接計算。一次資料と丸め精度で一致) |
 | 事前登録の確定 22:16 JST、段 3 レンズ B 22:12 JST、W amend 22:44 JST、`ps` 実測 22:27:13 / 22:35:10 JST | 前 wave の `HANDOFF.md` (job dir)、`codex/s3-consult-B.md` の mtime |
