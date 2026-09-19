@@ -1,0 +1,8 @@
+tip: 98f06e3744b9d88e1cf7e4c12cd562e96faa4652
+request: 8813.nqsv
+result: 331 passed, 1 skipped in 37.14s
+child rc: 0
+job Elapse: 43S
+files: test_site_policy.py, test_real_repo_serialization.py, test_t1259_qsub_env_delivery_probe.py, test_acceptance_schedule_order.py, test_run_tests_task_run.py
+raw log: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2724-t2776-recovery/resume-focus.log
+raw sha256: 190d5cfa716efc933a5dfc4a447252e6bb3c0e5dd99bbd8129087056a5321d79

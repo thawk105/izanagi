@@ -133,15 +133,22 @@ worktree 完全一致を要求する旧経路のまま残っている。
 
 同様に `frozen_at_head` が記録する `2e20d441…` は現行 repo に存在しない commit であり、
 受領証が `recorded_frozen_at_head` として受領済みである。**単体 CLI の赤を再開の blocker と
-読んではいけない。** 生死の判定は次の 1 本で行う。
+読んではいけない。** 生死の判定は次の 1 本で行うが、期待は checkout の段階で変わる。
 
 ```
 PYTHONPATH=orchestrator python3 orchestrator/campaign/s8b_oracle_driver.py \
-  gate-check --freeze output/s8b-freeze/holdout_freeze.json
-→ rc=2、refusals が floor-null と budget-null の 2 件だけであること
+  gate-check --freeze <段階に応じた freeze path>
 ```
 
-`holdout-freeze-verify:` で始まる拒否が混ざったら、そのときは本物の破損である。
+| 段階 | freeze path | 期待 |
+|---|---|---|
+| chain 無しの基準木 (main が official 床値の run_dir を持たない) | v1 `output/s8b-freeze/holdout_freeze.json` | rc=2、拒否は `floor-null` と `budget-null` の 2 件 exact |
+| chain + G を持ち、承認 A / pointer X の無い木 | v1 (同上) | rc=2、拒否 4 件 exact = `holdout-freeze-verify: [holdout.unknownness_layer2] …` (receipt の live scan が official run_dir の 3 file で hit)、`holdout-freeze-verify: FreezeError: …` (v1 verifier の live scan)、`floor-null`、`budget-null`。この 2 件の走査拒否は既知の official 成果物 hit であり、artifact の破損ではない |
+| A / X の後 (active v2 が発効した木) | active 世代 `output/s8b-freeze/holdout_freeze.v2.g1.json` | 同一 root・HEAD・世代の full launch validation が成功した場合に限り receipt の未知性層 2 (zero-hit 判定) は完全一致検証へ委譲される。その他の拒否条件 (manifest・spec・budget 等) は独立に評価され、gate が拒否したら次段へ進まない。v1 path を指定し続けた場合は委譲されず前段の期待のまま |
+
+各段階の記録済み exact 集合から外れた拒否が出たら、その段へ進まず原因を調べる。prefix だけで破損と
+断定せず、既知の層 2 hit と、artifact bytes・検索規約・closure 等の不一致を reason と対象 path で
+区別する。段階ごとの実測値 (rc・件数・log) は worklog と一次資料が持ち、本書は判定規則だけを持つ。
 
 ---
 
@@ -153,7 +160,7 @@ PYTHONPATH=orchestrator python3 orchestrator/campaign/s8b_oracle_driver.py \
 |---|---|---|
 | P1 | `git ls-tree HEAD external/ccbench` | `160000 commit 511c9538…` (2026-08-12 [T-816] 手順 4 で前進。`d706650c…` 期の床値を歴史再開するなら、その旧 commit を明示 checkout する) |
 | P2 | `python3 orchestrator/tests/test_frozen_artifacts.py` | `2 passed, 0 failed` / rc=0 |
-| P3 | 上記 gate-check | rc=2 かつ拒否 2 件 exact |
+| P3 | 上記 gate-check | §1.1 の段階表と照合する (chain 無しの基準木 = rc=2 かつ拒否 2 件 exact、chain + G で A / X 前 = rc=2 かつ既知 4 件 exact、A / X 後 = active 世代 path を指定し全 gate が成立した場合だけ `allowed: true`) |
 | P4 | `qstat -u <user>` | T-139 の pilot / 本走 job が走っていない |
 
 P1〜P3 のいずれかが期待と違えば、その段へ進まず原因を先に切り分ける。

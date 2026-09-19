@@ -27,7 +27,7 @@ SOURCE_FILE_SHA256 = {
     "coder-v4-autonomous": "e80902ea6a53f46b88b068e0ccc1a630014c5048f41618035d9977c07a812732",
     # Reviewed 2026-09-02: T-2200; K2 宣言アーム用 sibling role 契約を追加。
     # Reviewed 2026-09-03: T-2246; empty-source と明示 consumer の境界を追記。
-    "coder-v4-autonomous-k2": "9daef5640a462d5ad87df1312d707f96dfa7cc96f455cfaf9eafc83cb9ec3085",
+    "coder-v4-autonomous-k2": "5d730eeaf09b639ef146157e6a7fe4786e79ace60af3de5c15bb23a16bf9e427",
     # Reviewed 2026-08-18: T-396 A; enforcement ownership split, prohibition set unchanged.
     # Reviewed 2026-09-02: T-2145; raw C++ 合成を閉じた sort IR proposal へ縮小。
     # Reviewed 2026-09-11: T-2528; whiteboard 入力例を実射影の 5 field へ訂正。
@@ -48,7 +48,7 @@ SOURCE_FILE_SHA256 = {
     # Reviewed 2026-09-09: T-2249; 段 4 の delta_pct≡None 不変と食い違う固定例 (-1.2) を入力例から除去。
     # Reviewed 2026-09-11: T-2528; whiteboard 入力例を実射影の 5 field へ訂正。 current_perf・whiteboard・任意 policy_hint の入力説明も訂正。
     # Reviewed 2026-09-17: T-2703/T-2717/T-2705; current_perf / leading_indicators の凍結と適用版を明記。
-    "planner-v4": "2e69b76d836caf4fa99eb419568fca58327f0b33862bc51a025df8c2e645b64a",
+    "planner-v4": "8e2a0285419aea41e7cbba6f479a1d5b4d62f7488752975c98a396ba976d1027",
     "profiler": "8a3f5bc1cba31d366c7ea3f0149e04917c07fe7677aa609ce6f05f5c8decbd6d",
     "selector-8b": "23483aeb871ad7363060a183d85df6dd10b9e74b40337037a6cf6bbcc34c799c",
     "verifier": "80ce00b78832cb18a95d0ee8047124fbb8435cf2ec4d312b9d4ed2e6c7f0300f",

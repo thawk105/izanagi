@@ -1,0 +1,15 @@
+2026-09-18 12:38:11 JST
+1f2ba61adf583332a5f459ea0c5b8484515b16a0
+[Pegasus dispatch] request ID 5621.nqsv を受理しました
+1088 passed 11 skipped 8 errors 8 failed
+in 576.13s (0:09:36)
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_active_v2_delegation_accepts_full_receipt
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rechecks_receipt[changed]
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_v1_gate_does_not_delegate_with_active_v2
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rechecks_receipt[missing]
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_unactivated_chain_hit_is_invalid
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rejects_late_hit_file
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_failed_launch_preserves_receipt_refusal
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_active_v2_preserves_nonlayer2_receipt_refusal
+INTERNALERROR lines: 0
+2026-09-18 12:59:28 JST

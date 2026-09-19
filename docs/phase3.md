@@ -23,6 +23,11 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   controls全体は未成立。inert target・軸従属・比較条件・abort所有権は変更していない。
   記録 = `output/insights/2026-09-19/t2737-noninert-implementation/README.md`。
 
+- [x] [T-2724] A-3整合実装と[T-2776]のfixture切離しを回収・統合した。
+  receiptの履歴・静的検証・epoch・invalid拒否を維持し、同一root/HEAD/世代のactive v2 full validationへ層2だけ委譲する。
+  証拠とsingle-tenant残余は `output/insights/2026-09-18/t2724-t080-defer-active-v2/README.md`。
+  chain/X2/Gの取り込みと人間A/Xによる発効は別waveであり、このチェックはそれらの完了を意味しない。
+
 - [x] [T-2608] declared fold verifier の例外出力に code と sanitize 済み detail を保存。
   拒否判定と構造的拒否の文面を維持し、実 verifier の例外と fail-open 変異の検出を確認した。
   記録 = `output/insights/2026-09-18/t2608-fold-verifier-detail/README.md`。
@@ -434,6 +439,9 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    - [x] [T-2528] D1936項23・25に従い、coder3種とplannerのwhiteboard例を実射影の5fieldへ訂正。
      plannerの説明もcurrent_perf・leading_indicators・whiteboardと任意policy_hintに整合。
      既存source pin・互換baseline・static adapterだけを追随し、実装の受理集合とruntime blockedを維持。
+   - [x] [T-2783] D2148項3に従い、明示critic診断をK2手動loopのplanner/coder入力へ渡す
+     局所経路を追加。whiteboardの5field・delta_pct=None・AO非読取を維持し、次回計画に
+     同機体・同jobのstock対照を含める。3巡目は未実走。手順は段4b runbookのT-2783追補。
    - [x] [T-2551] D1936項5に従い、段4jobがcanonical化した証拠保存先を環境変数へ再exportする。
      shellとPythonの保存先を揃え、既存job契約と絶対path指定の正常系を維持する。
    - [x] 2026-09-10新規依頼の次実験precheckを実装差分ゼロで実施。

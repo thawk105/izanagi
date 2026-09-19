@@ -1,0 +1,114 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 420.0,
+ "timeout_seconds": 4500,
+ "hang_timeout_seconds": 4500,
+ "mutations": [
+  {
+   "id": "m0-comment",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/t080_freeze_migration.py",
+     "old": "        # Historical verification and lookalike objects are not admission tokens.\n",
+     "new": "        # Historical verification objects and lookalikes are not admission tokens.\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-subset",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_ratified_freeze.py",
+     "old": "        if current != expected:\n",
+     "new": "        if not expected <= current:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_failed_launch_preserves_receipt_refusal",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_launch_validate_failure_is_refused"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2a-ignore-receipt",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_driver.py",
+     "old": "        allowed=not merged,\n",
+     "new": "        allowed=not list(refusals),\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_active_v2_preserves_nonlayer2_receipt_refusal"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2b-accept-invalid",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_driver.py",
+     "old": "    raise OracleDriverError(\n        \"T-080 campaign epoch を active-valid/never-issued のどちらにも固定できない\"\n    )\n",
+     "new": "    return {\"state\": \"invalid\", \"validation_head\": resolution.validation_head}\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_run_block_refuses_invalid_receipt_after_gate_seam"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-skip-zero-hit-without-token",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/t080_freeze_migration.py",
+     "old": "        if not delegated:\n            holdout_module._assert_search_pass(report)\n",
+     "new": "        if False:\n            holdout_module._assert_search_pass(report)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_active_v2_delegation_accepts_full_receipt",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rejects_late_hit_file",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_failed_launch_preserves_receipt_refusal",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[unknownness-layer2-holdout.unknownness_layer2]",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_unactivated_chain_hit_is_invalid",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_v1_gate_does_not_delegate_with_active_v2",
+    "orchestrator/tests/test_t080_freeze_migration.py::test_layer2_delegation_rejects_enumeration_drift",
+    "orchestrator/tests/test_t080_freeze_migration.py::test_layer2_delegation_rejects_foreign_root",
+    "orchestrator/tests/test_t080_freeze_migration.py::test_layer2_delegation_rejects_nonlaunch_type",
+    "orchestrator/tests/test_t080_freeze_migration.py::test_layer2_delegation_rejects_stale_generation_token",
+    "orchestrator/tests/test_t080_freeze_migration.py::test_layer2_delegation_rejects_wrong_activation_head"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4a-drop-expressions",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/t080_freeze_migration.py",
+     "old": "        if live.get(\"expressions\") != unknownness.get(\"expressions\"):\n",
+     "new": "        if False:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_t080_freeze_migration.py::test_delegated_scan_keeps_frozen_document_bindings[expressions]",
+    "orchestrator/tests/test_t080_freeze_migration.py::test_live_scan_is_bound_to_frozen_expressions_match_convention_and_candidates_g1"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

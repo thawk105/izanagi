@@ -4967,6 +4967,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - **再発: 2026-09-18** (near miss、実害なし) — 隔離 worktree の session が Bash で `cd <Codex author の probe worktree> && grep …` (読み取りだけ) を実行したところ、harness の追跡 cwd がその worktree へ移り、以後の全 command (`pwd` すら) を隔離 guard が「共有 checkout で実行しようとした」として拒否した。`EnterWorktree --path <自分の wave worktree>` で復帰。書き込みは発生していない。同型: read-only の調査で `cd <他 checkout> &&` を前置する癖が、guard の cwd 追跡と衝突する。他 worktree の file は絶対 path で読み、`cd` を前置しない (memory `worktree-discipline` の「cwd の罠」)。
 
 - **再発: 2026-09-18** (同日 2 回目、near miss、実害なし) — 隔離 worktree の session が変異 harness の `--plan-only` を打つ前に Bash で `cd <変異 container worktree> && pwd` (読み取りだけ) を実行し、harness の追跡 cwd がその worktree へ移った。`EnterWorktree --path <自分の wave worktree>` で即復帰し、以後は container への操作をすべて `.sh` (内部で `cd`) 経由にした。書き込みは発生していない。同型: 他 worktree での command 実行は launcher script に閉じ込め、対話 shell で `cd` しない。
+
+- **再発: 2026-09-18** (同日 3 回目、near miss、実害なし) — [T-2724] 整合 wave の親が `cd <Codex author worktree> && python3 tools/dev_wave_codex.py … --dry-run` (読み取りだけ) を打ち、harness の追跡 cwd が author worktree へ移った。`EnterWorktree --path <自分の wave worktree>` で即復帰。以後の dry-run は `cd` を前置せず絶対 path で打った。書き込みは発生していない。
 ### F101. 成立済みの既知赤 waiver を確認せず land 可能な wave を止めた [手順漏れ]
 
 - 事象: 段 9 の受入全走が 1 failed / 5438 passed / 19 skipped になり、赤が
@@ -5414,6 +5416,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   復旧は index を戻して file を job dir へ退避 → `--resume` (sidecar を新 path へ複写、`--wrapper-attempt` を進める) で残りだけ走らせた。
   順序の固定 (走行前に記録を書き終える、走行中は repo 外だけで作業する) が対応であり、本 wave では insight README・fragment を job dir で下書きして
   変異完了後に worktree へ移した。
+
+- **再発: 2026-09-18** — [T-2724] 整合 wave の親が、wave worktree から投入した焦点走 (`focus-nochain-6`、bounded local) の走行中に、同 worktree へ insight の verbatim file 5 本を書いた。bounded local が MemoryMax に達して計算ノードへ再 dispatch する前の tree 状態検査が「local 試行の前後で tree / submodule 状態が変化」で止まり rc=16、走が 1 本無効になった (実害 = 再走 1 本、約 8 分)。恒久対応は F106 のまま。本 wave の親は同日中に前回 (fix-1 の統合前) は守れていたが、fix-4 の統合後に「待ち時間に段 7 を進める」誘因で踏んだ。
 ### F107. 内側検証の変異を外側の一括再検証が mask した [恒真ゲート]
 
 - 事象: 事前登録した変異 M15 (publish 直後の再検証と rollback を落とす) が本走で **SURVIVED**
@@ -9919,6 +9923,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   同時投入 (`2731.nqsv`) は通った。直列化の義務は `DW-O26` にあるが、同節は受入・テスト前の条件 (18) からしか
   引かれず、計測用 generic dispatch の投入点には届かない。恒久対応として wave 開始時に必ず読む `DW-C00` へ
   「同一 worktree の dispatch は全種直列」を 1 文で足した (入口と重複していた読み込み契約の 1 文を削って予算内に収めた)。
+
+- **再発: 2026-09-19** — T-2724/T-2776の修復後受入tip `2027fd428`、8967.nqsv/bnode074/gw17で `test_sigterm_ignoring_child_is_killed` のcommunicateが10秒TimeoutExpiredとなりreceiptは未発行。全体は25251 passed /69 skipped /1 failed、当該launcher/test sourceは未変更。同tipの正規runner単独node走（既存設定NPROC=1）は1 passed/70.36秒。負荷の個別因果は未分離とし、検査・timeout・holdを変えず、既存の並列度設定16による全受入再走へ進む。一次資料は回収jobのacceptance-2.child.log、acceptance-2-shards、launcher-single.logと同insight README。
 ### F274. 単走の差を実装効果へ帰属させかけた [計測汚染]
 
 - 事象: fix 後の焦点走が 73.42 秒で、fix 前の単走 60.55 秒より遅かったため、親は
@@ -25828,6 +25834,8 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   receipt/diagnosticsを回収job dirのbudget-focus-evidenceへ保全した。受入と同じcompute環境の単独走6471は
   25 passed / 21.51秒 / rc0。初回loginの赤を消さず、docs差分に到達しない境界と環境差を区別する。
   本番・testの上限や期待値を変えず全件確認へ戻す。
+
+- **再発: 2026-09-18** — T-2724/T-2776回収tip `d899c86aa` の受入shard0（6425.nqsv）で、T-1259のmodule fixtureが `git ls-files --others --exclude-standard -z` の30秒TimeoutExpiredとなり12 setup errors。全体は25153 passed / 69 skipped。test本体に入る前で、当該test/probeには今回の差分がない。正規runnerの同tip単独走でも51 setup errors（247.47秒）を再現したため、DW-O18に従い受入2を投入せず停止した。timeout/hold/除外は変更せず、T-2790の既存の設計・検証手番に範囲を残す。一次資料は `output/insights/2026-09-18/t2724-t080-defer-active-v2/README.md` の停止記録と回収jobの生log。
 ### F946. 修正可能な検査失敗で作業を終了し、ユーザーへ再開を要求した [手順漏れ] [誤前提]
 
 - 事象: insights整理のauthorが実行ログ検査で未受理になり、親は原因の切り分けや安全な再試行をせず正式停止した。
@@ -27778,3 +27786,10 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
 - 再発検知: 段 6 レビューの対応表で、派生値の一致だけでなく「前提の出所」列を要求する。数値の
   結論に「上限」「下限」「必然」「仮定なし」が入るとき、その根拠が契約なら計時・発火の開始点まで
   code で確認したことを書く。
+
+### F1030. 約 3 分の fixture 構築を持つ新 test 9 node を real-repo reader に登録したら、read lock の長期保持で他 reader が lock deadline を超え xdist worker が落ちた [テスト代表性] [計測汚染]
+
+- 事象: [T-2724] 整合 wave の段 6 で、接続 fixture (T-080 発行済み履歴 + G / A / X を積む、1 node 約 150〜210 秒) を持つ新 test 9 node (接続 8 + draft 負例 1) を conftest の `_REAL_REPO_BOTH_READER_NODES` に登録した (段 6 レビュー RB-6 の「実 root を読む test は登録する」に従った)。chain 有り木の焦点走 (7 file、request 5649、2026-09-18 13:02〜13:11) で xdist worker が `RuntimeError: real-repo lock deadline exceeded; fails-closed: resource=ccbench mode=read` (conftest `_REAL_REPO_LOCK_TIMEOUT_S` = 245 秒) の INTERNALERROR になり、`test_cli_subprocess_returns_rc_2_on_gate_refused` が crashitem として落ちた (1088 passed / 2 failed / 7 skipped で走が中断)。実害なし (land 前)。
+- 根本原因: 登録された node は test 全体の間 read lock (LOCK_SH) を保持する。ccbench の writer node が gate を握って全 reader の解放を待つ間、後続の reader は gate で 245 秒を超えて待ち、deadline で fail-closed になる。既存の stub-free T-080 e2e 10 node (各約 200 秒) は `_T080SharedBases` で session に 1 回だけ base を組み、各 test はその copy を使うので登録されておらず、この経路を通らない。「実 root を読む test は登録する」は正しいが、**長時間の test をそのまま登録すると lock の保持時間が gate の deadline を食う**。
+- 恒久対応: copy後の親rootへのfallbackをfix-4で除去し、`build_production_emitter_g1`のreceipt接続分岐はcopy内の材料だけを読む。登録簿は既存stub-free e2eと同じ未登録へ戻し、`root=ROOT`を直接渡すseam負例だけ保持する。base構築自体の親root読取りと完全排他の残余は保持する。解消根拠はfix-5後の焦点走（5698: 1211 passed / 12 skipped、5699: 1104 passed / 11 skipped）と回収時の独立静的監査2本 `output/insights/2026-09-18/t2724-t080-defer-active-v2/verbatim/recovery-review-A.md` / `recovery-review-B.md`。旧`s6-rereview.md`のRR-1は修正前NO-GOであり、解消証拠ではない。
+- 再発検知: 既存のcopy内材料欠落7条件の負例とreal-repo serialization検査、焦点走のlock deadline/INTERNALERRORを確認する。一般的な所要閾値や新しいgateは設けない。

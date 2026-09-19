@@ -826,6 +826,8 @@ class LaunchValidatedFreeze:
     ratified: "RatifiedFreeze"
     activation_head: str
     search_digest: str
+    validation_root: Path
+    search_report: Mapping
     symlink_gitlink_inventory: Tuple[str, ...]
     floor_artifact: VerifiedFloorArtifact
     binaries_by_cell: Mapping
@@ -842,6 +844,8 @@ class ReverifiedFreeze:
     ratified: "RatifiedFreeze"
     activation_head: str
     search_digest: str
+    validation_root: Path
+    search_report: Mapping
     symlink_gitlink_inventory: Tuple[str, ...]
     floor_artifact: VerifiedFloorArtifact
     binaries_by_cell: Mapping
@@ -3568,6 +3572,8 @@ def _launch_validate(
         ratified=ratified,
         activation_head=head,
         search_digest=digest_after,
+        validation_root=Path(root).resolve(),
+        search_report=_deep_freeze(report),
         symlink_gitlink_inventory=inventory,
         floor_artifact=verified_floor,
         binaries_by_cell=_deep_freeze(binaries),

@@ -1,0 +1,5 @@
+2026-09-18 13:47:10 JST
+956525bdaecf7a3cc4d39f721f5ca62e9ebb0e8a
+"allowed": false
+"refusals": ["holdout-freeze-verify: [holdout.unknownness_layer2]
+2026-09-18 13:48:26 JST
