@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import sys
 
@@ -43,7 +44,7 @@ def _expected(raw):
                            "label": f"{group['id']}: {group['label']} {group['progress'].replace('-', ' ')}"})
         for item in group["items"]:
             result.append({"id": item["id"], "state": item["state"],
-                           "label": f"{item['id']}{':' if act else ''} {item['label']} {item['sublabel']}"})
+                           "label": f"{'' if act else item['id'] + ' '}{item['label']} {item['sublabel']}"})
     return result
 
 
@@ -118,6 +119,7 @@ BAD_CASES = [
     ("unknown-definition-key", "key set"), ("invalid-anchor", "invalid anchor"),
     ("absent-anchor", "exactly one line"), ("nonunique-anchor", "exactly one line"),
     ("story-path", "story_path mismatch"), ("percent", "quantity"),
+    ("group-percent", "quantity"),
     ("throughput", "quantity"), ("latency", "quantity"), ("assignment", "quantity"),
     ("duplicate-key", "duplicate key"), ("nan", "non-finite"),
     ("infinity", "non-finite"), ("negative-infinity", "non-finite"),
@@ -143,7 +145,7 @@ def test_t3_invalid_json_without_drawing(tmp_path, case, reason):
         target = {"unknown-item-key": item, "unknown-top-key": raw,
                   "unknown-act-key": raw["acts"][0], "unknown-group-key": raw["evidence_groups"][0],
                   "unknown-definition-key": raw["state_definitions"]}[case]
-        target["extra"] = 1
+        target["extra"] = "Additional definition." if case == "unknown-definition-key" else 1
     elif case == "invalid-anchor":
         item["source_anchor"] = "§8:L1-L2"
     elif case == "absent-anchor":
@@ -157,6 +159,8 @@ def test_t3_invalid_json_without_drawing(tmp_path, case, reason):
             "## 9. ", "- **A-1 (duplicate anchor fixture)**\n\n## 9. ", 1))
     elif case == "story-path":
         raw["story_path"] = "docs/paper-story/2026-09-20.md"
+    elif case == "group-percent":
+        raw["evidence_groups"][0]["label"] = "38%"
     elif case in ("percent", "throughput", "latency", "assignment"):
         item["label"] = {"percent": "38%", "throughput": "10 tps", "latency": "2 µs", "assignment": "A=0.58"}[case]
     text = json.dumps(raw)
@@ -232,6 +236,7 @@ def test_t7_cli_outputs_and_independent_hashes(tmp_path):
     assert result.returncode == 0, result.stderr
     paths = [Path(str(prefix)+suffix) for suffix in (".png", ".pdf", ".provenance.json")]
     assert set(tmp_path.iterdir()) == set(paths)
+    assert all(stat.S_IMODE(path.stat().st_mode) == 0o644 for path in paths)
     assert paths[0].read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
     assert paths[1].read_bytes().startswith(b"%PDF-")
     prov = json.loads(paths[2].read_bytes())

@@ -137,7 +137,7 @@ def load_states(repo_root=REPO_ROOT, states=DEFAULT_STATES):
             if is_act:
                 _require(container["progress"] in ("complete", "in-progress"), "invalid progress")
                 _anchor(container["source_anchor"], sections)
-                free.append(container["label"])
+            free.append(container["label"])
             items = container["items"]
             _require(type(items) is list and bool(items), "nonempty items required")
             if not is_act:
@@ -241,7 +241,7 @@ def make_figure(data):
         for item in act["items"]:
             owner_row = item["id"]
             left = x+22*px
-            label = text(owner_row, left, cursor, item["id"] + ": " + item["label"], 10, w-30*px)
+            label = text(owner_row, left, cursor, item["label"], 10, w-30*px)
             height = label.get_window_extent(renderer).height / fig.bbox.height
             sub = text(owner_row, left, cursor-height-2*py, item["sublabel"], 10, w-30*px)
             bottom = sub.get_window_extent(renderer).y0 / fig.bbox.height - 3*py
@@ -348,7 +348,7 @@ def _drawn_items(data, layout):
             expected.append(dict(id=group["id"], state=None, label=_normalized([
                 group["id"]+":", group["label"], group["progress"].replace("-", " ")])))
         for item in group["items"]:
-            ident = item["id"] + (":" if "progress" in group else "")
+            ident = "" if "progress" in group else item["id"]
             expected.append(dict(id=item["id"], state=item["state"], label=_normalized([
                 ident, item["label"], item["sublabel"]])))
     _require(actual == expected, "drawn_items disagree with states")
@@ -401,6 +401,7 @@ def _publish_outputs(fig, layout, prefix, data, argv):
                                       hash_paths=temporary[:2], figure_number=number)
         temporary[2].write_text(json.dumps(provenance, indent=2, allow_nan=False)+"\n", encoding="utf-8")
         for source, destination in zip(temporary, destinations):
+            source.chmod(0o644)
             # Atomic no-clobber publication, including a concurrent creator.
             os.link(source, destination)
             published.append(destination)
