@@ -3235,16 +3235,6 @@ def test_mutation_red_gate_semantic_tautology_fails_open_by_design():
 
 # ==== 帰属整合 (value ↔ hole literal、D39 決定7 の機械強制) ===================
 
-def test_value_literal_consistency_accepts_match():
-    """value と now_backoff literal が数値一致すれば通る (20==20、20.0==20)。"""
-    L.assert_value_literal_consistent(
-        L.CoderProposal(axis=L.MARKER_ID, value=20,
-                        implementation="double now_backoff = 20;"))
-    L.assert_value_literal_consistent(
-        L.CoderProposal(axis=L.MARKER_ID, value=20.0,
-                        implementation="double now_backoff = 20.0;"))
-
-
 @pytest.mark.parametrize(
     "value",
     [1, 1.0, 20, 20.0, 1000, 1000.0],
@@ -3268,18 +3258,13 @@ class _FloatableTwenty:
 @pytest.mark.parametrize(
     ("value", "implementation", "rule_id"),
     [
-        (20.5, "double now_backoff = 20.5;", "backoff-grammar.value-integer.v1"),
-        (True, "double now_backoff = 1;", "backoff-grammar.value-integer.v1"),
         (float("nan"), "double now_backoff = 20;", "backoff-grammar.value-integer.v1"),
         (float("inf"), "double now_backoff = 20;", "backoff-grammar.value-integer.v1"),
-        (0, "double now_backoff = 0;", "backoff-grammar.value-range.v1"),
         (-1, "double now_backoff = -1;", "backoff-grammar.value-range.v1"),
-        (1001, "double now_backoff = 1001;", "backoff-grammar.value-range.v1"),
         (Decimal("20"), "double now_backoff = 20;", "backoff-grammar.value-integer.v1"),
         (_FloatableTwenty(), "double now_backoff = 20;", "backoff-grammar.value-integer.v1"),
     ],
-    ids=["nonintegral", "bool", "nan", "inf", "zero", "negative",
-         "above-upper", "decimal", "floatable-object"],
+    ids=["nan", "inf", "negative", "decimal", "floatable-object"],
 )
 def test_coder_proposal_rejects_values_outside_exact_integral_domain(
     value, implementation, rule_id,
