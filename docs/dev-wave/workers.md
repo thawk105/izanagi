@@ -18,12 +18,12 @@ scope 外の層を実装したふりにせず裁定パッケージ候補とし�
 
 ## DW-S05-A — 段 5 所有と投入
 
-所有 path が素集合の単位ごとに別 worktree。依存完了後、所有 path 限定 patch
-（`git add -A`→`git diff --cached <base> --output=<f> -- <所有パス>`→`git apply`、`<base>`=子作成 SHA。隔離 session は `git -C` 不可）だけ展開し並列投入。
-worktree は`-b`必須(detachedは midflight rc=1)。
-投入先へ cd せず直前に `tools/check_wave_startup.py --repo <abs> --mode midflight`。rc≠0 で停止。
-乖離量は非関門。gate 実測 NOTE≠0 なら anchor 再読。
-起動器は author/fix の投入先全残差を終端 commit、待ち手は呼出側指定 `--commit-worktree <abs>`。記録のみ (D2044 項 16)。
+所有path素集合の単位ごとに別worktree。作成時job dirのmanifest(形式はtool冒頭、所有pathはrename両端込み)へ登録してから起動、fixは同木でbranchを切り再登録。依存完了後、所有path限定patch
+（`git add -A`→`git diff --cached <base> --output=<f> -- <所有パス>`→`git apply`、`<base>`=子作成SHA。隔離sessionは`git -C`不可）だけ展開し並列投入。
+worktreeは`-b`必須(detachedはmidflight rc=1)。
+投入直前にcdせず`tools/check_wave_startup.py --repo <abs> --mode midflight`。rc≠0で停止。
+乖離量は非関門。gate実測NOTE≠0ならanchor再読。
+起動器はauthor/fixの全残差を終端commit、待ち手は`--commit-worktree <abs>`指定。記録のみ(D2044項16)。
 codex は `reasoning=medium`、`sandbox=workspace-write` とする。
 
 ## DW-S05-B — 段 5 権限と赤
@@ -33,18 +33,16 @@ xfail 化せず、既存テストの期待値も変えない。赤の内訳を�
 
 ## DW-S05-C — 段 5 実装子の検査・報告
 
-実装子の prompt に次を全部入れる。
+実装子のpromptに次を全部入れる。
 
-- 緑には実走 nodeid・範囲を併記。子の実走は親の全走を代替せず、実走不能なら
-  `closed` でなく「実装済み・未実走」と書く。
-- テスト新設・改名は親の名指しを網羅と見なさず、制約 meta-test を自ら洗い出し走らせる（F42）。
-- fixture への現行 hash 差し込み等、テストを甘くして緑にしない（F27）。
-  機構の正例・負例は実体を名指しし依存先を stub しない（F649）。
-- 期待値へ揮発 payload (tree hash 等) を焼き込まず、理由と件数を固定して揮発部分を
-  外し、揮発源を編集しても緑か確認する。
-- 報告に所有外 caller・共有 fixture・consumer test への波及を静的列挙。
-- 指示外の受理集合変更をせず、scope 前に現行の受理・拒否挙動を明記。
-- 親 docs 未 land なら期待赤の finding 集合を事前指定し、他は回帰と報告する。
+- 緑には実走nodeid・範囲を併記。子の実走は親の全走を代替せず、実走不能なら`closed`でなく「実装済み・未実走」と書く。
+- テスト新設・改名は親の名指しを網羅と見なさず、制約meta-testを自ら洗い出し走らせる（F42）。
+- fixtureへの現行hash差し込み等、テストを甘くして緑にしない（F27）。
+  機構の正例・負例は実体を名指しし依存先をstubしない（F649）。
+- 期待値へ揮発payload(tree hash等)を焼き込まず、理由と件数を固定して揮発部分を外し、揮発源を編集しても緑か確認する。
+- 報告に所有外caller・共有fixture・consumer testへの波及を静的列挙。
+- 指示外の受理集合変更をせず、scope前に現行の受理・拒否挙動を明記。
+- 親docs未landなら期待赤のfinding集合を事前指定し、他は回帰と報告する。
 
 ## DW-S06-A — 段 6 敵対レビュー
 
@@ -54,14 +52,11 @@ xfail 化せず、既存テストの期待値も変えない。赤の内訳を�
 
 ## DW-S06-B — 段 6 fix の分割と継承
 
-real 所見へ fix を投じる前に統合 snapshot patch を退避する。所見を編集対象 file 集合で分け、
-所有が素集合なら `DW-S05-A` と同じ worktree・所有・限定 patch 契約で並列投入する。
-一枚岩なら理由 1 行を handoff へ残す。横断所見も一つの Codex 単位へ寄せ、親が直接直さない。
-
-実装子契約の継承では段 4 の規模上限も省略せず、超過は所見が閉じても差し戻す。
-
-fix の prompt に**既存テストの期待値を変更しない**を明記する。反転・緩和・skip・削除を禁じ、
-赤なら実装側が誤りとする。期待値が誤りなら実装を変えず報告して止める。
+real所見へfixを投じる前に統合snapshot patchを退避する。所見を編集対象file集合で分け、
+所有が素集合なら`DW-S05-A`と同じworktree・所有・限定patch契約で並列投入する。
+一枚岩なら理由1行をhandoffへ。横断所見も一つのCodex単位へ寄せ、親が直接直さない。
+実装子契約の継承では段4の規模上限も省略せず、超過は所見が閉じても差し戻す。
+fixのpromptに**既存テストの期待値を変更しない**を明記する。反転・緩和・skip・削除を禁じ、赤なら実装側が誤りとする。期待値が誤りなら実装を変えず報告して止める。
 
 ## DW-S06-C — 段 6 統合後の再検証
 
