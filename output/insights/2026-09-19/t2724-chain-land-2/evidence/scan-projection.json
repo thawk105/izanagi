@@ -1,0 +1,47 @@
+{
+ "cli": "python3 -m orchestrator.campaign.s8b_holdout_freeze search",
+ "tree": "87dcbe5a4bad8272f6cc046f07da7fe56dcdcde4 (main 2ba400087 + 229982652 + 4d8fb93b7)",
+ "measured_at_jst": "2026-09-19 21:32:06-21:32:40 (login node)",
+ "rc": 1,
+ "match_convention": "file-level conjunction: 同一ファイルが rratio/skew/rmw の三軸正規表現すべてに一致した場合だけ 1 hit と数える",
+ "search": {
+  "file_count": 28547,
+  "skipped_binary_count": 1830
+ },
+ "holdouts": {
+  "rr80": {
+   "candidate_id": "H1",
+   "conjunction_hits": [
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl",
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json",
+    "output/s8b-freeze-candidates/holdout_freeze.v2.g1.json"
+   ],
+   "hit_paths": [
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl",
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json",
+    "output/s8b-freeze-candidates/holdout_freeze.v2.g1.json"
+   ],
+   "result_sha256": "efd0bc0ccae9fe0261db4c8578fdfbc9b50e77f9c179c0531fec26a549cc05c2"
+  },
+  "rr20": {
+   "candidate_id": "H2",
+   "conjunction_hits": [
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl",
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json",
+    "output/s8b-freeze-candidates/holdout_freeze.v2.g1.json"
+   ],
+   "hit_paths": [
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/journal.jsonl",
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/manifest.json",
+    "output/env/pegasus/calibration/s8b-floor-official/20260916T111925Z-2c8cf9be/result.json",
+    "output/s8b-freeze-candidates/holdout_freeze.v2.g1.json"
+   ],
+   "result_sha256": "722185e566471f93ddbdaca0af3cd980b9f779cc9e282bc69087a9e9a80803a1"
+  }
+ },
+ "positive_control_hit_count": 218,
+ "note": "検索式 (三軸語) は D88 に従い収録しない。原文 report は job dir scan-merged.json (寿命保証なし)。hit path は stderr の fails-closed 行から転記。"
+}
