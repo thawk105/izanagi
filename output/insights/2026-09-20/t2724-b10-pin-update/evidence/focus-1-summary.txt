@@ -1,0 +1,39 @@
+2026-09-20 07:32:14 JST
+0d346d28157497f8b11bf8bc036a96677f384a45
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2724-b10-pin-update/output/pegasus-dispatch/orphan-holds/unknown-db1ecd9182d67e22cdf8f454.json
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2724-b10-pin-update/output/pegasus-dispatch/orphan-holds/unknown-db1ecd9182d67e22cdf8f454.json
+| bringing up nodes...
+| bringing up nodes...
+|
+| ........................................................................ [  9%]
+| ........................................................................ [ 18%]
+| ........................................................................ [ 27%]
+| ........................................................................ [ 36%]
+| ........................................................................ [ 46%]
+| ........................................................................ [ 55%]
+| ........................................................................ [ 64%]
+| ........................................................................ [ 73%]
+| ........................................................................ [ 82%]
+| ........................................................................ [ 92%]
+| ................s............................................            [100%]
+| 780 passed, 1 skipped in 7.89s
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+|
+| ============================================================
+| Request ID:             11854.nqsv
+| Request Name:           izdw-0604e2747b
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Sun Sep 20 07:32:21 2026
+| Started Request Time:   Sun Sep 20 07:32:28 2026
+| Ended Request Time:     Sun Sep 20 07:32:37 2026
+| Resources Information:
+|   Elapse:               13S
+|   Remaining Elapse:     3587S
+| ============================================================
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+2026-09-20 07:32:51 JST
