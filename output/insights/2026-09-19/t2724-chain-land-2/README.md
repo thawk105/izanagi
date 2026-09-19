@@ -110,5 +110,6 @@ hit 4 path (両 holdout 同一): run dir `20260916T111925Z-2c8cf9be/` の `journ
 | 22:2x | 親の独立検算 (`freeze-digest-check.py`) | 20 file `6a4ee1ef…`、G 除外 19 file `c405c742…` |
 | 22:28〜22:4x | 相談子 A / B (read-only) | A = 択 3、B = 択 1 (§6) |
 | 22:4x | 保存枝 `t2724-chain-land-2-saved` = `0a799da6c`、wave branch を main `657e1e5a7` へ戻す | docs-only の記録 commit を積んで受入 → land |
+| 22:41:17〜22:41:44 | 受入 attempt 2 (docs-only tip `a71f31e99`) | rc=70 `preclaim-history-provenance` / source_rc=16 orphan-hold: 親が同じ worktree で背景実行中だった全史 provenance 監査の dispatch (request 10854.nqsv) の pending hold に当たった。木の内容とは無関係 (同一 worktree の dispatch 直列規則 DW-C00 を親が破った)。監査終了で hold は自動削除、attempt 3 を直列で投入 |
 
 工数: codex 子 2 本 (相談 A / B)。変異 matrix は免除 (本 wave が main に載せる実装面差分ゼロ)。受入 attempt 2 と land の結果は受領証と land 応答 (job dir) を正本とする。
