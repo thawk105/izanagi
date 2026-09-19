@@ -78,6 +78,11 @@
   `4636181a9` (fig8) rc=0、`4bd962643` ([T-2783]) rc=0、`cc82edc8c` (chain X1') rc=1、`ad83b108b` → `fa24e6ea8` rc=1。
   現行 ccbench gitlink `511c9538`。A-2 policy `scheduler.nodes` = 1。`SATISFIABLE_CONDITION_IDS == {"C10"}`。
 - verbatim 5 file は NFC、U+0300〜U+036F なし。
+- 記録 commit 後の焦点走 (DW-S07): paper-story を読む test 6 file (`test_plot_b10_static_tail_formal` / `test_plot_a1_sized_paired` /
+  `test_plot_a2_certification` / `test_s1_9pair_figure_provenance` / `test_check_docs` / `test_s8b_repo_scan_invariant`) を正規 runner で
+  計算ノードへ dispatch し **747 passed / 4 skipped、rc=0** (23:05〜23:06 JST)。login の bounded local での 1 回目は MemoryMax 到達と、
+  走行中に親が failures fragment を書いて tree digest が変わったことで rc=16 (親の手順ミス。走行中は作業ツリーに書かない) — 結果を
+  捨てて tree を固定したまま再走した。
 - 受入全走は記録 commit 後の最終 tip で 1 走 (結果は land の受領証。この README の作成時点では未実施)。
 
 ## 6. 工数
