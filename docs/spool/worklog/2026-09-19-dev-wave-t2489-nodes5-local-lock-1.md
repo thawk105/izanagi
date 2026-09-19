@@ -33,6 +33,9 @@ title: [T-2489] A-2の5ノード化を整合し、node-local lockの局所候補
   受入leaseは明示releaseしてreleased。正規受入中のsource変更・除外・期待緩和はしない。
 - check_docs/check_codex_agents、freeze search（holdout conjunction hit0）、commit前後provenanceを実施。履歴監査は既知56件を維持し新規違反なし。
   dev-wave改善候補は専用handoffで「なし」。親の先行投入・pid準備の確認不足は既存DW-O26/C01に規律があり、改善実装や次waveを追加しない。
+- 記録後の最終受入（tip `8ff77290d`）はmain `2ba400087` との `docs/phase3.md` チェック行衝突でstage=merge rc=70となり、fresh contextの親が
+  local mainを前方merge（`60f36738c`、実装3 fileのblobとsubmodule pinは不変、両チェック行を保持）して回収した。
+  回収後の最終受入とlandの結果は専用handoffとland receiptへ集約する。
 
 ## 次の一手差分
 
