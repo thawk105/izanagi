@@ -1,0 +1,90 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 900,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 1,
+  "mutations": [
+    {
+      "id": "M1-literal-match-inverted",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if not assigned or assigned_value != coder_value:",
+          "new": "    if not assigned or assigned_value == coder_value:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_candidate_value_literal_and_implementation_bytes_never_reflect_to_projections",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_raw_canonical_source_and_genome_are_one_chain",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_clean_no_build_skips_admitted_critic_digest",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_leading_and_trailing_decimal_point_spellings_pin_final_outcome[5-double now_backoff = 5.;-True-accepted]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_review_vectors_are_closed_on_composed_production_order",
+        "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_reaches_production_build_v2_and_v2_commands_in_both_main_routes[fixture]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_numeric_spelling_and_attribution_remain_value_exact",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_literal_only_accepts_strict_cpp_numeric_spellings",
+        "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_without_dependency_prefix_match_production_shape",
+        "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_offline_tokens_reach_real_condition_gate_configure_argv",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_leading_and_trailing_decimal_point_spellings_pin_final_outcome[5-double now_backoff = .5;-True-attribution-mismatch]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_base_automatic_compute_resolution_flows_one_projected_cfg_to_campaign",
+        "orchestrator/tests/test_p3_s4_loop.py::test_coder_proposal_value_domain_accepts_declared_integral_boundaries[middle-float]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_coder_proposal_value_domain_accepts_declared_integral_boundaries[upper-int]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_coder_proposal_value_domain_accepts_declared_integral_boundaries[lower-float]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_coder_proposal_value_domain_accepts_declared_integral_boundaries[upper-float]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_coder_proposal_value_domain_accepts_declared_integral_boundaries[lower-int]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_coder_proposal_value_domain_accepts_declared_integral_boundaries[middle-int]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_value_literal_consistency_rejects_mismatch",
+        "orchestrator/tests/test_p3_s4_loop.py::test_without_prebuild_real_condition_gate_configure_args_remain_empty",
+        "orchestrator/tests/test_p3_s4_loop.py::test_prebuild_reaches_production_build_v2_and_v2_commands_in_both_main_routes[proposal]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_agent_live_actual_no_build"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-value-domain-always-accepts",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if decision.accepted:\n        return\n    error = AttributionMismatch(_CODER_VALUE_DOMAIN_MESSAGE)",
+          "new": "    if decision.accepted or True:\n        return\n    error = AttributionMismatch(_CODER_VALUE_DOMAIN_MESSAGE)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_load_proposal_file_rejects_coder_values_outside_exact_integral_domain[nonintegral]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_load_proposal_file_rejects_coder_values_outside_exact_integral_domain[numeric-string]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_adapter_preserves_main_exception_and_structured_rule[20-20-backoff-grammar.value-integer.v1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_adapter_preserves_main_exception_and_structured_rule[20.5-20.5-backoff-grammar.value-integer.v1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_coder_proposal_rejects_values_outside_exact_integral_domain[nan]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_adapter_preserves_main_exception_and_structured_rule[0-0-backoff-grammar.value-range.v1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_value_literal_consistency_rechecks_mutated_nonintegral_value",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_adapter_preserves_main_exception_and_structured_rule[1001-1001-backoff-grammar.value-range.v1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_backoff_value_adapter_preserves_main_exception_and_structured_rule[True-1-backoff-grammar.value-integer.v1]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_run_one_iteration_rechecks_mutated_nonintegral_value_before_genome_construction",
+        "orchestrator/tests/test_p3_s4_loop.py::test_load_proposal_file_rejects_coder_values_outside_exact_integral_domain[bool]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_coder_proposal_rejects_values_outside_exact_integral_domain[inf]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_coder_proposal_rejects_values_outside_exact_integral_domain[floatable-object]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_coder_proposal_rejects_values_outside_exact_integral_domain[decimal]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_coder_proposal_rejects_values_outside_exact_integral_domain[negative]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_drive_iteration_rechecks_mutated_nonintegral_value_before_entry_stop"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "E1-comment-only-control",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "# -*- coding: utf-8 -*-",
+          "new": "# -*- coding: utf-8 -*-  # mutation-control"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    }
+  ]
+}
