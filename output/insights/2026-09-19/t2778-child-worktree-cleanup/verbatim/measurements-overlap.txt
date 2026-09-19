@@ -1,0 +1,23 @@
+submit-tree [(detached)] committed=none dirt=none
+submit-tree [(detached)] committed=none dirt=none
+submit-tree [probe/t2489-a2-nodes5-submit] committed=none dirt=none
+submit-tree [(detached)] committed=none dirt=none
+submit-tree [(detached)] committed=none dirt=none
+dev-wave-t1851-c3c-official-floor [worktree-dev-wave-t1851-c3c-official-floor] committed=none dirt=none
+dev-wave-t2153-witness-6 [worktree-dev-wave-t2153-witness-6] committed=none dirt=none
+dev-wave-t2288-floor-pair-w1 [worktree-dev-wave-t2288-floor-pair-w1] committed=none dirt=none
+dev-wave-t2698-official-floor-resubmit [worktree-dev-wave-t2698-official-floor-resubmit] committed=none dirt=none
+dev-wave-t2724-chain-land-2 [worktree-dev-wave-t2724-chain-land-2] committed=docs/spool/decisions/2026-09-18-dev-wave-t2724-freeze-g1-gen-3.md docs/spool/failures/2026-09-18-dev-wave-t2724-freeze-g1-gen-2.md docs/spool/worklog/2026-09-18-dev-wave-t2724-freeze-g1-gen-1.md dirt=none
+dev-wave-t2724-freeze-g1-gen [worktree-dev-wave-t2724-freeze-g1-gen] committed=docs/spool/decisions/2026-09-18-dev-wave-t2724-freeze-g1-gen-3.md docs/spool/failures/2026-09-18-dev-wave-t2724-freeze-g1-gen-2.md docs/spool/worklog/2026-09-18-dev-wave-t2724-freeze-g1-gen-1.md dirt=none
+dev-wave-t2766-pairing-ab [worktree-dev-wave-t2766-pairing-ab] committed=none dirt=none
+dw-a1-sized-attempt2 [worktree-dw-a1-sized-attempt2] committed=none dirt=none
+dev-wave-t2489-nodes5-local-lock [dev-wave-t2489-nodes5-local-lock] committed=docs/spool/worklog/2026-09-19-dev-wave-t2489-nodes5-local-lock-1.md dirt=none
+dev-wave-t2737-noninert-codex [dev-wave-t2737-noninert-codex] committed=docs/spool/worklog/2026-09-19-dev-wave-t2737-noninert-codex-1.md dirt=none
+dev-wave-t2786-base-decomposition [codex-dev-wave-t2786-base-decomposition] committed=none dirt=none
+t2489-author [impl-dev-wave-t2489-nodes5-local-lock] committed=none dirt=none
+t2724-chain-scratch [scratch-t2724-chain-check] committed=docs/spool/decisions/2026-09-18-dev-wave-t2724-freeze-g1-gen-3.md docs/spool/failures/2026-09-18-dev-wave-t2724-freeze-g1-gen-2.md docs/spool/worklog/2026-09-18-dev-wave-t2724-freeze-g1-gen-1.md dirt=none
+t2724-g1-gen [freeze-g1-gen-t2724] committed=none dirt=none
+t2737-noninert-author [impl-dev-wave-t2737-noninert-codex] committed=none dirt=none
+t2737-noninert-fix1 [fix-dev-wave-t2737-noninert-1] committed=none dirt=none
+t2786-probe-author [codex-t2786-probe-author] committed=none dirt=none
+t2786-probe-fix1 [codex-t2786-probe-fix1] committed=none dirt=none

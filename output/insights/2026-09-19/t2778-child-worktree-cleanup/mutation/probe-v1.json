@@ -1,0 +1,869 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e93f311205cdf654f345727a2db25d8d/izdw-e93f311205.o10960",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e93f311205cdf654f345727a2db25d8d/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 77%]\n..........................................                               [100%]\n186 passed in 6.73s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+      "stdout_sha256": "2c521f5625d092a1e5f8a68c4c4d51517b4f5b6b4e310ba24054ccba1ced83ca"
+    },
+    "artifact_error": null,
+    "collection_sha256": "cb4a7b136f0c875a05ad2d3f0b5e718195f3ac75752635755b6fde0c2d83f8a9",
+    "duration_s": 76.032,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "0e9ad7d1cb56f3f73c3a75029acff2478173dace4bfee4e06739b39558fb7ef6",
+    "repo_head": "2a8127c4e76418abf343178e89f29a78f97886c0",
+    "runner_sha256": "759c3b089f65ea815376322c3fb66e8217be88e9dc4954b523b040c548e04fed",
+    "spec_sha256": "263fdb5ef0f83ab5806e494e7b6c94741cea1f6642a72c8bdf79e1ef1db65e1a",
+    "status": "PASSED",
+    "test_output_sha256": "2c521f5625d092a1e5f8a68c4c4d51517b4f5b6b4e310ba24054ccba1ced83ca",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "32ab43e5a49c6fea431b3b9cf0c50bc2bace7b08611ebc700fc4e45bf9e4c791"
+  },
+  "date": "2026-09-19T14:13:24.752961+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e06bddf1e5fa0fceaedb3097e994719c/izdw-e06bddf1e5.o11010",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e06bddf1e5fa0fceaedb3097e994719c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 77%]\n..........................................                               [100%]\n186 passed in 4.99s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n",
+        "stdout_sha256": "16e94bdec389b13494f95b8064ae90b56d83f1bb6256f52aa6fdea018b951467"
+      },
+      "artifact_error": null,
+      "category": "positive",
+      "collection_sha256": "cb4a7b136f0c875a05ad2d3f0b5e718195f3ac75752635755b6fde0c2d83f8a9",
+      "duration_s": 1150.357,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "m0-equivalent-parens",
+      "injection_diff_sha256": "43b0debefddd196134d81d66aa334ad0ebb79e52978ad24e7c2041ea56d291ed",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "0b5b68051699fff07a46b82bff479239efbb699641bf4508b9987abfd87e31bc",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup.py",
+          "new": "    owned_equal = (bool(proof.owned)) and (not mismatches)\n",
+          "old": "    owned_equal = bool(proof.owned) and not mismatches\n"
+        }
+      ],
+      "repo_head": "2a8127c4e76418abf343178e89f29a78f97886c0",
+      "runner_sha256": "759c3b089f65ea815376322c3fb66e8217be88e9dc4954b523b040c548e04fed",
+      "spec_sha256": "263fdb5ef0f83ab5806e494e7b6c94741cea1f6642a72c8bdf79e1ef1db65e1a",
+      "status": "SURVIVED",
+      "test_output_sha256": "16e94bdec389b13494f95b8064ae90b56d83f1bb6256f52aa6fdea018b951467",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "32ab43e5a49c6fea431b3b9cf0c50bc2bace7b08611ebc700fc4e45bf9e4c791"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5c395b63e68225731986a44de1a087b6/izdw-5c395b63e6.o11202",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5c395b63e68225731986a44de1a087b6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 77%]\n..................................F.......                               [100%]\n=================================== FAILURES ===================================\n_________________ test_remove_child_rejects_unregistered_path __________________\n[gw18] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_remove_child_rejects_unre0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x151c56cb5ae0>\n\n    def test_remove_child_rejects_unregistered_path(tmp_path, monkeypatch):\n        case = _make_child_repo(tmp_path, monkeypatch)\n        _edit_child_manifest(case, path=str(tmp_path / 'different'))\n>       _child_rejected(case, monkeypatch, 'manifest')\n\norchestrator/tests/test_dev_wave_cleanup.py:235: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncase = ChildRepo(repo=Repo(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_remove_child_rejects_unre0/main'), w...open-gw18/test_remove_child_rejects_unre0/main/.git/worktrees/child'), head='03f7b89bd1674e145e40e987f5aecf0dab8c77b4')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x151c56cb5ae0>\nphase = 'manifest', rc = 20, argv = None, reason = None\n\n    def _child_rejected(case, monkeypatch, phase, rc=20, argv=None, reason=None):\n        before = (_file_snapshot(case.child), _file_snapshot(case.admin), _file_snapshot(case.evidence),\n                  _sha(case.repo.main, 'refs/heads/author'))\n        calls = []\n        original_git, original_remove = cleanup._git, cleanup._remove_verified_tree\n    \n        def spy_git(cwd, *args):\n            if args[:2] in {('worktree', 'unlock'), ('checkout', '--detach')}:\n                calls.append(args)\n            return original_git(cwd, *args)\n    \n        def spy_remove(*args):\n            calls.append(('rmtree',))\n            return original_remove(*args)\n    \n        monkeypatch.setattr(cleanup, '_git', spy_git)\n        monkeypatch.setattr(cleanup, '_remove_verified_tree', spy_remove)\n>       with pytest.raises(cleanup.CleanupFailure) as caught:\nE       Failed: DID NOT RAISE CleanupFailure\n\norchestrator/tests/test_dev_wave_cleanup.py:161: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unregistered_path\n1 failed, 185 passed in 5.02s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unregistered_path\" nodeid_bytes=88 nodeid_omitted_bytes=0 source_bytes=1944 retained_bytes=1944 omitted_bytes=0 rendered_excerpt_bytes=2021 sha256=5c21c6052b58f53e6b0a85cda54097498fcc397d15c626058641ff007d2e6fd7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw18] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_remove_child_rejects_unre0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x151c56cb5ae0>\n> \n>     def test_remove_child_rejects_unregistered_path(tmp_path, monkeypatch):\n>         case = _make_child_repo(tmp_path, monkeypatch)\n>         _edit_child_manifest(case, path=str(tmp_path / 'different'))\n> >       _child_rejected(case, monkeypatch, 'manifest')\n> \n> orchestrator/tests/test_dev_wave_cleanup.py:235: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> case = ChildRepo(repo=Repo(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw18/test_remove_child_rejects_unre0/main'), w...open-gw18/test_remove_child_rejects_unre0/main/.git/worktrees/child'), head='03f7b89bd1674e145e40e987f5aecf0dab8c77b4')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x151c56cb5ae0>\n> phase = 'manifest', rc = 20, argv = None, reason = None\n> \n>     def _child_rejected(case, monkeypatch, phase, rc=20, argv=None, reason=None):\n>         before = (_file_snapshot(case.child), _file_snapshot(case.admin), _file_snapshot(case.evidence),\n>                   _sha(case.repo.main, 'refs/heads/author'))\n>         calls = []\n>         original_git, original_remove = cleanup._git, cleanup._remove_verified_tree\n>     \n>         def spy_git(cwd, *args):\n>             if args[:2] in {('worktree', 'unlock'), ('checkout', '--detach')}:\n>                 calls.append(args)\n>             return original_git(cwd, *args)\n>     \n>         def spy_remove(*args):\n>             calls.append(('rmtree',))\n>             return original_remove(*args)\n>     \n>         monkeypatch.setattr(cleanup, '_git', spy_git)\n>         monkeypatch.setattr(cleanup, '_remove_verified_tree', spy_remove)\n> >       with pytest.raises(cleanup.CleanupFailure) as caught:\n> E       Failed: DID NOT RAISE CleanupFailure\n> \n> orchestrator/tests/test_dev_wave_cleanup.py:161: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1944 retained_bytes=1944 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2736 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "9c248ed9160d1560090ef74d9e896f4fe087530b91c324c736c8b984803e6d7d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cb4a7b136f0c875a05ad2d3f0b5e718195f3ac75752635755b6fde0c2d83f8a9",
+      "duration_s": 263.652,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unregistered_path"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unregistered_path"
+      ],
+      "hang_risk": false,
+      "id": "m1-manifest-binding-removed",
+      "injection_diff_sha256": "beec1a3c1a0821fe84c8aa09027b38c73f058308413469f55febf1f1396dfdb9",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "f1b9ac167f8a5fa4aa28ae6a2cb5d7b970343b97cabc9feb3cf23559cdee3eea",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup.py",
+          "new": "        if True:\n            selected = entry\n        elif path == wave:\n",
+          "old": "        if path == args.child:\n            selected = entry\n        elif path == wave:\n"
+        }
+      ],
+      "repo_head": "2a8127c4e76418abf343178e89f29a78f97886c0",
+      "runner_sha256": "759c3b089f65ea815376322c3fb66e8217be88e9dc4954b523b040c548e04fed",
+      "spec_sha256": "263fdb5ef0f83ab5806e494e7b6c94741cea1f6642a72c8bdf79e1ef1db65e1a",
+      "status": "KILLED",
+      "test_output_sha256": "9c248ed9160d1560090ef74d9e896f4fe087530b91c324c736c8b984803e6d7d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "32ab43e5a49c6fea431b3b9cf0c50bc2bace7b08611ebc700fc4e45bf9e4c791"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8a7158e73a4e7427a0520efe0af039a3/izdw-8a7158e73a.o11211",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/8a7158e73a4e7427a0520efe0af039a3/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 77%]\n................................F...F.....                               [100%]\n=================================== FAILURES ===================================\n____________ test_remove_child_empty_owned_paths_requires_ancestry _____________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_remove_child_empty_owned_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e7b107d090>\n\n    def test_remove_child_empty_owned_paths_requires_ancestry(tmp_path, monkeypatch):\n        case = _make_child_repo(tmp_path, monkeypatch)\n        _edit_child_manifest(case, owned_paths=[])\n>       _child_rejected(case, monkeypatch, 'integration', reason='empty owned_paths')\n\norchestrator/tests/test_dev_wave_cleanup.py:264: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncase = ChildRepo(repo=Repo(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_remove_child_empty_owned_0/main'), w...open-gw21/test_remove_child_empty_owned_0/main/.git/worktrees/child'), head='445464d907c102a30dcf11a1745da421b5e448c6')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e7b107d090>\nphase = 'integration', rc = 20, argv = None, reason = 'empty owned_paths'\n\n    def _child_rejected(case, monkeypatch, phase, rc=20, argv=None, reason=None):\n        before = (_file_snapshot(case.child), _file_snapshot(case.admin), _file_snapshot(case.evidence),\n                  _sha(case.repo.main, 'refs/heads/author'))\n        calls = []\n        original_git, original_remove = cleanup._git, cleanup._remove_verified_tree\n    \n        def spy_git(cwd, *args):\n            if args[:2] in {('worktree', 'unlock'), ('checkout', '--detach')}:\n                calls.append(args)\n            return original_git(cwd, *args)\n    \n        def spy_remove(*args):\n            calls.append(('rmtree',))\n            return original_remove(*args)\n    \n        monkeypatch.setattr(cleanup, '_git', spy_git)\n        monkeypatch.setattr(cleanup, '_remove_verified_tree', spy_remove)\n>       with pytest.raises(cleanup.CleanupFailure) as caught:\nE       Failed: DID NOT RAISE CleanupFailure\n\norchestrator/tests/test_dev_wave_cleanup.py:161: Failed\n_____________ test_remove_child_rejects_unintegrated_author_commit _____________\n[gw20] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_remove_child_rejects_unin0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147a393969b0>\n\n    def test_remove_child_rejects_unintegrated_author_commit(tmp_path, monkeypatch):\n        case = _make_child_repo(tmp_path, monkeypatch)\n        (case.child / 'tracked.txt').write_text('not integrated\\n')\n        _git(case.child, 'commit', '-am', 'unintegrated')\n>       _child_rejected(case, monkeypatch, 'integration', reason='tracked.txt')\n\norchestrator/tests/test_dev_wave_cleanup.py:258: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncase = ChildRepo(repo=Repo(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_remove_child_rejects_unin0/main'), w...open-gw20/test_remove_child_rejects_unin0/main/.git/worktrees/child'), head='445464d907c102a30dcf11a1745da421b5e448c6')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147a393969b0>\nphase = 'integration', rc = 20, argv = None, reason = 'tracked.txt'\n\n    def _child_rejected(case, monkeypatch, phase, rc=20, argv=None, reason=None):\n        before = (_file_snapshot(case.child), _file_snapshot(case.admin), _file_snapshot(case.evidence),\n                  _sha(case.repo.main, 'refs/heads/author'))\n        calls = []\n        original_git, original_remove = cleanup._git, cleanup._remove_verified_tree\n    \n        def spy_git(cwd, *args):\n            if args[:2] in {('worktree', 'unlock'), ('checkout', '--detach')}:\n                calls.append(args)\n            return original_git(cwd, *args)\n    \n        def spy_remove(*args):\n            calls.append(('rmtree',))\n            return original_remove(*args)\n    \n        monkeypatch.setattr(cleanup, '_git', spy_git)\n        monkeypatch.setattr(cleanup, '_remove_verified_tree', spy_remove)\n>       with pytest.raises(cleanup.CleanupFailure) as caught:\nE       Failed: DID NOT RAISE CleanupFailure\n\norchestrator/tests/test_dev_wave_cleanup.py:161: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_empty_owned_paths_requires_ancestry\nFAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unintegrated_author_commit\n2 failed, 184 passed in 5.06s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unintegrated_author_commit\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=2047 retained_bytes=2047 omitted_bytes=0 rendered_excerpt_bytes=2129 sha256=269dec1e34bfd0f4496b0d0f63e550f7863ea42fdecd8cca6d74e3d8dc6c81db\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw20] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_remove_child_rejects_unin0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147a393969b0>\n> \n>     def test_remove_child_rejects_unintegrated_author_commit(tmp_path, monkeypatch):\n>         case = _make_child_repo(tmp_path, monkeypatch)\n>         (case.child / 'tracked.txt').write_text('not integrated\\x5cn')\n>         _git(case.child, 'commit', '-am', 'unintegrated')\n> >       _child_rejected(case, monkeypatch, 'integration', reason='tracked.txt')\n> \n> orchestrator/tests/test_dev_wave_cleanup.py:258: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> case = ChildRepo(repo=Repo(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw20/test_remove_child_rejects_unin0/main'), w...open-gw20/test_remove_child_rejects_unin0/main/.git/worktrees/child'), head='445464d907c102a30dcf11a1745da421b5e448c6')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147a393969b0>\n> phase = 'integration', rc = 20, argv = None, reason = 'tracked.txt'\n> \n>     def _child_rejected(case, monkeypatch, phase, rc=20, argv=None, reason=None):\n>         before = (_file_snapshot(case.child), _file_snapshot(case.admin), _file_snapshot(case.evidence),\n>                   _sha(case.repo.main, 'refs/heads/author'))\n>         calls = []\n>         original_git, original_remove = cleanup._git, cleanup._remove_verified_tree\n>     \n>         def spy_git(cwd, *args):\n>             if args[:2] in {('worktree', 'unlock'), ('checkout', '--detach')}:\n>                 calls.append(args)\n>             return original_git(cwd, *args)\n>     \n>         def spy_remove(*args):\n>             calls.append(('rmtree',))\n>             return original_remove(*args)\n>     \n>         monkeypatch.setattr(cleanup, '_git', spy_git)\n>         monkeypatch.setattr(cleanup, '_remove_verified_tree', spy_remove)\n> >       with pytest.raises(cleanup.CleanupFailure) as caught:\n> E       Failed: DID NOT RAISE CleanupFailure\n> \n> orchestrator/tests/test_dev_wave_cleanup.py:161: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_empty_owned_paths_requires_ancestry\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=1985 retained_bytes=1985 omitted_bytes=0 rendered_excerpt_bytes=2062 sha256=8a65cd7f9a2935de26e846f4da3aaca57bdc157d50c859fc168ca13ecf9e0a60\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_remove_child_empty_owned_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e7b107d090>\n> \n>     def test_remove_child_empty_owned_paths_requires_ancestry(tmp_path, monkeypatch):\n>         case = _make_child_repo(tmp_path, monkeypatch)\n>         _edit_child_manifest(case, owned_paths=[])\n> >       _child_rejected(case, monkeypatch, 'integration', reason='empty owned_paths')\n> \n> orchestrator/tests/test_dev_wave_cleanup.py:264: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> case = ChildRepo(repo=Repo(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_remove_child_empty_owned_0/main'), w...open-gw21/test_remove_child_empty_owned_0/main/.git/worktrees/child'), head='445464d907c102a30dcf11a1745da421b5e448c6')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14e7b107d090>\n> phase = 'integration', rc = 20, argv = None, reason = 'empty owned_paths'\n> \n>     def _child_rejected(case, monkeypatch, phase, rc=20, argv=None, reason=None):\n>         before = (_file_snapshot(case.child), _file_snapshot(case.admin), _file_snapshot(case.evidence),\n>                   _sha(case.repo.main, 'refs/heads/author'))\n>         calls = []\n>         original_git, original_remove = cleanup._git, cleanup._remove_verified_tree\n>     \n>         def spy_git(cwd, *args):\n>             if args[:2] in {('worktree', 'unlock'), ('checkout', '--detach')}:\n>                 calls.append(args)\n>             return original_git(cwd, *args)\n>     \n>         def spy_remove(*args):\n>             calls.append(('rmtree',))\n>             return original_remove(*args)\n>     \n>         monkeypatch.setattr(cleanup, '_git', spy_git)\n>         monkeypatch.setattr(cleanup, '_remove_verified_tree', spy_remove)\n> >       with pytest.raises(cleanup.CleanupFailure) as caught:\n> E       Failed: DID NOT RAISE CleanupFailure\n> \n> orchestrator/tests/test_dev_wave_cleanup.py:161: Failed\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=4032 retained_bytes=4032 omitted_bytes=0 budget_bytes=49152 rendered_bytes=5353 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a36b3744369a23b079440cdbababc03b0a78f86bee9168135f33c5c1d11f5556"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cb4a7b136f0c875a05ad2d3f0b5e718195f3ac75752635755b6fde0c2d83f8a9",
+      "duration_s": 33.389,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_empty_owned_paths_requires_ancestry",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unintegrated_author_commit"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_empty_owned_paths_requires_ancestry",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unintegrated_author_commit"
+      ],
+      "hang_risk": false,
+      "id": "m2-integration-always-true",
+      "injection_diff_sha256": "49ea995b94db54b77ce20640901112d399ef3de6648f68bf461d07c173a2889d",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "669cee732e15a488dc2058da5aace5a6422734b979378c287b67fd3ba61484a0",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup.py",
+          "new": "    if False:\n",
+          "old": "    if not (ancestry or owned_equal):\n"
+        }
+      ],
+      "repo_head": "2a8127c4e76418abf343178e89f29a78f97886c0",
+      "runner_sha256": "759c3b089f65ea815376322c3fb66e8217be88e9dc4954b523b040c548e04fed",
+      "spec_sha256": "263fdb5ef0f83ab5806e494e7b6c94741cea1f6642a72c8bdf79e1ef1db65e1a",
+      "status": "KILLED",
+      "test_output_sha256": "a36b3744369a23b079440cdbababc03b0a78f86bee9168135f33c5c1d11f5556",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "32ab43e5a49c6fea431b3b9cf0c50bc2bace7b08611ebc700fc4e45bf9e4c791"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/44d0d3da643c768b32d9e9f2257010fb/izdw-44d0d3da64.o11213",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/44d0d3da643c768b32d9e9f2257010fb/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 77%]\n...............................F..........                               [100%]\n=================================== FAILURES ===================================\n____________ test_remove_child_empty_owned_paths_requires_ancestry _____________\n[gw21] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_remove_child_empty_owned_0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14907ed3da50>\n\n    def test_remove_child_empty_owned_paths_requires_ancestry(tmp_path, monkeypatch):\n        case = _make_child_repo(tmp_path, monkeypatch)\n        _edit_child_manifest(case, owned_paths=[])\n>       _child_rejected(case, monkeypatch, 'integration', reason='empty owned_paths')\n\norchestrator/tests/test_dev_wave_cleanup.py:264: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncase = ChildRepo(repo=Repo(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_remove_child_empty_owned_0/main'), w...open-gw21/test_remove_child_empty_owned_0/main/.git/worktrees/child'), head='735ff18f5a55633323eed293fdd72cae9155570c')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14907ed3da50>\nphase = 'integration', rc = 20, argv = None, reason = 'empty owned_paths'\n\n    def _child_rejected(case, monkeypatch, phase, rc=20, argv=None, reason=None):\n        before = (_file_snapshot(case.child), _file_snapshot(case.admin), _file_snapshot(case.evidence),\n                  _sha(case.repo.main, 'refs/heads/author'))\n        calls = []\n        original_git, original_remove = cleanup._git, cleanup._remove_verified_tree\n    \n        def spy_git(cwd, *args):\n            if args[:2] in {('worktree', 'unlock'), ('checkout', '--detach')}:\n                calls.append(args)\n            return original_git(cwd, *args)\n    \n        def spy_remove(*args):\n            calls.append(('rmtree',))\n            return original_remove(*args)\n    \n        monkeypatch.setattr(cleanup, '_git', spy_git)\n        monkeypatch.setattr(cleanup, '_remove_verified_tree', spy_remove)\n>       with pytest.raises(cleanup.CleanupFailure) as caught:\nE       Failed: DID NOT RAISE CleanupFailure\n\norchestrator/tests/test_dev_wave_cleanup.py:161: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_empty_owned_paths_requires_ancestry\n1 failed, 185 passed in 5.09s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_empty_owned_paths_requires_ancestry\" nodeid_bytes=98 nodeid_omitted_bytes=0 source_bytes=1985 retained_bytes=1985 omitted_bytes=0 rendered_excerpt_bytes=2062 sha256=4734b00301bd69a45e020d8741faf5137a2788f1baab96e128ece99e8db3ec30\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw21] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_remove_child_empty_owned_0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14907ed3da50>\n> \n>     def test_remove_child_empty_owned_paths_requires_ancestry(tmp_path, monkeypatch):\n>         case = _make_child_repo(tmp_path, monkeypatch)\n>         _edit_child_manifest(case, owned_paths=[])\n> >       _child_rejected(case, monkeypatch, 'integration', reason='empty owned_paths')\n> \n> orchestrator/tests/test_dev_wave_cleanup.py:264: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> case = ChildRepo(repo=Repo(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw21/test_remove_child_empty_owned_0/main'), w...open-gw21/test_remove_child_empty_owned_0/main/.git/worktrees/child'), head='735ff18f5a55633323eed293fdd72cae9155570c')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14907ed3da50>\n> phase = 'integration', rc = 20, argv = None, reason = 'empty owned_paths'\n> \n>     def _child_rejected(case, monkeypatch, phase, rc=20, argv=None, reason=None):\n>         before = (_file_snapshot(case.child), _file_snapshot(case.admin), _file_snapshot(case.evidence),\n>                   _sha(case.repo.main, 'refs/heads/author'))\n>         calls = []\n>         original_git, original_remove = cleanup._git, cleanup._remove_verified_tree\n>     \n>         def spy_git(cwd, *args):\n>             if args[:2] in {('worktree', 'unlock'), ('checkout', '--detach')}:\n>                 calls.append(args)\n>             return original_git(cwd, *args)\n>     \n>         def spy_remove(*args):\n>             calls.append(('rmtree',))\n>             return original_remove(*args)\n>     \n>         monkeypatch.setattr(cleanup, '_git', spy_git)\n>         monkeypatch.setattr(cleanup, '_remove_verified_tree', spy_remove)\n> >       with pytest.raises(cleanup.CleanupFailure) as caught:\n> E       Failed: DID NOT RAISE CleanupFailure\n> \n> orchestrator/tests/test_dev_wave_cleanup.py:161: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1985 retained_bytes=1985 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2787 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "ecc4734f48899e5059186eda62623196cc7447e532207a3ee235a0d48324f73d"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cb4a7b136f0c875a05ad2d3f0b5e718195f3ac75752635755b6fde0c2d83f8a9",
+      "duration_s": 33.56,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_empty_owned_paths_requires_ancestry"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_empty_owned_paths_requires_ancestry"
+      ],
+      "hang_risk": false,
+      "id": "m3-empty-owned-vacuous-truth",
+      "injection_diff_sha256": "cf1e5067f215ec12f070d3fe3a6c6d1d87e1ffb3914f1820289869e3443cbb8f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7e28aefd102b47c9a7589125e136f212d7c09ded926ae16926b5509caf166af6",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup.py",
+          "new": "    owned_equal = not mismatches\n",
+          "old": "    owned_equal = bool(proof.owned) and not mismatches\n"
+        }
+      ],
+      "repo_head": "2a8127c4e76418abf343178e89f29a78f97886c0",
+      "runner_sha256": "759c3b089f65ea815376322c3fb66e8217be88e9dc4954b523b040c548e04fed",
+      "spec_sha256": "263fdb5ef0f83ab5806e494e7b6c94741cea1f6642a72c8bdf79e1ef1db65e1a",
+      "status": "KILLED",
+      "test_output_sha256": "ecc4734f48899e5059186eda62623196cc7447e532207a3ee235a0d48324f73d",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "32ab43e5a49c6fea431b3b9cf0c50bc2bace7b08611ebc700fc4e45bf9e4c791"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f82ab8fbc6291a1d9fbd83b981aaedea/izdw-f82ab8fbc6.o11217",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f82ab8fbc6291a1d9fbd83b981aaedea/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 77%]\n....................................F...F.                               [100%]\n=================================== FAILURES ===================================\n_____ test_remove_child_archives_dirty_integrated_author_and_keeps_branch ______\n[gw17] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_remove_child_archives_dir0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x147e9d699a50>\ncapsys = <_pytest.capture.CaptureFixture object at 0x147e9d699d20>\n\n    def test_remove_child_archives_dirty_integrated_author_and_keeps_branch(tmp_path, monkeypatch, capsys):\n        case = _make_child_repo(tmp_path, monkeypatch)\n        (case.child / 'tracked.txt').write_text('staged\\n')\n        _git(case.child, 'add', 'tracked.txt')\n        (case.child / 'tracked.txt').write_text('unstaged\\n')\n        (case.child / 'scratch.txt').write_bytes(b'scratch\\x00bytes')\n        (case.child / 'ignored.bin').write_bytes(b'ignored\\xff')\n        (case.child / 'scratch-link').symlink_to('scratch.txt')\n        expected = _file_snapshot(case.child)\n        expected.pop('.git')\n        wave_before = _file_snapshot(case.repo.wave)\n        main_head, wave_head = _sha(case.repo.main), _sha(case.repo.wave)\n        main_status = _git(case.repo.main, 'status', '--porcelain').stdout\n        original_git = cleanup._git\n    \n        def keep_branch(cwd, *args):\n            assert args[:2] != ('branch', '-d')\n            return original_git(cwd, *args)\n    \n        monkeypatch.setattr(cleanup, '_git', keep_branch)\n        original_run = cleanup.run\n        results = []\n    \n        def capture_run(argv):\n            result = original_run(argv)\n            results.append(result)\n            return result\n    \n        monkeypatch.setattr(cleanup, 'run', capture_run)\n        assert cleanup.main(_child_argv(case)) == 0\n        assert capsys.readouterr().out.splitlines()[0] == 'removed'\n        result, = results\n        assert result.outcome == 'removed'\n        assert len(result.occupancy) == 2\n        assert not case.child.exists() and not case.admin.exists()\n        assert cleanup._record_for(cleanup._worktree_records(case.repo.main), case.child) is None\n        assert _sha(case.repo.main, 'refs/heads/author') == case.head\n        assert (_sha(case.repo.main), _sha(case.repo.wave)) == (main_head, wave_head)\n        assert _file_snapshot(case.repo.wave) == wave_before\n        assert (case.repo.main / 'tracked.txt').read_bytes() == b'integrated\\n'\n        assert _git(case.repo.main, 'status', '--porcelain').stdout == main_status\n        receipt = json.loads((case.evidence / 'removed.json').read_text())\n        assert set(receipt['files']) == {'committed.patch', 'dirty.tar.gz', 'tracked.patch', 'index.patch', 'status.txt', 'head-sha.txt', 'branch.txt'}\n        assert (case.evidence / 'head-sha.txt').read_text().strip() == case.head\n        assert (case.evidence / 'branch.txt').read_text().strip() == 'refs/heads/author'\n        assert b'!! ignored.bin\\x00' in (case.evidence / 'status.txt').read_bytes()\n        committed = (case.evidence / 'committed.patch').read_bytes()\n        assert b'diff --git a/author-result.md b/author-result.md\\n' in committed\n        assert b'@@ -0,0 +1 @@\\n+terminal report\\n' in committed\n        restored = tmp_path / 'restored'\n        _git(case.repo.main, 'worktree', 'add', '--detach', str(restored), case.head)\n        _git(restored, 'apply', '--cached', str(case.evidence / 'index.patch'))\n        assert _git(restored, 'show', ':tracked.txt').stdout == b'staged\\n'\n        _git(restored, 'apply', str(case.evidence / 'tracked.patch'))\n>       with tarfile.open(case.evidence / 'dirty.tar.gz') as archive:\n\norchestrator/tests/test_dev_wave_cleanup.py:225: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncls = <class 'tarfile.TarFile'>\nname = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_remove_child_archives_dir0/evidence/dirty.tar.gz')\nmode = 'r', fileobj = None, bufsize = 10240, kwargs = {}\n\n    @classmethod\n    def open(cls, name=None, mode=\"r\", fileobj=None, bufsize=RECORDSIZE, **kwargs):\n        \"\"\"Open a tar archive for reading, writing or appending. Return\n           an appropriate TarFile class.\n    \n           mode:\n           'r' or 'r:*' open for reading with transparent compression\n           'r:'         open for reading exclusively uncompressed\n           'r:gz'       open for reading with gzip compression\n           'r:bz2'      open for reading with bzip2 compression\n           'r:xz'       open for reading with lzma compression\n           'a' or 'a:'  open for appending, creating the file if necessary\n           'w' or 'w:'  open for writing without compression\n           'w:gz'       open for writing with gzip compression\n           'w:bz2'      open for writing with bzip2 compression\n           'w:xz'       open for writing with lzma compression\n    \n           'x' or 'x:'  create a tarfile exclusively without compression, raise\n                        an exception if the file is already created\n           'x:gz'       create a gzip compressed tarfile, raise an exception\n                        if the file is already created\n           'x:bz2'      create a bzip2 compressed tarfile, raise an exception\n                        if the file is already created\n           'x:xz'       create an lzma compressed tarfile, raise an exception\n                        if the file is already created\n    \n           'r|*'        open a stream of tar blocks with transparent compression\n           'r|'         open an uncompressed stream of tar blocks for reading\n           'r|gz'       open a gzip compressed stream of tar blocks\n           'r|bz2'      open a bzip2 compressed stream of tar blocks\n           'r|xz'       open an lzma compressed stream of tar blocks\n           'w|'         open an uncompressed stream for writing\n           'w|gz'       open a gzip compressed stream for writing\n           'w|bz2'      open a bzip2 compressed stream for writing\n           'w|xz'       open an lzma compressed stream for writing\n        \"\"\"\n    \n        if not name and not fileobj:\n            raise ValueError(\"nothing to open\")\n    \n        if mode in (\"r\", \"r:*\"):\n            # Find out which *open() is appropriate for opening the file.\n            def not_compressed(comptype):\n                return cls.OPEN_METH[comptype] == 'taropen'\n            error_msgs = []\n            for comptype in sorted(cls.OPEN_METH, key=not_compressed):\n                func = getattr(cls, cls.OPEN_METH[comptype])\n                if fileobj is not None:\n                    saved_pos = fileobj.tell()\n                try:\n                    return func(name, \"r\", fileobj, **kwargs)\n                except (ReadError, CompressionError) as e:\n                    error_msgs.append(f'- method {comptype}: {e!r}')\n                    if fileobj is not None:\n                        fileobj.seek(saved_pos)\n                    continue\n            error_msgs_summary = '\\n'.join(error_msgs)\n>           raise ReadError(f\"file could not be opened successfully:\\n{error_msgs_summary}\")\nE           tarfile.ReadError: file could not be opened successfully:\nE           - method gz: ReadError('empty file')\nE           - method bz2: ReadError('not a bzip2 file')\nE           - method xz: ReadError('not an lzma file')\nE           - method tar: ReadError('empty file')\n\n/usr/lib/python3.10/tarfile.py:1836: ReadError\n_____________ test_remove_child_detached_ancestry_and_empty_backup _____________\n[gw33] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_remove_child_detached_anc0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14ce0c53df60>\n\n    def test_remove_child_detached_ancestry_and_empty_backup(tmp_path, monkeypatch):\n        case = _make_child_repo(tmp_path, monkeypatch)\n        # A fresh detached child has only main-reachable HEAD reflog history.\n        detached = tmp_path / 'detached'\n        _git(case.repo.main, 'worktree', 'add', '--detach', str(detached), 'main')\n        data = json.loads(case.manifest.read_text())\n        data['entries'] = [{'path': str(detached), 'purpose': 'container', 'branch': None, 'owned_paths': []}]\n        case.manifest.write_text(json.dumps(data))\n        argv = _child_argv(case)\n        argv[6] = str(detached)\n        assert cleanup.run(argv).outcome == 'removed'\n        assert (case.evidence / 'branch.txt').read_text() == 'detached\\n'\n        for name in ('status.txt', 'tracked.patch', 'index.patch', 'committed.patch'):\n            assert (case.evidence / name).read_bytes() == b''\n>       with tarfile.open(case.evidence / 'dirty.tar.gz') as archive:\n\norchestrator/tests/test_dev_wave_cleanup.py:471: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncls = <class 'tarfile.TarFile'>\nname = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_remove_child_detached_anc0/evidence/dirty.tar.gz')\nmode = 'r', fileobj = None, bufsize = 10240, kwargs = {}\n\n    @classmethod\n    def open(cls, name=None, mode=\"r\", fileobj=None, bufsize=RECORDSIZE, **kwargs):\n        \"\"\"Open a tar archive for reading, writing or appending. Return\n           an appropriate TarFile class.\n    \n           mode:\n           'r' or 'r:*' open for reading with transparent compression\n           'r:'         open for reading exclusively uncompressed\n           'r:gz'       open for reading with gzip compression\n           'r:bz2'      open for reading with bzip2 compression\n           'r:xz'       open for reading with lzma compression\n           'a' or 'a:'  open for appending, creating the file if necessary\n           'w' or 'w:'  open for writing without compression\n           'w:gz'       open for writing with gzip compression\n           'w:bz2'      open for writing with bzip2 compression\n           'w:xz'       open for writing with lzma compression\n    \n           'x' or 'x:'  create a tarfile exclusively without compression, raise\n                        an exception if the file is already created\n           'x:gz'       create a gzip compressed tarfile, raise an exception\n                        if the file is already created\n           'x:bz2'      create a bzip2 compressed tarfile, raise an exception\n                        if the file is already created\n           'x:xz'       create an lzma compressed tarfile, raise an exception\n                        if the file is already created\n    \n           'r|*'        open a stream of tar blocks with transparent compression\n           'r|'         open an uncompressed stream of tar blocks for reading\n           'r|gz'       open a gzip compressed stream of tar blocks\n           'r|bz2'      open a bzip2 compressed stream of tar blocks\n           'r|xz'       open an lzma compressed stream of tar blocks\n           'w|'         open an uncompressed stream for writing\n           'w|gz'       open a gzip compressed stream for writing\n           'w|bz2'      open a bzip2 compressed stream for writing\n           'w|xz'       open an lzma compressed stream for writing\n        \"\"\"\n    \n        if not name and not fileobj:\n            raise ValueError(\"nothing to open\")\n    \n        if mode in (\"r\", \"r:*\"):\n            # Find out which *open() is appropriate for opening the file.\n            def not_compressed(comptype):\n                return cls.OPEN_METH[comptype] == 'taropen'\n            error_msgs = []\n            for comptype in sorted(cls.OPEN_METH, key=not_compressed):\n                func = getattr(cls, cls.OPEN_METH[comptype])\n                if fileobj is not None:\n                    saved_pos = fileobj.tell()\n                try:\n                    return func(name, \"r\", fileobj, **kwargs)\n                except (ReadError, CompressionError) as e:\n                    error_msgs.append(f'- method {comptype}: {e!r}')\n                    if fileobj is not None:\n                        fileobj.seek(saved_pos)\n                    continue\n            error_msgs_summary = '\\n'.join(error_msgs)\n>           raise ReadError(f\"file could not be opened successfully:\\n{error_msgs_summary}\")\nE           tarfile.ReadError: file could not be opened successfully:\nE           - method gz: ReadError('empty file')\nE           - method bz2: ReadError('not a bzip2 file')\nE           - method xz: ReadError('not an lzma file')\nE           - method tar: ReadError('empty file')\n\n/usr/lib/python3.10/tarfile.py:1836: ReadError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archives_dirty_integrated_author_and_keeps_branch\nFAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_detached_ancestry_and_empty_backup\n2 failed, 184 passed in 5.17s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archives_dirty_integrated_author_and_keeps_branch\" nodeid_bytes=112 nodeid_omitted_bytes=0 source_bytes=7259 retained_bytes=3934 omitted_bytes=3325 rendered_excerpt_bytes=4096 sha256=38fabf25f9532d0852bb2b83e796ac13cbc90b3281e0800e33a765e9abdd39a7\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n>  b'staged\\x5cn'\n>         _git(restored, 'apply', str(case.evidence / 'tracked.patch'))\n> >       with tarfile.open(case.evidence / 'dirty.tar.gz') as archive:\n> \n> orchestrator/tests/test_dev_wave_cleanup.py:225: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> cls = <class 'tarfile.TarFile'>\n> name = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw17/test_remove_child_archives_dir0/evidence/dirty.tar.gz')\n> mode = 'r', fileobj = None, bufsize = 10240, kwargs = {}\n> \n>     @classmethod\n>     def open(cls, name=None, mode=\"r\", fileobj=None, bufsize=RECORDSIZE, **kwargs):\n>         \"\"\"Open a tar archive for reading, writing or appending. Return\n>            an appropriate TarFile class.\n>     \n>            mode:\n>            'r' or 'r:*' open for reading with transparent compression\n>            'r:'         open for reading exclusively uncompressed\n>            'r:gz'       open for reading with gzip compression\n>            'r:bz2'      open for reading with bzip2 compression\n>            'r:xz'       open for reading with lzma compression\n>            'a' or 'a:'  open for appending, creating the file if necessary\n>            'w' or 'w:'  open for writing without compression\n>            'w:gz'       open for writing with gzip compression\n>            'w:bz2'      open for writing with bzip2 compression\n>            'w:xz'       open for writing with lzma compression\n>     \n>            'x' or 'x:'  create a tarfile exclusively without compression, raise\n>                         an exception if the file is already created\n>            'x:gz'       create a gzip compressed tarfile, raise an exception\n>                         if the file is already created\n>            'x:bz2'      create a bzip2 compressed tarfile, raise an exception\n>                         if the file is already created\n>            'x:xz'       create an lzma compressed tarfile, raise an exception\n>                         if the file is already created\n>     \n>            'r|*'        open a stream of tar blocks with transparent compression\n>            'r|'         open an uncompressed stream of tar blocks for reading\n>            'r|gz'       open a gzip compressed stream of tar blocks\n>            'r|bz2'      open a bzip2 compressed stream of tar blocks\n>            'r|xz'       open an lzma compressed stream of tar blocks\n>            'w|'         open an uncompressed stream for writing\n>            'w|gz'       open a gzip compressed stream for writing\n>            'w|bz2'      open a bzip2 compressed stream for writing\n>            'w|xz'       open an lzma compressed stream for writing\n>         \"\"\"\n>     \n>         if not name and not fileobj:\n>             raise ValueError(\"nothing to open\")\n>     \n>         if mode in (\"r\", \"r:*\"):\n>             # Find out which *open() is appropriate for opening the file.\n>             def not_compressed(comptype):\n>                 return cls.OPEN_METH[comptype] == 'taropen'\n>             error_msgs = []\n>             for comptype in sorted(cls.OPEN_METH, key=not_compressed):\n>                 func = getattr(cls, cls.OPEN_METH[comptype])\n>                 if fileobj is not None:\n>                     saved_pos = fileobj.tell()\n>                 try:\n>                     return func(name, \"r\", fileobj, **kwargs)\n>                 except (ReadError, CompressionError) as e:\n>                     error_msgs.append(f'- method {comptype}: {e!r}')\n>                     if fileobj is not None:\n>                         fileobj.seek(saved_pos)\n>                     continue\n>             error_msgs_summary = '\\x5cn'.join(error_msgs)\n> >           raise ReadError(f\"file could not be opened successfully:\\x5cn{error_msgs_summary}\")\n> E           tarfile.ReadError: file could not be opened successfully:\n> E           - method gz: ReadError('empty file')\n> E           - method bz2: ReadError('not a bzip2 file')\n> E           - method xz: ReadError('not an lzma file')\n> E           - method tar: ReadError('empty file')\n> \n> /usr/lib/python3.10/tarfile.py:1836: ReadError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE rank=2 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_detached_ancestry_and_empty_backup\" nodeid_bytes=97 nodeid_omitted_bytes=0 source_bytes=4969 retained_bytes=3937 omitted_bytes=1032 rendered_excerpt_bytes=4096 sha256=a44b07ca22c9f60fec78444ca04a61e2296876b771309c365db274275fa85aab\n--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---\n> h', 'committed.patch'):\n>             assert (case.evidence / name).read_bytes() == b''\n> >       with tarfile.open(case.evidence / 'dirty.tar.gz') as archive:\n> \n> orchestrator/tests/test_dev_wave_cleanup.py:471: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> cls = <class 'tarfile.TarFile'>\n> name = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_remove_child_detached_anc0/evidence/dirty.tar.gz')\n> mode = 'r', fileobj = None, bufsize = 10240, kwargs = {}\n> \n>     @classmethod\n>     def open(cls, name=None, mode=\"r\", fileobj=None, bufsize=RECORDSIZE, **kwargs):\n>         \"\"\"Open a tar archive for reading, writing or appending. Return\n>            an appropriate TarFile class.\n>     \n>            mode:\n>            'r' or 'r:*' open for reading with transparent compression\n>            'r:'         open for reading exclusively uncompressed\n>            'r:gz'       open for reading with gzip compression\n>            'r:bz2'      open for reading with bzip2 compression\n>            'r:xz'       open for reading with lzma compression\n>            'a' or 'a:'  open for appending, creating the file if necessary\n>            'w' or 'w:'  open for writing without compression\n>            'w:gz'       open for writing with gzip compression\n>            'w:bz2'      open for writing with bzip2 compression\n>            'w:xz'       open for writing with lzma compression\n>     \n>            'x' or 'x:'  create a tarfile exclusively without compression, raise\n>                         an exception if the file is already created\n>            'x:gz'       create a gzip compressed tarfile, raise an exception\n>                         if the file is already created\n>            'x:bz2'      create a bzip2 compressed tarfile, raise an exception\n>                         if the file is already created\n>            'x:xz'       create an lzma compressed tarfile, raise an exception\n>                         if the file is already created\n>     \n>            'r|*'        open a stream of tar blocks with transparent compression\n>            'r|'         open an uncompressed stream of tar blocks for reading\n>            'r|gz'       open a gzip compressed stream of tar blocks\n>            'r|bz2'      open a bzip2 compressed stream of tar blocks\n>            'r|xz'       open an lzma compressed stream of tar blocks\n>            'w|'         open an uncompressed stream for writing\n>            'w|gz'       open a gzip compressed stream for writing\n>            'w|bz2'      open a bzip2 compressed stream for writing\n>            'w|xz'       open an lzma compressed stream for writing\n>         \"\"\"\n>     \n>         if not name and not fileobj:\n>             raise ValueError(\"nothing to open\")\n>     \n>         if mode in (\"r\", \"r:*\"):\n>             # Find out which *open() is appropriate for opening the file.\n>             def not_compressed(comptype):\n>                 return cls.OPEN_METH[comptype] == 'taropen'\n>             error_msgs = []\n>             for comptype in sorted(cls.OPEN_METH, key=not_compressed):\n>                 func = getattr(cls, cls.OPEN_METH[comptype])\n>                 if fileobj is not None:\n>                     saved_pos = fileobj.tell()\n>                 try:\n>                     return func(name, \"r\", fileobj, **kwargs)\n>                 except (ReadError, CompressionError) as e:\n>                     error_msgs.append(f'- method {comptype}: {e!r}')\n>                     if fileobj is not None:\n>                         fileobj.seek(saved_pos)\n>                     continue\n>             error_msgs_summary = '\\x5cn'.join(error_msgs)\n> >           raise ReadError(f\"file could not be opened successfully:\\x5cn{error_msgs_summary}\")\n> E           tarfile.ReadError: file could not be opened successfully:\n> E           - method gz: ReadError('empty file')\n> E           - method bz2: ReadError('not a bzip2 file')\n> E           - method xz: ReadError('not an lzma file')\n> E           - method tar: ReadError('empty file')\n> \n> /usr/lib/python3.10/tarfile.py:1836: ReadError\n--- IZANAGI FAILURE EXCERPT rank=2 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=12228 retained_bytes=7871 omitted_bytes=4357 budget_bytes=49152 rendered_bytes=9379 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "986ac9c1e8c2fafa92fd27fd995e17a9a8e412dcbff566807434551e73a33a30"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cb4a7b136f0c875a05ad2d3f0b5e718195f3ac75752635755b6fde0c2d83f8a9",
+      "duration_s": 33.131,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archives_dirty_integrated_author_and_keeps_branch"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archives_dirty_integrated_author_and_keeps_branch",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_detached_ancestry_and_empty_backup"
+      ],
+      "hang_risk": false,
+      "id": "m4-dirty-tar-emptied",
+      "injection_diff_sha256": "087a0adc8d449e769db0ad63ca971b941b2802ffc68061cb094e649145393cc8",
+      "matches_expectation": false,
+      "rc": 1,
+      "registration_sha256": "1d8d186ea88f27b57ef595b4f9398c9f6570df3ba2044cfbabd1f916e41ad3a7",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup.py",
+          "new": "    files = {**files, \"dirty.tar.gz\": b\"\"}\n",
+          "old": "    files = {**files, \"dirty.tar.gz\": buffer.getvalue()}\n"
+        }
+      ],
+      "repo_head": "2a8127c4e76418abf343178e89f29a78f97886c0",
+      "runner_sha256": "759c3b089f65ea815376322c3fb66e8217be88e9dc4954b523b040c548e04fed",
+      "spec_sha256": "263fdb5ef0f83ab5806e494e7b6c94741cea1f6642a72c8bdf79e1ef1db65e1a",
+      "status": "MISMATCH",
+      "test_output_sha256": "986ac9c1e8c2fafa92fd27fd995e17a9a8e412dcbff566807434551e73a33a30",
+      "test_output_tail": [
+        "--- IZANAGI FAILURE EXCERPT rank=2 BEGIN ---",
+        "> h', 'committed.patch'):",
+        ">             assert (case.evidence / name).read_bytes() == b''",
+        "> >       with tarfile.open(case.evidence / 'dirty.tar.gz') as archive:",
+        "> ",
+        "> orchestrator/tests/test_dev_wave_cleanup.py:471: ",
+        "> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ ",
+        "> ",
+        "> cls = <class 'tarfile.TarFile'>",
+        "> name = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw33/test_remove_child_detached_anc0/evidence/dirty.tar.gz')",
+        "> mode = 'r', fileobj = None, bufsize = 10240, kwargs = {}",
+        "> ",
+        ">     @classmethod",
+        ">     def open(cls, name=None, mode=\"r\", fileobj=None, bufsize=RECORDSIZE, **kwargs):",
+        ">         \"\"\"Open a tar archive for reading, writing or appending. Return",
+        ">            an appropriate TarFile class.",
+        ">     ",
+        ">            mode:",
+        ">            'r' or 'r:*' open for reading with transparent compression",
+        ">            'r:'         open for reading exclusively uncompressed",
+        ">            'r:gz'       open for reading with gzip compression",
+        ">            'r:bz2'      open for reading with bzip2 compression",
+        ">            'r:xz'       open for reading with lzma compression",
+        ">            'a' or 'a:'  open for appending, creating the file if necessary",
+        ">            'w' or 'w:'  open for writing without compression",
+        ">            'w:gz'       open for writing with gzip compression",
+        ">            'w:bz2'      open for writing with bzip2 compression",
+        ">            'w:xz'       open for writing with lzma compression",
+        ">     ",
+        ">            'x' or 'x:'  create a tarfile exclusively without compression, raise",
+        ">                         an exception if the file is already created",
+        ">            'x:gz'       create a gzip compressed tarfile, raise an exception",
+        ">                         if the file is already created",
+        ">            'x:bz2'      create a bzip2 compressed tarfile, raise an exception",
+        ">                         if the file is already created",
+        ">            'x:xz'       create an lzma compressed tarfile, raise an exception",
+        ">                         if the file is already created",
+        ">     ",
+        ">            'r|*'        open a stream of tar blocks with transparent compression",
+        ">            'r|'         open an uncompressed stream of tar blocks for reading",
+        ">            'r|gz'       open a gzip compressed stream of tar blocks",
+        ">            'r|bz2'      open a bzip2 compressed stream of tar blocks",
+        ">            'r|xz'       open an lzma compressed stream of tar blocks",
+        ">            'w|'         open an uncompressed stream for writing",
+        ">            'w|gz'       open a gzip compressed stream for writing",
+        ">            'w|bz2'      open a bzip2 compressed stream for writing",
+        ">            'w|xz'       open an lzma compressed stream for writing",
+        ">         \"\"\"",
+        ">     ",
+        ">         if not name and not fileobj:",
+        ">             raise ValueError(\"nothing to open\")",
+        ">     ",
+        ">         if mode in (\"r\", \"r:*\"):",
+        ">             # Find out which *open() is appropriate for opening the file.",
+        ">             def not_compressed(comptype):",
+        ">                 return cls.OPEN_METH[comptype] == 'taropen'",
+        ">             error_msgs = []",
+        ">             for comptype in sorted(cls.OPEN_METH, key=not_compressed):",
+        ">                 func = getattr(cls, cls.OPEN_METH[comptype])",
+        ">                 if fileobj is not None:",
+        ">                     saved_pos = fileobj.tell()",
+        ">                 try:",
+        ">                     return func(name, \"r\", fileobj, **kwargs)",
+        ">                 except (ReadError, CompressionError) as e:",
+        ">                     error_msgs.append(f'- method {comptype}: {e!r}')",
+        ">                     if fileobj is not None:",
+        ">                         fileobj.seek(saved_pos)",
+        ">                     continue",
+        ">             error_msgs_summary = '\\x5cn'.join(error_msgs)",
+        "> >           raise ReadError(f\"file could not be opened successfully:\\x5cn{error_msgs_summary}\")",
+        "> E           tarfile.ReadError: file could not be opened successfully:",
+        "> E           - method gz: ReadError('empty file')",
+        "> E           - method bz2: ReadError('not a bzip2 file')",
+        "> E           - method xz: ReadError('not an lzma file')",
+        "> E           - method tar: ReadError('empty file')",
+        "> ",
+        "> /usr/lib/python3.10/tarfile.py:1836: ReadError",
+        "--- IZANAGI FAILURE EXCERPT rank=2 END ---",
+        "IZANAGI_FAILURE_DIGEST_ACCOUNT failures=2 failed=2 errors=0 selected=2 omitted_failures=0 source_bytes=12228 retained_bytes=7871 omitted_bytes=4357 budget_bytes=49152 rendered_bytes=9379 omitted_manifest_sha256=-",
+        "=== IZANAGI FAILURE DIGEST v1 END ==="
+      ],
+      "timed_out": false,
+      "tool_sha256": "32ab43e5a49c6fea431b3b9cf0c50bc2bace7b08611ebc700fc4e45bf9e4c791"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7d13e3671f898a06ddf29bf9a361d5e5/izdw-7d13e3671f.o11221",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7d13e3671f898a06ddf29bf9a361d5e5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 77%]\n........................F.................                               [100%]\n=================================== FAILURES ===================================\n__________________ test_remove_child_rejects_live_process_cwd __________________\n[gw19] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_remove_child_rejects_live0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14db2e0a19c0>\n\n    def test_remove_child_rejects_live_process_cwd(tmp_path, monkeypatch):\n        case = _make_child_repo(tmp_path, monkeypatch)\n        process = subprocess.Popen(\n            [sys.executable, '-c', 'import sys; sys.stdin.buffer.read(1)'],\n            cwd=case.child, stdin=subprocess.PIPE,\n            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,\n        )\n        try:\n>           _child_rejected(case, monkeypatch, 'occupancy', 21)\n\norchestrator/tests/test_dev_wave_cleanup.py:246: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncase = ChildRepo(repo=Repo(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_remove_child_rejects_live0/main'), w...open-gw19/test_remove_child_rejects_live0/main/.git/worktrees/child'), head='9c03954c163bf92a64e7d46f6be7f8eeba34d139')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14db2e0a19c0>\nphase = 'occupancy', rc = 21, argv = None, reason = None\n\n    def _child_rejected(case, monkeypatch, phase, rc=20, argv=None, reason=None):\n        before = (_file_snapshot(case.child), _file_snapshot(case.admin), _file_snapshot(case.evidence),\n                  _sha(case.repo.main, 'refs/heads/author'))\n        calls = []\n        original_git, original_remove = cleanup._git, cleanup._remove_verified_tree\n    \n        def spy_git(cwd, *args):\n            if args[:2] in {('worktree', 'unlock'), ('checkout', '--detach')}:\n                calls.append(args)\n            return original_git(cwd, *args)\n    \n        def spy_remove(*args):\n            calls.append(('rmtree',))\n            return original_remove(*args)\n    \n        monkeypatch.setattr(cleanup, '_git', spy_git)\n        monkeypatch.setattr(cleanup, '_remove_verified_tree', spy_remove)\n        with pytest.raises(cleanup.CleanupFailure) as caught:\n            cleanup.run(argv or _child_argv(case))\n>       assert (caught.value.rc, caught.value.phase) == (rc, phase), str(caught.value)\nE       AssertionError: target worktree is occupied; attempts=1 retry_count=0\nE       assert (30, 'recheck') == (21, 'occupancy')\nE         \nE         At index 0 diff: 30 != 21\nE         Use -v to get more diff\n\norchestrator/tests/test_dev_wave_cleanup.py:163: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_live_process_cwd\n1 failed, 185 passed in 4.99s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_live_process_cwd\" nodeid_bytes=87 nodeid_omitted_bytes=0 source_bytes=2448 retained_bytes=2448 omitted_bytes=0 rendered_excerpt_bytes=2547 sha256=0dc813bca42bd981929e1789c2c2b1bc26ad8a40ac157939d66227554f404142\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw19] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_remove_child_rejects_live0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14db2e0a19c0>\n> \n>     def test_remove_child_rejects_live_process_cwd(tmp_path, monkeypatch):\n>         case = _make_child_repo(tmp_path, monkeypatch)\n>         process = subprocess.Popen(\n>             [sys.executable, '-c', 'import sys; sys.stdin.buffer.read(1)'],\n>             cwd=case.child, stdin=subprocess.PIPE,\n>             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,\n>         )\n>         try:\n> >           _child_rejected(case, monkeypatch, 'occupancy', 21)\n> \n> orchestrator/tests/test_dev_wave_cleanup.py:246: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> case = ChildRepo(repo=Repo(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw19/test_remove_child_rejects_live0/main'), w...open-gw19/test_remove_child_rejects_live0/main/.git/worktrees/child'), head='9c03954c163bf92a64e7d46f6be7f8eeba34d139')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14db2e0a19c0>\n> phase = 'occupancy', rc = 21, argv = None, reason = None\n> \n>     def _child_rejected(case, monkeypatch, phase, rc=20, argv=None, reason=None):\n>         before = (_file_snapshot(case.child), _file_snapshot(case.admin), _file_snapshot(case.evidence),\n>                   _sha(case.repo.main, 'refs/heads/author'))\n>         calls = []\n>         original_git, original_remove = cleanup._git, cleanup._remove_verified_tree\n>     \n>         def spy_git(cwd, *args):\n>             if args[:2] in {('worktree', 'unlock'), ('checkout', '--detach')}:\n>                 calls.append(args)\n>             return original_git(cwd, *args)\n>     \n>         def spy_remove(*args):\n>             calls.append(('rmtree',))\n>             return original_remove(*args)\n>     \n>         monkeypatch.setattr(cleanup, '_git', spy_git)\n>         monkeypatch.setattr(cleanup, '_remove_verified_tree', spy_remove)\n>         with pytest.raises(cleanup.CleanupFailure) as caught:\n>             cleanup.run(argv or _child_argv(case))\n> >       assert (caught.value.rc, caught.value.phase) == (rc, phase), str(caught.value)\n> E       AssertionError: target worktree is occupied; attempts=1 retry_count=0\n> E       assert (30, 'recheck') == (21, 'occupancy')\n> E         \n> E         At index 0 diff: 30 != 21\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_dev_wave_cleanup.py:163: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2448 retained_bytes=2448 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3261 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "7df2f9fb764d63de0002dda30228a3069a9c6541f06dce3d56c687705c0d5213"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cb4a7b136f0c875a05ad2d3f0b5e718195f3ac75752635755b6fde0c2d83f8a9",
+      "duration_s": 382.652,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_live_process_cwd"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_live_process_cwd"
+      ],
+      "hang_risk": false,
+      "id": "m5-occupancy-precheck-skipped",
+      "injection_diff_sha256": "20438b3de110ba4575b0666e841ce0ec2766eaff3412189507f1c60e2f541721",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "c11bfda96a6d6b0ee39cfbab69132366afbc505cd3d8a37bef388f890500fa81",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup.py",
+          "new": "        before = OccupancyDiagnostics(None, None, None, 0)\n",
+          "old": "        before = _assert_unoccupied(args.child)\n"
+        }
+      ],
+      "repo_head": "2a8127c4e76418abf343178e89f29a78f97886c0",
+      "runner_sha256": "759c3b089f65ea815376322c3fb66e8217be88e9dc4954b523b040c548e04fed",
+      "spec_sha256": "263fdb5ef0f83ab5806e494e7b6c94741cea1f6642a72c8bdf79e1ef1db65e1a",
+      "status": "KILLED",
+      "test_output_sha256": "7df2f9fb764d63de0002dda30228a3069a9c6541f06dce3d56c687705c0d5213",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "32ab43e5a49c6fea431b3b9cf0c50bc2bace7b08611ebc700fc4e45bf9e4c791"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e3c9af58437f21e141fd57cd89bdd960/izdw-e3c9af5843.o11235",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e3c9af58437f21e141fd57cd89bdd960/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 77%]\n.....................................F....                               [100%]\n=================================== FAILURES ===================================\n_____________ test_child_modes_reject_noncanonical_path[manifest] ______________\n[gw30] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_child_modes_reject_noncan0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d5d9699960>\nsurface = 'manifest'\n\n    @pytest.mark.parametrize('surface', ['argv', 'manifest'])\n    def test_child_modes_reject_noncanonical_path(tmp_path, monkeypatch, surface):\n        case = _make_child_repo(tmp_path, monkeypatch)\n        alias = tmp_path / 'alias'\n        alias.symlink_to(case.child, target_is_directory=True)\n        argv = _child_argv(case)\n        if surface == 'argv':\n            argv[6] = str(alias)\n        else:\n            data = json.loads(case.manifest.read_text())\n            data['wave_worktree'] = str(alias)\n            case.manifest.write_text(json.dumps(data))\n>       _child_rejected(case, monkeypatch, surface, 2 if surface == 'argv' else 20, argv=argv)\n\norchestrator/tests/test_dev_wave_cleanup.py:331: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\ncase = ChildRepo(repo=Repo(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_child_modes_reject_noncan0/main'), w...open-gw30/test_child_modes_reject_noncan0/main/.git/worktrees/child'), head='12b467a78ff1221418334fa2cfde1c59a4d5d975')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d5d9699960>\nphase = 'manifest', rc = 20\nargv = ['remove-child', '--main-worktree', '/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_child_modes_reject_noncan0/main', '...st', '/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_child_modes_reject_noncan0/manifest.json', '--child-worktree', ...]\nreason = None\n\n    def _child_rejected(case, monkeypatch, phase, rc=20, argv=None, reason=None):\n        before = (_file_snapshot(case.child), _file_snapshot(case.admin), _file_snapshot(case.evidence),\n                  _sha(case.repo.main, 'refs/heads/author'))\n        calls = []\n        original_git, original_remove = cleanup._git, cleanup._remove_verified_tree\n    \n        def spy_git(cwd, *args):\n            if args[:2] in {('worktree', 'unlock'), ('checkout', '--detach')}:\n                calls.append(args)\n            return original_git(cwd, *args)\n    \n        def spy_remove(*args):\n            calls.append(('rmtree',))\n            return original_remove(*args)\n    \n        monkeypatch.setattr(cleanup, '_git', spy_git)\n        monkeypatch.setattr(cleanup, '_remove_verified_tree', spy_remove)\n>       with pytest.raises(cleanup.CleanupFailure) as caught:\nE       Failed: DID NOT RAISE CleanupFailure\n\norchestrator/tests/test_dev_wave_cleanup.py:161: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_cleanup.py::test_child_modes_reject_noncanonical_path[manifest]\n1 failed, 185 passed in 5.07s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_cleanup.py::test_child_modes_reject_noncanonical_path[manifest]\" nodeid_bytes=96 nodeid_omitted_bytes=0 source_bytes=2606 retained_bytes=2606 omitted_bytes=0 rendered_excerpt_bytes=2707 sha256=b5205636b187e3664c6aacff5dfcaeee53ac12b073c8965bdb32b6ad5d04acf8\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw30] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_child_modes_reject_noncan0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d5d9699960>\n> surface = 'manifest'\n> \n>     @pytest.mark.parametrize('surface', ['argv', 'manifest'])\n>     def test_child_modes_reject_noncanonical_path(tmp_path, monkeypatch, surface):\n>         case = _make_child_repo(tmp_path, monkeypatch)\n>         alias = tmp_path / 'alias'\n>         alias.symlink_to(case.child, target_is_directory=True)\n>         argv = _child_argv(case)\n>         if surface == 'argv':\n>             argv[6] = str(alias)\n>         else:\n>             data = json.loads(case.manifest.read_text())\n>             data['wave_worktree'] = str(alias)\n>             case.manifest.write_text(json.dumps(data))\n> >       _child_rejected(case, monkeypatch, surface, 2 if surface == 'argv' else 20, argv=argv)\n> \n> orchestrator/tests/test_dev_wave_cleanup.py:331: \n> _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n> \n> case = ChildRepo(repo=Repo(main=PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_child_modes_reject_noncan0/main'), w...open-gw30/test_child_modes_reject_noncan0/main/.git/worktrees/child'), head='12b467a78ff1221418334fa2cfde1c59a4d5d975')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x14d5d9699960>\n> phase = 'manifest', rc = 20\n> argv = ['remove-child', '--main-worktree', '/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_child_modes_reject_noncan0/main', '...st', '/tmp/pytest-of-tanab/pytest-0/popen-gw30/test_child_modes_reject_noncan0/manifest.json', '--child-worktree', ...]\n> reason = None\n> \n>     def _child_rejected(case, monkeypatch, phase, rc=20, argv=None, reason=None):\n>         before = (_file_snapshot(case.child), _file_snapshot(case.admin), _file_snapshot(case.evidence),\n>                   _sha(case.repo.main, 'refs/heads/author'))\n>         calls = []\n>         original_git, original_remove = cleanup._git, cleanup._remove_verified_tree\n>     \n>         def spy_git(cwd, *args):\n>             if args[:2] in {('worktree', 'unlock'), ('checkout', '--detach')}:\n>                 calls.append(args)\n>             return original_git(cwd, *args)\n>     \n>         def spy_remove(*args):\n>             calls.append(('rmtree',))\n>             return original_remove(*args)\n>     \n>         monkeypatch.setattr(cleanup, '_git', spy_git)\n>         monkeypatch.setattr(cleanup, '_remove_verified_tree', spy_remove)\n> >       with pytest.raises(cleanup.CleanupFailure) as caught:\n> E       Failed: DID NOT RAISE CleanupFailure\n> \n> orchestrator/tests/test_dev_wave_cleanup.py:161: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2606 retained_bytes=2606 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3430 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "6757efc629e31d16a7e070e564b2e17cbda7d40fdcf19207bbd5488d44a47a37"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cb4a7b136f0c875a05ad2d3f0b5e718195f3ac75752635755b6fde0c2d83f8a9",
+      "duration_s": 32.896,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_child_modes_reject_noncanonical_path[manifest]"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_child_modes_reject_noncanonical_path[manifest]"
+      ],
+      "hang_risk": false,
+      "id": "m6-manifest-path-unnormalized",
+      "injection_diff_sha256": "ddf889d12d409a26400a707ecadcbc9dfd622c44e0e88654c2c9c8c2511691d7",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "7fc51852cd8007c351de2a503929a289d2f2553d2812c4c560c8666a8def58f5",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup.py",
+          "new": "        return Path(raw)\n",
+          "old": "        return _validate_path_spelling(raw, \"manifest path\", must_exist=False)\n"
+        }
+      ],
+      "repo_head": "2a8127c4e76418abf343178e89f29a78f97886c0",
+      "runner_sha256": "759c3b089f65ea815376322c3fb66e8217be88e9dc4954b523b040c548e04fed",
+      "spec_sha256": "263fdb5ef0f83ab5806e494e7b6c94741cea1f6642a72c8bdf79e1ef1db65e1a",
+      "status": "KILLED",
+      "test_output_sha256": "6757efc629e31d16a7e070e564b2e17cbda7d40fdcf19207bbd5488d44a47a37",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "32ab43e5a49c6fea431b3b9cf0c50bc2bace7b08611ebc700fc4e45bf9e4c791"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/118e680633ab9c99f6cfc304e38957a6/izdw-118e680633.o11243",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/118e680633ab9c99f6cfc304e38957a6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "bringing up nodes...\nbringing up nodes...\n\n........................................................................ [ 38%]\n........................................................................ [ 77%]\n.........................F................                               [100%]\n=================================== FAILURES ===================================\n___________ test_remove_child_main_advance_during_removal_is_partial ___________\n[gw32] linux -- Python 3.10.12 /bin/python3.10\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_remove_child_main_advance0')\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1516167590f0>\n\n    def test_remove_child_main_advance_during_removal_is_partial(tmp_path, monkeypatch):\n        case = _make_child_repo(tmp_path, monkeypatch)\n        original = cleanup._remove_verified_tree\n    \n        def advance_main(verified, common):\n            original(verified, common)\n            _git(case.repo.main, 'commit', '--allow-empty', '-m', 'main advanced')\n    \n        monkeypatch.setattr(cleanup, '_remove_verified_tree', advance_main)\n>       with pytest.raises(cleanup.CleanupFailure) as caught:\nE       Failed: DID NOT RAISE CleanupFailure\n\norchestrator/tests/test_dev_wave_cleanup.py:365: Failed\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_main_advance_during_removal_is_partial\n1 failed, 185 passed in 5.06s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"loadgroup\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_main_advance_during_removal_is_partial\" nodeid_bytes=101 nodeid_omitted_bytes=0 source_bytes=827 retained_bytes=827 omitted_bytes=0 rendered_excerpt_bytes=864 sha256=659dfb8c98ace663cf8da00db87e26305dc6e9d01ad5dc7c4f8b192a4854da92\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> [gw32] linux -- Python 3.10.12 /bin/python3.10\n> \n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/popen-gw32/test_remove_child_main_advance0')\n> monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1516167590f0>\n> \n>     def test_remove_child_main_advance_during_removal_is_partial(tmp_path, monkeypatch):\n>         case = _make_child_repo(tmp_path, monkeypatch)\n>         original = cleanup._remove_verified_tree\n>     \n>         def advance_main(verified, common):\n>             original(verified, common)\n>             _git(case.repo.main, 'commit', '--allow-empty', '-m', 'main advanced')\n>     \n>         monkeypatch.setattr(cleanup, '_remove_verified_tree', advance_main)\n> >       with pytest.raises(cleanup.CleanupFailure) as caught:\n> E       Failed: DID NOT RAISE CleanupFailure\n> \n> orchestrator/tests/test_dev_wave_cleanup.py:365: Failed\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=827 retained_bytes=827 omitted_bytes=0 budget_bytes=49152 rendered_bytes=1588 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "f7a35ab9083058d1668443278cdfc1d676bca0c82f0ef279299c1267ca6cbd0f"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "cb4a7b136f0c875a05ad2d3f0b5e718195f3ac75752635755b6fde0c2d83f8a9",
+      "duration_s": 28.583,
+      "expected_nodes": [
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_main_advance_during_removal_is_partial"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_main_advance_during_removal_is_partial"
+      ],
+      "hang_risk": false,
+      "id": "m7-child-proof-recheck-skipped",
+      "injection_diff_sha256": "85633d7cbf763b6f7a576c3fa3adb00b0b9bb685aa3c0aee69fa038380e141cf",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "8b2d3f151a6c4795daecee775c0f7631199ea9c593eca89f36d07fe8d123aa9a",
+      "replacements": [
+        {
+          "file": "tools/dev_wave_cleanup.py",
+          "new": "    else:\n        pass\n",
+          "old": "    else:\n        _assert_child_integration(args.main_worktree, admin.child_proof, shas)\n"
+        }
+      ],
+      "repo_head": "2a8127c4e76418abf343178e89f29a78f97886c0",
+      "runner_sha256": "759c3b089f65ea815376322c3fb66e8217be88e9dc4954b523b040c548e04fed",
+      "spec_sha256": "263fdb5ef0f83ab5806e494e7b6c94741cea1f6642a72c8bdf79e1ef1db65e1a",
+      "status": "KILLED",
+      "test_output_sha256": "f7a35ab9083058d1668443278cdfc1d676bca0c82f0ef279299c1267ca6cbd0f",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "32ab43e5a49c6fea431b3b9cf0c50bc2bace7b08611ebc700fc4e45bf9e4c791"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e9c25c41b7e14411db30694c73469ba5/izdw-e9c25c41b7.o10935",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/e9c25c41b7e14411db30694c73469ba5/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archives_dirty_integrated_author_and_keeps_branch\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unregistered_path\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_live_process_cwd\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unintegrated_author_commit\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_empty_owned_paths_requires_ancestry\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_nonempty_evidence_dir\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_wave_root_and_primary[wave]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_wave_root_and_primary[primary]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_branch_mismatch\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unreachable_reflog_history\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_skip_worktree_flag\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_clean_filter\norchestrator/tests/test_dev_wave_cleanup.py::test_child_modes_reject_noncanonical_path[argv]\norchestrator/tests/test_dev_wave_cleanup.py::test_child_modes_reject_noncanonical_path[manifest]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_admin_binding_change_is_partial\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_main_advance_during_removal_is_partial\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_already_clean_with_receipt\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[unknown-key]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[duplicate-key]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[duplicate-path]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[wrong-type]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[relative-path]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[absolute-owned]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[dot-dot-owned]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[git-owned]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[glob-owned]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[directory-owned]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_checks_initialized_submodule[clean]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_checks_initialized_submodule[dirty]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_checks_initialized_submodule[ignored]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_checks_initialized_submodule[reflog]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_checks_initialized_submodule[pin-mismatch]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_checks_initialized_submodule[local-only-pin]\norchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_detached_ancestry_and_empty_backup\norchestrator/tests/test_dev_wave_cleanup.py::test_landed_attached_worktree_is_removed[unlocked]\norchestrator/tests/test_dev_wave_cleanup.py::test_landed_attached_worktree_is_removed[locked]\norchestrator/tests/test_dev_wave_cleanup.py::test_forward_merged_landing_tip_is_used_for_cleanup[derived]\norchestrator/tests/test_dev_wave_cleanup.py::test_forward_merged_landing_tip_is_used_for_cleanup[asserted]\norchestrator/tests/test_dev_wave_cleanup.py::test_optional_landing_tip_must_match_derived_wave_head\norchestrator/tests/test_dev_wave_cleanup.py::test_reentry_states_run_only_remaining_cleanup[a]\norchestrator/tests/test_dev_wave_cleanup.py::test_reentry_states_run_only_remaining_cleanup[b]\norchestrator/tests/test_dev_wave_cleanup.py::test_reentry_states_run_only_remaining_cleanup[c]\norchestrator/tests/test_dev_wave_cleanup.py::test_reentry_states_run_only_remaining_cleanup[d]\norchestrator/tests/test_dev_wave_cleanup.py::test_reentry_states_run_only_remaining_cleanup[e]\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_stale_record_bound_to_a_different_branch\norchestrator/tests/test_dev_wave_cleanup.py::test_already_clean_rechecks_each_absence_before_success[path]\norchestrator/tests/test_dev_wave_cleanup.py::test_already_clean_rechecks_each_absence_before_success[record]\norchestrator/tests/test_dev_wave_cleanup.py::test_already_clean_rechecks_each_absence_before_success[ref]\norchestrator/tests/test_dev_wave_cleanup.py::test_occupancy_payload_maps_invalid_target_status\norchestrator/tests/test_dev_wave_cleanup.py::test_assert_unoccupied_accepts_empty_same_uid_cwd_unreachable\norchestrator/tests/test_dev_wave_cleanup.py::test_assert_unoccupied_accepts_real_empty_proc_scan_payload\norchestrator/tests/test_dev_wave_cleanup.py::test_assert_unoccupied_requires_same_uid_cwd_unreachable_field\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_non_ancestor_without_mutation\norchestrator/tests/test_dev_wave_cleanup.py::test_preflight_ancestry_gate_rejects_before_any_removal\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_dirty_worktree_without_mutation[tracked]\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_dirty_worktree_without_mutation[untracked]\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_occupancy_payload_failures_without_mutation[rc-occupied-21]\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_occupancy_payload_failures_without_mutation[status-occupied-21]\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_occupancy_payload_failures_without_mutation[occupants-21]\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_occupancy_payload_failures_without_mutation[indeterminate-occupants-21]\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_occupancy_payload_failures_without_mutation[rc-indeterminate-22]\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_occupancy_payload_failures_without_mutation[issues-22]\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_occupancy_payload_failures_without_mutation[mixed-issues-22]\norchestrator/tests/test_dev_wave_cleanup.py::test_retries_disappeared_pid_issue_then_removes\norchestrator/tests/test_dev_wave_cleanup.py::test_retries_transient_nonmissing_issue_then_removes\norchestrator/tests/test_dev_wave_cleanup.py::test_three_nonmissing_issue_scans_remain_indeterminate\norchestrator/tests/test_dev_wave_cleanup.py::test_three_disappeared_pid_issue_scans_remain_indeterminate\norchestrator/tests/test_dev_wave_cleanup.py::test_indeterminate_issue_summary_is_json_and_includes_fields\norchestrator/tests/test_dev_wave_cleanup.py::test_indeterminate_issue_summary_limits_items_and_reports_omitted\norchestrator/tests/test_dev_wave_cleanup.py::test_indeterminate_issue_summary_limits_each_field_to_24_utf8_bytes\norchestrator/tests/test_dev_wave_cleanup.py::test_indeterminate_issue_summary_falls_back_to_readable_counts\norchestrator/tests/test_dev_wave_cleanup.py::test_malformed_indeterminate_issues_still_return_rc22[not-list]\norchestrator/tests/test_dev_wave_cleanup.py::test_malformed_indeterminate_issues_still_return_rc22[not-dict]\norchestrator/tests/test_dev_wave_cleanup.py::test_malformed_indeterminate_issues_still_return_rc22[missing-fields]\norchestrator/tests/test_dev_wave_cleanup.py::test_malformed_indeterminate_issues_still_return_rc22[nonstr-fields]\norchestrator/tests/test_dev_wave_cleanup.py::test_accepts_nonblocking_occupancy_diagnostics[cwd-permission]\norchestrator/tests/test_dev_wave_cleanup.py::test_accepts_nonblocking_occupancy_diagnostics[same-uid-cwd]\norchestrator/tests/test_dev_wave_cleanup.py::test_accepts_nonblocking_occupancy_diagnostics[cwd-deleted]\norchestrator/tests/test_dev_wave_cleanup.py::test_accepts_arbitrary_same_uid_unreachable_process_with_diagnostics\norchestrator/tests/test_dev_wave_cleanup.py::test_real_occupancy_scan_rejects_live_process_cwd\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_cwd_inside_target_without_mutation\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_primary_as_wave_without_mutation\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_wave_from_different_common_dir\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_branch_tip_mismatch_without_mutation\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_unsafe_raw_path_spellings[symlink]\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_unsafe_raw_path_spellings[dotdot]\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_unsafe_raw_path_spellings[trailing]\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_malformed_porcelain_without_mutation\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_porcelain_record_with_newline_in_target_path_without_mutation\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_active_fold_state_without_mutation\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_reflog_only_unreachable_commit_without_mutation\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_uninspectable_branch_reflog_without_mutation[empty]\norchestrator/tests/test_dev_wave_cleanup.py::test_rejects_uninspectable_branch_reflog_without_mutation[fatal]\norchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_preserves_foreign_stale_admin[live]\norchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_preserves_foreign_stale_admin[stale]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_shared_objects_are_removed\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_nonobject_hardlink_is_rejected[gitdir]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_nonobject_hardlink_is_rejected[submodule-config]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_nonobject_hardlink_is_rejected[ref-named-objects]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_nonobject_hardlink_is_rejected[submodule-named-objects]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_nonobject_hardlink_is_rejected[ref-shaped-object]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_nonobject_hardlink_is_rejected[reflog-shaped-object]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_read_link_race[object]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_read_link_race[registry]\norchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[None-HEAD]\norchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[None-gitdir]\norchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[None-admin-directory]\norchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[lock-HEAD]\norchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[lock-gitdir]\norchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[lock-admin-directory]\norchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[bytes-HEAD]\norchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[bytes-gitdir]\norchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[bytes-admin-directory]\norchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[inode-HEAD]\norchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[inode-gitdir]\norchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[inode-admin-directory]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[locked]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[index.lock]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[HEAD.lock]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[HEAD]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[reflog]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[backpointer]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[commondir]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[binding-inode]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[admin-inode]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[symlink]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[wave-symlink]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_baseline_rejects_index_change[bytes-a]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_baseline_rejects_index_change[bytes-b]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_baseline_rejects_index_change[bytes-c]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_baseline_rejects_index_change[inode-a]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_baseline_rejects_index_change[inode-b]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_baseline_rejects_index_change[inode-c]\norchestrator/tests/test_dev_wave_cleanup.py::test_unpublished_admin_journal_reenters[write]\norchestrator/tests/test_dev_wave_cleanup.py::test_unpublished_admin_journal_reenters[publish]\norchestrator/tests/test_dev_wave_cleanup.py::test_unpublished_admin_journal_reenters[linked]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_journal_unrelated_temporary_does_not_allow_hardlink\norchestrator/tests/test_dev_wave_cleanup.py::test_incomplete_final_admin_journal_rejected\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_journal_publication_never_overwrites_final\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_binding_must_be_unique_for_live_and_stale[a]\norchestrator/tests/test_dev_wave_cleanup.py::test_admin_binding_must_be_unique_for_live_and_stale[c]\norchestrator/tests/test_dev_wave_cleanup.py::test_recordless_admin_without_recovery_journal_is_rejected\norchestrator/tests/test_dev_wave_cleanup.py::test_forbidden_git_verbs_absent_from_source_calls_and_runtime_allowlist\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv0]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv1]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv2]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv3]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv4]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv5]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv6]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv7]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv8]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_force_delete_permutations[argv0]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_force_delete_permutations[argv1]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_force_delete_permutations[argv2]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_force_delete_permutations[argv3]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_force_delete_permutations[argv4]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed0]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed1]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed2]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed3]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed4]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed5]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed6]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed7]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed8]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed9]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed10]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed11]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed12]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed13]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed14]\norchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_spy_sees_only_allowlisted_cleanup_commands\norchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[unlock-a-locked]\norchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[detach-a]\norchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[recheck-a]\norchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[remove-directory-a]\norchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[admin-recheck-c]\norchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[admin-remove-c]\norchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[registry-c]\norchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[branch-recheck-d]\norchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[branch-delete-d]\norchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[postcondition-d]\norchestrator/tests/test_dev_wave_cleanup.py::test_keyboard_interrupt_after_mutation_start_reports_partial\norchestrator/tests/test_dev_wave_cleanup.py::test_keyboard_interrupt_during_preflight_is_not_partial\norchestrator/tests/test_dev_wave_cleanup.py::test_argv_requires_each_option_once_and_full_lowercase_sha\n\n186 tests collected in 0.57s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "484eb582eb6d0e387ca3c388e7af5ebfe8962a0d9e96b54d576650df6bac5986"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archives_dirty_integrated_author_and_keeps_branch",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unregistered_path",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_live_process_cwd",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unintegrated_author_commit",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_empty_owned_paths_requires_ancestry",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_nonempty_evidence_dir",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_wave_root_and_primary[wave]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_wave_root_and_primary[primary]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_branch_mismatch",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unreachable_reflog_history",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_skip_worktree_flag",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_clean_filter",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_child_modes_reject_noncanonical_path[argv]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_child_modes_reject_noncanonical_path[manifest]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_admin_binding_change_is_partial",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_main_advance_during_removal_is_partial",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_already_clean_with_receipt",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[unknown-key]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[duplicate-key]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[duplicate-path]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[wrong-type]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[relative-path]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[absolute-owned]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[dot-dot-owned]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[git-owned]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[glob-owned]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_manifest_is_closed[directory-owned]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_checks_initialized_submodule[clean]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_checks_initialized_submodule[dirty]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_checks_initialized_submodule[ignored]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_checks_initialized_submodule[reflog]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_checks_initialized_submodule[pin-mismatch]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_checks_initialized_submodule[local-only-pin]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_detached_ancestry_and_empty_backup",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_landed_attached_worktree_is_removed[unlocked]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_landed_attached_worktree_is_removed[locked]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_forward_merged_landing_tip_is_used_for_cleanup[derived]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_forward_merged_landing_tip_is_used_for_cleanup[asserted]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_optional_landing_tip_must_match_derived_wave_head",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_reentry_states_run_only_remaining_cleanup[a]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_reentry_states_run_only_remaining_cleanup[b]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_reentry_states_run_only_remaining_cleanup[c]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_reentry_states_run_only_remaining_cleanup[d]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_reentry_states_run_only_remaining_cleanup[e]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_stale_record_bound_to_a_different_branch",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_already_clean_rechecks_each_absence_before_success[path]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_already_clean_rechecks_each_absence_before_success[record]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_already_clean_rechecks_each_absence_before_success[ref]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_occupancy_payload_maps_invalid_target_status",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_assert_unoccupied_accepts_empty_same_uid_cwd_unreachable",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_assert_unoccupied_accepts_real_empty_proc_scan_payload",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_assert_unoccupied_requires_same_uid_cwd_unreachable_field",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_non_ancestor_without_mutation",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_preflight_ancestry_gate_rejects_before_any_removal",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_dirty_worktree_without_mutation[tracked]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_dirty_worktree_without_mutation[untracked]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_occupancy_payload_failures_without_mutation[rc-occupied-21]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_occupancy_payload_failures_without_mutation[status-occupied-21]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_occupancy_payload_failures_without_mutation[occupants-21]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_occupancy_payload_failures_without_mutation[indeterminate-occupants-21]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_occupancy_payload_failures_without_mutation[rc-indeterminate-22]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_occupancy_payload_failures_without_mutation[issues-22]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_occupancy_payload_failures_without_mutation[mixed-issues-22]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_retries_disappeared_pid_issue_then_removes",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_retries_transient_nonmissing_issue_then_removes",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_three_nonmissing_issue_scans_remain_indeterminate",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_three_disappeared_pid_issue_scans_remain_indeterminate",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_indeterminate_issue_summary_is_json_and_includes_fields",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_indeterminate_issue_summary_limits_items_and_reports_omitted",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_indeterminate_issue_summary_limits_each_field_to_24_utf8_bytes",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_indeterminate_issue_summary_falls_back_to_readable_counts",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_malformed_indeterminate_issues_still_return_rc22[not-list]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_malformed_indeterminate_issues_still_return_rc22[not-dict]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_malformed_indeterminate_issues_still_return_rc22[missing-fields]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_malformed_indeterminate_issues_still_return_rc22[nonstr-fields]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_accepts_nonblocking_occupancy_diagnostics[cwd-permission]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_accepts_nonblocking_occupancy_diagnostics[same-uid-cwd]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_accepts_nonblocking_occupancy_diagnostics[cwd-deleted]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_accepts_arbitrary_same_uid_unreachable_process_with_diagnostics",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_real_occupancy_scan_rejects_live_process_cwd",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_cwd_inside_target_without_mutation",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_primary_as_wave_without_mutation",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_wave_from_different_common_dir",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_branch_tip_mismatch_without_mutation",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_unsafe_raw_path_spellings[symlink]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_unsafe_raw_path_spellings[dotdot]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_unsafe_raw_path_spellings[trailing]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_malformed_porcelain_without_mutation",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_porcelain_record_with_newline_in_target_path_without_mutation",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_active_fold_state_without_mutation",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_reflog_only_unreachable_commit_without_mutation",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_uninspectable_branch_reflog_without_mutation[empty]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_rejects_uninspectable_branch_reflog_without_mutation[fatal]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_preserves_foreign_stale_admin[live]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_preserves_foreign_stale_admin[stale]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_shared_objects_are_removed",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_nonobject_hardlink_is_rejected[gitdir]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_nonobject_hardlink_is_rejected[submodule-config]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_nonobject_hardlink_is_rejected[ref-named-objects]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_nonobject_hardlink_is_rejected[submodule-named-objects]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_nonobject_hardlink_is_rejected[ref-shaped-object]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_nonobject_hardlink_is_rejected[reflog-shaped-object]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_read_link_race[object]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_read_link_race[registry]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[None-HEAD]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[None-gitdir]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[None-admin-directory]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[lock-HEAD]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[lock-gitdir]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[lock-admin-directory]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[bytes-HEAD]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[bytes-gitdir]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[bytes-admin-directory]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[inode-HEAD]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[inode-gitdir]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_cleanup_partial_admin_removal_reenters[inode-admin-directory]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[locked]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[index.lock]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[HEAD.lock]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[HEAD]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[reflog]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[backpointer]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[commondir]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[binding-inode]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[admin-inode]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[symlink]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_removal_rechecks_real_registry[wave-symlink]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_baseline_rejects_index_change[bytes-a]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_baseline_rejects_index_change[bytes-b]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_baseline_rejects_index_change[bytes-c]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_baseline_rejects_index_change[inode-a]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_baseline_rejects_index_change[inode-b]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_baseline_rejects_index_change[inode-c]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_unpublished_admin_journal_reenters[write]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_unpublished_admin_journal_reenters[publish]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_unpublished_admin_journal_reenters[linked]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_journal_unrelated_temporary_does_not_allow_hardlink",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_incomplete_final_admin_journal_rejected",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_journal_publication_never_overwrites_final",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_binding_must_be_unique_for_live_and_stale[a]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_admin_binding_must_be_unique_for_live_and_stale[c]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_recordless_admin_without_recovery_journal_is_rejected",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_forbidden_git_verbs_absent_from_source_calls_and_runtime_allowlist",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv0]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv1]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv2]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv3]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv4]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv5]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv6]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv7]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_validator_directly_rejects_forbidden_commands[argv8]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_force_delete_permutations[argv0]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_force_delete_permutations[argv1]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_force_delete_permutations[argv2]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_force_delete_permutations[argv3]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_force_delete_permutations[argv4]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed0]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed1]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed2]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed3]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed4]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed5]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed6]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed7]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed8]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed9]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed10]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed11]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed12]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed13]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_schema_rejects_trailing_arguments_for_every_allowed_form[allowed14]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_git_argv_spy_sees_only_allowlisted_cleanup_commands",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[unlock-a-locked]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[detach-a]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[recheck-a]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[remove-directory-a]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[admin-recheck-c]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[admin-remove-c]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[registry-c]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[branch-recheck-d]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[branch-delete-d]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_each_mutation_phase_failure_is_partial_and_calls_nothing_afterward[postcondition-d]",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_keyboard_interrupt_after_mutation_start_reports_partial",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_keyboard_interrupt_during_preflight_is_not_partial",
+        "orchestrator/tests/test_dev_wave_cleanup.py::test_argv_requires_each_option_once_and_full_lowercase_sha"
+      ],
+      "duration_s": 78.945,
+      "rc": 0,
+      "repo_head": "2a8127c4e76418abf343178e89f29a78f97886c0",
+      "runner_sha256": "759c3b089f65ea815376322c3fb66e8217be88e9dc4954b523b040c548e04fed",
+      "spec_sha256": "263fdb5ef0f83ab5806e494e7b6c94741cea1f6642a72c8bdf79e1ef1db65e1a",
+      "status": "PASSED",
+      "tool_sha256": "32ab43e5a49c6fea431b3b9cf0c50bc2bace7b08611ebc700fc4e45bf9e4c791"
+    },
+    "hang_timeout_seconds": 4500.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "m0-equivalent-parens": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "43b0debefddd196134d81d66aa334ad0ebb79e52978ad24e7c2041ea56d291ed",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_cleanup.py",
+            "new": "    owned_equal = (bool(proof.owned)) and (not mismatches)\n",
+            "old": "    owned_equal = bool(proof.owned) and not mismatches\n"
+          }
+        ]
+      },
+      "m1-manifest-binding-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unregistered_path"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "beec1a3c1a0821fe84c8aa09027b38c73f058308413469f55febf1f1396dfdb9",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_cleanup.py",
+            "new": "        if True:\n            selected = entry\n        elif path == wave:\n",
+            "old": "        if path == args.child:\n            selected = entry\n        elif path == wave:\n"
+          }
+        ]
+      },
+      "m2-integration-always-true": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_empty_owned_paths_requires_ancestry",
+          "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unintegrated_author_commit"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "49ea995b94db54b77ce20640901112d399ef3de6648f68bf461d07c173a2889d",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_cleanup.py",
+            "new": "    if False:\n",
+            "old": "    if not (ancestry or owned_equal):\n"
+          }
+        ]
+      },
+      "m3-empty-owned-vacuous-truth": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_empty_owned_paths_requires_ancestry"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "cf1e5067f215ec12f070d3fe3a6c6d1d87e1ffb3914f1820289869e3443cbb8f",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_cleanup.py",
+            "new": "    owned_equal = not mismatches\n",
+            "old": "    owned_equal = bool(proof.owned) and not mismatches\n"
+          }
+        ]
+      },
+      "m4-dirty-tar-emptied": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archives_dirty_integrated_author_and_keeps_branch"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "087a0adc8d449e769db0ad63ca971b941b2802ffc68061cb094e649145393cc8",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_cleanup.py",
+            "new": "    files = {**files, \"dirty.tar.gz\": b\"\"}\n",
+            "old": "    files = {**files, \"dirty.tar.gz\": buffer.getvalue()}\n"
+          }
+        ]
+      },
+      "m5-occupancy-precheck-skipped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_live_process_cwd"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "20438b3de110ba4575b0666e841ce0ec2766eaff3412189507f1c60e2f541721",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_cleanup.py",
+            "new": "        before = OccupancyDiagnostics(None, None, None, 0)\n",
+            "old": "        before = _assert_unoccupied(args.child)\n"
+          }
+        ]
+      },
+      "m6-manifest-path-unnormalized": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_cleanup.py::test_child_modes_reject_noncanonical_path[manifest]"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ddf889d12d409a26400a707ecadcbc9dfd622c44e0e88654c2c9c8c2511691d7",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_cleanup.py",
+            "new": "        return Path(raw)\n",
+            "old": "        return _validate_path_spelling(raw, \"manifest path\", must_exist=False)\n"
+          }
+        ]
+      },
+      "m7-child-proof-recheck-skipped": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_main_advance_during_removal_is_partial"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "85633d7cbf763b6f7a576c3fa3adb00b0b9bb685aa3c0aee69fa038380e141cf",
+        "replacements": [
+          {
+            "file": "tools/dev_wave_cleanup.py",
+            "new": "    else:\n        pass\n",
+            "old": "    else:\n        _assert_child_integration(args.main_worktree, admin.child_proof, shas)\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "0e9ad7d1cb56f3f73c3a75029acff2478173dace4bfee4e06739b39558fb7ef6",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_dev_wave_cleanup.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 4500.0
+  },
+  "repo_head": "2a8127c4e76418abf343178e89f29a78f97886c0",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_dev_wave_cleanup.py",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "6fc4909f04825664ef240b8280866fd46a1082a7",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "759c3b089f65ea815376322c3fb66e8217be88e9dc4954b523b040c548e04fed",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "263fdb5ef0f83ab5806e494e7b6c94741cea1f6642a72c8bdf79e1ef1db65e1a",
+  "summary": {
+    "KILLED": 6,
+    "MISMATCH": 1,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 8,
+    "matching": 7,
+    "recorded": 8,
+    "registered": 8
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2778-child-worktree-cleanup/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "32ab43e5a49c6fea431b3b9cf0c50bc2bace7b08611ebc700fc4e45bf9e4c791",
+  "updated_at": "2026-09-19T14:50:47.049170+00:00"
+}

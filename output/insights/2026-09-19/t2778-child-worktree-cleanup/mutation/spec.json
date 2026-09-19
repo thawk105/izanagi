@@ -1,0 +1,135 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 4500,
+ "hang_timeout_seconds": 4500,
+ "mutations": [
+  {
+   "id": "m0-equivalent-parens",
+   "category": "positive",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "    owned_equal = bool(proof.owned) and not mismatches\n",
+     "new": "    owned_equal = (bool(proof.owned)) and (not mismatches)\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m1-manifest-binding-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "        if path == args.child:\n            selected = entry\n        elif path == wave:\n",
+     "new": "        if True:\n            selected = entry\n        elif path == wave:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unregistered_path"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m2-integration-always-true",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "    if not (ancestry or owned_equal):\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_empty_owned_paths_requires_ancestry",
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_unintegrated_author_commit"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m3-empty-owned-vacuous-truth",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "    owned_equal = bool(proof.owned) and not mismatches\n",
+     "new": "    owned_equal = not mismatches\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_empty_owned_paths_requires_ancestry"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m4-dirty-tar-emptied",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "    files = {**files, \"dirty.tar.gz\": buffer.getvalue()}\n",
+     "new": "    files = {**files, \"dirty.tar.gz\": b\"\"}\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_archives_dirty_integrated_author_and_keeps_branch"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-occupancy-precheck-skipped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "        before = _assert_unoccupied(args.child)\n",
+     "new": "        before = OccupancyDiagnostics(None, None, None, 0)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_rejects_live_process_cwd"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-manifest-path-unnormalized",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "        return _validate_path_spelling(raw, \"manifest path\", must_exist=False)\n",
+     "new": "        return Path(raw)\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_child_modes_reject_noncanonical_path[manifest]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-child-proof-recheck-skipped",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "    else:\n        _assert_child_integration(args.main_worktree, admin.child_proof, shas)\n",
+     "new": "    else:\n        pass\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_main_advance_during_removal_is_partial"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}
