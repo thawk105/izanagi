@@ -1,0 +1,21 @@
+perf(mocc): defer payload witness formatting until after unlock
+
+Capture post-store producers while the write locks are held and emit S
+records after unlockCLL. Preserve witness grammar and decode failures
+without adding include lines or changing TRACE=0 executable source.
+
+The T-1943 payload-lineage witness wrote each S record (decode + ofstream
+formatting) between the tidword publish and unlockCLL, which lengthens the
+[publish, unlock] window that the T-2774 static candidate (ii) must cross.
+This change keeps the shared-body decode (and its abort on decode failure)
+at the publish site, stores the decoded producer in a thread_local vector
+that is only constructed when the witness is enabled, and formats the S
+records after unlockCLL by re-walking write_set_ in the same order. Values,
+count, order and the 5-field S grammar are unchanged; consumers that check
+witness-post-store-token-mismatch keep their coverage. Static design and
+rationale: izanagi output/insights/2026-09-18/t2779-mocc-g2-observation-conditions
+section 3. Observation-only TRACE=1 instrument (D16 trace-hook class).
+
+AI-Agent: product=codex; model=gpt-6-astra; reasoning=medium; role=author
+AI-Agent: product=codex; model=gpt-6-astra; reasoning=medium; role=reviewer
+AI-Agent: product=claude; model=claude-opus-5-1m; reasoning=xhigh; role=manager

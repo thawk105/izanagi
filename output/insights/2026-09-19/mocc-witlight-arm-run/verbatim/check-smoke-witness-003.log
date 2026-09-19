@@ -1,0 +1,10 @@
+run dir: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W/smoke-evidence/003-e9-witlight-wit-bo1
+trace files: 48  witness files: 48
+H check: bad files = 0 (expected 0)
+commits C=800450  C.nwrite_sum=3933687  W=3933687  S=3933687   |  C.nread_sum=3873346  R=3873346  L=3873346
+S identity == W identity: MATCH
+S identity duplicates: 0 (expected 0)
+L identity == R identity: MATCH
+S stored != writer txid: 0 lines (expected 0; if >0 keep as blocker evidence)
+W op values: 3933687 U
+L producer kinds:    9946 G 3863400 T

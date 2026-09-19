@@ -31,7 +31,7 @@ import uuid
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-from orchestrator.campaign import condition_meaning_gate  # noqa: E402
+from orchestrator.campaign import buildcache, condition_meaning_gate  # noqa: E402
 
 
 SCHEMA_VERSION = "ss2pl-lock-study/v1"
@@ -2107,6 +2107,44 @@ def build_target(
     build_dir = build_root / build_id
     if build_dir.exists():
         raise ContractError(f"build directory collision: {build_dir}")
+    # The gate preprocesses before the workload build can generate config.h.
+    # Observe versions through the runner's existing bounded subprocess path.
+    manifest = {}
+    for role, command in (("cc", "cc"), ("cxx", "c++"), ("cmake", "cmake")):
+        executable = shutil.which(command)
+        if executable is None:
+            raise ContractError(f"required toolchain command is unavailable: {command}")
+        realpath = str(Path(executable).resolve(strict=True))
+        observed = _run_checked([realpath, "--version"], timeout=30)
+        lines = observed.stdout.splitlines()
+        if not lines or not lines[0].strip():
+            raise ContractError(f"toolchain version is empty: {command}")
+        manifest[role] = {
+            "requested": command, "realpath": realpath,
+            "version_first_line": lines[0].strip(),
+            "version": (observed.stdout + observed.stderr).strip(),
+        }
+    base = build_root / f"{build_id}-masstree"
+    base.mkdir(parents=True, exist_ok=False)
+    base = base.resolve(strict=True)
+    # Both helper subprocess budgets together must fit the existing stage.
+    budget = min([2400, *(int(stage.remaining()) for stage in _ACTIVE_STAGE_DEADLINES)])
+    if budget < 2:
+        raise ContractError("insufficient stage time for masstree preparation")
+    configure_budget = min(600, budget // 2)
+    buildcache.prepare_masstree_fetchcontent(
+        ccbench_dir=str(source.resolve(strict=True)),
+        fetchcontent_base_dir=str(base),
+        expected_toolchain_manifest=manifest,
+        configure_timeout_s=configure_budget,
+        target_timeout_s=budget - configure_budget,
+        dependency_prefix=f"{gflags_prefix};{glog_prefix}",
+        masstree_source_dir=thirdparty_root / "masstree",
+        mimalloc_source_dir=thirdparty_root / "mimalloc",
+        googletest_source_dir=thirdparty_root / "googletest",
+    )
+    for stage in _ACTIVE_STAGE_DEADLINES:
+        stage.check()
     requested_cache = _expected_cache(arm, backoff=backoff)
     condition_gates = _require_condition_gates(
         source,

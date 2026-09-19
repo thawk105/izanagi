@@ -18,6 +18,11 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2737] D2148項4のSS2PL非inert局所修正を実装した (2026-09-19)。
+  関門前の依存準備、phase1の4軸と実build、計器呼出し保存、既存C++テストを確認。
+  controls全体は未成立。inert target・軸従属・比較条件・abort所有権は変更していない。
+  記録 = `output/insights/2026-09-19/t2737-noninert-implementation/README.md`。
+
 - [x] [T-2489] D2148項5のA-2 scheduler.nodes=5とpolicy pin・fixture閉包を整合。
   A-2/A-6のnode-local lock候補は計算ノードで実測し、既存default consumerとの同一ノード排他を
   失うため不採用とした。共通job bodyと認証条件を維持し、追加総timeout・性能値の昇格は行わない。
@@ -57,6 +62,10 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 - [x] [T-2779] mocc G2観測条件の中断結果を回収 (2026-09-18)。各120走で通常5、診断0、
   BACK_OFF=1は2 signal。軽量witnessは静的設計まで。非certifyingで、昇格・pin・探索の扱いは不変。
   記録 = `output/insights/2026-09-18/t2779-mocc-g2-observation-conditions/README.md`。
+
+- [x] mocc 軽量 witness を hook branch に実装し 4 arm × 各 60 走を実測 (2026-09-19)。軽量 on は 0/60・0/60、off は 1/60・1/60、
+  discriminator は未発火 (問い ii 未到達)。非 certifying で、昇格・pin・探索の扱いは不変。W は submodule branch `izanagi-t1943-mocc-g2-witlight` (gitlink 不変)。
+  記録 = `output/insights/2026-09-19/mocc-witlight-arm-run/README.md`。
 
 - [x] [T-2397] A-1 pilot attempt-0004を完走し、全3 workload validとsizing入力を生成した。
   source契約の追補は output/insights/2026-09-11/t2397-a1-source-amendment/README.md、
