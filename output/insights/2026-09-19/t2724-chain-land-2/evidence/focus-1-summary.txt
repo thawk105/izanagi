@@ -1,0 +1,59 @@
+2026-09-19 21:34:55 JST
+87dcbe5a4bad8272f6cc046f07da7fe56dcdcde4
+警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+[Pegasus dispatch] job を gen_S へ投入します (izdw-6791e2cc8b)
+Pegasus pending orphan hold を create-only で保存しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2724-chain-land-2/output/pegasus-dispatch/orphan-holds/unknown-d87698847af03390a87791cc.json
+[Pegasus dispatch] request ID 10715.nqsv を受理しました
+[Pegasus dispatch] request 10715.nqsv の成果物収集を開始します
+Pegasus orphan hold を削除しました: /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2724-chain-land-2/output/pegasus-dispatch/orphan-holds/unknown-d87698847af03390a87791cc.json
+[Pegasus dispatch] receipt を /work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-t2724-chain-land-2/output/pegasus-dispatch/6791e2cc8bb35d38284312b679aa5de1/receipt.json へ保存しました (child rc=0)
+[Pegasus dispatch] request 10715.nqsv child stdout begin (size=6899 bytes, omitted_bytes=2803)
+| neration history resolution over the reachable commit graph, so cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_cli_subprocess_returns_rc_2_on_gate_refused","reason":"Runs the real repository freeze/history gate whose cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused","reason":"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null","reason":"Runs the real repository freeze/history gate whose cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+| IZANAGI_GROWTH_HOLD_V1 {"correctness_gate":true,"hold_axis":"commits","node_id":"test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing","reason":"Runs real-repository receipt and active-generation history resolution over the reachable commit graph, so cost grows with commit history.","release_condition":"explicit-user-command-only","ruling":"2026-08-12 rulings \u7b2c 3 \u675f"}
+|
+| ============================= slowest 15 durations =============================
+| 232.31s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_failed_launch_preserves_receipt_refusal
+| 221.04s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[ccbench-current-known_axes.ccbench_current]
+| 218.40s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_active_v2_delegation_accepts_full_receipt
+| 215.27s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_active_v2_preserves_nonlayer2_receipt_refusal
+| 213.77s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_draft_finalize_commit_and_public_gate_e2e_b5
+| 212.63s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_unactivated_chain_hit_is_invalid
+| 203.93s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[known-artifact-known_axes.artifact_bytes]
+| 201.04s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[modify-revert-receipt.history_mutated]
+| 199.12s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[bad-trailer-receipt.user_commit_trailer]
+| 198.92s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[holdout-artifact-holdout.artifact_bytes]
+| 198.89s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[unknownness-layer2-holdout.unknownness_layer2]
+| 198.88s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_full_valid_history_defects_have_one_baseline_reason_f28[extra-r-path-receipt.introduction_diff]
+| 196.20s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_full_valid_post_r_delete_blocks_draft_as_single_precondition_f28
+| 193.40s call     orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_remaining_section_1_4_defects_are_exact_b5
+| 132.82s call     orchestrator/tests/test_s8b_oracle_driver.py::test_never_issued_generator_tamper_reaches_public_driver_gate_g7
+| 1211 passed, 12 skipped in 369.23s (0:06:09)
+| IZANAGI_EFFECTIVE_SCHEDULER_V1 {"effective_scheduler":"loadgroup"}
+[Pegasus dispatch] request 10715.nqsv child stdout end
+[Pegasus dispatch] request 10715.nqsv child stderr begin
+| 警告: 受入形でない走行です。この結果を受入全走として扱わないでください。
+| IZANAGI_FREEZE_HOLD {"check_id": "t080.live-known-axes-artifact-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+| IZANAGI_FREEZE_HOLD {"check_id": "t080.live-holdout-artifact-bytes", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+| IZANAGI_FREEZE_HOLD {"check_id": "t080.live-known-axes-ccbench-current-pin", "decision": "freeze-verification-hold", "release_condition": "explicit-user-command-only", "ruling": "rulings-4th-batch-2026-08-12"}
+| IZANAGI_MEMO_PREWARM_V1 {"barrier_s":49.12684908602387,"hook":"xdist_node_collection_finished","oracle_environment_memo_s":null,"receipt_memo_s":49.12445402296726}
+|
+| ============================================================
+| Request ID:             10715.nqsv
+| Request Name:           izdw-6791e2cc8b
+| Queue:                  gen_S@nqsv
+| Number of Jobs:         1
+| User Name:              tanab
+| Group Name:             SFC
+| Created Request Time:   Sat Sep 19 21:34:58 2026
+| Started Request Time:   Sat Sep 19 21:35:07 2026
+| Ended Request Time:     Sat Sep 19 21:41:18 2026
+| Resources Information:
+|   Elapse:               375S
+|   Remaining Elapse:     3225S
+| ============================================================
+[Pegasus dispatch] request 10715.nqsv child stderr end
+IZANAGI_TASK_RUN_DIAGNOSTIC_V1 recording-unavailable:series-invalid
+2026-09-19 21:41:33 JST

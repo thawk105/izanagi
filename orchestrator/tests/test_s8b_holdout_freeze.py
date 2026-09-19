@@ -2380,8 +2380,8 @@ def test_floor_selection_eligibility_derives_resume_as_ineligible(tmp_path):
 
 @pytest.mark.parametrize(
     "reported_eligible_for_refreeze",
-    [True, False, True],
-    ids=["min-to-max", "use-reported-eligible", "drop-candidate-selection"],
+    [True, False],
+    ids=["min-to-max", "use-reported-eligible"],
 )
 def test_v2_candidate_rejects_later_run_using_derived_earlier_eligibility(
         tmp_path, monkeypatch, reported_eligible_for_refreeze):

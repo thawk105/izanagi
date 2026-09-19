@@ -27,6 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from dev_waves.launch_authority import (
+    _mask_html_comments,
     AuthorityError,
     visible_top_level_matches,
     visible_top_level_lines,
@@ -1468,35 +1469,6 @@ def _extract_next_action(
         return None
     section = sections[0]
     return section.group("body"), body_offset + section.start("body")
-
-
-def _mask_html_comments(line: str, in_comment: bool) -> tuple[str, bool]:
-    """HTML comment を同じ長さの空白へ置換し、行をまたぐ状態を返す。"""
-
-    visible: list[str] = []
-    cursor = 0
-    while cursor < len(line):
-        if in_comment:
-            end = line.find("-->", cursor)
-            if end < 0:
-                visible.append(" " * (len(line) - cursor))
-                cursor = len(line)
-            else:
-                end += len("-->")
-                visible.append(" " * (end - cursor))
-                cursor = end
-                in_comment = False
-            continue
-
-        start = line.find("<!--", cursor)
-        if start < 0:
-            visible.append(line[cursor:])
-            cursor = len(line)
-        else:
-            visible.append(line[cursor:start])
-            cursor = start
-            in_comment = True
-    return "".join(visible), in_comment
 
 
 def _dispatch_visible_markdown_lines(text: str) -> list[tuple[str, int, str]]:

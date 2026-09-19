@@ -1,0 +1,76 @@
+diff --git a/cc/mocc/transaction.cc b/cc/mocc/transaction.cc
+--- a/cc/mocc/transaction.cc
++++ b/cc/mocc/transaction.cc
+@@ -102,10 +102,8 @@
+ void izanagi_mocc_g2_emit_post_store(std::size_t thid,
+                                      std::uint64_t writer_txid,
+                                      const WriteElement<Tuple>& write,
+-                                     const Tidword& version) {
+-  std::uint64_t stored_producer = 0;
+-  if (!izanagi_mocc_g2_decode(write.rcdptr_->body_, stored_producer))
+-    std::abort();
++                                     const Tidword& version,
++                                     std::uint64_t stored_producer) {
+   izanagi_mocc_g2_stream(thid)
+       << "S " << writer_txid << ' '
+       << izanagi_trace::key_to_hex(write.key_) << ' ' << version.epoch << ' '
+@@ -114,6 +112,7 @@
+
+ } // namespace
+ #endif
++#line 115
+
+ /**
+  * @brief Search xxx set
+@@ -1159,6 +1158,14 @@
+
+ #if TRACE
+   const std::uint64_t izanagi_txid = izanagi_trace::next_txid();
++  std::vector<std::uint64_t>* izanagi_stored_producers = nullptr;
++  if (izanagi_mocc_g2_enabled()) {
++    thread_local std::vector<std::uint64_t> stored_producers;
++    stored_producers.clear();
++    stored_producers.reserve(write_set_.size());
++    izanagi_stored_producers = &stored_producers;
++  }
++#line 1136
+   izanagi_trace::stream(thid_) << "C " << izanagi_txid << ' ' << thid_ << ' '
+                                << maxtid.epoch << ' ' << maxtid.tid << ' '
+                                << read_set_.size() << ' ' << write_set_.size()
+@@ -1260,9 +1267,14 @@
+     __atomic_store_n(&((*itr).rcdptr_->tidword_.obj_), maxtid.obj_,
+                      __ATOMIC_RELEASE);
+ #if TRACE
+-    if (izanagi_mocc_g2_enabled())
+-      izanagi_mocc_g2_emit_post_store(thid_, izanagi_txid, *itr, maxtid);
+-#endif
++    if (izanagi_stored_producers != nullptr) {
++      std::uint64_t stored_producer = 0;
++      if (!izanagi_mocc_g2_decode((*itr).rcdptr_->body_, stored_producer))
++        std::abort();
++      izanagi_stored_producers->push_back(stored_producer);
++    }
++#endif
++#line 1201
+   }
+
+ #if TRACE
+@@ -1270,6 +1282,18 @@
+ #endif
+
+   unlockCLL();
++#if TRACE
++  if (izanagi_stored_producers != nullptr) {
++    std::size_t stored_index = 0;
++    for (const auto& we : write_set_) {
++      izanagi_mocc_g2_emit_post_store(
++          thid_, izanagi_txid, we, maxtid,
++          (*izanagi_stored_producers)[stored_index++]);
++    }
++    izanagi_stored_producers->clear();
++  }
++#endif
++#line 1208
+   RLL_.clear();
+   gc_records();
+   read_set_.clear();
