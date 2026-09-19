@@ -1,0 +1,483 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/be9310e35d5c4727b11979ba5902499c/izdw-be9310e35d.o9487",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/be9310e35d5c4727b11979ba5902499c/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "T2737 attempt output: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-drnimzns\n.\n1 passed in 102.69s (0:01:42)\n",
+      "stdout_sha256": "b612110bd1154580f9136ded95158ccada8716ef34fc0921d0836500eda34cff"
+    },
+    "artifact_error": null,
+    "collection_sha256": "8405097a6a3216908ffd792c314d45484f36aa607da1a8247c5564aa5d7fe9dd",
+    "duration_s": 124.071,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "74729d5fcd43f175c0b42c8dbd1d0cde0dba21c9d23c19a779a64ee4f726160d",
+    "repo_head": "e9409610e78feb4b26bf0c555df1239445197bf7",
+    "runner_sha256": "f8ad52a8aa8f18968f006de918a2da2eaab2725bee78f13cfc85f52170ccecc0",
+    "spec_sha256": "a8991a9097a64b127dd390a89cd47eccf98d92f42dde4ce8164563c025030080",
+    "status": "PASSED",
+    "test_output_sha256": "b612110bd1154580f9136ded95158ccada8716ef34fc0921d0836500eda34cff",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "005d851a8be0cac57b21e8dbe1e41bd0173dda5bd9bcdbce30ede81b64c7e47d"
+  },
+  "date": "2026-09-18T23:03:22.717129+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a9b30bc3dca7441591b702001d9d2344/izdw-a9b30bc3dc.o9491",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/a9b30bc3dca7441591b702001d9d2344/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "T2737 attempt output: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-lpxmva8p\nF\n=================================== FAILURES ===================================\n______________ test_t2737_pristine_phase1_and_rejected_stock_arm _______________\n\n    def test_t2737_pristine_phase1_and_rejected_stock_arm():\n        root = Path.cwd()\n        spec = importlib.util.spec_from_file_location(\n            \"t2737_live_driver\", root / \"tools/pegasus/run_ss2pl_lock_study.py\")\n        driver = importlib.util.module_from_spec(spec)\n        spec.loader.exec_module(driver)\n        inputs = json.loads(Path(__file__).with_suffix(\".json\").read_text())\n        paths = {key: Path(inputs[key]) for key in\n                 (\"STOCK\", \"THIRDPARTY\", \"GFLAGS\", \"GLOG\", \"OUTPUT\")}\n        assert all(path.is_absolute() for path in paths.values())\n        out = Path(tempfile.mkdtemp(prefix=\"t2737-\", dir=paths[\"OUTPUT\"]))\n        print(f\"T2737 attempt output: {out}\", flush=True)\n        assert not (paths[\"THIRDPARTY\"] / \"masstree/config.h\").exists()\n        staging = out / \"thirdparty\"\n        shutil.copytree(paths[\"THIRDPARTY\"], staging, symlinks=True)\n        assert not (staging / \"masstree\").is_symlink()\n        stock, new, old = (out / name for name in (\"stock\", \"new\", \"old\"))\n        for source in (stock, new, old):\n            driver.clone_network_free(paths[\"STOCK\"], source)\n        old_patch = out / \"old.patch\"\n        old_patch.write_text(driver._run_checked([\n            \"git\", \"show\", \"7975385b55a2e3451f6c80d584a9312f44d5199d:\"\n            \"patches/ss2pl-lock-protocol-study.patch\"], cwd=root, timeout=30).stdout)\n        driver._apply_patch(old, old_patch, reverse=False)\n        driver._apply_patch(new, root / \"patches/ss2pl-lock-protocol-study.patch\", reverse=False)\n        kwargs = dict(backoff=1, gflags_prefix=paths[\"GFLAGS\"],\n                      glog_prefix=paths[\"GLOG\"], thirdparty_root=staging)\n        document = {\"stage_deadlines\": {}}\n        with driver._stage_deadline(document, \"build\", 1800):\n>           record = driver.build_target(new, stock, out, build_id=\"phase1\",\n                                         arm=\"phase1\", jobs=4, **kwargs)\n\ntools/test_t2737_live_probe.py:47: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/pegasus/run_ss2pl_lock_study.py:2149: in build_target\n    condition_gates = _require_condition_gates(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nsource = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-lpxmva8p/new')\narm = 'phase1'\nstock_source = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-lpxmva8p/stock')\nexpected_cache = {'CCBENCH_SS2PL_LOCK_IMPL': '1', 'CCBENCH_SS2PL_LOCK_KIND': '0', 'CCBENCH_SS2PL_DLR': '0', 'CCBENCH_SS2PL_WFG_DIAG': '1', ...}\ngflags_prefix = PosixPath('/work/1/SFC/tanab/ss2pl-study-deps/gflags-install')\nglog_prefix = PosixPath('/work/1/SFC/tanab/ss2pl-study-deps/glog-install')\nthirdparty_root = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-lpxmva8p/thirdparty')\n\n    def _require_condition_gates(\n        source: Path,\n        *,\n        arm: str,\n        stock_source: Path,\n        expected_cache: Mapping[str, str],\n        gflags_prefix: Path,\n        glog_prefix: Path,\n        thirdparty_root: Path,\n    ) -> list[dict[str, Any]]:\n        configure_args = (\n            \"-DCMAKE_BUILD_TYPE=Release\",\n            \"-DENABLE_SANITIZER=OFF\",\n            f\"-DCMAKE_PREFIX_PATH={gflags_prefix};{glog_prefix}\",\n            f\"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={thirdparty_root / 'masstree'}\",\n            f\"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC={thirdparty_root / 'mimalloc'}\",\n            f\"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST={thirdparty_root / 'googletest'}\",\n            \"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\",\n            *(\n                f\"-D{key}={value}\"\n                for key, value in expected_cache.items()\n                if key not in AXIS_CACHE_KEYS.values()\n            ),\n        )\n        supply_records = []\n        meaning_records = []\n        for _axis, macro, requested, default in _condition_request_inputs(\n            expected_cache\n        ):\n            captured = condition_meaning_gate.capture_define_inputs(\n                source,\n                stock_root=stock_source,\n                configure_args=configure_args,\n            )\n            request = condition_meaning_gate.make_define_request(\n                driver_id=f\"tools.pegasus.run_ss2pl_lock_study:{arm}\",\n                macro=macro,\n                requested_value=requested,\n                default_value=default,\n                stock_comparison=requested == default,\n            )\n            supply_records.append(\n                condition_meaning_gate.evaluate_define_supply_effectuation(\n                    captured, request=request, cxx=\"c++\", cmake=\"cmake\",\n                )\n            )\n            meaning_records.append(\n                condition_meaning_gate.evaluate_define_runtime_meaning(\n                    captured, request=request, declaration=None, cxx=\"c++\",\n                )\n            )\n        admission = condition_meaning_gate.require_condition_gate_family(\n            supply_records, meaning_records, use_class=\"raw-measurement\",\n        )\n        if not admission.admitted:\n            states = \", \".join(\n                f\"{record.macro}={record.terminal_status}/{record.reason_code}\"\n                for record in (*supply_records, *meaning_records)\n            )\n>           raise ContractError(f\"condition gate rejected SS2PL study: {states}\")\nE           t2737_live_driver.ContractError: condition gate rejected SS2PL study: SS2PL_LOCK_IMPL=red/preprocess-failed, SS2PL_LOCK_KIND=red/preprocess-failed, SS2PL_DLR=red/preprocess-failed, SS2PL_WFG_DIAG=red/preprocess-failed, SS2PL_LOCK_IMPL=unestablished/meaning-witness-undeclared, SS2PL_LOCK_KIND=unestablished/meaning-witness-undeclared, SS2PL_DLR=unestablished/meaning-witness-undeclared, SS2PL_WFG_DIAG=unestablished/meaning-witness-undeclared\n\ntools/pegasus/run_ss2pl_lock_study.py:2039: ContractError\n=========================== short test summary info ============================\nFAILED tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm\n1 failed in 13.88s\n",
+        "stdout_sha256": "6681e80ddb0db36a196e5c55ae07b11162234411b8deffc9b3e1e2b3f0b79f2b"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8405097a6a3216908ffd792c314d45484f36aa607da1a8247c5564aa5d7fe9dd",
+      "duration_s": 343.258,
+      "expected_nodes": [
+        "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+      ],
+      "hang_risk": false,
+      "id": "M1-helper-removed",
+      "injection_diff_sha256": "c25fea38db01676d057a26564452a641a551bb07e014e56fca1dfaed62e064ae",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "0b956222526ca17f5bbe1bd353a3a58add5c2ab03be03bee9f243dc566fe36e5",
+      "replacements": [
+        {
+          "file": "tools/pegasus/run_ss2pl_lock_study.py",
+          "new": "    (lambda **kwargs: None)(\n",
+          "old": "    buildcache.prepare_masstree_fetchcontent(\n"
+        }
+      ],
+      "repo_head": "e9409610e78feb4b26bf0c555df1239445197bf7",
+      "runner_sha256": "f8ad52a8aa8f18968f006de918a2da2eaab2725bee78f13cfc85f52170ccecc0",
+      "spec_sha256": "a8991a9097a64b127dd390a89cd47eccf98d92f42dde4ce8164563c025030080",
+      "status": "KILLED",
+      "test_output_sha256": "6681e80ddb0db36a196e5c55ae07b11162234411b8deffc9b3e1e2b3f0b79f2b",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "005d851a8be0cac57b21e8dbe1e41bd0173dda5bd9bcdbce30ede81b64c7e47d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/00adb5358ca3b5d211dff47d53f7f725/izdw-00adb5358c.o9497",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/00adb5358ca3b5d211dff47d53f7f725/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "T2737 attempt output: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-xomu6qfz\nF\n=================================== FAILURES ===================================\n______________ test_t2737_pristine_phase1_and_rejected_stock_arm _______________\n\n    def test_t2737_pristine_phase1_and_rejected_stock_arm():\n        root = Path.cwd()\n        spec = importlib.util.spec_from_file_location(\n            \"t2737_live_driver\", root / \"tools/pegasus/run_ss2pl_lock_study.py\")\n        driver = importlib.util.module_from_spec(spec)\n        spec.loader.exec_module(driver)\n        inputs = json.loads(Path(__file__).with_suffix(\".json\").read_text())\n        paths = {key: Path(inputs[key]) for key in\n                 (\"STOCK\", \"THIRDPARTY\", \"GFLAGS\", \"GLOG\", \"OUTPUT\")}\n        assert all(path.is_absolute() for path in paths.values())\n        out = Path(tempfile.mkdtemp(prefix=\"t2737-\", dir=paths[\"OUTPUT\"]))\n        print(f\"T2737 attempt output: {out}\", flush=True)\n        assert not (paths[\"THIRDPARTY\"] / \"masstree/config.h\").exists()\n        staging = out / \"thirdparty\"\n        shutil.copytree(paths[\"THIRDPARTY\"], staging, symlinks=True)\n        assert not (staging / \"masstree\").is_symlink()\n        stock, new, old = (out / name for name in (\"stock\", \"new\", \"old\"))\n        for source in (stock, new, old):\n            driver.clone_network_free(paths[\"STOCK\"], source)\n        old_patch = out / \"old.patch\"\n        old_patch.write_text(driver._run_checked([\n            \"git\", \"show\", \"7975385b55a2e3451f6c80d584a9312f44d5199d:\"\n            \"patches/ss2pl-lock-protocol-study.patch\"], cwd=root, timeout=30).stdout)\n        driver._apply_patch(old, old_patch, reverse=False)\n        driver._apply_patch(new, root / \"patches/ss2pl-lock-protocol-study.patch\", reverse=False)\n        kwargs = dict(backoff=1, gflags_prefix=paths[\"GFLAGS\"],\n                      glog_prefix=paths[\"GLOG\"], thirdparty_root=staging)\n        document = {\"stage_deadlines\": {}}\n        with driver._stage_deadline(document, \"build\", 1800):\n>           record = driver.build_target(new, stock, out, build_id=\"phase1\",\n                                         arm=\"phase1\", jobs=4, **kwargs)\n\ntools/test_t2737_live_probe.py:47: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/pegasus/run_ss2pl_lock_study.py:2149: in build_target\n    condition_gates = _require_condition_gates(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nsource = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-xomu6qfz/new')\narm = 'phase1'\nstock_source = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-xomu6qfz/stock')\nexpected_cache = {'CCBENCH_SS2PL_LOCK_IMPL': '1', 'CCBENCH_SS2PL_LOCK_KIND': '0', 'CCBENCH_SS2PL_DLR': '0', 'CCBENCH_SS2PL_WFG_DIAG': '1', ...}\ngflags_prefix = PosixPath('/work/1/SFC/tanab/ss2pl-study-deps/gflags-install')\nglog_prefix = PosixPath('/work/1/SFC/tanab/ss2pl-study-deps/glog-install')\nthirdparty_root = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-xomu6qfz/thirdparty')\n\n    def _require_condition_gates(\n        source: Path,\n        *,\n        arm: str,\n        stock_source: Path,\n        expected_cache: Mapping[str, str],\n        gflags_prefix: Path,\n        glog_prefix: Path,\n        thirdparty_root: Path,\n    ) -> list[dict[str, Any]]:\n        configure_args = (\n            \"-DCMAKE_BUILD_TYPE=Release\",\n            \"-DENABLE_SANITIZER=OFF\",\n            f\"-DCMAKE_PREFIX_PATH={gflags_prefix};{glog_prefix}\",\n            f\"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={thirdparty_root / 'masstree'}\",\n            f\"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC={thirdparty_root / 'mimalloc'}\",\n            f\"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST={thirdparty_root / 'googletest'}\",\n            \"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\",\n            *(\n                f\"-D{key}={value}\"\n                for key, value in expected_cache.items()\n                if key not in AXIS_CACHE_KEYS.values()\n            ),\n        )\n        supply_records = []\n        meaning_records = []\n        for _axis, macro, requested, default in _condition_request_inputs(\n            expected_cache\n        ):\n            captured = condition_meaning_gate.capture_define_inputs(\n                source,\n                stock_root=stock_source,\n                configure_args=configure_args,\n            )\n            request = condition_meaning_gate.make_define_request(\n                driver_id=f\"tools.pegasus.run_ss2pl_lock_study:{arm}\",\n                macro=macro,\n                requested_value=requested,\n                default_value=default,\n                stock_comparison=requested == default,\n            )\n            supply_records.append(\n                condition_meaning_gate.evaluate_define_supply_effectuation(\n                    captured, request=request, cxx=\"c++\", cmake=\"cmake\",\n                )\n            )\n            meaning_records.append(\n                condition_meaning_gate.evaluate_define_runtime_meaning(\n                    captured, request=request, declaration=None, cxx=\"c++\",\n                )\n            )\n        admission = condition_meaning_gate.require_condition_gate_family(\n            supply_records, meaning_records, use_class=\"raw-measurement\",\n        )\n        if not admission.admitted:\n            states = \", \".join(\n                f\"{record.macro}={record.terminal_status}/{record.reason_code}\"\n                for record in (*supply_records, *meaning_records)\n            )\n>           raise ContractError(f\"condition gate rejected SS2PL study: {states}\")\nE           t2737_live_driver.ContractError: condition gate rejected SS2PL study: SS2PL_LOCK_IMPL=red/dependency-closure-drift, SS2PL_LOCK_KIND=green/requested-default-preprocess-different, SS2PL_DLR=green/requested-default-preprocess-different, SS2PL_WFG_DIAG=green/requested-default-preprocess-different, SS2PL_LOCK_IMPL=unestablished/meaning-witness-undeclared, SS2PL_LOCK_KIND=unestablished/meaning-witness-undeclared, SS2PL_DLR=unestablished/meaning-witness-undeclared, SS2PL_WFG_DIAG=unestablished/meaning-witness-undeclared\n\ntools/pegasus/run_ss2pl_lock_study.py:2039: ContractError\n=========================== short test summary info ============================\nFAILED tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm\n1 failed in 28.40s\n",
+        "stdout_sha256": "4e604c9921d47242ebf41e1d361f8e5effee0bf2cb4a53b65d2cd2126c706436"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8405097a6a3216908ffd792c314d45484f36aa607da1a8247c5564aa5d7fe9dd",
+      "duration_s": 52.635,
+      "expected_nodes": [
+        "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+      ],
+      "hang_risk": false,
+      "id": "M2-study-conditional-include",
+      "injection_diff_sha256": "7a39b6b572931532b490a4ba021cca9a0a8a720815d6574cfa9f2a99701c2f2e",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "874e46cc55f901407a03e8cd3d4b301902db2661d3acbba9bf13bdbb91d2cbac",
+      "replacements": [
+        {
+          "file": "patches/ss2pl-lock-protocol-study.patch",
+          "new": "+#if SS2PL_LOCK_IMPL == 1\n+#include \"ss2pl_study_lock.hh\"\n+using ReaderWriteLock",
+          "old": "+#include \"ss2pl_study_lock.hh\"\n+#if SS2PL_LOCK_IMPL == 1\n+using ReaderWriteLock"
+        }
+      ],
+      "repo_head": "e9409610e78feb4b26bf0c555df1239445197bf7",
+      "runner_sha256": "f8ad52a8aa8f18968f006de918a2da2eaab2725bee78f13cfc85f52170ccecc0",
+      "spec_sha256": "a8991a9097a64b127dd390a89cd47eccf98d92f42dde4ce8164563c025030080",
+      "status": "KILLED",
+      "test_output_sha256": "4e604c9921d47242ebf41e1d361f8e5effee0bf2cb4a53b65d2cd2126c706436",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "005d851a8be0cac57b21e8dbe1e41bd0173dda5bd9bcdbce30ede81b64c7e47d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/23d404cc71855b17e817f1e05f51e30d/izdw-23d404cc71.o9498",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/23d404cc71855b17e817f1e05f51e30d/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "T2737 attempt output: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-barg7_76\nF\n=================================== FAILURES ===================================\n______________ test_t2737_pristine_phase1_and_rejected_stock_arm _______________\n\n    def test_t2737_pristine_phase1_and_rejected_stock_arm():\n        root = Path.cwd()\n        spec = importlib.util.spec_from_file_location(\n            \"t2737_live_driver\", root / \"tools/pegasus/run_ss2pl_lock_study.py\")\n        driver = importlib.util.module_from_spec(spec)\n        spec.loader.exec_module(driver)\n        inputs = json.loads(Path(__file__).with_suffix(\".json\").read_text())\n        paths = {key: Path(inputs[key]) for key in\n                 (\"STOCK\", \"THIRDPARTY\", \"GFLAGS\", \"GLOG\", \"OUTPUT\")}\n        assert all(path.is_absolute() for path in paths.values())\n        out = Path(tempfile.mkdtemp(prefix=\"t2737-\", dir=paths[\"OUTPUT\"]))\n        print(f\"T2737 attempt output: {out}\", flush=True)\n        assert not (paths[\"THIRDPARTY\"] / \"masstree/config.h\").exists()\n        staging = out / \"thirdparty\"\n        shutil.copytree(paths[\"THIRDPARTY\"], staging, symlinks=True)\n        assert not (staging / \"masstree\").is_symlink()\n        stock, new, old = (out / name for name in (\"stock\", \"new\", \"old\"))\n        for source in (stock, new, old):\n            driver.clone_network_free(paths[\"STOCK\"], source)\n        old_patch = out / \"old.patch\"\n        old_patch.write_text(driver._run_checked([\n            \"git\", \"show\", \"7975385b55a2e3451f6c80d584a9312f44d5199d:\"\n            \"patches/ss2pl-lock-protocol-study.patch\"], cwd=root, timeout=30).stdout)\n        driver._apply_patch(old, old_patch, reverse=False)\n        driver._apply_patch(new, root / \"patches/ss2pl-lock-protocol-study.patch\", reverse=False)\n        kwargs = dict(backoff=1, gflags_prefix=paths[\"GFLAGS\"],\n                      glog_prefix=paths[\"GLOG\"], thirdparty_root=staging)\n        document = {\"stage_deadlines\": {}}\n        with driver._stage_deadline(document, \"build\", 1800):\n>           record = driver.build_target(new, stock, out, build_id=\"phase1\",\n                                         arm=\"phase1\", jobs=4, **kwargs)\n\ntools/test_t2737_live_probe.py:47: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/pegasus/run_ss2pl_lock_study.py:2149: in build_target\n    condition_gates = _require_condition_gates(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nsource = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-barg7_76/new')\narm = 'phase1'\nstock_source = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-barg7_76/stock')\nexpected_cache = {'CCBENCH_SS2PL_LOCK_IMPL': '1', 'CCBENCH_SS2PL_LOCK_KIND': '0', 'CCBENCH_SS2PL_DLR': '0', 'CCBENCH_SS2PL_WFG_DIAG': '1', ...}\ngflags_prefix = PosixPath('/work/1/SFC/tanab/ss2pl-study-deps/gflags-install')\nglog_prefix = PosixPath('/work/1/SFC/tanab/ss2pl-study-deps/glog-install')\nthirdparty_root = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-barg7_76/thirdparty')\n\n    def _require_condition_gates(\n        source: Path,\n        *,\n        arm: str,\n        stock_source: Path,\n        expected_cache: Mapping[str, str],\n        gflags_prefix: Path,\n        glog_prefix: Path,\n        thirdparty_root: Path,\n    ) -> list[dict[str, Any]]:\n        configure_args = (\n            \"-DCMAKE_BUILD_TYPE=Release\",\n            \"-DENABLE_SANITIZER=OFF\",\n            f\"-DCMAKE_PREFIX_PATH={gflags_prefix};{glog_prefix}\",\n            f\"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={thirdparty_root / 'masstree'}\",\n            f\"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC={thirdparty_root / 'mimalloc'}\",\n            f\"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST={thirdparty_root / 'googletest'}\",\n            \"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\",\n            *(\n                f\"-D{key}={value}\"\n                for key, value in expected_cache.items()\n                if key not in AXIS_CACHE_KEYS.values()\n            ),\n        )\n        supply_records = []\n        meaning_records = []\n        for _axis, macro, requested, default in _condition_request_inputs(\n            expected_cache\n        ):\n            captured = condition_meaning_gate.capture_define_inputs(\n                source,\n                stock_root=stock_source,\n                configure_args=configure_args,\n            )\n            request = condition_meaning_gate.make_define_request(\n                driver_id=f\"tools.pegasus.run_ss2pl_lock_study:{arm}\",\n                macro=macro,\n                requested_value=requested,\n                default_value=default,\n                stock_comparison=requested == default,\n            )\n            supply_records.append(\n                condition_meaning_gate.evaluate_define_supply_effectuation(\n                    captured, request=request, cxx=\"c++\", cmake=\"cmake\",\n                )\n            )\n            meaning_records.append(\n                condition_meaning_gate.evaluate_define_runtime_meaning(\n                    captured, request=request, declaration=None, cxx=\"c++\",\n                )\n            )\n        admission = condition_meaning_gate.require_condition_gate_family(\n            supply_records, meaning_records, use_class=\"raw-measurement\",\n        )\n        if not admission.admitted:\n            states = \", \".join(\n                f\"{record.macro}={record.terminal_status}/{record.reason_code}\"\n                for record in (*supply_records, *meaning_records)\n            )\n>           raise ContractError(f\"condition gate rejected SS2PL study: {states}\")\nE           t2737_live_driver.ContractError: condition gate rejected SS2PL study: SS2PL_LOCK_IMPL=green/requested-default-preprocess-different, SS2PL_LOCK_KIND=green/requested-default-preprocess-different, SS2PL_DLR=green/requested-default-preprocess-different, SS2PL_WFG_DIAG=red/dependency-closure-drift, SS2PL_LOCK_IMPL=unestablished/meaning-witness-undeclared, SS2PL_LOCK_KIND=unestablished/meaning-witness-undeclared, SS2PL_DLR=unestablished/meaning-witness-undeclared, SS2PL_WFG_DIAG=unestablished/meaning-witness-undeclared\n\ntools/pegasus/run_ss2pl_lock_study.py:2039: ContractError\n=========================== short test summary info ============================\nFAILED tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm\n1 failed in 30.00s\n",
+        "stdout_sha256": "a9335491df6e6b68bead1b21a97337d832533daf1b4c8a42a277c04491b33ad0"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8405097a6a3216908ffd792c314d45484f36aa607da1a8247c5564aa5d7fe9dd",
+      "duration_s": 57.749,
+      "expected_nodes": [
+        "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+      ],
+      "hang_risk": false,
+      "id": "M3-wfg-conditional-include",
+      "injection_diff_sha256": "d61163ddde5a6f57ef2cee628b2128f443f4b5041f06b5b161115405061f8d11",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "86bc6da929d240832d4e4c4b17ca552ba6f7f4b8c9d791ad60c613cfcd09b0ef",
+      "replacements": [
+        {
+          "file": "patches/ss2pl-lock-protocol-study.patch",
+          "new": "@@ -10,6 +9,9 @@\n #include \"../../include/result.hh\"\n #include \"include/common.hh\"\n #include \"include/transaction.hh\"\n+#if SS2PL_WFG_DIAG\n+#include \"include/ss2pl_wfg.hh\"\n+#endif",
+          "old": "@@ -10,6 +9,7 @@\n #include \"../../include/result.hh\"\n #include \"include/common.hh\"\n #include \"include/transaction.hh\"\n+#include \"include/ss2pl_wfg.hh\""
+        }
+      ],
+      "repo_head": "e9409610e78feb4b26bf0c555df1239445197bf7",
+      "runner_sha256": "f8ad52a8aa8f18968f006de918a2da2eaab2725bee78f13cfc85f52170ccecc0",
+      "spec_sha256": "a8991a9097a64b127dd390a89cd47eccf98d92f42dde4ce8164563c025030080",
+      "status": "KILLED",
+      "test_output_sha256": "a9335491df6e6b68bead1b21a97337d832533daf1b4c8a42a277c04491b33ad0",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "005d851a8be0cac57b21e8dbe1e41bd0173dda5bd9bcdbce30ede81b64c7e47d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ed6edfc2ef2318d9581bf03a71a5dd98/izdw-ed6edfc2ef.o9500",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/ed6edfc2ef2318d9581bf03a71a5dd98/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "T2737 attempt output: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-8r_8jlaj\nF\n=================================== FAILURES ===================================\n______________ test_t2737_pristine_phase1_and_rejected_stock_arm _______________\n\n    def test_t2737_pristine_phase1_and_rejected_stock_arm():\n        root = Path.cwd()\n        spec = importlib.util.spec_from_file_location(\n            \"t2737_live_driver\", root / \"tools/pegasus/run_ss2pl_lock_study.py\")\n        driver = importlib.util.module_from_spec(spec)\n        spec.loader.exec_module(driver)\n        inputs = json.loads(Path(__file__).with_suffix(\".json\").read_text())\n        paths = {key: Path(inputs[key]) for key in\n                 (\"STOCK\", \"THIRDPARTY\", \"GFLAGS\", \"GLOG\", \"OUTPUT\")}\n        assert all(path.is_absolute() for path in paths.values())\n        out = Path(tempfile.mkdtemp(prefix=\"t2737-\", dir=paths[\"OUTPUT\"]))\n        print(f\"T2737 attempt output: {out}\", flush=True)\n        assert not (paths[\"THIRDPARTY\"] / \"masstree/config.h\").exists()\n        staging = out / \"thirdparty\"\n        shutil.copytree(paths[\"THIRDPARTY\"], staging, symlinks=True)\n        assert not (staging / \"masstree\").is_symlink()\n        stock, new, old = (out / name for name in (\"stock\", \"new\", \"old\"))\n        for source in (stock, new, old):\n            driver.clone_network_free(paths[\"STOCK\"], source)\n        old_patch = out / \"old.patch\"\n        old_patch.write_text(driver._run_checked([\n            \"git\", \"show\", \"7975385b55a2e3451f6c80d584a9312f44d5199d:\"\n            \"patches/ss2pl-lock-protocol-study.patch\"], cwd=root, timeout=30).stdout)\n        driver._apply_patch(old, old_patch, reverse=False)\n        driver._apply_patch(new, root / \"patches/ss2pl-lock-protocol-study.patch\", reverse=False)\n        kwargs = dict(backoff=1, gflags_prefix=paths[\"GFLAGS\"],\n                      glog_prefix=paths[\"GLOG\"], thirdparty_root=staging)\n        document = {\"stage_deadlines\": {}}\n        with driver._stage_deadline(document, \"build\", 1800):\n>           record = driver.build_target(new, stock, out, build_id=\"phase1\",\n                                         arm=\"phase1\", jobs=4, **kwargs)\n\ntools/test_t2737_live_probe.py:47: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \ntools/pegasus/run_ss2pl_lock_study.py:2149: in build_target\n    condition_gates = _require_condition_gates(\n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nsource = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-8r_8jlaj/new')\narm = 'phase1'\nstock_source = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-8r_8jlaj/stock')\nexpected_cache = {'CCBENCH_SS2PL_LOCK_IMPL': '1', 'CCBENCH_SS2PL_LOCK_KIND': '0', 'CCBENCH_SS2PL_DLR': '0', 'CCBENCH_SS2PL_WFG_DIAG': '1', ...}\ngflags_prefix = PosixPath('/work/1/SFC/tanab/ss2pl-study-deps/gflags-install')\nglog_prefix = PosixPath('/work/1/SFC/tanab/ss2pl-study-deps/glog-install')\nthirdparty_root = PosixPath('/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-8r_8jlaj/thirdparty')\n\n    def _require_condition_gates(\n        source: Path,\n        *,\n        arm: str,\n        stock_source: Path,\n        expected_cache: Mapping[str, str],\n        gflags_prefix: Path,\n        glog_prefix: Path,\n        thirdparty_root: Path,\n    ) -> list[dict[str, Any]]:\n        configure_args = (\n            \"-DCMAKE_BUILD_TYPE=Release\",\n            \"-DENABLE_SANITIZER=OFF\",\n            f\"-DCMAKE_PREFIX_PATH={gflags_prefix};{glog_prefix}\",\n            f\"-DFETCHCONTENT_SOURCE_DIR_MASSTREE={thirdparty_root / 'masstree'}\",\n            f\"-DFETCHCONTENT_SOURCE_DIR_MIMALLOC={thirdparty_root / 'mimalloc'}\",\n            f\"-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST={thirdparty_root / 'googletest'}\",\n            \"-DFETCHCONTENT_FULLY_DISCONNECTED=ON\",\n            *(\n                f\"-D{key}={value}\"\n                for key, value in expected_cache.items()\n                if key not in AXIS_CACHE_KEYS.values()\n            ),\n        )\n        supply_records = []\n        meaning_records = []\n        for _axis, macro, requested, default in _condition_request_inputs(\n            expected_cache\n        ):\n            captured = condition_meaning_gate.capture_define_inputs(\n                source,\n                stock_root=stock_source,\n                configure_args=configure_args,\n            )\n            request = condition_meaning_gate.make_define_request(\n                driver_id=f\"tools.pegasus.run_ss2pl_lock_study:{arm}\",\n                macro=macro,\n                requested_value=requested,\n                default_value=default,\n                stock_comparison=requested == default,\n            )\n            supply_records.append(\n                condition_meaning_gate.evaluate_define_supply_effectuation(\n                    captured, request=request, cxx=\"c++\", cmake=\"cmake\",\n                )\n            )\n            meaning_records.append(\n                condition_meaning_gate.evaluate_define_runtime_meaning(\n                    captured, request=request, declaration=None, cxx=\"c++\",\n                )\n            )\n        admission = condition_meaning_gate.require_condition_gate_family(\n            supply_records, meaning_records, use_class=\"raw-measurement\",\n        )\n        if not admission.admitted:\n            states = \", \".join(\n                f\"{record.macro}={record.terminal_status}/{record.reason_code}\"\n                for record in (*supply_records, *meaning_records)\n            )\n>           raise ContractError(f\"condition gate rejected SS2PL study: {states}\")\nE           t2737_live_driver.ContractError: condition gate rejected SS2PL study: SS2PL_LOCK_IMPL=green/requested-default-preprocess-different, SS2PL_LOCK_KIND=green/requested-default-preprocess-different, SS2PL_DLR=red/compile-command-drift, SS2PL_WFG_DIAG=green/requested-default-preprocess-different, SS2PL_LOCK_IMPL=unestablished/meaning-witness-undeclared, SS2PL_LOCK_KIND=unestablished/meaning-witness-undeclared, SS2PL_DLR=unestablished/meaning-witness-undeclared, SS2PL_WFG_DIAG=unestablished/meaning-witness-undeclared\n\ntools/pegasus/run_ss2pl_lock_study.py:2039: ContractError\n=========================== short test summary info ============================\nFAILED tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm\n1 failed in 27.91s\n",
+        "stdout_sha256": "e130aceba31a6afa6a5c9eb61c6fe944423954c15e011df8301d120c78437af4"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8405097a6a3216908ffd792c314d45484f36aa607da1a8247c5564aa5d7fe9dd",
+      "duration_s": 52.575,
+      "expected_nodes": [
+        "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+      ],
+      "hang_risk": false,
+      "id": "M4-dlr-marker-drift",
+      "injection_diff_sha256": "59074959f5627519634658b9c0f2133238c548f39380003d1d5b460d04eb6a73",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "a2b564b835e1c6b37a6752bb3b38b217bf82d25c51697fb7ef61891b57145f6b",
+      "replacements": [
+        {
+          "file": "patches/ss2pl-lock-protocol-study.patch",
+          "new": "   OPTIONS\n-    DLR1\n+    $<$<EQUAL:${CCBENCH_SS2PL_DLR},0>:DLR0>$<$<NOT:$<EQUAL:${CCBENCH_SS2PL_DLR},0>>:DLR1>\n",
+          "old": "   OPTIONS\n     DLR1\n"
+        }
+      ],
+      "repo_head": "e9409610e78feb4b26bf0c555df1239445197bf7",
+      "runner_sha256": "f8ad52a8aa8f18968f006de918a2da2eaab2725bee78f13cfc85f52170ccecc0",
+      "spec_sha256": "a8991a9097a64b127dd390a89cd47eccf98d92f42dde4ce8164563c025030080",
+      "status": "KILLED",
+      "test_output_sha256": "e130aceba31a6afa6a5c9eb61c6fe944423954c15e011df8301d120c78437af4",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "005d851a8be0cac57b21e8dbe1e41bd0173dda5bd9bcdbce30ede81b64c7e47d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/380d9d81fb18f92d4931edea99d7a3f4/izdw-380d9d81fb.o9501",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/380d9d81fb18f92d4931edea99d7a3f4/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "T2737 attempt output: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-djkjp0jc\n.\n1 passed in 103.10s (0:01:43)\n",
+        "stdout_sha256": "25772350c7311e677ce9d2abba5d830a768289b5c4e1c8404671b9018e0a747e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8405097a6a3216908ffd792c314d45484f36aa607da1a8247c5564aa5d7fe9dd",
+      "duration_s": 123.987,
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "failed_nodes": [],
+      "hang_risk": false,
+      "id": "M5-publish-wait-manual-observation",
+      "injection_diff_sha256": "6971c8a408bf5614da56fd76d0a874b9c491005778bfa4a8488bb3a877e08b4e",
+      "matches_expectation": true,
+      "rc": 0,
+      "registration_sha256": "99e33919efd5445cfb0847ae5e047e1c1df9925c8196c80ee4caa4a30b68db5d",
+      "replacements": [
+        {
+          "file": "patches/ss2pl-lock-protocol-study.patch",
+          "new": "+    goto FINISH_READ_LOCK;\n+  }\n+\n+#if SS2PL_WFG_DIAG\n+",
+          "old": "+    goto FINISH_READ_LOCK;\n+  }\n+\n+#if SS2PL_WFG_DIAG\n+  publish_wait(*this, &tuple->lock_, SS2PLWfgMode::read);"
+        }
+      ],
+      "repo_head": "e9409610e78feb4b26bf0c555df1239445197bf7",
+      "runner_sha256": "f8ad52a8aa8f18968f006de918a2da2eaab2725bee78f13cfc85f52170ccecc0",
+      "spec_sha256": "a8991a9097a64b127dd390a89cd47eccf98d92f42dde4ce8164563c025030080",
+      "status": "SURVIVED",
+      "test_output_sha256": "25772350c7311e677ce9d2abba5d830a768289b5c4e1c8404671b9018e0a747e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "005d851a8be0cac57b21e8dbe1e41bd0173dda5bd9bcdbce30ede81b64c7e47d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7af6f1bd0df7247d5887db96b54ff92b/izdw-7af6f1bd0d.o9503",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/7af6f1bd0df7247d5887db96b54ff92b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "T2737 attempt output: /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-77vgzsfd\nF\n=================================== FAILURES ===================================\n______________ test_t2737_pristine_phase1_and_rejected_stock_arm _______________\n\n    def test_t2737_pristine_phase1_and_rejected_stock_arm():\n        root = Path.cwd()\n        spec = importlib.util.spec_from_file_location(\n            \"t2737_live_driver\", root / \"tools/pegasus/run_ss2pl_lock_study.py\")\n        driver = importlib.util.module_from_spec(spec)\n        spec.loader.exec_module(driver)\n        inputs = json.loads(Path(__file__).with_suffix(\".json\").read_text())\n        paths = {key: Path(inputs[key]) for key in\n                 (\"STOCK\", \"THIRDPARTY\", \"GFLAGS\", \"GLOG\", \"OUTPUT\")}\n        assert all(path.is_absolute() for path in paths.values())\n        out = Path(tempfile.mkdtemp(prefix=\"t2737-\", dir=paths[\"OUTPUT\"]))\n        print(f\"T2737 attempt output: {out}\", flush=True)\n        assert not (paths[\"THIRDPARTY\"] / \"masstree/config.h\").exists()\n        staging = out / \"thirdparty\"\n        shutil.copytree(paths[\"THIRDPARTY\"], staging, symlinks=True)\n        assert not (staging / \"masstree\").is_symlink()\n        stock, new, old = (out / name for name in (\"stock\", \"new\", \"old\"))\n        for source in (stock, new, old):\n            driver.clone_network_free(paths[\"STOCK\"], source)\n        old_patch = out / \"old.patch\"\n        old_patch.write_text(driver._run_checked([\n            \"git\", \"show\", \"7975385b55a2e3451f6c80d584a9312f44d5199d:\"\n            \"patches/ss2pl-lock-protocol-study.patch\"], cwd=root, timeout=30).stdout)\n        driver._apply_patch(old, old_patch, reverse=False)\n        driver._apply_patch(new, root / \"patches/ss2pl-lock-protocol-study.patch\", reverse=False)\n        kwargs = dict(backoff=1, gflags_prefix=paths[\"GFLAGS\"],\n                      glog_prefix=paths[\"GLOG\"], thirdparty_root=staging)\n        document = {\"stage_deadlines\": {}}\n        with driver._stage_deadline(document, \"build\", 1800):\n            record = driver.build_target(new, stock, out, build_id=\"phase1\",\n                                         arm=\"phase1\", jobs=4, **kwargs)\n            assert (staging / \"masstree/config.h\").is_file()\n            gates = record[\"condition_gates\"]\n            assert [row[\"reason_code\"] for row in gates[:4]] == [\n                \"requested-default-preprocess-different\"] * 4\n            assert [row[\"reason_code\"] for row in gates[4:8]] == [\n                \"meaning-witness-undeclared\"] * 4\n            assert gates[8][\"admitted\"] is True\n            with pytest.raises(driver.ContractError, match=\"condition gate rejected\") as rejected:\n                driver.build_target(new, stock, out, build_id=\"rejected-S\",\n                                    arm=\"S\", jobs=4, **kwargs)\n            assert str(rejected.value).count(\"owner-tu-unresolved\") == 3\n            assert str(rejected.value).count(\"configure-failed\") == 1\n            driver._configure(old, out / \"old-phase1\", arm=\"phase1\", **kwargs)\n            target = \"ycsb_ss2pl.exe\"\n            texts = {}\n            for label, build in ((\"old\", \"old-phase1\"), (\"new\", \"phase1\")):\n                entries = driver._target_compile_entries(out / build, target)\n                texts[label] = {}\n                for entry in entries:\n                    name = Path(driver._entry_source(entry)).name\n                    text = driver._preprocess(entry).decode()\n                    texts[label][name] = text\n                    (out / f\"{label}-{name}.ii\").write_text(text)\n            assert texts[\"old\"].keys() == texts[\"new\"].keys()\n            assert set(texts[\"new\"]) == {\"transaction.cc\", \"util.cc\", \"wfg.cc\", \"ycsb_ss2pl.cc\"}\n            for name in texts[\"new\"]:\n                (out / f\"{name}.diff\").write_text(\"\".join(difflib.unified_diff(\n                    texts[\"old\"][name].splitlines(True), texts[\"new\"][name].splitlines(True),\n                    fromfile=f\"old-{name}\", tofile=f\"new-{name}\")))\n            plain = out / \"plain-S\"\n            driver._configure(new, plain, arm=\"S\", **kwargs)\n>           driver._run_checked([\"cmake\", \"--build\", str(plain), \"--target\", target,\n                                 \"--parallel\", \"4\"], timeout=600)\n\ntools/test_t2737_live_probe.py:80: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nargv = ['cmake', '--build', '/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-77vgzsfd/plain-S', '--target', 'ycsb_ss2pl.exe', '--parallel', ...]\ncwd = None, env = None, timeout = 600, text = True\n\n    def _run_checked(\n        argv: Sequence[str],\n        *,\n        cwd: Path | None = None,\n        env: Mapping[str, str] | None = None,\n        timeout: float | None = None,\n        text: bool = True,\n    ) -> subprocess.CompletedProcess[Any]:\n        effective_timeout, limiting_stage = _bounded_timeout(timeout)\n        try:\n            completed = subprocess.run(\n                list(argv), cwd=cwd, env=None if env is None else dict(env),\n                capture_output=True, text=text, timeout=effective_timeout, check=False,\n            )\n        except subprocess.TimeoutExpired as exc:\n            if limiting_stage is not None:\n                raise ContractError(\n                    f\"{limiting_stage.name} stage deadline exceeded while running {shlex.join(argv)}\"\n                ) from exc\n            raise ContractError(f\"command timeout after {timeout}s: {shlex.join(argv)}\") from exc\n        if completed.returncode != 0:\n            stderr = completed.stderr if text else completed.stderr.decode(\"utf-8\", \"replace\")\n>           raise ContractError(\n                f\"command failed rc={completed.returncode}: {shlex.join(argv)}\\n{stderr[-4000:]}\"\n            )\nE           t2737_live_driver.ContractError: command failed rc=2: cmake --build /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-77vgzsfd/plain-S --target ycsb_ss2pl.exe --parallel 4\nE           gzsfd/new/cc/ss2pl/wfg.cc:354:46: error: ‘SS2PLWfgMode’ has not been declared\nE             354 |                            const void* lock, SS2PLWfgMode mode) {\nE                 |                                              ^~~~~~~~~~~~\nE           /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-77vgzsfd/new/cc/ss2pl/wfg.cc: In function ‘void ss2pl_wfg_before_wait(uint32_t, uint64_t, const void*, int)’:\nE           /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-77vgzsfd/new/cc/ss2pl/wfg.cc:360:10: error: ‘struct {anonymous}::WorkerState’ has no member named ‘waiting_mode’; did you mean ‘waiting_lock’?\nE             360 |   worker.waiting_mode = mode;\nE                 |          ^~~~~~~~~~~~\nE                 |          waiting_lock\nE           /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-77vgzsfd/new/cc/ss2pl/wfg.cc:365:74: error: ‘const struct {anonymous}::HeldLock’ has no member named ‘mode’\nE             365 |       if (held.lock_id == worker.waiting_lock && incompatible(mode, held.mode)) {\nE                 |                                                                          ^~~~\nE           /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-77vgzsfd/new/cc/ss2pl/wfg.cc:365:78: error: ‘{anonymous}::incompatible’ cannot be used as a function\nE             365 |       if (held.lock_id == worker.waiting_lock && incompatible(mode, held.mode)) {\nE                 |                                                                              ^\nE           /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-77vgzsfd/new/cc/ss2pl/wfg.cc: At global scope:\nE           /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-77vgzsfd/new/cc/ss2pl/wfg.cc:374:25: error: ‘SS2PLWfgMode’ has not been declared\nE             374 |                         SS2PLWfgMode mode) {\nE                 |                         ^~~~~~~~~~~~\nE           /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-77vgzsfd/new/cc/ss2pl/wfg.cc: In function ‘void ss2pl_wfg_acquired(uint32_t, const void*, int)’:\nE           /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-77vgzsfd/new/cc/ss2pl/wfg.cc:381:12: error: ‘struct {anonymous}::HeldLock’ has no member named ‘mode’\nE             381 |       held.mode = mode;\nE                 |            ^~~~\nE           /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-77vgzsfd/new/cc/ss2pl/wfg.cc:385:47: error: too many initializers for ‘{anonymous}::HeldLock’\nE             385 |   worker.held.push_back(HeldLock{lock_id, mode});\nE                 |                                               ^\nE           /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-77vgzsfd/new/cc/ss2pl/wfg.cc: At global scope:\nE           /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-77vgzsfd/new/cc/ss2pl/wfg.cc:411:6: error: variable or field ‘ss2pl_wfg_record_acquire’ declared void\nE             411 | void ss2pl_wfg_record_acquire(SS2PLWfgMode mode, bool upgrade) {\nE                 |      ^~~~~~~~~~~~~~~~~~~~~~~~\nE           /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-77vgzsfd/new/cc/ss2pl/wfg.cc:411:31: error: ‘SS2PLWfgMode’ was not declared in this scope\nE             411 | void ss2pl_wfg_record_acquire(SS2PLWfgMode mode, bool upgrade) {\nE                 |                               ^~~~~~~~~~~~\nE           /work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/live-final/t2737-77vgzsfd/new/cc/ss2pl/wfg.cc:411:50: error: expected primary-expression before ‘bool’\nE             411 | void ss2pl_wfg_record_acquire(SS2PLWfgMode mode, bool upgrade) {\nE                 |                                                  ^~~~\nE           cc1plus: all warnings being treated as errors\nE           gmake[3]: *** [cc/ss2pl/CMakeFiles/ycsb_ss2pl.exe.dir/build.make:118: cc/ss2pl/CMakeFiles/ycsb_ss2pl.exe.dir/wfg.cc.o] Error 1\nE           gmake[3]: *** Waiting for unfinished jobs....\nE           gmake[2]: *** [CMakeFiles/Makefile2:1282: cc/ss2pl/CMakeFiles/ycsb_ss2pl.exe.dir/all] Error 2\nE           gmake[1]: *** [CMakeFiles/Makefile2:1289: cc/ss2pl/CMakeFiles/ycsb_ss2pl.exe.dir/rule] Error 2\nE           gmake: *** [Makefile:598: ycsb_ss2pl.exe] Error 2\n\ntools/pegasus/run_ss2pl_lock_study.py:722: ContractError\n=========================== short test summary info ============================\nFAILED tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm\n1 failed in 59.16s\n",
+        "stdout_sha256": "347439ce081bdfd5a6391cb7f5f3e494b6c7174babf09bb8271311a3e3459d0e"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "8405097a6a3216908ffd792c314d45484f36aa607da1a8247c5564aa5d7fe9dd",
+      "duration_s": 83.864,
+      "expected_nodes": [
+        "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+      ],
+      "hang_risk": false,
+      "id": "M6-wfg-unconditional-source",
+      "injection_diff_sha256": "1e46953924a9fb359b0fcc36491aab5fdfc32a4f472d19cb3599ae9b26e9dfeb",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "fc534673290a6a8fc31a825827edad3ac803b9040d1f2481b798871a7df17063",
+      "replacements": [
+        {
+          "file": "patches/ss2pl-lock-protocol-study.patch",
+          "new": "+if(TRUE)\n+  list(APPEND _ss2pl_sources wfg.cc)",
+          "old": "+if(CCBENCH_SS2PL_WFG_DIAG EQUAL 1)\n+  list(APPEND _ss2pl_sources wfg.cc)"
+        }
+      ],
+      "repo_head": "e9409610e78feb4b26bf0c555df1239445197bf7",
+      "runner_sha256": "f8ad52a8aa8f18968f006de918a2da2eaab2725bee78f13cfc85f52170ccecc0",
+      "spec_sha256": "a8991a9097a64b127dd390a89cd47eccf98d92f42dde4ce8164563c025030080",
+      "status": "KILLED",
+      "test_output_sha256": "347439ce081bdfd5a6391cb7f5f3e494b6c7174babf09bb8271311a3e3459d0e",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "005d851a8be0cac57b21e8dbe1e41bd0173dda5bd9bcdbce30ede81b64c7e47d"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/deddd2f754ed9a5153a6b6fa689bbbc6/izdw-deddd2f754.o9486",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/deddd2f754ed9a5153a6b6fa689bbbc6/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm\n\n1 test collected in 0.24s\n",
+        "stdout_sha256": "4f41e33e46249c42d4d8ff5415338cfbddf323e7c1dde4533724cc9d50849975"
+      },
+      "collected_nodes": [
+        "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+      ],
+      "duration_s": 26.933,
+      "rc": 0,
+      "repo_head": "e9409610e78feb4b26bf0c555df1239445197bf7",
+      "runner_sha256": "f8ad52a8aa8f18968f006de918a2da2eaab2725bee78f13cfc85f52170ccecc0",
+      "spec_sha256": "a8991a9097a64b127dd390a89cd47eccf98d92f42dde4ce8164563c025030080",
+      "status": "PASSED",
+      "tool_sha256": "005d851a8be0cac57b21e8dbe1e41bd0173dda5bd9bcdbce30ede81b64c7e47d"
+    },
+    "hang_timeout_seconds": 120.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M1-helper-removed": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "c25fea38db01676d057a26564452a641a551bb07e014e56fca1dfaed62e064ae",
+        "replacements": [
+          {
+            "file": "tools/pegasus/run_ss2pl_lock_study.py",
+            "new": "    (lambda **kwargs: None)(\n",
+            "old": "    buildcache.prepare_masstree_fetchcontent(\n"
+          }
+        ]
+      },
+      "M2-study-conditional-include": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "7a39b6b572931532b490a4ba021cca9a0a8a720815d6574cfa9f2a99701c2f2e",
+        "replacements": [
+          {
+            "file": "patches/ss2pl-lock-protocol-study.patch",
+            "new": "+#if SS2PL_LOCK_IMPL == 1\n+#include \"ss2pl_study_lock.hh\"\n+using ReaderWriteLock",
+            "old": "+#include \"ss2pl_study_lock.hh\"\n+#if SS2PL_LOCK_IMPL == 1\n+using ReaderWriteLock"
+          }
+        ]
+      },
+      "M3-wfg-conditional-include": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "d61163ddde5a6f57ef2cee628b2128f443f4b5041f06b5b161115405061f8d11",
+        "replacements": [
+          {
+            "file": "patches/ss2pl-lock-protocol-study.patch",
+            "new": "@@ -10,6 +9,9 @@\n #include \"../../include/result.hh\"\n #include \"include/common.hh\"\n #include \"include/transaction.hh\"\n+#if SS2PL_WFG_DIAG\n+#include \"include/ss2pl_wfg.hh\"\n+#endif",
+            "old": "@@ -10,6 +9,7 @@\n #include \"../../include/result.hh\"\n #include \"include/common.hh\"\n #include \"include/transaction.hh\"\n+#include \"include/ss2pl_wfg.hh\""
+          }
+        ]
+      },
+      "M4-dlr-marker-drift": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "59074959f5627519634658b9c0f2133238c548f39380003d1d5b460d04eb6a73",
+        "replacements": [
+          {
+            "file": "patches/ss2pl-lock-protocol-study.patch",
+            "new": "   OPTIONS\n-    DLR1\n+    $<$<EQUAL:${CCBENCH_SS2PL_DLR},0>:DLR0>$<$<NOT:$<EQUAL:${CCBENCH_SS2PL_DLR},0>>:DLR1>\n",
+            "old": "   OPTIONS\n     DLR1\n"
+          }
+        ]
+      },
+      "M5-publish-wait-manual-observation": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [],
+        "expected_status": "SURVIVED",
+        "injection_diff_sha256": "6971c8a408bf5614da56fd76d0a874b9c491005778bfa4a8488bb3a877e08b4e",
+        "replacements": [
+          {
+            "file": "patches/ss2pl-lock-protocol-study.patch",
+            "new": "+    goto FINISH_READ_LOCK;\n+  }\n+\n+#if SS2PL_WFG_DIAG\n+",
+            "old": "+    goto FINISH_READ_LOCK;\n+  }\n+\n+#if SS2PL_WFG_DIAG\n+  publish_wait(*this, &tuple->lock_, SS2PLWfgMode::read);"
+          }
+        ]
+      },
+      "M6-wfg-unconditional-source": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "tools/test_t2737_live_probe.py::test_t2737_pristine_phase1_and_rejected_stock_arm"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "1e46953924a9fb359b0fcc36491aab5fdfc32a4f472d19cb3599ae9b26e9dfeb",
+        "replacements": [
+          {
+            "file": "patches/ss2pl-lock-protocol-study.patch",
+            "new": "+if(TRUE)\n+  list(APPEND _ss2pl_sources wfg.cc)",
+            "old": "+if(CCBENCH_SS2PL_WFG_DIAG EQUAL 1)\n+  list(APPEND _ss2pl_sources wfg.cc)"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "74729d5fcd43f175c0b42c8dbd1d0cde0dba21c9d23c19a779a64ee4f726160d",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "tools/test_t2737_live_probe.py",
+      "-n",
+      "0",
+      "-q",
+      "-rf",
+      "-s",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 10800.0
+  },
+  "repo_head": "e9409610e78feb4b26bf0c555df1239445197bf7",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "tools/test_t2737_live_probe.py",
+      "-n",
+      "0",
+      "-q",
+      "-rf",
+      "-s",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "ca4fe7368c2ea5245265c875938d5b80427c8e31",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "f8ad52a8aa8f18968f006de918a2da2eaab2725bee78f13cfc85f52170ccecc0",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "a8991a9097a64b127dd390a89cd47eccf98d92f42dde4ce8164563c025030080",
+  "summary": {
+    "KILLED": 5,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 1,
+    "TIMEOUT": 0,
+    "completed": 6,
+    "matching": 6,
+    "recorded": 6,
+    "registered": 6
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "005d851a8be0cac57b21e8dbe1e41bd0173dda5bd9bcdbce30ede81b64c7e47d",
+  "updated_at": "2026-09-18T23:17:53.346838+00:00"
+}

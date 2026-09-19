@@ -243,6 +243,17 @@
   (2026-09-18 の前件) から**標本表の手打ちと、1 手で複数 file を読んだ転写**へ広がった顕在化。恒久対応は変更なし —
   results 稿の数表は現物から script で生成し、稿へ入れる値は機械照合を通すまで根拠にしない (`DW-O16`)。
   一次資料は `output/insights/2026-09-18/t2775-a1-sized-results-draft/README.md`。
+
+- **再発: 2026-09-19 (near miss)** — [T-2288] (b) の親が、repo 外 handoff の段 1 brief と段 4 裁定の見出し時刻を
+  `date` で採らず会話の経過感覚から推定して書き (21:35 / 21:36 JST)、実投入の開始 (rr95 の launcher 開始
+  `submit-rr95-w1.meta` = 21:32:09 JST、`submit-receipt.json` の `prepared_epoch` 1789821131 = 21:32:11 JST) より後の
+  値になった。段 6 の read-only レビューが「事前判断と事後転記を区別できない」と指摘。brief・裁定を書いた実時刻は記録されて
+  おらず handoff は版管理外なので、「brief は同 handoff 内に記録した `git rev-parse main` の `date -u` 出力 12:27:09Z より前、
+  裁定は dry-run の meta 21:31:27 JST の後・21:32:09 JST の前」という順序は親の操作列の申告であって証拠から独立には確定
+  できない (焦点再レビューの指摘)。handoff の見出しに erratum を付けて訂正した。2026-09-17 の [T-2491] で同じ型を踏み memory
+  `timestamps-from-date-or-mtime-not-estimation` に恒久対応を書いたばかりで、これは知識の欠落ではなく既知規律の
+  不適用による再発である。転写でも推定でも起きる (`日付` から `時刻` へ対象が広がった顕在化は 09-17 と同じ)。
+  一次資料は `output/insights/2026-09-19/t2288-floor-pair-w1/README.md` の段 6 節 (所見 3) と同 dir `verbatim/s6-review.md`。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -13162,6 +13173,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   test file 内**全 20 呼び出し点**を表にして全数を出し、そこから影響 4 件を導いたこと。
   段 6 の敵対レビュー 2 本と焦点再レビューが独立に 5 件目の不在を確認した。
   **裁定で層を変えたら、前段の列挙は閉包でなくなる。** 権威 (呼び出し点の全列挙) から取り直す。
+
+- **再発: 2026-09-19** — [T-2737] 回収 wave。変更した production file (`patches/ss2pl-lock-protocol-study.patch`) の
+  consumer test を file 名と symbol 名で引き、焦点走を `test_ss2pl_lock_study.py` (103 件) に閉じた。
+  `patches/` を directory glob で目録化する `test_ccbench_spawn_sites.py` は名前で届かず、受入全走で初めて
+  include guard 3 件の候補混入 (define 目録 3 test の赤) が出た。閉包の鍵は「この directory を読む test」という
+  性質で立てるべきで、`DW-O26` の参照関係の抽出は glob・directory 走査の consumer も含める。
+  修正は Codex author の fix3 (目録関数の新規 file include guard の構造的除外、正例 1・負例 2) で閉じ、
+  記録は `output/insights/2026-09-19/t2737-noninert-implementation/README.md`。
 ### F387. help 文字列への 1 語追加が、行折り返しの移動だけで無関係な逐語 assertion を壊した [恒真ゲート] [手順漏れ]
 
 - 事象: `tools/dev_wave_codex.py` の `--evidence-grace-s` の help 先頭へ
