@@ -1333,6 +1333,17 @@
   明記していたが、**テストを証拠に挙げるときにその検証機構が無効化されていないかを確かめる手順**は
   書いていなかった。恒久対応は既存のまま (再発検知行どおりレンズに攻めさせる経路が機能した)。
   逐語は `output/insights/2026-09-16/t1232-rootless-failure-report/verbatim/s4-ruling.md` §2。
+
+- **再発: 2026-09-19** (A-1 sized attempt-0002 投入 wave、near miss)。段 1 前の前提実測で、親は
+  `run_submit` の先頭 (`_validate_attempt_root` まで) と `_run_submit_v3` の末尾だけを読み、「attempt root が
+  durable base 直下の未存在 dir なら attempt-0002 は成立」と brief に書いた。実際には `_run_submit_v3` の中程で
+  `_assert_no_prior_v3_bench_start` (規律 2 由来、commit abff80d1b) が先行 attempt の bench 到達を検出して
+  qsub 前に拒否する。測定 (code 読み) は正確だったが、**読んだ範囲が命題 (submit が qsub に達する) を覆って
+  いなかった** — 部分抜粋から経路全体の成立を一般化した型。検出は段 3 の相談 B (手順レンズ) で、親が durable base の
+  現物 (`bench-go.json`・ready 3 本・bench-start 3 本) と既存経路の 1 回実走 (rc 2、副作用なし) で確定した。
+  再発検知どおりレンズが機能したので実害はなく、1 attempt の投入手続は submit 層で停止条件に達した。
+  一次資料は `output/insights/2026-09-19/a1-sized-attempt2/README.md` §2。教訓: 別 program の起動物を
+  「成立」と書く前に、入口から副作用点 (intent 書込・qsub) までの gate 呼び出しを**関数境界で全列挙**する。
 ### F30. 凍結成果物を触る wave で `FROZEN_MANIFEST` を見落とした [手順漏れ]
 
 - 事象: 同 wave で、S-1 成果物の bytes を変える設計を検討しながら、
@@ -1434,6 +1445,8 @@
   `test_p3_autonomous_workload_trial._coder_authority()` の流用へ置き換えた。恒久対応は既存のまま
   (`DW-O09` の「path 以外を key にする pin も key 側で検索」に、新たに足した呼び出しの callee 名も含まれる)。
   逐語は `output/insights/2026-09-16/t1232-rootless-failure-report/README.md` §9。
+
+- **再発: 2026-09-19** — [T-2724] 凍結 v2 g1 の chain + G を main へ取り込む wave の段 1 で、pin 閉包を持ち込む成果物の **file 名** (`holdout_freeze.v2.g1`、`s8b-freeze-budget-inputs/g1`、run dir 名) の `git grep` だけで作り、**directory 名 `"output/s8b-freeze"` を丸ごと列挙して bytes digest を固定する pin** (`orchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate` と `tools/pegasus/b10_backoff_grid.sh` の `EXPECTED_FREEZE_TREES_SHA256`、B-10 の起動契約) を数え落とした。焦点走 8 file (前回 wave の集合の流用) にもこの test file は無く、受入全走 (30 分) で初めて赤 1 node (1 failed / 25311 passed) が出て、chain を land できずに終端した。`DW-O09` の「path 検索は path key の pin しか出さない。role 名や xdist group 名など key 側でも検索し、hit 0 件を pin なしとしない」を、**directory 名と算法名 (`rglob`、`freeze_digest`、`EXPECTED_*SHA256`、`FROZEN_MANIFEST`) の key 側検索**として適用していなかった。追加だけで凍結 gate が赤になる型は memory `grid-constants-and-new-artifact-names-hit-freeze-gates` (2026-08-26) が既に記録していた。一次資料 `output/insights/2026-09-19/t2724-chain-land-2/README.md` §5。
 ### F31. 裁定要約が元 decision の制約を落とし、迂回できたつもりで同じ閉包へ戻った [手順漏れ]
 
 - 事象: worklog 2026-07-21 (5) の [T-005] 裁定要約は「[T-068] の格下げを採れば再発行そのものが
