@@ -423,6 +423,9 @@ def test_remove_child_manifest_is_closed(tmp_path, monkeypatch, defect):
 @pytest.mark.parametrize('state', ['clean', 'dirty', 'ignored', 'reflog', 'pin-mismatch', 'local-only-pin'])
 def test_remove_child_checks_initialized_submodule(tmp_path, monkeypatch, state):
     case = _make_child_repo(tmp_path, monkeypatch)
+    (case.repo.main / '.gitattributes').write_text('* text=auto eol=lf\n')
+    _git(case.repo.main, 'add', '.gitattributes')
+    _git(case.repo.main, 'commit', '-m', 'module conversion attributes')
     # Keep the source tip fixed while main commits its own submodule registration.
     _git(case.repo.main, 'branch', 'module-source')
     _git(case.repo.main, '-c', 'protocol.file.allow=always', 'submodule', 'add',

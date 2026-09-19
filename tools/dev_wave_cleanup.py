@@ -1618,7 +1618,6 @@ def _assert_child_submodules(child: Path, common: Path, admin: Path,
             if not _ancestor(module, sha, pin.decode()):
                 raise ValueError("submodule reflog is unreachable from gitlink pin")
         _assert_child_index(module)
-        _assert_child_no_conversion(module)
         _assert_child_submodules(module, common, admin, store / "modules")
 
 
