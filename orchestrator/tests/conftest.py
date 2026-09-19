@@ -258,6 +258,7 @@ def _declare_default_test_site(request, monkeypatch):
 # 親 working tree (P) と共有 ccbench (S) に触る node の分類正本。値は
 # ``test_file.py::test_function``（parametrize suffix なし）で固定する。
 _REAL_REPO_NODE_INVENTORY = frozenset({
+    "test_s8b_oracle_driver.py::test_run_block_refuses_invalid_receipt_after_gate_seam",
     "test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads",
     "test_s1_known_axes_freeze.py::test_historical_option_keeps_new_document_strict",
     "test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
@@ -536,6 +537,7 @@ _REAL_REPO_CCBENCH_WRITER_NODES_LITERAL = frozenset({
     "test_sort_swo_oracle.py::test_real_patchharness_checkout_and_resolver_use_explicit_binding",
 })
 _REAL_REPO_BOTH_READER_NODES = frozenset({
+    "test_s8b_oracle_driver.py::test_run_block_refuses_invalid_receipt_after_gate_seam",
     "test_s1_known_axes_freeze.py::test_historical_real_artifact_without_live_code_reads",
     "test_s1_known_axes_freeze.py::test_historical_option_keeps_new_document_strict",
     "test_s1_known_axes_freeze.py::test_historical_real_artifact_is_readable",
@@ -739,38 +741,12 @@ ORACLE_ENVIRONMENT_CONSUMER_NODES = frozenset({
 })
 
 # production receipt memo を test body 内で読む関数の完全 inventory。parametrize suffix と
-# loadgroup suffix は除いた ``file::function`` 形で固定する。34 関数 / 37 node。
+# loadgroup suffix は除いた ``file::function`` 形で固定する。8 関数 / 8 node。
 RECEIPT_MEMO_CONSUMER_NODES = frozenset({
-    "test_s8b_oracle_driver.py::test_success_wal_order_budget_and_evaluate_contract",
-    "test_s8b_oracle_driver.py::test_oracle_pipeline_contract_keyword_is_mandatory_positive_control",
-    "test_s8b_oracle_driver.py::test_oracle_evaluate_fn_without_condition_records_cannot_complete",
-    "test_s8b_oracle_driver.py::test_build_result_contract_mismatch_aborts_campaign_before_measurement",
-    "test_s8b_oracle_driver.py::test_binding_mismatch_refuses_only_that_row_before_evaluate",
-    "test_s8b_oracle_driver.py::test_v8_bulk_reservation_unavailable_runs_nothing",
-    "test_s8b_oracle_driver.py::test_reservation_envelope_exceeded_is_fail_closed",
-    "test_s8b_oracle_driver.py::test_verify_inconclusive_and_unknown_abort_reasons_are_fail_closed",
-    "test_s8b_oracle_driver.py::test_probe_error_reason_is_fail_closed_unknown_abort",
-    "test_s8b_oracle_driver.py::test_v3_all_rows_binding_refused_is_protocol_violation",
-    "test_s8b_oracle_driver.py::test_v3_partial_binding_refused_is_protocol_violation",
-    "test_s8b_oracle_driver.py::test_v6_freeze_swap_after_verify_is_not_observed",
-    "test_s8b_oracle_driver.py::test_v7_manifest_swap_after_verify_is_not_observed",
-    "test_s8b_oracle_driver.py::test_v2_resume_rejected_at_s1_s2_s3_boundaries",
-    "test_s8b_oracle_driver.py::test_atomic_one_shot_lock_rejects_second_start",
-    "test_s8b_oracle_driver.py::test_resume_wal_lstat_eio_propagates_fail_closed_from_public_driver",
-    "test_s8b_oracle_driver.py::test_driver_full_frame_fsync_eio_is_not_folded_or_followed_up",
-    "test_s8b_oracle_driver.py::test_v4_marker_fires_across_output_root_change",
-    "test_s8b_oracle_driver.py::test_v5_truncated_wal_rejects_resume_even_with_zero_parseable_records",
-    "test_s8b_oracle_driver.py::test_official_driver_records_returncodes_through_real_producer_flow",
-    "test_s8b_oracle_driver.py::test_unavailable_preflight_creates_bound_measurement_manifest_and_passes_false_kwargs",
-    "test_s8b_oracle_driver.py::test_available_preflight_preserves_call_and_artifact_shape",
-    "test_s8b_oracle_driver.py::test_probe_error_precedes_claim_marker_wal_and_budget",
     "test_s8b_oracle_driver.py::test_real_freeze_gate_lists_floor_and_budget_null",
     "test_s8b_oracle_driver.py::test_run_block_refusal_writes_no_campaign_or_budget_and_calls_nothing",
-    "test_s8b_oracle_driver.py::test_cli_output_root_default_is_none_and_run_block_refuses_without_root",
     "test_s8b_oracle_driver.py::test_nonnull_floor_without_active_generation_is_refused",
     "test_s8b_oracle_driver.py::test_active_resolution_and_manifest_structure_refusals_are_aggregated",
-    "test_s8b_oracle_driver.py::test_run_block_reuses_launch_validated_and_legacy_loader_is_dead",
-    "test_s8b_oracle_driver.py::test_run_block_verifies_manifest_once_and_reuses_object",
     "test_s8b_binding_driftguards.py::test_run_block_broken_binding_manifest_refuses_and_writes_nothing",
     "test_s8b_binding_driftguards.py::test_gate_check_broken_binding_manifest_stacks_manifest_verify_refusal",
     "test_s8b_binding_driftguards.py::test_receipt_memo_delegates_to_production_verifier_exactly_once",

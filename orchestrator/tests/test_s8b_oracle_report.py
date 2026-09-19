@@ -480,6 +480,8 @@ def _reverified_store_fixture(
         ),
         activation_head="a" * 40,
         search_digest="b" * 64,
+        validation_root=Path("/nondelegating-test-token"),
+        search_report={},
         symlink_gitlink_inventory=(),
         floor_artifact=SimpleNamespace(),
         binaries_by_cell=MappingProxyType(binaries),

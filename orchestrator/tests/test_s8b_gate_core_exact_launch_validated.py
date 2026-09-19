@@ -3,6 +3,7 @@ from dataclasses import replace
 import hashlib
 import inspect
 import json
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -50,6 +51,8 @@ def _synthetic(tmp_path, shape="both"):
     token = driver.s8b_ratified_freeze.LaunchValidatedFreeze(
         ratified=ratified, activation_head=ratified.activation_head,
         search_digest="c" * 64, symlink_gitlink_inventory=(),
+        validation_root=Path("/nondelegating-test-token"),
+        search_report={},
         floor_artifact=floor, binaries_by_cell={},
     )
     return path, verified, token

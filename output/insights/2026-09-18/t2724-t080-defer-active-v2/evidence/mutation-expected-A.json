@@ -1,0 +1,30 @@
+{
+  "M0": [],
+  "M1": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_failed_launch_preserves_receipt_refusal",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_v2_launch_validate_failure_is_refused"
+  ],
+  "M2A": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_active_v2_preserves_nonlayer2_receipt_refusal"
+  ],
+  "M2B": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_run_block_refuses_invalid_receipt_after_gate_seam"
+  ],
+  "M3": [
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_active_v2_delegation_accepts_full_receipt",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rejects_late_hit_file",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_failed_launch_preserves_receipt_refusal",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_stub_free_e2e_single_defects_have_single_exact_reason_b5[unknownness-layer2-holdout.unknownness_layer2]",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_t080_unactivated_chain_hit_is_invalid",
+    "orchestrator/tests/test_s8b_oracle_driver.py::test_v1_gate_does_not_delegate_with_active_v2",
+    "orchestrator/tests/test_t080_freeze_migration.py::test_layer2_delegation_rejects_enumeration_drift",
+    "orchestrator/tests/test_t080_freeze_migration.py::test_layer2_delegation_rejects_foreign_root",
+    "orchestrator/tests/test_t080_freeze_migration.py::test_layer2_delegation_rejects_nonlaunch_type",
+    "orchestrator/tests/test_t080_freeze_migration.py::test_layer2_delegation_rejects_stale_generation_token",
+    "orchestrator/tests/test_t080_freeze_migration.py::test_layer2_delegation_rejects_wrong_activation_head"
+  ],
+  "M4A": [
+    "orchestrator/tests/test_t080_freeze_migration.py::test_delegated_scan_keeps_frozen_document_bindings[expressions]",
+    "orchestrator/tests/test_t080_freeze_migration.py::test_live_scan_is_bound_to_frozen_expressions_match_convention_and_candidates_g1"
+  ]
+}

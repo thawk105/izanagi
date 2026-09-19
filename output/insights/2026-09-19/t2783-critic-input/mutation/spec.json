@@ -1,0 +1,125 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 4500,
+  "hang_timeout_seconds": 4500,
+  "mutations": [
+    {
+      "id": "m0-equivalent",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    \"\"\"Explicit critic bytes only; no AO reader or inference of stop decisions.\"\"\"",
+          "new": "    \"\"\"Explicit critic bytes only; no AO reader or inference of stop decisions (T2783).\"\"\""
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-planner-transfer",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        payload[\"k2_critic_diagnosis\"] = dict(k2_critic_diagnosis)",
+          "new": "        pass  # mutation: omit planner diagnosis"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_t2783_builder_and_both_complete_inputs",
+        "orchestrator/tests/test_p3_s4_loop.py::test_t2783_cli_real_diagnosis_ao_independence",
+        "orchestrator/tests/test_p3_s4_loop.py::test_t2783_crlf_and_role_data_contract"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-coder-transfer",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        coder[\"k2_critic_diagnosis\"] = dict(diagnosis)",
+          "new": "        pass  # mutation: omit coder diagnosis"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_t2783_builder_and_both_complete_inputs"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-diagnosis-shape",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "    if (type(value) is not dict or set(value) != keys\n            or any(type(item) is not str for item in value.values())):",
+          "new": "    if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_t2783_builder_rejects_diagnosis_shape[missing]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_t2783_builder_rejects_diagnosis_shape[extra]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_t2783_builder_rejects_diagnosis_shape[list]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_t2783_builder_rejects_diagnosis_shape[bool]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_t2783_builder_rejects_diagnosis_shape[null]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-k2-only",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "        if cfg.search_config.get(wal.KNOWLEDGE_LEVEL_SEARCH_KEY) != \"K2\":",
+          "new": "        if False:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_t2783_builder_rejects_scope[K0]",
+        "orchestrator/tests/test_p3_s4_loop.py::test_t2783_builder_rejects_scope[K1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-cli-transfer",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "            k2_critic_diagnosis=diagnosis,\n        )",
+          "new": "            k2_critic_diagnosis=None,\n        )"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_t2783_cli_real_diagnosis_ao_independence"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-cli-ao-read",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/p3_s4_loop.py",
+          "old": "            diagnosis = k2_critic_diagnosis_from_bytes(a.k2_critic_diagnosis.read_bytes())",
+          "new": "            diagnosis = k2_critic_diagnosis_from_bytes(a.k2_critic_diagnosis.read_bytes())\n            agent_outputs.read_agent_outputs(\"forbidden\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_s4_loop.py::test_t2783_cli_real_diagnosis_ao_independence"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

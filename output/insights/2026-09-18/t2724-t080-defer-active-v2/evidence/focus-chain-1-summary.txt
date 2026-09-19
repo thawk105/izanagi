@@ -1,0 +1,17 @@
+2026-09-18 11:59:25 JST
+897224a9fc01751c0dfa09b4ffd61f329b0e4344
+[Pegasus dispatch] request ID 5561.nqsv を受理しました
+10 errors 10 failed 1085 passed 11 skipped
+in 447.52s (0:07:27)
+| FAILED orchestrator/tests/test_s8b_floor_campaign.py::test_real_seal_protocol_to_floor_official_core_e2e
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_v2_floor_disk_swap_after_launch_uses_same_validated_object
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_active_v2_delegation_accepts_full_receipt
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_unactivated_chain_hit_is_invalid
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rechecks_receipt[changed]
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rechecks_receipt[missing]
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_v1_gate_does_not_delegate_with_active_v2
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_failed_launch_preserves_receipt_refusal
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_delegated_campaign_start_rejects_late_hit
+| FAILED orchestrator/tests/test_s8b_oracle_driver.py::test_t080_active_v2_preserves_nonlayer2_receipt_refusal
+INTERNALERROR lines: 0
+2026-09-18 12:12:33 JST

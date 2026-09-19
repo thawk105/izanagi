@@ -1,0 +1,106 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 420.0,
+ "timeout_seconds": 4500,
+ "hang_timeout_seconds": 4500,
+ "mutations": [
+  {
+   "id": "m4b-drop-match-convention",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/t080_freeze_migration.py",
+     "old": "    if report.get(\"match_convention\") != holdout_doc.get(\"match_convention\"):\n",
+     "new": "    if False:\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m5-drop-campaign-start-recheck",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_oracle_driver.py",
+     "old": "    campaign_start_resolution = _resolve_t080_receipt(\n        root=root, launch_validated=validated,\n    )\n    if _t080_epoch_identity(campaign_start_resolution) != _t080_epoch_identity(t080_resolution):\n        refusal = \"migration-receipt-verify: receipt epoch が campaign-start 前に変化した\"\n",
+     "new": "    campaign_start_resolution = t080_resolution\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m6-drop-activation-head",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/t080_freeze_migration.py",
+     "old": "        if not (launch_validated.activation_head == validation_head == _capture_head(root)):\n",
+     "new": "        if not (validation_head == _capture_head(root)):\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m7-drop-enumeration-digest",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/t080_freeze_migration.py",
+     "old": "        if launch_validated.search_digest != s8b_ratified_freeze._enumeration_digest(root):\n            return None\n",
+     "new": "        if False:\n            return None\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m8a-clean-scan-no-assert",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/s8b_floor_campaign.py",
+     "old": "        _holdout_freeze._assert_search_pass(report)\n",
+     "new": "        pass\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m9-drop-root-binding",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/t080_freeze_migration.py",
+     "old": "        if launch_validated.validation_root != Path(root).resolve():\n            return None\n",
+     "new": "        if False:\n            return None\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  },
+  {
+   "id": "m10-drop-generation-recheck",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "orchestrator/campaign/t080_freeze_migration.py",
+     "old": "        active = s8b_ratified_freeze.resolve_active_generation(root)\n        if (active.activation_head != ratified.activation_head\n                or active.generation_sha256 != ratified.sha256\n                or active.generation_number != ratified.generation_number\n                or active.generation_commit != ratified.generation_commit):\n            return None\n",
+     "new": "        if False:\n            return None\n"
+    }
+   ],
+   "expected_nodes": [],
+   "expected_status": "SURVIVED",
+   "hang_risk": false
+  }
+ ]
+}

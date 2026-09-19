@@ -163,9 +163,13 @@ class _AdapterRefusals(list):
         self.held_checks = tuple(held_checks)
 
 
-def _resolve_t080_receipt(*, root: Path) -> "_t080_migration.ReceiptResolution":
+def _resolve_t080_receipt(*, root: Path, launch_validated=None) -> "_t080_migration.ReceiptResolution":
     """T-080 receipt を一度だけ解決し、分類不能も明示拒否へ閉じる。"""
     try:
+        if launch_validated is not None:
+            return _t080_migration.verify_receipt(
+                root=Path(root), launch_validated=launch_validated,
+            )
         return _t080_migration.verify_receipt(root=Path(root))
     except _t080_migration.MigrationError as exc:
         detail = f" {exc.detail}" if exc.detail else ""
@@ -596,10 +600,9 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
     渡し、失敗は単一の ``v2-execution: launch-validate:`` refusal へ変換する。
     """
     root = Path(root)
-    t080_resolution = _resolve_t080_receipt(root=root)
     if ratified_error is not None:
         return _make_gate_decision(
-            t080_resolution, refusals=[f"freeze-ratify: {ratified_error}"],
+            _resolve_t080_receipt(root=root), refusals=[f"freeze-ratify: {ratified_error}"],
         )
 
     loaded = verified
@@ -611,7 +614,7 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
             # 集約する。core が loader 例外を構造化する。
             return _gate_check_core(
                 freeze_path=freeze_path, manifest_path=manifest_path, root=root,
-                t080_resolution=t080_resolution,
+                t080_resolution=_resolve_t080_receipt(root=root),
                 approved_spec=None, manifest_verification_error=None,
                 standalone_manifest_verification=True,
                 verified_manifest=verified_manifest,
@@ -624,7 +627,7 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
     if not is_v2:
         return _gate_check_core(
             freeze_path=freeze_path, manifest_path=manifest_path, root=root,
-            t080_resolution=t080_resolution,
+            t080_resolution=_resolve_t080_receipt(root=root),
             approved_spec=None, manifest_verification_error=None,
             standalone_manifest_verification=True,
             verified=loaded, verified_manifest=verified_manifest,
@@ -637,7 +640,7 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
         except s8b_ratified_freeze.RatifiedFreezeError as exc:
             return _gate_check_core(
                 freeze_path=freeze_path, manifest_path=manifest_path, root=root,
-                t080_resolution=t080_resolution,
+                t080_resolution=_resolve_t080_receipt(root=root),
                 approved_spec=None, manifest_verification_error=None,
                 standalone_manifest_verification=True,
                 verified=loaded, verified_manifest=verified_manifest,
@@ -646,7 +649,7 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
         except Exception as exc:  # noqa: BLE001 (fail-closed)
             return _gate_check_core(
                 freeze_path=freeze_path, manifest_path=manifest_path, root=root,
-                t080_resolution=t080_resolution,
+                t080_resolution=_resolve_t080_receipt(root=root),
                 approved_spec=None, manifest_verification_error=None,
                 standalone_manifest_verification=True,
                 verified=loaded, verified_manifest=verified_manifest,
@@ -656,19 +659,19 @@ def gate_check(*, freeze_path=None, manifest_path=None, root,
         validated = s8b_ratified_freeze.launch_validate(candidate, root)
     except s8b_ratified_freeze.RatifiedFreezeError as exc:
         return _make_gate_decision(
-            t080_resolution,
+            _resolve_t080_receipt(root=root),
             refusals=[f"v2-execution: launch-validate: [{exc.reason}] {exc}"],
         )
     except Exception as exc:  # noqa: BLE001 (fail-closed)
         return _make_gate_decision(
-            t080_resolution,
+            _resolve_t080_receipt(root=root),
             refusals=[
                 f"v2-execution: launch-validate: {type(exc).__name__}: {exc}"
             ],
         )
     return _gate_check_core(
         freeze_path=freeze_path, manifest_path=manifest_path, root=root,
-        t080_resolution=t080_resolution,
+        t080_resolution=_resolve_t080_receipt(root=root, launch_validated=validated),
         approved_spec=None, manifest_verification_error=None,
         standalone_manifest_verification=True,
         verified=loaded, verified_manifest=verified_manifest,
@@ -1315,7 +1318,6 @@ def run_block(
     """
     freeze_path = Path(freeze_path)
     root = Path(root)
-    t080_resolution = _resolve_t080_receipt(root=root)
     # E3b: active 世代を一度だけ解決して launch validation 済み型へ昇格する。
     # 以後の freeze / floor / binary consumer はこの同一 object だけを使う。
     try:
@@ -1325,29 +1327,31 @@ def run_block(
         manifest_refusal = _manifest_structural_refusal(Path(manifest_path))
         if manifest_refusal is not None:
             refusals.append(manifest_refusal)
-        decision = _make_gate_decision(t080_resolution, refusals=refusals)
+        decision = _make_gate_decision(_resolve_t080_receipt(root=root), refusals=refusals)
         return {"status": "refused", **asdict(decision)}
     except Exception as exc:  # noqa: BLE001 (fail-closed: active 解決不能)
         refusals = [f"freeze-ratify: {type(exc).__name__}: {exc}"]
         manifest_refusal = _manifest_structural_refusal(Path(manifest_path))
         if manifest_refusal is not None:
             refusals.append(manifest_refusal)
-        decision = _make_gate_decision(t080_resolution, refusals=refusals)
+        decision = _make_gate_decision(_resolve_t080_receipt(root=root), refusals=refusals)
         return {"status": "refused", **asdict(decision)}
     try:
         validated = s8b_ratified_freeze.launch_validate(ratified, root)
     except s8b_ratified_freeze.RatifiedFreezeError as exc:
         decision = _make_gate_decision(
-            t080_resolution,
+            _resolve_t080_receipt(root=root),
             refusals=[f"v2-execution: launch-validate: [{exc.reason}] {exc}"],
         )
         return {"status": "refused", **asdict(decision)}
     except Exception as exc:  # noqa: BLE001 (fail-closed: 走査不能)
         decision = _make_gate_decision(
-            t080_resolution,
+            _resolve_t080_receipt(root=root),
             refusals=[f"v2-execution: launch-validate: {type(exc).__name__}: {exc}"],
         )
         return {"status": "refused", **asdict(decision)}
+
+    t080_resolution = _resolve_t080_receipt(root=root, launch_validated=validated)
 
     # CLI で指定された freeze bytes 自体も active generation と一致させる。ただし
     # document は parse せず、consumer は validated.ratified.document のみを使う。
@@ -1524,13 +1528,15 @@ def run_block(
         decision = _make_gate_decision(t080_resolution, refusals=[refusal])
         return {"status": "refused", **asdict(decision)}
 
-    campaign_start_resolution = _resolve_t080_receipt(root=root)
+    campaign_start_resolution = _resolve_t080_receipt(
+        root=root, launch_validated=validated,
+    )
     if _t080_epoch_identity(campaign_start_resolution) != _t080_epoch_identity(t080_resolution):
+        refusal = "migration-receipt-verify: receipt epoch が campaign-start 前に変化した"
+    if refusal is not None:
         decision = _make_gate_decision(
             t080_resolution,
-            refusals=[
-                "migration-receipt-verify: receipt epoch が campaign-start 前に変化した"
-            ],
+            refusals=[refusal],
         )
         return {"status": "refused", **asdict(decision)}
 
