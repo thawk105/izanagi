@@ -18,6 +18,11 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 
 ## 現行チェックポイント (2026-07-25 更新)
 
+- [x] [T-2489] D2148項5のA-2 scheduler.nodes=5とpolicy pin・fixture閉包を整合。
+  A-2/A-6のnode-local lock候補は計算ノードで実測し、既存default consumerとの同一ノード排他を
+  失うため不採用とした。共通job bodyと認証条件を維持し、追加総timeout・性能値の昇格は行わない。
+  根拠 = `output/insights/2026-09-19/t2489-a2-nodes5-local-lock/README.md`。
+
 - [x] [T-2724] A-3整合実装と[T-2776]のfixture切離しを回収・統合した。
   receiptの履歴・静的検証・epoch・invalid拒否を維持し、同一root/HEAD/世代のactive v2 full validationへ層2だけ委譲する。
   証拠とsingle-tenant残余は `output/insights/2026-09-18/t2724-t080-defer-active-v2/README.md`。

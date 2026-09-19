@@ -132,6 +132,7 @@ D2049 が定めるとおり、逆対応の逐語適用は片側の境界を過�
   D1262 の estimand 揃え直し (`fixed10 / fixed5 / fixed2 − no-backoff`) 以後の study と本 attempt を反映していない。
   同行は書き換えず、本 attempt の記録は上の一次資料を見る。同版・claim-evidence 稿の当該記述は凍結物なので書き換えない。
   **本 attempt の単独 results 稿と記述図 (2026-09-18):** `results/2026-09-18-a1-balanced5-sized-attempt1-descriptive.md` (一次資料全体から作った統制稿、限定 20 件) と `figures/fig9_a1_balanced5_sized_attempt1.{png,pdf,provenance.json}` (生成器 `tools/plotting/plot_a1_sized_paired.py`、3 workload の対差平均 ± h と床 ±B の記述図) が着地した。稿も図も descriptive であり、上の「変わらないこと」(非認証 lane・充足/formal 化/再認可の未判定・headline 値/横断結論/C1 再現判定にしない) はすべて維持される。
+  **attempt-0002 は投入されていない (2026-09-19):** ユーザー裁定 (2026-09-19) が独立再現として 1 attempt を認可したが、既存 submit 経路は qsub の前に `prior attempt reached the bench barrier; group rerun is prohibited` (driver の `_assert_no_prior_v3_bench_start`、規律 2 由来の防壁、commit `abff80d1b`) で拒否した。測定値は無く、attempt-0002 の results 稿・2 attempt の並記・図は存在しない。裁定に従い再投入せず止めた。一次資料と裁定パッケージ (同 study の 2 本目をどの経路で投入可能にするか、択 1〜3) は `output/insights/2026-09-19/a1-sized-attempt2/README.md` (§1〜§2、§7)。上の「変わらないこと」と L-A1S-4 (単一 attempt を反復間の安定性へ一般化しない) はそのまま残る。
 
 2026-09-17 版は同日 02:10 JST の local main
 (`fa24e6ea8`、[T-2630] と [T-2288] の記録の fold を含む) から導出している。前版 (2026-09-14 版) に対して積んでいた
