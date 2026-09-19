@@ -51,7 +51,7 @@ PINNED_SHA256 = {
 }
 INPUT_KINDS = ("certification", "raw_manifest", "floor_rr5", "floor_rr50", "floor_rr95", "policy")
 CAPTION_SOURCE = "docs/paper-story/results/2026-09-19-b7-fixed5-three-workload-regression.md"
-CAPTION_SCOPE = "wording of limitations and conditions only; not measurement values, effects, or the floor judgment"
+CAPTION_SCOPE = "source of the recorded floor judgment transcribed as RECORDED_JUDGMENT and of the wording of limitations and conditions; not the primary authority for measurement values or effects"
 STOCK_GENOME = {"BACK_OFF": 0, "BACKOFF_FIXED": -1}
 ADOPTED_GENOME = {"BACK_OFF": 1, "BACKOFF_FIXED": 5}
 ADOPTED_US = 5
@@ -282,15 +282,15 @@ def _caption(data, prefix):
     return " ".join([
         f"Figure {_figure_number(prefix)}. B-7 material: static backoff fixed 5 us versus stock (no backoff) in three workloads, attempt {data['attempt_id']} (study {data['study']}; outer status {data['outer_status']}; a4_noise_floor_status {data['a4_noise_floor_status']}).",
         f"Columns: {columns}, each an independent campaign in its own request, with the stock control measured in the same campaign immediately before the adopted cell.",
-        "Top row: all five trace-disabled performance samples per cell; short bars are medians; diamonds with error bars are sample means with t-distribution 95% confidence intervals (df 4); the gray dashed line is the workload's stock median and the effect denominator.",
+        f"Top row: all five trace-disabled performance samples per cell; short bars are medians; diamonds with error bars are sample means with t-distribution 95% confidence intervals (df {DF}); the gray dashed line is the workload's stock median and the effect denominator.",
         f"Bottom row: median effects copied from certification (adopted median / stock median - 1): {effects}; dashed ticks mark -floor per workload: {floors}.",
-        "The rule fixed before the results were seen classifies a workload as regression when effect < -floor (strict), floor being the D1639 between-run noise floor (coefficient of variation of the stock genome across 8 sessions of 5 repetitions, measured earlier under the same settings).",
+        "The rule fixed before the results were seen classifies a workload as regression when effect < -floor (strict), floor being the D1639 between-run noise floor: the coefficient of variation of the per-session medians of the stock genome across 8 earlier sessions of 5 repetitions under the same settings, recorded as a lower bound; identity of binary, toolchain and node between that floor measurement and this attempt is not established.",
         f"Result of that rule: {judgments}.",
         "No regression is neither superiority nor proof of no difference; the floor is not the standard error of the effect, and no significance decision is made.",
         "The outer status is the protocol's conjunction over the three workloads and follows from the negative read-heavy effect; it is not a research verdict.",
         "This is B-7 material, not a B-7 satisfaction decision (D2044 item 3).",
         "This figure reports a single attempt of five samples per cell; it does not promote the certification and does not speak to repeated attempts.",
-        "Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance configuration: all 6 cells are recorded as certified with serializable verdicts (1 legacy and 5 performance records each); certified means serializability of the observed traces under that check configuration and nothing beyond, and this is not a performance certification.",
+        "Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance configuration: all 6 cells are recorded as certified with serializable verdicts (1 legacy and 5 performance records each); certified means serializability of the observed traces under that check configuration and nothing beyond, the correctness workload argv was not independently recorded, and this is not a performance certification.",
         f"Conditions: Pegasus compute nodes, {c['threads']} threads, {c['records']:,} records, Zipf {c['skew']}, read-modify-write disabled, max operations {c['max_ope']}, {c['extime']} s per repetition, {c['reps']} repetitions, silo, CCBench pin {data['ccbench_pin']}, source commit {data['source_commit'][:9]}, no perf, trace-disabled performance; the adopted cells share one source bytes digest across workloads but each workload is a separate build (binaries differ).",
         "M tps means million transactions per second.",
         "Mean confidence intervals describe samples; they are not confidence intervals for effects, medians, or the floor judgment.",

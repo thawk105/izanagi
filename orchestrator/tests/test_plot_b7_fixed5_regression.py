@@ -224,11 +224,11 @@ def test_caption_contains_fixed_literals(tmp_path):
     caption = PLOT._caption(_data(tmp_path), 'fig10_test')
     literals = [
         'This is B-7 material, not a B-7 satisfaction decision (D2044 item 3).',
-        'The rule fixed before the results were seen classifies a workload as regression when effect < -floor (strict), floor being the D1639 between-run noise floor (coefficient of variation of the stock genome across 8 sessions of 5 repetitions, measured earlier under the same settings).',
+        'The rule fixed before the results were seen classifies a workload as regression when effect < -floor (strict), floor being the D1639 between-run noise floor: the coefficient of variation of the per-session medians of the stock genome across 8 earlier sessions of 5 repetitions under the same settings, recorded as a lower bound; identity of binary, toolchain and node between that floor measurement and this attempt is not established.',
         'No regression is neither superiority nor proof of no difference; the floor is not the standard error of the effect, and no significance decision is made.',
         "The outer status is the protocol's conjunction over the three workloads and follows from the negative read-heavy effect; it is not a research verdict.",
         'This figure reports a single attempt of five samples per cell; it does not promote the certification and does not speak to repeated attempts.',
-        'Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance configuration: all 6 cells are recorded as certified with serializable verdicts (1 legacy and 5 performance records each); certified means serializability of the observed traces under that check configuration and nothing beyond, and this is not a performance certification.',
+        'Correctness comes from separate trace-enabled verify runs under the recorded check configuration, not the performance configuration: all 6 cells are recorded as certified with serializable verdicts (1 legacy and 5 performance records each); certified means serializability of the observed traces under that check configuration and nothing beyond, the correctness workload argv was not independently recorded, and this is not a performance certification.',
         'Mean confidence intervals describe samples; they are not confidence intervals for effects, medians, or the floor judgment.',
         'Top-row y axes are workload-local and must not be compared across panels.',
         'Existing materials with other adopted values are neither pooled nor compared.',
@@ -321,6 +321,32 @@ def test_judgment_mismatch_is_rejected(tmp_path):
     _reject_changed(tmp_path, lambda f: f['between_run'].update(cv=.2), 'judgment mismatch', path=PLOT.FLOOR_JSON['rr95'])
 
 
+def test_effect_equal_to_negative_floor_is_no_regression(tmp_path):
+    root, durable, _ = _fixture(tmp_path)
+    cid = 'rr50-fixed5'
+    samples = [2950000., 2960000., 2970000., 2980000., 2990000.]
+    median = statistics.median(samples)
+    _edit(durable/PLOT.RAW_REL[cid], lambda r: r['performance'].update(samples_tps=samples))
+    cert = json.loads((root/PLOT.CERT_JSON).read_text())
+    cells = {c['cell_id']: c for c in cert['cells']}
+    cells[cid]['performance']['median_tps'] = median
+    effect = median/cells['rr50-stock']['performance']['median_tps']-1
+    assert effect < 0
+    cert['effects']['rr50'] = effect
+    _write(root/PLOT.CERT_JSON, cert)
+    _edit(root/PLOT.FLOOR_JSON['rr50'], lambda f: f['between_run'].update(cv=-effect))
+    hashes = _seal(root, durable)
+    data = PLOT.load_evidence(root, durable, expected_hashes=hashes)
+    assert data['effects']['rr50'] == -data['floors']['rr50']['cv']
+    assert data['effect_crosschecks']['rr50']['computed'] == effect
+    assert data['judgments']['rr50']['recorded'] == PLOT.RECORDED_JUDGMENT['rr50'] == 'no-regression'
+
+
+def test_correctness_trace_disabled_record_is_rejected(tmp_path):
+    _reject_changed(tmp_path, lambda r: r['correctness']['performance'][0].update(trace_enabled=False),
+                    'raw correctness mismatch', raw=True)
+
+
 def test_uncertified_cell_is_rejected(tmp_path):
     _reject_changed(tmp_path, lambda c: c['cells'][0]['correctness'].update(status='rejected'), 'uncertified cell')
 
@@ -374,7 +400,7 @@ def test_provenance_binds_caption_source(tmp_path):
     prov = _provenance(data, tmp_path)
     assert [r for r in prov['tracked_inputs'] if r['kind'] == 'caption_source'] == [
         {'kind': 'caption_source', 'path': PLOT.CAPTION_SOURCE, 'sha256': _hash(root/PLOT.CAPTION_SOURCE),
-         'authority_scope': 'wording of limitations and conditions only; not measurement values, effects, or the floor judgment'}]
+         'authority_scope': 'source of the recorded floor judgment transcribed as RECORDED_JUDGMENT and of the wording of limitations and conditions; not the primary authority for measurement values or effects'}]
     PLOT.validate_repo_closure(prov, root, expected_hashes=hashes)
     (root/PLOT.CAPTION_SOURCE).write_text('Changed wording.\n')
     _reject(lambda: PLOT.validate_repo_closure(prov, root, expected_hashes=hashes), 'tracked_inputs')
@@ -527,6 +553,9 @@ def test_landed_fig10_repo_closure_and_caption_when_present():
     assert all(p.is_file() for p in paths), 'fig10 integration bundle is incomplete'
     prov = json.loads(paths[2].read_text())
     _assert_landed_output_paths(prov)
+    _, _, _, samples, medians = _document_values()
+    assert {c['cell_id']: c['samples_tps'] for c in prov['cells']} == samples
+    assert {c['cell_id']: c['median_tps'] for c in prov['cells']} == medians
     PLOT.validate_repo_closure(prov, REPO)
     readme = (prefix.parent/'README.md').read_text()
     assert prov['caption'] in readme
