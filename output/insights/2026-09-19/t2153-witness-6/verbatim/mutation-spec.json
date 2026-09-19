@@ -1,0 +1,154 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 90,
+  "timeout_seconds": 4500,
+  "hang_timeout_seconds": 4500,
+  "mutations": [
+    {
+      "id": "m0-equivalent-comment",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "            # CMAKE_CXX_FLAGS registry entries must share a build root so the",
+          "new": "            # CMAKE_CXX_FLAGS registry entries must share a build root so the (T2153)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "m1-remove-sort-entry",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    \"SORT_VARIANT\": (\n        \"cc/silo/transaction.cc\", \"#if SORT_VARIANT\",\n    ),\n",
+          "new": "    # mutation m1: SORT_VARIANT entry removed\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_sort_real_structure_establishes_only_branch_selection[False]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_sort_real_structure_establishes_only_branch_selection[True]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_sort_undef_rejects_family_with_supply_still_green",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[SORT_VARIANT]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+        "orchestrator/tests/test_s1_direct_comparison.py::test_real_s1_sort_request_establishes_meaning"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m2-remove-report-entry",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    \"IZANAGI_SILO_LADDER_RUNG1_REPORT\": (\n        \"cc/silo/ycsb_silo.cc\",\n        \"#if IZANAGI_SILO_LADDER_RUNG1 && IZANAGI_SILO_LADDER_RUNG1_REPORT\",\n    ),\n",
+          "new": "    # mutation m2: IZANAGI_SILO_LADDER_RUNG1_REPORT entry removed\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_report_companion_argv_establishes_report_only[False]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_report_companion_argv_establishes_report_only[True]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_report_missing_compile_argv_companion_rejects_meaning",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_SILO_LADDER_RUNG1_REPORT]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+        "orchestrator/tests/test_silo_ladder_rung1_driver.py::test_condition_gates_pass_real_factory_declarations_to_evaluator"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m3-report-directive-drops-companion-operand",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "        \"#if IZANAGI_SILO_LADDER_RUNG1 && IZANAGI_SILO_LADDER_RUNG1_REPORT\",",
+          "new": "        \"#if IZANAGI_SILO_LADDER_RUNG1_REPORT\","
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m4-rung1-wiring-back-to-none",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/silo_ladder_rung1.py",
+          "old": "                declaration=condition_meaning_gate.declare_define_runtime_meaning(request),",
+          "new": "                declaration=None,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_silo_ladder_rung1_driver.py::test_condition_family_dominates_stock_build_and_includes_companion_macro",
+        "orchestrator/tests/test_silo_ladder_rung1_driver.py::test_condition_gates_pass_real_factory_declarations_to_evaluator"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m5-factory-accepts-zero-zero",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    elif requested != \"1\" or default != \"0\" \\",
+          "new": "    elif requested not in {\"0\", \"1\"} or default != \"0\" \\"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_BREAK_PERMUTATION-0-0]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[SORT_VARIANT-0-0]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_factory_rejects_nonpaired_values[IZANAGI_SILO_LADDER_RUNG1_REPORT-0-0]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m6-fixture-restores-duplicate-sort-directive",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/condition_gate_test_support.py",
+          "old": "static constexpr int condition_gate_sort_variant = SORT_VARIANT;\n",
+          "new": "#if SORT_VARIANT\nstatic constexpr int condition_gate_sort_variant = 1;\n#else\nstatic constexpr int condition_gate_sort_variant = 0;\n#endif\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_sort_real_structure_establishes_only_branch_selection[False]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_sort_real_structure_establishes_only_branch_selection[True]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_sort_undef_rejects_family_with_supply_still_green"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "m7-companions-not-completed-from-spec",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    combined: dict[str, str] = dict(spec.companion_defines)",
+          "new": "    combined: dict[str, str] = {}"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[IZANAGI_SILO_LADDER_RUNG1_REPORT]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_report_companion_argv_establishes_report_only[False]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_report_companion_argv_establishes_report_only[True]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_report_missing_compile_argv_companion_rejects_meaning"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
