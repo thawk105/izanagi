@@ -239,7 +239,7 @@ def _validate_git_argv(args: Sequence[str]) -> None:
     if argv in {
         ("ls-files", "--stage", "-z"), ("ls-files", "-v"),
         ("ls-files", "-z"),
-        ("check-attr", "--stdin", "-z", "filter", "text", "eol", "--"),
+        ("check-attr", "--stdin", "-z", "--all", "--"),
         ("config", "--get", "core.autocrlf"),
         ("submodule", "status", "--recursive"),
         ("status", "--porcelain", "--ignored"),
@@ -1561,7 +1561,7 @@ def _assert_child_index(child: Path) -> None:
 
 def _assert_child_no_conversion(child: Path) -> None:
     paths = _must_git(child, "ls-files", "-z").stdout
-    argv = ("check-attr", "--stdin", "-z", "filter", "text", "eol", "--")
+    argv = ("check-attr", "--stdin", "-z", "--all", "--")
     _validate_git_argv(argv)
     result = subprocess.run(["git", "-C", os.fspath(child), *argv], input=paths,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
@@ -1571,7 +1571,7 @@ def _assert_child_no_conversion(child: Path) -> None:
     if fields[-1] != b"" or (len(fields) - 1) % 3:
         raise ValueError("malformed conversion attributes")
     for attribute, value in zip(fields[1::3], fields[2::3]):
-        if ((attribute in {b"filter", b"eol"} and value != b"unspecified")
+        if (attribute in {b"filter", b"eol", b"working-tree-encoding"}
                 or (attribute == b"text" and value in {b"set", b"auto"})):
             raise ValueError("tracked file has conversion attributes")
     config = _git(child, "config", "--get", "core.autocrlf")

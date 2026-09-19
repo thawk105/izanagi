@@ -306,12 +306,21 @@ def test_remove_child_rejects_skip_worktree_flag(tmp_path, monkeypatch):
     _child_rejected(case, monkeypatch, 'backup-precheck')
 
 
-def test_remove_child_rejects_clean_filter(tmp_path, monkeypatch):
+@pytest.mark.parametrize('driver', ['x', 'unspecified'], ids=['named-x', 'named-unspecified'])
+def test_remove_child_rejects_clean_filter(tmp_path, monkeypatch, driver):
     case = _make_child_repo(tmp_path, monkeypatch)
-    (case.child / '.gitattributes').write_text('* filter=x\n')
-    _git(case.child, 'config', 'filter.x.clean', 'cat')
+    (case.child / '.gitattributes').write_text(f'* filter={driver}\n')
+    command = 'tr a-z A-Z' if driver == 'unspecified' else 'cat'
+    _git(case.child, 'config', f'filter.{driver}.clean', command)
     _git(case.child, 'add', '.gitattributes')
     _git(case.child, 'commit', '-m', 'clean filter')
+    if driver == 'unspecified':
+        # The wildcard filter also applies to the fixture's other tracked files.
+        _git(case.child, 'add', '--renormalize', '.')
+        _git(case.child, 'commit', '-m', 'apply clean filter')
+    expected_blob = b'INTEGRATED\n' if driver == 'unspecified' else b'integrated\n'
+    assert _git(case.child, 'show', 'HEAD:tracked.txt').stdout == expected_blob
+    assert (case.child / 'tracked.txt').read_bytes() == b'integrated\n'
     assert _git(case.child, 'status', '--porcelain').stdout == b''
     _child_rejected(case, monkeypatch, 'backup-precheck', reason='conversion attributes')
 
