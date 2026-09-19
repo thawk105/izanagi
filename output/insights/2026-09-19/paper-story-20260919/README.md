@@ -97,7 +97,18 @@
 - 「A-1 の値がある」「B-10 を閉じた」「mocc は第 2 成功例」「床値が発効した」「pin を前進させた」。
 - 稼働中で未着地の wave の内容 (書いていない)。
 
-## 8. 逐語の可逆最小正規化 (DW-S07)
+## 8. 受入待ちの間の main 前進と stale 注記 9 件
+
+受入門番 (23:12 JST 起動) は 3 attempt (00:07 / 02:03 / 02:07 JST) とも `owned-path-overlap` で rc=70 (child 未起動) — main が
+`a99425b66` → `63638e179` へ進み、`docs/paper-story/README.md` を main 側 (A-1 attempt-0002 の記録 wave と B-10 cohort2 wave) も
+変えていたためである。main を `--no-ff` で取り込み (merge commit `374266bd4`)、競合は README の stale 注記の節だけで、新版が
+0 件にした側を採った。起点より後に着地した entry 1686〜1701 と D2156〜D2159 のうち、版の記述を古くする 9 件を README の
+「最新スナップショット以後に確定したこと」へ一次資料付きで積んだ (README の版規則どおり。版の本文は凍結物として変えない。
+段 6 のレビュー 2 本はこれらを読んでいない)。9 件 = A-1 attempt-0002 は認可されたが gate で qsub 前に拒否 (D2156)、B-10 第 2 cohort
+独立再現 (D2157)、K2 3 巡目実走、B-4 w1 実投入、chain land 2 度目の不成立 (freeze-tree byte pin)、mocc 軽量 witness 4 arm × 60 走、
+mocc wave 2 (D2159)、B-5 事前登録 v1 (D2158)、A-2 nodes=5 整合。
+
+## 9. 逐語の可逆最小正規化 (DW-S07)
 
 `verbatim/` のレビュー出力 2 file は markdown の行末空白 (改行記法) を含み `git diff --check` に抵触するため、行末の空白だけを除いた
 (可視文字不変)。原文 sha256 は launcher receipt (`artifacts/dev-wave-paper-story-20260919/<job>/receipt.json` の `output_sha256`) と一致する。
