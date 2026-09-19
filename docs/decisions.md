@@ -67858,3 +67858,69 @@ knowledge source indexを捏造しない。static adapterは本文とsource pin�
 **却下:** whiteboard拡張、報告用AOからの自動還流、8c数値射影への置換、static schemaのついで修復、
 新launcher・汎用台帳・候補再抽選。次の実走計画には同機体・同jobのstock適応backoff対照を含め、
 予算は別途確定する。本変更では3巡目を投入しない。検証記録は `output/insights/2026-09-19/t2783-critic-input/README.md`。
+
+## D2156. A-1 sized attempt-0002 の 1 attempt 認可は既存 submit 経路の gate で停止条件に達し、gate を緩めずに裁定パッケージへ返す (2026-09-19)
+
+**決定:** ユーザー裁定 (2026-09-19) は A-1 balanced5 sized study (`paper-story-a1-20260901-balanced5-sized-v1`) の attempt-0002 を
+独立再現として 1 attempt 認可した (非認証 lane 維持、formal 昇格なし、どこかの層で落ちたら再投入せず報告して止める)。
+既存 submit 経路を 1 回実走したところ、`_assert_no_prior_v3_bench_start` が qsub の前に
+`prior attempt reached the bench barrier; group rerun is prohibited` で拒否した。次のとおり扱う。
+
+1. 停止条件に達したとして再投入しない。計測 attempt は開始されておらず (intent・attempt root・qsub いずれも未作成)、durable base・
+   attempt-0001 の証拠・公開 leaf・事前登録・policy・source 契約の bytes は不変である。
+2. この gate は commit `abff80d1b` が「分割で開く規律 2 の穴 (測定済み workload の再投入) を塞ぐ」ために入れた防壁であり、
+   認可済みの独立再現と失敗後の再走を区別する入力を持たない。本 wave は gate の緩和・先行 attempt の証拠の移動や削除・policy / durable base の
+   変更のいずれも行わない (絶対規律 2、DW-STOP)。
+3. 認可された実行手続は submit 層で停止条件に達したので、同 study の次の投入には改めて認可が要る (D2120 項 3 と同じ形)。
+   「qsub に達していないから同じ認可で再度 submit してよい」とは読まない。
+4. 同 study の 2 本目を投入可能にする経路は本 wave の scope 外であり、設計択一 (択 1 = exact な認可記録を入力に取る gate 解除、
+   択 2 = 別 study として登録、択 3 = 行わない) と推奨 (研究目的を「同一配置の反復」と確定し択 1 を 1 attempt 限定で) を
+   `output/insights/2026-09-19/a1-sized-attempt2/README.md` §7 の裁定パッケージとしてユーザーへ返す。AI は自律採用しない。
+5. results 系列稿・2 attempt の並記・図は測定値が無いので作らない。attempt-0001 稿の限定 L-A1S-4 は残る。
+
+**理由:**
+
+- 拒否は driver の gate による構造的なものであり、環境 (queue・node・hydrate・pin) ではない。投入前照合 21 項目はすべて成立していた。
+- gate の受理集合を広げる変更は規律 2 由来の防壁の保護範囲を変えるので、AI の裁量で行わない。相談 3 本 (正しさ境界・手順・パッケージ点検)
+  のいずれも「今回だけ通す」案を支持しなかった。
+- 拒否を予測でなく実走で確定した (F29 型の回避)。実走は intent 書込と qsub の前で止まるので副作用が無いことを code と現物で確かめた。
+
+**却下した選択肢:**
+
+- 先行 attempt の barrier 証拠を base から退避して submit を通す — 証拠の改変で gate を迂回する形。
+- submit-tree を attempt-0001 と同じ commit に置いて materialize の排他公開先を通す — submit 層で拒否されるため到達しない。
+  また事前登録 §6.1 の「一度しか作れない宛先」の意味を tree の選択で迂回する疑いが残る。
+- policy の durable base / 公開先を変えて別 base に attempt-0002 を置く — policy の bytes は事前登録・source 契約・driver 定数が束縛しており、
+  束縛の全面改版になる。
+- 本 wave で gate に認可入力を実装する — 「既存 submit 経路」「追加 gate は scope 外」の裁定に反し、規律 2 由来の防壁の変更には
+  ユーザーの明示裁定が要る。
+
+## D2157. B-10 静的右 tail の第 2 cohort は独立再現とし、cohort 1 の verdict を主として保持して再現欄に併記し、合成しない (2026-09-19)
+
+**決定 (ユーザー裁定、2026-09-19):** 事前登録 `docs/b10-backoff-static-tail-preregistration.md` に対する第 2 cohort を
+走らせる。地位は次のとおりで、**結果を見る前に**事前登録の末尾追記 (日付付き append-only、commit `cad6f46d8` の bytes は
+不変、§5 spec の bytes も不変) として commit してから投入する。
+
+- 第 2 cohort は cohort 1 (group `b10-backoff-grid-20260915T061814Z-545445`、verdict `not-observed-in-any-workload`) の
+  **独立再現**であり、置換ではない。
+- cohort 1 の verdict を主として保持する。第 2 cohort の verdict は、第 2 cohort の稿と fig8 の再現欄に併記する。
+  cohort 1 の既存の稿・図は凍結物のまま改めない。
+- 2 つの cohort を合成しない (統合 verdict・プール推定・またぐ有意水準の保証を作らない)。
+- 結果にかかわらず 1 本を報告する。未完走・報告生成失敗も §7 に従い開示する。第 3 cohort の実施・地位は定めない。
+- 格子・反復・判定は既存の事前登録どおり。機構は `tools/pegasus/b10_backoff_grid.sh` の `B10_RUN_KIND=t2500-tail-formal`、
+  3 workload を 3 job に割って別ノードで走らせる。`performance_certified: false` を維持し、正しさは trace 有効の別走行。
+- scope 外: 901〜998 マイクロ秒の帯 (D2044 項 14)、v2 consumer 移行 (D1936 項 36)、追加 gate。
+
+これは D2050 (2 本目は地位を結果より前に明記してから投入) の充足であり、D2104 項 7 / D2120 項 16 が
+「走らせる場合は D2050 を満たす別 wave として新規に起票する」と留保した保留を、**この 1 cohort についてだけ**解く。
+
+**理由:**
+- 独立な再現走行は科学的に望ましい (D2050 の却下案の理由)。事前登録は 2 本目を禁じていない。
+- 地位を先に固定すれば、結果後に「どちらの verdict を採るか」を選ぶ余地が消える (絶対規律 3)。
+- fig8 (cohort 1 の記述図) が成立し、結果を使う下流が存在する (D2120 項 16 が挙げた理由の一部の変化)。
+
+**却下した選択肢:**
+- 第 2 cohort で cohort 1 を置換する — 結果後の選択を残すため採らない。
+- 2 つの cohort を合成して 1 つの verdict にする — 事前登録に合成規則が無く、新しい統計的主張になるため採らない。
+- §0 本文へ変更理由の 1 項目を挿入する — ユーザー指定の「末尾 append-only」と一致しないため、§0 が求める記載は
+  追記の冒頭に置く (段 3 相当の consult の real 所見を採用)。

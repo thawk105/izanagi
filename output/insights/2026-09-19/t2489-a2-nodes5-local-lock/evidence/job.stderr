@@ -1,0 +1,19 @@
+
+%NQSV(INFO): ------- Output from job:0000 -------
+
+============================================================
+Request ID:             9137.nqsv
+Request Name:           t2489-lock
+Queue:                  gen_S@nqsv
+Number of Jobs:         2
+User Name:              tanab
+Group Name:             SFC
+Created Request Time:   Sat Sep 19 07:32:50 2026
+Started Request Time:   Sat Sep 19 07:38:45 2026
+Ended Request Time:     Sat Sep 19 07:38:47 2026
+Resources Information:
+  Elapse:               6S
+  Remaining Elapse:     294S
+============================================================
+
+%NQSV(INFO): ------- Output from job:0001 -------
