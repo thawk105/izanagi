@@ -23,7 +23,7 @@ import time
 import uuid
 from decimal import Decimal
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import pytest
 
@@ -1128,7 +1128,6 @@ def _run_launcher_subprocess(
     paths: dict[str, Path],
     expected_returncode: int,
     timeout: float = 10.0,
-    on_completed: Callable[[subprocess.CompletedProcess[str]], None] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     try:
         completed = subprocess.run(
@@ -1144,8 +1143,6 @@ def _run_launcher_subprocess(
             exc, expected_returncode, paths=paths, command=command
         )
         raise AssertionError("unreachable")
-    if on_completed is not None:
-        on_completed(completed)
     _assert_launcher_returncode(
         completed, expected_returncode, paths=paths, command=command
     )
@@ -1620,6 +1617,7 @@ def _write_subreaper_harness(path: Path) -> Path:
     source = r'''import ctypes
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -1628,26 +1626,45 @@ from pathlib import Path
 if ctypes.CDLL(None, use_errno=True).prctl(36, 1, 0, 0, 0) != 0:
     raise SystemExit(97)
 launcher = subprocess.Popen(sys.argv[1:])
+Path(os.environ["IZANAGI_T2620_LAUNCHER_PID_FILE"]).write_text(
+    str(launcher.pid), encoding="ascii"
+)
 _, status = os.waitpid(launcher.pid, 0)
 launcher.returncode = os.waitstatus_to_exitcode(status)
+adoptees = []
+for entry in Path("/proc").iterdir():
+    if not entry.name.isdigit():
+        continue
+    try:
+        raw = (entry / "stat").read_text(encoding="ascii")
+    except FileNotFoundError:
+        continue
+    fields = raw[raw.rfind(")") + 2:].split()
+    if int(fields[1]) == os.getpid():
+        adoptees.append([int(entry.name), fields[0]])
+for pid, state in adoptees:
+    if state != "Z":
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
 reaped = []
 deadline = time.monotonic() + 3
-while time.monotonic() < deadline:
+while True:
     try:
-        # WNOWAIT identifies the next waitable adoptee without reaping it.
-        ready = os.waitid(os.P_ALL, 0, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+        pid, _ = os.waitpid(-1, os.WNOHANG)
     except ChildProcessError:
         break
-    if ready is not None:
-        raw = Path(f"/proc/{ready.si_pid}/stat").read_text(encoding="ascii")
-        state = raw[raw.rfind(")") + 2:].split()[0]
-        pid, _ = os.waitpid(-1, os.WNOHANG)
-        assert pid == ready.si_pid
-        reaped.append([pid, state])
+    if pid:
+        reaped.append(pid)
+    elif time.monotonic() >= deadline:
+        break
     else:
         time.sleep(0.01)
+unreaped = [pid for pid, _state in adoptees if pid not in reaped]
 print(json.dumps({"harness": "subreaper", "launcher_rc": launcher.returncode,
-                  "reaped": reaped}), file=sys.stderr, flush=True)
+                  "adoptees": sorted(adoptees), "reaped": sorted(reaped),
+                  "unreaped": sorted(unreaped)}), file=sys.stderr, flush=True)
 raise SystemExit(launcher.returncode)
 '''
     path.write_text(source, encoding="utf-8")
@@ -4555,27 +4572,41 @@ def _assert_t2620_residual_case(
     if subreaper:
         harness = _write_subreaper_harness(tmp_path / "subreaper.py")
         command = [sys.executable, os.fspath(harness), *command]
-    results: list[subprocess.CompletedProcess[str]] = []
+    launcher_pid_path = tmp_path / "launcher.pid"
+    env["IZANAGI_T2620_LAUNCHER_PID_FILE"] = os.fspath(launcher_pid_path)
+
+    def registered_pid(name: str) -> int | None:
+        path = paths["pid_dir"] / name
+        return int(path.read_text(encoding="ascii")) if path.exists() else None
 
     def observe(completed: subprocess.CompletedProcess[str]) -> None:
-        # Retain stderr even if receipt loading or the single comparison fails.
-        results.append(completed)
-        receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
-        attempt = receipt["attempts"][0]
-        diagnostics = _read_launcher_diagnostics(paths)["attempts"][0]
-        observed = {
-            key: attempt[key]
-            for key in (
-                "process_group_residual", "termination_verified", "accepted",
-                "limit_trigger", "codex_exit_code",
-            )
-        }
-        observed.update({
-            "outcome": receipt["outcome"],
-            "stop_reason": receipt["stop_reason"],
-            "launcher_rc": completed.returncode,
-            "residual_observation": diagnostics["residual_observation"],
-        })
+        try:
+            report = json.loads(completed.stderr.splitlines()[-1])
+        except (IndexError, json.JSONDecodeError):
+            report = "missing"
+        observed = {"launcher_rc": completed.returncode, "harness": report}
+        if paths["receipt"].exists():
+            receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+            attempt = receipt["attempts"][0]
+            observed.update({
+                key: attempt[key]
+                for key in (
+                    "process_group_residual", "termination_verified", "accepted",
+                    "limit_trigger", "codex_exit_code",
+                )
+            })
+            observed.update({
+                "outcome": receipt["outcome"],
+                "stop_reason": receipt["stop_reason"],
+            })
+        else:
+            observed["receipt"] = "missing"
+        diagnostics = None
+        if list(paths["artifact"].glob("launcher-diagnostics.*.json")):
+            diagnostics = _read_launcher_diagnostics(paths)["attempts"][0]
+            observed["residual_observation"] = diagnostics["residual_observation"]
+        else:
+            observed["sidecar"] = "missing"
         limit = "wall_clock_admission_bound_s" if forced else None
         expected = {
             "process_group_residual": residual,
@@ -4593,66 +4624,91 @@ def _assert_t2620_residual_case(
                 "proc_stat_malformed": False,
             },
         }
+        expected_adoptees = []
         if running:
-            pid = int((paths["pid_dir"] / "child.pid").read_text())
-            raw = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
-            state = raw[raw.rfind(")") + 2:].split()[0]
-            # Both runnable and sleeping are live; preserve any other state.
-            observed["child_state"] = "S/R" if state in ("S", "R") else state
-            expected["child_state"] = "S/R"
-        if subreaper:
-            report = json.loads(completed.stderr.splitlines()[-1])
-            zombie_file = "child.pid" if forced else "zombie.pid"
-            zombie = int((paths["pid_dir"] / zombie_file).read_text())
-            observed["zombie_reaped_as_Z"] = [zombie, "Z"] in report["reaped"]
-            observed["harness"] = report["harness"]
-            observed["harness_launcher_rc"] = report["launcher_rc"]
-            expected.update({
-                "zombie_reaped_as_Z": True,
-                "harness": "subreaper",
-                "harness_launcher_rc": 1,
-            })
+            child = registered_pid("child.pid")
+            expected_adoptees.append([child, "S/R"])
+        if forced or mode in ("orphan_zombie", "orphan_mixed"):
+            zombie = registered_pid("child.pid" if forced else "zombie.pid")
+            expected_adoptees.append([zombie, "Z"])
+            observed["zombie_reaped_as_Z"] = (
+                isinstance(report, dict)
+                and [zombie, "Z"] in report["adoptees"]
+                and zombie in report["reaped"]
+            )
+            expected["zombie_reaped_as_Z"] = True
+        if isinstance(report, dict):
+            # Keep the report in the comparison, normalizing only live states.
+            observed["harness"] = {
+                **report,
+                "adoptees": [
+                    [pid, "S/R" if state in ("S", "R") else state]
+                    for pid, state in report["adoptees"]
+                ],
+            }
+        expected_adoptees.sort(key=lambda item: item[0] or -1)
+        expected["harness"] = {
+            "harness": "subreaper",
+            "launcher_rc": 1,
+            "adoptees": expected_adoptees,
+            "reaped": [pid for pid, _state in expected_adoptees],
+            "unreaped": [],
+        }
         if forced:
-            observed["termination_signals_sent"] = [
-                item["signal"] for item in diagnostics["termination_signals_sent"]
-            ]
+            if diagnostics is not None:
+                observed["termination_signals_sent"] = [
+                    item["signal"] for item in diagnostics["termination_signals_sent"]
+                ]
             expected["termination_signals_sent"] = ["SIGTERM", "SIGKILL"]
         assert observed == expected
 
     try:
-        _run_launcher_subprocess(
-            command, env=env, paths=paths, expected_returncode=1,
-            timeout=20, on_completed=observe,
-        )
+        try:
+            completed = subprocess.run(
+                command, env=env, text=True, errors="backslashreplace",
+                capture_output=True, timeout=20,
+            )
+        except subprocess.TimeoutExpired as exc:
+            _assert_launcher_returncode(exc, 1, paths=paths, command=command)
+            raise AssertionError("unreachable")
+        observe(completed)
+        _assert_launcher_returncode(completed, 1, paths=paths, command=command)
     finally:
-        # Also own incomplete launches: kill any registered leader and child
-        # before waiting, so receipt/rc/timeout failures take the same teardown.
-        pids = _leader_pids(paths)
-        child_path = paths["pid_dir"] / "child.pid"
-        if child_path.exists():
-            pids.append(int(child_path.read_text(encoding="ascii")))
+        # Ownership does not depend on the receipt or harness report existing.
+        pid_files = [
+            launcher_pid_path,
+            *paths["pid_dir"].glob("leader-*.pid"),
+            paths["pid_dir"] / "child.pid",
+            paths["pid_dir"] / "zombie.pid",
+        ]
+        pids = set()
+        survivors = []
+        for path in pid_files:
+            try:
+                pids.add(int(path.read_text(encoding="ascii")))
+            except FileNotFoundError:
+                pass
+            except (OSError, ValueError) as exc:
+                survivors.append(f"{path}: {exc}")
         for pid in pids:
             try:
                 os.kill(pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
-        for pid in pids:
-            _assert_pid_gone(pid)
-        if subreaper:
-            if results:
-                report = json.loads(results[-1].stderr.splitlines()[-1])
-                for pid, _state in report["reaped"]:
-                    _assert_pid_gone(pid)
-            # On timeout the killed harness may have emitted no JSON. Still
-            # check every registered zombie, now adopted by its next ancestor.
-            zombie_path = paths["pid_dir"] / "zombie.pid"
-            if zombie_path.exists():
-                _assert_pid_gone(int(zombie_path.read_text(encoding="ascii")))
+        deadline = time.monotonic() + 3
+        remaining = pids
+        while remaining:
+            remaining = {pid for pid in remaining if Path(f"/proc/{pid}").exists()}
+            if not remaining or time.monotonic() >= deadline:
+                break
+            time.sleep(0.01)
+        survivors.extend(sorted(remaining))
+        assert survivors == []
 
 
 def test_t2620_orphan_running_is_rejected(tmp_path: Path) -> None:
     _assert_t2620_residual_case(
-        tmp_path, "orphan_running", residual=1, subreaper=False
+        tmp_path, "orphan_running", residual=1, subreaper=True
     )
 
 
