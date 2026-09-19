@@ -28,7 +28,9 @@ title: A-1 sized attempt-0002 は既存 submit 経路の gate で qsub 前に拒
   attempt-0001 の leaf・稿・図 9・事前登録・policy・source 契約の bytes は不変。
 - 相談 3 本 (read-only、`reasoning=medium`、model call 8 / 13 / 7、CLI reported token 76,842 / 78,522 / 55,280、全件 accepted)。author 0 本。
   実装面の差分ゼロ (変異 matrix 免除)。一次資料は `output/insights/2026-09-19/a1-sized-attempt2/README.md` と同 `verbatim/`、`MANIFEST.tsv`。
-- 専用 handoff は repo 外 job dir の handoff。自己改善は候補の記録だけとし、改善実装・次 wave・push は行わない。
+- 専用 handoff は repo 外 job dir の handoff。段 8: 段 1 前の部分抜粋からの一般化 (near miss、段 3 で検出) を F29 の再発として
+  failures fragment に追記。DW-S01 へ「入口から副作用点までの gate 呼び出しを棚卸しする」の 1 文を足す案は L1 予算を 55 byte 超過
+  (10680 > 10625) したので戻し、候補として記録に留める。改善実装・次 wave・push は行わない。
 
 ## 次の一手差分
 
