@@ -39,8 +39,12 @@ title: [T-2035] 軸 1 OpenAlex の取得済み 78 leaf を全列挙した後継�
   dispatch (request `10755.nqsv`、22:15〜22:16 JST) で 722 passed / 3 skipped、rc=0 (変更 file を読む consumer test は無い — 3 test は固定 path だけを
   読む)。三軸語走査 (`s8b_holdout_freeze search`) と `check_docs.py`、provenance の `--message-file` は記録 commit の直前に実走 (結果は insight
   README と commit message)。受入全走は記録 commit と段 8 の後の最終 tip で `dev_wave_wait.py acceptance` 経由で投入し、結果は land の受領証。
-- 工数: codex 子 2 本 (consult 1・review 1、いずれも read-only、luna / medium)。親の実測: 分類 script 1、sha256sum 1、焦点走 1、check_docs 3、
-  provenance 検査 3、spool dry-run 1。
+- 受入 1 (22:24 投入、計算ノード) は child-green (25,323 passed / 69 skipped、red 0、flake 0、tested main `657e1e5a7` / tested tip
+  `ca3625c8b`)。land 1 巡目は F672 型 (別 wave の登録 path `dev-wave-t2786-recovery` の strict 解決が `[Errno 4]` で落ち、
+  `retryable_same_request=false`、main は無傷) で rc=31。既存 F672 の復旧どおり受入 1 を捨て、failures fragment (F672 の再発 4 例目) を
+  同じ tip に積んで受入を取り直し、新しい request で land した (結果は land の受領証)。
+- 工数: codex 子 2 本 (consult 1・review 1、いずれも read-only、luna / medium)。親の実測: 分類 script 1、sha256sum 1、焦点走 1、check_docs 4、
+  provenance 検査 4、spool dry-run 2、受入 2、land 2 巡以上。
 - scope 外の実在 stale (実装せず、起票せず、insight に記録): 主論文の入口 `docs/paper-story/README.md` と最新版 `2026-09-17.md` §8 C-4 の
   「3 窓ぶん取得・9/8 打ち切り・この版でも動いていない」は窓 5・6 (9/17)・D2120 項 14・D2150 項 4 を含まない。次に主論文側を触る wave が
   stale 注記で所在を指す。
