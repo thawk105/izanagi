@@ -1637,11 +1637,11 @@ for entry in Path("/proc").iterdir():
         continue
     try:
         raw = (entry / "stat").read_text(encoding="ascii")
-    except FileNotFoundError:
+        fields = raw[raw.rfind(")") + 2:].split()
+        if int(fields[1]) == os.getpid():
+            adoptees.append([int(entry.name), fields[0]])
+    except (OSError, ValueError):
         continue
-    fields = raw[raw.rfind(")") + 2:].split()
-    if int(fields[1]) == os.getpid():
-        adoptees.append([int(entry.name), fields[0]])
 for pid, state in adoptees:
     if state != "Z":
         try:
@@ -4562,6 +4562,10 @@ assert child_pid_path.exists(), (
 def _assert_t2620_residual_case(
     tmp_path: Path, mode: str, *, residual: int, subreaper: bool
 ) -> None:
+    # 外側 timeout (20 s) では harness が先に SIGKILL され、養子の回収は次の祖先 (通常 init) に落ちる。
+    # finally は登録 pid (launcher・leader・child・zombie) を SIGKILL し、/proc からの消滅を 3 秒待つだけで reap はしない。
+    # 回収を保留する祖先 subreaper の下では赤になりうる。
+    # 養子の列挙は 1 回で、養子が生きた孫を持つ構造 (本 wave の fake には無い) は対象外。
     fake = _write_fake_codex(tmp_path / "fake-codex")
     forced = mode == "sigterm_ignore"
     running = mode in ("orphan_running", "orphan_mixed")
