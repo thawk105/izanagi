@@ -1,0 +1,547 @@
+{
+  "blocks": [
+    {
+      "block_id": "W1",
+      "hostname": "bnode122",
+      "status": "completed",
+      "planned": 60,
+      "runs": 60,
+      "not_started": 0,
+      "rounds": 15,
+      "started_at": "2026-09-19T13:35:26.743462+00:00",
+      "finished_at": "2026-09-19T13:59:52.635879+00:00",
+      "arms_json_sha256": "ba74088785f3ffcaf708166608c04d5f087b00cd28018f50587566022f9bcd30",
+      "runner_sha256": "7907a545b719845d69b36590cc90cff6b28c242d3b7140d9c52b4a838798df99",
+      "per_arm": {
+        "e9-witlight-wit": {
+          "n": 15,
+          "m": 15,
+          "k": 0,
+          "failure": 0,
+          "indeterminate": 0,
+          "rc": {
+            "0": 15
+          },
+          "verifier_rc": {
+            "0": 15
+          },
+          "positions": {
+            "1": 4,
+            "4": 4,
+            "3": 4,
+            "2": 3
+          }
+        },
+        "e9-witlight-nowit": {
+          "n": 15,
+          "m": 15,
+          "k": 1,
+          "failure": 0,
+          "indeterminate": 0,
+          "rc": {
+            "0": 15
+          },
+          "verifier_rc": {
+            "0": 14,
+            "1": 1
+          },
+          "positions": {
+            "2": 4,
+            "1": 4,
+            "4": 4,
+            "3": 3
+          }
+        },
+        "e9-witlight-wit-bo1": {
+          "n": 15,
+          "m": 15,
+          "k": 0,
+          "failure": 0,
+          "indeterminate": 0,
+          "rc": {
+            "0": 15
+          },
+          "verifier_rc": {
+            "0": 15
+          },
+          "positions": {
+            "3": 4,
+            "2": 4,
+            "1": 4,
+            "4": 3
+          }
+        },
+        "e9-witlight-nowit-bo1": {
+          "n": 15,
+          "m": 15,
+          "k": 0,
+          "failure": 0,
+          "indeterminate": 0,
+          "rc": {
+            "0": 15
+          },
+          "verifier_rc": {
+            "0": 15
+          },
+          "positions": {
+            "4": 4,
+            "3": 4,
+            "2": 4,
+            "1": 3
+          }
+        }
+      }
+    },
+    {
+      "block_id": "W2",
+      "hostname": "bnode119",
+      "status": "completed",
+      "planned": 60,
+      "runs": 60,
+      "not_started": 0,
+      "rounds": 15,
+      "started_at": "2026-09-19T13:35:45.374106+00:00",
+      "finished_at": "2026-09-19T14:00:08.613902+00:00",
+      "arms_json_sha256": "f5e802236d0047125548490553cd34ffc06153f89ef5b85219cb5da94d146245",
+      "runner_sha256": "7907a545b719845d69b36590cc90cff6b28c242d3b7140d9c52b4a838798df99",
+      "per_arm": {
+        "e9-witlight-wit": {
+          "n": 15,
+          "m": 15,
+          "k": 0,
+          "failure": 0,
+          "indeterminate": 0,
+          "rc": {
+            "0": 15
+          },
+          "verifier_rc": {
+            "0": 15
+          },
+          "positions": {
+            "4": 4,
+            "3": 4,
+            "2": 4,
+            "1": 3
+          }
+        },
+        "e9-witlight-nowit": {
+          "n": 15,
+          "m": 15,
+          "k": 0,
+          "failure": 0,
+          "indeterminate": 0,
+          "rc": {
+            "0": 15
+          },
+          "verifier_rc": {
+            "0": 15
+          },
+          "positions": {
+            "1": 4,
+            "4": 4,
+            "3": 4,
+            "2": 3
+          }
+        },
+        "e9-witlight-wit-bo1": {
+          "n": 15,
+          "m": 15,
+          "k": 0,
+          "failure": 0,
+          "indeterminate": 0,
+          "rc": {
+            "0": 15
+          },
+          "verifier_rc": {
+            "0": 15
+          },
+          "positions": {
+            "2": 4,
+            "1": 4,
+            "4": 4,
+            "3": 3
+          }
+        },
+        "e9-witlight-nowit-bo1": {
+          "n": 15,
+          "m": 15,
+          "k": 0,
+          "failure": 0,
+          "indeterminate": 0,
+          "rc": {
+            "0": 15
+          },
+          "verifier_rc": {
+            "0": 15
+          },
+          "positions": {
+            "3": 4,
+            "2": 4,
+            "1": 4,
+            "4": 3
+          }
+        }
+      }
+    },
+    {
+      "block_id": "W3",
+      "hostname": "bnode121",
+      "status": "completed",
+      "planned": 60,
+      "runs": 60,
+      "not_started": 0,
+      "rounds": 15,
+      "started_at": "2026-09-19T13:36:13.882335+00:00",
+      "finished_at": "2026-09-19T14:00:29.840343+00:00",
+      "arms_json_sha256": "8db96f217db2f84af10b7fd3490df01cdd45e7ffc3115d2e851c80af5818b355",
+      "runner_sha256": "7907a545b719845d69b36590cc90cff6b28c242d3b7140d9c52b4a838798df99",
+      "per_arm": {
+        "e9-witlight-wit": {
+          "n": 15,
+          "m": 15,
+          "k": 0,
+          "failure": 0,
+          "indeterminate": 0,
+          "rc": {
+            "0": 15
+          },
+          "verifier_rc": {
+            "0": 15
+          },
+          "positions": {
+            "3": 4,
+            "2": 4,
+            "1": 4,
+            "4": 3
+          }
+        },
+        "e9-witlight-nowit": {
+          "n": 15,
+          "m": 15,
+          "k": 0,
+          "failure": 0,
+          "indeterminate": 0,
+          "rc": {
+            "0": 15
+          },
+          "verifier_rc": {
+            "0": 15
+          },
+          "positions": {
+            "4": 4,
+            "3": 4,
+            "2": 4,
+            "1": 3
+          }
+        },
+        "e9-witlight-wit-bo1": {
+          "n": 15,
+          "m": 15,
+          "k": 0,
+          "failure": 0,
+          "indeterminate": 0,
+          "rc": {
+            "0": 15
+          },
+          "verifier_rc": {
+            "0": 15
+          },
+          "positions": {
+            "1": 4,
+            "4": 4,
+            "3": 4,
+            "2": 3
+          }
+        },
+        "e9-witlight-nowit-bo1": {
+          "n": 15,
+          "m": 15,
+          "k": 1,
+          "failure": 0,
+          "indeterminate": 0,
+          "rc": {
+            "0": 15
+          },
+          "verifier_rc": {
+            "0": 14,
+            "1": 1
+          },
+          "positions": {
+            "2": 4,
+            "1": 4,
+            "4": 4,
+            "3": 3
+          }
+        }
+      }
+    },
+    {
+      "block_id": "W4",
+      "hostname": "bnode109",
+      "status": "completed",
+      "planned": 60,
+      "runs": 60,
+      "not_started": 0,
+      "rounds": 15,
+      "started_at": "2026-09-19T13:37:44.610871+00:00",
+      "finished_at": "2026-09-19T14:02:04.808893+00:00",
+      "arms_json_sha256": "ab0e84b28b7d9db402ddfbc4d183c362687cd7f6fc9f671d20749a9bcf1fefca",
+      "runner_sha256": "7907a545b719845d69b36590cc90cff6b28c242d3b7140d9c52b4a838798df99",
+      "per_arm": {
+        "e9-witlight-wit": {
+          "n": 15,
+          "m": 15,
+          "k": 0,
+          "failure": 0,
+          "indeterminate": 0,
+          "rc": {
+            "0": 15
+          },
+          "verifier_rc": {
+            "0": 15
+          },
+          "positions": {
+            "2": 4,
+            "1": 4,
+            "4": 4,
+            "3": 3
+          }
+        },
+        "e9-witlight-nowit": {
+          "n": 15,
+          "m": 15,
+          "k": 0,
+          "failure": 0,
+          "indeterminate": 0,
+          "rc": {
+            "0": 15
+          },
+          "verifier_rc": {
+            "0": 15
+          },
+          "positions": {
+            "3": 4,
+            "2": 4,
+            "1": 4,
+            "4": 3
+          }
+        },
+        "e9-witlight-wit-bo1": {
+          "n": 15,
+          "m": 15,
+          "k": 0,
+          "failure": 0,
+          "indeterminate": 0,
+          "rc": {
+            "0": 15
+          },
+          "verifier_rc": {
+            "0": 15
+          },
+          "positions": {
+            "4": 4,
+            "3": 4,
+            "2": 4,
+            "1": 3
+          }
+        },
+        "e9-witlight-nowit-bo1": {
+          "n": 15,
+          "m": 15,
+          "k": 0,
+          "failure": 0,
+          "indeterminate": 0,
+          "rc": {
+            "0": 15
+          },
+          "verifier_rc": {
+            "0": 15
+          },
+          "positions": {
+            "1": 4,
+            "4": 4,
+            "3": 4,
+            "2": 3
+          }
+        }
+      }
+    }
+  ],
+  "arms": {
+    "e9-witlight-wit": {
+      "N": 60,
+      "m": 60,
+      "k": 0,
+      "failure": 0,
+      "indeterminate": 0,
+      "k_over_m": 0.0,
+      "cp95": [
+        0.0,
+        0.05962949228616693
+      ],
+      "positions": {
+        "1": 15,
+        "2": 15,
+        "3": 15,
+        "4": 15
+      },
+      "commit_count_mean": 613741.4666666667,
+      "discriminator_counts": {
+        "not-run": 60
+      }
+    },
+    "e9-witlight-nowit": {
+      "N": 60,
+      "m": 60,
+      "k": 1,
+      "failure": 0,
+      "indeterminate": 0,
+      "k_over_m": 0.016666666666666666,
+      "cp95": [
+        0.0004218744523419889,
+        0.08939905005748774
+      ],
+      "positions": {
+        "1": 15,
+        "2": 15,
+        "3": 15,
+        "4": 15
+      },
+      "commit_count_mean": 710659.4166666666,
+      "discriminator_counts": {
+        "not-run": 60
+      }
+    },
+    "e9-witlight-wit-bo1": {
+      "N": 60,
+      "m": 60,
+      "k": 0,
+      "failure": 0,
+      "indeterminate": 0,
+      "k_over_m": 0.0,
+      "cp95": [
+        0.0,
+        0.05962949228616693
+      ],
+      "positions": {
+        "1": 15,
+        "2": 15,
+        "3": 15,
+        "4": 15
+      },
+      "commit_count_mean": 788885.6166666667,
+      "discriminator_counts": {
+        "not-run": 60
+      }
+    },
+    "e9-witlight-nowit-bo1": {
+      "N": 60,
+      "m": 60,
+      "k": 1,
+      "failure": 0,
+      "indeterminate": 0,
+      "k_over_m": 0.016666666666666666,
+      "cp95": [
+        0.0004218744523419889,
+        0.08939905005748774
+      ],
+      "positions": {
+        "1": 15,
+        "2": 15,
+        "3": 15,
+        "4": 15
+      },
+      "commit_count_mean": 933621.8,
+      "discriminator_counts": {
+        "not-run": 60
+      }
+    }
+  },
+  "fisher": {
+    "bo0": {
+      "on": "e9-witlight-wit",
+      "off": "e9-witlight-nowit",
+      "table": [
+        [
+          0,
+          60
+        ],
+        [
+          1,
+          59
+        ]
+      ],
+      "p_one_sided_on_lower": 0.5
+    },
+    "bo1": {
+      "on": "e9-witlight-wit-bo1",
+      "off": "e9-witlight-nowit-bo1",
+      "table": [
+        [
+          0,
+          60
+        ],
+        [
+          1,
+          59
+        ]
+      ],
+      "p_one_sided_on_lower": 0.5
+    }
+  },
+  "phenomenon": [
+    {
+      "block_id": "W1",
+      "ordinal": 18,
+      "arm": "e9-witlight-nowit",
+      "round": 5,
+      "rc": 0,
+      "verifier_rc": 1,
+      "verifier_status": "g2",
+      "verdict": "non-serializable",
+      "total_cycles": 1,
+      "anomalies": null,
+      "phenomena": null,
+      "commit_count": 709237
+    },
+    {
+      "block_id": "W3",
+      "ordinal": 5,
+      "arm": "e9-witlight-nowit-bo1",
+      "round": 2,
+      "rc": 0,
+      "verifier_rc": 1,
+      "verifier_status": "g2",
+      "verdict": "non-serializable",
+      "total_cycles": 1,
+      "anomalies": null,
+      "phenomena": null,
+      "commit_count": 923923
+    }
+  ],
+  "discriminator": [
+    {
+      "block_id": "W1",
+      "ordinal": 18,
+      "arm": "e9-witlight-nowit",
+      "status": "not-run",
+      "reason": "witness-off",
+      "rc": null,
+      "conclusion": null,
+      "blockers": null,
+      "n_comparisons": 0
+    },
+    {
+      "block_id": "W3",
+      "ordinal": 5,
+      "arm": "e9-witlight-nowit-bo1",
+      "status": "not-run",
+      "reason": "witness-off",
+      "rc": null,
+      "conclusion": null,
+      "blockers": null,
+      "n_comparisons": 0
+    }
+  ],
+  "comparisons": []
+}

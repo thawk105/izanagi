@@ -1,0 +1,28 @@
+== orchestrator.tests.test_backoff_extended_sweep test_b10_freeze_tree_bytes_match_the_wave_local_gate time= 0.026
+message: AssertionError: assert '6a4ee1ef58e7...ec63fa2f52415' == 'c405c742f60e...7bfeb09abf2f3'
+
+  - c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3
+  + 6a4ee1ef58e7e9968a11bf9f2d1e0a5badca46bec5e7bf2b44aec63fa2f52415
+--- body ---
+def test_b10_freeze_tree_bytes_match_the_wave_local_gate():
+        root = Path(__file__).resolve().parents[2]
+        digest = hashlib.sha256()
+        paths = [
+            path
+            for relative in ("output/s1-freeze", "output/s8b-freeze")
+            for path in (root / relative).rglob("*")
+            if path.is_file()
+        ]
+        for path in sorted(paths):
+            digest.update(path.relative_to(root).as_posix().encode("utf-8"))
+            digest.update(b"\0")
+            digest.update(path.read_bytes())
+>       assert digest.hexdigest() == (
+            "c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3"
+        )
+E       AssertionError: assert '6a4ee1ef58e7...ec63fa2f52415' == 'c405c742f60e...7bfeb09abf2f3'
+E
+E         - c405c742f60e19b4f96b4fa9922f9bfe37ebd23389ed4598d707bfeb09abf2f3
+E         + 6a4ee1ef58e7e9968a11bf9f2d1e0a5badca46bec5e7bf2b44aec63fa2f52415
+
+orchestrator/tests/test_backoff_extended_sweep.py:2024: AssertionError

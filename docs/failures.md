@@ -243,6 +243,17 @@
   (2026-09-18 の前件) から**標本表の手打ちと、1 手で複数 file を読んだ転写**へ広がった顕在化。恒久対応は変更なし —
   results 稿の数表は現物から script で生成し、稿へ入れる値は機械照合を通すまで根拠にしない (`DW-O16`)。
   一次資料は `output/insights/2026-09-18/t2775-a1-sized-results-draft/README.md`。
+
+- **再発: 2026-09-19 (near miss)** — [T-2288] (b) の親が、repo 外 handoff の段 1 brief と段 4 裁定の見出し時刻を
+  `date` で採らず会話の経過感覚から推定して書き (21:35 / 21:36 JST)、実投入の開始 (rr95 の launcher 開始
+  `submit-rr95-w1.meta` = 21:32:09 JST、`submit-receipt.json` の `prepared_epoch` 1789821131 = 21:32:11 JST) より後の
+  値になった。段 6 の read-only レビューが「事前判断と事後転記を区別できない」と指摘。brief・裁定を書いた実時刻は記録されて
+  おらず handoff は版管理外なので、「brief は同 handoff 内に記録した `git rev-parse main` の `date -u` 出力 12:27:09Z より前、
+  裁定は dry-run の meta 21:31:27 JST の後・21:32:09 JST の前」という順序は親の操作列の申告であって証拠から独立には確定
+  できない (焦点再レビューの指摘)。handoff の見出しに erratum を付けて訂正した。2026-09-17 の [T-2491] で同じ型を踏み memory
+  `timestamps-from-date-or-mtime-not-estimation` に恒久対応を書いたばかりで、これは知識の欠落ではなく既知規律の
+  不適用による再発である。転写でも推定でも起きる (`日付` から `時刻` へ対象が広がった顕在化は 09-17 と同じ)。
+  一次資料は `output/insights/2026-09-19/t2288-floor-pair-w1/README.md` の段 6 節 (所見 3) と同 dir `verbatim/s6-review.md`。
 ### F2. C1 drift — campaign ディレクトリ発見ロジックの分裂 [ドリフト]
 - 事象: report/critic 3 本が campaign ディレクトリの発見方法を各自実装し、歴史的ディレクトリ
   構成の変化で挙動が割れた (worklog Phase 2、修理 065593a)。同時期に repro_command の
@@ -1333,6 +1344,17 @@
   明記していたが、**テストを証拠に挙げるときにその検証機構が無効化されていないかを確かめる手順**は
   書いていなかった。恒久対応は既存のまま (再発検知行どおりレンズに攻めさせる経路が機能した)。
   逐語は `output/insights/2026-09-16/t1232-rootless-failure-report/verbatim/s4-ruling.md` §2。
+
+- **再発: 2026-09-19** (A-1 sized attempt-0002 投入 wave、near miss)。段 1 前の前提実測で、親は
+  `run_submit` の先頭 (`_validate_attempt_root` まで) と `_run_submit_v3` の末尾だけを読み、「attempt root が
+  durable base 直下の未存在 dir なら attempt-0002 は成立」と brief に書いた。実際には `_run_submit_v3` の中程で
+  `_assert_no_prior_v3_bench_start` (規律 2 由来、commit abff80d1b) が先行 attempt の bench 到達を検出して
+  qsub 前に拒否する。測定 (code 読み) は正確だったが、**読んだ範囲が命題 (submit が qsub に達する) を覆って
+  いなかった** — 部分抜粋から経路全体の成立を一般化した型。検出は段 3 の相談 B (手順レンズ) で、親が durable base の
+  現物 (`bench-go.json`・ready 3 本・bench-start 3 本) と既存経路の 1 回実走 (rc 2、副作用なし) で確定した。
+  再発検知どおりレンズが機能したので実害はなく、1 attempt の投入手続は submit 層で停止条件に達した。
+  一次資料は `output/insights/2026-09-19/a1-sized-attempt2/README.md` §2。教訓: 別 program の起動物を
+  「成立」と書く前に、入口から副作用点 (intent 書込・qsub) までの gate 呼び出しを**関数境界で全列挙**する。
 ### F30. 凍結成果物を触る wave で `FROZEN_MANIFEST` を見落とした [手順漏れ]
 
 - 事象: 同 wave で、S-1 成果物の bytes を変える設計を検討しながら、
@@ -1434,6 +1456,10 @@
   `test_p3_autonomous_workload_trial._coder_authority()` の流用へ置き換えた。恒久対応は既存のまま
   (`DW-O09` の「path 以外を key にする pin も key 側で検索」に、新たに足した呼び出しの callee 名も含まれる)。
   逐語は `output/insights/2026-09-16/t1232-rootless-failure-report/README.md` §9。
+
+- **再発: 2026-09-19** — [T-2724] 凍結 v2 g1 の chain + G を main へ取り込む wave の段 1 で、pin 閉包を持ち込む成果物の **file 名** (`holdout_freeze.v2.g1`、`s8b-freeze-budget-inputs/g1`、run dir 名) の `git grep` だけで作り、**directory 名 `"output/s8b-freeze"` を丸ごと列挙して bytes digest を固定する pin** (`orchestrator/tests/test_backoff_extended_sweep.py::test_b10_freeze_tree_bytes_match_the_wave_local_gate` と `tools/pegasus/b10_backoff_grid.sh` の `EXPECTED_FREEZE_TREES_SHA256`、B-10 の起動契約) を数え落とした。焦点走 8 file (前回 wave の集合の流用) にもこの test file は無く、受入全走 (30 分) で初めて赤 1 node (1 failed / 25311 passed) が出て、chain を land できずに終端した。`DW-O09` の「path 検索は path key の pin しか出さない。role 名や xdist group 名など key 側でも検索し、hit 0 件を pin なしとしない」を、**directory 名と算法名 (`rglob`、`freeze_digest`、`EXPECTED_*SHA256`、`FROZEN_MANIFEST`) の key 側検索**として適用していなかった。追加だけで凍結 gate が赤になる型は memory `grid-constants-and-new-artifact-names-hit-freeze-gates` (2026-08-26) が既に記録していた。一次資料 `output/insights/2026-09-19/t2724-chain-land-2/README.md` §5。
+
+- **再発: 2026-09-19** — near miss (実害なし)。dead-code 棚卸し wave (`worktree-dw-dead-code-inventory`) の段 1 で、削除候補 3 file の参照を tracked text へ `grep -F` で走査したが、**走査対象を拡張子 allowlist (`.md .sh .py .json …`) で絞った**ため `output/insights/2026-09-16/t2638-codex-worktree-retirement/data/reach2.tsv` (到達性台帳、`.tsv`) の参照 6 件を落とし、hit 0 を「無参照 (A)」と結論して削除を brief に載せた。段 5 の author 子に「削除前に自分でも grep して 0 件を確かめよ」と書いていたため子が参照を見つけて削除を保留し、実害はない。恒久対応は `DW-O09` から変更なし (「hit 0 件を pin なしとしない」の適用先に**走査対象の絞り込み**を加える: 参照走査は binary 以外の全 tracked file を対象にし、allowlist で絞った走査の 0 件を根拠にしない。同 wave の段 6 review は import graph 側でも親 package `__init__.py` への暗黙辺の欠落を見つけた — 「静的走査の 0 件」は削除の十分条件ではなく、削除 prompt の自己検査を常に併用する)。原本 `output/insights/2026-09-19/dw-dead-code-inventory/README.md` §1。
 ### F31. 裁定要約が元 decision の制約を落とし、迂回できたつもりで同じ閉包へ戻った [手順漏れ]
 
 - 事象: worklog 2026-07-21 (5) の [T-005] 裁定要約は「[T-068] の格下げを採れば再発行そのものが
@@ -13149,6 +13175,14 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   test file 内**全 20 呼び出し点**を表にして全数を出し、そこから影響 4 件を導いたこと。
   段 6 の敵対レビュー 2 本と焦点再レビューが独立に 5 件目の不在を確認した。
   **裁定で層を変えたら、前段の列挙は閉包でなくなる。** 権威 (呼び出し点の全列挙) から取り直す。
+
+- **再発: 2026-09-19** — [T-2737] 回収 wave。変更した production file (`patches/ss2pl-lock-protocol-study.patch`) の
+  consumer test を file 名と symbol 名で引き、焦点走を `test_ss2pl_lock_study.py` (103 件) に閉じた。
+  `patches/` を directory glob で目録化する `test_ccbench_spawn_sites.py` は名前で届かず、受入全走で初めて
+  include guard 3 件の候補混入 (define 目録 3 test の赤) が出た。閉包の鍵は「この directory を読む test」という
+  性質で立てるべきで、`DW-O26` の参照関係の抽出は glob・directory 走査の consumer も含める。
+  修正は Codex author の fix3 (目録関数の新規 file include guard の構造的除外、正例 1・負例 2) で閉じ、
+  記録は `output/insights/2026-09-19/t2737-noninert-implementation/README.md`。
 ### F387. help 文字列への 1 語追加が、行折り返しの移動だけで無関係な逐語 assertion を壊した [恒真ゲート] [手順漏れ]
 
 - 事象: `tools/dev_wave_codex.py` の `--evidence-grace-s` の help 先頭へ
@@ -20082,6 +20116,19 @@ Bash tool から `run_in_background` 付きで `bash -c '...' &` として投入
   `retryable_same_request=false`、`main_before == main_after == fa24e6ea8`。受入 1 (child-green、24389 passed / 67 skipped) を
   捨て、既存 F672 の復旧どおり同じ tip に本 fragment を積んで受入を取り直し、新しい request で land を再試行する
   (結果は worklog 側に書く)。他 wave の登録は触っていない。
+
+- **再発: 2026-09-19** — [T-2035] wave の land 1 巡目 (22:40 JST 頃、受入 1 = child-green、25,323 passed / 69 skipped、
+  tested main `657e1e5a7` / tested tip `ca3625c8b`) が `rc=31 status=fold-gate-failed` / `registered worktree path cannot be
+  resolved: [Errno 4] Interrupted system call: '<共有 repo>/.claude/worktrees/dev-wave-t2786-recovery'` (別 wave の登録 path) で
+  止まった。`release_safe=true` / `retryable_same_request=false`、`main_before == main_after == 657e1e5a7`。既存 F672 の復旧どおり
+  受入 1 を捨て、同じ tip に本 fragment を積んで受入を取り直し、新しい request で land を再試行する。他 wave の登録は触っていない。
+  恒久対応 (EINTR を `_FoldGateInfrastructureFailure` 側へ分類する) は依然として未実施・裁定待ちのまま (4 例目)。
+  **同 wave で連続 2 回 (5 例目、23:09 JST):** 受入 2 (child-green、tested tip `ec54716d3`、main `8fd1eecf9` を前方 merge した
+  landing tip `b81d16ddf`) の land 2 巡目も同型で、path は別の他 wave (`<job dir>/dev-wave-verify-phase-adopted-backoff/submit-tree-a4`)。
+  2 回とも `window_elapsed_s` ≈ 225 秒、`fold_gate_*_families` は両方空、直後の読取専用 `resolve(strict=True)` は 2 path とも即時成功。
+  機序の候補 (未検証): `_FoldGateOuterWatchdog` が `setitimer(ITIMER_REAL, 0.1, 0.1)` で SIGALRM を 0.1 秒ごとに投げるため、登録
+  worktree (68 本) を `resolve(strict=True)` する間に共有 FS の遅い syscall が中断され、PEP 475 の自動再試行外の呼び出しが `EINTR` を
+  返す。受入 2 も捨て、受入 3 を取り直す。
 ### F673. brief が「守るべき性質」と「現に成立している性質」を混同し、存在しない不変条件を根拠に暫定裁定した [誤前提]
 
 - 事象: 親は段 1 brief の不変条件へ「受理の根拠は完全に読み切った、矛盾のない 1 枚の scan」と書き、

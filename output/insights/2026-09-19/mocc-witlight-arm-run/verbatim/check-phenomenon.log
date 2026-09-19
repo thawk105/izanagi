@@ -1,0 +1,4 @@
+== W1/runs/018-e9-witlight-nowit
+[{"phenomenon":"G2","length":2,"cycle":[452883,452884],"edge_types":[["rw"],["rw"]],"n_reasons":[1,1]}]
+== W3/runs/005-e9-witlight-nowit-bo1
+[{"phenomenon":"G2","length":2,"cycle":[243580,243582],"edge_types":[["rw"],["rw"]],"n_reasons":[2,1]}]
