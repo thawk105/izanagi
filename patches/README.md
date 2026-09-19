@@ -623,6 +623,55 @@ Tidword ベース計装 (`instr-silo-*.patch`) は転用しない。preimage は
 
 ---
 
+## mocc-temperature-predicate-variant.patch / instr-mocc-lock-coverage-temperature.patch — mocc 温度述語 template (proof 用骨格) と計装の template 版 ([T-2773]、D2134 項 1・6・8)
+
+**proof 用 template (CC-native 骨格) 1 本と、その上で使う計装 patch 1 本。** どちらも [T-2773] (mocc の auditor-live 相当の機械実証 wave 2) の
+成果物であり、mocc の変異探索・pin 前進・正式な軸採用のいずれも認可しない (D2134 項 9、ユーザー決定 2026-09-19 = 軸オンボーディング段階 A 承認と
+wave 2 の実証認可のみ)。preimage は submodule `e9e477ca` (template)、`e9e477ca` + template (計装 template 版)。
+
+- **`mocc-temperature-predicate-variant.patch`** (touch set = `cmake/Options.cmake` + `cc/mocc/transaction.cc`): `cc/mocc/transaction.cc` の温度述語 4 site
+  (`read_internal` 296 / `update` 459 / `delete_record` 566 / `construct_RLL` 970、行番号は e9e477ca) の `loadepot.temp >= FLAGS_temp_threshold` を file-scope helper
+  `mocc_is_hot(std::uint64_t temp, std::uint64_t threshold)` (anonymous namespace、`inline`) の呼出へ置換し、helper 本体内に**唯一の** EVOLVE-BLOCK
+  (marker id `mocc-temperature-predicate`、hole = `return temp >= threshold;` の 1 行、`#else` 側は stock 等価述語の逐語 = frame) を置く。970 の
+  `|| (*itr).failed_verification_` は両枝で保存。flag は `cmake/Options.cmake` の universal 相乗り `CCBENCH_MOCC_TEMP_PREDICATE` → `MOCC_TEMP_PREDICATE`
+  (既定 0)。**OFF (0) では helper の宣言も 4 site の分岐も消え、原文が逐語で選ばれる** (`#ifndef MOCC_TEMP_PREDICATE #error` で供給漏れは build 失敗)。
+  外側 guard 行 `#if MOCC_TEMP_PREDICATE // file-scope helper` は source 内で完全一致 1 行 = condition gate の一意 witness。読取契約 (値渡しの `temp` /
+  `threshold` と bool / 整数定数の比較・論理結合だけ。`FLAGS_*`・`thid_`・`result_`・CLL/RLL/read/write set・乱数・時刻・TRACE・呼出・副作用を禁止) は
+  `orchestrator/campaign/axis_mocc_temperature.py` (`SYNTAX_CONTRACT_*`、禁止例の列挙であって完全な blacklist ではない) と `.claude/agents/auditor.md` 型 16 の
+  mocc 追記が正本。**DQ (`diff_quarantine.py`) pass は物理行の封じ込めだけを示し、一式性・純粋性・停止性・読取契約の充足を示さない。**
+- **`instr-mocc-lock-coverage-temperature.patch`** (touch set = `cc/mocc/transaction.cc` のみ): `instr-mocc-lock-coverage.patch` ([T-2294]、不変) の 6 hunk の
+  検査本文・`#if TRACE` guard・検査対象操作との前後関係を byte 不変で保ち、`#line` 7 箇所だけを template 適用後の論理行 (17/990/991/1158/1169/1187/1195 →
+  36/1025/1026/1193/1204/1222/1230、offset = helper 19 行 + 4 site の増分 4 行 × 4) へ再生成したもの。旧計装 patch は template 適用後の source に `git apply`
+  できず (hunk 1 の context 不一致)、本 patch は template なしの e9e477ca に当たらない。本文保存は driver の `instrumentation_body_preserved` check
+  (追加行列の一致・hunk 前後 context の一致・`#line` 列 = 旧 + 実測 offset) で機械化する。
+- **同一性の 3 比較と保証名** (設計 §8、D1687): (i) 無 template ↔ template OFF = **実 resolver (`source_digest`) が定める正規化前処理 source identity の
+  stock 一致** (`src_token="stock"`)。**実 TU・binary の完全同一は主張しない** — 無 template と OFF の TRACE=0 `.text` は論理行 1193 の `ERR;` の `__LINE__` 即値
+  (1193 → 1228、template は `#line` を持たない) で 2 行相違する (login 実測 2026-09-19)。(ii) OFF ↔ ON-B (hole = `!(temp < threshold)`) は別 identity。
+  (iii) 同一 template 状態の計装なし ↔ あり = TRACE=0 の (論理行, 非空本文) 列一致 (OFF 543 行 / ON-B 548 行)。(iii) は TRACE=1 検査本文の有効性を保証しない
+  (それは本文保存 check が担う)。旧 pin ↔ pin 候補の D297 比較は別 T。
+- **駆動の正本 = `orchestrator/campaign/s3_mocc_template_proof.py`** (compute 専用。wave 1 driver `s3_mocc_mutation_proof.py` と T-2294 driver の helper を import で
+  再利用し、旧 driver・旧 JSON・旧 check は不変)。build 5 本 (ON-B TRACE=1 計装あり / ON-B TRACE=0 計装なし・あり / OFF TRACE=0 / 無 template TRACE=0) +
+  template ON-B の stock 12 走 (W / U × hot 0 / cold 21 / default 10 × 1 / 4 thread、すべて certified & silent を要求) + 上記 3 比較 + DQ 13 対照 (benign 受理 /
+  stock 枝改変 = frame-altered / 970 fallback・CLL・RLL・validation・X・P・write_set_ 登録 477・RLL の write-set 登録 905〜913 の侵食 = outside-region /
+  生指令・comment splice = hole-escape / HEAD 不整合 anchor = malformed) + deny-only 4 対照 (`auditor_gate.apply_mandatory_deny_only_veto`) + consumer 束縛
+  3 対照 (`axis_mocc_temperature.require_proof_binding`: 別名 template 拒否・別 OID 拒否・正しい値の literal は通過) + auditor 定義 (tools = Read/Grep/Glob、
+  型 8/9/13/16・チェックリスト 11/12/13 の mocc 項目、正しさの形だけを写す `auditor_projection`) + 旧 proof (wave 1 JSON 32 check、T-2294 JSON 14 check) の
+  sha 鎖と all_pass → JSON `output/env/pegasus/calibration/s3_mocc_template_proof.json` (schema `s3-mocc-template-proof/v1`、30 check)。
+  **この 12 走は template ON-B の正常系対照であり、template 上で hot 負例が発火したことは主張しない** (hot 経路の実行証拠は wave 1 の固定 producer に束縛された
+  経路共通証拠、`hot_path_evidence` は wave 1 JSON への参照)。4 site 全動的被覆・read 側 hot・RLL 再試行・DELETE も主張しない。
+- **gate (`orchestrator/tests/test_mocc_template_proof.py::test_mocc_mutation_surface_requires_auditor_live`)**: 鍵 = (a) `patches/*.patch` のうち
+  `cc/mocc/transaction.cc` の hunk に `EVOLVE-BLOCK-BEGIN` を加える patch の存在、または (b) `orchestrator/campaign/axis_*.py` のうち `SOURCE_REL` が mocc で
+  `MARKER_ID` / `TEMPLATE_PATCH` を持つ module の存在。EBS 所属は鍵にしない (D2134 項 6)。発火時は上記 JSON の実在・all_pass・sha 鎖・束縛・auditor 定義を要求する。
+  任意の直書き経路・全 consumer 経路を閉じたとは主張しない。実 loop driver (consumer) は未導入で、導入時にその実 checkout との束縛検査が別途要る。
+- **実証** (2026-09-19、Pegasus gen_S request 11161.nqsv、Elapse 352 秒、driver HEAD 2d76e785f、**30 check all_pass**): OFF digest = stock digest
+  (`6454d9f3…`)、ON-B `41f52341…`、論理行列 OFF 543 / ON-B 548 一致、ON-B の binary は nm izanagi 0 / strings 0 / `.text` 差分 0 行、12 走すべて serializable・
+  certified・cycle 0・X = P = 0 (U は R 行 0、4 thread ≈ 350〜368 万 txn)、verifier wall 最大 52.9 秒、condition gate 3 本 green。
+- **n=1 定性 (D38 決定 4 の点 5 / 6、機械 `all_pass` には入れない)**: 候補 3 本 (A1' = validation の writer lock 削除 (marker 外)、A2' = hole を
+  `FLAGS_clocks_per_us` 依存に、B' = hole を `!(temp < threshold)`) を fresh な read-only auditor に独立監査させた素材と実応答は
+  `output/insights/2026-09-19/t2773-mocc-template-wave2/auditor-n1.md`。
+
+---
+
 ## トレース形式 (verifier = タスク2 の入力契約)
 
 trace-hook の**実装**は submodule `izanagi-trace` ブランチにある (Silo は `writePhase` の `maxtid`

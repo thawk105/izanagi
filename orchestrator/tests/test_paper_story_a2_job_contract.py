@@ -753,8 +753,7 @@ def _run_compute_pin_harness(
     nodefile = tmp_path / "nodefile"
     if nodefile_hosts is None:
         nodefile_hosts = (
-            ("bnode001", "bnode002", "bnode003", "bnode004", "bnode005")
-            if study == "a6" else ("bnode001",)
+            "bnode001", "bnode002", "bnode003", "bnode004", "bnode005"
         )
     if not omit_nodefile:
         nodefile.write_text("".join(host + "\n" for host in nodefile_hosts),
@@ -985,10 +984,11 @@ def test_a6_compute_job_accepts_rr95_membership_before_source_gate(tmp_path):
     ),
     ids=("too-few", "too-many", "duplicate-sibling"),
 )
+@pytest.mark.parametrize("study", ("a2", "a6"))
 def test_m9_job_body_rejects_nodefile_sibling_count_mismatch(
-        tmp_path, nodefile_hosts):
+        tmp_path, nodefile_hosts, study):
     completed, job_root = _run_compute_pin_harness(
-        tmp_path, study="a6", tracked_dirty=True,
+        tmp_path, study=study, tracked_dirty=True,
         nodefile_hosts=nodefile_hosts)
 
     assert completed.returncode == 2
@@ -1270,7 +1270,7 @@ def test_submitter_success_uses_production_cli_qsub_and_exact_stdout_contract(
             f"IZANAGI_A2_DEPENDENCY_PREFIX_SOURCE={tmp_path / 'dependency'},"
             f"IZANAGI_A2_THIRD_PARTY_SOURCE_ROOT={tmp_path / 'third-party'}")
         assert argv == [
-            "-A", "SFC", "-q", "gen_S", "-b", "1", "-l",
+            "-A", "SFC", "-q", "gen_S", "-b", "5", "-l",
             "elapstim_req=06:00:00", "-N", "paper-a2-cert", "-v",
             variable_arg, "-o", str(scheduler / "job.stdout"), "-e",
             str(scheduler / "job.stderr"), str(

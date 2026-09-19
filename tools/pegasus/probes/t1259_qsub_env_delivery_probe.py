@@ -130,7 +130,9 @@ def _strict_object(raw: bytes, *, source: Path) -> dict[str, Any]:
     return document
 
 
-def _run_git(repo_root: Path, *args: str) -> str:
+def _run_git(
+    repo_root: Path, *args: str, git_timeout_seconds: float = 30.0
+) -> str:
     environment = dict(os.environ)
     environment["GIT_OPTIONAL_LOCKS"] = "0"
     completed = subprocess.run(
@@ -139,12 +141,14 @@ def _run_git(repo_root: Path, *args: str) -> str:
         capture_output=True,
         text=True,
         env=environment,
-        timeout=30.0,
+        timeout=git_timeout_seconds,
     )
     return completed.stdout
 
 
-def _repo_is_detached(repo_root: Path) -> bool:
+def _repo_is_detached(
+    repo_root: Path, *, git_timeout_seconds: float = 30.0
+) -> bool:
     environment = dict(os.environ)
     environment["GIT_OPTIONAL_LOCKS"] = "0"
     completed = subprocess.run(
@@ -153,15 +157,20 @@ def _repo_is_detached(repo_root: Path) -> bool:
         capture_output=True,
         text=True,
         env=environment,
-        timeout=30.0,
+        timeout=git_timeout_seconds,
     )
     if completed.returncode not in (0, 1):
         raise ProbeError("cannot determine whether repository HEAD is detached")
     return completed.returncode == 1
 
 
-def _repo_snapshot(repo_root: Path) -> dict[str, Any]:
-    head = _run_git(repo_root, "rev-parse", "--verify", "HEAD").strip()
+def _repo_snapshot(
+    repo_root: Path, *, git_timeout_seconds: float = 30.0
+) -> dict[str, Any]:
+    head = _run_git(
+        repo_root, "rev-parse", "--verify", "HEAD",
+        git_timeout_seconds=git_timeout_seconds,
+    ).strip()
     if HEX40_RE.fullmatch(head) is None:
         raise ProbeError("repository HEAD is not an exact lowercase 40-hex commit")
     tracked = _run_git(
@@ -170,6 +179,7 @@ def _repo_snapshot(repo_root: Path) -> dict[str, Any]:
         "--porcelain=v1",
         "--untracked-files=no",
         "--ignore-submodules=none",
+        git_timeout_seconds=git_timeout_seconds,
     )
     untracked_raw = _run_git(
         repo_root,
@@ -177,10 +187,13 @@ def _repo_snapshot(repo_root: Path) -> dict[str, Any]:
         "--others",
         "--exclude-standard",
         "-z",
+        git_timeout_seconds=git_timeout_seconds,
     )
     return {
         "head": head,
-        "detached": _repo_is_detached(repo_root),
+        "detached": _repo_is_detached(
+            repo_root, git_timeout_seconds=git_timeout_seconds
+        ),
         "tracked_status": tracked,
         "untracked_paths": sorted(path for path in untracked_raw.split("\0") if path),
         "source_sha256": {

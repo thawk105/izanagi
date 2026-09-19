@@ -1,0 +1,883 @@
+{
+  "schema_version": "t2774-probe/v1",
+  "block_id": "smoke",
+  "hostname": "bnode084",
+  "started_at": "2026-09-19T13:30:08.949081+00:00",
+  "rounds": 1,
+  "planned_runs": 4,
+  "status": "completed",
+  "runs": [
+    {
+      "block_id": "smoke",
+      "hostname": "bnode084",
+      "arm": "e9-witlight-wit",
+      "ordinal": 1,
+      "round": 1,
+      "order": [
+        "e9-witlight-wit",
+        "e9-witlight-nowit",
+        "e9-witlight-wit-bo1",
+        "e9-witlight-nowit-bo1"
+      ],
+      "started_at": "2026-09-19T13:30:50.797539+00:00",
+      "rc": 0,
+      "elapsed": {
+        "run_s": 3.068287869973574,
+        "verify_s": 15.83418670395622
+      },
+      "commit_count": 613418,
+      "verifier": {
+        "status": "no-g2",
+        "reason": null,
+        "rc": 0,
+        "verdict": "serializable",
+        "certified": true,
+        "total_cycles": 0,
+        "integrity": {
+          "clean": true,
+          "orphan_reads": 0,
+          "version_dups": 0,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "missing_txids": 0,
+          "write_version_mismatch": 0,
+          "malformed_keys": 0,
+          "framing_violations": 0,
+          "framing_violation_details": [],
+          "lock_coverage_violations": 0,
+          "write_intent_violations": 0,
+          "permutation_violations": 0,
+          "permutation_violation_details": {
+            "counts": {
+              "size-changed": 0,
+              "rcdptr-set-changed": 0,
+              "unknown": 0
+            },
+            "sample": [],
+            "unknown_reason_sample": []
+          },
+          "notes": []
+        },
+        "anomaly_count": 0
+      },
+      "discriminator": {
+        "status": "not-run",
+        "rc": null,
+        "observational_only": false
+      },
+      "observational_only": false,
+      "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+      "witness": true,
+      "run_process": {
+        "argv": [
+          "/scr/t2774-8k2jto1m/build-e9-witlight-wit/cc/mocc/ycsb_mocc.exe",
+          "-ycsb_tuple_num=10000",
+          "-thread_num=48",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_rratio=50",
+          "-ycsb_rmw=0",
+          "-ycsb_max_ope=10",
+          "-extime=3"
+        ],
+        "cwd": "/scr/t2774-8k2jto1m/run-001-e9-witlight-wit/trace",
+        "rc": 0,
+        "timeout": false,
+        "error": null,
+        "elapsed_s": 3.068287869973574
+      },
+      "verifier_process": {
+        "argv": [
+          "/bin/python3.10",
+          "-B",
+          "-m",
+          "orchestrator.verifier",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W/smoke/runs/001-e9-witlight-wit/trace",
+          "--json",
+          "--protocol",
+          "mocc",
+          "--ccbench-root",
+          "/scr/t2774-8k2jto1m/izanagi_wt_5wqvuz57/wt",
+          "--expected-commits",
+          "613418"
+        ],
+        "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run",
+        "rc": 0,
+        "timeout": false,
+        "error": null,
+        "elapsed_s": 15.83418670395622
+      },
+      "finished_at": "2026-09-19T13:31:11.476730+00:00"
+    },
+    {
+      "block_id": "smoke",
+      "hostname": "bnode084",
+      "arm": "e9-witlight-nowit",
+      "ordinal": 2,
+      "round": 1,
+      "order": [
+        "e9-witlight-wit",
+        "e9-witlight-nowit",
+        "e9-witlight-wit-bo1",
+        "e9-witlight-nowit-bo1"
+      ],
+      "started_at": "2026-09-19T13:31:11.499456+00:00",
+      "rc": 0,
+      "elapsed": {
+        "run_s": 3.0685275309951976,
+        "verify_s": 19.03815099899657
+      },
+      "commit_count": 725862,
+      "verifier": {
+        "status": "no-g2",
+        "reason": null,
+        "rc": 0,
+        "verdict": "serializable",
+        "certified": true,
+        "total_cycles": 0,
+        "integrity": {
+          "clean": true,
+          "orphan_reads": 0,
+          "version_dups": 0,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "missing_txids": 0,
+          "write_version_mismatch": 0,
+          "malformed_keys": 0,
+          "framing_violations": 0,
+          "framing_violation_details": [],
+          "lock_coverage_violations": 0,
+          "write_intent_violations": 0,
+          "permutation_violations": 0,
+          "permutation_violation_details": {
+            "counts": {
+              "size-changed": 0,
+              "rcdptr-set-changed": 0,
+              "unknown": 0
+            },
+            "sample": [],
+            "unknown_reason_sample": []
+          },
+          "notes": []
+        },
+        "anomaly_count": 0
+      },
+      "discriminator": {
+        "status": "not-run",
+        "rc": null,
+        "observational_only": false
+      },
+      "observational_only": false,
+      "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+      "witness": false,
+      "run_process": {
+        "argv": [
+          "/scr/t2774-8k2jto1m/build-e9-witlight-nowit/cc/mocc/ycsb_mocc.exe",
+          "-ycsb_tuple_num=10000",
+          "-thread_num=48",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_rratio=50",
+          "-ycsb_rmw=0",
+          "-ycsb_max_ope=10",
+          "-extime=3"
+        ],
+        "cwd": "/scr/t2774-8k2jto1m/run-002-e9-witlight-nowit/trace",
+        "rc": 0,
+        "timeout": false,
+        "error": null,
+        "elapsed_s": 3.0685275309951976
+      },
+      "verifier_process": {
+        "argv": [
+          "/bin/python3.10",
+          "-B",
+          "-m",
+          "orchestrator.verifier",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W/smoke/runs/002-e9-witlight-nowit/trace",
+          "--json",
+          "--protocol",
+          "mocc",
+          "--ccbench-root",
+          "/scr/t2774-8k2jto1m/izanagi_wt_h5snl7xc/wt",
+          "--expected-commits",
+          "725862"
+        ],
+        "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run",
+        "rc": 0,
+        "timeout": false,
+        "error": null,
+        "elapsed_s": 19.03815099899657
+      },
+      "finished_at": "2026-09-19T13:31:34.597549+00:00"
+    },
+    {
+      "block_id": "smoke",
+      "hostname": "bnode084",
+      "arm": "e9-witlight-wit-bo1",
+      "ordinal": 3,
+      "round": 1,
+      "order": [
+        "e9-witlight-wit",
+        "e9-witlight-nowit",
+        "e9-witlight-wit-bo1",
+        "e9-witlight-nowit-bo1"
+      ],
+      "started_at": "2026-09-19T13:31:34.610906+00:00",
+      "rc": 0,
+      "elapsed": {
+        "run_s": 3.1182978579890914,
+        "verify_s": 20.840145614056382
+      },
+      "commit_count": 800450,
+      "verifier": {
+        "status": "no-g2",
+        "reason": null,
+        "rc": 0,
+        "verdict": "serializable",
+        "certified": true,
+        "total_cycles": 0,
+        "integrity": {
+          "clean": true,
+          "orphan_reads": 0,
+          "version_dups": 0,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "missing_txids": 0,
+          "write_version_mismatch": 0,
+          "malformed_keys": 0,
+          "framing_violations": 0,
+          "framing_violation_details": [],
+          "lock_coverage_violations": 0,
+          "write_intent_violations": 0,
+          "permutation_violations": 0,
+          "permutation_violation_details": {
+            "counts": {
+              "size-changed": 0,
+              "rcdptr-set-changed": 0,
+              "unknown": 0
+            },
+            "sample": [],
+            "unknown_reason_sample": []
+          },
+          "notes": []
+        },
+        "anomaly_count": 0
+      },
+      "discriminator": {
+        "status": "not-run",
+        "rc": null,
+        "observational_only": false
+      },
+      "observational_only": false,
+      "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+      "witness": true,
+      "run_process": {
+        "argv": [
+          "/scr/t2774-8k2jto1m/build-e9-witlight-wit-bo1/cc/mocc/ycsb_mocc.exe",
+          "-ycsb_tuple_num=10000",
+          "-thread_num=48",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_rratio=50",
+          "-ycsb_rmw=0",
+          "-ycsb_max_ope=10",
+          "-extime=3"
+        ],
+        "cwd": "/scr/t2774-8k2jto1m/run-003-e9-witlight-wit-bo1/trace",
+        "rc": 0,
+        "timeout": false,
+        "error": null,
+        "elapsed_s": 3.1182978579890914
+      },
+      "verifier_process": {
+        "argv": [
+          "/bin/python3.10",
+          "-B",
+          "-m",
+          "orchestrator.verifier",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W/smoke/runs/003-e9-witlight-wit-bo1/trace",
+          "--json",
+          "--protocol",
+          "mocc",
+          "--ccbench-root",
+          "/scr/t2774-8k2jto1m/izanagi_wt_5a1yabj3/wt",
+          "--expected-commits",
+          "800450"
+        ],
+        "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run",
+        "rc": 0,
+        "timeout": false,
+        "error": null,
+        "elapsed_s": 20.840145614056382
+      },
+      "finished_at": "2026-09-19T13:32:00.742626+00:00"
+    },
+    {
+      "block_id": "smoke",
+      "hostname": "bnode084",
+      "arm": "e9-witlight-nowit-bo1",
+      "ordinal": 4,
+      "round": 1,
+      "order": [
+        "e9-witlight-wit",
+        "e9-witlight-nowit",
+        "e9-witlight-wit-bo1",
+        "e9-witlight-nowit-bo1"
+      ],
+      "started_at": "2026-09-19T13:32:00.758821+00:00",
+      "rc": 0,
+      "elapsed": {
+        "run_s": 3.0683852729853243,
+        "verify_s": 25.996419748000335
+      },
+      "commit_count": 957171,
+      "verifier": {
+        "status": "no-g2",
+        "reason": null,
+        "rc": 0,
+        "verdict": "serializable",
+        "certified": true,
+        "total_cycles": 0,
+        "integrity": {
+          "clean": true,
+          "orphan_reads": 0,
+          "version_dups": 0,
+          "dup_txids": 0,
+          "genesis_commits": 0,
+          "missing_txids": 0,
+          "write_version_mismatch": 0,
+          "malformed_keys": 0,
+          "framing_violations": 0,
+          "framing_violation_details": [],
+          "lock_coverage_violations": 0,
+          "write_intent_violations": 0,
+          "permutation_violations": 0,
+          "permutation_violation_details": {
+            "counts": {
+              "size-changed": 0,
+              "rcdptr-set-changed": 0,
+              "unknown": 0
+            },
+            "sample": [],
+            "unknown_reason_sample": []
+          },
+          "notes": []
+        },
+        "anomaly_count": 0
+      },
+      "discriminator": {
+        "status": "not-run",
+        "rc": null,
+        "observational_only": false
+      },
+      "observational_only": false,
+      "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+      "witness": false,
+      "run_process": {
+        "argv": [
+          "/scr/t2774-8k2jto1m/build-e9-witlight-nowit-bo1/cc/mocc/ycsb_mocc.exe",
+          "-ycsb_tuple_num=10000",
+          "-thread_num=48",
+          "-ycsb_zipf_skew=0.9",
+          "-ycsb_rratio=50",
+          "-ycsb_rmw=0",
+          "-ycsb_max_ope=10",
+          "-extime=3"
+        ],
+        "cwd": "/scr/t2774-8k2jto1m/run-004-e9-witlight-nowit-bo1/trace",
+        "rc": 0,
+        "timeout": false,
+        "error": null,
+        "elapsed_s": 3.0683852729853243
+      },
+      "verifier_process": {
+        "argv": [
+          "/bin/python3.10",
+          "-B",
+          "-m",
+          "orchestrator.verifier",
+          "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W/smoke/runs/004-e9-witlight-nowit-bo1/trace",
+          "--json",
+          "--protocol",
+          "mocc",
+          "--ccbench-root",
+          "/scr/t2774-8k2jto1m/izanagi_wt_t5vs6rpu/wt",
+          "--expected-commits",
+          "957171"
+        ],
+        "cwd": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run",
+        "rc": 0,
+        "timeout": false,
+        "error": null,
+        "elapsed_s": 25.996419748000335
+      },
+      "finished_at": "2026-09-19T13:32:31.007741+00:00"
+    }
+  ],
+  "bindings": {
+    "runner": {
+      "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/probe/t2779_probe.py",
+      "sha256": "7907a545b719845d69b36590cc90cff6b28c242d3b7140d9c52b4a838798df99",
+      "bytes": 40315
+    },
+    "repo_head": "a99425b66258911973785b11fd7d194884aeec64",
+    "workload": {
+      "extime_s": 3,
+      "records": 10000,
+      "threads": 48,
+      "ycsb_max_ope": 10,
+      "ycsb_rmw": 0,
+      "ycsb_rratio": 50,
+      "zipf_skew": 0.9
+    },
+    "workload_argv": [
+      "-ycsb_tuple_num=10000",
+      "-thread_num=48",
+      "-ycsb_zipf_skew=0.9",
+      "-ycsb_rratio=50",
+      "-ycsb_rmw=0",
+      "-ycsb_max_ope=10",
+      "-extime=3"
+    ],
+    "arms": {
+      "e9-witlight-wit": {
+        "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+        "patches": [
+          {
+            "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run/patches/instr-mocc-lock-coverage.patch",
+            "sha256": "e9e65b7876050865ee1cbc4d3a05516b09a8fe0b18149e0c063632162fd7bb48"
+          },
+          {
+            "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/probe/witlight.patch",
+            "sha256": "0648e2c6de46319da02056cb516d706ff9f09c3c0ffb2cadb6c94ee069473363"
+          }
+        ],
+        "witness": true,
+        "observational_only": false,
+        "source": "/scr/t2774-8k2jto1m/izanagi_wt_5wqvuz57/wt",
+        "source_file_sha256": "d22b8e439ef486019e2abc8b6bb1fe02edfb450655abc7999a13715e6b547264",
+        "configure_argv": [
+          "cmake",
+          "-S",
+          "/scr/t2774-8k2jto1m/izanagi_wt_5wqvuz57/wt",
+          "-B",
+          "/scr/t2774-8k2jto1m/build-e9-witlight-wit",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DENABLE_SANITIZER=OFF",
+          "-DCCBENCH_TRACE=1",
+          "-DCCBENCH_BACK_OFF=0",
+          "-DCCBENCH_BACKOFF_FIXED=-1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_WAL=0",
+          "-DCCBENCH_CCACHE=OFF",
+          "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+          "-DCMAKE_C_COMPILER_LAUNCHER=",
+          "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+          "-DRULE_LAUNCH_COMPILE=",
+          "-DCMAKE_TOOLCHAIN_FILE=",
+          "-DCMAKE_PREFIX_PATH=/scr/t2774-8k2jto1m/gflags-install;/scr/t2774-8k2jto1m/glog-install",
+          "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/t2774-8k2jto1m/thirdparty-src/masstree",
+          "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/t2774-8k2jto1m/thirdparty-src/mimalloc",
+          "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/t2774-8k2jto1m/thirdparty-src/googletest",
+          "-DIZANAGI_GFLAGS_SRC_HEAD=e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+          "-DIZANAGI_GLOG_SRC_HEAD=8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+          "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+          "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+          "-DCMAKE_CXX_FLAGS="
+        ],
+        "configure_defines": [
+          "-DCCBENCH_TRACE=1",
+          "-DCCBENCH_BACK_OFF=0",
+          "-DCCBENCH_BACKOFF_FIXED=-1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_WAL=0",
+          "-DCCBENCH_CCACHE=OFF"
+        ],
+        "binary": "/scr/t2774-8k2jto1m/build-e9-witlight-wit/cc/mocc/ycsb_mocc.exe",
+        "binary_sha256": "22cc9b8d109ed03ce5501aa8217f83784d294b257f5266fab178a0c58669c35a"
+      },
+      "e9-witlight-nowit": {
+        "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+        "patches": [
+          {
+            "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run/patches/instr-mocc-lock-coverage.patch",
+            "sha256": "e9e65b7876050865ee1cbc4d3a05516b09a8fe0b18149e0c063632162fd7bb48"
+          },
+          {
+            "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/probe/witlight.patch",
+            "sha256": "0648e2c6de46319da02056cb516d706ff9f09c3c0ffb2cadb6c94ee069473363"
+          }
+        ],
+        "witness": false,
+        "observational_only": false,
+        "source": "/scr/t2774-8k2jto1m/izanagi_wt_h5snl7xc/wt",
+        "source_file_sha256": "d22b8e439ef486019e2abc8b6bb1fe02edfb450655abc7999a13715e6b547264",
+        "configure_argv": [
+          "cmake",
+          "-S",
+          "/scr/t2774-8k2jto1m/izanagi_wt_h5snl7xc/wt",
+          "-B",
+          "/scr/t2774-8k2jto1m/build-e9-witlight-nowit",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DENABLE_SANITIZER=OFF",
+          "-DCCBENCH_TRACE=1",
+          "-DCCBENCH_BACK_OFF=0",
+          "-DCCBENCH_BACKOFF_FIXED=-1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_WAL=0",
+          "-DCCBENCH_CCACHE=OFF",
+          "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+          "-DCMAKE_C_COMPILER_LAUNCHER=",
+          "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+          "-DRULE_LAUNCH_COMPILE=",
+          "-DCMAKE_TOOLCHAIN_FILE=",
+          "-DCMAKE_PREFIX_PATH=/scr/t2774-8k2jto1m/gflags-install;/scr/t2774-8k2jto1m/glog-install",
+          "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/t2774-8k2jto1m/thirdparty-src/masstree",
+          "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/t2774-8k2jto1m/thirdparty-src/mimalloc",
+          "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/t2774-8k2jto1m/thirdparty-src/googletest",
+          "-DIZANAGI_GFLAGS_SRC_HEAD=e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+          "-DIZANAGI_GLOG_SRC_HEAD=8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+          "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+          "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+          "-DCMAKE_CXX_FLAGS="
+        ],
+        "configure_defines": [
+          "-DCCBENCH_TRACE=1",
+          "-DCCBENCH_BACK_OFF=0",
+          "-DCCBENCH_BACKOFF_FIXED=-1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_WAL=0",
+          "-DCCBENCH_CCACHE=OFF"
+        ],
+        "binary": "/scr/t2774-8k2jto1m/build-e9-witlight-nowit/cc/mocc/ycsb_mocc.exe",
+        "binary_sha256": "8aa45f8810cc2ecba82bddfe1083d2a797297dcecbfd37074d5feac688b6d947"
+      },
+      "e9-witlight-wit-bo1": {
+        "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+        "patches": [
+          {
+            "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run/patches/instr-mocc-lock-coverage.patch",
+            "sha256": "e9e65b7876050865ee1cbc4d3a05516b09a8fe0b18149e0c063632162fd7bb48"
+          },
+          {
+            "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/probe/witlight.patch",
+            "sha256": "0648e2c6de46319da02056cb516d706ff9f09c3c0ffb2cadb6c94ee069473363"
+          }
+        ],
+        "witness": true,
+        "observational_only": false,
+        "source": "/scr/t2774-8k2jto1m/izanagi_wt_5a1yabj3/wt",
+        "source_file_sha256": "d22b8e439ef486019e2abc8b6bb1fe02edfb450655abc7999a13715e6b547264",
+        "configure_argv": [
+          "cmake",
+          "-S",
+          "/scr/t2774-8k2jto1m/izanagi_wt_5a1yabj3/wt",
+          "-B",
+          "/scr/t2774-8k2jto1m/build-e9-witlight-wit-bo1",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DENABLE_SANITIZER=OFF",
+          "-DCCBENCH_TRACE=1",
+          "-DCCBENCH_BACK_OFF=1",
+          "-DCCBENCH_BACKOFF_FIXED=-1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_WAL=0",
+          "-DCCBENCH_CCACHE=OFF",
+          "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+          "-DCMAKE_C_COMPILER_LAUNCHER=",
+          "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+          "-DRULE_LAUNCH_COMPILE=",
+          "-DCMAKE_TOOLCHAIN_FILE=",
+          "-DCMAKE_PREFIX_PATH=/scr/t2774-8k2jto1m/gflags-install;/scr/t2774-8k2jto1m/glog-install",
+          "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/t2774-8k2jto1m/thirdparty-src/masstree",
+          "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/t2774-8k2jto1m/thirdparty-src/mimalloc",
+          "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/t2774-8k2jto1m/thirdparty-src/googletest",
+          "-DIZANAGI_GFLAGS_SRC_HEAD=e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+          "-DIZANAGI_GLOG_SRC_HEAD=8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+          "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+          "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+          "-DCMAKE_CXX_FLAGS="
+        ],
+        "configure_defines": [
+          "-DCCBENCH_TRACE=1",
+          "-DCCBENCH_BACK_OFF=1",
+          "-DCCBENCH_BACKOFF_FIXED=-1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_WAL=0",
+          "-DCCBENCH_CCACHE=OFF"
+        ],
+        "binary": "/scr/t2774-8k2jto1m/build-e9-witlight-wit-bo1/cc/mocc/ycsb_mocc.exe",
+        "binary_sha256": "aba021430e7f4b61ce39100a585c0f246ee2dceb1dd45b5954790a54e20c0394"
+      },
+      "e9-witlight-nowit-bo1": {
+        "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+        "patches": [
+          {
+            "path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run/patches/instr-mocc-lock-coverage.patch",
+            "sha256": "e9e65b7876050865ee1cbc4d3a05516b09a8fe0b18149e0c063632162fd7bb48"
+          },
+          {
+            "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/probe/witlight.patch",
+            "sha256": "0648e2c6de46319da02056cb516d706ff9f09c3c0ffb2cadb6c94ee069473363"
+          }
+        ],
+        "witness": false,
+        "observational_only": false,
+        "source": "/scr/t2774-8k2jto1m/izanagi_wt_t5vs6rpu/wt",
+        "source_file_sha256": "d22b8e439ef486019e2abc8b6bb1fe02edfb450655abc7999a13715e6b547264",
+        "configure_argv": [
+          "cmake",
+          "-S",
+          "/scr/t2774-8k2jto1m/izanagi_wt_t5vs6rpu/wt",
+          "-B",
+          "/scr/t2774-8k2jto1m/build-e9-witlight-nowit-bo1",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DENABLE_SANITIZER=OFF",
+          "-DCCBENCH_TRACE=1",
+          "-DCCBENCH_BACK_OFF=1",
+          "-DCCBENCH_BACKOFF_FIXED=-1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_WAL=0",
+          "-DCCBENCH_CCACHE=OFF",
+          "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+          "-DCMAKE_C_COMPILER_LAUNCHER=",
+          "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+          "-DRULE_LAUNCH_COMPILE=",
+          "-DCMAKE_TOOLCHAIN_FILE=",
+          "-DCMAKE_PREFIX_PATH=/scr/t2774-8k2jto1m/gflags-install;/scr/t2774-8k2jto1m/glog-install",
+          "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/t2774-8k2jto1m/thirdparty-src/masstree",
+          "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/t2774-8k2jto1m/thirdparty-src/mimalloc",
+          "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/t2774-8k2jto1m/thirdparty-src/googletest",
+          "-DIZANAGI_GFLAGS_SRC_HEAD=e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+          "-DIZANAGI_GLOG_SRC_HEAD=8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+          "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+          "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+          "-DCMAKE_CXX_FLAGS="
+        ],
+        "configure_defines": [
+          "-DCCBENCH_TRACE=1",
+          "-DCCBENCH_BACK_OFF=1",
+          "-DCCBENCH_BACKOFF_FIXED=-1",
+          "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+          "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+          "-DCCBENCH_WAL=0",
+          "-DCCBENCH_CCACHE=OFF"
+        ],
+        "binary": "/scr/t2774-8k2jto1m/build-e9-witlight-nowit-bo1/cc/mocc/ycsb_mocc.exe",
+        "binary_sha256": "b9fb8ed1262fb96ca7cc4c2a430fb0047b65264fa90ff3b0d35cb90209049239"
+      }
+    },
+    "arms_json_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/probe/arms-witlight-node1.json",
+    "arms_json_sha256": "ba74088785f3ffcaf708166608c04d5f087b00cd28018f50587566022f9bcd30",
+    "policy_path": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run/tools/pegasus/mocc_trace_v1_policy.json",
+    "policy_sha256": "66ea7135c6d84cfd09013f33da23d8ca8015dcb547e34db7c802644f4986acd6",
+    "toolchain": {
+      "version_body_sha256": {
+        "gcc": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0",
+        "g++": "b713e6ab62b67126b772f6b0a8d9751070f0d0315c7017291cb5dde67747b9c0"
+      },
+      "cc_path": "/usr/bin/x86_64-linux-gnu-gcc-11",
+      "cxx_path": "/usr/bin/x86_64-linux-gnu-g++-11"
+    },
+    "base_dir": "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run/external/ccbench",
+    "base_git_dir": "/work/1/SFC/tanab/izanagi/.git/worktrees/dev-wave-mocc-witlight-arm-run/modules/external/ccbench",
+    "warmup_configure_argv": [
+      "cmake",
+      "-S",
+      "/scr/t2774-8k2jto1m/izanagi_wt_5wqvuz57/wt",
+      "-B",
+      "/scr/t2774-8k2jto1m/warmup",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DENABLE_SANITIZER=OFF",
+      "-DCCBENCH_TRACE=1",
+      "-DCCBENCH_BACK_OFF=0",
+      "-DCCBENCH_BACKOFF_FIXED=-1",
+      "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+      "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+      "-DCCBENCH_WAL=0",
+      "-DCCBENCH_CCACHE=OFF",
+      "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+      "-DCMAKE_C_COMPILER_LAUNCHER=",
+      "-DCMAKE_CXX_COMPILER_LAUNCHER=",
+      "-DRULE_LAUNCH_COMPILE=",
+      "-DCMAKE_TOOLCHAIN_FILE=",
+      "-DCMAKE_PREFIX_PATH=/scr/t2774-8k2jto1m/gflags-install;/scr/t2774-8k2jto1m/glog-install",
+      "-DFETCHCONTENT_SOURCE_DIR_MASSTREE=/scr/t2774-8k2jto1m/thirdparty-src/masstree",
+      "-DFETCHCONTENT_SOURCE_DIR_MIMALLOC=/scr/t2774-8k2jto1m/thirdparty-src/mimalloc",
+      "-DFETCHCONTENT_SOURCE_DIR_GOOGLETEST=/scr/t2774-8k2jto1m/thirdparty-src/googletest",
+      "-DIZANAGI_GFLAGS_SRC_HEAD=e171aa2d15ed9eb17054558e0b3a6a413bb01067",
+      "-DIZANAGI_GLOG_SRC_HEAD=8f9ccfe770add9e4c64e9b25c102658e3c763b73",
+      "-DCMAKE_C_COMPILER=/usr/bin/x86_64-linux-gnu-gcc-11",
+      "-DCMAKE_CXX_COMPILER=/usr/bin/x86_64-linux-gnu-g++-11",
+      "-DCMAKE_CXX_FLAGS="
+    ],
+    "configure_defines": [
+      "-DCCBENCH_TRACE=1",
+      "-DCCBENCH_BACK_OFF=0",
+      "-DCCBENCH_BACKOFF_FIXED=-1",
+      "-DCCBENCH_NO_WAIT_LOCKING_IN_VALIDATION=1",
+      "-DCCBENCH_NO_WAIT_OF_TICTOC=0",
+      "-DCCBENCH_WAL=0",
+      "-DCCBENCH_CCACHE=OFF"
+    ]
+  },
+  "output_dir": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/arm-W/smoke",
+  "scratch": "/scr/t2774-8k2jto1m",
+  "summary": {
+    "schema_version": "t2774-summary/v1",
+    "arms": {
+      "e9-witlight-wit": {
+        "N": 1,
+        "m": 1,
+        "k": 0,
+        "failure": 0,
+        "indeterminate": 0,
+        "decisive_m": 1,
+        "k_over_m": 0.0,
+        "cp95": [
+          0.0,
+          0.9750000000000001
+        ],
+        "k_over_decisive_m": 0.0,
+        "decisive_cp95": [
+          0.0,
+          0.9750000000000001
+        ],
+        "all_submitted_rate_bounds": [
+          0.0,
+          0.0
+        ],
+        "discriminator_counts": {
+          "supported": 0,
+          "contradicted": 0,
+          "indeterminate": 0,
+          "no-g2": 0,
+          "input-rejected": 0,
+          "not-run": 1
+        },
+        "comparisons": [],
+        "identification": {
+          "g2_runs": 0,
+          "identified_g2_runs": 0,
+          "rate": null
+        }
+      },
+      "e9-witlight-nowit": {
+        "N": 1,
+        "m": 1,
+        "k": 0,
+        "failure": 0,
+        "indeterminate": 0,
+        "decisive_m": 1,
+        "k_over_m": 0.0,
+        "cp95": [
+          0.0,
+          0.9750000000000001
+        ],
+        "k_over_decisive_m": 0.0,
+        "decisive_cp95": [
+          0.0,
+          0.9750000000000001
+        ],
+        "all_submitted_rate_bounds": [
+          0.0,
+          0.0
+        ],
+        "discriminator_counts": {
+          "supported": 0,
+          "contradicted": 0,
+          "indeterminate": 0,
+          "no-g2": 0,
+          "input-rejected": 0,
+          "not-run": 1
+        },
+        "comparisons": [],
+        "identification": {
+          "g2_runs": 0,
+          "identified_g2_runs": 0,
+          "rate": null
+        }
+      },
+      "e9-witlight-wit-bo1": {
+        "N": 1,
+        "m": 1,
+        "k": 0,
+        "failure": 0,
+        "indeterminate": 0,
+        "decisive_m": 1,
+        "k_over_m": 0.0,
+        "cp95": [
+          0.0,
+          0.9750000000000001
+        ],
+        "k_over_decisive_m": 0.0,
+        "decisive_cp95": [
+          0.0,
+          0.9750000000000001
+        ],
+        "all_submitted_rate_bounds": [
+          0.0,
+          0.0
+        ],
+        "discriminator_counts": {
+          "supported": 0,
+          "contradicted": 0,
+          "indeterminate": 0,
+          "no-g2": 0,
+          "input-rejected": 0,
+          "not-run": 1
+        },
+        "comparisons": [],
+        "identification": {
+          "g2_runs": 0,
+          "identified_g2_runs": 0,
+          "rate": null
+        }
+      },
+      "e9-witlight-nowit-bo1": {
+        "N": 1,
+        "m": 1,
+        "k": 0,
+        "failure": 0,
+        "indeterminate": 0,
+        "decisive_m": 1,
+        "k_over_m": 0.0,
+        "cp95": [
+          0.0,
+          0.9750000000000001
+        ],
+        "k_over_decisive_m": 0.0,
+        "decisive_cp95": [
+          0.0,
+          0.9750000000000001
+        ],
+        "all_submitted_rate_bounds": [
+          0.0,
+          0.0
+        ],
+        "discriminator_counts": {
+          "supported": 0,
+          "contradicted": 0,
+          "indeterminate": 0,
+          "no-g2": 0,
+          "input-rejected": 0,
+          "not-run": 1
+        },
+        "comparisons": [],
+        "identification": {
+          "g2_runs": 0,
+          "identified_g2_runs": 0,
+          "rate": null
+        }
+      }
+    },
+    "denominator": "m counts valid verifier verdicts, including indeterminate; decisive_m excludes zero-cycle indeterminate; neither failure nor indeterminate is no-g2",
+    "interval_assumption": "independent Bernoulli trials; node dependence not modeled"
+  },
+  "finished_at": "2026-09-19T13:32:31.186714+00:00",
+  "not_started": 0
+}

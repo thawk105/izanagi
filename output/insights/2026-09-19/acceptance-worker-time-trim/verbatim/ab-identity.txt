@@ -1,0 +1,12 @@
+side=A root=/work/1/SFC/tanab/izanagi/.claude/worktrees/ab-base-acceptance-worker-time-trim
+657e1e5a7860a0ff77fd02ab37a6cb58b64cc78c
+status:
+ 511c9538e4e8efa54b45cda62e72389ed3b706ec external/ccbench (v1.1.0-126-g511c9538)
+ fb14e6597ecf7cc206af8f3424ca22503bb1e17d external/ccbench/third_party/shirakami (heads/master)
+ f8d7d77c06936315286eb55f8de22cd23c188571 external/ccbench/third_party/shirakami/third_party/googletest (release-1.8.0-3335-gf8d7d77c)
+side=B root=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-worker-time-trim
+ecff42ec691daf0611fa70777a6185b47bf8b1b8
+status:
+ 511c9538e4e8efa54b45cda62e72389ed3b706ec external/ccbench (v1.1.0-126-g511c9538)
+ fb14e6597ecf7cc206af8f3424ca22503bb1e17d external/ccbench/third_party/shirakami (heads/master)
+ f8d7d77c06936315286eb55f8de22cd23c188571 external/ccbench/third_party/shirakami/third_party/googletest (release-1.8.0-3335-gf8d7d77c)

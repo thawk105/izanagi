@@ -55,7 +55,68 @@ D2049 が定めるとおり、逆対応の逐語適用は片側の境界を過�
 スナップショットは凍結物なので腐る。ここは腐らない入口として、最新版の記述が既に古くなった箇所を
 指す。**矛盾があればここが指す一次資料が勝つ。**
 
-**現在この節に積んでいる項目は 0 件である。**
+**現在この節に積んでいる項目は 9 件である。** いずれも 2026-09-19 版の導出起点 (local main `a99425b66`、2026-09-19 21:41 JST)
+より後、同日夜〜翌 2026-09-20 未明に local main へ着地した事実で、同版の記述は執筆時点では真であり、後続で古くなった型である。
+同版は凍結物なので書き換えず、ここで指す一次資料が勝つ。**着地の順は同版が作られた wave の受入待ちの間であり、同版の
+段 6 レビューはこれらを読んでいない。**
+
+- **A-1 sized attempt-0002 は 1 attempt 認可されたが、既存 submit 経路の gate で qsub 前に拒否され投入されなかった (2026-09-19、
+  entry 1687、D2156)。** 同版 §8 の A-1 (「再投入・再認可はユーザー手番で判定されていない」「再投入は行われていない」) と §0 の前進 1・
+  §6・§7 の同趣旨は、執筆時点では真であった。ユーザー裁定 (2026-09-19) が「独立再現として 1 attempt を認可、非認証 lane を維持、
+  落ちたら再投入せず止める」と定め、投入前照合 21 項目はすべて成立したが、submit は 22:05:30→22:05:36 JST に rc 2、stderr
+  `paper-story A-1 refused: prior attempt reached the bench barrier; group rerun is prohibited` (`_assert_no_prior_v3_bench_start`、
+  規律 2 由来の防壁、commit `abff80d1b`) で停止した。**測定値は無く、attempt-0002 の results 稿・2 attempt の並記・図は存在しない。**
+  gate は緩めず、同じ study の 2 本目をどの経路で投入可能にするかは裁定パッケージ (択 1〜3) として返された。一次資料 =
+  `output/insights/2026-09-19/a1-sized-attempt2/README.md`。**同版の「A-1 の値がある」とは書かない扱いと、L-A1S-4 (単一 attempt を
+  反復間の安定性へ一般化しない) はそのまま残る。**
+- **B-10 静的右 tail の第 2 cohort (独立再現) が完走し、集団判定が出た (2026-09-19、entry 1690、D2157)。** 同版 §8 の B-10
+  (「第 2 cohort の地位は未決 (D2050) で再現 cohort の保留は維持 (D2120 項 16)」)、§4 の Fig 8 の注意 (「再現 cohort の保留は維持」)、
+  §6・§7・§9 の同趣旨は、執筆時点では真であった。ユーザー決定 (2026-09-19) 「第 2 cohort は独立再現。cohort 1 の verdict を主として
+  保持し、cohort 2 の verdict は再現欄に併記。合成しない」を結果を見る前に事前登録 `docs/b10-backoff-static-tail-preregistration.md`
+  の末尾追記 (commit `8737cacb4`、22:01 JST) で固定し (D2050 の充足)、group `b10-backoff-grid-20260919T131526Z-2235286`
+  (job `10752` / `10753` / `10754`) の集団 `verdict` は `not-observed-in-any-workload` (3 workload とも `not-observed`、18 区間すべて
+  `declining`、`failures` 空、正しさ 120 記録 certified・anomaly 0)。**cohort 1 と同じ verdict だが合成せず、言い方は事前登録 §4.5 の
+  固定表現に限り、「再現されたので飽和しない」とは書かない。`performance_certified: false` のまま。** 統制稿は
+  `results/2026-09-19-b10-static-tail-cohort2.md` (限定 16 件、図は無い — fig8 は cohort 1 の図で、再現欄の追加は別 wave)、一次資料は
+  `output/insights/2026-09-19/b10-tail-cohort2/README.md`。**B-10 は閉じていない。**
+- **K2 手動 loop の 3 巡目が critic-2 診断入りで実走された (2026-09-19、entry 1691)。** 同版 §0 の前進 9・§2 (c)・§6・§8 の B-6
+  (「3 巡目は未実走」「実受領・採用・効果は別の実走で確認する」) は執筆時点では真であった。ユーザー決定 (2026-09-19) 「候補の生成 1 回・
+  評価 1 本・同 job の stock 対照 1 本、再投入なし」の縮小走行で、D2155 の診断経路が初めて実走し、critic-2 逐語 → 6 field →
+  planner-4 (decrease / large) / coder-4 (`value=10` = 診断の候補値と同じ、既知値列挙外) → job `10761.nqsv` (Elapse 69 秒) が
+  serializable / certified / anomalies 0、median 815,983 tps (CV 0.16%)、停止判定 `continue`。critic-3 は帰属不能 (3 巡連続)。
+  **診断は既知値 20 / 25 を開示するので「値を見せていない」とは書かず、非同時刻の 3 走 (20 / 25 / 10) は改善・退行の根拠にしない。
+  同 job の stock 対照は未達 (縮小走行)。** 一次資料 = `output/insights/2026-09-19/k2-loop-round3/README.md`。
+- **B-4 床値 (floor-pair) の w1 が凍結 spec 3 本で実投入され、3 job とも terminal complete で完走した (2026-09-19〜20、entry 1693、
+  [T-2288] (b))。** 同版 §2 (c)・§8 の B-4 (「測定そのものは基準 HEAD の時点で始まっていない」) は執筆時点では真であった。実行 HEAD
+  `2ba400087` の detached checkout から rr95 `10711.nqsv` / rr50 `10712.nqsv` / rr5 `10713.nqsv` を投入し、初回実配送の証拠 (8 変数・
+  walltime・signal・到達段・receipt) を記録した。**w2 と finalize は後続 wave であり、集約発行・採用裁定・§5 記入は行われていない。
+  ablation (B-4 本体) は適格な赤 precursor 0 件のまま実施不可である。** 一次資料 = `output/insights/2026-09-19/t2288-floor-pair-w1/README.md`。
+- **freeze v2 g1 の chain を main へ運ぶ 2 度目の試みも land せず、記録だけが land した (2026-09-19、entry 1688)。** 同版 §8 の A-4
+  (「chain は main に未取り込み、A / X は人間手番、未発効」) は**今も真**であり、ここに積むのは理由が変わった点である — 保存枝
+  chain (X1' / X2) と G を merge した木 (三軸走査 hit 4/4 = 設計どおり、焦点走 8 file 0 failed) の受入全走が、B-10 の freeze-tree
+  byte pin 1 node (`test_b10_freeze_tree_bytes_match_the_wave_local_gate`) で赤になり、pin 更新は D2120 (b) の射程外として merge 済み
+  状態を branch `t2724-chain-land-2-saved` (`0a799da6c`) に保存した。一次資料 = `output/insights/2026-09-19/t2724-chain-land-2/README.md`。
+- **mocc の軽量 witness を hook branch に実装し 4 arm × 60 走を実測した (2026-09-19〜20、entry 1696)。** 同版の「観測 3 件」に
+  4 件目が加わる。on 0/60・0/60、off 1/60・1/60、discriminator 未発火。非 certifying で、昇格・pin 前進・変異探索は認可されていない
+  (ユーザー決定 2026-09-19)。測定は pin `e9e477ca` + [X/P、測定 patch] で TRACE=1 観測専用 (合成 source の TRACE=0 identity は未担保)。
+  認可枠 60/arm の検出力は 0.105 で上限として明記。一次資料 = `output/insights/2026-09-19/mocc-witlight-arm-run/README.md`。
+  **同版の「根因は未同定」「mocc は第 2 成功例とは書かない」は変わらない。**
+- **[T-2773] mocc の auditor-live 相当の機械実証 wave 2 が実走された (2026-09-20、entry 1701、D2159)。** 同版 §8 の C-1
+  (「後続は 2 wave」「wave 1 … 正式 template は含まず」) は執筆時点では真であった。ユーザー決定 (2026-09-19) が「mocc 温度述語軸の
+  オンボーディング段階 A を承認し wave 2 を認可する。探索および pin 前進は認可しない」と定め、温度述語 template (1 helper・1 hole・
+  4 callsite・OFF 原文保存) を `e9e477ca` へ接続し、compute (`11161.nqsv`) で 30 check all_pass、OFF = stock は実 resolver の正規化前処理
+  identity で一致・ON-B は別 identity、n=1 の fresh `auditor` 子の判定 (A1' reject / A2' reject / B' pass) を取った。**探索・pin 前進は
+  未解禁のまま。** 一次資料 = `output/insights/2026-09-19/t2773-mocc-template-wave2/README.md`。
+- **B-5 生成器対照 (K2 loop / ランダム変異 / 機械 sweep) の事前登録 v1 が作られた (2026-09-20、entry 1692、D2158)。** 同版 §8 の
+  B-5 (「設計は 3 アームで書かれ、非拘束の設計メモに留めてある (D1012)」) は執筆時点では真であった。`docs/b5-generator-contrast-preregistration.md`
+  (v1、**未発効**) が固定 backoff hole の内で 3 生成器を同一評価数で比べる主張の形・評価数予算・score・判定順を結果を見る前に固定した。
+  **本走・生成器の実装・D1409 の条件変更は認可されておらず、B-5 の対照は依然として未取得である。** 一次資料 =
+  `output/insights/2026-09-19/b5-generator-contrast-prereg/README.md`。
+- **A-2 認証系列の `scheduler.nodes=5` が policy に整合された (2026-09-19、entry 1686、[T-2489])。** 同版 §0 の前進 12・§7
+  (「基準 HEAD の A-2 policy は `nodes: 1` のまま」「D2148 項 5 の採用裁定は未実装」) は執筆時点では真であった。policy 1 key・literal pin・
+  host / nodefile / qsub fixture が同時に整合され、node-local lock の局所候補は計算ノード 2 台の実測 (`9137.nqsv`) で同一ノード内の
+  既存排他を失うため**不採用**となった。**A-2 の新しい attempt は走っておらず、A-2 の判定 (`observed-positive`) は動いていない。**
+  一次資料 = `output/insights/2026-09-19/t2489-a2-nodes5-local-lock/README.md`。
 
 2026-09-19 版は同日 21:41 JST の local main
 (`a99425b66`、worklog entry 1685 までの fold を含む) から導出している。前版 (2026-09-17 版) に対して積んでいた
@@ -73,7 +134,7 @@ D2049 が定めるとおり、逆対応の逐語適用は片側の境界を過�
    A-1、§9 の第 4 種。非認証 lane の descriptive 出力として置き、「A-1 の値がある」とは書かず、A-1 の充足・formal 化・
    再投入・再認可は未判定 (ユーザー手番、D2044 項 8 / D2120 項 3) と書く。claim-evidence 稿の A-1 行は凍結物として不変。
 
-**積んでいる項目の少なさは「最新版に誤りが無い」という保証ではない。** 2026-09-19 版は前版の執筆時点の誤りを 0 件と判定したが、2026-09-17 版が自分の前版に
+**積んでいる項目の数は「最新版に誤りが有る」ことも「無い」ことも保証しない。** 上の 9 件はいずれも「当時は真で後続が古くした」型であり、執筆時点の誤りではない。2026-09-19 版は前版の執筆時点の誤りを 0 件と判定したが、2026-09-17 版が自分の前版に
 執筆時点で既に偽だった記述を 3 件 (前版の冒頭) 見つけた型の誤りは、最新版にもありうる。
 **次に正典が動いたら、その項目をここへ積む。**
 **項目が積まれること自体は、新しい日付の版を作る要求にはならない** (D1858)。
@@ -173,6 +234,7 @@ claim-evidence が「主張ごとに何を書けて何が弱めているか」�
 | 2026-09-18 | `results/2026-09-18-a6-certification-reject.md` | A-6 read-heavy 正式 certification (attempt `a6-20260908b`、request `982234.nqsv`、2026-09-08、rr95 の exact 2 cell = stock `BACK_OFF=0` 対 採用静的 backoff 2 µs、生標本 2 cell、限定 12 件、図は無い)。**1 attempt の一次資料全体 (権威 bytes・raw manifest・WAL・受領証・裁定) から作った単独稿**で、同じ rr95 の値を併記する横断稿 (2026-09-14 / 2026-09-16 の B-7 稿) を出所にしない ([T-2611])。B-10 read-heavy 本走 3 block との同符号・同程度は近接条件の別実行による履歴的照合であって再現ではなく、反復 attempt は行わない ([T-2430])。実行基盤測定の −4.876% は attempt に数えない (D1870)。限定は D1993 項 3 の (i)〜(iv) に identity 層の (v) ([T-2630]、D2108) を加えた 5 つを含む | outer `reject` (効果 −5.7841%、`a4_noise_floor_status` は `open`、有意差判定なし)。correctness は別の trace-enabled 走行で 2 cell とも certified (性能の判定ではない)。**性能の `reject` は正しさ証拠の欠落ではない (D1993 項 2)。この attempt の執筆材料にはこの稿を使う** |
 | 2026-09-18 | `results/2026-09-18-a1-balanced5-sized-attempt1-descriptive.md` | A-1 balanced5 sized 本走 attempt-0001 (study `paper-story-a1-20260901-balanced5-sized-v1`、job `4939` / `4940` / `4941`、2026-09-18、source `d2ebef7a4`、3 workload × 30 対 × 2 arm = 生標本 180、限定 20 件、図 9)。**1 attempt の一次資料全体 (公開 leaf の result.json / receipt.json / .complete.json、campaign WAL 3 本、事前登録、policy v3、裁定) から作った単独稿**で、stale 注記・記録 insight・版を数値の出所にしない ([T-2611] / [T-2674] の型)。登録済み解析の descriptive 出力 (対差平均 ± h と床 ±B の分類) を書き写す。**A-1 の充足・formal 化・再投入・再認可は判定しない** (認可はユーザー手番、D2044 項 8)。図 9 は本稿を `caption_source` として束縛するので、稿は provenance の sha256 を持たない (F36、正本は `figures/README.md` の fig9 節) | 単一の outer status を持たない非認証 lane (`formal=false` / `promotion_prohibited=true` / `result_authority=sized-preregistered-descriptive-only`)。登録済み解析の分類は 3 workload とも `resolved-above-floor` (対差平均の符号 write-heavy 正 / balanced 正 / read-heavy 負、`variance_plan_breach` false ×3)。correctness は別の trace-enabled verify で 6 arm とも certified・anomaly 0 (性能の判定ではない)。**headline 値・workload 横断の結論・C1 の再現判定にせず、単一 attempt を反復間の安定性へ一般化しない。この attempt の執筆材料にはこの稿を使う** |
 | 2026-09-18 | `results/2026-09-18-t1998-balanced-stock-inline-accepted.md` | [T-1998] balanced の stock-inline 対 (無 backoff 対 静的 fixed 5 µs) の**単独稿**。事前登録 `docs/t1998-balanced-stock-inline-preregistration.md` v1 の下の 1 試行 (job `995755.nqsv`、測定 2026-09-13、認証 2026-09-14、着地後 main での再解析 2026-09-15) を、2026-09-16 の横断稿から引き継がず一次資料 (権威 bytes・campaign lock と WAL・事前登録・裁定) から作り直した ([T-2674]、D2120 項 15 の型)。生標本 2 arm、限定 20 件。成果物に無い情報・束縛の範囲・本稿で未照合の対応は §4 に区別して明記。図は無い | consumer の **`accepted`** (reason `preregistered-balanced-stock-inline-pair`、ratio 1.1122537536191646、improvement_percent 11.225375361916456)。producer 側の `complete` とは別の出力。**各 arm 5 標本の median 比であって A-1 の対差平均ではなく、A-2 / A-6 とプールせず (D1993 項 6)、B-7 の要件充足でもない (D2044 項 3)。有意差判定でも区間推定でもない。** correctness は campaign WAL の `verify_done` で 2 arm とも `serializable` / `certified` / anomaly 0 (legacy 条件 1 回ずつ。性能の判定ではない) |
+| 2026-09-19 | `results/2026-09-19-b10-static-tail-cohort2.md` | 見送り台帳の項目 B-10 (機序説明の帯域外への拡張) の静的 backoff 右 tail について、**主結果 (2026-09-16 稿の cohort 1) に対する独立再現 = 第 2 cohort** (group `b10-backoff-grid-20260919T131526Z-2235286`、`run_kind` `t2500-tail-formal`、job `10752` / `10753` / `10754`、2026-09-19、事前登録の 2026-09-19 追記込み commit `8737cacb4` に束縛、3 workload × 8 点 = 24 cell、性能 120 rep・正しさ 120 記録、生標本 24 cell、限定 16 件)。地位は結果を見る前に事前登録追記 (D2050 の充足、ユーザー決定 2026-09-19) で固定: cohort 1 の verdict を主として保持し、第 2 cohort の verdict は再現欄 (同稿 §2.6) に併記、**合成しない**。投入時に失敗した attempt 1 (依存 source 不在、測定なし) を §1.5 に開示。file 名は結果前に中立名で固定。**2026-09-16 稿を改めるものではない**。図は無い (fig8 は cohort 1 の図。再現欄の追加は生成器の改変を要し別 wave) | 集団 `verdict` は `not-observed-in-any-workload` (3 workload とも `not-observed`、18 区間すべて `declining`、局所平坦区間 0、`failures` 空)。cohort 1 と同じ verdict だが、**言い方は事前登録 §4.5 の固定表現に限り「再現されたので飽和しない」とは書かない**。correctness は trace-enabled の別走行で 120 記録とも certified・anomaly 0 (性能の判定ではない)。**`performance_certified: false` のままで、性能値を採用根拠にしない。2 cohort の統合 verdict・プール推定・またぐ有意水準は作らない** |
 
 **この系列の規則。**
 

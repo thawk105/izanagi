@@ -45,6 +45,7 @@ _COMPILE_TIME_BRANCH_MACROS = (
     "IZANAGI_BREAK_WRITE_INTENT_PTRSWAP",
     "IZANAGI_BREAK_NOREAD_VALIDATION",
     "IZANAGI_BREAK_HIGHKEY_VALIDATION",
+    "MOCC_TEMP_PREDICATE",
 )
 
 
@@ -242,7 +243,7 @@ def _compile_time_source_root(
     owner.parent.mkdir(parents=True)
     if owner_text is None:
         branch = (
-            (directive or f"#if {macro}") + "\n"
+            (directive or ("#if MOCC_TEMP_PREDICATE // file-scope helper" if macro == "MOCC_TEMP_PREDICATE" else f"#if {macro}")) + "\n"
             "int izanagi_compile_time_selected = 1;\n"
             + ("#endif\n" if close else "")
         )
@@ -262,7 +263,7 @@ def _patch_added_branch_declaration(macro: str) -> tuple[str, str]:
         if line.startswith("+++ b/"):
             current_target = line.removeprefix("+++ b/")
         elif line.startswith("+") and not line.startswith("+++") \
-                and line[1:] == f"#if {macro}":
+                and line[1:] == ("#if MOCC_TEMP_PREDICATE // file-scope helper" if macro == "MOCC_TEMP_PREDICATE" else f"#if {macro}"):
             assert current_target is not None
             matches.append((current_target, line[1:]))
     assert len(matches) == 1
@@ -985,7 +986,7 @@ def test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches(
             ).read_text(encoding="utf-8").splitlines()
             if line == patch_declaration[1]
         ]
-        assert fixture_directives == [f"#if {macro}"]
+        assert fixture_directives == [("#if MOCC_TEMP_PREDICATE // file-scope helper" if macro == "MOCC_TEMP_PREDICATE" else f"#if {macro}")]
         assert (patch_declaration[0], fixture_directives[0]) \
             == patch_declaration
         assert G.CONDITIONAL_BRANCH_WITNESSES[macro] == patch_declaration
@@ -2669,6 +2670,7 @@ def test_patch_target_decoder_and_fixture_holes_are_independently_anchored():
 
 def test_v1_domain_and_claim_boundaries_are_exact():
     supply_domain = {
+        "MOCC_TEMP_PREDICATE",
         "BACKOFF_FIXED", "BACKOFF_INCR_MILLI", "BACKOFF_MAX_US",
         "BACKOFF_COUNT_WINDOW", "BACKOFF_COUNT_CAP_US", "BACKOFF_STEP_ADAPT",
         "BACKOFF_STEP_MIN_MILLI", "BACKOFF_STEP_MAX_MILLI",
@@ -2695,6 +2697,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     assert G.MEANING_SUPPORTED_MACROS < G.SUPPLY_DOMAIN_MACROS
     assert not hasattr(G, "SUPPORTED_MACROS")
     assert G.RELATED_DEFINE_DECODE_MACROS == {
+        "MOCC_TEMP_PREDICATE",
         "BACKOFF_FIXED", "BACKOFF_NOINLINE", "BACKOFF_REQUESTED_US",
         "BACKOFF_TRIGGER_GATING", "SORT_VARIANT", "SS2PL_LOCK_IMPL",
         "SS2PL_LOCK_KIND", "SS2PL_DLR", "SS2PL_WFG_DIAG",
@@ -2778,7 +2781,7 @@ def test_v1_domain_and_claim_boundaries_are_exact():
     ].companion_defines == (("IZANAGI_SILO_LADDER_RUNG1", "1"),)
     assert sum(
         spec.route == G.ROUTE_CMAKE_CACHE for spec in G.DEFINE_SPECS.values()
-    ) == 22
+    ) == 23
     assert sum(
         spec.route == G.ROUTE_CMAKE_CXX_FLAGS for spec in G.DEFINE_SPECS.values()
     ) == 17
@@ -2901,9 +2904,9 @@ def test_define_inventory_includes_counterfactual_defaults() -> None:
 
 
 def test_module_claim_names_the_exact_38_define_supply_domain() -> None:
-    assert "supply domain contains the 39 patch-derived defines" in G.__doc__
-    assert "registered macros plus four mocc controls additionally have a bounded" in G.__doc__
-    assert "compile-time witness (15 total)" in G.__doc__
+    assert "supply domain contains the 40 patch-derived defines" in G.__doc__
+    assert "registered macros plus five mocc controls additionally have a bounded" in G.__doc__
+    assert "compile-time witness (16 total)" in G.__doc__
 
 
 def test_captured_input_hash_drift_fails_closed():

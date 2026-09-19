@@ -1,0 +1,324 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 240,
+  "timeout_seconds": 4800,
+  "hang_timeout_seconds": 5400,
+  "mutations": [
+    {
+      "id": "M0-equivalent-docstring",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s3_mocc_template_proof.py",
+          "old": "\"\"\"Fixed-producer MOCC template proof; no performance or exploration authority.\"\"\"\n",
+          "new": "\"\"\"Fixed-producer MOCC template proof. It carries no performance or exploration authority.\"\"\"\n"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1-template-stock-branch-gt",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/mocc-temperature-predicate-variant.patch",
+          "old": "+#else\n+  return temp >= threshold;\n+#endif\n",
+          "new": "+#else\n+  return temp > threshold;\n+#endif\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_mutation_surface_requires_auditor_live",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_temperature_axis_contract",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_proof_json_is_complete_and_bound",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_quarantine_controls"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-site566-on-side-stock-compare",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/mocc-temperature-predicate-variant.patch",
+          "old": "@@ -563,7 +590,11 @@\n   /**\n    * If this record has high temperature, use lock.\n    */\n+#if MOCC_TEMP_PREDICATE\n+  if (mocc_is_hot(loadepot.temp, FLAGS_temp_threshold)) lock(tuple, true);\n",
+          "new": "@@ -563,7 +590,11 @@\n   /**\n    * If this record has high temperature, use lock.\n    */\n+#if MOCC_TEMP_PREDICATE\n+  if (loadepot.temp >= FLAGS_temp_threshold) lock(tuple, true);\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_mutation_surface_requires_auditor_live",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_temperature_axis_contract",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_proof_json_is_complete_and_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-instr-line-1204-off-by-one",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/instr-mocc-lock-coverage-temperature.patch",
+          "old": "+#line 1204\n",
+          "new": "+#line 1205\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_mutation_surface_requires_auditor_live",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_instrumentation_logical_rows",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_instrumentation_preserves_body",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_proof_json_is_complete_and_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-template-outer-guard-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/mocc-temperature-predicate-variant.patch",
+          "old": "@@ -9,6 +9,25 @@\n",
+          "new": "@@ -9,6 +9,23 @@\n"
+        },
+        {
+          "file": "patches/mocc-temperature-predicate-variant.patch",
+          "old": "+#if MOCC_TEMP_PREDICATE // file-scope helper\n+namespace {\n",
+          "new": "+namespace {\n"
+        },
+        {
+          "file": "patches/mocc-temperature-predicate-variant.patch",
+          "old": "+} // namespace\n+#endif\n",
+          "new": "+} // namespace\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_mutation_surface_requires_auditor_live",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_temperature_axis_contract",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_instrumentation_logical_rows",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_instrumentation_preserves_body",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_off_matches_stock_and_on_is_distinct",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_proof_json_is_complete_and_bound",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_quarantine_controls"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-axis-marker-id-renamed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/axis_mocc_temperature.py",
+          "old": "MARKER_ID = \"mocc-temperature-predicate\"\n",
+          "new": "MARKER_ID = \"mocc-temperature-predicate-x\"\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_mutation_surface_requires_auditor_live",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_temperature_axis_contract",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_off_matches_stock_and_on_is_distinct",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_proof_json_is_complete_and_bound",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_quarantine_controls"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-binding-sha-check-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/axis_mocc_temperature.py",
+          "old": "            require(record[\"sha256\"] == hashlib.sha256((Path(repo_root) / relative).read_bytes()).hexdigest(), \"asset sha256\")\n",
+          "new": "            pass\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_consumer_binding_controls"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-gate-key-a-disabled",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/axis_mocc_temperature.py",
+          "old": "        elif in_hunk and target == SOURCE_REL and line.startswith(\"+\") and \"EVOLVE-BLOCK-BEGIN\" in line:\n            return True\n",
+          "new": "        elif in_hunk and target == SOURCE_REL and line.startswith(\"+\") and \"EVOLVE-BLOCK-BEGIN\" in line:\n            return False\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_consumer_binding_controls",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_gate_activation_controls"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-dq-subtype-mismatch-allowed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s3_mocc_template_proof.py",
+          "old": "records[n][\"passed\"] is passed and records[n][\"subtype\"] == subtype for n,passed,subtype in QUARANTINE_EXPECTED if n in names)",
+          "new": "records[n][\"passed\"] is passed for n,passed,subtype in QUARANTINE_EXPECTED if n in names)"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_checks_are_input_derived"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-auditor-gallery16-mocc-sentence-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": ".claude/agents/auditor.md",
+          "old": " mocc の読取契約は、値渡しされた temp と threshold、bool / 整数定数による比較・論理結合だけである。",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_auditor_definition_items_are_item_scoped",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_mutation_surface_requires_auditor_live",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_proof_json_is_complete_and_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12a-definespec-entry-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/condition_meaning_gate.py",
+          "old": "    \"MOCC_TEMP_PREDICATE\": DefineSpec(\n        ROUTE_CMAKE_CACHE, _MOCC_OWNER, \"ycsb_mocc.exe\",\n        \"patches/mocc-temperature-predicate-variant.patch\",\n        inert_values=(\"0\",),\n    ),\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_registry_and_fixtures_are_bound_to_real_patches",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_compile_time_branch_selection_accepts_each_registry_macro[MOCC_TEMP_PREDICATE]",
+        "orchestrator/tests/test_condition_meaning_gate.py::test_v1_domain_and_claim_boundaries_are_exact",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_condition_gate_uses_new_driver_id"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12b-materializer-entry-removed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/materializer_admission.py",
+          "old": "    \"orchestrator.campaign.s3_mocc_template_proof._build_variant\":\n        MaterializerRegistration(\n            NON_ADMISSIBLE,\n            \"fixed-producer mocc template proof; never source performance values\",\n        ),\n",
+          "new": ""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_p3_build_authority_cli.py::test_python_ccbench_manual_materializers_are_explicitly_non_admissible",
+        "orchestrator/tests/test_p3_build_authority_cli.py::test_single_registry_has_typed_compatible_projections",
+        "orchestrator/tests/test_s8b_floor_campaign.py::test_materializer_registry_covers_all_python_build_launches"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13-on-identity-check-constant-true",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/s3_mocc_template_proof.py",
+          "old": "    check(\"template_on_benign_identity_distinct\", on)\n",
+          "new": "    check(\"template_on_benign_identity_distinct\", lambda: True)\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_checks_are_input_derived"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14-instr-x-entry-check-false",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "patches/instr-mocc-lock-coverage-temperature.patch",
+          "old": "+    if (!izanagi_cll_has_writer ||\n",
+          "new": "+    if (false && !izanagi_cll_has_writer ||\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_mutation_surface_requires_auditor_live",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_instrumentation_preserves_body",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_proof_json_is_complete_and_bound",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_quarantine_controls"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M15-projection-allows-wall-seconds",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/axis_mocc_temperature.py",
+          "old": "    allowed = _CORRECTNESS | {\"base_sha256\", \"source_sha256\", \"diff_sha256\", \"macro_context\"}\n",
+          "new": "    allowed = _CORRECTNESS | {\"base_sha256\", \"source_sha256\", \"diff_sha256\", \"macro_context\", \"wall_seconds\"}\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_auditor_projection_rejects_performance_fields",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_mutation_surface_requires_auditor_live",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_checks_are_input_derived",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_proof_json_is_complete_and_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-json-template-sha-changed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "output/env/pegasus/calibration/s3_mocc_template_proof.json",
+          "old": "\"sha256\": \"229419efe1dffe8721c2114403ef6f7b05e73c643626c269c95dcbb27e806ae3\"",
+          "new": "\"sha256\": \"029419efe1dffe8721c2114403ef6f7b05e73c643626c269c95dcbb27e806ae3\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_mutation_surface_requires_auditor_live",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_proof_json_is_complete_and_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-json-all-pass-false",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "output/env/pegasus/calibration/s3_mocc_template_proof.json",
+          "old": "\n  \"all_pass\": true,\n",
+          "new": "\n  \"all_pass\": false,\n"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_mutation_surface_requires_auditor_live",
+        "orchestrator/tests/test_mocc_template_proof.py::test_mocc_template_proof_json_is_complete_and_bound"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}

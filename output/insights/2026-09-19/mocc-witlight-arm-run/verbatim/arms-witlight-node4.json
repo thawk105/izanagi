@@ -1,0 +1,50 @@
+[
+  {
+    "name": "e9-witlight-nowit-bo1",
+    "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+    "patches": [
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run/patches/instr-mocc-lock-coverage.patch",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/probe/witlight.patch"
+    ],
+    "witness": false,
+    "observational_only": false,
+    "defines": {
+      "CCBENCH_BACK_OFF": "1"
+    }
+  },
+  {
+    "name": "e9-witlight-wit",
+    "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+    "patches": [
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run/patches/instr-mocc-lock-coverage.patch",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/probe/witlight.patch"
+    ],
+    "witness": true,
+    "observational_only": false,
+    "defines": {}
+  },
+  {
+    "name": "e9-witlight-nowit",
+    "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+    "patches": [
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run/patches/instr-mocc-lock-coverage.patch",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/probe/witlight.patch"
+    ],
+    "witness": false,
+    "observational_only": false,
+    "defines": {}
+  },
+  {
+    "name": "e9-witlight-wit-bo1",
+    "pin": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+    "patches": [
+      "/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-mocc-witlight-arm-run/patches/instr-mocc-lock-coverage.patch",
+      "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-mocc-witlight-arm-run/probe/witlight.patch"
+    ],
+    "witness": true,
+    "observational_only": false,
+    "defines": {
+      "CCBENCH_BACK_OFF": "1"
+    }
+  }
+]

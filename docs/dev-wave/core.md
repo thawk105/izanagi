@@ -54,7 +54,7 @@ brief 前に承認済み裁定と引数と一次資料の未了項目の前提�
 外部 command・注入 seam の実在を棚卸しする。
 
 decision / archive worklog の不一致は decision 優先（F31）。人間手番待ちは git / 成果物で済を
-照合し、stale なら依存項目を繰り上げる（F35）。日付・hash・件数は commit / 成果物 field から取り、
+照合し、stale なら依存項目を繰り上げる（F35）。日時・hash・件数は commit / 成果物 field から取り、
 docs は一次資料と一致するまで根拠にしない（F1）。
 
 ## DW-G01 — 生死実験先行

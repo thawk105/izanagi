@@ -1,0 +1,209 @@
+{
+  "schema": "izanagi-verbatim-normalization/v1",
+  "rule": "各行の末尾 whitespace (space/tab) だけを除去。可視文字不変。suffix を対応行の改行直前へ戻すと原文を復元できる",
+  "files": {
+    "rulings-verbatim.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/rulings-verbatim.md",
+      "original_sha256": "c08a307d867824e21a245afb6d75923693b8d5012f9404768265ede7d65e8003",
+      "original_bytes": 4734,
+      "normalized_sha256": "c08a307d867824e21a245afb6d75923693b8d5012f9404768265ede7d65e8003",
+      "normalized_bytes": 4734,
+      "removed_suffix_hex_by_line": {}
+    },
+    "brief.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/brief.md",
+      "original_sha256": "10aa7551d123ff953531414ef7f88d48fd962f65fd7e5dbe66a4dd39c9d3325c",
+      "original_bytes": 11401,
+      "normalized_sha256": "10aa7551d123ff953531414ef7f88d48fd962f65fd7e5dbe66a4dd39c9d3325c",
+      "normalized_bytes": 11401,
+      "removed_suffix_hex_by_line": {}
+    },
+    "plan.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/plan-out.md",
+      "original_sha256": "7e72a119a99322f6eae4d43c18c37ea13cbb153597ce8f26db82c194fa6e6bfb",
+      "original_bytes": 27490,
+      "normalized_sha256": "593d9947f5e188e5b48e4a11ffd10a1aa6e8cfda52156a0a2b805a8ba3d74257",
+      "normalized_bytes": 27482,
+      "removed_suffix_hex_by_line": {
+        "307": "2020",
+        "308": "2020",
+        "309": "2020",
+        "310": "2020"
+      }
+    },
+    "consult-a.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/consult-a-out.md",
+      "original_sha256": "f8207f006a182a21c2218289d6ab89fb419f24b2ecce673eb473e2bcdb656894",
+      "original_bytes": 15986,
+      "normalized_sha256": "282e17247914de917515e9560db7f4157eea5600c7b0b9d3767354b1786a6838",
+      "normalized_bytes": 15978,
+      "removed_suffix_hex_by_line": {
+        "137": "2020",
+        "138": "2020",
+        "139": "2020",
+        "140": "2020"
+      }
+    },
+    "consult-b.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/consult-b-out.md",
+      "original_sha256": "13429c0ab0c325ca874505536fd2f1ffdcfa255ec6682e9800d4caff6de43b7a",
+      "original_bytes": 17625,
+      "normalized_sha256": "c7c0b8fa206eb6d46a02505308bc219bf948836518f7abf52ccb48039a06e27d",
+      "normalized_bytes": 17613,
+      "removed_suffix_hex_by_line": {
+        "7": "2020",
+        "18": "2020",
+        "215": "2020",
+        "216": "2020",
+        "217": "2020",
+        "218": "2020"
+      }
+    },
+    "adjudication.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/adjudication.md",
+      "original_sha256": "5090c1ad5ca0c18fab3fa114b2e653c4430a3add586d7aef6052b97aee13c7ea",
+      "original_bytes": 13648,
+      "normalized_sha256": "5090c1ad5ca0c18fab3fa114b2e653c4430a3add586d7aef6052b97aee13c7ea",
+      "normalized_bytes": 13648,
+      "removed_suffix_hex_by_line": {}
+    },
+    "author-u1.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/author-u1-out.md",
+      "original_sha256": "03ec0097e6509207bf41643f3253807ad0ee0606b5263b59402e77a7d97405e9",
+      "original_bytes": 4178,
+      "normalized_sha256": "3a7109655f52994b67ae731d259d149538e33da0a9c738c893dba0afecf88ede",
+      "normalized_bytes": 4172,
+      "removed_suffix_hex_by_line": {
+        "68": "2020",
+        "69": "2020",
+        "70": "2020"
+      }
+    },
+    "author-u3r.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/author-u3r-out.md",
+      "original_sha256": "3b0734bb5ab5a2e20038eba5e257b5296bb55d90b97cb4d10387562364475a65",
+      "original_bytes": 4637,
+      "normalized_sha256": "ea87d19573362e3460f19f2cfeb7ce0d9fddb92a99a187bb7cf48757b07b3989",
+      "normalized_bytes": 4633,
+      "removed_suffix_hex_by_line": {
+        "60": "2020",
+        "61": "2020"
+      }
+    },
+    "review-a.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/review-a-out.md",
+      "original_sha256": "6ab4dd53234296c4b0f030b9c54990782eb797feb53566f03bfb0e06cf4f0048",
+      "original_bytes": 10745,
+      "normalized_sha256": "0fb57597d34cd9693fd55a9b2a993008bb96632e57fba694052affb0e98efe95",
+      "normalized_bytes": 10735,
+      "removed_suffix_hex_by_line": {
+        "3": "2020",
+        "4": "2020",
+        "93": "2020",
+        "94": "2020",
+        "95": "2020"
+      }
+    },
+    "review-b.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/review-b-out.md",
+      "original_sha256": "412843ad535a7fd7c7b38e998edbb5d4abdae159b4cf4b35373542d4324db4f7",
+      "original_bytes": 11629,
+      "normalized_sha256": "292e12d729bea613167c7bb083dbe79b9a0f467c3abc8e9a113b7cf96938e00e",
+      "normalized_bytes": 11617,
+      "removed_suffix_hex_by_line": {
+        "3": "2020",
+        "4": "2020",
+        "128": "2020",
+        "129": "2020",
+        "130": "2020",
+        "131": "2020"
+      }
+    },
+    "review-adjudication.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/review-adjudication.md",
+      "original_sha256": "ea5caf7094dc410da2446821aa1d9e474ed620b8a553ca412fe34b8eec45b836",
+      "original_bytes": 3446,
+      "normalized_sha256": "ea5caf7094dc410da2446821aa1d9e474ed620b8a553ca412fe34b8eec45b836",
+      "normalized_bytes": 3446,
+      "removed_suffix_hex_by_line": {}
+    },
+    "fix-u1.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/fix-u1-out.md",
+      "original_sha256": "3bf6cd74495415bd5ec3d04fb196e5b02b44c42dfeb158a8f3810f15c8a6f2d2",
+      "original_bytes": 1959,
+      "normalized_sha256": "d57f6429775df17a9fcf6027839f4915e28c73875fdbd7d87b20d04241de331b",
+      "normalized_bytes": 1955,
+      "removed_suffix_hex_by_line": {
+        "40": "2020",
+        "41": "2020"
+      }
+    },
+    "fix-u3r.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/fix-u3r-out.md",
+      "original_sha256": "399536be547f21ccca137457e0a31da6e6c8b3cf004dd2157e3070b28075167b",
+      "original_bytes": 2154,
+      "normalized_sha256": "26fe462e6bd214f8c414f83ac039db8ebd9be116cc443a7c6cab8b2be99a312c",
+      "normalized_bytes": 2150,
+      "removed_suffix_hex_by_line": {
+        "29": "2020",
+        "30": "2020"
+      }
+    },
+    "fix2-u1.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/fix2-u1-out.md",
+      "original_sha256": "60ff6586b3c923601de27dba1a3951293805ddbd3d0638e9f6e66240a810902c",
+      "original_bytes": 1709,
+      "normalized_sha256": "116cdd323b727c6c99352531ee743c4da90b67f6903a0b8b600319fbc9a715b0",
+      "normalized_bytes": 1705,
+      "removed_suffix_hex_by_line": {
+        "35": "2020",
+        "36": "2020"
+      }
+    },
+    "focus-review.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/focus-review-out.md",
+      "original_sha256": "e63d12c55569ec8cfa504d065d70b9b7f8ff9afab05f9e938b61a8e51a128b0b",
+      "original_bytes": 6219,
+      "normalized_sha256": "560910b95a5ba5cdda191f4fb4a5e7ad811613f145a260f46298f9eaf744bb0e",
+      "normalized_bytes": 6211,
+      "removed_suffix_hex_by_line": {
+        "3": "2020",
+        "67": "2020",
+        "68": "2020",
+        "69": "2020"
+      }
+    },
+    "stage1-prof-summary.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/tmp/stage1c/prof_summary_pointer.md",
+      "original_sha256": "41f9d9b808d35fd44dc6d54ad84acde51915754d8bd101847d181f35938bb655",
+      "original_bytes": 8379,
+      "normalized_sha256": "41f9d9b808d35fd44dc6d54ad84acde51915754d8bd101847d181f35938bb655",
+      "normalized_bytes": 8379,
+      "removed_suffix_hex_by_line": {}
+    },
+    "focus1-summary.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/tmp/focus1-summary.md",
+      "original_sha256": "2e50b919575a63d0cf84e41a989895dd16be0e8d6b19a72cd29c90d2231cc395",
+      "original_bytes": 6230,
+      "normalized_sha256": "2e50b919575a63d0cf84e41a989895dd16be0e8d6b19a72cd29c90d2231cc395",
+      "normalized_bytes": 6230,
+      "removed_suffix_hex_by_line": {}
+    },
+    "focus2-summary.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/tmp/focus2-summary.md",
+      "original_sha256": "805202653fc35333a22fbab5123d022efc5ae3f1488457a07562ded1663a7cb8",
+      "original_bytes": 4149,
+      "normalized_sha256": "805202653fc35333a22fbab5123d022efc5ae3f1488457a07562ded1663a7cb8",
+      "normalized_bytes": 4149,
+      "removed_suffix_hex_by_line": {}
+    },
+    "focus3-summary.md": {
+      "source": "/home/SFC/tanab/.claude/jobs/28fa456a/tmp/focus3-summary.md",
+      "original_sha256": "1b1fc1ea3062b1fc465ff82fcaaf57aef08d4f1ed959a11bbc2a63f2fadb3417",
+      "original_bytes": 4221,
+      "normalized_sha256": "1b1fc1ea3062b1fc465ff82fcaaf57aef08d4f1ed959a11bbc2a63f2fadb3417",
+      "normalized_bytes": 4221,
+      "removed_suffix_hex_by_line": {}
+    }
+  }
+}
