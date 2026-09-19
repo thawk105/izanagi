@@ -16,6 +16,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import textwrap
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -184,12 +185,33 @@ raise SystemExit(int(os.environ.get('IZANAGI_FAKE_HARNESS_RC', '0')))
 
 
 def _fake_dispatch_source() -> str:
+    # Minimal import protocol from tools/pegasus/dispatch_compute.py. Keep CLI
+    # effects guarded: the real harness imports this module to budget dispatch.
     return """#!/usr/bin/env python3
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
+DEFAULT_WALLTIME = "01:00:00"
+DEFAULT_QUEUE_WAIT_TIMEOUT_S = 900.0
+DEFAULT_OVERALL_GRACE_S = 300.0
+DEFAULT_ACCOUNTING_GRACE_S = 60.0
+DEFAULT_CLEANUP_BUDGET_S = 90.0
+
+def _walltime_seconds(value: str) -> int:
+    match = re.fullmatch(r"([0-9]+):([0-5][0-9]):([0-5][0-9])", value)
+    if match is None:
+        raise ValueError("walltime は HH:MM:SS 形式で指定してください")
+    hours, minutes, seconds = (int(part) for part in match.groups())
+    total = hours * 3600 + minutes * 60 + seconds
+    if total <= 0:
+        raise ValueError("walltime は 0 より大きくしてください")
+    return total
+
+if __name__ == '__main__':
+""" + textwrap.indent("""
 script = Path(__file__).resolve()
 repo = next(parent for parent in script.parents if (parent / 'target.py').is_file())
 dispatch = repo / 'output' / 'pegasus-dispatch'
@@ -218,7 +240,7 @@ receipt.write_text(json.dumps({
 }), encoding='utf-8')
 print('[Pegasus dispatch] receipt を ' + str(receipt) + ' へ保存しました (child rc=' + str(rc) + ')')
 raise SystemExit(rc)
-"""
+""", "    ")
 
 
 def _make_repository(

@@ -23,6 +23,11 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
   controls全体は未成立。inert target・軸従属・比較条件・abort所有権は変更していない。
   記録 = `output/insights/2026-09-19/t2737-noninert-implementation/README.md`。
 
+- [x] [T-2489] D2148項5のA-2 scheduler.nodes=5とpolicy pin・fixture閉包を整合。
+  A-2/A-6のnode-local lock候補は計算ノードで実測し、既存default consumerとの同一ノード排他を
+  失うため不採用とした。共通job bodyと認証条件を維持し、追加総timeout・性能値の昇格は行わない。
+  根拠 = `output/insights/2026-09-19/t2489-a2-nodes5-local-lock/README.md`。
+
 - [x] [T-2724] A-3整合実装と[T-2776]のfixture切離しを回収・統合した。
   receiptの履歴・静的検証・epoch・invalid拒否を維持し、同一root/HEAD/世代のactive v2 full validationへ層2だけ委譲する。
   証拠とsingle-tenant残余は `output/insights/2026-09-18/t2724-t080-defer-active-v2/README.md`。
@@ -44,6 +49,9 @@ tie 判定 + evidence-bound な層3材料レポート + 全試行台帳を返す
 - [x] [T-2686] exact-state の候補取得を遅延 union walk に束ねる実装を回収した。
   正証拠・候補順・limit+1・closed-world負判定を維持し、観測wrapperのdiff/log混同を修正。
   検証と主張範囲の記録は output/insights/2026-09-18/t2686-exact-state-union-walk/。
+
+- [x] [T-2484] D2148項8の全区間dispatch外側timeoutと短hangタイマー撤去を実装。
+  内側期限・回収・既存collection gate・local hangを維持し、DW-M06/M07を同時整合した。
 
 - [x] [T-2164] A-1 balanced5のsizing証明書を凍結値で生成・検証し、本走policyを凍結した。
   D1452に従い、証明書が申告する試行回数・候補範囲・root seedをconsumerが登録値とexact照合する。

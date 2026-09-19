@@ -1,0 +1,416 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 1800,
+  "timeout_seconds": 10800,
+  "hang_timeout_seconds": 1,
+  "mutations": [
+    {
+      "id": "P0-max-commutes",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "effective = max(spec.timeout_seconds, budget)",
+          "new": "effective = max(budget, spec.timeout_seconds)"
+        }
+      ],
+      "expected_nodes": [],
+      "expected_status": "SURVIVED",
+      "hang_risk": false
+    },
+    {
+      "id": "M1-omit-preparation",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "budget = preparation + queue + walltime + grace + accounting + cleanup",
+          "new": "budget = 0.0 + queue + walltime + grace + accounting + cleanup"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides0-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides2-False-8130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides3-False-4230]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides4-False-4830]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides5-False-3930]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides6-False-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides7-False-1650]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides8-True-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides9-True-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides10-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides11-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides12-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-1-overrides0-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides1-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-False-1-overrides2-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-1-overrides3-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-1-overrides7-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides8-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-1-overrides9-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-2400-overrides11-6330]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides16-5130]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-omit-queue",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "budget = preparation + queue + walltime + grace + accounting + cleanup",
+          "new": "budget = preparation + 0.0 + walltime + grace + accounting + cleanup"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides0-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides2-False-8130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides4-False-4830]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides6-False-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides7-False-1650]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides8-True-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides9-True-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides10-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides11-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides12-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-1-overrides0-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides1-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-False-1-overrides2-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-1-overrides3-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-1-overrides7-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides8-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-1-overrides9-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-2400-overrides11-6330]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides16-5130]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M3-omit-walltime",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "budget = preparation + queue + walltime + grace + accounting + cleanup",
+          "new": "budget = preparation + queue + 0.0 + grace + accounting + cleanup"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides0-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides2-False-8130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides3-False-4230]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides4-False-4830]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides5-False-3930]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides6-False-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides7-False-1650]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides8-True-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides9-True-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides10-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides11-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides12-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-1-overrides0-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides1-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-False-1-overrides2-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-1-overrides3-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-1-overrides7-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides8-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-1-overrides9-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-2400-overrides11-6330]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides16-5130]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M4-omit-grace",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "budget = preparation + queue + walltime + grace + accounting + cleanup",
+          "new": "budget = preparation + queue + walltime + 0.0 + accounting + cleanup"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides0-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides2-False-8130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides3-False-4230]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides6-False-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides7-False-1650]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides8-True-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides9-True-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides10-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides11-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides12-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-1-overrides0-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides1-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-False-1-overrides2-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-1-overrides3-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-1-overrides7-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides8-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-1-overrides9-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-2400-overrides11-6330]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides16-5130]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M5-omit-accounting",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "budget = preparation + queue + walltime + grace + accounting + cleanup",
+          "new": "budget = preparation + queue + walltime + grace + 0.0 + cleanup"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides0-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides2-False-8130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides3-False-4230]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides4-False-4830]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides5-False-3930]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides6-False-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides7-False-1650]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides8-True-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides9-True-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides10-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides11-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides12-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-1-overrides0-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides1-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-False-1-overrides2-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-1-overrides3-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-1-overrides7-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides8-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-1-overrides9-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-2400-overrides11-6330]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides16-5130]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M6-omit-cleanup",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "budget = preparation + queue + walltime + grace + accounting + cleanup",
+          "new": "budget = preparation + queue + walltime + grace + accounting + 0.0"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides0-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides2-False-8130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides3-False-4230]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides4-False-4830]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides5-False-3930]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides6-False-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides7-False-1650]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides8-True-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides9-True-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides10-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides11-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides12-False-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-1-overrides0-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides1-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-False-1-overrides2-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-1-overrides3-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-1-overrides7-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides8-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-1-overrides9-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-2400-overrides11-6330]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides16-5130]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M7-shorten-long-spec",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "effective = max(spec.timeout_seconds, budget)",
+          "new": "effective = budget"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[10000-overrides1-False-10000]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-10000-overrides4-10000]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-10000-overrides5-10000]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-10000-overrides6-10000]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M8-collection-bypass",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "timeout_s=_effective_timeout(spec, runner_mode, collection=True),",
+          "new": "timeout_s=spec.timeout_seconds,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-1-overrides0-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-1-overrides7-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-2400-overrides11-6330]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M9-baseline-bypass",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "timeout_s=_effective_timeout(spec, runner_mode),",
+          "new": "timeout_s=spec.timeout_seconds,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides1-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides8-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides16-5130]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M10-mutation-bypass",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "timeout_s = _effective_timeout(\n            spec, runner_mode, hang_risk=mutation.hang_risk\n        )",
+          "new": "timeout_s = (spec.timeout_seconds if runner_mode == \"dispatch\" else\n                     _effective_timeout(spec, runner_mode, hang_risk=mutation.hang_risk))"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-False-1-overrides2-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-1-overrides3-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-1-overrides9-8730]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M11-dispatch-short-hang",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "if runner_mode == \"local\":\n        return spec.hang_timeout_seconds if hang_risk else spec.timeout_seconds",
+          "new": "if runner_mode == \"local\" or hang_risk:\n        return spec.hang_timeout_seconds if hang_risk else spec.timeout_seconds"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-1-overrides3-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-10000-overrides6-10000]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-1-overrides9-8730]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M12-collection-gate-relaxed",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "outer_timeout_s=spec.timeout_seconds,",
+          "new": "outer_timeout_s=_effective_timeout(spec, runner_mode, collection=True),"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-2399-overrides10-None]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M13-execution-ignores-walltime",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "raw_walltime = None if collection else os.environ.get(\"IZANAGI_DISPATCH_WALLTIME_OVERRIDE\")",
+          "new": "raw_walltime = None"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides6-False-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides7-False-1650]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[baseline-dispatch-False-1-overrides8-8730]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-dispatch-True-1-overrides9-8730]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M14-collection-uses-walltime",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "raw_walltime = None if collection else os.environ.get(\"IZANAGI_DISPATCH_WALLTIME_OVERRIDE\")",
+          "new": "raw_walltime = os.environ.get(\"IZANAGI_DISPATCH_WALLTIME_OVERRIDE\")"
+        },
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "if not collection and raw_walltime:",
+          "new": "if raw_walltime:"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides8-True-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_timeout_budget_arithmetic[1-overrides9-True-5130]",
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[collection-dispatch-False-1-overrides7-5130]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M15-local-hang-lost",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "tools/mutation_harness.py",
+          "old": "return spec.hang_timeout_seconds if hang_risk else spec.timeout_seconds",
+          "new": "return spec.timeout_seconds"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_harness.py::test_t2484_callers_reach_communicate_with_effective_timeout[mutation-local-True-10-overrides15-1]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M16-fake-dispatch-import-executes",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_mutation_worktree.py",
+          "old": "if __name__ == '__main__':\n\"\"\" + textwrap.indent(\"\"\"",
+          "new": "if True:\n\"\"\" + textwrap.indent(\"\"\""
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_mutation_worktree.py::test_relocated_evidence_is_revalidated_by_resume_plan_only_between_observation_points",
+        "orchestrator/tests/test_mutation_worktree.py::test_dispatch_attempt_sidecar_records_every_request_between_observation_points"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
