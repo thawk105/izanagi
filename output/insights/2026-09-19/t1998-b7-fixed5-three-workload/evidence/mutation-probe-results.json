@@ -1,0 +1,157 @@
+{
+ "schema": "izanagi-dev-wave-mutation/v4",
+ "date": "2026-09-19T13:54:15.705225+00:00",
+ "repo_head": "c18a80967ed3d9a901b395116c23f90d6a554b36",
+ "spec_sha256": "da6c018aebe3deacf4d06385254ecfa3901038d6a7b628beb6b0e5ecb2d70d9a",
+ "runner_identity": {
+  "command": [
+   "python3",
+   "tools/run_tests.py",
+   "--force-dispatch",
+   "-q",
+   "-rf",
+   "orchestrator/tests/test_paper_story_a2_certification.py",
+   "orchestrator/tests/test_paper_story_a2_job_contract.py",
+   "-p",
+   "no:cacheprovider"
+  ],
+  "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1998-b7-fixed5/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+  "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+  "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+  "entrypoint_kind": "izanagi-run-tests",
+  "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t1998-b7-fixed5/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+  "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "executable_path": "/usr/bin/python3.10",
+  "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+  "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+  "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+  "repo_path": "tools/run_tests.py",
+  "repo_tree": "714bcefba01e3c3646ff4aaad11033b57c9b4857",
+  "runner_mode": "dispatch"
+ },
+ "summary": {
+  "KILLED": 0,
+  "MISMATCH": 7,
+  "PARSE_ERROR": 0,
+  "SURVIVED": 1,
+  "TIMEOUT": 0,
+  "completed": 8,
+  "matching": 1,
+  "recorded": 8,
+  "registered": 8
+ },
+ "baseline": {
+  "status": "PASSED",
+  "rc": 0
+ },
+ "mutations": [
+  {
+   "id": "M1-b7-adopted-genome",
+   "status": "MISMATCH",
+   "expected_status": "SURVIVED",
+   "failed_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_cli_canonical_policy[absolute]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_cli_canonical_policy[relative]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_full_collect_materializes[0.9-reject]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_full_collect_materializes[1.1-observed-positive]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_noncanonical_policy_rejected",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_partial_boundary[1]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_partial_boundary[2]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_policy_bytes_pin",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_policy_literal",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_b7_submitter_three_requests",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-a2-other-study]",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-a6-other-study]",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-prefix-collision]",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-same-study]"
+   ]
+  },
+  {
+   "id": "M2-b7-shape",
+   "status": "MISMATCH",
+   "expected_status": "SURVIVED",
+   "failed_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_cli_canonical_policy[absolute]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_cli_canonical_policy[relative]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_full_collect_materializes[0.9-reject]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_full_collect_materializes[1.1-observed-positive]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_invalid_policy[genome-adopted cell does not match workload policy]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_noncanonical_policy_rejected",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_partial_boundary[1]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_partial_boundary[2]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_policy_literal",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_b7_submitter_three_requests",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-a2-other-study]",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-a6-other-study]",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-prefix-collision]",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-same-study]"
+   ]
+  },
+  {
+   "id": "M3-b7-canonical-path",
+   "status": "MISMATCH",
+   "expected_status": "SURVIVED",
+   "failed_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_cli_canonical_policy[absolute]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_cli_canonical_policy[relative]",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_b7_submitter_three_requests",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-a2-other-study]",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-a6-other-study]",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-prefix-collision]",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-same-study]"
+   ]
+  },
+  {
+   "id": "M4-b7-job-name",
+   "status": "MISMATCH",
+   "expected_status": "SURVIVED",
+   "failed_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_full_collect_materializes[0.9-reject]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_full_collect_materializes[1.1-observed-positive]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_partial_boundary[1]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_partial_boundary[2]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_policy_literal",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_b7_submitter_three_requests",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-a2-other-study]",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-a6-other-study]",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-prefix-collision]",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_m6_submitter_duplicate_detection_is_study_scoped[b7-same-study]"
+   ]
+  },
+  {
+   "id": "M5-b7-env-keys",
+   "status": "MISMATCH",
+   "expected_status": "SURVIVED",
+   "failed_nodes": [
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_full_collect_materializes[0.9-reject]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_full_collect_materializes[1.1-observed-positive]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_partial_boundary[1]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_partial_boundary[2]",
+    "orchestrator/tests/test_paper_story_a2_certification.py::test_b7_policy_literal",
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_b7_submitter_three_requests"
+   ]
+  },
+  {
+   "id": "M6-submitter-273",
+   "status": "MISMATCH",
+   "expected_status": "SURVIVED",
+   "failed_nodes": [
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_b7_submitter_three_requests"
+   ]
+  },
+  {
+   "id": "M7-submitter-365",
+   "status": "MISMATCH",
+   "expected_status": "SURVIVED",
+   "failed_nodes": [
+    "orchestrator/tests/test_paper_story_a2_job_contract.py::test_b7_submitter_three_requests"
+   ]
+  },
+  {
+   "id": "M8-cli-help-text",
+   "status": "SURVIVED",
+   "expected_status": "SURVIVED",
+   "failed_nodes": []
+  }
+ ]
+}
