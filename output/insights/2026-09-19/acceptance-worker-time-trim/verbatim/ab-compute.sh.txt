@@ -1,0 +1,48 @@
+#!/bin/bash
+# 段 6 A/B (計算ノード、同 job): base worktree (A = 修正前 657e1e5a7) と wave worktree (B = 修正後 tip) を交互に走らせる
+# 裁定 §4: 6 file を 1 回の run_tests.py に渡す / 走ごとに新 scratch (TMPDIR と PYTHONPYCACHEPREFIX。--basetemp は渡さない: memo が pytest-of-*/pytest-N 配置を要求) /
+#          PYTHONDONTWRITEBYTECODE=1 / IZANAGI_TASK_RUN_AUTO_RECORD=0 / warmup A,B の後 AB BA BA AB の 4 対 / 片付けは自分の scratch だけ
+J=${AB_OUT:-/home/SFC/tanab/.claude/jobs/28fa456a/tmp/ab}
+A=/work/1/SFC/tanab/izanagi/.claude/worktrees/ab-base-acceptance-worker-time-trim
+B=/work/1/SFC/tanab/izanagi/.claude/worktrees/dev-wave-acceptance-worker-time-trim
+FILES="orchestrator/tests/test_s8b_ratified_verify.py orchestrator/tests/test_t1259_qsub_env_delivery_probe.py orchestrator/tests/test_run_tests_preflight.py orchestrator/tests/test_p3_b4_producer_auth_experiment.py orchestrator/tests/test_codex_reasoning_ab.py orchestrator/tests/test_s8b_floor_campaign.py"
+ORDERS="${AB_ORDERS:-AB BA BA AB}"
+mkdir -p "$J"
+{ hostname; date; uptime; nproc; df -h /tmp | tail -1; df -i /tmp | tail -1; } > "$J/host.txt"
+for side in A B; do
+  W=$A; [ "$side" = B ] && W=$B
+  { echo "side=$side root=$W"; git -C "$W" rev-parse HEAD; echo "status:"; git -C "$W" status --porcelain | head -5; git -C "$W" submodule status --recursive; } >> "$J/identity.txt" 2>&1
+done
+export PYTHONDONTWRITEBYTECODE=1
+export IZANAGI_TASK_RUN_AUTO_RECORD=0
+unset PYTEST_ADDOPTS PYTEST_XDIST_TESTRUNUID
+run_side() {
+  label="$1"; side="$2"
+  W=$A; [ "$side" = B ] && W=$B
+  scratch=$(mktemp -d /tmp/trim-ab-XXXXXX)
+  mkdir -p "$scratch/pycache"
+  cd "$W" || exit 3
+  start=$(date +%s.%N)
+  TMPDIR="$scratch" PYTHONPYCACHEPREFIX="$scratch/pycache" \
+    python3 -u -B tools/run_tests.py $FILES -n 12 --dist=loadgroup -p no:cacheprovider \
+      --junitxml="$J/$label-$side.xml" -q -rN > "$J/$label-$side.log" 2>&1
+  rc=$?
+  end=$(date +%s.%N)
+  used=$(du -sm "$scratch" 2>/dev/null | cut -f1)
+  nfiles=$(find "$scratch" -type f 2>/dev/null | wc -l)
+  memo=$(find "$scratch" -maxdepth 4 -type d -name izanagi-emitter-memo 2>/dev/null | head -1)
+  memo_keys=0; [ -n "$memo" ] && memo_keys=$(find "$memo" -maxdepth 1 -mindepth 1 -type d | wc -l)
+  rm -rf "$scratch"
+  cleanup_end=$(date +%s.%N)
+  echo "label=$label side=$side rc=$rc test_wall=$(echo "$end - $start" | bc) wall_with_cleanup=$(echo "$cleanup_end - $start" | bc) scratch_mb=$used scratch_files=$nfiles memo_keys=$memo_keys" >> "$J/summary.txt"
+}
+run_side warmup A
+run_side warmup B
+pair=0
+for order in $ORDERS; do
+  pair=$((pair + 1))
+  first=${order:0:1}; second=${order:1:1}
+  run_side "p$pair" "$first"
+  run_side "p$pair" "$second"
+done
+echo done > "$J/ab.done"

@@ -1,0 +1,10 @@
+label=warmup side=A rc=0 test_wall=398.957942802 wall_with_cleanup=413.798528666 scratch_mb=19221 scratch_files=696423 memo_keys=0
+label=warmup side=B rc=0 test_wall=194.782274849 wall_with_cleanup=209.532461687 scratch_mb=18961 scratch_files=683460 memo_keys=1
+label=p1 side=A rc=0 test_wall=287.495589881 wall_with_cleanup=303.369763621 scratch_mb=20057 scratch_files=740179 memo_keys=0
+label=p1 side=B rc=0 test_wall=208.310893073 wall_with_cleanup=222.923279500 scratch_mb=18720 scratch_files=670078 memo_keys=1
+label=p2 side=B rc=0 test_wall=199.973868697 wall_with_cleanup=214.644147675 scratch_mb=18734 scratch_files=670214 memo_keys=1
+label=p2 side=A rc=0 test_wall=282.985814375 wall_with_cleanup=298.301406886 scratch_mb=19536 scratch_files=712030 memo_keys=0
+label=p3 side=B rc=0 test_wall=211.630204322 wall_with_cleanup=226.825069270 scratch_mb=19283 scratch_files=698662 memo_keys=1
+label=p3 side=A rc=0 test_wall=268.973086364 wall_with_cleanup=283.726161126 scratch_mb=19012 scratch_files=683840 memo_keys=0
+label=p4 side=A rc=0 test_wall=286.133434577 wall_with_cleanup=301.541759728 scratch_mb=19553 scratch_files=712310 memo_keys=0
+label=p4 side=B rc=0 test_wall=209.664874348 wall_with_cleanup=224.760680551 scratch_mb=19289 scratch_files=698878 memo_keys=1
