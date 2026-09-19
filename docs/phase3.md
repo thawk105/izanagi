@@ -445,6 +445,10 @@ guided.py の replay-fake certified 経路は live variant に絶対再利用し
    - [x] [T-2783] D2148項3に従い、明示critic診断をK2手動loopのplanner/coder入力へ渡す
      局所経路を追加。whiteboardの5field・delta_pct=None・AO非読取を維持し、次回計画に
      同機体・同jobのstock対照を含める。3巡目は未実走。手順は段4b runbookのT-2783追補。
+   - [x] K2手動loop 3巡目をユーザー決定 (2026-09-19) の縮小走行で実走 (実装差分ゼロ)。critic-2診断が
+     planner-4 / coder-4 へ型付き入力として届き、候補10 (decrease / large) を1評価して
+     serializable・異常0・certified・continue を得た。同job stock対照は既存経路に結線がなく未達
+     (裁定パッケージ)。改善の実証ではない。記録は `output/insights/2026-09-19/k2-loop-round3/README.md`。
    - [x] [T-2551] D1936項5に従い、段4jobがcanonical化した証拠保存先を環境変数へ再exportする。
      shellとPythonの保存先を揃え、既存job契約と絶対path指定の正常系を維持する。
    - [x] 2026-09-10新規依頼の次実験precheckを実装差分ゼロで実施。
