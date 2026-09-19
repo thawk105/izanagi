@@ -1,0 +1,26 @@
+[
+ {
+  "path": "verbatim/consult.md",
+  "original_sha256": "38ba4d54213b06c9bc7b2ecc857ed1e871835627ee1888ff9fec7ab1bb60d21f",
+  "original_bytes": 9759,
+  "normalized_sha256": "74f5417cb8774412e75456eb8b2edccacaf3a45a58a8c2b025dff1d89809f562",
+  "normalized_bytes": 9751,
+  "removed_line_suffix_hex": {
+   "69": "2020",
+   "70": "2020",
+   "71": "2020",
+   "72": "2020"
+  }
+ },
+ {
+  "path": "verbatim/review.md",
+  "original_sha256": "32bada06240c5240937e20aac5ec2b0a35dfdca66e7eea25442ee9f100bf9293",
+  "original_bytes": 5230,
+  "normalized_sha256": "5248ecc753f9ea8a5c5b2ad351e4980537a9c433631f8a391e553dabd4b02ea1",
+  "normalized_bytes": 5226,
+  "removed_line_suffix_hex": {
+   "41": "2020",
+   "42": "2020"
+  }
+ }
+]
