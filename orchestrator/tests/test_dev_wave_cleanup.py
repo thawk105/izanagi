@@ -420,7 +420,7 @@ def test_remove_child_manifest_is_closed(tmp_path, monkeypatch, defect):
     _child_rejected(case, monkeypatch, 'manifest')
 
 
-@pytest.mark.parametrize('state', ['clean', 'dirty', 'ignored', 'reflog', 'pin-mismatch', 'local-only-pin'])
+@pytest.mark.parametrize('state', ['clean', 'dirty', 'ignored', 'reflog', 'pin-mismatch', 'local-only-pin', 'default-branch-reflog'])
 def test_remove_child_checks_initialized_submodule(tmp_path, monkeypatch, state):
     case = _make_child_repo(tmp_path, monkeypatch)
     (case.repo.main / '.gitattributes').write_text('* text=auto eol=lf\n')
@@ -428,12 +428,21 @@ def test_remove_child_checks_initialized_submodule(tmp_path, monkeypatch, state)
     _git(case.repo.main, 'commit', '-m', 'module conversion attributes')
     # Keep the source tip fixed while main commits its own submodule registration.
     _git(case.repo.main, 'branch', 'module-source')
+    source_pin = _sha(case.repo.main, 'module-source')
+    if state == 'default-branch-reflog':
+        _git(case.repo.main, 'checkout', 'module-source')
+        _git(case.repo.main, 'commit', '--allow-empty', '-m', 'source default branch advances')
+        _git(case.repo.main, 'checkout', 'main')
     _git(case.repo.main, '-c', 'protocol.file.allow=always', 'submodule', 'add',
          '-b', 'module-source', str(case.repo.main), 'module')
+    if state == 'default-branch-reflog':
+        _git(case.repo.main / 'module', 'checkout', '--detach', source_pin)
     _git(case.repo.main, 'commit', '-am', 'primary module pin')
     _git(case.repo.main, '-c', 'protocol.file.allow=always', 'submodule', 'update', '--init')
-    # Clone at the pin directly, without recording main's newer tip in HEAD reflog.
+    # Clone the source branch, recording its newer tip only in the regression case.
     _git(case.child, 'clone', '--branch', 'module-source', str(case.repo.main), 'module')
+    if state == 'default-branch-reflog':
+        _git(case.child / 'module', 'checkout', '--detach', source_pin)
     _git(case.child, '-c', 'protocol.file.allow=always', 'submodule', 'add',
          '-b', 'module-source', str(case.repo.main), 'module')
     _git(case.child, 'submodule', 'absorbgitdirs', 'module')
@@ -441,6 +450,10 @@ def test_remove_child_checks_initialized_submodule(tmp_path, monkeypatch, state)
     module = case.child / 'module'
     pin = _sha(module)
     assert pin == _sha(case.repo.main / 'module')
+    if state == 'default-branch-reflog':
+        source_tip = _sha(case.repo.main, 'module-source')
+        assert source_tip != pin
+        assert source_tip in _git(module, 'reflog', '--format=%H', 'HEAD').stdout.decode().splitlines()
     _git(module, 'config', 'user.name', 'Cleanup Test')
     _git(module, 'config', 'user.email', 'cleanup@example.invalid')
     if state == 'dirty':
@@ -457,7 +470,7 @@ def test_remove_child_checks_initialized_submodule(tmp_path, monkeypatch, state)
         elif state == 'local-only-pin':
             _git(case.child, 'add', 'module')
             _git(case.child, 'commit', '-m', 'local-only module pin')
-    if state == 'clean':
+    if state in {'clean', 'default-branch-reflog'}:
         head = _sha(case.child)
         assert cleanup.run(_child_argv(case)).outcome == 'removed'
         assert not case.child.exists() and not case.admin.exists()

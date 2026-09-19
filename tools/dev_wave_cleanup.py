@@ -1616,6 +1616,10 @@ def _assert_child_submodules(child: Path, common: Path, admin: Path,
                 raise ValueError("submodule pin is absent from primary module store")
         for sha in _head_reflog_shas(gitdir):
             if not _ancestor(module, sha, pin.decode()):
+                if store.exists() and _git(
+                        child, "--git-dir=" + os.fspath(store), "cat-file", "-e",
+                        sha + "^{commit}").returncode == 0:
+                    continue
                 raise ValueError("submodule reflog is unreachable from gitlink pin")
         _assert_child_index(module)
         _assert_child_submodules(module, common, admin, store / "modules")
