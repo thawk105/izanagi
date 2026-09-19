@@ -1278,6 +1278,47 @@ python3 tools/wave_land_window.py message --kind landed --wave "$W" --land-json 
 - **公平性は保証しない。** 待ち行列を消した以上、lease の取得順は競争であり先着順ではない。
   D662 はこれを承知の上で「止めないこと」を公平性より優先すると裁定した。
 
+#### 受入投入・再走の運用の所在 — repo に正本があるものと job dir にしか無いもの ([T-2789]、2026-09-20)
+
+受入の投入・再走に関わる運用は、**repo に正本があるもの**と、**各 wave が job dir へ手書きした script にしか無いもの**が
+混在している。後者は正本ではなく、operator が投入時刻を選ぶ手段である。棚卸しの一次資料 (script の本数・条件形の分岐・
+調停実測の相関と因果の分離) は `output/insights/2026-09-20/t2789-acceptance-ops-inventory/README.md`。裁定は D2148 項 12。
+
+**repo に正本があるもの (契約はこれだけ):**
+
+| 事項 | 正本 |
+|---|---|
+| 待ち手の起動形・claim・取り込み・投入前後の検査・受領証 | 本節 §7.3 と `tools/dev_wave_wait.py acceptance` |
+| 投入後の live main 照合 (`postcheck`、取り込み後もなお main に遅れがあれば rc=70) | `tools/dev_wave_wait.py` (D2148 項 12 で変更しない) |
+| 受理の定義 (`child-green` だけ、赤の受領証なし、判定器の自動起動は遮断) | D690 |
+| 赤の判定主体と方法 (人・AI が assertion 本文と差分実体で判定、署名一致禁止、根拠は worklog) | `DW-O18` |
+| 再走制限 (差分到達不能は単独再走、非再現なら受入再走、同一 tip で各 1 回、log / receipt は新 path) | `DW-O18`、`DW-O27` |
+| 取り込み (post-claim merge)、同一 worktree の dispatch 直列 | `DW-O20`、`DW-C00`、`DW-O26` |
+| 待ち行列 (無い。取得順は競争) | D662 |
+| 判定器 `tools/check_acceptance_reds.py` (file は残るが受入経路からは起動されない) | D688、D690 |
+| t1259 fixture の走査 timeout (機序は 252e24b4f で除去、fixture 局所 120 秒、production 30 秒は不変) | F945 (2026-09-20 supersede)、[T-2790] |
+
+**job dir にしか無いもの (正本なし。値は写した時点の助言値で、採用した裁定は無い):**
+
+| 事項 | 所在と 2026-09-20 の実測 |
+|---|---|
+| 門番 (他 wave の受入 leader 本数 ∧ 1 分 load で投入時刻を選ぶ sleep loop) | `dev-wave-jobs/*/run-acceptance-gated.sh` 46 本。条件形は 4 種以上、attempt 上限は 3 / 4 / 5、撤回済みの条件 (pigz) が撤回後の写し 11 本に残る |
+| leader の数え方 (`ps -eo args` の grep、自 slug 除外) | 同上。Claude の Bash / Monitor が包む `bash -c '...'` の argv も leader に数えられる (観測者は script file 経由で起動する) |
+| 自前の取り込み連結 (merge → provenance preflight → commit → 投入) | 同上 42 本。待ち手の post-claim merge と二重で、取り込み〜投入の競走の窓は消えない |
+| 再投入 loop — 署名分類型 (junit の `TimeoutExpired` / `lock deadline` の語だけで全赤なら再投入、postcheck rc=70 なら再投入) | 同上 46 本。**`DW-O18` の判定を代替しない** — F945 台帳の回収追補 (2026-09-18) は「署名で分類した自動再投入は単独再走による親判定と同等の手順を満たしたとは記録しない。緑を非帰属性の証拠にしない」と判定済み |
+| 再投入 loop — junit 本文分類型 (全赤が setup の走査 timeout なら当該 file を単独再走 → 緑なら再投入) | `dev-wave-t2484-watchdog-segments/gate-acceptance-loop2.sh` + `classify_reds.py`。手順は `DW-O18` と同形だが判定主体は人・AI のまま |
+| 待ち行列の可視化 (門番・leader・land の本数を数える 3 コマンド) | docs に無い。insight §4 |
+
+**注意:**
+
+1. 門番の条件値・周期・自動再投入の分岐を採用した裁定は無い (D2148 項 12)。script の attempt 上限は tip を跨ぐ回数であり、`DW-O18` の「同一 tip で各 1 回」の
+   代替ではない。script が再投入した attempt は、その判定 (本文・差分到達性) を親が worklog に書く。
+2. 2026-09-18 の調停実測 (門番待ち 3 wave が計約 6 時間空費) で直接観測された因果は「門番の load 条件が閉じていた」と「`postcheck` は main の進行との
+   競走」の 2 点だけである。同時受入本数・load・他ユーザー process と F945 型の赤の関係は相関にとどまり、資料自身が「同時本数は主因ではない」
+   「門番の条件でこれ以上できることは無い」と結んでいる。原因や成功を load や本数だけで断定しない。
+3. 同実測は 252e24b4f (2026-09-18 23:47 JST) 以前の regime の事実である。以後の受入 24 走で setup error は 0 (F945 supersede)。当時の件数を現行 regime の
+   予測に使わない。
+
 ### 7.4 変異 harness の runner argv
 
 `tools/mutation_harness.py --runner-mode dispatch` は「runner が計算ノードへ投げる」ことを
