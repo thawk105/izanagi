@@ -72,6 +72,7 @@ RESERVATION_RESULT_SCHEMA = "paper-story-a2-reservation-result/v1"
 COMPLETE_MARKER_SCHEMA = "paper-story-a2-materialization-complete/v1"
 POLICY_PATH = Path(__file__).with_suffix(".v2.json")
 A6_POLICY_PATH = POLICY_PATH.with_name("paper_story_a6_certification.v2.json")
+B7_FIXED5_POLICY_PATH = POLICY_PATH.with_name("paper_story_b7_fixed5_regression.v2.json")
 VERIFY_MODE = "legacy+performance"
 PERFORMANCE_TAG = "performance"
 LEGACY_TAG = "legacy"
@@ -356,10 +357,10 @@ def _protocol_preimage(document: Mapping[str, Any]) -> Mapping[str, Any]:
 
 
 def canonical_policy_path(path: Path | str) -> Path:
-    """Return one of the two shipped policy paths, rejecting aliases and others."""
+    """Return one of the three shipped policy paths, rejecting aliases and others."""
     requested = Path(path)
     repository_root = POLICY_PATH.parents[2]
-    canonical_paths = (POLICY_PATH, A6_POLICY_PATH)
+    canonical_paths = (POLICY_PATH, A6_POLICY_PATH, B7_FIXED5_POLICY_PATH)
     matches = [
         candidate for candidate in canonical_paths
         if requested == (candidate if requested.is_absolute()
@@ -374,6 +375,7 @@ def _qsub_job_name(policy: Policy) -> str:
     names = {
         "paper-story-a2-certification": "paper-a2-cert",
         "paper-story-a6-certification": "paper-a6-cert",
+        "paper-story-b7-fixed5-regression": "paper-b7-fixed5",
     }
     try:
         return names[policy.study]
@@ -383,7 +385,7 @@ def _qsub_job_name(policy: Policy) -> str:
 
 def _qsub_environment_keys(policy: Policy) -> set[str]:
     keys = set(_QSUB_ENV_KEYS)
-    if policy.study == "paper-story-a6-certification":
+    if policy.study in {"paper-story-a6-certification", "paper-story-b7-fixed5-regression"}:
         keys.add("IZANAGI_A2_POLICY_PATH")
     elif policy.study != "paper-story-a2-certification":
         raise CertificationError("policy study has no qsub environment contract")
@@ -564,6 +566,7 @@ def _load_policy_with_configure_argv_keys(
     policy_shapes = {
         "paper-story-a2-certification": (2, 4),
         "paper-story-a6-certification": (1, 2),
+        "paper-story-b7-fixed5-regression": (3, 6),
     }
     try:
         workload_count, cell_count = policy_shapes[document["study"]]
@@ -5170,7 +5173,7 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--policy", metavar="PATH",
-        help="select one of the two canonical repository certification policies",
+        help="select one of the three canonical repository certification policies",
     )
     sub = parser.add_subparsers(dest="command", required=True)
     exact_submit = sub.add_parser("exact-qsub")
