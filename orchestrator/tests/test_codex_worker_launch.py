@@ -23,7 +23,7 @@ import time
 import uuid
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import pytest
 
@@ -1128,6 +1128,7 @@ def _run_launcher_subprocess(
     paths: dict[str, Path],
     expected_returncode: int,
     timeout: float = 10.0,
+    on_completed: Callable[[subprocess.CompletedProcess[str]], None] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     try:
         completed = subprocess.run(
@@ -1143,6 +1144,8 @@ def _run_launcher_subprocess(
             exc, expected_returncode, paths=paths, command=command
         )
         raise AssertionError("unreachable")
+    if on_completed is not None:
+        on_completed(completed)
     _assert_launcher_returncode(
         completed, expected_returncode, paths=paths, command=command
     )
@@ -1558,6 +1561,28 @@ elif mode == "sigterm_ignore":
     child_sleep(ignore_term=True)
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
     time.sleep(30)
+elif mode in ("orphan_running", "orphan_zombie", "orphan_mixed"):
+    if mode in ("orphan_running", "orphan_mixed"):
+        child_sleep(ignore_term=True)
+        deadline = time.monotonic() + 5
+        while not (pid_dir / "child.pid").exists():
+            if time.monotonic() >= deadline:
+                raise SystemExit(66)
+            time.sleep(0.005)
+    if mode in ("orphan_zombie", "orphan_mixed"):
+        gc = os.fork()
+        if gc == 0:
+            os._exit(0)
+        (pid_dir / "zombie.pid").write_text(str(gc), encoding="ascii")
+        deadline = time.monotonic() + 5
+        while True:
+            raw = Path(f"/proc/{gc}/stat").read_text(encoding="ascii")
+            if raw[raw.rfind(")") + 2:].split()[0] == "Z":
+                break
+            if time.monotonic() >= deadline:
+                raise SystemExit(66)
+            time.sleep(0.005)
+    raise SystemExit(0)
 elif mode in ("token_wait", "retry_wait"):
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
     time.sleep(30)
@@ -1588,6 +1613,44 @@ else:
 '''
     path.write_text(source, encoding="utf-8")
     path.chmod(0o755)
+    return path
+
+
+def _write_subreaper_harness(path: Path) -> Path:
+    source = r'''import ctypes
+import json
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+if ctypes.CDLL(None, use_errno=True).prctl(36, 1, 0, 0, 0) != 0:
+    raise SystemExit(97)
+launcher = subprocess.Popen(sys.argv[1:])
+_, status = os.waitpid(launcher.pid, 0)
+launcher.returncode = os.waitstatus_to_exitcode(status)
+reaped = []
+deadline = time.monotonic() + 3
+while time.monotonic() < deadline:
+    try:
+        # WNOWAIT identifies the next waitable adoptee without reaping it.
+        ready = os.waitid(os.P_ALL, 0, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+    except ChildProcessError:
+        break
+    if ready is not None:
+        raw = Path(f"/proc/{ready.si_pid}/stat").read_text(encoding="ascii")
+        state = raw[raw.rfind(")") + 2:].split()[0]
+        pid, _ = os.waitpid(-1, os.WNOHANG)
+        assert pid == ready.si_pid
+        reaped.append([pid, state])
+    else:
+        time.sleep(0.01)
+print(json.dumps({"harness": "subreaper", "launcher_rc": launcher.returncode,
+                  "reaped": reaped}), file=sys.stderr, flush=True)
+raise SystemExit(launcher.returncode)
+'''
+    path.write_text(source, encoding="utf-8")
     return path
 
 
@@ -4477,6 +4540,159 @@ assert child_pid_path.exists(), (
     assert not _uses_post_exit_child_pid_evidence(absolute_deadline_old_way)
     assert _uses_post_exit_child_pid_evidence(post_exit_positive)
     assert _uses_post_exit_child_pid_evidence(current)
+
+
+def _assert_t2620_residual_case(
+    tmp_path: Path, mode: str, *, residual: int, subreaper: bool
+) -> None:
+    fake = _write_fake_codex(tmp_path / "fake-codex")
+    forced = mode == "sigterm_ignore"
+    running = mode in ("orphan_running", "orphan_mixed")
+    command, env, paths = _base_command(
+        tmp_path, fake=fake, max_wall="3" if forced else "10"
+    )
+    env["FAKE_MODE"] = mode
+    if subreaper:
+        harness = _write_subreaper_harness(tmp_path / "subreaper.py")
+        command = [sys.executable, os.fspath(harness), *command]
+    results: list[subprocess.CompletedProcess[str]] = []
+
+    def observe(completed: subprocess.CompletedProcess[str]) -> None:
+        # Retain stderr even if receipt loading or the single comparison fails.
+        results.append(completed)
+        receipt = json.loads(paths["receipt"].read_text(encoding="utf-8"))
+        attempt = receipt["attempts"][0]
+        diagnostics = _read_launcher_diagnostics(paths)["attempts"][0]
+        observed = {
+            key: attempt[key]
+            for key in (
+                "process_group_residual", "termination_verified", "accepted",
+                "limit_trigger", "codex_exit_code",
+            )
+        }
+        observed.update({
+            "outcome": receipt["outcome"],
+            "stop_reason": receipt["stop_reason"],
+            "launcher_rc": completed.returncode,
+            "residual_observation": diagnostics["residual_observation"],
+        })
+        limit = "wall_clock_admission_bound_s" if forced else None
+        expected = {
+            "process_group_residual": residual,
+            "termination_verified": False,
+            "accepted": False,
+            "outcome": "not_accepted",
+            "stop_reason": limit or "max_attempts",
+            "launcher_rc": 1,
+            "limit_trigger": limit,
+            "codex_exit_code": -signal.SIGKILL if forced else 0,
+            "residual_observation": {
+                "final_count": residual,
+                "final_unknown_source": None,
+                "unknown_sources_seen": [],
+                "proc_stat_malformed": False,
+            },
+        }
+        if running:
+            pid = int((paths["pid_dir"] / "child.pid").read_text())
+            raw = Path(f"/proc/{pid}/stat").read_text(encoding="ascii")
+            state = raw[raw.rfind(")") + 2:].split()[0]
+            # Both runnable and sleeping are live; preserve any other state.
+            observed["child_state"] = "S/R" if state in ("S", "R") else state
+            expected["child_state"] = "S/R"
+        if subreaper:
+            report = json.loads(completed.stderr.splitlines()[-1])
+            zombie_file = "child.pid" if forced else "zombie.pid"
+            zombie = int((paths["pid_dir"] / zombie_file).read_text())
+            observed["zombie_reaped_as_Z"] = [zombie, "Z"] in report["reaped"]
+            observed["harness"] = report["harness"]
+            observed["harness_launcher_rc"] = report["launcher_rc"]
+            expected.update({
+                "zombie_reaped_as_Z": True,
+                "harness": "subreaper",
+                "harness_launcher_rc": 1,
+            })
+        if forced:
+            observed["termination_signals_sent"] = [
+                item["signal"] for item in diagnostics["termination_signals_sent"]
+            ]
+            expected["termination_signals_sent"] = ["SIGTERM", "SIGKILL"]
+        assert observed == expected
+
+    try:
+        _run_launcher_subprocess(
+            command, env=env, paths=paths, expected_returncode=1,
+            timeout=20, on_completed=observe,
+        )
+    finally:
+        # Also own incomplete launches: kill any registered leader and child
+        # before waiting, so receipt/rc/timeout failures take the same teardown.
+        pids = _leader_pids(paths)
+        child_path = paths["pid_dir"] / "child.pid"
+        if child_path.exists():
+            pids.append(int(child_path.read_text(encoding="ascii")))
+        for pid in pids:
+            try:
+                os.kill(pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        for pid in pids:
+            _assert_pid_gone(pid)
+        if subreaper:
+            if results:
+                report = json.loads(results[-1].stderr.splitlines()[-1])
+                for pid, _state in report["reaped"]:
+                    _assert_pid_gone(pid)
+            # On timeout the killed harness may have emitted no JSON. Still
+            # check every registered zombie, now adopted by its next ancestor.
+            zombie_path = paths["pid_dir"] / "zombie.pid"
+            if zombie_path.exists():
+                _assert_pid_gone(int(zombie_path.read_text(encoding="ascii")))
+
+
+def test_t2620_orphan_running_is_rejected(tmp_path: Path) -> None:
+    _assert_t2620_residual_case(
+        tmp_path, "orphan_running", residual=1, subreaper=False
+    )
+
+
+def test_t2620_orphan_zombie_is_rejected(tmp_path: Path) -> None:
+    _assert_t2620_residual_case(
+        tmp_path, "orphan_zombie", residual=1, subreaper=True
+    )
+
+
+def test_t2620_sigterm_ignore_subreaper_is_rejected(tmp_path: Path) -> None:
+    _assert_t2620_residual_case(
+        tmp_path, "sigterm_ignore", residual=1, subreaper=True
+    )
+
+
+def test_t2620_orphan_mixed_is_rejected(tmp_path: Path) -> None:
+    _assert_t2620_residual_case(
+        tmp_path, "orphan_mixed", residual=2, subreaper=True
+    )
+
+
+def test_t2620_check_receipt_rejects_residual_only_changes(tmp_path: Path) -> None:
+    _, receipt, paths = _run_case(tmp_path, "normal", expected_returncode=0)
+    checked = subprocess.run(
+        _check_command(paths), text=True, capture_output=True, timeout=10
+    )
+    observed = {"original_checker_rc": checked.returncode}
+    expected = {"original_checker_rc": 0}
+    for residual in (None, 1):
+        receipt["attempts"][0]["process_group_residual"] = residual
+        paths["receipt"].write_text(json.dumps(receipt) + "\n", encoding="utf-8")
+        checked = subprocess.run(
+            _check_command(paths), text=True, capture_output=True, timeout=10
+        )
+        observed[str(residual)] = {
+            "checker_rc": checked.returncode,
+            "semantic_binding": "attempt.accepted semantic binding" in checked.stderr,
+        }
+        expected[str(residual)] = {"checker_rc": 2, "semantic_binding": True}
+    assert observed == expected
 
 
 def test_group_member_count_reports_identity_missing_source() -> None:
