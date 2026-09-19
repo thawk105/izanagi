@@ -42,6 +42,10 @@ title: [T-2288] (b) B-4 床値 (floor-pair) の w1 を凍結 spec 3 本で同一
   閉じた。実装面ゼロのため変異による裏取りは免除。
 - 隔離 session からは他 worktree への git 操作を harness が拒むため、submit-tree の操作 (verify / lock / place / submit / watch) は job dir の
   `run-*.sh` に置いて起動した (t1505 の型)。checkout 時の `.gitattributes` EINTR 警告 1 件は非 tracked path への属性探索で実害なし。
+- 検査 (login、記録 commit 前後): `check_docs.py` rc=0、`spool_fold.py --dry-run` planned (fragment 2 本、採番なし)、三軸語走査 rc=0 で本 wave の
+  file に hit なし、全史 provenance 監査 11,639 件で新規違反なし (既知 53 + 3)。段 8 は DW-S01 の「日付」→「日時」(byte 中立、L1 予算の空き
+  2 bytes で D782/D730 の既存記述削減により収容) と runbook §7.8 の初回実投入の事実への改稿を専用 commit にした。受入全走と land の
+  結果は job dir の HANDOFF と land receipt に集約する。
 
 ## 次の一手差分
 
