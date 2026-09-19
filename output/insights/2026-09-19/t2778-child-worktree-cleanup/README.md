@@ -148,7 +148,27 @@ not_accepted だが内容は親が監査): 実装 4 行 + fixture parameter `[de
 - 変異 (spec w3、source clone を f749b9ecf に固定、dispatch、`mutation/final-w3.json`): baseline 186 passed (27 秒)、w3m1 KILLED
   (killer `test_remove_child_checks_initialized_submodule[default-branch-reflog]` に完全一致)、rc=0、container 撤去済み。
 - 敵対レビューは wave-3 でも起動していない (差分は 4 行の条件追加 + fixture 1 parameter、裁定は §6.3 の親判断、実効性は dogfood と変異で確認)。
-- 受入・land・段 9 の撤去結果 (子木 `remove-child` の正例、wave-3 木) は専用 handoff と wave-3 の worklog entry に記録する。
+- wave-3 の受入 (04:31→04:42、25411 passed / 69 skipped、child-green) → GO → land rc=0、main `65fe36a94` (04:46:18)。段 9: wave-3 木 = removed。
+  **子木 = rc=20 phase integration「HEAD reflog history is unreachable from main and retained branch」** (3 巡目の dogfood 赤、backup-precheck は通過)。
+
+### 6.5 wave-4 (fix7): HEAD reflog の判定に「任意の local branch が保持」を加える
+
+原因 (`probe-child-history.sh`): DW-S05-A の手順どおり同じ author 木で fix1〜fix6 の branch を切り替えたため、HEAD reflog に各 fix branch の tip
+(4fb072418 / bcebec55b / 8f430b748 / aa318d9a9 / 2804f1323 / 6baa6c973 / 1ad54a50d / f619d85a6) が残り、manifest の branch (main tip から切った
+codex-t2778-fix7) からも main からも到達しない。実測で reflog 15 sha 全てが何らかの local branch に含まれる (喪失ではない、tool は子 branch を消さない)。
+裁定: 「main ∨ manifest branch ∨ 任意の local branch (`git branch --contains <sha> --format=%(refname)` 非空)」で受理、どの branch にも無い sha
+(reset で捨てた commit、既存 `..._rejects_unreachable_reflog_history`) は拒否のまま。fix7 (`verbatim/s9-fix7.md`、子木 branch `codex-t2778-fix7` @ main 65fe36a94、
+commit 1b3d260e1): 実装 3 行 + allowlist 1 形 + 正例 `test_remove_child_reflog_retained_by_other_branch`。焦点走 7 (login): 189 passed。
+実装 commit `522643410`。変異 (spec w4 = 分岐を外す 1 件): 結果は §6.6。
+
+### 6.6 wave-4 の結果
+
+- 変異 (spec w4、source clone を 522643410 に固定、dispatch、`mutation/final-w4.json`): baseline 186 passed、w4m1 KILLED
+  (killer `test_remove_child_reflog_retained_by_other_branch` に完全一致)、rc=0、container 撤去済み。
+- 敵対レビューは wave-4 でも起動していない (差分は 3 行の条件追加 + allowlist 1 形 + 正例 1 本、裁定は §6.5 の親判断、実効性は dogfood と変異で確認)。
+- 受入・land・段 9 の撤去結果 (子木 `remove-child` の正例、wave-4 木) は専用 handoff と wave-4 の worklog entry に記録する。
+  3 巡の dogfood 赤 (§6・6.2・6.4) はいずれも tmp fixture に無い実環境の差で、tool の受理述語は「削除範囲外 (main・local branch・primary module store)
+  に在るか」に統一された。
 
 ## 7. scope 外として記録 (起票しない)
 

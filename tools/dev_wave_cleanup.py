@@ -251,6 +251,9 @@ def _validate_git_argv(args: Sequence[str]) -> None:
     if (len(argv) == 3 and argv[0] == "merge-base"
             and all(_SHA_RE.fullmatch(sha) for sha in argv[1:])):
         return
+    if (len(argv) == 4 and argv[:2] == ("branch", "--contains")
+            and _SHA_RE.fullmatch(argv[2]) and argv[3] == "--format=%(refname)"):
+        return
     if (len(argv) == 9 and argv[:6] == _CHILD_DIFF
             and all(_SHA_RE.fullmatch(sha) for sha in argv[6:8]) and argv[8] == "--"):
         return
@@ -1547,6 +1550,8 @@ def _assert_child_history(repo: Path, proof: ChildProof, history: Sequence[str])
     for sha in history:
         if not (_ancestor(repo, sha, proof.main_tip)
                 or (proof.branch is not None and _ancestor(repo, sha, proof.head))):
+            if _must_git(repo, "branch", "--contains", sha, "--format=%(refname)").stdout.strip():
+                continue
             raise ValueError("HEAD reflog history is unreachable from main and retained branch")
 
 
