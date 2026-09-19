@@ -1866,12 +1866,17 @@ def test_p1_a2_default_policy_bytes_and_protocol_are_unchanged():
     policy = A2.load_policy()
 
     assert hashlib.sha256(raw).hexdigest() == (
-        "cacfdd5dd5f5841ed300310f73fcf36c0684b401c15cf88a83e9405fe86e5e3b")
+        "f8a7780600766e6c8e0248ae0e3aff70a2e1c28150f8932842cdbf67f988472c")
     assert policy.bytes_sha256 == (
-        "cacfdd5dd5f5841ed300310f73fcf36c0684b401c15cf88a83e9405fe86e5e3b")
+        "f8a7780600766e6c8e0248ae0e3aff70a2e1c28150f8932842cdbf67f988472c")
     assert policy.protocol_sha256 == (
         "d99f08bcc50c605d24d443d387a2c3144c16b9e670c9b9e247227c5db1be7f9c")
     assert policy.raw_bytes == raw
+    assert policy.document["scheduler"]["nodes"] == 5
+    single_node = copy.deepcopy(policy.document)
+    single_node["scheduler"]["nodes"] = 1
+    assert A2._protocol_preimage(single_node) == A2._protocol_preimage(
+        policy.document)
     assert A2.workload_ids(policy) == ("rr5", "rr50")
     assert A2._qsub_job_name(policy) == "paper-a2-cert"
     assert A2._qsub_environment_keys(policy) == A2._QSUB_ENV_KEYS
@@ -2069,7 +2074,7 @@ def test_verify_fanout_hosts_accept_exact_policy_counts():
     hosts = ("bnode002", "bnode003", "bnode004", "bnode005")
 
     assert A2._validate_verify_fanout_hosts(
-        a2, (), current_host="bnode001") == ()
+        a2, hosts, current_host="bnode001") == hosts
     assert A2._validate_verify_fanout_hosts(
         a6, hosts, current_host="bnode001") == hosts
 
@@ -2080,19 +2085,31 @@ def test_verify_fanout_hosts_accept_exact_policy_counts():
         (("bnode002", "bnode002", "bnode004", "bnode005"), "duplicate"),
         (("bnode001", "bnode003", "bnode004", "bnode005"), "current host"),
         (("bnode002", "bnode003", "bnode004"), "count differs"),
+        ((), "count differs"),
+        (("bnode002", "bnode003", "bnode004", "bnode005", "bnode006"),
+         "count differs"),
         (("bnode002", "bad_host", "bnode004", "bnode005"), "malformed"),
     ),
+    ids=("duplicate", "head", "too-few", "empty", "too-many", "malformed"),
 )
-def test_verify_fanout_hosts_reject_invalid_binding(hosts, message):
-    policy = A2.load_policy(A2.A6_POLICY_PATH)
+@pytest.mark.parametrize("policy_path", (A2.POLICY_PATH, A2.A6_POLICY_PATH),
+                         ids=("a2", "a6"))
+def test_verify_fanout_hosts_reject_invalid_binding(policy_path, hosts, message):
+    policy = A2.load_policy(policy_path)
 
     with pytest.raises(A2.CertificationError, match=message):
         A2._validate_verify_fanout_hosts(
             policy, hosts, current_host="bnode001")
 
 
-def test_single_node_policy_rejects_any_verify_fanout_host():
-    policy = A2.load_policy(A2.POLICY_PATH)
+def test_single_node_policy_rejects_any_verify_fanout_host(tmp_path):
+    document = json.loads(A2.POLICY_PATH.read_text(encoding="utf-8"))
+    document["scheduler"]["nodes"] = 1
+    path = tmp_path / "single-node-policy.json"
+    path.write_text(json.dumps(document), encoding="utf-8")
+    policy = A2.load_policy(path)
+    assert A2._validate_verify_fanout_hosts(
+        policy, (), current_host="bnode001") == ()
 
     with pytest.raises(A2.CertificationError, match="count differs"):
         A2._validate_verify_fanout_hosts(
@@ -4874,6 +4891,7 @@ def test_run_workload_cli_converts_optional_comma_separated_verify_hosts(
 @pytest.mark.parametrize("mutation", ("wrong-prefix", "resolver-failure", "dirty"))
 def test_run_workload_production_pin_gate_rejects_noncanonical_source(
         tmp_path, monkeypatch, mutation):
+    monkeypatch.setattr(A2.socket, "gethostname", lambda: "bnode001")
     policy = _policy(tmp_path)
     attempt = A2.preregister_attempt(
         policy, "run-workload-pin-negative", REPO_CURRENT_PIN)
@@ -4910,12 +4928,14 @@ def test_run_workload_production_pin_gate_rejects_noncanonical_source(
             raw_root=raw_root, current_pin=REPO_CURRENT_PIN,
             dependency_prefix=dependency, ccbench_dir=ccbench,
             third_party_source_root=tmp_path / "fetchcontent",
+            verify_fanout_hosts=("bnode002", "bnode003", "bnode004", "bnode005"),
             log=lambda *_args: None)
 
 
 @pytest.mark.parametrize("current_pin", ("1" * 40, "abcdef0"))
 def test_run_workload_requires_exact_repository_canonical_short_pin(
-        tmp_path, current_pin):
+        tmp_path, monkeypatch, current_pin):
+    monkeypatch.setattr(A2.socket, "gethostname", lambda: "bnode001")
     policy = _policy(tmp_path)
     attempt = A2.preregister_attempt(
         policy, "run-workload-noncanonical-pin", REPO_CURRENT_PIN)
@@ -4932,11 +4952,13 @@ def test_run_workload_requires_exact_repository_canonical_short_pin(
             raw_root=raw_root, current_pin=current_pin,
             dependency_prefix=dependency, ccbench_dir=ccbench,
             third_party_source_root=tmp_path / "fetchcontent",
+            verify_fanout_hosts=("bnode002", "bnode003", "bnode004", "bnode005"),
             log=lambda *_args: None)
 
 
 def test_run_workload_verifies_staged_sources_before_condition_gate(
         tmp_path, monkeypatch):
+    monkeypatch.setattr(A2.socket, "gethostname", lambda: "bnode001")
     policy = _policy(tmp_path)
     attempt = A2.preregister_attempt(
         policy, "run-workload-staged-verifier", REPO_CURRENT_PIN)
@@ -4971,6 +4993,7 @@ def test_run_workload_verifies_staged_sources_before_condition_gate(
             raw_root=raw_root, current_pin=REPO_CURRENT_PIN,
             dependency_prefix=dependency, ccbench_dir=ccbench,
             third_party_source_root=third_party,
+            verify_fanout_hosts=("bnode002", "bnode003", "bnode004", "bnode005"),
             log=lambda *_args: None,
         )
     assert isinstance(
@@ -4993,12 +5016,14 @@ def test_run_workload_verifies_staged_sources_before_condition_gate(
             raw_root=raw_root, current_pin=REPO_CURRENT_PIN,
             dependency_prefix=dependency, ccbench_dir=ccbench,
             third_party_source_root=third_party,
+            verify_fanout_hosts=("bnode002", "bnode003", "bnode004", "bnode005"),
             log=lambda *_args: None,
         )
 
 
 def test_official_run_observes_dependency_receipt_after_condition_prebuild(
         tmp_path, monkeypatch):
+    monkeypatch.setattr(A2.socket, "gethostname", lambda: "bnode001")
     from orchestrator.campaign import layout as campaign_layout
 
     source = inspect.getsource(A2.run_workload)
@@ -5225,6 +5250,7 @@ def test_official_run_observes_dependency_receipt_after_condition_prebuild(
         current_pin=REPO_CURRENT_PIN, dependency_prefix=dependency,
         ccbench_dir=ccbench,
         third_party_source_root=fetchcontent_root,
+        verify_fanout_hosts=("bnode002", "bnode003", "bnode004", "bnode005"),
         log=lambda *_args: None)
     assert order == [
         "condition-prebuild-complete",
@@ -5442,6 +5468,7 @@ def test_m10_official_run_forwards_verify_hosts_and_fetchcontent_five_tuple(
 def test_live_precampaign_source_role_predicate_rejects_before_campaign(
         tmp_path, monkeypatch, mutation, tokens, expected_calls, signature):
     """Name and execute the production role predicate on rejecting inputs."""
+    monkeypatch.setattr(A2.socket, "gethostname", lambda: "bnode001")
     from orchestrator.campaign import layout as campaign_layout
 
     policy = _policy(tmp_path)
@@ -5520,6 +5547,7 @@ def test_live_precampaign_source_role_predicate_rejects_before_campaign(
             raw_root=raw_root, current_pin=REPO_CURRENT_PIN,
             dependency_prefix=dependency, ccbench_dir=source_root,
             third_party_source_root=tmp_path / "fetchcontent",
+            verify_fanout_hosts=("bnode002", "bnode003", "bnode004", "bnode005"),
             log=lambda *_args: None)
 
     assert predicate_calls == list(expected_calls)

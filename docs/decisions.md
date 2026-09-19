@@ -67858,3 +67858,117 @@ knowledge source indexを捏造しない。static adapterは本文とsource pin�
 **却下:** whiteboard拡張、報告用AOからの自動還流、8c数値射影への置換、static schemaのついで修復、
 新launcher・汎用台帳・候補再抽選。次の実走計画には同機体・同jobのstock適応backoff対照を含め、
 予算は別途確定する。本変更では3巡目を投入しない。検証記録は `output/insights/2026-09-19/t2783-critic-input/README.md`。
+
+## D2156. A-1 sized attempt-0002 の 1 attempt 認可は既存 submit 経路の gate で停止条件に達し、gate を緩めずに裁定パッケージへ返す (2026-09-19)
+
+**決定:** ユーザー裁定 (2026-09-19) は A-1 balanced5 sized study (`paper-story-a1-20260901-balanced5-sized-v1`) の attempt-0002 を
+独立再現として 1 attempt 認可した (非認証 lane 維持、formal 昇格なし、どこかの層で落ちたら再投入せず報告して止める)。
+既存 submit 経路を 1 回実走したところ、`_assert_no_prior_v3_bench_start` が qsub の前に
+`prior attempt reached the bench barrier; group rerun is prohibited` で拒否した。次のとおり扱う。
+
+1. 停止条件に達したとして再投入しない。計測 attempt は開始されておらず (intent・attempt root・qsub いずれも未作成)、durable base・
+   attempt-0001 の証拠・公開 leaf・事前登録・policy・source 契約の bytes は不変である。
+2. この gate は commit `abff80d1b` が「分割で開く規律 2 の穴 (測定済み workload の再投入) を塞ぐ」ために入れた防壁であり、
+   認可済みの独立再現と失敗後の再走を区別する入力を持たない。本 wave は gate の緩和・先行 attempt の証拠の移動や削除・policy / durable base の
+   変更のいずれも行わない (絶対規律 2、DW-STOP)。
+3. 認可された実行手続は submit 層で停止条件に達したので、同 study の次の投入には改めて認可が要る (D2120 項 3 と同じ形)。
+   「qsub に達していないから同じ認可で再度 submit してよい」とは読まない。
+4. 同 study の 2 本目を投入可能にする経路は本 wave の scope 外であり、設計択一 (択 1 = exact な認可記録を入力に取る gate 解除、
+   択 2 = 別 study として登録、択 3 = 行わない) と推奨 (研究目的を「同一配置の反復」と確定し択 1 を 1 attempt 限定で) を
+   `output/insights/2026-09-19/a1-sized-attempt2/README.md` §7 の裁定パッケージとしてユーザーへ返す。AI は自律採用しない。
+5. results 系列稿・2 attempt の並記・図は測定値が無いので作らない。attempt-0001 稿の限定 L-A1S-4 は残る。
+
+**理由:**
+
+- 拒否は driver の gate による構造的なものであり、環境 (queue・node・hydrate・pin) ではない。投入前照合 21 項目はすべて成立していた。
+- gate の受理集合を広げる変更は規律 2 由来の防壁の保護範囲を変えるので、AI の裁量で行わない。相談 3 本 (正しさ境界・手順・パッケージ点検)
+  のいずれも「今回だけ通す」案を支持しなかった。
+- 拒否を予測でなく実走で確定した (F29 型の回避)。実走は intent 書込と qsub の前で止まるので副作用が無いことを code と現物で確かめた。
+
+**却下した選択肢:**
+
+- 先行 attempt の barrier 証拠を base から退避して submit を通す — 証拠の改変で gate を迂回する形。
+- submit-tree を attempt-0001 と同じ commit に置いて materialize の排他公開先を通す — submit 層で拒否されるため到達しない。
+  また事前登録 §6.1 の「一度しか作れない宛先」の意味を tree の選択で迂回する疑いが残る。
+- policy の durable base / 公開先を変えて別 base に attempt-0002 を置く — policy の bytes は事前登録・source 契約・driver 定数が束縛しており、
+  束縛の全面改版になる。
+- 本 wave で gate に認可入力を実装する — 「既存 submit 経路」「追加 gate は scope 外」の裁定に反し、規律 2 由来の防壁の変更には
+  ユーザーの明示裁定が要る。
+
+## D2157. B-10 静的右 tail の第 2 cohort は独立再現とし、cohort 1 の verdict を主として保持して再現欄に併記し、合成しない (2026-09-19)
+
+**決定 (ユーザー裁定、2026-09-19):** 事前登録 `docs/b10-backoff-static-tail-preregistration.md` に対する第 2 cohort を
+走らせる。地位は次のとおりで、**結果を見る前に**事前登録の末尾追記 (日付付き append-only、commit `cad6f46d8` の bytes は
+不変、§5 spec の bytes も不変) として commit してから投入する。
+
+- 第 2 cohort は cohort 1 (group `b10-backoff-grid-20260915T061814Z-545445`、verdict `not-observed-in-any-workload`) の
+  **独立再現**であり、置換ではない。
+- cohort 1 の verdict を主として保持する。第 2 cohort の verdict は、第 2 cohort の稿と fig8 の再現欄に併記する。
+  cohort 1 の既存の稿・図は凍結物のまま改めない。
+- 2 つの cohort を合成しない (統合 verdict・プール推定・またぐ有意水準の保証を作らない)。
+- 結果にかかわらず 1 本を報告する。未完走・報告生成失敗も §7 に従い開示する。第 3 cohort の実施・地位は定めない。
+- 格子・反復・判定は既存の事前登録どおり。機構は `tools/pegasus/b10_backoff_grid.sh` の `B10_RUN_KIND=t2500-tail-formal`、
+  3 workload を 3 job に割って別ノードで走らせる。`performance_certified: false` を維持し、正しさは trace 有効の別走行。
+- scope 外: 901〜998 マイクロ秒の帯 (D2044 項 14)、v2 consumer 移行 (D1936 項 36)、追加 gate。
+
+これは D2050 (2 本目は地位を結果より前に明記してから投入) の充足であり、D2104 項 7 / D2120 項 16 が
+「走らせる場合は D2050 を満たす別 wave として新規に起票する」と留保した保留を、**この 1 cohort についてだけ**解く。
+
+**理由:**
+- 独立な再現走行は科学的に望ましい (D2050 の却下案の理由)。事前登録は 2 本目を禁じていない。
+- 地位を先に固定すれば、結果後に「どちらの verdict を採るか」を選ぶ余地が消える (絶対規律 3)。
+- fig8 (cohort 1 の記述図) が成立し、結果を使う下流が存在する (D2120 項 16 が挙げた理由の一部の変化)。
+
+**却下した選択肢:**
+- 第 2 cohort で cohort 1 を置換する — 結果後の選択を残すため採らない。
+- 2 つの cohort を合成して 1 つの verdict にする — 事前登録に合成規則が無く、新しい統計的主張になるため採らない。
+- §0 本文へ変更理由の 1 項目を挿入する — ユーザー指定の「末尾 append-only」と一致しないため、§0 が求める記載は
+  追記の冒頭に置く (段 3 相当の consult の real 所見を採用)。
+
+## D2158. B-5 生成器対照の事前登録 v1 を別 file に作り、主張の形・評価数予算・score・判定順を結果を見る前に固定する (2026-09-20)
+
+**決定:** 2026-09-19 のユーザー決定 (固定 backoff hole の内で LLM (K2 loop) / ランダム変異 / 機械 sweep の
+3 生成器を同一予算で比べる事前登録の**作成だけ**を認可、本走と D1409 の条件変更は不認可) に従い、
+`docs/b5-generator-contrast-preregistration.md` (v1、未発効) を新設した。`docs/phase3-main-experiment.md` と
+paper-story は編集しない (D1012 の作法)。設計の骨子:
+
+- 主張の形は D1067 の条件付き優越に限る。失敗条件 (c) の成立を正当な結末として事前に固定し、headline・D52 の
+  休眠・「非列挙」の定義 (D1409、D1441) を変えない。
+- 予算単位は評価数 B = 10 (verifier の anomaly reject も消費)、原提案上限 A = 30。D39 決定 2 から継承するのは
+  数値だけで、A/B 分離・3600 秒撤去・収束停止の不適用は本走認可時に確認する実質改訂と明記。
+- 候補集合は 3 arm 共通の整数 µs 1..1000 (Tier 1 文法 + 値域 + 帰属整合)。random は離散 log-uniform
+  (SHA-256 counter stream)、sweep-matched は `EXTENDED_SWEEP_US` ∩ [1,1000] の 28 点を hash 順に B 点。
+- 評価経路は 3 arm とも `p3_s4_loop` の hole literal 経路、較正済み動作点 (1M / 48 / 3 s / 5 reps)。
+  session = 既存 bench 経路 (5 rep、最大 3 round の品質再測定、rep 完走要求)、不安定は品質欠測。
+- score = endpoint の独立再計測 5 session の median (絶対 tps)。certified 無しの系列は block stock の median
+  (fallback)。anomaly は値単位で workload 内の全 arm・全系列の endpoint 資格を奪う。
+- 判定 = 系列番号で対にした log 比の片側 exact 符号反転 permutation、Holm 族 6、2 対照への連言。
+  等価域は stock CV と 3 % の大きい方、endpoint CV は精度 gate (2 倍超で判定不能)。fallback 対を除く副解析を
+  登録し、fallback 対が 2 以上なら副解析を報告値にする。結末は 規約不適合 → 判定不能 → 優越 → 同等 (c) →
+  逆向きの記述的差 → 判定不能 の順で一意に決め、両 arm の certified 系列が 6 未満なら「生成不成立」。
+- 既存機構の照合: 文法・帰属整合は実装不要。較正動作点の CLI、session 契約の束縛、B/A 台帳と停止の不適用、
+  重複の fresh 評価、exact correctness 経路、系列開始 stock、random 生成器、sweep の hash 順 B 点、
+  解析 consumer は**実装が要る**。本 wave では実装しない。
+- 費用は 1773 論理 session (探索 1080 + 系列開始 stock 108 + endpoint 再計測 540 + block stock 45)、百時間級。
+  総実行 wall の上限は試走後に本走認可で決め、本書では固定しない。
+
+**理由:**
+- 前回 (D1012) は適格軸が無く正本化を見送った。今回はユーザーが編集面を固定 backoff hole に定め、主張を
+  D1067 の形に狭めたので、拘束力ある文書を別 file に置ける。ただし本走の認可は無いので発効 commit と分ける。
+- 本 hole の受理域は 1000 点で完全列挙可能である。前回の三すくみ (有限対照と非列挙軸の両立) は、必要性を
+  要求しない条件付き比較に限れば前提にならない。これは D1409 / D1441 の解消ではない。
+- K2 手動 loop の性能構成は配線規模 (100k / 4 / 1 s / 2 rep) に固定され、`drive_iteration` は単一 layout で
+  入口停止し、同一 genome は WAL から復元される。事前登録はこれらを「実装が要る」と正直に載せ、運用だけで
+  本走できるとは書かない。
+- 段 3 の敵対相談 2 本が、session 成立条件 (bench の品質再測定)、同値 anomaly の波及、共有 stock と
+  exact 検定の交換可能性、不安定性と判定不能の優先順位、endpoint CV による等価域の膨張を指摘した。いずれも
+  親が設計で閉じた (ユーザー承認で代替しない)。
+
+**却下した選択肢:**
+- `docs/phase3-main-experiment.md` へ追記する — D1012 の作法に反し、発火 commit 前の正本化になる。
+- 探索 job ごとに stock を対測定する (1080 session) — 費用が倍になり、規律 4 に反する。系列開始 stock 1 本と
+  block stock で代替した。
+- endpoint 専用の floor session (540) — score の 5 session で CV を出せる。等価域には入れず精度 gate に使う。
+- anomaly を −100 % の性能値へ変換する — 正しさの失敗を任意尺度の性能差にする。fallback と (a) 記録で扱う。
+- 系列数を n = 9 に縮める — 本 v1 には置かない。採るなら結果を見る前に別仕様として固定する。
+- K0 (知識なし LLM) arm を足す — 3 arm の認可範囲外。知識の非対称は限界として明記する。

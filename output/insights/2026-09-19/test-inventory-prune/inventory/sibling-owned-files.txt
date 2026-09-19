@@ -1,0 +1,7 @@
+# 並行 wave dev-wave-acceptance-worker-time-trim (job 28fa456a、2026-09-19 22:02 時点の handoff) が編集予定の test file。本 wave では削除対象外。
+orchestrator/tests/test_s8b_floor_campaign.py
+orchestrator/tests/test_s8b_ratified_verify.py
+orchestrator/tests/test_p3_b4_producer_auth_experiment.py
+orchestrator/tests/test_t1259_qsub_env_delivery_probe.py
+orchestrator/tests/test_run_tests_preflight.py
+orchestrator/tests/test_codex_reasoning_ab.py

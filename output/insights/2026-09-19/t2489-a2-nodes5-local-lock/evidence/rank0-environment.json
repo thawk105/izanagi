@@ -1,0 +1,35 @@
+{
+  "base_line": 340,
+  "base_source": "scratch_base=/scr/${USER}/paper-story-a2-certification",
+  "code": {
+    "head": "c5bfe9e8249634236ac267e4114044433a64490c",
+    "lock_sha256": "fbc371a864954a19de6e54fe7c3925ab8194d1a5ef24e12ce61acae0fd739e89",
+    "pbs_sha256": "dac35103eb74e938f8183e2f0815bcf92dd487cf9e91d24e2776cd30dbc95b6e",
+    "probe_sha256": "3cf2f694c1a0798236b71b145e351e62c82c458124a5580b572ea0ca5fff04bd"
+  },
+  "cwd": "/work/1/SFC/tanab/izanagi/.codex/worktrees/t2489-author",
+  "device": null,
+  "environment": {
+    "HOME": "/home/SFC/tanab",
+    "IZANAGI_BENCH_LOCK": null,
+    "PBS_JOBID": "0:9137.nqsv",
+    "PBS_NODEFILE": "/var/opt/nec/nqsv/jsv/jobfile/0.9137.10/nodelist",
+    "PBS_O_WORKDIR": "/work/1/SFC/tanab/izanagi",
+    "T2489_SCRATCH": null,
+    "TMPDIR": null,
+    "USER": "tanab"
+  },
+  "export_line": 349,
+  "export_source": "export IZANAGI_BENCH_LOCK=\"$scratch_base/bench.lock\"",
+  "home_realpath": "/home/SFC/tanab",
+  "hostname": "bnode082",
+  "inode": null,
+  "job_sha256": "92d4e177159411294cbd7ad40a07ab92810827ea1026d52a660ea62abbbc53b8",
+  "mountinfo": "24 30 0:22 / /sys rw,nosuid,nodev,noexec,relatime shared:7 - sysfs sysfs rw\n25 30 0:23 / /proc rw,nosuid,nodev,noexec,relatime shared:13 - proc proc rw\n26 30 0:5 / /dev rw,nosuid,relatime shared:2 - devtmpfs udev rw,size=65208300k,nr_inodes=16302075,mode=755,inode64\n27 26 0:24 / /dev/pts rw,nosuid,noexec,relatime shared:3 - devpts devpts rw,gid=5,mode=620,ptmxmode=000\n28 30 0:25 / /run rw,nosuid,nodev,noexec,relatime shared:5 - tmpfs tmpfs rw,size=13053636k,mode=755,inode64\n30 1 259:7 / / rw,relatime shared:1 - xfs /dev/nvme1n1p4 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n31 24 0:6 / /sys/kernel/security rw,nosuid,nodev,noexec,relatime shared:8 - securityfs securityfs rw\n32 26 0:27 / /dev/shm rw,nosuid,nodev shared:4 - tmpfs tmpfs rw,inode64\n33 28 0:28 / /run/lock rw,nosuid,nodev,noexec,relatime shared:6 - tmpfs tmpfs rw,size=5120k,inode64\n34 24 0:29 / /sys/fs/cgroup rw,nosuid,nodev,noexec,relatime shared:9 - cgroup2 cgroup2 rw,nsdelegate,memory_recursiveprot\n35 24 0:30 / /sys/fs/pstore rw,nosuid,nodev,noexec,relatime shared:10 - pstore pstore rw\n36 24 0:31 / /sys/firmware/efi/efivars rw,nosuid,nodev,noexec,relatime shared:11 - efivarfs efivarfs rw\n37 24 0:32 / /sys/fs/bpf rw,nosuid,nodev,noexec,relatime shared:12 - bpf bpf rw,mode=700\n38 25 0:33 / /proc/sys/fs/binfmt_misc rw,relatime shared:14 - autofs systemd-1 rw,fd=29,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=26723\n39 26 0:34 / /dev/hugepages rw,relatime shared:15 - hugetlbfs hugetlbfs rw,pagesize=2M\n40 26 0:20 / /dev/mqueue rw,nosuid,nodev,noexec,relatime shared:16 - mqueue mqueue rw\n41 24 0:7 / /sys/kernel/debug rw,nosuid,nodev,noexec,relatime shared:17 - debugfs debugfs rw\n42 24 0:12 / /sys/kernel/tracing rw,nosuid,nodev,noexec,relatime shared:18 - tracefs tracefs rw\n43 24 0:35 / /sys/fs/fuse/connections rw,nosuid,nodev,noexec,relatime shared:19 - fusectl fusectl rw\n44 24 0:21 / /sys/kernel/config rw,nosuid,nodev,noexec,relatime shared:20 - configfs configfs rw\n67 28 0:36 / /run/credentials/systemd-sysusers.service ro,nosuid,nodev,noexec,relatime shared:21 - ramfs none rw,mode=700\n92 30 7:0 / /snap/core20/2866 ro,nodev,relatime shared:31 - squashfs /dev/loop0 ro,errors=continue\n98 30 7:2 / /snap/lxd/40364 ro,nodev,relatime shared:49 - squashfs /dev/loop2 ro,errors=continue\n101 30 7:3 / /snap/snapd/27710 ro,nodev,relatime shared:51 - squashfs /dev/loop3 ro,errors=continue\n104 30 7:4 / /snap/lxd/40526 ro,nodev,relatime shared:53 - squashfs /dev/loop4 ro,errors=continue\n107 30 7:5 / /snap/snapd/27738 ro,nodev,relatime shared:55 - squashfs /dev/loop5 ro,errors=continue\n110 38 0:37 / /proc/sys/fs/binfmt_misc rw,nosuid,nodev,noexec,relatime shared:57 - binfmt_misc binfmt_misc rw\n178 30 259:5 / /boot rw,relatime shared:69 - xfs /dev/nvme1n1p2 rw,attr2,inode64,logbufs=8,logbsize=32k,noquota\n184 30 259:8 / /var/opt/nec/nqsv/jsv/jobfile rw,relatime shared:98 - xfs /dev/nvme1n1p5 rw,attr2,inode64,logbufs=8,logbsize=32k,usrquota\n189 178 259:4 / /boot/efi rw,relatime shared:101 - vfat /dev/nvme1n1p1 rw,fmask=0022,dmask=0022,codepage=437,iocharset=iso8859-1,shortname=mixed,errors=remount-ro\n248 28 0:40 / /run/rpc_pipefs rw,relatime shared:105 - rpc_pipefs sunrpc rw\n575 41 0:12 / /sys/kernel/debug/tracing rw,nosuid,nodev,noexec,relatime shared:204 - tracefs tracefs rw\n777 30 1273:181606 / /work rw shared:428 - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/work rw,flock,user_xattr,lazystatfs,encrypt\n796 30 1273:181606 / /system rw shared:438 - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/system rw,flock,user_xattr,lazystatfs,encrypt\n815 30 1273:181606 / /home rw shared:448 - lustre 10.110.64.1@o2ib10:10.110.64.2@o2ib10:10.110.65.1@o2ib10:10.110.65.2@o2ib10:/lustre/home rw,flock,user_xattr,lazystatfs,encrypt\n835 28 0:25 /snapd/ns /run/snapd/ns rw,nosuid,nodev,noexec,relatime - tmpfs tmpfs rw,size=13053636k,mode=755,inode64\n860 835 0:4 mnt:[4026535821] /run/snapd/ns/lxd.mnt rw - nsfs nsfs rw\n697 30 7:6 / /snap/core20/2922 ro,nodev,relatime shared:386 - squashfs /dev/loop6 ro,errors=continue\n95 30 9:0 / /scr rw,relatime shared:47 - xfs /dev/md0 rw,attr2,inode64,logbufs=8,logbsize=32k,sunit=1024,swidth=2048,noquota\n649 30 259:10 / /pmem rw,noatime shared:48 - ext4 /dev/pmem0 rw,dax=always\n",
+  "nodefile": "bnode082\nbnode083\n",
+  "path": "/scr/tanab/paper-story-a2-certification/bench.lock",
+  "pid": 3123593,
+  "python": "/bin/python3.10",
+  "python_version": "3.10.12 (main, Mar  3 2026, 11:56:32) [GCC 11.4.0]",
+  "resolved_path": "/scr/tanab/paper-story-a2-certification/bench.lock"
+}

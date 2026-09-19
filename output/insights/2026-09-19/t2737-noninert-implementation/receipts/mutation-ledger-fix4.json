@@ -1,0 +1,377 @@
+{
+  "baseline": {
+    "artifact": {
+      "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5dfdef199d0a144819cec08973d4fe51/izdw-5dfdef199d.o10880",
+      "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/5dfdef199d0a144819cec08973d4fe51/receipt.json",
+      "runner_mode": "dispatch",
+      "stdout": "............................s..s........................................ [ 97%]\n..                                                                       [100%]\n72 passed, 2 skipped in 182.76s (0:03:02)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+      "stdout_sha256": "3882bf6b5f4d0a95cddd604dbb21a281c3a3708274dc6f4726b04a5d2d43161a"
+    },
+    "artifact_error": null,
+    "collection_sha256": "30544ee4a6e74d22e035acb527d0e9cbe270e285c9071db0f833fce1737fbb1c",
+    "duration_s": 703.909,
+    "failed_nodes": [],
+    "rc": 0,
+    "registration_sha256": "d47c7f681e19aac23e4b8e1cf55134f8079e52e419daa70d5c7209f753235fad",
+    "repo_head": "7f24b1c32db549fcdfb2d0a2c6fd23cee59a23ed",
+    "runner_sha256": "f2a88c8654ca765f23e045360c5fc154e4ba13869fe09860d55a0ce5a28dd63d",
+    "spec_sha256": "8536172d749deefe49af09c3e640e0d49271054a6d18f2b4485d05d54551dde9",
+    "status": "PASSED",
+    "test_output_sha256": "3882bf6b5f4d0a95cddd604dbb21a281c3a3708274dc6f4726b04a5d2d43161a",
+    "test_output_tail": [],
+    "timed_out": false,
+    "tool_sha256": "005d851a8be0cac57b21e8dbe1e41bd0173dda5bd9bcdbce30ede81b64c7e47d"
+  },
+  "date": "2026-09-19T13:51:29.597387+00:00",
+  "mutations": [
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f14f75b59c77adb5a9a614275263fb83/izdw-f14f75b59c.o10897",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/f14f75b59c77adb5a9a614275263fb83/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": ".F..........................s..s........................................ [ 97%]\n..                                                                       [100%]\n=================================== FAILURES ===================================\n______ test_patch_define_inventory_excludes_only_new_file_include_guards _______\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/test_patch_define_inventory_ex0')\n\n    def test_patch_define_inventory_excludes_only_new_file_include_guards(tmp_path):\n        patch = tmp_path / \"interfaces.patch\"\n        patch.write_text(\n            \"diff --git a/guard.hh b/guard.hh\\n\"\n            \"new file mode 100644\\n\"\n            \"--- /dev/null\\n+++ b/guard.hh\\n@@ -0,0 +1,4 @@\\n\"\n            \"+// Header guard.\\n+#ifndef NEW_HEADER_HH\\n\"\n            \"+#define NEW_HEADER_HH\\n+#endif // NEW_HEADER_HH\\n\"\n            \"diff --git a/default.hh b/default.hh\\n\"\n            \"new file mode 100644\\n\"\n            \"--- /dev/null\\n+++ b/default.hh\\n@@ -0,0 +1,3 @@\\n\"\n            \"+#ifndef DEFAULT_SWITCH\\n+#define DEFAULT_SWITCH 0\\n+#endif\\n\"\n            \"diff --git a/changed.hh b/changed.hh\\n\"\n            \"--- a/changed.hh\\n+++ b/changed.hh\\n@@ -1 +1,4 @@\\n\"\n            \" // Existing header.\\n\"\n            \"+#ifndef CHANGED_HEADER_HH\\n+#define CHANGED_HEADER_HH\\n+#endif\\n\",\n            encoding=\"utf-8\",\n        )\n        patch_sources, non_tu_interfaces = _patch_added_define_interfaces(patch_dir=tmp_path)\n        assert \"NEW_HEADER_HH\" not in patch_sources\n>       assert frozenset(patch_sources) == {\"DEFAULT_SWITCH\", \"CHANGED_HEADER_HH\"}\nE       AssertionError: assert frozenset({'DEFAULT_SWITCH'}) == {'CHANGED_HEA...FAULT_SWITCH'}\nE         \nE         Extra items in the right set:\nE         'CHANGED_HEADER_HH'\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:2870: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards\n1 failed, 71 passed, 2 skipped in 183.72s (0:03:03)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=1531 retained_bytes=1531 omitted_bytes=0 rendered_excerpt_bytes=1667 sha256=2151196afa6d8a2f148b303a49dbf72a036cafc239b0eb189a80e0c0cdcfc6d9\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/test_patch_define_inventory_ex0')\n> \n>     def test_patch_define_inventory_excludes_only_new_file_include_guards(tmp_path):\n>         patch = tmp_path / \"interfaces.patch\"\n>         patch.write_text(\n>             \"diff --git a/guard.hh b/guard.hh\\x5cn\"\n>             \"new file mode 100644\\x5cn\"\n>             \"--- /dev/null\\x5cn+++ b/guard.hh\\x5cn@@ -0,0 +1,4 @@\\x5cn\"\n>             \"+// Header guard.\\x5cn+#ifndef NEW_HEADER_HH\\x5cn\"\n>             \"+#define NEW_HEADER_HH\\x5cn+#endif // NEW_HEADER_HH\\x5cn\"\n>             \"diff --git a/default.hh b/default.hh\\x5cn\"\n>             \"new file mode 100644\\x5cn\"\n>             \"--- /dev/null\\x5cn+++ b/default.hh\\x5cn@@ -0,0 +1,3 @@\\x5cn\"\n>             \"+#ifndef DEFAULT_SWITCH\\x5cn+#define DEFAULT_SWITCH 0\\x5cn+#endif\\x5cn\"\n>             \"diff --git a/changed.hh b/changed.hh\\x5cn\"\n>             \"--- a/changed.hh\\x5cn+++ b/changed.hh\\x5cn@@ -1 +1,4 @@\\x5cn\"\n>             \" // Existing header.\\x5cn\"\n>             \"+#ifndef CHANGED_HEADER_HH\\x5cn+#define CHANGED_HEADER_HH\\x5cn+#endif\\x5cn\",\n>             encoding=\"utf-8\",\n>         )\n>         patch_sources, non_tu_interfaces = _patch_added_define_interfaces(patch_dir=tmp_path)\n>         assert \"NEW_HEADER_HH\" not in patch_sources\n> >       assert frozenset(patch_sources) == {\"DEFAULT_SWITCH\", \"CHANGED_HEADER_HH\"}\n> E       AssertionError: assert frozenset({'DEFAULT_SWITCH'}) == {'CHANGED_HEA...FAULT_SWITCH'}\n> E         \n> E         Extra items in the right set:\n> E         'CHANGED_HEADER_HH'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:2870: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1531 retained_bytes=1531 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2408 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "0c91cc8a096b31a2fe5907aa2937103f3c213371a489b6ecc50e87bca452c6ed"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "30544ee4a6e74d22e035acb527d0e9cbe270e285c9071db0f833fce1737fbb1c",
+      "duration_s": 260.186,
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards"
+      ],
+      "hang_risk": false,
+      "id": "M7-guard-exclusion-widened-to-modified-files",
+      "injection_diff_sha256": "68728a3654789974070940440dc0afcec184f998db530a67798c8932dd6b9a25",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "07b54889d721241753f5bdb0155a7be236ad2701dd14fe76c362f400f8680de7",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "new": "            if False:\n                continue\n",
+          "old": "            if not any(line.startswith(\"new file mode \") for line in lines):\n                continue\n"
+        }
+      ],
+      "repo_head": "7f24b1c32db549fcdfb2d0a2c6fd23cee59a23ed",
+      "runner_sha256": "f2a88c8654ca765f23e045360c5fc154e4ba13869fe09860d55a0ce5a28dd63d",
+      "spec_sha256": "8536172d749deefe49af09c3e640e0d49271054a6d18f2b4485d05d54551dde9",
+      "status": "KILLED",
+      "test_output_sha256": "0c91cc8a096b31a2fe5907aa2937103f3c213371a489b6ecc50e87bca452c6ed",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "005d851a8be0cac57b21e8dbe1e41bd0173dda5bd9bcdbce30ede81b64c7e47d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3cb3c080c9aaec1f5c51fccb97c9a15a/izdw-3cb3c080c9.o10926",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/3cb3c080c9aaec1f5c51fccb97c9a15a/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": ".F..........................s..s........................................ [ 97%]\n..                                                                       [100%]\n=================================== FAILURES ===================================\n______ test_patch_define_inventory_excludes_only_new_file_include_guards _______\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/test_patch_define_inventory_ex0')\n\n    def test_patch_define_inventory_excludes_only_new_file_include_guards(tmp_path):\n        patch = tmp_path / \"interfaces.patch\"\n        patch.write_text(\n            \"diff --git a/guard.hh b/guard.hh\\n\"\n            \"new file mode 100644\\n\"\n            \"--- /dev/null\\n+++ b/guard.hh\\n@@ -0,0 +1,4 @@\\n\"\n            \"+// Header guard.\\n+#ifndef NEW_HEADER_HH\\n\"\n            \"+#define NEW_HEADER_HH\\n+#endif // NEW_HEADER_HH\\n\"\n            \"diff --git a/default.hh b/default.hh\\n\"\n            \"new file mode 100644\\n\"\n            \"--- /dev/null\\n+++ b/default.hh\\n@@ -0,0 +1,3 @@\\n\"\n            \"+#ifndef DEFAULT_SWITCH\\n+#define DEFAULT_SWITCH 0\\n+#endif\\n\"\n            \"diff --git a/changed.hh b/changed.hh\\n\"\n            \"--- a/changed.hh\\n+++ b/changed.hh\\n@@ -1 +1,4 @@\\n\"\n            \" // Existing header.\\n\"\n            \"+#ifndef CHANGED_HEADER_HH\\n+#define CHANGED_HEADER_HH\\n+#endif\\n\",\n            encoding=\"utf-8\",\n        )\n        patch_sources, non_tu_interfaces = _patch_added_define_interfaces(patch_dir=tmp_path)\n        assert \"NEW_HEADER_HH\" not in patch_sources\n>       assert frozenset(patch_sources) == {\"DEFAULT_SWITCH\", \"CHANGED_HEADER_HH\"}\nE       AssertionError: assert frozenset({'C...D_HEADER_HH'}) == {'CHANGED_HEA...FAULT_SWITCH'}\nE         \nE         Extra items in the right set:\nE         'DEFAULT_SWITCH'\nE         Use -v to get more diff\n\norchestrator/tests/test_ccbench_spawn_sites.py:2870: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards\n1 failed, 71 passed, 2 skipped in 184.95s (0:03:04)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=1529 retained_bytes=1529 omitted_bytes=0 rendered_excerpt_bytes=1665 sha256=7e7a4644dd2020cbf34bc3be3d1db488ba156c219bd656433015e4bde7e5a6c6\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/test_patch_define_inventory_ex0')\n> \n>     def test_patch_define_inventory_excludes_only_new_file_include_guards(tmp_path):\n>         patch = tmp_path / \"interfaces.patch\"\n>         patch.write_text(\n>             \"diff --git a/guard.hh b/guard.hh\\x5cn\"\n>             \"new file mode 100644\\x5cn\"\n>             \"--- /dev/null\\x5cn+++ b/guard.hh\\x5cn@@ -0,0 +1,4 @@\\x5cn\"\n>             \"+// Header guard.\\x5cn+#ifndef NEW_HEADER_HH\\x5cn\"\n>             \"+#define NEW_HEADER_HH\\x5cn+#endif // NEW_HEADER_HH\\x5cn\"\n>             \"diff --git a/default.hh b/default.hh\\x5cn\"\n>             \"new file mode 100644\\x5cn\"\n>             \"--- /dev/null\\x5cn+++ b/default.hh\\x5cn@@ -0,0 +1,3 @@\\x5cn\"\n>             \"+#ifndef DEFAULT_SWITCH\\x5cn+#define DEFAULT_SWITCH 0\\x5cn+#endif\\x5cn\"\n>             \"diff --git a/changed.hh b/changed.hh\\x5cn\"\n>             \"--- a/changed.hh\\x5cn+++ b/changed.hh\\x5cn@@ -1 +1,4 @@\\x5cn\"\n>             \" // Existing header.\\x5cn\"\n>             \"+#ifndef CHANGED_HEADER_HH\\x5cn+#define CHANGED_HEADER_HH\\x5cn+#endif\\x5cn\",\n>             encoding=\"utf-8\",\n>         )\n>         patch_sources, non_tu_interfaces = _patch_added_define_interfaces(patch_dir=tmp_path)\n>         assert \"NEW_HEADER_HH\" not in patch_sources\n> >       assert frozenset(patch_sources) == {\"DEFAULT_SWITCH\", \"CHANGED_HEADER_HH\"}\n> E       AssertionError: assert frozenset({'C...D_HEADER_HH'}) == {'CHANGED_HEA...FAULT_SWITCH'}\n> E         \n> E         Extra items in the right set:\n> E         'DEFAULT_SWITCH'\n> E         Use -v to get more diff\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:2870: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=1529 retained_bytes=1529 omitted_bytes=0 budget_bytes=49152 rendered_bytes=2406 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "a498784e851d11d6b47759ffe50d2e755ba212c827e1242cd9f0dc2c30c82c3a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "30544ee4a6e74d22e035acb527d0e9cbe270e285c9071db0f833fce1737fbb1c",
+      "duration_s": 561.301,
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards"
+      ],
+      "hang_risk": false,
+      "id": "M8-guard-exclusion-accepts-valued-define",
+      "injection_diff_sha256": "5ed0350c78bc0abf141fa4bcf9fa361535a7fcada2731c200a3d836c7324582f",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "5a13478dd65e9497b7e541333f57580ef0f374ba6b37a1d17ac0425fa55b3f53",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "new": "                    and re.fullmatch(r\"\\s*#\\s*define\\s+\" + guard[1] + r\"\\b.*\",\n                                     file_added[first + 1])\n",
+          "old": "                    and re.fullmatch(r\"\\s*#\\s*define\\s+\" + guard[1] + r\"\\s*\",\n                                     file_added[first + 1])\n"
+        }
+      ],
+      "repo_head": "7f24b1c32db549fcdfb2d0a2c6fd23cee59a23ed",
+      "runner_sha256": "f2a88c8654ca765f23e045360c5fc154e4ba13869fe09860d55a0ce5a28dd63d",
+      "spec_sha256": "8536172d749deefe49af09c3e640e0d49271054a6d18f2b4485d05d54551dde9",
+      "status": "KILLED",
+      "test_output_sha256": "a498784e851d11d6b47759ffe50d2e755ba212c827e1242cd9f0dc2c30c82c3a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "005d851a8be0cac57b21e8dbe1e41bd0173dda5bd9bcdbce30ede81b64c7e47d"
+    },
+    {
+      "anchor_counts": {
+        "0": 1
+      },
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/eae5acbd75bc01bb5ab766496297bc2c/izdw-eae5acbd75.o11078",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/eae5acbd75bc01bb5ab766496297bc2c/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": ".F..........................s..s........................................ [ 97%]\n..                                                                       [100%]\n=================================== FAILURES ===================================\n______ test_patch_define_inventory_excludes_only_new_file_include_guards _______\n\ntmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/test_patch_define_inventory_ex0')\n\n    def test_patch_define_inventory_excludes_only_new_file_include_guards(tmp_path):\n        patch = tmp_path / \"interfaces.patch\"\n        patch.write_text(\n            \"diff --git a/guard.hh b/guard.hh\\n\"\n            \"new file mode 100644\\n\"\n            \"--- /dev/null\\n+++ b/guard.hh\\n@@ -0,0 +1,4 @@\\n\"\n            \"+// Header guard.\\n+#ifndef NEW_HEADER_HH\\n\"\n            \"+#define NEW_HEADER_HH\\n+#endif // NEW_HEADER_HH\\n\"\n            \"diff --git a/default.hh b/default.hh\\n\"\n            \"new file mode 100644\\n\"\n            \"--- /dev/null\\n+++ b/default.hh\\n@@ -0,0 +1,3 @@\\n\"\n            \"+#ifndef DEFAULT_SWITCH\\n+#define DEFAULT_SWITCH 0\\n+#endif\\n\"\n            \"diff --git a/changed.hh b/changed.hh\\n\"\n            \"--- a/changed.hh\\n+++ b/changed.hh\\n@@ -1 +1,4 @@\\n\"\n            \" // Existing header.\\n\"\n            \"+#ifndef CHANGED_HEADER_HH\\n+#define CHANGED_HEADER_HH\\n+#endif\\n\",\n            encoding=\"utf-8\",\n        )\n        patch_sources, non_tu_interfaces = _patch_added_define_interfaces(patch_dir=tmp_path)\n        assert \"NEW_HEADER_HH\" not in patch_sources\n        assert frozenset(patch_sources) == {\"DEFAULT_SWITCH\", \"CHANGED_HEADER_HH\"}\n        assert non_tu_interfaces == frozenset()\n    \n        (tmp_path / \"escape.patch\").write_text(\n            \"diff --git a/escape.hh b/escape.hh\\n\"\n            \"new file mode 100644\\n\"\n            \"--- /dev/null\\n+++ b/escape.hh\\n@@ -0,0 +1,6 @@\\n\"\n            \"+#ifndef X\\n+#define X\\n+#endif\\n\"\n            \"+#if X + 0\\n+int enabled;\\n+#endif\\n\",\n            encoding=\"utf-8\",\n        )\n        patch_sources, _ = _patch_added_define_interfaces(patch_dir=tmp_path)\n>       assert \"X\" in patch_sources\nE       AssertionError: assert 'X' in {'DEFAULT_SWITCH': frozenset({'/tmp/pytest-of-tanab/pytest-0/test_patch_define_inventory_ex0/interfaces.patch'}), 'CHANGED_HEADER_HH': frozenset({'/tmp/pytest-of-tanab/pytest-0/test_patch_define_inventory_ex0/interfaces.patch'})}\n\norchestrator/tests/test_ccbench_spawn_sites.py:2882: AssertionError\n=========================== short test summary info ============================\nFAILED orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards\n1 failed, 71 passed, 2 skipped in 180.98s (0:03:00)\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n=== IZANAGI FAILURE DIGEST v1 BEGIN ===\nIZANAGI_FAILURE rank=1 category=failed when=call nodeid=\"orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards\" nodeid_bytes=113 nodeid_omitted_bytes=0 source_bytes=2096 retained_bytes=2096 omitted_bytes=0 rendered_excerpt_bytes=2281 sha256=75baa1aa92b671c29768df12760a91ff96b129e0d2d21e10c74cbcfe53cbf85a\n--- IZANAGI FAILURE EXCERPT rank=1 BEGIN ---\n> tmp_path = PosixPath('/tmp/pytest-of-tanab/pytest-0/test_patch_define_inventory_ex0')\n> \n>     def test_patch_define_inventory_excludes_only_new_file_include_guards(tmp_path):\n>         patch = tmp_path / \"interfaces.patch\"\n>         patch.write_text(\n>             \"diff --git a/guard.hh b/guard.hh\\x5cn\"\n>             \"new file mode 100644\\x5cn\"\n>             \"--- /dev/null\\x5cn+++ b/guard.hh\\x5cn@@ -0,0 +1,4 @@\\x5cn\"\n>             \"+// Header guard.\\x5cn+#ifndef NEW_HEADER_HH\\x5cn\"\n>             \"+#define NEW_HEADER_HH\\x5cn+#endif // NEW_HEADER_HH\\x5cn\"\n>             \"diff --git a/default.hh b/default.hh\\x5cn\"\n>             \"new file mode 100644\\x5cn\"\n>             \"--- /dev/null\\x5cn+++ b/default.hh\\x5cn@@ -0,0 +1,3 @@\\x5cn\"\n>             \"+#ifndef DEFAULT_SWITCH\\x5cn+#define DEFAULT_SWITCH 0\\x5cn+#endif\\x5cn\"\n>             \"diff --git a/changed.hh b/changed.hh\\x5cn\"\n>             \"--- a/changed.hh\\x5cn+++ b/changed.hh\\x5cn@@ -1 +1,4 @@\\x5cn\"\n>             \" // Existing header.\\x5cn\"\n>             \"+#ifndef CHANGED_HEADER_HH\\x5cn+#define CHANGED_HEADER_HH\\x5cn+#endif\\x5cn\",\n>             encoding=\"utf-8\",\n>         )\n>         patch_sources, non_tu_interfaces = _patch_added_define_interfaces(patch_dir=tmp_path)\n>         assert \"NEW_HEADER_HH\" not in patch_sources\n>         assert frozenset(patch_sources) == {\"DEFAULT_SWITCH\", \"CHANGED_HEADER_HH\"}\n>         assert non_tu_interfaces == frozenset()\n>     \n>         (tmp_path / \"escape.patch\").write_text(\n>             \"diff --git a/escape.hh b/escape.hh\\x5cn\"\n>             \"new file mode 100644\\x5cn\"\n>             \"--- /dev/null\\x5cn+++ b/escape.hh\\x5cn@@ -0,0 +1,6 @@\\x5cn\"\n>             \"+#ifndef X\\x5cn+#define X\\x5cn+#endif\\x5cn\"\n>             \"+#if X + 0\\x5cn+int enabled;\\x5cn+#endif\\x5cn\",\n>             encoding=\"utf-8\",\n>         )\n>         patch_sources, _ = _patch_added_define_interfaces(patch_dir=tmp_path)\n> >       assert \"X\" in patch_sources\n> E       AssertionError: assert 'X' in {'DEFAULT_SWITCH': frozenset({'/tmp/pytest-of-tanab/pytest-0/test_patch_define_inventory_ex0/interfaces.patch'}), 'CHANGED_HEADER_HH': frozenset({'/tmp/pytest-of-tanab/pytest-0/test_patch_define_inventory_ex0/interfaces.patch'})}\n> \n> orchestrator/tests/test_ccbench_spawn_sites.py:2882: AssertionError\n--- IZANAGI FAILURE EXCERPT rank=1 END ---\nIZANAGI_FAILURE_DIGEST_ACCOUNT failures=1 failed=1 errors=0 selected=1 omitted_failures=0 source_bytes=2096 retained_bytes=2096 omitted_bytes=0 budget_bytes=49152 rendered_bytes=3022 omitted_manifest_sha256=-\n=== IZANAGI FAILURE DIGEST v1 END ===\n",
+        "stdout_sha256": "01d23e3ea378738f0b346835527757e0a748ddc8aab25d829c326cd43fa3fc5a"
+      },
+      "artifact_error": null,
+      "category": "negative",
+      "collection_sha256": "30544ee4a6e74d22e035acb527d0e9cbe270e285c9071db0f833fce1737fbb1c",
+      "duration_s": 386.468,
+      "expected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards"
+      ],
+      "expected_status": "KILLED",
+      "failed_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards"
+      ],
+      "hang_risk": false,
+      "id": "M9-guard-exclusion-applied-to-whole-file",
+      "injection_diff_sha256": "ca97e950b90444c7043042623631aab5bbbf0caa1b8038e6372e9ce8dcb48f16",
+      "matches_expectation": true,
+      "rc": 1,
+      "registration_sha256": "3215616651fdaf258c5f59650ce9dc0aaad07955392d639f8d26852fc775e397",
+      "replacements": [
+        {
+          "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+          "new": "                include_guards.update({i: guard[1] for i in range(start, len(added))})\n",
+          "old": "                include_guards[start + first] = guard[1]\n"
+        }
+      ],
+      "repo_head": "7f24b1c32db549fcdfb2d0a2c6fd23cee59a23ed",
+      "runner_sha256": "f2a88c8654ca765f23e045360c5fc154e4ba13869fe09860d55a0ce5a28dd63d",
+      "spec_sha256": "8536172d749deefe49af09c3e640e0d49271054a6d18f2b4485d05d54551dde9",
+      "status": "KILLED",
+      "test_output_sha256": "01d23e3ea378738f0b346835527757e0a748ddc8aab25d829c326cd43fa3fc5a",
+      "test_output_tail": [],
+      "timed_out": false,
+      "tool_sha256": "005d851a8be0cac57b21e8dbe1e41bd0173dda5bd9bcdbce30ede81b64c7e47d"
+    }
+  ],
+  "nonterminal_history": [],
+  "procedure": {
+    "collection": {
+      "artifact": {
+        "job_stdout_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b00bf4e01fccff2506410c84124a0e7b/izdw-b00bf4e01f.o10865",
+        "receipt_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/output/pegasus-dispatch/b00bf4e01fccff2506410c84124a0e7b/receipt.json",
+        "runner_mode": "dispatch",
+        "stdout": "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact\norchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards\norchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p1-no-try]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p2-bare-reraise]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p3-conversion]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p4-s1-handlers]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p5-outer-reraise]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p6-handler-position]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p7-raise-as-name]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p8-known-child-handler]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n1-error-pass]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n2-bare-pass]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n3-exception-return]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n4-conditional-raise]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n5-unreachable-raise]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n6-finally-return]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n7-unknown-handler]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n8-lambda]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n9-system-exit]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n10-try-star]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n11-outer-swallow]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n12-local-rebinding]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n14-try-star-reraise]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n13-local-rebound-conversion]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n15-module-rebound-conversion]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n16-argument-rebound-handler]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n17-rebound-as-name]\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_injected_production_sinks_stay_covered\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_local_fixed_shadow_is_unreachable\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved\norchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro\norchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site\norchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites\norchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes\norchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible\norchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]\norchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]\n\n74 tests collected in 0.92s\nIZANAGI_EFFECTIVE_SCHEDULER_V1 {\"effective_scheduler\":\"serial\"}\n",
+        "stdout_sha256": "442ca1a3f4460ef9018b4c681ccfcdf2f4ce2fbd0a26e61c07940784d88d81f1"
+      },
+      "collected_nodes": [
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_process_launch_inventory_is_recursive_and_exact",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_matches_condition_gate_registry",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_has_no_unreviewed_ungated_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_production_build_sinks_include_certify_calibration_script",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_is_exact_and_every_entry_names_a_live_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_deferred_gate_ledger_does_not_match_a_new_sink_in_the_same_file",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_synthetic_member_without_gate",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_gate_with_only_one_arm",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_defer_unlisted_member",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_requires_gate_to_dominate_each_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p1-no-try]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p2-bare-reraise]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p3-conversion]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p4-s1-handlers]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p5-outer-reraise]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p6-handler-position]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p7-raise-as-name]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_accepts_injected_reraise[p8-known-child-handler]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n1-error-pass]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n2-bare-pass]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n3-exception-return]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n4-conditional-raise]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n5-unreachable-raise]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n6-finally-return]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n7-unknown-handler]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n8-lambda]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n9-system-exit]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n10-try-star]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n11-outer-swallow]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n12-local-rebinding]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_swallow[n14-try-star-reraise]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n13-local-rebound-conversion]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n15-module-rebound-conversion]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n16-argument-rebound-handler]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_rejects_injected_rebinding[n17-rebound-as-name]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2491_injected_production_sinks_stay_covered",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_name_checked_campaign_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_with_tuple_field_copy_checked_value",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_classifies_t2155_production_sinks_exactly",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_certify_entry_removal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_opaque_closure_is_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_t2520_local_fixed_shadow_is_unreachable",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_branch_local_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_returned_evidence_after_sink",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_loop_rebound_checked_name",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_unchecked_conditional_alias",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_short_circuit_returned_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_named_method_as_evidence",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_locally_defined_helper_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_helper_argument_shadow",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_match_guard_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_same_expression_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_nested_default",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_read_only_match_guard",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_class_global_helper_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_called_nonlocal_checked_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_star_import_after_helper_import",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_lambda_default_walrus_rebinding",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_match_exit",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_rejects_false_guard_before_next_case",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_accepts_unrelated_global_and_nonlocal",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_ungated_with_bindings_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_marks_opaque_nonlexical_cell_unresolved",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_define_sink_cross_product_does_not_reuse_gate_for_another_macro",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_calibration_capability_issuer_has_one_certify_call_site",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_reviewed_ccbench_measurement_launches_use_bounded_sites",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_process_inventory_catches_nested_exe_attribute_and_hardcoded_shapes",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_exact_anchor_exclusion_keeps_an_unreviewed_launch_visible",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_direct_spawn_allowlist_constants_cannot_reach_protected_ratios",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[20]",
+        "orchestrator/tests/test_ccbench_spawn_sites.py::test_backoff_profile_public_path_rejects_protected_ratio_before_build[80]"
+      ],
+      "duration_s": 355.298,
+      "rc": 0,
+      "repo_head": "7f24b1c32db549fcdfb2d0a2c6fd23cee59a23ed",
+      "runner_sha256": "f2a88c8654ca765f23e045360c5fc154e4ba13869fe09860d55a0ce5a28dd63d",
+      "spec_sha256": "8536172d749deefe49af09c3e640e0d49271054a6d18f2b4485d05d54551dde9",
+      "status": "PASSED",
+      "tool_sha256": "005d851a8be0cac57b21e8dbe1e41bd0173dda5bd9bcdbce30ede81b64c7e47d"
+    },
+    "hang_timeout_seconds": 120.0,
+    "node_policy": "trusted pytest collection plus parameter-exact failed-node set",
+    "registration_preflight": {
+      "M7-guard-exclusion-widened-to-modified-files": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "68728a3654789974070940440dc0afcec184f998db530a67798c8932dd6b9a25",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+            "new": "            if False:\n                continue\n",
+            "old": "            if not any(line.startswith(\"new file mode \") for line in lines):\n                continue\n"
+          }
+        ]
+      },
+      "M8-guard-exclusion-accepts-valued-define": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "5ed0350c78bc0abf141fa4bcf9fa361535a7fcada2731c200a3d836c7324582f",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+            "new": "                    and re.fullmatch(r\"\\s*#\\s*define\\s+\" + guard[1] + r\"\\b.*\",\n                                     file_added[first + 1])\n",
+            "old": "                    and re.fullmatch(r\"\\s*#\\s*define\\s+\" + guard[1] + r\"\\s*\",\n                                     file_added[first + 1])\n"
+          }
+        ]
+      },
+      "M9-guard-exclusion-applied-to-whole-file": {
+        "anchor_counts": {
+          "0": 1
+        },
+        "expected_nodes": [
+          "orchestrator/tests/test_ccbench_spawn_sites.py::test_patch_define_inventory_excludes_only_new_file_include_guards"
+        ],
+        "expected_status": "KILLED",
+        "injection_diff_sha256": "ca97e950b90444c7043042623631aab5bbbf0caa1b8038e6372e9ce8dcb48f16",
+        "replacements": [
+          {
+            "file": "orchestrator/tests/test_ccbench_spawn_sites.py",
+            "new": "                include_guards.update({i: guard[1] for i in range(start, len(added))})\n",
+            "old": "                include_guards[start + first] = guard[1]\n"
+          }
+        ]
+      }
+    },
+    "registration_sha256": "d47c7f681e19aac23e4b8e1cf55134f8079e52e419daa70d5c7209f753235fad",
+    "restore_policy": "write fixed repo_head text then exact read_text equality",
+    "runner_mode": "dispatch",
+    "source_policy": "fixed repo_head blob plus startup/read-back equality",
+    "test_command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "-n",
+      "0",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "timeout_seconds": 7200.0
+  },
+  "repo_head": "7f24b1c32db549fcdfb2d0a2c6fd23cee59a23ed",
+  "runner_identity": {
+    "command": [
+      "python3",
+      "tools/run_tests.py",
+      "--force-dispatch",
+      "orchestrator/tests/test_ccbench_spawn_sites.py",
+      "-n",
+      "0",
+      "-q",
+      "-rf",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "dispatch_entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/tools/pegasus/dispatch_compute.py",
+    "dispatch_entrypoint_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "dispatch_head_blob_sha256": "acdd1c09de227a6ef7237333046abdc66dd54341ee0facf30302e66b131c2315",
+    "entrypoint_kind": "izanagi-run-tests",
+    "entrypoint_path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/tools/run_tests.py",
+    "entrypoint_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "executable_path": "/usr/bin/python3.10",
+    "executable_sha256": "7d51cd6b48b521277f5caa4610a82126e315fa2be4df069823a8b1eeb5bd4a86",
+    "head_blob_sha256": "65f7f84f36827d912556b5537cc31130edb815a521895bb6d89163c6d7ab1523",
+    "pytest_distribution_sha256": "57e75bdc6fae07156ff0fd2d58eee5ac82d236cfaf81d454d46f09ebc86cb1d1",
+    "repo_path": "tools/run_tests.py",
+    "repo_tree": "213ea1eb260a24b1029696322759dd396e8a291a",
+    "runner_mode": "dispatch"
+  },
+  "runner_sha256": "f2a88c8654ca765f23e045360c5fc154e4ba13869fe09860d55a0ce5a28dd63d",
+  "schema": "izanagi-dev-wave-mutation/v4",
+  "spec_sha256": "8536172d749deefe49af09c3e640e0d49271054a6d18f2b4485d05d54551dde9",
+  "summary": {
+    "KILLED": 3,
+    "MISMATCH": 0,
+    "PARSE_ERROR": 0,
+    "SURVIVED": 0,
+    "TIMEOUT": 0,
+    "completed": 3,
+    "matching": 3,
+    "recorded": 3,
+    "registered": 3
+  },
+  "tool_identity": {
+    "head_blob_sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531",
+    "path": "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2737-noninert-codex/mutation-scratch/.izanagi-mutation-worktree/repo/tools/mutation_harness.py",
+    "repo_path": "tools/mutation_harness.py",
+    "sha256": "830e61412cdf348e4de89e43317d00d578b4f5bd20f98a2cf31d50ff61012531"
+  },
+  "tool_sha256": "005d851a8be0cac57b21e8dbe1e41bd0173dda5bd9bcdbce30ede81b64c7e47d",
+  "updated_at": "2026-09-19T14:24:25.353116+00:00"
+}

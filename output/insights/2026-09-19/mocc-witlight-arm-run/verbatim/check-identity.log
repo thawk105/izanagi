@@ -1,0 +1,21 @@
+start 2026-09-19 22:44:57 JST  W=5b02546fcd7b0302c8c92b6e05957541c9660902
+== V1a: 511c9538e4e8efa54b45cda62e72389ed3b706ec -> W
+V1a rc=0
+{"compiler":{"path":"/usr/bin/x86_64-linux-gnu-g++-11","version":"x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"},"context_matrix":{"expected_context_count_per_file":16,"genome_count":8,"overlay_count":2},"diff":[{"new_blob":"81a20cacb3d4cd8be567ff3e4d05fc99dbed29ab","new_mode":"100644","old_blob":"559834e2ce445ca36d857e3bef78728935fa3ffc","old_mode":"100644","path":"cc/mocc/transaction.cc","status":"M"}],"expected_paths":null,"files":[{"contexts":[{"context":"base","defines":{"new":{"ADD_ANALYSIS":"0","BACK_OFF":"0","KEY_SIZE":"8","KEY_SORT":"0","Linux":"1","MASSTREE_USE":"1
+== V1b: e9e477ca1b55348ab4530de0b1cf663ce4555290 -> W
+V1b rc=0
+{"compiler":{"path":"/usr/bin/x86_64-linux-gnu-g++-11","version":"x86_64-linux-gnu-g++-11 (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0"},"context_matrix":{"expected_context_count_per_file":16,"genome_count":8,"overlay_count":2},"diff":[{"new_blob":"81a20cacb3d4cd8be567ff3e4d05fc99dbed29ab","new_mode":"100644","old_blob":"1f4e9453c39a42451e652b3a28d791b90844f184","old_mode":"100644","path":"cc/mocc/transaction.cc","status":"M"}],"expected_paths":null,"files":[{"contexts":[{"context":"base","defines":{"new":{"ADD_ANALYSIS":"0","BACK_OFF":"0","KEY_SIZE":"8","KEY_SORT":"0","Linux":"1","MASSTREE_USE":"1
+== V2: negative (W + include <vector> in #if TRACE)
+Preparing worktree (detached HEAD 5b02546f)
+HEAD is now at 5b02546f perf(mocc): defer payload witness formatting until after unlock
+1	0	cc/mocc/transaction.cc
+Switched to a new branch 'tmp-witlight-v2-negative'
+W' = 6b97e4489d21552f45561330d7e8a264a7614dca
+V2 rc=1 (expected 1)
+error: 選定した macro context における TRACE=0 正規化 preprocess 出力の同一性、および include 活性の同一性を確認できない: include 行文字列（順序込み）が不一致: cc/mocc/transaction.cc
+Deleted branch tmp-witlight-v2-negative (was 6b97e448).
+branches now:
+* (HEAD detached at 511c9538)
+  izanagi-t1943-mocc-g2-witlight
+  izanagi-trace-t816-fn2
+end 2026-09-19 22:47:04 JST

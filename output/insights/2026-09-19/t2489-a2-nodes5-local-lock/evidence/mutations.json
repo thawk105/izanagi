@@ -1,0 +1,43 @@
+{
+  "schema": "izanagi-dev-wave-mutation-spec/v1",
+  "estimated_run_seconds": 120,
+  "timeout_seconds": 7200,
+  "hang_timeout_seconds": 30,
+  "mutations": [
+    {
+      "id": "M1-a2-nodes-regression",
+      "category": "positive",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.v2.json",
+          "old": "    \"nodes\": 5,",
+          "new": "    \"nodes\": 1,"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_p1_a2_default_policy_bytes_and_protocol_are_unchanged"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    },
+    {
+      "id": "M2-count-rejection-disabled",
+      "category": "negative",
+      "replacements": [
+        {
+          "file": "orchestrator/campaign/paper_story_a2_certification.py",
+          "old": "    if len(hosts) != expected:\n        raise CertificationError(\n            \"verify fan-out host count differs from scheduler policy\")",
+          "new": "    if False:\n        raise CertificationError(\n            \"verify fan-out host count differs from scheduler policy\")"
+        }
+      ],
+      "expected_nodes": [
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-few]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a2-too-many]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-few]",
+        "orchestrator/tests/test_paper_story_a2_certification.py::test_verify_fanout_hosts_reject_invalid_binding[a6-too-many]"
+      ],
+      "expected_status": "KILLED",
+      "hang_risk": false
+    }
+  ]
+}
