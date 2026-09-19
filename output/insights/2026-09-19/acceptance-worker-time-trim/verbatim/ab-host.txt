@@ -1,0 +1,6 @@
+bnode012
+Sun Sep 20 00:00:55 JST 2026
+ 00:00:55 up 3 days, 14:19,  0 users,  load average: 0.87, 5.55, 6.49
+48
+/dev/nvme0n1p4  200G   72G  129G  36% /
+/dev/nvme0n1p4 104857600 290535 104567065    1% /

@@ -1,0 +1,7 @@
+=== start 23:12:27 host=pegasus02 load=12.39 19.90 21.28 HEAD=2d76e785f
+patch mocc-temperature-predicate-variant sha256=229419efe1dffe87 lines=96
+patch instr-mocc-lock-coverage-temperature sha256=7e6c97bb4ad1cf40 lines=116
+patch instr-mocc-lock-coverage sha256=e9e65b7876050865 lines=116
+tree tmpl ok (mocc-temperature-predicate-variant)
+UNEXPECTED: instr-mocc-lock-coverage applies to tmpl
+=== end 23:12:29 rc=2

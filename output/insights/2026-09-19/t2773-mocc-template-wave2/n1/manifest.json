@@ -1,0 +1,514 @@
+{
+ "base_sha256": "e8be502aa723d8ad89c16f9e4053b7339958d8d9dd0f4b119dd4263907c56856",
+ "base_file": "transaction-template-instr-seed.cc",
+ "ccbench_commit": "e9e477ca1b55348ab4530de0b1cf663ce4555290",
+ "applied_patches": [
+  "patches/mocc-temperature-predicate-variant.patch",
+  "patches/instr-mocc-lock-coverage-temperature.patch"
+ ],
+ "macro_context": {
+  "MOCC_TEMP_PREDICATE": 1,
+  "TRACE": 1,
+  "RWLOCK": 1,
+  "TEMPERATURE_RESET_OPT": 1,
+  "KEY_SORT": 0
+ },
+ "candidates": {
+  "A1": {
+   "diff_file": "candidate-A1.diff",
+   "source_file": "candidate-A1.cc",
+   "diff_sha256": "f8ec4b522d5acceac7fa743b92f1a6a5821bd9ddccde18a327200d41fbde5048",
+   "source_sha256": "49e87def142d464e38f272e435cd4bf283f286a9035bde56f17000dafd6616c4",
+   "macro_context": {
+    "MOCC_TEMP_PREDICATE": 1,
+    "TRACE": 1,
+    "RWLOCK": 1,
+    "TEMPERATURE_RESET_OPT": 1,
+    "KEY_SORT": 0
+   },
+   "verify_projection": {
+    "status": "not_run"
+   }
+  },
+  "A2": {
+   "diff_file": "candidate-A2.diff",
+   "source_file": "candidate-A2.cc",
+   "diff_sha256": "178c0092664c8b4bb87ed9b5cae68c3676b22584eea72b1c42259caf77328fe0",
+   "source_sha256": "52de0340bb3e785523be093692a5c3dc15de10e58428920c4e09eea2332b00a6",
+   "macro_context": {
+    "MOCC_TEMP_PREDICATE": 1,
+    "TRACE": 1,
+    "RWLOCK": 1,
+    "TEMPERATURE_RESET_OPT": 1,
+    "KEY_SORT": 0
+   },
+   "verify_projection": {
+    "status": "not_run"
+   }
+  },
+  "B": {
+   "diff_file": "candidate-B.diff",
+   "source_file": "candidate-B.cc",
+   "diff_sha256": "9b042413a0299f31f0e48a229d0839bb2eec5cf813111079dc724fc76a61d459",
+   "source_sha256": "d0c8d6e5c30ac9ecf768e5e9b04c717a6238ff0c142ce47b878cc55332cddf7b",
+   "macro_context": {
+    "MOCC_TEMP_PREDICATE": 1,
+    "TRACE": 1,
+    "RWLOCK": 1,
+    "TEMPERATURE_RESET_OPT": 1,
+    "KEY_SORT": 0
+   },
+   "verify_projection": {
+    "status": "run",
+    "source": "output/env/pegasus/calibration/s3_mocc_template_proof.json",
+    "proof_template_sha256": "229419efe1dffe8721c2114403ef6f7b05e73c643626c269c95dcbb27e806ae3",
+    "runs": {
+     "template_stock_w_hot_t1": {
+      "verdict": "serializable",
+      "certified": true,
+      "total_cycles": 0,
+      "lock_coverage_violations": 0,
+      "permutation_violations": 0,
+      "x_reasons": {},
+      "p_reasons": {},
+      "integrity": {
+       "clean": true,
+       "orphan_reads": 0,
+       "version_dups": 0,
+       "dup_txids": 0,
+       "genesis_commits": 0,
+       "missing_txids": 0,
+       "write_version_mismatch": 0,
+       "malformed_keys": 0,
+       "framing_violations": 0,
+       "framing_violation_details": [],
+       "lock_coverage_violations": 0,
+       "write_intent_violations": 0,
+       "permutation_violations": 0,
+       "permutation_violation_details": {
+        "counts": {
+         "size-changed": 0,
+         "rcdptr-set-changed": 0,
+         "unknown": 0
+        },
+        "sample": [],
+        "unknown_reason_sample": []
+       },
+       "notes": []
+      },
+      "regime": "hot",
+      "thread": 1,
+      "workload": "W"
+     },
+     "template_stock_w_hot_t4": {
+      "verdict": "serializable",
+      "certified": true,
+      "total_cycles": 0,
+      "lock_coverage_violations": 0,
+      "permutation_violations": 0,
+      "x_reasons": {},
+      "p_reasons": {},
+      "integrity": {
+       "clean": true,
+       "orphan_reads": 0,
+       "version_dups": 0,
+       "dup_txids": 0,
+       "genesis_commits": 0,
+       "missing_txids": 0,
+       "write_version_mismatch": 0,
+       "malformed_keys": 0,
+       "framing_violations": 0,
+       "framing_violation_details": [],
+       "lock_coverage_violations": 0,
+       "write_intent_violations": 0,
+       "permutation_violations": 0,
+       "permutation_violation_details": {
+        "counts": {
+         "size-changed": 0,
+         "rcdptr-set-changed": 0,
+         "unknown": 0
+        },
+        "sample": [],
+        "unknown_reason_sample": []
+       },
+       "notes": []
+      },
+      "regime": "hot",
+      "thread": 4,
+      "workload": "W"
+     },
+     "template_stock_w_cold_t1": {
+      "verdict": "serializable",
+      "certified": true,
+      "total_cycles": 0,
+      "lock_coverage_violations": 0,
+      "permutation_violations": 0,
+      "x_reasons": {},
+      "p_reasons": {},
+      "integrity": {
+       "clean": true,
+       "orphan_reads": 0,
+       "version_dups": 0,
+       "dup_txids": 0,
+       "genesis_commits": 0,
+       "missing_txids": 0,
+       "write_version_mismatch": 0,
+       "malformed_keys": 0,
+       "framing_violations": 0,
+       "framing_violation_details": [],
+       "lock_coverage_violations": 0,
+       "write_intent_violations": 0,
+       "permutation_violations": 0,
+       "permutation_violation_details": {
+        "counts": {
+         "size-changed": 0,
+         "rcdptr-set-changed": 0,
+         "unknown": 0
+        },
+        "sample": [],
+        "unknown_reason_sample": []
+       },
+       "notes": []
+      },
+      "regime": "cold",
+      "thread": 1,
+      "workload": "W"
+     },
+     "template_stock_w_cold_t4": {
+      "verdict": "serializable",
+      "certified": true,
+      "total_cycles": 0,
+      "lock_coverage_violations": 0,
+      "permutation_violations": 0,
+      "x_reasons": {},
+      "p_reasons": {},
+      "integrity": {
+       "clean": true,
+       "orphan_reads": 0,
+       "version_dups": 0,
+       "dup_txids": 0,
+       "genesis_commits": 0,
+       "missing_txids": 0,
+       "write_version_mismatch": 0,
+       "malformed_keys": 0,
+       "framing_violations": 0,
+       "framing_violation_details": [],
+       "lock_coverage_violations": 0,
+       "write_intent_violations": 0,
+       "permutation_violations": 0,
+       "permutation_violation_details": {
+        "counts": {
+         "size-changed": 0,
+         "rcdptr-set-changed": 0,
+         "unknown": 0
+        },
+        "sample": [],
+        "unknown_reason_sample": []
+       },
+       "notes": []
+      },
+      "regime": "cold",
+      "thread": 4,
+      "workload": "W"
+     },
+     "template_stock_w_default_t1": {
+      "verdict": "serializable",
+      "certified": true,
+      "total_cycles": 0,
+      "lock_coverage_violations": 0,
+      "permutation_violations": 0,
+      "x_reasons": {},
+      "p_reasons": {},
+      "integrity": {
+       "clean": true,
+       "orphan_reads": 0,
+       "version_dups": 0,
+       "dup_txids": 0,
+       "genesis_commits": 0,
+       "missing_txids": 0,
+       "write_version_mismatch": 0,
+       "malformed_keys": 0,
+       "framing_violations": 0,
+       "framing_violation_details": [],
+       "lock_coverage_violations": 0,
+       "write_intent_violations": 0,
+       "permutation_violations": 0,
+       "permutation_violation_details": {
+        "counts": {
+         "size-changed": 0,
+         "rcdptr-set-changed": 0,
+         "unknown": 0
+        },
+        "sample": [],
+        "unknown_reason_sample": []
+       },
+       "notes": []
+      },
+      "regime": "default",
+      "thread": 1,
+      "workload": "W"
+     },
+     "template_stock_w_default_t4": {
+      "verdict": "serializable",
+      "certified": true,
+      "total_cycles": 0,
+      "lock_coverage_violations": 0,
+      "permutation_violations": 0,
+      "x_reasons": {},
+      "p_reasons": {},
+      "integrity": {
+       "clean": true,
+       "orphan_reads": 0,
+       "version_dups": 0,
+       "dup_txids": 0,
+       "genesis_commits": 0,
+       "missing_txids": 0,
+       "write_version_mismatch": 0,
+       "malformed_keys": 0,
+       "framing_violations": 0,
+       "framing_violation_details": [],
+       "lock_coverage_violations": 0,
+       "write_intent_violations": 0,
+       "permutation_violations": 0,
+       "permutation_violation_details": {
+        "counts": {
+         "size-changed": 0,
+         "rcdptr-set-changed": 0,
+         "unknown": 0
+        },
+        "sample": [],
+        "unknown_reason_sample": []
+       },
+       "notes": []
+      },
+      "regime": "default",
+      "thread": 4,
+      "workload": "W"
+     },
+     "template_stock_u_hot_t1": {
+      "verdict": "serializable",
+      "certified": true,
+      "total_cycles": 0,
+      "lock_coverage_violations": 0,
+      "permutation_violations": 0,
+      "x_reasons": {},
+      "p_reasons": {},
+      "integrity": {
+       "clean": true,
+       "orphan_reads": 0,
+       "version_dups": 0,
+       "dup_txids": 0,
+       "genesis_commits": 0,
+       "missing_txids": 0,
+       "write_version_mismatch": 0,
+       "malformed_keys": 0,
+       "framing_violations": 0,
+       "framing_violation_details": [],
+       "lock_coverage_violations": 0,
+       "write_intent_violations": 0,
+       "permutation_violations": 0,
+       "permutation_violation_details": {
+        "counts": {
+         "size-changed": 0,
+         "rcdptr-set-changed": 0,
+         "unknown": 0
+        },
+        "sample": [],
+        "unknown_reason_sample": []
+       },
+       "notes": []
+      },
+      "regime": "hot",
+      "thread": 1,
+      "workload": "U"
+     },
+     "template_stock_u_hot_t4": {
+      "verdict": "serializable",
+      "certified": true,
+      "total_cycles": 0,
+      "lock_coverage_violations": 0,
+      "permutation_violations": 0,
+      "x_reasons": {},
+      "p_reasons": {},
+      "integrity": {
+       "clean": true,
+       "orphan_reads": 0,
+       "version_dups": 0,
+       "dup_txids": 0,
+       "genesis_commits": 0,
+       "missing_txids": 0,
+       "write_version_mismatch": 0,
+       "malformed_keys": 0,
+       "framing_violations": 0,
+       "framing_violation_details": [],
+       "lock_coverage_violations": 0,
+       "write_intent_violations": 0,
+       "permutation_violations": 0,
+       "permutation_violation_details": {
+        "counts": {
+         "size-changed": 0,
+         "rcdptr-set-changed": 0,
+         "unknown": 0
+        },
+        "sample": [],
+        "unknown_reason_sample": []
+       },
+       "notes": []
+      },
+      "regime": "hot",
+      "thread": 4,
+      "workload": "U"
+     },
+     "template_stock_u_cold_t1": {
+      "verdict": "serializable",
+      "certified": true,
+      "total_cycles": 0,
+      "lock_coverage_violations": 0,
+      "permutation_violations": 0,
+      "x_reasons": {},
+      "p_reasons": {},
+      "integrity": {
+       "clean": true,
+       "orphan_reads": 0,
+       "version_dups": 0,
+       "dup_txids": 0,
+       "genesis_commits": 0,
+       "missing_txids": 0,
+       "write_version_mismatch": 0,
+       "malformed_keys": 0,
+       "framing_violations": 0,
+       "framing_violation_details": [],
+       "lock_coverage_violations": 0,
+       "write_intent_violations": 0,
+       "permutation_violations": 0,
+       "permutation_violation_details": {
+        "counts": {
+         "size-changed": 0,
+         "rcdptr-set-changed": 0,
+         "unknown": 0
+        },
+        "sample": [],
+        "unknown_reason_sample": []
+       },
+       "notes": []
+      },
+      "regime": "cold",
+      "thread": 1,
+      "workload": "U"
+     },
+     "template_stock_u_cold_t4": {
+      "verdict": "serializable",
+      "certified": true,
+      "total_cycles": 0,
+      "lock_coverage_violations": 0,
+      "permutation_violations": 0,
+      "x_reasons": {},
+      "p_reasons": {},
+      "integrity": {
+       "clean": true,
+       "orphan_reads": 0,
+       "version_dups": 0,
+       "dup_txids": 0,
+       "genesis_commits": 0,
+       "missing_txids": 0,
+       "write_version_mismatch": 0,
+       "malformed_keys": 0,
+       "framing_violations": 0,
+       "framing_violation_details": [],
+       "lock_coverage_violations": 0,
+       "write_intent_violations": 0,
+       "permutation_violations": 0,
+       "permutation_violation_details": {
+        "counts": {
+         "size-changed": 0,
+         "rcdptr-set-changed": 0,
+         "unknown": 0
+        },
+        "sample": [],
+        "unknown_reason_sample": []
+       },
+       "notes": []
+      },
+      "regime": "cold",
+      "thread": 4,
+      "workload": "U"
+     },
+     "template_stock_u_default_t1": {
+      "verdict": "serializable",
+      "certified": true,
+      "total_cycles": 0,
+      "lock_coverage_violations": 0,
+      "permutation_violations": 0,
+      "x_reasons": {},
+      "p_reasons": {},
+      "integrity": {
+       "clean": true,
+       "orphan_reads": 0,
+       "version_dups": 0,
+       "dup_txids": 0,
+       "genesis_commits": 0,
+       "missing_txids": 0,
+       "write_version_mismatch": 0,
+       "malformed_keys": 0,
+       "framing_violations": 0,
+       "framing_violation_details": [],
+       "lock_coverage_violations": 0,
+       "write_intent_violations": 0,
+       "permutation_violations": 0,
+       "permutation_violation_details": {
+        "counts": {
+         "size-changed": 0,
+         "rcdptr-set-changed": 0,
+         "unknown": 0
+        },
+        "sample": [],
+        "unknown_reason_sample": []
+       },
+       "notes": []
+      },
+      "regime": "default",
+      "thread": 1,
+      "workload": "U"
+     },
+     "template_stock_u_default_t4": {
+      "verdict": "serializable",
+      "certified": true,
+      "total_cycles": 0,
+      "lock_coverage_violations": 0,
+      "permutation_violations": 0,
+      "x_reasons": {},
+      "p_reasons": {},
+      "integrity": {
+       "clean": true,
+       "orphan_reads": 0,
+       "version_dups": 0,
+       "dup_txids": 0,
+       "genesis_commits": 0,
+       "missing_txids": 0,
+       "write_version_mismatch": 0,
+       "malformed_keys": 0,
+       "framing_violations": 0,
+       "framing_violation_details": [],
+       "lock_coverage_violations": 0,
+       "write_intent_violations": 0,
+       "permutation_violations": 0,
+       "permutation_violation_details": {
+        "counts": {
+         "size-changed": 0,
+         "rcdptr-set-changed": 0,
+         "unknown": 0
+        },
+        "sample": [],
+        "unknown_reason_sample": []
+       },
+       "notes": []
+      },
+      "regime": "default",
+      "thread": 4,
+      "workload": "U"
+     }
+    }
+   }
+  }
+ }
+}
