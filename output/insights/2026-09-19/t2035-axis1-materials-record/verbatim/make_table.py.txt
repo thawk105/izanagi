@@ -1,0 +1,24 @@
+import sys
+src = "/work/1/SFC/tanab/dev-wave-jobs/dev-wave-t2035-axis1-materials-record/leaf-table.txt"
+rows = [l.rstrip("\n").split("|") for l in open(src) if "|" in l]
+cat_label = {
+    "A": "A",
+    "B": "B",
+    "C": "C",
+    "D": "D",
+    "E": "E",
+    "F": "F",
+    "G": "G",
+}
+print("| leaf (`AX1-20260902-E1-` と `@openalex` を省略) | 区分 | 検査器 `state` | `reason_code` | `resume_action` | checkpoint | 完了 pass / 期待 pass |")
+print("|---|---|---|---|---|---|---|")
+
+
+def fmt(x):
+    return "—" if x in ("None", "") else f"`{x}`"
+
+
+for r in rows:
+    short, cat, st, rc, ra, cp, cps, cpl, epl = r
+    ck = "—" if cp == "None" else f"`{cp.replace('checkpoints/', '').replace('.json', '')}` (`{cps}`)"
+    print(f"| `{short}` | {cat_label[cat[0]]} | `{st}` | {fmt(rc)} | {fmt(ra)} | {ck} | `{cpl}` / `{epl}` |")

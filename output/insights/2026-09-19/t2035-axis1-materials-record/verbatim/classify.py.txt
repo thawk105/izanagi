@@ -1,0 +1,28 @@
+# 親が worktree root で実行した分類 script の逐語 (stdout を verbatim/leaf-table.txt へ保存)。
+# 入力 = window6 の bundle-check.json (status.leaf_diagnostics の @openalex 78 件)。
+# A/B/C/D/G は検査器の最終状態コードから決まる。E (declared_total_drift の 2 leaf) は検査器では F と
+# 同値 (leaf_page_evidence_missing + resume_action=None) なので、窓 4 記録の逐語に基づき名前で分ける。
+import json
+p="output/insights/2026-09-17/t2035-axis1-openalex-window6/bundle-check.json"
+d=json.load(open(p)); ld=d["status"]["leaf_diagnostics"]
+rows=[]
+for k in sorted(ld):
+    if not k.endswith("@openalex"): continue
+    v=ld[k]
+    short=k.replace("AX1-20260902-E1-","").replace("@openalex","")
+    st=v["state"]; rc=v["reason_code"]; ra=v["resume_action"]; cp=v["checkpoint_path"]; cps=v["checkpoint_state"]
+    if st=="complete": cat="A 材料 complete"
+    elif st=="incomplete_without_complete_pass" and rc=="leaf_page_evidence_missing" and ra=="start_independent_pass": cat="B 材料 停止"
+    elif rc=="distinct_work_id_total_mismatch": cat="C 落ち cond5(非shard)"
+    elif rc=="second_pass_digest_mismatch": cat="D 落ち 2走不一致"
+    elif rc=="leaf_page_evidence_missing" and ra is None and short in ("Q6-SY2014","Q6-SY2015"): cat="E 落ち drift"
+    elif rc=="leaf_page_evidence_missing" and ra is None: cat="F 落ち cond5(pass1)"
+    elif rc=="leaf_not_run": cat="G 未走"
+    else: cat="?"
+    rows.append((short,cat,st,rc,ra,cp,cps,v["completed_passes"],v["expected_passes"]))
+from collections import Counter
+c=Counter(r[1] for r in rows)
+for k in sorted(c): print(k, c[k])
+print("total", len(rows))
+print()
+for r in rows: print("|".join(str(x) for x in r))
