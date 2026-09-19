@@ -210,8 +210,8 @@ policy `orchestrator/campaign/paper_story_b7_fixed5_regression.v2.json` (6 file�
 raw-manifest が SHA-256 で束縛する repo 外の raw cell JSON 6 本 (`--measurement-root` 配下、既定は durable authority の path)。
 
 - median は raw の 5 標本から再計算し certification の `median_tps` と一致を要求する。効果は certification の `effects` を写し、median の比からの
-  再計算と照合する。判定は生成器が作らず、稿 `docs/paper-story/results/2026-09-19-b7-fixed5-three-workload-regression.md` §2.1 の判定を
-  定数として写し、述語 `effect < −floor` (床 = 床値 JSON の `between_run.cv` 全桁、strict) との一致だけを fail-closed で検査する。
+  再計算と照合する。図に出す判定の出所は稿 `docs/paper-story/results/2026-09-19-b7-fixed5-three-workload-regression.md` §2.1 の転記
+  (定数) で、生成器は述語 `effect < −floor` (床 = 床値 JSON の `between_run.cv` 全桁、strict) を転記との整合検査にだけ使う。
 - SHA-256 不一致、schema / study / attempt / cell 順序の不一致、`source_binding_status` ≠ bound、adopted の `src_token` 不整合、
   `correctness.status` ≠ certified、raw の verify 記録の不整合、性能標本が trace-enabled、`unstable`、標本数 ≠ 5、median / 効果 / 判定の不一致、
   床値 JSON の genome / 条件の不一致、caption_source の不在のいずれでも成果物を出さない。
