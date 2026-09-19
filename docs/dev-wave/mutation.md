@@ -36,21 +36,20 @@ equivalent としない。両層変異は kill 期待を必ず事前登録する
 
 ## DW-M06 — hang 変異
 
-hang 変異は `hang_risk` と timeout へ隔離し、timeout を fail-open の証拠とする（F32）。
-dispatch は `hang_timeout_seconds` < job walltime。超過は orphan hold 中止 + 変異残留になる。
+local hangは`hang_risk`と`hang_timeout_seconds`へ隔離、timeoutはfail-open証拠（F32）。
+dispatch短hang値は外側で使わずwalltimeへ委譲。rc=16はkillとせず、既存hold条件時のみhold・変異を残す。
 
 ## DW-M07 — fix 後 anchor
 
-source-repoはD1009の独立clone（main=対象commitに固定）。
-本走前にfix最終commitでspec anchor(old逐語)・期待nodeを再検証。
-mask時の再照準とerratumは`DW-M02`に従い台帳へ。
-本走は`--runner-mode dispatch`既定、runner argvへ`--force-dispatch`。localはspec不問でlogin拒否。
-runner経路変異は収集段`rc=16`。
-`--attempt-out`と`--wrapper-attempt`はdispatch専用の同時指定必須ペア(片方のみ中止)。後者は1以上の整数、
-実走は`--detached`必須。再投入は両方変え、`--resume`は前回sidecarを新pathへ複写(F453。空fileは中止)。
-KILLED期待でnode空のspecは起動前に中止。probeは全件SURVIVEDで登録し観測nodeを集める。
-`--spec`/`--out`/`--attempt-out`はcheckout外必須(repo内rc=2)、`--out`は
-`--scratch-root`と同一device(別deviceはrename失敗)。`timeout_seconds`はdispatch envelope超（不足はqueue timeout・変異残留）。
+source-repoはD1009の独立clone(main=対象commit)。本走前にfix最終commitでold逐語anchor・期待nodeを再検証。
+mask再照準・erratumは`DW-M02`で台帳へ。本走は`--runner-mode dispatch`既定、argvへ`--force-dispatch`。
+localはspec不問でlogin拒否、runner変異は収集`rc=16`。
+`--attempt-out`/`--wrapper-attempt`はdispatch専用必須ペア、後者は正整数。実走は`--detached`。
+再投入は両方変更、`--resume`は前回sidecarを新pathへ複写(空file中止、F453)。
+KILLED期待のnode空は中止。probeは全件SURVIVEDで観測nodeを集める。
+`--spec`/`--out`/`--attempt-out`はcheckout外(rc=2)。outはscratch-rootと同一device(rename条件)。
+dispatch外側実効値=max(spec,前段+queue+walltime+grace+回収+cleanupの予算)。不足は理由付き診断、
+collectionの既存Q+G gateは元specで維持。有限の余裕は任意の遅延を保証しない。
 
 ## DW-M08 — 失敗 node と検出力
 

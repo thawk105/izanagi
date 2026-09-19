@@ -3188,3 +3188,152 @@ def test_unknown_spec_schema_is_rejected(repo: Path) -> None:
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__]))
+
+
+@pytest.fixture
+def timeout_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in (
+        MH._DISPATCH_QUEUE_WAIT_TIMEOUT_OVERRIDE_ENV,
+        MH._DISPATCH_OVERALL_GRACE_OVERRIDE_ENV,
+        "IZANAGI_DISPATCH_WALLTIME_OVERRIDE",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
+@pytest.mark.parametrize(
+    "timeout,overrides,collection,expected",
+    [
+        (1, {}, False, 5130),
+        (10000, {}, False, 10000),
+        (1, {"QUEUE_WAIT_TIMEOUT": "3600", "OVERALL_GRACE": "600"}, False, 8130),
+        (1, {"QUEUE_WAIT_TIMEOUT": "0"}, False, 4230),
+        (1, {"OVERALL_GRACE": "0"}, False, 4830),
+        (1, {"QUEUE_WAIT_TIMEOUT": "0", "OVERALL_GRACE": "0"}, False, 3930),
+        (1, {"WALLTIME": "02:00:00"}, False, 8730),
+        (1, {"WALLTIME": "00:02:00"}, False, 1650),
+        (1, {"WALLTIME": "00:02:00"}, True, 5130),
+        (1, {"WALLTIME": "02:00:00"}, True, 5130),
+        (1, {"WALLTIME": "invalid"}, False, 5130),
+        (1, {"WALLTIME": "00:00:00"}, False, 5130),
+        (1, {"QUEUE_WAIT_TIMEOUT": "invalid"}, False, 5130),
+    ],
+)
+def test_t2484_timeout_budget_arithmetic(
+    timeout_environment, monkeypatch, timeout, overrides, collection, expected,
+) -> None:
+    for name, value in overrides.items():
+        monkeypatch.setenv(f"IZANAGI_DISPATCH_{name}_OVERRIDE", value)
+    spec = MH.MutationSpec((), 1, timeout, 0.25)
+    assert MH._effective_timeout(spec, "dispatch", collection=collection) == expected
+
+
+def test_t2484_timeout_diagnostic_is_nonrejecting(
+    timeout_environment, capsys,
+) -> None:
+    spec = MH.MutationSpec((), 1, 1, 0.25)
+    assert MH._effective_timeout(spec, "dispatch", hang_risk=True) == 5130
+    diagnostic = capsys.readouterr().err
+    for text in ("spec=1", "P=180", "Q=900", "W=3600", "G=300", "A=60", "C=90",
+                 "effective=5130", "厳密上限ではない", "内側 walltime"):
+        assert text in diagnostic
+
+
+@pytest.mark.parametrize(
+    "phase,mode,hang,timeout,overrides,expected",
+    [
+        ("collection", "dispatch", False, 1, {}, 5130),
+        ("baseline", "dispatch", False, 1, {}, 5130),
+        ("mutation", "dispatch", False, 1, {}, 5130),
+        ("mutation", "dispatch", True, 1, {}, 5130),
+        ("collection", "dispatch", False, 10000, {}, 10000),
+        ("baseline", "dispatch", False, 10000, {}, 10000),
+        ("mutation", "dispatch", True, 10000, {}, 10000),
+        ("collection", "dispatch", False, 1, {"WALLTIME": "00:02:00"}, 5130),
+        ("baseline", "dispatch", False, 1, {"WALLTIME": "02:00:00"}, 8730),
+        ("mutation", "dispatch", True, 1, {"WALLTIME": "02:00:00"}, 8730),
+        ("collection", "dispatch", False, 2399,
+         {"QUEUE_WAIT_TIMEOUT": "1800", "OVERALL_GRACE": "600"}, None),
+        ("collection", "dispatch", False, 2400,
+         {"QUEUE_WAIT_TIMEOUT": "1800", "OVERALL_GRACE": "600"}, 6330),
+        ("collection", "local", False, 10, {"WALLTIME": "invalid"}, 10),
+        ("baseline", "local", False, 10, {"QUEUE_WAIT_TIMEOUT": "invalid"}, 10),
+        ("mutation", "local", False, 10, {}, 10),
+        ("mutation", "local", True, 10, {"QUEUE_WAIT_TIMEOUT": "invalid"}, 1),
+        ("baseline", "dispatch", False, 1, {"WALLTIME": "invalid"}, 5130),
+    ],
+)
+def test_t2484_callers_reach_communicate_with_effective_timeout(
+    repo, timeout_environment, monkeypatch, phase, mode, hang, timeout, overrides, expected,
+) -> None:
+    # Only the final process sink is replaced. Real git, guards, injection,
+    # collection gate, timeout helper and _run_tests all remain in the path.
+    for name, value in overrides.items():
+        monkeypatch.setenv(f"IZANAGI_DISPATCH_{name}_OVERRIDE", value)
+    spec_path, _, _, _ = _paths(repo)
+    _single_spec(spec_path)
+    loaded, spec_sha = MH._load_spec(spec_path)
+    mutation = MH.dataclasses.replace(loaded.mutations[0], hang_risk=hang)
+    spec = MH.dataclasses.replace(loaded, mutations=(mutation,), timeout_seconds=timeout)
+    head = MH._repo_head(repo)
+    originals = MH._read_head_sources(repo, head, spec)
+    registration = MH._validate_registrations(repo, spec, originals)
+    seen = []
+    commands = []
+
+    class SinkReached(Exception):
+        pass
+
+    class ProcessSink:
+        def communicate(self, *, timeout):
+            seen.append(timeout)
+            raise SinkReached
+
+        def poll(self):
+            return 0
+
+    real_popen = MH.subprocess.Popen
+
+    def observe_popen(command, *args, **kwargs):
+        if "--timeout-sink" in command:
+            commands.append(command)
+            return ProcessSink()
+        return real_popen(command, *args, **kwargs)
+
+    monkeypatch.setattr(MH.subprocess, "Popen", observe_popen)
+    command = [sys.executable, str(repo / "tools/run_tests.py"), "--timeout-sink", "-rf"]
+    common = dict(spec_sha256=spec_sha, runner_sha256="runner", tool_sha256="tool")
+    with pytest.raises(SinkReached if expected is not None else MH.HarnessError) as caught:
+        if phase == "collection":
+            MH._collect_expected_nodes(repo, spec, command, mode, head=head, **common)
+        elif phase == "baseline":
+            MH._baseline(repo, spec, command, mode, head=head,
+                         registration_sha256="registration", collection_sha256="collection",
+                         **common)
+        else:
+            MH._apply_mutation(repo, head, originals, mutation, spec, command, mode,
+                               registration[mutation.id], collection_sha256="collection",
+                               **common)
+    assert seen == ([] if expected is None else [expected])
+    if expected is None:
+        assert "外側 timeout" in str(caught.value)
+        assert commands == []
+    elif phase == "collection" and mode == "dispatch":
+        assert commands[0][1] == str(repo / "tools/pegasus/dispatch_compute.py")
+        assert "--walltime" not in commands[0]
+    assert (repo / "target.py").read_text(encoding="utf-8") == originals["target.py"]
+
+
+@pytest.mark.parametrize("job_may_remain", [False, True])
+def test_t2484_inband_rc16_preserves_receipt_hold_contract(repo, job_may_remain) -> None:
+    result = {"rc": 16, "timed_out": False, "job_may_remain": job_may_remain}
+    stop = MH._dispatch_orphan_stop(
+        repo, runner_mode="dispatch", phase="mutation", mutation_id="M1",
+        source_state="mutation-left-in-place", dirty_paths=("target.py",), result=result,
+    )
+    hold = MH._dispatch_orphan_hold_path(repo)
+    if job_may_remain:
+        assert isinstance(stop, MH.OrphanHoldStop)
+        assert json.loads(hold.read_text())["reason"] == "dispatch-receipt-job-may-remain"
+    else:
+        assert stop is None
+        assert not hold.exists()

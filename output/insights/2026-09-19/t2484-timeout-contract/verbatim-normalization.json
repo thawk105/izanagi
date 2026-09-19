@@ -1,0 +1,55 @@
+[
+  {
+    "path": "verbatim/consult-luna-result.md",
+    "original_sha256": "1c38b3872a60ea7ae6c2ea8b2dec1f3ad5e7d32b901dbe39edf88f820a9f963f",
+    "original_bytes": 3420,
+    "normalized_sha256": "89e2c1200754aa22b68866360267638e609df5e2505c77121d496ccc901b91b3",
+    "normalized_bytes": 3398,
+    "removed_line_suffix_hex": {
+      "11": "2020",
+      "12": "2020",
+      "13": "2020",
+      "16": "2020",
+      "17": "2020",
+      "18": "2020",
+      "23": "2020",
+      "24": "2020",
+      "29": "2020",
+      "32": "2020",
+      "35": "2020"
+    }
+  },
+  {
+    "path": "verbatim/plan-result.md",
+    "original_sha256": "62aac3ffdd63450c0d730f48d39b4493c8392bc9e922675e2b18165bb3f8886b",
+    "original_bytes": 8296,
+    "normalized_sha256": "709538875b488a5098736e0f26982e5535b21ed00971243dea24c6eb9348319f",
+    "normalized_bytes": 8290,
+    "removed_line_suffix_hex": {
+      "19": "2020",
+      "33": "2020",
+      "36": "2020"
+    }
+  },
+  {
+    "path": "verbatim/review-a-result.md",
+    "original_sha256": "79c989ded391516630d0324853efc461d033e735e5e094efa8854f5340363b3b",
+    "original_bytes": 2154,
+    "normalized_sha256": "77de49ed378ea314ca80b659fd3f4bbf6a9565ebd102522c044d166e4c029b3c",
+    "normalized_bytes": 2152,
+    "removed_line_suffix_hex": {
+      "3": "2020"
+    }
+  },
+  {
+    "path": "verbatim/review-b-result.md",
+    "original_sha256": "40aa35a0473c6cfd1eaf3d6da2c150a99ea1e3f351b8e855d904d21efc5c85e9",
+    "original_bytes": 2253,
+    "normalized_sha256": "93cfbd42e663d54bd713fa16b8f9f421d3191147478e7a7977c21d8863dc12cb",
+    "normalized_bytes": 2249,
+    "removed_line_suffix_hex": {
+      "3": "2020",
+      "21": "2020"
+    }
+  }
+]
