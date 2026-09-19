@@ -4882,3 +4882,5 @@ fold 済み fragment の耐久記録。**`tools/spool_fold.py` だけが追記�
 
 - {"allocations":{},"authored":"2026-09-19","base":"b3a528e5a4950317ac38b34b14ec254f957b150c","content_sha256":"709754991ae4f212487c31245eb51fd0758c155b3e4664474ab97534a756410b","seq":1,"tested_tip":"a4e2522c579bacdb1b6c25d8cb57ef5f112e918f","wave":"codex-dev-wave-t2783-critic-input","wave_ref":"refs/heads/codex-dev-wave-t2783-critic-input"}
 - {"allocations":{"D:k2-explicit-critic-input":"D2155"},"authored":"2026-09-19","base":"b3a528e5a4950317ac38b34b14ec254f957b150c","content_sha256":"772a1feab8c9ce4e247498343fcb5d9d9759ad9af88bcad1d782d43bd008dfe0","seq":1,"tested_tip":"a4e2522c579bacdb1b6c25d8cb57ef5f112e918f","wave":"codex-dev-wave-t2783-critic-input","wave_ref":"refs/heads/codex-dev-wave-t2783-critic-input"}
+
+- {"allocations":{},"authored":"2026-09-19","base":"2ba4000870c63254132410b3002b5298c0c6a210","content_sha256":"8b3f9cce6ef794dc3854570dfe77a0455dcea83a4d46a70e874c4f111005c675","seq":1,"tested_tip":"fd9829fc0d91e5a48eff0bf0a599e497b67f4b6b","wave":"dev-wave-t2484-timeout-contract","wave_ref":"refs/heads/dev-wave-t2484-timeout-contract"}
