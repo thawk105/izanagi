@@ -1,0 +1,24 @@
+{
+ "schema": "izanagi-dev-wave-mutation-spec/v1",
+ "estimated_run_seconds": 240,
+ "timeout_seconds": 4500,
+ "hang_timeout_seconds": 4500,
+ "mutations": [
+  {
+   "id": "w3m1-primary-store-lookup-removed",
+   "category": "negative",
+   "replacements": [
+    {
+     "file": "tools/dev_wave_cleanup.py",
+     "old": "                if store.exists() and _git(\n                        child, \"--git-dir=\" + os.fspath(store), \"cat-file\", \"-e\",\n                        sha + \"^{commit}\").returncode == 0:\n                    continue\n",
+     "new": "                if False:\n                    continue\n"
+    }
+   ],
+   "expected_nodes": [
+    "orchestrator/tests/test_dev_wave_cleanup.py::test_remove_child_checks_initialized_submodule[default-branch-reflog]"
+   ],
+   "expected_status": "KILLED",
+   "hang_risk": false
+  }
+ ]
+}

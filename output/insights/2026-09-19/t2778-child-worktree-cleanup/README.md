@@ -131,7 +131,24 @@ Codex author (子木 branch `codex-t2778-fix5` @ main tip、同じ author 木を
 - 変異 (spec w2 = 再帰呼出しを戻す 1 件、source clone を 951779aa3 に固定、dispatch、`mutation/final-w2.json`): baseline 186 passed (27 秒)、
   w2m1 KILLED (killer `test_remove_child_checks_initialized_submodule[clean]` に完全一致)、rc=0、container 撤去済み。
 - 段 6 の敵対レビュー 2 本は wave-2 では起動していない (差分は 1 行の呼出し削除 + fixture 1 属性で、裁定は §6.1 の親判断、実効性は dogfood と変異で確認)。
-- 受入・land・段 9 の撤去結果 (子木 `remove-child` の正例、wave-2 木) は専用 handoff と wave-2 の worklog entry に記録する。
+- wave-2 の受入 (04:00→04:11、25410 passed / 69 skipped、child-green) → GO → land rc=0、main `c13914d44` (04:14:26)。段 9: wave-2 木 = removed。
+  **子木 = rc=20 backup-precheck「submodule reflog is unreachable from gitlink pin」** (2 巡目の dogfood 赤)。
+
+### 6.3 wave-3 (fix6): submodule reflog の判定に primary store の実在を加える
+
+原因 (`probe-submodule-reflog.sh` + `_head_reflog_shas`): 入れ子 googletest module の HEAD reflog に clone 直後の既定 branch tip (`4267679b`、
+「checkout: moving from <既定> to <pin>」の old 側) が残り pin の祖先でない。上流と primary の同 path の module store に実在 (`cat-file -e` で確認)。
+裁定: reflog sha は「pin 到達 ∨ primary の同 path の module store に実在」で受理、どちらでもない sha (子の store にしか無い local commit、既存 `[reflog]`) は
+拒否のまま。fix6 (`verbatim/s9-fix6.md`、子木 branch `codex-t2778-fix6` @ main c13914d44、commit f619d85a6; launcher の受理は報告文の 1 文字で
+not_accepted だが内容は親が監査): 実装 4 行 + fixture parameter `[default-branch-reflog]`。焦点走 6 (login): 188 passed。実装 commit `f749b9ecf`。
+変異 (spec w3 = store 実在の分岐を外す 1 件): 結果は §6.4。
+
+### 6.4 wave-3 の結果
+
+- 変異 (spec w3、source clone を f749b9ecf に固定、dispatch、`mutation/final-w3.json`): baseline 186 passed (27 秒)、w3m1 KILLED
+  (killer `test_remove_child_checks_initialized_submodule[default-branch-reflog]` に完全一致)、rc=0、container 撤去済み。
+- 敵対レビューは wave-3 でも起動していない (差分は 4 行の条件追加 + fixture 1 parameter、裁定は §6.3 の親判断、実効性は dogfood と変異で確認)。
+- 受入・land・段 9 の撤去結果 (子木 `remove-child` の正例、wave-3 木) は専用 handoff と wave-3 の worklog entry に記録する。
 
 ## 7. scope 外として記録 (起票しない)
 

@@ -1,0 +1,14 @@
+03:36:37 main=baba46bb7ddeb2a928aa40c07dc351d70998549b land_running=0
+03:36:37 remove-child: /work/1/SFC/tanab/izanagi/.codex/worktrees/t2778-author
+03:36:40 remove-child rc=20 out= err=dev-wave-cleanup: status=rejected phase=backup-precheck reason=tracked file has conversion attributes
+03:36:40 cleanup wave: tested_tip=00e57182705ec14ed7113d70428eae7b78d0bd25 landing=00e57182705ec14ed7113d70428eae7b78d0bd25
+03:37:18 cleanup wave rc=0 out=removed err=dev-wave-cleanup: diagnostic=occupancy phase=preflight cwd_permission=1866 cwd_deleted=1 same_uid_cwd_unreachable=[{"comm": "(sd-pam)", "pid": 255148}, {"comm": "sshd", "pid": 3800996}] retry_count=0
+dev-wave-cleanup: diagnostic=occupancy phase=recheck cwd_permission=1864 cwd_deleted=1 same_uid_cwd_
+1
+04:15:19 main=c13914d444f18b233ebc9f40c5a3be16f9b4ca40 land_running=0
+04:15:19 remove-child: /work/1/SFC/tanab/izanagi/.codex/worktrees/t2778-author
+04:15:22 remove-child rc=20 out= err=dev-wave-cleanup: status=rejected phase=backup-precheck reason=submodule reflog is unreachable from gitlink pin
+04:15:22 cleanup wave: tested_tip=86d65761d6bb11055aff5aea6a3ffe68a6a9dc8c landing=86d65761d6bb11055aff5aea6a3ffe68a6a9dc8c
+04:15:58 cleanup wave rc=0 out=removed err=dev-wave-cleanup: diagnostic=occupancy phase=preflight cwd_permission=1840 cwd_deleted=1 same_uid_cwd_unreachable=[{"comm": "(sd-pam)", "pid": 255148}, {"comm": "sshd", "pid": 3800996}] retry_count=0
+dev-wave-cleanup: diagnostic=occupancy phase=recheck cwd_permission=1840 cwd_deleted=1 same_uid_cwd_
+1
